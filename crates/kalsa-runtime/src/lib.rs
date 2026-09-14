@@ -31,6 +31,7 @@ mod candidates;
 mod child;
 mod decide;
 mod extract;
+mod marker;
 mod probe;
 mod store;
 mod verdict;

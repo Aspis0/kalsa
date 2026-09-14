@@ -1,11 +1,13 @@
-//! Where builds live on this machine, and how they get there.
+//! Where builds live on this machine, and what makes them ours.
 //!
 //! One per-user directory holds everything: archives under `archives/`, the
 //! extracted builds under `builds/<backend>/`, the probe's tiny model under
-//! `models/`. An archive is fetched once — a `.sha256` stamp written after a
-//! verified download makes every later start a size check, not a two-second
-//! re-hash of a 645 MB CUDA archive, and a re-hash of an unstamped copy is
-//! the honest way to accept one that arrived by other means.
+//! `models/`. Nothing in that directory is trusted because we put it there
+//! — anything running as the user can write there — so trust is re-earned,
+//! never remembered: an archive is accepted only after its bytes hash to the
+//! promised digest again, and a build directory only after `marker::validate`
+//! finds it is exactly the build these digests describe. Anything else is
+//! re-acquired, never run.
 //!
 //! Another program's cache is consulted for the probe model only, and only
 //! through `kalsa-download`'s read-only `find_local`: we never move, rename
@@ -17,8 +19,8 @@ use std::path::{Path, PathBuf};
 use kalsa_download::{default_roots, download, find_local, DownloadError, Progress};
 use sha2::{Digest, Sha256};
 
-use crate::assets::{self, probe_model, Asset, Platform, ServerBackend};
-use crate::extract;
+use crate::assets::{self, probe_model, ArchiveFormat, Asset, Platform, ServerBackend};
+use crate::{extract, marker};
 
 #[derive(Debug)]
 pub(crate) enum StoreError {
@@ -97,10 +99,10 @@ fn models_dir(root: &Path) -> PathBuf {
     root.join("models")
 }
 
-/// The path of a runnable llama-server for this backend, fetching and
-/// extracting whatever is missing. A build already on disk is used as-is:
-/// it was digest-verified when it arrived, and the probe proves it again
-/// anyway.
+/// The path of a runnable llama-server for this backend — runnable meaning
+/// proven ours, not merely present. What is already on disk is used only
+/// when its marker says it is the build these digests describe and its
+/// executable still hashes to what was proven; anything else is re-acquired.
 pub(crate) fn ensure_backend(
     root: &Path,
     platform: Platform,
@@ -108,32 +110,118 @@ pub(crate) fn ensure_backend(
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StoreError> {
     let dir = builds_dir(root, backend);
-    if let Some(exe) = extract::find_server(&dir) {
-        return Ok(exe);
-    }
     let assets = assets::assets_for(platform, backend);
     if assets.iter().any(|asset| !asset.verified()) {
         return Err(StoreError::Unverified);
     }
+    let runtime: Vec<(&str, &str)> = assets
+        .iter()
+        .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))
+        .collect();
+    let table_exe = assets
+        .iter()
+        .find(|asset| asset.role == assets::Role::Engine)
+        .and_then(|asset| asset.exe_sha256);
+    if let Some(exe) = marker::validate(&dir, &runtime, table_exe) {
+        return Ok(exe);
+    }
+    // Repair: prove the archives again, extract them into staging, and let
+    // the build appear under its own name only once it is whole.
+    let staging = staging_path(&dir);
+    let archives = acquire_all(root, &assets, progress)?;
+    if extract_into(&staging, &archives).is_err() {
+        // The bytes proved wrong after all — rot between the hash and the
+        // extraction, say. Discard them, fetch once more, then give up.
+        for (path, _) in &archives {
+            let _ = std::fs::remove_file(path);
+        }
+        let archives = acquire_all(root, &assets, progress)?;
+        extract_into(&staging, &archives).map_err(StoreError::Io)?;
+    }
+    publish(&staging, &dir, &runtime, table_exe)
+}
+
+/// The staging directory a build is assembled in, beside its final name.
+fn staging_path(dir: &Path) -> PathBuf {
+    dir.with_file_name(format!(
+        "{}.new",
+        dir.file_name().unwrap_or_default().to_string_lossy()
+    ))
+}
+
+/// Every archive of a backend, digest-proven and ready to extract.
+fn acquire_all(
+    root: &Path,
+    assets: &[&'static Asset],
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Vec<(PathBuf, ArchiveFormat)>, StoreError> {
+    let mut archives = Vec::with_capacity(assets.len());
     for asset in assets {
         let archive = ensure_archive(root, asset, progress)?;
         // The probe model is the only row without a format, and it is never
         // extracted; every archive row names its format in the table.
-        let format = asset.format.expect("archive rows name their format");
-        match extract::extract(&archive, format, &dir) {
-            Ok(()) => {}
-            // The stamp stood for bytes that no longer extract — bit rot, a
-            // truncated copy placed by hand. Drop the evidence and fetch the
-            // archive again; a second failure surfaces as an error.
-            Err(_) => {
-                let _ = std::fs::remove_file(&archive);
-                let _ = std::fs::remove_file(stamp_path(&archive));
-                let archive = ensure_archive(root, asset, progress)?;
-                extract::extract(&archive, format, &dir).map_err(StoreError::Io)?;
-            }
+        archives.push((
+            archive,
+            asset.format.expect("archive rows name their format"),
+        ));
+    }
+    Ok(archives)
+}
+
+/// Extracts the archives into `staging`, wiping it first, and wiping it
+/// again on any failure: a half extraction never survives to be mistaken
+/// for a build. Extraction touches only `staging` — never the canonical
+/// directory.
+fn extract_into(staging: &Path, archives: &[(PathBuf, ArchiveFormat)]) -> io::Result<()> {
+    let _ = std::fs::remove_dir_all(staging);
+    let result = (|| {
+        std::fs::create_dir_all(staging)?;
+        for (archive, format) in archives {
+            extract::extract(archive, *format, staging)?;
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(staging);
+    }
+    result
+}
+
+/// Makes `dir` the build assembled in `staging`: hash the executable, record
+/// the provenance, and swap the directory in with one rename. A crash or a
+/// full disk leaves the old state or no state — never a half-published one.
+fn publish(
+    staging: &Path,
+    dir: &Path,
+    runtime: &[(&str, &str)],
+    table_exe: Option<&str>,
+) -> Result<PathBuf, StoreError> {
+    let give_up = |error: io::Error| -> StoreError {
+        let _ = std::fs::remove_dir_all(staging);
+        StoreError::Io(error)
+    };
+    let Some(staged) = extract::find_server(staging) else {
+        let _ = std::fs::remove_dir_all(staging);
+        return Err(StoreError::NoExecutable);
+    };
+    let exe_sha = marker::sha256_file(&staged).map_err(give_up)?;
+    // The table's own exe digest, when filled in, is checked at birth: an
+    // archive that produces a different executable is not the release.
+    if let Some(table) = table_exe {
+        if !exe_sha.eq_ignore_ascii_case(table) {
+            let error = io::Error::other("the extracted executable does not match the release");
+            return Err(give_up(error));
         }
     }
-    extract::find_server(&dir).ok_or(StoreError::NoExecutable)
+    marker::write(staging, runtime, &exe_sha).map_err(give_up)?;
+    if dir.exists() {
+        std::fs::remove_dir_all(dir).map_err(give_up)?;
+    }
+    std::fs::rename(staging, dir).map_err(give_up)?;
+    let relative = staged
+        .strip_prefix(staging)
+        .expect("the exe is inside staging");
+    Ok(dir.join(relative))
 }
 
 /// The path of a tiny model the probe can serve. A few megabytes, so the
@@ -174,8 +262,10 @@ fn ensure_archive(
     acquire(&path, &asset.url(), size, sha, progress)
 }
 
-/// Brings `path` into existence with the promised bytes: accept a stamped or
-/// digest-verified copy already there, download otherwise.
+/// Brings `path` into existence with the promised bytes. A copy already
+/// there is accepted only after its bytes hash to the digest again — trust
+/// is re-earned from content, never remembered from a previous check —
+/// and otherwise it is downloaded.
 fn acquire(
     path: &Path,
     url: &str,
@@ -183,40 +273,11 @@ fn acquire(
     sha: &str,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StoreError> {
-    if stamped(path, size, sha) {
-        return Ok(path.to_path_buf());
-    }
     if file_digest_is(path, size, sha) {
-        write_stamp(path, sha);
         return Ok(path.to_path_buf());
     }
     download(url, path, size, sha, progress).map_err(StoreError::Download)?;
-    write_stamp(path, sha);
     Ok(path.to_path_buf())
-}
-
-/// True when `<path>.sha256` names the same digest and the file still has the
-/// promised length: written only after a verified download, so it stands for
-/// "the digest was proven against these bytes" without re-reading them.
-fn stamped(path: &Path, size: u64, sha: &str) -> bool {
-    let Some(stamp) = std::fs::read_to_string(stamp_path(path)).ok() else {
-        return false;
-    };
-    stamp.trim().eq_ignore_ascii_case(sha)
-        && matches!(std::fs::metadata(path), Ok(meta) if meta.len() == size)
-}
-
-fn write_stamp(path: &Path, sha: &str) {
-    let _ = std::fs::write(stamp_path(path), sha);
-}
-
-fn stamp_path(path: &Path) -> PathBuf {
-    let mut name = path
-        .file_name()
-        .map(|n| n.to_os_string())
-        .unwrap_or_default();
-    name.push(".sha256");
-    path.with_file_name(name)
 }
 
 /// Size first, then the digest: the cheap check decides whether the expensive
@@ -260,15 +321,12 @@ mod tests {
         format!("{:x}", Sha256::digest(bytes))
     }
 
-    /// Acquires `bytes` as a fake archive under `root`, with its real digest.
-    fn acquire_fake(root: &Path, file: &str, bytes: &[u8], stamped: bool) -> PathBuf {
+    /// Places `bytes` as a fake archive under `root`, with its real digest.
+    fn place_archive(root: &Path, file: &str, bytes: &[u8]) -> PathBuf {
         let dir = archives_dir(root);
         std::fs::create_dir_all(&dir).expect("mkdir");
         let path = dir.join(file);
         std::fs::write(&path, bytes).expect("archive");
-        if stamped {
-            write_stamp(&path, &digest_of(bytes));
-        }
         path
     }
 
@@ -287,6 +345,7 @@ mod tests {
             format: Some(assets::ArchiveFormat::Zip),
             size_bytes,
             sha256,
+            exe_sha256: None,
         };
         // Whole-but-empty, and both half-filled shapes: a size without a
         // digest verifies nothing, and neither does the reverse.
@@ -312,12 +371,17 @@ mod tests {
     }
 
     #[test]
-    fn a_stamped_archive_is_accepted_without_a_rehash() {
-        let root = scratch("stamped");
+    fn same_length_tampering_is_refused() {
+        // The one the old stamp certified as fine: change the bytes, keep
+        // the length, leave any record that the file was once good. Content
+        // is re-measured, so this is refused — the file does not come back
+        // as an accepted archive.
+        let root = scratch("tampered");
         let bytes = b"a stand-in for a release archive";
-        let path = acquire_fake(&root, "fake-cpu.zip", bytes, true);
+        let path = place_archive(&root, "fake-cpu.zip", bytes);
         let size = bytes.len() as u64;
         let sha = digest_of(bytes);
+        // Untouched, it is accepted after one honest hash.
         let got = acquire(
             &path,
             "https://unused.invalid/fake.zip",
@@ -325,31 +389,26 @@ mod tests {
             &sha,
             &mut |_| {},
         )
-        .expect("accepted");
+        .expect("the real bytes are the real archive");
         assert_eq!(got, path);
-        // Same stamp, same length, different bytes: the stamp is trusted
-        // here, and the corruption is caught by the extraction that follows,
-        // which discards the archive and fetches it again.
+        // Same length, flipped byte: refused, and the fallback download
+        // cannot even start (the URL is unparsable, so no socket is touched).
         let mut tampered = bytes.to_vec();
         tampered[0] ^= 0xff;
         std::fs::write(&path, tampered).expect("tamper");
-        let got = acquire(
-            &path,
-            "https://unused.invalid/fake.zip",
-            size,
-            &sha,
-            &mut |_| {},
-        )
-        .expect("still stamped");
-        assert_eq!(got, path);
+        let err = acquire(&path, "###not a url", size, &sha, &mut |_| {})
+            .expect_err("same-length tampering is not the archive");
+        assert!(matches!(err, StoreError::Download(_)), "{err}");
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn an_unstamped_copy_is_hashed_once_then_stamped() {
-        let root = scratch("unstamped");
+    fn a_digest_verified_copy_is_accepted_without_a_download() {
+        // Never re-download something already verified: a correct copy that
+        // arrived by other means is accepted after one hash.
+        let root = scratch("copy");
         let bytes = b"another stand-in, placed by hand";
-        let path = acquire_fake(&root, "fake-cpu-2.zip", bytes, false);
+        let path = place_archive(&root, "fake-cpu-2.zip", bytes);
         let size = bytes.len() as u64;
         let sha = digest_of(bytes);
         let got = acquire(
@@ -361,28 +420,76 @@ mod tests {
         )
         .expect("hashed and accepted");
         assert_eq!(got, path);
-        assert!(stamp_path(&path).exists(), "one hash buys a stamp");
-        // A wrong length is refused before the digest is even computed, and
-        // the fallback download cannot even start: the URL is unparsable, so
-        // this test never touches a socket.
-        std::fs::write(&path, b"short").expect("truncate");
-        let err = acquire(&path, "###not a url", size, &sha, &mut |_| {})
-            .expect_err("the length promise is checked first");
-        assert!(matches!(err, StoreError::Download(_)), "{err}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Bytes that are not a zip: extraction of them must fail.
+    const GARBAGE_ZIP_BYTES: &[u8] = b"PK\x03\x04 not really";
+
+    #[test]
+    fn a_failed_extraction_leaves_no_half_built_directory() {
+        let root = scratch("half-built");
+        let dir = builds_dir(&root, ServerBackend::Cpu);
+        let staging = staging_path(&dir);
+        let archives = vec![(
+            place_archive(&root, "garbage.zip", GARBAGE_ZIP_BYTES),
+            assets::ArchiveFormat::Zip,
+        )];
+        let outcome = extract_into(&staging, &archives);
+        assert!(outcome.is_err(), "garbage does not extract");
+        assert!(!dir.exists(), "extraction never touches the build dir");
+        assert!(
+            !staging.exists(),
+            "a failed build must not leave staging behind"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn a_build_already_on_disk_is_used_without_a_download() {
-        let root = scratch("fastpath");
+    fn a_built_directory_appears_complete_with_its_provenance() {
+        let root = scratch("complete");
         let dir = builds_dir(&root, ServerBackend::Cpu);
-        std::fs::create_dir_all(&dir).expect("mkdir");
-        let exe = dir.join("llama-server");
-        std::fs::write(&exe, b"a stand-in binary").expect("exe");
-        let got = ensure_backend(&root, Platform::WindowsX64, ServerBackend::Cpu, &mut |_| {})
-            .expect("an existing build needs nothing fetched");
-        assert_eq!(got, exe);
+        // An old build from another release sits in the way.
+        std::fs::create_dir_all(&dir).expect("old build");
+        std::fs::write(dir.join("llama-server"), b"an old, stale binary").expect("old exe");
+        let bytes = make_fake_zip();
+        let archive = place_archive(&root, "real.zip", &bytes);
+        let sha = digest_of(&bytes);
+        let runtime = [("real.zip", sha.as_str())];
+        let staging = staging_path(&dir);
+        extract_into(&staging, &[(archive, assets::ArchiveFormat::Zip)])
+            .expect("the fake release extracts");
+        let exe = publish(&staging, &dir, &runtime, None).expect("the build is published whole");
+        assert!(exe.is_file());
+        assert!(
+            marker::validate(&dir, &runtime, None).is_some(),
+            "the published build validates"
+        );
+        assert!(
+            !staging.exists(),
+            "staging is gone once the build is complete"
+        );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A miniature release archive: nested dir, the server inside it, exec
+    /// bit set — the real extraction paths run over it.
+    fn make_fake_zip() -> Vec<u8> {
+        use std::io::Write;
+        let path =
+            std::env::temp_dir().join(format!("kalsa-runtime-fakezip-{}", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let file = std::fs::File::create(&path).expect("create");
+        let mut zip = zip::ZipWriter::new(file);
+        let options: zip::write::SimpleFileOptions =
+            zip::write::FileOptions::default().unix_permissions(0o755);
+        zip.add_directory("bin", options).expect("dir");
+        zip.start_file("bin/llama-server", options).expect("entry");
+        zip.write_all(b"a stand-in binary").expect("bytes");
+        zip.finish().expect("finish");
+        let bytes = std::fs::read(&path).expect("read");
+        let _ = std::fs::remove_file(&path);
+        bytes
     }
 
     #[test]

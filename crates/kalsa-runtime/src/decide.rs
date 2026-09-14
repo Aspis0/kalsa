@@ -17,6 +17,8 @@ use kalsa_supervisor::DEFAULT_STOP_GRACE;
 use crate::assets::{Platform, ServerBackend};
 use crate::candidates_for;
 use crate::child::{self, Launch, OsLaunch};
+#[cfg(test)]
+use crate::marker;
 use crate::probe::{self, ProbeParams};
 use crate::store::{self, StoreError};
 use crate::verdict::{self, Verdict};
@@ -216,12 +218,22 @@ mod tests {
         let backend = ServerBackend::Metal;
         let detected = Backend::Metal;
 
+        // The build on disk is proven, not merely present: the marker is
+        // written the way extraction writes it, against this table's digests,
+        // exactly as a previous run of the walk would have left it.
+        let assets = crate::assets::assets_for(platform, backend);
+        let runtime: Vec<(&str, &str)> = assets
+            .iter()
+            .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))
+            .collect();
         let exe = root
             .join("builds")
             .join(backend.name())
             .join("llama-server");
         std::fs::create_dir_all(exe.parent().expect("parent")).expect("mkdirs");
         std::fs::write(&exe, b"a build that was proven long ago").expect("exe");
+        let exe_sha = marker::sha256_file(&exe).expect("hash");
+        marker::write(exe.parent().expect("parent"), &runtime, &exe_sha).expect("marker");
         verdict::save(
             &root,
             &Verdict {
