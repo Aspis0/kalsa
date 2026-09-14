@@ -216,12 +216,27 @@ export async function streamRemoteAssistantTurn(
   let pending = "";
   let timer: ReturnType<typeof setTimeout> | null = null;
 
+  const safeDelta = (chunk: string, full: string) => {
+    try {
+      callbacks.onDelta(chunk, full);
+    } catch {
+      // never wedge the stream on a UI throw
+    }
+  };
+  const safeStatus = (label: string) => {
+    try {
+      callbacks.onStatus?.({ label });
+    } catch {
+      // ignore
+    }
+  };
+
   const flush = () => {
     if (!pending) return;
     const chunk = pending;
     pending = "";
     visible += chunk;
-    callbacks.onDelta(chunk, visible);
+    safeDelta(chunk, visible);
   };
 
   const queue = (text: string) => {
@@ -230,7 +245,11 @@ export async function streamRemoteAssistantTurn(
     if (timer != null) return;
     timer = setTimeout(() => {
       timer = null;
-      flush();
+      try {
+        flush();
+      } catch {
+        // ignore
+      }
     }, flushEveryMs);
   };
 
@@ -243,21 +262,27 @@ export async function streamRemoteAssistantTurn(
     }
     const mine = stillMine();
     if (mine) {
-      flush();
-      const finalVisible = think.finalize(emitted);
-      if (finalVisible !== visible) {
-        visible = finalVisible;
-        callbacks.onDelta("", visible);
-      }
       inFlight = false;
       activeStream = null;
-      if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
     }
-    if (err) callbacks.onError(err);
-    else callbacks.onDone();
+    try {
+      if (mine) {
+        flush();
+        const finalVisible = think.finalize(emitted);
+        if (finalVisible !== visible) {
+          visible = finalVisible;
+          safeDelta("", visible);
+        }
+        if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
+      }
+      if (err) callbacks.onError(err);
+      else callbacks.onDone();
+    } catch {
+      // ownership already released
+    }
   };
 
-  callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+  safeStatus(strings.chat.thinkingStatus);
 
   let streamStarted = false;
   try {
@@ -283,8 +308,11 @@ export async function streamRemoteAssistantTurn(
   streamStarted = true;
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
-      finishOnce(err);
-      resolve();
+      try {
+        finishOnce(err);
+      } finally {
+        resolve();
+      }
     };
     if (!stillMine()) {
       resolve();
@@ -311,14 +339,14 @@ export async function streamRemoteAssistantTurn(
         onDelta: (delta) => {
           if (delta.reasoning && !thinking && !writing) {
             thinking = true;
-            callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+            safeStatus(strings.chat.thinkingStatus);
           }
           if (delta.content) {
             emitted += delta.content;
             const visibleChunk = think.cleanDelta(delta.content);
             if (!writing && visibleChunk) {
               writing = true;
-              callbacks.onStatus?.({ label: strings.chat.writingStatus });
+              safeStatus(strings.chat.writingStatus);
               console.log(
                 "remote.brain.token",
                 JSON.stringify({ n: visibleChunk.length }),

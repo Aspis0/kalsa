@@ -148,4 +148,48 @@ describe("RemoteEngine lifecycle", () => {
     await disposeRemoteEngine();
     await pB;
   });
+
+  test("onDelta throw still settles and clears inFlight", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    streamOpenAiChat.mockImplementation((
+      _req: unknown,
+      handlers: {
+        onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+        onFinish: (f: { kind: string; finishReason: string }) => void;
+      },
+    ) => {
+      queueMicrotask(() => {
+        handlers.onDelta({
+          kind: "delta",
+          content: "hi",
+          reasoning: "",
+          finishReason: null,
+        });
+        handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      });
+      return { requestId: "throw-delta", abort: jest.fn(), xhr: {} };
+    });
+    let done = false;
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => {
+          throw new Error("ui boom");
+        },
+        onDone: () => {
+          done = true;
+        },
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(done).toBe(true);
+    expect(remoteNativeWorkInFlight()).toBe(false);
+  });
 });
