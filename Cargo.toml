@@ -4,6 +4,7 @@ members = [
     "crates/kalsa-catalog",
     "crates/kalsa-download",
     "crates/kalsa-probe",
+    "crates/kalsa-sentinel",
     "crates/kalsa-supervisor",
     "src-tauri",
 ]

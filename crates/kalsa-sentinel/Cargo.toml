@@ -1,0 +1,11 @@
+[package]
+name = "kalsa-sentinel"
+description = "Sustainable throughput inside a thermal budget nobody can read: decay detection, back-off ladder, idle unload"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# No dependencies at all: the sentinel is a pure function of the samples it is
+# given, which is what makes it testable without hardware and honest under
+# review.
+[dependencies]
