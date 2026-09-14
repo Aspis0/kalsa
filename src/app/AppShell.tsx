@@ -140,6 +140,7 @@ import {
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
   setEngineBackendMode,
+  disposeRemoteEngine,
   REMOTE_MAC_MODEL,
   REMOTE_MAC_MODEL_ID,
   type EngineMessage,
@@ -4054,8 +4055,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
-      void setEngineBackendMode("local");
-      setRemoteActive(false);
       if (thermalHardGateRef.current) return;
       if (
         downloadInFlight.current ||
@@ -4129,10 +4128,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           // recovers from) must not hold the FIFO forever and leave the UI stuck
           // on "checking". Emptiness check + enqueue are atomic; on timeout we
           // refuse WITHOUT enqueueing behind the possibly-hung op.
-          const disposeResult = await runNativeOpBounded(
-            () => disposeEngine(),
-            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-          );
+          const wasRemote = isRemoteEngineBackend();
+          const disposeResult = wasRemote
+            ? await disposeRemoteEngine()
+                .then(() => ({ ok: true as const }))
+                .catch(() => ({ ok: false as const }))
+            : await runNativeOpBounded(
+                () => disposeEngine(),
+                MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+              );
+          await setEngineBackendMode("local");
+          setRemoteActive(false);
           if (!disposeResult.ok) {
             console.warn(
               `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
@@ -4167,11 +4173,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
       return;
     }
+    modelSwitchInFlightRef.current = true;
+    engineGenerationRef.current += 1;
     void (async () => {
-      modelSwitchInFlightRef.current = true;
-      engineGenerationRef.current += 1;
       try {
-        if (!isRemoteEngineBackend() && isEngineReady()) {
+        if (isRemoteEngineBackend()) {
+          await disposeRemoteEngine();
+        } else if (isEngineReady()) {
           await runNativeOp(() => disposeEngine());
         }
         await setEngineBackendMode("remote");

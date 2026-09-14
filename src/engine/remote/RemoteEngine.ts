@@ -24,6 +24,8 @@ let ready = false;
 let activeId: string | null = null;
 let inFlight = false;
 let lastRequestId: string | null = null;
+let activeStream: { abort: () => void } | null = null;
+let initGeneration = 0;
 
 function authHeaders(token: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -89,7 +91,11 @@ export async function initRemoteEngine(
   modelId: string,
   options: EngineInitOptions,
 ): Promise<EngineInitResult> {
+  const gen = ++initGeneration;
   const probe = await testRemoteConnection();
+  if (gen !== initGeneration) {
+    throw new Error("stale remote init");
+  }
   if (!probe.ok) {
     ready = false;
     activeId = null;
@@ -106,6 +112,13 @@ export async function initRemoteEngine(
 }
 
 export async function disposeRemoteEngine(): Promise<void> {
+  initGeneration += 1;
+  try {
+    activeStream?.abort();
+  } catch {
+    // ignore
+  }
+  activeStream = null;
   ready = false;
   activeId = null;
   inFlight = false;
@@ -137,6 +150,10 @@ export async function streamRemoteAssistantTurn(
   const strings = getStrings(locale);
   if (!ready) {
     callbacks.onError(new Error(strings.errors.modelNotLoaded));
+    return;
+  }
+  if (inFlight) {
+    callbacks.onError(new Error("remote_brain_busy"));
     return;
   }
   inFlight = true;
@@ -176,6 +193,7 @@ export async function streamRemoteAssistantTurn(
     }
     flush();
     inFlight = false;
+    activeStream = null;
     if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
     if (err) callbacks.onError(err);
     else callbacks.onDone();
@@ -183,6 +201,8 @@ export async function streamRemoteAssistantTurn(
 
   callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
 
+  let streamStarted = false;
+  try {
   const token = await getRemoteBrainToken();
   if (signal?.aborted) {
     const err = new Error(strings.chat.interrupted);
@@ -191,6 +211,7 @@ export async function streamRemoteAssistantTurn(
     finishOnce(err);
     return;
   }
+  streamStarted = true;
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
       finishOnce(err);
@@ -246,12 +267,20 @@ export async function streamRemoteAssistantTurn(
       },
     );
     lastRequestId = handle.requestId;
+    activeStream = handle;
     console.log(
       "remote.brain.stream",
       JSON.stringify({ requestId: lastRequestId, model: activeId }),
     );
     if (signal?.aborted) handle.abort();
   });
+  } catch (err) {
+    if (!closed) {
+      finishOnce(err instanceof Error ? err : new Error(String(err)));
+    }
+  } finally {
+    if (!streamStarted) inFlight = false;
+  }
 }
 
 export async function remoteSaveEngineSession(): Promise<boolean> {
