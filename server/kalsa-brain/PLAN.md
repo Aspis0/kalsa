@@ -55,6 +55,23 @@ failing fan. We reduce thread count or batch size and keep going.
 This has a property temperature does not: it is readable on every OS, with no
 privileges, and it degrades gracefully on hardware we have never seen.
 
+**But it is a sentinel, not an interlock.** The signal is confounded by context
+growth, by other processes, and by throttling that has nothing to do with heat.
+So it never reacts to a single sample: fixed-prompt baseline, rolling window,
+act only on sustained decay, hysteresis and cooldown, then reduce threads and
+batch, and unload if it persists.
+
+Where a platform gives us a real thermal signal for free, we use it as the
+primary input and keep throughput decay as the portable fallback:
+
+- **macOS:** `NSProcessInfo.thermalState` — system thermal state, no privileges,
+  no helper. Not degrees, which is fine: we need a level, not a number.
+- **Windows:** nothing equivalent. The PerfLib `Processor Information` counters
+  (frequency, `% of Maximum Frequency`, `Performance Limit Flags`) are readable
+  without a driver but none is documented as thermal-only, and
+  `MSAcpi_ThermalZoneTemperature` depends on firmware, is sometimes stale, and
+  sometimes denied without elevation. **Never use it as a safety interlock.**
+
 **It must say so out loud.** A silent downgrade is the same defect class as a
 truncated message with no marker: the user is left with a worse result and no
 way to know why.
@@ -230,7 +247,40 @@ The boundary runs through **prompts**, not files: a brief that explains our
 selection criteria while asking for a change to a public file gives the secret
 away regardless of which repository it touches.
 
-## 7. What we are not building
+## 7. Starting point and the flags that matter
+
+**Base: Jan** (Apache-2.0, Tauri already, llama.cpp already, model and server
+lifecycle already). We take the shell and the lifecycle, not the whole UI —
+ours is three pages. Second choice was Lemonade (also Apache-2.0, embeddable,
+actively released) but its focus is AMD hardware, which is the wrong bias for
+old Intel laptops.
+
+**Shell: Tauri.** It uses the system WebView, so the download stays small on
+machines with slow disks and slow links. The cost is real and must be planned
+for: **WebView2 is not guaranteed on old or LTSC Windows 10**, so we ship the
+Evergreen bootstrapper. Signing is not cheaper than Electron on either OS —
+Developer ID plus notarization on macOS, certificate plus SmartScreen on
+Windows.
+
+**Idle unload, verified flag names:**
+
+- `llama-server --sleep-idle-seconds N` — unloads the model *and the KV cache*
+  after N seconds with no work. `/health`, `/props` and `/models` do not count
+  as work and do not reset the timer, which is exactly the behaviour we want
+  from a phone that polls.
+- `OLLAMA_KEEP_ALIVE` (default 5m) is the equivalent if we ever drive ollama.
+
+**Discovery: mDNS/DNS-SD** (`_llm._tcp.local`), with an embedded user-space
+responder rather than asking anyone to install Bonjour — it is not guaranteed
+on Windows. QR code as the fallback for guest networks and blocked multicast,
+carrying host, port and token. Tailscale makes discovery moot when both ends
+have it, but we cannot assume it.
+
+**Open risk, stated plainly:** an OpenAI-compatible endpoint on the LAN with no
+authentication is free access to the user's CPU and models. Pairing must mint a
+credential, and the server must actually check it.
+
+## 7bis. What we are not building
 
 No chat UI on the desktop — the phone is the client.
 No account, no cloud, no telemetry by default.
