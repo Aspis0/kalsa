@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { useLocale } from "../i18n";
@@ -17,6 +17,10 @@ import {
   setRemoteBrainToken,
 } from "../engine/remote/remoteSecret";
 import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
+import {
+  canCommitRemoteSettings,
+  shouldApplyRemoteHydration,
+} from "../engine/remote/remoteSettingsDraft";
 import { isHttpUrl, isNonLoopback } from "../engine/remote/remoteUrl";
 import { GlassPanel2 } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
@@ -41,7 +45,13 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   const [status, setStatus] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
   const [hydratedReady, setHydratedReady] = useState(false);
+  const dirtyRef = useRef(false);
   const active = currentModelId === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend();
+  const fieldsLocked = !hydratedReady;
+
+  const markDirty = useCallback(() => {
+    dirtyRef.current = true;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +64,14 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         } catch {
           stored = null;
         }
-        if (cancelled) return;
+        if (
+          !shouldApplyRemoteHydration({
+            cancelled,
+            dirty: dirtyRef.current,
+          })
+        ) {
+          return;
+        }
         setUrl(hydrated.url);
         setServerModel(hydrated.serverModelId);
         setMaxTokens(String(hydrated.maxTokens));
@@ -69,6 +86,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   }, []);
 
   const persistUrl = useCallback(async (next: string) => {
+    if (!canCommitRemoteSettings(hydratedReady)) return;
     setUrl(next);
     try {
       await setRemoteBrainUrl(next);
@@ -81,14 +99,16 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         ),
       );
     }
-  }, [t]);
+  }, [hydratedReady, t]);
 
   const persistToken = useCallback(async (next: string) => {
+    if (!canCommitRemoteSettings(hydratedReady)) return;
     setToken(next);
     await setRemoteBrainToken(next);
-  }, []);
+  }, [hydratedReady]);
 
   const onTest = useCallback(async () => {
+    if (!canCommitRemoteSettings(hydratedReady)) return;
     setTesting(true);
     setStatus(null);
     try {
@@ -189,8 +209,12 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       </Text>
       <TextInput
         value={url}
-        onChangeText={setUrl}
+        onChangeText={(next) => {
+          markDirty();
+          setUrl(next);
+        }}
         onEndEditing={() => void persistUrl(url)}
+        editable={!fieldsLocked}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
@@ -213,8 +237,12 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       </Text>
       <TextInput
         value={serverModel}
-        onChangeText={setServerModel}
+        onChangeText={(next) => {
+          markDirty();
+          setServerModel(next);
+        }}
         onEndEditing={() => void setRemoteServerModelId(serverModel)}
+        editable={!fieldsLocked}
         autoCapitalize="none"
         autoCorrect={false}
         placeholder={t("settings.remoteBrainModelHint")}
@@ -236,10 +264,14 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       </Text>
       <TextInput
         value={maxTokens}
-        onChangeText={setMaxTokens}
+        onChangeText={(next) => {
+          markDirty();
+          setMaxTokens(next);
+        }}
         onEndEditing={() =>
           void setRemoteMaxTokens(Number.parseInt(maxTokens, 10) || DEFAULT_REMOTE_MAX_TOKENS)
         }
+        editable={!fieldsLocked}
         keyboardType="number-pad"
         style={[
           typography.bodySm,
@@ -263,8 +295,12 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       </Text>
       <TextInput
         value={token}
-        onChangeText={setToken}
+        onChangeText={(next) => {
+          markDirty();
+          setToken(next);
+        }}
         onEndEditing={() => void persistToken(token)}
+        editable={!fieldsLocked}
         autoCapitalize="none"
         autoCorrect={false}
         secureTextEntry
@@ -284,7 +320,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       />
       <Pressable
         onPress={() => void onTest()}
-        disabled={testing}
+        disabled={testing || fieldsLocked}
         style={{
           alignSelf: "flex-start",
           paddingVertical: spacing.xs,
@@ -292,7 +328,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           borderRadius: radius.md,
           borderWidth: 1,
           borderColor: colors.accent,
-          opacity: testing ? 0.6 : 1,
+          opacity: testing || fieldsLocked ? 0.6 : 1,
         }}
       >
         {testing ? (

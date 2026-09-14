@@ -1,0 +1,313 @@
+/**
+ * Component test for the settings-panel data-loss bug.
+ *
+ * Repro: a URL and a token are already stored. The user opens Settings and
+ * presses Test before the async hydration lands. The unhydrated fields are
+ * "" — committing them wrote an empty URL and ran
+ * SecureStore.deleteItemAsync, so the credential was gone for good.
+ *
+ * Storage and the RN primitives are mocked (the app ships no RN test
+ * renderer); the component's own effect, guards and handlers are the real
+ * ones, so this test fails if the hydration guards are removed.
+ */
+jest.mock("react-native", () => {
+  const react = require("react") as typeof import("react");
+  const host = (name: string) => (props: Record<string, unknown>) =>
+    react.createElement(name, props, props.children as React.ReactNode);
+  return {
+    ActivityIndicator: host("ActivityIndicator"),
+    Pressable: host("Pressable"),
+    Text: host("Text"),
+    TextInput: host("TextInput"),
+    View: host("View"),
+  };
+});
+
+jest.mock("../i18n", () => ({
+  useLocale: () => ({
+    t: (key: string, vars?: Record<string, string>) =>
+      vars ? `${key} ${JSON.stringify(vars)}` : key,
+  }),
+}));
+
+jest.mock("../theme/components", () => ({
+  GlassPanel2: (props: Record<string, unknown>) =>
+    require("react").createElement(
+      "GlassPanel2",
+      null,
+      props.children as React.ReactNode,
+    ),
+}));
+
+jest.mock("../theme/tokens", () => ({
+  radius: { md: 8 },
+  spacing: { xs: 4, sm: 8, md: 12, lg: 16 },
+}));
+
+jest.mock("../theme/typography", () => ({
+  fontFamilies: { bodySemi: "semi" },
+  useTypography: () => ({ bodySm: {}, bodyXs: {} }),
+}));
+
+jest.mock("../ui/labTheme", () => ({
+  useLabTheme: () => ({
+    colors: {
+      accent: "#0af",
+      bad: "#f00",
+      ink: "#111",
+      line: "#ccc",
+      muted: "#777",
+      primaryText: "#fff",
+    },
+  }),
+}));
+
+jest.mock("../engine/engineBackend", () => ({
+  testRemoteConnection: jest.fn(),
+}));
+
+jest.mock("../engine/remote/remoteSettings", () => ({
+  DEFAULT_REMOTE_MAX_TOKENS: 4096,
+  hydrateRemoteBrainSettings: jest.fn(),
+  isRemoteEngineBackend: () => false,
+  setRemoteBrainUrl: jest.fn(),
+  setRemoteMaxTokens: jest.fn(),
+  setRemoteServerModelId: jest.fn(),
+}));
+
+jest.mock("../engine/remote/remoteSecret", () => ({
+  getRemoteBrainToken: jest.fn(),
+  setRemoteBrainToken: jest.fn(),
+}));
+
+import React from "react";
+import {
+  act,
+  create,
+  type ReactTestInstance,
+  type ReactTestRenderer,
+} from "react-test-renderer";
+
+import { RemoteBrainSettings } from "./RemoteBrainSettings";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
+  true;
+
+// react-test-renderer logs a deprecation notice on every create(); this project
+// ships no RN-flavoured renderer, so keep the suite output readable.
+beforeAll(() => {
+  const realError = console.error;
+  jest.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    if (
+      typeof args[0] === "string" &&
+      args[0].includes("react-test-renderer is deprecated")
+    ) {
+      return;
+    }
+    realError(...args);
+  });
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
+
+const settingsMock = jest.requireMock("../engine/remote/remoteSettings") as {
+  hydrateRemoteBrainSettings: jest.Mock;
+  setRemoteBrainUrl: jest.Mock;
+  setRemoteMaxTokens: jest.Mock;
+  setRemoteServerModelId: jest.Mock;
+};
+const secretMock = jest.requireMock("../engine/remote/remoteSecret") as {
+  getRemoteBrainToken: jest.Mock;
+  setRemoteBrainToken: jest.Mock;
+};
+const backendMock = jest.requireMock("../engine/engineBackend") as {
+  testRemoteConnection: jest.Mock;
+};
+
+const STORED_URL = "http://192.168.1.50:8000";
+const STORED_TOKEN = "sk-mac-token";
+const STORED_MODEL = "ornith-35b";
+const STORED_SNAPSHOT = {
+  backend: "remote",
+  url: STORED_URL,
+  urlNeverSet: false,
+  hydrationOk: true,
+  urlParseError: null,
+  serverModelId: STORED_MODEL,
+  maxTokens: 2048,
+  temperature: 0.7,
+  ctx: 32768,
+};
+
+type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void };
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+let snapshot!: Deferred<unknown>;
+let tokenRead!: Deferred<string | null>;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  snapshot = deferred<unknown>();
+  tokenRead = deferred<string | null>();
+  settingsMock.hydrateRemoteBrainSettings.mockReturnValue(snapshot.promise);
+  secretMock.getRemoteBrainToken.mockReturnValue(tokenRead.promise);
+  secretMock.setRemoteBrainToken.mockResolvedValue(undefined);
+  settingsMock.setRemoteBrainUrl.mockResolvedValue(undefined);
+  settingsMock.setRemoteMaxTokens.mockResolvedValue(undefined);
+  settingsMock.setRemoteServerModelId.mockResolvedValue(undefined);
+  backendMock.testRemoteConnection.mockResolvedValue({
+    ok: true,
+    modelId: STORED_MODEL,
+  });
+});
+
+/** Host components in the mocked tree carry their tag name as `type`. */
+function hasType(node: ReactTestInstance, type: string): boolean {
+  return (node.type as unknown as string) === type;
+}
+
+function nodesOfType(
+  renderer: ReactTestRenderer,
+  type: string,
+): ReactTestInstance[] {
+  return renderer.root.findAll((node) => hasType(node, type));
+}
+
+function urlInput(renderer: ReactTestRenderer): ReactTestInstance {
+  return node(renderer, (props) => props.keyboardType === "url");
+}
+
+function tokenInput(renderer: ReactTestRenderer): ReactTestInstance {
+  return node(renderer, (props) => props.secureTextEntry === true);
+}
+
+function maxTokensInput(renderer: ReactTestRenderer): ReactTestInstance {
+  return node(renderer, (props) => props.keyboardType === "number-pad");
+}
+
+function modelInput(renderer: ReactTestRenderer): ReactTestInstance {
+  return node(
+    renderer,
+    (props) => props.keyboardType === undefined && !props.secureTextEntry,
+  );
+}
+
+function node(
+  renderer: ReactTestRenderer,
+  match: (props: { [key: string]: any }) => boolean,
+): ReactTestInstance {
+  const found = nodesOfType(renderer, "TextInput").find((instance) =>
+    match(instance.props),
+  );
+  if (!found) throw new Error("input not found");
+  return found;
+}
+
+function testButton(renderer: ReactTestRenderer): ReactTestInstance {
+  const found = nodesOfType(renderer, "Pressable").find((instance) =>
+    instance
+      .findAll((child) => hasType(child, "Text"))
+      .some((label) => label.props.children === "settings.remoteBrainTest"),
+  );
+  if (!found) throw new Error("Test button not found");
+  return found;
+}
+
+async function render(): Promise<ReactTestRenderer> {
+  let renderer!: ReactTestRenderer;
+  await act(async () => {
+    renderer = create(
+      React.createElement(RemoteBrainSettings, {
+        currentModelId: "local-model",
+        busy: false,
+        onSelectModel: jest.fn(),
+      }),
+    );
+  });
+  return renderer;
+}
+
+/** Storage answers: both reads land, hydration completes. */
+async function finishHydration(): Promise<void> {
+  await act(async () => {
+    snapshot.resolve(STORED_SNAPSHOT);
+  });
+  await act(async () => {
+    tokenRead.resolve(STORED_TOKEN);
+  });
+}
+
+async function unmount(renderer: ReactTestRenderer): Promise<void> {
+  await act(async () => {
+    renderer.unmount();
+  });
+}
+
+describe("RemoteBrainSettings hydration", () => {
+  test("Test pressed before hydration ends wipes nothing and calls no storage", async () => {
+    const renderer = await render();
+
+    // Storage is still slow: the draft is empty and the panel is locked.
+    expect(urlInput(renderer).props.value).toBe("");
+    expect(urlInput(renderer).props.editable).toBe(false);
+    expect(tokenInput(renderer).props.editable).toBe(false);
+    expect(modelInput(renderer).props.editable).toBe(false);
+    expect(maxTokensInput(renderer).props.editable).toBe(false);
+    expect(testButton(renderer).props.disabled).toBe(true);
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(settingsMock.setRemoteBrainUrl).not.toHaveBeenCalled();
+    expect(secretMock.setRemoteBrainToken).not.toHaveBeenCalled();
+    expect(backendMock.testRemoteConnection).not.toHaveBeenCalled();
+
+    await finishHydration();
+
+    // The stored credential survived and is on screen.
+    expect(urlInput(renderer).props.value).toBe(STORED_URL);
+    expect(tokenInput(renderer).props.value).toBe(STORED_TOKEN);
+    expect(urlInput(renderer).props.editable).toBe(true);
+    expect(testButton(renderer).props.disabled).toBe(false);
+    await unmount(renderer);
+  });
+
+  test("after hydration, Test persists the stored URL and token", async () => {
+    const renderer = await render();
+    await finishHydration();
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(settingsMock.setRemoteBrainUrl).toHaveBeenCalledWith(STORED_URL);
+    expect(secretMock.setRemoteBrainToken).toHaveBeenCalledWith(STORED_TOKEN);
+    expect(backendMock.testRemoteConnection).toHaveBeenCalledTimes(1);
+    await unmount(renderer);
+  });
+
+  test("a field edited while hydration is in flight is not overwritten", async () => {
+    const renderer = await render();
+
+    // Simulates the type event on the server-model field before storage answers.
+    await act(async () => {
+      modelInput(renderer).props.onChangeText("my-own-model");
+    });
+
+    await finishHydration();
+
+    expect(modelInput(renderer).props.value).toBe("my-own-model");
+    expect(urlInput(renderer).props.value).toBe("");
+    await unmount(renderer);
+  });
+});
