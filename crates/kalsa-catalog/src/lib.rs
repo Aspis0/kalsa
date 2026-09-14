@@ -19,9 +19,11 @@
 //!   model than the one in the user's hand is not proposed as an upgrade, and
 //!   "this computer is not worth it" is a valid answer (`choice`);
 //! * **capability or relief, and it says which** — a recommendation is
-//!   justified either by a meaningfully stronger model or by a comparable
-//!   model moving the work off a phone that is on battery, and the reason
-//!   travels as data the UI branches on, never as a string it parses
+//!   justified either by a meaningfully stronger model, claimed on
+//!   *parameters* within the same shape (dense against dense, MoE against MoE
+//!   on both axes — never across shapes, and never on bytes), or by a
+//!   comparable model moving the work off a phone that is on battery; the
+//!   reason travels as data the UI branches on, never as a string it parses
 //!   (`choice`);
 //! * **say why, with the numbers** — every decision carries a sentence a human
 //!   can check, with the speed as a range, never as a made-up point estimate.
@@ -39,8 +41,8 @@ pub mod manifest;
 pub mod parameters;
 
 pub use choice::{
-    choose, ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, Selection,
-    IMPROVEMENT_RATIO, SAME_CLASS_BAND,
+    capability_claim, choose, ChoiceInput, Decision, Justification, PhoneModel, Refusal,
+    RefusalReason, Selection, IMPROVEMENT_RATIO, SAME_CLASS_BAND,
 };
 pub use footprint::{fits, footprint_bytes, memory_budget, usable_bytes, Footprint, GIB, MemoryBudget};
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported

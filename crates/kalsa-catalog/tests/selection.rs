@@ -4,16 +4,19 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    choose, footprint_bytes, usable_bytes, Backend, ChoiceInput, Decision, Justification,
-    PhoneModel, RefusalReason, GIB, IMPROVEMENT_RATIO,
+    capability_claim, choose, footprint_bytes, usable_bytes, Backend, ChoiceInput, Decision,
+    Justification, Parameters, PhoneModel, RefusalReason, GIB,
 };
 
-/// The default phone model, as the pairing handshake reports it.
+/// The default phone model, as the pairing handshake reports it: a dense 4B
+/// at 2.83 GB.
 const PHONE_BYTES: u64 = 2_834_975_040;
+const PHONE_PARAMS: Parameters = Parameters::dense(4_000_000_000);
 
 fn phone(on_battery: Option<bool>) -> PhoneModel {
     PhoneModel {
         weights_bytes: PHONE_BYTES,
+        parameters: Some(PHONE_PARAMS),
         measured_tokens_per_second: Some(9.0),
         on_battery,
     }
@@ -35,6 +38,13 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
 fn input_with_phone(ram_gib: u64, on_battery: Option<bool>) -> ChoiceInput {
     ChoiceInput {
         phone: Some(phone(on_battery)),
+        ..input(ram_gib, true)
+    }
+}
+
+fn input_with_phone_model(ram_gib: u64, model: PhoneModel) -> ChoiceInput {
+    ChoiceInput {
+        phone: Some(model),
         ..input(ram_gib, true)
     }
 }
@@ -68,16 +78,16 @@ fn refusal(input: &ChoiceInput) -> (RefusalReason, String) {
 
 #[test]
 fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
-    // The premise: nothing that fits clears the improvement bar — the bar sits
-    // above the phone's own class on purpose — so this tier cannot be sold as
-    // an upgrade.
+    // The premise: nothing that fits admits a capability claim against the
+    // phone's reported parameters — the dense row is the phone's own size, and
+    // a MoE is never claimed over a dense phone.
     let usable = usable_bytes(8 * GIB);
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
         if footprint_bytes(entry, 8192).total_bytes() <= usable {
             assert!(
-                (entry.weights_bytes as f64) < PHONE_BYTES as f64 * IMPROVEMENT_RATIO,
-                "{} must be under the capability bar on this tier",
+                !capability_claim(entry.parameters, Some(PHONE_PARAMS)),
+                "{} must not admit a capability claim on this tier",
                 entry.repo
             );
         }
@@ -227,6 +237,54 @@ fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
 }
 
 #[test]
+fn a_moe_that_clears_every_numeric_bar_is_still_relief_against_a_dense_phone() {
+    // A dense 2B phone: Qwen3.6-35B clears the parameter bar on BOTH axes
+    // (total 17.5×, active 1.5×) — and the claim is still refused, because
+    // MoE against dense is a claim across shapes, and no sourced rule turns
+    // one into the other. What fits and clears the numbers is offered, but as
+    // relief, and it says so.
+    let model = PhoneModel {
+        weights_bytes: 2_000_000_000,
+        parameters: Some(Parameters::dense(2_000_000_000)),
+        ..phone(Some(true))
+    };
+    match choose(&input_with_phone_model(32, model)) {
+        Decision::Pick(selection) => {
+            let qwen = kalsa_catalog::CATALOG
+                .iter()
+                .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
+                .expect("the 35B row exists")
+                .parameters;
+            assert!(
+                qwen.total().count() as f64 >= 2_000_000_000.0 * 1.4
+                    && qwen.active().count() as f64 >= 2_000_000_000.0 * 1.4,
+                "the premise is that every numeric bar is cleared"
+            );
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert_eq!(selection.justification, Justification::Relief);
+        }
+        other => panic!("expected a relief pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_phone_without_parameter_counts_is_never_offered_capability() {
+    // The handshake did not say what the phone runs in parameters, so no
+    // claim is invented — the pick carries relief instead, whatever it is.
+    let model = PhoneModel {
+        parameters: None,
+        ..phone(Some(true))
+    };
+    match choose(&input_with_phone_model(16, model)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.justification, Justification::Relief);
+        }
+        other => panic!("expected a relief pick, got {other:?}"),
+    }
+}
+
+#[test]
 fn sixteen_gigabytes_takes_the_largest_dense_model_that_fits() {
     assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
 }
@@ -235,11 +293,14 @@ fn sixteen_gigabytes_takes_the_largest_dense_model_that_fits() {
 fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
     // Both 32 GiB rows fit and are the same class, so the numbers decide:
     // Qwen3.6-35B-A3B reads 3.0B per token, llm-jp-4-32b-a3b-thinking 3.83B.
+    // Against the dense default phone the pick cannot claim capability —
+    // MoE against dense is a claim across shapes — so it is offered as
+    // relief, and says so.
     let input = input(32, true);
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::Capability);
+            assert_eq!(selection.justification, Justification::Relief);
             assert!(selection.decode.0 > 0.0 && selection.decode.1 > selection.decode.0);
             assert!(
                 selection.decode.0 > 20.0,

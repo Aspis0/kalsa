@@ -5,10 +5,11 @@
 //! then size the budget to the path the model will take (a discrete GPU is
 //! budgeted by its own memory, not the machine's), then throw out everything
 //! that does not fit that budget *entirely* — split across GPU and CPU, a
-//! model is slower than on the CPU alone — and only then offer something, for
-//! one of exactly two reasons: capability (meaningfully more model than the
-//! phone's) or relief (a comparable model, because the work moves off a phone
-//! that is on battery).
+//! model is slower than on the CPU alone — and only then offer something, in
+//! the existing size order, from the first candidate that admits an honest
+//! justification: capability (meaningfully more model than the phone's,
+//! claimed on parameters within the same shape) or relief (a comparable model,
+//! because the work moves off a phone that is on battery).
 
 use kalsa_probe::Backend;
 
@@ -16,12 +17,18 @@ use crate::candidate::{candidate, Candidate};
 use crate::footprint::{memory_budget, Footprint, MemoryBudget};
 use crate::licence::Licence;
 use crate::manifest;
+use crate::parameters::Parameters;
 use crate::rationale::{band_text, gib_text, rationale};
 
 /// The phone's model, as the pairing handshake reports it.
 #[derive(Clone, Copy, Debug)]
 pub struct PhoneModel {
     pub weights_bytes: u64,
+    /// The phone model's parameter counts, when the pairing handshake says.
+    /// Capability is claimed against these, never against bytes; when the
+    /// phone has not said, we do not invent it, and nothing is claimed as
+    /// capability.
+    pub parameters: Option<Parameters>,
     /// What the phone measures for itself, when it says. Used to *state* the
     /// comparison, never to invent one.
     pub measured_tokens_per_second: Option<f64>,
@@ -50,13 +57,15 @@ pub struct ChoiceInput {
     pub phone: Option<PhoneModel>,
 }
 
-/// The PC must beat the phone, not match it — and the bar has to sit above the
-/// top of the phone's own class, or that class gets sold back to the user as
-/// an upgrade. Trinity-Nano (3_786_957_088 bytes) against the default phone
-/// model (2_834_975_040) is 1.34×: more of the same, not a new class, and
-/// exactly the pair the relief axis exists for. The bar sits at 1.4 so that a
-/// capability claim means a genuinely different class of model, and anything
-/// weaker has to say it is relief instead.
+/// The PC must beat the phone, not match it. The bar is a proxy, and says so:
+/// what would replace it is the bake-off in `scripts/quality/`, measured on
+/// the user's machine, which the plan names as the arbiter. A constant that
+/// pretends to be a measurement is worse than one that admits it is a
+/// placeholder — the byte version of this bar pretended, and it conflated
+/// quantisation with size and size with shape. It now applies to parameters
+/// only, within the same shape (see [`capability_claim`]); 1.4 carries the
+/// same promise it made on bytes: the top of the phone's own class is not
+/// sold back to the user as an upgrade.
 pub const IMPROVEMENT_RATIO: f64 = 1.4;
 
 /// Below roughly reading speed a model is not usable interactively, whatever its
@@ -72,6 +81,36 @@ pub const MINIMUM_TOKENS_PER_SECOND: f64 = 3.0;
 /// relief candidate is held to the phone's own class rather than allowed to be
 /// a downgrade.
 pub const SAME_CLASS_BAND: f64 = 0.85;
+
+/// The capability rule, on the quantity it was always supposed to compare.
+///
+/// Parameters, not bytes. File size is a proxy that fails in both directions:
+/// the same model at Q8 is twice the bytes of itself at Q4 and not one bit
+/// smarter, and a MoE's bytes say nothing about how much of it a token reads.
+/// Parameters are quantisation-independent, which removes the first confound
+/// outright.
+///
+/// The second confound is not solved but refused. Dense and mixture-of-experts
+/// are different shapes, the rules of thumb for a MoE's "effective" parameter
+/// count are unsourced, and inventing a constant to make a comparison come out
+/// right is how the byte bar got into trouble. So a capability claim across
+/// shapes is never made here; such a candidate falls to relief until a
+/// measured comparison — the bake-off in `scripts/quality/`, on the user's
+/// machine, which the plan names as the arbiter — says otherwise.
+///
+/// Within the same shape, the claim needs the bar cleared on both axes: a MoE
+/// is claimed against a MoE on total and active alike, because the total is
+/// what the model knows and the active is what a token costs.
+pub fn capability_claim(candidate: Parameters, phone: Option<Parameters>) -> bool {
+    let Some(phone) = phone else {
+        return false; // the phone did not say; we do not invent it
+    };
+    if candidate.is_mixture() != phone.is_mixture() {
+        return false; // no cross-shape claim without a measurement
+    }
+    candidate.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO
+        && candidate.active().count() as f64 >= phone.active().count() as f64 * IMPROVEMENT_RATIO
+}
 
 /// Why this machine is being offered a model at all. Data the UI branches on,
 /// not a string it parses: selling a lateral move as an upgrade is the failure
@@ -94,10 +133,11 @@ pub enum RefusalReason {
     PhoneUnknown,
     /// No row in the catalog fits this machine's memory budget.
     NothingFits,
-    /// Nothing that fits wins on either axis: nothing clears the improvement
-    /// bar, and relief is unavailable — the phone is on a charger, has not
-    /// said whether it is on battery, or runs something bigger than anything
-    /// that fits here.
+    /// Nothing that fits wins on either axis: nothing admits a capability
+    /// claim — the phone did not report parameters, the shapes differ, or the
+    /// bar is not cleared — and relief is unavailable: the phone is on a
+    /// charger, has not said whether it is on battery, or runs something
+    /// bigger than anything that fits here.
     NothingBetter,
     /// Everything that fits and would be worth running would be too slow to use.
     NothingFastEnough,
@@ -192,64 +232,23 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         });
     }
 
-    let improving: Vec<&Candidate> = fitting
+    // No justification is worth asking for a crawl: a candidate below reading
+    // speed is neither an upgrade nor relief, so it never reaches the walk.
+    let mut remaining: Vec<&Candidate> = fitting
         .iter()
         .copied()
-        .filter(|candidate| candidate.improves_on(&phone))
+        .filter(|candidate| candidate.decode.0 >= MINIMUM_TOKENS_PER_SECOND)
         .collect();
-    // Relief candidates: the phone's own class or better, whether or not they
-    // clear the improvement bar.
-    let comparable: Vec<&Candidate> = fitting
-        .iter()
-        .copied()
-        .filter(|candidate| {
-            candidate.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
-        })
-        .collect();
-    let fast = |candidate: &&Candidate| candidate.decode.0 >= MINIMUM_TOKENS_PER_SECOND;
-    let on_battery = phone.on_battery == Some(true);
-
-    // Capability first: the existing rule, worth it whatever the battery does.
-    if improving.iter().any(fast) {
-        let usable_speed: Vec<&Candidate> = improving.into_iter().filter(fast).collect();
-        return Decision::Pick(pick(
-            &usable_speed,
-            input,
-            &phone,
-            budget,
-            Justification::Capability,
-        ));
-    }
-
-    // Then relief: a comparable model, but the work moves off the phone. Only
-    // for a phone that IS on battery — on a charger the relief is worth
-    // nothing, and when the phone has not said, we do not invent it.
-    if on_battery && comparable.iter().any(fast) {
-        let usable_speed: Vec<&Candidate> = comparable.into_iter().filter(fast).collect();
-        return Decision::Pick(pick(
-            &usable_speed,
-            input,
-            &phone,
-            budget,
-            Justification::Relief,
-        ));
-    }
-
-    // Refuse, saying which axis failed.
-    let any_candidate = !improving.is_empty() || !comparable.is_empty();
-    let any_fast = improving.iter().chain(comparable.iter()).any(fast);
-    if any_candidate && !any_fast {
-        let fastest = improving
+    if remaining.is_empty() {
+        let fastest = fitting
             .iter()
-            .chain(comparable.iter())
             .map(|candidate| candidate.decode.1)
             .fold(0.0, f64::max);
         return Decision::Refuse(Refusal {
             reason: RefusalReason::NothingFastEnough,
             explanation: format!(
-                "This computer is not worth using: the models that fit and would be worth \
-                 running here would decode at about {} tokens per second, which is slower \
-                 than reading.",
+                "This computer is not worth using: the models that fit would decode at \
+                 about {} tokens per second, which is slower than reading.",
                 band_text((0.0, fastest))
                     .trim_start_matches('0')
                     .trim_start_matches('–')
@@ -257,31 +256,105 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         });
     }
 
-    let explanation = if !any_candidate {
-        format!(
-            "This computer is not worth using: everything that fits is smaller than the \
-             model already on your phone ({}), so the work would move to a weaker model.",
-            gib_text(phone.weights_bytes)
+    // The existing preference, walked until a candidate admits an honest
+    // justification: the biggest that fits, then — among models of the same
+    // class — the one the numbers say decodes fastest. The biggest may admit
+    // nothing (a MoE cannot be claimed over a dense phone on any parameter
+    // count we are willing to invent, and a charger phone admits no relief),
+    // and when it cannot, the walk falls through to what remains rather than
+    // mislabelling the offer or hiding it.
+    let on_battery = phone.on_battery == Some(true);
+    while !remaining.is_empty() {
+        let leader = *remaining
+            .iter()
+            .max_by_key(|candidate| candidate.entry.weights_bytes)
+            .expect("remaining is not empty");
+        let band_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
+        let chosen = *remaining
+            .iter()
+            .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
+            .max_by(|a, b| {
+                a.decode_ceiling()
+                    .partial_cmp(&b.decode_ceiling())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .expect("the leader is in its own class");
+        let justification = if capability_claim(chosen.entry.parameters, phone.parameters) {
+            Justification::Capability
+        } else if on_battery
+            && chosen.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
+        {
+            Justification::Relief
+        } else {
+            remaining.retain(|candidate| !std::ptr::eq(*candidate, chosen));
+            continue;
+        };
+        return Decision::Pick(selection(
+            chosen,
+            input,
+            &phone,
+            budget,
+            justification,
+        ));
+    }
+
+    // Nothing that fits admitted a justification. Say which axis failed.
+    let comparable: Vec<&Candidate> = fitting
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            candidate.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
+        })
+        .collect();
+    let comparable_fast = comparable
+        .iter()
+        .any(|candidate| candidate.decode.0 >= MINIMUM_TOKENS_PER_SECOND);
+    let (reason, explanation) = if comparable.is_empty() {
+        (
+            RefusalReason::NothingBetter,
+            format!(
+                "This computer is not worth using: everything that fits is smaller than the \
+                 model already on your phone ({}), so the work would move to a weaker model.",
+                gib_text(phone.weights_bytes)
+            ),
+        )
+    } else if !comparable_fast {
+        (
+            RefusalReason::NothingFastEnough,
+            format!(
+                "This computer is not worth using: the models that fit and would be worth \
+                 running here would decode at about {} tokens per second, which is slower \
+                 than reading.",
+                band_text((0.0, fastest_ceiling(&comparable)))
+                    .trim_start_matches('0')
+                    .trim_start_matches('–')
+            ),
         )
     } else if phone.on_battery == Some(false) {
-        format!(
-            "This computer is not worth using: everything that fits would be no better than \
-             the model already on your phone ({}), and with the phone on a charger, moving \
-             the work there offers no relief either. Staying on the phone is the honest \
-             answer.",
-            gib_text(phone.weights_bytes)
+        (
+            RefusalReason::NothingBetter,
+            format!(
+                "This computer is not worth using: everything that fits would be no better \
+                 than the model already on your phone ({}), and with the phone on a charger, \
+                 moving the work there offers no relief either. Staying on the phone is the \
+                 honest answer.",
+                gib_text(phone.weights_bytes)
+            ),
         )
     } else {
-        format!(
-            "This computer is not worth using: everything that fits would be no better than \
-             the model already on your phone ({}), and the phone has not said whether it is \
-             on battery — the only other reason to move the work. Staying on the phone is \
-             the honest answer.",
-            gib_text(phone.weights_bytes)
+        (
+            RefusalReason::NothingBetter,
+            format!(
+                "This computer is not worth using: everything that fits would be no better \
+                 than the model already on your phone ({}), and the phone has not said \
+                 whether it is on battery — the only other reason to move the work. Staying \
+                 on the phone is the honest answer.",
+                gib_text(phone.weights_bytes)
+            ),
         )
     };
     Decision::Refuse(Refusal {
-        reason: RefusalReason::NothingBetter,
+        reason,
         explanation,
     })
 }
@@ -291,31 +364,21 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
-/// The biggest that fits, then — among models of the same class — the one the
-/// numbers say decodes fastest. Both axes pick by the same rule.
-fn pick(
-    candidates: &[&Candidate],
+fn fastest_ceiling(candidates: &[&Candidate]) -> f64 {
+    candidates
+        .iter()
+        .map(|candidate| candidate.decode.1)
+        .fold(0.0, f64::max)
+}
+
+/// The numbers and the sentence for the candidate the walk settled on.
+fn selection(
+    chosen: &Candidate,
     input: &ChoiceInput,
     phone: &PhoneModel,
     budget: MemoryBudget,
     justification: Justification,
 ) -> Selection {
-    let leader = *candidates
-        .iter()
-        .max_by_key(|candidate| candidate.entry.weights_bytes)
-        .expect("a non-empty list reaches pick");
-    let band_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
-    let chosen = candidates
-        .iter()
-        .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
-        .max_by(|a, b| {
-            a.decode_ceiling()
-                .partial_cmp(&b.decode_ceiling())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .copied()
-        .unwrap_or(leader);
-
     Selection {
         repo: chosen.entry.repo,
         quant: chosen.entry.quant,
@@ -335,25 +398,56 @@ fn pick(
 mod tests {
     use super::*;
 
-    /// The bar exists to keep the phone's own class from being sold back as an
-    /// upgrade. Trinity-Nano against the default phone model is 1.336× — the
-    /// top of that class — so it must fail the capability check and reach the
-    /// chooser through relief instead, while a genuinely bigger class clears.
     #[test]
-    fn the_bar_sits_above_the_top_of_the_phones_own_class() {
-        let trinity = 3_786_957_088u64;
-        let phone = PhoneModel {
-            weights_bytes: 2_834_975_040,
-            measured_tokens_per_second: None,
-            on_battery: None,
-        };
+    fn quantisation_cannot_fake_a_capability_claim() {
+        // A dense 3.2B model at Q8 is about 3.3 GB on disk: more bytes than a
+        // 4B phone model at Q4, and not one bit more model. The byte bar this
+        // comparison used to use is cleared; the parameter bar refuses.
         assert!(
-            (trinity as f64) < phone.weights_bytes as f64 * IMPROVEMENT_RATIO,
-            "Trinity must be a relief candidate, not a capability claim"
+            3_300_000_000u64 as f64 >= 2_200_000_000u64 as f64 * IMPROVEMENT_RATIO,
+            "the byte bar is cleared, which is exactly what made bytes the wrong quantity"
         );
+        assert!(!capability_claim(
+            Parameters::dense(3_200_000_000),
+            Some(Parameters::dense(4_000_000_000))
+        ));
+    }
+
+    #[test]
+    fn a_moe_never_claims_capability_over_a_dense_phone() {
+        // Trinity-Nano is 6B total: 1.5× the phone's 4B, clearing the bar on
+        // parameters — and the claim is still refused, because MoE against
+        // dense is a claim across shapes, and no sourced rule turns one into
+        // the other. Its 1.34× bytes were the symptom that exposed the wrong
+        // quantity; the shape rule is the fix that survives the next pair.
+        let trinity = Parameters::mixture(6_000_000_000, 1_000_000_000);
+        let phone = Parameters::dense(4_000_000_000);
         assert!(
-            1.1 * trinity as f64 >= phone.weights_bytes as f64 * IMPROVEMENT_RATIO,
-            "a genuinely bigger class still clears the bar"
+            trinity.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO,
+            "the parameter bar is cleared; only the shape rule refuses"
         );
+        assert!(!capability_claim(trinity, Some(phone)));
+    }
+
+    #[test]
+    fn a_phone_that_never_reported_parameters_never_yields_capability() {
+        assert!(!capability_claim(Parameters::dense(12_000_000_000), None));
+    }
+
+    #[test]
+    fn moe_capability_needs_both_axes() {
+        // MoE against MoE is the honest comparison, on total AND active: the
+        // total is what the model knows, the active is what a token costs.
+        let phone = Parameters::mixture(8_000_000_000, 2_000_000_000);
+        assert!(capability_claim(
+            Parameters::mixture(35_000_000_000, 3_000_000_000),
+            Some(phone)
+        ));
+        // The total clears 4×; the active count does not clear the bar, and
+        // the claim goes with it.
+        assert!(!capability_claim(
+            Parameters::mixture(35_000_000_000, 2_500_000_000),
+            Some(phone)
+        ));
     }
 }

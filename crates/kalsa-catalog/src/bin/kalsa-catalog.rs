@@ -6,12 +6,14 @@
 //!
 //! The bandwidth and compute numbers come from `kalsa-probe`; passing them by
 //! hand is how this is used before the app is wired to the probe. `--vram`
-//! models a discrete card (the budget becomes the card's memory), and
-//! `--on-battery`/`--on-charger` say what the pairing handshake would.
+//! models a discrete card (the budget becomes the card's memory),
+//! `--on-battery`/`--on-charger` say what the pairing handshake would, and
+//! `--phone-params` reports the phone's dense parameter count, without which
+//! nothing is claimed as capability.
 
 use kalsa_catalog::{
-    choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision, PhoneModel, GIB,
-    IMPROVEMENT_RATIO,
+    capability_claim, choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision,
+    Parameters, PhoneModel, GIB,
 };
 
 fn main() {
@@ -46,9 +48,16 @@ fn main() {
         input.compute_flops_per_second / 1e9,
         match input.phone {
             Some(phone) => format!(
-                ", phone model {} ({}× the improvement bar)",
+                ", phone model {} ({})",
                 gibs(phone.weights_bytes),
-                (phone.weights_bytes as f64 * IMPROVEMENT_RATIO / phone.weights_bytes as f64)
+                match phone.parameters {
+                    Some(p) => format!(
+                        "{:.1}B/{:.1}B params",
+                        p.total().count() as f64 / 1e9,
+                        p.active().count() as f64 / 1e9
+                    ),
+                    None => "parameters unreported".to_string(),
+                }
             ),
             None => ", phone unknown".to_string(),
         }
@@ -56,29 +65,27 @@ fn main() {
 
     println!();
     println!(
-        "{:<42} {:>10} {:>7} {:>9} {:>10}",
-        "row", "weights", "fits", "improves", "decode"
+        "{:<42} {:>10} {:>7} {:>8} {:>10}",
+        "row", "weights", "fits", "capable", "decode"
     );
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
         let footprint = footprint_bytes(entry, input.context_tokens);
         let fits = footprint.total_bytes() <= budget.usable_bytes;
-        let improves = match input.phone {
-            Some(phone) => {
-                entry.weights_bytes as f64 >= phone.weights_bytes as f64 * IMPROVEMENT_RATIO
-            }
-            None => false,
-        };
+        let capable = input
+            .phone
+            .as_ref()
+            .is_some_and(|phone| capability_claim(entry.parameters, phone.parameters));
         // Speed comes from the ACTIVE weights; the footprint from the total.
         let active_bytes = entry.weights_bytes as f64 * entry.parameters.active().count() as f64
             / entry.parameters.total().count().max(1) as f64;
         let decode = 0.7 * input.bandwidth_bytes_per_second / active_bytes.max(1.0);
         println!(
-            "{:<42} {:>10} {:>7} {:>9} {:>10}",
+            "{:<42} {:>10} {:>7} {:>8} {:>10}",
             entry.repo,
             gibs(entry.weights_bytes),
             yes_no(fits),
-            yes_no(improves),
+            yes_no(capable),
             format!("{decode:.1} tok/s")
         );
     }
@@ -115,6 +122,7 @@ fn configured() -> Result<ChoiceInput, String> {
         context_tokens: 8192,
         phone: Some(PhoneModel {
             weights_bytes: 2_834_975_040,
+            parameters: None,
             measured_tokens_per_second: None,
             on_battery: None,
         }),
@@ -140,14 +148,22 @@ fn configured() -> Result<ChoiceInput, String> {
                 let gb = float(&mut args, &flag)?;
                 let phone = input.phone.take().unwrap_or(PhoneModel {
                     weights_bytes: 0,
+                    parameters: None,
                     measured_tokens_per_second: None,
                     on_battery: None,
                 });
                 input.phone = Some(PhoneModel {
                     weights_bytes: (gb * GIB as f64) as u64,
-                    measured_tokens_per_second: phone.measured_tokens_per_second,
-                    on_battery: phone.on_battery,
+                    ..phone
                 });
+            }
+            "--phone-params" => {
+                // Dense billions, as the handshake would report a dense model;
+                // a MoE phone would report both axes.
+                let billions = float(&mut args, &flag)?;
+                if let Some(phone) = input.phone.as_mut() {
+                    phone.parameters = Some(Parameters::dense((billions * 1e9) as u64));
+                }
             }
             "--phone-tok-s" => {
                 let speed = float(&mut args, &flag)?;
@@ -162,8 +178,8 @@ fn configured() -> Result<ChoiceInput, String> {
                 return Err(format!(
                     "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] \
                      [--gpu-unread] [--bandwidth GB/s] [--gflops GFLOP/s] [--ctx tokens] \
-                     [--phone-gb GiB] [--phone-tok-s N] [--on-battery] [--on-charger] \
-                     [--no-phone]"
+                     [--phone-gb GiB] [--phone-params billions] [--phone-tok-s N] \
+                     [--on-battery] [--on-charger] [--no-phone]"
                 ))
             }
         }

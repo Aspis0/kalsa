@@ -7,7 +7,7 @@
 
 use kalsa_probe::{decode_tokens_per_second, prefill_tokens_per_second, DECODE_EFFICIENCY_BAND};
 
-use crate::choice::{ChoiceInput, PhoneModel, IMPROVEMENT_RATIO, MINIMUM_TOKENS_PER_SECOND};
+use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
 use crate::footprint::{footprint_bytes, Footprint, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
 
@@ -26,12 +26,6 @@ impl Candidate<'_> {
     /// candidate, so this is the same ordering as any other point in it.
     pub(crate) fn decode_ceiling(&self) -> f64 {
         self.decode.1
-    }
-
-    /// Capability is the existing rule: a meaningfully stronger model than the
-    /// phone's, never the phone's own class at a bigger quantisation.
-    pub(crate) fn improves_on(&self, phone: &PhoneModel) -> bool {
-        self.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * IMPROVEMENT_RATIO
     }
 }
 
