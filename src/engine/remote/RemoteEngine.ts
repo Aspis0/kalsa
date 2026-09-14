@@ -8,6 +8,7 @@ import type {
   StreamTurnOptions,
 } from "../LlamaService";
 import { toOpenAiMessages } from "./openaiMessages";
+import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteBrainToken } from "./remoteSecret";
 import {
@@ -242,7 +243,14 @@ export async function streamRemoteAssistantTurn(
       {
         baseUrl: getRemoteBrainUrl(),
         model: getRemoteServerModelId(),
-        messages: toOpenAiMessages(messages),
+        messages: toOpenAiMessages(
+          messages,
+          buildRemoteSystemPrompt({
+            locale,
+            memoryFacts: options.memoryFacts,
+            operativeContext: options.operativeContext,
+          }),
+        ),
         maxTokens: getRemoteMaxTokens(),
         temperature: getRemoteTemperature(),
         token,
