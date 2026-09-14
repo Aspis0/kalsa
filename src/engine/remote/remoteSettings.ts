@@ -1,9 +1,16 @@
 /**
  * Remote-brain prefs. Backend defaults to local (zero regression).
- * URL has no built-in default — the user must set their Mac address.
+ * URL has no built-in default — the user must set their computer's address.
  * Server model-id is required and is never inferred from /v1/models[0].
+ * The default values live in remoteDefaults (pure) and are re-exported here.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  DEFAULT_REMOTE_BRAIN_URL,
+  DEFAULT_REMOTE_CTX,
+  DEFAULT_REMOTE_MAX_TOKENS,
+  DEFAULT_REMOTE_TEMPERATURE,
+} from "./remoteDefaults";
 import { normalizeRemoteUrl } from "./remoteUrl";
 
 export type EngineBackendMode = "local" | "remote";
@@ -15,10 +22,12 @@ export const REMOTE_BRAIN_MAX_TOKENS_KEY = "kalsa.remote-brain.max-tokens";
 export const REMOTE_BRAIN_TEMPERATURE_KEY = "kalsa.remote-brain.temperature";
 export const REMOTE_BRAIN_CTX_KEY = "kalsa.remote-brain.ctx";
 
-export const DEFAULT_REMOTE_BRAIN_URL = "";
-export const DEFAULT_REMOTE_MAX_TOKENS = 4096;
-export const DEFAULT_REMOTE_TEMPERATURE = 0.7;
-export const DEFAULT_REMOTE_CTX = 32768;
+export {
+  DEFAULT_REMOTE_BRAIN_URL,
+  DEFAULT_REMOTE_CTX,
+  DEFAULT_REMOTE_MAX_TOKENS,
+  DEFAULT_REMOTE_TEMPERATURE,
+};
 
 let backendCache: EngineBackendMode = "local";
 let urlCache = DEFAULT_REMOTE_BRAIN_URL;

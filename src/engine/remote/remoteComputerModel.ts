@@ -1,4 +1,5 @@
 import type { ModelInfo } from "../ModelRegistry";
+import { DEFAULT_REMOTE_CTX } from "./remoteDefaults";
 
 /**
  * The remote brain is whatever OpenAI-compatible server the user points the app
@@ -22,8 +23,10 @@ export const REMOTE_COMPUTER_MODEL: ModelInfo = {
   revision: "none",
   file: "",
   sizeBytes: 0,
-  contextLength: 262144,
-  engineCtx: 32768,
+  // The app cannot know the server's window. What it does know is the context
+  // it requests (DEFAULT_REMOTE_CTX), so that is what it promises the user.
+  contextLength: DEFAULT_REMOTE_CTX,
+  engineCtx: DEFAULT_REMOTE_CTX,
   kvCache: { k: "q8_0", v: "q4_0" },
   sizeClass: "other",
   thinking: { short: 1024, extended: 4096, nPredict: 4096 },
