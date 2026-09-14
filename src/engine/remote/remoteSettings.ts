@@ -157,6 +157,8 @@ export type RemoteBrainSnapshot = {
   url: string;
   /** True when REMOTE_BRAIN_URL_KEY was never written (null), not when it is "". */
   urlNeverSet: boolean;
+  hydrationOk: boolean;
+  urlParseError: string | null;
   serverModelId: string;
   maxTokens: number;
   temperature: number;
@@ -187,9 +189,15 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
         AsyncStorage.getItem(REMOTE_BRAIN_CTX_KEY),
       ]);
     const urlNeverSet = urlRaw === null;
+    let urlParseError: string | null = null;
     if (urlRaw) {
       const parsed = normalizeRemoteUrl(urlRaw);
-      urlCache = parsed.ok ? parsed.url : DEFAULT_REMOTE_BRAIN_URL;
+      if (parsed.ok) {
+        urlCache = parsed.url;
+      } else {
+        urlCache = urlRaw.trim();
+        urlParseError = parsed.error;
+      }
     } else {
       urlCache = DEFAULT_REMOTE_BRAIN_URL;
     }
@@ -201,6 +209,8 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
       backend: backendRaw === "remote" ? "remote" : "local",
       url: urlCache,
       urlNeverSet,
+      hydrationOk: true,
+      urlParseError,
       serverModelId: serverModelCache,
       maxTokens: maxTokensCache,
       temperature: temperatureCache,
@@ -216,6 +226,8 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
       backend: "local",
       url: urlCache,
       urlNeverSet: true,
+      hydrationOk: false,
+      urlParseError: null,
       serverModelId: serverModelCache,
       maxTokens: maxTokensCache,
       temperature: temperatureCache,

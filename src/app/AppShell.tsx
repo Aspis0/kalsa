@@ -65,6 +65,10 @@ import {
 } from "../engine/ensureIntent";
 import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
 import {
+  CHAT_MODEL_STORAGE_KEY,
+  decideRemoteBoot,
+} from "../engine/remote/remoteBoot";
+import {
   canEagerInitLocal,
   decideModelIndexProbe,
   shouldNoopLocalSelect,
@@ -154,7 +158,6 @@ import {
   beginBackendSwitch,
   endBackendSwitch,
   hydrateRemoteBrainSettings,
-  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
   setEngineBackendMode,
@@ -367,7 +370,7 @@ type ActiveOverlay =
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
   | null;
 
-const MODEL_STORAGE_KEY = "kalsa.model.id";
+const MODEL_STORAGE_KEY = CHAT_MODEL_STORAGE_KEY;
 const NOTES_CONTEXT_MAX_CHARS = 24_000;
 /**
  * Keep a quick app switch or Files share from forcing a prewarm. Forty-five
@@ -2842,21 +2845,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           mounted && generation === engineGenerationRef.current;
         const hydrated = await hydrateRemoteBrainSettings();
         if (!bootStillCurrent()) return;
-        const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
+        const saved = hydrated.hydrationOk
+          ? await AsyncStorage.getItem(MODEL_STORAGE_KEY)
+          : null;
         if (!bootStillCurrent()) return;
-        if (isOrphanRemoteWithoutUrl(hydrated)) {
-          await recoverLocalBackend();
-          if (!bootStillCurrent()) return;
-          engineIntentRef.current = {
-            modelId: MODEL_REGISTRY[modelIndexRef.current]?.id ?? "",
-            remote: false,
-          };
-          setRemoteActive(false);
-          setModelState("error");
-          setModelErrorKind("engine");
-          setModelError(t("settings.remoteBrainMigratedToLocal"));
-        } else if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
-          if (!bootStillCurrent()) return;
+        const decision = decideRemoteBoot({
+          hydrationOk: hydrated.hydrationOk,
+          backend: hydrated.backend,
+          url: hydrated.url,
+          savedModelId: saved,
+          defaultLocalModelId: getDefaultModel().id,
+          remoteModelId: REMOTE_MAC_MODEL_ID,
+        });
+        if (decision.kind === "remote") {
           engineIntentRef.current = {
             modelId: REMOTE_MAC_MODEL_ID,
             remote: true,
@@ -2864,18 +2865,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           setRemoteActive(true);
           await setEngineBackendMode("remote");
         } else {
-          if (saved) {
-            const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
-            if (savedIndex >= 0 && bootStillCurrent()) {
-              engineIntentRef.current = {
-                modelId: MODEL_REGISTRY[savedIndex].id,
-                remote: false,
-              };
-              setModelIndex(savedIndex);
-            }
+          await recoverLocalBackend();
+          await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+          if (!bootStillCurrent()) return;
+          const localIdx = MODEL_REGISTRY.findIndex(
+            (model) => model.id === decision.persistModelId,
+          );
+          if (localIdx >= 0) {
+            modelIndexRef.current = localIdx;
+            setModelIndex(localIdx);
           }
-          if (bootStillCurrent()) {
-            await setEngineBackendMode("local");
+          engineIntentRef.current = {
+            modelId: decision.persistModelId,
+            remote: false,
+          };
+          setRemoteActive(false);
+          if (decision.reason === "orphan" || decision.reason === "hydration-failed") {
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(t("settings.remoteBrainMigratedToLocal"));
           }
         }
       } catch {
@@ -2884,6 +2892,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         } catch {
           // storage write failed; cache still forced local by the setter
         }
+        engineIntentRef.current = {
+          modelId: getDefaultModel().id,
+          remote: false,
+        };
+        setRemoteActive(false);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, getDefaultModel().id).catch(
+          () => undefined,
+        );
       } finally {
         if (mounted) setPrefsReady(true);
       }
