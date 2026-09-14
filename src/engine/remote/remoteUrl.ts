@@ -90,8 +90,10 @@ export function remoteUrlAllowedInThisBuild(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === "https:") return true;
-    const dev = typeof __DEV__ !== "undefined" && __DEV__;
-    return dev && parsed.protocol === "http:";
+    if (parsed.protocol !== "http:") return false;
+    // Release RN sets __DEV__ false (cleartext blocked). Jest/node leave it unset.
+    const release = typeof __DEV__ !== "undefined" && __DEV__ === false;
+    return isLoopbackHost(parsed.hostname) && !release;
   } catch {
     return false;
   }

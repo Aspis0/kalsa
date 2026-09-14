@@ -115,6 +115,19 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.kind).toBe("interrupted");
   });
 
+  test("finish_reason content_filter is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
   test("finish_reason length is truncated", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
