@@ -174,13 +174,26 @@ acquire_lock() {
   }
   steal_if_stale() {
     [[ -d "$LOCKDIR" ]] || return 1
-    local owner
+    local owner stamp now age
+    local grace=5
     owner="$(cat "$LOCKDIR/pid" 2>/dev/null || true)"
-    if [[ -n "$owner" ]] && kill -0 "$owner" 2>/dev/null; then
+    if [[ -n "$owner" ]]; then
+      if kill -0 "$owner" 2>/dev/null; then
+        return 1
+      fi
+      echo "stale lock (pid ${owner} dead) — stealing ${LOCKDIR}"
+      rm -f "$LOCKDIR/pid"
+      rmdir "$LOCKDIR" 2>/dev/null || true
+      return 0
+    fi
+    # Missing pid: holder is between mkdir and write. Wait unless the dir is old.
+    stamp="$(stat -f %m "$LOCKDIR" 2>/dev/null || stat -c %Y "$LOCKDIR" 2>/dev/null || echo 0)"
+    now="$(date +%s)"
+    age=$((now - stamp))
+    if [[ "$age" -lt "$grace" ]]; then
       return 1
     fi
-    echo "stale lock (pid ${owner:-none} dead) — stealing ${LOCKDIR}"
-    rm -f "$LOCKDIR/pid"
+    echo "stale lock (no pid, age ${age}s) — stealing ${LOCKDIR}"
     rmdir "$LOCKDIR" 2>/dev/null || true
   }
   if take_lock; then
