@@ -40,23 +40,28 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
+  const [hydratedReady, setHydratedReady] = useState(false);
   const active = currentModelId === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend();
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const hydrated = await hydrateRemoteBrainSettings();
-      let stored: string | null = null;
       try {
-        stored = await getRemoteBrainToken();
-      } catch {
-        stored = null;
+        const hydrated = await hydrateRemoteBrainSettings();
+        let stored: string | null = null;
+        try {
+          stored = await getRemoteBrainToken();
+        } catch {
+          stored = null;
+        }
+        if (cancelled) return;
+        setUrl(hydrated.url);
+        setServerModel(hydrated.serverModelId);
+        setMaxTokens(String(hydrated.maxTokens));
+        setToken(stored ?? "");
+      } finally {
+        if (!cancelled) setHydratedReady(true);
       }
-      if (cancelled) return;
-      setUrl(hydrated.url);
-      setServerModel(hydrated.serverModelId);
-      setMaxTokens(String(hydrated.maxTokens));
-      setToken(stored ?? "");
     })();
     return () => {
       cancelled = true;
@@ -140,14 +145,29 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         </Text>
         <Pressable
           onPress={() => {
-            if (!url.trim()) {
-              setStatusOk(false);
-              setStatus(t("settings.remoteBrainUrlMissing"));
-              return;
-            }
-            onSelectModel(REMOTE_MAC_MODEL_ID);
+            void (async () => {
+              if (!hydratedReady) return;
+              try {
+                await setRemoteBrainUrl(url);
+              } catch (err) {
+                setStatusOk(false);
+                setStatus(
+                  humanRemoteBrainError(
+                    err instanceof Error ? err.message : "invalid_url",
+                    t,
+                  ),
+                );
+                return;
+              }
+              if (!url.trim()) {
+                setStatusOk(false);
+                setStatus(t("settings.remoteBrainUrlMissing"));
+                return;
+              }
+              onSelectModel(REMOTE_MAC_MODEL_ID);
+            })();
           }}
-          disabled={busy || active}
+          disabled={busy || active || !hydratedReady}
           style={{
             alignSelf: "flex-start",
             marginTop: spacing.xs,
