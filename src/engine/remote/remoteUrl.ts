@@ -13,6 +13,7 @@ export function redactUrl(url: string): string {
     const parsed = new URL(url);
     parsed.username = "";
     parsed.password = "";
+    parsed.search = "";
     return parsed.toString();
   } catch {
     return "[invalid-url]";
@@ -36,6 +37,9 @@ export function normalizeRemoteUrl(
   parsed.username = "";
   parsed.password = "";
   parsed.hash = "";
+  // A query string can carry a credential (?token=…) and this URL is stored in
+  // plain AsyncStorage, so it never survives normalization.
+  parsed.search = "";
   const href = parsed.toString().replace(/\/+$/, "");
   return { ok: true, url: href };
 }

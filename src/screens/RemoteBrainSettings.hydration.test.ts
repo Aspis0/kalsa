@@ -23,12 +23,13 @@ jest.mock("react-native", () => {
   };
 });
 
-jest.mock("../i18n", () => ({
-  useLocale: () => ({
-    t: (key: string, vars?: Record<string, string>) =>
-      vars ? `${key} ${JSON.stringify(vars)}` : key,
-  }),
-}));
+jest.mock("../i18n", () => {
+  // Production memoizes `t` per locale, so it must not change identity between
+  // renders here either: that is what exposed the stale-callback bug.
+  const t = (key: string, vars?: Record<string, string>) =>
+    vars ? `${key} ${JSON.stringify(vars)}` : key;
+  return { useLocale: () => ({ t }) };
+});
 
 jest.mock("../theme/components", () => ({
   GlassPanel2: (props: Record<string, unknown>) =>
@@ -237,12 +238,15 @@ async function render(): Promise<ReactTestRenderer> {
 }
 
 /** Storage answers: both reads land, hydration completes. */
-async function finishHydration(): Promise<void> {
+async function finishHydration(
+  hydrated: unknown = STORED_SNAPSHOT,
+  token: string | null = STORED_TOKEN,
+): Promise<void> {
   await act(async () => {
-    snapshot.resolve(STORED_SNAPSHOT);
+    snapshot.resolve(hydrated);
   });
   await act(async () => {
-    tokenRead.resolve(STORED_TOKEN);
+    tokenRead.resolve(token);
   });
 }
 
@@ -331,6 +335,78 @@ describe("RemoteBrainSettings hydration", () => {
     expect(settingsMock.setRemoteServerModelId).toHaveBeenCalledWith(
       "my-own-model",
     );
+    await unmount(renderer);
+  });
+
+  test("an unreadable SecureStore token is never committed as empty", async () => {
+    secretMock.getRemoteBrainToken.mockRejectedValue(
+      new Error("keystore unavailable"),
+    );
+    const renderer = await render();
+    await act(async () => {
+      snapshot.resolve(STORED_SNAPSHOT);
+    });
+    await act(async () => {});
+
+    // The form is unlocked, but the token field cannot show what it could not read.
+    expect(urlInput(renderer).props.value).toBe(STORED_URL);
+    expect(testButton(renderer).props.disabled).toBe(false);
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(secretMock.setRemoteBrainToken).not.toHaveBeenCalled();
+    // Fields whose hydration succeeded are still committed.
+    expect(settingsMock.setRemoteBrainUrl).toHaveBeenCalledWith(STORED_URL);
+    expect(settingsMock.setRemoteServerModelId).toHaveBeenCalledWith(
+      STORED_MODEL,
+    );
+    await unmount(renderer);
+  });
+
+  test("Test writes the token typed while its earlier writes are in flight", async () => {
+    const urlWrite = deferred<void>();
+    settingsMock.setRemoteBrainUrl.mockReturnValue(urlWrite.promise);
+    const renderer = await render();
+    await finishHydration(STORED_SNAPSHOT, "");
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+    // The url write is still in flight: the user types the token now.
+    await act(async () => {
+      tokenInput(renderer).props.onChangeText("typed-while-busy");
+    });
+    await act(async () => {
+      urlWrite.resolve();
+    });
+
+    expect(secretMock.setRemoteBrainToken).toHaveBeenCalledWith(
+      "typed-while-busy",
+    );
+    await unmount(renderer);
+  });
+
+  test("a fresh install leaves Test working instead of a silent no-op", async () => {
+    const renderer = await render();
+    // Hydrated values equal the initial ones: only `hydratedReady` changes.
+    await finishHydration(
+      {
+        ...STORED_SNAPSHOT,
+        url: "",
+        urlNeverSet: true,
+        serverModelId: "",
+        maxTokens: 4096,
+      },
+      null,
+    );
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(backendMock.testRemoteConnection).toHaveBeenCalledTimes(1);
     await unmount(renderer);
   });
 });

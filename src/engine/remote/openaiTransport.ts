@@ -160,10 +160,18 @@ export function streamOpenAiChat(
         // must not change lastFinishReason or be delivered.
         if (frozenAfterTerminal) continue;
         if (event.kind === "error") {
+          // The message is whatever the server sent: keep it in logcat, never
+          // turn it into app error text. A hostile or misconfigured server can
+          // quote anything there — URLs, tokens — and this error ends up in the
+          // user's conversation.
+          console.warn(
+            "remote.brain.sse_error",
+            JSON.stringify({ message: event.message ?? "" }),
+          );
           emitFinish({
             kind: "error",
             finishReason: lastFinishReason,
-            error: new Error(event.message || "remote_sse_error"),
+            error: new Error("remote_brain_sse_error"),
           });
           return;
         }

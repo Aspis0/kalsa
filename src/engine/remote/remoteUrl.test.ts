@@ -32,6 +32,15 @@ describe("normalizeRemoteUrl", () => {
     expect(normalizeRemoteUrl("ftp://x").ok).toBe(false);
     expect(normalizeRemoteUrl("not a url").ok).toBe(false);
   });
+
+  test("strips the query string: a credential can hide there and this URL is stored in the clear", () => {
+    const out = normalizeRemoteUrl("https://example.com/v1/?token=SECRET");
+    expect(out.ok).toBe(true);
+    if (out.ok) {
+      expect(out.url).toBe("https://example.com/v1");
+      expect(out.url).not.toContain("SECRET");
+    }
+  });
 });
 
 describe("joinRemoteApiUrl", () => {
@@ -66,6 +75,10 @@ describe("auth policy", () => {
 
   test("redactUrl strips userinfo", () => {
     expect(redactUrl("https://u:p@host/x")).toBe("https://host/x");
+  });
+
+  test("redactUrl strips the query too", () => {
+    expect(redactUrl("https://u:p@host/x?token=SECRET")).toBe("https://host/x");
   });
 
   test("loopback hosts", () => {

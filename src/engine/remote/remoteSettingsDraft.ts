@@ -9,6 +9,25 @@
 
 export type RemoteSettingsField = "url" | "serverModel" | "maxTokens" | "token";
 
+/** Per field: true only when hydration produced the stored value. */
+export type RemoteHydrationResult = Readonly<
+  Partial<Record<RemoteSettingsField, boolean>>
+>;
+
+/**
+ * A field may be written only when hydration produced its stored value or the
+ * user edited it. Writing a field whose hydration FAILED stores a default the
+ * user never chose: for the token that default is "", which SecureStore reads
+ * as "delete the credential".
+ */
+export function canCommitField(input: {
+  field: RemoteSettingsField;
+  hydrated: RemoteHydrationResult;
+  dirty: ReadonlySet<RemoteSettingsField>;
+}): boolean {
+  return input.hydrated[input.field] === true || input.dirty.has(input.field);
+}
+
 export function shouldHydrateField(input: {
   cancelled: boolean;
   dirty: ReadonlySet<RemoteSettingsField>;

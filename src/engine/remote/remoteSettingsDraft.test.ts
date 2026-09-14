@@ -1,4 +1,5 @@
 import {
+  canCommitField,
   canCommitRemoteSettings,
   shouldHydrateField,
   type RemoteSettingsField,
@@ -42,5 +43,34 @@ describe("remote settings draft guards", () => {
     expect(
       shouldHydrateField({ cancelled: true, dirty: dirty(), field: "url" }),
     ).toBe(false);
+  });
+
+  test("a field whose hydration failed is not writable", () => {
+    expect(
+      canCommitField({ field: "token", hydrated: {}, dirty: dirty() }),
+    ).toBe(false);
+    expect(
+      canCommitField({
+        field: "url",
+        hydrated: { url: false },
+        dirty: dirty(),
+      }),
+    ).toBe(false);
+  });
+
+  test("a field the user edited is writable even when its hydration failed", () => {
+    expect(
+      canCommitField({ field: "token", hydrated: {}, dirty: dirty("token") }),
+    ).toBe(true);
+  });
+
+  test("a hydrated field is writable even when untouched", () => {
+    expect(
+      canCommitField({
+        field: "url",
+        hydrated: { url: true },
+        dirty: dirty(),
+      }),
+    ).toBe(true);
   });
 });

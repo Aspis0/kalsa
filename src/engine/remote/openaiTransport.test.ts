@@ -426,7 +426,7 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
   });
 
-  test("error-event frame on HTTP 200 is error", async () => {
+  test("error-event frame on HTTP 200 is error, without echoing the server text", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
     xhr.responseText = 'event: error\ndata: {"error":{"message":"nope"}}\n\n';
@@ -434,7 +434,9 @@ describe("streamOpenAiChat", () => {
     xhr.status = 200;
     xhr.onprogress?.call(xhr);
     expect(finishes[0]?.kind).toBe("error");
-    expect(finishes[0]?.error?.message).toBe("nope");
+    // The payload is server-controlled: it is logged, never surfaced as app text.
+    expect(finishes[0]?.error?.message).toBe("remote_brain_sse_error");
+    expect(finishes[0]?.error?.message).not.toContain("nope");
   });
 
   test("malformed JSON frame is error", async () => {
