@@ -1,0 +1,36 @@
+/* Development-only styles for the states page: a banner that cannot be
+   mistaken for the app, and cards held at the window's real width so line
+   wrapping is reviewed under the same constraints the app has. */
+
+.dev-banner {
+  position: sticky;
+  top: 0;
+  margin: 0 0 24px;
+  padding: 12px 20px;
+  border-bottom: 2px solid var(--warn);
+  background: var(--bg);
+  color: var(--warn);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#cards {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 520px;
+  margin: 0 auto 48px;
+}
+
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.card .panel {
+  padding: 16px 22px 20px;
+  border: 1px solid var(--tab);
+  border-radius: 10px;
+}

@@ -17,30 +17,11 @@
               aria-controls="page-pairing" aria-selected="false" tabindex="-1">Pairing</button>
     </nav>
     <main>
-      <section id="page-status" role="tabpanel" aria-labelledby="tab-status">
-        <p id="status-headline" class="verdict">Not known</p>
-        <p id="status-sentence" class="sentence">
-          Something went wrong reading the assistant's state. Trying again usually works.
-        </p>
-        <p id="status-note" class="note" hidden></p>
-        <button id="status-action" type="button" class="primary">Try again</button>
-      </section>
+      <section id="page-status" role="tabpanel" aria-labelledby="tab-status"></section>
 
-      <section id="page-model" role="tabpanel" aria-labelledby="tab-model" hidden>
-        <h2>Model</h2>
-        <p id="model-headline" class="headline">Nothing chosen yet</p>
-        <p id="model-body" class="sentence">
-          This page will say which model this computer runs for your phone, and why that one.
-        </p>
-        <p id="model-rationale" class="sentence" hidden></p>
-        <button id="model-action" type="button" class="primary" hidden></button>
-      </section>
+      <section id="page-model" role="tabpanel" aria-labelledby="tab-model" hidden></section>
 
-      <section id="page-pairing" role="tabpanel" aria-labelledby="tab-pairing" hidden>
-        <h2>Pairing</h2>
-        <p id="pairing-body" class="sentence"></p>
-        <ol id="pairing-steps" class="steps" hidden></ol>
-      </section>
+      <section id="page-pairing" role="tabpanel" aria-labelledby="tab-pairing" hidden></section>
     </main>
     <script type="module" src="main.js"></script>
   </body>
