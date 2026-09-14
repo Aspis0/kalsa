@@ -65,13 +65,10 @@ export function createStallWatchdog(input: {
       if (gapMs >= input.gapMs) {
         return { stalled: true, reason: "gap", gapMs, tokPerSec };
       }
-      if (
-        tokenAt.length >= MIN_TOKENS_BEFORE_RATE &&
-        gapMs >= MIN_GAP_MS_BEFORE_RATE &&
-        tokPerSec < MIN_DECODE_TOK_PER_SEC
-      ) {
-        return { stalled: true, reason: "rate", gapMs, tokPerSec };
-      }
+      // Rate stall removed: S23 7aabfe8 t1 n_common=5466=embd then
+      // KALSA_STALL reason=rate gapMs=11377 tokens=8 tokPerSec=0.08.
+      // Slow first think tokens after a 5k prefix are not a hang.
+      // True hangs still hit the 45s gap (FOREGROUND_STUCK 15 min).
       return { stalled: false, reason: "gap", gapMs, tokPerSec };
     },
     reset: () => {

@@ -108,39 +108,25 @@ describe("stall watchdog", () => {
     expect(result.tokPerSec).toBeLessThan(MIN_DECODE_TOK_PER_SEC);
   });
 
-  test("stalls on trailing 8 tokens slower than 0.2 tok/s with reason rate", () => {
+  test("does not rate-stall 8 slow think tokens with an 11s gap", () => {
     let now = 10_000;
     const watchdog = createStallWatchdog({
       gapMs: GENERATION_STALL_GAP_MS,
       now: () => now,
     });
 
-    // 20 s/token → 0.05 tok/s. Pathological 0.058 tok/s is the same class.
-    const stepMs = 20_000;
+    // 7aabfe8 t1: tokens=8 gapMs=11377 tokPerSec=0.08 after n_common=5466.
+    const stepMs = 11_377;
     watchdog.noteToken();
-    for (let i = 1; i < MIN_TOKENS_BEFORE_RATE - 1; i += 1) {
+    for (let i = 1; i < MIN_TOKENS_BEFORE_RATE; i += 1) {
       now += stepMs;
       watchdog.noteToken();
     }
-    now += MIN_GAP_MS_BEFORE_RATE;
-    const beforeEnough = watchdog.check();
-    expect(beforeEnough.stalled).toBe(false);
-    expect(beforeEnough.tokPerSec).toBeLessThan(MIN_DECODE_TOK_PER_SEC);
-
-    now += stepMs - MIN_GAP_MS_BEFORE_RATE;
-    watchdog.noteToken();
-    const atArrival = watchdog.check();
-    expect(atArrival.stalled).toBe(false);
-    expect(atArrival.gapMs).toBe(0);
-    expect(atArrival.tokPerSec).toBeCloseTo(1 / 20, 12);
-    expect(atArrival.tokPerSec).toBeLessThan(MIN_DECODE_TOK_PER_SEC);
-
-    now += MIN_GAP_MS_BEFORE_RATE;
+    now += stepMs;
     const result = watchdog.check();
-    expect(result.stalled).toBe(true);
-    expect(result.reason).toBe("rate");
-    expect(result.gapMs).toBe(MIN_GAP_MS_BEFORE_RATE);
-    expect(result.tokPerSec).toBeCloseTo(1 / 20, 12);
+    expect(result.stalled).toBe(false);
+    expect(result.gapMs).toBe(stepMs);
+    expect(result.gapMs).toBeLessThan(GENERATION_STALL_GAP_MS);
   });
 
   test("reset re-arms a fresh round", () => {
