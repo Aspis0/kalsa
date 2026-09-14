@@ -17,6 +17,7 @@ import {
   stickyFinishReason,
   type OpenAiSseEvent,
 } from "./openaiSse";
+import { redactForLog } from "./redactForLog";
 import { canSendAuthorization, remoteUrlGateError } from "./remoteUrl";
 
 export type RemoteChatRequest = {
@@ -161,12 +162,12 @@ export function streamOpenAiChat(
         if (frozenAfterTerminal) continue;
         if (event.kind === "error") {
           // The message is whatever the server sent: keep it in logcat, never
-          // turn it into app error text. A hostile or misconfigured server can
-          // quote anything there — URLs, tokens — and this error ends up in the
-          // user's conversation.
+          // turn it into app error text, and redact it — a hostile or
+          // misconfigured server can quote back a URL with a token in its query,
+          // and logcat is still a place secrets should not land.
           console.warn(
             "remote.brain.sse_error",
-            JSON.stringify({ message: event.message ?? "" }),
+            JSON.stringify({ message: redactForLog(event.message ?? "") }),
           );
           emitFinish({
             kind: "error",

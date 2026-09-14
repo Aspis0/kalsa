@@ -118,7 +118,7 @@ export const it: typeof en = {
     remoteBrainUrlMissing:
       "Inserisci l'indirizzo del tuo computer prima di usare il cervello remoto.",
     remoteBrainMigratedToLocal:
-      "Il cervello remoto ha bisogno di un indirizzo. Resta la modalità locale finché non lo imposti in Impostazioni.",
+      "Il cervello remoto non è stato caricato all'avvio. Resta la modalità locale: scegli di nuovo il tuo computer in Impostazioni.",
     remoteBrainModel: "Id del modello sul tuo computer",
     remoteBrainModelHint: "L'id del modello che offre il tuo computer. Non viene indovinato.",
     remoteBrainMaxTokens: "Max token",

@@ -8,6 +8,7 @@ function applyBoot(store: Record<string, string | undefined>) {
   const urlRaw = store[REMOTE_BRAIN_URL_KEY];
   const decision = decideRemoteBoot({
     hydrationOk: true,
+    hydrationStale: false,
     backend: store[ENGINE_BACKEND_KEY] === "remote" ? "remote" : "local",
     url: urlRaw ?? "",
     savedModelId: store[CHAT_MODEL_STORAGE_KEY] ?? null,
@@ -24,6 +25,26 @@ function applyBoot(store: Record<string, string | undefined>) {
 }
 
 describe("decideRemoteBoot", () => {
+  test("a snapshot a newer hydration replaced never boots remote", () => {
+    // The values in hand were read before the user cleared the address in
+    // Settings: acting on them would switch the backend to remote with an empty
+    // cache URL, and the phone would report a failure that never happened.
+    const decision = decideRemoteBoot({
+      hydrationOk: true,
+      hydrationStale: true,
+      backend: "remote",
+      url: "http://192.168.1.50:8000",
+      savedModelId: REMOTE_COMPUTER_MODEL_ID,
+      defaultLocalModelId: LOCAL_ID,
+      remoteModelId: REMOTE_COMPUTER_MODEL_ID,
+    });
+    expect(decision).toEqual({
+      kind: "local",
+      persistModelId: LOCAL_ID,
+      reason: "stale-hydration",
+    });
+  });
+
   test("the persisted remote model id value is frozen", () => {
     // Renaming the symbol is free; changing this string orphans every install
     // that already selected the remote computer (MODEL_STORAGE_KEY holds it).
@@ -67,6 +88,7 @@ describe("decideRemoteBoot", () => {
   test("hydration failure ignores remote model key", () => {
     const decision = decideRemoteBoot({
       hydrationOk: false,
+      hydrationStale: false,
       backend: "remote",
       url: "https://mac.example.ts.net",
       savedModelId: REMOTE_COMPUTER_MODEL_ID,

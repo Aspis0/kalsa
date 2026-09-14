@@ -165,6 +165,7 @@ import {
   beginBackendSwitch,
   endBackendSwitch,
   hydrateRemoteBrainSettings,
+  isHydrationCurrent,
   isRemoteEngineBackend,
   recoverLocalBackend,
   setEngineBackendMode,
@@ -2861,6 +2862,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (!bootStillCurrent()) return;
         const decision = decideRemoteBoot({
           hydrationOk: hydrated.hydrationOk,
+          // A snapshot a newer hydration replaced is stale evidence: decide on
+          // it and the app can boot remote against a URL that was just cleared.
+          hydrationStale: !isHydrationCurrent(hydrated),
           backend: hydrated.backend,
           url: hydrated.url,
           savedModelId: saved,
@@ -2890,7 +2894,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             remote: false,
           };
           setRemoteActive(false);
-          if (decision.reason === "orphan" || decision.reason === "hydration-failed") {
+          if (
+            decision.reason === "orphan" ||
+            decision.reason === "hydration-failed" ||
+            decision.reason === "stale-hydration"
+          ) {
             setModelState("error");
             setModelErrorKind("engine");
             setModelError(t("settings.remoteBrainMigratedToLocal"));

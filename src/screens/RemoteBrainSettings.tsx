@@ -7,6 +7,7 @@ import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import {
   DEFAULT_REMOTE_MAX_TOKENS,
   hydrateRemoteBrainSettings,
+  isHydrationCurrent,
   isRemoteEngineBackend,
   setRemoteBrainUrl,
   setRemoteMaxTokens,
@@ -20,6 +21,7 @@ import {
   humanRemoteBrainError,
   isInternalErrorCode,
 } from "../engine/remote/remoteBrainErrors";
+import { LatestSave } from "../engine/remote/latestSave";
 import {
   canCommitField,
   canCommitRemoteSettings,
@@ -93,7 +95,10 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           // a credential nobody managed to read.
           tokenRead = false;
         }
-        if (cancelled) return;
+        // A snapshot a newer hydration replaced is obsolete: applying it would
+        // show values that are no longer stored, and mark them as hydrated so a
+        // commit could write them back.
+        if (cancelled || !isHydrationCurrent(hydrated)) return;
         hydratedRef.current = {
           url: hydrated.hydrationOk,
           serverModel: hydrated.hydrationOk,
@@ -159,6 +164,23 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
     [t],
   );
 
+  /**
+   * The token's writes are serialised (see LatestSave): a value typed while a
+   * write is in flight must still end up stored, or the screen and the keystore
+   * disagree with nothing to say so.
+   */
+  const tokenSaveRef = useRef<LatestSave<string> | null>(null);
+  const showWriteFailureRef = useRef(showWriteFailure);
+  showWriteFailureRef.current = showWriteFailure;
+  if (!tokenSaveRef.current) {
+    tokenSaveRef.current = new LatestSave(
+      (value) => setRemoteBrainToken(value),
+      () => draftRef.current.token,
+      (error) => showWriteFailureRef.current(error),
+    );
+  }
+  const tokenSave = tokenSaveRef.current;
+
   const persistUrl = useCallback(async (next: string) => {
     if (!canCommitRemoteSettings(hydratedReady) || !canWrite("url")) return;
     setUrl(next);
@@ -194,13 +216,13 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
 
   const persistToken = useCallback(async (next: string) => {
     if (!canCommitRemoteSettings(hydratedReady) || !canWrite("token")) return;
+    // The draft carries the new value before the save reads it, and the writer
+    // makes sure a token typed while this write is in flight still lands.
+    draftRef.current = { ...draftRef.current, token: next };
     setToken(next);
-    try {
-      await setRemoteBrainToken(next);
-    } catch (err) {
-      showWriteFailure(err);
-    }
-  }, [canWrite, hydratedReady, showWriteFailure]);
+    tokenSave.markEdited();
+    await tokenSave.save();
+  }, [canWrite, hydratedReady, tokenSave]);
 
   const onTest = useCallback(async () => {
     if (!canCommitRemoteSettings(hydratedReady)) return;
@@ -210,7 +232,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       // Credential first, cheapest field last: a partial failure must never
       // lose the token. Each field is read when it is written, so text typed
       // while the earlier writes are in flight still wins.
-      if (canWrite("token")) await setRemoteBrainToken(draftRef.current.token);
+      if (canWrite("token")) await tokenSave.save();
       if (canWrite("url")) await setRemoteBrainUrl(draftRef.current.url);
       if (canWrite("serverModel")) {
         await setRemoteServerModelId(draftRef.current.serverModel);
@@ -236,7 +258,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
     } finally {
       setTesting(false);
     }
-  }, [canWrite, hydratedReady, showWriteFailure, t]);
+  }, [canWrite, hydratedReady, showWriteFailure, t, tokenSave]);
 
   return (
     <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
@@ -392,6 +414,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         value={token}
         onChangeText={(next) => {
           markDirty("token");
+          tokenSave.markEdited();
           setToken(next);
         }}
         onEndEditing={() => void persistToken(token)}

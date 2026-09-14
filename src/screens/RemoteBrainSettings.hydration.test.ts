@@ -70,6 +70,9 @@ jest.mock("../engine/engineBackend", () => ({
 jest.mock("../engine/remote/remoteSettings", () => ({
   DEFAULT_REMOTE_MAX_TOKENS: 4096,
   hydrateRemoteBrainSettings: jest.fn(),
+  // The screen refuses to apply a snapshot a newer hydration replaced; these
+  // tests are about a single hydration, which is by definition the current one.
+  isHydrationCurrent: () => true,
   isRemoteEngineBackend: () => false,
   setRemoteBrainUrl: jest.fn(),
   setRemoteMaxTokens: jest.fn(),
@@ -502,6 +505,33 @@ describe("RemoteBrainSettings hydration", () => {
       await unmount(renderer);
     },
   );
+
+  test("a token typed while the token write is in flight is stored too", async () => {
+    const firstWrite = deferred<void>();
+    secretMock.setRemoteBrainToken.mockReturnValueOnce(firstWrite.promise);
+    const renderer = await render();
+    await finishHydration(STORED_SNAPSHOT, STORED_TOKEN);
+
+    // Test commits the token it can see...
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+    // ...the user keeps typing while that write is on its way...
+    await act(async () => {
+      tokenInput(renderer).props.onChangeText("typed-while-saving");
+    });
+    await act(async () => {
+      firstWrite.resolve();
+    });
+
+    // ...and the store ends up holding what the screen shows. Otherwise the
+    // keystore and the field disagree and nothing says so.
+    const written = secretMock.setRemoteBrainToken.mock.calls.map(
+      (call) => call[0],
+    );
+    expect(written[written.length - 1]).toBe("typed-while-saving");
+    await unmount(renderer);
+  });
 
   test("a fresh install leaves Test working instead of a silent no-op", async () => {
     const renderer = await render();

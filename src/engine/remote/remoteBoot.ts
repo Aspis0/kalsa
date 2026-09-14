@@ -11,11 +11,19 @@ export type RemoteBootDecision =
   | {
       kind: "local";
       persistModelId: string;
-      reason: "orphan" | "hydration-failed" | "saved-local";
+      reason: "orphan" | "hydration-failed" | "stale-hydration" | "saved-local";
     };
 
 export function decideRemoteBoot(input: {
   hydrationOk: boolean;
+  /**
+   * True when a newer hydration replaced this snapshot while the boot was
+   * waiting (the user changed something in Settings, say). The values in hand
+   * are then known to be obsolete, so the boot must not act on them: booting
+   * remote on a snapshot whose URL was just cleared is exactly the false error
+   * this guards against.
+   */
+  hydrationStale: boolean;
   backend: EngineBackendMode;
   url: string;
   savedModelId: string | null;
@@ -23,11 +31,11 @@ export function decideRemoteBoot(input: {
   remoteModelId: string;
 }): RemoteBootDecision {
   const urlReady = input.url.trim().length > 0;
-  if (!input.hydrationOk) {
+  if (!input.hydrationOk || input.hydrationStale) {
     return {
       kind: "local",
       persistModelId: input.defaultLocalModelId,
-      reason: "hydration-failed",
+      reason: input.hydrationStale ? "stale-hydration" : "hydration-failed",
     };
   }
   const savedWantsRemote = input.savedModelId === input.remoteModelId;

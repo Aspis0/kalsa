@@ -439,6 +439,23 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).not.toContain("nope");
   });
 
+  test("the logged server message is redacted, the diagnosis is kept", async () => {
+    const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'event: error\ndata: {"error":{"message":"bad key, see https://host/v1?token=SECRET"}}\n\n';
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    const logged = warned.mock.calls.flat().join(" ");
+    expect(logged).toContain("bad key");
+    expect(logged).not.toContain("SECRET");
+    expect(logged).toContain("https://host/v1");
+    warned.mockRestore();
+  });
+
   test("malformed JSON frame is error", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);

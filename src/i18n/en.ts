@@ -119,7 +119,7 @@ export const en = {
     remoteBrainUrlMissing:
       "Enter your computer's address before using the remote brain.",
     remoteBrainMigratedToLocal:
-      "The remote brain needs an address. Local mode is on until you set it in Settings.",
+      "The remote brain was not loaded at startup. Local mode is on — pick your computer again in Settings.",
     remoteBrainModel: "Model id on your computer",
     remoteBrainModelHint: "The model id your computer offers. Not guessed.",
     remoteBrainMaxTokens: "Max tokens",

@@ -1,4 +1,5 @@
 const store: Record<string, string> = {};
+let setItemFails = false;
 let hydrateHold: Promise<void> | null = null;
 let hydrateHoldStarted: (() => void) | null = null;
 
@@ -12,6 +13,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
     return value;
   },
   setItem: async (key: string, value: string) => {
+    if (setItemFails) throw new Error("disk full");
     store[key] = value;
   },
 }));
@@ -24,6 +26,8 @@ import {
   getRemoteBrainUrl,
   getRemoteServerModelId,
   hydrateRemoteBrainSettings,
+  isHydrationCurrent,
+  setRemoteBrainUrl,
   isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
@@ -56,6 +60,7 @@ describe("validateServedModel", () => {
 
 describe("backend cache writes", () => {
   beforeEach(async () => {
+    setItemFails = false;
     hydrateHold = null;
     hydrateHoldStarted = null;
     for (const key of Object.keys(store)) delete store[key];
@@ -173,5 +178,55 @@ describe("backend cache writes", () => {
       await recoverLocalBackend();
     }
     expect(isRemoteEngineBackend()).toBe(false);
+  });
+});
+
+describe("a write the disk refused", () => {
+  beforeEach(() => {
+    setItemFails = false;
+  });
+
+  test("does not leave the cache holding a value storage does not have", async () => {
+    setItemFails = false;
+    await setRemoteBrainUrl("http://192.168.1.50:8000");
+    expect(getRemoteBrainUrl()).toBe("http://192.168.1.50:8000");
+
+    setItemFails = true;
+    await expect(setRemoteBrainUrl("http://192.168.1.99:8000")).rejects.toThrow(
+      "disk full",
+    );
+    // The running process must not work with a value the next start cannot see.
+    expect(getRemoteBrainUrl()).toBe("http://192.168.1.50:8000");
+    setItemFails = false;
+  });
+});
+
+describe("hydration snapshots", () => {
+  test("a snapshot a newer hydration replaced is not current", async () => {
+    setItemFails = false;
+    store[REMOTE_BRAIN_URL_KEY] = "http://old:8000";
+    let release!: () => void;
+    let started!: () => void;
+    const startedP = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    hydrateHoldStarted = started;
+    hydrateHold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const older = hydrateRemoteBrainSettings();
+    await startedP;
+    // Settings saves a change while the boot read is still in flight.
+    store[REMOTE_BRAIN_URL_KEY] = "http://new:8000";
+    hydrateHold = null;
+    const newer = await hydrateRemoteBrainSettings();
+    release();
+    const olderSnapshot = await older;
+
+    // The boot must be able to tell that its snapshot is obsolete: acting on it
+    // would switch the backend to remote with a URL the user just cleared.
+    expect(isHydrationCurrent(newer)).toBe(true);
+    expect(isHydrationCurrent(olderSnapshot)).toBe(false);
+    expect(getRemoteBrainUrl()).toBe("http://new:8000");
   });
 });

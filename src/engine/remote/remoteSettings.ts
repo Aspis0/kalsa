@@ -116,6 +116,26 @@ function parseTemperature(raw: string | null, fallback: number): number {
   return Number.isFinite(n) && n >= 0 && n <= 2 ? n : fallback;
 }
 
+/**
+ * Cache-first write: the cache keeps the new value only if the disk took it.
+ * Otherwise the running process works with a value the next start does not have,
+ * and nothing says so.
+ */
+async function commit<T>(
+  previous: T,
+  next: T,
+  assign: (value: T) => void,
+  write: (value: T) => Promise<void>,
+): Promise<void> {
+  assign(next);
+  try {
+    await write(next);
+  } catch (error) {
+    assign(previous);
+    throw error;
+  }
+}
+
 export async function setEngineBackendMode(
   mode: EngineBackendMode,
 ): Promise<void> {
@@ -123,48 +143,52 @@ export async function setEngineBackendMode(
   if (backendWriteIntent != null && backendWriteIntent !== next) {
     return;
   }
-  backendCache = next;
-  await AsyncStorage.setItem(ENGINE_BACKEND_KEY, backendCache);
+  await commit(backendCache, next, (value) => {
+    backendCache = value;
+  }, (value) => AsyncStorage.setItem(ENGINE_BACKEND_KEY, value));
 }
 
 export async function setRemoteBrainUrl(url: string): Promise<void> {
   const trimmed = url.trim();
-  if (!trimmed) {
-    urlCache = "";
-    await AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, "");
-    return;
-  }
-  urlCache = normalizeUrl(trimmed);
-  await AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, urlCache);
+  const next = trimmed ? normalizeUrl(trimmed) : "";
+  await commit(urlCache, next, (value) => {
+    urlCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, value));
 }
 
 export async function setRemoteServerModelId(id: string): Promise<void> {
-  serverModelCache = id.trim();
-  await AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, serverModelCache);
+  await commit(serverModelCache, id.trim(), (value) => {
+    serverModelCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, value));
 }
 
 export async function setRemoteMaxTokens(n: number): Promise<void> {
-  maxTokensCache =
+  const next =
     Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_REMOTE_MAX_TOKENS;
-  await AsyncStorage.setItem(REMOTE_BRAIN_MAX_TOKENS_KEY, String(maxTokensCache));
+  await commit(maxTokensCache, next, (value) => {
+    maxTokensCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MAX_TOKENS_KEY, String(value)));
 }
 
 export async function setRemoteTemperature(n: number): Promise<void> {
-  temperatureCache =
+  const next =
     Number.isFinite(n) && n >= 0 && n <= 2 ? n : DEFAULT_REMOTE_TEMPERATURE;
-  await AsyncStorage.setItem(
-    REMOTE_BRAIN_TEMPERATURE_KEY,
-    String(temperatureCache),
-  );
+  await commit(temperatureCache, next, (value) => {
+    temperatureCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_TEMPERATURE_KEY, String(value)));
 }
 
 export async function setRemoteContextSize(n: number): Promise<void> {
-  ctxCache = Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_REMOTE_CTX;
-  await AsyncStorage.setItem(REMOTE_BRAIN_CTX_KEY, String(ctxCache));
+  const next = Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_REMOTE_CTX;
+  await commit(ctxCache, next, (value) => {
+    ctxCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_CTX_KEY, String(value)));
 }
 
 export type RemoteBrainSnapshot = {
   backend: EngineBackendMode;
+  /** The hydration call this snapshot came from; see isHydrationCurrent. */
+  hydrationSeq: number;
   url: string;
   /** True when REMOTE_BRAIN_URL_KEY was never written (null), not when it is "". */
   urlNeverSet: boolean;
@@ -175,6 +199,15 @@ export type RemoteBrainSnapshot = {
   temperature: number;
   ctx: number;
 };
+
+/**
+ * False once a newer hydration has run: the snapshot in hand was read before
+ * something changed the stored settings, so its values are obsolete and must not
+ * steer a decision (nor be displayed as current).
+ */
+export function isHydrationCurrent(snapshot: { hydrationSeq: number }): boolean {
+  return snapshot.hydrationSeq === hydrationSeq;
+}
 
 /** Persisted remote with no URL key: upgrade trap. Do not revive loopback. */
 export function isOrphanRemoteWithoutUrl(snap: {
@@ -228,6 +261,7 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
     }
     return {
       backend: backendRaw === "remote" ? "remote" : "local",
+      hydrationSeq: seq,
       url,
       urlNeverSet,
       hydrationOk: true,
@@ -247,6 +281,7 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
     }
     return {
       backend: "local",
+      hydrationSeq: seq,
       url: DEFAULT_REMOTE_BRAIN_URL,
       urlNeverSet: true,
       hydrationOk: false,
