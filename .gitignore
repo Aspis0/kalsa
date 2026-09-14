@@ -109,3 +109,10 @@ results/quality/
 # Local Expo modules ship their native sources (the blanket android/ rule above must not swallow them)
 !modules/*/android/
 !modules/*/android/**
+
+# ...but their Gradle output is not a native source. The negation above
+# re-includes everything under modules/*/android/, build/ included, which is how
+# an agent's `git add -A` nearly committed two build trees.
+modules/*/android/build/
+modules/*/android/.cxx/
+modules/*/android/.gradle/
