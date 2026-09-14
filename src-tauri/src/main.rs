@@ -1,10 +1,12 @@
-//! The app shell: one screen, one switch.
+//! The app shell: three pages — status, model, pairing — and the commands
+//! they read.
 //!
 //! All supervision lives in `kalsa-supervisor`; this file only resolves where
 //! the server binary and the model are, and maps the supervisor's state onto
-//! commands the webview can call. Model selection and download are later pages:
-//! reading them from the environment keeps this skeleton from inventing a
-//! catalog that would compete with the app's own.
+//! commands the webview can call. Model choice and download live in
+//! `kalsa-catalog` and `kalsa-download`; until their commands exist, the web
+//! shell renders unknown states from `src/data/placeholders.js` rather than
+//! inventing answers here.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -46,7 +48,7 @@ impl Brain {
     fn config(&self, state_file: PathBuf) -> Result<ServerConfig, String> {
         let model = std::env::var(MODEL_ENV)
             .map(PathBuf::from)
-            .map_err(|_| format!("no model selected yet ({MODEL_ENV} is not set)"))?;
+            .map_err(|_| "No model is set up on this computer yet.".to_string())?;
         Ok(ServerConfig {
             exe: server_binary(),
             model,
@@ -109,6 +111,23 @@ fn brain_state(brain: State<Brain>) -> StateDto {
     brain.supervisor.state().into()
 }
 
+/// Whether a model is configured at all — a fact, read from the environment,
+/// so the Model page can say "nothing set up yet" instead of inventing an
+/// entry. Which model and why are `kalsa-catalog`'s answer and will arrive as
+/// their own command; a filename never crosses this boundary, because the
+/// user has no use for one.
+#[derive(Serialize)]
+struct ModelDto {
+    chosen: bool,
+}
+
+#[tauri::command]
+fn brain_model() -> ModelDto {
+    ModelDto {
+        chosen: std::env::var(MODEL_ENV).is_ok(),
+    }
+}
+
 /// Returns at once: the handshake runs on the supervisor thread and the screen
 /// follows the state, so a slow model load never freezes the window.
 #[tauri::command]
@@ -138,6 +157,7 @@ fn main() {
         .manage(Brain::new())
         .invoke_handler(tauri::generate_handler![
             brain_state,
+            brain_model,
             brain_start,
             brain_stop
         ])

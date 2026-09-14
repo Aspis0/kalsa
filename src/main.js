@@ -1,69 +1,48 @@
-// One screen, one switch. Everything it knows comes from the supervisor's
-// state: the webview never decides whether the server is up.
+// The shell: three pages and the tab bar between them. Status is the front
+// page; there is no other navigation in the app.
 
-const status = document.getElementById("status");
-const detail = document.getElementById("detail");
-const toggle = document.getElementById("toggle");
+import { initStatus } from "./pages/status.js";
+import { initModel } from "./pages/model.js";
+import { initPairing } from "./pages/pairing.js";
 
-const POLL_MS = 1000;
+const tabs = Array.from(document.querySelectorAll("nav[role='tablist'] button"));
 
-function render(state) {
-  switch (state.kind) {
-    case "stopped":
-      status.textContent = "Off";
-      detail.textContent = "";
-      toggle.textContent = "Turn on";
-      toggle.disabled = false;
-      break;
-    case "starting":
-      status.textContent = "Starting…";
-      detail.textContent = "Loading the model. This can take a minute on an old computer.";
-      toggle.textContent = "Starting…";
-      toggle.disabled = true;
-      break;
-    case "running":
-      status.textContent = "On";
-      detail.textContent = `Listening on 127.0.0.1:${state.port}`;
-      toggle.textContent = "Turn off";
-      toggle.disabled = false;
-      break;
-    case "failed":
-      status.textContent = "Stopped";
-      detail.textContent = state.reason;
-      toggle.textContent = "Try again";
-      toggle.disabled = false;
-      break;
-    default:
-      status.textContent = "Unknown";
-      detail.textContent = "";
-      toggle.disabled = true;
+function select(name, moveFocus = false) {
+  for (const tab of tabs) {
+    const on = tab.dataset.page === name;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    document.getElementById(tab.dataset.page).hidden = !on;
+    if (on && moveFocus) tab.focus();
   }
 }
 
-async function refresh() {
-  try {
-    render(await window.__TAURI__.core.invoke("brain_state"));
-  } catch (error) {
-    status.textContent = "Unknown";
-    detail.textContent = String(error);
-  }
+function goTo(name) {
+  if (tabs.some((tab) => tab.dataset.page === name)) select(name);
 }
 
-toggle.addEventListener("click", async () => {
-  toggle.disabled = true;
-  try {
-    const state = await window.__TAURI__.core.invoke("brain_state");
-    if (state.kind === "running" || state.kind === "starting") {
-      await window.__TAURI__.core.invoke("brain_stop");
-    } else {
-      await window.__TAURI__.core.invoke("brain_start");
-    }
-  } catch (error) {
-    status.textContent = "Stopped";
-    detail.textContent = String(error);
+// Arrow keys move both selection and focus, as the tabs pattern expects: on a
+// machine with a broken trackpad, the tab bar is reachable with arrows alone.
+document.querySelector("nav").addEventListener("keydown", (event) => {
+  const names = tabs.map((tab) => tab.dataset.page);
+  const at = names.indexOf(document.activeElement?.dataset?.page);
+  if (at === -1) return;
+  let next = null;
+  if (event.key === "ArrowRight") next = names[(at + 1) % names.length];
+  if (event.key === "ArrowLeft") next = names[(at - 1 + names.length) % names.length];
+  if (event.key === "Home") next = names[0];
+  if (event.key === "End") next = names[names.length - 1];
+  if (next) {
+    event.preventDefault();
+    select(next, true);
   }
-  await refresh();
 });
 
-refresh();
-setInterval(refresh, POLL_MS);
+for (const tab of tabs) {
+  tab.addEventListener("click", () => select(tab.dataset.page));
+}
+
+initStatus(goTo);
+initModel();
+initPairing();
+select("status");
