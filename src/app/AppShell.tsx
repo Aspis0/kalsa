@@ -2647,6 +2647,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
   const [remoteActive, setRemoteActive] = useState(false);
+  const [prefsReady, setPrefsReady] = useState(false);
   const [modelState, setModelState] = useState<ModelState>("checking");
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
@@ -2821,14 +2822,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
           setRemoteActive(true);
           await setEngineBackendMode("remote");
-          return;
-        }
-        if (saved) {
+        } else if (saved) {
           const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
           if (savedIndex >= 0) setModelIndex(savedIndex);
         }
       } catch {
         // keep default local model
+      } finally {
+        if (mounted) setPrefsReady(true);
       }
     })();
     // M1: detect orphaned model folders left by a catalog prune (no UI delete
@@ -3639,6 +3640,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // one-shot per process+generation (claimEagerKick). Effect deps stay
   // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
   useEffect(() => {
+    if (!prefsReady) return;
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
@@ -3675,7 +3677,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelIndex]);
+  }, [modelIndex, prefsReady]);
 
   useEffect(() => {
     if (!remoteActive) return;

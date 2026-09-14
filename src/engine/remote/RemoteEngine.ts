@@ -90,6 +90,10 @@ export async function initRemoteEngine(
   }
   ready = true;
   activeId = probe.modelId || modelId || REMOTE_MAC_MODEL_ID;
+  console.log(
+    "remote.brain.init",
+    JSON.stringify({ ok: true, modelId: activeId, url: getRemoteBrainUrl() }),
+  );
   return { effectiveNCtx: 32768 };
 }
 
@@ -172,37 +176,51 @@ export async function streamRemoteAssistantTurn(
   callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
 
   const token = await getRemoteBrainToken();
-  const handle = streamOpenAiChat(
-    {
-      baseUrl: getRemoteBrainUrl(),
-      model: activeId || DEFAULT_REMOTE_MODEL_ID,
-      messages: toOpenAiMessages(messages),
-      maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
-      temperature: DEFAULT_REMOTE_TEMPERATURE,
-      token,
-      signal,
-    },
-    {
-      onDelta: (delta) => {
-        if (delta.reasoning && !thinking) {
-          thinking = true;
-          callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
-        }
-        if (delta.content) {
-          if (!writing) {
-            writing = true;
-            callbacks.onStatus?.({ label: strings.chat.writingStatus });
-          }
-          emitted += delta.content;
-          queue(delta.content);
-        }
+  await new Promise<void>((resolve) => {
+    const settle = (err?: Error) => {
+      finishOnce(err);
+      resolve();
+    };
+    const handle = streamOpenAiChat(
+      {
+        baseUrl: getRemoteBrainUrl(),
+        model: activeId || DEFAULT_REMOTE_MODEL_ID,
+        messages: toOpenAiMessages(messages),
+        maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+        temperature: DEFAULT_REMOTE_TEMPERATURE,
+        token,
+        signal,
       },
-      onError: (error) => finishOnce(error),
-      onDone: () => finishOnce(),
-    },
-  );
-  lastRequestId = handle.requestId;
-  if (signal?.aborted) handle.abort();
+      {
+        onDelta: (delta) => {
+          if (delta.reasoning && !thinking) {
+            thinking = true;
+            callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+          }
+          if (delta.content) {
+            if (!writing) {
+              writing = true;
+              callbacks.onStatus?.({ label: strings.chat.writingStatus });
+              console.log(
+                "remote.brain.token",
+                JSON.stringify({ sample: delta.content.slice(0, 80) }),
+              );
+            }
+            emitted += delta.content;
+            queue(delta.content);
+          }
+        },
+        onError: (error) => settle(error),
+        onDone: () => settle(),
+      },
+    );
+    lastRequestId = handle.requestId;
+    console.log(
+      "remote.brain.stream",
+      JSON.stringify({ requestId: lastRequestId, model: activeId }),
+    );
+    if (signal?.aborted) handle.abort();
+  });
 }
 
 export async function remoteSaveEngineSession(): Promise<boolean> {
