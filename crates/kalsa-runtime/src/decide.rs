@@ -101,9 +101,10 @@ pub(crate) fn decide_in(
     // to kill. Done before anything else, so the machine starts clean.
     child::reap_orphan(&state_file(root), DEFAULT_STOP_GRACE);
 
-    // The machine's standing answer, while it still describes this machine.
+    // The machine's standing answer, while it still describes what was
+    // proven: this build's bytes, on this machine.
     if let Some(verdict) = verdict::load(root) {
-        if verdict.fingerprint == verdict::machine_fingerprint(detected) {
+        if verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected) {
             if let Ok(exe) = store::ensure_backend(root, platform, verdict.backend, progress) {
                 return Ok(Decision {
                     backend: verdict.backend,
@@ -135,7 +136,7 @@ pub(crate) fn decide_in(
                     root,
                     &Verdict {
                         backend,
-                        fingerprint: verdict::machine_fingerprint(detected),
+                        fingerprint: verdict::fingerprint(platform, backend, detected),
                     },
                 );
                 return Ok(Decision { backend, exe });
@@ -160,7 +161,6 @@ fn state_file(root: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assets::Platform;
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -173,28 +173,30 @@ mod tests {
     }
 
     #[test]
-    fn nothing_moves_until_the_digests_are_real() {
-        for (name, platform, expected) in [
-            ("no-platform", None, "no-build"),
-            ("mac", Some(Platform::MacArm64), "unverified"),
-            ("windows", Some(Platform::WindowsX64), "unverified"),
-        ] {
-            let root = scratch(name);
-            let err = decide_in(&root, platform, Backend::Cpu, &OsLaunch, &mut |_| {})
-                .expect_err("no digest in the table is filled in yet");
-            let got = match &err {
-                DecideError::NoBuildForThisMachine => "no-build",
-                DecideError::UnverifiedAssets => "unverified",
-                _ => "other",
-            };
-            assert_eq!(got, expected, "{err}");
-            // A refusal is a refusal: no archive, no model, no directory tree.
-            assert_eq!(
-                std::fs::read_dir(&root).expect("root").count(),
-                0,
-                "the refusal must not touch the disk"
-            );
-            let _ = std::fs::remove_dir_all(&root);
-        }
+    fn a_platform_with_no_build_is_reported_not_improvised() {
+        let root = scratch("no-platform");
+        let err = decide_in(&root, None, Backend::Cpu, &OsLaunch, &mut |_| {})
+            .expect_err("nothing is published for it");
+        assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
+        assert_eq!(
+            std::fs::read_dir(&root).expect("root").count(),
+            0,
+            "the refusal must not touch the disk"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_unverified_row_is_a_refusal_to_download() {
+        // The refusal mechanism is pinned at the store, against a fixture
+        // the store test owns; here, only the mapping to user-facing copy.
+        assert!(matches!(
+            map_store_error(StoreError::Unverified),
+            DecideError::UnverifiedAssets
+        ));
+        assert!(matches!(
+            map_store_error(StoreError::NoExecutable),
+            DecideError::CannotAcquire(_)
+        ));
     }
 }

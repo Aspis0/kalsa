@@ -2,17 +2,17 @@
 //!
 //! The probe costs a download and up to a minute once; the verdict costs a
 //! file read afterwards. The file is only trusted while its fingerprint
-//! still describes this machine — hardware, driver and release tag — so the
-//! "seconds once" stays honest when the machine changes underneath it. A
-//! verdict from another release is worthless by definition: a new build has
-//! never been proven here.
+//! still describes what was proven — the exact archive bytes, this machine's
+//! hardware and driver — so the "seconds once" stays honest when the machine
+//! or the build changes underneath it. A verdict for bytes that were never
+//! probed is worthless by definition.
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use kalsa_probe::Backend;
 
-use crate::assets::{ServerBackend, LLAMA_RELEASE};
+use crate::assets::{self, Platform, ServerBackend};
 
 const MAGIC: &str = "kalsa-runtime v1";
 const FILE_NAME: &str = "verdict.txt";
@@ -23,15 +23,27 @@ pub(crate) struct Verdict {
     pub fingerprint: String,
 }
 
-/// The fingerprint of the machine (and the release) a verdict belongs to.
-/// Includes the Windows driver version, because a driver update is exactly
+/// The fingerprint a verdict for `backend` is held to: the digests of the
+/// exact bytes that passed the probe — every archive of the build, engine
+/// first — plus the machine facts that can flip a working backend into a
+/// refusing one. The digests, not the release tag, because a row corrected
+/// in place changes the bytes without changing the release: those bytes have
+/// never been proven here, and the verdict must say so. An unfilled row
+/// cannot be downloaded anyway; reading it as "unfilled" keeps the
+/// fingerprint defined for the build-already-on-disk path.
+///
+/// The Windows driver version is included because a driver update is exactly
 /// the kind of change that flips a working backend into a refusing one.
 /// Elsewhere the driver ships with the OS, which the platform name already
 /// stands for.
-pub(crate) fn machine_fingerprint(detected: Backend) -> String {
+pub(crate) fn fingerprint(platform: Platform, backend: ServerBackend, detected: Backend) -> String {
+    let build = assets::assets_for(platform, backend)
+        .into_iter()
+        .map(|asset| asset.sha256.unwrap_or("unfilled"))
+        .collect::<Vec<_>>()
+        .join("+");
     format!(
-        "{}|{}|{detected:?}|{}",
-        LLAMA_RELEASE,
+        "{build}|{}|{detected:?}|{}",
         std::env::consts::OS,
         driver_version()
     )
@@ -141,7 +153,7 @@ mod tests {
         let dir = scratch("roundtrip");
         let verdict = Verdict {
             backend: ServerBackend::Vulkan,
-            fingerprint: machine_fingerprint(Backend::Cpu),
+            fingerprint: fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu),
         };
         save(&dir, &verdict).expect("save");
         let loaded = load(&dir).expect("load");
@@ -152,22 +164,55 @@ mod tests {
     }
 
     #[test]
-    fn a_changed_backend_is_a_changed_machine() {
-        let metal = machine_fingerprint(Backend::Metal);
-        let gpu = machine_fingerprint(Backend::DiscreteGpu {
-            vram_bytes: Some(8 << 30),
-        });
-        let gpu_other = machine_fingerprint(Backend::DiscreteGpu {
-            vram_bytes: Some(4 << 30),
-        });
-        assert_ne!(metal, gpu);
-        assert_ne!(gpu, gpu_other, "a smaller card is not the same machine");
+    fn a_changed_build_or_machine_is_a_changed_fingerprint() {
+        let vulkan = |detected| fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, detected);
         assert_eq!(
-            gpu,
-            machine_fingerprint(Backend::DiscreteGpu {
-                vram_bytes: Some(8 << 30)
-            })
+            vulkan(Backend::Cpu),
+            vulkan(Backend::Cpu),
+            "the same build on the same machine is one fingerprint"
         );
+        assert_ne!(
+            vulkan(Backend::Cpu),
+            vulkan(Backend::Metal),
+            "a detection change is a machine change"
+        );
+        assert_ne!(
+            vulkan(Backend::DiscreteGpu {
+                vram_bytes: Some(8 << 30)
+            }),
+            vulkan(Backend::DiscreteGpu {
+                vram_bytes: Some(4 << 30)
+            }),
+            "a smaller card is not the same machine"
+        );
+        assert_ne!(
+            fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu),
+            fingerprint(Platform::WindowsX64, ServerBackend::Cuda12, Backend::Cpu),
+            "a different build is a different fingerprint"
+        );
+    }
+
+    #[test]
+    fn the_fingerprint_carries_the_build_bytes_not_the_release() {
+        // Digest over release tag: correcting a row in place changes the
+        // bytes without changing the release, and those bytes have never
+        // been probed. For a multi-archive build every archive counts.
+        let cuda12 = assets::assets_for(Platform::WindowsX64, ServerBackend::Cuda12);
+        let digests: Vec<&str> = cuda12
+            .iter()
+            .map(|asset| asset.sha256.expect("the row is filled in"))
+            .collect();
+        let fp = fingerprint(Platform::WindowsX64, ServerBackend::Cuda12, Backend::Cpu);
+        for digest in digests {
+            assert!(fp.contains(digest), "{fp}");
+        }
+        let fp = fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu);
+        let engine = assets::assets_for(Platform::WindowsX64, ServerBackend::Vulkan)
+            .into_iter()
+            .next()
+            .and_then(|asset| asset.sha256)
+            .expect("the vulkan engine row is filled in");
+        assert!(fp.contains(engine), "{fp}");
     }
 
     #[test]

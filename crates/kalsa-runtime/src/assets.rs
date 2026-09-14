@@ -8,17 +8,18 @@
 //! bytes onto their final name only when size and sha256 both hold, so every
 //! row must carry both before it is allowed to move.
 //!
-//! Researched against release b10950 (2026-09-14). Asset file names follow the
-//! release's own naming but the exact sizes and digests below are NOT verified
-//! yet — nothing downloads until they are, by design.
-
-/// The llama.cpp release every asset below is cut from. Part of the verdict
-/// fingerprint: a new release means a new build, and a new build must be
-/// proven on this machine again.
-pub(crate) const LLAMA_RELEASE: &str = "b10950";
+//! Sizes and digests below were read from the release's own asset list on
+//! 2026-09-14 (GitHub publishes a sha256 digest per asset) and are exact.
+//! Note the macOS builds ship as `.tar.gz`, not `.zip`, unlike every
+//! Windows row.
 
 /// Where the release assets live. One place, so a release bump is one edit.
 const RELEASE_BASE: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b10950";
+
+/// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
+/// to a commit so the bytes cannot move under us.
+const PROBE_MODEL_HOME: &str =
+    "https://huggingface.co/ggml-org/tiny-llamas/resolve/99dd1a73db5a37100bd4ae633f4cfce6560e1567";
 
 /// Which machine a published build runs on. There is no Linux row: no build
 /// is published for it, and that is a fact this crate reports rather than
@@ -115,13 +116,29 @@ pub(crate) enum Role {
     ProbeModel,
 }
 
+/// How an archive is packed. A fact about the asset, declared where the
+/// asset is declared: the macOS builds are tar.gz, every Windows row is a
+/// zip, and the extractor must not sniff file names at the far end.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ArchiveFormat {
+    Zip,
+    TarGz,
+}
+
 /// One release artifact and the promise a download of it is held to.
 pub(crate) struct Asset {
-    role: Role,
-    backend: Option<ServerBackend>,
-    platform: Option<Platform>,
-    /// The file name in the release; the URL is built from it.
+    pub(crate) role: Role,
+    pub(crate) backend: Option<ServerBackend>,
+    pub(crate) platform: Option<Platform>,
+    /// Where this asset is published. A fact about the asset: every row in
+    /// the llama.cpp release shares one home, the probe model does not, and
+    /// `url` special-cases neither.
+    pub(crate) home: &'static str,
+    /// The file name at its home; the URL is home plus this.
     pub(crate) file: &'static str,
+    /// How the archive is packed. None only for the probe model, which is a
+    /// raw file and is never extracted.
+    pub(crate) format: Option<ArchiveFormat>,
     /// Exact compressed byte size. None until verified against the release.
     pub(crate) size_bytes: Option<u64>,
     /// sha256 over the archive, exactly as published. None until verified.
@@ -129,9 +146,9 @@ pub(crate) struct Asset {
 }
 
 impl Asset {
-    /// The download URL: the release base plus the asset's own file name.
+    /// The download URL: the asset's home plus its file name.
     pub(crate) fn url(&self) -> String {
-        format!("{RELEASE_BASE}/{}", self.file)
+        format!("{}/{}", self.home, self.file)
     }
 
     /// A row without both promises is not downloadable, whatever its URL
@@ -141,89 +158,112 @@ impl Asset {
     }
 }
 
-// TODO(marco): fill every None below with the exact size and sha256 you verify
-// against https://github.com/ggml-org/llama.cpp/releases/tag/b10950 (the
-// ~figures in the comments are the researched approximations, not promises).
-// The digests are what makes a download provably the build we meant; until
-// they are in, this crate refuses to download anything, on purpose.
+// Sizes and sha256 digests below are the release's own published figures,
+// read from the GitHub release asset list on 2026-09-14 and transcribed
+// verbatim. The digest is what makes a download provably the build we meant:
+// `kalsa-download` renames bytes onto their final name only when size and
+// sha256 both hold.
 const ASSETS: &[Asset] = &[
-    // macOS ships one archive per architecture with Metal and CPU inside.
+    // macOS ships one archive per architecture with Metal and CPU inside,
+    // and ships it as a tar.gz.
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
-        file: "llama-b10950-bin-macos-arm64.zip",
-        size_bytes: None, // ~11 MB
-        sha256: None,
+        home: RELEASE_BASE,
+        file: "llama-b10950-bin-macos-arm64.tar.gz",
+        format: Some(ArchiveFormat::TarGz),
+        size_bytes: Some(11_145_395),
+        sha256: Some("6e15e4b6e6646f247dcac1d1de056366b32a1cf73ae747874df9f84bb822e54b"),
     },
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacX64),
-        file: "llama-b10950-bin-macos-x64.zip",
-        size_bytes: None, // ~11 MB
-        sha256: None,
+        home: RELEASE_BASE,
+        file: "llama-b10950-bin-macos-x64.tar.gz",
+        format: Some(ArchiveFormat::TarGz),
+        size_bytes: Some(11_194_463),
+        sha256: Some("e4ba7d0c11ebb5bdf0279aa5b2e26c8efb28d9694fe8c0a45d12a37437831c75"),
     },
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Cpu),
         platform: Some(Platform::WindowsX64),
+        home: RELEASE_BASE,
         file: "llama-b10950-bin-win-cpu-x64.zip",
-        size_bytes: None, // ~18 MB
-        sha256: None,
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(18_426_198),
+        sha256: Some("36acf4d8880042beaab9d6a248bd47255988b43049a0a91a79f349c4193b79b9"),
     },
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Vulkan),
         platform: Some(Platform::WindowsX64),
+        home: RELEASE_BASE,
         file: "llama-b10950-bin-win-vulkan-x64.zip",
-        size_bytes: None, // ~32 MB
-        sha256: None,
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(31_673_509),
+        sha256: Some("787061f560eb2f14db7c03396cb56e59759b6dfccd162dc341b10cfa3bd5b779"),
     },
+    // CUDA 12.4: 254 MB engine plus a 391 MB runtime archive, 645 MB in all.
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Cuda12),
         platform: Some(Platform::WindowsX64),
+        home: RELEASE_BASE,
         file: "llama-b10950-bin-win-cuda-12.4-x64.zip",
-        size_bytes: None, // engine; ~645 MB with the DLL archive below
-        sha256: None,
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(254_068_367),
+        sha256: Some("b184393e8dc54fdcca4f4de5059b02d143d2dc813e7cd5d900d1b494d127004c"),
     },
     Asset {
         role: Role::CudaRuntimeDlls,
         backend: Some(ServerBackend::Cuda12),
         platform: Some(Platform::WindowsX64),
+        home: RELEASE_BASE,
         file: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-        size_bytes: None, // DLLs; see the engine row above
-        sha256: None,
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(391_443_627),
+        sha256: Some("8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"),
     },
+    // CUDA 13.3 - the release publishes 13.3, not 13.0: 150 MB engine plus
+    // the same-sized runtime archive, 541 MB in all.
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Cuda13),
         platform: Some(Platform::WindowsX64),
-        file: "llama-b10950-bin-win-cuda-13.0-x64.zip",
-        size_bytes: None, // engine; ~541 MB with the DLL archive below
-        sha256: None,
+        home: RELEASE_BASE,
+        file: "llama-b10950-bin-win-cuda-13.3-x64.zip",
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(149_703_269),
+        sha256: Some("f960ae6651bc832c3ddb59e1afbf2c9e8cb6f63cbe125997596ab93b56db8011"),
     },
     Asset {
         role: Role::CudaRuntimeDlls,
         backend: Some(ServerBackend::Cuda13),
         platform: Some(Platform::WindowsX64),
-        file: "cudart-llama-bin-win-cuda-13.0-x64.zip",
-        size_bytes: None, // DLLs; see the engine row above
-        sha256: None,
+        home: RELEASE_BASE,
+        file: "cudart-llama-bin-win-cuda-13.3-x64.zip",
+        format: Some(ArchiveFormat::Zip),
+        size_bytes: Some(390_970_417),
+        sha256: Some("1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e"),
     },
-    // llama.cpp publishes no GGUFs, so the probe's tiny model is our own
-    // asset. /health only answers 200 once a model is loaded, which is why
-    // the probe needs one at all: a few MB against the gigabytes this crate
-    // exists to precede.
-    // TODO(marco): host it and fill in the real home, size and digest.
+    // The probe's tiny model: stories260K from ggml-org/tiny-llamas, the
+    // models llama.cpp's own CI leans on. Size and digest verified against
+    // the downloaded file (2026-09-14); the header reads as GGUFv3 with 48
+    // tensors, which b10950 will load. UNPROVEN: nobody has run llama-server
+    // against it yet, so a failed probe should suspect this file before
+    // blaming the backend.
     Asset {
         role: Role::ProbeModel,
         backend: None,
         platform: None,
-        file: "kalsa-probe-tiny-q4_0.gguf",
-        size_bytes: None, // a few MB at most
-        sha256: None,
+        home: PROBE_MODEL_HOME,
+        file: "stories260K.gguf",
+        format: None,
+        size_bytes: Some(1_185_376),
+        sha256: Some("047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b"),
     },
 ];
 
@@ -295,27 +335,44 @@ mod tests {
     }
 
     #[test]
-    fn no_row_invents_a_digest_or_a_size() {
-        // A made-up digest would pass verification and then poison the one
-        // check that makes a download trustworthy. Absence is honest; a
-        // plausible-looking lie is not.
-        for backend in [
-            ServerBackend::Metal,
-            ServerBackend::Cpu,
-            ServerBackend::Vulkan,
-            ServerBackend::Cuda12,
-            ServerBackend::Cuda13,
-        ] {
-            let platform = if backend == ServerBackend::Metal {
-                Platform::MacArm64
-            } else {
-                Platform::WindowsX64
-            };
-            for asset in assets_for(platform, backend) {
-                assert!(!asset.verified(), "{} is not verified yet", asset.file);
+    fn a_filled_row_is_whole_and_well_formed() {
+        // A plausible-looking invented digest would pass verification and
+        // then poison the one check that makes a download trustworthy, and
+        // half a promise (a size without a digest, or the reverse) verifies
+        // nothing while looking filled in. Filled rows must be whole and
+        // shaped like a sha256 exactly as GitHub and HuggingFace publish it:
+        // 64 lowercase hex characters.
+        for asset in ASSETS {
+            match (asset.size_bytes, asset.sha256) {
+                (Some(size), Some(sha)) => {
+                    assert!(size > 0, "{} promises an empty download", asset.file);
+                    assert!(
+                        sha.len() == 64 && sha.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')),
+                        "{} is not 64 lowercase hex characters: {sha}",
+                        asset.file
+                    );
+                }
+                (None, None) => {}
+                _ => panic!("{} carries half a promise", asset.file),
             }
         }
-        assert!(!probe_model().verified());
+    }
+
+    #[test]
+    fn the_probe_model_carries_its_promises() {
+        // The probe model was the last row allowed to be empty; it is hosted
+        // now, so nothing is waiting to be filled in, and the probe cannot
+        // fail on a placeholder row while every backend looks broken.
+        assert!(probe_model().verified());
+    }
+
+    #[test]
+    fn a_row_outside_the_release_names_its_own_home() {
+        // The probe model does not live in the llama.cpp release, so its URL
+        // must be its own: home is a fact on the row, pinned to a commit.
+        let model = probe_model();
+        assert_eq!(model.url(), format!("{PROBE_MODEL_HOME}/{}", model.file));
+        assert_eq!(model.file, "stories260K.gguf");
     }
 
     #[test]

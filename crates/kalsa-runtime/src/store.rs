@@ -117,7 +117,10 @@ pub(crate) fn ensure_backend(
     }
     for asset in assets {
         let archive = ensure_archive(root, asset, progress)?;
-        match extract::extract(&archive, &dir) {
+        // The probe model is the only row without a format, and it is never
+        // extracted; every archive row names its format in the table.
+        let format = asset.format.expect("archive rows name their format");
+        match extract::extract(&archive, format, &dir) {
             Ok(()) => {}
             // The stamp stood for bytes that no longer extract — bit rot, a
             // truncated copy placed by hand. Drop the evidence and fetch the
@@ -126,7 +129,7 @@ pub(crate) fn ensure_backend(
                 let _ = std::fs::remove_file(&archive);
                 let _ = std::fs::remove_file(stamp_path(&archive));
                 let archive = ensure_archive(root, asset, progress)?;
-                extract::extract(&archive, &dir).map_err(StoreError::Io)?;
+                extract::extract(&archive, format, &dir).map_err(StoreError::Io)?;
             }
         }
     }
@@ -250,6 +253,9 @@ mod tests {
         dir
     }
 
+    /// The fixture's home is irrelevant to the gate; only its promises are.
+    const RELEASE_HOME_STAND_IN: &str = "https://fixture.invalid/";
+
     fn digest_of(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))
     }
@@ -267,19 +273,41 @@ mod tests {
     }
 
     #[test]
-    fn an_unverified_backend_is_refused_before_anything_is_created() {
-        let root = scratch("unverified");
-        let err = ensure_backend(&root, Platform::WindowsX64, ServerBackend::Cpu, &mut |_| {})
-            .expect_err("no digest is filled in yet");
-        assert!(matches!(err, StoreError::Unverified), "{err}");
-        // The refusal happens before a single directory exists.
-        assert!(
-            std::fs::read_dir(&root).expect("root").count() == 0,
-            "the refusal must not touch the disk"
-        );
-        let err =
-            ensure_probe_model(&root, &mut |_| {}).expect_err("the probe model is unverified too");
-        assert!(matches!(err, StoreError::Unverified), "{err}");
+    fn an_unverified_row_is_refused_before_anything_is_created() {
+        // A fixture, not the table: the gate's subject is a row without its
+        // promises, and the test owns one, so the day every real row is
+        // filled in this keeps testing the gate.
+        let root = scratch("fixture");
+        let fixture = |size_bytes: Option<u64>, sha256: Option<&'static str>| Asset {
+            role: assets::Role::Engine,
+            backend: Some(ServerBackend::Cpu),
+            platform: Some(Platform::WindowsX64),
+            home: RELEASE_HOME_STAND_IN,
+            file: "fixture.zip",
+            format: Some(assets::ArchiveFormat::Zip),
+            size_bytes,
+            sha256,
+        };
+        // Whole-but-empty, and both half-filled shapes: a size without a
+        // digest verifies nothing, and neither does the reverse.
+        for asset in [
+            fixture(None, None),
+            fixture(Some(10), None),
+            fixture(
+                None,
+                Some("047bf46455a544931cff6fef14d7910154c56afbc23ab1c5e56a72e69912c04b"),
+            ),
+        ] {
+            let err =
+                ensure_archive(&root, &asset, &mut |_| {}).expect_err("no promises, no download");
+            assert!(matches!(err, StoreError::Unverified), "{err}");
+            // The refusal happens before a single directory exists.
+            assert_eq!(
+                std::fs::read_dir(&root).expect("root").count(),
+                0,
+                "the refusal must not touch the disk"
+            );
+        }
         let _ = std::fs::remove_dir_all(&root);
     }
 

@@ -8,9 +8,12 @@ license.workspace = true
 [dependencies]
 # Digests over fetched archives: the promise a download is held to.
 sha2 = "0.10"
-# The release archives are zips and the probe must run what is inside them.
+# The Windows release archives are zips and the probe must run what is inside.
 # Read-and-extract only; the default `deflate` feature is what actually builds.
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
+# The macOS release archives are gzipped tars.
+flate2 = "1"
+tar = "0.4"
 kalsa-download = { path = "../kalsa-download" }
 kalsa-probe = { path = "../kalsa-probe" }
 kalsa-supervisor = { path = "../kalsa-supervisor" }
