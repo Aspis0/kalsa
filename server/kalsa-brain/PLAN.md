@@ -479,6 +479,79 @@ cleanly; a conversation does not.
    conversation, the user reads two voices. Vectors, extracted text, an ordering
    and spans are safe; generated prose is where the seam shows.
 
+### What the measurements say, including where this section was wrong
+
+Prior art and energy figures researched 2026-09-14; full report in
+`RESEARCH-split-phone-pc-2026-09-14.md`.
+
+⚠️ **Correction to the paragraph above.** It claimed prefill is "precisely the
+part of inference that is expensive on the phone". That is only true when the
+input is large. For ordinary conversation the measured balance is the opposite:
+MNN-AECS reports **decode energy 16–26x higher than prefill** across its
+conversational workloads (Xiaomi 15 Pro: prefill ~32–282 J against decode
+~498–4,617 J per run). So:
+
+- **For ordinary chat, moving the whole conversation to the PC is already the
+  bigger battery win** — which is the remote-brain feature we are building, and
+  this reframes it: it was designed as a capability play and it is also, by the
+  numbers, the main energy play.
+- **The capability split earns its keep on large-input work** — documents, web
+  pages — where the input dwarfs the output and prefill grows to dominate.
+
+That the phone's battery genuinely suffers is not in doubt: the same study
+measures a 4-bit 1.5B model burning **6,031 J at 9.9 W over 20 conversations on
+a Xiaomi 15 Pro, 6–25% of the battery in under fifteen minutes**. And a 2026
+sustained-load study finds thermal management, not peak compute, decides the
+outcome: an iPhone 16 Pro's throughput nearly halved within two iterations, and a
+Galaxy S24 Ultra had inference terminated by the OS dropping the GPU frequency
+floor. Relief is a real product, not a consolation prize.
+
+The other side of the trade is cheap when the radio is already up: WiFi is around
+868 mW associated and 1,450 mW downloading, and the only direct per-kilobyte
+measurement found (2010 handsets, so treat as an order of magnitude) puts a few
+kilobytes at well under a joule — against thousands of joules of local inference.
+The cost that is *not* negligible is association: 1.5–6 J to bring the link up.
+So the routing decision has a fixed cost to amortise, not just a per-byte one.
+
+⭐ **Rule that follows directly: the PC returns compressed evidence, never the
+raw material.** Shipping the document back to the phone to be prefilled there
+forfeits exactly the saving the offload was for. Spans, vectors, an ordering, a
+short extraction — that is the payload.
+
+**No published crossover exists.** Nobody has measured, for a phone and a
+personal computer on the same LAN, the point where the round trip stops paying.
+We can: the lab is three phones and this Mac, and the figure is worth having
+because it is the number the routing decision needs.
+
+### Prior art: the escalation pattern is everywhere, this split is not
+
+- **Moving the whole model to a PC** is a crowded field — ollama, LM Studio, Open
+  WebUI, Enchanted, and phone clients pointed at them. Not what this is.
+- **Escalating by difficulty** is the shipped state of the art: Apple
+  Intelligence / Private Cloud Compute escalates on task complexity and context
+  size; Firebase's hybrid inference exposes on-device/in-cloud preference.
+  **Neither documents battery or thermal headroom as the routing criterion** —
+  Google names battery only as a signal an application may add itself. Research
+  goes further (CR² puts energy in the routing utility alongside latency and
+  accuracy), but it is still escalation of the *model*, not relocation of tools.
+- **The split we want is nearly unoccupied.** The closest things found are
+  Pocket-RAG (a React Native app running a small model on-device that calls a
+  configurable HTTP RAG endpoint, which may be on the same network) and mobileLLM
+  (local model and agent runtime, remote MCP endpoints the user configures).
+  Neither packages PC-side ingestion, embedding, reranking and page extraction
+  behind a phone-local conversation. One project does the exact inverse —
+  OnDevice-RAG-Android keeps splitting, embedding and the vector store on the
+  phone.
+- **Splitting one model across devices** (llama.cpp's RPC backend, Petals) is a
+  different thing and, in llama.cpp's own README, "proof-of-concept, fragile and
+  insecure".
+
+So the honest position: the *architecture* is not novel in its parts, but **the
+combination — conversation on the phone, tools on the user's own PC, with
+battery and thermal budget as the routing criterion — is not something anyone
+appears to have shipped.** That is a reason to design it carefully, not a reason
+to hurry.
+
 ### Privacy is a separate act of consent
 
 Sending a document to the PC for indexing is **uploading the user's content**,
