@@ -9,3 +9,7 @@ license.workspace = true
 # given, which is what makes it testable without hardware and honest under
 # review.
 [dependencies]
+
+[dev-dependencies]
+# The real-server test reads the `timings` block out of a completion.
+serde_json = "1"
