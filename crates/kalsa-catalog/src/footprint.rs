@@ -37,7 +37,10 @@ pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
 /// pessimistic end of a quantised grouped-query cache: two tensors, eight KV
 /// heads of 128 dimensions, one byte each, forty-eight layers — 96 KiB per
 /// token, which is above every dense model in this catalog and only below the
-/// largest.
+/// largest. That one row is not offered on the assumption (see
+/// `ModelEntry::kv_assumption_undercounts`): the constant errs safe for every
+/// other row, and inflating it to cover the largest would halve their
+/// contexts to buy insurance they do not need.
 pub const ASSUMED_KV_BYTES_PER_TOKEN: u64 = 96 * KIB;
 
 /// What the machine can give a model.
@@ -149,6 +152,7 @@ mod tests {
             weights_bytes,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            kv_assumption_undercounts: false,
             dense_equivalent: None,
             stale: None,
         }

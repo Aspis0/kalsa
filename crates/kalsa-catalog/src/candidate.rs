@@ -162,6 +162,7 @@ mod tests {
             weights_bytes: (weights_gib * GIB as f64) as u64,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            kv_assumption_undercounts: false,
             dense_equivalent: None,
             stale: None,
         }

@@ -299,10 +299,10 @@ fn an_undetected_backend_runs_on_the_cpu_it_has() {
 #[test]
 fn a_floor_measurement_offers_what_a_range_would_refuse() {
     // The reported defect, as a test: 64 GiB of RAM, the CPU path measured at
-    // 107 GB/s, a GPU path several times faster. The CPU figure is a floor —
-    // "at least 1.7" does not contain "slow" — so Apertus is offered with the
-    // promise that it will be measured, instead of being refused with a
-    // confident wrong number.
+    // 107 GB/s, a GPU path several times faster. Every decode prediction is a
+    // floor, so nothing is refused for speed, the offer carries the promise
+    // that the real figure is measured on this machine, and the row whose
+    // cache we know the assumption under-counts stays dark.
     let mac = ChoiceInput {
         backend: Backend::Metal,
         bandwidth_is_lower_bound: true,
@@ -311,15 +311,12 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
     };
     match choose(&mac) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "swiss-ai/Apertus-v1.5-70B");
-            assert_eq!(
-                selection.justification,
-                Justification::Capability(CapabilityBasis::Parameters)
-            );
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
             assert!(matches!(selection.decode, Prediction::Floor(_)));
             assert!(
-                selection.decode.floor() < 3.0,
-                "the CPU-path floor is below reading speed, which is the point: got {}",
+                selection.decode.floor() > 3.0,
+                "the pessimistic end clears reading speed: got {}",
                 selection.decode.floor()
             );
             assert!(
@@ -597,28 +594,36 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
 }
 
 #[test]
-fn sixty_four_gigabytes_leaves_the_dense_70b_on_the_table_for_being_too_slow() {
-    // It fits and it is the biggest row in the catalog — and at 40.7 GiB of
-    // weights on 85 GB/s it would decode at about half a token per second. A
-    // recommendation nobody can read at is not a recommendation, so the tier
-    // takes the large MoE instead, and says why.
+fn sixty_four_gigabytes_leaves_the_dense_70b_dark_until_its_cache_is_measured() {
+    // The biggest row in the catalog would decode at about half a token per
+    // second — but that is no longer why it is dark: its per-token cache is
+    // known to exceed the shared assumption, so the context would be sized
+    // against roughly half the allocation the server will make. It is
+    // excluded until measured, and the tier takes the large MoE instead.
     let input = input(64, true);
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
-    match choose(&input) {
-        Decision::Pick(selection) => {
-            assert!(
-                selection.details.contains("A bigger model fits"),
-                "{}",
-                selection.details
-            );
-            assert!(
-                selection.details.contains("slower than reading"),
-                "{}",
-                selection.details
-            );
-        }
-        other => panic!("expected a pick, got {other:?}"),
-    }
+    assert!(
+        kalsa_catalog::excluded().any(|(entry, reason)| {
+            entry.repo == "swiss-ai/Apertus-v1.5-70B" && reason.contains("under-count")
+        }),
+        "the exclusion is on the record where the shell can show it"
+    );
+    assert!(
+        !kalsa_catalog::usable().any(|entry| entry.entry().repo == "swiss-ai/Apertus-v1.5-70B")
+    );
+}
+
+#[test]
+fn a_machine_where_everything_is_too_slow_says_so() {
+    // The range refusal still exists for machines that do not hand us a
+    // floor: with a bandwidth that slow, every fitting row's pessimistic end
+    // is below reading speed, and that is knowledge a range is allowed to
+    // have.
+    let mut slow = input(32, true);
+    slow.bandwidth_bytes_per_second = 0.5e9;
+    let (reason, explanation) = refusal(&slow);
+    assert_eq!(reason, RefusalReason::NothingFastEnough);
+    assert!(explanation.contains("slower than reading"), "{explanation}");
 }
 
 #[test]

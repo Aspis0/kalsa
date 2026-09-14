@@ -365,12 +365,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     let mut remaining: Vec<&Candidate> = fitting
         .iter()
         .copied()
-        .filter(|candidate| match candidate.decode {
-            Prediction::Range { .. } => {
-                candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND
-            }
-            Prediction::Floor(_) | Prediction::Estimate(_) => true,
-        })
+        .filter(|candidate| !provably_too_slow(&candidate.decode))
         .collect();
     if remaining.is_empty() {
         // Every model that fits is too slow. fitting is not empty — the
@@ -508,6 +503,16 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
+/// Whether a decode prediction by itself proves a candidate too slow to
+/// offer. Only a range can prove it — both ends are known, and a pessimistic
+/// end below reading speed means the model is not usable interactively. A
+/// floor below the line is unknown, not slow, and on the faster path the
+/// model will run on it may not be slow at all.
+fn provably_too_slow(decode: &Prediction) -> bool {
+    matches!(decode, Prediction::Range { .. })
+        && decode.floor() < MINIMUM_TOKENS_PER_SECOND
+}
+
 /// The refusal for a machine nothing in the catalog fits, naming the numbers
 /// so the answer can be checked.
 fn nothing_fits(budget: MemoryBudget, candidates: &[Candidate]) -> Refusal {
@@ -630,6 +635,15 @@ mod tests {
         // the evidence is allowed to refuse, too.
         assert!(capability_basis(phi, Some(equivalent), Some(Parameters::dense(4_000_000_000)))
             .is_none());
+    }
+
+    #[test]
+    fn a_floor_never_proves_a_candidate_too_slow() {
+        // The rule the Mac scenario forced: a range below reading speed is a
+        // refusal; a floor below reading speed is unknown, not slow.
+        assert!(provably_too_slow(&Prediction::Range { low: 1.7, high: 2.2 }));
+        assert!(!provably_too_slow(&Prediction::Floor(1.7)));
+        assert!(!provably_too_slow(&Prediction::Range { low: 3.1, high: 4.0 }));
     }
 
     #[test]

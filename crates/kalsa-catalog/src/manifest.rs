@@ -117,6 +117,14 @@ pub struct ModelEntry {
     /// The publisher's own same-recipe dense comparison, where one exists.
     /// None on every row to which it does not apply.
     pub dense_equivalent: Option<DenseEquivalent>,
+    /// Set by research where the shared 96 KiB cache assumption is known to
+    /// under-count this row — Apertus 70B is deeper than the forty-eight
+    /// layers the constant models, so a context sized from the assumption is
+    /// roughly half the allocation the server will make. Such a row is not
+    /// offered on the assumption: read the pinned file's GGUF header (layer
+    /// count, KV heads, head lengths) or the published config, and put the
+    /// measured per-token figure in `kv_bytes_per_token` — the door reopens.
+    pub kv_assumption_undercounts: bool,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
 }
@@ -125,6 +133,15 @@ impl ModelEntry {
     pub fn standing(&self) -> Standing {
         if let Some(reason) = self.licence.refusal() {
             return Standing::Excluded { reason };
+        }
+        if self.kv_bytes_per_token.is_none() && self.kv_assumption_undercounts {
+            return Standing::Excluded {
+                reason: "its per-token cache has not been measured, and the shared 96 KiB \
+                         assumption is known to under-count it: the context would be sized \
+                         against roughly half the truth. Measure the cache — the pinned \
+                         file's GGUF header or the published config — and it is offerable \
+                         again.",
+            };
         }
         match self.stale {
             Some(reason) => Standing::Excluded { reason },
@@ -180,6 +197,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -194,6 +212,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -208,6 +227,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -222,6 +242,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: Some(gigabytes(0, 86)),
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -236,6 +257,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -250,6 +272,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -264,6 +287,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -278,6 +302,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -292,6 +317,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: true,
         stale: None,
     },
     // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
@@ -325,6 +351,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -353,6 +380,7 @@ pub const CATALOG: &[ModelEntry] = &[
                    Phi-3 small (7.4B)",
             source: "Microsoft's Phi-mini-MoE-instruct model card, accessed 2026-09-14",
         }),
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -381,6 +409,7 @@ pub const CATALOG: &[ModelEntry] = &[
                    IFEval",
             source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
         }),
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -405,6 +434,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     // ── refused, kept for the record ────────────────────────────────────────
@@ -423,6 +453,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: None,
     },
     ModelEntry {
@@ -437,6 +468,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
     ModelEntry {
@@ -451,6 +483,7 @@ pub const CATALOG: &[ModelEntry] = &[
         mmproj_bytes: None,
         kv_bytes_per_token: None,
         dense_equivalent: None,
+        kv_assumption_undercounts: false,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
 ];
@@ -486,9 +519,33 @@ mod tests {
     }
 
     #[test]
+    fn the_under_counting_row_is_dark_until_its_cache_is_measured() {
+        // Research established that the 96 KiB assumption under-counts the
+        // largest row — deeper than the 48 layers the constant models. The
+        // row is not offered on the assumption, and a measured figure reopens
+        // the door; the number itself is read from the header, never guessed.
+        let apertus = CATALOG
+            .iter()
+            .find(|entry| entry.repo.starts_with("swiss-ai/"))
+            .expect("apertus is in the catalog");
+        assert!(apertus.kv_assumption_undercounts);
+        assert!(apertus.kv_bytes_per_token.is_none());
+        assert!(
+            !apertus.is_usable(),
+            "the assumption is known wrong for this row: it must not be offered"
+        );
+        let mut measured = *apertus;
+        measured.kv_bytes_per_token = Some(160 * 1024);
+        assert!(
+            measured.is_usable(),
+            "any measured per-token figure reopens the door"
+        );
+    }
+
+    #[test]
     fn refused_rows_keep_their_reason() {
         let refused: Vec<_> = excluded().collect();
-        assert_eq!(refused.len(), 3, "three rows were evaluated and refused");
+        assert_eq!(refused.len(), 4, "three refusals, plus the unmeasured cache");
         assert!(refused.iter().any(|(entry, reason)| {
             entry.repo.starts_with("amd/") && reason.contains("research only")
         }));
