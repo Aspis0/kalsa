@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <h1 class="sr-only">Kalsa Brain</h1>
+    <h1 class="app-name">Kalsa Brain</h1>
     <nav role="tablist" aria-label="Pages">
       <button type="button" role="tab" id="tab-status" data-page="status"
               aria-controls="page-status" aria-selected="true">Status</button>
@@ -20,10 +20,10 @@
       <section id="page-status" role="tabpanel" aria-labelledby="tab-status">
         <p id="status-headline" class="verdict">Not known</p>
         <p id="status-sentence" class="sentence">
-          Whether this computer is helping your phone is not known right now.
+          Something went wrong reading the assistant's state. Trying again usually works.
         </p>
         <p id="status-note" class="note" hidden></p>
-        <button id="status-action" type="button" class="primary" hidden></button>
+        <button id="status-action" type="button" class="primary">Try again</button>
       </section>
 
       <section id="page-model" role="tabpanel" aria-labelledby="tab-model" hidden>
@@ -33,6 +33,7 @@
           This page will say which model this computer runs for your phone, and why that one.
         </p>
         <p id="model-rationale" class="sentence" hidden></p>
+        <button id="model-action" type="button" class="primary" hidden></button>
       </section>
 
       <section id="page-pairing" role="tabpanel" aria-labelledby="tab-pairing" hidden>

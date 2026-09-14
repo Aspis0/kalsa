@@ -4,13 +4,15 @@
 //! All supervision lives in `kalsa-supervisor`; this file only resolves where
 //! the server binary and the model are, and maps the supervisor's state onto
 //! commands the webview can call. Model choice and download live in
-//! `kalsa-catalog` and `kalsa-download`; until their commands exist, the web
-//! shell renders unknown states from `src/data/placeholders.js` rather than
-//! inventing answers here.
+//! `kalsa-catalog` and `kalsa-download`; until `brain_choice` exists, the one
+//! real step the Model page can offer is `brain_measure` — kalsa-probe's
+//! measurement of this machine — and the web shell renders unknown states
+//! from `src/data/placeholders.js` rather than inventing answers here.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use kalsa_supervisor::{
@@ -36,12 +38,17 @@ const STOP_GRACE: Duration = Duration::from_secs(2);
 
 struct Brain {
     supervisor: Supervisor,
+    /// Whether a probe measurement of this machine has succeeded in this run.
+    /// Held in memory only: until kalsa-catalog's command owns the numbers,
+    /// a restart measures again rather than pretending a result survived.
+    measured: AtomicBool,
 }
 
 impl Brain {
     fn new() -> Self {
         Self {
             supervisor: Supervisor::new(),
+            measured: AtomicBool::new(false),
         }
     }
 
@@ -91,9 +98,13 @@ fn server_binary() -> PathBuf {
 enum StateDto {
     Stopped,
     Starting,
-    Running { port: u16 },
+    Running {
+        port: u16,
+    },
     /// Already in the user's words, produced only by `words` below.
-    Failed { reason: String },
+    Failed {
+        reason: String,
+    },
 }
 
 /// The words for each failure — the only place the supervisor's observations
@@ -157,6 +168,28 @@ fn brain_model() -> ModelDto {
     }
 }
 
+/// Whether a measurement of this machine has succeeded in this run.
+#[tauri::command]
+fn brain_measured(brain: State<Brain>) -> bool {
+    brain.measured.load(Ordering::Relaxed)
+}
+
+/// Measures this computer — the probe takes seconds, so it runs off the main
+/// thread and the window stays responsive. True when the probe believes its
+/// own numbers; a rejected measurement is reported, never kept.
+#[tauri::command]
+async fn brain_measure(brain: State<'_, Brain>) -> Result<bool, String> {
+    let reliable = tauri::async_runtime::spawn_blocking(|| {
+        kalsa_probe::measure_reliable(&kalsa_probe::ProbeConfig::default()).is_reliable()
+    })
+    .await
+    .map_err(|_| "The measuring did not finish. Trying again usually works.".to_string())?;
+    if reliable {
+        brain.measured.store(true, Ordering::Relaxed);
+    }
+    Ok(reliable)
+}
+
 /// Returns at once: the handshake runs on the supervisor thread and the screen
 /// follows the state, so a slow model load never freezes the window.
 #[tauri::command]
@@ -190,6 +223,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             brain_state,
             brain_model,
+            brain_measured,
+            brain_measure,
             brain_start,
             brain_stop
         ])

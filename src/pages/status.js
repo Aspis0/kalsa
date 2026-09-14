@@ -39,11 +39,10 @@ function render(state, modelChosen) {
   if (!state || modelChosen === null) {
     set(
       "Not known",
-      "Whether this computer is helping your phone is not known right now.",
-      "",
-      false,
+      "Something went wrong reading the assistant's state. Trying again usually works.",
+      "Try again",
+      true,
     );
-    action.hidden = true;
     return;
   }
 
@@ -86,7 +85,7 @@ function render(state, modelChosen) {
       } else {
         set(
           "On",
-          "This computer is ready. It cannot tell yet whether your phone is connected.",
+          "This computer is ready. It cannot tell whether your phone is connected, because connecting a phone is not ready yet.",
           "Turn off",
           true,
         );
@@ -100,11 +99,10 @@ function render(state, modelChosen) {
     default:
       set(
         "Not known",
-        "Whether this computer is helping your phone is not known right now.",
-        "",
-        false,
+        "Something went wrong reading the assistant's state. Trying again usually works.",
+        "Try again",
+        true,
       );
-      action.hidden = true;
   }
 }
 
@@ -133,7 +131,10 @@ async function refresh() {
 
 action.addEventListener("click", async () => {
   const { state, modelChosen } = current;
-  if (!state) return;
+  if (!state) {
+    refresh(); // the unknown state's action is trying again
+    return;
+  }
   if (state.kind === "stopped" || state.kind === "failed") {
     if (modelChosen === false) {
       goTo("model");

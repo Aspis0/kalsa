@@ -1,16 +1,129 @@
 // The Model page: what this computer runs for the phone, and why this one.
-// The choice is already made for the user; this page explains it, including
-// the case where the honest reason is the phone's battery and not capability.
 //
-// Its only input is a kalsa-catalog Decision. Today that is the placeholder
-// refusal (the machine has not been measured); when `brain_choice` exists,
-// the import in data/placeholders.js goes away and nothing here changes.
+// Two eras share this file on purpose. Until kalsa-catalog's `brain_choice`
+// is wired, the page walks a real interim ladder: measure this computer
+// (brain_measure, the probe), then wait for the phone. When brain_choice
+// lands, initModel becomes `renderDecision(await invoke("brain_choice"))`
+// and the ladder is deleted; renderDecision and its copy are already shaped
+// on kalsa-catalog::Decision, so that swap is a substitution, not a rewrite.
 
-import { decision } from "../data/placeholders.js";
+import { available, invoke } from "../lib/tauri.js";
 
 const headline = document.getElementById("model-headline");
 const body = document.getElementById("model-body");
 const rationale = document.getElementById("model-rationale");
+const action = document.getElementById("model-action");
+
+// Where the page is, so the button knows what to do. `measuring` exists so a
+// slow probe reads as progress, not as a dead window.
+let mode = "unknown";
+let goTo = () => {};
+
+function set(head, text, button, enabled) {
+  headline.textContent = head;
+  body.textContent = text;
+  rationale.hidden = true;
+  if (button === null) {
+    action.hidden = true;
+  } else {
+    action.hidden = false;
+    action.textContent = button;
+    action.disabled = !enabled;
+  }
+}
+
+// Every state below ends in something the user can press, or in a plain
+// "not available in this view" — never in a statement with no exit.
+const STATES = {
+  // Only reachable outside the app's own window (a browser checking the
+  // layout); a user in the app never sees it.
+  unknown: () =>
+    set(
+      "Nothing chosen yet",
+      "This page works inside the Kalsa Brain app. Open the app on this computer.",
+      null,
+      false,
+    ),
+  unmeasured: () =>
+    set(
+      "No model chosen",
+      "This computer has not been measured yet, so no model can be chosen. Measuring takes a few seconds and happens once.",
+      "Measure this computer",
+      true,
+    ),
+  measuring: () =>
+    set(
+      "Measuring",
+      "Checking how fast this computer really is. This takes a few seconds.",
+      "Measuring…",
+      false,
+    ),
+  unreliable: () =>
+    set(
+      "No model chosen",
+      "This computer was too busy to measure cleanly. Trying again usually works.",
+      "Measure again",
+      true,
+    ),
+  awaitingPhone: () =>
+    set(
+      "No model chosen",
+      "This computer has been measured. Before a model can be chosen for it, we need to know which model your phone runs.",
+      "Pair your phone",
+      true,
+    ),
+  // The state read itself failed. Rare, and not worth a second word.
+  unreadable: () =>
+    set(
+      "No model chosen",
+      "Something went wrong reading this computer's state. Trying again usually works.",
+      "Try again",
+      true,
+    ),
+};
+
+async function refresh() {
+  if (!available()) {
+    mode = "unknown";
+    STATES.unknown();
+    return;
+  }
+  let measured = null;
+  try {
+    measured = await invoke("brain_measured");
+  } catch {
+    // leave null: the flag is unknown, not false
+  }
+  if (measured === null) {
+    mode = "unreadable";
+  } else {
+    mode = measured ? "awaitingPhone" : "unmeasured";
+  }
+  STATES[mode]();
+}
+
+action.addEventListener("click", async () => {
+  if (mode === "unreadable") {
+    refresh();
+    return;
+  }
+  if (mode === "awaitingPhone") {
+    goTo("pairing");
+    return;
+  }
+  if (mode !== "unmeasured" && mode !== "unreliable") return;
+  mode = "measuring";
+  STATES.measuring();
+  try {
+    const reliable = await invoke("brain_measure");
+    mode = reliable ? "awaitingPhone" : "unreliable";
+  } catch {
+    mode = "unreliable";
+  }
+  STATES[mode]();
+});
+
+// ---- The brain_choice substitution target ----
 
 // One plain sentence per RefusalReason. The crate's own explanation is the
 // fallback for anything this map has not caught up with.
@@ -36,31 +149,30 @@ const JUSTIFICATION_COPY = {
     "This model should be better than the one on your phone. We have not tested it on this computer yet.",
 };
 
-function render(decision) {
+function renderDecision(decision) {
   if (!decision) {
-    headline.textContent = "Nothing chosen yet";
-    body.textContent =
-      "This page will say which model this computer runs for your phone, and why that one.";
-    rationale.hidden = true;
+    set("Nothing chosen yet", "No model has been chosen yet.", null, false);
     return;
   }
-
   if (decision.refuse) {
-    headline.textContent = "No model chosen";
-    body.textContent =
-      REFUSAL_COPY[decision.refuse.reason] ?? decision.refuse.explanation;
-    rationale.hidden = true;
+    set(
+      "No model chosen",
+      REFUSAL_COPY[decision.refuse.reason] ?? decision.refuse.explanation,
+      null,
+      false,
+    );
     return;
   }
-
   const pick = decision.pick;
   headline.textContent = pick.label;
   body.textContent =
     JUSTIFICATION_COPY[pick.justification] ?? "Why this one is not explained yet.";
   rationale.textContent = pick.rationale;
   rationale.hidden = !pick.rationale;
+  action.hidden = true;
 }
 
-export function initModel() {
-  render(decision);
+export function initModel(navigate) {
+  goTo = navigate;
+  refresh();
 }
