@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/kalsa-catalog",
     "crates/kalsa-download",
+    "crates/kalsa-pairing",
     "crates/kalsa-probe",
     "crates/kalsa-runtime",
     "crates/kalsa-sentinel",

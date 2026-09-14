@@ -1,0 +1,21 @@
+[package]
+name = "kalsa-pairing"
+description = "The QR pairing ceremony: a one-time code, a binding to this computer, and the phone's own description, stored owner-only"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Every secret in the ceremony is drawn from the operating system's entropy pool.
+getrandom = "0.3"
+# The one-time code is short enough that a timing oracle is not theoretical.
+subtle = "2"
+# The binding proof: knowledge of the secret only the QR carried.
+sha2 = "0.10"
+# The QR payload and the stored handshake are plain, versioned JSON.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The one place secrets get rendered, for the QR and the credential store.
+hex = "0.4"
+# PhoneModel: the phone's shape, filled here and read everywhere else.
+kalsa-catalog = { path = "../kalsa-catalog" }

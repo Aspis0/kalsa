@@ -1740,6 +1740,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-pairing"
+version = "0.0.1"
+dependencies = [
+ "getrandom 0.3.4",
+ "hex",
+ "kalsa-catalog",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+]
+
+[[package]]
 name = "kalsa-probe"
 version = "0.0.1"
 dependencies = [
