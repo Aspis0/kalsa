@@ -66,6 +66,7 @@ import {
 import {
   canEagerInitLocal,
   decideModelIndexProbe,
+  shouldNoopLocalSelect,
 } from "../engine/modelIndexProbe";
 import {
   embedDocumentChunk,
@@ -4141,7 +4142,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
-      if (nextIndex === modelIndex) return;
+      if (
+        shouldNoopLocalSelect({
+          nextIndex,
+          currentIndex: modelIndex,
+          remoteActive: remoteActive || engineIntentRef.current.remote,
+        })
+      ) {
+        return;
+      }
 
       // Pool: keep the previous model's session on disk so switch-back can restore.
 
@@ -4240,7 +4249,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       })();
     },
-    [modelIndex, modelState, t],
+    [modelIndex, modelState, remoteActive, t],
   );
 
   const selectRemoteMac = useCallback(() => {

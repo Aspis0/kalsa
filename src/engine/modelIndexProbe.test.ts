@@ -1,6 +1,7 @@
 import {
   canEagerInitLocal,
   decideModelIndexProbe,
+  shouldNoopLocalSelect,
 } from "./modelIndexProbe";
 
 describe("decideModelIndexProbe", () => {
@@ -51,5 +52,16 @@ describe("decideModelIndexProbe", () => {
         intentRemote: true,
       }),
     ).toEqual({ action: "ensure-remote" });
+  });
+});
+
+describe("shouldNoopLocalSelect", () => {
+  test("select A local -> Mac -> A again is not a no-op", () => {
+    expect(
+      shouldNoopLocalSelect({ nextIndex: 0, currentIndex: 0, remoteActive: false }),
+    ).toBe(true);
+    expect(
+      shouldNoopLocalSelect({ nextIndex: 0, currentIndex: 0, remoteActive: true }),
+    ).toBe(false);
   });
 });

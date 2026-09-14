@@ -31,3 +31,13 @@ export function canEagerInitLocal(input: {
 }): boolean {
   return !input.switchInFlight && !input.backendRemote;
 }
+
+/** Remote keeps the previous local modelIndex; selecting that row must still switch. */
+export function shouldNoopLocalSelect(input: {
+  nextIndex: number;
+  currentIndex: number;
+  remoteActive: boolean;
+}): boolean {
+  if (input.remoteActive) return false;
+  return input.nextIndex === input.currentIndex;
+}
