@@ -17,6 +17,7 @@ import {
   stickyFinishReason,
   type OpenAiSseEvent,
 } from "./openaiSse";
+import { isDevBuild } from "../../util/devBuild";
 import { redactForLog } from "./redactForLog";
 import { canSendAuthorization, remoteUrlGateError } from "./remoteUrl";
 
@@ -72,9 +73,35 @@ export type RemoteStreamHandle = {
   isClosed: () => boolean;
 };
 
-/** Anything logged from a server message is bounded: diagnosis does not need
- *  more, and an unbounded body in logcat is a liability. */
+/** A development excerpt is bounded: diagnosis does not need more. */
 const MAX_LOGGED_EXCERPT = 160;
+
+/**
+ * What reaches logcat from a server error event.
+ *
+ * In **production**: the code the app will show, and how many bytes came back.
+ * Both are ours, and they are what diagnoses a user's problem from a bug report;
+ * the server's own words are arbitrary text and are not logged at all.
+ *
+ * In **development**: additionally a bounded excerpt, redacted. It is the second
+ * line, never the boundary — `{"apiKey":"…"}` and
+ * `{"credentials":{"value":"…"}}` both walk past `redactForLog`, and no pattern
+ * will catch a secret sitting under a neutral field name.
+ *
+ * The flag is read at call time so a test can exercise both sides: a
+ * release-only branch nobody can reach is how a guard in this app once passed
+ * every test and broke on the first real phone.
+ */
+function loggableServerError(message: string): Record<string, string | number> {
+  const logged: Record<string, string | number> = {
+    code: "remote_brain_sse_error",
+    bytes: message.length,
+  };
+  if (isDevBuild()) {
+    logged.excerpt = redactForLog(message.slice(0, MAX_LOGGED_EXCERPT));
+  }
+  return logged;
+}
 
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;
@@ -165,19 +192,10 @@ export function streamOpenAiChat(
         // must not change lastFinishReason or be delivered.
         if (frozenAfterTerminal) continue;
         if (event.kind === "error") {
-          const message = event.message ?? "";
-          // What is logged is chosen here, not dictated by the server: the code
-          // the app will show, how much came back, and a bounded excerpt.
-          // Server text is arbitrary, and the shapes a secret can take are not
-          // enumerable — `redactForLog` is defence in depth over an excerpt that
-          // is already restricted, never the boundary.
+          // Chosen here, not dictated by the server — see loggableServerError.
           console.warn(
             "remote.brain.sse_error",
-            JSON.stringify({
-              code: "remote_brain_sse_error",
-              bytes: message.length,
-              excerpt: redactForLog(message.slice(0, MAX_LOGGED_EXCERPT)),
-            }),
+            JSON.stringify(loggableServerError(event.message ?? "")),
           );
           emitFinish({
             kind: "error",

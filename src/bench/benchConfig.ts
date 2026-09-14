@@ -48,6 +48,9 @@ import {
   parseBenchRanking,
   parseBenchDigestCadence,
 } from "../context/compactor";
+import { isDevBuild } from "../util/devBuild";
+
+export { isDevBuild };
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -477,20 +480,6 @@ export async function getBenchRanking(): Promise<RankingMode | null> {
   }
 }
 
-/**
- * Read the dev-build flag the same way Metro does it, without depending on an
- * ambient `__DEV__` global at compile time. Node harnesses (tsc of benchConfig.ts
- * alone, `node scripts/*Harness.mjs`) have no React Native runtime, so `__DEV__`
- * is undefined here — reading it bare is a TS2304. Metro sets `global.__DEV__`
- * at runtime, so this resolves to the same value it did before.
- *
- * An explicit `flag` is optional so tests stay pure without touching the global.
- */
-export function isDevBuild(
-  flag: unknown = (globalThis as { __DEV__?: unknown }).__DEV__,
-): boolean {
-  return flag === true;
-}
 
 /**
  * Bench-only rules-gate switch. Privacy gates are always on in release builds;

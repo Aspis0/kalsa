@@ -67,6 +67,24 @@ describe("redactForLog", () => {
     );
   });
 
+  /**
+   * Known limits, recorded rather than papered over. `apiKey` is camelCase, which
+   * the label pattern (built for `_`-separated names) does not bridge; the second
+   * has no recognisable label at all, and there is no pattern that catches a
+   * secret under a neutral field name — that is the whole reason this function is
+   * a second line and the transport logs no server text in production.
+   *
+   * The first one is technically fixable with another alternative. It is left
+   * failing on purpose: the list is a treadmill, and pretending otherwise is how
+   * the boundary got put in the wrong place to begin with.
+   */
+  test("documented misses: two shapes this cannot catch", () => {
+    expect(redactForLog('{"apiKey":"SECRET"}')).toBe('{"apiKey":"SECRET"}');
+    expect(redactForLog('{"credentials":{"value":"SECRET"}}')).toBe(
+      '{"credentials":{"value":"SECRET"}}',
+    );
+  });
+
   test("the diagnostic part survives, including trailing punctuation", () => {
     expect(redactForLog("the model does not exist.")).toBe(
       "the model does not exist.",

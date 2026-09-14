@@ -25,6 +25,28 @@ function fakeXhr(): XhrLike & { _body?: string; _headers: Record<string, string>
   return xhr;
 }
 
+/**
+ * The log excerpt is development-only, and the guard reads `__DEV__` at call
+ * time so both sides are reachable from here. A release-only branch nobody can
+ * test is how a guard in this app once passed every test and broke on the first
+ * real phone; the flag is restored exactly, including when it was absent.
+ */
+async function withDevBuild<T>(
+  dev: boolean,
+  run: () => T | Promise<T>,
+): Promise<T> {
+  const global = globalThis as { __DEV__?: unknown };
+  const had = Object.prototype.hasOwnProperty.call(global, "__DEV__");
+  const previous = global.__DEV__;
+  global.__DEV__ = dev;
+  try {
+    return await run();
+  } finally {
+    if (had) global.__DEV__ = previous;
+    else delete global.__DEV__;
+  }
+}
+
 function flush(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -439,7 +461,37 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).not.toContain("nope");
   });
 
-  test("what is logged is chosen here, not dictated by the server", async () => {
+  test("production logs what is ours and none of the server's words", async () => {
+    await withDevBuild(false, async () => {
+      const warned = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr);
+      const sent = '{"apiKey":"SECRET"} the server said this';
+      xhr.responseText = `event: error\ndata: ${JSON.stringify({
+        error: { message: sent },
+      })}\n\n`;
+      xhr.readyState = 3;
+      xhr.status = 200;
+      xhr.onprogress?.call(xhr);
+      expect(finishes[0]?.kind).toBe("error");
+
+      const [, payload] = warned.mock.calls[0] ?? [];
+      const logged = JSON.parse(String(payload)) as Record<string, unknown>;
+      expect(logged.code).toBe("remote_brain_sse_error");
+      expect(logged.bytes).toBe(sent.length);
+      // No excerpt at all — not even a redacted one. `apiKey` walks straight
+      // past the redactor, which is why the excerpt does not ship.
+      expect(logged).not.toHaveProperty("excerpt");
+      expect(String(payload)).not.toContain("apiKey");
+      expect(String(payload)).not.toContain("the server said this");
+      warned.mockRestore();
+    });
+  });
+
+  test("development adds a redacted excerpt, and it is still redacted", async () => {
+    await withDevBuild(true, async () => {
     const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
@@ -465,9 +517,11 @@ describe("streamOpenAiChat", () => {
     // No verbatim copy of the server's text travels with the log line.
     expect(String(payload)).not.toContain("https://host/v1?token=SECRET");
     warned.mockRestore();
+    });
   });
 
   test("a secret beyond the excerpt is not logged at all", async () => {
+    await withDevBuild(true, async () => {
     const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
@@ -488,6 +542,7 @@ describe("streamOpenAiChat", () => {
     expect(logged.excerpt.length).toBeLessThanOrEqual(160);
     expect(String(payload)).not.toContain("SECRET");
     warned.mockRestore();
+    });
   });
 
   test("malformed JSON frame is error", async () => {
