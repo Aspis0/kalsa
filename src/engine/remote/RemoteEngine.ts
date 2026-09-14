@@ -34,6 +34,7 @@ let inFlight = false;
 let lastRequestId: string | null = null;
 let activeStream: { abort: () => void } | null = null;
 let initGeneration = 0;
+let streamGeneration = 0;
 
 function authHeaders(url: string, token: string | null): Record<string, string> {
   if (!token || !canSendAuthorization(url)) return {};
@@ -158,6 +159,7 @@ export async function initRemoteEngine(
 
 export async function disposeRemoteEngine(): Promise<void> {
   initGeneration += 1;
+  streamGeneration += 1;
   try {
     activeStream?.abort();
   } catch {
@@ -201,6 +203,8 @@ export async function streamRemoteAssistantTurn(
     callbacks.onError(new Error("remote_brain_busy"));
     return;
   }
+  const myGen = ++streamGeneration;
+  const stillMine = () => myGen === streamGeneration;
   inFlight = true;
   let visible = "";
   let emitted = "";
@@ -237,15 +241,18 @@ export async function streamRemoteAssistantTurn(
       clearTimeout(timer);
       timer = null;
     }
-    flush();
-    const finalVisible = think.finalize(emitted);
-    if (finalVisible !== visible) {
-      visible = finalVisible;
-      callbacks.onDelta("", visible);
+    const mine = stillMine();
+    if (mine) {
+      flush();
+      const finalVisible = think.finalize(emitted);
+      if (finalVisible !== visible) {
+        visible = finalVisible;
+        callbacks.onDelta("", visible);
+      }
+      inFlight = false;
+      activeStream = null;
+      if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
     }
-    inFlight = false;
-    activeStream = null;
-    if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
     if (err) callbacks.onError(err);
     else callbacks.onDone();
   };
@@ -255,6 +262,7 @@ export async function streamRemoteAssistantTurn(
   let streamStarted = false;
   try {
   const token = await getRemoteBrainToken();
+  if (!stillMine()) return;
   const base = getRemoteBrainUrl();
   if (!remoteUrlAllowedInThisBuild(base)) {
     finishOnce(new Error("remote_brain_https_required"));
@@ -271,12 +279,17 @@ export async function streamRemoteAssistantTurn(
     finishOnce(err);
     return;
   }
+  if (!stillMine()) return;
   streamStarted = true;
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
       finishOnce(err);
       resolve();
     };
+    if (!stillMine()) {
+      resolve();
+      return;
+    }
     const handle = streamOpenAiChat(
       {
         completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
@@ -334,6 +347,11 @@ export async function streamRemoteAssistantTurn(
         },
       },
     );
+    if (!stillMine()) {
+      handle.abort();
+      resolve();
+      return;
+    }
     lastRequestId = handle.requestId;
     activeStream = handle;
     console.log(
@@ -347,7 +365,7 @@ export async function streamRemoteAssistantTurn(
       finishOnce(err instanceof Error ? err : new Error(String(err)));
     }
   } finally {
-    if (!streamStarted) inFlight = false;
+    if (!streamStarted && stillMine()) inFlight = false;
   }
 }
 
