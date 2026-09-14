@@ -141,6 +141,73 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.finishReason).toBe("length");
   });
 
+  test("length+[DONE]: explicit finish_reason wins over synthetic [DONE]", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("content_filter+[DONE]: explicit finish_reason wins", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
+  test("stop+[DONE] is complete", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("[DONE]-only is complete with no finish_reason", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBeNull();
+  });
+
+  test("reason-without-DONE is still terminal", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
   test("status 0 is failure", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);

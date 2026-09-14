@@ -89,7 +89,9 @@ export function parseOpenAiSseData(data: string): OpenAiSseEvent | null {
   const trimmed = data.trim();
   if (!trimmed) return { kind: "ignore", content: "", reasoning: "", finishReason: null };
   if (trimmed === DONE) {
-    return { kind: "done", content: "", reasoning: "", finishReason: "stop" };
+    // Terminal marker only — never a synthetic stop that would overwrite
+    // an earlier length/content_filter finish_reason.
+    return { kind: "done", content: "", reasoning: "", finishReason: null };
   }
   let parsed: unknown;
   try {

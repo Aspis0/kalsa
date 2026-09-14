@@ -145,7 +145,10 @@ export function streamOpenAiChat(
           });
           return;
         }
-        if (event.finishReason) lastFinishReason = event.finishReason;
+        if (event.finishReason) {
+          // Explicit finish_reason wins over a later [DONE] (null reason).
+          lastFinishReason = event.finishReason;
+        }
         if (event.kind === "done" || isTerminalFinishReason(event.finishReason)) {
           sawTerminal = true;
         }

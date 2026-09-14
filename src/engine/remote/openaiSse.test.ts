@@ -45,7 +45,9 @@ describe("parseOpenAiSseData", () => {
   });
 
   test("treats [DONE] as terminal, including spacing and trailing CR", () => {
-    expect(parseOpenAiSseData("[DONE]")?.kind).toBe("done");
+    const done = parseOpenAiSseData("[DONE]");
+    expect(done?.kind).toBe("done");
+    expect(done?.finishReason).toBeNull();
     expect(parseOpenAiSseData("  [DONE]  \r")?.kind).toBe("done");
   });
 
