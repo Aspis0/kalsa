@@ -3,8 +3,10 @@
  *
  * Success requires onload (HTTP 2xx only, status !== 0) AND a terminal marker
  * (`data: [DONE]` or a chunk with finish_reason stop/length/content_filter).
- * RN 0.86 fires readystatechange(DONE) before onerror — onerror/ontimeout win
- * via a microtask delay on the success path.
+ * RN 0.86 fires readystatechange(DONE) before onerror. If a terminal marker
+ * was already seen, onerror/ontimeout finish complete/truncated; otherwise
+ * they win as error. Success is deferred one tick so a no-terminal onerror
+ * still beats a premature onload.
  */
 import {
   isTerminalFinishReason,
@@ -180,7 +182,8 @@ export function streamOpenAiChat(
       : isTruncatingFinishReason(lastFinishReason)
         ? "truncated"
         : "complete";
-    // RN 0.86: readystatechange(DONE) runs before onerror. Defer so onerror wins.
+    // RN 0.86: readystatechange(DONE) runs before onerror. Defer so a
+    // no-terminal onerror still wins; terminal onerror finishes success.
     successTimer = setTimeout(() => {
       successTimer = null;
       if (closed) return;
@@ -226,15 +229,28 @@ export function streamOpenAiChat(
     if (xhr.readyState === LOADING) consume();
     if (xhr.readyState === DONE) finishFromOnload();
   };
+  const finishFromErrorChannel = (fallback: RemoteFinish) => {
+    if (closed) return;
+    consume();
+    if (sawTerminal) {
+      const kind: RemoteFinishKind = isTruncatingFinishReason(lastFinishReason)
+        ? "truncated"
+        : "complete";
+      emitFinish({ kind, finishReason: lastFinishReason });
+      return;
+    }
+    emitFinish(fallback);
+  };
+
   xhr.onerror = () => {
-    emitFinish({
+    finishFromErrorChannel({
       kind: "error",
       finishReason: lastFinishReason,
       error: new Error("remote_brain_network"),
     });
   };
   xhr.ontimeout = () => {
-    emitFinish({
+    finishFromErrorChannel({
       kind: "error",
       finishReason: lastFinishReason,
       error: new Error("remote_brain_timeout"),

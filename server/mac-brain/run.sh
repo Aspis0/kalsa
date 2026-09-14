@@ -150,7 +150,7 @@ models_ok() {
     extra=(-H "Authorization: Bearer $(head -n1 "$KEYFILE" | tr -d '\r\n')")
   fi
   local body
-  body="$(curl -sf --max-time 3 "${extra[@]}" "http://${HOST}:${PORT}/v1/models" || true)"
+  body="$(curl -sf --max-time 3 ${extra[@]+"${extra[@]}"} "http://${HOST}:${PORT}/v1/models" || true)"
   [[ -n "$body" ]] || return 1
   printf '%s' "$body" | python3 -c 'import json,sys
 try:
@@ -164,8 +164,30 @@ raise SystemExit(0 if data else 1)
 
 acquire_lock() {
   mkdir -p "$KALSA_DIR"
-  if mkdir "$LOCKDIR" 2>/dev/null; then
-    trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+  take_lock() {
+    if mkdir "$LOCKDIR" 2>/dev/null; then
+      echo "$$" > "$LOCKDIR/pid"
+      trap 'rm -f "$LOCKDIR/pid"; rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+      return 0
+    fi
+    return 1
+  }
+  steal_if_stale() {
+    [[ -d "$LOCKDIR" ]] || return 1
+    local owner
+    owner="$(cat "$LOCKDIR/pid" 2>/dev/null || true)"
+    if [[ -n "$owner" ]] && kill -0 "$owner" 2>/dev/null; then
+      return 1
+    fi
+    echo "stale lock (pid ${owner:-none} dead) — stealing ${LOCKDIR}"
+    rm -f "$LOCKDIR/pid"
+    rmdir "$LOCKDIR" 2>/dev/null || true
+  }
+  if take_lock; then
+    return 0
+  fi
+  steal_if_stale || true
+  if take_lock; then
     return 0
   fi
   echo "another run.sh is starting — waiting for lock/listener"
@@ -176,13 +198,14 @@ acquire_lock() {
       print_urls
       exit 0
     fi
-    if mkdir "$LOCKDIR" 2>/dev/null; then
-      trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+    steal_if_stale || true
+    if take_lock; then
       return 0
     fi
     sleep 1
   done
   echo "error: timed out waiting for ${LOCKDIR}" >&2
+  echo "if the lock is stale, rmdir ${LOCKDIR} and retry" >&2
   exit 1
 }
 
@@ -223,9 +246,21 @@ wait_health() {
   fi
 }
 
+# Mirror src/engine/remote/remoteUrl.ts isLoopbackHost — mtplx serve uses --no-auth.
+is_loopback_host() {
+  local h
+  h="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  h="${h#[}"
+  h="${h%]}"
+  case "$h" in
+    localhost|127.0.0.1|::1|0:0:0:0:0:0:0:1) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 start_mtplx() {
-  if [[ "$HOST" == "0.0.0.0" || "$HOST" == "::" ]]; then
-    echo "error: refusing ${HOST} bind with --no-auth. bind 127.0.0.1 or enable an API key" >&2
+  if ! is_loopback_host "$HOST"; then
+    echo "error: refusing ${HOST} bind with --no-auth. bind 127.0.0.1 (loopback only)" >&2
     exit 1
   fi
   if [[ ! -d "$MODEL" ]]; then

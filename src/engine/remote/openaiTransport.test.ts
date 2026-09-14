@@ -89,7 +89,7 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.kind).toBe("complete");
   });
 
-  test("DONE-before-error: onerror wins over scheduled success", async () => {
+  test("DONE-before-error: terminal marker beats onerror", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
     xhr.responseText = "data: [DONE]\n\n";
@@ -99,8 +99,34 @@ describe("streamOpenAiChat", () => {
     xhr.onerror?.call(xhr);
     await flush();
     expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("complete");
+  });
+
+  test("onerror without terminal is still error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    xhr.onerror?.call(xhr);
+    await flush();
+    expect(finishes).toHaveLength(1);
     expect(finishes[0]?.kind).toBe("error");
     expect(finishes[0]?.error?.message).toBe("remote_brain_network");
+  });
+
+  test("ontimeout after length finish_reason is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"cut"},"finish_reason":"length"}]}\n\n';
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.ontimeout?.call(xhr);
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("truncated");
   });
 
   test("EOF without [DONE] is interrupted, partial kept", async () => {

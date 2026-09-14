@@ -41,7 +41,7 @@ fail=0
 MODEL="${MODEL_ARG:-}"
 if [[ -z "$MODEL" ]]; then
   models_json="$(mktemp)"
-  if curl -sS --max-time 5 -o "$models_json" "${AUTH[@]}" "${BASE}/v1/models"; then
+  if curl -sS --max-time 5 -o "$models_json" ${AUTH[@]+"${AUTH[@]}"} "${BASE}/v1/models"; then
     got="$(python3 - "$models_json" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1], encoding="utf-8"))
@@ -62,7 +62,7 @@ echo "using model id: ${MODEL}"
 
 echo "== GET ${BASE}/health =="
 health_body="$(mktemp)"
-health_code="$(curl -sS --max-time 10 -o "$health_body" -w "%{http_code}" "${AUTH[@]}" "${BASE}/health" || true)"
+health_code="$(curl -sS --max-time 10 -o "$health_body" -w "%{http_code}" ${AUTH[@]+"${AUTH[@]}"} "${BASE}/health" || true)"
 echo "HTTP ${health_code}"
 python3 - "$health_body" <<'PY' || true
 import json,sys
@@ -85,7 +85,7 @@ rm -f "$health_body"
 echo
 echo "== POST ${BASE}/v1/chat/completions (stream=false) =="
 nonstream_body="$(mktemp)"
-nonstream_code="$(curl -sS --max-time 180 -o "$nonstream_body" -w "%{http_code}" "${AUTH[@]}" "${JSON[@]}" \
+nonstream_code="$(curl -sS --max-time 180 -o "$nonstream_body" -w "%{http_code}" ${AUTH[@]+"${AUTH[@]}"} "${JSON[@]}" \
   -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly the word pong and nothing else.\"}],\"stream\":false,\"max_tokens\":256,\"temperature\":0}" \
   "${BASE}/v1/chat/completions" || true)"
 echo "HTTP ${nonstream_code}"
@@ -122,7 +122,7 @@ rm -f "$nonstream_body"
 echo
 echo "== POST ${BASE}/v1/chat/completions (stream=true) =="
 stream_body="$(mktemp)"
-stream_code="$(curl -sS -N --max-time 180 -o "$stream_body" -w "%{http_code}" "${AUTH[@]}" "${JSON[@]}" \
+stream_code="$(curl -sS -N --max-time 180 -o "$stream_body" -w "%{http_code}" ${AUTH[@]+"${AUTH[@]}"} "${JSON[@]}" \
   -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"Count from 1 to 8, digits only, spaces between.\"}],\"stream\":true,\"max_tokens\":256,\"temperature\":0}" \
   "${BASE}/v1/chat/completions" || true)"
 echo "HTTP ${stream_code}"

@@ -81,10 +81,15 @@ tailnet: https://<this-mac>.<tailnet>.ts.net  (Serve must be enabled…)
 
 `run.sh` **nohup-backgrounds** a spawn (it is not a foreground supervisor).
 A mkdir lock under `~/.kalsa/macbrain.lock` serializes attach/spawn so two
-concurrent starts cannot both load weights. If something is already listening
-and `/v1/models` returns a model list, it attaches. llama-server still
-**exits 1** on a busy 8080. The launchd plist (`KeepAlive`) is the restart
-path for llama-server only — edit the hardcoded `/Users/marco` paths first.
+concurrent starts cannot both load weights. The lock directory stores the
+holder pid; a dead pid is stolen on the next start. If a crash left the
+directory behind and steal fails, recover with `rmdir ~/.kalsa/macbrain.lock`
+(only when no `run.sh` is running). mtplx `--no-auth` is loopback-only:
+`KALSA_BRAIN_HOST` must be `127.0.0.1` / `localhost` / `::1`. If something
+is already listening and `/v1/models` returns a model list, it attaches.
+llama-server still **exits 1** on a busy 8080. The launchd plist (`KeepAlive`)
+is the restart path for llama-server only — edit the hardcoded `/Users/marco`
+paths first.
 
 ## 5. Prove it locally
 
