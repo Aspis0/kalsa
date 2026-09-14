@@ -852,11 +852,55 @@ The rule this earns: **a test is only worth what its mutation says it is
 worth.** And verify the mutation actually landed — one of the day's mutations
 hit a line number that a refactor had moved, so the green meant nothing.
 
+### The security round, and what it was all one bug
+
+A hostile audit on a different model than the writers found that
+`kalsa-runtime` **trusted its own cache**. Four findings, one mistake: a build
+already on disk was executed before the digest gate; the `.sha256` stamp
+compared a length rather than the bytes (with a test asserting that was
+correct); the zip path — the Windows path — let the library create symlinks
+while the tar path refused them; and a stale or half-extracted build outlived
+the archive it came from. Trust is now re-earned from bytes on every start,
+and a build is complete or absent.
+
+Its fix then shipped a defect of its own that would have cost **645 MB on
+every launch**: the marker comparison sorted one side and not the other, so a
+CUDA build could not validate against the marker it had just written. Found by
+running a two-asset fixture; the whole suite was one-asset, and with one
+element "compares the set" and "compares the sequence" look identical.
+
+`kalsa-download` had the same family: the digest was computed over the open
+handle and the file was published by **path**. Now Windows and Linux publish
+by descriptor; macOS cannot — no `AT_EMPTY_PATH`, no procfs — so it compares
+identity on both sides of the rename and fails loudly. Each platform's
+guarantee is written down, including the one we do not get.
+
+### The measurement that reopened a row
+
+The catalog's KV constant (96 KiB/token) admitted in its own comment that it
+under-counted the largest row. Read out of an Apertus 70B GGUF header —
+`block_count 80`, `head_count_kv 8`, head_dim 128 — the true figure is
+`80 × 8 × 256 = 163,840` bytes at q8_0: **1.7× the assumption**, and the
+oversubscription would have surfaced *after* a 40 GB download. The row went
+dark, then reopened with the measured figure, and its "memory is an estimate"
+caveat disappeared because it no longer is one.
+
+Two decisions came out of it. The q8_0 pin is now load-bearing across a crate
+boundary and documented on both sides: changing `KV_CACHE_TYPE` does not
+retune a crate, it invalidates every row's memory arithmetic. And a prediction
+built on a lower-bound measurement is a **floor**, which may keep a candidate
+but may never refuse one — a CPU-path number was refusing models a Mac can
+run, with a precise wrong figure given as the reason.
+
 ### Not built yet
 
-Wiring. Seven crates and nothing joins them: pressing "Turn on" today does
-nothing. That sequence — decide the backend, fetch the build, fetch the model,
-start the server, keep it up — is the product, and each step is minutes long
-and fails differently. Also open: rendering the QR the ceremony produces,
-reusing weights another tool already downloaded (4d), the launch flags (7), and
-the capability split (5bis).
+"Turn on" is wired — decide the backend, fetch the build, choose and fetch the
+model, start the server — and the pages render every state of it, including
+the slow ones and the five ways the first run can fail. The QR exists and so
+does the page that shows it.
+
+What is open: the **pairing transport** (this is the big one — the ceremony
+authenticates nobody to nobody until something carries it, and the crate says
+so in plain words rather than implying otherwise), the **capability split**
+of section 5bis, and **nine catalog rows with no identified GGUF**, which is
+the bake-off's job and not a coding task.
