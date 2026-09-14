@@ -17,6 +17,7 @@ import {
   stickyFinishReason,
   type OpenAiSseEvent,
 } from "./openaiSse";
+import { canSendAuthorization, remoteUrlGateError } from "./remoteUrl";
 
 export type RemoteChatRequest = {
   /** @deprecated T6 replaces this with joinRemoteApiUrl */
@@ -217,6 +218,20 @@ export function streamOpenAiChat(
   const url =
     req.completionsUrl ||
     `${(req.baseUrl ?? "").replace(/\/+$/, "")}/v1/chat/completions`;
+  const urlGate = remoteUrlGateError(url);
+  if (urlGate) {
+    emitFinish({
+      kind: "error",
+      finishReason: null,
+      error: new Error(urlGate),
+    });
+    return {
+      requestId,
+      xhr,
+      abort: () => undefined,
+      isClosed: () => true,
+    };
+  }
 
   const failSetup = (err: unknown) => {
     emitFinish({
@@ -232,7 +247,7 @@ export function streamOpenAiChat(
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("Accept", "text/event-stream");
     xhr.setRequestHeader("X-Request-Id", requestId);
-    if (req.token) {
+    if (req.token && canSendAuthorization(url)) {
       xhr.setRequestHeader("Authorization", `Bearer ${req.token}`);
     }
   } catch (err) {

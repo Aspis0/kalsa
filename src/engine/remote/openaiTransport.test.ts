@@ -60,6 +60,33 @@ function start(
 }
 
 describe("streamOpenAiChat", () => {
+  test("rejects non-loopback http before open", () => {
+    const xhr = fakeXhr();
+    const finishes: RemoteFinish[] = [];
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://192.168.1.10:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [{ role: "user", content: "hi" }],
+        maxTokens: 8,
+        temperature: 0,
+        token: "secret",
+        inactivityMs: 0,
+      },
+      {
+        onDelta: () => undefined,
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    expect(handle.isClosed()).toBe(true);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_https_required");
+    expect(xhr._headers.Authorization).toBeUndefined();
+  });
+
   test("sends stream:true and a client request id", () => {
     const xhr = fakeXhr();
     const { handle } = start(xhr);
