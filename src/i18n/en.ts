@@ -130,6 +130,10 @@ export const en = {
     remoteBrainTesting: "Testing…",
     remoteBrainOk: "Connected · {model}",
     remoteBrainFail: "Could not reach the Mac: {error}",
+    remoteBrainFailGeneric:
+      "Could not reach the Mac. Check the address and try again.",
+    remoteBrainUrlInvalid:
+      "That address is not a valid http or https URL.",
     remoteBrainHttpWarning:
       "This URL is plain HTTP and not loopback. The token will not be sent. Use HTTPS.",
     remoteBrainHttpsRequired:

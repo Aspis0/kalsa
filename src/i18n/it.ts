@@ -129,6 +129,10 @@ export const it: typeof en = {
     remoteBrainTesting: "Verifica…",
     remoteBrainOk: "Connesso · {model}",
     remoteBrainFail: "Il Mac non risponde: {error}",
+    remoteBrainFailGeneric:
+      "Il Mac non risponde. Controlla l'indirizzo e riprova.",
+    remoteBrainUrlInvalid:
+      "Quell'indirizzo non e un URL http o https valido.",
     remoteBrainHttpWarning:
       "Questo URL è HTTP in chiaro e non è loopback. Il token non verrà inviato. Usa HTTPS.",
     remoteBrainHttpsRequired:

@@ -63,6 +63,7 @@ import {
   ensureIntentStale,
   type EnsureIntent,
 } from "../engine/ensureIntent";
+import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
 import {
   canEagerInitLocal,
   decideModelIndexProbe,
@@ -3809,15 +3810,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelState("error");
         setModelErrorKind("engine");
         const raw = error instanceof Error ? error.message : String(error);
-        setModelError(
-          raw === "remote_brain_url_missing"
-            ? t("settings.remoteBrainUrlMissing")
-            : raw === "remote_brain_https_required"
-              ? t("settings.remoteBrainHttpsRequired")
-              : raw === "remote_brain_token_required"
-                ? t("settings.remoteBrainTokenRequired")
-                : raw,
-        );
+        setModelError(humanRemoteBrainError(raw, t));
         return false;
       }
     }

@@ -16,6 +16,7 @@ import {
   getRemoteBrainToken,
   setRemoteBrainToken,
 } from "../engine/remote/remoteSecret";
+import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
 import { isHttpUrl, isNonLoopback } from "../engine/remote/remoteUrl";
 import { GlassPanel2 } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
@@ -66,9 +67,14 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
     setUrl(next);
     try {
       await setRemoteBrainUrl(next);
-    } catch {
+    } catch (err) {
       setStatusOk(false);
-      setStatus(t("settings.remoteBrainFail", { error: "invalid_url" }));
+      setStatus(
+        humanRemoteBrainError(
+          err instanceof Error ? err.message : "invalid_url",
+          t,
+        ),
+      );
     }
   }, [t]);
 
@@ -89,19 +95,17 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       if (result.ok) {
         setStatusOk(true);
         setStatus(t("settings.remoteBrainOk", { model: result.modelId ?? "" }));
-      } else if (result.error === "remote_brain_url_missing") {
-        setStatusOk(false);
-        setStatus(t("settings.remoteBrainUrlMissing"));
       } else {
         setStatusOk(false);
-        setStatus(t("settings.remoteBrainFail", { error: result.error ?? "error" }));
+        setStatus(humanRemoteBrainError(result.error, t));
       }
     } catch (err) {
       setStatusOk(false);
       setStatus(
-        t("settings.remoteBrainFail", {
-          error: err instanceof Error ? err.message : String(err),
-        }),
+        humanRemoteBrainError(
+          err instanceof Error ? err.message : undefined,
+          t,
+        ),
       );
     } finally {
       setTesting(false);
