@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use super::{StoreError, load, persist};
+use super::{StoreError, forget, load, persist};
 use crate::handshake::{Credential, Handshake};
 
 fn scratch(name: &str) -> PathBuf {
@@ -90,9 +90,61 @@ fn the_store_never_overwrites_a_credential() {
     let first = sample_handshake();
     persist(&first, &path).unwrap();
 
-    assert!(persist(&sample_handshake(), &path).is_err());
-    // And the first credential is still the one on disk.
+    // And the refusal is the legible one, not an io error to squint at.
+    assert!(matches!(
+        persist(&sample_handshake(), &path),
+        Err(StoreError::AlreadyPaired)
+    ));
+    // The first credential is still the one on disk.
     assert_eq!(load(&path).unwrap().credential_hex(), first.credential_hex());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forgetting_makes_room_for_the_next_pairing() {
+    let dir = scratch("re-pair");
+    let path = dir.join("credential.json");
+    let first = sample_handshake();
+    persist(&first, &path).unwrap();
+
+    forget(&path).unwrap();
+    assert!(!path.exists());
+
+    // The new phone pairs where the old one was, and what loads is the new
+    // phone's handshake, not the old one's.
+    let second = sample_handshake();
+    persist(&second, &path).unwrap();
+    assert_eq!(
+        load(&path).unwrap().credential_hex(),
+        second.credential_hex()
+    );
+    assert_ne!(first.credential_hex(), second.credential_hex());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forgetting_what_was_never_paired_succeeds() {
+    let dir = scratch("never-paired");
+    assert!(forget(&dir.join("credential.json")).is_ok());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forget_does_not_demand_a_readable_credential() {
+    let dir = scratch("corrupt-forget");
+    let path = dir.join("credential.json");
+    fs::write(&path, "not json at all").unwrap();
+    // The store cannot read this — it is not even JSON, so it never even
+    // reaches the structural checks that yield Corrupt.
+    assert!(load(&path).is_err());
+
+    forget(&path).unwrap();
+    let handshake = sample_handshake();
+    persist(&handshake, &path).unwrap();
+    assert_eq!(
+        load(&path).unwrap().credential_hex(),
+        handshake.credential_hex()
+    );
     fs::remove_dir_all(&dir).unwrap();
 }
 

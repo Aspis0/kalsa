@@ -10,6 +10,13 @@
 //! normal install means the user's own profile and no tighter because of
 //! anything done here.
 //!
+//! Refusing is not forbidding. A stored credential stops existing in exactly
+//! one way: [`forget`], called on purpose — the owner has a new phone, or
+//! reinstalled the app, or is retrying a pairing that went wrong. The refusal
+//! keeps that decision from happening by accident; the operation keeps it
+//! from never happening at all. `forget` does not read the file, so a
+//! credential too corrupt to `load` is not too corrupt to be let go.
+//!
 //! The `Stored*` structs are a serialization shell, not a second description
 //! of the phone: `PhoneModel` lives in `kalsa-catalog` and deliberately
 //! carries no `serde`, so this file writes its fields down and every read
@@ -55,14 +62,42 @@ struct StoredParameters {
 
 /// Write the handshake result as a new file. The parent directory must exist;
 /// where the app keeps its data is the shell's business, not the store's.
+///
+/// If a credential is already stored the answer is
+/// [`StoreError::AlreadyPaired`] — a refusal the shell can act on, not an
+/// io error to squint at. The way forward is [`forget`], then `persist`
+/// again.
 pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     let stored = StoredHandshake {
         v: STORE_VERSION,
         credential_hex: handshake.credential_hex(),
         phone: StoredPhone::of(handshake.phone),
     };
-    let mut file = create_exclusive(path).map_err(StoreError::Io)?;
+    let mut file = create_exclusive(path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::AlreadyExists {
+            StoreError::AlreadyPaired
+        } else {
+            StoreError::Io(e)
+        }
+    })?;
     serde_json::to_writer(&mut file, &stored).map_err(StoreError::Serde)
+}
+
+/// The computer forgets the phone it was paired with: the one way a stored
+/// credential stops existing. Whatever was paired next happens by a fresh
+/// `persist`, never by this function overwriting.
+///
+/// Forgetting an unpaired computer is doing nothing, successfully: the
+/// postcondition — no credential stored — already holds. And this reads
+/// nothing, so it clears a credential whose file has gone corrupt just as
+/// it clears a healthy one; the decision to forget is the owner's, and the
+/// store does not demand the file be legible to accept it.
+pub fn forget(path: &Path) -> Result<(), StoreError> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(StoreError::Io(e)),
+    }
 }
 
 /// Read a handshake result back.

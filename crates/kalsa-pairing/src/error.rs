@@ -44,9 +44,12 @@ impl Error for CompleteError {}
 
 #[derive(Debug)]
 pub enum StoreError {
-    /// The file could not be written or read. A credential that already
-    /// exists surfaces here too: the store never overwrites one.
+    /// The file could not be written or read.
     Io(std::io::Error),
+    /// A credential is already stored, so `persist` refused. Overwriting one
+    /// is never implicit: the computer forgets its phone first (`store::forget`)
+    /// — on purpose, and that operation works whatever is in the file.
+    AlreadyPaired,
     /// The store's own JSON failed to encode or parse.
     Serde(serde_json::Error),
     /// The file violates its own structure: an unknown version, a credential
@@ -59,6 +62,10 @@ impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(e) => write!(f, "credential store: {e}"),
+            Self::AlreadyPaired => f.write_str(
+                "credential store: this computer is already paired with a phone; \
+                 forget it before pairing another",
+            ),
             Self::Serde(e) => write!(f, "credential store: {e}"),
             Self::Corrupt(tag) => write!(f, "credential store is corrupt: {tag}"),
         }
@@ -70,7 +77,7 @@ impl Error for StoreError {
         match self {
             Self::Io(e) => Some(e),
             Self::Serde(e) => Some(e),
-            Self::Corrupt(_) => None,
+            Self::AlreadyPaired | Self::Corrupt(_) => None,
         }
     }
 }
