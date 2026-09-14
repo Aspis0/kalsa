@@ -131,7 +131,7 @@ export const it: typeof en = {
     remoteBrainFailGeneric:
       "Il Mac non risponde. Controlla l'indirizzo e riprova.",
     remoteBrainFailNetwork:
-      "Il Mac non risponde. Controlla che sia acceso e sulla stessa rete, poi riprova. Il modello di questo telefono resta disponibile in Impostazioni.",
+      "Il Mac non risponde. Controlla che sia acceso e sulla stessa rete, poi riprova.",
     remoteBrainFailTimeout:
       "Il Mac ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
     remoteBrainFailServer:

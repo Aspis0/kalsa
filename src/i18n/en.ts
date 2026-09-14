@@ -132,7 +132,7 @@ export const en = {
     remoteBrainFailGeneric:
       "Could not reach the Mac. Check the address and try again.",
     remoteBrainFailNetwork:
-      "The Mac isn't answering. Check that it is awake and on the same network, then try again. The model on this phone is still available in Settings.",
+      "The Mac isn't answering. Check that it is awake and on the same network, then try again.",
     remoteBrainFailTimeout:
       "The Mac stopped replying. Try again, or switch to the model on this phone in Settings.",
     remoteBrainFailServer:
