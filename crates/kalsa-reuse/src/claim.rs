@@ -117,7 +117,8 @@ mod tests {
     use std::fs;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kalsa-reuse-claim-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kalsa-reuse-claim-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("mkdir");
         dir
@@ -176,7 +177,14 @@ mod tests {
         let root = scratch("liar");
         let mut bytes = *b"0123456789abcdef";
         bytes[0] ^= 0xff;
-        write(&root, &["blobs", &format!("sha256-{}", digest_of(b"0123456789abcdef"))], &bytes);
+        write(
+            &root,
+            &[
+                "blobs",
+                &format!("sha256-{}", digest_of(b"0123456789abcdef")),
+            ],
+            &bytes,
+        );
         assert_eq!(
             find_claiming(&root, bytes.len() as u64, &digest_of(b"0123456789abcdef")),
             None
@@ -191,9 +199,17 @@ mod tests {
         // the answer.
         let root = scratch("wrong-claim");
         let other = *b"a different quant of the same model, honestly named";
-        write(&root, &["blobs", &format!("sha256-{}", digest_of(&other))], &other);
+        write(
+            &root,
+            &["blobs", &format!("sha256-{}", digest_of(&other))],
+            &other,
+        );
         let mine = b"the quant the catalog actually wants";
-        let blob = write(&root, &["blobs", &format!("sha256-{}", digest_of(mine))], mine);
+        let blob = write(
+            &root,
+            &["blobs", &format!("sha256-{}", digest_of(mine))],
+            mine,
+        );
         assert_eq!(
             find_claiming(&root, mine.len() as u64, &digest_of(mine)),
             Some(blob)

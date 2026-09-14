@@ -114,10 +114,7 @@ mod tests {
     #[test]
     fn gentler_descends_one_rung_at_a_time() {
         let mut ladder = Ladder::new();
-        assert_eq!(
-            ladder.gentler(),
-            Some((Step::Full, Step::FewerThreads))
-        );
+        assert_eq!(ladder.gentler(), Some((Step::Full, Step::FewerThreads)));
         assert_eq!(
             ladder.gentler(),
             Some((Step::FewerThreads, Step::SmallBatches))
@@ -139,10 +136,7 @@ mod tests {
         let mut ladder = Ladder::new();
         assert_eq!(ladder.fuller(), None);
         assert_eq!(ladder.gentler(), Some((Step::Full, Step::FewerThreads)));
-        assert_eq!(
-            ladder.fuller(),
-            Some((Step::FewerThreads, Step::Full))
-        );
+        assert_eq!(ladder.fuller(), Some((Step::FewerThreads, Step::Full)));
         assert_eq!(ladder.fuller(), None);
     }
 

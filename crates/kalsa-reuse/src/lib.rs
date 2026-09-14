@@ -96,7 +96,10 @@ mod tests {
     fn a_missing_root_is_not_found_not_an_error() {
         let root = scratch("missing");
         let nowhere = root.join("no").join("such").join("store");
-        assert_eq!(find_reusable(&[nowhere], 10, &digest_of(b"0123456789")), None);
+        assert_eq!(
+            find_reusable(&[nowhere], 10, &digest_of(b"0123456789")),
+            None
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

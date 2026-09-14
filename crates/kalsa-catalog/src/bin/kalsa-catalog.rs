@@ -75,7 +75,9 @@ fn main() {
         let capable = input
             .phone
             .as_ref()
-            .and_then(|phone| capability_basis(entry.parameters, entry.dense_equivalent, phone.parameters))
+            .and_then(|phone| {
+                capability_basis(entry.parameters, entry.dense_equivalent, phone.parameters)
+            })
             .is_some();
         // Speed comes from the ACTIVE weights; the footprint from the total.
         let active_bytes = entry.weights_bytes as f64 * entry.parameters.active().count() as f64

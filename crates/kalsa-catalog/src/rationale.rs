@@ -225,9 +225,18 @@ mod tests {
         // formatter: one render, two honest outputs.
         assert_eq!(render(&Prediction::Floor(16.1)), "≥ 16.1");
         assert_eq!(render(&Prediction::Floor(4.2)), "≥ 4.2");
-        assert_eq!(render(&Prediction::Range { low: 25.4, high: 32.6 }), "25–33");
         assert_eq!(
-            render(&Prediction::Range { low: 0.5, high: 0.7 }),
+            render(&Prediction::Range {
+                low: 25.4,
+                high: 32.6
+            }),
+            "25–33"
+        );
+        assert_eq!(
+            render(&Prediction::Range {
+                low: 0.5,
+                high: 0.7
+            }),
             "0.5–0.7",
             "below ten, a decimal"
         );
@@ -239,7 +248,10 @@ mod tests {
         // A failed measurement would produce a zero band. It must print, not
         // panic: formatting code never takes the app down in front of a user.
         assert_eq!(
-            render(&Prediction::Range { low: 0.0, high: 0.0 }),
+            render(&Prediction::Range {
+                low: 0.0,
+                high: 0.0
+            }),
             "0.0–0.0"
         );
     }

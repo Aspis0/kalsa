@@ -4,9 +4,8 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis,
-    ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
-    GIB,
+    capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis, ChoiceInput,
+    Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason, GIB,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -93,7 +92,8 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
         let entry = entry.entry();
         if footprint_bytes(entry, 8192).total_bytes() <= usable {
             assert!(
-                capability_basis(entry.parameters, entry.dense_equivalent, Some(PHONE_PARAMS)).is_none(),
+                capability_basis(entry.parameters, entry.dense_equivalent, Some(PHONE_PARAMS))
+                    .is_none(),
                 "{} must not admit a capability claim on this tier",
                 entry.repo
             );
@@ -109,7 +109,11 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             assert_eq!(selection.justification, Justification::Relief);
             assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
             assert_eq!(selection.display_name, "Arcee Trinity Nano");
-            assert!(selection.details.contains("relief"), "{}", selection.details);
+            assert!(
+                selection.details.contains("relief"),
+                "{}",
+                selection.details
+            );
             assert!(
                 !selection.details.contains("on capability"),
                 "a lateral move must not be sold as an upgrade: {}",
@@ -117,10 +121,22 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             );
             // The details are the user's sentence too: no repo path, no quant,
             // and the prefill floor prints as a floor, never as a range.
-            assert!(!selection.details.contains("arcee-ai/"), "{}", selection.details);
+            assert!(
+                !selection.details.contains("arcee-ai/"),
+                "{}",
+                selection.details
+            );
             assert!(!selection.details.contains("Q4"), "{}", selection.details);
-            assert!(selection.details.contains("≈ 50.0"), "{}", selection.details);
-            assert!(!selection.details.contains("50–50"), "{}", selection.details);
+            assert!(
+                selection.details.contains("≈ 50.0"),
+                "{}",
+                selection.details
+            );
+            assert!(
+                !selection.details.contains("50–50"),
+                "{}",
+                selection.details
+            );
             assert_eq!(selection.budget.usable_bytes, usable);
             assert!(selection.dense_equivalent.is_none());
         }
@@ -201,7 +217,10 @@ fn a_device_that_does_not_run_on_battery_gets_no_relief() {
     // device has none to save.
     let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
     assert_eq!(reason, RefusalReason::NothingBetter);
-    assert!(explanation.contains("does not run on battery"), "{explanation}");
+    assert!(
+        explanation.contains("does not run on battery"),
+        "{explanation}"
+    );
 }
 
 #[test]
@@ -325,7 +344,9 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
                 selection.decode.floor()
             );
             assert!(
-                selection.details.contains("will be measured on this machine"),
+                selection
+                    .details
+                    .contains("will be measured on this machine"),
                 "{}",
                 selection.details
             );
@@ -380,7 +401,10 @@ fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
         }
         other => panic!("the LFM licence must be its own thing, got {other:?}"),
     }
-    assert!(lfm.is_usable(), "a condition on the shipper is not a refusal");
+    assert!(
+        lfm.is_usable(),
+        "a condition on the shipper is not a refusal"
+    );
 
     // Every selection carries its row's licence as data, so a conditional row
     // can never present itself as unconditional.
@@ -430,7 +454,10 @@ fn an_unsourced_large_moe_is_expected_but_unmeasured_and_never_relief_or_capabil
                 "the premise is that every numeric bar is cleared"
             );
             assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
-            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
+            assert_eq!(
+                selection.justification,
+                Justification::ExpectedButUnmeasured
+            );
             assert!(
                 selection.details.contains("expected to be more model"),
                 "{}",
@@ -497,7 +524,9 @@ fn a_sourced_row_offered_as_relief_records_its_equivalence() {
                 .expect("the published comparison travels with the row");
             assert_eq!(equivalent.parameters, 3_000_000_000);
             assert!(
-                selection.details.contains("places it near a dense model of 3.0B"),
+                selection
+                    .details
+                    .contains("places it near a dense model of 3.0B"),
                 "{}",
                 selection.details
             );
@@ -528,7 +557,16 @@ fn the_plain_reason_speaks_the_readers_language() {
     // The same two sentences the shell shows, at every tier: what the offer
     // means for the reader, with no internals and no numbers at all. The
     // honest bit stays in — including that the unmeasured case is unmeasured.
-    let forbidden = ["token", "expert", "bandwidth", "context", "cache", "GiB", "MiB", "KiB"];
+    let forbidden = [
+        "token",
+        "expert",
+        "bandwidth",
+        "context",
+        "cache",
+        "GiB",
+        "MiB",
+        "KiB",
+    ];
     for ram in [8, 16, 32, 64] {
         match choose(&input(ram, true)) {
             Decision::Pick(selection) => {
@@ -539,7 +577,10 @@ fn the_plain_reason_speaks_the_readers_language() {
                     "{ram}: the plain reason carries numbers: {reason}"
                 );
                 for word in forbidden {
-                    assert!(!reason.contains(word), "{ram}: plain reason says {word:?}: {reason}");
+                    assert!(
+                        !reason.contains(word),
+                        "{ram}: plain reason says {word:?}: {reason}"
+                    );
                 }
             }
             other => panic!("{ram}: expected a pick, got {other:?}"),
@@ -556,7 +597,9 @@ fn the_plain_reason_speaks_the_readers_language() {
         .collect();
     let say = |ram: u64, words: &str| {
         assert!(
-            reasons.iter().any(|(tier, r)| *tier == ram && r.contains(words)),
+            reasons
+                .iter()
+                .any(|(tier, r)| *tier == ram && r.contains(words)),
             "{ram}: the honest bit is missing from the plain reason"
         );
     };
@@ -583,7 +626,10 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
+            assert_eq!(
+                selection.justification,
+                Justification::ExpectedButUnmeasured
+            );
             assert!(
                 selection.decode.floor() > 0.0
                     && selection.decode.ceiling() > selection.decode.floor()
@@ -697,8 +743,11 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
             // attention and routing, so it is not a floor at long context.
             assert!(why.contains("≈ "), "{why}");
             assert!(!why.contains("≥ "), "prefill is not a floor: {why}");
-            assert_eq!(selection.plain_reason, "This should be better than what your \
-phone runs; we have not checked it on this computer yet, and we will.");
+            assert_eq!(
+                selection.plain_reason,
+                "This should be better than what your \
+phone runs; we have not checked it on this computer yet, and we will."
+            );
         }
         other => panic!("expected a pick, got {other:?}"),
     }

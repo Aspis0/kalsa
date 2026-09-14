@@ -33,9 +33,25 @@ mod tests {
 
     #[test]
     fn a_broken_measurement_is_not_evidence() {
-        assert!(!Sample { at: 0.0, tokens_per_second: 0.0 }.is_measured());
-        assert!(!Sample { at: 0.0, tokens_per_second: f64::NAN }.is_measured());
-        assert!(!Sample { at: 0.0, tokens_per_second: -3.0 }.is_measured());
-        assert!(Sample { at: 0.0, tokens_per_second: 0.001 }.is_measured());
+        assert!(!Sample {
+            at: 0.0,
+            tokens_per_second: 0.0
+        }
+        .is_measured());
+        assert!(!Sample {
+            at: 0.0,
+            tokens_per_second: f64::NAN
+        }
+        .is_measured());
+        assert!(!Sample {
+            at: 0.0,
+            tokens_per_second: -3.0
+        }
+        .is_measured());
+        assert!(Sample {
+            at: 0.0,
+            tokens_per_second: 0.001
+        }
+        .is_measured());
     }
 }

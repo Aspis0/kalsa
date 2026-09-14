@@ -134,9 +134,7 @@ pub fn capability_basis(
     // phone's dense size is not known either, and none is invented for it.
     if !phone.is_mixture() {
         if let Some(equivalent) = dense_equivalent {
-            if equivalent.parameters as f64
-                >= phone.total().count() as f64 * IMPROVEMENT_RATIO
-            {
+            if equivalent.parameters as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO {
                 return Some(CapabilityBasis::PublishedDenseEquivalent {
                     parameters: equivalent.parameters,
                     note: equivalent.note,
@@ -409,9 +407,11 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .expect("the leader is in its own class");
-        let justification = if let Some(basis) =
-            capability_basis(chosen.entry.parameters, chosen.entry.dense_equivalent, phone.parameters)
-        {
+        let justification = if let Some(basis) = capability_basis(
+            chosen.entry.parameters,
+            chosen.entry.dense_equivalent,
+            phone.parameters,
+        ) {
             Justification::Capability(basis)
         } else if expected_but_unmeasured(chosen, &phone) {
             Justification::ExpectedButUnmeasured
@@ -423,13 +423,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
             remaining.retain(|candidate| !std::ptr::eq(*candidate, chosen));
             continue;
         };
-        return Decision::Pick(selection(
-            chosen,
-            input,
-            &phone,
-            budget,
-            justification,
-        ));
+        return Decision::Pick(selection(chosen, input, &phone, budget, justification));
     }
 
     // Nothing that fits admitted a justification. Say which axis failed.
@@ -509,8 +503,7 @@ fn measured(rate: f64) -> bool {
 /// floor below the line is unknown, not slow, and on the faster path the
 /// model will run on it may not be slow at all.
 fn provably_too_slow(decode: &Prediction) -> bool {
-    matches!(decode, Prediction::Range { .. })
-        && decode.floor() < MINIMUM_TOKENS_PER_SECOND
+    matches!(decode, Prediction::Range { .. }) && decode.floor() < MINIMUM_TOKENS_PER_SECOND
 }
 
 /// The refusal for a machine nothing in the catalog fits, naming the numbers
@@ -624,7 +617,11 @@ mod tests {
             source: "model card",
         };
         assert_eq!(
-            capability_basis(phi, Some(equivalent), Some(Parameters::dense(2_000_000_000))),
+            capability_basis(
+                phi,
+                Some(equivalent),
+                Some(Parameters::dense(2_000_000_000))
+            ),
             Some(CapabilityBasis::PublishedDenseEquivalent {
                 parameters: 3_800_000_000,
                 note: "near Phi-3 mini",
@@ -633,17 +630,27 @@ mod tests {
         );
         // Against a dense 4B phone the same published figure says phone-class:
         // the evidence is allowed to refuse, too.
-        assert!(capability_basis(phi, Some(equivalent), Some(Parameters::dense(4_000_000_000)))
-            .is_none());
+        assert!(capability_basis(
+            phi,
+            Some(equivalent),
+            Some(Parameters::dense(4_000_000_000))
+        )
+        .is_none());
     }
 
     #[test]
     fn a_floor_never_proves_a_candidate_too_slow() {
         // The rule the Mac scenario forced: a range below reading speed is a
         // refusal; a floor below reading speed is unknown, not slow.
-        assert!(provably_too_slow(&Prediction::Range { low: 1.7, high: 2.2 }));
+        assert!(provably_too_slow(&Prediction::Range {
+            low: 1.7,
+            high: 2.2
+        }));
         assert!(!provably_too_slow(&Prediction::Floor(1.7)));
-        assert!(!provably_too_slow(&Prediction::Range { low: 3.1, high: 4.0 }));
+        assert!(!provably_too_slow(&Prediction::Range {
+            low: 3.1,
+            high: 4.0
+        }));
     }
 
     #[test]

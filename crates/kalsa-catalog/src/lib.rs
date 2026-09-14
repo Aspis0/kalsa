@@ -49,17 +49,21 @@ pub mod licence;
 pub mod manifest;
 pub mod parameters;
 
+pub use candidate::Prediction;
+pub use choice::DownloadPlan;
 pub use choice::{
     capability_basis, choose, CapabilityBasis, ChoiceInput, Decision, Justification, PhoneModel,
     Refusal, RefusalReason, Selection, IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS,
     SAME_CLASS_BAND,
 };
-pub use candidate::Prediction;
-pub use choice::DownloadPlan;
-pub use footprint::{fits, footprint_bytes, memory_budget, usable_bytes, Footprint, GIB, MemoryBudget};
+pub use footprint::{
+    fits, footprint_bytes, memory_budget, usable_bytes, Footprint, MemoryBudget, GIB,
+};
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported
 // rather than making callers depend on the probe's path module by name.
 pub use kalsa_probe::Backend;
 pub use licence::{Licence, Standing};
-pub use manifest::{excluded, usable, DenseEquivalent, GgufSource, ModelEntry, UsableEntry, CATALOG};
+pub use manifest::{
+    excluded, usable, DenseEquivalent, GgufSource, ModelEntry, UsableEntry, CATALOG,
+};
 pub use parameters::{ActiveParameters, Parameters, TotalParameters};

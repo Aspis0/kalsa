@@ -228,7 +228,11 @@ mod tests {
         let footprint = footprint_bytes(&row, u64::MAX);
         assert_eq!(footprint.kv_bytes, u64::MAX);
         assert_eq!(footprint.total_bytes(), u64::MAX);
-        assert!(!fits(&row, u64::MAX, &memory_budget(Backend::Cpu, 64 * GIB)));
+        assert!(!fits(
+            &row,
+            u64::MAX,
+            &memory_budget(Backend::Cpu, 64 * GIB)
+        ));
     }
 
     #[test]
@@ -254,10 +258,7 @@ mod tests {
         // A card whose size could not be read honestly: fall back to the RAM
         // arithmetic and say the GPU was not accounted for — never guess a
         // VRAM size.
-        let unread = memory_budget(
-            Backend::DiscreteGpu { vram_bytes: None },
-            32 * GIB,
-        );
+        let unread = memory_budget(Backend::DiscreteGpu { vram_bytes: None }, 32 * GIB);
         assert_eq!(unread.usable_bytes, usable_bytes(32 * GIB));
         assert!(!unread.gpu_accounted_for);
 

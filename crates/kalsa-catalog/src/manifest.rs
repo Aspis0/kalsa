@@ -646,12 +646,32 @@ mod tests {
         // through.
         for entry in CATALOG {
             let Some(source) = entry.source else { continue };
-            let lowercase_hex =
-                |s: &str| s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
-            assert_eq!(source.sha256.len(), 64, "{}: a sha256 is 64 characters", source.sha256);
-            assert!(lowercase_hex(source.sha256), "{}: a sha256 is lowercase hex", source.sha256);
-            assert_eq!(source.commit.len(), 40, "{}: a git commit is 40 characters", source.commit);
-            assert!(lowercase_hex(source.commit), "{}: a commit is lowercase hex", source.commit);
+            let lowercase_hex = |s: &str| {
+                s.chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+            };
+            assert_eq!(
+                source.sha256.len(),
+                64,
+                "{}: a sha256 is 64 characters",
+                source.sha256
+            );
+            assert!(
+                lowercase_hex(source.sha256),
+                "{}: a sha256 is lowercase hex",
+                source.sha256
+            );
+            assert_eq!(
+                source.commit.len(),
+                40,
+                "{}: a git commit is 40 characters",
+                source.commit
+            );
+            assert!(
+                lowercase_hex(source.commit),
+                "{}: a commit is lowercase hex",
+                source.commit
+            );
             assert!(
                 source.file.ends_with(".gguf"),
                 "{}: the pinned file is the gguf itself",
@@ -707,7 +727,10 @@ mod tests {
     fn dense_equivalents_carry_only_published_comparisons() {
         // The two rows whose publisher compared them to a same-recipe dense
         // model, with the source that makes the figure citable.
-        for repo in ["ibm-granite/granite-4.0-h-tiny", "microsoft/Phi-mini-MoE-instruct"] {
+        for repo in [
+            "ibm-granite/granite-4.0-h-tiny",
+            "microsoft/Phi-mini-MoE-instruct",
+        ] {
             let entry = CATALOG
                 .iter()
                 .find(|entry| entry.repo == repo)

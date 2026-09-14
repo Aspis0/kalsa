@@ -14,27 +14,16 @@ use crate::ladder::Step;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Event {
     /// Sustained decay: the ladder answered by easing one rung.
-    BackedOff {
-        from: Step,
-        to: Step,
-    },
+    BackedOff { from: Step, to: Step },
     /// Sustained recovery: one rung given back.
-    Restored {
-        from: Step,
-        to: Step,
-    },
+    Restored { from: Step, to: Step },
     /// Sustained decay with the ladder already at its floor: there is no
     /// gentler setting left, and doing even less work per unit time is now
     /// the caller's decision. Announced once per fall to the floor, not on
     /// every confirming turn — the floor does not move.
-    Exhausted {
-        at: Step,
-    },
+    Exhausted { at: Step },
     /// Idle past the unload budget: the model is released. `from` is the rung
     /// it ran at when released; the next session starts at [`Step::Full`],
     /// because the idle time was the machine's chance to cool.
-    Unload {
-        idle_seconds: f64,
-        from: Step,
-    },
+    Unload { idle_seconds: f64, from: Step },
 }

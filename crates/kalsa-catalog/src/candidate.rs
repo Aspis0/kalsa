@@ -138,7 +138,11 @@ pub(crate) fn too_slow_to_use(
         .filter(|candidate| candidate.decode.floor() < MINIMUM_TOKENS_PER_SECOND)
         .filter(|candidate| candidate.entry.weights_bytes > chosen.entry.weights_bytes)
         .map(|candidate| candidate.decode)
-        .max_by(|a, b| a.ceiling().partial_cmp(&b.ceiling()).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| {
+            a.ceiling()
+                .partial_cmp(&b.ceiling())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
 }
 
 #[cfg(test)]

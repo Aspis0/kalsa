@@ -89,7 +89,9 @@ impl Sentinel {
                     // this crate exists to refuse.
                     if !self.floor_announced {
                         self.floor_announced = true;
-                        events.push(Event::Exhausted { at: self.ladder.step() });
+                        events.push(Event::Exhausted {
+                            at: self.ladder.step(),
+                        });
                     }
                 }
             },
@@ -301,29 +303,26 @@ mod tests {
         // of completing the old one.
         assert!(sentinel.observe(s(1320.0, 0.4)).is_empty());
         assert!(sentinel.observe(s(1440.0, 0.4)).is_empty());
-        assert_eq!(
-            sentinel.observe(s(1560.0, 0.4)).len(),
-            1
-        );
+        assert_eq!(sentinel.observe(s(1560.0, 0.4)).len(), 1);
     }
 
     #[test]
     fn a_sinking_machine_walks_the_whole_ladder_then_announces_the_floor() {
         let mut sentinel = sentinel();
         let sinking = [
-            (0.0, 12.0),                        // Full cannot hold
+            (0.0, 12.0), // Full cannot hold
             (120.0, 11.0),
             (240.0, 10.0),
-            (360.0, 6.0),                       // FewerThreads cannot hold
+            (360.0, 6.0), // FewerThreads cannot hold
             (480.0, 5.0),
             (600.0, 4.0),
-            (720.0, 3.0),                       // SmallBatches cannot hold
+            (720.0, 3.0), // SmallBatches cannot hold
             (840.0, 2.0),
             (960.0, 2.0),
-            (1080.0, 1.4),                      // QuantisedKv cannot hold
+            (1080.0, 1.4), // QuantisedKv cannot hold
             (1200.0, 1.0),
             (1320.0, 1.0),
-            (1440.0, 0.5),                      // Trickle is the floor
+            (1440.0, 0.5), // Trickle is the floor
             (1560.0, 0.5),
             (1680.0, 0.5),
         ];
@@ -354,16 +353,19 @@ mod tests {
                     from: Step::QuantisedKv,
                     to: Step::Trickle
                 },
-                Event::Exhausted {
-                    at: Step::Trickle
-                },
+                Event::Exhausted { at: Step::Trickle },
             ]
         );
         // Below the floor there is nothing left to ease, and the floor is
         // announced once, not on every confirming turn.
-        for (at, tokens_per_second) in
-            [(1800.0, 0.4), (1920.0, 0.4), (2040.0, 0.4), (2160.0, 0.3), (2280.0, 0.3), (2400.0, 0.3)]
-        {
+        for (at, tokens_per_second) in [
+            (1800.0, 0.4),
+            (1920.0, 0.4),
+            (2040.0, 0.4),
+            (2160.0, 0.3),
+            (2280.0, 0.3),
+            (2400.0, 0.3),
+        ] {
             assert!(sentinel
                 .observe(Sample {
                     at,
