@@ -5449,6 +5449,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   t("chat.modelLoadFailed", { name: currentModel.name }),
                   "chat.modelLoadFailed",
                 );
+              } else if (currentModel.id === REMOTE_MAC_MODEL_ID) {
+                // The Mac brain has no bundle to download: this is the Mac
+                // being unreachable, and saying "not downloaded" would be false.
+                fail(
+                  t("settings.remoteBrainFailNetwork"),
+                  "chat.serviceUnreachable",
+                );
               } else {
                 fail(
                   t("chat.modelNotDownloaded", { name: currentModel.name }),
@@ -6169,7 +6176,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           color: colors.bad,
         };
       case "ready":
-        return { label: t("download.readyLocal"), color: colors.good };
+        // The bar is where the user reads where the data runs: never say
+        // "local" for a turn served by the Mac.
+        return {
+          label: isRemoteEngineBackend()
+            ? t("download.readyRemote")
+            : t("download.readyLocal"),
+          color: colors.good,
+        };
       case "reload":
         // HIGH-2: downloaded-but-unloaded / engine-lost is tappable, never auto-load.
         return { label: t("chat.lazyReload"), color: colors.accent };

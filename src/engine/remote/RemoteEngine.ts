@@ -136,7 +136,7 @@ export async function initRemoteEngine(
   const gen = ++initGeneration;
   const probe = await testRemoteConnection();
   if (gen !== initGeneration) {
-    throw new Error("stale remote init");
+    throw new Error("remote_brain_stale_init");
   }
   if (!probe.ok) {
     ready = false;

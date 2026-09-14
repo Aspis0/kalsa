@@ -129,7 +129,6 @@ export const en = {
     remoteBrainTest: "Test connection",
     remoteBrainTesting: "Testing…",
     remoteBrainOk: "Connected · {model}",
-    remoteBrainFail: "Could not reach the Mac: {error}",
     remoteBrainFailGeneric:
       "Could not reach the Mac. Check the address and try again.",
     remoteBrainFailNetwork:
@@ -471,6 +470,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     failedRetry: "Download failed — tap to retry",
     loadFailedRetry: "Load failed — tap to retry",
     readyLocal: "Ready · local",
+    readyRemote: "Ready · remote",
     downloaded: "Downloaded",
     incomplete: "Download incomplete — tap to retry.",
     readyNotice: "{name} is ready.",

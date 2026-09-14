@@ -118,7 +118,7 @@ export const it: typeof en = {
     remoteBrainUrlMissing:
       "Inserisci l'indirizzo del tuo Mac prima di usare il cervello remoto.",
     remoteBrainMigratedToLocal:
-      "Il cervello del Mac ha bisogno di un indirizzo. Resta la modalita locale finche non lo imposti in Impostazioni.",
+      "Il cervello del Mac ha bisogno di un indirizzo. Resta la modalità locale finché non lo imposti in Impostazioni.",
     remoteBrainModel: "Id modello sul server",
     remoteBrainModelHint: "Deve coincidere con un id di GET /v1/models. Non viene indovinato.",
     remoteBrainMaxTokens: "Max token",
@@ -128,7 +128,6 @@ export const it: typeof en = {
     remoteBrainTest: "Prova connessione",
     remoteBrainTesting: "Verifica…",
     remoteBrainOk: "Connesso · {model}",
-    remoteBrainFail: "Il Mac non risponde: {error}",
     remoteBrainFailGeneric:
       "Il Mac non risponde. Controlla l'indirizzo e riprova.",
     remoteBrainFailNetwork:
@@ -140,7 +139,7 @@ export const it: typeof en = {
     remoteBrainFailBusy:
       "Il Mac sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
     remoteBrainUrlInvalid:
-      "Quell'indirizzo non e un URL http o https valido.",
+      "Quell'indirizzo non è un URL http o https valido.",
     remoteBrainHttpWarning:
       "Questo URL è HTTP in chiaro e non è loopback. Il token non verrà inviato. Usa HTTPS.",
     remoteBrainHttpsRequired:
@@ -466,6 +465,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     failedRetry: "Download non riuscito — tocca per riprovare",
     loadFailedRetry: "Caricamento non riuscito — tocca per riprovare",
     readyLocal: "Pronto · locale",
+    readyRemote: "Pronto · remoto",
     downloaded: "Scaricato",
     incomplete: "Download incompleto — tocca per riprovare.",
     readyNotice: "{name} pronto.",

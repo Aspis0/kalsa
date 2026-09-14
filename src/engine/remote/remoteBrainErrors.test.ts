@@ -44,6 +44,9 @@ describe("humanRemoteBrainError", () => {
     expect(humanRemoteBrainError("remote_brain_busy", t)).toBe(
       "settings.remoteBrainFailBusy",
     );
+    expect(humanRemoteBrainError("remote_brain_stale_init", t)).toBe(
+      "settings.remoteBrainFailNetwork",
+    );
     expect(humanRemoteBrainError("remote_brain_http_500", t)).toBe(
       'settings.remoteBrainFailServer:{"status":"500"}',
     );
@@ -58,5 +61,15 @@ describe("humanRemoteBrainError", () => {
     ).toBe(false);
     expect(isInternalErrorCode("settings.remoteBrainUrlMissing")).toBe(false);
     expect(isInternalErrorCode("Reply stopped at the token limit.")).toBe(false);
+  });
+
+  test("a native exception is never echoed to the user", () => {
+    const shown = humanRemoteBrainError(
+      "fetch failed: java.net.ConnectException: Failed to connect to /127.0.0.1:8000",
+      t,
+    );
+    expect(shown).toBe("settings.remoteBrainFailGeneric");
+    expect(shown).not.toContain("java.net");
+    expect(shown).not.toContain("fetch failed");
   });
 });

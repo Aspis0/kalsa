@@ -1,6 +1,7 @@
 /**
  * Map remote-brain error codes to copy the user can act on.
- * Snake_case codes must never reach the UI.
+ * Snake_case codes must never reach the UI, and neither must a native
+ * exception: anything unrecognised fails closed to human copy.
  */
 import type { TranslationKey } from "../../i18n";
 
@@ -13,6 +14,7 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   remote_brain_token_required: "settings.remoteBrainTokenRequired",
   remote_brain_network: "settings.remoteBrainFailNetwork",
   remote_brain_send: "settings.remoteBrainFailNetwork",
+  remote_brain_stale_init: "settings.remoteBrainFailNetwork",
   remote_brain_timeout: "settings.remoteBrainFailTimeout",
   remote_brain_busy: "settings.remoteBrainFailBusy",
   invalid_url: "settings.remoteBrainUrlInvalid",
@@ -39,6 +41,7 @@ export function humanRemoteBrainError(
   if (key) return t(key);
   const http = HTTP_STATUS_CODE.exec(code);
   if (http) return t("settings.remoteBrainFailServer", { status: http[1] });
-  if (isInternalErrorCode(code)) return t("settings.remoteBrainFailGeneric");
-  return t("settings.remoteBrainFail", { error: code });
+  // Unknown code, internal English string or a native exception
+  // ("fetch failed: java.net.ConnectException…"): never echo it back.
+  return t("settings.remoteBrainFailGeneric");
 }
