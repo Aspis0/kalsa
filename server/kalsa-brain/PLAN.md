@@ -892,15 +892,58 @@ built on a lower-bound measurement is a **floor**, which may keep a candidate
 but may never refuse one — a CPU-path number was refusing models a Mac can
 run, with a precise wrong figure given as the reason.
 
+### The night it ran for real
+
+Everything above was proved against fixtures: an archive we built, a server we
+faked, a digest we chose. Two hundred and seventy-three tests were green. Then
+the release was downloaded from GitHub, extracted, and executed on this Mac,
+and the first thing the real binary said was:
+
+> error while handling argument "--flash-attn": error: unknown value for
+> --flash-attn: '--cache-type-k'
+
+In b10950 `--flash-attn` takes a value. A bare flag eats the next argument, so
+the server exits before it starts. The launcher's nine tests all passed —
+they asserted strings that nothing had ever been asked to accept. The same
+reading of `--help` corrected a second one: `--n-gpu-layers` spells "every
+layer" as `all`, and its default is `auto`, which is the server guessing.
+Leaving the flag out was never neutral.
+
+Worse than either: **nothing called the launcher at all.** A grep for it
+across the workspace returned nothing — it was not in any crate's
+dependencies. What actually started was the supervisor's own argument list,
+which passes no flash attention, no cache type and no offload decision, on a
+context nobody budgeted. Every memory number in this plan was, at runtime,
+fiction. There is one renderer now, and the supervisor's second one is
+deleted rather than deprecated.
+
+Then it served. The real engine, a real model, a real question, and the answer
+came back at 107 tok/s — and the phone got it: an `adb reverse` for the
+tunnel, the request sent from the Jelly itself, and the generated text read
+off the phone's screen. That is the product's whole claim, once, end to end.
+
+Two facts the run also settled. None of the four catalog rows with an
+identified GGUF is on this machine, so a first start really does download
+several gigabytes, and that download had until now never been executed by
+anyone. And the q8_0 cache needs a head dimension divisible by 32 — the tiny
+probe model has 8, so the probe cannot run under the cache the product ships,
+which is fine and worth knowing before someone "fixes" the probe to match.
+
+The lesson is the same one as the security round, one level up. A test that
+builds its own subject cannot see the subject's defects; a suite that never
+executes the thing it configures cannot see that the configuration is refused.
+
 ### Not built yet
 
-"Turn on" is wired — decide the backend, fetch the build, choose and fetch the
-model, start the server — and the pages render every state of it, including
-the slow ones and the five ways the first run can fail. The QR exists and so
-does the page that shows it.
+"Turn on" is wired end to end and has now been run end to end: decide the
+backend, fetch the build, choose and fetch the model, start the server with
+the plan's own arguments. The pages render every state of it, including the
+slow ones and the five ways the first run can fail. The ceremony no longer
+authenticates nobody: completing it requires a MAC over the offer's nonce and
+the phone's own declaration, one attempt only, and every refusal is the same
+refusal so that nothing can be learned by probing it.
 
-What is open: the **pairing transport** (this is the big one — the ceremony
-authenticates nobody to nobody until something carries it, and the crate says
-so in plain words rather than implying otherwise), the **capability split**
-of section 5bis, and **nine catalog rows with no identified GGUF**, which is
-the bake-off's job and not a coding task.
+What is open: the **pairing transport** — the proof exists as data, and
+nothing yet carries it over a socket; the **capability split** of section
+5bis; and **nine catalog rows with no identified GGUF**, which is the
+bake-off's job and not a coding task.
