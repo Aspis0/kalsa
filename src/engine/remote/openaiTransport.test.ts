@@ -234,6 +234,96 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.finishReason).toBe("stop");
   });
 
+  test("length then [DONE] then stop stays truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n" +
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("content after [DONE] is ignored for state and delivery", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"}}]}\n\n' +
+      "data: [DONE]\n\n" +
+      'data: {"choices":[{"delta":{"content":"two"},"finish_reason":"length"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBeNull();
+  });
+
+  test("content_filter then error channel stays truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.onerror?.call(xhr);
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
+  test("length+[DONE] with non-2xx is still error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 302;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
+  });
+
+  test("conflicting finish_reason: stop then length is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n' +
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("repeated length chunks stay truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"a"},"finish_reason":"length"}]}\n\n' +
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
   test("status 0 is failure", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);

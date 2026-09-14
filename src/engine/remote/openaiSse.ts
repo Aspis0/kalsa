@@ -39,6 +39,15 @@ export function isTruncatingFinishReason(reason: string | null): boolean {
   return reason === "length" || reason === "content_filter";
 }
 
+/** Once length/content_filter is recorded, later stop/[DONE] cannot downgrade. */
+export function stickyFinishReason(
+  current: string | null,
+  incoming: string | null,
+): string | null {
+  if (isTruncatingFinishReason(current)) return current;
+  return incoming || current;
+}
+
 export function normalizeSseNewlines(buffer: string): string {
   return buffer.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }

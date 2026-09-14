@@ -14,6 +14,7 @@ import {
   newRequestId,
   parseSseFrame,
   splitSseFrames,
+  stickyFinishReason,
   type OpenAiSseEvent,
 } from "./openaiSse";
 
@@ -84,6 +85,7 @@ export function streamOpenAiChat(
   let cursor = 0;
   let closed = false;
   let sawTerminal = false;
+  let frozenAfterDone = false;
   let lastFinishReason: string | null = null;
   let abortListener: (() => void) | null = null;
   let successTimer: ReturnType<typeof setTimeout> | null = null;
@@ -145,6 +147,9 @@ export function streamOpenAiChat(
       for (const event of parseSseFrame(frame)) {
         if (closed) return;
         if (event.kind === "ignore") continue;
+        // [DONE] freezes terminal state: later finish chunks and content
+        // must not change lastFinishReason or be delivered.
+        if (frozenAfterDone) continue;
         if (event.kind === "error") {
           emitFinish({
             kind: "error",
@@ -153,12 +158,13 @@ export function streamOpenAiChat(
           });
           return;
         }
-        if (event.finishReason) {
-          // Explicit finish_reason wins over a later [DONE] (null reason).
-          lastFinishReason = event.finishReason;
-        }
+        lastFinishReason = stickyFinishReason(lastFinishReason, event.finishReason);
         if (event.kind === "done" || isTerminalFinishReason(event.finishReason)) {
           sawTerminal = true;
+        }
+        if (event.kind === "done" && event.finishReason == null) {
+          frozenAfterDone = true;
+          continue;
         }
         if (event.kind === "delta") handlers.onDelta(event);
         if (closed) return;

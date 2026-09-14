@@ -4,6 +4,7 @@ import {
   parseOpenAiSseData,
   parseSseFrame,
   splitSseFrames,
+  stickyFinishReason,
 } from "./openaiSse";
 
 describe("splitSseFrames", () => {
@@ -63,6 +64,15 @@ describe("parseOpenAiSseData", () => {
     );
     expect(ev?.kind).toBe("error");
     expect(ev?.message).toBe("nope");
+  });
+
+  test("stickyFinishReason keeps truncation over later stop", () => {
+    expect(stickyFinishReason("length", "stop")).toBe("length");
+    expect(stickyFinishReason("content_filter", "stop")).toBe("content_filter");
+    expect(stickyFinishReason("content_filter", null)).toBe("content_filter");
+    expect(stickyFinishReason("stop", "length")).toBe("length");
+    expect(stickyFinishReason(null, "stop")).toBe("stop");
+    expect(stickyFinishReason("stop", null)).toBe("stop");
   });
 
   test("finish_reason stop/length/content_filter are terminal", () => {
