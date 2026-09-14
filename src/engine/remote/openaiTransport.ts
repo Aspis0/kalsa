@@ -92,7 +92,7 @@ export function streamOpenAiChat(
   let cursor = 0;
   let closed = false;
   let sawTerminal = false;
-  let frozenAfterDone = false;
+  let frozenAfterTerminal = false;
   let lastFinishReason: string | null = null;
   let abortListener: (() => void) | null = null;
   let successTimer: ReturnType<typeof setTimeout> | null = null;
@@ -155,9 +155,9 @@ export function streamOpenAiChat(
       for (const event of parseSseFrame(frame)) {
         if (closed) return;
         if (event.kind === "ignore") continue;
-        // [DONE] freezes terminal state: later finish chunks and content
+        // Any terminal finish_reason or [DONE] freezes state: later frames
         // must not change lastFinishReason or be delivered.
-        if (frozenAfterDone) continue;
+        if (frozenAfterTerminal) continue;
         if (event.kind === "error") {
           emitFinish({
             kind: "error",
@@ -167,14 +167,12 @@ export function streamOpenAiChat(
           return;
         }
         lastFinishReason = stickyFinishReason(lastFinishReason, event.finishReason);
-        if (event.kind === "done" || isTerminalFinishReason(event.finishReason)) {
-          sawTerminal = true;
-        }
-        if (event.kind === "done" && event.finishReason == null) {
-          frozenAfterDone = true;
-          continue;
-        }
+        const terminal =
+          (event.kind === "done" && event.finishReason == null) ||
+          isTerminalFinishReason(event.finishReason);
+        if (terminal) sawTerminal = true;
         if (event.kind === "delta") handlers.onDelta(event);
+        if (terminal) frozenAfterTerminal = true;
         if (closed) return;
       }
     }

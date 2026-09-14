@@ -294,7 +294,7 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
   });
 
-  test("conflicting finish_reason: stop then length is truncated", async () => {
+  test("stop then length is blocked after terminal freeze", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
     xhr.responseText =
@@ -305,8 +305,47 @@ describe("streamOpenAiChat", () => {
     xhr.status = 200;
     xhr.onreadystatechange?.call(xhr);
     await flush();
-    expect(finishes[0]?.kind).toBe("truncated");
-    expect(finishes[0]?.finishReason).toBe("length");
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("content after finish_reason in the same progress is not delivered", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"},"finish_reason":"stop"}]}\n\n' +
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("content after finish_reason across separate progress is not delivered", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"},"finish_reason":"stop"}]}\n\n';
+    xhr.onprogress?.call(xhr);
+    expect(deltas).toEqual(["one"]);
+    xhr.responseText +=
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.onprogress?.call(xhr);
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
   });
 
   test("repeated length chunks stay truncated", async () => {
