@@ -1,6 +1,7 @@
 /**
  * Loopback-only cleartext HTTP (127.0.0.1 / localhost / ::1) so adb reverse
- * to the Mac works in debug AND release. Global default stays
+ * to the Mac works. The name says loopback, not debug: it writes the MAIN
+ * source set, so it applies to every variant, and the global default stays
  * cleartextTrafficPermitted=false (app.config usesCleartextTraffic: false).
  */
 const fs = require("fs");
@@ -18,7 +19,7 @@ const XML = `<?xml version="1.0" encoding="utf-8"?>
 </network-security-config>
 `;
 
-module.exports = function withDebugCleartext(config) {
+module.exports = function withLoopbackCleartext(config) {
   config = withDangerousMod(config, [
     "android",
     async (c) => {

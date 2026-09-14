@@ -41,7 +41,11 @@ export function humanRemoteBrainError(
   t: Translate,
 ): string {
   if (!code) return t("settings.remoteBrainFailGeneric");
-  const key = CODE_KEYS[code];
+  // Own properties only: a code off the wire ("constructor", "__proto__") must
+  // not resolve to an inherited member and leak into `t()`. 
+  const key = Object.prototype.hasOwnProperty.call(CODE_KEYS, code)
+    ? CODE_KEYS[code]
+    : undefined;
   if (key) return t(key);
   const http = HTTP_STATUS_CODE.exec(code);
   if (http) return t("settings.remoteBrainFailServer", { status: http[1] });

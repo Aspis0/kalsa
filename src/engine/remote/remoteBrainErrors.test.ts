@@ -82,4 +82,13 @@ describe("humanRemoteBrainError", () => {
     expect(shown).not.toContain("java.net");
     expect(shown).not.toContain("fetch failed");
   });
+
+  test("an inherited object member is not a translation key", () => {
+    expect(humanRemoteBrainError("constructor", t)).toBe(
+      "settings.remoteBrainFailGeneric",
+    );
+    expect(humanRemoteBrainError("__proto__", t)).toBe(
+      "settings.remoteBrainFailGeneric",
+    );
+  });
 });

@@ -68,7 +68,7 @@ const config = {
   },
   plugins: [
     "./plugins/withLintOff",
-    "./plugins/withDebugCleartext",
+    "./plugins/withLoopbackCleartext",
     ...(process.env.KALSA_DEBUGGABLE === "1"
       ? ["./plugins/withDebuggableRelease"]
       : []),
