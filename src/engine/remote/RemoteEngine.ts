@@ -12,6 +12,12 @@ import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteBrainToken } from "./remoteSecret";
 import {
+  canSendAuthorization,
+  isNonLoopback,
+  joinRemoteApiUrl,
+  remoteUrlAllowedInThisBuild,
+} from "./remoteUrl";
+import {
   getRemoteBrainUrl,
   getRemoteContextSize,
   getRemoteMaxTokens,
@@ -28,8 +34,9 @@ let lastRequestId: string | null = null;
 let activeStream: { abort: () => void } | null = null;
 let initGeneration = 0;
 
-function authHeaders(token: string | null): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function authHeaders(url: string, token: string | null): Record<string, string> {
+  if (!token || !canSendAuthorization(url)) return {};
+  return { Authorization: `Bearer ${token}` };
 }
 
 const PROBE_TIMEOUT_MS = 10_000;
@@ -39,10 +46,10 @@ async function jsonGet(
   token: string | null,
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const url = `${getRemoteBrainUrl()}${path}`;
+  const url = joinRemoteApiUrl(getRemoteBrainUrl(), path);
   const res = await fetch(url, {
     method: "GET",
-    headers: { Accept: "application/json", ...authHeaders(token) },
+    headers: { Accept: "application/json", ...authHeaders(url, token) },
     signal,
   });
   let body: unknown = null;
@@ -65,6 +72,21 @@ export async function testRemoteConnection(): Promise<{
   const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
     const token = await getRemoteBrainToken();
+    const base = getRemoteBrainUrl();
+    if (!remoteUrlAllowedInThisBuild(base)) {
+      return {
+        ok: false,
+        modelId: configured || null,
+        error: "remote_brain_https_required",
+      };
+    }
+    if (isNonLoopback(base) && !token) {
+      return {
+        ok: false,
+        modelId: configured || null,
+        error: "remote_brain_token_required",
+      };
+    }
     const models = await jsonGet("/v1/models", token, probe.signal);
     let ids: string[] = [];
     if (models.ok) {
@@ -226,6 +248,15 @@ export async function streamRemoteAssistantTurn(
   let streamStarted = false;
   try {
   const token = await getRemoteBrainToken();
+  const base = getRemoteBrainUrl();
+  if (!remoteUrlAllowedInThisBuild(base)) {
+    finishOnce(new Error("remote_brain_https_required"));
+    return;
+  }
+  if (isNonLoopback(base) && !token) {
+    finishOnce(new Error("remote_brain_token_required"));
+    return;
+  }
   if (signal?.aborted) {
     const err = new Error(strings.chat.interrupted);
     (err as { code?: string; preservePartial?: boolean }).code = "interrupted";
@@ -241,7 +272,7 @@ export async function streamRemoteAssistantTurn(
     };
     const handle = streamOpenAiChat(
       {
-        baseUrl: getRemoteBrainUrl(),
+        completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
         model: getRemoteServerModelId(),
         messages: toOpenAiMessages(
           messages,
@@ -253,7 +284,7 @@ export async function streamRemoteAssistantTurn(
         ),
         maxTokens: getRemoteMaxTokens(),
         temperature: getRemoteTemperature(),
-        token,
+        token: token && canSendAuthorization(base) ? token : null,
         signal,
       },
       {

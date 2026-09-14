@@ -76,7 +76,7 @@ Expected (key never shown):
 ```
 backend: mtplx
 local:  http://127.0.0.1:8000
-tailnet: https://<mac>.<tailnet>.ts.net  (Serve must be enabled…)
+tailnet: https://<this-mac>.<tailnet>.ts.net  (Serve must be enabled…)
 ```
 
 If mtplx is already up, `run.sh` prints the URLs and exits 0 (attach). It will
@@ -119,7 +119,7 @@ Equivalent if `tailscale` is on `PATH`: `tailscale serve --bg 8000`.
 Then, **from this Mac** (or any logged-in tailnet device):
 
 ```bash
-./server/mac-brain/test-sse.sh https://<mac>.<tailnet>.ts.net
+./server/mac-brain/test-sse.sh https://<this-mac>.<tailnet>.ts.net
 ```
 
 Replace the hostname with whatever `tailscale status --json` reports as
@@ -194,8 +194,9 @@ Delete that tree if you want a full wipe. **Do not** put the key in git.
 ## Next run (phone app)
 
 - Local now: `http://127.0.0.1:8000`. Tailnet later:
-  `https://<mac>.<tailnet>.ts.net` **after** Serve is enabled
-  **and** mtplx has an API key.
+  `https://<this-mac>.<tailnet>.ts.net` **after** Serve is enabled
+  **and** mtplx has an API key. Machine-specific values live in
+  `server/mac-brain/LOCAL.md` (gitignored).
 - Model id: `philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx`
   (single-model server; other ids may still work).
 - API: OpenAI `/v1/chat/completions` with `stream: true`. Give

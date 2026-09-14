@@ -1,19 +1,36 @@
 #!/usr/bin/env bash
 # Curl checks: /health, non-stream chat, SSE stream ending in data: [DONE].
-# Usage: test-sse.sh [BASE_URL]
+# Usage: test-sse.sh [BASE_URL] [MODEL_ID]
 # Default BASE_URL: http://127.0.0.1:8000 (mtplx). llama-server is :8080.
-# Sends Bearer from ~/.kalsa/api-keys when that file exists; mtplx localhost
-# currently does not require a key. Never prints the key.
+# Sends Bearer from ~/.kalsa/api-keys only for loopback URLs, unless
+# KALSA_TEST_SSE_ALLOW_KEY=1. Never prints the key.
 set -euo pipefail
 
 BASE="${1:-http://127.0.0.1:8000}"
 BASE="${BASE%/}"
+MODEL_ARG="${2:-}"
 KEYFILE="${HOME}/.kalsa/api-keys"
 AUTH=()
+
+is_loopback_url() {
+  case "$1" in
+    http://127.0.0.1:*|http://127.0.0.1|http://localhost:*|http://localhost|https://127.0.0.1:*|https://127.0.0.1|https://localhost:*|https://localhost)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if [[ -s "$KEYFILE" ]]; then
-  KEY="$(head -n1 "$KEYFILE" | tr -d '\r\n')"
-  if [[ -n "$KEY" ]]; then
-    AUTH=( -H "Authorization: Bearer ${KEY}" )
+  if is_loopback_url "$BASE" || [[ "${KALSA_TEST_SSE_ALLOW_KEY:-}" == "1" ]]; then
+    KEY="$(head -n1 "$KEYFILE" | tr -d '\r\n')"
+    if [[ -n "$KEY" ]]; then
+      AUTH=( -H "Authorization: Bearer ${KEY}" )
+    fi
+  else
+    echo "note: refusing to send ${KEYFILE} to non-loopback URL (set KALSA_TEST_SSE_ALLOW_KEY=1)"
   fi
 else
   echo "note: no ${KEYFILE}; probing without Authorization"
@@ -21,21 +38,26 @@ fi
 JSON=( -H "Content-Type: application/json" )
 fail=0
 
-MODEL="ornith"
-models_json="$(mktemp)"
-if curl -sS --max-time 5 -o "$models_json" "${AUTH[@]}" "${BASE}/v1/models"; then
-  got="$(python3 - "$models_json" <<'PY'
+MODEL="${MODEL_ARG:-}"
+if [[ -z "$MODEL" ]]; then
+  models_json="$(mktemp)"
+  if curl -sS --max-time 5 -o "$models_json" "${AUTH[@]}" "${BASE}/v1/models"; then
+    got="$(python3 - "$models_json" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1], encoding="utf-8"))
 data=d.get("data") or []
 print((data[0].get("id") if data else "") or "")
 PY
 )"
-  if [[ -n "$got" ]]; then
-    MODEL="$got"
+    if [[ -n "$got" ]]; then
+      MODEL="$got"
+    fi
   fi
+  rm -f "$models_json"
 fi
-rm -f "$models_json"
+if [[ -z "$MODEL" ]]; then
+  MODEL="ornith"
+fi
 echo "using model id: ${MODEL}"
 
 echo "== GET ${BASE}/health =="

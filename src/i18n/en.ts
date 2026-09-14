@@ -125,6 +125,10 @@ export const en = {
     remoteBrainTesting: "Testing…",
     remoteBrainOk: "Connected · {model}",
     remoteBrainFail: "Could not reach the Mac: {error}",
+    remoteBrainHttpWarning:
+      "This URL is plain HTTP and not loopback. The token will not be sent. Use HTTPS.",
+    remoteBrainHttpsRequired: "Release builds require an https:// server URL.",
+    remoteBrainTokenRequired: "A token is required for non-loopback servers.",
     remoteMac: "My Mac",
     remoteMacHint: "Ornith on this Mac (mtplx). No on-device download.",
     remoteGated: "Not available on the Mac brain",

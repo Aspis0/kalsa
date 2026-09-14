@@ -17,6 +17,7 @@ import {
   getRemoteBrainToken,
   setRemoteBrainToken,
 } from "../engine/remote/remoteSecret";
+import { isHttpUrl, isNonLoopback } from "../engine/remote/remoteUrl";
 import { GlassPanel2 } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
 import { fontFamilies, useTypography } from "../theme/typography";
@@ -64,8 +65,13 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
 
   const persistUrl = useCallback(async (next: string) => {
     setUrl(next);
-    await setRemoteBrainUrl(next);
-  }, []);
+    try {
+      await setRemoteBrainUrl(next);
+    } catch {
+      setStatusOk(false);
+      setStatus(t("settings.remoteBrainFail", { error: "invalid_url" }));
+    }
+  }, [t]);
 
   const persistToken = useCallback(async (next: string) => {
     setToken(next);
@@ -214,6 +220,11 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
           },
         ]}
       />
+      {isHttpUrl(url) && isNonLoopback(url) ? (
+        <Text style={[typography.bodyXs, { color: colors.bad ?? colors.muted }]}>
+          {t("settings.remoteBrainHttpWarning")}
+        </Text>
+      ) : null}
       <Text style={[typography.bodyXs, { color: colors.muted }]}>
         {t("settings.remoteBrainToken")}
       </Text>

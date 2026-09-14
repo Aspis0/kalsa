@@ -24,6 +24,9 @@ eval/ai-model-benchmarks/
 cloudflare/**/.wrangler/
 cloudflare/Aspis-bio-website/
 
+# Machine-specific tailnet / host values
+server/mac-brain/LOCAL.md
+
 # Local secrets and signing material
 .env*
 .dev.vars

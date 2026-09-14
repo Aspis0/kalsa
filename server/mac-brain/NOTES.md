@@ -87,8 +87,8 @@ From the stream completion `mtplx_stats`: `active_memory_bytes` 21 551 025�
 | | |
 | --- | --- |
 | CLI | `/Applications/Tailscale.app/Contents/MacOS/Tailscale` (`tailscale` is not on the default PATH) |
-| Logged in | yes — node `<mac-hostname>` (`<tailnet-ip>`), tailnet MagicDNS suffix `<tailnet>.ts.net` |
-| MagicDNS | `<mac>.<tailnet>.ts.net` |
+| Logged in | yes — see `LOCAL.md` (gitignored) for node name / MagicDNS |
+| MagicDNS | `https://<this-mac>.<tailnet>.ts.net` |
 | Serve | **not enabled on this tailnet.** `tailscale serve --bg 8080` prints `Serve is not enabled on your tailnet` and a login.tailscale.com enable URL; `serve status` stays `No serve config`. Funnel was not used. An admin must enable Serve, then re-run `…/Tailscale serve --bg 8080`. |
 | Local | `http://127.0.0.1:8000` (mtplx OpenAI server, Ornith). 8080 is the llama-server fallback and is free. |
 | Serve target when enabled | `tailscale serve --bg 8000` (not 8080). Still blocked on the tailnet admin toggle. |

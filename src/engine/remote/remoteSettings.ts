@@ -4,6 +4,7 @@
  * is never inferred from /v1/models[0].
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { normalizeRemoteUrl } from "./remoteUrl";
 
 export type EngineBackendMode = "local" | "remote";
 
@@ -68,8 +69,11 @@ export function validateServedModel(
 }
 
 export function normalizeUrl(raw: string): string {
-  const trimmed = raw.trim().replace(/\/+$/, "");
-  return trimmed.length > 0 ? trimmed : DEFAULT_REMOTE_BRAIN_URL;
+  const parsed = normalizeRemoteUrl(raw);
+  if (!parsed.ok) {
+    throw new Error(parsed.error);
+  }
+  return parsed.url;
 }
 
 function parsePositiveInt(raw: string | null, fallback: number): number {
@@ -140,7 +144,12 @@ export async function hydrateRemoteBrainSettings(): Promise<{
         AsyncStorage.getItem(REMOTE_BRAIN_CTX_KEY),
       ]);
     backendCache = backendRaw === "remote" ? "remote" : "local";
-    urlCache = urlRaw ? normalizeUrl(urlRaw) : DEFAULT_REMOTE_BRAIN_URL;
+    if (urlRaw) {
+      const parsed = normalizeRemoteUrl(urlRaw);
+      urlCache = parsed.ok ? parsed.url : DEFAULT_REMOTE_BRAIN_URL;
+    } else {
+      urlCache = DEFAULT_REMOTE_BRAIN_URL;
+    }
     serverModelCache = (modelRaw ?? "").trim();
     maxTokensCache = parsePositiveInt(maxRaw, DEFAULT_REMOTE_MAX_TOKENS);
     temperatureCache = parseTemperature(tempRaw, DEFAULT_REMOTE_TEMPERATURE);
