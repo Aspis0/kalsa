@@ -1754,11 +1754,17 @@ dependencies = [
 name = "kalsa-brain"
 version = "0.0.1"
 dependencies = [
+ "kalsa-catalog",
+ "kalsa-download",
+ "kalsa-pairing",
  "kalsa-probe",
+ "kalsa-runtime",
  "kalsa-supervisor",
+ "libc",
  "serde",
  "tauri",
  "tauri-build",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1776,6 +1782,15 @@ dependencies = [
  "sha2",
  "ureq",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "kalsa-launch"
+version = "0.0.1"
+dependencies = [
+ "kalsa-catalog",
+ "kalsa-probe",
+ "kalsa-runtime",
 ]
 
 [[package]]
@@ -1798,6 +1813,14 @@ name = "kalsa-probe"
 version = "0.0.1"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "kalsa-reuse"
+version = "0.0.1"
+dependencies = [
+ "kalsa-download",
+ "sha2",
 ]
 
 [[package]]

@@ -1,96 +1,82 @@
 //! The app shell: three pages — status, model, pairing — and the commands
 //! they read.
 //!
-//! All supervision lives in `kalsa-supervisor`; this file only resolves where
-//! the server binary and the model are, and maps the supervisor's state onto
-//! commands the webview can call. Model choice and download live in
-//! `kalsa-catalog` and `kalsa-download`; until `brain_choice` exists, the one
-//! real step the Model page can offer is `brain_measure` — kalsa-probe's
-//! measurement of this machine — and the web shell renders unknown states
-//! from `src/data/placeholders.js` rather than inventing answers here.
+//! All supervision lives in `kalsa-supervisor`; "Turn on" is the walk in
+//! `startup`: decide the backend, place the chosen model, start the server —
+//! off the main thread, reporting progress, refusing a second press while a
+//! walk is still going. Model choice is `kalsa-catalog`'s, downloads are
+//! `kalsa-download`'s, and every failure becomes a sentence in `failure`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::path::{Path, PathBuf};
+mod failure;
+mod startup;
+
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::sync::Mutex;
 
-use kalsa_supervisor::{
-    conservative_threads, Failure, ServerConfig, ServerState, Supervisor, DEFAULT_BATCH,
-    DEFAULT_CTX, DEFAULT_IDLE_SECONDS, DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
-};
+use kalsa_probe::{Measurement, ProbeConfig};
+use kalsa_supervisor::{ServerState, Supervisor};
 use serde::Serialize;
-use tauri::{Manager, RunEvent, State};
+use tauri::{Emitter, Manager, RunEvent, State};
 
-/// Overrides where the server binary comes from. Development only: a shipped
-/// build carries it next to the executable.
+/// Development overrides, honoured only while this is a skeleton with no
+/// packaging step. The server override replaces the decide step; the model
+/// override replaces the choice and the acquisition — in both cases the
+/// developer owns the bytes.
 const SERVER_BIN_ENV: &str = "KALSA_BRAIN_SERVER_BIN";
-const SERVER_BIN_NAME: &str = "llama-server";
-/// The GGUF to serve. Required until the model page exists.
 const MODEL_ENV: &str = "KALSA_BRAIN_MODEL";
-/// Loopback port. The phone reaches it through a tunnel, never over the LAN.
-const PORT: u16 = 8130;
-/// Loading a model from a slow disk on an old machine is not fast.
-const READY_TIMEOUT: Duration = Duration::from_secs(600);
-/// Long enough for a clean unload, short enough that closing the window is not
-/// a hang: the supervisor escalates to SIGKILL after the second one.
-const STOP_GRACE: Duration = Duration::from_secs(2);
+/// Where the pairing handshake is kept, so the catalog knows what the phone
+/// runs. The pairing crate persists and loads it; this is its path.
+const PAIRING_FILE: &str = "pairing.json";
 
 struct Brain {
     supervisor: Supervisor,
-    /// Whether a probe measurement of this machine has succeeded in this run.
-    /// Held in memory only: until kalsa-catalog's command owns the numbers,
+    /// The measurement of this machine, kept so a turn-on does not measure
+    /// again and the Model page can say whether numbers exist. Memory only:
     /// a restart measures again rather than pretending a result survived.
-    measured: AtomicBool,
+    measurement: Mutex<Option<Measurement>>,
+    /// One walk at a time: a second press while the first is still deciding,
+    /// downloading or starting must not start a second of anything.
+    turning_on: AtomicBool,
 }
 
 impl Brain {
     fn new() -> Self {
         Self {
             supervisor: Supervisor::new(),
-            measured: AtomicBool::new(false),
+            measurement: Mutex::new(None),
+            turning_on: AtomicBool::new(false),
         }
     }
 
-    fn config(&self, state_file: PathBuf) -> Result<ServerConfig, String> {
-        let model = std::env::var(MODEL_ENV)
-            .map(PathBuf::from)
-            .map_err(|_| "No model is set up on this computer yet.".to_string())?;
-        Ok(ServerConfig {
-            exe: server_binary(),
-            model,
-            state_file,
-            port: PORT,
-            threads: conservative_threads(
-                std::thread::available_parallelism()
-                    .map(|n| n.get())
-                    .unwrap_or(4),
-            ),
-            batch: DEFAULT_BATCH,
-            ubatch: DEFAULT_UBATCH,
-            ctx: DEFAULT_CTX,
-            idle_seconds: DEFAULT_IDLE_SECONDS,
-            ready_timeout: READY_TIMEOUT,
-            stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
-        })
+    /// Claims the single walk. False when one is already going.
+    fn begin_turn_on(&self) -> bool {
+        self.turning_on
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
     }
 }
 
-/// Our embedded copy beside the executable, or whatever is on PATH while this
-/// is still a skeleton with no packaging step.
-fn server_binary() -> PathBuf {
-    if let Ok(path) = std::env::var(SERVER_BIN_ENV) {
-        return PathBuf::from(path);
+/// The machine facts the walk needs, from the measurement this run keeps.
+fn machine_numbers(measurement: &Measurement) -> startup::Machine {
+    startup::Machine {
+        detected: measurement.will_run_on,
+        ram_bytes: startup::ram_bytes(),
+        bandwidth_bytes_per_second: measurement.ceiling_bytes_per_second,
+        compute_flops_per_second: measurement.compute.max(),
     }
-    if let Ok(current) = std::env::current_exe() {
-        if let Some(dir) = current.parent() {
-            let beside = dir.join(SERVER_BIN_NAME);
-            if Path::new(&beside).exists() {
-                return beside;
-            }
-        }
-    }
-    PathBuf::from(SERVER_BIN_NAME)
+}
+
+/// The phone's declaration, from the persisted pairing. Unpaired is a normal
+/// state, not an error: the catalog answers it with a refusal the user can
+/// act on.
+fn phone(app: &tauri::AppHandle) -> Option<kalsa_catalog::PhoneModel> {
+    let path = app.path().app_data_dir().ok()?.join(PAIRING_FILE);
+    kalsa_pairing::store::load(&path)
+        .ok()
+        .map(|handshake| handshake.phone)
 }
 
 #[derive(Clone, Serialize)]
@@ -101,36 +87,10 @@ enum StateDto {
     Running {
         port: u16,
     },
-    /// Already in the user's words, produced only by `words` below.
+    /// Already in the user's words, produced only by `failure::words`.
     Failed {
         reason: String,
     },
-}
-
-/// The words for each failure — the only place the supervisor's observations
-/// become sentences. Fail closed: the match is exhaustive, so a reason the
-/// supervisor learns to report breaks this build until it is given words, and
-/// a `detail` payload never crosses it. Every sentence says what happened and
-/// what the user can do, in the language of the screen, not of the crate.
-fn words(failure: &Failure) -> String {
-    match failure {
-        Failure::PortTaken => "Another program is in the way. Restarting the computer usually clears it.".into(),
-        Failure::InstanceUnreadable { .. } => {
-            "A copy of the assistant left over from earlier is stuck. Restarting the computer usually clears it.".into()
-        }
-        Failure::InstanceUnwritable { .. } => {
-            "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".into()
-        }
-        Failure::ServerNotStarted { .. } => {
-            "The assistant did not start. Turning it on again usually works; if it keeps failing, the app may need to be installed again.".into()
-        }
-        Failure::ServerExited { .. } => {
-            "The assistant stopped on its own. Turning it on again usually works.".into()
-        }
-        Failure::NotReady { .. } => {
-            "The assistant took too long to get ready. Turning it on again usually works.".into()
-        }
-    }
 }
 
 impl From<ServerState> for StateDto {
@@ -140,7 +100,7 @@ impl From<ServerState> for StateDto {
             ServerState::Starting => Self::Starting,
             ServerState::Running { port, .. } => Self::Running { port },
             ServerState::Failed { reason } => Self::Failed {
-                reason: words(&reason),
+                reason: failure::words(&failure::StartupFailure::Supervisor(reason)),
             },
         }
     }
@@ -151,11 +111,10 @@ fn brain_state(brain: State<Brain>) -> StateDto {
     brain.supervisor.state().into()
 }
 
-/// Whether a model is configured at all — a fact, read from the environment,
-/// so the Model page can say "nothing set up yet" instead of inventing an
-/// entry. Which model and why are `kalsa-catalog`'s answer and will arrive as
-/// their own command; a filename never crosses this boundary, because the
-/// user has no use for one.
+/// Whether a model is configured at all — the development override is the
+/// fact today; the catalog's own choice arrives with the Model page's next
+/// step. Which model and why are `kalsa-catalog`'s answer; a filename never
+/// crosses this boundary, because the user has no use for one.
 #[derive(Serialize)]
 struct ModelDto {
     chosen: bool,
@@ -168,10 +127,14 @@ fn brain_model() -> ModelDto {
     }
 }
 
-/// Whether a measurement of this machine has succeeded in this run.
+/// Whether a measurement of this machine exists in this run.
 #[tauri::command]
 fn brain_measured(brain: State<Brain>) -> bool {
-    brain.measured.load(Ordering::Relaxed)
+    brain
+        .measurement
+        .lock()
+        .map(|stored| stored.is_some())
+        .unwrap_or(false)
 }
 
 /// Measures this computer — the probe takes seconds, so it runs off the main
@@ -179,23 +142,89 @@ fn brain_measured(brain: State<Brain>) -> bool {
 /// own numbers; a rejected measurement is reported, never kept.
 #[tauri::command]
 async fn brain_measure(brain: State<'_, Brain>) -> Result<bool, String> {
-    let reliable = tauri::async_runtime::spawn_blocking(|| {
-        kalsa_probe::measure_reliable(&kalsa_probe::ProbeConfig::default()).is_reliable()
+    let measured = tauri::async_runtime::spawn_blocking(|| {
+        kalsa_probe::measure_reliable(&ProbeConfig::default())
     })
     .await
     .map_err(|_| "The measuring did not finish. Trying again usually works.".to_string())?;
+    let reliable = measured.is_reliable();
     if reliable {
-        brain.measured.store(true, Ordering::Relaxed);
+        if let Ok(mut stored) = brain.measurement.lock() {
+            *stored = Some(measured);
+        }
     }
     Ok(reliable)
 }
 
-/// Returns at once: the handshake runs on the supervisor thread and the screen
-/// follows the state, so a slow model load never freezes the window.
+/// "Turn on": decide the backend, place the chosen model, start the server.
+///
+/// Returns at once from the window's point of view — the walk runs on a
+/// blocking thread and reports progress as `brain_progress` events — but the
+/// command's answer is the walk's verdict: `Ok` once the supervisor has been
+/// started (the screen then follows `brain_state` through starting to
+/// running), or the failure's own words. A second press while a walk is
+/// still going is refused, not queued.
 #[tauri::command]
-fn brain_start(app: tauri::AppHandle, brain: State<Brain>) -> Result<(), String> {
-    brain.supervisor.start(brain.config(state_file(&app)?)?);
-    Ok(())
+async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
+    if !brain.begin_turn_on() {
+        return Err("The assistant is already starting.".into());
+    }
+    let numbers = brain
+        .measurement
+        .lock()
+        .ok()
+        .and_then(|stored| stored.as_ref().map(machine_numbers));
+    let state_file = state_file(&app)?;
+    let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
+    let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
+    let phone = phone(&app);
+    let emitter = app.clone();
+
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let mut progress = |step: startup::Progress| {
+            let _ = emitter.emit("brain_progress", step);
+        };
+        // A machine nobody has measured yet is measured here, once: turning
+        // on must not dead-end on a button the user has to find elsewhere.
+        let (machine, measured) = match numbers {
+            Some(numbers) => (numbers, None),
+            None => {
+                progress(startup::Progress::Measuring);
+                let measurement = kalsa_probe::measure_reliable(&ProbeConfig::default());
+                (machine_numbers(&measurement), Some(measurement))
+            }
+        };
+        startup::run(
+            server_override,
+            machine,
+            phone,
+            model_override,
+            state_file,
+            &mut progress,
+        )
+        .map(|config| (config, measured))
+        .map_err(|failure| failure::words(&failure))
+    })
+    .await;
+
+    // The walk is over either way; the next press may start again.
+    brain.turning_on.store(false, Ordering::SeqCst);
+
+    match outcome {
+        Ok(Ok((config, measured))) => {
+            if let Some(measured) = measured {
+                if let Ok(mut stored) = brain.measurement.lock() {
+                    *stored = Some(measured);
+                }
+            }
+            // The supervisor reports starting, running and its own failures
+            // through brain_state; its sentences live in failure too.
+            brain.supervisor.start(config);
+            Ok(())
+        }
+        Ok(Err(sentence)) => Err(sentence),
+        Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
+    }
 }
 
 /// Where this instance announces itself. It is locked while our server runs and
@@ -240,4 +269,23 @@ fn main() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_second_press_while_a_walk_is_running_starts_nothing() {
+        let brain = Brain::new();
+        assert!(brain.begin_turn_on(), "the first press goes through");
+        assert!(
+            !brain.begin_turn_on(),
+            "a second press while the first is still going is refused: \
+             no second decide, no second download, no second server"
+        );
+        assert!(!brain.begin_turn_on(), "refusal holds until the walk ends");
+        brain.turning_on.store(false, Ordering::SeqCst);
+        assert!(brain.begin_turn_on(), "a finished walk frees the next one");
+    }
 }
