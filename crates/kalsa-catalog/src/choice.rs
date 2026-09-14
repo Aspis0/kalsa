@@ -312,20 +312,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         .filter(|candidate| candidate.footprint.total_bytes() <= budget.usable_bytes)
         .collect();
     if fitting.is_empty() {
-        let smallest = candidates
-            .iter()
-            .map(|candidate| candidate.footprint.total_bytes())
-            .min()
-            .unwrap_or(0);
-        return Decision::Refuse(Refusal {
-            reason: RefusalReason::NothingFits,
-            explanation: format!(
-                "This computer is not worth using: it can give a model {} and the smallest \
-                 one in the catalog needs {}.",
-                gib_text(budget.usable_bytes),
-                gib_text(smallest)
-            ),
-        });
+        return Decision::Refuse(nothing_fits(budget, &candidates));
     }
 
     // No justification is worth asking for a crawl: a candidate below reading
@@ -336,15 +323,22 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         .filter(|candidate| candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND)
         .collect();
     if remaining.is_empty() {
+        // Every model that fits is too slow. fitting is not empty — the
+        // nothing-fits refusal above has already returned — so the span
+        // exists; the None arm keeps the match total by giving the same
+        // answer that refusal would give.
         let span = span_of(fitting.iter().map(|candidate| &candidate.decode));
-        return Decision::Refuse(Refusal {
-            reason: RefusalReason::NothingFastEnough,
-            explanation: format!(
-                "This computer is not worth using: the models that fit would decode at \
-                 about {} tokens per second, which is slower than reading.",
-                render(&span)
-            ),
-        });
+        return match span {
+            Some(span) => Decision::Refuse(Refusal {
+                reason: RefusalReason::NothingFastEnough,
+                explanation: format!(
+                    "This computer is not worth using: the models that fit would decode \
+                     at about {} tokens per second, which is slower than reading.",
+                    render(&span)
+                ),
+            }),
+            None => Decision::Refuse(nothing_fits(budget, &candidates)),
+        };
     }
 
     // The existing preference, walked until a candidate admits an honest
@@ -404,25 +398,32 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     let comparable_fast = comparable
         .iter()
         .any(|candidate| candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND);
+    let comparable_span = span_of(comparable.iter().map(|candidate| &candidate.decode));
+    let nothing_comparable = || {
+        format!(
+            "This computer is not worth using: everything that fits is smaller than the \
+             model already on your phone ({}), so the work would move to a weaker model.",
+            gib_text(phone.weights_bytes)
+        )
+    };
     let (reason, explanation) = if comparable.is_empty() {
-        (
-            RefusalReason::NothingBetter,
-            format!(
-                "This computer is not worth using: everything that fits is smaller than the \
-                 model already on your phone ({}), so the work would move to a weaker model.",
-                gib_text(phone.weights_bytes)
-            ),
-        )
+        (RefusalReason::NothingBetter, nothing_comparable())
     } else if !comparable_fast {
-        (
-            RefusalReason::NothingFastEnough,
-            format!(
-                "This computer is not worth using: the models that fit and would be worth \
-                 running here would decode at about {} tokens per second, which is slower \
-                 than reading.",
-                render(&span_of(comparable.iter().map(|candidate| &candidate.decode)))
+        // comparable is not empty — the arm above has answered that — so the
+        // span exists; the None arm keeps the match total and repeats the
+        // same answer rather than inventing a speed.
+        match comparable_span {
+            Some(span) => (
+                RefusalReason::NothingFastEnough,
+                format!(
+                    "This computer is not worth using: the models that fit and would be \
+                     worth running here would decode at about {} tokens per second, which \
+                     is slower than reading.",
+                    render(&span)
+                ),
             ),
-        )
+            None => (RefusalReason::NothingBetter, nothing_comparable()),
+        }
     } else if phone.battery_powered == Some(false) {
         (
             RefusalReason::NothingBetter,
@@ -457,16 +458,36 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
+/// The refusal for a machine nothing in the catalog fits, naming the numbers
+/// so the answer can be checked.
+fn nothing_fits(budget: MemoryBudget, candidates: &[Candidate]) -> Refusal {
+    let smallest = candidates
+        .iter()
+        .map(|candidate| candidate.footprint.total_bytes())
+        .min()
+        .unwrap_or(0);
+    Refusal {
+        reason: RefusalReason::NothingFits,
+        explanation: format!(
+            "This computer is not worth using: it can give a model {} and the smallest \
+             one in the catalog needs {}.",
+            gib_text(budget.usable_bytes),
+            gib_text(smallest)
+        ),
+    }
+}
+
 /// The honest span of a set of predictions: from the most pessimistic end to
-/// the most optimistic. Nothing is rendered from a fabricated pair.
-fn span_of<'a>(predictions: impl Iterator<Item = &'a Prediction>) -> Prediction {
+/// the most optimistic. None for an empty set — there is no speed to
+/// summarise, and no fabricated pair of infinities stands in for one.
+fn span_of<'a>(predictions: impl Iterator<Item = &'a Prediction>) -> Option<Prediction> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
     for prediction in predictions {
         low = low.min(prediction.floor());
         high = high.max(prediction.ceiling());
     }
-    Prediction::Range { low, high }
+    (high >= low).then_some(Prediction::Range { low, high })
 }
 
 /// The numbers and the sentence for the candidate the walk settled on.
@@ -554,6 +575,13 @@ mod tests {
         // the evidence is allowed to refuse, too.
         assert!(capability_basis(phi, Some(equivalent), Some(Parameters::dense(4_000_000_000)))
             .is_none());
+    }
+
+    #[test]
+    fn an_empty_set_has_no_span() {
+        // Nothing in, nothing out: the empty case is a value the caller must
+        // handle, never a fabricated pair of infinities on the screen.
+        assert_eq!(span_of(std::iter::empty::<&Prediction>()), None);
     }
 
     #[test]
