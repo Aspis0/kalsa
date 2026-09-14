@@ -114,6 +114,9 @@ our research, it is the opportunity: nobody can tell this user what their
 
 ### Tiers (RAM of the machine, CPU-only baseline)
 
+⚠️ This table is the CPU floor. On a machine with a discrete GPU the index
+is VRAM, not RAM — see section 4a.
+
 Floor for the catalog: nothing under 4B parameters. Below that we are not
 beating the phone.
 
@@ -132,6 +135,59 @@ Licence sits next to every entry from day one, because it decides whether a
 paid fine-tune of that base will ever be possible. A recent MoE that fits a
 16 GB machine exists, but its licence is research-only — which is exactly why
 the column is not optional.
+
+## 4a. The GPU is not an optimisation: it decides the budget AND the speed
+
+Measured here on 2026-09-14, on the M1 Max, 256 MiB streaming read, best of five
+samples (contention can only push these down):
+
+| threads | 1 | 4 | 5 | 8 | 12 |
+| --- | --- | --- | --- | --- | --- |
+| scalar u64 | 55.8 | 88.0 | 88.6 | **112.2** | 105.1 |
+| 128-bit NEON | 56.5 | 87.9 | — | **110.8** | 109.0 |
+
+Two readings, one of which is the important one:
+
+- The first probe reported 83–86 GB/s only because it used `cores / 2` = 5
+  threads. Widening the loads to NEON changes nothing, so ~110 GB/s is a real
+  plateau, not an artefact of how we read memory.
+- **The machine's ~400 GB/s is not reachable from the CPU at all.** It is the SoC
+  figure, and on Apple Silicon only the GPU sees it. llama.cpp decodes through
+  Metal on macOS by default, so a CPU-only probe under-predicts every Mac by
+  3–4x — it would tell a Mac owner their machine is too slow for a model that
+  in fact runs well. That is a wrong answer, not an imprecise one.
+
+So **the CPU number is this product's floor, not its default.** The machines we
+ship to split three ways, and they do not share a memory budget:
+
+| class | what runs decode | memory budget | bandwidth |
+| --- | --- | --- | --- |
+| Apple Silicon | Metal, always | system RAM (unified) | SoC bandwidth, ~3–4x the CPU figure |
+| Discrete NVIDIA/AMD | CUDA, else Vulkan | **VRAM**, not system RAM | the card's, if the model fits |
+| Old iGPU / no GPU | CPU | system RAM | the CPU plateau |
+
+Consequences that change code, not just wording:
+
+- **The tier table in section 4 is indexed by RAM, which is only correct for the
+  first and third rows.** On a machine with a discrete GPU the index is VRAM: a
+  32 GB PC with a 6 GB card is an 6 GB machine for the purpose of choosing a
+  model, and a 16 GB Mac is a 16 GB machine.
+- **Partial offload is not a partial win.** When a model does not fit in VRAM,
+  llama.cpp leaves some layers on the CPU and decode is dominated by those. The
+  prediction needs both bandwidths and the split, and the default choice should
+  prefer a smaller model that fits entirely over a larger one that spills.
+- **An old integrated GPU is not a GPU for this purpose.** Vulkan frequently
+  fails to initialise on Haswell-era parts, and where it works the iGPU reads
+  the same system RAM at the same speed, so there is no decode win and sometimes
+  a loss. CPU is the correct answer there, not a fallback we are ashamed of.
+- **Every bandwidth number must carry the execution path it describes**, as data
+  the catalog can branch on — not as a sentence in a printed report. A figure
+  with no backend attached is exactly how the first wrong answer got through.
+  Where the backend that will run is not the one we measured, the prediction is
+  a lower bound and must be labelled one.
+- The thermal rule of section 2 applies harder here, not less: a discrete GPU in
+  an eight-year-old laptop is the quickest way to cook it. The throughput-decay
+  sentinel watches the GPU path too.
 
 ## 4b. The install is one install
 
