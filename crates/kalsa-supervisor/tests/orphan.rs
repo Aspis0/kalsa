@@ -8,13 +8,14 @@ use std::net::TcpListener;
 use std::time::Duration;
 
 use common::{
-    clear_files, config, free_port, is_dead, recorded_pid, wait_for, wait_reaped, FakeHealth, When,
+    clear_files, config, is_dead, recorded_pid, unique_port, wait_for, wait_reaped, FakeHealth,
+    When,
 };
 use kalsa_supervisor::{InstanceFile, ServerState, Supervisor};
 
 #[test]
 fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     // A pid that is alive but is not our server, exactly like a recycled pid.
     let mut stranger = common::sleeper();
@@ -47,7 +48,7 @@ fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
 
 #[test]
 fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     // The orphan: a process still holding the state file's lock, and answering.
     let mut orphan = common::sleeper();
@@ -83,7 +84,7 @@ fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
 
 #[test]
 fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     // Ours (it holds the lock) but wedged: nothing answers on the port.
     let mut wedged = common::sleeper();
@@ -111,7 +112,7 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
 
 #[test]
 fn a_port_held_by_another_program_is_reported_and_left_alone() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     // Somebody's listener that is not ours and not a Kalsa state file.
     let foreign = TcpListener::bind(("127.0.0.1", port)).expect("bind the port");

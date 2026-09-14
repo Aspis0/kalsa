@@ -83,10 +83,14 @@ impl Drop for FakeHealth {
     }
 }
 
-/// A port nothing is listening on. Racy by nature, and enough for a test.
-pub fn free_port() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    listener.local_addr().expect("addr").port()
+/// A port no other test in this binary can have.
+///
+/// `bind(:0)` is not enough: two tests running in parallel can be handed the
+/// same port minutes apart, and then they share a pid file and a state file.
+/// A counter keeps them apart, in a range the OS does not hand out on its own.
+pub fn unique_port() -> u16 {
+    static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(42000);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 pub fn fixture(name: &str) -> PathBuf {

@@ -1,0 +1,14 @@
+[package]
+name = "kalsa-probe"
+description = "Memory bandwidth and compute probe: predict a model before downloading it"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# No measurement dependency at all: the probes are plain loops over plain
+# buffers, so the numbers are the machine's, not a library's.
+[dependencies]
+
+[[bin]]
+name = "kalsa-probe"
+path = "src/bin/kalsa-probe.rs"

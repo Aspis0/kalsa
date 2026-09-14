@@ -10,13 +10,13 @@ mod common;
 use std::time::Duration;
 
 use common::{
-    clear_files, config, free_port, is_dead, recorded_pid, wait_dead, wait_for, FakeHealth, When,
+    clear_files, config, is_dead, recorded_pid, unique_port, wait_dead, wait_for, FakeHealth, When,
 };
 use kalsa_supervisor::{ServerState, Supervisor};
 
 #[test]
 fn start_reports_running_once_the_server_answers() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     let health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
@@ -40,7 +40,7 @@ fn start_reports_running_once_the_server_answers() {
 
 #[test]
 fn start_fails_when_the_server_never_answers() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     let supervisor = Supervisor::new();
     let mut cfg = config("fake_server.sh", port);
@@ -62,7 +62,7 @@ fn start_fails_when_the_server_never_answers() {
 
 #[test]
 fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
@@ -89,7 +89,7 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
 
 #[test]
 fn stop_takes_the_stdin_route_when_the_child_listens_for_it() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
@@ -111,7 +111,7 @@ fn stop_takes_the_stdin_route_when_the_child_listens_for_it() {
 
 #[test]
 fn stop_escalates_to_sigkill_for_a_wedged_child() {
-    let port = free_port();
+    let port = unique_port();
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();

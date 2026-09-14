@@ -83,6 +83,49 @@ is handled at the next start, not at the crash:
 Closing the window normally is covered everywhere: the app's exit handler calls
 `Supervisor::shutdown`, which stops the child before the process goes.
 
+## The probe: predicting a model before downloading it
+
+`kalsa-probe` measures the machine once, so the catalog can predict any model
+before the user waits for gigabytes.
+
+```sh
+cargo run --release -p kalsa-probe          # a few seconds
+cargo run --release -p kalsa-probe -- --threads 1 --reps 10
+```
+
+Two measurements, kept apart on purpose:
+
+* **bandwidth** — streaming reads of a block larger than any cache, split across
+  the threads we would really use. Decode is bandwidth-bound: one token reads
+  every active weight byte once, so `tokens/s ≈ efficiency × bandwidth /
+  active_bytes`. A datasheet number is fantasy on a single-channel laptop, which
+  is why it is measured under load and not quoted.
+* **compute** — a dense f32 matmul, because **prefill is compute-bound** and
+  predicting it from the bandwidth figure would be wrong, and wrong in silence.
+
+Every number comes with its spread (`Series`): a metric that swings between
+repetitions is not a baseline. Each sample is several passes so that one
+descheduled repetition on a busy machine cannot become the result.
+
+Honesty about the result. The decode figure is an approximation with two
+independent sources of error, and they point in opposite directions:
+
+* **the probe under-reads the hardware.** It is one process doing scalar
+  streaming reads: ~100 GB/s on an M1 Max whose SoC is specified at 400 GB/s.
+  A tuned quantised kernel may stream faster, which makes the prediction
+  pessimistic;
+* **the formula ignores traffic the model really pays.** The KV cache is re-read
+  every token and grows with context (the largest omission for a MoE, whose
+  active weights are small), attention costs more as context grows, and a router
+  adds reads. That makes the prediction optimistic.
+
+`EFFICIENCY_BAND` (0.7–0.9) is a prior for the second part, not a constant. So
+the number is good enough to *pre-filter* a catalog — "this candidate obviously
+loses to the phone" — and not good enough to promise a figure. Nothing here has
+been validated against real inference yet: that needs a real model benchmarked on
+the machine, which is the plan's measured baseline and the next step, not a
+claim.
+
 ## Licence
 
 Apache-2.0 for this shell. Parts of `crates/kalsa-supervisor/src/child.rs` are

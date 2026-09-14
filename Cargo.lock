@@ -1682,6 +1682,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-probe"
+version = "0.0.1"
+
+[[package]]
 name = "kalsa-supervisor"
 version = "0.0.1"
 dependencies = [
