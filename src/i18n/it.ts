@@ -138,6 +138,12 @@ export const it: typeof en = {
       "Il server del Mac ha risposto con un errore ({status}). Forse si sta ancora avviando: riprova tra un momento.",
     remoteBrainFailBusy:
       "Il Mac sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
+    remoteBrainFailStaleInit:
+      "Quel tentativo di connessione è stato sostituito da uno più recente. Riprova.",
+    remoteBrainFailModelRequired:
+      "Imposta l'id del modello sul server prima di collegarti al Mac.",
+    remoteBrainFailModelMissing:
+      "Il Mac ha risposto ma non offre quel modello. Controlla l'id con GET /v1/models.",
     remoteBrainUrlInvalid:
       "Quell'indirizzo non è un URL http o https valido.",
     remoteBrainHttpWarning:

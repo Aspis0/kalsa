@@ -14,11 +14,15 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   remote_brain_token_required: "settings.remoteBrainTokenRequired",
   remote_brain_network: "settings.remoteBrainFailNetwork",
   remote_brain_send: "settings.remoteBrainFailNetwork",
-  remote_brain_stale_init: "settings.remoteBrainFailNetwork",
+  remote_brain_stale_init: "settings.remoteBrainFailStaleInit",
+  remote_brain_model_required: "settings.remoteBrainFailModelRequired",
+  remote_brain_model_missing: "settings.remoteBrainFailModelMissing",
   remote_brain_timeout: "settings.remoteBrainFailTimeout",
   remote_brain_busy: "settings.remoteBrainFailBusy",
   invalid_url: "settings.remoteBrainUrlInvalid",
   invalid_scheme: "settings.remoteBrainUrlInvalid",
+  // Status 0 means the request never got an HTTP answer at all.
+  remote_brain_http_0: "settings.remoteBrainFailNetwork",
 };
 
 /** HTTP failures carry the status: remote_brain_http_500. */

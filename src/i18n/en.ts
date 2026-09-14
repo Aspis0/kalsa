@@ -139,6 +139,12 @@ export const en = {
       "The Mac's server answered with an error ({status}). It may still be starting up — try again in a moment.",
     remoteBrainFailBusy:
       "The Mac is still answering the previous request. Wait a moment and try again.",
+    remoteBrainFailStaleInit:
+      "That connection attempt was replaced by a newer one. Try again.",
+    remoteBrainFailModelRequired:
+      "Set the server model id before connecting to the Mac.",
+    remoteBrainFailModelMissing:
+      "The Mac answered but does not offer that model. Check the id against GET /v1/models.",
     remoteBrainUrlInvalid:
       "That address is not a valid http or https URL.",
     remoteBrainHttpWarning:

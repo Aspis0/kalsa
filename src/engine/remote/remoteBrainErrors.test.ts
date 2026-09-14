@@ -45,6 +45,16 @@ describe("humanRemoteBrainError", () => {
       "settings.remoteBrainFailBusy",
     );
     expect(humanRemoteBrainError("remote_brain_stale_init", t)).toBe(
+      "settings.remoteBrainFailStaleInit",
+    );
+    expect(humanRemoteBrainError("remote_brain_model_required", t)).toBe(
+      "settings.remoteBrainFailModelRequired",
+    );
+    expect(humanRemoteBrainError("remote_brain_model_missing", t)).toBe(
+      "settings.remoteBrainFailModelMissing",
+    );
+    // No HTTP answer at all is a reachability failure, not an HTTP status.
+    expect(humanRemoteBrainError("remote_brain_http_0", t)).toBe(
       "settings.remoteBrainFailNetwork",
     );
     expect(humanRemoteBrainError("remote_brain_http_500", t)).toBe(

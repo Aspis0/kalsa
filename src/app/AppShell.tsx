@@ -1129,6 +1129,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * chat LlamaContext is resident or about to be.
    */
   const modelStateRef = useRef<ModelState>("checking");
+  /** Code the last remote-engine init failed with (null = it did not fail). */
+  const remoteInitErrorRef = useRef<string | null>(null);
   /**
    * Delete authority is the shared docOpGate (module-level), not a React ref.
    * Screen unmount cannot clear it — reopen cannot start import during an old
@@ -3808,6 +3810,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     if (!stillCurrent()) return false;
     if (captured.remote) {
       setModelState("loading");
+      remoteInitErrorRef.current = null;
       try {
         if (!stillCurrent()) return false;
         await setEngineBackendMode("remote");
@@ -3829,6 +3832,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelState("error");
         setModelErrorKind("engine");
         const raw = error instanceof Error ? error.message : String(error);
+        remoteInitErrorRef.current = raw;
         setModelError(humanRemoteBrainError(raw, t));
         return false;
       }
@@ -5450,10 +5454,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   "chat.modelLoadFailed",
                 );
               } else if (currentModel.id === REMOTE_MAC_MODEL_ID) {
-                // The Mac brain has no bundle to download: this is the Mac
-                // being unreachable, and saying "not downloaded" would be false.
+                // The Mac brain has no bundle to download. Report the cause the
+                // remote init actually failed with (missing address, missing
+                // token, unreachable Mac) instead of guessing "unreachable".
                 fail(
-                  t("settings.remoteBrainFailNetwork"),
+                  humanRemoteBrainError(remoteInitErrorRef.current ?? undefined, t),
                   "chat.serviceUnreachable",
                 );
               } else {
