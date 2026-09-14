@@ -459,6 +459,67 @@ If step 3 comes back empty, the app says the machine is not worth using and
 stops. That is a feature. A courtesy recommendation that loses to the phone
 costs the user a download, a fan, and their trust.
 
+## 4f. Pairing: the phone scans, nobody types
+
+The third page has nothing behind it yet. What it must never become is a box
+where the user types an address — that is the developer default that made the
+first shipped build useless on a real phone.
+
+**The PC shows a QR code; the phone scans it.** That is the whole interaction.
+It works over any transport, because the code carries the endpoint the PC is
+actually reachable at — loopback, tailnet, or a tunnel — so the same flow
+survives the move from Tailscale to Cloudflare without the user learning
+anything new.
+
+- The code carries the **endpoint and a one-time secret** with a short life. The
+  phone spends the secret once for a long-lived token bound to that phone, and
+  the secret dies. A code photographed over someone's shoulder an hour later is
+  worth nothing.
+- **No automatic pairing on the local network.** A device that joins your
+  assistant because it was on the same WiFi is a device you did not agree to.
+  Discovery by mDNS is also unreliable on real home networks — AP isolation and
+  blocked multicast are common — so it would be both unsafe and flaky.
+- The token is bound to **the computer's identity, not its address**. The address
+  changes when the transport does; re-showing the code refreshes the address
+  without re-establishing trust.
+
+### What the handshake carries
+
+Phone → PC, once: which model it runs, as **total and active parameters and
+whether it is dense or a mixture of experts** — the catalog needs exactly those
+to make an honest comparison, and a weight in bytes cannot substitute for them.
+
+PC → phone, once: its own display name and what it chose, so the phone can say
+where the answer came from rather than showing a bare address.
+
+⚠️ **Battery is two different questions, and conflating them produces an absurd
+refusal.** Section 1 says relief is only worth something to a phone on battery,
+and the catalog took that literally: a phone plugged in during setup gets no
+relief recommendation. But a phone charging at the moment of pairing will be on
+battery an hour later — refusing to set up an 8 GB machine because of where the
+user happened to be standing is not honesty, it is a bug.
+
+So separate them:
+
+- **For choosing the model**, the question is "does this device run on battery at
+  all". For a phone that is always yes. It is a property of the device, decided
+  once.
+- **For routing an individual request**, the question is "is it on battery right
+  now", and that rides with the request, cheaply, because it changes constantly.
+
+## 4g. The catalog is a starting point, not the shipping list
+
+Owner, 2026-09-14, on the first three tiers coming out of the chooser: the
+Qwen 3.6 row is a base model and **community fine-tunes of it are better as
+chatbots**, and Gemma 4 12B **has competition** at its size.
+
+Both are true and neither changes the machinery, which is the point: the rows
+are data, the decision is code, and replacing a row is a manifest edit. What it
+does change is the order of a later job — before any of this ships, the rows get
+re-picked on quality with the bake-off, including fine-tunes, not just base
+models from the vendors. Recorded here so it is not discovered as a surprise
+when someone reads the tier output and assumes it was the final answer.
+
 ## 5. Backend-agnostic from the first line
 
 The runtime is one of N: llama.cpp server, ollama, MLX on Apple Silicon.
