@@ -42,10 +42,13 @@ pub fn to_hex(bytes: &[u8]) -> String {
 }
 
 /// Checks the part file against what was promised, deletes it on any mismatch,
-/// and only then renames it onto `dest`: a corrupt file never becomes "the
+/// and only then publishes it under `dest`: a corrupt file never becomes "the
 /// model", and a good one appears under its final name in one step. Length
 /// and digest are read from the handle we have held since before the first
-/// byte arrived, so no writer can slip between the check and the rename.
+/// byte arrived; how `dest` is made to name exactly those bytes — by
+/// descriptor where the platform allows, identity-checked on both sides of
+/// the rename where it does not — is `publish`'s contract, not this
+/// function's claim.
 pub fn publish(
     mut part: PartFile,
     dest: &Path,
@@ -68,12 +71,11 @@ pub fn publish(
             actual,
         });
     }
-    // The bytes proved right; make sure they reached the platter before the
-    // rename lets anything start reading them under the final name.
+    // The bytes proved right; make sure they reached the platter before they
+    // become visible under the final name.
     part.handle().sync_all()?;
-    let renamed = std::fs::rename(part.path(), dest);
+    crate::publish::verified(&mut part, dest)?;
     drop(part); // the lock dies here, after the file has changed its name
-    renamed?;
     Ok(())
 }
 
