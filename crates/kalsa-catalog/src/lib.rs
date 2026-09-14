@@ -24,6 +24,11 @@
 //!   is expected-but-unmeasured, never dressed up as either; relief moves the
 //!   work off a phone that is on battery. The reason travels as data the UI
 //!   branches on, never as a string it parses (`choice`);
+//! * **a download is an address, not a guess** — a row with an identified
+//!   GGUF carries the exact file at a pinned commit, with its size and the
+//!   sha256 every byte is verified against, complete or absent; the
+//!   selection hands the shell a plan it can fetch, and a row with no source
+//!   visibly cannot produce one (`manifest`, `choice`);
 //! * **measuring replaces all of it** — the bake-off in `scripts/quality/`,
 //!   run on the user's own machine on the actual pair. Below ~10B total a MoE
 //!   can be worse than a same-total dense model (Jelassi et al., ICLR 2025),
@@ -50,10 +55,11 @@ pub use choice::{
     SAME_CLASS_BAND,
 };
 pub use candidate::Prediction;
+pub use choice::DownloadPlan;
 pub use footprint::{fits, footprint_bytes, memory_budget, usable_bytes, Footprint, GIB, MemoryBudget};
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported
 // rather than making callers depend on the probe's path module by name.
 pub use kalsa_probe::Backend;
 pub use licence::{Licence, Standing};
-pub use manifest::{excluded, usable, DenseEquivalent, ModelEntry, UsableEntry, CATALOG};
+pub use manifest::{excluded, usable, DenseEquivalent, GgufSource, ModelEntry, UsableEntry, CATALOG};
 pub use parameters::{ActiveParameters, Parameters, TotalParameters};

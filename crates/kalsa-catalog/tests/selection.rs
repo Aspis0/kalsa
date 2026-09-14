@@ -127,6 +127,47 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
 }
 
 #[test]
+fn a_downloadable_pick_carries_its_pinned_plan() {
+    // The 8 GiB pick has an identified GGUF, so the selection hands the shell
+    // everything the fetch needs: the exact file at the pinned commit, the
+    // size every byte must add up to, and the digest nothing unverified gets
+    // past. No part of this is derived from the quant string.
+    match choose(&input(8, true)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
+            let plan = selection
+                .download
+                .expect("Trinity has an identified, pinned source");
+            assert_eq!(
+                plan.url,
+                "https://huggingface.co/arcee-ai/Trinity-Nano-Preview-GGUF/resolve/2aa08593b79242d224da0215fb36924dcc0f87ea/Trinity-Nano-Preview-Q4_K_M.gguf"
+            );
+            assert_eq!(plan.bytes, 3_786_957_088);
+            assert_eq!(
+                plan.sha256,
+                "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546"
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_row_without_an_identified_source_is_visibly_unfetchable() {
+    // The 16 GiB tier picks a research-table row: no GGUF has ever been
+    // identified for it. The plan is an Option built only from a complete
+    // source, so a half-filled row is not a state that exists — the shell
+    // gets None and cannot ask for a URL.
+    match choose(&input(16, true)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert!(selection.download.is_none());
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
 fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
     // Charging is a moment, not a property: the catalog asks only whether the
     // device runs on battery at all, so the relief offer cannot depend on

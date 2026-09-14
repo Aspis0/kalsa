@@ -124,7 +124,7 @@ mod tests {
         ModelEntry {
             repo: "test/row",
             display_name: "Test Row",
-            gguf_repo: None,
+            source: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
             parameters: if active == total {

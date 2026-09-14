@@ -10,14 +10,56 @@
 //! decimals, so bytes are that × 2^30 and printing byte precision from a
 //! rounded figure would be false precision. The rows verified against the
 //! Hugging Face API on 2026-09-14 carry the exact size of the exact file from
-//! the GGUF repo's tree — byte precision there is a measurement. `gguf_repo`
+//! the GGUF repo's tree — byte precision there is a measurement. `source`
 //! tells the vintages apart: only rows the API was actually asked about carry
-//! one.
+//! one, and it is complete or absent, never partial.
 
 use crate::licence::{Licence, Standing};
 use crate::parameters::Parameters;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
+
+/// The exact file a row's weights come from, pinned so it can be fetched and
+/// verified: the GGUF repo, the commit it was published at, the file name in
+/// that commit's tree, the size every byte must add up to, and the sha256
+/// the download is checked against. Complete or absent — a repo plus a quant
+/// is a guess, a commit plus a file name is an address, and a half-filled
+/// address is how an unverified download sneaks through.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GgufSource {
+    /// The GGUF repo the file lives in.
+    pub repo: &'static str,
+    /// The commit of that repo the file is pinned to: a file renamed or
+    /// replaced in a later commit cannot silently change what is downloaded.
+    pub commit: &'static str,
+    /// The file name inside that commit's tree.
+    pub file: &'static str,
+    /// The exact size of the file, in bytes.
+    pub bytes: u64,
+    /// The sha256 every downloaded byte is verified against, as 64 lowercase
+    /// hex characters.
+    ///
+    /// Where it came from, plainly: these are HuggingFace's `x-linked-etag`
+    /// values for the pinned commits, which for an LFS object is the object's
+    /// sha256. That identity was verified by hand once, on a small file —
+    /// downloaded, hashed, compared — not by re-hashing four gigabyte
+    /// objects on a laptop. The first download on a real machine is what
+    /// proves a digest: `kalsa-download` refuses bytes that do not match, so
+    /// a wrong digest fails loudly and nothing unverified ever runs.
+    pub sha256: &'static str,
+}
+
+impl GgufSource {
+    /// The address the file is fetched from: HuggingFace's resolve endpoint,
+    /// which serves exactly this file at exactly this commit and redirects
+    /// to the object store.
+    pub fn url(&self) -> String {
+        format!(
+            "https://huggingface.co/{}/resolve/{}/{}",
+            self.repo, self.commit, self.file
+        )
+    }
+}
 
 /// A publisher's own comparison of this MoE against a dense model trained by
 /// the same lab on the same recipe. Carried per row, because it is data about
@@ -55,11 +97,12 @@ pub struct ModelEntry {
     /// variant codes — is ours, and none of it reaches the interface as a
     /// name. Required: a row with no name is a row the interface cannot show.
     pub display_name: &'static str,
-    /// Repo the GGUF comes from, as the Hugging Face API reports it today.
-    ///
-    /// None until the API is asked: writing a plausible repo name from memory is
-    /// how a download 404s a week later.
-    pub gguf_repo: Option<&'static str>,
+    /// The exact file the weights come from, pinned and verifiable — or
+    /// None, when no GGUF has been identified for this row at all. The type
+    /// carries the whole address or nothing: a half-filled source is not a
+    /// state that exists, because a half-filled source is how an unverified
+    /// download sneaks through.
+    pub source: Option<GgufSource>,
     /// `lastModified` from the API, verbatim.
     pub last_modified: &'static str,
     pub licence: Licence,
@@ -128,7 +171,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-E2B-it",
         display_name: "Google Gemma 4 E2B",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(5_100_000_000, 2_300_000_000),
@@ -142,7 +185,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-E4B-it",
         display_name: "Google Gemma 4 E4B",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(8_000_000_000, 4_500_000_000),
@@ -156,7 +199,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "Qwen/Qwen3.5-4B",
         display_name: "Alibaba Qwen 3.5",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-03-02",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::dense(4_000_000_000),
@@ -170,7 +213,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "mistralai/Ministral-3-8B-Instruct-2512",
         display_name: "Mistral Ministral 3",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-15",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::dense(8_800_000_000),
@@ -184,7 +227,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-12B-it",
         display_name: "Google Gemma 4 12B",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::dense(11_950_000_000),
@@ -198,7 +241,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-26B-A4B-it",
         display_name: "Google Gemma 4 26B",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(25_200_000_000, 3_800_000_000),
@@ -212,7 +255,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "Qwen/Qwen3.6-35B-A3B",
         display_name: "Alibaba Qwen 3.6",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-04-24",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(35_000_000_000, 3_000_000_000),
@@ -226,7 +269,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "llm-jp/llm-jp-4-32b-a3b-thinking",
         display_name: "LLM-jp 4",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-04-24",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(32_100_000_000, 3_830_000_000),
@@ -240,7 +283,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "swiss-ai/Apertus-v1.5-70B",
         display_name: "Swiss AI Apertus 1.5",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-07-24",
         licence: Licence::Open("apache-2.0+AUP"),
         parameters: Parameters::dense(70_000_000_000),
@@ -254,12 +297,20 @@ pub const CATALOG: &[ModelEntry] = &[
     // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
     // `weights_bytes` here is the exact size of the exact GGUF file in the
     // repo's tree, `last_modified` is verbatim from the API, and each row
-    // carries the gguf repo it was verified against. None of them needs an
-    // mmproj, and none carries a KV figure: that is measured, never guessed.
+    // carries the source it was verified against — pinned to a commit, with
+    // the digest the download is checked against (see GgufSource for where
+    // those digests came from). None of them needs an mmproj, and none
+    // carries a KV figure: that is measured, never guessed.
     ModelEntry {
         repo: "LiquidAI/LFM2.5-8B-A1B",
         display_name: "Liquid LFM 2.5",
-        gguf_repo: Some("liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF"),
+        source: Some(GgufSource {
+            repo: "liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF",
+            commit: "dc77c293fd6f9107db3c9cecfb19befe2ae49755",
+            file: "LFM2.5-8B-A1B-IQ4_XS.gguf",
+            bytes: 4_588_301_888,
+            sha256: "2237675ffa1c2d5a277db4ef02b79e613fc172d4b63511ae8cbcb8c3d75d1148",
+        }),
         last_modified: "2026-08-24T21:05:21.000Z",
         // LFM 1.0 permits commercial use only for entities under $10M annual
         // revenue: a condition on whoever ships a paid fine-tune of this base,
@@ -279,7 +330,13 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "microsoft/Phi-mini-MoE-instruct",
         display_name: "Microsoft Phi Mini",
-        gguf_repo: Some("smarttasks/Phi-mini-MoE-instruct-GGUF"),
+        source: Some(GgufSource {
+            repo: "smarttasks/Phi-mini-MoE-instruct-GGUF",
+            commit: "ba0df1bd60632b932002d3aaae14808de2c0d804",
+            file: "Phi-mini-MoE-instruct-Q4_K_S.gguf",
+            bytes: 4_616_170_016,
+            sha256: "16e1824f25a890ead375fd7f6476ef0813128079796286319e5594e8ffa1aefa",
+        }),
         last_modified: "2025-12-10T18:20:28.000Z",
         licence: Licence::Open("mit"),
         parameters: Parameters::mixture(7_600_000_000, 2_400_000_000),
@@ -301,7 +358,13 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "ibm-granite/granite-4.0-h-tiny",
         display_name: "IBM Granite 4 Tiny",
-        gguf_repo: Some("ibm-granite/granite-4.0-h-tiny-GGUF"),
+        source: Some(GgufSource {
+            repo: "ibm-granite/granite-4.0-h-tiny-GGUF",
+            commit: "08d5a8a9741dd5c1a95d2d39e25253226aa1464e",
+            file: "granite-4.0-h-tiny-Q4_K_M.gguf",
+            bytes: 4_230_976_352,
+            sha256: "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
+        }),
         last_modified: "2025-11-03T19:42:57.000Z",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(7_000_000_000, 1_000_000_000),
@@ -323,7 +386,13 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "arcee-ai/Trinity-Nano-Preview",
         display_name: "Arcee Trinity Nano",
-        gguf_repo: Some("arcee-ai/Trinity-Nano-Preview-GGUF"),
+        source: Some(GgufSource {
+            repo: "arcee-ai/Trinity-Nano-Preview-GGUF",
+            commit: "2aa08593b79242d224da0215fb36924dcc0f87ea",
+            file: "Trinity-Nano-Preview-Q4_K_M.gguf",
+            bytes: 3_786_957_088,
+            sha256: "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+        }),
         last_modified: "2026-05-28T22:45:39.000Z",
         // OpenMDW permits commercial use and modification; preserving licence
         // and notices, and terminating rights on a patent suit, is the same
@@ -342,7 +411,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
         display_name: "AMD Instella",
-        gguf_repo: None,
+        source: None,
         last_modified: "2026-08-01",
         licence: Licence::Blocked {
             id: "researchrail",
@@ -359,7 +428,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "openai/gpt-oss-20b",
         display_name: "OpenAI GPT-OSS",
-        gguf_repo: None,
+        source: None,
         last_modified: "2025-08-05",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(21_000_000_000, 3_600_000_000),
@@ -373,7 +442,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "Qwen/Qwen3-30B-A3B",
         display_name: "Alibaba Qwen 3",
-        gguf_repo: None,
+        source: None,
         last_modified: "2025-04-28",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(30_500_000_000, 3_300_000_000),
@@ -448,7 +517,7 @@ mod tests {
         // The rows the 8 GB tier was built around, as the interface shows them.
         let named: Vec<(&str, &str)> = CATALOG
             .iter()
-            .filter(|entry| entry.gguf_repo.is_some())
+            .filter(|entry| entry.source.is_some())
             .map(|entry| (entry.repo, entry.display_name))
             .collect();
         assert_eq!(
@@ -479,23 +548,69 @@ mod tests {
     }
 
     #[test]
-    fn only_the_verified_rows_know_where_their_gguf_lives() {
+    fn only_the_verified_rows_know_where_their_weights_live() {
         // A repo name written from memory is how a download 404s a week later:
-        // the research-table rows never asked the API, so they carry None and
-        // the downloader asks. The 2026-09-14 rows were asked.
-        let verified: Vec<&str> = CATALOG
+        // the research-table rows never asked the API, so they carry no source
+        // at all and the downloader asks. The 2026-09-14 rows were asked, and
+        // carry a complete pinned address.
+        let pinned: Vec<&str> = CATALOG
             .iter()
-            .filter(|entry| entry.gguf_repo.is_some())
-            .map(|entry| entry.repo)
+            .filter_map(|entry| entry.source.as_ref())
+            .map(|source| source.repo)
             .collect();
         assert_eq!(
-            verified,
+            pinned,
             [
-                "LiquidAI/LFM2.5-8B-A1B",
-                "microsoft/Phi-mini-MoE-instruct",
-                "ibm-granite/granite-4.0-h-tiny",
-                "arcee-ai/Trinity-Nano-Preview",
+                "liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF",
+                "smarttasks/Phi-mini-MoE-instruct-GGUF",
+                "ibm-granite/granite-4.0-h-tiny-GGUF",
+                "arcee-ai/Trinity-Nano-Preview-GGUF",
             ]
+        );
+    }
+
+    #[test]
+    fn every_source_is_pinned_and_consistent_with_its_row() {
+        // The digest and the size are the download's promises. The digest must
+        // be a sha256 — 64 lowercase hex characters — and the size must be the
+        // file this row describes: a mismatch here is a copy-paste between
+        // rows, which is exactly how an unverified download would sneak
+        // through.
+        for entry in CATALOG {
+            let Some(source) = entry.source else { continue };
+            let lowercase_hex =
+                |s: &str| s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
+            assert_eq!(source.sha256.len(), 64, "{}: a sha256 is 64 characters", source.sha256);
+            assert!(lowercase_hex(source.sha256), "{}: a sha256 is lowercase hex", source.sha256);
+            assert_eq!(source.commit.len(), 40, "{}: a git commit is 40 characters", source.commit);
+            assert!(lowercase_hex(source.commit), "{}: a commit is lowercase hex", source.commit);
+            assert!(
+                source.file.ends_with(".gguf"),
+                "{}: the pinned file is the gguf itself",
+                source.file
+            );
+            assert!(!source.repo.is_empty(), "a source names its repo");
+            assert_eq!(
+                source.bytes, entry.weights_bytes,
+                "{}: the pinned file's size must be the row's weight size",
+                entry.repo
+            );
+        }
+    }
+
+    #[test]
+    fn a_source_serves_its_exact_file_at_its_commit() {
+        // The URL is an address: repo, pinned commit, exact file name —
+        // nothing derived from a quant string, nothing that 404s when a
+        // publisher renames a file in a later commit.
+        let lfm = CATALOG
+            .iter()
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-8B-A1B")
+            .expect("the LFM row is in the catalog");
+        let source = lfm.source.expect("the LFM row has a pinned source");
+        assert_eq!(
+            source.url(),
+            "https://huggingface.co/liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF/resolve/dc77c293fd6f9107db3c9cecfb19befe2ae49755/LFM2.5-8B-A1B-IQ4_XS.gguf"
         );
     }
 
@@ -506,7 +621,7 @@ mod tests {
         // would be throwing the measurement away.
         let bytes: Vec<(&str, u64)> = CATALOG
             .iter()
-            .filter(|entry| entry.gguf_repo.is_some())
+            .filter(|entry| entry.source.is_some())
             .map(|entry| (entry.repo, entry.weights_bytes))
             .collect();
         assert_eq!(
