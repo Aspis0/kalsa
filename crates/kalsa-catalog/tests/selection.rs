@@ -1,27 +1,52 @@
-//! The decision table: every RAM tier, with and without the phone, plus the
-//! refusals. The "no candidate, and we say so" case is tested like any other —
-//! it is the answer nobody remembers to prove.
+//! The decision table: every RAM tier, with and without the phone, the GPU
+//! budget branches, the two justifications, and the refusals. The "no candidate,
+//! and we say so" case is tested like any other — it is the answer nobody
+//! remembers to prove.
 
 use kalsa_catalog::{
-    choose, footprint_bytes, usable_bytes, ChoiceInput, Decision, PhoneModel, RefusalReason, GIB,
-    IMPROVEMENT_RATIO,
+    choose, footprint_bytes, usable_bytes, Backend, ChoiceInput, Decision, Justification,
+    PhoneModel, RefusalReason, GIB, IMPROVEMENT_RATIO,
 };
 
 /// The default phone model, as the pairing handshake reports it.
 const PHONE_BYTES: u64 = 2_834_975_040;
 
+fn phone(on_battery: Option<bool>) -> PhoneModel {
+    PhoneModel {
+        weights_bytes: PHONE_BYTES,
+        measured_tokens_per_second: Some(9.0),
+        on_battery,
+    }
+}
+
 /// Numbers from the probe on the development machine, so the arithmetic in the
 /// expectations is the arithmetic the product would do.
 fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
     ChoiceInput {
+        backend: Backend::Cpu,
         ram_bytes: ram_gib * GIB,
         bandwidth_bytes_per_second: 85.0e9,
         compute_flops_per_second: 100.0e9,
         context_tokens: 8192,
-        phone: phone_known.then_some(PhoneModel {
-            weights_bytes: PHONE_BYTES,
-            measured_tokens_per_second: Some(9.0),
-        }),
+        phone: phone_known.then_some(phone(Some(true))),
+    }
+}
+
+fn input_with_phone(ram_gib: u64, on_battery: Option<bool>) -> ChoiceInput {
+    ChoiceInput {
+        phone: Some(phone(on_battery)),
+        ..input(ram_gib, true)
+    }
+}
+
+/// A PC: the RAM is the same, but a model that will decode on the card is
+/// budgeted by the card, not by the machine.
+fn pc(ram_gib: u64, vram_gib: Option<u64>) -> ChoiceInput {
+    ChoiceInput {
+        backend: Backend::DiscreteGpu {
+            vram_bytes: vram_gib.map(|gib| gib * GIB),
+        },
+        ..input(ram_gib, true)
     }
 }
 
@@ -42,33 +67,163 @@ fn refusal(input: &ChoiceInput) -> (RefusalReason, String) {
 }
 
 #[test]
-fn eight_gigabytes_is_not_worth_it_even_though_models_fit() {
-    // The honest case: rows fit this machine, and none of them is enough of a
-    // step up from the phone to justify it.
-    let (reason, explanation) = refusal(&input(8, true));
-    assert_eq!(reason, RefusalReason::NothingBetter);
-    assert!(explanation.contains("not worth using"), "{explanation}");
-    assert!(explanation.contains("phone"), "{explanation}");
-
-    // And prove it is not an accident of the filter: the rows that do fit are
-    // all inside the improvement bar.
+fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
+    // The premise: nothing that fits clears the improvement bar — the bar sits
+    // above the phone's own class on purpose — so this tier cannot be sold as
+    // an upgrade.
     let usable = usable_bytes(8 * GIB);
-    let fitting: Vec<&str> = kalsa_catalog::usable()
-        .map(|entry| entry.entry())
-        .filter(|entry| footprint_bytes(entry, 8192).total_bytes() <= usable)
-        .map(|entry| entry.repo)
-        .collect();
-    assert!(!fitting.is_empty(), "the 8 GiB tier is not empty of rows");
-    for repo in fitting {
-        let entry = kalsa_catalog::CATALOG
-            .iter()
-            .find(|entry| entry.repo == repo)
-            .expect("row exists");
-        assert!(
-            (entry.weights_bytes as f64) < PHONE_BYTES as f64 * IMPROVEMENT_RATIO,
-            "{repo} should be under the improvement bar"
-        );
+    for entry in kalsa_catalog::usable() {
+        let entry = entry.entry();
+        if footprint_bytes(entry, 8192).total_bytes() <= usable {
+            assert!(
+                (entry.weights_bytes as f64) < PHONE_BYTES as f64 * IMPROVEMENT_RATIO,
+                "{} must be under the capability bar on this tier",
+                entry.repo
+            );
+        }
     }
+
+    // But every token the PC generates is one the phone did not, so the
+    // recommendation comes through the relief axis, and says so.
+    match choose(&input(8, true)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
+            assert!(selection.rationale.contains("relief"), "{}", selection.rationale);
+            assert!(
+                !selection.rationale.contains("on capability"),
+                "a lateral move must not be sold as an upgrade: {}",
+                selection.rationale
+            );
+            assert_eq!(selection.budget.usable_bytes, usable);
+        }
+        other => panic!("expected a relief pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_phone_on_a_charger_is_not_offered_relief() {
+    let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
+    assert_eq!(reason, RefusalReason::NothingBetter);
+    assert!(explanation.contains("charger"), "{explanation}");
+
+    // And when the phone has not said, relief is not invented for it.
+    let (reason, explanation) = refusal(&input_with_phone(8, None));
+    assert_eq!(reason, RefusalReason::NothingBetter);
+    assert!(explanation.contains("has not said"), "{explanation}");
+}
+
+#[test]
+fn capability_does_not_need_the_battery() {
+    // Relief is the only battery-dependent axis. A genuine step up in model
+    // class is offered to a phone on a charger all the same.
+    match choose(&input_with_phone(16, Some(false))) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.justification, Justification::Capability);
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+        }
+        other => panic!("expected a capability pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_small_card_is_not_bypassed_by_the_system_ram() {
+    // 32 GiB of RAM would fit the 35B MoE; the 6 GiB card gives a 3 GiB
+    // budget, which fits nothing. The machine is refused — a model sized to
+    // its RAM would spill across both memories, and the spill is a loss.
+    let biggest_on_ram = kalsa_catalog::CATALOG
+        .iter()
+        .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
+        .expect("the 35B row exists");
+    assert!(
+        footprint_bytes(biggest_on_ram, 8192).total_bytes() <= usable_bytes(32 * GIB),
+        "the RAM alone would have allowed the 35B row, which is what makes this test real"
+    );
+    let (reason, explanation) = refusal(&pc(32, Some(6)));
+    assert_eq!(reason, RefusalReason::NothingFits);
+    assert!(explanation.contains("GiB"), "{explanation}");
+}
+
+#[test]
+fn a_model_that_would_spill_is_never_offered() {
+    // The card holds 9 GiB; the RAM alone would hold the 35B MoE (20.5 GiB of
+    // footprint). A model that only partially fits the card is not a candidate
+    // for the GPU path, so the tier takes the largest model that fits it
+    // entirely.
+    let machine = pc(32, Some(12));
+    match choose(&machine) {
+        Decision::Pick(selection) => {
+            assert_ne!(
+                selection.repo, "Qwen/Qwen3.6-35B-A3B",
+                "the 35B row does not fit the card and must not be offered"
+            );
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert!(
+                selection.footprint.total_bytes() <= selection.budget.usable_bytes,
+                "the pick fits the chosen budget entirely"
+            );
+            assert!(selection.budget.gpu_accounted_for);
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_unreadable_card_falls_back_to_ram_and_says_so() {
+    // Windows' 32-bit VRAM figure is the common case: fall back to the CPU
+    // path's arithmetic, and say the GPU was not accounted for — never guess.
+    match choose(&pc(32, None)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert!(!selection.budget.gpu_accounted_for);
+            assert!(
+                selection.rationale.contains("not accounted for"),
+                "{}",
+                selection.rationale
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
+    let lfm = kalsa_catalog::CATALOG
+        .iter()
+        .find(|entry| entry.repo == "LiquidAI/LFM2.5-8B-A1B")
+        .expect("the LFM row exists");
+    match lfm.licence {
+        kalsa_catalog::Licence::Conditional { id, condition } => {
+            assert_eq!(id, "lfm1.0");
+            assert!(
+                condition.contains("$10M"),
+                "the revenue condition travels with the row: {condition}"
+            );
+        }
+        other => panic!("the LFM licence must be its own thing, got {other:?}"),
+    }
+    assert!(lfm.is_usable(), "a condition on the shipper is not a refusal");
+
+    // Every selection carries its row's licence as data, so a conditional row
+    // can never present itself as unconditional.
+    match choose(&input(8, true)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.licence.id(), "openmdw-1.1");
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
+    // Relief moves the work to a comparable model. If everything that fits is
+    // smaller than what the phone already runs, the work would move to a
+    // weaker model — a downgrade the user would feel, not relief.
+    let mut big_phone = input(8, true);
+    if let Some(p) = big_phone.phone.as_mut() {
+        p.weights_bytes = 6 * GIB;
+    }
+    assert_eq!(refusal(&big_phone).0, RefusalReason::NothingBetter);
 }
 
 #[test]
@@ -84,6 +239,7 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
+            assert_eq!(selection.justification, Justification::Capability);
             assert!(selection.decode.0 > 0.0 && selection.decode.1 > selection.decode.0);
             assert!(
                 selection.decode.0 > 20.0,

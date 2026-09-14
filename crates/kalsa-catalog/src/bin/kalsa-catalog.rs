@@ -5,10 +5,12 @@
 //! ```
 //!
 //! The bandwidth and compute numbers come from `kalsa-probe`; passing them by
-//! hand is how this is used before the app is wired to the probe.
+//! hand is how this is used before the app is wired to the probe. `--vram`
+//! models a discrete card (the budget becomes the card's memory), and
+//! `--on-battery`/`--on-charger` say what the pairing handshake would.
 
 use kalsa_catalog::{
-    choose, footprint_bytes, usable_bytes, ChoiceInput, Decision, PhoneModel, GIB,
+    choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision, PhoneModel, GIB,
     IMPROVEMENT_RATIO,
 };
 
@@ -20,13 +22,23 @@ fn main() {
             std::process::exit(2);
         }
     };
+    let budget = memory_budget(input.backend, input.ram_bytes);
 
     println!(
-        "machine: {} RAM, {} usable after the {:.0}% / 3 GiB margin, {} context",
+        "machine: {} RAM, {} budget after the {:.0}% / 3 GiB margin, {} context",
         gibs(input.ram_bytes),
-        gibs(usable_bytes(input.ram_bytes)),
+        gibs(budget.usable_bytes),
         25.0,
         input.context_tokens
+    );
+    println!(
+        "backend: {:?}{}",
+        input.backend,
+        if budget.gpu_accounted_for {
+            String::new()
+        } else {
+            " — the card's memory could not be read, so it is NOT accounted for".to_string()
+        }
     );
     println!(
         "probe:   {:.1} GB/s, {:.1} GFLOP/s{}",
@@ -50,7 +62,7 @@ fn main() {
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
         let footprint = footprint_bytes(entry, input.context_tokens);
-        let fits = footprint.total_bytes() <= usable_bytes(input.ram_bytes);
+        let fits = footprint.total_bytes() <= budget.usable_bytes;
         let improves = match input.phone {
             Some(phone) => {
                 entry.weights_bytes as f64 >= phone.weights_bytes as f64 * IMPROVEMENT_RATIO
@@ -81,6 +93,11 @@ fn main() {
                 gibs(selection.footprint.total_bytes()),
                 selection.context_tokens
             );
+            println!(
+                "        offered for {:?}, licence {}",
+                selection.justification,
+                selection.licence.id()
+            );
             println!("why:    {}", selection.rationale);
         }
         Decision::Refuse(refusal) => {
@@ -91,6 +108,7 @@ fn main() {
 
 fn configured() -> Result<ChoiceInput, String> {
     let mut input = ChoiceInput {
+        backend: Backend::Cpu,
         ram_bytes: 16 * GIB,
         bandwidth_bytes_per_second: 80.0e9,
         compute_flops_per_second: 100.0e9,
@@ -98,12 +116,21 @@ fn configured() -> Result<ChoiceInput, String> {
         phone: Some(PhoneModel {
             weights_bytes: 2_834_975_040,
             measured_tokens_per_second: None,
+            on_battery: None,
         }),
     };
     let mut args = std::env::args().skip(1);
     while let Some(flag) = args.next() {
         match flag.as_str() {
             "--ram" => input.ram_bytes = number(&mut args, &flag, 1.0)? as u64 * GIB,
+            "--vram" => {
+                input.backend = Backend::DiscreteGpu {
+                    vram_bytes: Some(number(&mut args, &flag, 1.0)? as u64 * GIB),
+                };
+            }
+            "--gpu-unread" => {
+                input.backend = Backend::DiscreteGpu { vram_bytes: None };
+            }
             "--bandwidth" => {
                 input.bandwidth_bytes_per_second = float(&mut args, &flag)? * 1e9;
             }
@@ -111,11 +138,15 @@ fn configured() -> Result<ChoiceInput, String> {
             "--ctx" => input.context_tokens = number(&mut args, &flag, 1.0)? as u64,
             "--phone-gb" => {
                 let gb = float(&mut args, &flag)?;
+                let phone = input.phone.take().unwrap_or(PhoneModel {
+                    weights_bytes: 0,
+                    measured_tokens_per_second: None,
+                    on_battery: None,
+                });
                 input.phone = Some(PhoneModel {
                     weights_bytes: (gb * GIB as f64) as u64,
-                    measured_tokens_per_second: input
-                        .phone
-                        .and_then(|phone| phone.measured_tokens_per_second),
+                    measured_tokens_per_second: phone.measured_tokens_per_second,
+                    on_battery: phone.on_battery,
                 });
             }
             "--phone-tok-s" => {
@@ -124,16 +155,26 @@ fn configured() -> Result<ChoiceInput, String> {
                     phone.measured_tokens_per_second = Some(speed);
                 }
             }
+            "--on-battery" => set_battery(&mut input, Some(true)),
+            "--on-charger" => set_battery(&mut input, Some(false)),
             "--no-phone" => input.phone = None,
             other => {
                 return Err(format!(
-                    "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--bandwidth GB/s] \
-                     [--gflops GFLOP/s] [--ctx tokens] [--phone-gb GiB] [--phone-tok-s N] [--no-phone]"
+                    "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] \
+                     [--gpu-unread] [--bandwidth GB/s] [--gflops GFLOP/s] [--ctx tokens] \
+                     [--phone-gb GiB] [--phone-tok-s N] [--on-battery] [--on-charger] \
+                     [--no-phone]"
                 ))
             }
         }
     }
     Ok(input)
+}
+
+fn set_battery(input: &mut ChoiceInput, on_battery: Option<bool>) {
+    if let Some(phone) = input.phone.as_mut() {
+        phone.on_battery = on_battery;
+    }
 }
 
 fn number(args: &mut impl Iterator<Item = String>, flag: &str, floor: f64) -> Result<f64, String> {

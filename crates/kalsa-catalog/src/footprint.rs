@@ -10,6 +10,8 @@
 //! measurement, and until a row has one this module says out loud that it
 //! assumed a figure instead of presenting it as data.
 
+use kalsa_probe::Backend;
+
 use crate::manifest::ModelEntry;
 
 pub const MIB: u64 = 1024 * 1024;
@@ -44,6 +46,49 @@ pub fn usable_bytes(ram_bytes: u64) -> u64 {
     ram_bytes.saturating_sub(margin)
 }
 
+/// The memory a model may occupy, and whether that memory is the memory the
+/// model will actually run in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemoryBudget {
+    pub usable_bytes: u64,
+    /// True when the budget is sized for the path the model will take: system
+    /// RAM on a CPU machine or in unified memory, the card's own memory for a
+    /// discrete GPU whose size could be read. False means a discrete GPU is
+    /// present but unmeasured: the budget fell back to system RAM and the GPU
+    /// is NOT accounted for — said here, never guessed around.
+    pub gpu_accounted_for: bool,
+}
+
+/// The budget for this machine's path. A model that will decode on a discrete
+/// GPU is budgeted by the card's memory, because system RAM is irrelevant to
+/// it: a 32 GiB PC with a 6 GiB card is a 3 GiB machine for this decision.
+/// The margin applies to VRAM the same way it applies to RAM — the desktop
+/// compositor and the browser keep VRAM for themselves exactly as the OS
+/// keeps RAM, and no fraction of a small card is enough for them either.
+pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
+    match backend {
+        Backend::DiscreteGpu {
+            vram_bytes: Some(vram),
+        } => MemoryBudget {
+            usable_bytes: usable_bytes(vram),
+            gpu_accounted_for: true,
+        },
+        // Unified memory: the GPU decodes out of system RAM, so the RAM budget
+        // is the whole story and nothing is left unaccounted for.
+        Backend::Cpu | Backend::Metal => MemoryBudget {
+            usable_bytes: usable_bytes(ram_bytes),
+            gpu_accounted_for: true,
+        },
+        // The common Windows case, and the undetectable machine: fall back to
+        // the CPU path's arithmetic and say the GPU was not accounted for.
+        // Guessing a VRAM size would be worse than not knowing out loud.
+        Backend::DiscreteGpu { vram_bytes: None } | Backend::Unknown => MemoryBudget {
+            usable_bytes: usable_bytes(ram_bytes),
+            gpu_accounted_for: false,
+        },
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Footprint {
     pub weights_bytes: u64,
@@ -75,8 +120,8 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
     }
 }
 
-pub fn fits(entry: &ModelEntry, context_tokens: u64, ram_bytes: u64) -> bool {
-    footprint_bytes(entry, context_tokens).total_bytes() <= usable_bytes(ram_bytes)
+pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> bool {
+    footprint_bytes(entry, context_tokens).total_bytes() <= budget.usable_bytes
 }
 
 #[cfg(test)]
@@ -138,7 +183,48 @@ mod tests {
             .iter()
             .max_by_key(|entry| entry.weights_bytes)
             .expect("catalog is not empty");
-        assert!(!fits(biggest, 8192, 16 * GIB));
-        assert!(fits(biggest, 8192, 64 * GIB));
+        assert!(!fits(biggest, 8192, &memory_budget(Backend::Cpu, 16 * GIB)));
+        assert!(fits(biggest, 8192, &memory_budget(Backend::Cpu, 64 * GIB)));
+    }
+
+    #[test]
+    fn the_budget_follows_the_path_the_model_will_take() {
+        // A discrete card is budgeted by its own memory, not the machine's
+        // RAM: a 32 GiB PC with a 6 GiB card is a 3 GiB machine for this
+        // decision, and the RAM it also has must not size the model.
+        let card = memory_budget(
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6 * GIB),
+            },
+            32 * GIB,
+        );
+        assert_eq!(card.usable_bytes, 3 * GIB);
+        assert!(card.gpu_accounted_for);
+
+        // Apple Silicon decodes through Metal out of unified memory: system
+        // RAM is the budget and nothing is left unaccounted for.
+        let mac = memory_budget(Backend::Metal, 16 * GIB);
+        assert_eq!(mac.usable_bytes, usable_bytes(16 * GIB));
+        assert!(mac.gpu_accounted_for);
+
+        // A card whose size could not be read honestly: fall back to the RAM
+        // arithmetic and say the GPU was not accounted for — never guess a
+        // VRAM size.
+        let unread = memory_budget(
+            Backend::DiscreteGpu { vram_bytes: None },
+            32 * GIB,
+        );
+        assert_eq!(unread.usable_bytes, usable_bytes(32 * GIB));
+        assert!(!unread.gpu_accounted_for);
+
+        // Detection found nothing at all: the RAM budget, same honesty.
+        let unknown = memory_budget(Backend::Unknown, 32 * GIB);
+        assert_eq!(unknown.usable_bytes, usable_bytes(32 * GIB));
+        assert!(!unknown.gpu_accounted_for);
+
+        // CPU only: the RAM budget is the whole story.
+        let cpu = memory_budget(Backend::Cpu, 8 * GIB);
+        assert_eq!(cpu.usable_bytes, 5 * GIB);
+        assert!(cpu.gpu_accounted_for);
     }
 }

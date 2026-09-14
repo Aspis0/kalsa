@@ -5,17 +5,23 @@
 //! purpose: they were evaluated, and the next reader deserves to know why they
 //! are not in the running instead of redoing the work.
 //!
-//! Weight sizes come from the research table in GiB rounded to two decimals, so
-//! bytes are that × 2^30 and the user-facing copy rounds to GiB again: printing
-//! byte precision from a rounded figure would be false precision.
+//! Two vintages of row share this table, and they do not make the same claim
+//! about their sizes. The research-table rows record GiB rounded to two
+//! decimals, so bytes are that × 2^30 and printing byte precision from a
+//! rounded figure would be false precision. The rows verified against the
+//! Hugging Face API on 2026-09-14 carry the exact size of the exact file from
+//! the GGUF repo's tree — byte precision there is a measurement. `gguf_repo`
+//! tells the vintages apart: only rows the API was actually asked about carry
+//! one.
 
 use crate::licence::{Licence, Standing};
 use crate::parameters::Parameters;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
 
-/// The research table records GiB rounded to two decimals: keep that shape so
-/// nobody later mistakes it for a file size measured to the byte.
+/// The research-table helper: keep that shape so nobody later mistakes it for
+/// a file size measured to the byte. The verified rows below write their bytes
+/// literally instead.
 const fn gigabytes(whole: u64, centi: u64) -> u64 {
     whole * GIB + GIB * centi / 100
 }
@@ -83,10 +89,13 @@ impl<'a> UsableEntry<'a> {
     }
 }
 
-/// The nine rows the research verified, plus three it refused.
+/// The nine rows the research verified, three it refused, and four the API
+/// verified on 2026-09-14.
 ///
-/// Bytes are the table's GiB × 2^30: 3.22 GiB is 3_457_363_886 bytes as
-/// recorded, not a claim about the exact file.
+/// Bytes in the research rows are the table's GiB × 2^30: 3.22 GiB is
+/// 3_457_363_886 bytes as recorded, not a claim about the exact file. The
+/// 2026-09-14 rows carry the exact file size from the repo tree instead, so
+/// byte precision there is real.
 pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-E2B-it",
@@ -196,6 +205,69 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         stale: None,
     },
+    // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
+    // `weights_bytes` here is the exact size of the exact GGUF file in the
+    // repo's tree, `last_modified` is verbatim from the API, and each row
+    // carries the gguf repo it was verified against. None of them needs an
+    // mmproj, and none carries a KV figure: that is measured, never guessed.
+    ModelEntry {
+        repo: "LiquidAI/LFM2.5-8B-A1B",
+        gguf_repo: Some("liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF"),
+        last_modified: "2026-08-24T21:05:21.000Z",
+        // LFM 1.0 permits commercial use only for entities under $10M annual
+        // revenue: a condition on whoever ships a paid fine-tune of this base,
+        // not a refusal of the row. See Licence::Conditional.
+        licence: Licence::Conditional {
+            id: "lfm1.0",
+            condition: "commercial use only for entities under $10M annual revenue",
+        },
+        parameters: Parameters::mixture(8_300_000_000, 1_500_000_000),
+        quant: "IQ4_XS",
+        weights_bytes: 4_588_301_888,
+        mmproj_bytes: None,
+        kv_bytes_per_token: None,
+        stale: None,
+    },
+    ModelEntry {
+        repo: "microsoft/Phi-mini-MoE-instruct",
+        gguf_repo: Some("smarttasks/Phi-mini-MoE-instruct-GGUF"),
+        last_modified: "2025-12-10T18:20:28.000Z",
+        licence: Licence::Open("mit"),
+        parameters: Parameters::mixture(7_600_000_000, 2_400_000_000),
+        quant: "Q4_K_S",
+        weights_bytes: 4_616_170_016,
+        mmproj_bytes: None,
+        kv_bytes_per_token: None,
+        stale: None,
+    },
+    ModelEntry {
+        repo: "ibm-granite/granite-4.0-h-tiny",
+        gguf_repo: Some("ibm-granite/granite-4.0-h-tiny-GGUF"),
+        last_modified: "2025-11-03T19:42:57.000Z",
+        licence: Licence::Open("apache-2.0"),
+        parameters: Parameters::mixture(7_000_000_000, 1_000_000_000),
+        quant: "Q4_K_M",
+        weights_bytes: 4_230_976_352,
+        mmproj_bytes: None,
+        kv_bytes_per_token: None,
+        stale: None,
+    },
+    ModelEntry {
+        repo: "arcee-ai/Trinity-Nano-Preview",
+        gguf_repo: Some("arcee-ai/Trinity-Nano-Preview-GGUF"),
+        last_modified: "2026-05-28T22:45:39.000Z",
+        // OpenMDW permits commercial use and modification; preserving licence
+        // and notices, and terminating rights on a patent suit, is the same
+        // standard permissive package MIT and Apache-2.0 ship under other
+        // words, so this is Open rather than its own category.
+        licence: Licence::Open("openmdw-1.1"),
+        parameters: Parameters::mixture(6_000_000_000, 1_000_000_000),
+        quant: "Q4_K_M",
+        weights_bytes: 3_786_957_088,
+        mmproj_bytes: None,
+        kv_bytes_per_token: None,
+        stale: None,
+    },
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
@@ -293,9 +365,67 @@ mod tests {
             assert!(active <= total, "{} has active > total", entry.repo);
             assert!(entry.weights_bytes > 0);
             assert!(entry.mmproj_bytes.is_none_or(|bytes| bytes > 0));
-            // Nothing here guesses where the GGUF lives: the downloader asks.
-            assert!(entry.gguf_repo.is_none());
         }
+    }
+
+    #[test]
+    fn only_the_verified_rows_know_where_their_gguf_lives() {
+        // A repo name written from memory is how a download 404s a week later:
+        // the research-table rows never asked the API, so they carry None and
+        // the downloader asks. The 2026-09-14 rows were asked.
+        let verified: Vec<&str> = CATALOG
+            .iter()
+            .filter(|entry| entry.gguf_repo.is_some())
+            .map(|entry| entry.repo)
+            .collect();
+        assert_eq!(
+            verified,
+            [
+                "LiquidAI/LFM2.5-8B-A1B",
+                "microsoft/Phi-mini-MoE-instruct",
+                "ibm-granite/granite-4.0-h-tiny",
+                "arcee-ai/Trinity-Nano-Preview",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_verified_rows_carry_their_exact_bytes() {
+        // Figures from the Hugging Face API on 2026-09-14, verbatim: the byte
+        // size of the exact file in each repo's tree. Rounding a measurement
+        // would be throwing the measurement away.
+        let bytes: Vec<(&str, u64)> = CATALOG
+            .iter()
+            .filter(|entry| entry.gguf_repo.is_some())
+            .map(|entry| (entry.repo, entry.weights_bytes))
+            .collect();
+        assert_eq!(
+            bytes,
+            vec![
+                ("LiquidAI/LFM2.5-8B-A1B", 4_588_301_888),
+                ("microsoft/Phi-mini-MoE-instruct", 4_616_170_016),
+                ("ibm-granite/granite-4.0-h-tiny", 4_230_976_352),
+                ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_lfm_row_is_usable_and_carries_its_condition() {
+        let lfm = CATALOG
+            .iter()
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-8B-A1B")
+            .expect("lfm row is in the catalog");
+        assert!(
+            lfm.is_usable(),
+            "a condition on the shipper is not a refusal of the row"
+        );
+        assert_eq!(lfm.licence.refusal(), None);
+        assert_eq!(
+            lfm.licence.condition(),
+            Some("commercial use only for entities under $10M annual revenue"),
+        );
+        assert!(usable().any(|entry| entry.entry().repo == lfm.repo));
     }
 
     #[test]
