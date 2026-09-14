@@ -122,6 +122,9 @@ mod tests {
     /// The row most of these tests ride on: small enough to be fundable on
     /// every budget in the suite, shipped and usable.
     const GRANITE: &str = "IBM Granite 4 Tiny";
+    /// The row the 96 KiB assumption under-counted, now carrying its
+    /// measured 160 KiB-per-token figure.
+    const APERTUS: &str = "Swiss AI Apertus 1.5";
 
     /// A real, usable catalog row, so the compiler — not this file — notices
     /// when the row's shape changes, and the tests exercise something the
@@ -135,14 +138,13 @@ mod tests {
             })
     }
 
-    /// Hand-built, and it has to be: the two shapes this suite needs that no
-    /// shipped row has — a measured per-token figure (no row carries one yet)
-    /// and a broken zero measurement (no row may ever carry one). Everything
-    /// else here runs on real rows.
-    fn synthetic_row(weights_bytes: u64, kv_bytes_per_token: Option<u64>) -> ModelEntry {
+    /// Hand-built, and it has to be: a broken zero measurement, the one
+    /// shape no shipped row may ever carry. Everything else here runs on
+    /// real rows.
+    fn broken_row(weights_bytes: u64) -> ModelEntry {
         ModelEntry {
-            repo: "test/synthetic",
-            display_name: "Synthetic Row",
+            repo: "test/broken",
+            display_name: "Broken Row",
             source: None,
             last_modified: "2026-01-01",
             licence: kalsa_catalog::Licence::Open("apache-2.0"),
@@ -150,7 +152,8 @@ mod tests {
             quant: "Q4_K_M",
             weights_bytes,
             mmproj_bytes: None,
-            kv_bytes_per_token,
+            kv_bytes_per_token: Some(0),
+            kv_assumption_undercounts: false,
             dense_equivalent: None,
             stale: None,
         }
@@ -210,7 +213,7 @@ mod tests {
         let too_big = shipped_row("Google Gemma 4 E4B");
         assert!(plan(&input(ServerBackend::Cpu, budget, too_big, M1_MAX_RAMP)).is_none());
         // A zero per-token measurement is broken data, not a free cache.
-        let garbage = synthetic_row(4 * GIB, Some(0));
+        let garbage = broken_row(4 * GIB);
         assert!(plan(&input(ServerBackend::Cpu, budget, &garbage, M1_MAX_RAMP)).is_none());
     }
 
@@ -307,17 +310,16 @@ mod tests {
 
     #[test]
     fn the_memory_report_is_the_cost_of_the_arguments_actually_produced() {
-        // Hand-built on purpose: the one shape no shipped row has. A measured
-        // cache size (16 KiB per token) lets the report be checked against
-        // the row's figure rather than the assumption.
-        let model = synthetic_row(4 * GIB, Some(16 * KIB));
-        let budget = memory_budget(Backend::Metal, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Metal, budget, &model, M1_MAX_RAMP))
+        // Apertus carries a measured cache figure, so the report is checked
+        // against the row's own number rather than the assumption.
+        let model = shipped_row(APERTUS);
+        let budget = memory_budget(Backend::Metal, 64 * GIB);
+        let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
 
         // The report is the footprint of exactly the context the arguments
         // carry — recomputed here from the catalog, not copied from the plan.
-        let footprint = footprint_bytes(&model, launched.args.context_tokens);
+        let footprint = footprint_bytes(model, launched.args.context_tokens);
         assert_eq!(launched.memory.context_tokens, launched.args.context_tokens);
         assert_eq!(launched.memory.kv_cache_bytes, footprint.kv_bytes);
         assert_eq!(launched.memory.total_bytes, footprint.total_bytes());
@@ -334,6 +336,36 @@ mod tests {
         assert!(line.contains("--cache-type-v q8_0"), "{line}");
         assert!(line.contains("--flash-attn"), "{line}");
         assert!(line.contains("--ubatch-size 128"), "{line}");
+    }
+
+    #[test]
+    fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
+        // Apertus 70B is the row the 96 KiB assumption under-counted; its
+        // measured cache is 163_840 bytes per token at the q8_0 this crate
+        // pins. On 64 GiB (48 GiB usable), 43_722_767_073 bytes of weights
+        // and 512 MiB of buffers leave 7_279_969_567 bytes of cache: 44_433
+        // whole tokens, with 66_847 bytes spare — less than one token. A
+        // usable server context, not a floor-division artefact.
+        let model = shipped_row(APERTUS);
+        let budget = memory_budget(Backend::Cpu, 64 * GIB);
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        assert_eq!(launched.args.context_tokens, 44_433);
+        assert!(fits(model, launched.args.context_tokens, &budget));
+        assert!(
+            !fits(model, launched.args.context_tokens + 1, &budget),
+            "one more token would not be paid for"
+        );
+        assert_eq!(launched.memory.kv_cache_bytes, 44_433 * 163_840);
+        assert!(
+            !launched.memory.kv_per_token_assumed,
+            "this row carries a measurement, not the assumption"
+        );
+        // The same row on 8 GiB cannot be funded at all: weights and buffers
+        // alone exceed the budget, so the answer is no context, not a
+        // context that does not fit.
+        let small = memory_budget(Backend::Cpu, 8 * GIB);
+        assert!(plan(&input(ServerBackend::Cpu, small, model, M1_MAX_RAMP)).is_none());
     }
 
     #[test]

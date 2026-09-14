@@ -34,6 +34,13 @@ pub(crate) const IDLE_UNLOAD_SECONDS: u32 = 300;
 /// make the reported cache size true rather than half of it. It is also the
 /// thermal trade: half the cache means half the memory traffic streamed per
 /// token, and streaming memory is what a decode *is*.
+///
+/// **Load-bearing across a crate boundary.** The catalog stores its measured
+/// rows at this same precision — Apertus 70B's `kv_bytes_per_token` is its
+/// header geometry in q8_0 bytes, not f16 — so changing this value does not
+/// retune this crate: it invalidates every row's memory arithmetic, doubles
+/// what every measured cache will cost, and halves every measured context.
+/// It is not a knob.
 pub(crate) const KV_CACHE_TYPE: &str = "q8_0";
 
 /// How many layers go to the GPU. Three states, because the rendered
