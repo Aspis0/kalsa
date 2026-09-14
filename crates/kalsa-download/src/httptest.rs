@@ -22,7 +22,7 @@ pub enum RangeMode {
     /// 206, but the Content-Range names an offset past the one we asked for:
     /// the body is not a continuation of our prefix.
     Lie,
-    /// No length at all, and more bytes than the caller was promised.
+    /// Declares — and sends — more bytes than the caller was promised.
     Overrun,
 }
 
@@ -57,15 +57,20 @@ fn answer(
     mode: &RangeMode,
     seen: &Mutex<Vec<Option<u64>>>,
 ) -> std::io::Result<()> {
+    let len = content.len() as u64;
     if matches!(mode, RangeMode::Overrun) {
-        // No Content-Length: the body ends when the connection does — late.
-        let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+        // The overrun is declared in the header, so a client that reads it
+        // can refuse before a single body byte; the body keeps its promise
+        // to overrun anyway.
+        let head = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            len + OVERRUN as u64
+        );
         stream.write_all(head.as_bytes())?;
         stream.write_all(content)?;
         return stream.write_all(&content[..OVERRUN]);
     }
     let range = read_range(&mut stream, seen)?;
-    let len = content.len() as u64;
     match range.filter(|_| matches!(mode, RangeMode::Honor | RangeMode::Lie)) {
         None => {
             let head = format!(

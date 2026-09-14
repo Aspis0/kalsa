@@ -1,21 +1,17 @@
 //! Moving bytes, with a `Range` header so a broken connection costs only what
 //! it lost.
 //!
-//! The part file is append-only truth: everything in it was really received.
-//! A resume asks for `bytes=N-`, and a 206 answer counts only when its
-//! `Content-Range` starts exactly where we asked — a suffix from any other
-//! offset glued onto our prefix is a file of nearly the right length and
-//! entirely wrong content, so the part file restarts from zero and the body
-//! is fetched whole instead. A 200 to the Range request is the same
-//! fall-back. Any other answer is an error, and the part file stays as it
-//! was: still resumable.
-//!
-//! The write is bounded at the size the caller promised: a server that keeps
-//! sending does not get to fill the disk the preflight protected.
+//! Two decisions here are made from data already in hand, never from one more
+//! gamble on the socket: a declared length larger than the promise is an
+//! overrun known from the header, and a body that arrives past the promise is
+//! an overrun known from the bytes received. Once the promised size is on
+//! disk the transfer is over — a reset, an EOF or a talkative server after
+//! that point changes nothing.
 
 use std::io::{self, Read, Write};
 
 use crate::part::PartFile;
+use crate::range;
 use crate::{DownloadError, Progress};
 
 /// Read chunk: big enough that the callbacks are not the bottleneck on a
@@ -41,11 +37,22 @@ pub fn fetch(
     if resume_from == expected_size {
         return Ok(());
     }
-    let (response, start) = connect(url, resume_from)?;
+    let (response, start) = range::connect(url, resume_from)?;
     if start == 0 {
         part.restart()?;
     } else {
         part.append()?;
+    }
+    // An overrun can be known from the header alone: a declared length past
+    // the promise is refused before a single body byte reaches the disk the
+    // preflight protected.
+    let declared: Option<u64> = response
+        .header("Content-Length")
+        .and_then(|value| value.parse().ok());
+    if let Some(declared) = declared {
+        if declared > expected_size - start {
+            return Err(overrun());
+        }
     }
     let file = part.handle();
     let mut reader = response.into_reader();
@@ -56,8 +63,16 @@ pub fn fetch(
         bytes_total: expected_size,
     });
     loop {
+        // The promise is fulfilled: decided. Nothing the socket does after
+        // this point — reset, EOF, more bytes — is ours to lose, so we never
+        // read it again.
+        if done == expected_size {
+            return Ok(());
+        }
         let read = reader.read(&mut chunk)?;
         if read == 0 {
+            // The server ran out before the promise; the length gate in
+            // `verify` will call that what it is.
             return Ok(());
         }
         // Not one byte past the promise, whatever the server sends.
@@ -69,68 +84,21 @@ pub fn fetch(
             bytes_total: expected_size,
         });
         if take < read {
-            // The part file is now exactly the promised length, so the next
-            // attempt needs no request at all: verification decides.
-            return Err(DownloadError::Io(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "server sent more than the promised size",
-            )));
+            // The overrun is not a guess: those bytes were received. The
+            // error is returned unconditionally — no further read can turn
+            // it into a reset or an EOF.
+            return Err(overrun());
         }
     }
 }
 
-/// Asks for the suffix at `resume_from` and checks the answer against the
-/// header we sent. Returns the body reader and the offset it starts at.
-fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), DownloadError> {
-    if resume_from > 0 {
-        let response = send(url, Some(resume_from))?;
-        match response.status() {
-            // Range ignored: the body is the whole file.
-            200 => return Ok((response, 0)),
-            206 => match content_range_start(&response) {
-                Some(at) if at == resume_from => return Ok((response, resume_from)),
-                // Missing or lying: whatever this body is, it does not
-                // continue our file.
-                _ => {}
-            },
-            code => return Err(http_error(code)),
-        }
-    }
-    let response = send(url, None)?;
-    let start = match response.status() {
-        200 => 0,
-        // A 206 to a request with no Range is a broken server; its body may
-        // only be used if it claims to start at zero.
-        206 => content_range_start(&response)
-            .filter(|at| *at == 0)
-            .ok_or_else(|| http_error(206))?,
-        code => return Err(http_error(code)),
-    };
-    Ok((response, start))
-}
-
-fn send(url: &str, range: Option<u64>) -> Result<ureq::Response, DownloadError> {
-    let mut request = ureq::get(url);
-    if let Some(at) = range {
-        request = request.set("Range", &format!("bytes={at}-"));
-    }
-    request
-        .call()
-        .map_err(|e| DownloadError::Io(io::Error::new(io::ErrorKind::Other, e.to_string())))
-}
-
-/// Start offset of `Content-Range: bytes N-M/T`, or None when absent or
-/// unintelligible — and None is treated as "not a continuation".
-fn content_range_start(response: &ureq::Response) -> Option<u64> {
-    let rest = response.header("Content-Range")?.trim().strip_prefix("bytes")?;
-    let range = rest.trim_start().split('/').next()?;
-    range.split('-').next()?.parse().ok()
-}
-
-fn http_error(code: u16) -> DownloadError {
+/// The server is sending past the promised size. Deliberately distinct from a
+/// network failure: a lying origin must never be retried against the same
+/// URL, while a dropped connection is exactly what resume is for.
+fn overrun() -> DownloadError {
     DownloadError::Io(io::Error::new(
-        io::ErrorKind::Other,
-        format!("server answered HTTP {code}"),
+        io::ErrorKind::InvalidData,
+        "server sent more than the promised size",
     ))
 }
 
@@ -154,7 +122,8 @@ mod tests {
     const SPLIT: u64 = 1024 * 1024;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("mkdir");
         dir
@@ -203,41 +172,23 @@ mod tests {
     }
 
     #[test]
-    fn a_206_from_the_wrong_offset_is_not_appended() {
-        let dir = scratch("fetch-lie");
-        let data = payload(3 * SPLIT as usize);
-        let server = httptest::serve(data.clone(), RangeMode::Lie);
-        fs::write(dir.join("model.gguf.part"), &data[..SPLIT as usize]).expect("partial file");
-        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
-        // The fixture answers 206 with a Content-Range that starts past the
-        // prefix we asked to resume; trusting it would glue on a wrong
-        // suffix. The right answer is to ask again from zero.
-        fetch(&server.url, &mut part, data.len() as u64, &mut |_| {}).expect("refetch");
-        assert_eq!(
-            *server.requests.lock().expect("requests"),
-            vec![Some(SPLIT), None],
-            "a mismatched Content-Range must be answered with a fresh request"
-        );
-        assert_eq!(fs::read(dir.join("model.gguf.part")).expect("read"), data);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
     fn a_server_that_overruns_is_stopped_at_the_promised_size() {
         let dir = scratch("fetch-overrun");
         let data = payload(1024 * 1024);
-        let server = httptest::serve(data.clone(), RangeMode::Overrun);
+        let expected = data.len() as u64;
+        let server = httptest::serve(data, RangeMode::Overrun);
         let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
-        let err = fetch(&server.url, &mut part, data.len() as u64, &mut |_| {})
+        let err = fetch(&server.url, &mut part, expected, &mut |_| {})
             .expect_err("the overrun must be refused");
+        // The invariant first: not one byte past the promise reached the part
+        // file — here not one byte at all, because the overrun was visible in
+        // the declared length before any body byte was asked for.
+        assert_eq!(part.len().expect("len"), 0);
+        // The kind is deterministic too: decided from the response header,
+        // not from a read racing the server's teardown.
         assert!(
             matches!(&err, DownloadError::Io(e) if e.kind() == io::ErrorKind::InvalidData),
             "{err:?}"
-        );
-        assert_eq!(
-            part.len().expect("len"),
-            data.len() as u64,
-            "not one byte past the promise"
         );
         let _ = fs::remove_dir_all(&dir);
     }

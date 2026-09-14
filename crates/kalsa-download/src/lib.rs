@@ -22,6 +22,7 @@ mod disk;
 mod download;
 mod fetch;
 mod part;
+mod range;
 mod reuse;
 mod verify;
 
