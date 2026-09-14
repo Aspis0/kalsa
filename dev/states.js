@@ -39,6 +39,9 @@ const REASON_PORT =
 // failure.rs's ChosenModelUnfundable words, verbatim — smoke pins them.
 const REASON_UNFUNDABLE =
   "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.";
+// failure.rs's ConnectionLost words, verbatim — the resume promise, pinned.
+const REASON_CONNECTION_LOST =
+  "The connection dropped partway through. Trying again keeps what was already downloaded.";
 const REASON_LONG =
   "The assistant stopped while it was getting ready. This can happen when the computer runs out of room while it is working. Turning it on again usually works, and closing other programs helps if it keeps happening. (stub)";
 
@@ -52,25 +55,9 @@ function statusBackend(state, modelChosen) {
   };
 }
 
-// The setup DTO the Status page is written against (see pages/setup.js).
-// Byte figures are the plan's own sizes, stubbed; they exist to review the
-// sentence around them, not to promise a download size.
-function setupDto(phase) {
-  return { kind: "setup", phase, fetching: null, failure: null };
-}
-
-function fetchDto(what, done, total, resumed) {
-  return {
-    kind: "setup",
-    phase: "fetching",
-    fetching: { what, total_bytes: total, done_bytes: done, resumed },
-    failure: null,
-  };
-}
-
-function setupFailed(reason) {
-  return { kind: "setup", phase: "failed", fetching: null, failure: reason };
-}
+// The progress payloads above are the real `brain_progress` shapes from
+// src-tauri/src/startup.rs, with byte figures measured tonight; they exist
+// to review the sentence around them, not to promise a download size.
 
 function modelBackend(measured, measure) {
   return {
@@ -83,87 +70,91 @@ function modelBackend(measured, measure) {
 
 // ---- Status ----
 
-card("Status", "first run: reading the machine", (panel) =>
+// The walk's progress: the card mounts the real page, then replays a real
+// `brain_progress` payload (startup.rs) through a bus shaped like the
+// backend's — so what the card shows is what arrives on the wire.
+function fakeBus() {
+  const handlers = {};
+  return {
+    listen(name, handler) {
+      (handlers[name] ??= []).push(handler);
+      return Promise.resolve(() => {});
+    },
+    emit(name, payload) {
+      for (const handler of handlers[name] ?? []) handler(payload);
+    },
+  };
+}
+
+function progressCard(title, note, step) {
+  card("Status", `${title} (real bytes)`, (panel) => {
+    const bus = fakeBus();
+    const view = mountStatus(panel, {
+      backend: statusBackend({ kind: "stopped" }, true),
+      events: bus,
+    });
+    view.refresh();
+    bus.emit("brain_progress", step);
+  });
+}
+
+// The model's true size, measured tonight: 3786957088 bytes.
+const MODEL_BYTES = 3786957088;
+
+progressCard(
+  "a progress event arrives and is shown",
+  "the model download, mid-way",
+  { kind: "model_bytes", done: 2100000000, total: MODEL_BYTES },
+);
+
+progressCard(
+  "a progress event: the engine's bytes",
+  "the small download",
+  { kind: "runtime_bytes", done: 8000000, total: 18000000 },
+);
+
+progressCard(
+  "a progress event: resumed past zero",
+  "picked up where it stopped",
+  { kind: "model_bytes", done: 401000000, total: MODEL_BYTES },
+);
+
+progressCard(
+  "a progress event: no size announced",
+  "the server said no Content-Length",
+  { kind: "model_bytes", done: 320000000, total: 0 },
+);
+
+card("Status", "first run: measuring the machine", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend(setupDto("reading"), false),
+    backend: statusBackend({ kind: "stopped" }, true),
+    events: (() => {
+      const bus = fakeBus();
+      bus.emit("brain_progress", { kind: "measuring" });
+      return bus;
+    })(),
+  }).refresh(),
+);
+
+card("Status", "first run: deciding the engine", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend({ kind: "stopped" }, true),
+    events: (() => {
+      const bus = fakeBus();
+      bus.emit("brain_progress", { kind: "deciding" });
+      return bus;
+    })(),
   }).refresh(),
 );
 
 card("Status", "first run: choosing a model", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend(setupDto("choosing"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: fetching the engine (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("engine", 320e6, 645e6, false), false),
-  }).refresh(),
-);
-
-card("Status", "first run: fetching the model (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("model", 0.4e9, 5.2e9, false), false),
-  }).refresh(),
-);
-
-card("Status", "first run: resuming the engine download (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("engine", 401e6, 645e6, true), false),
-  }).refresh(),
-);
-
-card("Status", "first run: fetching without a size (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("engine", 320e6, null, false), false),
-  }).refresh(),
-);
-
-card("Status", "first run: resumed past its total (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("engine", 700e6, 645e6, true), false),
-  }).refresh(),
-);
-
-card("Status", "first run: download complete (stub bytes)", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(fetchDto("model", 5.2e9, 5.2e9, false), false),
-  }).refresh(),
-);
-
-card("Status", "first run: starting the server", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupDto("starting"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: the connection dropped", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupFailed("network"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: disk full", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupFailed("disk-full"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: download arrived damaged", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupFailed("damaged"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: no engine for this machine", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupFailed("no-engine"), false),
-  }).refresh(),
-);
-
-card("Status", "first run: not worth it", (panel) =>
-  mountStatus(panel, {
-    backend: statusBackend(setupFailed("not-worth-it"), false),
+    backend: statusBackend({ kind: "stopped" }, true),
+    events: (() => {
+      const bus = fakeBus();
+      bus.emit("brain_progress", { kind: "choosing" });
+      return bus;
+    })(),
   }).refresh(),
 );
 
@@ -209,6 +200,15 @@ card("Status", "failed (real words)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
       { kind: "failed", reason: REASON_PORT },
+      true,
+    ),
+  }).refresh(),
+);
+
+card("Status", "failed: the connection dropped (real words)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(
+      { kind: "failed", reason: REASON_CONNECTION_LOST },
       true,
     ),
   }).refresh(),

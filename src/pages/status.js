@@ -8,7 +8,7 @@
 // and throttle facts are placeholders (data/placeholders.js); until they are
 // wired, the page says it cannot tell, and never guesses.
 
-import { available, invoke } from "../lib/tauri.js";
+import { available, invoke, listen } from "../lib/tauri.js";
 import { mountSetup } from "./setup.js";
 import {
   phone as defaultPhone,
@@ -47,6 +47,12 @@ const tauriBackend = {
   },
 };
 
+const tauriEvents = {
+  listen(event, handler) {
+    return listen(event, handler);
+  },
+};
+
 export function mountStatus(
   root,
   {
@@ -54,6 +60,7 @@ export function mountStatus(
     phone = defaultPhone,
     throttled = defaultThrottled,
     backend = tauriBackend,
+    events = tauriEvents,
   } = {},
 ) {
   root.innerHTML = `
@@ -69,12 +76,19 @@ export function mountStatus(
   const note = el("note");
   const action = el("action");
   const setupBox = el("setup");
-  const setupView = mountSetup(setupBox, {
-    // Pressing Try again on a setup failure re-enters the flow at the same
-    // step; the poll picks the new state up.
-    onRetry: () => {
-      backend.start().catch(() => {});
-    },
+  const setupView = mountSetup(setupBox);
+
+  // The walk reports its progress as an event, not as a state: this page
+  // owns the subscription, holds the latest step, and re-reads the facts so
+  // the progress never renders against a stale state. The unlisten is kept
+  // so whoever replaces this panel can hang up.
+  let liveProgress = null;
+  let offProgress = null;
+  events.listen("brain_progress", (step) => {
+    liveProgress = step;
+    refresh();
+  }).then((off) => {
+    offProgress = off;
   });
 
   // The last render's facts, so the button acts on what the screen shows.
@@ -101,15 +115,16 @@ export function mountStatus(
   function render(state, modelChosen) {
     current = { state, modelChosen };
     // The hold lives only while nothing runs: any other state has words of
-    // its own.
-    if (!state || state.kind !== "stopped") heldFailure = null;
+    // its own. Same for the walk's progress — once something runs, or a
+    // failure is being spoken, the progress view has nothing to say.
+    if (!state || state.kind !== "stopped" || heldFailure) liveProgress = null;
 
-    // The first run is not Off or On: it is a sequence of slow steps, and
-    // while it runs the setup view replaces the switch entirely.
-    if (state && state.kind === "setup") {
+    // The first run is not Off or On: it is a walk with live progress, and
+    // while it runs the progress view replaces the switch entirely.
+    if (liveProgress) {
       for (const el of [headline, sentence, note, action]) el.hidden = true;
       setupBox.hidden = false;
-      setupView.update(state);
+      setupView.update(liveProgress);
       return;
     }
     for (const el of [headline, sentence, note, action]) el.hidden = false;
@@ -238,7 +253,13 @@ export function mountStatus(
     refresh();
   });
 
-  return { refresh };
+  // Whoever replaces this panel hangs up the event subscription here.
+  return {
+    refresh,
+    dispose() {
+      if (offProgress) offProgress();
+    },
+  };
 }
 
 export function initStatus(goTo) {

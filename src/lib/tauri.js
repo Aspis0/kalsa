@@ -12,3 +12,11 @@ export function available() {
 export function invoke(command, args = {}) {
   return window.__TAURI__.core.invoke(command, args);
 }
+
+// Subscribes to a backend event and resolves to the unlisten function.
+// Outside the webview there is no bus: the caller gets one that does
+// nothing, so the page's cleanup is uniform everywhere it runs.
+export function listen(event, handler) {
+  if (!available()) return Promise.resolve(() => {});
+  return window.__TAURI__.event.listen(event, handler);
+}

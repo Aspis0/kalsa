@@ -106,11 +106,29 @@ class FakeEl {
 
 const root = new FakeEl("main");
 const byId = {};
+// A standing fake bus: the pages subscribe to `brain_progress` through it,
+// so the checks can prove the subscription by name and replay events down
+// the same path the app uses.
+const eventBus = { handlers: {} };
 globalThis.document = {
   getElementById: (id) => (id === "cards" ? root : (byId[id] ??= new FakeEl("div"))),
   createElement: (tag) => new FakeEl(tag),
 };
-globalThis.window = {};
+globalThis.window = {
+  __TAURI__: {
+    event: {
+      listen(name, handler) {
+        (eventBus.handlers[name] ??= []).push(handler);
+        return Promise.resolve(() => {});
+      },
+    },
+    core: {
+      invoke() {
+        return Promise.reject(new Error("no backend"));
+      },
+    },
+  },
+};
 
 // ---- run the real states page ----
 
@@ -245,6 +263,7 @@ const NOTHING = [
   // Setup steps with no bytes to show yet: the sentence is the progress.
   "Looking at what this computer",
   "Deciding which model",
+  "Finding the version of the engine",
   "can take a minute",
   // Pairing's in-progress and goal states: the square, the connection, and
   // the done state are their own exits.
@@ -286,8 +305,6 @@ for (const { heading, button } of results) {
 // moved from spelling to deliberate sabotage, and it is left open on
 // purpose — a check that closed it would have to understand the sentence.
 const ONCE_PHRASES = ["This happens once.", "happens only once."];
-const MID_DOWNLOAD_OPENERS = ["The connection dropped partway through"];
-const RESUME_PHRASES = ["What is already here stays", "picks up where it stopped"];
 
 // A download that cannot say why it happens and that it happens once is a
 // broken app: four silent minutes is how trust in it dies.
@@ -316,16 +333,23 @@ for (const { heading, sentence, progress, working } of results) {
   }
 }
 
-// A failure partway through is a different sentence from a failure at the
-// start: kalsa-download resumes, and the copy has to keep that promise. The
-// rule binds the failure copy it recognises — when that sentence is
-// rewritten, its opener joins MID_DOWNLOAD_OPENERS or the promise goes
-// unchecked.
-for (const { heading, sentence } of results) {
-  const isMidDownload = MID_DOWNLOAD_OPENERS.some((phrase) => sentence.includes(phrase));
-  if (isMidDownload && !RESUME_PHRASES.some((phrase) => sentence.includes(phrase))) {
-    problems.push(`a mid-download failure must promise resume in an approved phrasing: ${heading}`);
-  }
+// A failure partway through must keep the resume promise: what arrived
+// stays. The sentence is failure.rs's ConnectionLost words, owned here on
+// the review side — the page (and now the bench card) must speak it as
+// written, or the promise has been rewritten.
+const RESUME_SENTENCE =
+  "The connection dropped partway through. Trying again keeps what was already downloaded.";
+if (!results.some((r) => r.sentence === RESUME_SENTENCE)) {
+  problems.push("the connection-lost failure must keep the resume promise in its own words");
+}
+
+// ---- the progress event must reach the screen ----
+// main.rs emits `brain_progress` (startup.rs Progress); the Status page
+// subscribes by name and shows the walk instead of "Off". A card that
+// replays the event through a bus and still shows "Off" means the
+// subscription is broken — wrong name, missing listener, silent handler.
+if (!results.some((r) => r.heading.includes("a progress event arrives") && r.working)) {
+  problems.push("the progress event must reach the screen");
 }
 
 // ---- pairing rules: the square is a credential on screen ----
@@ -433,6 +457,52 @@ try {
   }
 } catch (error) {
   problems.push(`the walk-failure pin could not run: ${error.message}`);
+}
+
+// Hostile progress steps: the event payload is wire input too, and the view
+// must degrade through the same honest shapes.
+const HOSTILE_STEPS = [
+  { name: "negative done", step: { kind: "model_bytes", done: -5, total: 100 } },
+  { name: "non-numeric bytes", step: { kind: "runtime_bytes", done: "many", total: "lots" } },
+  { name: "unknown kind", step: { kind: "warp_drive" } },
+  { name: "null step", step: null },
+];
+
+for (const { name, step } of HOSTILE_STEPS) {
+  try {
+    const panel = document.createElement("div");
+    const handlers = [];
+    const bus = {
+      listen(name, handler) {
+        handlers.push(handler);
+        return Promise.resolve(() => {});
+      },
+    };
+    const view = mountStatus(panel, {
+      backend: {
+        async read() {
+          return [{ kind: "stopped" }, true];
+        },
+      },
+      events: bus,
+    });
+    await view.refresh();
+    for (const handler of handlers) handler(step);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const text = visibleText(panel);
+    for (const word of ["NaN", "Infinity", "undefined", "null"]) {
+      if (new RegExp(`\\b${word}\\b`).test(text)) {
+        problems.push(`hostile progress "${name}" rendered the leak "${word}"`);
+      }
+    }
+    const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
+    if (!sentenceEl || sentenceEl.textContent.trim() === "") {
+      problems.push(`hostile progress "${name}" rendered no sentence`);
+    }
+    view.dispose();
+  } catch (error) {
+    problems.push(`hostile progress "${name}" made the page throw: ${error.message}`);
+  }
 }
 
 if (problems.length > 0) {
