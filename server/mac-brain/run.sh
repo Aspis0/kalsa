@@ -174,27 +174,19 @@ acquire_lock() {
   }
   steal_if_stale() {
     [[ -d "$LOCKDIR" ]] || return 1
-    local owner stamp now age
-    local grace=5
+    local owner
     owner="$(cat "$LOCKDIR/pid" 2>/dev/null || true)"
-    if [[ -n "$owner" ]]; then
-      if kill -0 "$owner" 2>/dev/null; then
-        return 1
-      fi
-      echo "stale lock (pid ${owner} dead) — stealing ${LOCKDIR}"
-      rm -f "$LOCKDIR/pid"
-      rmdir "$LOCKDIR" 2>/dev/null || true
-      return 0
-    fi
-    # Missing pid: holder is between mkdir and write. Wait unless the dir is old.
-    stamp="$(stat -f %m "$LOCKDIR" 2>/dev/null || stat -c %Y "$LOCKDIR" 2>/dev/null || echo 0)"
-    now="$(date +%s)"
-    age=$((now - stamp))
-    if [[ "$age" -lt "$grace" ]]; then
+    # Missing pid: holder is between mkdir and write. NEVER steal.
+    if [[ -z "$owner" ]]; then
       return 1
     fi
-    echo "stale lock (no pid, age ${age}s) — stealing ${LOCKDIR}"
+    if kill -0 "$owner" 2>/dev/null; then
+      return 1
+    fi
+    echo "stale lock (pid ${owner} dead) — stealing ${LOCKDIR}"
+    rm -f "$LOCKDIR/pid"
     rmdir "$LOCKDIR" 2>/dev/null || true
+    return 0
   }
   if take_lock; then
     return 0
@@ -218,7 +210,10 @@ acquire_lock() {
     sleep 1
   done
   echo "error: timed out waiting for ${LOCKDIR}" >&2
-  echo "if the lock is stale, rmdir ${LOCKDIR} and retry" >&2
+  if [[ ! -f "$LOCKDIR/pid" ]]; then
+    echo "lock has no pid file — another start may be paused between mkdir and pid write" >&2
+  fi
+  echo "if no run.sh is running, recover with: rm -rf ${LOCKDIR}" >&2
   exit 1
 }
 
