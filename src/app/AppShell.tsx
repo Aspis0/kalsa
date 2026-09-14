@@ -68,6 +68,7 @@ import {
   decideModelIndexProbe,
   shouldNoopLocalSelect,
   shouldReprobeAfterSwitch,
+  switchDisposeUi,
 } from "../engine/modelIndexProbe";
 import {
   embedDocumentChunk,
@@ -4226,17 +4227,26 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           // on "checking". Emptiness check + enqueue are atomic; on timeout we
           // refuse WITHOUT enqueueing behind the possibly-hung op.
           const wasRemote = isRemoteEngineBackend();
-          const disposeResult = wasRemote
-            ? await disposeRemoteEngine()
-                .then(() => ({ ok: true as const }))
-                .catch(() => ({ ok: false as const }))
-            : await runNativeOpBounded(
+          let disposeOkInner = false;
+          try {
+            if (wasRemote) {
+              await disposeRemoteEngine();
+              disposeOkInner = true;
+            } else {
+              const bounded = await runNativeOpBounded(
                 () => disposeEngine(),
                 MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
               );
-          if (!disposeResult.ok) {
+              disposeOkInner = bounded.ok;
+            }
+          } catch {
+            disposeOkInner = false;
+          }
+          const ui = switchDisposeUi(disposeOkInner);
+          setRemoteActive(ui.remoteActive);
+          if (ui.surfaceError) {
             console.warn(
-              `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
+              `[kalsa] model switch dispose failed (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
             );
             setModelState("error");
             setModelErrorKind("engine");
@@ -4244,11 +4254,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             setModelErrorDetail(null);
           } else {
             await setEngineBackendMode("local");
-            setRemoteActive(false);
             disposeOk = true;
           }
         } catch {
-          // ignore
+          const ui = switchDisposeUi(false);
+          setRemoteActive(ui.remoteActive);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("errors.engineDisposeTimeout"));
+          setModelErrorDetail(null);
         } finally {
           // FIX B / FIX 1: dispose → free only the gen captured at switch time.
           if (releasedGen !== null) markChatReleased(releasedGen);

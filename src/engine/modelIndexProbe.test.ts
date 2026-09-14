@@ -3,6 +3,7 @@ import {
   decideModelIndexProbe,
   shouldNoopLocalSelect,
   shouldReprobeAfterSwitch,
+  switchDisposeUi,
 } from "./modelIndexProbe";
 
 describe("decideModelIndexProbe", () => {
@@ -71,5 +72,14 @@ describe("shouldReprobeAfterSwitch", () => {
   test("disposal timeout does not reprobe", () => {
     expect(shouldReprobeAfterSwitch(false)).toBe(false);
     expect(shouldReprobeAfterSwitch(true)).toBe(true);
+  });
+});
+
+describe("switchDisposeUi", () => {
+  test("dispose rejects -> error surfaced, no reprobe, remoteActive cleared", () => {
+    const ui = switchDisposeUi(false);
+    expect(ui.surfaceError).toBe(true);
+    expect(ui.reprobe).toBe(false);
+    expect(ui.remoteActive).toBe(false);
   });
 });

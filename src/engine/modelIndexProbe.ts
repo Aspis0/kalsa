@@ -45,3 +45,16 @@ export function shouldNoopLocalSelect(input: {
 export function shouldReprobeAfterSwitch(disposeOk: boolean): boolean {
   return disposeOk === true;
 }
+
+/** Timeout, rejection, or any failed dispose: error UI, no reprobe, remoteActive off. */
+export function switchDisposeUi(disposeOk: boolean): {
+  reprobe: boolean;
+  remoteActive: false;
+  surfaceError: boolean;
+} {
+  return {
+    reprobe: disposeOk === true,
+    remoteActive: false,
+    surfaceError: disposeOk !== true,
+  };
+}
