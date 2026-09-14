@@ -51,6 +51,12 @@ pub struct ChoiceInput {
     /// fallback — said out loud — when a card's VRAM could not be read.
     pub ram_bytes: u64,
     pub bandwidth_bytes_per_second: f64,
+    /// Whether that bandwidth figure is a floor: measured on a slower path
+    /// than the model will run on — the probe's
+    /// `Measurement::bandwidth_is_lower_bound()`. A floor can keep a
+    /// candidate but can never refuse one or be printed as a confident
+    /// speed; the prediction carries the shape.
+    pub bandwidth_is_lower_bound: bool,
     pub compute_flops_per_second: f64,
     /// The context the server will be configured with: the cache is sized from
     /// it, so a bigger context is part of the footprint, not a free parameter.
@@ -316,6 +322,22 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         });
     }
 
+    // A card whose memory could not be read: a model that will decode on it
+    // must fit it entirely, and the size is unknown. The RAM budget would
+    // offer a twenty-gigabyte model into a six-gigabyte card, so the machine
+    // is refused rather than guessed at — reading the card, or pinning the
+    // run to the CPU, unblocks it.
+    if matches!(input.backend, Backend::DiscreteGpu { vram_bytes: None }) {
+        return Decision::Refuse(Refusal {
+            reason: RefusalReason::MachineNotMeasured,
+            explanation: "This computer has a graphics card whose memory could not be \
+                          read, and a model that will decode on it must fit it entirely. \
+                          We will not guess the size: read the card's memory, or run the \
+                          model on the CPU only, and ask again."
+                .to_string(),
+        });
+    }
+
     let budget = memory_budget(input.backend, input.ram_bytes);
     let candidates: Vec<Candidate> = manifest::usable()
         .map(|entry| candidate(entry, input))
@@ -335,12 +357,20 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         return Decision::Refuse(nothing_fits(budget, &candidates));
     }
 
-    // No justification is worth asking for a crawl: a candidate below reading
-    // speed is neither an upgrade nor relief, so it never reaches the walk.
+    // No justification is worth asking for a crawl — but only a range may
+    // say "crawl": a floor below reading speed is unknown, not slow, and on
+    // the faster path the model will run on it may not be slow at all. So a
+    // range below the line never reaches the walk, and a floor always does,
+    // with its offer saying the real figure will be measured.
     let mut remaining: Vec<&Candidate> = fitting
         .iter()
         .copied()
-        .filter(|candidate| candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND)
+        .filter(|candidate| match candidate.decode {
+            Prediction::Range { .. } => {
+                candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND
+            }
+            Prediction::Floor(_) | Prediction::Estimate(_) => true,
+        })
         .collect();
     if remaining.is_empty() {
         // Every model that fits is too slow. fitting is not empty — the

@@ -11,16 +11,24 @@ use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
 use crate::footprint::{footprint_bytes, Footprint, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
 
-/// A predicted figure, with its shape carried in the type. Decode comes from
-/// the same bandwidth read at two efficiencies, so it is a range; prefill
-/// comes from the compute probe, which is a floor by construction — so it is
-/// one number. The shape is decided where the prediction is made, which is
-/// why the formatter has no equal-ends case to guard and no wrong call to
-/// make: it renders whichever shape it is handed.
+/// A predicted figure, with its shape carried in the type. The shape is
+/// decided where the prediction is made, which is why the formatter has no
+/// equal-ends case to guard and no wrong call to make: it renders whichever
+/// shape it is handed.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Prediction {
+    /// Decode, from a bandwidth measured on the path the model will run on:
+    /// the same traffic read at two efficiencies, so both ends are known.
     Range { low: f64, high: f64 },
+    /// A lower bound — decode predicted from a bandwidth measured on a
+    /// slower path than the model will run on. It can keep a candidate, but
+    /// it can never refuse one or be printed as a confident speed.
     Floor(f64),
+    /// An estimate — prefill, from the compute probe. The probe counts the
+    /// weights' work and omits attention and routing, which grow with
+    /// context, so the figure is neither a floor nor a range and prints as
+    /// an approximation.
+    Estimate(f64),
 }
 
 impl Prediction {
@@ -28,7 +36,7 @@ impl Prediction {
     pub fn floor(&self) -> f64 {
         match *self {
             Prediction::Range { low, .. } => low,
-            Prediction::Floor(value) => value,
+            Prediction::Floor(value) | Prediction::Estimate(value) => value,
         }
     }
 
@@ -36,7 +44,7 @@ impl Prediction {
     pub fn ceiling(&self) -> f64 {
         match *self {
             Prediction::Range { high, .. } => high,
-            Prediction::Floor(value) => value,
+            Prediction::Floor(value) | Prediction::Estimate(value) => value,
         }
     }
 }
@@ -61,24 +69,39 @@ impl Candidate<'_> {
 
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
     let entry = entry.entry();
+    let footprint = footprint_bytes(entry, input.context_tokens);
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
     // these two the wrong way round is the mistake the separate types prevent.
     let active_bytes = active_weight_bytes(entry);
+    // A token's traffic is the active weights plus the cache, which is
+    // re-read every token — the omission kalsa-probe documents, charged here
+    // where the context is known. Attention may read the cache more than
+    // once; the efficiency band absorbs that slop.
+    let traffic = active_bytes.saturating_add(footprint.kv_bytes);
     let decode = |efficiency| {
-        decode_tokens_per_second(input.bandwidth_bytes_per_second, active_bytes, efficiency)
+        decode_tokens_per_second(input.bandwidth_bytes_per_second, traffic, efficiency)
     };
     let (low_efficiency, high_efficiency) = DECODE_EFFICIENCY_BAND;
-    Candidate {
-        entry,
-        footprint: footprint_bytes(entry, input.context_tokens),
-        decode: Prediction::Range {
+    let decode = if input.bandwidth_is_lower_bound {
+        // The bandwidth was measured on a slower path than the model will run
+        // on, so the honest prediction is the pessimistic end of the band: a
+        // floor, never a range the real path can outrun.
+        Prediction::Floor(decode(low_efficiency).unwrap_or(0.0))
+    } else {
+        Prediction::Range {
             low: decode(low_efficiency).unwrap_or(0.0),
             high: decode(high_efficiency).unwrap_or(0.0),
-        },
-        // Prefill is a floor, not a range: the compute probe is a portable loop
-        // and real kernels are faster. The meaning is "at least this much" —
-        // never a band to multiply down.
-        prefill: Prediction::Floor(
+        }
+    };
+    Candidate {
+        entry,
+        footprint,
+        decode,
+        // Prefill is an estimate, and says so: the compute probe counts the
+        // weights' work and omits attention and routing, which grow with
+        // context — so at long contexts this is not a lower bound, and it
+        // does not print as one.
+        prefill: Prediction::Estimate(
             prefill_tokens_per_second(
                 input.compute_flops_per_second,
                 entry.parameters.active().count(),
@@ -99,8 +122,10 @@ fn active_weight_bytes(entry: &ModelEntry) -> u64 {
 }
 
 /// The decode prediction of the largest row that fits, improves on the phone,
-/// and is nevertheless too slow — worth saying out loud instead of hiding
-/// behind a smaller recommendation.
+/// and is nevertheless provably too slow — worth saying out loud instead of
+/// hiding behind a smaller recommendation. Only a range can be called slower
+/// than reading: a floor below the line is unknown, not slow, and its row may
+/// well be offered to be measured.
 pub(crate) fn too_slow_to_use(
     input: &ChoiceInput,
     budget: &MemoryBudget,
@@ -109,6 +134,7 @@ pub(crate) fn too_slow_to_use(
     manifest::usable()
         .map(|entry| candidate(entry, input))
         .filter(|candidate| candidate.footprint.total_bytes() <= budget.usable_bytes)
+        .filter(|candidate| matches!(candidate.decode, Prediction::Range { .. }))
         .filter(|candidate| candidate.decode.floor() < MINIMUM_TOKENS_PER_SECOND)
         .filter(|candidate| candidate.entry.weights_bytes > chosen.entry.weights_bytes)
         .map(|candidate| candidate.decode)
@@ -151,6 +177,7 @@ mod tests {
             backend: kalsa_probe::Backend::Cpu,
             ram_bytes: 64 * GIB,
             bandwidth_bytes_per_second: 80.0e9,
+            bandwidth_is_lower_bound: false,
             compute_flops_per_second: 100.0e9,
             context_tokens: 8192,
             phone: None,
@@ -162,9 +189,13 @@ mod tests {
             dense_candidate.footprint, mixture_candidate.footprint,
             "the same weights occupy the same memory"
         );
+        // The cache is charged to both, so half the active weights no longer
+        // decode twice as fast at this context — 1.84× here — but the
+        // advantage must stay substantial, or speed would not follow the
+        // active axis at all.
         assert!(
-            mixture_candidate.decode_ceiling() > dense_candidate.decode_ceiling() * 1.9,
-            "half the active weights must decode about twice as fast"
+            mixture_candidate.decode_ceiling() > dense_candidate.decode_ceiling() * 1.5,
+            "half the active weights must still decode meaningfully faster"
         );
         // Prefill is compute-bound and follows the ACTIVE parameters too. Had it
         // used the total ones, these two would be equal — that is the swap this
@@ -173,6 +204,72 @@ mod tests {
             mixture_candidate.prefill.ceiling() > dense_candidate.prefill.ceiling() * 1.9,
             "half the active parameters must prefill about twice as fast"
         );
+    }
+
+    #[test]
+    fn a_lower_bound_measurement_predicts_a_floor_and_a_direct_one_a_range() {
+        // The path fact travels with the figure: a CPU-path bandwidth on a
+        // machine that will decode on Metal is a floor, and the type says so
+        // instead of printing a range the real path can outrun.
+        let dense = entry(8.0, 8_000_000_000, 8_000_000_000);
+        let mac = ChoiceInput {
+            backend: kalsa_probe::Backend::Metal,
+            bandwidth_is_lower_bound: true,
+            ..input_for()
+        };
+        assert!(matches!(
+            candidate(UsableEntry::for_test(&dense), &mac).decode,
+            Prediction::Floor(_)
+        ));
+        let direct = ChoiceInput {
+            bandwidth_is_lower_bound: false,
+            ..mac
+        };
+        assert!(matches!(
+            candidate(UsableEntry::for_test(&dense), &direct).decode,
+            Prediction::Range { .. }
+        ));
+    }
+
+    #[test]
+    fn decode_depends_on_the_cache_it_decodes_against() {
+        // The cache is re-read every token: at 256k the assumed cache alone
+        // is 24 GiB, and a figure that ignored it would print the same speed
+        // at 8k and 256k while the cache grew past the weights.
+        let dense = entry(8.0, 8_000_000_000, 8_000_000_000);
+        let small = ChoiceInput {
+            context_tokens: 8192,
+            ..input_for()
+        };
+        let large = ChoiceInput {
+            context_tokens: 262_144,
+            ..small
+        };
+        let at_8k = candidate(UsableEntry::for_test(&dense), &small);
+        let at_256k = candidate(UsableEntry::for_test(&dense), &large);
+        assert!(
+            at_256k.decode.floor() < at_8k.decode.floor(),
+            "the cache dominates at long context: {}/{}, got {} vs {}",
+            at_8k.decode.floor(),
+            at_256k.decode.floor(),
+            at_8k.decode.floor(),
+            at_256k.decode.floor()
+        );
+        // And prefill is an estimate, never printed as a floor.
+        assert!(matches!(at_8k.prefill, Prediction::Estimate(_)));
+    }
+
+    /// A direct-measurement input, so the path tests read as one line each.
+    fn input_for() -> ChoiceInput {
+        ChoiceInput {
+            backend: kalsa_probe::Backend::Cpu,
+            ram_bytes: 64 * GIB,
+            bandwidth_bytes_per_second: 80.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: 8192,
+            phone: None,
+        }
     }
 
     #[test]

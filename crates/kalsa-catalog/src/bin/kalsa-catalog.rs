@@ -127,6 +127,7 @@ fn configured() -> Result<ChoiceInput, String> {
         backend: Backend::Cpu,
         ram_bytes: 16 * GIB,
         bandwidth_bytes_per_second: 80.0e9,
+        bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
         context_tokens: 8192,
         phone: Some(PhoneModel {
@@ -151,6 +152,7 @@ fn configured() -> Result<ChoiceInput, String> {
             "--bandwidth" => {
                 input.bandwidth_bytes_per_second = float(&mut args, &flag)? * 1e9;
             }
+            "--lower-bound" => input.bandwidth_is_lower_bound = true,
             "--gflops" => input.compute_flops_per_second = float(&mut args, &flag)? * 1e9,
             "--ctx" => input.context_tokens = number(&mut args, &flag, 1.0)? as u64,
             "--phone-gb" => {
@@ -188,7 +190,7 @@ fn configured() -> Result<ChoiceInput, String> {
                     "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] \
                      [--gpu-unread] [--bandwidth GB/s] [--gflops GFLOP/s] [--ctx tokens] \
                      [--phone-gb GiB] [--phone-params billions] [--phone-tok-s N] \
-                     [--battery-powered] [--wall-powered] [--no-phone]"
+                     [--lower-bound] [--battery-powered] [--wall-powered] [--no-phone]"
                 ))
             }
         }

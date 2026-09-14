@@ -79,9 +79,12 @@ pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
             usable_bytes: usable_bytes(ram_bytes),
             gpu_accounted_for: true,
         },
-        // The common Windows case, and the undetectable machine: fall back to
-        // the CPU path's arithmetic and say the GPU was not accounted for.
-        // Guessing a VRAM size would be worse than not knowing out loud.
+        // A card whose size could not be read honestly: the chooser refuses
+        // this case before any offer is built — a model that will decode on
+        // the card must fit it entirely, and the size is unknown. The
+        // fallback here only keeps the function total. An undetected machine
+        // gets the CPU budget with the same honesty: nothing unlisted is
+        // accounted for.
         Backend::DiscreteGpu { vram_bytes: None } | Backend::Unknown => MemoryBudget {
             usable_bytes: usable_bytes(ram_bytes),
             gpu_accounted_for: false,
@@ -98,8 +101,13 @@ pub struct Footprint {
 }
 
 impl Footprint {
+    /// Saturating all the way: a saturated KV term plus weights must stay
+    /// impossible, not wrap back down into a model that looks like it fits.
     pub fn total_bytes(&self) -> u64 {
-        self.weights_bytes + self.mmproj_bytes + self.buffer_bytes + self.kv_bytes
+        self.weights_bytes
+            .saturating_add(self.mmproj_bytes)
+            .saturating_add(self.buffer_bytes)
+            .saturating_add(self.kv_bytes)
     }
 
     /// True when the row has no measured cache size and we had to assume one.
@@ -187,6 +195,19 @@ mod tests {
             .expect("catalog is not empty");
         assert!(!fits(biggest, 8192, &memory_budget(Backend::Cpu, 16 * GIB)));
         assert!(fits(biggest, 8192, &memory_budget(Backend::Cpu, 64 * GIB)));
+    }
+
+    #[test]
+    fn an_absurd_context_cannot_wrap_into_a_small_model() {
+        // The KV term saturates at u64::MAX; the sum must saturate with it,
+        // or an absurd context wraps an impossible model back down into one
+        // that looks like it fits. Saturating one multiplication and not the
+        // sum is half a defence.
+        let row = dense_row(4 * GIB);
+        let footprint = footprint_bytes(&row, u64::MAX);
+        assert_eq!(footprint.kv_bytes, u64::MAX);
+        assert_eq!(footprint.total_bytes(), u64::MAX);
+        assert!(!fits(&row, u64::MAX, &memory_budget(Backend::Cpu, 64 * GIB)));
     }
 
     #[test]

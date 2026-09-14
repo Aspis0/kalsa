@@ -5,7 +5,8 @@
 
 use kalsa_catalog::{
     capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis,
-    ChoiceInput, Decision, Justification, Parameters, PhoneModel, RefusalReason, GIB,
+    ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
+    GIB,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -29,6 +30,7 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
         backend: Backend::Cpu,
         ram_bytes: ram_gib * GIB,
         bandwidth_bytes_per_second: 85.0e9,
+        bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
         context_tokens: 8192,
         phone: phone_known.then_some(phone(Some(true))),
@@ -117,7 +119,7 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             // and the prefill floor prints as a floor, never as a range.
             assert!(!selection.details.contains("arcee-ai/"), "{}", selection.details);
             assert!(!selection.details.contains("Q4"), "{}", selection.details);
-            assert!(selection.details.contains("≥ 50"), "{}", selection.details);
+            assert!(selection.details.contains("≈ 50.0"), "{}", selection.details);
             assert!(!selection.details.contains("50–50"), "{}", selection.details);
             assert_eq!(selection.budget.usable_bytes, usable);
             assert!(selection.dense_equivalent.is_none());
@@ -261,20 +263,102 @@ fn a_model_that_would_spill_is_never_offered() {
 }
 
 #[test]
-fn an_unreadable_card_falls_back_to_ram_and_says_so() {
-    // Windows' 32-bit VRAM figure is the common case: fall back to the CPU
-    // path's arithmetic, and say the GPU was not accounted for — never guess.
-    match choose(&pc(32, None)) {
+fn an_unreadable_card_is_refused_rather_than_guessed() {
+    // A 6 GiB card we could not read, 32 GiB of RAM: the RAM budget would
+    // offer a twenty-gigabyte model into that card. A model that will decode
+    // on the card must fit it entirely, so the machine is refused, and says
+    // what unblocks it.
+    let (reason, explanation) = refusal(&pc(32, None));
+    assert_eq!(reason, RefusalReason::MachineNotMeasured);
+    assert!(explanation.contains("could not be read"), "{explanation}");
+    assert!(explanation.contains("will not guess"), "{explanation}");
+}
+
+#[test]
+fn an_undetected_backend_runs_on_the_cpu_it_has() {
+    // No GPU was detected, so the CPU is the path the budget is sized for —
+    // and the caveat stays on the record: whatever the machine has is not
+    // accounted for.
+    match choose(&ChoiceInput {
+        backend: Backend::Unknown,
+        ..input(32, true)
+    }) {
         Decision::Pick(selection) => {
             assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert!(!selection.budget.gpu_accounted_for);
             assert!(
-                selection.details.contains("not accounted for"),
+                selection.details.contains("could not be detected"),
                 "{}",
                 selection.details
             );
         }
         other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_floor_measurement_offers_what_a_range_would_refuse() {
+    // The reported defect, as a test: 64 GiB of RAM, the CPU path measured at
+    // 107 GB/s, a GPU path several times faster. The CPU figure is a floor —
+    // "at least 1.7" does not contain "slow" — so Apertus is offered with the
+    // promise that it will be measured, instead of being refused with a
+    // confident wrong number.
+    let mac = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_is_lower_bound: true,
+        bandwidth_bytes_per_second: 107.0e9,
+        ..input(64, true)
+    };
+    match choose(&mac) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "swiss-ai/Apertus-v1.5-70B");
+            assert_eq!(
+                selection.justification,
+                Justification::Capability(CapabilityBasis::Parameters)
+            );
+            assert!(matches!(selection.decode, Prediction::Floor(_)));
+            assert!(
+                selection.decode.floor() < 3.0,
+                "the CPU-path floor is below reading speed, which is the point: got {}",
+                selection.decode.floor()
+            );
+            assert!(
+                selection.details.contains("will be measured on this machine"),
+                "{}",
+                selection.details
+            );
+            assert!(
+                !selection.details.contains("slower than reading"),
+                "a floor must never be called slow: {}",
+                selection.details
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_floor_never_prints_as_a_confident_range() {
+    // The same machine at the 8 GiB tier: the relief offer's speed is a
+    // floor, rendered as one, with the honesty in the same breath.
+    let mac = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_is_lower_bound: true,
+        bandwidth_bytes_per_second: 107.0e9,
+        ..input(8, true)
+    };
+    match choose(&mac) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.justification, Justification::Relief);
+            assert!(matches!(selection.decode, Prediction::Floor(_)));
+            assert!(selection.details.contains("≥ "), "{}", selection.details);
+            assert!(
+                selection.details.contains("measured on a slower path"),
+                "{}",
+                selection.details
+            );
+        }
+        other => panic!("expected a relief pick, got {other:?}"),
     }
 }
 
@@ -592,8 +676,10 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
                 why.contains("not been measured"),
                 "the assumed cache size must be admitted: {why}"
             );
-            // A prefill floor prints as a floor, never as a degenerate range.
-            assert!(why.contains("≥ "), "{why}");
+            // Prefill is an estimate and prints as one: the probe omits
+            // attention and routing, so it is not a floor at long context.
+            assert!(why.contains("≈ "), "{why}");
+            assert!(!why.contains("≥ "), "prefill is not a floor: {why}");
             assert_eq!(selection.plain_reason, "This should be better than what your \
 phone runs; we have not checked it on this computer yet, and we will.");
         }

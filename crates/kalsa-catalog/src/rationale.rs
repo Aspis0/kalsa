@@ -42,20 +42,46 @@ pub(crate) fn details(
     justification: Justification,
 ) -> String {
     // The head names the model as the user knows it, never by repo or quant:
-    // those are ours, and this sentence is the user's.
-    let mut parts = vec![format!(
-        "{} ({} of weights): about {} tokens per second, and {} for prompt processing.",
-        chosen.entry.display_name,
-        gib_text(chosen.entry.weights_bytes),
-        render(&chosen.decode),
-        render(&chosen.prefill)
-    )];
+    // those are ours, and this sentence is the user's. A floor decode is
+    // never introduced with "about" — a floor does not claim a speed, it
+    // claims a direction.
+    let mut parts = vec![match chosen.decode {
+        Prediction::Floor(_) => format!(
+            "{} ({} of weights): decode {} tokens per second on the path that was \
+             measured — the model will run on a faster one — and {} for prompt \
+             processing.",
+            chosen.entry.display_name,
+            gib_text(chosen.entry.weights_bytes),
+            render(&chosen.decode),
+            render(&chosen.prefill)
+        ),
+        _ => format!(
+            "{} ({} of weights): about {} tokens per second, and {} for prompt \
+             processing.",
+            chosen.entry.display_name,
+            gib_text(chosen.entry.weights_bytes),
+            render(&chosen.decode),
+            render(&chosen.prefill)
+        ),
+    }];
+
+    // The honesty that travels with a floor decode, in the same breath as the
+    // number: the figure under-promises on purpose, and the real one is
+    // measured here, on this machine.
+    if matches!(chosen.decode, Prediction::Floor(_)) {
+        parts.push(
+            "The decode figure is a floor: it was measured on a slower path than the \
+             model will run on, so the true speed is higher, and it will be measured on \
+             this machine."
+                .to_string(),
+        );
+    }
 
     if chosen.entry.parameters.is_mixture() {
         parts.push(format!(
             "It is a mixture of experts: only {} of its {} parameters are read per token, \
              which is why decoding is quick. Prompt processing is limited by compute rather \
-             than by bandwidth, so its own floor above is what it will feel like.",
+             than by bandwidth, so its own estimate above is what it will feel like.",
             billions(chosen.entry.parameters.active().count()),
             billions(chosen.entry.parameters.total().count())
         ));
@@ -136,8 +162,8 @@ pub(crate) fn details(
 
     if !budget.gpu_accounted_for {
         parts.push(
-            "A discrete GPU is present but its memory could not be read, so this budget is \
-             system RAM and the card is not accounted for."
+            "This machine's graphics could not be detected, so the budget is system RAM \
+             and whatever the machine has is not accounted for."
                 .to_string(),
         );
     }
@@ -159,15 +185,16 @@ pub(crate) fn gib_text(bytes: u64) -> String {
 }
 
 /// One formatter, because there is only one question: which shape is it? A
-/// range prints with an en dash, a floor prints with the probe's ≥ — and
-/// there is no equal-ends case to guard, because the type cannot be asked to
-/// pretend a floor is a range. A degenerate band (a failed measurement would
+/// range prints with an en dash, a floor prints with the probe's ≥, an
+/// estimate prints with ≈ — and there is no wrong call to make, because the
+/// type carries the shape. A degenerate band (a failed measurement would
 /// make one) renders harmlessly instead of taking the app down.
 pub(crate) fn render(prediction: &Prediction) -> String {
     match *prediction {
         Prediction::Range { low, high } if high >= 10.0 => format!("{:.0}–{:.0}", low, high),
         Prediction::Range { low, high } => format!("{:.1}–{:.1}", low, high),
         Prediction::Floor(value) => format!("≥ {:.1}", value),
+        Prediction::Estimate(value) => format!("≈ {:.1}", value),
     }
 }
 
@@ -204,6 +231,7 @@ mod tests {
             "0.5–0.7",
             "below ten, a decimal"
         );
+        assert_eq!(render(&Prediction::Estimate(16.7)), "≈ 16.7");
     }
 
     #[test]
