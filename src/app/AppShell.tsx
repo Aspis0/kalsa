@@ -63,7 +63,10 @@ import {
   ensureIntentStale,
   type EnsureIntent,
 } from "../engine/ensureIntent";
-import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
+import {
+  humanRemoteBrainError,
+  isInternalErrorCode,
+} from "../engine/remote/remoteBrainErrors";
 import {
   CHAT_MODEL_STORAGE_KEY,
   decideRemoteBoot,
@@ -5162,8 +5165,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           onMiniappRef.current = () => {};
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
+        /** An internal snake_case code must never be shown in the chat. */
+        const speakable = (message: string) =>
+          isInternalErrorCode(message)
+            ? humanRemoteBrainError(message, t)
+            : message;
         const fail = (message: string, reasonKey?: string) => {
-          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+          const shown = speakable(message);
+          callbacks.onDelta?.(`⚠️ ${shown}`, `⚠️ ${shown}`);
           try {
             callbacks.onFailed?.(reasonKey || "chat.serviceUnreachable");
           } catch {
@@ -6039,7 +6048,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     typeof error === "object" &&
                     (error as { preservePartial?: boolean }).preservePartial === true;
                   if (!preserve) {
-                    callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                    const shown = speakable(error.message);
+                    callbacks.onDelta?.(`⚠️ ${shown}`, `⚠️ ${shown}`);
                   }
                   try {
                     callbacks.onFailed?.(

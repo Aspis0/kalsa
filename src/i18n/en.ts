@@ -132,6 +132,14 @@ export const en = {
     remoteBrainFail: "Could not reach the Mac: {error}",
     remoteBrainFailGeneric:
       "Could not reach the Mac. Check the address and try again.",
+    remoteBrainFailNetwork:
+      "The Mac isn't answering. Check that it is awake and on the same network, then try again. The model on this phone is still available in Settings.",
+    remoteBrainFailTimeout:
+      "The Mac stopped replying. Try again, or switch to the model on this phone in Settings.",
+    remoteBrainFailServer:
+      "The Mac's server answered with an error ({status}). It may still be starting up — try again in a moment.",
+    remoteBrainFailBusy:
+      "The Mac is still answering the previous request. Wait a moment and try again.",
     remoteBrainUrlInvalid:
       "That address is not a valid http or https URL.",
     remoteBrainHttpWarning:
