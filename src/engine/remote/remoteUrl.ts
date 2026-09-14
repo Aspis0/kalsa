@@ -92,8 +92,8 @@ export function remoteUrlAllowedInThisBuild(url: string): boolean {
     if (parsed.protocol === "https:") return true;
     if (parsed.protocol !== "http:") return false;
     // Loopback http is allowed in release too: traffic never leaves this
-    // device, and the Android debug manifest already permits cleartext.
-    // Gating on __DEV__ made the shipped default unusable on a real phone.
+    // device, and Android network-security-config permits cleartext only for
+    // 127.0.0.1 / localhost / ::1. Gating on __DEV__ made the phone unusable.
     return isLoopbackHost(parsed.hostname);
   } catch {
     return false;

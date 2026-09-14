@@ -1,41 +1,39 @@
 /**
- * Debug-only cleartext HTTP so the phone can reach 127.0.0.1:8000
- * (adb reverse → Mac mtplx). Release keeps usesCleartextTraffic=false.
+ * Loopback-only cleartext HTTP (127.0.0.1 / localhost / ::1) so adb reverse
+ * to the Mac works in debug AND release. Global default stays
+ * cleartextTrafficPermitted=false (app.config usesCleartextTraffic: false).
  */
 const fs = require("fs");
 const path = require("path");
-const { withDangerousMod } = require("@expo/config-plugins");
+const { withAndroidManifest, withDangerousMod } = require("@expo/config-plugins");
 
 const XML = `<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">127.0.0.1</domain>
         <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">::1</domain>
     </domain-config>
 </network-security-config>
 `;
 
-const DEBUG_MANIFEST = `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <application
-        android:networkSecurityConfig="@xml/network_security_config"
-        tools:targetApi="28" />
-</manifest>
-`;
-
 module.exports = function withDebugCleartext(config) {
-  return withDangerousMod(config, [
+  config = withDangerousMod(config, [
     "android",
     async (c) => {
       const root = c.modRequest.platformProjectRoot;
-      const xmlDir = path.join(root, "app/src/debug/res/xml");
+      const xmlDir = path.join(root, "app/src/main/res/xml");
       fs.mkdirSync(xmlDir, { recursive: true });
       fs.writeFileSync(path.join(xmlDir, "network_security_config.xml"), XML);
-      const debugDir = path.join(root, "app/src/debug");
-      fs.mkdirSync(debugDir, { recursive: true });
-      fs.writeFileSync(path.join(debugDir, "AndroidManifest.xml"), DEBUG_MANIFEST);
       return c;
     },
   ]);
+  return withAndroidManifest(config, (mod) => {
+    const app = mod.modResults.manifest?.application?.[0];
+    if (app?.$) {
+      app.$["android:networkSecurityConfig"] = "@xml/network_security_config";
+    }
+    return mod;
+  });
 };
