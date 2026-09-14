@@ -341,14 +341,17 @@ let nativeOpGeneration = 0;
  * Callers must not clear the chain to "make progress" — that would allow
  * overlapping native work.
  */
-export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
+export function runNativeOp<T>(
+  fn: () => Promise<T>,
+  stillValid?: () => boolean,
+): Promise<T> {
   const gen = nativeOpGeneration;
   // Increment pending SYNCHRONOUSLY so isNativeOpChainEmpty() observes the
   // enqueue in the same turn (atomic check-and-submit with runNativeOpBounded).
   nativeOpPendingCount += 1;
   const run = nativeOpChain.then(
-    () => executeNativeOp(gen, fn),
-    () => executeNativeOp(gen, fn),
+    () => executeNativeOp(gen, fn, stillValid),
+    () => executeNativeOp(gen, fn, stillValid),
   );
   // Keep the chain alive regardless of success/failure.
   nativeOpChain = run.then(
@@ -373,10 +376,14 @@ export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
 async function executeNativeOp<T>(
   gen: number,
   fn: () => Promise<T>,
+  stillValid?: () => boolean,
 ): Promise<T> {
   if (gen !== nativeOpGeneration) {
     // Only reachable after test reset discards a prior chain.
     throw new Error("native_op_abandoned");
+  }
+  if (stillValid && !stillValid()) {
+    throw new Error("native_op_stale");
   }
   nativeOpBusyFlag = true;
   try {
@@ -408,7 +415,7 @@ export function isNativeOpChainEmpty(): boolean {
 
 export type NativeOpBoundedResult<T> =
   | { ok: true; value: T }
-  | { ok: false; refused: "timeout" };
+  | { ok: false; refused: "timeout" | "stale" };
 
 /**
  * Atomic check-and-submit for a native op with a hard wait deadline
@@ -434,6 +441,7 @@ export async function runNativeOpBounded<T>(
   fn: () => Promise<T>,
   timeoutMs: number,
   pollIntervalMs: number = 50,
+  stillValid?: () => boolean,
 ): Promise<NativeOpBoundedResult<T>> {
   const ms =
     typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
@@ -451,8 +459,18 @@ export async function runNativeOpBounded<T>(
     // (a)/(b) in one synchronous block — atomic under the JS event loop.
     if (isNativeOpChainEmpty()) {
       // Empty now (even past deadline): submit immediately; we are the head.
-      const run = runNativeOp(fn);
-      return { ok: true, value: await run };
+      if (stillValid && !stillValid()) {
+        return { ok: false, refused: "stale" };
+      }
+      const run = runNativeOp(fn, stillValid);
+      try {
+        return { ok: true, value: await run };
+      } catch (err) {
+        if (err instanceof Error && err.message === "native_op_stale") {
+          return { ok: false, refused: "stale" };
+        }
+        throw err;
+      }
     }
     if (Date.now() >= deadline) {
       // Non-empty past deadline: refuse WITHOUT enqueueing.

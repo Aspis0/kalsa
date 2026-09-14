@@ -4070,11 +4070,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             backend: "local",
           }),
         EMBEDDER_RELEASE_TIMEOUT_MS,
+        50,
+        stillCurrent,
       );
       if (!boundedInit.ok) {
-        markEmbedderHung();
         markChatReleased(chatGen);
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        if (boundedInit.refused === "stale") {
+          return false;
+        }
+        markEmbedderHung();
         setModelState("error");
         setModelErrorKind("engine");
         setModelError(t("embedding.busy"));
@@ -4689,11 +4694,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             backend: "local",
           }),
         EMBEDDER_RELEASE_TIMEOUT_MS,
+        50,
+        stillCurrent,
       );
       if (!boundedInitDl.ok) {
-        markEmbedderHung();
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        if (boundedInitDl.refused === "stale") {
+          return;
+        }
+        markEmbedderHung();
         setModelState("error");
         setModelErrorKind("engine");
         setModelError(t("embedding.busy"));

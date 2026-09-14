@@ -52,6 +52,36 @@ describe("runNativeOpBounded", () => {
     expect(isNativeOpChainEmpty()).toBe(false);
   });
 
+  it("aborts a queued init when stillValid fails after a switch", async () => {
+    let releaseHang!: () => void;
+    let hangStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      hangStarted = resolve;
+    });
+    void runNativeOp(async () => {
+      hangStarted();
+      await new Promise<void>((resolve) => {
+        releaseHang = resolve;
+      });
+    });
+    await started;
+    let ran = 0;
+    let valid = true;
+    const pending = runNativeOpBounded(
+      async () => {
+        ran += 1;
+        return "init";
+      },
+      1_000,
+      10,
+      () => valid,
+    );
+    valid = false;
+    releaseHang();
+    await expect(pending).resolves.toEqual({ ok: false, refused: "stale" });
+    expect(ran).toBe(0);
+  });
+
   it("submits when the chain frees before the deadline", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
