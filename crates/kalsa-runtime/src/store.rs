@@ -452,7 +452,7 @@ mod tests {
         // An old build from another release sits in the way.
         std::fs::create_dir_all(&dir).expect("old build");
         std::fs::write(dir.join("llama-server"), b"an old, stale binary").expect("old exe");
-        let bytes = make_fake_zip();
+        let bytes = make_fake_zip(b"a stand-in binary");
         let archive = place_archive(&root, "real.zip", &bytes);
         let sha = digest_of(&bytes);
         let runtime = [("real.zip", sha.as_str())];
@@ -474,10 +474,15 @@ mod tests {
 
     /// A miniature release archive: nested dir, the server inside it, exec
     /// bit set — the real extraction paths run over it.
-    fn make_fake_zip() -> Vec<u8> {
+    fn make_fake_zip(body: &[u8]) -> Vec<u8> {
         use std::io::Write;
-        let path =
-            std::env::temp_dir().join(format!("kalsa-runtime-fakezip-{}", std::process::id()));
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static CALLS: AtomicU64 = AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "kalsa-runtime-fakezip-{}-{}",
+            std::process::id(),
+            CALLS.fetch_add(1, Ordering::SeqCst)
+        ));
         let _ = std::fs::remove_file(&path);
         let file = std::fs::File::create(&path).expect("create");
         let mut zip = zip::ZipWriter::new(file);
@@ -485,11 +490,64 @@ mod tests {
             zip::write::FileOptions::default().unix_permissions(0o755);
         zip.add_directory("bin", options).expect("dir");
         zip.start_file("bin/llama-server", options).expect("entry");
-        zip.write_all(b"a stand-in binary").expect("bytes");
+        zip.write_all(body).expect("bytes");
         zip.finish().expect("finish");
         let bytes = std::fs::read(&path).expect("read");
         let _ = std::fs::remove_file(&path);
         bytes
+    }
+
+    #[test]
+    fn a_retry_after_a_broken_second_archive_starts_clean_and_publishes_the_pair() {
+        // CUDA's shape: two archives, the second one failing on the first
+        // attempt. The failed attempt must leave no staging (so the retry
+        // cannot mix an old engine with a new runtime), and the retried pair
+        // must publish and validate together.
+        let root = scratch("pair");
+        let dir = builds_dir(&root, ServerBackend::Cpu);
+        let staging = staging_path(&dir);
+        let engine = make_fake_zip(b"engine body");
+        let runtime_bytes = make_fake_zip(b"runtime body");
+        let engine_archive = place_archive(&root, "engine.zip", &engine);
+        let broken_runtime = place_archive(&root, "runtime.zip", GARBAGE_ZIP_BYTES);
+
+        let first = extract_into(
+            &staging,
+            &[
+                (engine_archive.clone(), assets::ArchiveFormat::Zip),
+                (broken_runtime, assets::ArchiveFormat::Zip),
+            ],
+        );
+        assert!(first.is_err(), "the broken archive refuses to extract");
+        assert!(!staging.exists(), "the failed attempt leaves no staging");
+        assert!(
+            !dir.exists(),
+            "a failed attempt never touches the build dir"
+        );
+
+        // Retry with the refetched runtime: both good, published together.
+        let fixed_runtime = place_archive(&root, "runtime.zip", &runtime_bytes);
+        extract_into(
+            &staging,
+            &[
+                (engine_archive, assets::ArchiveFormat::Zip),
+                (fixed_runtime, assets::ArchiveFormat::Zip),
+            ],
+        )
+        .expect("the retry extracts both archives");
+        let engine_sha = digest_of(&engine);
+        let runtime_sha = digest_of(&runtime_bytes);
+        let runtime_pairs = [
+            ("engine.zip", engine_sha.as_str()),
+            ("runtime.zip", runtime_sha.as_str()),
+        ];
+        let exe = publish(&staging, &dir, &runtime_pairs, None).expect("published whole");
+        assert!(exe.is_file());
+        assert!(
+            marker::validate(&dir, &runtime_pairs, None).is_some(),
+            "the pair validates as one build"
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

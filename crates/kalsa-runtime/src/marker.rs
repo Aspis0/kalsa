@@ -79,10 +79,16 @@ pub(crate) fn validate(
         }
     }
     built.sort();
-    let expected: Vec<(String, String)> = runtime
+    // Order is not identity: the marker records a *set* of (archive, digest)
+    // pairs. The table lists the engine first, but `cudart` sorts before
+    // `llama`, so both sides are normalised — a build must validate against
+    // the marker it just wrote, whatever order each side was handed over in,
+    // or a CUDA machine re-acquires 645 MB on every launch.
+    let mut expected: Vec<(String, String)> = runtime
         .iter()
         .map(|(file, sha)| ((*file).to_string(), (*sha).to_string()))
         .collect();
+    expected.sort();
     if built != expected {
         return None;
     }
@@ -147,6 +153,60 @@ mod tests {
             Some(exe.as_path()),
             "the table agreeing changes nothing"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_multi_archive_build_validates_whatever_order_each_side_came_in() {
+        // CUDA's shape, and the one-asset blind spot that hid an order
+        // comparison: the table lists the engine first, but `cudart` sorts
+        // before `llama`. Write in table order, validate in table order,
+        // then in sorted order — both must pass, or a CUDA machine
+        // re-acquires 645 MB on every launch.
+        let dir = scratch("two-archives");
+        let exe = dir.join("llama-server");
+        std::fs::write(&exe, b"a two-archive build").expect("exe");
+        let exe_sha = sha256_file(&exe).expect("hash");
+        let engine_sha = "1".repeat(64);
+        let cudart_sha = "2".repeat(64);
+        let table_order = [
+            (
+                "llama-b10950-bin-win-cuda-12.4-x64.zip",
+                engine_sha.as_str(),
+            ),
+            (
+                "cudart-llama-bin-win-cuda-12.4-x64.zip",
+                cudart_sha.as_str(),
+            ),
+        ];
+        write(&dir, &table_order, &exe_sha).expect("marker");
+        assert!(
+            validate(&dir, &table_order, None).is_some(),
+            "a build validates against the marker it just wrote"
+        );
+        let sorted_order = [
+            (
+                "cudart-llama-bin-win-cuda-12.4-x64.zip",
+                cudart_sha.as_str(),
+            ),
+            (
+                "llama-b10950-bin-win-cuda-12.4-x64.zip",
+                engine_sha.as_str(),
+            ),
+        ];
+        assert!(
+            validate(&dir, &sorted_order, None).is_some(),
+            "order is not identity: sorted order is the same set"
+        );
+        let other_sha = "9".repeat(64);
+        let wrong = [
+            (
+                "llama-b10950-bin-win-cuda-12.4-x64.zip",
+                engine_sha.as_str(),
+            ),
+            ("cudart-llama-bin-win-cuda-12.4-x64.zip", other_sha.as_str()),
+        ];
+        assert_eq!(validate(&dir, &wrong, None), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
