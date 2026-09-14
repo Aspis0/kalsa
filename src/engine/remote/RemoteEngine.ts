@@ -29,14 +29,18 @@ function authHeaders(token: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const PROBE_TIMEOUT_MS = 10_000;
+
 async function jsonGet(
   path: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const url = `${getRemoteBrainUrl()}${path}`;
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json", ...authHeaders(token) },
+    signal,
   });
   let body: unknown = null;
   try {
@@ -52,13 +56,15 @@ export async function testRemoteConnection(): Promise<{
   modelId: string | null;
   error?: string;
 }> {
+  const probe = new AbortController();
+  const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
     const token = await getRemoteBrainToken();
-    const health = await jsonGet("/health", token);
+    const health = await jsonGet("/health", token, probe.signal);
     if (!health.ok) {
       return { ok: false, modelId: null, error: `health HTTP ${health.status}` };
     }
-    const models = await jsonGet("/v1/models", token);
+    const models = await jsonGet("/v1/models", token, probe.signal);
     if (!models.ok) {
       return { ok: false, modelId: null, error: `models HTTP ${models.status}` };
     }
@@ -73,6 +79,8 @@ export async function testRemoteConnection(): Promise<{
       modelId: null,
       error: err instanceof Error ? err.message : String(err),
     };
+  } finally {
+    clearTimeout(probeTimer);
   }
 }
 
@@ -176,6 +184,13 @@ export async function streamRemoteAssistantTurn(
   callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
 
   const token = await getRemoteBrainToken();
+  if (signal?.aborted) {
+    const err = new Error(strings.chat.interrupted);
+    (err as { code?: string; preservePartial?: boolean }).code = "interrupted";
+    (err as { preservePartial?: boolean }).preservePartial = true;
+    finishOnce(err);
+    return;
+  }
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
       finishOnce(err);

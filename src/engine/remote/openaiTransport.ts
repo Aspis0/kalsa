@@ -81,6 +81,9 @@ export function streamOpenAiChat(
   let lastFinishReason: string | null = null;
   let abortListener: (() => void) | null = null;
   let successTimer: ReturnType<typeof setTimeout> | null = null;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  const inactivityMs =
+    typeof req.inactivityMs === "number" ? req.inactivityMs : 120_000;
 
   const cleanup = () => {
     if (abortListener && req.signal) {
@@ -91,6 +94,24 @@ export function streamOpenAiChat(
       clearTimeout(successTimer);
       successTimer = null;
     }
+    if (idleTimer != null) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  };
+
+  const bumpIdle = () => {
+    if (idleTimer != null) clearTimeout(idleTimer);
+    idleTimer = null;
+    if (inactivityMs <= 0) return;
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      emitFinish({
+        kind: "error",
+        finishReason: lastFinishReason,
+        error: new Error("remote_brain_timeout"),
+      });
+    }, inactivityMs);
   };
 
   const emitFinish = (finish: RemoteFinish) => {
@@ -106,6 +127,7 @@ export function streamOpenAiChat(
   };
 
   const consume = () => {
+    bumpIdle();
     const text = xhr.responseText ?? "";
     if (text.length <= cursor) return;
     buffer += text.slice(cursor);
@@ -159,10 +181,19 @@ export function streamOpenAiChat(
     }, 0);
   };
 
+  if (req.signal?.aborted) {
+    handlers.onFinish({ kind: "interrupted", finishReason: null });
+    return {
+      requestId,
+      xhr,
+      abort: () => undefined,
+    };
+  }
+
   const url =
     req.completionsUrl ||
     `${(req.baseUrl ?? "").replace(/\/+$/, "")}/v1/chat/completions`;
-  xhr.timeout = req.inactivityMs && req.inactivityMs > 0 ? req.inactivityMs : 0;
+  xhr.timeout = 0;
   xhr.open("POST", url);
   xhr.setRequestHeader("Content-Type", "application/json");
   xhr.setRequestHeader("Accept", "text/event-stream");
@@ -213,6 +244,7 @@ export function streamOpenAiChat(
     emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
   };
   req.signal?.addEventListener("abort", abortListener);
+  bumpIdle();
 
   xhr.send(
     JSON.stringify({

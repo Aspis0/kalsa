@@ -31,7 +31,7 @@ function flush(): Promise<void> {
 
 function start(
   xhr: XhrLike,
-  extra?: { signal?: AbortSignal; requestId?: string },
+  extra?: { signal?: AbortSignal; requestId?: string; inactivityMs?: number },
 ) {
   const deltas: string[] = [];
   const finishes: RemoteFinish[] = [];
@@ -44,6 +44,7 @@ function start(
       temperature: 0.7,
       requestId: extra?.requestId ?? "kalsa-remote-test",
       signal: extra?.signal,
+      inactivityMs: extra && "inactivityMs" in extra ? extra.inactivityMs : 0,
     },
     {
       onDelta: (d) => {
@@ -208,5 +209,28 @@ describe("streamOpenAiChat", () => {
     xhr.onerror?.call(xhr);
     expect(finishes[0]?.kind).toBe("error");
     expect(finishes[0]?.error?.message).toBe("remote_brain_network");
+  });
+
+  test("abort-before-send never opens a request", () => {
+    const xhr = fakeXhr();
+    const controller = new AbortController();
+    controller.abort();
+    const { finishes } = start(xhr, { signal: controller.signal });
+    expect(finishes[0]?.kind).toBe("interrupted");
+    expect(xhr._body).toBeUndefined();
+  });
+
+  test("inactivity timeout fires without progress", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      expect(finishes).toHaveLength(0);
+      jest.advanceTimersByTime(120_000);
+      expect(finishes[0]?.kind).toBe("error");
+      expect(finishes[0]?.error?.message).toBe("remote_brain_timeout");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
