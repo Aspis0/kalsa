@@ -183,10 +183,13 @@ acquire_lock() {
     if kill -0 "$owner" 2>/dev/null; then
       return 1
     fi
-    echo "stale lock (pid ${owner} dead) — stealing ${LOCKDIR}"
-    rm -f "$LOCKDIR/pid"
-    rmdir "$LOCKDIR" 2>/dev/null || true
-    return 0
+    local tomb="${LOCKDIR}.dead.$$.$RANDOM"
+    if mv "$LOCKDIR" "$tomb" 2>/dev/null; then
+      echo "stale lock (pid ${owner} dead) — reclaimed ${LOCKDIR}"
+      rm -rf "$tomb"
+      return 0
+    fi
+    return 1
   }
   if take_lock; then
     return 0
