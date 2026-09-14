@@ -40,6 +40,37 @@ export function restoreTerminalFlags(
   return out;
 }
 
+export type HydratedTerminalMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  interrupted?: true;
+  truncated?: true;
+};
+
+/** Storage JSON → messages with terminal flags. Same path sanitizeHistoryMessages uses. */
+export function hydratePersistedHistory(raw: unknown): HydratedTerminalMessage[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HydratedTerminalMessage[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const rec = item as Record<string, unknown>;
+    if (typeof rec.id !== "string" || !rec.id) continue;
+    if (rec.role !== "user" && rec.role !== "assistant") continue;
+    if (typeof rec.text !== "string") continue;
+    const flags = restoreTerminalFlags(rec, rec.text);
+    const next: HydratedTerminalMessage = {
+      id: rec.id,
+      role: rec.role,
+      text: rec.text,
+    };
+    if (flags.interrupted) next.interrupted = true;
+    if (flags.truncated) next.truncated = true;
+    out.push(next);
+  }
+  return out;
+}
+
 /**
  * Strip live-only fields so boot JSON and in-memory messages hash alike.
  * `streaming` / `statusLabel` / `statusHistory` never persist.

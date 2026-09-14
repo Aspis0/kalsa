@@ -1,4 +1,5 @@
 import {
+  hydratePersistedHistory,
   restoreTerminalFlags,
   toPersistableHistoryMessages,
 } from "./historyPersistable";
@@ -52,5 +53,34 @@ describe("toPersistableHistoryMessages", () => {
     const flags = restoreTerminalFlags(rec, String(rec.text ?? ""));
     expect(flags.truncated).toBe(true);
     expect(flags.interrupted).toBeUndefined();
+  });
+
+  test("storage JSON hydrates truncated via sanitize path", () => {
+    const stored = JSON.stringify(
+      toPersistableHistoryMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          text: "cut at limit",
+          truncated: true,
+          streaming: false,
+          statusLabel: "Writing",
+        },
+        {
+          id: "a2",
+          role: "assistant",
+          text: "",
+          truncated: true,
+        },
+      ]),
+    );
+    const loaded = JSON.parse(stored) as unknown;
+    const hydrated = hydratePersistedHistory(loaded);
+    expect(hydrated[0]?.truncated).toBe(true);
+    expect(hydrated[0]?.text).toBe("cut at limit");
+    expect(hydrated[1]?.truncated).toBeUndefined();
+    expect(
+      (loaded as Array<Record<string, unknown>>)[0]?.statusLabel,
+    ).toBeUndefined();
   });
 });

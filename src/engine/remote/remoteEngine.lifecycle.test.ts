@@ -143,6 +143,76 @@ describe("RemoteEngine lifecycle", () => {
     await first.catch(() => undefined);
   });
 
+  test("active A mid-stream dispose then B is not clobbered by A's finish", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let finishA: (() => void) | undefined;
+    streamOpenAiChat.mockImplementationOnce((
+      _req: unknown,
+      handlers: { onFinish: (f: { kind: string; finishReason: string }) => void },
+    ) => {
+      finishA = () => handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      return {
+        requestId: "a-mid",
+        abort: jest.fn(),
+        xhr: {},
+        isClosed: () => false,
+      };
+    });
+    const pA = streamRemoteAssistantTurn(
+      [{ role: "user", content: "a" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(remoteNativeWorkInFlight()).toBe(true);
+    await disposeRemoteEngine();
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    let bOpened = 0;
+    streamOpenAiChat.mockImplementation((
+      _req: unknown,
+      handlers: { onFinish: (f: { kind: string; finishReason: null }) => void },
+    ) => {
+      bOpened += 1;
+      return {
+        requestId: `b${bOpened}`,
+        abort: () => handlers.onFinish({ kind: "interrupted", finishReason: null }),
+        xhr: {},
+        isClosed: () => false,
+      };
+    });
+    const pB = streamRemoteAssistantTurn(
+      [{ role: "user", content: "b" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(bOpened).toBe(1);
+    expect(remoteNativeWorkInFlight()).toBe(true);
+    finishA?.();
+    await pA;
+    expect(remoteNativeWorkInFlight()).toBe(true);
+    expect(bOpened).toBe(1);
+    await disposeRemoteEngine();
+    await pB;
+  });
+
   test("dispose during pending token then start B does not clobber B", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");
     await setRemoteServerModelId("ornith");
