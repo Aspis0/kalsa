@@ -1,0 +1,12 @@
+[package]
+name = "kalsa-reuse"
+description = "Whether the weights the catalog wants are already on this machine, in another program's store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The digest a claimed blob is held to before it can be the answer.
+sha2 = "0.10"
+# The generic scan this crate sits on top of, and the roots it searches.
+kalsa-download = { path = "../kalsa-download" }

@@ -5,6 +5,7 @@ members = [
     "crates/kalsa-download",
     "crates/kalsa-pairing",
     "crates/kalsa-probe",
+    "crates/kalsa-reuse",
     "crates/kalsa-runtime",
     "crates/kalsa-sentinel",
     "crates/kalsa-supervisor",
