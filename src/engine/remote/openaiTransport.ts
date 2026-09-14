@@ -1,7 +1,7 @@
 /**
  * OpenAI chat completions over XHR (POST + onprogress). No auto-reconnect.
  *
- * Success requires onload (HTTP 2xx, status !== 0) AND a terminal marker
+ * Success requires onload (HTTP 2xx only, status !== 0) AND a terminal marker
  * (`data: [DONE]` or a chunk with finish_reason stop/length/content_filter).
  * RN 0.86 fires readystatechange(DONE) before onerror — onerror/ontimeout win
  * via a microtask delay on the success path.
@@ -63,6 +63,10 @@ export type XhrFactory = () => XhrLike;
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;
 const DONE = 4;
+
+function isHttp2xx(status: number): boolean {
+  return status >= 200 && status < 300;
+}
 
 export function streamOpenAiChat(
   req: RemoteChatRequest,
@@ -163,7 +167,7 @@ export function streamOpenAiChat(
   const finishFromOnload = () => {
     if (closed) return;
     consume();
-    if (xhr.status === 0 || xhr.status >= 400) {
+    if (!isHttp2xx(xhr.status)) {
       emitFinish({
         kind: "error",
         finishReason: lastFinishReason,
@@ -211,7 +215,7 @@ export function streamOpenAiChat(
   };
   xhr.onreadystatechange = () => {
     if (closed) return;
-    if (xhr.readyState === HEADERS_RECEIVED && xhr.status >= 400) {
+    if (xhr.readyState === HEADERS_RECEIVED && xhr.status !== 0 && !isHttp2xx(xhr.status)) {
       emitFinish({
         kind: "error",
         finishReason: lastFinishReason,

@@ -230,6 +230,20 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).toBe("remote_brain_http_500");
   });
 
+  test("HTTP 3xx with [DONE] is error, not complete", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"nope"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 302;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
+  });
+
   test("error-event frame on HTTP 200 is error", async () => {
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
