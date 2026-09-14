@@ -236,6 +236,8 @@ type Message = {
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
+  /** Stream hit max_tokens / content_filter — partial kept. */
+  truncated?: boolean;
   /** True when the user edited this message text (edit-then-regen flow). */
   edited?: boolean;
   // Feature 1: status history
@@ -2606,7 +2608,10 @@ export function AiChatPage({
           // Gate on sendRunId + generation so a clearChat mid-turn cannot resurrect
           // wiped history via messagesRef + persistMessagesNow.
           if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
-            const wasInterrupted = controller.signal.aborted && anyTextStreamed;
+            const wasInterrupted =
+              (controller.signal.aborted && anyTextStreamed) ||
+              failReasonKey === "chat.interrupted";
+            const wasTruncated = failReasonKey === "chat.truncated";
             // Finalize via functional updater so we compose over any queued final
             // onDelta (⚠️ error text, thinkStream final, miniapp payload) that has
             // not committed yet under Fabric. Compute the snapshot INSIDE the
@@ -2637,6 +2642,7 @@ export function AiChatPage({
                   streaming: false,
                   statusLabel: undefined,
                   interrupted: wasInterrupted ? true : undefined,
+                  truncated: wasTruncated ? true : undefined,
                   ...(emittedSave !== undefined ? { modelEmittedText: emittedSave } : {}),
                 };
                 if (base.miniapp) return base;
@@ -5332,6 +5338,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         {m.interrupted ? (
           <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
             {t("chat.interrupted")}
+          </Text>
+        ) : null}
+        {m.truncated ? (
+          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
+            {t("chat.truncated")}
           </Text>
         ) : null}
 

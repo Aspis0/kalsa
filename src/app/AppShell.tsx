@@ -5828,9 +5828,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  const code =
+                    error && typeof error === "object"
+                      ? (error as { code?: string; preservePartial?: boolean }).code
+                      : undefined;
+                  const preserve =
+                    error &&
+                    typeof error === "object" &&
+                    (error as { preservePartial?: boolean }).preservePartial === true;
+                  if (!preserve) {
+                    callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  }
                   try {
-                    callbacks.onFailed?.("chat.serviceUnreachable");
+                    callbacks.onFailed?.(
+                      code === "truncated"
+                        ? "chat.truncated"
+                        : code === "interrupted"
+                          ? "chat.interrupted"
+                          : "chat.serviceUnreachable",
+                    );
                   } catch {
                     // ignore
                   }

@@ -1,17 +1,24 @@
 /**
  * OpenAI chat completions over XHR (POST + onprogress). No auto-reconnect.
- * react-native-sse was skipped: it reconnects by default; this path matches
- * unifiedChatClient.js and is unit-testable with a fake XHR.
+ *
+ * Success requires onload (HTTP 2xx, status !== 0) AND a terminal marker
+ * (`data: [DONE]` or a chunk with finish_reason stop/length/content_filter).
+ * RN 0.86 fires readystatechange(DONE) before onerror — onerror/ontimeout win
+ * via a microtask delay on the success path.
  */
 import {
+  isTerminalFinishReason,
+  isTruncatingFinishReason,
   newRequestId,
   parseSseFrame,
   splitSseFrames,
-  type OpenAiChatDelta,
+  type OpenAiSseEvent,
 } from "./openaiSse";
 
 export type RemoteChatRequest = {
-  baseUrl: string;
+  /** @deprecated T6 replaces this with joinRemoteApiUrl */
+  baseUrl?: string;
+  completionsUrl?: string;
   model: string;
   messages: Array<{ role: string; content: string }>;
   maxTokens: number;
@@ -19,12 +26,20 @@ export type RemoteChatRequest = {
   token?: string | null;
   signal?: AbortSignal;
   requestId?: string;
+  inactivityMs?: number;
+};
+
+export type RemoteFinishKind = "complete" | "truncated" | "interrupted" | "error";
+
+export type RemoteFinish = {
+  kind: RemoteFinishKind;
+  finishReason: string | null;
+  error?: Error;
 };
 
 export type RemoteChatHandlers = {
-  onDelta: (delta: OpenAiChatDelta) => void;
-  onError: (error: Error) => void;
-  onDone: () => void;
+  onDelta: (delta: OpenAiSseEvent) => void;
+  onFinish: (finish: RemoteFinish) => void;
 };
 
 export type XhrLike = {
@@ -46,13 +61,14 @@ export type XhrLike = {
 export type XhrFactory = () => XhrLike;
 
 const HEADERS_RECEIVED = 2;
+const LOADING = 3;
 const DONE = 4;
 
 export function streamOpenAiChat(
   req: RemoteChatRequest,
   handlers: RemoteChatHandlers,
   createXhr?: XhrFactory,
-): { requestId: string; abort: () => void } {
+): { requestId: string; abort: () => void; xhr: XhrLike } {
   const requestId = req.requestId ?? newRequestId();
   const xhr = createXhr
     ? createXhr()
@@ -61,18 +77,32 @@ export function streamOpenAiChat(
   let buffer = "";
   let cursor = 0;
   let closed = false;
-  let sawDone = false;
+  let sawTerminal = false;
+  let lastFinishReason: string | null = null;
+  let abortListener: (() => void) | null = null;
+  let successTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const finish = (err?: Error) => {
+  const cleanup = () => {
+    if (abortListener && req.signal) {
+      req.signal.removeEventListener("abort", abortListener);
+      abortListener = null;
+    }
+    if (successTimer != null) {
+      clearTimeout(successTimer);
+      successTimer = null;
+    }
+  };
+
+  const emitFinish = (finish: RemoteFinish) => {
     if (closed) return;
     closed = true;
+    cleanup();
     try {
       xhr.abort();
     } catch {
       // ignore
     }
-    if (err) handlers.onError(err);
-    else handlers.onDone();
+    handlers.onFinish(finish);
   };
 
   const consume = () => {
@@ -83,19 +113,57 @@ export function streamOpenAiChat(
     const split = splitSseFrames(buffer);
     buffer = split.rest;
     for (const frame of split.frames) {
-      for (const delta of parseSseFrame(frame)) {
-        if (delta.done) {
-          sawDone = true;
-          finish();
+      for (const event of parseSseFrame(frame)) {
+        if (event.kind === "ignore") continue;
+        if (event.kind === "error") {
+          emitFinish({
+            kind: "error",
+            finishReason: lastFinishReason,
+            error: new Error(event.message || "remote_sse_error"),
+          });
           return;
         }
-        handlers.onDelta(delta);
+        if (event.finishReason) lastFinishReason = event.finishReason;
+        if (event.kind === "done" || isTerminalFinishReason(event.finishReason)) {
+          sawTerminal = true;
+        }
+        if (event.kind === "delta") handlers.onDelta(event);
+        if (event.kind === "done") {
+          // Wait for onload to confirm success; marker is recorded.
+        }
       }
     }
   };
 
-  xhr.timeout = 0;
-  xhr.open("POST", `${req.baseUrl.replace(/\/+$/, "")}/v1/chat/completions`);
+  const finishFromOnload = () => {
+    if (closed) return;
+    consume();
+    if (xhr.status === 0 || xhr.status >= 400) {
+      emitFinish({
+        kind: "error",
+        finishReason: lastFinishReason,
+        error: new Error(`remote_brain_http_${xhr.status}`),
+      });
+      return;
+    }
+    const kind: RemoteFinishKind = !sawTerminal
+      ? "interrupted"
+      : isTruncatingFinishReason(lastFinishReason)
+        ? "truncated"
+        : "complete";
+    // RN 0.86: readystatechange(DONE) runs before onerror. Defer so onerror wins.
+    successTimer = setTimeout(() => {
+      successTimer = null;
+      if (closed) return;
+      emitFinish({ kind, finishReason: lastFinishReason });
+    }, 0);
+  };
+
+  const url =
+    req.completionsUrl ||
+    `${(req.baseUrl ?? "").replace(/\/+$/, "")}/v1/chat/completions`;
+  xhr.timeout = req.inactivityMs && req.inactivityMs > 0 ? req.inactivityMs : 0;
+  xhr.open("POST", url);
   xhr.setRequestHeader("Content-Type", "application/json");
   xhr.setRequestHeader("Accept", "text/event-stream");
   xhr.setRequestHeader("X-Request-Id", requestId);
@@ -103,30 +171,48 @@ export function streamOpenAiChat(
     xhr.setRequestHeader("Authorization", `Bearer ${req.token}`);
   }
 
-  xhr.onprogress = () => consume();
+  xhr.onprogress = () => {
+    if (closed) return;
+    consume();
+  };
   xhr.onreadystatechange = () => {
+    if (closed) return;
     if (xhr.readyState === HEADERS_RECEIVED && xhr.status >= 400) {
-      finish(new Error(`remote_brain_http_${xhr.status}`));
+      emitFinish({
+        kind: "error",
+        finishReason: lastFinishReason,
+        error: new Error(`remote_brain_http_${xhr.status}`),
+      });
       return;
     }
-    if (xhr.readyState === DONE) {
-      if (closed) return;
-      consume();
-      if (xhr.status >= 400) {
-        finish(new Error(`remote_brain_http_${xhr.status}`));
-        return;
-      }
-      if (!sawDone) finish();
-    }
+    if (xhr.readyState === LOADING) consume();
+    if (xhr.readyState === DONE) finishFromOnload();
   };
-  xhr.onerror = () => finish(new Error("remote_brain_network"));
-  xhr.ontimeout = () => finish(new Error("remote_brain_timeout"));
+  xhr.onerror = () => {
+    emitFinish({
+      kind: "error",
+      finishReason: lastFinishReason,
+      error: new Error("remote_brain_network"),
+    });
+  };
+  xhr.ontimeout = () => {
+    emitFinish({
+      kind: "error",
+      finishReason: lastFinishReason,
+      error: new Error("remote_brain_timeout"),
+    });
+  };
   xhr.onabort = () => {
-    if (!closed) finish();
+    if (closed) return;
+    consume();
+    emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
   };
 
-  const onAbort = () => finish();
-  req.signal?.addEventListener("abort", onAbort, { once: true });
+  abortListener = () => {
+    consume();
+    emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
+  };
+  req.signal?.addEventListener("abort", abortListener);
 
   xhr.send(
     JSON.stringify({
@@ -140,6 +226,10 @@ export function streamOpenAiChat(
 
   return {
     requestId,
-    abort: () => finish(),
+    xhr,
+    abort: () => {
+      consume();
+      emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
+    },
   };
 }

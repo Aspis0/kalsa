@@ -203,15 +203,31 @@ export async function streamRemoteAssistantTurn(
               callbacks.onStatus?.({ label: strings.chat.writingStatus });
               console.log(
                 "remote.brain.token",
-                JSON.stringify({ sample: delta.content.slice(0, 80) }),
+                JSON.stringify({ n: delta.content.length }),
               );
             }
             emitted += delta.content;
             queue(delta.content);
           }
         },
-        onError: (error) => settle(error),
-        onDone: () => settle(),
+        onFinish: (finish) => {
+          if (finish.kind === "complete") {
+            settle();
+            return;
+          }
+          const err = new Error(
+            finish.kind === "truncated"
+              ? strings.chat.truncated
+              : finish.kind === "interrupted"
+                ? strings.chat.interrupted
+                : finish.error?.message || strings.chat.serviceUnreachable,
+          );
+          (err as { code?: string; preservePartial?: boolean }).code =
+            finish.kind;
+          (err as { preservePartial?: boolean }).preservePartial =
+            finish.kind === "interrupted" || finish.kind === "truncated";
+          settle(err);
+        },
       },
     );
     lastRequestId = handle.requestId;

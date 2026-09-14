@@ -471,6 +471,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thinkingStatus: "Thinking",
     writingStatus: "Writing",
     interrupted: "Generation was interrupted.",
+    truncated: "Reply stopped at the token limit.",
     searching: "Searching the web…",
     fetching: "Fetching page…",
     readingDocument: "Reading document…",

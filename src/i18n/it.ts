@@ -467,6 +467,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thinkingStatus: "Sto pensando",
     writingStatus: "Sto scrivendo",
     interrupted: "Generazione interrotta.",
+    truncated: "Risposta fermata al limite di token.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
     readingDocument: "Leggendo il documento…",
