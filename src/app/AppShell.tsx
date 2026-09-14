@@ -2848,14 +2848,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           };
           setRemoteActive(true);
           await setEngineBackendMode("remote");
-        } else if (saved) {
-          const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
-          if (savedIndex >= 0 && bootStillCurrent()) {
-            engineIntentRef.current = {
-              modelId: MODEL_REGISTRY[savedIndex].id,
-              remote: false,
-            };
-            setModelIndex(savedIndex);
+        } else {
+          if (saved) {
+            const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
+            if (savedIndex >= 0 && bootStillCurrent()) {
+              engineIntentRef.current = {
+                modelId: MODEL_REGISTRY[savedIndex].id,
+                remote: false,
+              };
+              setModelIndex(savedIndex);
+            }
+          }
+          if (bootStillCurrent()) {
+            await setEngineBackendMode("local");
           }
         }
       } catch {

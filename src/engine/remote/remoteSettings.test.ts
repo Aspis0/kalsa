@@ -22,6 +22,7 @@ import {
   endBackendSwitch,
   getEngineBackendMode,
   hydrateRemoteBrainSettings,
+  isRemoteEngineBackend,
   setEngineBackendMode,
   validateServedModel,
 } from "./remoteSettings";
@@ -94,5 +95,15 @@ describe("backend cache writes", () => {
     endBackendSwitch();
     await setEngineBackendMode("remote");
     expect(getEngineBackendMode()).toBe("remote");
+  });
+
+  test("remount after remote applies local through the setter", async () => {
+    await setEngineBackendMode("remote");
+    store[ENGINE_BACKEND_KEY] = "local";
+    const snap = await hydrateRemoteBrainSettings();
+    expect(snap.backend).toBe("local");
+    expect(isRemoteEngineBackend()).toBe(true);
+    await setEngineBackendMode("local");
+    expect(isRemoteEngineBackend()).toBe(false);
   });
 });
