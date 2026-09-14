@@ -60,8 +60,12 @@ import {
 import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
 import {
   captureEnsureIntent,
+  ensureIntentKey,
   ensureIntentStale,
+  ensureOutcome,
+  InFlightEnsures,
   type EnsureIntent,
+  type EnsureOutcome,
 } from "../engine/ensureIntent";
 import {
   humanRemoteBrainError,
@@ -2933,9 +2937,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     remote: false,
   });
   /** Latest ensureEngineForModel — boot kick reads this so its effect stays [modelIndex]. */
-  const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<boolean>>(
-    async () => false,
-  );
+  const ensureEngineForModelRef = useRef<
+    (model: ModelInfo) => Promise<EnsureOutcome>
+  >(async () => "failed");
   /**
    * Ownership token from tryAcquireChat (null when chat slot not held).
    * markChatReady / markChatReleased must pass this gen so a stale load
@@ -3783,7 +3787,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
   }, [remoteActive]);
 
-  const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+  const runEnsureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     // Capture generation + requested model/backend BEFORE the thermal await
     // so a local select during that probe cannot be overwritten by a stale
     // remote ensure (setEngineBackendMode("remote") must be unreachable).
@@ -4187,6 +4191,36 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return false;
     }
   }, [agentOptions.tools, deviceBandwidth, locale, t, bumpEmbedJobGeneration]);
+
+  const inFlightEnsuresRef = useRef(new InFlightEnsures<EnsureOutcome>());
+
+  /**
+   * The engine-ensure boundary.
+   *
+   * Two callers asking for the same engine (the explicit select and the
+   * `remoteActive` effect) share one attempt instead of running rival inits: the
+   * second adds nothing and the loser's result would overwrite the winner's
+   * state. And because a losing attempt is not a failure, the verdict that comes
+   * out of here says which of the three things happened — a boolean could not,
+   * which is how a false "could not reach the computer" ended up in the
+   * conversation.
+   */
+  const ensureEngineForModel = useCallback(
+    (model: ModelInfo): Promise<EnsureOutcome> => {
+      const captured = captureEnsureIntent(engineGenerationRef.current, model.id);
+      const live = (): EnsureIntent => ({
+        generation: engineGenerationRef.current,
+        modelId: engineIntentRef.current.modelId,
+        remote: engineIntentRef.current.remote,
+      });
+      return inFlightEnsuresRef.current.run(ensureIntentKey(captured), () =>
+        runEnsureEngineForModel(model).then((ready) =>
+          ensureOutcome({ ready, captured, live: live() }),
+        ),
+      );
+    },
+    [runEnsureEngineForModel],
+  );
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
@@ -5447,7 +5481,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
               memoryExtractRef.current = null;
             }
-            if (!(await ensureEngineForModel(currentModel))) {
+            const ensure = await ensureEngineForModel(currentModel);
+            if (ensure === "superseded") {
+              // Another attempt owns the engine now, and it reports for itself.
+              // This turn cedes its place: no error in the conversation, and no
+              // reply this attempt did not produce.
+              finish();
+              return;
+            }
+            if (ensure === "failed") {
               // Bundle missing → download prompt; engine error → load-failed + Settings retry.
               // ensureEngineForModel early-returns false when bundle is missing without setting
               // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
