@@ -79,9 +79,12 @@ local:  http://127.0.0.1:8000
 tailnet: https://<this-mac>.<tailnet>.ts.net  (Serve must be enabled…)
 ```
 
-If mtplx is already up, `run.sh` prints the URLs and exits 0 (attach). It will
-not load the 21 GiB weights a second time. llama-server still **exits 1** on a
-busy 8080.
+`run.sh` **nohup-backgrounds** a spawn (it is not a foreground supervisor).
+A mkdir lock under `~/.kalsa/macbrain.lock` serializes attach/spawn so two
+concurrent starts cannot both load weights. If something is already listening
+and `/v1/models` returns a model list, it attaches. llama-server still
+**exits 1** on a busy 8080. The launchd plist (`KeepAlive`) is the restart
+path for llama-server only — edit the hardcoded `/Users/marco` paths first.
 
 ## 5. Prove it locally
 
@@ -91,9 +94,10 @@ busy 8080.
 ```
 
 1. `GET /health`.
-2. Non-stream `POST /v1/chat/completions` (use `max_tokens` ≳ 256 — Ornith
-   reasons first).
+2. Non-stream `POST /v1/chat/completions` (`test-sse.sh` uses `max_tokens` 256;
+   the phone app default is 4096).
 3. Stream `POST /v1/chat/completions` — incremental `data:` then `data: [DONE]`.
+   Optional: `./server/mac-brain/test-sse.sh http://127.0.0.1:8000 <model-id>`.
 
 ## 6. Tailscale Serve (tailnet only)
 

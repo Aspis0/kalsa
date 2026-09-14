@@ -10,6 +10,7 @@ KALSA_DIR="${HOME}/.kalsa"
 KEYFILE="${KALSA_DIR}/api-keys"
 PIDFILE="${KALSA_DIR}/macbrain.pid"
 LOGFILE="${KALSA_DIR}/macbrain.log"
+LOCKDIR="${KALSA_DIR}/macbrain.lock"
 MTPLX_MODEL_DEFAULT="${HOME}/.mtplx/models/philipjohnbasile--ornith-ai-Ornith-1.5-35B-A3B-V2-MTPLX"
 LLAMA_MODEL_DEFAULT="${KALSA_DIR}/models/ornith-1.5-35b-a3b/Ornith-1.5-35B-Q4_K_M.gguf"
 MODEL_ARG=""
@@ -141,6 +142,50 @@ health_ok() {
   curl -sf -o /dev/null --max-time 3 "http://${HOST}:${PORT}/health"
 }
 
+# True only if /v1/models returns a non-empty data list (mtplx/OpenAI).
+# Sends Bearer when the key file exists. Never prints the key.
+models_ok() {
+  local extra=()
+  if [[ -s "$KEYFILE" ]]; then
+    extra=(-H "Authorization: Bearer $(head -n1 "$KEYFILE" | tr -d '\r\n')")
+  fi
+  local body
+  body="$(curl -sf --max-time 3 "${extra[@]}" "http://${HOST}:${PORT}/v1/models" || true)"
+  [[ -n "$body" ]] || return 1
+  printf '%s' "$body" | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+data=d.get("data") or []
+raise SystemExit(0 if data else 1)
+' 2>/dev/null
+}
+
+acquire_lock() {
+  mkdir -p "$KALSA_DIR"
+  if mkdir "$LOCKDIR" 2>/dev/null; then
+    trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+    return 0
+  fi
+  echo "another run.sh is starting — waiting for lock/listener"
+  local i
+  for i in $(seq 1 60); do
+    if port_busy && models_ok; then
+      echo "attached to in-progress start on ${HOST}:${PORT}"
+      print_urls
+      exit 0
+    fi
+    if mkdir "$LOCKDIR" 2>/dev/null; then
+      trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+      return 0
+    fi
+    sleep 1
+  done
+  echo "error: timed out waiting for ${LOCKDIR}" >&2
+  exit 1
+}
+
 mkdir -p "$KALSA_DIR"
 if [[ ! -s "$KEYFILE" ]]; then
   umask 077
@@ -179,18 +224,29 @@ wait_health() {
 }
 
 start_mtplx() {
+  if [[ "$HOST" == "0.0.0.0" || "$HOST" == "::" ]]; then
+    echo "error: refusing ${HOST} bind with --no-auth. bind 127.0.0.1 or enable an API key" >&2
+    exit 1
+  fi
   if [[ ! -d "$MODEL" ]]; then
     echo "error: mtplx model directory not found: $MODEL" >&2
     echo "this backend does not download. see NOTES.md" >&2
     exit 1
   fi
+  acquire_lock
   if port_busy; then
-    if health_ok; then
+    if models_ok; then
       echo "mtplx already serving on ${HOST}:${PORT} — attached (not starting a second copy)"
       print_urls
       exit 0
     fi
-    echo "error: ${HOST}:${PORT} is busy but /health failed" >&2
+    echo "listener on ${HOST}:${PORT} but /v1/models is not ready — waiting"
+    wait_health ""
+    if models_ok; then
+      print_urls
+      exit 0
+    fi
+    echo "error: ${HOST}:${PORT} is busy but /v1/models failed" >&2
     print_urls
     exit 1
   fi
@@ -208,8 +264,12 @@ start_mtplx() {
     >>"$LOGFILE" 2>&1 &
   echo $! > "$PIDFILE"
   echo "pid $(cat "$PIDFILE")  log ${LOGFILE}"
-  echo "waiting for /health ..."
+  echo "waiting for /v1/models ..."
   wait_health "$(cat "$PIDFILE")"
+  if ! models_ok; then
+    echo "error: /health came up but /v1/models failed; see ${LOGFILE}" >&2
+    exit 1
+  fi
   echo "ready"
   print_urls
 }
@@ -220,6 +280,7 @@ start_llama() {
     echo "llama-server backend needs a local GGUF; this run does not download" >&2
     exit 1
   fi
+  acquire_lock
   if port_busy; then
     echo "error: refusing double-start — already listening on ${HOST}:${PORT}" >&2
     print_urls

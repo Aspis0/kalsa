@@ -7,7 +7,9 @@
   this while mtplx is serving Ornith — two copies of the model will OOM.
   Do NOT install this automatically. See README.md.
 
-  Edit the model path and user-specific paths before loading.
+  Edit the model path and user-specific /Users/... paths before loading.
+  KeepAlive=true: launchd restarts llama-server if it exits. Do not enable
+  while mtplx already holds the same weights.
 -->
 <dict>
   <key>Label</key>

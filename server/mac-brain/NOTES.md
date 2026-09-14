@@ -45,7 +45,7 @@ this run was killed (PID 16218) and the ~17 GiB incomplete blob under
 | Version | `mtplx 2.11.1` |
 | Subcommands | `start`, `tune`, `setup`, `quickstart`, `serve`, `connect`, `ask`, `run`, `chat`, `status`, `stop`, `settings`, `inspect`, `trace`, `forge`, `hardware`, `models` |
 | Live process | `python -m mtplx.server.openai` (PID 42053) launched by `mtplx serve --host 127.0.0.1 --port 8000 --model …V2-MTPLX … --app-launch-id …` |
-| Bind | `127.0.0.1:8000` only. **Not** 8080 — a second copy would load ~21 GiB twice. The MTPLX app owns this daemon; `run.sh --backend mtplx` **attaches**, it does not spawn a sibling. |
+| Bind | `127.0.0.1:8000` only. `run.sh` uses a mkdir lock + `/v1/models` attach so two scripts cannot both spawn. A second copy of the 21 GiB weights would still OOM if something else loaded them. |
 | OpenAI API | `/v1/models`, `/v1/chat/completions` (stream + non-stream), `/docs`. `/health` (not `/v1/health`). |
 | Served id | `philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx` |
 | pi | `~/.pi/agent/models.json` provider `mtplx` `baseUrl: http://127.0.0.1:8000/v1`. Paseo profile `Free Coder open` uses `mtplx/philipjohnbasile-ornith-ai-ornith-1-5-35b-a3b-v2-mtplx`. |
