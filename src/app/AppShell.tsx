@@ -4352,13 +4352,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
     (modelId: string) => {
-      if (modelId === REMOTE_MAC_MODEL_ID) {
-        selectRemoteMac();
-        return;
-      }
       // While a send holds the pre-await claim (fit-gate), queue the switch
-      // (last-wins) and apply it only after the claim releases. Avoids dispose
-      // racing ensureEngineForModel mid-send.
+      // (last-wins) — including Mac — and apply it only after the claim
+      // releases. Avoids dispose racing ensureEngineForModel mid-send.
       if (deferModelSwitchIfSendClaimed(modelId)) {
         if (!modelSwitchDrainInFlightRef.current) {
           modelSwitchDrainInFlightRef.current = true;
@@ -4389,6 +4385,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
           })();
         }
+        return;
+      }
+      if (modelId === REMOTE_MAC_MODEL_ID) {
+        selectRemoteMac();
         return;
       }
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
