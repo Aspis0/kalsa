@@ -7,7 +7,7 @@
 //! The bandwidth and compute numbers come from `kalsa-probe`; passing them by
 //! hand is how this is used before the app is wired to the probe. `--vram`
 //! models a discrete card (the budget becomes the card's memory),
-//! `--on-battery`/`--on-charger` say what the pairing handshake would, and
+//! `--battery-powered`/`--wall-powered` say what the pairing handshake would, and
 //! `--phone-params` reports the phone's dense parameter count, without which
 //! nothing is claimed as capability.
 
@@ -106,7 +106,8 @@ fn main() {
                 selection.justification,
                 selection.licence.id()
             );
-            println!("why:    {}", selection.rationale);
+            println!("why:    {}", selection.plain_reason);
+            println!("detail: {}", selection.details);
         }
         Decision::Refuse(refusal) => {
             println!("refused ({:?}): {}", refusal.reason, refusal.explanation);
@@ -125,7 +126,7 @@ fn configured() -> Result<ChoiceInput, String> {
             weights_bytes: 2_834_975_040,
             parameters: None,
             measured_tokens_per_second: None,
-            on_battery: None,
+            battery_powered: None,
         }),
     };
     let mut args = std::env::args().skip(1);
@@ -151,7 +152,7 @@ fn configured() -> Result<ChoiceInput, String> {
                     weights_bytes: 0,
                     parameters: None,
                     measured_tokens_per_second: None,
-                    on_battery: None,
+                    battery_powered: None,
                 });
                 input.phone = Some(PhoneModel {
                     weights_bytes: (gb * GIB as f64) as u64,
@@ -172,15 +173,15 @@ fn configured() -> Result<ChoiceInput, String> {
                     phone.measured_tokens_per_second = Some(speed);
                 }
             }
-            "--on-battery" => set_battery(&mut input, Some(true)),
-            "--on-charger" => set_battery(&mut input, Some(false)),
+            "--battery-powered" => set_battery(&mut input, Some(true)),
+            "--wall-powered" => set_battery(&mut input, Some(false)),
             "--no-phone" => input.phone = None,
             other => {
                 return Err(format!(
                     "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] \
                      [--gpu-unread] [--bandwidth GB/s] [--gflops GFLOP/s] [--ctx tokens] \
                      [--phone-gb GiB] [--phone-params billions] [--phone-tok-s N] \
-                     [--on-battery] [--on-charger] [--no-phone]"
+                     [--battery-powered] [--wall-powered] [--no-phone]"
                 ))
             }
         }
@@ -188,9 +189,9 @@ fn configured() -> Result<ChoiceInput, String> {
     Ok(input)
 }
 
-fn set_battery(input: &mut ChoiceInput, on_battery: Option<bool>) {
+fn set_battery(input: &mut ChoiceInput, battery_powered: Option<bool>) {
     if let Some(phone) = input.phone.as_mut() {
-        phone.on_battery = on_battery;
+        phone.battery_powered = battery_powered;
     }
 }
 

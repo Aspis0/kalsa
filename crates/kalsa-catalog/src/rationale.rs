@@ -1,14 +1,40 @@
-//! The sentence a human checks: what was chosen, how fast, and why it is being
-//! offered at all. Pure formatting — every number arrives already decided.
+//! The words that travel with a decision, in two registers.
 //!
-//! Ranges stay ranges and floors stay floors in prose, because a decision the
-//! user cannot check is not an honest one.
+//! The plain reason is for the person reading the screen: what the offer
+//! means for them, in sentences they can hear without asking what a word
+//! means. The details are for whoever wants the working — the same facts,
+//! with the numbers, the caveats and the provenance. Both stay honest: a
+//! caveat may live only in the details, but it may not vanish.
 
 use crate::candidate::{too_slow_to_use, Candidate};
 use crate::choice::{CapabilityBasis, ChoiceInput, Justification, PhoneModel};
 use crate::footprint::{MemoryBudget, GIB};
 
-pub(crate) fn rationale(
+/// One or two sentences for the user: what the offer means for them. No
+/// jargon, no internals, no numbers — the shell can show it as-is, and
+/// everything technical lives in [`details`].
+pub(crate) fn plain_reason(justification: Justification) -> String {
+    match justification {
+        Justification::Capability(_) => {
+            "This is a clear step up from what your phone runs: a bigger, stronger model."
+                .to_string()
+        }
+        Justification::ExpectedButUnmeasured => {
+            "This should be better than what your phone runs; we have not checked it on \
+             this computer yet, and we will."
+                .to_string()
+        }
+        Justification::Relief => {
+            "This is about as good as what your phone already runs, but doing the work \
+             here keeps the heat and the battery drain off your phone."
+                .to_string()
+        }
+    }
+}
+
+/// The full working, for whoever asks: speeds as ranges, floors as floors,
+/// what was assumed, what is still missing, and where each claim came from.
+pub(crate) fn details(
     chosen: &Candidate<'_>,
     input: &ChoiceInput,
     phone: &PhoneModel,
@@ -22,23 +48,21 @@ pub(crate) fn rationale(
         chosen.entry.display_name,
         gib_text(chosen.entry.weights_bytes),
         band_text(chosen.decode),
-        band_text(chosen.prefill)
+        floor_text(chosen.prefill.1)
     )];
 
     if chosen.entry.parameters.is_mixture() {
         parts.push(format!(
             "It is a mixture of experts: only {} of its {} parameters are read per token, \
              which is why decoding is quick. Prompt processing is limited by compute rather \
-             than by bandwidth, so its own range above is what it will feel like.",
+             than by bandwidth, so its own floor above is what it will feel like.",
             billions(chosen.entry.parameters.active().count()),
             billions(chosen.entry.parameters.total().count())
         ));
     }
 
-    // Why it is being offered at all: the same words the Justification data
-    // carries, for the human reading the sentence rather than the UI branching
-    // on the enum. The three states are worded so they cannot be mistaken for
-    // one another.
+    // Why it is being offered at all, with the provenance a reviewer can
+    // check: the same facts the Justification data carries.
     parts.push(match justification {
         Justification::Capability(CapabilityBasis::Parameters) => {
             "It is offered on capability: it is meaningfully more model than your phone \
@@ -74,8 +98,8 @@ pub(crate) fn rationale(
     });
 
     // A sourced equivalence travels with its row even when the offer rests on
-    // something weaker than it; only the capability route already speaks for
-    // itself.
+    // something weaker than it; only the publisher-route capability already
+    // speaks for itself.
     if let Some(equivalent) = chosen.entry.dense_equivalent {
         if !matches!(
             justification,
@@ -88,16 +112,6 @@ pub(crate) fn rationale(
                 equivalent.source
             ));
         }
-    }
-
-    // A conditional licence must arrive in the result as more than the id, or
-    // the row presents itself as unconditional.
-    if let Some(condition) = chosen.entry.licence.condition() {
-        parts.push(format!(
-            "Its licence ({}) carries a condition: {}.",
-            chosen.entry.licence.id(),
-            condition
-        ));
     }
 
     if let Some(slowest) = too_slow_to_use(input, &budget, chosen) {
@@ -140,17 +154,11 @@ pub(crate) fn rationale(
     parts.join(" ")
 }
 
-/// Sizes in the unit that reads: a cache of 96 KiB is not "0.0 GiB".
-fn size_text(bytes: u64) -> String {
-    const MIB: u64 = 1024 * 1024;
-    const KIB: u64 = 1024;
-    if bytes >= GIB {
-        format!("{:.1} GiB", bytes as f64 / GIB as f64)
-    } else if bytes >= MIB {
-        format!("{} MiB", bytes / MIB)
-    } else {
-        format!("{} KiB", bytes / KIB)
-    }
+/// A floor is one number with a direction — the shape the probe prints —
+/// never a degenerate range. Always one decimal: a floor is a measured
+/// figure, and "≥ 16" would round away the digit that says so.
+pub(crate) fn floor_text(value: f64) -> String {
+    format!("≥ {:.1}", value)
 }
 
 pub(crate) fn gib_text(bytes: u64) -> String {
@@ -160,6 +168,10 @@ pub(crate) fn gib_text(bytes: u64) -> String {
 /// A range on purpose: from an approximate estimate a single figure would be a
 /// made-up precision.
 pub(crate) fn band_text((low, high): (f64, f64)) -> String {
+    assert!(
+        high > low,
+        "a range needs two different ends: a single value is a floor, printed with floor_text"
+    );
     if high >= 10.0 {
         format!("{:.0}–{:.0}", low, high)
     } else {
@@ -173,9 +185,35 @@ fn billions(count: u64) -> String {
     format!("{:.1}B", count as f64 / 1e9)
 }
 
+/// Sizes in the unit that reads: a cache of 96 KiB is not "0.0 GiB".
+fn size_text(bytes: u64) -> String {
+    const MIB: u64 = 1024 * 1024;
+    const KIB: u64 = 1024;
+    if bytes >= GIB {
+        format!("{:.1} GiB", bytes as f64 / GIB as f64)
+    } else if bytes >= MIB {
+        format!("{} MiB", bytes / MIB)
+    } else {
+        format!("{} KiB", bytes / KIB)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_floor_prints_as_a_floor() {
+        assert_eq!(floor_text(16.1), "≥ 16.1");
+        assert_eq!(floor_text(4.2), "≥ 4.2");
+        assert_eq!(floor_text(50.0), "≥ 50.0");
+    }
+
+    #[test]
+    #[should_panic(expected = "a range needs two different ends")]
+    fn a_range_never_prints_two_equal_ends() {
+        band_text((4.2, 4.2));
+    }
 
     #[test]
     fn a_range_is_written_as_a_range() {

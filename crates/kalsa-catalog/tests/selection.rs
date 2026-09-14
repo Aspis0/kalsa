@@ -13,12 +13,12 @@ use kalsa_catalog::{
 const PHONE_BYTES: u64 = 2_834_975_040;
 const PHONE_PARAMS: Parameters = Parameters::dense(4_000_000_000);
 
-fn phone(on_battery: Option<bool>) -> PhoneModel {
+fn phone(battery_powered: Option<bool>) -> PhoneModel {
     PhoneModel {
         weights_bytes: PHONE_BYTES,
         parameters: Some(PHONE_PARAMS),
         measured_tokens_per_second: Some(9.0),
-        on_battery,
+        battery_powered,
     }
 }
 
@@ -35,9 +35,9 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
     }
 }
 
-fn input_with_phone(ram_gib: u64, on_battery: Option<bool>) -> ChoiceInput {
+fn input_with_phone(ram_gib: u64, battery_powered: Option<bool>) -> ChoiceInput {
     ChoiceInput {
-        phone: Some(phone(on_battery)),
+        phone: Some(phone(battery_powered)),
         ..input(ram_gib, true)
     }
 }
@@ -107,15 +107,18 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             assert_eq!(selection.justification, Justification::Relief);
             assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
             assert_eq!(selection.display_name, "Arcee Trinity Nano");
-            assert!(selection.rationale.contains("relief"), "{}", selection.rationale);
+            assert!(selection.details.contains("relief"), "{}", selection.details);
             assert!(
-                !selection.rationale.contains("on capability"),
+                !selection.details.contains("on capability"),
                 "a lateral move must not be sold as an upgrade: {}",
-                selection.rationale
+                selection.details
             );
-            // The rationale is the user's sentence: no repo path, no quant.
-            assert!(!selection.rationale.contains("arcee-ai/"), "{}", selection.rationale);
-            assert!(!selection.rationale.contains("Q4"), "{}", selection.rationale);
+            // The details are the user's sentence too: no repo path, no quant,
+            // and the prefill floor prints as a floor, never as a range.
+            assert!(!selection.details.contains("arcee-ai/"), "{}", selection.details);
+            assert!(!selection.details.contains("Q4"), "{}", selection.details);
+            assert!(selection.details.contains("≥ 50"), "{}", selection.details);
+            assert!(!selection.details.contains("50–50"), "{}", selection.details);
             assert_eq!(selection.budget.usable_bytes, usable);
             assert!(selection.dense_equivalent.is_none());
         }
@@ -124,21 +127,44 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
 }
 
 #[test]
-fn a_phone_on_a_charger_is_not_offered_relief() {
-    let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
-    assert_eq!(reason, RefusalReason::NothingBetter);
-    assert!(explanation.contains("charger"), "{explanation}");
+fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
+    // Charging is a moment, not a property: the catalog asks only whether the
+    // device runs on battery at all, so the relief offer cannot depend on
+    // which second of the day the question is asked.
+    match choose(&input_with_phone(8, Some(true))) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(
+                selection.plain_reason,
+                "This is about as good as what your phone already runs, but doing the \
+                 work here keeps the heat and the battery drain off your phone."
+            );
+        }
+        other => panic!("expected a relief pick, got {other:?}"),
+    }
+}
 
-    // And when the phone has not said, relief is not invented for it.
+#[test]
+fn a_phone_that_has_not_said_it_runs_on_battery_gets_no_relief() {
     let (reason, explanation) = refusal(&input_with_phone(8, None));
     assert_eq!(reason, RefusalReason::NothingBetter);
     assert!(explanation.contains("has not said"), "{explanation}");
 }
 
 #[test]
-fn capability_does_not_need_the_battery() {
-    // Relief is the only battery-dependent axis. A genuine step up in model
-    // class is offered to a phone on a charger all the same.
+fn a_device_that_does_not_run_on_battery_gets_no_relief() {
+    // For a phone the answer is always yes, so this is not a phone — but the
+    // rule still holds: relief is about saving a battery, and a wall-powered
+    // device has none to save.
+    let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
+    assert_eq!(reason, RefusalReason::NothingBetter);
+    assert!(explanation.contains("does not run on battery"), "{explanation}");
+}
+
+#[test]
+fn capability_does_not_need_a_battery() {
+    // Capability is a claim about the model, not about the device's power:
+    // it is offered to a wall-powered device all the same.
     match choose(&input_with_phone(16, Some(false))) {
         Decision::Pick(selection) => {
             assert_eq!(
@@ -202,9 +228,9 @@ fn an_unreadable_card_falls_back_to_ram_and_says_so() {
             assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert!(!selection.budget.gpu_accounted_for);
             assert!(
-                selection.rationale.contains("not accounted for"),
+                selection.details.contains("not accounted for"),
                 "{}",
-                selection.rationale
+                selection.details
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -279,9 +305,9 @@ fn an_unsourced_large_moe_is_expected_but_unmeasured_and_never_relief_or_capabil
             assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
             assert!(
-                selection.rationale.contains("expected to be more model"),
+                selection.details.contains("expected to be more model"),
                 "{}",
-                selection.rationale
+                selection.details
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -321,9 +347,9 @@ fn a_sourced_equivalent_claims_capability_through_that_route_and_says_so() {
                 )
             );
             assert!(
-                selection.rationale.contains("publisher's own comparison"),
+                selection.details.contains("publisher's own comparison"),
                 "{}",
-                selection.rationale
+                selection.details
             );
         }
         other => panic!("expected a capability pick, got {other:?}"),
@@ -344,9 +370,9 @@ fn a_sourced_row_offered_as_relief_records_its_equivalence() {
                 .expect("the published comparison travels with the row");
             assert_eq!(equivalent.parameters, 3_000_000_000);
             assert!(
-                selection.rationale.contains("places it near a dense model of 3.0B"),
+                selection.details.contains("places it near a dense model of 3.0B"),
                 "{}",
-                selection.rationale
+                selection.details
             );
         }
         other => panic!("expected a relief pick, got {other:?}"),
@@ -368,6 +394,50 @@ fn a_phone_without_parameter_counts_is_never_offered_capability() {
         }
         other => panic!("expected a relief pick, got {other:?}"),
     }
+}
+
+#[test]
+fn the_plain_reason_speaks_the_readers_language() {
+    // The same two sentences the shell shows, at every tier: what the offer
+    // means for the reader, with no internals and no numbers at all. The
+    // honest bit stays in — including that the unmeasured case is unmeasured.
+    let forbidden = ["token", "expert", "bandwidth", "context", "cache", "GiB", "MiB", "KiB"];
+    for ram in [8, 16, 32, 64] {
+        match choose(&input(ram, true)) {
+            Decision::Pick(selection) => {
+                let reason = &selection.plain_reason;
+                assert!(!reason.is_empty(), "{ram}: the plain reason is missing");
+                assert!(
+                    !reason.chars().any(|c| c.is_ascii_digit()),
+                    "{ram}: the plain reason carries numbers: {reason}"
+                );
+                for word in forbidden {
+                    assert!(!reason.contains(word), "{ram}: plain reason says {word:?}: {reason}");
+                }
+            }
+            other => panic!("{ram}: expected a pick, got {other:?}"),
+        }
+    }
+    // And each justification's honest bit is in the plain words, not buried
+    // in the details.
+    let reasons: Vec<(u64, String)> = [8, 16, 32, 64]
+        .into_iter()
+        .map(|ram| match choose(&input(ram, true)) {
+            Decision::Pick(selection) => (ram, selection.plain_reason),
+            other => panic!("{ram}: expected a pick, got {other:?}"),
+        })
+        .collect();
+    let say = |ram: u64, words: &str| {
+        assert!(
+            reasons.iter().any(|(tier, r)| *tier == ram && r.contains(words)),
+            "{ram}: the honest bit is missing from the plain reason"
+        );
+    };
+    say(8, "about as good as what your phone");
+    say(8, "keeps the heat and the battery drain off your phone");
+    say(16, "a bigger, stronger model");
+    say(32, "we have not checked it on this computer yet");
+    say(64, "we have not checked it on this computer yet");
 }
 
 #[test]
@@ -409,14 +479,14 @@ fn sixty_four_gigabytes_leaves_the_dense_70b_on_the_table_for_being_too_slow() {
     match choose(&input) {
         Decision::Pick(selection) => {
             assert!(
-                selection.rationale.contains("A bigger model fits"),
+                selection.details.contains("A bigger model fits"),
                 "{}",
-                selection.rationale
+                selection.details
             );
             assert!(
-                selection.rationale.contains("slower than reading"),
+                selection.details.contains("slower than reading"),
                 "{}",
-                selection.rationale
+                selection.details
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -464,7 +534,7 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
 fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
     match choose(&input(32, true)) {
         Decision::Pick(selection) => {
-            let why = &selection.rationale;
+            let why = &selection.details;
             assert!(why.contains("Alibaba Qwen 3.6"), "{why}");
             assert!(why.contains("tokens per second"), "{why}");
             // A range, never a point estimate dressed up as data.
@@ -478,6 +548,10 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
                 why.contains("not been measured"),
                 "the assumed cache size must be admitted: {why}"
             );
+            // A prefill floor prints as a floor, never as a degenerate range.
+            assert!(why.contains("≥ "), "{why}");
+            assert_eq!(selection.plain_reason, "This should be better than what your \
+phone runs; we have not checked it on this computer yet, and we will.");
         }
         other => panic!("expected a pick, got {other:?}"),
     }

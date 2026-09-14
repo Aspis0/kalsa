@@ -8,8 +8,9 @@
 //! model is slower than on the CPU alone — and only then offer something, in
 //! the existing size order, from the first candidate that admits an honest
 //! justification: capability (meaningfully more model than the phone's,
-//! claimed on parameters within the same shape) or relief (a comparable model,
-//! because the work moves off a phone that is on battery).
+//! claimed on parameters within the same shape, or on a publisher's own dense
+//! comparison) or relief (a comparable model, because the work moves off a
+//! device that runs on battery).
 
 use kalsa_probe::Backend;
 
@@ -18,7 +19,7 @@ use crate::footprint::{memory_budget, Footprint, MemoryBudget};
 use crate::licence::Licence;
 use crate::manifest::{self, DenseEquivalent};
 use crate::parameters::Parameters;
-use crate::rationale::{band_text, gib_text, rationale};
+use crate::rationale::{band_text, details, gib_text, plain_reason};
 
 /// The phone's model, as the pairing handshake reports it.
 #[derive(Clone, Copy, Debug)]
@@ -32,11 +33,12 @@ pub struct PhoneModel {
     /// What the phone measures for itself, when it says. Used to *state* the
     /// comparison, never to invent one.
     pub measured_tokens_per_second: Option<f64>,
-    /// Whether the phone is on battery, when the pairing handshake says. None
-    /// until it does: relief is worth nothing to a phone on a charger, and
-    /// inventing this bit would offer relief to exactly the phone that cannot
-    /// use it.
-    pub on_battery: Option<bool>,
+    /// Whether the device runs on battery at all — a property of the device,
+    /// settled once at pairing. Deliberately not "is it charging right now":
+    /// that changes by the hour and rides with each request, which makes it
+    /// the request router's business, not the catalog's. None until the
+    /// handshake says; relief is only claimed for a battery-powered device.
+    pub battery_powered: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -194,7 +196,7 @@ pub enum Justification {
     /// A strong claim, carrying the evidence that supports it.
     Capability(CapabilityBasis),
     /// The model is comparable to the phone's, and it is offered only because
-    /// the phone is on battery: every token generated on the PC is one the
+    /// the device runs on battery: every token generated on the PC is one the
     /// phone did not generate. `MINIMUM_TOKENS_PER_SECOND` still applies — a
     /// comparable model that crawls is a worse experience, not relief.
     Relief,
@@ -216,9 +218,9 @@ pub enum RefusalReason {
     NothingFits,
     /// Nothing that fits wins on either axis: nothing admits a capability
     /// claim — the phone did not report parameters, the shapes differ, or the
-    /// bar is not cleared — and relief is unavailable: the phone is on a
-    /// charger, has not said whether it is on battery, or runs something
-    /// bigger than anything that fits here.
+    /// bar is not cleared — and relief is unavailable: the device does not
+    /// run on battery, has not said whether it does, or runs something bigger
+    /// than anything that fits here.
     NothingBetter,
     /// Everything that fits and would be worth running would be too slow to use.
     NothingFastEnough,
@@ -259,7 +261,13 @@ pub struct Selection {
     /// Why this is being offered: capability, expected-but-unmeasured, or
     /// relief.
     pub justification: Justification,
-    pub rationale: String,
+    /// One or two sentences for the user: what the offer means for them. No
+    /// jargon and no numbers; the shell can show it as-is.
+    pub plain_reason: String,
+    /// The full working for whoever asks: speeds, the expert split, what was
+    /// assumed, what is still missing, where each claim came from. Nothing
+    /// deleted from here just because it is technical.
+    pub details: String,
 }
 
 #[derive(Clone, Debug)]
@@ -348,10 +356,10 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     // justification: the biggest that fits, then — among models of the same
     // class — the one the numbers say decodes fastest. The biggest may admit
     // nothing (a small unsourced MoE can claim neither capability nor
-    // expected strength, and a charger phone admits no relief), and when it
-    // cannot, the walk falls through to what remains rather than mislabelling
-    // the offer or hiding it.
-    let on_battery = phone.on_battery == Some(true);
+    // expected strength, and a device that does not run on battery admits no
+    // relief), and when it cannot, the walk falls through to what remains
+    // rather than mislabelling the offer or hiding it.
+    let battery_powered = phone.battery_powered == Some(true);
     while !remaining.is_empty() {
         let leader = *remaining
             .iter()
@@ -373,7 +381,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
             Justification::Capability(basis)
         } else if expected_but_unmeasured(chosen, &phone) {
             Justification::ExpectedButUnmeasured
-        } else if on_battery
+        } else if battery_powered
             && chosen.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
         {
             Justification::Relief
@@ -422,14 +430,14 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                     .trim_start_matches('–')
             ),
         )
-    } else if phone.on_battery == Some(false) {
+    } else if phone.battery_powered == Some(false) {
         (
             RefusalReason::NothingBetter,
             format!(
                 "This computer is not worth using: everything that fits would be no better \
-                 than the model already on your phone ({}), and with the phone on a charger, \
-                 moving the work there offers no relief either. Staying on the phone is the \
-                 honest answer.",
+                 than the model already on your phone ({}), and the device does not run on \
+                 battery, so moving the work there offers no relief either. Staying on the \
+                 phone is the honest answer.",
                 gib_text(phone.weights_bytes)
             ),
         )
@@ -439,8 +447,8 @@ pub fn choose(input: &ChoiceInput) -> Decision {
             format!(
                 "This computer is not worth using: everything that fits would be no better \
                  than the model already on your phone ({}), and the phone has not said \
-                 whether it is on battery — the only other reason to move the work. Staying \
-                 on the phone is the honest answer.",
+                 whether it runs on battery — the only other reason to move the work. \
+                 Staying on the phone is the honest answer.",
                 gib_text(phone.weights_bytes)
             ),
         )
@@ -484,7 +492,8 @@ fn selection(
         licence: chosen.entry.licence,
         dense_equivalent: chosen.entry.dense_equivalent,
         justification,
-        rationale: rationale(chosen, input, phone, budget, justification),
+        plain_reason: plain_reason(justification),
+        details: details(chosen, input, phone, budget, justification),
     }
 }
 
