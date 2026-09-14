@@ -119,6 +119,11 @@ impl BindingSecret {
     ) -> [u8; BINDING_BYTES] {
         proof(&self.bytes, challenge, code.bytes())
     }
+
+    #[cfg(test)]
+    pub(crate) fn bytes(&self) -> &[u8; BINDING_BYTES] {
+        &self.bytes
+    }
 }
 
 // Same reasoning as `OneTimeCode` above.

@@ -146,6 +146,13 @@ fn the_offer_expires_on_its_own() {
 // decimal array a derived Debug would have printed.
 #[test]
 fn no_rendering_carries_a_secret() {
+    // The secret-holding types themselves: if any of their Debug impls ever
+    // starts printing bytes — a stray derive, say — this catches it even
+    // though no state rendering reaches inside them.
+    let code = crate::secret::OneTimeCode::generate().unwrap();
+    let binding = crate::secret::BindingSecret::generate().unwrap();
+    let credential = crate::handshake::Credential::generate().unwrap();
+
     let (mut session, start) = offered();
     let (code_hex, binding_hex) = qr_secrets(&session);
     let code_bytes = hex::decode(&code_hex).unwrap();
@@ -178,12 +185,24 @@ fn no_rendering_carries_a_secret() {
     rendered.push_str(&format!("{:?}", StoreError::Corrupt("tag")));
     rendered.push_str(&format!("{:?}", ClaimResult::Expired));
 
-    for (hex_form, raw_bytes, name) in [
+    // The types' own Debug renderings.
+    let direct = [
+        (code.hex(), code.bytes().to_vec(), "code"),
+        (binding.hex(), binding.bytes().to_vec(), "binding"),
+        (credential.hex(), credential.bytes().to_vec(), "credential"),
+    ];
+    rendered.push_str(&format!("{code:?} {binding:?} {credential:?}"));
+
+    let hunted = [
         (&code_hex, &code_bytes, "code"),
         (&binding_hex, &binding_bytes, "binding"),
         (&credential_hex, &credential_bytes, "credential"),
-    ] {
-        assert!(!rendered.contains(hex_form), "leaked {name} as hex: {rendered}");
+    ];
+    let all = hunted
+        .into_iter()
+        .chain(direct.iter().map(|(h, b, n)| (h, b, *n)));
+    for (hex_form, raw_bytes, name) in all {
+        assert!(!rendered.contains(hex_form.as_str()), "leaked {name} as hex: {rendered}");
         assert!(
             !rendered.contains(&format!("{raw_bytes:?}")),
             "leaked {name} as bytes: {rendered}"
