@@ -76,15 +76,21 @@ class FakeEl {
   }
 
   set hidden(value) {
+    // Mirror the DOM: assigning false clears the attribute, it does not hide
+    // a parsed `hidden` under a runtime false.
     this._hidden = value;
+    if (value) this.attrs.hidden = true;
+    else delete this.attrs.hidden;
   }
 
   get disabled() {
-    return this._disabled === true || this.attrs.disabled === true;
+    return this.attrs.disabled === true || this._disabled === true;
   }
 
   set disabled(value) {
     this._disabled = value;
+    if (value) this.attrs.disabled = true;
+    else delete this.attrs.disabled;
   }
 }
 
@@ -93,11 +99,6 @@ const byId = {};
 globalThis.document = {
   getElementById: (id) => (id === "cards" ? root : (byId[id] ??= new FakeEl("div"))),
   createElement: (tag) => new FakeEl(tag),
-  body: Object.assign(new FakeEl("body"), {
-    classList: {
-      toggle() {},
-    },
-  }),
 };
 globalThis.window = {};
 
@@ -116,10 +117,15 @@ for (const card of root.children) {
   const panel = card.children[1];
   const button = panel.querySelector("button");
   const sentence = panel.textContent;
+  // A hidden button is not on screen: report it as no action, never as an
+  // empty control someone has to chase into the source.
+  const visible = button && !button.hidden;
   results.push({
     heading,
     sentence,
-    button: button ? { text: button.textContent, disabled: button.disabled } : null,
+    button: visible
+      ? { text: button.textContent, disabled: button.disabled }
+      : null,
   });
 }
 
@@ -128,6 +134,8 @@ for (const { heading, sentence, button } of results) {
   console.log(`   ${sentence}`);
   if (button) {
     console.log(`   [${button.disabled ? "disabled" : "button"}] ${button.text}`);
+  } else {
+    console.log("   [no action]");
   }
   console.log();
 }
@@ -159,6 +167,11 @@ const NOTHING = [
   "too slow to use",
   "This page will say which model",
   "To pair your phone with this computer",
+  // A chosen model is the goal state: nothing is needed. The three phrases
+  // are the justification sentences in pages/model.js.
+  "That is why it runs here",
+  "battery lasts longer",
+  "We have not tested it on this computer yet",
 ];
 for (const { heading, sentence, button } of results) {
   const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
