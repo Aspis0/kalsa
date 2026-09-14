@@ -142,7 +142,6 @@ for (const card of root.children) {
   const heading = card.children[0].textContent;
   const panel = card.children[1];
   const button = findVisible(panel, (el) => el.tag === "button");
-  const bar = findVisible(panel, (el) => el.attrs["data-el"] === "bar");
   const progressEl = findVisible(panel, (el) => el.attrs["data-el"] === "progress");
   const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
   results.push({
@@ -150,7 +149,9 @@ for (const card of root.children) {
     sentence: sentenceEl ? sentenceEl.textContent : visibleText(panel),
     button: button ? { text: button.textContent, disabled: button.disabled } : null,
     progress: progressEl ? progressEl.textContent : null,
-    working: bar !== null,
+    // Working means a visible progress line: the bar is hidden when no total
+    // was announced, and that state is still working.
+    working: progressEl !== null,
   });
 }
 
@@ -231,6 +232,11 @@ for (const { heading, button } of results) {
 // these are registries, not patterns. Adding a phrasing is a deliberate act;
 // rewriting the copy without updating the registry makes the rule go quiet,
 // which is the known cost of checking words at all.
+// Known boundary: the registries check that an approved promise is present.
+// They cannot stop a sentence that makes the promise and takes it back in
+// the next breath ("This happens once. Well, usually."). That hole has been
+// moved from spelling to deliberate sabotage, and it is left open on
+// purpose — a check that closed it would have to understand the sentence.
 const ONCE_PHRASES = ["This happens once.", "happens only once."];
 const MID_DOWNLOAD_OPENERS = ["The connection dropped partway through"];
 const RESUME_PHRASES = ["What is already here stays", "picks up where it stopped"];
@@ -242,15 +248,23 @@ for (const { heading, sentence, progress, working } of results) {
   if (!ONCE_PHRASES.some((phrase) => sentence.includes(phrase))) {
     problems.push(`a download must make the once-only promise in an approved phrasing: ${heading}`);
   }
-  // The line must end "<done> of <total> MB · <n>%" in one unit (a resume
-  // note may precede it), and the percentage must be the truth about the
-  // displayed bytes — a number that disagrees with its own line is a lie
-  // either way.
-  const counts = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB) · (\d+)%$/);
-  if (!counts) {
-    problems.push(`a download must show both byte counts and a percentage: ${heading}`);
-  } else if (Math.floor((parseFloat(counts[1]) / parseFloat(counts[2])) * 100) !== Number(counts[4])) {
-    problems.push(`the percentage must be the bytes' percentage: ${heading}`);
+  // A download line must be one of two honest shapes: a real percentage over
+  // both byte counts, or — when no size was announced — how much has
+  // arrived and nothing pretending to be a share of it. Infinity and NaN are
+  // what arithmetic on a size nobody announced produces; neither is a
+  // percentage, and neither is honest.
+  const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB) · (\d+)%$/);
+  const noTotal =
+    /^(Picking up where it stopped — )?(Receiving — the size was not announced\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
+  if (full) {
+    if (Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100) !== Number(full[4])) {
+      problems.push(`the percentage must be the bytes' percentage: ${heading}`);
+    }
+    if (Number(full[4]) > 100) {
+      problems.push(`a percentage above 100 is not a percentage: ${heading}`);
+    }
+  } else if (!progress || !noTotal.test(progress)) {
+    problems.push(`a download line must be a real percentage or an honest "no size": ${heading}`);
   }
 }
 

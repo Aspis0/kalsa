@@ -15,7 +15,8 @@
 //     phase: "reading" | "choosing" | "fetching" | "starting" | "failed",
 //     fetching: null | {
 //       what: "engine" | "model",
-//       total_bytes, done_bytes,   // done_bytes may start above zero
+//       done_bytes,                // always known
+//       total_bytes,               // number, or null: no size was announced
 //       resumed,                   // true when this continues an earlier one
 //     },
 //     failure: null | "no-engine" | "not-worth-it" | "disk-full" | "network"
@@ -102,11 +103,15 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
     action.disabled = false;
   }
 
-  function showProgress(text, pct) {
+  // The bar's fill is the accent share of the track, sized by --pct. With no
+  // total there is no honest share, so pct of null means no bar at all.
+  function showBytes(text, pct) {
     progress.hidden = false;
     progress.textContent = text;
-    bar.hidden = false;
-    bar.style.setProperty("--pct", `${pct}%`);
+    bar.hidden = pct === null;
+    if (pct !== null) {
+      bar.style.setProperty("--pct", `${pct}%`);
+    }
   }
 
   function hideProgress() {
@@ -142,7 +147,6 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
         null,
       );
     },
-    fetching: () => {},
   };
 
   function update(setup) {
@@ -154,12 +158,6 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
     }
     if (setup.phase === "fetching" && setup.fetching) {
       const { what, total_bytes, done_bytes, resumed } = setup.fetching;
-      const pair = fmtPair(done_bytes, total_bytes);
-      // The percentage is computed from the numbers as shown, so the line
-      // cannot disagree with itself.
-      const [, doneShown, totalShown] = pair.match(/^([\d.]+) of ([\d.]+)/);
-      const pct = Math.floor((parseFloat(doneShown) / parseFloat(totalShown)) * 100);
-      const line = `${pair} · ${pct}%`;
       if (what === "engine") {
         set(
           "Downloading",
@@ -173,7 +171,29 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
           null,
         );
       }
-      showProgress(resumed ? `Picking up where it stopped — ${line}` : line, pct);
+      // The size is a fact the server may not have announced, and a resumed
+      // download can outgrow the total it was given. Without a true total
+      // there is no percentage and no proportional bar: the line says how
+      // much has arrived, and that is all there honestly is.
+      const prefix = resumed && done_bytes > 0 ? "Picking up where it stopped — " : "";
+      if (total_bytes == null || done_bytes > total_bytes) {
+        const received = done_bytes >= 1e9
+          ? `${(done_bytes / 1e9).toFixed(1)} GB`
+          : `${Math.round(done_bytes / 1e6)} MB`;
+        showBytes(
+          done_bytes > 0
+            ? `${prefix}${received} received so far.`
+            : "Receiving — the size was not announced.",
+          null,
+        );
+        return;
+      }
+      const pair = fmtPair(done_bytes, total_bytes);
+      // The percentage is computed from the numbers as shown, so the line
+      // cannot disagree with itself.
+      const [, doneShown, totalShown] = pair.match(/^([\d.]+) of ([\d.]+)/);
+      const pct = Math.floor((parseFloat(doneShown) / parseFloat(totalShown)) * 100);
+      showBytes(`${prefix}${pair} · ${pct}%`, pct);
       return;
     }
     hideProgress();

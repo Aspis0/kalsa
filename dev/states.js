@@ -110,6 +110,24 @@ card("Status", "first run: resuming the engine download (stub bytes)", (panel) =
   }).refresh(),
 );
 
+card("Status", "first run: fetching without a size (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("engine", 320e6, null, false), false),
+  }).refresh(),
+);
+
+card("Status", "first run: resumed past its total (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("engine", 700e6, 645e6, true), false),
+  }).refresh(),
+);
+
+card("Status", "first run: download complete (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("model", 5.2e9, 5.2e9, false), false),
+  }).refresh(),
+);
+
 card("Status", "first run: starting the server", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(setupDto("starting"), false),
