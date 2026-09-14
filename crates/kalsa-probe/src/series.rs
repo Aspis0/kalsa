@@ -25,8 +25,10 @@ impl Series {
         self.samples.iter().sum::<f64>() / self.samples.len() as f64
     }
 
-    /// The best repetition: the machine *can* do this. Reported next to the mean
-    /// because it says whether the spread is noise or contention.
+    /// The best repetition: **the estimator for a capability measurement**.
+    /// Competition can only make a sample slower, never faster, so the fastest
+    /// one is the closest we get to what the machine can do; the median would
+    /// instead answer "how was the machine's afternoon".
     pub fn max(&self) -> f64 {
         self.samples.iter().copied().fold(0.0, f64::max)
     }

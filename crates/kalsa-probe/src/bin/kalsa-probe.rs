@@ -1,11 +1,11 @@
-//! Runs the probe and prints what it found, spread included.
+//! Runs the probe and prints what it found, working included.
 //!
 //! `cargo run --release -p kalsa-probe` — release matters: a debug build
 //! measures the optimizer, not the machine.
 
 use kalsa_probe::{
-    decode_tokens_per_second, measure_bandwidth, measure_compute, prefill_tokens_per_second,
-    ProbeConfig, Series, EFFICIENCY_BAND,
+    decode_tokens_per_second, measure_reliable, prefill_tokens_per_second, ProbeConfig, Series,
+    EFFICIENCY_BAND,
 };
 
 /// Illustrative catalog rows: (label, active bytes, active parameters). Byte
@@ -20,87 +20,96 @@ const ROWS: [(&str, u64, u64); 5] = [
 ];
 
 fn main() {
-    let config = match configured() {
-        Ok(config) => config,
-        Err(usage) => {
-            eprintln!("{usage}");
-            std::process::exit(2);
-        }
+    let config = ProbeConfig {
+        repetitions: 5,
+        ..ProbeConfig::default()
     };
+    let measurement = measure_reliable(&config);
+
     println!(
-        "probe: {} MiB buffer, {} repetitions, {} threads, {}×{} matmul",
-        config.buffer_bytes / (1024 * 1024),
-        config.repetitions,
-        config.threads,
-        config.matmul_size,
-        config.matmul_size
+        "probe: ramp up to {} threads, {} repetitions, {}×{} matmul",
+        config.threads, config.repetitions, config.matmul_size, config.matmul_size
+    );
+    println!("measurement describes: {:?}", measurement.measured_on);
+    println!("this machine offers:   {:?}", measurement.will_run_on);
+
+    println!();
+    println!(
+        "thread ramp (best sample per count); plateau reached at {} threads:",
+        measurement.plateau_threads
+    );
+    for (threads, rate) in &measurement.ramp {
+        println!("  {threads:>2} threads {:>8.1} GB/s", rate / 1e9);
+    }
+
+    println!();
+    report(
+        "ceiling",
+        "GB/s",
+        &measurement.ceiling,
+        measurement.ceiling_bytes_per_second,
+    );
+    report("cache", "GB/s", &measurement.cache, measurement.cache.max());
+    report(
+        "compute",
+        "GFLOP/s",
+        &measurement.compute,
+        measurement.compute.max(),
     );
 
-    let bandwidth = measure_bandwidth(&config);
-    report("bandwidth", "GB/s", &bandwidth, |value| value / 1e9);
-    let compute = measure_compute(&config);
-    report("compute", "GFLOP/s", &compute, |value| value / 1e9);
-
-    // The median, not the mean: one descheduled sample must not decide what we
-    // tell the user about their machine.
-    let bandwidth_mean = bandwidth.median();
-    let compute_mean = compute.median();
-    let (low, high) = EFFICIENCY_BAND;
     println!();
-    println!("predictions from the median, at efficiency {low}..{high} (and the 1.0 bound)");
+    println!(
+        "reliable: {}   (spread {:.1}%, parallelism {})",
+        measurement.is_reliable(),
+        measurement.reliability.spread * 100.0,
+        match measurement.reliability.effective_parallelism {
+            Some(parallelism) => format!("{parallelism:.1} cores"),
+            None => "not measurable here".to_string(),
+        }
+    );
+    for note in &measurement.reliability.notes {
+        println!("  ! {note}");
+    }
+
+    println!();
+    println!("lower bound: {}", measurement.bandwidth_is_lower_bound());
+    println!("{}", measurement.measured_on.note());
+    println!("{}", measurement.will_run_on.note());
+
+    let (low, high) = EFFICIENCY_BAND;
+    let bandwidth = measurement.ceiling_bytes_per_second;
+    let compute = measurement.compute.max();
+    println!();
+    println!("predictions at efficiency {low}..{high} (and the 1.0 bound)");
     println!(
         "{:<20} {:>18} {:>18}",
         "row (illustrative)", "decode tok/s", "prefill tok/s"
     );
     for (label, active_bytes, active_params) in ROWS {
-        let decode_upper = decode_tokens_per_second(bandwidth_mean, active_bytes, 1.0);
-        let decode_low = decode_tokens_per_second(bandwidth_mean, active_bytes, low);
-        let decode_high = decode_tokens_per_second(bandwidth_mean, active_bytes, high);
-        let prefill_low = prefill_tokens_per_second(compute_mean, active_params, low);
-        let prefill_high = prefill_tokens_per_second(compute_mean, active_params, high);
         println!(
             "{label:<20} {:>18} {:>18}",
-            span(decode_low, decode_high, decode_upper),
-            span(prefill_low, prefill_high, None)
+            span(
+                decode_tokens_per_second(bandwidth, active_bytes, low),
+                decode_tokens_per_second(bandwidth, active_bytes, high),
+                decode_tokens_per_second(bandwidth, active_bytes, 1.0),
+            ),
+            span(
+                prefill_tokens_per_second(compute, active_params, low),
+                prefill_tokens_per_second(compute, active_params, high),
+                None,
+            )
         );
     }
 }
 
-/// `--threads`, `--reps`, `--buffer-mib`, `--matmul`: enough to re-measure a
-/// different way (one thread, a longer sample) without editing code.
-fn configured() -> Result<ProbeConfig, String> {
-    let mut config = ProbeConfig::default();
-    let mut args = std::env::args().skip(1);
-    while let Some(flag) = args.next() {
-        match flag.as_str() {
-            "--threads" => config.threads = number(&mut args, &flag)?.max(1),
-            "--reps" => config.repetitions = number(&mut args, &flag)?.max(1) as u32,
-            "--buffer-mib" => config.buffer_bytes = number(&mut args, &flag)? * 1024 * 1024,
-            "--matmul" => config.matmul_size = number(&mut args, &flag)?,
-            other => {
-                return Err(format!(
-                    "unknown flag {other}\nusage: kalsa-probe [--threads N] [--reps N] [--buffer-mib N] [--matmul N]"
-                ))
-            }
-        }
-    }
-    Ok(config)
-}
-
-fn number(args: &mut impl Iterator<Item = String>, flag: &str) -> Result<usize, String> {
-    args.next()
-        .ok_or_else(|| format!("{flag} needs a value"))?
-        .parse()
-        .map_err(|e| format!("{flag}: {e}"))
-}
-
-fn report(label: &str, unit: &str, series: &Series, scale: impl Fn(f64) -> f64) {
+/// Everything in giga-units per second, so one divisor covers both metrics.
+fn report(label: &str, unit: &str, series: &Series, headline: f64) {
+    const GIGA: f64 = 1e9;
     println!(
-        "{label:<10} median {:>8.2} {unit}   mean {:>8.2}   min {:>8.2}   max {:>8.2}   spread {:>5.1}%  ({} samples)",
-        scale(series.median()),
-        scale(series.mean()),
-        scale(series.min()),
-        scale(series.max()),
+        "{label:<10} best {:>8.2} {unit}   median {:>8.2}   min {:>8.2}   spread {:>5.1}%  ({} samples)",
+        headline / GIGA,
+        series.median() / GIGA,
+        series.min() / GIGA,
         series.relative_spread() * 100.0,
         series.samples().len()
     );

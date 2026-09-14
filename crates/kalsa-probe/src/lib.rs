@@ -7,39 +7,51 @@
 //! every catalog entry can be predicted from it.
 //!
 //! What this is not: exact. See `predict` for the assumptions and the efficiency
-//! band, and `Series` for why every number comes with its spread.
+//! band, `Series` for why every number comes with its spread, and `confidence`
+//! for why a number measured on a busy machine is not offered as the machine's.
 
 mod bandwidth;
 mod compute;
+mod confidence;
+mod detect;
+mod path;
+mod plateau;
 mod predict;
 mod series;
 
-pub use bandwidth::measure_bandwidth;
+pub use bandwidth::{measure_at_threads, thread_ramp, SAMPLE_TARGET};
 pub use compute::measure_compute;
+pub use confidence::{Reliability, SPREAD_LIMIT};
+pub use path::{Backend, ExecutionPath};
+pub use plateau::{plateau, still_rising, PLATEAU_TOLERANCE};
 pub use predict::{decode_tokens_per_second, prefill_tokens_per_second, EFFICIENCY_BAND};
 pub use series::Series;
 
-/// How long one timed sample should last. Shorter samples measure the
-/// scheduler on a machine somebody is using, not the hardware.
-pub const SAMPLE_TARGET_SECONDS: f64 = 0.15;
-/// A deliberately pessimistic bandwidth floor, used only to size a sample:
-/// below this the machine is not a candidate for running a model at all.
-pub const SLOW_MACHINE_BYTES_PER_SECOND: f64 = 20.0e9;
-/// Same idea for the compute probe: an old laptop's f32 matmul floor.
-pub const FLOOR_FLOPS_PER_SECOND: f64 = 20.0e9;
-/// Ceiling on the repetitions inside one sample: a small buffer would otherwise
-/// turn a sample into thousands of thread spawns, measuring the spawner.
-pub const MAX_PASSES_PER_SAMPLE: u64 = 16;
+use std::time::{Duration, Instant};
 
-/// What to measure, and how hard. Defaults are chosen to be short enough to run
-/// during a first start and long enough to be a baseline.
+/// Buffer for the memory measurement: larger than any cache this class of
+/// machine has, so the number is memory and not L2.
+pub const DRAM_BUFFER_BYTES: usize = 256 * 1024 * 1024;
+/// Repetitions per ramp step: enough to see disagreement, short enough that the
+/// whole ramp stays inside the "few seconds" the product promises.
+pub const RAMP_REPETITIONS: u32 = 3;
+/// Buffer for the cache reference: small enough to be served from L2, and large
+/// enough that it is not one core's own loop overhead.
+pub const CACHE_BUFFER_BYTES: usize = 4 * 1024 * 1024;
+/// How many times a round of measurement may be repeated before we hand over a
+/// number we do not trust. A busy machine is tried again, not believed.
+pub const MAX_ATTEMPTS: u32 = 3;
+/// How long to wait between attempts, to give whatever else was running a chance
+/// to finish.
+pub const RETRY_PAUSE: Duration = Duration::from_secs(3);
+
 #[derive(Clone, Debug)]
 pub struct ProbeConfig {
-    /// Bigger than any cache this machine has, or the number is L2 speed.
-    pub buffer_bytes: usize,
     /// Repetitions per measurement: one sample cannot show a spread.
     pub repetitions: u32,
-    /// The threads we would really run inference with, not the core count.
+    /// The most threads the ramp will try. Defaults to every logical core; the
+    /// ramp stops earlier, at the plateau, so asking for all of them costs
+    /// nothing and cannot be accused of leaving bandwidth unclaimed.
     pub threads: usize,
     /// Side of the square f32 matmul used for the compute probe.
     pub matmul_size: usize,
@@ -48,15 +60,153 @@ pub struct ProbeConfig {
 impl Default for ProbeConfig {
     fn default() -> Self {
         Self {
-            buffer_bytes: 256 * 1024 * 1024,
             repetitions: 5,
             threads: std::thread::available_parallelism()
-                .map(|cores| cores.get() / 2)
+                .map(|cores| cores.get())
                 .unwrap_or(4)
-                .clamp(2, 8),
+                .max(2),
             matmul_size: 384,
         }
     }
+}
+
+/// Everything the probe learned, and whether it believes it.
+#[derive(Clone, Debug)]
+pub struct Measurement {
+    /// Throughput at each thread count tried, in order. Printed, not just used:
+    /// the shape of the ramp is how a reader checks the plateau for themselves.
+    pub ramp: Vec<(usize, f64)>,
+    /// The machine's rate — **the best sample of the ramp**, not the median.
+    ///
+    /// This is a capability measurement: what this machine can do when it has
+    /// itself to itself. A competing process can only make a sample slower, never
+    /// faster, so the fastest repetition is the closest we get to the machine,
+    /// while the median would answer "how was your afternoon" instead.
+    pub ceiling_bytes_per_second: f64,
+    /// The repetitions behind that number, so the spread travels with it.
+    pub ceiling: Series,
+    /// The first thread count that already reached the plateau: what this machine
+    /// needs, as opposed to what it was measured with.
+    pub plateau_threads: usize,
+    /// Cache-resident reads, used as the reference the memory figure must not beat.
+    pub cache: Series,
+    /// f32 matmul throughput: the number prefill is predicted from.
+    pub compute: Series,
+    pub reliability: Reliability,
+    /// The path the numbers above were measured on (CPU streaming reads today).
+    pub measured_on: ExecutionPath,
+    /// What this machine will run the model on, by detection only.
+    pub will_run_on: Backend,
+}
+
+impl Measurement {
+    /// True when the machine's real path is faster than the one measured, so the
+    /// predictions from these numbers are a floor rather than a figure.
+    ///
+    /// Data, deliberately: the catalog branches on this instead of parsing the
+    /// sentence next to it.
+    pub fn bandwidth_is_lower_bound(&self) -> bool {
+        self.will_run_on.is_faster_than_cpu_measurement()
+    }
+}
+
+impl Measurement {
+    /// True when this reading may be used as the machine's number.
+    pub fn is_reliable(&self) -> bool {
+        self.reliability.reliable
+    }
+}
+
+/// One round: measure, then judge. No retrying, no sleeping — callers that want
+/// a trustworthy number use `measure_reliable`.
+pub fn measure(config: &ProbeConfig) -> Measurement {
+    let cpu_before = confidence::cpu_seconds();
+    let started = Instant::now();
+
+    let counts = thread_ramp(config.threads);
+    let mut ramp = Vec::with_capacity(counts.len());
+    let mut readings: Vec<(usize, Series)> = Vec::with_capacity(counts.len());
+    for threads in counts {
+        let series = measure_at_threads(DRAM_BUFFER_BYTES, threads, RAMP_REPETITIONS);
+        // A capability measurement: the best sample, never the median.
+        ramp.push((threads, series.max()));
+        readings.push((threads, series));
+    }
+    let (plateau_threads, _) = plateau(&ramp).unwrap_or((config.threads, 0.0));
+    // The ceiling is the best sample anywhere in the ramp, not only at the
+    // plateau: this is a capability measurement, and competition can only make a
+    // sample slower. The plateau thread count is reported separately as the
+    // answer to "how many threads does this machine need".
+    let ceiling_entry = readings
+        .iter()
+        .max_by(|a, b| {
+            a.1.max()
+                .partial_cmp(&b.1.max())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map(|(threads, series)| (*threads, series.clone()));
+    let ceiling = ceiling_entry
+        .clone()
+        .map(|(_, series)| series)
+        .unwrap_or_else(|| Series::new(vec![]));
+    let ceiling_rate = ceiling.max();
+    let cache = measure_at_threads(CACHE_BUFFER_BYTES, config.threads, 1);
+
+    // Parallelism at the plateau, not averaged over the ramp: the early
+    // single-thread steps would drag any average down and say nothing about the
+    // configuration the number comes from.
+    let cpu_before_probe = confidence::cpu_seconds();
+    let probe_started = Instant::now();
+    let probe = measure_at_threads(DRAM_BUFFER_BYTES, plateau_threads, 1);
+    let probe_wall = probe_started.elapsed().as_secs_f64();
+    let cpu_after_probe = confidence::cpu_seconds();
+    let effective_parallelism = match (cpu_before_probe, cpu_after_probe) {
+        (Some(before), Some(after)) => Some((after - before) / probe_wall.max(1e-9)),
+        _ => None,
+    };
+    std::hint::black_box(probe.max());
+
+    let compute_started = Instant::now();
+    let compute = measure_compute(config);
+    std::hint::black_box(compute_started.elapsed());
+    std::hint::black_box(started.elapsed());
+    std::hint::black_box(cpu_before);
+
+    let reliability = confidence::judge(&confidence::Evidence {
+        plateau_threads,
+        tried_threads: plateau_threads,
+        effective_parallelism,
+        spread: ceiling.relative_spread(),
+        best_rate: ceiling_rate,
+        still_rising: still_rising(&ramp),
+        cache_rate: Some(cache.max()).filter(|rate| *rate > 0.0),
+    });
+
+    Measurement {
+        ramp,
+        ceiling_bytes_per_second: ceiling_rate,
+        ceiling,
+        plateau_threads,
+        cache,
+        compute,
+        reliability,
+        measured_on: ExecutionPath::Cpu,
+        will_run_on: detect::backend(),
+    }
+}
+
+/// Measures until the number is trustworthy, or gives up and says which checks
+/// failed. A busy machine is retried, never believed: a low reading taken while
+/// the user was watching a video would have us refuse a perfectly good computer.
+pub fn measure_reliable(config: &ProbeConfig) -> Measurement {
+    let mut last = measure(config);
+    let mut attempt = 1;
+    while !last.is_reliable() && attempt < MAX_ATTEMPTS {
+        std::thread::sleep(RETRY_PAUSE);
+        last = measure(config);
+        attempt += 1;
+    }
+    last
 }
 
 #[cfg(test)]
@@ -65,37 +215,36 @@ mod tests {
 
     fn tiny() -> ProbeConfig {
         ProbeConfig {
-            buffer_bytes: 1 << 20,
             repetitions: 2,
             threads: 2,
             matmul_size: 64,
         }
     }
 
-    /// The probes must return a usable series for any sane config. The numbers
-    /// themselves are the machine's business; the structure is ours.
     #[test]
-    fn bandwidth_returns_one_positive_sample_per_repetition() {
-        let series = measure_bandwidth(&tiny());
-        assert_eq!(series.samples().len(), 2);
-        assert!(series.min() > 0.0, "bandwidth must be positive");
-        assert!(series.mean() <= series.max());
-        assert!(series.relative_spread().is_finite());
+    fn a_measurement_carries_a_ramp_a_ceiling_and_a_verdict() {
+        let measurement = measure(&tiny());
+        assert_eq!(measurement.ramp.len(), 2, "threads 1 and 2");
+        assert!(measurement.ramp.iter().all(|(_, rate)| *rate > 0.0));
+        assert!(measurement.ceiling_bytes_per_second >= measurement.ramp[0].1 * 0.5);
+        assert!(measurement.compute.min() > 0.0);
+        assert!(measurement.cache.max() > 0.0);
+        assert_eq!(measurement.measured_on, ExecutionPath::Cpu);
+        assert!(!measurement.measured_on.note().is_empty());
+        // Detection ran and is reachable as data, not only as prose.
+        assert_eq!(
+            measurement.bandwidth_is_lower_bound(),
+            measurement.will_run_on.is_faster_than_cpu_measurement()
+        );
+        // The verdict is a judgement, not a promise: either it is reliable or it
+        // says what was wrong.
+        assert!(measurement.is_reliable() || !measurement.reliability.notes.is_empty());
     }
 
     #[test]
-    fn compute_returns_one_positive_sample_per_repetition() {
-        let series = measure_compute(&tiny());
-        assert_eq!(series.samples().len(), 2);
-        assert!(series.min() > 0.0, "compute must be positive");
-        assert!(series.mean() <= series.max());
-    }
-
-    #[test]
-    fn a_single_thread_is_enough_to_measure_something() {
-        let mut config = tiny();
-        config.threads = 1;
-        assert!(measure_bandwidth(&config).mean() > 0.0);
-        assert!(measure_compute(&config).mean() > 0.0);
+    fn retrying_never_returns_more_than_it_promises() {
+        let measurement = measure_reliable(&tiny());
+        assert!(measurement.reliability.threads == 2);
+        assert!(measurement.is_reliable() || !measurement.reliability.notes.is_empty());
     }
 }

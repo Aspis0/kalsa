@@ -95,36 +95,52 @@ cargo run --release -p kalsa-probe -- --threads 1 --reps 10
 
 Two measurements, kept apart on purpose:
 
-* **bandwidth** — streaming reads of a block larger than any cache, split across
-  the threads we would really use. Decode is bandwidth-bound: one token reads
-  every active weight byte once, so `tokens/s ≈ efficiency × bandwidth /
-  active_bytes`. A datasheet number is fantasy on a single-channel laptop, which
-  is why it is measured under load and not quoted.
+* **bandwidth** — streaming reads of a block larger than any cache. Decode is
+  bandwidth-bound: one token reads every active weight byte once, so
+  `tokens/s ≈ efficiency × bandwidth / active_bytes`. The thread count is not
+  assumed: **a ramp** measures 1, 2, 4 … threads and reports the first count that
+  reaches the plateau. A datasheet number is fantasy on a single-channel laptop,
+  which is why it is measured and not quoted.
 * **compute** — a dense f32 matmul, because **prefill is compute-bound** and
   predicting it from the bandwidth figure would be wrong, and wrong in silence.
 
-Every number comes with its spread (`Series`): a metric that swings between
-repetitions is not a baseline. Each sample is several passes so that one
-descheduled repetition on a busy machine cannot become the result.
+Every number comes with its spread (`Series`), and the estimator for a capability
+measurement is the **best sample**, not the median: competition can only make a
+sample slower, so the fastest repetition is the closest we get to the machine.
 
-Honesty about the result. The decode figure is an approximation with two
-independent sources of error, and they point in opposite directions:
+**A number that does not say which path it measures is how the wrong answer got
+out once.** The result carries both facts, as data:
 
-* **the probe under-reads the hardware.** It is one process doing scalar
-  streaming reads: ~100 GB/s on an M1 Max whose SoC is specified at 400 GB/s.
-  A tuned quantised kernel may stream faster, which makes the prediction
-  pessimistic;
-* **the formula ignores traffic the model really pays.** The KV cache is re-read
-  every token and grows with context (the largest omission for a MoE, whose
-  active weights are small), attention costs more as context grows, and a router
-  adds reads. That makes the prediction optimistic.
+* `measured_on` — the path the numbers came from, `Cpu` today;
+* `will_run_on` — what detection says this machine offers: `Metal` on Apple
+  Silicon, `DiscreteGpu { vram_bytes }` when a discrete NVIDIA/AMD card is found,
+  `Cpu` when there is none, `Unknown` when no cheap honest answer exists;
+* `bandwidth_is_lower_bound()` — true when the machine will run on something
+  faster than the path measured, so the catalog can branch on it instead of
+  parsing a sentence.
 
-`EFFICIENCY_BAND` (0.7–0.9) is a prior for the second part, not a constant. So
-the number is good enough to *pre-filter* a catalog — "this candidate obviously
-loses to the phone" — and not good enough to promise a figure. Nothing here has
-been validated against real inference yet: that needs a real model benchmarked on
-the machine, which is the plan's measured baseline and the next step, not a
-claim.
+On Apple Silicon this matters by 3–4x: the SoC's memory bandwidth (an M1 Max is
+specified at 400 GB/s) is reachable from the GPU and not from the CPU, and
+llama.cpp decodes through Metal there, so the CPU figure is a floor. On an old
+integrated GPU the CPU is the correct answer rather than a fallback, and on a
+discrete card the budget is VRAM, not system RAM — which is why one number could
+never have been enough.
+
+The probe refuses its own bad measurements: repetitions that disagree, a ramp
+that never flattens, a memory reading faster than the cache, or threads that did
+not get their cores all make the verdict `unreliable`, and the caller retries
+rather than reporting a low number as a fact about the machine. What no
+invariant can do is tell "slow machine" from "busy machine" in absolute terms,
+and that is why the answer is a verdict instead of a table of what each CPU class
+should reach.
+
+The remaining honesty: the formula ignores traffic the model really pays — the KV
+cache is re-read every token and grows with context (the largest omission for a
+MoE, whose active weights are small), attention costs more as context grows, and a
+router adds reads. `EFFICIENCY_BAND` (0.7–0.9) is a prior for that, not a
+constant. So the number pre-filters a catalog; it does not promise a figure.
+Nothing here has been validated against real inference yet: that needs a real
+model benchmarked on the machine.
 
 ## The catalog: which model, before downloading anything
 

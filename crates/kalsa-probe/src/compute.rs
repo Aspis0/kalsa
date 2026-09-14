@@ -5,14 +5,15 @@
 //! number would be wrong, and wrong in silence — which is why this exists.
 //!
 //! The probe is a dense f32 matmul parallelised by rows, the way an inference
-//! engine splits work. It is a stand-in for a quantised kernel: an upper bound
-//! on real prefill throughput, for the same reason the bandwidth probe is an
-//! upper bound on decode.
+//! engine splits work. It is a stand-in for a quantised kernel: an upper bound on
+//! real prefill throughput, for the same reason the bandwidth probe is an upper
+//! bound on decode.
 
 use std::time::Instant;
 
+use crate::bandwidth::SAMPLE_TARGET;
 use crate::series::Series;
-use crate::{ProbeConfig, FLOOR_FLOPS_PER_SECOND, MAX_PASSES_PER_SAMPLE, SAMPLE_TARGET_SECONDS};
+use crate::ProbeConfig;
 
 pub fn measure_compute(config: &ProbeConfig) -> Series {
     let size = config.matmul_size.max(16);
@@ -23,15 +24,13 @@ pub fn measure_compute(config: &ProbeConfig) -> Series {
     let flops_per_run = 2.0 * (size as f64).powi(3);
     let rows_per_band = size.div_ceil(threads);
 
-    // Same reasoning as the bandwidth probe: 1.5 ms of arithmetic measures the
-    // scheduler. Repeat the matmul until a sample is worth timing.
-    let passes = ((SAMPLE_TARGET_SECONDS * FLOOR_FLOPS_PER_SECOND / flops_per_run).ceil() as u64)
-        .clamp(1, MAX_PASSES_PER_SAMPLE);
-
     let mut samples = Vec::with_capacity(config.repetitions as usize);
     for _ in 0..config.repetitions {
         let started = Instant::now();
-        for _ in 0..passes {
+        let mut passes = 0u64;
+        // 1.5 ms of arithmetic measures the scheduler: keep going until the
+        // sample is worth timing.
+        while started.elapsed() < SAMPLE_TARGET {
             c.fill(0.0);
             std::thread::scope(|scope| {
                 let (a, b) = (&a, &b);
@@ -55,6 +54,7 @@ pub fn measure_compute(config: &ProbeConfig) -> Series {
                     let _ = handle.join();
                 }
             });
+            passes += 1;
         }
         let elapsed = started.elapsed().as_secs_f64();
         std::hint::black_box(c[0]);

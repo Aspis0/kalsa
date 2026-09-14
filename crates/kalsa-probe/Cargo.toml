@@ -9,6 +9,10 @@ license.workspace = true
 # buffers, so the numbers are the machine's, not a library's.
 [dependencies]
 
+# Only for the CPU-time diagnostic behind the reliability verdict.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [[bin]]
 name = "kalsa-probe"
 path = "src/bin/kalsa-probe.rs"
