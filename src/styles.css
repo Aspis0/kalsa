@@ -100,6 +100,23 @@ button:focus-visible,
   line-height: 1.45;
 }
 
+/* The first run's download line: the one number on the screen that is real,
+   so it gets full contrast and steady digits. */
+.progress {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  height: 6px;
+  margin: 0 0 14px;
+  border-radius: 999px;
+  /* The fill is the accent share of the track, sized by --pct from the page. */
+  background: linear-gradient(to right, var(--accent) var(--pct, 0%), var(--tab) 0);
+}
+
 button.primary {
   padding: 10px 24px;
   border: 0;

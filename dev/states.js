@@ -49,6 +49,26 @@ function statusBackend(state, modelChosen) {
   };
 }
 
+// The setup DTO the Status page is written against (see pages/setup.js).
+// Byte figures are the plan's own sizes, stubbed; they exist to review the
+// sentence around them, not to promise a download size.
+function setupDto(phase) {
+  return { kind: "setup", phase, fetching: null, failure: null };
+}
+
+function fetchDto(what, done, total, resumed) {
+  return {
+    kind: "setup",
+    phase: "fetching",
+    fetching: { what, total_bytes: total, done_bytes: done, resumed },
+    failure: null,
+  };
+}
+
+function setupFailed(reason) {
+  return { kind: "setup", phase: "failed", fetching: null, failure: reason };
+}
+
 function modelBackend(measured, measure) {
   return {
     async measured() {
@@ -59,6 +79,72 @@ function modelBackend(measured, measure) {
 }
 
 // ---- Status ----
+
+card("Status", "first run: reading the machine", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupDto("reading"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: choosing a model", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupDto("choosing"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: fetching the engine (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("engine", 320e6, 645e6, false), false),
+  }).refresh(),
+);
+
+card("Status", "first run: fetching the model (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("model", 0.4e9, 5.2e9, false), false),
+  }).refresh(),
+);
+
+card("Status", "first run: resuming the engine download (stub bytes)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(fetchDto("engine", 401e6, 645e6, true), false),
+  }).refresh(),
+);
+
+card("Status", "first run: starting the server", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupDto("starting"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: the connection dropped", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupFailed("network"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: disk full", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupFailed("disk-full"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: download arrived damaged", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupFailed("damaged"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: no engine for this machine", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupFailed("no-engine"), false),
+  }).refresh(),
+);
+
+card("Status", "first run: not worth it", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(setupFailed("not-worth-it"), false),
+  }).refresh(),
+);
 
 card("Status", "first run: no model, engine off", (panel) =>
   mountStatus(panel, {

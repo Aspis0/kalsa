@@ -9,6 +9,7 @@
 // wired, the page says it cannot tell, and never guesses.
 
 import { available, invoke } from "../lib/tauri.js";
+import { mountSetup } from "./setup.js";
 import {
   phone as defaultPhone,
   throttled as defaultThrottled,
@@ -63,12 +64,21 @@ export function mountStatus(
     <p class="sentence" data-el="sentence"></p>
     <p class="note" data-el="note" hidden></p>
     <button type="button" class="primary" data-el="action"></button>
+    <div data-el="setup" hidden></div>
   `;
   const el = (name) => root.querySelector(`[data-el="${name}"]`);
   const headline = el("headline");
   const sentence = el("sentence");
   const note = el("note");
   const action = el("action");
+  const setupBox = el("setup");
+  const setupView = mountSetup(setupBox, {
+    // Pressing Try again on a setup failure re-enters the flow at the same
+    // step; the poll picks the new state up.
+    onRetry: () => {
+      backend.start().catch(() => {});
+    },
+  });
 
   // The last render's facts, so the button acts on what the screen shows.
   let current = { state: null, modelChosen: null };
@@ -89,6 +99,17 @@ export function mountStatus(
 
   function render(state, modelChosen) {
     current = { state, modelChosen };
+
+    // The first run is not Off or On: it is a sequence of slow steps, and
+    // while it runs the setup view replaces the switch entirely.
+    if (state && state.kind === "setup") {
+      for (const el of [headline, sentence, note, action]) el.hidden = true;
+      setupBox.hidden = false;
+      setupView.update(state);
+      return;
+    }
+    for (const el of [headline, sentence, note, action]) el.hidden = false;
+    setupBox.hidden = true;
 
     // A slowdown the machine chose for itself is announced, never silent.
     note.hidden = throttled !== true;

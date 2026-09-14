@@ -16,6 +16,12 @@ class FakeEl {
     this.attrs = {};
     this._text = null;
     this.handlers = {};
+    // Enough style for the pages: setProperty is how setup.js drives the bar.
+    this.style = {
+      setProperty: (name, value) => {
+        this[name] = value;
+      },
+    };
   }
 
   set innerHTML(html) {
@@ -111,28 +117,49 @@ await new Promise((resolve) => setTimeout(resolve, 20));
 
 // ---- collect the copy ----
 
+// The checker reads what is on screen: a hidden subtree is not on screen, so
+// the walk skips it. That is also how duplicate data-el names resolve — the
+// setup view's sentence is found because the status view's is hidden.
+function visibleText(el) {
+  if (el.hidden) return "";
+  if (el._text !== null) return el._text;
+  return el.children.map(visibleText).join("");
+}
+
+function findVisible(el, match) {
+  if (el.hidden) return null;
+  for (const child of el.children) {
+    if (child.hidden) continue;
+    if (match(child)) return child;
+    const deep = findVisible(child, match);
+    if (deep) return deep;
+  }
+  return null;
+}
+
 const results = [];
 for (const card of root.children) {
   const heading = card.children[0].textContent;
   const panel = card.children[1];
-  const button = panel.querySelector("button");
-  const sentence = panel.textContent;
-  // A hidden button is not on screen: report it as no action, never as an
-  // empty control someone has to chase into the source.
-  const visible = button && !button.hidden;
+  const button = findVisible(panel, (el) => el.tag === "button");
+  const bar = findVisible(panel, (el) => el.attrs["data-el"] === "bar");
+  const progressEl = findVisible(panel, (el) => el.attrs["data-el"] === "progress");
+  const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
   results.push({
     heading,
-    sentence,
-    button: visible
-      ? { text: button.textContent, disabled: button.disabled }
-      : null,
+    sentence: sentenceEl ? sentenceEl.textContent : visibleText(panel),
+    button: button ? { text: button.textContent, disabled: button.disabled } : null,
+    progress: progressEl ? progressEl.textContent : null,
+    working: bar !== null,
   });
 }
 
-for (const { heading, sentence, button } of results) {
+for (const { heading, sentence, button, progress, working } of results) {
   console.log(`## ${heading}`);
   console.log(`   ${sentence}`);
-  if (button) {
+  if (working) {
+    console.log(`   [working] ${progress}`);
+  } else if (button) {
     console.log(`   [${button.disabled ? "disabled" : "button"}] ${button.text}`);
   } else {
     console.log("   [no action]");
@@ -154,14 +181,15 @@ for (const word of ["port", "token", "url", "file", "error", "state", "gguf", "q
 if (/!/.test(ALL_TEXT)) problems.push("exclamation mark");
 
 // Every state must end in a pressable button, a disabled in-progress button,
-// or an explicit nothing-to-do / instruction. The phrases are the app's
-// deliberate terminal exits; a new terminal state should extend this list on
-// purpose, not silence the check by accident.
+// a visible download bar, or an explicit nothing-to-do / instruction. The
+// phrases are the app's deliberate terminal or in-progress sentences; a new
+// one extends this list on purpose, not to silence the check by accident.
 const NOTHING = [
   "nothing for you to do here",
   "There is nothing to choose",
   "Open the app on this computer",
   "not worth it",
+  "not worth using",
   "Pair the phone first",
   "Nothing on this page is a guess",
   "too slow to use",
@@ -172,15 +200,19 @@ const NOTHING = [
   "That is why it runs here",
   "battery lasts longer",
   "We have not tested it on this computer yet",
+  // Setup steps with no bytes to show yet: the sentence is the progress.
+  "Looking at what this computer",
+  "Deciding which model",
+  "can take a minute",
 ];
-for (const { heading, sentence, button } of results) {
+for (const { heading, sentence, button, progress, working } of results) {
   const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
   // A control with no name is not a way out; it is a dead end with a
   // rectangle on it.
   const pressable = button && !button.disabled && button.text.trim() !== "";
-  const progress =
+  const progressButton =
     button && button.disabled && (button.text === "Measuring…" || button.text === "Starting");
-  if (!pressable && !progress && !endsInNothing) {
+  if (!pressable && !progressButton && !endsInNothing && !working) {
     problems.push(`dead end: ${heading}`);
   }
 }
@@ -190,6 +222,29 @@ for (const { heading, sentence, button } of results) {
 for (const { heading, button } of results) {
   if (button && button.text.trim() === "") {
     problems.push(`labelless button: ${heading}`);
+  }
+}
+
+// A download that cannot say why it happens and that it happens once is a
+// broken app: four silent minutes is how trust in it dies.
+for (const { heading, sentence, progress, working } of results) {
+  if (!working) continue;
+  if (!/once/.test(sentence)) {
+    problems.push(`a download must say it happens once: ${heading}`);
+  }
+  if (!/\d+(\.\d+)? of \d+(\.\d+)? (MB|GB)/.test(progress ?? "")) {
+    problems.push(`a download must show both byte counts: ${heading}`);
+  }
+  if (!/\d+%/.test(progress ?? "")) {
+    problems.push(`a download must show a percentage: ${heading}`);
+  }
+}
+
+// A failure partway through is a different sentence from a failure at the
+// start: kalsa-download resumes, and the copy has to keep that promise.
+for (const { heading, sentence } of results) {
+  if (/connection dropped/.test(sentence) && !/picks up where it stopped/.test(sentence)) {
+    problems.push(`a mid-download failure must promise resume: ${heading}`);
   }
 }
 
