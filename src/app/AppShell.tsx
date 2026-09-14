@@ -153,6 +153,7 @@ import {
   beginBackendSwitch,
   endBackendSwitch,
   hydrateRemoteBrainSettings,
+  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
   setEngineBackendMode,
@@ -2842,7 +2843,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (!bootStillCurrent()) return;
         const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
         if (!bootStillCurrent()) return;
-        if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
+        if (isOrphanRemoteWithoutUrl(hydrated)) {
+          await recoverLocalBackend();
+          if (!bootStillCurrent()) return;
+          engineIntentRef.current = {
+            modelId: MODEL_REGISTRY[modelIndexRef.current]?.id ?? "",
+            remote: false,
+          };
+          setRemoteActive(false);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("settings.remoteBrainMigratedToLocal"));
+        } else if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
           if (!bootStillCurrent()) return;
           engineIntentRef.current = {
             modelId: REMOTE_MAC_MODEL_ID,

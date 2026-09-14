@@ -118,6 +118,8 @@ export const en = {
     remoteBrainUrlHint: "https://your-mac… or http://127.0.0.1:8000 with adb reverse",
     remoteBrainUrlMissing:
       "Enter your Mac's address before using the remote brain.",
+    remoteBrainMigratedToLocal:
+      "The Mac brain needs an address. Local mode is on until you set it in Settings.",
     remoteBrainModel: "Server model id",
     remoteBrainModelHint: "Must match an id from GET /v1/models. Not guessed.",
     remoteBrainMaxTokens: "Max tokens",

@@ -117,6 +117,8 @@ export const it: typeof en = {
     remoteBrainUrlHint: "https://il-tuo-mac… oppure http://127.0.0.1:8000 con adb reverse",
     remoteBrainUrlMissing:
       "Inserisci l'indirizzo del tuo Mac prima di usare il cervello remoto.",
+    remoteBrainMigratedToLocal:
+      "Il cervello del Mac ha bisogno di un indirizzo. Resta la modalita locale finche non lo imposti in Impostazioni.",
     remoteBrainModel: "Id modello sul server",
     remoteBrainModelHint: "Deve coincidere con un id di GET /v1/models. Non viene indovinato.",
     remoteBrainMaxTokens: "Max token",

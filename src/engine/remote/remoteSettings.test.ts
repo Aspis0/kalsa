@@ -22,8 +22,10 @@ import {
   endBackendSwitch,
   getEngineBackendMode,
   hydrateRemoteBrainSettings,
+  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
+  REMOTE_BRAIN_URL_KEY,
   setEngineBackendMode,
   validateServedModel,
 } from "./remoteSettings";
@@ -106,6 +108,25 @@ describe("backend cache writes", () => {
     expect(isRemoteEngineBackend()).toBe(true);
     await setEngineBackendMode("local");
     expect(isRemoteEngineBackend()).toBe(false);
+  });
+
+  test("virgin storage with backend remote and no URL key is an orphan", async () => {
+    store[ENGINE_BACKEND_KEY] = "remote";
+    delete store[REMOTE_BRAIN_URL_KEY];
+    const snap = await hydrateRemoteBrainSettings();
+    expect(snap.urlNeverSet).toBe(true);
+    expect(snap.backend).toBe("remote");
+    expect(isOrphanRemoteWithoutUrl(snap)).toBe(true);
+    await recoverLocalBackend();
+    expect(isRemoteEngineBackend()).toBe(false);
+  });
+
+  test("empty URL string is not an orphan (user set it empty)", async () => {
+    store[ENGINE_BACKEND_KEY] = "remote";
+    store[REMOTE_BRAIN_URL_KEY] = "";
+    const snap = await hydrateRemoteBrainSettings();
+    expect(snap.urlNeverSet).toBe(false);
+    expect(isOrphanRemoteWithoutUrl(snap)).toBe(false);
   });
 
   test("getItem rejects -> recoverLocalBackend -> not remote", async () => {

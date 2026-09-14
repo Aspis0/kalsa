@@ -155,11 +155,21 @@ export async function setRemoteContextSize(n: number): Promise<void> {
 export type RemoteBrainSnapshot = {
   backend: EngineBackendMode;
   url: string;
+  /** True when REMOTE_BRAIN_URL_KEY was never written (null), not when it is "". */
+  urlNeverSet: boolean;
   serverModelId: string;
   maxTokens: number;
   temperature: number;
   ctx: number;
 };
+
+/** Persisted remote with no URL key: upgrade trap. Do not revive loopback. */
+export function isOrphanRemoteWithoutUrl(snap: {
+  backend: EngineBackendMode;
+  urlNeverSet: boolean;
+}): boolean {
+  return snap.backend === "remote" && snap.urlNeverSet;
+}
 
 /**
  * Read-only snapshot. Does not write backendCache — only setEngineBackendMode
@@ -176,6 +186,7 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
         AsyncStorage.getItem(REMOTE_BRAIN_TEMPERATURE_KEY),
         AsyncStorage.getItem(REMOTE_BRAIN_CTX_KEY),
       ]);
+    const urlNeverSet = urlRaw === null;
     if (urlRaw) {
       const parsed = normalizeRemoteUrl(urlRaw);
       urlCache = parsed.ok ? parsed.url : DEFAULT_REMOTE_BRAIN_URL;
@@ -189,6 +200,7 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
     return {
       backend: backendRaw === "remote" ? "remote" : "local",
       url: urlCache,
+      urlNeverSet,
       serverModelId: serverModelCache,
       maxTokens: maxTokensCache,
       temperature: temperatureCache,
@@ -203,6 +215,7 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
     return {
       backend: "local",
       url: urlCache,
+      urlNeverSet: true,
       serverModelId: serverModelCache,
       maxTokens: maxTokensCache,
       temperature: temperatureCache,

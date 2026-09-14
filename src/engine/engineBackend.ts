@@ -74,6 +74,7 @@ export {
   beginBackendSwitch,
   endBackendSwitch,
   hydrateRemoteBrainSettings,
+  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
   setEngineBackendMode,
