@@ -79,6 +79,7 @@ import {
   probeAndReconcileEngine,
   saveEngineSession,
   translateText,
+  isRemoteEngineBackend,
 } from "../engine/engineBackend";
 import { shouldRecoverLost } from "../engine/engineLiveness";
 import {
@@ -2276,7 +2277,8 @@ export function AiChatPage({
       const armedResearch = researchModeRef.current;
       const armedNotes = notesModeRef.current;
       const keywordResearch = hasDeepResearchTrigger(trimmed);
-      const useResearch = armedResearch || keywordResearch;
+      const useResearch =
+        !isRemoteEngineBackend() && (armedResearch || keywordResearch);
       if (armedResearch) {
         researchModeRef.current = false;
         setResearchMode(false);
@@ -3248,6 +3250,10 @@ export function AiChatPage({
   const runTranslate = useCallback(
     async (messageId: string, sourceText: string) => {
       // Do not contend with an active chat completion on the same engine.
+      if (isRemoteEngineBackend()) {
+        showVoiceNote(t("settings.remoteGated"));
+        return;
+      }
       if (sendingRef.current || translationInFlightRef.current) return;
       const runId = ++translateRunRef.current;
       // Sync flag BEFORE the await so handleSend / long-press see it immediately.
@@ -3355,10 +3361,14 @@ export function AiChatPage({
   );
 
   const toggleResearchMode = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     const next = !researchModeRef.current;
     researchModeRef.current = next;
     setResearchMode(next);
-  }, []);
+  }, [t]);
 
   const toggleNotesMode = useCallback(() => {
     const next = !notesModeRef.current;
@@ -3912,7 +3922,7 @@ export function AiChatPage({
             onPress={toggleResearchMode}
             colors={colors}
             active={researchMode}
-            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender || isRemoteEngineBackend()}
             accessibilityLabel={researchMode ? t("chat.deepResearchActive") : t("chat.deepResearch")}
           />
           <ComposerContextChip
@@ -4159,6 +4169,7 @@ export function AiChatPage({
                     colors={colors}
                   />
                 ) : null}
+                {!isRemoteEngineBackend() ? (
                 <AttachSheetRow
                   icon={<Languages size={18} color={colors.ink} />}
                   label={t("translate.title")}
@@ -4167,6 +4178,7 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
+                ) : null}
                 {messageMenu.role === "user" && !sending ? (
                   <AttachSheetRow
                     icon={<SquarePen size={18} color={colors.ink} />}
