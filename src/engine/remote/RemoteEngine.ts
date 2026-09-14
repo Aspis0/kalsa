@@ -7,6 +7,7 @@ import type {
   MemoryExtractResult,
   StreamTurnOptions,
 } from "../LlamaService";
+import { createThinkStreamCleaner } from "../thinkStream";
 import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
@@ -205,6 +206,7 @@ export async function streamRemoteAssistantTurn(
   let emitted = "";
   let thinking = false;
   let writing = false;
+  const think = createThinkStreamCleaner();
   let closed = false;
   const flushEveryMs = 32;
   let pending = "";
@@ -236,6 +238,11 @@ export async function streamRemoteAssistantTurn(
       timer = null;
     }
     flush();
+    const finalVisible = think.finalize(emitted);
+    if (finalVisible !== visible) {
+      visible = finalVisible;
+      callbacks.onDelta("", visible);
+    }
     inFlight = false;
     activeStream = null;
     if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
@@ -289,21 +296,22 @@ export async function streamRemoteAssistantTurn(
       },
       {
         onDelta: (delta) => {
-          if (delta.reasoning && !thinking) {
+          if (delta.reasoning && !thinking && !writing) {
             thinking = true;
             callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
           }
           if (delta.content) {
-            if (!writing) {
+            emitted += delta.content;
+            const visibleChunk = think.cleanDelta(delta.content);
+            if (!writing && visibleChunk) {
               writing = true;
               callbacks.onStatus?.({ label: strings.chat.writingStatus });
               console.log(
                 "remote.brain.token",
-                JSON.stringify({ n: delta.content.length }),
+                JSON.stringify({ n: visibleChunk.length }),
               );
             }
-            emitted += delta.content;
-            queue(delta.content);
+            if (visibleChunk) queue(visibleChunk);
           }
         },
         onFinish: (finish) => {
