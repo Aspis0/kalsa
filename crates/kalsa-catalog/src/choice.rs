@@ -5,7 +5,7 @@
 //! then throw out what does not fit, then refuse to propose anything that is not
 //! clearly more model than the phone's, and only then choose.
 
-use kalsa_probe::{decode_tokens_per_second, prefill_tokens_per_second, EFFICIENCY_BAND};
+use kalsa_probe::{decode_tokens_per_second, prefill_tokens_per_second, DECODE_EFFICIENCY_BAND};
 
 use crate::footprint::{footprint_bytes, usable_bytes, Footprint, GIB};
 use crate::manifest::{self, ModelEntry, UsableEntry};
@@ -76,8 +76,10 @@ pub struct Selection {
     pub weights_bytes: u64,
     pub footprint: Footprint,
     pub context_tokens: u64,
-    /// Predicted decode and prefill throughput as ranges, never as a point.
+    /// Decode throughput as a range, never as a point.
     pub decode: (f64, f64),
+    /// Prefill throughput as a **floor**: both ends are the same number and mean
+    /// "at least this much" (see `Measurement::compute_is_lower_bound`).
     pub prefill: (f64, f64),
     pub rationale: String,
 }
@@ -238,9 +240,14 @@ fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
         entry,
         footprint: footprint_bytes(entry, input.context_tokens),
         decode: band(|efficiency| decode_tokens_per_second(bandwidth, active_bytes, efficiency)),
-        prefill: band(|efficiency| {
-            prefill_tokens_per_second(compute, entry.parameters.active().count(), efficiency)
-        }),
+        // Prefill is a floor, not a range: the compute probe is a portable loop
+        // and real kernels are faster. Both ends carry the same number, and the
+        // meaning is "at least this much" — never a band to multiply down.
+        prefill: {
+            let floor = prefill_tokens_per_second(compute, entry.parameters.active().count())
+                .unwrap_or(0.0);
+            (floor, floor)
+        },
     }
 }
 
@@ -255,7 +262,7 @@ fn active_weight_bytes(entry: &ModelEntry) -> u64 {
 }
 
 fn band(predict: impl Fn(f64) -> Option<f64>) -> (f64, f64) {
-    let (low_efficiency, high_efficiency) = EFFICIENCY_BAND;
+    let (low_efficiency, high_efficiency) = DECODE_EFFICIENCY_BAND;
     let low = predict(low_efficiency).unwrap_or(0.0);
     let high = predict(high_efficiency).unwrap_or(0.0);
     (low, high)

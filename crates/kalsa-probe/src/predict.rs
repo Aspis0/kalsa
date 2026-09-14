@@ -36,8 +36,17 @@
 //! wrong, and wrong in silence.
 //!
 //! ```text
-//! prefill tokens/s ≈ efficiency × FLOPs/s / (2 × active_parameters)
+//! prefill tokens/s ≈ FLOPs/s / (2 × active_parameters)
 //! ```
+//!
+//! Note what is **not** in that formula: an efficiency. The band below is a
+//! *memory* band — the share of measured bandwidth a real decode loop sustains —
+//! and it was once applied to the compute figure too. That made an already-low
+//! number lower, and the low number was a floor to begin with, because the
+//! compute probe is a portable loop and real prefill kernels are blocked,
+//! quantised and (on Apple Silicon) run on AMX. A compute-bound prediction gets
+//! no memory band, and its floor-ness travels as data
+//! ([`crate::Measurement::compute_is_lower_bound`]).
 
 /// Decode throughput for a model whose active weights are `active_parameter_bytes`.
 ///
@@ -60,21 +69,29 @@ pub fn decode_tokens_per_second(
 
 /// Prefill throughput (tokens per second of prompt processing) for a model with
 /// `active_parameters` active weights: two FLOPs per weight per token.
+///
+/// This is a **floor**: it comes from a portable f32 loop, and the kernels
+/// llama.cpp ships are faster. There is deliberately no efficiency parameter —
+/// see the module header for what applying the memory band here cost.
 pub fn prefill_tokens_per_second(
     compute_flops_per_second: f64,
     active_parameters: u64,
-    efficiency: f64,
 ) -> Option<f64> {
-    let inputs = plausible(compute_flops_per_second, efficiency)?;
+    if !(compute_flops_per_second.is_finite() && compute_flops_per_second > 0.0) {
+        return None;
+    }
     if active_parameters == 0 {
         return None;
     }
-    Some(inputs.0 * inputs.1 / (2.0 * active_parameters as f64))
+    Some(compute_flops_per_second / (2.0 * active_parameters as f64))
 }
 
-/// The efficiency band the two functions above are honest within, as measured
-/// against real inference elsewhere. A single number would be a lie.
-pub const EFFICIENCY_BAND: (f64, f64) = (0.7, 0.9);
+/// The share of the *measured bandwidth* a real decode loop sustains, from
+/// comparisons with real inference elsewhere.
+///
+/// It belongs to decode only. The compute figure needs no correction of this
+/// kind: it is a floor already, and multiplying a floor down was a bug.
+pub const DECODE_EFFICIENCY_BAND: (f64, f64) = (0.7, 0.9);
 
 fn plausible(rate: f64, efficiency: f64) -> Option<(f64, f64)> {
     let valid_rate = rate.is_finite() && rate > 0.0;
@@ -108,13 +125,29 @@ mod tests {
     }
 
     #[test]
-    fn prefill_uses_compute_not_bandwidth() {
+    fn prefill_is_compute_over_active_parameters_with_no_correction() {
         let flops = 100.0e9;
         let params = 3_000_000_000;
-        let upper = prefill_tokens_per_second(flops, params, 1.0).expect("upper bound");
-        assert!((upper - 16.667).abs() < 0.01, "got {upper}");
-        let typical = prefill_tokens_per_second(flops, params, 0.8).expect("typical");
-        assert!((typical - 13.333).abs() < 0.01, "got {typical}");
+        let predicted = prefill_tokens_per_second(flops, params).expect("a prediction");
+        assert!((predicted - 16.667).abs() < 0.01, "got {predicted}");
+        // No memory band anywhere near it: the figure is a floor, and a floor is
+        // not to be multiplied down.
+        assert!(
+            (predicted - flops / (2.0 * params as f64)).abs() < 1e-9,
+            "the compute figure must pass through untouched"
+        );
+    }
+
+    #[test]
+    fn the_band_is_a_decode_band_and_says_so() {
+        let (low, high) = DECODE_EFFICIENCY_BAND;
+        assert!(low > 0.0 && low < high && high <= 1.0);
+        // Decode still uses it: a real loop does not sustain the peak.
+        let bandwidth = 100.0e9;
+        let bytes = 2_000_000_000;
+        let upper = decode_tokens_per_second(bandwidth, bytes, 1.0).expect("upper");
+        let typical = decode_tokens_per_second(bandwidth, bytes, low).expect("typical");
+        assert!(typical < upper);
     }
 
     #[test]
@@ -124,13 +157,7 @@ mod tests {
         assert!(decode_tokens_per_second(20.0e9, 1_000, 0.0).is_none());
         assert!(decode_tokens_per_second(20.0e9, 1_000, 1.5).is_none());
         assert!(decode_tokens_per_second(f64::NAN, 1_000, 1.0).is_none());
-        assert!(prefill_tokens_per_second(0.0, 1_000, 1.0).is_none());
-        assert!(prefill_tokens_per_second(1.0e12, 0, 1.0).is_none());
-    }
-
-    #[test]
-    fn the_band_is_wider_than_nothing_and_inside_a_bound() {
-        let (low, high) = EFFICIENCY_BAND;
-        assert!(low > 0.0 && low < high && high <= 1.0);
+        assert!(prefill_tokens_per_second(0.0, 1_000).is_none());
+        assert!(prefill_tokens_per_second(1.0e12, 0).is_none());
     }
 }

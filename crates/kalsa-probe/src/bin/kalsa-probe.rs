@@ -5,7 +5,7 @@
 
 use kalsa_probe::{
     decode_tokens_per_second, measure_reliable, prefill_tokens_per_second, ProbeConfig, Series,
-    EFFICIENCY_BAND,
+    DECODE_EFFICIENCY_BAND,
 };
 
 /// Illustrative catalog rows: (label, active bytes, active parameters). Byte
@@ -72,15 +72,19 @@ fn main() {
     }
 
     println!();
-    println!("lower bound: {}", measurement.bandwidth_is_lower_bound());
+    println!(
+        "lower bounds: bandwidth {} (detected path), compute {} (portable loop)",
+        measurement.bandwidth_is_lower_bound(),
+        measurement.compute_is_lower_bound()
+    );
     println!("{}", measurement.measured_on.note());
     println!("{}", measurement.will_run_on.note());
 
-    let (low, high) = EFFICIENCY_BAND;
+    let (low, high) = DECODE_EFFICIENCY_BAND;
     let bandwidth = measurement.ceiling_bytes_per_second;
     let compute = measurement.compute.max();
     println!();
-    println!("predictions at efficiency {low}..{high} (and the 1.0 bound)");
+    println!("decode at efficiency {low}..{high} (1.0 in brackets); prefill is a FLOOR, no band");
     println!(
         "{:<20} {:>18} {:>18}",
         "row (illustrative)", "decode tok/s", "prefill tok/s"
@@ -93,11 +97,10 @@ fn main() {
                 decode_tokens_per_second(bandwidth, active_bytes, high),
                 decode_tokens_per_second(bandwidth, active_bytes, 1.0),
             ),
-            span(
-                prefill_tokens_per_second(compute, active_params, low),
-                prefill_tokens_per_second(compute, active_params, high),
-                None,
-            )
+            match prefill_tokens_per_second(compute, active_params) {
+                Some(floor) => format!("≥ {floor:.1}"),
+                None => "—".to_string(),
+            }
         );
     }
 }

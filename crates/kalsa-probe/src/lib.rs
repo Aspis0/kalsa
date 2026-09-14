@@ -24,7 +24,7 @@ pub use compute::measure_compute;
 pub use confidence::{Reliability, SPREAD_LIMIT};
 pub use path::{Backend, ExecutionPath};
 pub use plateau::{plateau, still_rising, PLATEAU_TOLERANCE};
-pub use predict::{decode_tokens_per_second, prefill_tokens_per_second, EFFICIENCY_BAND};
+pub use predict::{decode_tokens_per_second, prefill_tokens_per_second, DECODE_EFFICIENCY_BAND};
 pub use series::Series;
 
 use std::time::{Duration, Instant};
@@ -107,6 +107,16 @@ impl Measurement {
     /// sentence next to it.
     pub fn bandwidth_is_lower_bound(&self) -> bool {
         self.will_run_on.is_faster_than_cpu_measurement()
+    }
+
+    /// True, always: the compute probe is a portable f32 loop, while prefill in
+    /// llama.cpp is blocked, quantised, and on Apple Silicon runs on AMX. The
+    /// yardstick on this machine — Accelerate's sgemm at 384×384 — is about nine
+    /// times this figure. A caller that multiplies it by an efficiency band is
+    /// compounding a floor, not correcting a reading, which is why this is a fact
+    /// the code states rather than a comment it hopes will be read.
+    pub fn compute_is_lower_bound(&self) -> bool {
+        true
     }
 }
 
@@ -236,6 +246,8 @@ mod tests {
             measurement.bandwidth_is_lower_bound(),
             measurement.will_run_on.is_faster_than_cpu_measurement()
         );
+        // The compute figure is a floor on every machine, by construction.
+        assert!(measurement.compute_is_lower_bound());
         // The verdict is a judgement, not a promise: either it is reliable or it
         // says what was wrong.
         assert!(measurement.is_reliable() || !measurement.reliability.notes.is_empty());
