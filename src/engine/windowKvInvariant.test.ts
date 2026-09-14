@@ -4,6 +4,8 @@ import {
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
   operativeContextForLiveKv,
+  shouldApplySlideAdvance,
+  shouldDiscardKvForSlide,
   shouldSlideAssembleBoundary,
   windowHasDigest,
   windowSlideDiscardModelId,
@@ -39,6 +41,17 @@ describe("shouldSlideAssembleBoundary", () => {
       }),
     ).toBe(true);
   });
+
+  test("ceiling crossed slides even when KV is live (deliberate reset)", () => {
+    expect(
+      shouldSlideAssembleBoundary({
+        budgetRebuild: false,
+        forceRebuild: false,
+        kvHoldsChatSession: true,
+        ceilingCrossed: true,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("decideAssembleWindowAction", () => {
@@ -60,6 +73,18 @@ describe("decideAssembleWindowAction", () => {
         forceRebuild: true,
         kvHoldsChatSession: true,
         anchored: true,
+      }),
+    ).toEqual({ slide: true, discard: true });
+  });
+
+  test("anchored: ceiling crossed → clear the live KV and advance", () => {
+    expect(
+      decideAssembleWindowAction({
+        budgetRebuild: false,
+        forceRebuild: false,
+        kvHoldsChatSession: true,
+        anchored: true,
+        ceilingCrossed: true,
       }),
     ).toEqual({ slide: true, discard: true });
   });
@@ -95,6 +120,62 @@ describe("decideAssembleWindowAction", () => {
         anchored: true,
       }),
     ).toEqual({ slide: true, discard: false });
+  });
+});
+
+describe("shouldDiscardKvForSlide", () => {
+  test("clears the live KV only when the boundary actually moves", () => {
+    expect(
+      shouldDiscardKvForSlide({
+        discard: true,
+        previousBoundaryIndex: 4,
+        nextBoundaryIndex: 4,
+      }),
+    ).toBe(false);
+    // Infinity charBudget: the rebuild is a no-op, so the destructive clear
+    // must not run and leave the prompt unchanged above the ceiling.
+    expect(
+      shouldDiscardKvForSlide({
+        discard: true,
+        previousBoundaryIndex: 4,
+        nextBoundaryIndex: 0,
+      }),
+    ).toBe(false);
+    expect(
+      shouldDiscardKvForSlide({
+        discard: true,
+        previousBoundaryIndex: 4,
+        nextBoundaryIndex: 5,
+      }),
+    ).toBe(true);
+  });
+
+  test("no discard requested → never clears", () => {
+    expect(
+      shouldDiscardKvForSlide({
+        discard: false,
+        previousBoundaryIndex: 4,
+        nextBoundaryIndex: 9,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldApplySlideAdvance", () => {
+  test("a failed clear leaves the boundary untouched", () => {
+    expect(
+      shouldApplySlideAdvance({ clearRequested: true, clearSucceeded: false }),
+    ).toBe(false);
+  });
+
+  test("a successful clear, or no clear at all, applies the advance", () => {
+    expect(
+      shouldApplySlideAdvance({ clearRequested: true, clearSucceeded: true }),
+    ).toBe(true);
+    // Cold slide (KV not held): no clear was needed.
+    expect(
+      shouldApplySlideAdvance({ clearRequested: false, clearSucceeded: true }),
+    ).toBe(true);
   });
 });
 

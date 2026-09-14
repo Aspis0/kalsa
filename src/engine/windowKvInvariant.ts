@@ -18,8 +18,19 @@ export function shouldSlideAssembleBoundary(args: {
   budgetRebuild: boolean;
   forceRebuild: boolean;
   kvHoldsChatSession: boolean;
+  /**
+   * The send about to be assembled would cross `n_ctx - WINDOW_RESERVE_TOKENS`
+   * (windowProfile.shouldSlideWindowAtCeiling) while the live KV still pins
+   * the assemble start. On LFM2 (hybrid attn+recurrent) the recurrent half
+   * cannot evict a prefix — `seq_rm` is rm_all or a tail rollback bounded by
+   * `n_rs_seq`, which is 0 with no draft model — so ctx_shift at the ceiling
+   * is irreparable. The only correct move is to clear the live KV and advance
+   * the start on purpose. This is why it slides even with KV held.
+   */
+  ceilingCrossed?: boolean;
 }): boolean {
   if (args.forceRebuild) return true;
+  if (args.ceilingCrossed) return true;
   if (args.budgetRebuild && !args.kvHoldsChatSession) return true;
   return false;
 }
@@ -41,6 +52,7 @@ export function decideAssembleWindowAction(args: {
   forceRebuild: boolean;
   kvHoldsChatSession: boolean;
   anchored: boolean;
+  ceilingCrossed?: boolean;
 }): { slide: boolean; discard: boolean } {
   if (!args.anchored) {
     const wantSlide = args.budgetRebuild || args.forceRebuild;
@@ -53,8 +65,42 @@ export function decideAssembleWindowAction(args: {
     budgetRebuild: args.budgetRebuild,
     forceRebuild: args.forceRebuild,
     kvHoldsChatSession: args.kvHoldsChatSession,
+    ceilingCrossed: args.ceilingCrossed,
   });
   return { slide, discard: slide && args.kvHoldsChatSession };
+}
+
+/**
+ * Gate the destructive half of a window slide. Deleting the .kvs and dropping
+ * the live RAM cache is only worth it if the boundary it exists to serve
+ * actually moves.
+ *
+ * With an infinite charBudget — attachment turns (windowProfile's `images`
+ * branch) and bench overrides — the anchored rebuild is a no-op. Discarding
+ * then destroys the live KV and leaves the prompt at exactly the size it
+ * already was, above the ceiling: strictly worse than doing nothing.
+ */
+export function shouldDiscardKvForSlide(args: {
+  discard: boolean;
+  previousBoundaryIndex: number;
+  nextBoundaryIndex: number;
+}): boolean {
+  return args.discard && args.nextBoundaryIndex > args.previousBoundaryIndex;
+}
+
+/**
+ * Whether a planned window slide may persist its advance. A requested clear
+ * that failed must leave the boundary untouched: the whole point of the clear
+ * is to let the assemble start move while the native KV no longer pins it, so
+ * advancing without a successful clear would recreate exactly the live-KV bump
+ * the clear exists to prevent. A cold slide (no clear requested) always
+ * advances.
+ */
+export function shouldApplySlideAdvance(args: {
+  clearRequested: boolean;
+  clearSucceeded: boolean;
+}): boolean {
+  return !args.clearRequested || args.clearSucceeded;
 }
 
 function positiveTokenCount(n: number | null | undefined): boolean {

@@ -288,3 +288,50 @@ describe("anchored no-digest window", () => {
     expect(computeAnchoredBoundary(longMessage, profile, 4000, 10, 1)).toBe(1);
   });
 });
+
+describe("anchored boundary under a token ceiling", () => {
+  // Attachment turns and bench overrides resolve charBudget to Infinity, so
+  // the ordinary anchored rebuild is a no-op. A deliberate ceiling slide must
+  // still advance: its target comes from n_ctx, not from the profile.
+  const infinityProfile = {
+    maxMessages: 8,
+    charBudget: Number.POSITIVE_INFINITY,
+    source: "images",
+  };
+  const lengths = Array.from({ length: 30 }, () => 100);
+
+  test("Infinity charBudget without a ceiling budget stays put", () => {
+    expect(computeAnchoredBoundary(lengths, infinityProfile, 4000, 0, 4)).toBe(
+      4,
+    );
+    expect(
+      advanceAnchoredBoundary(null, {
+        chatId: "chat",
+        userTurnCount: 1,
+        historyLengths: lengths,
+        currentTurnLength: 0,
+        profile: infinityProfile,
+        maxCharsPerMessage: 4000,
+      }).boundaryIndex,
+    ).toBe(0);
+  });
+
+  test("a ceiling budget advances the boundary despite Infinity", () => {
+    // 1000 chars * 0.625 target = 625 → six 100-char messages fit.
+    const next = computeAnchoredBoundary(
+      lengths,
+      infinityProfile,
+      4000,
+      0,
+      4,
+      1000,
+    );
+    expect(next).toBe(24);
+  });
+
+  test("a ceiling budget never moves the boundary backwards", () => {
+    expect(
+      computeAnchoredBoundary(lengths, infinityProfile, 4000, 0, 28, 100_000),
+    ).toBe(28);
+  });
+});

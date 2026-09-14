@@ -12,9 +12,80 @@ import {
   WINDOW_MAX_MESSAGES_IMAGES,
   WINDOW_MIN_MESSAGES,
   WINDOW_RESERVE_TOKENS,
+  projectedWindowTokens,
+  promptTokensExceedNCtx,
   resolveWindowProfile,
+  shouldSlideWindowAtCeiling,
+  windowCeilingTokens,
   windowStartIndex,
 } from "./windowProfile";
+
+describe("shouldSlideWindowAtCeiling", () => {
+  it("ceiling is n_ctx - WINDOW_RESERVE_TOKENS, 6144 at 8192", () => {
+    expect(windowCeilingTokens(8192)).toBe(8192 - WINDOW_RESERVE_TOKENS);
+    expect(windowCeilingTokens(8192)).toBe(6144);
+    // No engine / bogus n_ctx is never a reason to slide.
+    expect(windowCeilingTokens(0)).toBe(0);
+    expect(windowCeilingTokens(null)).toBe(0);
+    expect(windowCeilingTokens(Number.NaN)).toBe(0);
+  });
+
+  it("only slides the pinned window, and only above the ceiling", () => {
+    const charsAtCeiling = 6144 * WINDOW_CHARS_PER_TOKEN;
+    expect(projectedWindowTokens(charsAtCeiling)).toBe(6144);
+    // Exactly at the ceiling is still allowed; it is the NEXT send that must
+    // not cross it.
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling,
+        kvHeld: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 1,
+        kvHeld: true,
+      }),
+    ).toBe(true);
+    // Not held: the normal budget slide already applies — do not force one.
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 1,
+        kvHeld: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("never slides without a usable ceiling", () => {
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 0,
+        windowChars: 10_000_000,
+        kvHeld: true,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("promptTokensExceedNCtx", () => {
+  it("flags only a full prompt above n_ctx - reserve", () => {
+    const ceiling = windowCeilingTokens(8192);
+    const charsAtCeiling = ceiling * WINDOW_CHARS_PER_TOKEN;
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: charsAtCeiling }),
+    ).toBe(false);
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: charsAtCeiling + 1 }),
+    ).toBe(true);
+    // No engine → the guard is inert, not wrong.
+    expect(
+      promptTokensExceedNCtx({ nCtx: 0, promptChars: 10_000_000 }),
+    ).toBe(false);
+  });
+});
 
 describe("resolveWindowProfile", () => {
   it("gives an 8192 context a real budget instead of the old inert branch", () => {

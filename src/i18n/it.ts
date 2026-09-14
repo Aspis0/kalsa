@@ -451,6 +451,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
     readingDocument: "Leggendo il documento…",
+    rereadingConversation: "Sto rileggendo la conversazione…",
     toolFailed: "Strumento fallito — continuo senza",
     today: "Oggi · {time}",
     yesterday: "Ieri",
@@ -685,6 +686,13 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
      * and the final text-only fallback also produces no text. Honest fallback, not silent blank.
      */
     toolRoundsExhausted: "Non ho potuto completare la ricerca. Riprova o riformula la domanda.",
+    /**
+     * Mostrato quando un round tool porterebbe il prompt oltre il tetto di
+     * contesto del modello. Il turno si ferma prima del ctx_shift nativo;
+     * nessuna completion ulteriore viene eseguita.
+     */
+    toolContextCeiling:
+      "La conversazione è troppo lunga per continuare a cercare. Prova una domanda più breve o apri una nuova chat.",
     calendarDenied:
       "Accesso al calendario negato. Abilitalo nelle impostazioni di sistema per usare l'agenda.",
     calendarFailed: "Impossibile leggere il calendario.",

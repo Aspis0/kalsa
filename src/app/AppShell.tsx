@@ -271,6 +271,8 @@ import {
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
   operativeContextForLiveKv,
+  shouldApplySlideAdvance,
+  shouldDiscardKvForSlide,
   windowHasDigest,
 } from "../engine/windowKvInvariant";
 import { historyReplayCharLength } from "../engine/modelEmittedText";
@@ -309,7 +311,11 @@ import {
   LEGACY_MAX_CHARS_IMAGES,
 } from "../context/compactor";
 import {
+  anchoredWindowChars,
+  projectedWindowTokens,
   resolveWindowProfile,
+  shouldSlideWindowAtCeiling,
+  windowCeilingTokens,
   windowStartIndex,
   WINDOW_CHARS_PER_TOKEN,
 } from "../context/windowProfile";
@@ -5292,6 +5298,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               contextMode === "off" || contextMode === "ciswire";
             let operativeContext: { digest?: string; summary?: string } | null = null;
             let boundaryForAssemble = 0;
+            // Set when this send follows a deliberate ceiling slide (below).
+            let windowSlideForCeiling = false;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
             // threads / ubatch / n_ctx already get. A bench override still wins,
@@ -5508,6 +5516,35 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   }
                 }
               }
+              const pinnedStart = resolveBoundaryIndex(
+                state,
+                validatedHistory.length,
+              );
+              // Ceiling guard (anchored only): while the live KV holds the
+              // chat the boundary cannot move, so the window grows every turn.
+              // Crossing n_ctx - WINDOW_RESERVE_TOKENS on a hybrid
+              // (attn+recurrent) model is unrecoverable — the recurrent half
+              // cannot evict a prefix, so ctx_shift corrupts instead of
+              // recycling. Slide deliberately, before the n_ctx edge.
+              const activeNCtx = getActiveEngineNCtx();
+              const pinnedWindowChars = anchoredOn
+                ? anchoredWindowChars(
+                    historyLengths,
+                    pinnedStart,
+                    perMessageCap,
+                    currentTurnChars,
+                  )
+                : 0;
+              const promptTokensBefore =
+                projectedWindowTokens(pinnedWindowChars);
+              const ceilingCrossed =
+                anchoredOn &&
+                shouldSlideWindowAtCeiling({
+                  nCtx: activeNCtx,
+                  windowChars: pinnedWindowChars,
+                  kvHeld,
+                });
+
               const windowAction = decideAssembleWindowAction({
                 budgetRebuild: anchoredOn
                   ? shouldRebuildAnchored(state, {
@@ -5525,35 +5562,104 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 forceRebuild,
                 kvHoldsChatSession: kvHeld,
                 anchored: anchoredOn,
+                ceilingCrossed,
               });
               let slideOk = windowAction.slide;
-              if (windowAction.discard) {
-                slideOk = await discardChatKvForWindowSlide(
-                  getActiveModelId() ?? currentModel.id,
+              // A slide is only worth its destructive half — deleting the .kvs
+              // and dropping the live RAM cache — if the boundary actually
+              // moves. With an infinite charBudget (attachment turn, bench
+              // override) the anchored rebuild is a no-op, so discarding would
+              // destroy the live KV and leave the prompt at exactly the size it
+              // already was, above the ceiling. Compute the advance first.
+              let slideBlocked = false;
+              if (windowAction.slide) {
+                // At the ceiling the profile's charBudget is exactly what
+                // cannot help (it is Infinity for attachment turns), so derive
+                // the rebuild target from the token ceiling instead.
+                const ceilingBudgetChars = ceilingCrossed
+                  ? Math.max(
+                      0,
+                      windowCeilingTokens(activeNCtx) * WINDOW_CHARS_PER_TOKEN,
+                    )
+                  : undefined;
+                const nextState = anchoredOn
+                  ? advanceAnchoredBoundary(state, {
+                      chatId,
+                      userTurnCount,
+                      historyLengths,
+                      currentTurnLength: currentTurnChars,
+                      profile: windowProfile,
+                      maxCharsPerMessage: perMessageCap,
+                      ceilingBudgetChars,
+                    })
+                  : advanceCompactionBoundary(state, {
+                      chatId,
+                      userTurnCount,
+                      historyLength: validatedHistory.length,
+                      hasImages,
+                    });
+                const nextStart = resolveBoundaryIndex(
+                  nextState,
+                  validatedHistory.length,
                 );
-              }
-              if (slideOk && anchoredOn) {
-                state = advanceAnchoredBoundary(state, {
-                  chatId,
-                  userTurnCount,
-                  historyLengths,
-                  currentTurnLength: currentTurnChars,
-                  profile: windowProfile,
-                  maxCharsPerMessage: perMessageCap,
-                });
-              } else if (slideOk && !anchoredOn) {
-                state = advanceCompactionBoundary(state, {
-                  chatId,
-                  userTurnCount,
-                  historyLength: validatedHistory.length,
-                  hasImages,
-                });
+                if (
+                  shouldDiscardKvForSlide({
+                    discard: windowAction.discard,
+                    previousBoundaryIndex: pinnedStart,
+                    nextBoundaryIndex: nextStart,
+                  })
+                ) {
+                  slideOk = await discardChatKvForWindowSlide(
+                    getActiveModelId() ?? currentModel.id,
+                    chatId,
+                  );
+                } else if (windowAction.discard) {
+                  // The boundary cannot move: do not clear the live KV for a
+                  // slide that would not happen.
+                  slideOk = false;
+                  slideBlocked = true;
+                }
+                // Apply the advance only when any requested clear succeeded.
+                if (
+                  shouldApplySlideAdvance({
+                    clearRequested: windowAction.discard,
+                    clearSucceeded: slideOk,
+                  })
+                ) {
+                  state = nextState;
+                }
               }
 
               boundaryForAssemble = resolveBoundaryIndex(
                 state,
                 validatedHistory.length,
               );
+
+              // One line per deliberate ceiling slide: the counts that decided
+              // it, and whether the explicit clear actually succeeded. No
+              // token ids. `advanced`/`skipReason` distinguish "could not
+              // slide" from "clear failed", which `kvCleared` alone cannot.
+              if (ceilingCrossed) {
+                windowSlideForCeiling = slideOk;
+                try {
+                  console.log(
+                    `KALSA_WINDOW_SLIDE ${JSON.stringify({
+                      nCtx: activeNCtx,
+                      ceiling: windowCeilingTokens(activeNCtx),
+                      prevStart: pinnedStart,
+                      newStart: boundaryForAssemble,
+                      promptTokensBefore,
+                      advanced: boundaryForAssemble > pinnedStart,
+                      kvCleared: slideOk,
+                      skipReason: slideBlocked
+                        ? "boundary_cannot_advance"
+                        : undefined,
+                    })}`,
+                  );
+                } catch {
+                  // telemetry must never throw
+                }
+              }
 
               if (anchoredOn) {
                 compactorStateByChat.set(chatId, state);
@@ -5801,6 +5907,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   : legacyWindowStart,
                 assembleChatId: chatId,
                 contextMode,
+                ceilingSlide: windowSlideForCeiling,
                 onDecodeSample: recordDecodeSample,
                 ciswireFlags: turnCiswireFlags || undefined,
               },

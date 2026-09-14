@@ -508,6 +508,13 @@ export function computeAnchoredBoundary(
   maxCharsPerMessage: number,
   currentTurnLength = 0,
   previousBoundaryIndex = -1,
+  /**
+   * Char budget to use instead of `profile.charBudget` for this rebuild. A
+   * ceiling slide must be able to advance even when the profile has no finite
+   * budget (attachment turns and bench overrides set it to Infinity): the
+   * target then comes from the token ceiling, not the profile.
+   */
+  ceilingBudgetChars?: number,
 ): number {
   const n = historyLengths.length;
   const previous =
@@ -516,10 +523,14 @@ export function computeAnchoredBoundary(
       ? Math.max(0, Math.min(Math.floor(previousBoundaryIndex), n))
       : 0;
 
-  if (!Number.isFinite(profile.charBudget)) return previous;
+  const budget =
+    typeof ceilingBudgetChars === "number" &&
+    Number.isFinite(ceilingBudgetChars)
+      ? Math.max(0, ceilingBudgetChars)
+      : profile.charBudget;
+  if (!Number.isFinite(budget)) return previous;
 
-  const target =
-    Math.max(0, profile.charBudget) * ANCHORED_REBUILD_TARGET_SHARE;
+  const target = budget * ANCHORED_REBUILD_TARGET_SHARE;
   let start = n;
   for (let i = n - 1; i >= 0; i--) {
     if (
@@ -870,6 +881,8 @@ export function advanceAnchoredBoundary(
     currentTurnLength: number;
     profile: WindowProfile;
     maxCharsPerMessage: number;
+    /** Token-ceiling-derived budget for a forced slide (see computeAnchoredBoundary). */
+    ceilingBudgetChars?: number;
   },
 ): CompactorState {
   const chatId = args.chatId || DEFAULT_CHAT_ID;
@@ -883,6 +896,7 @@ export function advanceAnchoredBoundary(
     args.maxCharsPerMessage,
     args.currentTurnLength,
     previousBoundary,
+    args.ceilingBudgetChars,
   );
   const userTurnCount = Number.isFinite(args.userTurnCount)
     ? Math.floor(args.userTurnCount)

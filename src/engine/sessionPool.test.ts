@@ -20,7 +20,11 @@ jest.mock("expo-file-system/legacy", () => ({
 }));
 
 import { sessionStem } from "./sessionKey";
-import { pickEvictionStems, staleStemsForConversation } from "./sessionPool";
+import {
+  deleteSessionsForModelConversation,
+  pickEvictionStems,
+  staleStemsForConversation,
+} from "./sessionPool";
 
 describe("pickEvictionStems", () => {
   test("does nothing when under budget", () => {
@@ -95,5 +99,28 @@ describe("staleStemsForConversation", () => {
     const other = sessionStem("m", "c2", "envB");
     const names = [`${keep}.kvs`, `${stale}.kvs`, `${other}.kvs`, "m.kvs"];
     expect(staleStemsForConversation(names, "m", "c1", "envA")).toEqual([stale]);
+  });
+});
+
+describe("deleteSessionsForModelConversation", () => {
+  test("throws when a matching .kvs survives the delete", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const stem = sessionStem("lfm2.5-2.6b", "chat-1", "env")!;
+    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+      exists: true,
+      isDirectory: true,
+    });
+    (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+      `${stem}.kvs`,
+    ]);
+    // deleteAsync is a no-op mock, so the re-list still sees the file.
+    await expect(
+      deleteSessionsForModelConversation("lfm2.5-2.6b", "chat-1"),
+    ).rejects.toThrow(/left 1 \.kvs/);
+    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+      exists: false,
+      isDirectory: false,
+    });
+    (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([]);
   });
 });

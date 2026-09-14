@@ -178,24 +178,35 @@ export async function deleteSessionsForModelConversation(
   const model = sanitizeSessionSegment(modelId);
   const conv = sanitizeSessionSegment(conversationId);
   if (!model) return;
-  try {
-    const names = await listKvsNames();
-    for (const name of names) {
-      const parsed = parseSessionStem(name);
-      if (parsed) {
-        if (parsed.modelId !== model) continue;
-        if (conv && parsed.conversationId !== conv) continue;
-        await dropStem(
-          `${parsed.modelId}__${parsed.conversationId}__${parsed.promptEnvHash}`,
-        );
-        continue;
-      }
-      if (isLegacySessionFileName(name) && name === `${legacySessionStem(modelId)}.kvs`) {
-        await dropStem(legacySessionStem(modelId));
-      }
+  const matches = (name: string): boolean => {
+    const parsed = parseSessionStem(name);
+    if (parsed) {
+      return parsed.modelId === model && (!conv || parsed.conversationId === conv);
     }
-  } catch {
-    // best-effort
+    return (
+      isLegacySessionFileName(name) &&
+      name === `${legacySessionStem(modelId)}.kvs`
+    );
+  };
+  for (const name of await listKvsNames()) {
+    if (!matches(name)) continue;
+    const parsed = parseSessionStem(name);
+    await dropStem(
+      parsed
+        ? `${parsed.modelId}__${parsed.conversationId}__${parsed.promptEnvHash}`
+        : legacySessionStem(modelId),
+    );
+  }
+  // deleteAsync failures are swallowed inside deleteSessionArtifacts, so a
+  // stale .kvs could survive what looks like a successful clear and be reused
+  // on the next boot. Re-list and throw, so callers' diskOk is not a lie.
+  const survivors = (await listKvsNames()).filter(matches);
+  if (survivors.length > 0) {
+    throw new Error(
+      `session clear left ${survivors.length} .kvs for ${model}${
+        conv ? `/${conv}` : ""
+      }`,
+    );
   }
 }
 

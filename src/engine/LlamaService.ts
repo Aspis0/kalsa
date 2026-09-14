@@ -29,6 +29,10 @@ import {
   type OperativeBlockContext,
 } from "../context/operativeBlock";
 import {
+  projectedWindowTokens,
+  windowCeilingTokens,
+} from "../context/windowProfile";
+import {
   accumulateToolSources,
   buildCiteInstructionSuffix,
   citeKindForTool,
@@ -100,6 +104,7 @@ import {
   type ToolRoundTelemetry,
 } from "./toolCallTelemetry";
 import { shouldFireToolRoundFallback } from "./toolRoundFallback";
+import { toolRoundCrossesCeiling } from "./toolRoundCeiling";
 import {
   formatTelemetryLine,
   isSuccessfulToolOutcome,
@@ -1208,12 +1213,26 @@ export function getLoadedAssembleBoundary(activeChatId: string): number | null {
  * Anchored boundary will slide: delete the .kvs first, then clear RAM.
  * True only if disk delete did not throw and (clearCache ran or there was
  * no context). AppShell advances B only on true.
+ *
+ * This is the one clearCache a window slide is allowed to take on a LIVE
+ * chat. Why it cannot be avoided: LFM2 is hybrid (attention + recurrent) and
+ * the recurrent half cannot evict a prefix — `seq_rm` is rm_all or a tail
+ * rollback bounded by `n_rs_seq`, which is 0 with no draft model
+ * (llama-memory-recurrent.cpp:170-171/:304-331). Moving the assemble start
+ * while that KV is alive therefore leaves two sequences, not a shorter one,
+ * and ctx_shift at the ceiling is irreparable. Callers: the reactive
+ * context_full path, the one-shot bake heal, and the deliberate
+ * n_ctx - WINDOW_RESERVE_TOKENS slide in AppShell (KALSA_WINDOW_SLIDE).
  */
 async function discardChatKvForWindowSlideLocked(
   modelId: string,
+  conversationId?: string,
 ): Promise<boolean> {
   if (windowSlideDiscardModelId(modelId) == null) return false;
-  const conv = getSessionConversationId();
+  // Prefer the conversation captured at send time: the send holds the engine
+  // job across this await, and a chat switch during it would otherwise make
+  // getSessionConversationId() name the NEW chat while we delete for the old.
+  const conv = conversationId ?? getSessionConversationId();
   let diskOk = false;
   try {
     if (conv) {
@@ -1254,9 +1273,12 @@ async function discardChatKvForWindowSlideLocked(
 
 export async function discardChatKvForWindowSlide(
   modelId: string,
+  conversationId?: string,
 ): Promise<boolean> {
   if (windowSlideDiscardModelId(modelId) == null) return false;
-  return withEngineJob(() => discardChatKvForWindowSlideLocked(modelId));
+  return withEngineJob(() =>
+    discardChatKvForWindowSlideLocked(modelId, conversationId),
+  );
 }
 
 export function isEngineLostRecovery(modelId?: string): boolean {
@@ -1578,6 +1600,18 @@ export function initEngine(
     // memory budget actually reduced n_ctx (safety clamp, floor 2048).
     const effectiveNCtx =
       tuning.context.n_ctx < engineCtx ? tuning.context.n_ctx : engineCtx;
+    if (windowCeilingTokens(effectiveNCtx) <= 0) {
+      // n_ctx <= WINDOW_RESERVE_TOKENS leaves no verbatim window and makes the
+      // AppShell / tool-round ceiling guard inert (windowCeilingTokens → 0).
+      // Record it instead of letting the guard fail silently.
+      try {
+        console.log(
+          `KALSA_CTX_FLOOR ${JSON.stringify({ nCtx: effectiveNCtx })}`,
+        );
+      } catch {
+        // telemetry must never throw
+      }
+    }
 
     const governorThermo = governorFeatureEnabled
       ? await readGovernorThermo()
@@ -3104,6 +3138,13 @@ export type StreamTurnOptions = EngineTurnOptions & {
   assembleChatId?: string;
   /** Product context regime for this turn (off | anchored | ciswire). */
   contextMode?: "off" | "anchored" | "ciswire";
+  /**
+   * This send follows a deliberate ceiling slide: the live KV was just
+   * cleared and the whole window is being re-prefilled from the new assemble
+   * start. Status only — the UI shows "re-reading the conversation" for the
+   * duration of that prefill instead of a bare "thinking".
+   */
+  ceilingSlide?: boolean;
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
@@ -3634,7 +3675,9 @@ export async function streamAssistantTurn(
       return false;
     };
 
-    const statusLabel = strings.chat.thinkingStatus;
+    const statusLabel = options.ceilingSlide
+      ? strings.chat.rereadingConversation
+      : strings.chat.thinkingStatus;
 
     try {
       callbacks.onStatus?.({ label: statusLabel });
@@ -3774,8 +3817,39 @@ export async function streamAssistantTurn(
         callbacks.onStatus?.({ label: statusLabel });
       }
 
+      // Set when a tool round would push the prompt past n_ctx. The loop stops
+      // and the turn closes with what it has, visibly, instead of handing the
+      // native a prompt it could only answer with ctx_shift.
+      let toolRoundCeilingReached = false;
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
+        if (round > 0) {
+          // AppShell guarded the prompt it assembled, but every tool round
+          // appends a tool call plus results (TOOL_RESULT_MAX_CHARS each) and
+          // calls completion() again. Nothing re-checked the ceiling, so a turn
+          // that started just under it could cross n_ctx here — and the JS
+          // window is already assembled, so a slide is impossible. Stop before
+          // the next completion and close with what we have.
+          const promptChars = JSON.stringify(currentMessages).length;
+          const nCtx = getActiveEngineNCtx();
+          if (toolRoundCrossesCeiling({ round, nCtx, promptChars })) {
+            toolRoundCeilingReached = true;
+            try {
+              console.log(
+                `KALSA_TOOL_CEILING ${JSON.stringify({
+                  turnId,
+                  round,
+                  promptChars,
+                  promptTokens: projectedWindowTokens(promptChars),
+                  ceiling: windowCeilingTokens(nCtx),
+                })}`,
+              );
+            } catch {
+              // telemetry must never throw
+            }
+            break;
+          }
+        }
         stopStallWatchdog();
         // Snapshot prior-round cleaned prose before this round's stream starts.
         streamedTextAtRoundStart = streamedText;
@@ -4145,7 +4219,16 @@ export async function streamAssistantTurn(
       //     turns pre-gate-fix, much less after). Bounded, not a new steady state.
       //  2. If that also produces no text, emit a localized honest message so
       //     the bubble is never empty.
-      if (shouldFireToolRoundFallback(streamedText)) {
+      if (toolRoundCeilingReached) {
+        // The next round's prompt would cross n_ctx. Do not run another
+        // completion — including the text-only fallback, which would send the
+        // same over-ceiling prompt. If nothing visible streamed, close with an
+        // honest message rather than an empty bubble.
+        if (shouldFireToolRoundFallback(streamedText)) {
+          const ceilingMessage = strings.errors.toolContextCeiling;
+          callbacks.onDelta(ceilingMessage, ceilingMessage);
+        }
+      } else if (shouldFireToolRoundFallback(streamedText)) {
         const exhaustedTel: ToolRoundExhaustedTelemetry = {
           roundsUsed: MAX_TOOL_ROUNDS,
           streamedLen: streamedText.length,

@@ -57,6 +57,69 @@ export const WINDOW_MAX_MESSAGES_IMAGES = 8;
 /** Never return a window that cannot hold the turn being sent. */
 export const WINDOW_MIN_MESSAGES = 2;
 
+/**
+ * Tokens the verbatim window may spend before a deliberate slide is forced:
+ * `n_ctx - WINDOW_RESERVE_TOKENS` (6144 at the loaded 8192). The reserve
+ * already covers system prompt, digest and generation room, so this is where
+ * the window — not the whole prompt — has to stop.
+ */
+export function windowCeilingTokens(nCtx: number | null | undefined): number {
+  if (typeof nCtx !== "number" || !Number.isFinite(nCtx) || nCtx <= 0) return 0;
+  return Math.max(0, Math.floor(nCtx) - WINDOW_RESERVE_TOKENS);
+}
+
+/** Charged chars → tokens, the same ceil ratio the KALSA_WINDOW `textEst` uses. */
+export function projectedWindowTokens(windowChars: number): number {
+  if (
+    typeof windowChars !== "number" ||
+    !Number.isFinite(windowChars) ||
+    windowChars <= 0
+  ) {
+    return 0;
+  }
+  return Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN);
+}
+
+/**
+ * Whether the send about to be assembled would cross the ceiling while the
+ * live KV still pins the assemble start.
+ *
+ * `kvHeld` is the whole point: while the KV holds the chat the start cannot
+ * move (see windowKvInvariant), so the window grows every turn. Crossing the
+ * ceiling there is unrecoverable on a hybrid (attn+recurrent) model — the
+ * recurrent half cannot evict a prefix — and must be handled deliberately in
+ * JS instead. Not held → the normal budget slide already applies, so this
+ * predicate stays out of the way.
+ */
+export function shouldSlideWindowAtCeiling(args: {
+  nCtx: number | null | undefined;
+  windowChars: number;
+  kvHeld: boolean;
+}): boolean {
+  if (!args.kvHeld) return false;
+  const ceiling = windowCeilingTokens(args.nCtx);
+  if (ceiling <= 0) return false;
+  return projectedWindowTokens(args.windowChars) > ceiling;
+}
+
+/**
+ * Whether a fully assembled prompt — system + history + tool results — would
+ * cross the same `n_ctx` ceiling AppShell slides on.
+ *
+ * The tool loop appends a tool call and its results and calls completion()
+ * again without re-running the send guard, so `promptChars` must cover the
+ * ENTIRE message list (system included). The reserve then only pays for
+ * generation room, which is conservative and errs toward stopping early.
+ */
+export function promptTokensExceedNCtx(args: {
+  nCtx: number | null | undefined;
+  promptChars: number;
+}): boolean {
+  const ceiling = windowCeilingTokens(args.nCtx);
+  if (ceiling <= 0) return false;
+  return projectedWindowTokens(args.promptChars) > ceiling;
+}
+
 export type WindowProfile = {
   maxMessages: number;
   charBudget: number;

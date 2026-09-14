@@ -455,6 +455,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     searching: "Searching the web…",
     fetching: "Fetching page…",
     readingDocument: "Reading document…",
+    rereadingConversation: "Re-reading the conversation…",
     toolFailed: "Tool failed — continuing without it",
     today: "Today · {time}",
     yesterday: "Yesterday",
@@ -686,6 +687,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
      * and the final text-only fallback also produces no text. Honest fallback, not silent blank.
      */
     toolRoundsExhausted: "I couldn't complete the search. Please try again or rephrase your question.",
+    /**
+     * Shown when a tool round would push the prompt past the model's context
+     * ceiling. The turn stops before the native ctx_shift; no further
+     * completion runs. Honest fallback, not a silent blank.
+     */
+    toolContextCeiling:
+      "The conversation is too long to keep searching. Try a shorter question or start a new chat.",
     calendarDenied: "Calendar access was denied. Enable it in system settings to use the agenda.",
     calendarFailed: "Could not read the calendar.",
     calendarUnavailable: "Calendar is unavailable on this build.",
