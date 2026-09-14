@@ -17,9 +17,12 @@ pub(crate) const BATCH: u32 = 512;
 /// reported footprint is a number the arguments do not produce.
 pub(crate) const UBATCH: u32 = 128;
 
-/// Any figure at or above the model's layer count offloads everything; the
-/// count itself is read from the GGUF at load time, so 999 is the idiom.
-pub(crate) const ALL_LAYERS: u32 = 999;
+/// How "every layer" is spelled to this build. b10950's `--help`, verbatim:
+/// "-ngl, --gpu-layers, --n-gpu-layers N   max. number of layers to store in
+/// VRAM, either an exact number, 'auto', or 'all' (default: auto)". `all` is
+/// the build's own name for the decision and does not bet on the layer count
+/// being smaller than a magic figure.
+pub(crate) const ALL_LAYERS: &str = "all";
 
 /// Unload the model *and the KV cache* after this many idle seconds; /health,
 /// /props and /models do not reset the timer, so a polling phone does not
@@ -43,12 +46,24 @@ pub(crate) const IDLE_UNLOAD_SECONDS: u32 = 300;
 /// It is not a knob.
 pub(crate) const KV_CACHE_TYPE: &str = "q8_0";
 
+/// Flash attention, stated, never defaulted. In this build the flag takes a
+/// value (b10950 `--help`, verbatim: "-fa, --flash-attn [on|off|auto]   set
+/// Flash Attention use ('on', 'off', or 'auto', default: 'auto')"), so a
+/// bare `--flash-attn` swallows the next argument — which is exactly how an
+/// argv that parses in every test failed to start a real server. The
+/// quantized V cache is refused without flash attention, so `auto` — the
+/// server's default — would turn the memory arithmetic into a bet on what
+/// some future build defaults to. `on` is the one value the q8_0 cache is
+/// legal under, so it is the value rendered.
+pub(crate) const FLASH_ATTN: &str = "on";
+
 /// How many layers go to the GPU. Three states, because the rendered
 /// arguments differ in kind, not degree:
 ///
-/// * on a build with GPU code, the default is "offload every layer" — so
-///   leaving the flag out is itself a decision, and the wrong one whenever
-///   the card was never sized for the model;
+/// * on a build with GPU code, `--n-gpu-layers` defaults to `auto` — the
+///   server's own guess about how many layers the card will take — so
+///   leaving the flag out is a bet on someone else's default, and the wrong
+///   one whenever the card was never sized for the model;
 /// * on a CPU build the flag has no GPU code behind it at all.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Offload {

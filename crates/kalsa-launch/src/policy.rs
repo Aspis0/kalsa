@@ -270,7 +270,7 @@ mod tests {
             .expect("the model fits the VRAM budget");
         assert_eq!(launched.args.offload, Offload::All);
         let line = launched.args.argv().join(" ");
-        assert!(line.contains("--n-gpu-layers 999"), "{line}");
+        assert!(line.contains("--n-gpu-layers all"), "{line}");
         // Apple Silicon: unified memory, Metal always.
         let mac = memory_budget(Backend::Metal, 16 * GIB);
         let launched = plan(&input(ServerBackend::Metal, mac, model, M1_MAX_RAMP))
@@ -334,7 +334,7 @@ mod tests {
         let line = launched.args.argv().join(" ");
         assert!(line.contains("--cache-type-k q8_0"), "{line}");
         assert!(line.contains("--cache-type-v q8_0"), "{line}");
-        assert!(line.contains("--flash-attn"), "{line}");
+        assert!(line.contains("--flash-attn on"), "{line}");
         assert!(line.contains("--ubatch-size 128"), "{line}");
     }
 

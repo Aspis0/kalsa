@@ -5,7 +5,7 @@
 //! expressed as strings.
 
 use crate::args::{
-    ServerArgs, ALL_LAYERS, BATCH, HOST, IDLE_UNLOAD_SECONDS, KV_CACHE_TYPE, UBATCH,
+    ServerArgs, ALL_LAYERS, BATCH, FLASH_ATTN, HOST, IDLE_UNLOAD_SECONDS, KV_CACHE_TYPE, UBATCH,
 };
 
 impl ServerArgs {
@@ -52,9 +52,11 @@ impl ServerArgs {
         // The cache the memory arithmetic counted: one byte per element, both
         // tensors, under flash attention — a quantized V cache is refused
         // without it, and f16 would make the reported cache size half the
-        // truth.
+        // truth. The flash-attn value must be rendered: a bare flag takes
+        // the next argument as its value, and the server never starts.
         argv.extend([
             "--flash-attn".to_string(),
+            FLASH_ATTN.to_string(),
             "--cache-type-k".to_string(),
             KV_CACHE_TYPE.to_string(),
             "--cache-type-v".to_string(),
