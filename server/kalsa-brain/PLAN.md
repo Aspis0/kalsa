@@ -427,6 +427,80 @@ must not happen is a second hardcoding of one vendor — the mistake we already
 made once by shipping `http://127.0.0.1:8000` as a default, a developer's
 address with `adb reverse`, useless on a real phone.
 
+## 5bis. Where the work runs: the PC is a capability, not a second chatbot
+
+Owner, 2026-09-14: *"secondo te ha senso creare una specie di 'connessione'
+smartphone pc? Websearch, documents, tutta la parte esosa di risorse sul pc, e
+la parte chatbot su telefono... Stesso harness, due ai diverse in due punti
+diversi che si aiutano per risparmiare batteria"*.
+
+Yes — but the useful version is not two models helping each other. **The
+decomposition is by cost asymmetry, not by intelligence.**
+
+Move work whose **input is large and output is small**. Keep work whose **output
+is what the user reads**.
+
+| work | input | output | where |
+| --- | --- | --- | --- |
+| embedding a document's chunks | megabytes | vectors | **PC** |
+| ingesting a PDF and building its index | megabytes | an index | **PC** |
+| fetching a web page and extracting what matters | a whole page | a few hundred tokens | **PC** |
+| reranking candidates against a query | many passages | an ordering | **PC** |
+| the conversation itself | the turn | the text the user reads | **phone** |
+
+That table is the whole design. A 40-page PDF is minutes of prefill on a phone
+SoC — watts, sustained, with the throttling that follows. The same job is a
+request of a few kilobytes and a reply of a few kilobytes if something else does
+it. Prefill is precisely the part of inference that is expensive on the phone and
+cheap to relocate, because nobody is watching it stream.
+
+### Why not two chatbots
+
+Because the conversation has **state** and the expensive jobs do not. A remote
+chat turn means shipping the whole context across on every turn, which destroys
+the saving it was supposed to buy, and produces answers in a second model's voice
+inside a conversation the first model owns. Embeddings, extraction and reranking
+are stateless, deterministic-ish, and their results are small. They relocate
+cleanly; a conversation does not.
+
+### Three constraints that decide whether this works
+
+1. **The PC is asleep most of the time.** An old laptop is closed. So every
+   remote capability needs a local path that still works, and the PC is an
+   accelerator, never a dependency. A feature that breaks when the PC is off is
+   a feature we did not ship.
+2. **There is a crossover, and it is not near zero.** Waking the radio and paying
+   a round trip is worth it against fifty thousand tokens of prefill and absurd
+   against a hundred tokens of reply. The routing decision needs the size of the
+   job, not a preference toggle — and it should also know whether the phone is on
+   battery at all, per section 1.
+3. **What comes back must be structured data, not prose.** If the PC returns a
+   summary written by a different model and the phone pastes it into the
+   conversation, the user reads two voices. Vectors, extracted text, an ordering
+   and spans are safe; generated prose is where the seam shows.
+
+### Privacy is a separate act of consent
+
+Sending a document to the PC for indexing is **uploading the user's content**,
+even when the PC is their own machine on their own network. The existing rule
+holds: a setting that means "where do I send traffic" must never silently also
+mean "you may upload my files". Document offload asks for itself, in its own
+words, and the answer is remembered separately from the remote-brain switch.
+
+### What this changes today, before any of it is built
+
+The server we are building right now is an OpenAI-compatible **chat** endpoint.
+If the PC's real job is capabilities, the surface is wider than
+`/v1/chat/completions` — embeddings and document ingestion at minimum — and
+discovering that after the client is written means rewriting the client. So the
+decision gets locked now and built later: **the desktop app is a provider of
+capabilities that happens to also serve chat**, not a chat server we will one day
+bolt tools onto.
+
+⚠️ Honest risk, recorded so it is not rediscovered as a surprise: this doubles
+the surface of a product whose first version has not shipped. Nothing here is
+built before the chat path works end to end on a real phone and a real PC.
+
 ## 6. Licence split
 
 **Open (Apache-2.0):** the shell, the UI, process lifecycle, the llama.cpp
