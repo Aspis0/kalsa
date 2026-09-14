@@ -31,15 +31,38 @@ export type LlamaHistoryAssistantFields = {
 };
 
 /**
- * llama.rn Jinja re-emits `<think>` from `reasoning_content`, not from
- * stuffing the raw span into `content` (that double-wraps or gets stripped).
- * Inner think body only — no open/close tags.
+ * How history think is handed to llama.rn Jinja.
+ *
+ * - `reasoning_content`: LFM / `preserveThinking` templates re-emit `<think>`
+ *   from that field. Stuffing the raw span into `content` double-wraps.
+ * - `content_span`: Qwen 3.5 history (`loop.index0 <= last_query_index`)
+ *   emits `content` only. If `reasoning_content` is absent it splits
+ *   `</think>` out of content and drops the KV think tokens (S23 9151f78
+ *   t6: embd=8009 text_tokens=4438 n_common=0). An empty-string field
+ *   skips that split so the raw span stays in `content`.
  */
-export function llamaHistoryAssistantFields(message: {
-  role: string;
-  content: string;
-  modelEmittedText?: string;
-}): LlamaHistoryAssistantFields {
+export type HistoryThinkPlacement = "reasoning_content" | "content_span";
+
+/** LFM re-emits from reasoning_content; Qwen 3.5 history must keep the span. */
+export function historyThinkPlacementForModel(
+  preserveThinking: boolean | undefined,
+): HistoryThinkPlacement {
+  return preserveThinking === true ? "reasoning_content" : "content_span";
+}
+
+/**
+ * llama.rn Jinja re-emits `<think>` from `reasoning_content` on
+ * preserveThinking templates. Qwen 3.5 history needs the raw span in
+ * `content` instead (see HistoryThinkPlacement).
+ */
+export function llamaHistoryAssistantFields(
+  message: {
+    role: string;
+    content: string;
+    modelEmittedText?: string;
+  },
+  opts?: { historyThink?: HistoryThinkPlacement },
+): LlamaHistoryAssistantFields {
   if (message.role !== "assistant") {
     return { content: message.content };
   }
@@ -48,6 +71,11 @@ export function llamaHistoryAssistantFields(message: {
       ? message.modelEmittedText
       : undefined;
   const source = emitted ?? message.content;
+  if (opts?.historyThink === "content_span") {
+    const split = splitClosedLeadingThink(source);
+    if (!split) return { content: source };
+    return { content: source, reasoning_content: "" };
+  }
   const split = splitClosedLeadingThink(source);
   if (!split) {
     return { content: emitted ?? message.content };
@@ -55,6 +83,25 @@ export function llamaHistoryAssistantFields(message: {
   // Jinja is `think + content` with no extra separator. After-close bytes
   // (e.g. `\n\n` before the answer) must stay on content or KV prefix-match dies.
   return { reasoning_content: split.inner, content: split.after };
+}
+
+/** Char length the engine window must charge (replay text, not UI `text`). */
+export function historyReplayCharLength(message: {
+  role?: string;
+  text?: string;
+  content?: string;
+  modelEmittedText?: string;
+}): number {
+  if (
+    message.role === "assistant" &&
+    typeof message.modelEmittedText === "string" &&
+    message.modelEmittedText.length > 0
+  ) {
+    return message.modelEmittedText.length;
+  }
+  if (typeof message.text === "string") return message.text.length;
+  if (typeof message.content === "string") return message.content.length;
+  return 0;
 }
 
 function splitClosedLeadingThink(

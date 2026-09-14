@@ -87,6 +87,7 @@ import {
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
 import {
+  historyThinkPlacementForModel,
   historyWindowReproducesKv,
   llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
@@ -3385,10 +3386,16 @@ export async function streamAssistantTurn(
       typeof options.lastUserMessage === "string"
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
+    const historyThink = historyThinkPlacementForModel(
+      activeModel?.preserveThinking,
+    );
     let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) => {
       if (index === userIndex) return buildUserMessage(message);
       if (message.role === "assistant") {
-        return { role: "assistant", ...llamaHistoryAssistantFields(message) };
+        return {
+          role: "assistant",
+          ...llamaHistoryAssistantFields(message, { historyThink }),
+        };
       }
       return {
         role: message.role,

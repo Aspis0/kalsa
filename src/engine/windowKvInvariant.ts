@@ -115,3 +115,22 @@ export function assembleStartForLiveKv(args: {
   if (args.loadedB !== null) return args.loadedB;
   return args.computedStart;
 }
+
+/**
+ * Query-time digest/summary ride the last user. While live KV still holds
+ * the verbatim chat (start=0, hasDigest=false), injecting a new block is a
+ * prefix rewrite on the next rematch. Skip until the window is allowed to
+ * slide (KV no longer held).
+ */
+export function operativeContextForLiveKv(args: {
+  kvHeld: boolean;
+  digest?: string;
+  summary?: string;
+}): { digest?: string; summary?: string } | null {
+  if (args.kvHeld) return null;
+  const digest = typeof args.digest === "string" && args.digest.trim() ? args.digest : undefined;
+  const summary =
+    typeof args.summary === "string" && args.summary.trim() ? args.summary : undefined;
+  if (!digest && !summary) return null;
+  return { digest, summary };
+}

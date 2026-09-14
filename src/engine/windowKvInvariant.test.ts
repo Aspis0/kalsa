@@ -3,6 +3,7 @@ import {
   assembleStartForLiveKv,
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
+  operativeContextForLiveKv,
   shouldSlideAssembleBoundary,
   windowHasDigest,
   windowSlideDiscardModelId,
@@ -339,6 +340,28 @@ describe("windowHasDigest", () => {
         kvHeld: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("operativeContextForLiveKv", () => {
+  test("same-chat live KV does not inject digest/summary", () => {
+    expect(
+      operativeContextForLiveKv({
+        kvHeld: true,
+        digest: "old turn",
+        summary: "rolling",
+      }),
+    ).toBeNull();
+  });
+
+  test("cold window may inject a non-empty digest", () => {
+    expect(
+      operativeContextForLiveKv({
+        kvHeld: false,
+        digest: "old turn",
+      }),
+    ).toEqual({ digest: "old turn" });
+    expect(operativeContextForLiveKv({ kvHeld: false, digest: "  " })).toBeNull();
   });
 });
 

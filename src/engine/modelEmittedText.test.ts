@@ -5,6 +5,8 @@
 
 import {
   HISTORY_NOT_REPRODUCIBLE,
+  historyReplayCharLength,
+  historyThinkPlacementForModel,
   historyWindowReproducesKv,
   llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
@@ -118,6 +120,72 @@ describe("llamaHistoryAssistantFields", () => {
     });
     expect(fields.reasoning_content).toBeUndefined();
     expect(fields.content).toBe("<think>unfinished");
+  });
+
+  test("content_span keeps the raw think span so Qwen history prefixes KV", () => {
+    const raw = "<think>\nplan\n</think>\n\nLa memoria KV è una cache.";
+    const fields = llamaHistoryAssistantFields(
+      { role: "assistant", content: "La memoria KV è una cache.", modelEmittedText: raw },
+      { historyThink: "content_span" },
+    );
+    expect(fields.content).toBe(raw);
+    expect(fields.reasoning_content).toBe("");
+    expect(fields.content).toContain("<think>");
+  });
+
+  test("content_span without a closed think omits reasoning_content", () => {
+    const fields = llamaHistoryAssistantFields(
+      { role: "assistant", content: "hi", modelEmittedText: "hi" },
+      { historyThink: "content_span" },
+    );
+    expect(fields.content).toBe("hi");
+    expect(fields.reasoning_content).toBeUndefined();
+  });
+});
+
+describe("historyReplayCharLength", () => {
+  test("charges modelEmittedText for assistants, not the UI text", () => {
+    const think = "<think>\nplan\n</think>\n\nshort";
+    expect(
+      historyReplayCharLength({
+        role: "assistant",
+        text: "short",
+        modelEmittedText: think,
+      }),
+    ).toBe(think.length);
+    expect(historyReplayCharLength({ role: "user", text: "hi" })).toBe(2);
+  });
+
+  test("Qwen (no preserveThinking) uses content_span; LFM splits", () => {
+    expect(historyThinkPlacementForModel(undefined)).toBe("content_span");
+    expect(historyThinkPlacementForModel(true)).toBe("reasoning_content");
+  });
+
+  test("start=0 assemble + content_span keeps think so the prompt prefixes KV", () => {
+    const t1 = "<think>\nstep\n</think>\n\nanswer one";
+    const t2 = "<think>\nmore\n</think>\n\nanswer two";
+    const assembled = assembleEngineHistory(
+      [
+        { role: "user", text: "u1" },
+        { role: "assistant", text: "answer one", modelEmittedText: t1 },
+        { role: "user", text: "u2" },
+        { role: "assistant", text: "answer two", modelEmittedText: t2 },
+      ],
+      { compactionEnabled: false, hasImages: false, legacyWindowStart: 0 },
+    );
+    const placement = historyThinkPlacementForModel(undefined);
+    const a1 = llamaHistoryAssistantFields(
+      { role: "assistant", content: assembled[1]!.content, modelEmittedText: assembled[1]!.modelEmittedText },
+      { historyThink: placement },
+    );
+    const a2 = llamaHistoryAssistantFields(
+      { role: "assistant", content: assembled[3]!.content, modelEmittedText: assembled[3]!.modelEmittedText },
+      { historyThink: placement },
+    );
+    expect(a1.content).toBe(t1);
+    expect(a2.content).toBe(t2);
+    expect(a1.reasoning_content).toBe("");
+    expect(assembled[0]?.content).toBe("u1");
   });
 });
 

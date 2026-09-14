@@ -270,8 +270,10 @@ import {
   assembleStartForLiveKv,
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
+  operativeContextForLiveKv,
   windowHasDigest,
 } from "../engine/windowKvInvariant";
+import { historyReplayCharLength } from "../engine/modelEmittedText";
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
@@ -5338,8 +5340,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               ? LEGACY_MAX_CHARS_IMAGES
               : LEGACY_MAX_CHARS;
             const currentTurnChars = Math.min(promptText.length, perMessageCap);
-            const historyLengths = validatedHistory.map(
-              (m) => m.text?.length ?? 0,
+            const historyLengths = validatedHistory.map((m) =>
+              historyReplayCharLength(m),
             );
             let legacyWindowStart = legacyWindowMode
               ? windowStartIndex(
@@ -5630,11 +5632,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   userTurnCount - 1,
                   await getBenchDigestCadence(),
                 );
-                if (injectBlock && (state.frozenDigest || state.rollingSummary)) {
-                  operativeContext = {
+                if (injectBlock) {
+                  operativeContext = operativeContextForLiveKv({
+                    kvHeld,
                     digest: state.frozenDigest || undefined,
                     summary: state.rollingSummary || undefined,
-                  };
+                  });
                 }
               }
             }
