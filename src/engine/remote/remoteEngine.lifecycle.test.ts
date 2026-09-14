@@ -24,8 +24,58 @@ jest.mock("./openaiTransport", () => ({
   streamOpenAiChat: jest.fn(),
 }));
 
+jest.mock("../thinkStream", () => ({
+  createThinkStreamCleaner: jest.fn(() => ({
+    cleanDelta: (text: string) => text,
+    finalize: (text: string) => text,
+  })),
+}));
+
 const fetchMock = jest.fn();
 (globalThis as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
+
+function completeStreamMock(requestId: string) {
+  const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+    streamOpenAiChat: jest.Mock;
+  };
+  streamOpenAiChat.mockImplementation((
+    _req: unknown,
+    handlers: {
+      onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+      onFinish: (f: { kind: string; finishReason: string }) => void;
+    },
+  ) => {
+    queueMicrotask(() => {
+      handlers.onDelta({
+        kind: "delta",
+        content: "hi",
+        reasoning: "",
+        finishReason: null,
+      });
+      handlers.onFinish({ kind: "complete", finishReason: "stop" });
+    });
+    return { requestId, abort: jest.fn(), xhr: {}, isClosed: () => false };
+  });
+}
+
+function errorStreamMock(requestId: string, message: string) {
+  const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+    streamOpenAiChat: jest.Mock;
+  };
+  streamOpenAiChat.mockImplementation((
+    _req: unknown,
+    handlers: { onFinish: (f: { kind: string; finishReason: null; error: Error }) => void },
+  ) => {
+    queueMicrotask(() => {
+      handlers.onFinish({
+        kind: "error",
+        finishReason: null,
+        error: new Error(message),
+      });
+    });
+    return { requestId, abort: jest.fn(), xhr: {}, isClosed: () => false };
+  });
+}
 
 describe("RemoteEngine lifecycle", () => {
   beforeEach(() => {
@@ -35,6 +85,14 @@ describe("RemoteEngine lifecycle", () => {
       status: 200,
       json: async () => ({ data: [{ id: "ornith" }] }),
     });
+    const { createThinkStreamCleaner } = jest.requireMock("../thinkStream") as {
+      createThinkStreamCleaner: jest.Mock;
+    };
+    createThinkStreamCleaner.mockReset();
+    createThinkStreamCleaner.mockImplementation(() => ({
+      cleanDelta: (text: string) => text,
+      finalize: (text: string) => text,
+    }));
   });
 
   afterEach(async () => {
@@ -238,5 +296,126 @@ describe("RemoteEngine lifecycle", () => {
     expect(remoteNativeWorkInFlight()).toBe(false);
     await disposeRemoteEngine();
     expect(abortCount).toBe(0);
+  });
+
+  test("finalize throw still fires onDone", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { createThinkStreamCleaner } = jest.requireMock("../thinkStream") as {
+      createThinkStreamCleaner: jest.Mock;
+    };
+    createThinkStreamCleaner.mockImplementation(() => ({
+      cleanDelta: (text: string) => text,
+      finalize: () => {
+        throw new Error("finalize_boom");
+      },
+    }));
+    completeStreamMock("finalize-throw");
+    let done = false;
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => {
+          done = true;
+        },
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(done).toBe(true);
+    expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("onModelEmittedText throw still fires onDone", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    completeStreamMock("onmodel-throw");
+    let done = false;
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => {
+          done = true;
+        },
+        onError: () => undefined,
+        onModelEmittedText: () => {
+          throw new Error("onmodel_boom");
+        },
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(done).toBe(true);
+    expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("onDone throw still settles", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    completeStreamMock("ondone-throw");
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => {
+          throw new Error("ondone_boom");
+        },
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("onError throw still settles", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    errorStreamMock("onerror-throw", "net_boom");
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: () => {
+          throw new Error("onerror_boom");
+        },
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("onStatus throw does not block the stream", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    completeStreamMock("onstatus-throw");
+    let done = false;
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => {
+          done = true;
+        },
+        onError: () => undefined,
+        onStatus: () => {
+          throw new Error("onstatus_boom");
+        },
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(done).toBe(true);
+    expect(remoteNativeWorkInFlight()).toBe(false);
   });
 });

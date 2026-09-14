@@ -265,20 +265,28 @@ export async function streamRemoteAssistantTurn(
       inFlight = false;
       activeStream = null;
     }
-    try {
-      if (mine) {
+    if (mine) {
+      try {
         flush();
         const finalVisible = think.finalize(emitted);
         if (finalVisible !== visible) {
           visible = finalVisible;
           safeDelta("", visible);
         }
-        if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
+      } catch {
+        // finalize must not suppress terminal dispatch
       }
+      try {
+        if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted);
+      } catch {
+        // ignore
+      }
+    }
+    try {
       if (err) callbacks.onError(err);
       else callbacks.onDone();
     } catch {
-      // ownership already released
+      // terminal attempted
     }
   };
 
