@@ -5,9 +5,11 @@
  * llama.rn still holds the full transcript → n_common ≈ system (~1833).
  * Ciswire uses a tighter digest-share window, so it hits the same family
  * earlier: live KV ~7840 vs JS prompt ~4205, n_common=0, heads disjoint
- * (S23 96d3d06 T20C t10 / T20B t13). Char-budget pressure must not drop
- * the prefix the KV still has. A real slide (context_full) deletes the
- * .kvs first, then clearCache, then flags. Ciswire never discards chat KV.
+ * (S23 96d3d06 T20C t10 / T20B t13; f441b3d T20C t10 embd=7189
+ * text_tokens=4173). Char-budget pressure must not drop the prefix the KV
+ * still has. Hold flag / nPast can be false while native still has tokens —
+ * last save usedTokens counts as live. A real slide (context_full) deletes
+ * the .kvs first, then clearCache, then flags. Ciswire never discards chat KV.
  */
 
 export function shouldSlideAssembleBoundary(args: {
@@ -53,14 +55,32 @@ export function decideAssembleWindowAction(args: {
   return { slide, discard: slide && args.kvHoldsChatSession };
 }
 
-/** Hold flag can lag native tokens (extract restore, invalidate). */
+function positiveTokenCount(n: number | null | undefined): boolean {
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+/**
+ * Hold flag and lastChatNPast can both drop while native chat KV still
+ * has tokens (extract restore miss, translate/completeOnce flag clear).
+ * Last successful save usedTokens is the remaining hint: do not shrink
+ * the verbatim window for digest while that count is still live.
+ */
 export function kvHeldForAssembleWindow(args: {
   kvHoldsChatSession: boolean;
   nPast?: number | null;
+  lastSaveTokens?: number | null;
 }): boolean {
   if (args.kvHoldsChatSession) return true;
-  const n = args.nPast;
-  return typeof n === "number" && Number.isFinite(n) && n > 0;
+  if (positiveTokenCount(args.nPast)) return true;
+  return positiveTokenCount(args.lastSaveTokens);
+}
+
+/** Digest-share (60%) only when retrieval is on and live chat KV is not. */
+export function windowHasDigest(args: {
+  retrievalOn: boolean;
+  kvHeld: boolean;
+}): boolean {
+  return args.retrievalOn && !args.kvHeld;
 }
 
 /** Align only the live conversation's KV; mismatch / no hold → null. */
@@ -78,9 +98,9 @@ export function assembleBoundaryForAlign(args: {
 /**
  * Clamp assemble start to this chat's live KV.
  * loadedB is getLoadedAssembleBoundary: non-null only on hold+match
- * (unknown start → 0). Null is mismatch, not held, or hold-flag-false
- * with only stale nPast — keep computedStart. Do not treat null as 0.
- * kvHeldForAssembleWindow stays flag||nPast; it is not the clamp signal.
+ * (unknown start → 0). Null is mismatch or not held — keep computedStart.
+ * Do not treat null as 0. kvHeldForAssembleWindow (flag || nPast || last
+ * save tokens) feeds that hold; it is not itself the clamp signal.
  * Anchored: caller already aligned boundaryIndex — leave computedStart.
  */
 export function assembleStartForLiveKv(args: {

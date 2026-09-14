@@ -4,6 +4,7 @@ import {
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
   shouldSlideAssembleBoundary,
+  windowHasDigest,
   windowSlideDiscardModelId,
 } from "./windowKvInvariant";
 
@@ -264,6 +265,78 @@ describe("kvHeldForAssembleWindow", () => {
       kvHeldForAssembleWindow({
         kvHoldsChatSession: false,
         nPast: 0,
+      }),
+    ).toBe(false);
+  });
+
+  test("last save tokens count as live when flag and nPast both dropped", () => {
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: false,
+        nPast: undefined,
+        lastSaveTokens: 7189,
+      }),
+    ).toBe(true);
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: false,
+        nPast: 0,
+        lastSaveTokens: 0,
+      }),
+    ).toBe(false);
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: false,
+        nPast: undefined,
+        lastSaveTokens: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("windowHasDigest", () => {
+  test("hasDigest is false when kvHeld or nPast (or last save tokens)", () => {
+    expect(
+      windowHasDigest({
+        retrievalOn: true,
+        kvHeld: kvHeldForAssembleWindow({
+          kvHoldsChatSession: true,
+          nPast: undefined,
+        }),
+      }),
+    ).toBe(false);
+    expect(
+      windowHasDigest({
+        retrievalOn: true,
+        kvHeld: kvHeldForAssembleWindow({
+          kvHoldsChatSession: false,
+          nPast: 7101,
+        }),
+      }),
+    ).toBe(false);
+    expect(
+      windowHasDigest({
+        retrievalOn: true,
+        kvHeld: kvHeldForAssembleWindow({
+          kvHoldsChatSession: false,
+          nPast: undefined,
+          lastSaveTokens: 7189,
+        }),
+      }),
+    ).toBe(false);
+    expect(
+      windowHasDigest({
+        retrievalOn: true,
+        kvHeld: kvHeldForAssembleWindow({
+          kvHoldsChatSession: false,
+          nPast: 0,
+        }),
+      }),
+    ).toBe(true);
+    expect(
+      windowHasDigest({
+        retrievalOn: false,
+        kvHeld: false,
       }),
     ).toBe(false);
   });

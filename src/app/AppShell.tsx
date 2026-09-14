@@ -119,6 +119,7 @@ import {
 } from "../engine/deviceThroughputStore";
 import {
   chatKvIsHeld,
+  chatKvLastSaveTokens,
   chatKvNPast,
   completeOnce,
   discardChatKvForWindowSlide,
@@ -269,6 +270,7 @@ import {
   assembleStartForLiveKv,
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
+  windowHasDigest,
 } from "../engine/windowKvInvariant";
 import {
   advanceAnchoredBoundary,
@@ -304,7 +306,11 @@ import {
   LEGACY_MAX_CHARS,
   LEGACY_MAX_CHARS_IMAGES,
 } from "../context/compactor";
-import { resolveWindowProfile, windowStartIndex } from "../context/windowProfile";
+import {
+  resolveWindowProfile,
+  windowStartIndex,
+  WINDOW_CHARS_PER_TOKEN,
+} from "../context/windowProfile";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -5296,11 +5302,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // disagreed a message would land in both or — worse — in neither.
             // Passing one index makes them agree by construction.
             const benchWindow = await getBenchLegacyWindow();
+            const nPast = chatKvNPast();
             const kvHeld = kvHeldForAssembleWindow({
               kvHoldsChatSession: chatKvIsHeld(),
-              nPast: chatKvNPast(),
+              nPast,
+              lastSaveTokens: chatKvLastSaveTokens(),
             });
             const loadedB = getLoadedAssembleBoundary(chatId);
+            // Digest share shrinks the verbatim window. While live KV still
+            // holds the full chat, that drop is n_common=0 (f441b3d T20C t10:
+            // embd=7189 text_tokens=4173 n_common=0 = WINDOW_SHARE_WITH_DIGEST).
+            // Flag / nPast can both be stale-false; last save tokens count.
+            const hasDigest = windowHasDigest({ retrievalOn, kvHeld });
             const windowProfile =
               typeof benchWindow === "number"
                 ? {
@@ -5311,10 +5324,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 : resolveWindowProfile({
                     nCtx: getActiveEngineNCtx(),
                     hasImages,
-                    // Digest share shrinks the verbatim window. While live KV
-                    // still holds the full chat, that drop is n_common=0
-                    // (S23 T20C t10: embd=7840 text_tokens=4219 n_common=0).
-                    hasDigest: retrievalOn && !kvHeld,
+                    hasDigest,
                   });
             // The turn being sent is appended to the prompt AFTER this walk, so
             // it must be charged here or a long message would ride entirely
@@ -5364,6 +5374,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
               boundaryForAssemble = legacyWindowStart;
+            }
+            try {
+              const windowChars =
+                historyLengths
+                  .slice(legacyWindowStart)
+                  .reduce((sum, n) => sum + Math.min(n, perMessageCap), 0) +
+                currentTurnChars;
+              console.log(
+                `KALSA_WINDOW ${JSON.stringify({
+                  kvHeld,
+                  nPast: nPast ?? 0,
+                  loadedB,
+                  hasDigest,
+                  legacyWindowStart,
+                  textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
+                })}`,
+              );
+            } catch {
+              // telemetry must never throw
             }
             if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);

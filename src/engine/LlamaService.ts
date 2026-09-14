@@ -197,6 +197,7 @@ import {
 import { resolveThinkingParams, thinkingSpeedOpts } from "./thinkingBudgets";
 import {
   assembleBoundaryForAlign,
+  kvHeldForAssembleWindow,
   windowSlideDiscardModelId,
 } from "./windowKvInvariant";
 import { getModelById } from "./ModelRegistry";
@@ -1174,11 +1175,22 @@ export function chatKvNPast(): number | undefined {
   return lastChatNPast;
 }
 
+/**
+ * usedTokens from the last successful native save. Survives hold-flag /
+ * lastChatNPast drops that do not prove native chat KV is empty.
+ */
+export function chatKvLastSaveTokens(): number | undefined {
+  const n = lastSuccessfulSessionSave?.usedTokens;
+  return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 export function getLoadedAssembleBoundary(activeChatId: string): number | null {
   return assembleBoundaryForAlign({
-    kvHeld:
-      kvHoldsChatSession ||
-      (typeof lastChatNPast === "number" && lastChatNPast > 0),
+    kvHeld: kvHeldForAssembleWindow({
+      kvHoldsChatSession,
+      nPast: lastChatNPast,
+      lastSaveTokens: lastSuccessfulSessionSave?.usedTokens,
+    }),
     storedConv: lastAssembleConvId ?? "",
     activeConv: activeChatId,
     boundary: lastAssembleBoundary,
