@@ -49,6 +49,7 @@ pub use choice::{
     Refusal, RefusalReason, Selection, IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS,
     SAME_CLASS_BAND,
 };
+pub use candidate::Prediction;
 pub use footprint::{fits, footprint_bytes, memory_budget, usable_bytes, Footprint, GIB, MemoryBudget};
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported
 // rather than making callers depend on the probe's path module by name.

@@ -11,21 +11,51 @@ use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
 use crate::footprint::{footprint_bytes, Footprint, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
 
+/// A predicted figure, with its shape carried in the type. Decode comes from
+/// the same bandwidth read at two efficiencies, so it is a range; prefill
+/// comes from the compute probe, which is a floor by construction — so it is
+/// one number. The shape is decided where the prediction is made, which is
+/// why the formatter has no equal-ends case to guard and no wrong call to
+/// make: it renders whichever shape it is handed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Prediction {
+    Range { low: f64, high: f64 },
+    Floor(f64),
+}
+
+impl Prediction {
+    /// The pessimistic end — the one that must clear the usability floor.
+    pub fn floor(&self) -> f64 {
+        match *self {
+            Prediction::Range { low, .. } => low,
+            Prediction::Floor(value) => value,
+        }
+    }
+
+    /// The optimistic end — the one same-class candidates are ordered by.
+    pub fn ceiling(&self) -> f64 {
+        match *self {
+            Prediction::Range { high, .. } => high,
+            Prediction::Floor(value) => value,
+        }
+    }
+}
+
 pub(crate) struct Candidate<'a> {
     pub(crate) entry: &'a ModelEntry,
     pub(crate) footprint: Footprint,
     /// Decode throughput as a range, never as a point.
-    pub(crate) decode: (f64, f64),
-    /// Prefill throughput as a **floor**: both ends are the same number and
-    /// mean "at least this much".
-    pub(crate) prefill: (f64, f64),
+    pub(crate) decode: Prediction,
+    /// Prefill throughput as a **floor**: one number meaning "at least this
+    /// much".
+    pub(crate) prefill: Prediction,
 }
 
 impl Candidate<'_> {
     /// Ordered by the top of the band: the band is the same factor for every
     /// candidate, so this is the same ordering as any other point in it.
     pub(crate) fn decode_ceiling(&self) -> f64 {
-        self.decode.1
+        self.decode.ceiling()
     }
 }
 
@@ -34,23 +64,27 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
     // these two the wrong way round is the mistake the separate types prevent.
     let active_bytes = active_weight_bytes(entry);
+    let decode = |efficiency| {
+        decode_tokens_per_second(input.bandwidth_bytes_per_second, active_bytes, efficiency)
+    };
+    let (low_efficiency, high_efficiency) = DECODE_EFFICIENCY_BAND;
     Candidate {
         entry,
         footprint: footprint_bytes(entry, input.context_tokens),
-        decode: band(|efficiency| {
-            decode_tokens_per_second(input.bandwidth_bytes_per_second, active_bytes, efficiency)
-        }),
+        decode: Prediction::Range {
+            low: decode(low_efficiency).unwrap_or(0.0),
+            high: decode(high_efficiency).unwrap_or(0.0),
+        },
         // Prefill is a floor, not a range: the compute probe is a portable loop
-        // and real kernels are faster. Both ends carry the same number, and the
-        // meaning is "at least this much" — never a band to multiply down.
-        prefill: {
-            let floor = prefill_tokens_per_second(
+        // and real kernels are faster. The meaning is "at least this much" —
+        // never a band to multiply down.
+        prefill: Prediction::Floor(
+            prefill_tokens_per_second(
                 input.compute_flops_per_second,
                 entry.parameters.active().count(),
             )
-            .unwrap_or(0.0);
-            (floor, floor)
-        },
+            .unwrap_or(0.0),
+        ),
     }
 }
 
@@ -64,28 +98,21 @@ fn active_weight_bytes(entry: &ModelEntry) -> u64 {
     (entry.weights_bytes as u128 * active as u128 / total as u128) as u64
 }
 
-fn band(predict: impl Fn(f64) -> Option<f64>) -> (f64, f64) {
-    let (low_efficiency, high_efficiency) = DECODE_EFFICIENCY_BAND;
-    let low = predict(low_efficiency).unwrap_or(0.0);
-    let high = predict(high_efficiency).unwrap_or(0.0);
-    (low, high)
-}
-
-/// The decode range of the largest row that fits, improves on the phone, and is
-/// nevertheless too slow — worth saying out loud instead of hiding behind a
-/// smaller recommendation.
+/// The decode prediction of the largest row that fits, improves on the phone,
+/// and is nevertheless too slow — worth saying out loud instead of hiding
+/// behind a smaller recommendation.
 pub(crate) fn too_slow_to_use(
     input: &ChoiceInput,
     budget: &MemoryBudget,
     chosen: &Candidate<'_>,
-) -> Option<(f64, f64)> {
+) -> Option<Prediction> {
     manifest::usable()
         .map(|entry| candidate(entry, input))
         .filter(|candidate| candidate.footprint.total_bytes() <= budget.usable_bytes)
-        .filter(|candidate| candidate.decode.0 < MINIMUM_TOKENS_PER_SECOND)
+        .filter(|candidate| candidate.decode.floor() < MINIMUM_TOKENS_PER_SECOND)
         .filter(|candidate| candidate.entry.weights_bytes > chosen.entry.weights_bytes)
         .map(|candidate| candidate.decode)
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| a.ceiling().partial_cmp(&b.ceiling()).unwrap_or(std::cmp::Ordering::Equal))
 }
 
 #[cfg(test)]
@@ -143,7 +170,7 @@ mod tests {
         // used the total ones, these two would be equal — that is the swap this
         // assertion catches.
         assert!(
-            mixture_candidate.prefill.1 > dense_candidate.prefill.1 * 1.9,
+            mixture_candidate.prefill.ceiling() > dense_candidate.prefill.ceiling() * 1.9,
             "half the active parameters must prefill about twice as fast"
         );
     }

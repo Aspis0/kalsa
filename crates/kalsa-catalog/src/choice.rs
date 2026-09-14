@@ -14,12 +14,12 @@
 
 use kalsa_probe::Backend;
 
-use crate::candidate::{candidate, Candidate};
+use crate::candidate::{candidate, Candidate, Prediction};
 use crate::footprint::{memory_budget, Footprint, MemoryBudget};
 use crate::licence::Licence;
 use crate::manifest::{self, DenseEquivalent};
 use crate::parameters::Parameters;
-use crate::rationale::{band_text, details, gib_text, plain_reason};
+use crate::rationale::{details, gib_text, plain_reason, render};
 
 /// The phone's model, as the pairing handshake reports it.
 #[derive(Clone, Copy, Debug)]
@@ -246,11 +246,11 @@ pub struct Selection {
     /// accounted for.
     pub budget: MemoryBudget,
     pub context_tokens: u64,
-    /// Decode throughput as a range, never as a point.
-    pub decode: (f64, f64),
-    /// Prefill throughput as a **floor**: both ends are the same number and mean
-    /// "at least this much" (see `Measurement::compute_is_lower_bound`).
-    pub prefill: (f64, f64),
+    /// Decode throughput as a band: a range, never a point.
+    pub decode: Prediction,
+    /// Prefill throughput as a floor — one number meaning "at least this
+    /// much" (see `Measurement::compute_is_lower_bound`).
+    pub prefill: Prediction,
     /// The licence of the chosen row, as data: a conditional licence must be
     /// visible in the result, never silently presented as unconditional.
     pub licence: Licence,
@@ -333,21 +333,16 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     let mut remaining: Vec<&Candidate> = fitting
         .iter()
         .copied()
-        .filter(|candidate| candidate.decode.0 >= MINIMUM_TOKENS_PER_SECOND)
+        .filter(|candidate| candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND)
         .collect();
     if remaining.is_empty() {
-        let fastest = fitting
-            .iter()
-            .map(|candidate| candidate.decode.1)
-            .fold(0.0, f64::max);
+        let span = span_of(fitting.iter().map(|candidate| &candidate.decode));
         return Decision::Refuse(Refusal {
             reason: RefusalReason::NothingFastEnough,
             explanation: format!(
                 "This computer is not worth using: the models that fit would decode at \
                  about {} tokens per second, which is slower than reading.",
-                band_text((0.0, fastest))
-                    .trim_start_matches('0')
-                    .trim_start_matches('–')
+                render(&span)
             ),
         });
     }
@@ -408,7 +403,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         .collect();
     let comparable_fast = comparable
         .iter()
-        .any(|candidate| candidate.decode.0 >= MINIMUM_TOKENS_PER_SECOND);
+        .any(|candidate| candidate.decode.floor() >= MINIMUM_TOKENS_PER_SECOND);
     let (reason, explanation) = if comparable.is_empty() {
         (
             RefusalReason::NothingBetter,
@@ -425,9 +420,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                 "This computer is not worth using: the models that fit and would be worth \
                  running here would decode at about {} tokens per second, which is slower \
                  than reading.",
-                band_text((0.0, fastest_ceiling(&comparable)))
-                    .trim_start_matches('0')
-                    .trim_start_matches('–')
+                render(&span_of(comparable.iter().map(|candidate| &candidate.decode)))
             ),
         )
     } else if phone.battery_powered == Some(false) {
@@ -464,11 +457,16 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
-fn fastest_ceiling(candidates: &[&Candidate]) -> f64 {
-    candidates
-        .iter()
-        .map(|candidate| candidate.decode.1)
-        .fold(0.0, f64::max)
+/// The honest span of a set of predictions: from the most pessimistic end to
+/// the most optimistic. Nothing is rendered from a fabricated pair.
+fn span_of<'a>(predictions: impl Iterator<Item = &'a Prediction>) -> Prediction {
+    let mut low = f64::INFINITY;
+    let mut high = f64::NEG_INFINITY;
+    for prediction in predictions {
+        low = low.min(prediction.floor());
+        high = high.max(prediction.ceiling());
+    }
+    Prediction::Range { low, high }
 }
 
 /// The numbers and the sentence for the candidate the walk settled on.

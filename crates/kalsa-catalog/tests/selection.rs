@@ -457,11 +457,14 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
     match choose(&input) {
         Decision::Pick(selection) => {
             assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
-            assert!(selection.decode.0 > 0.0 && selection.decode.1 > selection.decode.0);
             assert!(
-                selection.decode.0 > 20.0,
+                selection.decode.floor() > 0.0
+                    && selection.decode.ceiling() > selection.decode.floor()
+            );
+            assert!(
+                selection.decode.floor() > 20.0,
                 "3B active on 85 GB/s should be well above 20 tok/s, got {}",
-                selection.decode.0
+                selection.decode.floor()
             );
         }
         other => panic!("expected a pick, got {other:?}"),

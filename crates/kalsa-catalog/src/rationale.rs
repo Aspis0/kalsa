@@ -6,7 +6,7 @@
 //! with the numbers, the caveats and the provenance. Both stay honest: a
 //! caveat may live only in the details, but it may not vanish.
 
-use crate::candidate::{too_slow_to_use, Candidate};
+use crate::candidate::{too_slow_to_use, Candidate, Prediction};
 use crate::choice::{CapabilityBasis, ChoiceInput, Justification, PhoneModel};
 use crate::footprint::{MemoryBudget, GIB};
 
@@ -47,8 +47,8 @@ pub(crate) fn details(
         "{} ({} of weights): about {} tokens per second, and {} for prompt processing.",
         chosen.entry.display_name,
         gib_text(chosen.entry.weights_bytes),
-        band_text(chosen.decode),
-        floor_text(chosen.prefill.1)
+        render(&chosen.decode),
+        render(&chosen.prefill)
     )];
 
     if chosen.entry.parameters.is_mixture() {
@@ -118,7 +118,7 @@ pub(crate) fn details(
         parts.push(format!(
             "A bigger model fits in this machine, but the numbers say it would run at about \
              {} tokens per second: slower than reading, so it is not offered.",
-            band_text(slowest)
+            render(&slowest)
         ));
     }
 
@@ -154,30 +154,20 @@ pub(crate) fn details(
     parts.join(" ")
 }
 
-/// A floor is one number with a direction — the shape the probe prints —
-/// never a degenerate range. Always one decimal: a floor is a measured
-/// figure, and "≥ 16" would round away the digit that says so.
-pub(crate) fn floor_text(value: f64) -> String {
-    format!("≥ {:.1}", value)
-}
-
 pub(crate) fn gib_text(bytes: u64) -> String {
     size_text(bytes)
 }
 
-/// A range on purpose: from an approximate estimate a single figure would be a
-/// made-up precision.
-pub(crate) fn band_text((low, high): (f64, f64)) -> String {
-    assert!(
-        high > low,
-        "a range needs two different ends: a single value is a floor, printed with floor_text"
-    );
-    if high >= 10.0 {
-        format!("{:.0}–{:.0}", low, high)
-    } else {
-        // "0–1" for half a token per second would be a rounding that hides a
-        // categorical difference: too slow to use.
-        format!("{:.1}–{:.1}", low, high)
+/// One formatter, because there is only one question: which shape is it? A
+/// range prints with an en dash, a floor prints with the probe's ≥ — and
+/// there is no equal-ends case to guard, because the type cannot be asked to
+/// pretend a floor is a range. A degenerate band (a failed measurement would
+/// make one) renders harmlessly instead of taking the app down.
+pub(crate) fn render(prediction: &Prediction) -> String {
+    match *prediction {
+        Prediction::Range { low, high } if high >= 10.0 => format!("{:.0}–{:.0}", low, high),
+        Prediction::Range { low, high } => format!("{:.1}–{:.1}", low, high),
+        Prediction::Floor(value) => format!("≥ {:.1}", value),
     }
 }
 
@@ -203,21 +193,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_floor_prints_as_a_floor() {
-        assert_eq!(floor_text(16.1), "≥ 16.1");
-        assert_eq!(floor_text(4.2), "≥ 4.2");
-        assert_eq!(floor_text(50.0), "≥ 50.0");
+    fn a_floor_prints_as_a_floor_and_a_range_as_a_range() {
+        // The shape is decided by the type, not by the caller picking a
+        // formatter: one render, two honest outputs.
+        assert_eq!(render(&Prediction::Floor(16.1)), "≥ 16.1");
+        assert_eq!(render(&Prediction::Floor(4.2)), "≥ 4.2");
+        assert_eq!(render(&Prediction::Range { low: 25.4, high: 32.6 }), "25–33");
+        assert_eq!(
+            render(&Prediction::Range { low: 0.5, high: 0.7 }),
+            "0.5–0.7",
+            "below ten, a decimal"
+        );
     }
 
     #[test]
-    #[should_panic(expected = "a range needs two different ends")]
-    fn a_range_never_prints_two_equal_ends() {
-        band_text((4.2, 4.2));
-    }
-
-    #[test]
-    fn a_range_is_written_as_a_range() {
-        assert_eq!(band_text((25.4, 32.6)), "25–33");
-        assert_eq!(band_text((0.5, 0.7)), "0.5–0.7", "below ten, a decimal");
+    fn a_degenerate_band_renders_harmlessly() {
+        // A failed measurement would produce a zero band. It must print, not
+        // panic: formatting code never takes the app down in front of a user.
+        assert_eq!(
+            render(&Prediction::Range { low: 0.0, high: 0.0 }),
+            "0.0–0.0"
+        );
     }
 }
