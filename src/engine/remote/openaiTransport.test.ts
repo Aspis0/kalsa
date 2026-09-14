@@ -269,6 +269,44 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.kind).toBe("complete");
   });
 
+  test("reentrant abort in onDelta does not deliver later frames", async () => {
+    const xhr = fakeXhr();
+    const deltas: string[] = [];
+    const finishes: RemoteFinish[] = [];
+    let abortFn: () => void = () => undefined;
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [{ role: "user", content: "hi" }],
+        maxTokens: 8,
+        temperature: 0,
+        requestId: "reenter",
+        inactivityMs: 0,
+      },
+      {
+        onDelta: (d) => {
+          if (d.content) deltas.push(d.content);
+          if (d.content === "one") abortFn();
+        },
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    abortFn = handle.abort;
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"}}]}\n\n' +
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.onprogress?.call(xhr);
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("interrupted");
+  });
+
   test("abort mid-frame flushes complete frames only", async () => {
     const xhr = fakeXhr();
     const { handle, deltas, finishes } = start(xhr);

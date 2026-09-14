@@ -135,7 +135,9 @@ export function streamOpenAiChat(
     const split = splitSseFrames(buffer);
     buffer = split.rest;
     for (const frame of split.frames) {
+      if (closed) return;
       for (const event of parseSseFrame(frame)) {
+        if (closed) return;
         if (event.kind === "ignore") continue;
         if (event.kind === "error") {
           emitFinish({
@@ -153,9 +155,7 @@ export function streamOpenAiChat(
           sawTerminal = true;
         }
         if (event.kind === "delta") handlers.onDelta(event);
-        if (event.kind === "done") {
-          // Wait for onload to confirm success; marker is recorded.
-        }
+        if (closed) return;
       }
     }
   };
