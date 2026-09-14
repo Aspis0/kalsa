@@ -1,0 +1,14 @@
+[package]
+name = "kalsa-catalog"
+description = "Which model this machine should run, and how fast, before downloading anything"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Only the pure prediction functions: the catalog does not measure anything.
+kalsa-probe = { path = "../kalsa-probe" }
+
+[[bin]]
+name = "kalsa-catalog"
+path = "src/bin/kalsa-catalog.rs"

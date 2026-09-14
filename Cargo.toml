@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/kalsa-probe", "crates/kalsa-supervisor", "src-tauri"]
+members = [
+    "crates/kalsa-catalog",
+    "crates/kalsa-probe",
+    "crates/kalsa-supervisor",
+    "src-tauri",
+]
 
 [workspace.package]
 version = "0.0.1"

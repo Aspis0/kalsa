@@ -1682,6 +1682,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-catalog"
+version = "0.0.1"
+dependencies = [
+ "kalsa-probe",
+]
+
+[[package]]
 name = "kalsa-probe"
 version = "0.0.1"
 

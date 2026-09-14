@@ -126,6 +126,40 @@ been validated against real inference yet: that needs a real model benchmarked o
 the machine, which is the plan's measured baseline and the next step, not a
 claim.
 
+## The catalog: which model, before downloading anything
+
+`kalsa-catalog` looks at a measured machine, the phone's own model, and the
+researched rows, and answers with a model **and a reason**.
+
+```sh
+cargo run -p kalsa-catalog -- --ram 32 --bandwidth 85 --gflops 100 --phone-gb 2.64
+```
+
+The rules are pure and tested without hardware:
+
+* **two axes, two types.** Total weights decide whether a model fits, active
+  weights decide how fast it decodes. On a MoE they differ by up to ten, so
+  `TotalParameters` and `ActiveParameters` are separate types and swapping them
+  is a compile error rather than a wrong recommendation.
+* **licence is a door, not a column.** The chooser only accepts a
+  `UsableEntry`, and only `manifest::usable()` produces those, for rows whose
+  licence allows what this product needs. The refused rows stay in the catalog
+  with their reason: `amd/Instella-MoE-16B-A3B-Think` is research-only, and the
+  2025 rows are superseded.
+* **the PC must beat the phone.** A candidate needs at least 1.3× the phone
+  model's weight, and has to decode at 3 tokens per second or more at the *low*
+  end of its predicted range. If nothing clears both bars, the answer is "this
+  computer is not worth it", in words — there is no courtesy tier.
+* **say why, with the numbers.** Every decision carries a sentence naming the
+  model, the decode and prefill ranges, the phone's own measured speed when it
+  reports one, and that the cache size is still an assumption. Speeds are always
+  ranges: from an approximation, a single figure would be invented precision.
+
+Memory arithmetic (`footprint`): weights + mmproj + compute buffers + KV +
+margin ≤ RAM, where the margin is `max(3 GiB, 25%)` — a current OS idles around
+3 GiB and a browser adds more, and no fraction of an 8 GiB machine covers that,
+while on 64 GiB a quarter is more than the OS will ever want.
+
 ## Licence
 
 Apache-2.0 for this shell. Parts of `crates/kalsa-supervisor/src/child.rs` are
