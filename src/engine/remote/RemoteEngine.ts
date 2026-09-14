@@ -73,7 +73,6 @@ export async function testRemoteConnection(): Promise<{
   const probe = new AbortController();
   const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
-    const token = await getRemoteBrainToken();
     const base = getRemoteBrainUrl();
     const urlGate = remoteUrlGateError(base);
     if (urlGate) {
@@ -83,6 +82,7 @@ export async function testRemoteConnection(): Promise<{
         error: urlGate,
       };
     }
+    const token = await getRemoteBrainToken();
     if (isNonLoopback(base) && !token) {
       return {
         ok: false,
@@ -295,14 +295,14 @@ export async function streamRemoteAssistantTurn(
 
   let streamStarted = false;
   try {
-  const token = await getRemoteBrainToken();
-  if (!stillMine()) return;
   const base = getRemoteBrainUrl();
   const urlGate = remoteUrlGateError(base);
   if (urlGate) {
     finishOnce(new Error(urlGate));
     return;
   }
+  const token = await getRemoteBrainToken();
+  if (!stillMine()) return;
   if (isNonLoopback(base) && !token) {
     finishOnce(new Error("remote_brain_token_required"));
     return;

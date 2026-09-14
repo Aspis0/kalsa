@@ -109,6 +109,18 @@ describe("RemoteEngine lifecycle", () => {
     expect(probe.error).toBe("remote_brain_url_missing");
   });
 
+  test("empty URL does not read SecureStore", async () => {
+    await setRemoteBrainUrl("");
+    (getRemoteBrainToken as jest.Mock).mockClear();
+    (getRemoteBrainToken as jest.Mock).mockRejectedValue(
+      new Error("secure_store_down"),
+    );
+    const probe = await testRemoteConnection();
+    expect(probe.error).toBe("remote_brain_url_missing");
+    expect(getRemoteBrainToken).not.toHaveBeenCalled();
+    (getRemoteBrainToken as jest.Mock).mockResolvedValue(null);
+  });
+
   test("stream with empty URL errors url_missing", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");
     await setRemoteServerModelId("ornith");
