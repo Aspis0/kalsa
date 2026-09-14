@@ -58,6 +58,19 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
 /// `weights + mmproj + compute buffers + KV + margin <= usable RAM`, solved
 /// for KV's term. Whole tokens: the floor is the answer, never a rounding up
 /// that the budget did not pay for.
+///
+/// On the assumed per-token figure the choice is conservative by direction:
+/// 96 KiB is "above every dense model in this catalog", so an unmeasured
+/// dense row's true cache is cheaper than budgeted and the context is
+/// *smaller* than the machine could fund — wasted tokens, never memory. The
+/// exposure is a row whose real cost exceeds the assumption: the server
+/// allocates from the GGUF, not from this arithmetic, and the excess lands
+/// on the machine unannounced — which is what
+/// [`crate::MemoryAssumption::kv_per_token_assumed`] exists to name, and
+/// what a row measurement retires. Defending by inflating the assumption
+/// would halve every dense row's context to insure against a direction the
+/// constant already guards; the honest fix for the rows above it is a
+/// measurement, not a bigger guess.
 fn context_tokens(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
     let per_token = match model.kv_bytes_per_token {
         // A zero measurement is broken data: refuse it rather than silently
@@ -103,20 +116,41 @@ fn offload(input: &LaunchInput) -> Offload {
 mod tests {
     use super::*;
     use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB};
+    use kalsa_catalog::CATALOG;
     use kalsa_probe::Backend;
 
-    fn dense_row(weights_bytes: u64) -> ModelEntry {
+    /// The row most of these tests ride on: small enough to be fundable on
+    /// every budget in the suite, shipped and usable.
+    const GRANITE: &str = "IBM Granite 4 Tiny";
+
+    /// A real, usable catalog row, so the compiler — not this file — notices
+    /// when the row's shape changes, and the tests exercise something the
+    /// product actually ships.
+    fn shipped_row(name: &str) -> &'static ModelEntry {
+        CATALOG
+            .iter()
+            .find(|entry| entry.display_name == name)
+            .unwrap_or_else(|| {
+                panic!("{name} left the catalog: re-point these tests at a shipped row")
+            })
+    }
+
+    /// Hand-built, and it has to be: the two shapes this suite needs that no
+    /// shipped row has — a measured per-token figure (no row carries one yet)
+    /// and a broken zero measurement (no row may ever carry one). Everything
+    /// else here runs on real rows.
+    fn synthetic_row(weights_bytes: u64, kv_bytes_per_token: Option<u64>) -> ModelEntry {
         ModelEntry {
-            repo: "test/dense",
-            display_name: "Test Dense",
-            gguf_repo: None,
+            repo: "test/synthetic",
+            display_name: "Synthetic Row",
+            source: None,
             last_modified: "2026-01-01",
             licence: kalsa_catalog::Licence::Open("apache-2.0"),
             parameters: kalsa_catalog::Parameters::dense(8_000_000_000),
             quant: "Q4_K_M",
             weights_bytes,
             mmproj_bytes: None,
-            kv_bytes_per_token: None,
+            kv_bytes_per_token,
             dense_equivalent: None,
             stale: None,
         }
@@ -146,44 +180,45 @@ mod tests {
 
     #[test]
     fn the_context_is_the_biggest_that_fits_and_not_one_token_more() {
-        // 8 GiB machine, CPU path: 5 GiB usable, 4 GiB weights, 512 MiB of
-        // compute buffers -> 512 MiB of KV at 96 KiB/token = 5461 whole
-        // tokens. 5462 would need memory the machine does not have.
-        let model = dense_row(4 * GIB);
+        // Granite 4 Tiny (4_230_976_352 bytes) on an 8 GiB CPU machine:
+        // 5 GiB usable, minus the weights and 512 MiB of compute buffers,
+        // leaves 600_861_856 bytes of cache at 96 KiB/token = 6112 whole
+        // tokens. 6113 would need memory the machine does not have.
+        let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 8 * GIB);
-        let launched = plan(&input(ServerBackend::Cpu, budget, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 5461);
-        assert!(fits(&model, launched.args.context_tokens, &budget));
+        assert_eq!(launched.args.context_tokens, 6112);
+        assert!(fits(model, launched.args.context_tokens, &budget));
         assert!(
-            !fits(&model, launched.args.context_tokens + 1, &budget),
+            !fits(model, launched.args.context_tokens + 1, &budget),
             "one more token would not be paid for"
         );
-        assert_eq!(launched.memory.kv_cache_bytes, 5461 * 96 * KIB);
+        assert_eq!(launched.memory.kv_cache_bytes, 6112 * 96 * KIB);
         assert!(
             launched.memory.kv_per_token_assumed,
-            "no measured KV on this row"
+            "no shipped row carries a measured KV figure"
         );
     }
 
     #[test]
     fn a_model_the_machine_cannot_fund_is_not_started() {
         let budget = memory_budget(Backend::Cpu, 8 * GIB);
-        // 5 GiB of weights plus 512 MiB of buffers already exceed the 5 GiB
-        // budget: starting this small is how an OOM kill happens.
-        let too_big = dense_row(5 * GIB);
-        assert!(plan(&input(ServerBackend::Cpu, budget, &too_big, M1_MAX_RAMP)).is_none());
+        // Gemma 4 E4B ships in the catalog and an 8 GiB machine cannot fund
+        // it: 5.03 GiB of weights plus 512 MiB of buffers already exceed the
+        // 5 GiB budget. Starting it small is how an OOM kill happens.
+        let too_big = shipped_row("Google Gemma 4 E4B");
+        assert!(plan(&input(ServerBackend::Cpu, budget, too_big, M1_MAX_RAMP)).is_none());
         // A zero per-token measurement is broken data, not a free cache.
-        let mut garbage = dense_row(4 * GIB);
-        garbage.kv_bytes_per_token = Some(0);
+        let garbage = synthetic_row(4 * GIB, Some(0));
         assert!(plan(&input(ServerBackend::Cpu, budget, &garbage, M1_MAX_RAMP)).is_none());
     }
 
     #[test]
     fn the_cpu_build_gets_no_gpu_flags() {
-        let model = dense_row(4 * GIB);
+        let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Cpu, budget, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
         assert_eq!(launched.args.offload, Offload::NoGpuBuild);
         let line = launched.args.argv().join(" ");
@@ -195,13 +230,13 @@ mod tests {
         // VRAM could not be read honestly, so the budget is system RAM and
         // says the card was not accounted for: CPU decode, forced explicitly,
         // because a GPU build would otherwise offload every layer by default.
-        let model = dense_row(4 * GIB);
+        let model = shipped_row(GRANITE);
         let unreadable = memory_budget(Backend::DiscreteGpu { vram_bytes: None }, 32 * GIB);
         assert!(!unreadable.gpu_accounted_for);
         let launched = plan(&input(
             ServerBackend::Vulkan,
             unreadable,
-            &model,
+            model,
             M1_MAX_RAMP,
         ))
         .expect("the model fits the RAM budget");
@@ -211,14 +246,14 @@ mod tests {
         // An Intel Mac runs the same Metal archive and its hardware reads as
         // Unknown: same answer, for the same reason.
         let intel_mac = memory_budget(Backend::Unknown, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Metal, intel_mac, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Metal, intel_mac, model, M1_MAX_RAMP))
             .expect("the model fits the RAM budget");
         assert_eq!(launched.args.offload, Offload::ForcedOff);
     }
 
     #[test]
     fn a_gpu_the_budget_was_sized_for_gets_every_layer() {
-        let model = dense_row(4 * GIB);
+        let model = shipped_row(GRANITE);
         // The card's own memory is the budget: usable(8 GiB) = 5 GiB, and the
         // 4 GiB model was chosen against it, so full offload is what the
         // catalog already promised.
@@ -228,23 +263,23 @@ mod tests {
             },
             32 * GIB,
         );
-        let launched = plan(&input(ServerBackend::Cuda12, card, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cuda12, card, model, M1_MAX_RAMP))
             .expect("the model fits the VRAM budget");
         assert_eq!(launched.args.offload, Offload::All);
         let line = launched.args.argv().join(" ");
         assert!(line.contains("--n-gpu-layers 999"), "{line}");
         // Apple Silicon: unified memory, Metal always.
         let mac = memory_budget(Backend::Metal, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Metal, mac, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Metal, mac, model, M1_MAX_RAMP))
             .expect("the model fits unified memory");
         assert_eq!(launched.args.offload, Offload::All);
     }
 
     #[test]
     fn the_thread_count_is_the_measured_plateau_not_a_fraction() {
-        let model = dense_row(4 * GIB);
+        let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Cpu, budget, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
         assert_eq!(
             launched.args.threads,
@@ -257,14 +292,14 @@ mod tests {
 
         // A different measurement gives a different answer: the count follows
         // the ramp, not a constant.
-        let launched = plan(&input(ServerBackend::Cpu, budget, &model, QUAD_CORE_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, QUAD_CORE_RAMP))
             .expect("the model is fundable");
         assert_eq!(launched.args.threads, Some(2));
 
         // Nothing measurable: no flag, and the omission is on the record.
         let dead = [(1, 0.0), (2, 0.0)];
         let launched =
-            plan(&input(ServerBackend::Cpu, budget, &model, &dead)).expect("the model is fundable");
+            plan(&input(ServerBackend::Cpu, budget, model, &dead)).expect("the model is fundable");
         assert_eq!(launched.args.threads, None);
         let line = launched.args.argv().join(" ");
         assert!(!line.contains("--threads"), "{line}");
@@ -272,10 +307,10 @@ mod tests {
 
     #[test]
     fn the_memory_report_is_the_cost_of_the_arguments_actually_produced() {
-        // A measured cache size, so the report can be checked against the row
-        // rather than the assumption: 16 KiB per token.
-        let mut model = dense_row(4 * GIB);
-        model.kv_bytes_per_token = Some(16 * KIB);
+        // Hand-built on purpose: the one shape no shipped row has. A measured
+        // cache size (16 KiB per token) lets the report be checked against
+        // the row's figure rather than the assumption.
+        let model = synthetic_row(4 * GIB, Some(16 * KIB));
         let budget = memory_budget(Backend::Metal, 16 * GIB);
         let launched = plan(&input(ServerBackend::Metal, budget, &model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -303,9 +338,9 @@ mod tests {
 
     #[test]
     fn the_server_stays_on_loopback_and_goes_cold_when_idle() {
-        let model = dense_row(4 * GIB);
+        let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
-        let launched = plan(&input(ServerBackend::Cpu, budget, &model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
         let line = launched.args.argv().join(" ");
         assert!(line.contains("--host 127.0.0.1"), "{line}");

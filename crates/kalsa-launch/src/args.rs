@@ -84,7 +84,14 @@ pub struct ServerArgs {
 pub struct MemoryAssumption {
     pub context_tokens: u64,
     /// The KV cache at the chosen context, under the cache type the server
-    /// will actually run (q8_0, one byte per element).
+    /// will actually run (q8_0, one byte per element). When
+    /// `kv_per_token_assumed` is true this is the *budget* the context was
+    /// sized against, not a prediction of the allocation: the server sizes
+    /// its cache from the GGUF's own geometry and never consults this
+    /// arithmetic, so a row whose real per-token cost exceeds the assumption
+    /// oversubscribes the machine by exactly the excess. Only a measured row
+    /// makes this number the truth — which is why the plan requires the
+    /// measurement per model, and why this flag must reach the copy.
     pub kv_cache_bytes: u64,
     /// True when the per-token figure behind `kv_cache_bytes` is the
     /// catalog's pessimistic assumption, not a measurement of this row.
