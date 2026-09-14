@@ -16,6 +16,16 @@ import { mountPairing } from "../src/pages/pairing.js";
 const cards = document.getElementById("cards");
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+// Dark mode without switching the OS: the banner button forces a theme;
+// with no class on body, the page follows the OS like the app does.
+const themeToggle = document.getElementById("theme-toggle");
+themeToggle.textContent = "View dark";
+themeToggle.addEventListener("click", () => {
+  const dark = document.body.classList.toggle("theme-dark");
+  document.body.classList.toggle("theme-light", !dark);
+  themeToggle.textContent = dark ? "View light" : "View dark";
+});
+
 function card(title, note, build) {
   const wrap = document.createElement("section");
   wrap.className = "card";

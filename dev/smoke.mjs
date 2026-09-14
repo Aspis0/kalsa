@@ -89,9 +89,15 @@ class FakeEl {
 }
 
 const root = new FakeEl("main");
+const byId = {};
 globalThis.document = {
-  getElementById: () => root,
+  getElementById: (id) => (id === "cards" ? root : (byId[id] ??= new FakeEl("div"))),
   createElement: (tag) => new FakeEl(tag),
+  body: Object.assign(new FakeEl("body"), {
+    classList: {
+      toggle() {},
+    },
+  }),
 };
 globalThis.window = {};
 

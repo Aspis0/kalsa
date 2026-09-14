@@ -2,6 +2,32 @@
    mistaken for the app, and cards held at the window's real width so line
    wrapping is reviewed under the same constraints the app has. */
 
+/* Forced themes, so dark mode can be reviewed without switching the OS.
+   Both palettes mirror src/styles.css; when that file's colors change, so
+   must these. A class on body wins over the :root defaults for everything
+   below it, OS preference included. */
+body.theme-dark {
+  --bg: #1c1c1f;
+  --text: #f2f2f4;
+  --muted: #b6b8be;
+  --tab: #2d2d33;
+  --accent: #8fa9ff;
+  --warn: #e2b458;
+  --button-bg: #f2f2f4;
+  --button-text: #16161a;
+}
+
+body.theme-light {
+  --bg: #f6f6f7;
+  --text: #16161a;
+  --muted: #4c4f55;
+  --tab: #e4e4e8;
+  --accent: #3563e9;
+  --warn: #8a5a00;
+  --button-bg: #16161a;
+  --button-text: #fff;
+}
+
 .dev-banner {
   position: sticky;
   top: 0;
@@ -12,6 +38,19 @@
   color: var(--warn);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.theme-toggle {
+  display: block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--warn);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 #cards {
