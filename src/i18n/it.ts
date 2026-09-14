@@ -114,6 +114,9 @@ export const it: typeof en = {
     remoteBrainHint:
       "Usa il Mac come modello. Su questo telefono 127.0.0.1:8000 è il Mac via adb reverse — non Tailscale. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
     remoteBrainUrl: "URL del server",
+    remoteBrainModel: "Id modello sul server",
+    remoteBrainModelHint: "Deve coincidere con un id di GET /v1/models. Non viene indovinato.",
+    remoteBrainMaxTokens: "Max token",
     remoteBrainToken: "Token API (opzionale)",
     remoteBrainTokenHint:
       "Lascia vuoto per il server locale del Mac (niente auth). Salvato nello storage sicuro di questo dispositivo.",

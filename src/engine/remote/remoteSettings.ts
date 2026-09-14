@@ -1,6 +1,7 @@
 /**
  * Remote-brain prefs. Backend defaults to local (zero regression).
- * URL defaults to the Mac mtplx loopback (adb reverse on device).
+ * URL defaults to loopback (adb reverse). Server model-id is required and
+ * is never inferred from /v1/models[0].
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -8,13 +9,22 @@ export type EngineBackendMode = "local" | "remote";
 
 export const ENGINE_BACKEND_KEY = "kalsa.engine.backend";
 export const REMOTE_BRAIN_URL_KEY = "kalsa.remote-brain.url";
+export const REMOTE_BRAIN_MODEL_KEY = "kalsa.remote-brain.model";
+export const REMOTE_BRAIN_MAX_TOKENS_KEY = "kalsa.remote-brain.max-tokens";
+export const REMOTE_BRAIN_TEMPERATURE_KEY = "kalsa.remote-brain.temperature";
+export const REMOTE_BRAIN_CTX_KEY = "kalsa.remote-brain.ctx";
+
 export const DEFAULT_REMOTE_BRAIN_URL = "http://127.0.0.1:8000";
-export const DEFAULT_REMOTE_MODEL_ID =
-  "philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx";
+export const DEFAULT_REMOTE_MAX_TOKENS = 4096;
+export const DEFAULT_REMOTE_TEMPERATURE = 0.7;
+export const DEFAULT_REMOTE_CTX = 32768;
 
 let backendCache: EngineBackendMode = "local";
 let urlCache = DEFAULT_REMOTE_BRAIN_URL;
-let hydrated = false;
+let serverModelCache = "";
+let maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
+let temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
+let ctxCache = DEFAULT_REMOTE_CTX;
 
 export function getEngineBackendMode(): EngineBackendMode {
   return backendCache;
@@ -28,9 +38,50 @@ export function getRemoteBrainUrl(): string {
   return urlCache;
 }
 
-function normalizeUrl(raw: string): string {
+export function getRemoteServerModelId(): string {
+  return serverModelCache;
+}
+
+export function getRemoteMaxTokens(): number {
+  return maxTokensCache;
+}
+
+export function getRemoteTemperature(): number {
+  return temperatureCache;
+}
+
+export function getRemoteContextSize(): number {
+  return ctxCache;
+}
+
+/** Null if ok; otherwise an error code. Empty served list skips membership check. */
+export function validateServedModel(
+  configured: string,
+  servedIds: string[],
+): string | null {
+  const id = configured.trim();
+  if (!id) return "remote_brain_model_required";
+  if (servedIds.length > 0 && !servedIds.includes(id)) {
+    return "remote_brain_model_missing";
+  }
+  return null;
+}
+
+export function normalizeUrl(raw: string): string {
   const trimmed = raw.trim().replace(/\/+$/, "");
   return trimmed.length > 0 ? trimmed : DEFAULT_REMOTE_BRAIN_URL;
+}
+
+function parsePositiveInt(raw: string | null, fallback: number): number {
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function parseTemperature(raw: string | null, fallback: number): number {
+  if (!raw) return fallback;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 2 ? n : fallback;
 }
 
 export async function setEngineBackendMode(
@@ -45,25 +96,69 @@ export async function setRemoteBrainUrl(url: string): Promise<void> {
   await AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, urlCache);
 }
 
+export async function setRemoteServerModelId(id: string): Promise<void> {
+  serverModelCache = id.trim();
+  await AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, serverModelCache);
+}
+
+export async function setRemoteMaxTokens(n: number): Promise<void> {
+  maxTokensCache =
+    Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_REMOTE_MAX_TOKENS;
+  await AsyncStorage.setItem(REMOTE_BRAIN_MAX_TOKENS_KEY, String(maxTokensCache));
+}
+
+export async function setRemoteTemperature(n: number): Promise<void> {
+  temperatureCache =
+    Number.isFinite(n) && n >= 0 && n <= 2 ? n : DEFAULT_REMOTE_TEMPERATURE;
+  await AsyncStorage.setItem(
+    REMOTE_BRAIN_TEMPERATURE_KEY,
+    String(temperatureCache),
+  );
+}
+
+export async function setRemoteContextSize(n: number): Promise<void> {
+  ctxCache = Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_REMOTE_CTX;
+  await AsyncStorage.setItem(REMOTE_BRAIN_CTX_KEY, String(ctxCache));
+}
+
 export async function hydrateRemoteBrainSettings(): Promise<{
   backend: EngineBackendMode;
   url: string;
+  serverModelId: string;
+  maxTokens: number;
+  temperature: number;
+  ctx: number;
 }> {
   try {
-    const [backendRaw, urlRaw] = await Promise.all([
-      AsyncStorage.getItem(ENGINE_BACKEND_KEY),
-      AsyncStorage.getItem(REMOTE_BRAIN_URL_KEY),
-    ]);
+    const [backendRaw, urlRaw, modelRaw, maxRaw, tempRaw, ctxRaw] =
+      await Promise.all([
+        AsyncStorage.getItem(ENGINE_BACKEND_KEY),
+        AsyncStorage.getItem(REMOTE_BRAIN_URL_KEY),
+        AsyncStorage.getItem(REMOTE_BRAIN_MODEL_KEY),
+        AsyncStorage.getItem(REMOTE_BRAIN_MAX_TOKENS_KEY),
+        AsyncStorage.getItem(REMOTE_BRAIN_TEMPERATURE_KEY),
+        AsyncStorage.getItem(REMOTE_BRAIN_CTX_KEY),
+      ]);
     backendCache = backendRaw === "remote" ? "remote" : "local";
     urlCache = urlRaw ? normalizeUrl(urlRaw) : DEFAULT_REMOTE_BRAIN_URL;
+    serverModelCache = (modelRaw ?? "").trim();
+    maxTokensCache = parsePositiveInt(maxRaw, DEFAULT_REMOTE_MAX_TOKENS);
+    temperatureCache = parseTemperature(tempRaw, DEFAULT_REMOTE_TEMPERATURE);
+    ctxCache = parsePositiveInt(ctxRaw, DEFAULT_REMOTE_CTX);
   } catch {
     backendCache = "local";
     urlCache = DEFAULT_REMOTE_BRAIN_URL;
+    serverModelCache = "";
+    maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
+    temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
+    ctxCache = DEFAULT_REMOTE_CTX;
   }
-  hydrated = true;
-  return { backend: backendCache, url: urlCache };
-}
-
-export function remoteSettingsHydrated(): boolean {
-  return hydrated;
+  return {
+    backend: backendCache,
+    url: urlCache,
+    serverModelId: serverModelCache,
+    maxTokens: maxTokensCache,
+    temperature: temperatureCache,
+    ctx: ctxCache,
+  };
 }

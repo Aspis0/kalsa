@@ -7,16 +7,16 @@ import type {
   MemoryExtractResult,
   StreamTurnOptions,
 } from "../LlamaService";
-import {
-  DEFAULT_REMOTE_MAX_TOKENS,
-  DEFAULT_REMOTE_TEMPERATURE,
-  toOpenAiMessages,
-} from "./openaiMessages";
+import { toOpenAiMessages } from "./openaiMessages";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteBrainToken } from "./remoteSecret";
 import {
-  DEFAULT_REMOTE_MODEL_ID,
   getRemoteBrainUrl,
+  getRemoteContextSize,
+  getRemoteMaxTokens,
+  getRemoteServerModelId,
+  getRemoteTemperature,
+  validateServedModel,
 } from "./remoteSettings";
 import { REMOTE_MAC_MODEL_ID } from "./remoteMacModel";
 
@@ -56,29 +56,45 @@ async function jsonGet(
 export async function testRemoteConnection(): Promise<{
   ok: boolean;
   modelId: string | null;
+  models?: string[];
   error?: string;
 }> {
+  const configured = getRemoteServerModelId();
   const probe = new AbortController();
   const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
     const token = await getRemoteBrainToken();
-    const health = await jsonGet("/health", token, probe.signal);
-    if (!health.ok) {
-      return { ok: false, modelId: null, error: `health HTTP ${health.status}` };
-    }
     const models = await jsonGet("/v1/models", token, probe.signal);
-    if (!models.ok) {
-      return { ok: false, modelId: null, error: `models HTTP ${models.status}` };
+    let ids: string[] = [];
+    if (models.ok) {
+      const data = (models.body as { data?: Array<{ id?: string }> } | null)?.data;
+      ids = Array.isArray(data)
+        ? data.map((row) => row?.id).filter((id): id is string => typeof id === "string" && id.length > 0)
+        : [];
+    } else {
+      const health = await jsonGet("/health", token, probe.signal);
+      if (!health.ok) {
+        return {
+          ok: false,
+          modelId: configured || null,
+          error: `models HTTP ${models.status}`,
+        };
+      }
     }
-    const data = (models.body as { data?: Array<{ id?: string }> } | null)?.data;
-    const id =
-      (Array.isArray(data) && typeof data[0]?.id === "string" && data[0].id) ||
-      DEFAULT_REMOTE_MODEL_ID;
-    return { ok: true, modelId: id };
+    const invalid = validateServedModel(configured, ids);
+    if (invalid) {
+      return {
+        ok: false,
+        modelId: configured || null,
+        models: ids,
+        error: invalid,
+      };
+    }
+    return { ok: true, modelId: configured, models: ids };
   } catch (err) {
     return {
       ok: false,
-      modelId: null,
+      modelId: configured || null,
       error: err instanceof Error ? err.message : String(err),
     };
   } finally {
@@ -103,12 +119,17 @@ export async function initRemoteEngine(
     throw new Error(probe.error || strings.errors.modelNotLoaded);
   }
   ready = true;
-  activeId = probe.modelId || modelId || REMOTE_MAC_MODEL_ID;
+  activeId = REMOTE_MAC_MODEL_ID;
+  const serverId = probe.modelId || getRemoteServerModelId();
   console.log(
     "remote.brain.init",
-    JSON.stringify({ ok: true, modelId: activeId, url: getRemoteBrainUrl() }),
+    JSON.stringify({
+      ok: true,
+      modelId: activeId,
+      serverModelId: serverId,
+    }),
   );
-  return { effectiveNCtx: 32768 };
+  return { effectiveNCtx: getRemoteContextSize() };
 }
 
 export async function disposeRemoteEngine(): Promise<void> {
@@ -220,10 +241,10 @@ export async function streamRemoteAssistantTurn(
     const handle = streamOpenAiChat(
       {
         baseUrl: getRemoteBrainUrl(),
-        model: activeId || DEFAULT_REMOTE_MODEL_ID,
+        model: getRemoteServerModelId(),
         messages: toOpenAiMessages(messages),
-        maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
-        temperature: DEFAULT_REMOTE_TEMPERATURE,
+        maxTokens: getRemoteMaxTokens(),
+        temperature: getRemoteTemperature(),
         token,
         signal,
       },

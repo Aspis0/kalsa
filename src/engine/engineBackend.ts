@@ -38,7 +38,6 @@ import {
 } from "./LlamaService";
 import {
   disposeRemoteEngine,
-  getRemoteActiveModelId,
   initRemoteEngine,
   isRemoteEngineReady,
   remoteCompleteOnce,
@@ -51,7 +50,11 @@ import {
   remoteTranslateText,
   streamRemoteAssistantTurn,
 } from "./remote/RemoteEngine";
-import { isRemoteEngineBackend } from "./remote/remoteSettings";
+import { REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
+import {
+  getRemoteContextSize,
+  isRemoteEngineBackend,
+} from "./remote/remoteSettings";
 
 export type {
   EngineCallbacks,
@@ -69,6 +72,7 @@ export {
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
   setEngineBackendMode,
+  setRemoteServerModelId,
 } from "./remote/remoteSettings";
 export { REMOTE_MAC_MODEL, REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
 export { disposeRemoteEngine, testRemoteConnection } from "./remote/RemoteEngine";
@@ -78,13 +82,13 @@ export function isEngineReady(): boolean {
 }
 
 export function getActiveModelId(): string | null {
-  return isRemoteEngineBackend()
-    ? getRemoteActiveModelId()
-    : localGetActiveModelId();
+  if (!isRemoteEngineBackend()) return localGetActiveModelId();
+  return isRemoteEngineReady() ? REMOTE_MAC_MODEL_ID : null;
 }
 
 export function getActiveEngineNCtx(): number {
-  return isRemoteEngineBackend() ? 32768 : localGetActiveEngineNCtx();
+  if (!isRemoteEngineBackend()) return localGetActiveEngineNCtx();
+  return isRemoteEngineReady() ? getRemoteContextSize() : 0;
 }
 
 export function nativeEngineWorkInFlight(): boolean {

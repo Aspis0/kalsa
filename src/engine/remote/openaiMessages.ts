@@ -29,6 +29,3 @@ export function toOpenAiMessages(
   }
   return out;
 }
-
-export const DEFAULT_REMOTE_MAX_TOKENS = 4096;
-export const DEFAULT_REMOTE_TEMPERATURE = 0.7;

@@ -115,6 +115,9 @@ export const en = {
     remoteBrainHint:
       "Use the Mac as the model. On this phone, 127.0.0.1:8000 is the Mac via adb reverse — not Tailscale. Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
     remoteBrainUrl: "Server URL",
+    remoteBrainModel: "Server model id",
+    remoteBrainModelHint: "Must match an id from GET /v1/models. Not guessed.",
+    remoteBrainMaxTokens: "Max tokens",
     remoteBrainToken: "API token (optional)",
     remoteBrainTokenHint:
       "Leave empty for the local Mac server (no auth). Stored in this device's secure storage.",

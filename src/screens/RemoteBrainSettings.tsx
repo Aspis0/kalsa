@@ -6,10 +6,12 @@ import { testRemoteConnection } from "../engine/engineBackend";
 import { REMOTE_MAC_MODEL_ID } from "../engine/remote/remoteMacModel";
 import {
   DEFAULT_REMOTE_BRAIN_URL,
-  getRemoteBrainUrl,
+  DEFAULT_REMOTE_MAX_TOKENS,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
   setRemoteBrainUrl,
+  setRemoteMaxTokens,
+  setRemoteServerModelId,
 } from "../engine/remote/remoteSettings";
 import {
   getRemoteBrainToken,
@@ -31,6 +33,8 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
   const { colors } = useLabTheme();
   const typography = useTypography();
   const [url, setUrl] = useState(DEFAULT_REMOTE_BRAIN_URL);
+  const [serverModel, setServerModel] = useState("");
+  const [maxTokens, setMaxTokens] = useState(String(DEFAULT_REMOTE_MAX_TOKENS));
   const [token, setToken] = useState("");
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -49,6 +53,8 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
       }
       if (cancelled) return;
       setUrl(hydrated.url);
+      setServerModel(hydrated.serverModelId);
+      setMaxTokens(String(hydrated.maxTokens));
       setToken(stored ?? "");
     })();
     return () => {
@@ -71,6 +77,8 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
     setStatus(null);
     try {
       await setRemoteBrainUrl(url);
+      await setRemoteServerModelId(serverModel);
+      await setRemoteMaxTokens(Number.parseInt(maxTokens, 10) || DEFAULT_REMOTE_MAX_TOKENS);
       await setRemoteBrainToken(token);
       const result = await testRemoteConnection();
       if (result.ok) {
@@ -90,7 +98,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
     } finally {
       setTesting(false);
     }
-  }, [t, token, url]);
+  }, [maxTokens, serverModel, t, token, url]);
 
   return (
     <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
@@ -149,6 +157,51 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
         keyboardType="url"
         placeholder={DEFAULT_REMOTE_BRAIN_URL}
         placeholderTextColor={colors.muted}
+        style={[
+          typography.bodySm,
+          {
+            color: colors.ink,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: radius.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+          },
+        ]}
+      />
+      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+        {t("settings.remoteBrainModel")}
+      </Text>
+      <TextInput
+        value={serverModel}
+        onChangeText={setServerModel}
+        onEndEditing={() => void setRemoteServerModelId(serverModel)}
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder={t("settings.remoteBrainModelHint")}
+        placeholderTextColor={colors.muted}
+        style={[
+          typography.bodySm,
+          {
+            color: colors.ink,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: radius.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+          },
+        ]}
+      />
+      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+        {t("settings.remoteBrainMaxTokens")}
+      </Text>
+      <TextInput
+        value={maxTokens}
+        onChangeText={setMaxTokens}
+        onEndEditing={() =>
+          void setRemoteMaxTokens(Number.parseInt(maxTokens, 10) || DEFAULT_REMOTE_MAX_TOKENS)
+        }
+        keyboardType="number-pad"
         style={[
           typography.bodySm,
           {
