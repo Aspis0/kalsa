@@ -52,8 +52,10 @@ import {
 } from "./remote/RemoteEngine";
 import { REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
 import {
+  getEngineBackendMode,
   getRemoteContextSize,
   isRemoteEngineBackend,
+  type EngineBackendMode,
 } from "./remote/remoteSettings";
 
 export type {
@@ -69,6 +71,8 @@ export type {
 } from "./LlamaService";
 
 export {
+  beginBackendSwitch,
+  endBackendSwitch,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
   setEngineBackendMode,
@@ -146,12 +150,14 @@ export function discardChatKvForWindowSlide(
 export function initEngine(
   modelPath: string,
   modelId: string,
-  options: EngineInitOptions,
+  options: EngineInitOptions & { backend?: EngineBackendMode },
 ): Promise<EngineInitResult> {
-  if (isRemoteEngineBackend()) {
-    return initRemoteEngine(modelPath, modelId, options);
+  const { backend: explicit, ...rest } = options;
+  const backend = explicit ?? getEngineBackendMode();
+  if (backend === "remote") {
+    return initRemoteEngine(modelPath, modelId, rest);
   }
-  return localInitEngine(modelPath, modelId, options);
+  return localInitEngine(modelPath, modelId, rest);
 }
 
 export function disposeEngine(): Promise<void> {
@@ -163,12 +169,14 @@ export function streamAssistantTurn(
   messages: EngineMessage[],
   callbacks: EngineCallbacks,
   signal: AbortSignal | undefined,
-  options: StreamTurnOptions,
+  options: StreamTurnOptions & { backend?: EngineBackendMode },
 ): Promise<void> {
-  if (isRemoteEngineBackend()) {
-    return streamRemoteAssistantTurn(messages, callbacks, signal, options);
+  const { backend: explicit, ...rest } = options;
+  const backend = explicit ?? getEngineBackendMode();
+  if (backend === "remote") {
+    return streamRemoteAssistantTurn(messages, callbacks, signal, rest);
   }
-  return localStreamAssistantTurn(messages, callbacks, signal, options);
+  return localStreamAssistantTurn(messages, callbacks, signal, rest);
 }
 
 export function saveEngineSession(

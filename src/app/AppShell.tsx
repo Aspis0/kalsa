@@ -146,6 +146,8 @@ import {
   restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
+  beginBackendSwitch,
+  endBackendSwitch,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
   setEngineBackendMode,
@@ -3765,7 +3767,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         await setEngineBackendMode("remote");
         if (!stillCurrent()) return false;
         setRemoteActive(true);
-        await initEngine("", REMOTE_MAC_MODEL_ID, { locale });
+        await initEngine("", REMOTE_MAC_MODEL_ID, { locale, backend: "remote" });
         if (!stillCurrent()) return false;
         if (isEngineReady()) {
           setModelState("ready");
@@ -4063,6 +4065,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
+            backend: "local",
           }),
         EMBEDDER_RELEASE_TIMEOUT_MS,
       );
@@ -4149,6 +4152,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         modelId: MODEL_REGISTRY[nextIndex].id,
         remote: false,
       };
+      beginBackendSwitch("local");
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
       // ensureEngineForModel may have acquired a higher gen by then.
@@ -4231,6 +4235,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           // FIX B / FIX 1: dispose → free only the gen captured at switch time.
           if (releasedGen !== null) markChatReleased(releasedGen);
           modelSwitchInFlightRef.current = false;
+          endBackendSwitch();
           setPresenceProbeEpoch((n) => n + 1);
         }
       })();
@@ -4257,6 +4262,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       modelId: REMOTE_MAC_MODEL_ID,
       remote: true,
     };
+    beginBackendSwitch("remote");
     void (async () => {
       try {
         if (isRemoteEngineBackend()) {
@@ -4274,6 +4280,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelError(error instanceof Error ? error.message : String(error));
       } finally {
         modelSwitchInFlightRef.current = false;
+        endBackendSwitch();
       }
     })();
   }, [ensureEngineForModel, modelState, t]);
@@ -4664,6 +4671,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
+            backend: "local",
           }),
         EMBEDDER_RELEASE_TIMEOUT_MS,
       );

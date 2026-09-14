@@ -26,9 +26,20 @@ let serverModelCache = "";
 let maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
 let temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
 let ctxCache = DEFAULT_REMOTE_CTX;
+/** When set, setEngineBackendMode refuses a conflicting mode (switch in flight). */
+let backendWriteIntent: EngineBackendMode | null = null;
 
 export function getEngineBackendMode(): EngineBackendMode {
   return backendCache;
+}
+
+/** Sole gate for backendCache writes besides setEngineBackendMode itself. */
+export function beginBackendSwitch(intent: EngineBackendMode): void {
+  backendWriteIntent = intent === "remote" ? "remote" : "local";
+}
+
+export function endBackendSwitch(): void {
+  backendWriteIntent = null;
 }
 
 export function isRemoteEngineBackend(): boolean {
@@ -91,7 +102,11 @@ function parseTemperature(raw: string | null, fallback: number): number {
 export async function setEngineBackendMode(
   mode: EngineBackendMode,
 ): Promise<void> {
-  backendCache = mode === "remote" ? "remote" : "local";
+  const next: EngineBackendMode = mode === "remote" ? "remote" : "local";
+  if (backendWriteIntent != null && backendWriteIntent !== next) {
+    return;
+  }
+  backendCache = next;
   await AsyncStorage.setItem(ENGINE_BACKEND_KEY, backendCache);
 }
 
@@ -125,14 +140,20 @@ export async function setRemoteContextSize(n: number): Promise<void> {
   await AsyncStorage.setItem(REMOTE_BRAIN_CTX_KEY, String(ctxCache));
 }
 
-export async function hydrateRemoteBrainSettings(): Promise<{
+export type RemoteBrainSnapshot = {
   backend: EngineBackendMode;
   url: string;
   serverModelId: string;
   maxTokens: number;
   temperature: number;
   ctx: number;
-}> {
+};
+
+/**
+ * Read-only snapshot. Does not write backendCache — only setEngineBackendMode
+ * may change the live backend (boot applies the snapshot through that setter).
+ */
+export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot> {
   try {
     const [backendRaw, urlRaw, modelRaw, maxRaw, tempRaw, ctxRaw] =
       await Promise.all([
@@ -143,7 +164,6 @@ export async function hydrateRemoteBrainSettings(): Promise<{
         AsyncStorage.getItem(REMOTE_BRAIN_TEMPERATURE_KEY),
         AsyncStorage.getItem(REMOTE_BRAIN_CTX_KEY),
       ]);
-    backendCache = backendRaw === "remote" ? "remote" : "local";
     if (urlRaw) {
       const parsed = normalizeRemoteUrl(urlRaw);
       urlCache = parsed.ok ? parsed.url : DEFAULT_REMOTE_BRAIN_URL;
@@ -154,20 +174,27 @@ export async function hydrateRemoteBrainSettings(): Promise<{
     maxTokensCache = parsePositiveInt(maxRaw, DEFAULT_REMOTE_MAX_TOKENS);
     temperatureCache = parseTemperature(tempRaw, DEFAULT_REMOTE_TEMPERATURE);
     ctxCache = parsePositiveInt(ctxRaw, DEFAULT_REMOTE_CTX);
+    return {
+      backend: backendRaw === "remote" ? "remote" : "local",
+      url: urlCache,
+      serverModelId: serverModelCache,
+      maxTokens: maxTokensCache,
+      temperature: temperatureCache,
+      ctx: ctxCache,
+    };
   } catch {
-    backendCache = "local";
     urlCache = DEFAULT_REMOTE_BRAIN_URL;
     serverModelCache = "";
     maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
     temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
     ctxCache = DEFAULT_REMOTE_CTX;
+    return {
+      backend: "local",
+      url: urlCache,
+      serverModelId: serverModelCache,
+      maxTokens: maxTokensCache,
+      temperature: temperatureCache,
+      ctx: ctxCache,
+    };
   }
-  return {
-    backend: backendCache,
-    url: urlCache,
-    serverModelId: serverModelCache,
-    maxTokens: maxTokensCache,
-    temperature: temperatureCache,
-    ctx: ctxCache,
-  };
 }
