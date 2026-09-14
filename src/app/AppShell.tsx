@@ -64,6 +64,10 @@ import {
   type EnsureIntent,
 } from "../engine/ensureIntent";
 import {
+  canEagerInitLocal,
+  decideModelIndexProbe,
+} from "../engine/modelIndexProbe";
+import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
   embedChunkKey,
@@ -2654,6 +2658,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
   const [remoteActive, setRemoteActive] = useState(false);
   const [prefsReady, setPrefsReady] = useState(false);
+  /** Bumped when a model switch finishes so the presence probe re-runs after backend flip. */
+  const [presenceProbeEpoch, setPresenceProbeEpoch] = useState(0);
   const [modelState, setModelState] = useState<ModelState>("checking");
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
@@ -3670,12 +3676,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
-        if (isRemoteEngineBackend()) {
+        const decision = decideModelIndexProbe({
+          switchInFlight: modelSwitchInFlightRef.current,
+          backendRemote: isRemoteEngineBackend(),
+          intentRemote: engineIntentRef.current.remote,
+        });
+        if (decision.action === "skip") return;
+        if (decision.action === "ensure-remote") {
           if (mounted) {
-            engineIntentRef.current = {
-              modelId: REMOTE_MAC_MODEL_ID,
-              remote: true,
-            };
             setRemoteActive(true);
             void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
           }
@@ -3685,8 +3693,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         const ok = await isModelBundleDownloaded(model);
         // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
         if (mounted && modelIndexRef.current === checkedIndex) {
+          if (modelSwitchInFlightRef.current || engineIntentRef.current.remote) {
+            return;
+          }
           setModelState(ok ? "ready" : "missing");
           if (ok && EAGER_ENGINE_INIT && model) {
+            if (
+              !canEagerInitLocal({
+                switchInFlight: modelSwitchInFlightRef.current,
+                backendRemote: isRemoteEngineBackend(),
+              })
+            ) {
+              return;
+            }
             const generation = engineGenerationRef.current;
             if (claimEagerKick(model.id, generation)) {
               // eslint-disable-next-line no-console
@@ -3706,7 +3725,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelIndex, prefsReady]);
+  }, [modelIndex, prefsReady, presenceProbeEpoch]);
 
   useEffect(() => {
     if (!remoteActive) return;
@@ -3765,6 +3784,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return false;
       }
     }
+
+    if (isRemoteEngineBackend()) return false;
 
     if (isEngineReady() && getActiveModelId() === model.id) {
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
@@ -4210,6 +4231,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           // FIX B / FIX 1: dispose → free only the gen captured at switch time.
           if (releasedGen !== null) markChatReleased(releasedGen);
           modelSwitchInFlightRef.current = false;
+          setPresenceProbeEpoch((n) => n + 1);
         }
       })();
     },
