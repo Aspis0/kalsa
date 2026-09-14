@@ -61,6 +61,18 @@ fn a_catalog_row_may_already_be_on_this_machine() {
     }
 }
 
+/// Kills the child on every way out of this test — return, assert, panic —
+/// because a leaked llama-server holds gigabytes and a port on Marco's
+/// machine, and no test is worth that.
+struct ChildGuard(std::process::Child);
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
 /// The server binary and the model to serve, from the environment, the same
 /// names the shell's development overrides use.
 fn engine_and_model() -> Option<(PathBuf, PathBuf)> {
@@ -132,35 +144,37 @@ fn the_real_engine_serves_a_real_model() {
     let port = free_port();
     // `--flash-attn` takes a value in this build: without `on` it swallows
     // the next flag and the child exits before serving anything.
-    let mut child = std::process::Command::new(&bin)
-        .args([
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-            "--model",
-        ])
-        .arg(&model)
-        .args([
-            "--flash-attn",
-            "on",
-            "-ngl",
-            "999",
-            "-c",
-            "4096",
-            "--no-webui",
-        ])
-        .current_dir(bin.parent().expect("the binary has a directory"))
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .expect("the engine starts");
+    let mut child = ChildGuard(
+        std::process::Command::new(&bin)
+            .args([
+                "--host",
+                "127.0.0.1",
+                "--port",
+                &port.to_string(),
+                "--model",
+            ])
+            .arg(&model)
+            .args([
+                "--flash-attn",
+                "on",
+                "-ngl",
+                "999",
+                "-c",
+                "4096",
+                "--no-webui",
+            ])
+            .current_dir(bin.parent().expect("the binary has a directory"))
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("the engine starts"),
+    );
 
     // Readiness is a deadline, never a sleep: a real model takes real time.
     let deadline = Instant::now() + Duration::from_secs(600);
     let mut healthy = false;
     while Instant::now() < deadline {
-        if let Ok(Some(status)) = child.try_wait() {
+        if let Ok(Some(status)) = child.0.try_wait() {
             panic!("the engine exited while starting: {status}");
         }
         if http(
@@ -205,7 +219,4 @@ fn the_real_engine_serves_a_real_model() {
             0.0
         }
     );
-
-    let _ = child.kill();
-    let _ = child.wait();
 }
