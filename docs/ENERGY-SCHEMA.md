@@ -33,12 +33,18 @@ absolute sample time: durations computed from it are exact, timestamps are
 not portable. Invariants enforced by `parseEnergyCsv` (audit of c5fae2f):
 
 - the file must end with `\n`; a torn last line (pull during write) is dropped;
+  a 0-byte file is an `empty file`, not a torn one;
 - strict field regex; non-conforming rows are dropped and counted in
   `skipped`;
 - `t` must be non-decreasing; a smaller `t` (device reboot) drops the row and
   raises a warning;
 - power sanity band 0.1–20 W on the mean — outside it is a unit-mismatch
   warning, not an error.
+
+Charging is not filtered: power is `|V*I|`, so a sample taken while the
+battery charges would count as consumption. Campaigns abort on charge during
+preflight (and re-check mid-run); the sampler's `status` column stays in the
+CSV for post-hoc verification of any window.
 
 This schema is **frozen**: the sampler writes exactly these columns; new
 signals mean a v2 with a new header, not edits here.
@@ -67,17 +73,23 @@ Rows with this schema do not exist yet; producing them is the next phase.
 
 `node scripts/energyAggregate.mjs <dir> --emissions` writes one
 `<dir>/emissions/<stem>_emissions.csv` per arm (stem =
-`${model}_${arm}_${prompt}`, same rule as the per-rep txt files). Column names
-match CodeCarbon's emissions CSV so the files can be ingested by tooling that
-expects it; the measured system is the whole SoC at the battery terminal, so
-there is a single power/energy pair and no ram/gpu columns.
+`${model}_${arm}_${prompt}`, same rule as the per-rep txt files) — one file
+for EVERY run, no silent skips: a degenerate arm (fewer than two parsed rows,
+or no valid power sample) exports a header-only file (header + one all-empty
+row) with an explicit `degenerate run, header-only export` warning on
+stderr. A write failure never truncates the table: stdout prints in full,
+then a clean `emissions export failed: <reason>` line goes to stderr and the
+aggregator exits 1. Column names match CodeCarbon's public emissions.csv
+schema (MIT) so the files can be ingested by tooling that expects it; the
+measured system is the whole SoC at the battery terminal, so there is a
+single power/energy pair and no ram/gpu columns.
 
 | column              | unit   | content                                                     |
 |---------------------|--------|-------------------------------------------------------------|
 | `timestamp`         | ISO8601| host-side generation time of the export. NOT the sample time: CSV `t_s` is device uptime, so no absolute sample timestamp exists |
 | `project_name`      | —      | always `kalsa`                                              |
 | `run_id`            | —      | the CSV stem (`${model}_${arm}_${prompt}`)                  |
-| `duration_seconds`  | s      | integrated duration (from `t_s` deltas)                     |
+| `duration`          | s      | integrated duration (from `t_s` deltas)                     |
 | `cpu_power`         | W      | mean `|V*I|` over the window (rounded to 0.01 W)            |
 | `cpu_energy`        | kWh    | CodeCarbon's unit: `joules / 3.6e6`                         |
 | `emissions`         | kgCO2eq| empty by default (battery-powered, no grid to attribute). If env `KALSA_GRID_G_PER_KWH` is set (gCO2eq/kWh): `cpu_energy * KALSA_GRID_G_PER_KWH / 1000` |
@@ -85,13 +97,16 @@ there is a single power/energy pair and no ram/gpu columns.
 | `cpu_count`         | —      | present, empty (not collected by the sampler)               |
 | `cpu_model`         | —      | present, empty (not collected by the sampler)               |
 
-A non-numeric `KALSA_GRID_G_PER_KWH` is ignored with a stderr warning.
+Value-domain divergence, by design: the columns exist for name-level
+compatibility with CodeCarbon's emissions.csv, but `os` is fixed to
+`Android` and `cpu_count`/`cpu_model` are deliberately left empty — the
+sampler runs on one Android SoC and does not collect host identity. Do not
+parse these three values the way a CodeCarbon consumer would.
+
+`KALSA_GRID_G_PER_KWH` is read only when `--emissions` is active. A
+non-numeric or non-positive (`<= 0`) value is ignored with a stderr warning
+and the emissions cell stays empty.
 
 ## Provenance
 
-The CodeCarbon column compatibility is an **idea adopted, code not**. The
-reference implementation (`LLM-energy-benchmark`) is AGPL; this repository
-adopted only the notion of emitting CodeCarbon-named columns and wrote the
-export from scratch (`scripts/energySchema.mjs`) — zero lines of AGPL code
-were read into or vendored into this repo. Do not copy code from it; extend
-our own implementation instead.
+Column names follow CodeCarbon's public emissions.csv schema (MIT).

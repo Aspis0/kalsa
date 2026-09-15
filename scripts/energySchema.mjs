@@ -13,22 +13,22 @@
 // Audit hardening (deepseek-v4.1 audit of c5fae2f) moved here verbatim:
 // torn last line (pull during write) is dropped; strict field regex, rows
 // that do not parse are dropped and counted in `skipped`; monotonic t is
-// enforced (a row with t <= previous — device reboot — is dropped with a
-// warning instead of yielding negative durations); per-metric valid counts so
-// a failed read cannot dilute a mean; power sanity band 0.1-20 W.
+// enforced (a row with t < previous — device reboot — is dropped with a
+// warning instead of yielding negative durations; equal timestamps are kept,
+// dt = 0); per-metric valid counts so a failed read cannot dilute a mean;
+// power sanity band 0.1-20 W.
 //
 // METRIC IS RELATIVE: power = |V*I| at the battery terminal with ~1 s gauge
 // smoothing, and the sampling window includes load+prefill. Compare BETWEEN
 // ARMS of the same (model, prompt) only; never quote absolute J/token.
 //
-// Provenance: CodeCarbon column NAMES are adopted for export compatibility
-// only — this file is written from scratch, no code from the AGPL
-// LLM-energy-benchmark repository (see docs/ENERGY-SCHEMA.md).
+// Provenance: column names follow CodeCarbon's public emissions.csv schema (MIT).
 
 const ROW = /^(\d+\.\d+),(-?\d*),(-?\d*),(-?\d*),([^,]*),([:\d]*)$/;
 
 export function parseEnergyCsv(text) {
-  const torn = !text.endsWith("\n");
+  const empty = text.length === 0; // 0-byte file (failed pull): empty, not torn
+  const torn = !empty && !text.endsWith("\n");
   if (torn) text = text.slice(0, text.lastIndexOf("\n") + 1); // drop torn tail
   const rows = [];
   let skipped = 0;
@@ -38,7 +38,7 @@ export function parseEnergyCsv(text) {
     if (m) rows.push({ t: parseFloat(m[1]), i: m[2], v: m[3], f: m[6] });
     else skipped++;
   }
-  return { rows, torn, skipped };
+  return { rows, torn, skipped, empty };
 }
 
 // Right-Riemann integration over the ~1 Hz samples; i/v stay raw strings in
@@ -86,7 +86,7 @@ export function integrate(rows) {
 // cpu_power/cpu_energy cover the whole SoC (battery-terminal measurement —
 // there is no separate ram/gpu column; do not invent one).
 export const EMISSIONS_COLUMNS = [
-  "timestamp", "project_name", "run_id", "duration_seconds",
+  "timestamp", "project_name", "run_id", "duration",
   "cpu_power", "cpu_energy", "emissions",
   "os", "cpu_count", "cpu_model",
 ];
@@ -100,7 +100,7 @@ export function toEmissionsRow({ stem, duration_s, mean_w, joules, now = new Dat
     timestamp: now.toISOString(), // generation time; CSV t_s is device uptime
     project_name: "kalsa",
     run_id: stem,
-    duration_seconds: Number.isFinite(duration_s) ? duration_s.toFixed(2) : "",
+    duration: Number.isFinite(duration_s) ? duration_s.toFixed(2) : "",
     cpu_power: Number.isFinite(mean_w) ? mean_w.toFixed(2) : "",
     cpu_energy: Number.isFinite(kwh) ? String(kwh) : "",
     emissions:
@@ -119,4 +119,10 @@ export function toEmissionsCsv(rows) {
     EMISSIONS_COLUMNS.join(","),
     ...rows.map((r) => EMISSIONS_COLUMNS.map((c) => esc(r[c] ?? "")).join(",")),
   ].join("\n") + "\n";
+}
+
+// Degenerate runs (too few samples, no valid power) still export one file per
+// run: header + a single all-empty field row.
+export function emptyEmissionsCsv() {
+  return `${EMISSIONS_COLUMNS.join(",")}\n${EMISSIONS_COLUMNS.map(() => "").join(",")}\n`;
 }
