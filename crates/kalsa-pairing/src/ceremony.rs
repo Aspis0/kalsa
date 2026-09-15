@@ -28,7 +28,7 @@ use getrandom::fill;
 use crate::error::{CompleteError, OfferError};
 use crate::handshake::{Credential, Handshake};
 use crate::messages::{
-    seal_computer, verify_phone_mac, PairingSeal, PhoneDeclaration, NONCE_BYTES,
+    seal_computer, verify_phone_mac_with_token, PairingSeal, PhoneDeclaration, NONCE_BYTES,
 };
 use crate::payload;
 use crate::secret::OneTimeCode;
@@ -195,11 +195,12 @@ impl Pairing {
     /// The two results go to two audiences: the handshake is this computer's
     /// to persist and serve from; the seal is the message the phone is
     /// waiting for — proof that its sender knows the QR the phone scanned.
-    /// The declaration remains replayable by an active intermediary: without
-    /// channel binding or another authenticated exchange, this cannot be
-    /// closed by changing this one response. The encrypted credential stops
-    /// that replay from disclosing the credential, but not from winning the
-    /// one-shot race.
+    /// A declaration replayed by an active intermediary may make the first
+    /// response go to the wrong socket, but the shell retains the encrypted
+    /// seal under the declaration's delivery token. The phone can re-sign a
+    /// changed measurement with that token and recover it; the replay no
+    /// longer consumes the pairing. A peer that blocks every response can
+    /// still delay transport, which is outside this state machine.
     pub fn complete(
         &mut self,
         declaration: PhoneDeclaration,
@@ -213,10 +214,11 @@ impl Pairing {
             *self = Self::Expired;
             return Err(CompleteError::Refused);
         }
-        if !verify_phone_mac(
+        if !verify_phone_mac_with_token(
             claimed.code.bytes(),
             &claimed.nonce,
             claimed.reachable.as_str(),
+            declaration.delivery_token(),
             &declaration.phone,
             &declaration.mac,
         ) {
@@ -232,6 +234,17 @@ impl Pairing {
         let handshake = Handshake::new(phone, credential);
         *self = Self::Paired;
         Ok((handshake, seal))
+    }
+
+    /// The wall-clock deadline that governs a claimed completion. The shell
+    /// carries it with a retained delivery so a response cannot live beyond
+    /// the QR that authorized it.
+    pub fn expires_at(&self) -> Option<SystemTime> {
+        match self {
+            Self::Offered(offer) => Some(offer.expires_at),
+            Self::Claimed(claimed) => Some(claimed.expires_at),
+            Self::Paired | Self::Expired => None,
+        }
     }
 
     /// Retire the offer when its window closes on its own — the QR screen has

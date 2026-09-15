@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use super::{ClaimResult, Pairing};
 use crate::error::{CompleteError, OfferError, StoreError};
-use crate::messages::{phone_mac, PhoneDeclaration, PhoneFields, NONCE_BYTES};
+use crate::messages::{phone_mac_with_token, PhoneDeclaration, PhoneFields, NONCE_BYTES};
 use crate::secret::OneTimeCode;
 use kalsa_catalog::{Parameters, PhoneModel};
 
@@ -59,8 +59,19 @@ fn declaration(
     hex::decode_to_slice(code_hex, &mut key).unwrap();
     let mut nonce = [0u8; NONCE_BYTES];
     hex::decode_to_slice(nonce_hex, &mut nonce).unwrap();
-    let mac = hex::encode(phone_mac(&key, &nonce, reachable, &phone));
-    PhoneDeclaration { phone, mac }
+    let delivery_token = "11".repeat(16);
+    let mac = hex::encode(phone_mac_with_token(
+        &key,
+        &nonce,
+        reachable,
+        &delivery_token,
+        &phone,
+    ));
+    PhoneDeclaration {
+        phone,
+        mac,
+        delivery_token,
+    }
 }
 
 /// A claimed ceremony, with everything the phone would need to finish.

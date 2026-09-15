@@ -7,9 +7,9 @@
 //! one direction can never verify in the other:
 //!
 //! * phone → computer: `HMAC(S, "…/phone-mac/v2" ‖ nonce ‖ reachable ‖
-//!   canonical phone)` — the metadata stops being asserted and becomes
-//!   bound, and so does the address the square carried: the declaration is
-//!   tied to the whole QR, not just its secrets;
+//!   delivery token ‖ canonical phone)` — the metadata stops being asserted
+//!   and becomes bound, and so does the address the square carried: the
+//!   declaration is tied to the whole QR, not just its secrets;
 //! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ ciphertext)`
 //!   — the phone learns that the sender of this encrypted credential knows
 //!   the QR it scanned, and that the ciphertext is bound to this ceremony.
@@ -25,13 +25,15 @@
 //! whoever can see the square can compute either — the domain separates the
 //! two *messages*, not two *parties*. The ceiling of this scheme is the
 //! square, exactly as the pairing screen says; the MACs prove knowledge of
-//! it, and nothing beyond it. In particular, `PhoneDeclaration` is a
-//! deterministic bearer proof: an active on-path intermediary can capture a
-//! valid declaration and inject it before the phone. The one-shot ceremony
-//! turns that into a denial of service. Closing that finding needs channel
-//! binding or another authenticated exchange; encrypting the returned
-//! credential removes disclosure, not the replay.
+//! it, and nothing beyond it. In particular, `PhoneDeclaration` is a bearer
+//! proof: an active on-path intermediary can capture and inject it first, but
+//! the computer retains the encrypted delivery under the declaration's
+//! signed, per-attempt token. The phone can re-sign a changed measurement
+//! with that token and recover the same seal; the replay no longer consumes
+//! the pairing. An intermediary that blocks every response can still delay
+//! transport, which is availability, not credential disclosure.
 
+use getrandom::fill;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -52,6 +54,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 pub(crate) const MAC_BYTES: usize = 32;
 pub(crate) const NONCE_BYTES: usize = 32;
+const DELIVERY_TOKEN_BYTES: usize = 16;
 
 /// The phone's shape on the wire and in the store: a serialization shell for
 /// `kalsa_catalog::PhoneModel`, not a second description of it. `total ==
@@ -121,9 +124,12 @@ impl PhoneFields {
 pub struct PhoneDeclaration {
     /// The metadata the phone declares about itself. Covered by the MAC.
     pub phone: PhoneFields,
-    /// The phone's MAC over (phone domain ‖ nonce ‖ reachable ‖ canonical
-    /// phone), hex.
+    /// The phone's MAC over (phone domain ‖ nonce ‖ reachable ‖ delivery token
+    /// ‖ canonical phone), hex.
     pub mac: String,
+    /// Stable for this pairing attempt so a retry may carry a fresh
+    /// measurement without becoming a different claimant.
+    pub(crate) delivery_token: String,
 }
 
 impl PhoneDeclaration {
@@ -143,15 +149,60 @@ impl PhoneDeclaration {
     /// mistyped or truncated cannot be signed, and saying so here is better
     /// than sending a message that will be refused without a reason.
     pub fn sign(code: &str, nonce: &str, reachable: &str, phone: PhoneModel) -> Option<Self> {
+        let mut token = [0u8; DELIVERY_TOKEN_BYTES];
+        fill(&mut token).ok()?;
+        Self::sign_with_token(code, nonce, reachable, &hex::encode(token), phone)
+    }
+
+    /// Re-sign the same pairing attempt after the phone refreshes its
+    /// measurement. The token is created once by [`sign`] and is the only
+    /// delivery identity the computer accepts after it has saved the seal.
+    pub fn sign_again(
+        &self,
+        code: &str,
+        nonce: &str,
+        reachable: &str,
+        phone: PhoneModel,
+    ) -> Option<Self> {
+        Self::sign_with_token(code, nonce, reachable, &self.delivery_token, phone)
+    }
+
+    /// The phone keeps this opaque token with its in-flight attempt. It is
+    /// signed inside `mac`; it is not a credential and is safe to serialize.
+    pub fn delivery_token(&self) -> &str {
+        &self.delivery_token
+    }
+
+    /// Compare the signed delivery identity without making the stored seal a
+    /// public bearer object. Both sides are fixed-size hex values, so the
+    /// value comparison is constant-time after decoding.
+    pub fn delivery_token_matches(&self, expected: &str) -> bool {
+        let mut actual = [0u8; DELIVERY_TOKEN_BYTES];
+        let mut presented = [0u8; DELIVERY_TOKEN_BYTES];
+        let actual_ok = hex::decode_to_slice(&self.delivery_token, &mut actual).is_ok();
+        let presented_ok = hex::decode_to_slice(expected, &mut presented).is_ok();
+        actual_ok && presented_ok && bool::from(actual.ct_eq(&presented))
+    }
+
+    fn sign_with_token(
+        code: &str,
+        nonce: &str,
+        reachable: &str,
+        delivery_token: &str,
+        phone: PhoneModel,
+    ) -> Option<Self> {
         let mut key = [0u8; CODE_BYTES];
         hex::decode_to_slice(code, &mut key).ok()?;
         let mut nonce_bytes = [0u8; NONCE_BYTES];
         hex::decode_to_slice(nonce, &mut nonce_bytes).ok()?;
+        let mut token = [0u8; DELIVERY_TOKEN_BYTES];
+        hex::decode_to_slice(delivery_token, &mut token).ok()?;
         let fields = PhoneFields::of(phone);
-        let mac = phone_mac(&key, &nonce_bytes, reachable, &fields);
+        let mac = phone_mac_with_token(&key, &nonce_bytes, reachable, delivery_token, &fields);
         Some(Self {
             phone: fields,
             mac: hex::encode(mac),
+            delivery_token: hex::encode(token),
         })
     }
 }
@@ -231,10 +282,21 @@ fn tag(domain: &[u8], key: &[u8], nonce: &[u8], payload: &[u8]) -> [u8; MAC_BYTE
 
 /// The phone's MAC, exactly as the recipe above defines it — exposed so
 /// the tests can stand where the phone stands and compose a valid message.
+#[cfg(test)]
 pub(crate) fn phone_mac(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     reachable: &str,
+    phone: &PhoneFields,
+) -> [u8; MAC_BYTES] {
+    phone_mac_with_token(key, nonce, reachable, "", phone)
+}
+
+pub(crate) fn phone_mac_with_token(
+    key: &[u8; CODE_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    reachable: &str,
+    delivery_token: &str,
     phone: &PhoneFields,
 ) -> [u8; MAC_BYTES] {
     let canonical = match serde_json::to_vec(phone) {
@@ -244,6 +306,7 @@ pub(crate) fn phone_mac(
         Err(_) => Vec::new(),
     };
     let mut payload = reachable.as_bytes().to_vec();
+    payload.extend_from_slice(delivery_token.as_bytes());
     payload.extend_from_slice(&canonical);
     tag(PHONE_DOMAIN, key, nonce, &payload)
 }
@@ -251,6 +314,7 @@ pub(crate) fn phone_mac(
 /// Constant-time verification of the phone's completion MAC. A malformed,
 /// wrong-length, or wrong-value presentation is the same "no": nothing here
 /// says how wrong it was.
+#[cfg(test)]
 pub(crate) fn verify_phone_mac(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
@@ -258,7 +322,18 @@ pub(crate) fn verify_phone_mac(
     phone: &PhoneFields,
     presented: &str,
 ) -> bool {
-    let expected = phone_mac(key, nonce, reachable, phone);
+    verify_phone_mac_with_token(key, nonce, reachable, "", phone, presented)
+}
+
+pub(crate) fn verify_phone_mac_with_token(
+    key: &[u8; CODE_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    reachable: &str,
+    delivery_token: &str,
+    phone: &PhoneFields,
+    presented: &str,
+) -> bool {
+    let expected = phone_mac_with_token(key, nonce, reachable, delivery_token, phone);
     let mut tag_bytes = [0u8; MAC_BYTES];
     if hex::decode_to_slice(presented, &mut tag_bytes).is_err() {
         return false;

@@ -33,14 +33,69 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use subtle::ConstantTimeEq;
 
 use crate::error::StoreError;
 use crate::handshake::{Credential, Handshake};
-use crate::messages::PhoneFields;
+use crate::messages::{PairingSeal, PhoneFields};
 
 const STORE_VERSION: u8 = 1;
+
+/// A sealed completion kept beside the credential until the phone confirms it
+/// received the response. It is private-by-construction: callers can create
+/// one only from a signed delivery token, a seal, and the QR's deadline.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Delivery {
+    token: String,
+    seal: PairingSeal,
+    expires_at: u64,
+}
+
+impl Delivery {
+    pub fn new(token: &str, seal: PairingSeal, expires_at: SystemTime) -> Option<Self> {
+        let mut bytes = [0u8; 16];
+        hex::decode_to_slice(token, &mut bytes).ok()?;
+        let expires_at = expires_at.duration_since(UNIX_EPOCH).ok()?.as_secs();
+        Some(Self {
+            token: token.to_string(),
+            seal,
+            expires_at,
+        })
+    }
+
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
+    pub fn seal(&self) -> &PairingSeal {
+        &self.seal
+    }
+
+    pub fn expires_at(&self) -> Option<SystemTime> {
+        UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at))
+    }
+
+    /// The token is a fixed-size, signed delivery identity. Decode both
+    /// values before comparing them so the seal retrieval path does not use a
+    /// variable-time string comparison.
+    pub fn token_matches(&self, presented: &str) -> bool {
+        let mut saved = [0u8; 16];
+        let mut candidate = [0u8; 16];
+        let saved_ok = hex::decode_to_slice(&self.token, &mut saved).is_ok();
+        let candidate_ok = hex::decode_to_slice(presented, &mut candidate).is_ok();
+        saved_ok && candidate_ok && bool::from(saved.ct_eq(&candidate))
+    }
+
+    fn is_valid(&self) -> bool {
+        let Some(expires_at) = self.expires_at() else {
+            return false;
+        };
+        Self::new(self.token.as_str(), self.seal.clone(), expires_at).is_some()
+    }
+}
 
 // No Debug on purpose: the credential travels through these structs in hex.
 #[derive(Serialize, Deserialize)]
@@ -48,6 +103,8 @@ struct StoredHandshake {
     v: u8,
     credential_hex: String,
     phone: PhoneFields,
+    #[serde(default)]
+    delivery: Option<Delivery>,
 }
 
 /// Write the handshake result as a new file. The parent directory must exist;
@@ -61,10 +118,28 @@ struct StoredHandshake {
 /// store does not pretend to arbitrate between processes. A deliberate
 /// replacement uses [`replace`] instead of this refusal.
 pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+    persist_record(handshake, path, None)
+}
+
+/// Persist a handshake and the sealed response as one atomic record. The
+/// response survives a crash between publication and the phone's retry.
+pub fn persist_with_delivery(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Delivery,
+) -> Result<(), StoreError> {
+    persist_record(handshake, path, Some(delivery))
+}
+
+fn persist_record(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Option<Delivery>,
+) -> Result<(), StoreError> {
     if path.exists() {
         return Err(StoreError::AlreadyPaired);
     }
-    write_temp(handshake, path)?;
+    write_temp(handshake, path, delivery)?;
     publish_temp(&temp_path(path), path).map_err(StoreError::Io)
 }
 
@@ -72,15 +147,37 @@ pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
 /// until the complete, owner-only temp file is renamed over it; a write or a
 /// crash before that rename therefore leaves the old credential usable.
 pub fn replace(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
-    write_temp(handshake, path)?;
+    replace_record(handshake, path, None)
+}
+
+/// Atomically replace a handshake and retain its sealed response for retry.
+pub fn replace_with_delivery(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Delivery,
+) -> Result<(), StoreError> {
+    replace_record(handshake, path, Some(delivery))
+}
+
+fn replace_record(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Option<Delivery>,
+) -> Result<(), StoreError> {
+    write_temp(handshake, path, delivery)?;
     publish_temp(&temp_path(path), path).map_err(StoreError::Io)
 }
 
-fn write_temp(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+fn write_temp(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Option<Delivery>,
+) -> Result<(), StoreError> {
     let stored = StoredHandshake {
         v: STORE_VERSION,
         credential_hex: handshake.credential_hex(),
         phone: PhoneFields::of(handshake.phone),
+        delivery,
     };
     let temp = temp_path(path);
     let mut file = open_temp(&temp).map_err(StoreError::Io)?;
@@ -256,6 +353,11 @@ pub fn forget(path: &Path) -> Result<(), StoreError> {
 
 /// Read a handshake result back.
 pub fn load(path: &Path) -> Result<Handshake, StoreError> {
+    load_with_delivery(path).map(|(handshake, _)| handshake)
+}
+
+/// Read the handshake and any response that still needs delivery.
+pub fn load_with_delivery(path: &Path) -> Result<(Handshake, Option<Delivery>), StoreError> {
     let bytes = fs::read(path).map_err(StoreError::Io)?;
     let stored: StoredHandshake = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
     if stored.v != STORE_VERSION {
@@ -267,7 +369,20 @@ pub fn load(path: &Path) -> Result<Handshake, StoreError> {
         .phone
         .into_phone()
         .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?;
-    Ok(Handshake::new(phone, credential))
+    if stored
+        .delivery
+        .as_ref()
+        .is_some_and(|delivery| !delivery.is_valid())
+    {
+        return Err(StoreError::Corrupt("stored delivery is invalid"));
+    }
+    Ok((Handshake::new(phone, credential), stored.delivery))
+}
+
+/// Remove only the retained response while preserving the paired handshake.
+pub fn clear_delivery(path: &Path) -> Result<(), StoreError> {
+    let (handshake, _) = load_with_delivery(path)?;
+    replace_record(&handshake, path, None)
 }
 
 #[cfg(test)]

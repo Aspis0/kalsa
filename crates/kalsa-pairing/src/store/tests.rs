@@ -3,8 +3,13 @@ use std::path::PathBuf;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use super::{forget, load, persist, replace, temp_path, StoreError};
+use super::{
+    clear_delivery, forget, load, load_with_delivery, persist, persist_with_delivery, replace,
+    temp_path, Delivery, StoreError,
+};
 use crate::handshake::{Credential, Handshake};
+use crate::messages::seal_computer;
+use std::time::{Duration, UNIX_EPOCH};
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("kalsa-pairing-{name}-{}", std::process::id()));
@@ -154,6 +159,33 @@ fn a_replacement_publishes_the_new_credential_atomically() {
         load(&path).unwrap().credential_hex(),
         second.credential_hex()
     );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_delivery_is_atomic_and_can_be_cleared_after_success() {
+    let dir = scratch("delivery");
+    let path = dir.join("credential.json");
+    let handshake = sample_handshake();
+    let code = "11".repeat(16);
+    let nonce = "22".repeat(32);
+    let mut key = [0u8; 16];
+    let mut nonce_bytes = [0u8; 32];
+    hex::decode_to_slice(&code, &mut key).unwrap();
+    hex::decode_to_slice(&nonce, &mut nonce_bytes).unwrap();
+    let seal = seal_computer(
+        &key,
+        &nonce_bytes,
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    let delivery =
+        Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
+
+    persist_with_delivery(&handshake, &path, delivery).unwrap();
+    let (_, loaded) = load_with_delivery(&path).unwrap();
+    assert_eq!(loaded.unwrap().token(), &"44".repeat(16));
+    clear_delivery(&path).unwrap();
+    assert!(load_with_delivery(&path).unwrap().1.is_none());
     fs::remove_dir_all(&dir).unwrap();
 }
 
