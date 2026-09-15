@@ -918,7 +918,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     truncNote:
       "I fatti superiori a {chars} caratteri vengono accorciati nelle risposte.",
     disabledNote:
-      "La memoria è disattivata: i fatti non vengono usati né aggiornati. Puoi comunque vedere ed eliminare i fatti salvati.",
+      "Con la memoria disattivata, da ora non vengono salvati né usati fatti nuovi. I fatti già presenti nelle conversazioni passate restano parte di quei messaggi; puoi comunque vedere ed eliminare qui sotto i fatti salvati.",
     facts: "Fatti salvati",
     addFact: "Aggiungi fatto",
     addPlaceholder: "es. Mi chiamo Alex",

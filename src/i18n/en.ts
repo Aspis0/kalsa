@@ -944,7 +944,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     capReplyHint: "Up to {perReply} used per reply ({chars} chars each)",
     truncNote: "Facts over {chars} chars are shortened in replies.",
     disabledNote:
-      "Memory is off: facts are not used or updated. You can still view and delete saved facts.",
+      "With memory off, no new facts are saved or used from now on. Facts already included in past conversations remain part of those messages; you can still view and delete saved facts below.",
     facts: "Saved facts",
     addFact: "Add fact",
     addPlaceholder: "e.g. My name is Alex",
