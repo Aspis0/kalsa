@@ -218,7 +218,6 @@ import {
 import {
   bumpForegroundIdleRef,
   FOREGROUND_IDLE_DISPOSE_MS,
-  FOREGROUND_STUCK_INFLIGHT_MS,
   shouldRunForegroundIdleDispose,
 } from "./foregroundIdleDispose";
 import {
@@ -2931,15 +2930,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             downloadInFlight.current ||
             modelSwitchInFlightRef.current ||
             nativeEngineWorkInFlight();
-          if (
-            skipDisposeWhileInFlight({
-              inFlight,
-              kind,
-              stuckExpired:
-                Date.now() - idleClock.lastUserActivityAt >=
-                FOREGROUND_STUCK_INFLIGHT_MS,
-            })
-          ) {
+          if (skipDisposeWhileInFlight({ inFlight, kind })) {
             idleClock.arm();
             return;
           }

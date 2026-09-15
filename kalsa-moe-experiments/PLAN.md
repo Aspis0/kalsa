@@ -8,7 +8,7 @@ Goal: keep live chat KV across prefix-identity flips and do not idle-unload whil
 - e8c8886: planner skip when KV holds chat; idle dispose treats completion/FIFO as in-flight.
 - luna FIX on e8c8886: wipe-job recheck; idle includes native-op chain + modelSwitch.
 - luna re-audit FIX: wipe lock order + prewarm TOCTOU + deferred-dispose download/switch gate.
-- stall watchdog (this apply): `GENERATION_STALL_GAP_MS=45_000`; rate is trailing last `MIN_TOKENS_BEFORE_RATE=8` timestamps (not since firstTokenAt); no rate-stall when `gapMs < MIN_GAP_MS_BEFORE_RATE=1000`; `MIN_DECODE_TOK_PER_SEC=0.2`. S23 T20B abort was first-think-token 10s gap, not idle-only. 15 min FOREGROUND_STUCK unchanged.
+- stall watchdog (this apply): `GENERATION_STALL_GAP_MS=45_000`; decode rate is trailing-window telemetry only and no longer an abort condition. S23 T20B abort was a live first-think-token gap, not a hang. Foreground idle is not a generation watchdog.
 - ciswire assemble clamp (this apply): do not shrink JS window while live KV holds the full chat. S23 96d3d06 T20C t10: `KALSA_KVPREFIX embd=7840 text_tokens=4219 n_common=0` + `KALSA_KVDIVERGE n_common=0 shared_lo=0` after save tokens=7840. T20B t13: `embd=7905 text_tokens=4205 n_common=0`. Turns 1–9/12 had `n_common == embd` growing (1829 → 7284 / 7655). Hole: digest-share `windowStartIndex` + `loadedB==null` kept the slid start; ciswire `decideAssembleWindowAction` still slid. Off-mode clamp (c7801f9) did not cover that. No clearCache.
 - luna FIX AUDIT-CISWIRE-WINDOW: sample `kvHeld`+`loadedB` together after `await getBenchLegacyWindow` (no pre-await hold). Clamp to `loadedB` only when `getLoadedAssembleBoundary` is non-null (same-chat live KV, unknown start → 0). Hold-false + stale nPast + conv mismatch (`loadedB === null`) keeps `computedStart`; do not treat 0 as a known boundary.
 - ciswire digest-share while flags stale (this apply): f441b3d 20t T20C t10 quoted `KALSA_KVPREFIX embd=7189 text_tokens=4173 n_common=0` (4173/7189=0.58 = `WINDOW_SHARE_WITH_DIGEST` 0.6). t1–9 `n_common==embd` 1829→7101. `ciswireFlags=3`. No `KALSA_STALL`. Clamp to `loadedB` was not enough: JS sized as digest-share so `kvHeld` was false (`hasDigest: retrievalOn && !kvHeld`). Hold / `lastChatNPast` dropped (LlamaService 2051, 4489, 4557, 4564, 4714, 4826). Source of truth is `lastChatNPast>0` OR `kvHoldsChatSession` OR last save tokens. One `KALSA_WINDOW` log per send. No clearCache. No stallWatchdog / llama.rn patch.
@@ -120,6 +120,32 @@ hydrate cannot overwrite the unknown durable map. No await was added to the send
 Parent verification after integration: `tsc --noEmit` exit 0; five targeted Jest suites
 **168/168**, exit 0. This is code proof only, not device proof.
 
+### 2026-09-15 S23 T20C result and foreground-idle correction
+
+The adoption protocol broke the repeated-slide loop on device. The incomplete campaign in
+`out/t20c-fixprotocol-20260915/` produced 17 alignments with one initial `to:0` only, six
+monotone successful slides, and the factual boundary ratchet
+`0 -> 4 -> 10 -> 15 -> 17 -> 20 -> 28 -> 36`. The process-death recovery returned at boundary
+17. There were no held+unknown sends, so `window_reconcile` was not exercised. Only 8 campaign
+turns were collected completely; five never landed through the share UI, so the run is
+incomplete and G2 is not claimed.
+
+The first causal failure was independent of the KV protocol. A healthy in-flight generation
+(`KALSA_STALL` count 0) began at 16:37:33 and was unloaded at 16:55:19 with
+`model.unload {reason:"idle", idleMs:1065655}`. The foreground-idle policy deliberately treated
+15 minutes as a stuck-generation escape and entered the discard lifecycle, which aborted the
+live turn. The fix removes that age escape at both decision points: foreground idle never
+disposes while any send, completion, engine job, lifecycle op, model switch, or download is in
+flight. Quiet foreground idle still disposes at 180 seconds; background and trim keep their
+forceful semantics. Prefill, decode-gap, and stall watchdogs remain the only generation-hang
+owners.
+
+DeepSeek hostile audit found no P0/P1. Parent verification: `tsc --noEmit` exit 0, five targeted
+Jest suites 28/28, and `git diff --check` clean. The audit identified two non-blocking follow-ups:
+AppShell wiring lacks an integration-level test, and a truly wedged JS-only await outside an
+engine job can keep the engine resident in the foreground. Those paths need their own bounded
+awaits, not a return of the idle age escape.
+
 ## Still open
 
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
@@ -134,17 +160,20 @@ Parent verification after integration: `tsc --noEmit` exit 0; five targeted Jest
   variants in the APK contain `kalsa-native-patches`, `q23k`, `KALSA_KVDIAG`, and
   `restored state checkpoint`. The 09-14 APK remains invalid for this protocol and must not be
   reused.
-- Run the S23 T20C campaign. Pass condition: starts ratchet from the adopted boundary (no repeated
-  `window_align ... to:0`), ceiling slides are monotone, and every unknown-start send logs one
-  successful `window_reconcile` before native assembly.
+- Re-run S23 T20C with the foreground-idle fix after producing and installing a new debuggable
+  APK. Preserve the same pass conditions: no repeated `window_align ... to:0`, monotone slides,
+  and one successful `window_reconcile` before assembly whenever held+unknown is reached.
+- Add a focused AppShell wiring test for both foreground-idle checks without duplicating the
+  in-flight source of truth. Separately bound JS-only tool/pre-turn awaits that are not covered by
+  an engine-job watchdog.
 - G2 not claimed.
 
 ## Constraints
 
 - Targeted tests only. No full Jest. No push. Device work is pinned to the S23 serial above;
   never contact the Jelly Star.
-- The fresh debuggable APK is installed. The S23 was at 100%, `AC powered:true`, `status:5`,
-  29.4 C after installation; unplug it before T20C so the campaign's charging gate can pass.
-  Never reuse the 09-14 APK for this protocol.
+- The previous debuggable APK is installed, but it predates the foreground-idle correction. The
+  last campaign left the S23 unplugged, force-stopped, and at 18%; recharge before the next run,
+  then unplug before measuring. Never reuse the 09-14 APK for this protocol.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.

@@ -41,15 +41,15 @@ export function backgroundDiscardPlan({
 
 /**
  * After abort + bounded wait, background/trim still dispose even if JS
- * in-flight flags are stuck. Idle must not unload a live send.
+ * in-flight flags are stuck. Idle must not unload a live send: kind="idle"
+ * blocks while anything is in flight, regardless of idle age — true stalls
+ * have their own watchdogs.
  */
 export function skipDisposeWhileInFlight(args: {
   inFlight: boolean;
   kind: "background" | "idle" | "trim";
-  stuckExpired?: boolean;
 }): boolean {
   if (!args.inFlight) return false;
   if (args.kind === "background" || args.kind === "trim") return false;
-  if (args.stuckExpired) return false;
   return true;
 }

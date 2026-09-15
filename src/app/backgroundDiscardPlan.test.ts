@@ -102,7 +102,7 @@ describe("backgroundDiscardPlan", () => {
     ).toBe(true);
   });
 
-  test("background in-flight still disposes; idle in-flight does not", () => {
+  test("background/trim in-flight still dispose; idle in-flight always blocks", () => {
     expect(
       skipDisposeWhileInFlight({ inFlight: true, kind: "background" }),
     ).toBe(false);
@@ -115,12 +115,15 @@ describe("backgroundDiscardPlan", () => {
     expect(
       skipDisposeWhileInFlight({ inFlight: false, kind: "idle" }),
     ).toBe(false);
-    expect(
-      skipDisposeWhileInFlight({
-        inFlight: true,
-        kind: "idle",
-        stuckExpired: true,
-      }),
-    ).toBe(false);
+  });
+
+  test("idle second in-flight check blocks dispose with no stuck-age escape", () => {
+    // The old stuckExpired escape (S23 T20C 2026-09-15 turn 9) let the
+    // deferred idle dispose proceed once the idle window crossed 15 min.
+    // The parameter is gone (compile-enforced); any in-flight state must
+    // still block the idle unload at dispose time.
+    for (const kind of ["idle"] as const) {
+      expect(skipDisposeWhileInFlight({ inFlight: true, kind })).toBe(true);
+    }
   });
 });

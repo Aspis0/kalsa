@@ -5,15 +5,12 @@
  * first think token (`KALSA_STALL` gapMs=10143, tokens=1, tokPerSec=0.098).
  * The old 10 s gap aborted a live think start, not a hang.
  *
- * Rate: trailing window of the last `MIN_TOKENS_BEFORE_RATE` timestamps,
- * not cumulative since firstTokenAt. Judge only after 8 tokens and only
- * when gapMs >= 10 s. S23 T20D aborted a live think at tokens=329
- * gapMs=1812 tokPerSec=0.166 (`reason=rate`) — 1.8 s between tokens is
- * not a hang. 0.2 tok/s is 5 s/token; a 0.058 tok/s crawl with ~9 s
- * gaps still fails the trailing rate.
+ * Decode rate is retained as telemetry over the trailing token window, but
+ * it is not an abort condition. S23 T20D proved that slow first think tokens
+ * after a large reused prefix can look like a rate stall while still live.
  *
- * A true hang still aborts: no tokens → prefill deadline; after the first
- * token a 45 s gap; 15 min FOREGROUND_STUCK remains the inflight cap.
+ * A true hang still aborts through the prefill deadline before the first
+ * token or a 45 s gap after it. Foreground idle is not a generation watchdog.
  */
 export const GENERATION_STALL_GAP_MS = 45_000;
 export const MIN_TOKENS_BEFORE_RATE = 8;
@@ -68,7 +65,7 @@ export function createStallWatchdog(input: {
       // Rate stall removed: S23 7aabfe8 t1 n_common=5466=embd then
       // KALSA_STALL reason=rate gapMs=11377 tokens=8 tokPerSec=0.08.
       // Slow first think tokens after a 5k prefix are not a hang.
-      // True hangs still hit the 45s gap (FOREGROUND_STUCK 15 min).
+      // True hangs still hit the prefill deadline or the 45 s token gap.
       return { stalled: false, reason: "gap", gapMs, tokPerSec };
     },
     reset: () => {
