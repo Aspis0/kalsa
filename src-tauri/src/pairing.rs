@@ -19,6 +19,7 @@
 //!   the owner says which phone is theirs.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
@@ -64,13 +65,28 @@ enum State {
     /// call a name, because the MAC binds what is declared and nobody has
     /// declared one yet. The page already says "your phone" when it is given
     /// nothing, which is true; a name made up here would not be.
-    Paired,
+    Paired {
+        /// Retained so a lost HTTP response can be retried idempotently.
+        pending: Option<PendingDelivery>,
+    },
     /// A phone completed the ceremony, but a credential is already stored.
     /// The new handshake waits here for the owner's decision; it is never
     /// written without one.
-    Replace { incoming: Box<Handshake> },
+    Replace {
+        incoming: Box<Handshake>,
+        pending: PendingDelivery,
+    },
     /// The ceremony finished and the credential could not be written.
     CouldNotSave,
+    /// The path exists but cannot be read or is corrupt. It must never look
+    /// like an unpaired machine, because that could make the catalog choose
+    /// for a phone that is already configured.
+    StoreUnavailable,
+}
+
+struct PendingDelivery {
+    declaration_mac: String,
+    seal: PairingSeal,
 }
 
 /// The live ceremony, shared between the Tauri commands and the listener
@@ -79,6 +95,7 @@ enum State {
 pub(crate) struct Desk {
     state: Mutex<State>,
     file: PathBuf,
+    serving: AtomicBool,
 }
 
 /// What the Pairing page reads, polled. The field names and the vocabulary
@@ -101,22 +118,47 @@ impl Desk {
     /// without any ceremony running.
     pub(crate) fn new(file: PathBuf) -> Self {
         let state = match kalsa_pairing::store::load(&file) {
-            Ok(_) => State::Paired,
-            Err(_) => State::Idle,
+            Ok(_) => State::Paired { pending: None },
+            Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+                State::Idle
+            }
+            Err(_) => State::StoreUnavailable,
         };
         Self {
             state: Mutex::new(state),
             file,
+            serving: AtomicBool::new(false),
         }
     }
 
     /// The phone this computer works with, for the catalog. `None` until a
     /// ceremony has been completed and its credential written: an unpaired
     /// computer must not be handed a phone it invented.
-    pub(crate) fn phone(&self) -> Option<kalsa_catalog::PhoneModel> {
-        kalsa_pairing::store::load(&self.file)
-            .ok()
-            .map(|handshake| handshake.phone)
+    pub(crate) fn phone(&self) -> Result<Option<kalsa_catalog::PhoneModel>, StoreError> {
+        // Serialise the read with replacement. The file is atomically
+        // published, but this lock also keeps the in-memory state and the
+        // catalog's observation from crossing the owner's decision.
+        let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        match kalsa_pairing::store::load(&self.file) {
+            Ok(handshake) => Ok(Some(handshake.phone)),
+            Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Stop pairing immediately when the inference server stops. The listener
+    /// remains bound so its address can stay in future squares, but every
+    /// route sees this gate and refuses while the server is down.
+    pub(crate) fn stop_serving(&self) {
+        self.serving.store(false, Ordering::SeqCst);
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if matches!(*state, State::Live { .. }) {
+            *state = State::Idle;
+        }
+    }
+
+    pub(crate) fn is_serving(&self) -> bool {
+        self.serving.load(Ordering::SeqCst)
     }
 
     /// The page's read. `serving` is whether there is anything for a phone to
@@ -127,6 +169,11 @@ impl Desk {
     /// the clock. An expired square is replaced by a fresh one rather than
     /// left on screen, and the page says why.
     pub(crate) fn read(&self, serving: bool, reachable: &str, now: SystemTime) -> PairingDto {
+        if serving {
+            self.serving.store(true, Ordering::SeqCst);
+        } else {
+            self.stop_serving();
+        }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if let State::Live { pairing, .. } = &mut *state {
             pairing.expire_if_due(now);
@@ -135,7 +182,10 @@ impl Desk {
             }
         }
         match &*state {
-            State::Paired { .. } | State::Replace { .. } | State::CouldNotSave => {}
+            State::Paired { .. }
+            | State::Replace { .. }
+            | State::CouldNotSave
+            | State::StoreUnavailable => {}
             _ if !serving => *state = State::Idle,
             State::Idle => *state = Self::fresh(reachable, now, None),
             State::Live { .. } => {}
@@ -145,9 +195,18 @@ impl Desk {
 
     /// The owner asked for another square. Anything in flight is abandoned:
     /// a square the owner has given up on must not still be completable.
-    pub(crate) fn retry(&self, reachable: &str, now: SystemTime) {
+    pub(crate) fn retry(&self, serving: bool, reachable: &str, now: SystemTime) {
+        if !serving {
+            self.stop_serving();
+            return;
+        }
+        self.serving.store(true, Ordering::SeqCst);
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        *state = Self::fresh(reachable, now, Some(Refreshed::WrongCode));
+        if matches!(*state, State::Replace { .. } | State::StoreUnavailable) {
+            return;
+        }
+        let refreshed = matches!(*state, State::Live { .. }).then_some(Refreshed::WrongCode);
+        *state = Self::fresh(reachable, now, refreshed);
     }
 
     /// The owner's decision on a phone that asked to take over. `replace`
@@ -155,19 +214,24 @@ impl Desk {
     /// write anything and the new phone is simply dropped.
     pub(crate) fn decide(&self, replace: bool) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let State::Replace { incoming } = &*state else {
+        let previous = std::mem::replace(&mut *state, State::CouldNotSave);
+        let State::Replace { incoming, pending } = previous else {
+            *state = previous;
             return;
         };
         if !replace {
-            *state = State::Paired;
+            *state = State::Paired { pending: None };
             return;
         }
-        // Forgetting first is what makes this a replacement rather than a
-        // second credential: `persist` refuses to overwrite, by design.
-        let written = kalsa_pairing::store::forget(&self.file)
-            .and_then(|()| kalsa_pairing::store::persist(incoming, &self.file));
-        *state = match written {
-            Ok(()) => State::Paired,
+        // Replacement is one atomic publication. The old file remains until
+        // the new, verified file is ready, so a failed write cannot lose both
+        // phones. The waiting phone got a refusal before this owner decision;
+        // after a successful choice it retries its declaration and receives
+        // the retained seal below. Keeping the old phone drops that seal.
+        *state = match kalsa_pairing::store::replace(&incoming, &self.file) {
+            Ok(()) => State::Paired {
+                pending: Some(pending),
+            },
             Err(_) => State::CouldNotSave,
         };
     }
@@ -176,6 +240,9 @@ impl Desk {
     /// whether the ceremony moved: the proof comes next, and a claim that
     /// says more than "go on" is a claim that can be probed.
     pub(crate) fn claim(&self, code: &str, now: SystemTime) -> bool {
+        if !self.is_serving() {
+            return false;
+        }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let State::Live { pairing, .. } = &mut *state else {
             return false;
@@ -194,19 +261,48 @@ impl Desk {
         declaration: PhoneDeclaration,
         now: SystemTime,
     ) -> Option<PairingSeal> {
+        if !self.is_serving() {
+            return None;
+        }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let State::Paired {
+            pending: Some(pending),
+        } = &*state
+        {
+            return (pending.declaration_mac == declaration.mac).then(|| pending.seal.clone());
+        }
         let State::Live { pairing, .. } = &mut *state else {
             return None;
         };
+        let declaration_mac = declaration.mac.clone();
         let (handshake, seal) = pairing.complete(declaration, now).ok()?;
-        *state = match kalsa_pairing::store::persist(&handshake, &self.file) {
-            Ok(()) => State::Paired,
-            Err(StoreError::AlreadyPaired) => State::Replace {
-                incoming: Box::new(handshake),
-            },
-            Err(_) => State::CouldNotSave,
-        };
-        Some(seal)
+        match kalsa_pairing::store::persist(&handshake, &self.file) {
+            Ok(()) => {
+                *state = State::Paired {
+                    pending: Some(PendingDelivery {
+                        declaration_mac,
+                        seal: seal.clone(),
+                    }),
+                };
+                Some(seal)
+            }
+            Err(StoreError::AlreadyPaired) => {
+                *state = State::Replace {
+                    incoming: Box::new(handshake),
+                    pending: PendingDelivery {
+                        declaration_mac,
+                        seal,
+                    },
+                };
+                // The owner must decide before this phone can be told that it
+                // succeeded; transport turns this None into the uniform 403.
+                None
+            }
+            Err(_) => {
+                *state = State::CouldNotSave;
+                None
+            }
+        }
     }
 
     /// A new square, or the idle state when one cannot be made. A failure to
@@ -260,7 +356,7 @@ fn dto(state: &State) -> PairingDto {
                 ..empty
             },
         },
-        State::Paired => PairingDto {
+        State::Paired { .. } => PairingDto {
             state: "paired",
             ..empty
         },
@@ -273,6 +369,11 @@ fn dto(state: &State) -> PairingDto {
             failure: Some("could-not-save"),
             ..empty
         },
+        State::StoreUnavailable => PairingDto {
+            state: "failed",
+            failure: Some("could-not-read"),
+            ..empty
+        },
     }
 }
 
@@ -280,22 +381,20 @@ fn dto(state: &State) -> PairingDto {
 pub(crate) type SharedDesk = Arc<Desk>;
 
 #[cfg(test)]
+impl Desk {
+    pub(crate) fn test_square(&self) -> Option<String> {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        match &*state {
+            State::Live { pairing, .. } => pairing.qr_payload(),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use kalsa_catalog::{Parameters, PhoneModel};
-
-    /// The square this desk is showing, as the phone reads it off the screen.
-    /// Test-only: nothing in the product needs the payload — the page shows
-    /// the SVG and the phone's camera does the rest.
-    impl Desk {
-        fn square(&self) -> Option<String> {
-            let state = self.state.lock().unwrap();
-            match &*state {
-                State::Live { pairing, .. } => pairing.qr_payload(),
-                _ => None,
-            }
-        }
-    }
 
     fn scratch(name: &str) -> PathBuf {
         let dir =
@@ -324,6 +423,13 @@ mod tests {
         )
     }
 
+    fn declaration_for(desk: &Desk, phone: PhoneModel, now: SystemTime) -> PhoneDeclaration {
+        let payload = desk.test_square().expect("square");
+        let (code, nonce, reachable) = secrets(&payload);
+        assert!(desk.claim(&code, now));
+        PhoneDeclaration::sign(&code, &nonce, &reachable, phone).expect("declaration")
+    }
+
     /// A phone walks the whole ceremony: it scans, claims, proves, and only
     /// then does this computer know what it is serving. Before that the
     /// catalog is handed nothing — which is the state the product shipped in
@@ -333,9 +439,9 @@ mod tests {
         let desk = Desk::new(scratch("completes"));
         let now = SystemTime::now();
 
-        assert!(desk.phone().is_none(), "nothing is paired yet");
+        assert!(desk.phone().unwrap().is_none(), "nothing is paired yet");
         desk.read(true, "http://127.0.0.1:1", now);
-        let payload = desk.square().expect("a square is on screen");
+        let payload = desk.test_square().expect("a square is on screen");
         let (code, nonce, reachable) = secrets(&payload);
 
         assert!(
@@ -346,7 +452,10 @@ mod tests {
             .expect("the phone can sign what it scanned");
         assert!(desk.complete(declaration, now).is_some(), "sealed");
 
-        let phone = desk.phone().expect("the phone reached the catalog");
+        let phone = desk
+            .phone()
+            .unwrap()
+            .expect("the phone reached the catalog");
         assert_eq!(phone.weights_bytes, 2_000_000_000);
     }
 
@@ -357,14 +466,14 @@ mod tests {
         let desk = Desk::new(scratch("wrong-proof"));
         let now = SystemTime::now();
         desk.read(true, "http://127.0.0.1:1", now);
-        let (code, nonce, reachable) = secrets(&desk.square().expect("square"));
+        let (code, nonce, reachable) = secrets(&desk.test_square().expect("square"));
         assert!(desk.claim(&code, now));
 
         let stranger = "0".repeat(code.len());
         let forged = PhoneDeclaration::sign(&stranger, &nonce, &reachable, a_phone())
             .expect("a well-formed message keyed on the wrong secret");
         assert!(desk.complete(forged, now).is_none(), "no seal");
-        assert!(desk.phone().is_none(), "and no credential");
+        assert!(desk.phone().unwrap().is_none(), "and no credential");
     }
 
     /// One attempt. A correct proof presented after a wrong one is still
@@ -374,7 +483,7 @@ mod tests {
         let desk = Desk::new(scratch("burnt"));
         let now = SystemTime::now();
         desk.read(true, "http://127.0.0.1:1", now);
-        let (code, nonce, reachable) = secrets(&desk.square().expect("square"));
+        let (code, nonce, reachable) = secrets(&desk.test_square().expect("square"));
         assert!(desk.claim(&code, now));
 
         let stranger = "0".repeat(code.len());
@@ -383,7 +492,7 @@ mod tests {
 
         let honest = PhoneDeclaration::sign(&code, &nonce, &reachable, a_phone()).unwrap();
         assert!(desk.complete(honest, now).is_none(), "the square is spent");
-        assert!(desk.phone().is_none());
+        assert!(desk.phone().unwrap().is_none());
     }
 
     /// A square is only offered while there is something behind it.
@@ -391,6 +500,117 @@ mod tests {
     fn nothing_is_offered_while_the_server_is_down() {
         let desk = Desk::new(scratch("idle"));
         desk.read(false, "http://127.0.0.1:1", SystemTime::now());
-        assert!(desk.square().is_none());
+        assert!(desk.test_square().is_none());
+    }
+
+    #[test]
+    fn a_failed_first_save_never_returns_success_to_the_phone() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-pairing-missing-parent-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let desk = Desk::new(dir.join("pairing.json"));
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", now);
+
+        let declaration = declaration_for(&desk, a_phone(), now);
+        assert!(desk.complete(declaration, now).is_none());
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", now)).unwrap();
+        assert_eq!(dto["state"], "failed");
+        assert_eq!(dto["failure"], "could-not-save");
+        assert!(desk.phone().unwrap().is_none());
+    }
+
+    #[test]
+    fn a_saved_pairing_can_retry_when_its_success_response_was_lost() {
+        let desk = Desk::new(scratch("delivery-retry"));
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", now);
+        let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
+        assert!(desk.claim(&code, now));
+        let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, a_phone()).unwrap();
+        let retry = PhoneDeclaration::sign(&code, &nonce, &reachable, a_phone()).unwrap();
+        assert!(desk.complete(declaration, now).is_some());
+        // The first response may have been written to a dead socket. The
+        // same phone's idempotent retry gets the same sealed credential.
+        assert!(desk.complete(retry, now).is_some());
+        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
+    }
+
+    #[test]
+    fn replacement_waits_for_the_owner_and_retries_delivery_after_publish() {
+        let desk = Desk::new(scratch("replace-flow"));
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", now);
+        let first = declaration_for(&desk, a_phone(), now);
+        assert!(desk.complete(first, now).is_some());
+
+        desk.retry(true, "http://127.0.0.1:1", now);
+        let second_phone = PhoneModel {
+            weights_bytes: 3_000_000_000,
+            ..a_phone()
+        };
+        let second = declaration_for(&desk, second_phone, now);
+        assert!(desk.complete(second, now).is_none());
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", now)).unwrap();
+        assert_eq!(dto["state"], "replace");
+        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
+
+        // Keeping the old phone is a real refusal, not a delayed success.
+        desk.decide(false);
+        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
+
+        desk.retry(true, "http://127.0.0.1:1", now);
+        let third_phone = PhoneModel {
+            weights_bytes: 4_000_000_000,
+            ..a_phone()
+        };
+        let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
+        assert!(desk.claim(&code, now));
+        let third = PhoneDeclaration::sign(&code, &nonce, &reachable, third_phone).unwrap();
+        let retry_declaration = PhoneDeclaration::sign(
+            &code,
+            &nonce,
+            &reachable,
+            PhoneModel {
+                weights_bytes: 4_000_000_000,
+                ..a_phone()
+            },
+        )
+        .unwrap();
+        // The third completion is parked too; retrying that exact declaration
+        // after the owner's approval receives the saved seal.
+        assert!(desk.complete(third, now).is_none());
+        desk.decide(true);
+        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 4_000_000_000);
+        assert!(desk.complete(retry_declaration, now).is_some());
+    }
+
+    #[test]
+    fn stopping_the_server_retires_the_square_and_blocks_routes() {
+        let desk = Desk::new(scratch("stop"));
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", now);
+        let payload = desk.test_square().unwrap();
+        let (code, _, _) = secrets(&payload);
+        desk.stop_serving();
+        assert!(!desk.is_serving());
+        assert!(!desk.claim(&code, now));
+        assert!(desk.test_square().is_none());
+        desk.retry(false, "http://127.0.0.1:1", now);
+        assert!(desk.test_square().is_none());
+    }
+
+    #[test]
+    fn an_unreadable_store_is_not_reported_as_unpaired() {
+        let path = scratch("unreadable");
+        std::fs::write(&path, b"not a pairing file").unwrap();
+        let desk = Desk::new(path);
+        let dto =
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", SystemTime::now())).unwrap();
+        assert_eq!(dto["state"], "failed");
+        assert_eq!(dto["failure"], "could-not-read");
+        assert!(desk.phone().is_err());
     }
 }

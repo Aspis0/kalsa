@@ -66,8 +66,13 @@ impl Brain {
 /// The phone's declaration, from the persisted pairing. Unpaired is a normal
 /// state, not an error: the catalog answers it with a refusal the user can
 /// act on.
-fn phone(app: &tauri::AppHandle) -> Option<kalsa_catalog::PhoneModel> {
-    app.try_state::<Desk>()?.desk.phone()
+fn phone(app: &tauri::AppHandle) -> Result<Option<kalsa_catalog::PhoneModel>, String> {
+    let desk = app.try_state::<Desk>().ok_or_else(|| {
+        "The pairing service is not ready. Restarting the computer usually clears it.".to_string()
+    })?;
+    desk.desk.phone().map_err(|_| {
+        "This computer could not read its existing phone connection. Fixing permissions and trying again may help.".to_string()
+    })
 }
 
 /// The pairing desk and the address its square advertises, made once at
@@ -78,6 +83,7 @@ fn phone(app: &tauri::AppHandle) -> Option<kalsa_catalog::PhoneModel> {
 struct Desk {
     desk: pairing::SharedDesk,
     reachable: String,
+    listener: transport::Listener,
 }
 
 #[derive(Clone, Serialize)]
@@ -108,8 +114,12 @@ impl From<ServerState> for StateDto {
 }
 
 #[tauri::command]
-fn brain_state(brain: State<Brain>) -> StateDto {
-    brain.supervisor.state().into()
+fn brain_state(brain: State<Brain>, desk: State<Desk>) -> StateDto {
+    let state = brain.supervisor.state();
+    if !matches!(state, ServerState::Running { .. }) {
+        desk.desk.stop_serving();
+    }
+    state.into()
 }
 
 /// Whether a model is configured at all — the development override is the
@@ -180,7 +190,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let state_file = state_file(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
-    let phone = phone(&app);
+    let phone = phone(&app)?;
     let emitter = app.clone();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
@@ -261,7 +271,8 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-fn brain_stop(brain: State<Brain>) {
+fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
+    desk.desk.stop_serving();
     brain.supervisor.stop();
 }
 
@@ -277,8 +288,9 @@ fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto 
 
 /// The owner asked for another square. Whatever was in flight is abandoned.
 #[tauri::command]
-fn brain_pairing_retry(desk: State<Desk>) {
-    desk.desk.retry(&desk.reachable, SystemTime::now());
+fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
+    let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
+    desk.desk.retry(serving, &desk.reachable, SystemTime::now());
 }
 
 /// The owner says the new phone is theirs. The stored credential is replaced;
@@ -295,8 +307,8 @@ fn brain_pairing_keep(desk: State<Desk>) {
     desk.desk.decide(false);
 }
 
-fn main() {
-    tauri::Builder::default()
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let app = tauri::Builder::default()
         .manage(Brain::new())
         .invoke_handler(tauri::generate_handler![
             brain_state,
@@ -319,22 +331,35 @@ fn main() {
                 std::fs::create_dir_all(parent)?;
             }
             let desk = Arc::new(pairing::Desk::new(file));
-            let reachable = transport::serve(desk.clone())?;
-            app.manage(Desk { desk, reachable });
+            let listener = transport::serve(desk.clone())?;
+            let reachable = listener.address().to_string();
+            app.manage(Desk {
+                desk,
+                reachable,
+                listener,
+            });
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("kalsa-brain: could not start")
-        .run(|app, event| {
-            // Take the child with us on the way out, on both exit paths the
-            // runtime reports. The platform backstop (job object, pdeathsig)
-            // covers the exits that run no handler at all.
-            if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
-                if let Some(brain) = app.try_state::<Brain>() {
-                    brain.supervisor.shutdown();
-                }
+        .map_err(|error| {
+            eprintln!("kalsa-brain: pairing service could not start: {error}");
+            error
+        })?;
+    app.run(|app, event| {
+        // Take the child with us on the way out, on both exit paths the
+        // runtime reports. The platform backstop (job object, pdeathsig)
+        // covers the exits that run no handler at all.
+        if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+            if let Some(desk) = app.try_state::<Desk>() {
+                desk.desk.stop_serving();
+                desk.listener.shutdown();
             }
-        });
+            if let Some(brain) = app.try_state::<Brain>() {
+                brain.supervisor.shutdown();
+            }
+        }
+    });
+    Ok(())
 }
 
 #[cfg(test)]
