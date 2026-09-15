@@ -272,7 +272,12 @@ card("Model", "outside the app (browser preview)", (panel) =>
 // real one comes from kalsa-pairing's qr_svg(payload) and is never logged.
 
 function pairingBackend(dto) {
-  return { async read() { return dto; }, async retry() {}, async decide() {} };
+  return {
+    async read() { return dto; },
+    async retry() {},
+    async decide() {},
+    async forget() {},
+  };
 }
 
 function pairingDto(state, extra = {}) {
@@ -283,6 +288,7 @@ function pairingDto(state, extra = {}) {
     refreshed: null,
     phone: null,
     new_phone: null,
+    delivery_pending: false,
     failure: null,
     ...extra,
   };
@@ -326,6 +332,14 @@ card("Pairing", "paired; another phone can be paired", (panel) =>
   }).refresh(),
 );
 
+card("Pairing", "saved here; the phone still needs the response", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(
+      pairingDto("paired", { phone: "Pixel 9a (stub)", delivery_pending: true }),
+    ),
+  }).refresh(),
+);
+
 card("Pairing", "already paired; a new phone asks", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(
@@ -343,5 +357,11 @@ card("Pairing", "the connection could not be saved", (panel) =>
 card("Pairing", "the existing phone connection could not be read", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(pairingDto("failed", { failure: "could-not-read" })),
+  }).refresh(),
+);
+
+card("Pairing", "the local pairing service stopped", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("failed", { failure: "service-unavailable" })),
   }).refresh(),
 );

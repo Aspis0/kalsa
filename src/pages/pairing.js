@@ -16,7 +16,8 @@
 //     refreshed: "expired" | "wrong-code" | null,  // why this square is fresh
 //     phone: string | null,    // the phone this computer works with
 //     new_phone: string | null,// the phone asking to take over (replace)
-//     failure: "could-not-save" | null,
+//     delivery_pending: boolean, // saved here, response still needs delivery
+//     failure: "could-not-save" | "could-not-read" | "service-unavailable" | null,
 //   }
 
 import { available, invoke } from "../lib/tauri.js";
@@ -34,6 +35,9 @@ const tauriBackend = {
   decide(replace) {
     return invoke(replace ? "brain_pairing_replace" : "brain_pairing_keep");
   },
+  forget() {
+    return invoke("brain_pairing_forget");
+  },
 };
 
 // The approved ways to say the square is the way in, that it was replaced,
@@ -45,6 +49,7 @@ const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
 const REPLACE_PRIMARY = "Use the new phone";
 const REPAIR_PRIMARY = "Pair another phone";
+const CANCEL_PRIMARY = "Cancel";
 const FRESH_LINES = {
   expired: "The previous square expired — this one is fresh.",
   "wrong-code": "A square that did not match was replaced — this one is fresh.",
@@ -103,6 +108,7 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
   }
 
   function render(dto) {
+    onAlt = () => {};
     // The read failed: say so and offer the way back in.
     if (!dto) {
       onAction = () => refresh();
@@ -137,17 +143,23 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
         });
         break;
       case "claiming":
-        onAction = () => {};
-        apply({ text: "A phone is connecting right now." });
+        onAction = () => {
+          backend.retry().catch(() => {});
+        };
+        apply({
+          text: "A phone is connecting right now.",
+          button: CANCEL_PRIMARY,
+        });
         break;
       case "paired":
         onAction = () => {
           backend.retry().catch(() => {});
         };
-        onAlt = () => {};
         apply({
           head: "Paired",
-          text: `This computer now works with ${dto.phone ?? "your phone"}.`,
+          text: dto.delivery_pending
+            ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
+            : `This computer now works with ${dto.phone ?? "your phone"}.`,
           button: REPAIR_PRIMARY,
         });
         break;
@@ -171,12 +183,24 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
         break;
       case "failed":
         if (dto.failure === "could-not-read") {
-          onAction = () => refresh();
-          onAlt = () => {};
+          onAction = () => {
+            backend.forget().then(() => refresh()).catch(() => {});
+          };
+          onAlt = () => refresh();
           apply({
             head: "Could not check",
             text: "This computer could not read its existing phone connection. Fixing permissions and trying again may help.",
-            button: "Try again",
+            button: "Forget and pair again",
+            alt: "Try again",
+          });
+          break;
+        }
+        if (dto.failure === "service-unavailable") {
+          onAction = () => goTo("status");
+          apply({
+            head: "Pairing unavailable",
+            text: "The local pairing service stopped. Restart the app to make pairing available again.",
+            button: "Go to Status",
           });
           break;
         }

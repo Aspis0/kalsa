@@ -372,6 +372,7 @@ const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
 const REPLACE_PRIMARY = "Use the new phone";
 const REPAIR_PRIMARY = "Pair another phone";
+const CANCEL_PRIMARY = "Cancel";
 const FRESH_PHRASINGS = [
   "The previous square expired — this one is fresh.",
   "A square that did not match was replaced — this one is fresh.",
@@ -397,6 +398,16 @@ for (const { heading, sentence, all, qr, fresh, buttons } of results) {
   }
   if (sentence.includes("now works with") && !buttons.includes(REPAIR_PRIMARY)) {
     problems.push(`a paired phone must offer a deliberate way to pair another: ${heading}`);
+  }
+  if (sentence.includes("saved the connection") && !buttons.includes(REPAIR_PRIMARY)) {
+    problems.push(`a pending delivery must still offer another pairing: ${heading}`);
+  }
+  if (heading.includes("saved here; the phone still needs the response") &&
+      !sentence.includes("the phone still needs to receive it")) {
+    problems.push(`a pending delivery must say that the phone still needs the response: ${heading}`);
+  }
+  if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) {
+    problems.push(`a claimed square must offer cancellation: ${heading}`);
   }
 }
 
