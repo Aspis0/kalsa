@@ -7,16 +7,24 @@ project rule).
 
 ## Why
 
+CORRECTION (2026-09-15): an earlier version of this document claimed the five
+n-gram speculative types are features "upstream llama.cpp does not have".
+Wrong: all of them are inherited from ggml-org upstream and predate our fork's
+branch point — ngram-cache #5479 (Gäßler, 2024-03), ngram-simple / map-k /
+map-k4v #18471 (Rogmann, 2026-01), ngram-mod #19164 (Gerganov, 2026-01).
+What is genuinely ours in this work: the greedy-transparency gate, the
+ngram-cache hybrid rollback bug, and the on-device numbers on our models.
+
 The r/LocalLLaMA Engram/Qwen3.8-Next discussion made two points that map onto
 our stack: (a) hashed n-gram lookup tables are a Zipfian hot/cold-tier memory
 workload — the same shape our bmoe expert streamer is built for; (b) a plain
-n-gram drafter stacked on DFlash took a Qwen 3.8 27B from 2.26x to 4.68x. Our
-fork already ships five n-gram speculative types upstream llama.cpp does not
-have — `ngram-simple`, `ngram-map-k`, `ngram-map-k4v`, `ngram-mod`,
-`ngram-cache` (common/speculative.cpp, wired through `--spec-type` and our
-llama.rn JSI `speculative.types` patch) — and none was ever measured on our
-hybrid LFM2.5 models. The draft-verify loop rides the same hybrid KV rollback
-paths we fixed for KV reuse, so correctness had to come before speed.
+n-gram drafter stacked on DFlash took a Qwen 3.8 27B from 2.26x to 4.68x. The
+five upstream types (`ngram-simple`, `ngram-map-k`, `ngram-map-k4v`,
+`ngram-mod`, `ngram-cache`; common/speculative.cpp, wired through
+`--spec-type` and our llama.rn JSI `speculative.types` patch) were never
+measured on our hybrid LFM2.5 models. The draft-verify loop rides the same
+hybrid KV rollback paths we fixed for KV reuse, so correctness had to come
+before speed.
 
 ## What was built (this branch)
 
