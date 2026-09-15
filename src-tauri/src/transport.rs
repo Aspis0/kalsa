@@ -1,51 +1,36 @@
 //! What carries the ceremony: a loopback listener the phone reaches through
 //! the same tunnel it uses for the server.
 //!
-//! Until this existed the ceremony authenticated nobody to nobody — the page
-//! invoked four commands that were never written, nothing ever called
-//! `store::persist`, and so the computer's answer to "which phone is this?"
-//! was always "none". Every model choice was made on the no-phone path.
-//!
-//! The decisions here, and why:
-//!
-//! * **`127.0.0.1` and nothing else.** Binding the LAN "just for the pairing
-//!   window" would put an endpoint that mints credentials on the same network
-//!   as everything else in the house. The inference server is loopback for
-//!   this reason and the phone already arrives through a tunnel; pairing
-//!   takes the same road.
-//! * **No runtime, no framework.** Two routes, small bodies, a bounded worker
-//!   pool. A machine old enough to need this product should not spend a core
-//!   on an executor to exchange two messages.
-//! * **Bounded by construction.** A request that never ends, a body that
-//!   never stops, or a client that connects and says nothing must cost this
-//!   machine a known, small amount and then be dropped.
-//! * **One answer for every refusal.** Wrong code, expired window, no
-//!   ceremony, malformed body: all 403 with no detail. A caller who can tell
-//!   these apart can tell whether a square is live on a screen it cannot see.
+//! The acceptor reads incomplete requests without tying up a route worker.
+//! Active sockets and complete-request queue entries are both bounded, and a
+//! full bound gets a best-effort 403 without making the acceptor wait for a
+//! peer that refuses to read.
 
-use std::io::{self, BufRead, BufReader, Read, Write};
+mod parser;
+
+use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::pairing::SharedDesk;
+use parser::{ParseResult, Request, MAX_BUFFER};
 
-/// The most a request may be. Both bodies are a handful of fields; anything
-/// beyond this is not a phone of ours.
-const MAX_BODY: usize = 8 * 1024;
-/// The most the head may be, counted while bytes are read.
-const MAX_HEAD: usize = 8 * 1024;
-/// How long a connection may take to say what it wants, and to hear back.
-const PATIENCE: Duration = Duration::from_secs(10);
 /// Inactivity is not enough: a peer sending one byte every few seconds must
-/// still be evicted so it cannot keep the phone behind it forever.
+/// still be evicted by the absolute deadline below.
+const PATIENCE: Duration = Duration::from_secs(10);
 const CONNECTION_LIFETIME: Duration = Duration::from_secs(30);
 const WORKERS: usize = 4;
 const QUEUE: usize = 8;
+/// A partial socket is cheap and bounded; route workers never wait on it.
+/// Keep the admission bound tied to the only two downstream capacities.
+const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
+const POLL_INTERVAL: Duration = Duration::from_millis(5);
+const LOG_INTERVAL: Duration = Duration::from_secs(1);
 
 pub(crate) struct Listener {
     address: String,
@@ -57,6 +42,23 @@ pub(crate) struct Listener {
 struct Connection {
     stream: TcpStream,
     accepted: Instant,
+    last_activity: Instant,
+    buffer: Vec<u8>,
+}
+
+struct Work {
+    stream: TcpStream,
+    request: Request,
+    accepted: Instant,
+}
+
+struct WriteErrorLog {
+    state: Mutex<LogState>,
+}
+
+struct LogState {
+    last: Option<Instant>,
+    suppressed: usize,
 }
 
 impl Listener {
@@ -80,12 +82,48 @@ impl Drop for Listener {
     }
 }
 
+impl WriteErrorLog {
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(LogState {
+                last: None,
+                suppressed: 0,
+            }),
+        }
+    }
+
+    fn report(&self, error: &io::Error) {
+        let now = Instant::now();
+        let Some(suppressed) = self.should_report(now) else {
+            return;
+        };
+        if suppressed == 0 {
+            eprintln!("kalsa pairing response was not delivered: {error}");
+        } else {
+            eprintln!(
+                "kalsa pairing response was not delivered: {error} ({suppressed} similar errors suppressed)"
+            );
+        }
+    }
+
+    fn should_report(&self, now: Instant) -> Option<usize> {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if state
+            .last
+            .is_some_and(|last| now.duration_since(last) < LOG_INTERVAL)
+        {
+            state.suppressed += 1;
+            return None;
+        }
+        let suppressed = state.suppressed;
+        state.last = Some(now);
+        state.suppressed = 0;
+        Some(suppressed)
+    }
+}
+
 /// Starts the listener and returns the address the square should advertise.
-///
-/// The listener outlives any single window on purpose: a port that changed
-/// with every fresh square would change the address inside a QR the owner is
-/// already pointing a camera at. It accepts at any time and refuses whenever
-/// no ceremony is live, which is the same answer it gives to a wrong code.
+/// The acceptor remains bound so a fresh square does not need a new address.
 pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     listener.set_nonblocking(true)?;
@@ -94,47 +132,45 @@ pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(test)]
     let accepted = Arc::new(AtomicUsize::new(0));
-    let (sender, receiver) = mpsc::sync_channel(QUEUE);
-    let receiver = Arc::new(Mutex::new(receiver));
+    let logger = Arc::new(WriteErrorLog::new());
+    let (sender, receiver) = request_queue();
 
     for index in 0..WORKERS {
         let desk = desk.clone();
-        let stop = stop.clone();
+        let worker_stop = stop.clone();
         let receiver = receiver.clone();
-        thread::Builder::new()
+        let logger = logger.clone();
+        if let Err(error) = thread::Builder::new()
             .name(format!("kalsa-pairing-worker-{index}"))
-            .spawn(move || worker(&desk, &stop, &receiver))
-            .map_err(|error| io::Error::other(format!("pairing worker: {error}")))?;
+            .spawn(move || worker(&desk, &worker_stop, &receiver, &logger))
+        {
+            stop.store(true, Ordering::SeqCst);
+            return Err(io::Error::other(format!("pairing worker: {error}")));
+        }
     }
 
     let accept_stop = stop.clone();
+    let accept_desk = desk.clone();
+    let accept_logger = logger.clone();
     #[cfg(test)]
     let accepted_counter = accepted.clone();
-    std::thread::Builder::new()
+    if let Err(error) = thread::Builder::new()
         .name("kalsa-pairing".into())
         .spawn(move || {
-            while !accept_stop.load(Ordering::SeqCst) {
-                match listener.accept() {
-                    Ok((stream, _)) => {
-                        #[cfg(test)]
-                        accepted_counter.fetch_add(1, Ordering::SeqCst);
-                        let Ok(()) = stream.set_nonblocking(false) else {
-                            continue;
-                        };
-                        // A bounded queue keeps a crowd of idle clients from
-                        // becoming an unbounded thread or memory allocation.
-                        let _ = sender.try_send(Connection {
-                            stream,
-                            accepted: Instant::now(),
-                        });
-                    }
-                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(20));
-                    }
-                    Err(_) => break,
-                }
-            }
-        })?;
+            accept_loop(
+                listener,
+                accept_desk,
+                accept_stop,
+                sender,
+                accept_logger,
+                #[cfg(test)]
+                accepted_counter,
+            );
+        })
+    {
+        stop.store(true, Ordering::SeqCst);
+        return Err(io::Error::other(format!("pairing listener: {error}")));
+    }
     Ok(Listener {
         address,
         stop,
@@ -143,181 +179,276 @@ pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     })
 }
 
-fn worker(desk: &SharedDesk, stop: &AtomicBool, receiver: &Mutex<mpsc::Receiver<Connection>>) {
+fn request_queue() -> (mpsc::SyncSender<Work>, Arc<Mutex<mpsc::Receiver<Work>>>) {
+    let (sender, receiver) = mpsc::sync_channel(QUEUE);
+    (sender, Arc::new(Mutex::new(receiver)))
+}
+
+fn accept_loop(
+    listener: TcpListener,
+    desk: SharedDesk,
+    stop: Arc<AtomicBool>,
+    sender: mpsc::SyncSender<Work>,
+    logger: Arc<WriteErrorLog>,
+    #[cfg(test)] accepted: Arc<AtomicUsize>,
+) {
+    let mut connections = Vec::new();
+    while !stop.load(Ordering::SeqCst) {
+        let mut progressed = match accept_connections(
+            &listener,
+            &mut connections,
+            &logger,
+            #[cfg(test)]
+            &accepted,
+        ) {
+            Ok(progressed) => progressed,
+            Err(error) => {
+                eprintln!("kalsa pairing listener stopped: {error}");
+                desk.listener_failed();
+                stop.store(true, Ordering::SeqCst);
+                break;
+            }
+        };
+        let mut index = 0;
+        while index < connections.len() {
+            match read_connection(&mut connections[index]) {
+                ReadResult::Pending => {
+                    if connection_expired(&connections[index], Instant::now()) {
+                        refuse_connection(&mut connections[index].stream, &logger);
+                        connections.remove(index);
+                        progressed = true;
+                    } else {
+                        index += 1;
+                    }
+                }
+                ReadResult::Refuse => {
+                    refuse_connection(&mut connections[index].stream, &logger);
+                    connections.remove(index);
+                    progressed = true;
+                }
+                ReadResult::Ready(request) => {
+                    let connection = connections.remove(index);
+                    let stream = connection.stream;
+                    let work = Work {
+                        stream,
+                        request,
+                        accepted: connection.accepted,
+                    };
+                    match sender.try_send(work) {
+                        Ok(()) => {}
+                        Err(mpsc::TrySendError::Full(mut work)) => {
+                            refuse_connection(&mut work.stream, &logger);
+                        }
+                        Err(mpsc::TrySendError::Disconnected(_)) => {
+                            eprintln!("kalsa pairing listener stopped: worker pool disconnected");
+                            desk.listener_failed();
+                            stop.store(true, Ordering::SeqCst);
+                        }
+                    }
+                    progressed = true;
+                }
+            }
+        }
+        if !progressed {
+            thread::sleep(POLL_INTERVAL);
+        }
+    }
+}
+
+fn accept_connections(
+    listener: &TcpListener,
+    connections: &mut Vec<Connection>,
+    logger: &WriteErrorLog,
+    #[cfg(test)] accepted: &AtomicUsize,
+) -> io::Result<bool> {
+    let mut progressed = false;
     loop {
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                #[cfg(test)]
+                accepted.fetch_add(1, Ordering::SeqCst);
+                progressed = true;
+                if connections.len() >= MAX_CONNECTIONS {
+                    let _ = stream.set_nonblocking(false);
+                    refuse_connection(&mut stream, logger);
+                    continue;
+                }
+                if stream.set_nonblocking(true).is_err() {
+                    let _ = stream.set_nonblocking(false);
+                    refuse_connection(&mut stream, logger);
+                    continue;
+                }
+                let now = Instant::now();
+                connections.push(Connection {
+                    stream,
+                    accepted: now,
+                    last_activity: now,
+                    buffer: Vec::with_capacity(MAX_BUFFER),
+                });
+            }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => return Ok(progressed),
+            Err(error) if accept_error_is_transient(&error) => {
+                thread::sleep(POLL_INTERVAL);
+                return Ok(true);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn accept_error_is_transient(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::Interrupted
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::TimedOut
+    ) || transient_errno(error.raw_os_error())
+}
+
+#[cfg(unix)]
+fn transient_errno(errno: Option<i32>) -> bool {
+    matches!(
+        errno,
+        Some(libc::EMFILE | libc::ENFILE | libc::ECONNABORTED)
+    )
+}
+
+#[cfg(not(unix))]
+fn transient_errno(_errno: Option<i32>) -> bool {
+    false
+}
+
+enum ReadResult {
+    Pending,
+    Ready(Request),
+    Refuse,
+}
+
+fn read_connection(connection: &mut Connection) -> ReadResult {
+    match parser::parse(&connection.buffer) {
+        ParseResult::Ready(request) => return ReadResult::Ready(request),
+        ParseResult::Refuse => return ReadResult::Refuse,
+        ParseResult::Pending => {}
+    }
+    let mut chunk = [0u8; 4096];
+    match connection.stream.read(&mut chunk) {
+        Ok(0) => match parser::parse(&connection.buffer) {
+            ParseResult::Ready(request) => ReadResult::Ready(request),
+            ParseResult::Pending | ParseResult::Refuse => ReadResult::Refuse,
+        },
+        Ok(read) => {
+            connection.last_activity = Instant::now();
+            if connection.buffer.len() + read > MAX_BUFFER {
+                return ReadResult::Refuse;
+            }
+            connection.buffer.extend_from_slice(&chunk[..read]);
+            match parser::parse(&connection.buffer) {
+                ParseResult::Ready(request) => ReadResult::Ready(request),
+                ParseResult::Pending => ReadResult::Pending,
+                ParseResult::Refuse => ReadResult::Refuse,
+            }
+        }
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock => ReadResult::Pending,
+        Err(_) => ReadResult::Refuse,
+    }
+}
+
+fn connection_expired(connection: &Connection, now: Instant) -> bool {
+    now.duration_since(connection.accepted) >= CONNECTION_LIFETIME
+        || now.duration_since(connection.last_activity) >= PATIENCE
+}
+
+fn worker(
+    desk: &SharedDesk,
+    stop: &AtomicBool,
+    receiver: &Mutex<mpsc::Receiver<Work>>,
+    logger: &WriteErrorLog,
+) {
+    loop {
+        let work = {
+            let receiver = receiver.lock().unwrap_or_else(|e| e.into_inner());
+            receiver.recv_timeout(POLL_INTERVAL)
+        };
+        let work = match work {
+            Ok(work) => Some(work),
+            Err(mpsc::RecvTimeoutError::Timeout) => None,
+            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+        };
         if stop.load(Ordering::SeqCst) {
             return;
         }
-        let stream = {
-            let receiver = receiver.lock().unwrap_or_else(|e| e.into_inner());
-            receiver.recv_timeout(Duration::from_millis(50))
+        let Some(work) = work else {
+            continue;
         };
-        match stream {
-            Ok(connection) => handle(desk, connection.stream, connection.accepted),
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => return,
-        }
+        handle(desk, work, logger);
     }
 }
 
-/// One connection, start to finish. Every early return closes it; the phone
-/// learns nothing from which of them happened.
-fn handle(desk: &SharedDesk, stream: TcpStream, accepted: Instant) {
-    let deadline = accepted + CONNECTION_LIFETIME;
-    let _ = stream.set_read_timeout(Some(PATIENCE));
-    let _ = stream.set_write_timeout(Some(PATIENCE));
-    let mut reader = BufReader::new(stream);
-    let Some(request) = read_request(&mut reader, deadline) else {
-        if let Some(remaining) = remaining(deadline) {
-            let _ = reader
-                .get_mut()
-                .set_write_timeout(Some(remaining.min(PATIENCE)));
-            let _ = refuse(reader.get_mut());
+/// A complete request is the only thing a route worker sees. Its absolute
+/// deadline still begins when the socket was accepted, not when it reached
+/// the queue.
+fn handle(desk: &SharedDesk, work: Work, logger: &WriteErrorLog) {
+    let deadline = work.accepted + CONNECTION_LIFETIME;
+    let mut stream = work.stream;
+    if let Some(answer) = route(desk, &work.request) {
+        let result = respond(&mut stream, &answer.body, deadline);
+        if result.is_ok() {
+            if let Some(token) = answer.delivery_token {
+                desk.acknowledge(&token);
+            }
+        } else if let Err(error) = result {
+            logger.report(&error);
         }
-        return;
-    };
-    let answer = route(desk, &request);
-    let stream = reader.get_mut();
-    if let Some(remaining) = remaining(deadline) {
-        let _ = stream.set_write_timeout(Some(remaining.min(PATIENCE)));
-    }
-    let result = match answer {
-        Some(body) => respond(stream, &body),
-        None => refuse(stream),
-    };
-    if let Err(error) = result {
-        // A successful persist retains its seal in the desk, so the phone can
-        // retry when this response was lost after the file was published.
-        eprintln!("kalsa pairing response was not delivered: {error}");
+    } else if let Err(error) = refuse(&mut stream, deadline) {
+        logger.report(&error);
     }
 }
 
-/// The two moves a phone can make. Anything else is refused without being
-/// told what it got wrong.
-fn route(desk: &SharedDesk, request: &Request) -> Option<String> {
+struct Answer {
+    body: String,
+    delivery_token: Option<String>,
+}
+
+fn route(desk: &SharedDesk, request: &Request) -> Option<Answer> {
     let now = SystemTime::now();
     match (request.method.as_str(), request.path.as_str()) {
         ("POST", "/pair/claim") => {
             let claim: Claim = serde_json::from_slice(&request.body).ok()?;
-            desk.claim(&claim.code, now).then(|| String::from("{}"))
+            desk.claim(&claim.code, now).then_some(Answer {
+                body: String::from("{}"),
+                delivery_token: None,
+            })
         }
         ("POST", "/pair/complete") => {
-            let declaration = serde_json::from_slice(&request.body).ok()?;
+            let declaration: kalsa_pairing::PhoneDeclaration =
+                serde_json::from_slice(&request.body).ok()?;
+            let token = declaration.delivery_token().to_string();
             let seal = desk.complete(declaration, now)?;
-            serde_json::to_string(&seal).ok()
+            Some(Answer {
+                body: serde_json::to_string(&seal).ok()?,
+                delivery_token: Some(token),
+            })
         }
         _ => None,
     }
 }
 
-/// The code from the square, as the phone sends it back.
 #[derive(serde::Deserialize)]
 struct Claim {
     code: String,
 }
 
-/// A request, reduced to what these two routes need.
-struct Request {
-    method: String,
-    path: String,
-    body: Vec<u8>,
-}
-
-/// Reads one request, refusing anything larger than this machine agreed to
-/// hold. `None` for a head that never ends, a body that does not match its
-/// announced length, or bytes that are not a request at all.
-fn read_request(reader: &mut BufReader<TcpStream>, deadline: Instant) -> Option<Request> {
-    let mut head = Vec::new();
-    loop {
-        let line = read_line_bounded(reader, MAX_HEAD.saturating_sub(head.len()), deadline)?;
-        if line.as_slice() == b"\r\n" || line.as_slice() == b"\n" {
-            break;
-        }
-        head.extend_from_slice(&line);
-    }
-    let head = String::from_utf8(head).ok()?;
-    let mut lines = head.lines();
-    let mut start = lines.next()?.split_whitespace();
-    let method = start.next()?.to_string();
-    let path = start.next()?.to_string();
-    let length = content_length(&head)?;
-    if length > MAX_BODY {
-        return None;
-    }
-    let mut body = vec![0u8; length];
-    set_read_deadline(reader, deadline)?;
-    reader.read_exact(&mut body).ok()?;
-    // Connection: close makes ignored bytes harmless to the next request,
-    // but bytes already buffered beyond Content-Length are still ambiguous
-    // input and are refused rather than silently selected.
-    if !reader.buffer().is_empty() {
-        return None;
-    }
-    Some(Request { method, path, body })
-}
-
-fn read_line_bounded(
-    reader: &mut BufReader<TcpStream>,
-    limit: usize,
-    deadline: Instant,
-) -> Option<Vec<u8>> {
-    let mut line = Vec::new();
-    loop {
-        set_read_deadline(reader, deadline)?;
-        let buffer = reader.fill_buf().ok()?;
-        if buffer.is_empty() {
-            return None;
-        }
-        let take = buffer
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .map_or(buffer.len(), |index| index + 1);
-        let chunk = &buffer[..take];
-        let blank = line.is_empty() && (chunk == b"\n" || chunk == b"\r\n");
-        if !blank && take > limit.saturating_sub(line.len()) {
-            return None;
-        }
-        let ends = chunk.last() == Some(&b'\n');
-        line.extend_from_slice(chunk);
-        reader.consume(take);
-        if ends {
-            return Some(line);
-        }
+fn refuse_connection(stream: &mut TcpStream, logger: &WriteErrorLog) {
+    if let Err(error) = refuse(stream, Instant::now() + PATIENCE) {
+        logger.report(&error);
     }
 }
 
-fn remaining(deadline: Instant) -> Option<Duration> {
-    let duration = deadline.checked_duration_since(Instant::now())?;
-    (!duration.is_zero()).then_some(duration)
-}
-
-fn set_read_deadline(reader: &mut BufReader<TcpStream>, deadline: Instant) -> Option<()> {
-    let timeout = remaining(deadline)?.min(PATIENCE);
-    reader.get_mut().set_read_timeout(Some(timeout)).ok()
-}
-
-/// The announced body length. A request without one carries no body, which is
-/// a length of zero rather than an error.
-fn content_length(head: &str) -> Option<usize> {
-    let mut length = None;
-    for line in head.lines() {
-        let Some((name, value)) = line.split_once(':') else {
-            continue;
-        };
-        if name.trim().eq_ignore_ascii_case("transfer-encoding") {
-            return None;
-        }
-        if name.trim().eq_ignore_ascii_case("content-length") {
-            if length.is_some() {
-                return None;
-            }
-            length = Some(value.trim().parse().ok()?);
-        }
-    }
-    Some(length.unwrap_or(0))
-}
-
-fn respond(stream: &mut TcpStream, body: &str) -> io::Result<()> {
+fn respond(stream: &mut TcpStream, body: &str, deadline: Instant) -> io::Result<()> {
+    remaining(deadline)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "connection deadline"))?;
+    stream.set_nonblocking(true)?;
     write!(
         stream,
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -326,10 +457,16 @@ fn respond(stream: &mut TcpStream, body: &str) -> io::Result<()> {
     )
 }
 
-/// The one refusal. No body, no reason, no variation: everything a caller
-/// could learn from the difference is something we do not want it to learn.
-fn refuse(stream: &mut TcpStream) -> io::Result<()> {
+fn refuse(stream: &mut TcpStream, deadline: Instant) -> io::Result<()> {
+    remaining(deadline)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "connection deadline"))?;
+    stream.set_nonblocking(true)?;
     stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+}
+
+fn remaining(deadline: Instant) -> Option<Duration> {
+    let duration = deadline.checked_duration_since(Instant::now())?;
+    (!duration.is_zero()).then_some(duration)
 }
 
 #[cfg(test)]

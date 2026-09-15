@@ -1,14 +1,19 @@
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_catalog::{Parameters, PhoneModel};
 use kalsa_pairing::PhoneDeclaration;
 
-use super::{content_length, read_request, serve, Listener};
+use super::{
+    accept_error_is_transient, connection_expired, handle, parser, request_queue, serve, worker,
+    Connection, Listener, LogState, Request, Work, WriteErrorLog, CONNECTION_LIFETIME,
+    LOG_INTERVAL, PATIENCE, QUEUE, WORKERS,
+};
 use crate::pairing::Desk;
 
 fn scratch(name: &str) -> PathBuf {
@@ -66,12 +71,37 @@ fn request(address: &str, method: &str, path: &str, body: &str) -> String {
     stream.write_all(request.as_bytes()).unwrap();
     stream.shutdown(Shutdown::Write).unwrap();
     let mut response = String::new();
-    stream.read_to_string(&mut response).expect("response");
+    match stream.read_to_string(&mut response) {
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
+        Err(error) => panic!("response: {error}"),
+    }
     response
 }
 
 fn body(response: &str) -> &str {
     response.split_once("\r\n\r\n").unwrap().1
+}
+
+fn read_response_or_close(stream: &mut TcpStream) -> String {
+    let mut response = String::new();
+    match stream.read_to_string(&mut response) {
+        Ok(_) => response,
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::ConnectionReset
+            ) =>
+        {
+            String::new()
+        }
+        Err(error) => panic!("response: {error}"),
+    }
+}
+
+fn connect(address: &str) -> TcpStream {
+    let target = address.strip_prefix("http://").unwrap();
+    TcpStream::connect(target).expect("connect")
 }
 
 #[test]
@@ -89,36 +119,34 @@ fn a_phone_completes_over_real_http_and_the_post_route_is_required() {
     let response = request(&address, "POST", "/pair/complete", &complete);
     assert!(response.starts_with("HTTP/1.1 200"));
     let seal: kalsa_pairing::PairingSeal = serde_json::from_str(body(&response)).unwrap();
-    let credential = seal.open(&code, &nonce).expect("phone can open the seal");
-    assert_eq!(credential.len(), 64);
+    assert_eq!(seal.open(&code, &nonce).unwrap().len(), 64);
     assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
+    let dto = serde_json::to_value(desk.read(true, &address, SystemTime::now())).unwrap();
+    assert_eq!(dto["delivery_pending"], false);
     listener.shutdown();
 }
 
 #[test]
 fn slow_clients_do_not_block_a_second_phone() {
     let (_desk, listener, address, code, _nonce, _reachable) = setup("parallel");
-    let target = address.strip_prefix("http://").unwrap();
     let mut slow = Vec::new();
-    for _ in 0..3 {
-        let mut stream = TcpStream::connect(target).unwrap();
+    for _ in 0..(WORKERS + 1) {
+        let mut stream = connect(&address);
         stream
             .write_all(b"POST /pair/claim HTTP/1.1\r\nContent-Length: 8192\r\n\r\n")
             .unwrap();
         slow.push(stream);
     }
-    // Let the accept loop hand the slow socket to a worker before the real
-    // phone arrives; with one worker this deliberately recreates the audit's
-    // head-of-line block.
     let deadline = Instant::now() + Duration::from_secs(2);
-    while listener.accepted_count() < 3 && Instant::now() < deadline {
+    while listener.accepted_count() < WORKERS + 1 && Instant::now() < deadline {
         thread::sleep(Duration::from_millis(20));
     }
-    assert_eq!(listener.accepted_count(), 3);
+    assert!(listener.accepted_count() >= WORKERS + 1);
 
     let claim = serde_json::json!({ "code": code });
-    let response = request(&address, "POST", "/pair/claim", &claim.to_string());
-    assert!(response.starts_with("HTTP/1.1 200"));
+    assert!(
+        request(&address, "POST", "/pair/claim", &claim.to_string()).starts_with("HTTP/1.1 200")
+    );
     for stream in slow {
         let _ = stream.shutdown(Shutdown::Both);
     }
@@ -126,27 +154,215 @@ fn slow_clients_do_not_block_a_second_phone() {
 }
 
 #[test]
-fn a_connection_has_an_absolute_deadline_even_when_bytes_trickle_in() {
+fn the_complete_request_queue_is_bounded() {
+    let (sender, _receiver) = request_queue();
+    let mut clients = Vec::new();
+    for _ in 0..QUEUE {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = TcpStream::connect(address).unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        clients.push(client);
+        sender
+            .send(Work {
+                stream,
+                request: Request {
+                    method: String::from("GET"),
+                    path: String::from("/"),
+                    body: Vec::new(),
+                },
+                accepted: Instant::now(),
+            })
+            .unwrap();
+    }
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let client = TcpStream::connect(address).unwrap();
+    let (stream, _) = listener.accept().unwrap();
+    let overflow = sender.try_send(Work {
+        stream,
+        request: Request {
+            method: String::from("GET"),
+            path: String::from("/"),
+            body: Vec::new(),
+        },
+        accepted: Instant::now(),
+    });
+    assert!(matches!(overflow, Err(mpsc::TrySendError::Full(_))));
+    clients.push(client);
+}
+
+#[test]
+fn the_body_limit_is_applied_before_waiting_for_the_body() {
+    let (_desk, listener, address, _code, _nonce, _reachable) = setup("body-limit");
+    let mut stream = connect(&address);
+    stream
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .unwrap();
+    write!(
+        stream,
+        "POST /pair/claim HTTP/1.1\r\nContent-Length: {}\r\n\r\n",
+        parser::MAX_BODY + 1
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 403"));
+    listener.shutdown();
+}
+
+#[test]
+fn the_head_limit_is_applied_while_a_line_is_still_open() {
+    let (_desk, listener, address, _code, _nonce, _reachable) = setup("head-limit");
+    let mut stream = connect(&address);
+    stream
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .unwrap();
+    stream.write_all(&vec![b'x'; parser::MAX_HEAD + 1]).unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 403"));
+    listener.shutdown();
+}
+
+#[test]
+fn a_connection_already_near_its_deadline_does_not_get_a_new_lifetime() {
+    let desk = Arc::new(Desk::new(scratch("old-connection")));
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (ready_sender, ready_receiver) = mpsc::channel();
+    let client = thread::spawn(move || {
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
+        ready_sender.send(()).unwrap();
+        read_response_or_close(&mut stream)
+    });
+    ready_receiver.recv().unwrap();
+    let (stream, _) = listener.accept().unwrap();
+    let work = Work {
+        stream,
+        request: Request {
+            method: String::from("GET"),
+            path: String::from("/"),
+            body: Vec::new(),
+        },
+        accepted: Instant::now() - CONNECTION_LIFETIME - Duration::from_secs(1),
+    };
+    handle(&desk, work, &WriteErrorLog::new());
+    assert!(client.join().unwrap().is_empty());
+}
+
+#[test]
+fn shutdown_drops_work_that_arrives_after_the_worker_is_stopped() {
+    let desk = Arc::new(Desk::new(scratch("worker-stop")));
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let client = thread::spawn(move || {
         let mut stream = TcpStream::connect(address).unwrap();
-        for byte in b"GET /" {
-            let _ = stream.write_all(&[*byte]);
-            thread::sleep(Duration::from_millis(30));
-        }
+        stream
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
+        read_response_or_close(&mut stream)
     });
     let (stream, _) = listener.accept().unwrap();
-    let mut reader = std::io::BufReader::new(stream);
-    assert!(read_request(&mut reader, Instant::now() + Duration::from_millis(80)).is_none());
-    client.join().unwrap();
+    let (sender, receiver) = mpsc::sync_channel(1);
+    sender
+        .send(Work {
+            stream,
+            request: Request {
+                method: String::from("GET"),
+                path: String::from("/"),
+                body: Vec::new(),
+            },
+            accepted: Instant::now(),
+        })
+        .unwrap();
+    drop(sender);
+    let stop = AtomicBool::new(true);
+    let receiver = Mutex::new(receiver);
+    worker(&desk, &stop, &receiver, &WriteErrorLog::new());
+    assert!(client.join().unwrap().is_empty());
+}
+
+#[test]
+fn the_connection_bound_answers_when_it_is_full() {
+    let (_desk, listener, address, code, _nonce, _reachable) = setup("connection-bound");
+    let mut slow = Vec::new();
+    for _ in 0..(WORKERS + QUEUE) {
+        let mut stream = connect(&address);
+        stream
+            .write_all(b"POST /pair/claim HTTP/1.1\r\nContent-Length: 8192\r\n\r\n")
+            .unwrap();
+        slow.push(stream);
+    }
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while listener.accepted_count() < WORKERS + QUEUE && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(20));
+    }
+    assert!(listener.accepted_count() >= WORKERS + QUEUE);
+    let claim = serde_json::json!({ "code": code });
+    assert!(
+        request(&address, "POST", "/pair/claim", &claim.to_string()).starts_with("HTTP/1.1 403")
+    );
+    for stream in slow {
+        let _ = stream.shutdown(Shutdown::Both);
+    }
+    listener.shutdown();
+}
+
+#[test]
+fn an_idle_connection_expires_even_before_the_absolute_deadline() {
+    let now = Instant::now();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (stream, _) = listener.accept().unwrap();
+    let connection = Connection {
+        stream,
+        accepted: now - Duration::from_secs(1),
+        last_activity: now - PATIENCE - Duration::from_secs(1),
+        buffer: Vec::new(),
+    };
+    assert!(connection_expired(&connection, now));
+    drop(client);
+}
+
+#[cfg(unix)]
+#[test]
+fn resource_exhaustion_accept_errors_are_retryable() {
+    assert!(accept_error_is_transient(
+        &std::io::Error::from_raw_os_error(libc::EMFILE)
+    ));
+    assert!(accept_error_is_transient(
+        &std::io::Error::from_raw_os_error(libc::ENFILE)
+    ));
+    assert!(accept_error_is_transient(
+        &std::io::Error::from_raw_os_error(libc::ECONNABORTED)
+    ));
+    assert!(!accept_error_is_transient(&std::io::Error::other(
+        "fatal accept"
+    )));
+}
+
+#[test]
+fn response_error_logging_is_rate_limited() {
+    let log = WriteErrorLog {
+        state: Mutex::new(LogState {
+            last: None,
+            suppressed: 0,
+        }),
+    };
+    let now = Instant::now();
+    assert_eq!(log.should_report(now), Some(0));
+    assert_eq!(log.should_report(now + LOG_INTERVAL / 2), None);
+    assert_eq!(log.should_report(now + LOG_INTERVAL), Some(1));
 }
 
 #[test]
 fn ambiguous_http_framing_is_refused() {
     let (_desk, listener, address, code, _nonce, _reachable) = setup("framing");
-    let target = address.strip_prefix("http://").unwrap();
-    let mut stream = TcpStream::connect(target).unwrap();
+    let mut stream = connect(&address);
     let body = serde_json::json!({ "code": code }).to_string();
     let raw = format!(
         "POST /pair/claim HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -163,5 +379,8 @@ fn ambiguous_http_framing_is_refused() {
 
 #[test]
 fn transfer_encoding_is_not_silently_interpreted() {
-    assert!(content_length("POST / HTTP/1.1\nTransfer-Encoding: chunked\n").is_none());
+    assert!(matches!(
+        parser::parse(b"POST / HTTP/1.1\nTransfer-Encoding: chunked\n\n"),
+        parser::ParseResult::Refuse
+    ));
 }
