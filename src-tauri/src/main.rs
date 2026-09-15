@@ -14,6 +14,7 @@ mod pairing;
 mod startup;
 mod transport;
 
+use std::io;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -84,6 +85,27 @@ struct Desk {
     desk: pairing::SharedDesk,
     reachable: String,
     listener: transport::Listener,
+}
+
+fn pairing_desk(file: PathBuf) -> Result<Desk, Box<dyn std::error::Error>> {
+    pairing_desk_with(file, transport::serve)
+}
+
+fn pairing_desk_with<S>(
+    file: PathBuf,
+    serve: S,
+) -> Result<Desk, Box<dyn std::error::Error>>
+where
+    S: FnOnce(pairing::SharedDesk) -> io::Result<transport::Listener>,
+{
+    let desk = Arc::new(pairing::Desk::new(file));
+    let listener = serve(desk.clone())?;
+    let reachable = listener.address().to_string();
+    Ok(Desk {
+        desk,
+        reachable,
+        listener,
+    })
 }
 
 #[derive(Clone, Serialize)]
@@ -297,14 +319,25 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
 /// the old phone stops working, which is what replacing means.
 #[tauri::command]
 fn brain_pairing_replace(desk: State<Desk>) {
-    desk.desk.decide(true);
+    desk.desk.decide(true, SystemTime::now());
 }
 
 /// The owner says the new phone is not theirs. Nothing is written and the
 /// asking phone is dropped.
 #[tauri::command]
 fn brain_pairing_keep(desk: State<Desk>) {
-    desk.desk.decide(false);
+    desk.desk.decide(false, SystemTime::now());
+}
+
+/// The owner explicitly discards an unreadable pairing file. This is the only
+/// way out of `StoreUnavailable`; a read error is never silently treated as
+/// an unpaired computer.
+#[tauri::command]
+fn brain_pairing_forget(desk: State<Desk>) -> Result<(), String> {
+    desk.desk.forget().map_err(|_| {
+        "This computer could not forget the old phone connection. Check its permissions and try again."
+            .to_string()
+    })
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -320,7 +353,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing,
             brain_pairing_retry,
             brain_pairing_replace,
-            brain_pairing_keep
+            brain_pairing_keep,
+            brain_pairing_forget
         ])
         .setup(|app| {
             // The desk needs this machine's data directory, and the square
@@ -330,14 +364,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(parent) = file.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            let desk = Arc::new(pairing::Desk::new(file));
-            let listener = transport::serve(desk.clone())?;
-            let reachable = listener.address().to_string();
-            app.manage(Desk {
-                desk,
-                reachable,
-                listener,
-            });
+            // A loopback bind failure is a startup failure, not an empty
+            // pairing state: `?` aborts setup and the outer error mapper
+            // reports it instead of drawing a QR that cannot work.
+            app.manage(pairing_desk(file)?);
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -378,5 +408,13 @@ mod tests {
         assert!(!brain.begin_turn_on(), "refusal holds until the walk ends");
         brain.turning_on.store(false, Ordering::SeqCst);
         assert!(brain.begin_turn_on(), "a finished walk frees the next one");
+    }
+
+    #[test]
+    fn a_listener_bind_error_aborts_pairing_startup() {
+        let result = pairing_desk_with(PathBuf::from("pairing-startup-test.json"), |_| {
+            Err(io::Error::other("loopback unavailable"))
+        });
+        assert_eq!(result.err().unwrap().to_string(), "loopback unavailable");
     }
 }
