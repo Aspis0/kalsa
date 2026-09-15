@@ -127,9 +127,13 @@ Parent verification after integration: `tsc --noEmit` exit 0; five targeted Jest
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
   silently truncated answer (native sets `truncated=true`, no JS consumer reads it) and the
   `loadPrompt` path still raises `context_full` before `n_common` is computed.
-- Build a fresh debuggable APK and confirm it contains the current llama.rn
-  checkpoint-or-full-clear recovery (`recoverStateCheckpoint` / `KALSA_KVDIAG`). The 09-14 APK had
-  seven partial `KALSA_KVDIVERGE` events and zero recovery lines, so it cannot validate this tree.
+- Fresh debuggable APK built from `244c6c0` with `:app:assembleDebug --rerun-tasks` (548 tasks,
+  `BUILD SUCCESSFUL`) and installed with `adb install -r` on the S23 only. Artifact SHA-256:
+  `ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`. Manifest reports
+  `application-debuggable`, `run-as com.kalsa.app id` succeeds, and all seven arm64 engine
+  variants in the APK contain `kalsa-native-patches`, `q23k`, `KALSA_KVDIAG`, and
+  `restored state checkpoint`. The 09-14 APK remains invalid for this protocol and must not be
+  reused.
 - Run the S23 T20C campaign. Pass condition: starts ratchet from the adopted boundary (no repeated
   `window_align ... to:0`), ceiling slides are monotone, and every unknown-start send logs one
   successful `window_reconcile` before native assembly.
@@ -137,8 +141,10 @@ Parent verification after integration: `tsc --noEmit` exit 0; five targeted Jest
 
 ## Constraints
 
-- Targeted tests only. No full Jest. No phones. No push.
-- The phone is charging and ready. Produce a fresh debuggable build before the next device run;
-  never reuse the 09-14 APK for this protocol.
+- Targeted tests only. No full Jest. No push. Device work is pinned to the S23 serial above;
+  never contact the Jelly Star.
+- The fresh debuggable APK is installed. The S23 was at 100%, `AC powered:true`, `status:5`,
+  29.4 C after installation; unplug it before T20C so the campaign's charging gate can pass.
+  Never reuse the 09-14 APK for this protocol.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.
