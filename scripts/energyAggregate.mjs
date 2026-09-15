@@ -12,6 +12,8 @@
 // and unset/empty/non-numeric/non-positive values keep the column empty
 // (battery-powered run). A failed write never truncates the table: stdout
 // prints in full, then "emissions export failed: <reason>" on stderr, exit 1.
+// energyPhaseSplit.mjs writes <stem>.phases.csv into the same dir; those are
+// not sampler CSVs and are skipped by the *.csv glob.
 //
 // Audit-hardened via energySchema.mjs (deepseek-v4.1 audit of c5fae2f): torn
 // last line dropped, strict field regex (unparseable rows warn on stderr),
@@ -42,7 +44,7 @@ if (!existsSync(dir)) {
   console.error(`no such directory: ${dir}`);
   process.exit(1);
 }
-const files = readdirSync(dir).filter((f) => f.endsWith(".csv")).sort();
+const files = readdirSync(dir).filter((f) => f.endsWith(".csv") && !f.endsWith(".phases.csv")).sort();
 if (!files.length) {
   console.error(`no *.csv in ${dir}`);
   process.exit(1);

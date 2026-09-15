@@ -10,8 +10,9 @@
  * end-to-end runs of energyAggregate.mjs in temp dirs: --emissions writes one
  * file per run (degenerate runs get a header-only file + stderr warning),
  * unparseable rows warn on stderr, degenerate measurements warn, the grid env
- * var is untouched without --emissions, and the stdout table is pinned
- * string-for-string against a golden snapshot.
+ * var is untouched without --emissions, the stdout table is pinned
+ * string-for-string against a golden snapshot, and energyPhaseSplit's
+ * <stem>.phases.csv sidecars are never mistaken for sampler CSVs.
  *
  * Zero npm deps. Exit 1 on any failure.
  */
@@ -418,6 +419,47 @@ function main() {
         i === -1
           ? ""
           : `first diff at char ${i}: got ${JSON.stringify(r.stdout.slice(i, i + 48))} want ${JSON.stringify(GOLDEN.slice(i, i + 48))}`,
+      );
+    } finally {
+      try {
+        rmSync(tmp, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+  }
+
+  // ── 13. end-to-end: *.phases.csv sidecars are not sampler CSVs ──────
+  {
+    const tmp = mkdtempSync(path.join(tmpdir(), "energyPhases-"));
+    try {
+      const dir = path.join(tmp, "campaign");
+      mkdirSync(dir);
+      writeFileSync(path.join(dir, "x_none_P.csv"), THREE_ROW);
+      // What energyPhaseSplit.mjs leaves next to it: same stem, .phases.csv
+      // suffix, kalsa-energy-rep-v1 header — must not enter the arm table.
+      writeFileSync(
+        path.join(dir, "x_none_P.phases.csv"),
+        "run_id,rep,window_start_s,duration,prefill_s,decode_s,j_prefill,j_decode," +
+          "j_prefill_per_ptok,j_per_tok_decode,prompt_tokens,gen_tokens,mean_w_prefill," +
+          "mean_w_decode,n_samples_prefill,n_samples_decode,warnings\n" +
+          "x_none_P,1,100.0,2.000,1.000,1.000,1.000,1.000,0.500,0.500,51,30,1.000,1.000,1,1,\n",
+      );
+      const r = spawnSync(
+        process.execPath,
+        [path.join(__dirname, "energyAggregate.mjs"), dir],
+        { encoding: "utf8" },
+      );
+      check("phases skip: exits 0", r.status === 0, `status=${r.status} stderr=${r.stderr}`);
+      check(
+        "phases skip: x_none_P.csv aggregated with its 3 samples",
+        r.stdout.includes("| x_none_P | 3 | 2 | 0.47 | 1 |"),
+        r.stdout,
+      );
+      check(
+        "phases skip: the .phases.csv sidecar never appears in the table",
+        !r.stdout.includes(".phases"),
+        r.stdout,
       );
     } finally {
       try {

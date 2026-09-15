@@ -47,8 +47,8 @@
 //
 // Output: <dir>/<stem>.phases.csv (one row per rep) plus a markdown table on
 // stdout. NOTE for consumers: the file lands in the campaign dir and does NOT
-// match the sampler schema — run energyAggregate.mjs on a dir without
-// .phases.csv files (or before splitting), it lists every *.csv.
+// match the sampler schema — energyAggregate.mjs skips *.phases.csv when it
+// globs the dir's *.csv, so splitting before aggregating is safe.
 //
 // Usage: node scripts/energyPhaseSplit.mjs [dir=device-ngram-spec-out] [stem ...]
 //        [--prompt-tokens N] [--gen-tokens N]

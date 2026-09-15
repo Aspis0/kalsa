@@ -123,8 +123,8 @@ inherits the same ≤ ~1 s.
 | `warnings`         | —     | `; `-joined notes (undeterminable boundary, empty segments, degenerate windows) |
 
 Consumer note: `<stem>.phases.csv` lives in the campaign dir but is NOT a
-sampler CSV — `energyAggregate.mjs` lists every `*.csv`, so run the aggregate
-before splitting (or on a dir without `.phases.csv` files).
+sampler CSV — `energyAggregate.mjs` skips `*.phases.csv` when it globs the
+dir's `*.csv`, so aggregating after a split is safe.
 
 ## CodeCarbon-compatible export
 
