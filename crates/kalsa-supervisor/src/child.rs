@@ -198,7 +198,16 @@ pub fn pid_alive(pid: u32) -> bool {
 /// Stops a process we identified as ours through the state file, by pid: there
 /// is no handle to it, it belongs to a previous run of this app. Callers must
 /// have proven ownership first — this function cannot tell whose process it is.
+/// Pid 0 is refused outright: it is this crate's marker for "ours, pid
+/// unknown" (an orphan adopted blind), and signalling 0 would signal our own
+/// process group instead of any server.
 pub fn terminate_pid(pid: u32, grace: Duration) -> io::Result<()> {
+    if pid == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "refusing to signal pid 0: it names no process",
+        ));
+    }
     if !pid_alive(pid) {
         return Ok(());
     }
@@ -344,5 +353,18 @@ mod job {
             return None;
         }
         Some(job)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pid_zero_is_refused_not_signalled() {
+        // 0 is the marker for "ours, pid unknown", and signalling it would
+        // signal our own process group. Instant by construction: no process
+        // is touched, so there is nothing to wait for.
+        assert!(terminate_pid(0, Duration::from_millis(10)).is_err());
     }
 }

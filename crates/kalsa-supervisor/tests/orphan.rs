@@ -155,10 +155,12 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     let orphan_pid = orphan.id();
     let _health = FakeHealth::start(port, When::Now);
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
-    claim.describe(orphan_pid, port).expect("describe");
+    // The record in start order: port and command before the pid, so a
+    // writer that dies mid-sentence still names the server.
     claim
-        .describe_binding("/other/llama-server\x1f--ctx-size\x1f512")
-        .expect("describe binding");
+        .announce(port, "/other/llama-server\x1f--ctx-size\x1f512")
+        .expect("announce");
+    claim.describe(orphan_pid, port).expect("describe");
 
     let supervisor = Supervisor::new();
     supervisor.start(config("fake_server.sh", port));
@@ -184,6 +186,138 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     supervisor.shutdown();
 }
 
+#[test]
+fn a_mid_sentence_orphan_is_adopted_blind_not_left_invisible() {
+    // Finding A: the writer died between the spawn and the describe, so the
+    // file names the server but no pid. The lock (held here, as the heir
+    // would hold it), the matching port and command, and an answering port
+    // are enough to reuse — and reuse is the only option, because without a
+    // pid nothing may be signalled.
+    let port = unique_port();
+    clear_files(port);
+    let health = FakeHealth::start(port, When::Now);
+    // The executable does not exist: Running can only mean the orphan was
+    // adopted, and pid 0 can only mean adopted blind.
+    let mut cfg = config("fake_server.sh", port);
+    cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
+    let claim = {
+        let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+        // No describe: the writer died before the pid arrived.
+        claim
+            .announce(port, &binding_of(&cfg.exe, &cfg.argv))
+            .expect("announce");
+        claim
+    };
+
+    let supervisor = Supervisor::new();
+    supervisor.start(cfg);
+    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
+    match state {
+        ServerState::Running { pid: 0, port: reported } => assert_eq!(reported, port),
+        other => panic!("a mid-sentence orphan was not adopted blind: {other:?}"),
+    }
+
+    // A blind adoptee is watched by health, not by pid: when the port goes
+    // quiet the state follows, instead of claiming Running forever.
+    drop(health);
+    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    assert!(
+        matches!(
+            state,
+            ServerState::Failed {
+                reason: Failure::ServerExited { .. }
+            }
+        ),
+        "a blind adoptee's death went unreported: {state:?}"
+    );
+    supervisor.shutdown();
+    drop(claim);
+    let _ = std::fs::remove_file(common::state_file(port));
+}
+
+#[test]
+fn a_mid_sentence_orphan_of_a_different_command_is_reported_not_adopted() {
+    // Ours, alive, answering — but a different server than asked for. With
+    // no pid it can be neither adopted nor closed, so the start reports and
+    // touches nothing. Fast by construction: the mismatch short-circuits
+    // before any wait for health.
+    let port = unique_port();
+    clear_files(port);
+    let _health = FakeHealth::start(port, When::Now);
+    let claim = {
+        let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+        claim
+            .announce(port, "/other/llama-server\x1f--port\x1f9999")
+            .expect("announce");
+        claim
+    };
+
+    let supervisor = Supervisor::new();
+    supervisor.start(config("fake_server.sh", port));
+    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    assert!(
+        matches!(
+            state,
+            ServerState::Failed {
+                reason: Failure::InstanceUnreadable { .. }
+            }
+        ),
+        "a pid-less orphan of another command was adopted or spawned over: {state:?}"
+    );
+    assert!(
+        !common::pid_file(port).exists(),
+        "a server was spawned over an unidentified instance"
+    );
+    supervisor.shutdown();
+    drop(claim);
+    let _ = std::fs::remove_file(common::state_file(port));
+}
+
+#[test]
+fn a_silent_mid_sentence_orphan_is_reported_after_its_deadline() {
+    // Locked and matching, but nothing answers: the heir is wedged or gone
+    // past reaching. Silence through the deadline is the answer — the wait
+    // is bounded, and nothing about the outcome depends on timing, because
+    // nothing on this port can ever answer.
+    let port = unique_port();
+    clear_files(port);
+    let mut cfg = config("fake_server.sh", port);
+    cfg.ready_timeout = Duration::from_millis(300);
+    let claim = {
+        let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+        claim
+            .announce(port, &binding_of(&cfg.exe, &cfg.argv))
+            .expect("announce");
+        claim
+    };
+
+    let supervisor = Supervisor::new();
+    supervisor.start(cfg);
+    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    assert!(
+        matches!(
+            state,
+            ServerState::Failed {
+                reason: Failure::InstanceUnreadable { .. }
+            }
+        ),
+        "a silent pid-less instance was adopted or spawned over: {state:?}"
+    );
+    assert!(
+        !common::pid_file(port).exists(),
+        "a server was spawned over an unidentified instance"
+    );
+    supervisor.shutdown();
+    drop(claim);
+    let _ = std::fs::remove_file(common::state_file(port));
+}
+
+/// The exact command a config would record, in the state's own format: the
+/// mid-sentence tests must announce the same binding the supervisor will
+/// compare against, byte for byte.
+fn binding_of(exe: &std::path::Path, argv: &[String]) -> String {
+    format!("{}\x1f{}", exe.display(), argv.join("\x1f"))
+}
 #[test]
 fn a_port_held_by_another_program_is_reported_and_left_alone() {
     let port = unique_port();

@@ -27,6 +27,9 @@ pub enum ServerState {
     Stopped,
     Starting,
     Running {
+        /// The server's pid — 0 when adopted blind (see `take_over`): ours,
+        /// pid unknown, watched by health instead of by pid, and never a
+        /// signal target. `terminate_pid` refuses 0 outright.
         pid: u32,
         port: u16,
     },
@@ -74,8 +77,10 @@ enum Command {
 
 enum Started {
     /// A server from an earlier run of this app is alive and answering. Use it:
-    /// loading a model again costs the user tens of seconds.
-    Adopted { pid: u32 },
+    /// loading a model again costs the user tens of seconds. The pid is `None`
+    /// when the state file's writer died before recording one: adopted blind,
+    /// watched by health, never signalled.
+    Adopted { pid: Option<u32> },
     Spawned {
         child: ChildHandle,
         instance: InstanceFile,
@@ -162,13 +167,13 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                         set(
                             &state,
                             ServerState::Running {
-                                pid,
+                                pid: pid.unwrap_or(0),
                                 port: config.port,
                             },
                         );
                         owned = Some(Owned {
                             child: None,
-                            adopted_pid: Some(pid),
+                            adopted_pid: pid,
                             instance: None,
                             config: *config,
                         });
@@ -209,9 +214,11 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                                 set(&state, ServerState::Failed { reason });
                             }
                         }
-                        // An adopted server has no handle: the pid is what we
-                        // watch, and a dead pid is a stopped server, whatever
-                        // the process table now holds in its place.
+                        // An adopted server with a pid is watched by pid; one
+                        // adopted blind has no pid to watch, so its health is
+                        // the watch — which is the stricter of the two anyway:
+                        // a recycled pid looks alive, a dead server answers
+                        // nothing.
                         None => {
                             if let Some(pid) = run.adopted_pid {
                                 if !child::pid_alive(pid) {
@@ -227,6 +234,21 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                                         },
                                     );
                                 }
+                            } else if !health::health_ok(
+                                run.config.address(),
+                                "/health",
+                                PROBE_TIMEOUT,
+                            ) {
+                                owned = None;
+                                set(
+                                    &state,
+                                    ServerState::Failed {
+                                        reason: Failure::ServerExited {
+                                            detail: "the adopted server stopped answering /health"
+                                                .to_string(),
+                                        },
+                                    },
+                                );
                             }
                         }
                     }
@@ -261,6 +283,11 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
                     let _ = std::fs::remove_file(&run.config.state_file);
                 }
             }
+            // Adopted blind: no pid was ever recorded, so there is nothing
+            // to signal and no lock of ours to release — the heir still
+            // holds it. Left running by necessity; the next start re-adopts
+            // it by port and health, so a stop followed by a start keeps
+            // working. Only a stop that stays stopped leaks it, until reboot.
             (None, None, _) => {}
         }
     }
@@ -277,9 +304,17 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
     if let Some(started) = take_over(config)? {
         return Ok(started);
     }
-    refuse_foreign_port(config)?;
+    preflight_port(config)?;
     let mut instance =
         InstanceFile::claim(&config.state_file).map_err(|e| Failure::InstanceUnwritable {
+            detail: format!("could not write our state file: {e}"),
+        })?;
+    // The record before the thing: port and exact command are on disk before
+    // the child exists, so a writer that dies past this point still leaves a
+    // file that names its heir's server. The pid completes it below.
+    instance
+        .announce(config.port, &config.binding())
+        .map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
     let mut child = ChildHandle::spawn(&config.exe, &config.argv, Some(instance.handle()))
@@ -288,7 +323,6 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
         })?;
     instance
         .describe(child.pid(), config.port)
-        .and_then(|_| instance.describe_binding(&config.binding()))
         .map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
@@ -336,7 +370,7 @@ fn take_over(config: &ServerConfig) -> Result<Option<Started>, Failure> {
                 && child::pid_alive(pid)
                 && health::health_ok(config.address(), "/health", PROBE_TIMEOUT)
             {
-                return Ok(Some(Started::Adopted { pid }));
+                return Ok(Some(Started::Adopted { pid: Some(pid) }));
             }
             // Ours, but not usable as configured: wedged, or left on a port the
             // app no longer uses. Close it and start fresh.
@@ -346,18 +380,70 @@ fn take_over(config: &ServerConfig) -> Result<Option<Started>, Failure> {
             let _ = std::fs::remove_file(&config.state_file);
             Ok(None)
         }
+        Ok(Existing::Unidentified { port, binding }) => {
+            // The writer died between the spawn and the describe: the record
+            // names the server but no pid, so nothing here may be signalled
+            // — a pid found anywhere else is somebody else's. What is known
+            // is enough to reuse: the lock proves an heir of ours is alive,
+            // and port plus exact command say which server it must be. The
+            // heir is likely still loading its model, so its health is
+            // awaited the way the start handshake awaits it. Adopted blind
+            // when it answers; reported, never touched, otherwise.
+            let same_command = binding.as_deref().map_or(true, |b| b == config.binding());
+            if port == config.port && same_command && await_healthy(config) {
+                return Ok(Some(Started::Adopted { pid: None }));
+            }
+            Err(Failure::InstanceUnreadable {
+                detail: "our state file names a server but no pid, and it cannot be adopted as configured"
+                    .to_string(),
+            })
+        }
         Err(e) => Err(Failure::InstanceUnreadable {
             detail: format!("our state file cannot be read: {e}"),
         }),
     }
 }
 
-/// A listener that is not ours is somebody else's program: never signalled,
-/// only reported.
-fn refuse_foreign_port(config: &ServerConfig) -> Result<(), Failure> {
+/// The heir of a mid-sentence writer is likely still loading its model:
+/// await its health the way the start handshake does — a probe with a
+/// deadline, never a sleep. There is no child handle to watch for an early
+/// exit, because the child is not ours to wait on; silence through the
+/// deadline is the answer.
+fn await_healthy(config: &ServerConfig) -> bool {
+    let deadline = Instant::now() + config.ready_timeout;
+    loop {
+        if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(TICK);
+    }
+}
+
+/// A courtesy pre-check, not a guarantee: binding the port proves it was
+/// free at the moment of the bind, and the very next moment belongs to
+/// anyone — the bind is dropped so the child can take it for real, and
+/// between the drop and the child's own bind any process on the machine may
+/// step in. No retry loop or sleep can close that window; only the kernel's
+/// own bind is atomic, and the child performs it when it starts.
+///
+/// Kept because the report is worth more than the race costs: a stranger
+/// already on the port is the common case, and `PortTaken` names it plainly
+/// instead of letting the spawn fail later in the server's own words. The
+/// real protection is elsewhere and threefold: `verified_binding` refuses a
+/// non-loopback or wrong-port argv before any process exists; the child's
+/// own bind fails loudly when the port is taken (surfaced as `ServerExited`
+/// with the server's stderr); and the readiness handshake reports `Running`
+/// only while the child it spawned is both alive and answering. A stranger
+/// found here is reported (`PortTaken`) and never signalled.
+fn preflight_port(config: &ServerConfig) -> Result<(), Failure> {
     match TcpListener::bind(config.address()) {
         Ok(listener) => {
-            drop(listener); // the child binds it for real
+            // Freed at once: the child binds it for real — if nobody takes
+            // it first, which this check cannot promise.
+            drop(listener);
             Ok(())
         }
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => Err(Failure::PortTaken),

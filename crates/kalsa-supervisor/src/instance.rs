@@ -12,6 +12,16 @@
 //! The OS releases the lock when the process dies, including when nothing runs:
 //! that is what makes "the lock is free" stronger evidence than "the pid looks
 //! alive". No pid arithmetic, no start-time comparison, no platform API.
+//!
+//! The record is written in the order the facts become known, and the
+//! knowable facts come first: port and exact command are recorded by
+//! `announce` *before* the child exists, because a writer that dies between
+//! the spawn and the pid write leaves a child this record still describes.
+//! A file whose writer died mid-sentence can never name a pid — nothing
+//! written anywhere else is provably that child's, so a pid found anywhere
+//! else is somebody else's — but port and command are known, the lock proves
+//! an heir of ours is alive, and the port answers when it is serving. That
+//! is enough to reuse, and deliberately not enough to signal.
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -33,6 +43,13 @@ pub enum Existing {
         port: u16,
         binding: Option<String>,
     },
+    /// Somebody holds the lock, but the writer died before recording the
+    /// pid: a crash between the spawn and the `describe`. The port and the
+    /// exact command are known — they were recorded before the child
+    /// existed — and the lock proves an heir of ours is alive, but no pid
+    /// may be trusted here, so this instance can be reused by port and
+    /// health and never signalled.
+    Unidentified { port: u16, binding: Option<String> },
 }
 
 /// The state file of a running instance. Dropping it without `release` leaves
@@ -74,23 +91,34 @@ impl InstanceFile {
         })
     }
 
-    /// Records which process now owns this instance.
+    /// Records which process now owns this instance. Anything `announce`
+    /// already recorded (port, exact command) survives: the pid completes
+    /// the record, it does not rewrite it, so a reader never sees a pid
+    /// without the command it belongs to.
     pub fn describe(&mut self, pid: u32, port: u16) -> io::Result<()> {
-        let body = format!("{MAGIC}\npid={pid}\nport={port}\n");
-        self.file.set_len(0)?;
-        self.file.seek(SeekFrom::Start(0))?;
-        self.file.write_all(body.as_bytes())?;
-        self.file.flush()
-    }
-
-    /// Records the process and the exact command it runs, so a later start
-    /// can tell an orphan of this server from an orphan of a different
-    /// configuration.
-    pub fn describe_binding(&mut self, binding: &str) -> io::Result<()> {
         let mut body = String::new();
         self.file.seek(SeekFrom::Start(0))?;
         self.file.read_to_string(&mut body)?;
-        body.push_str(&format!("binding={binding}\n"));
+        let mut out = format!("{MAGIC}\npid={pid}\nport={port}\n");
+        for line in body.lines() {
+            if let Some(binding) = line.strip_prefix("binding=") {
+                out.push_str(&format!("binding={binding}\n"));
+            }
+        }
+        self.file.set_len(0)?;
+        self.file.seek(SeekFrom::Start(0))?;
+        self.file.write_all(out.as_bytes())?;
+        self.file.flush()
+    }
+
+    /// Records which server is about to be started — port and exact command —
+    /// before it exists. The pid cannot be known yet (the spawn creates it),
+    /// so `describe` completes the record afterwards; but a writer that dies
+    /// anywhere past this call leaves a file that still names the server its
+    /// heir runs. A writer that dies before the spawn leaves no child at
+    /// all, so this call never strands anything by itself.
+    pub fn announce(&mut self, port: u16, binding: &str) -> io::Result<()> {
+        let body = format!("{MAGIC}\nport={port}\nbinding={binding}\n");
         self.file.set_len(0)?;
         self.file.seek(SeekFrom::Start(0))?;
         self.file.write_all(body.as_bytes())?;
@@ -132,6 +160,14 @@ impl InstanceFile {
             (Some(pid), Some(port)) if body.starts_with(MAGIC) => {
                 Ok(Existing::Live { pid, port, binding })
             }
+            // Locked, ours, but the pid never arrived: the writer died
+            // between the spawn and the describe. The port and command are
+            // known — they were recorded before the child existed — and are
+            // enough to reuse by health; no pid here may be trusted, so this
+            // is never a target.
+            (None, Some(port)) if body.starts_with(MAGIC) => {
+                Ok(Existing::Unidentified { port, binding })
+            }
             // Locked by someone who is not us, or written by a version we do
             // not understand. Either way: do not touch it.
             _ => Err(io::Error::new(
@@ -168,23 +204,26 @@ mod tests {
     }
 
     #[test]
-    fn a_claimed_file_reads_back_as_live_and_stale_once_released() {
-        let path = temp_path("roundtrip");
+    fn the_record_exists_before_the_thing_it_describes() {
+        // claim, then announce, and no spawn yet: the port and exact command
+        // are already on disk. A writer that dies past this point leaves a
+        // file that still names its heir's server — never a pid, which
+        // cannot be known before the spawn.
+        let path = temp_path("announced");
         let _ = std::fs::remove_file(&path);
         let mut file = InstanceFile::claim(&path).expect("claim");
-        file.describe(4242, 8130).expect("describe");
+        file.announce(8130, "/server/llama-server\x1f--port\x1f8130")
+            .expect("announce");
         assert_eq!(
             InstanceFile::inspect(&path).expect("inspect"),
-            Existing::Live {
-                pid: 4242,
+            Existing::Unidentified {
                 port: 8130,
-                binding: None
+                binding: Some("/server/llama-server\x1f--port\x1f8130".into())
             }
         );
-        // The exact command travels with the instance: a later start must be
-        // able to tell this server from one started differently.
-        file.describe_binding("/server/llama-server\x1f--port\x1f8130")
-            .expect("describe binding");
+        // The pid completes the record in place: the command it belongs to
+        // survives, so a reader never sees a pid without its command.
+        file.describe(4242, 8130).expect("describe");
         assert_eq!(
             InstanceFile::inspect(&path).expect("inspect"),
             Existing::Live {
@@ -198,6 +237,25 @@ mod tests {
             InstanceFile::inspect(&path).expect("inspect"),
             Existing::None
         );
+    }
+
+    #[test]
+    fn a_record_without_an_announcement_reads_back_as_live() {
+        // The probe's flow — claim, spawn, describe, no announce — must keep
+        // producing exactly the file it always did: a pid with no command.
+        let path = temp_path("noannounce");
+        let _ = std::fs::remove_file(&path);
+        let mut file = InstanceFile::claim(&path).expect("claim");
+        file.describe(4243, 8131).expect("describe");
+        assert_eq!(
+            InstanceFile::inspect(&path).expect("inspect"),
+            Existing::Live {
+                pid: 4243,
+                port: 8131,
+                binding: None
+            }
+        );
+        file.release();
     }
 
     #[test]
