@@ -12,7 +12,7 @@ use kalsa_catalog::PhoneModel;
 
 use crate::error::EntropyError;
 
-const CREDENTIAL_BYTES: usize = 32;
+pub(crate) const CREDENTIAL_BYTES: usize = 32;
 
 pub(crate) struct Credential {
     bytes: [u8; CREDENTIAL_BYTES],
@@ -37,7 +37,6 @@ impl Credential {
         Some(Self { bytes })
     }
 
-    #[cfg(test)]
     pub(crate) fn bytes(&self) -> &[u8; CREDENTIAL_BYTES] {
         &self.bytes
     }

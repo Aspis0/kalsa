@@ -1,4 +1,5 @@
 use super::{phone_mac, seal_computer, verify_phone_mac, PhoneFields, MAC_BYTES, NONCE_BYTES};
+use crate::handshake::Credential;
 use crate::secret::OneTimeCode;
 use kalsa_catalog::{Parameters, PhoneModel};
 
@@ -50,11 +51,34 @@ fn the_phone_tag_is_a_frozen_known_answer() {
 fn the_computer_seal_is_a_frozen_known_answer() {
     let key = [0x41u8; super::CODE_BYTES];
     let nonce = [0x42u8; NONCE_BYTES];
-    let seal = seal_computer(&key, &nonce, &"ab".repeat(32));
+    let credential = Credential::from_hex(&"ab".repeat(32)).unwrap();
+    let seal = seal_computer(&key, &nonce, &credential);
     assert_eq!(
         seal.mac,
-        "c061e29036aaf2152a005e6f6d956ebd3ba087d5621702711977133cb2e2e73d"
+        "6d86a29391e258de9bb13dae9ceb3612143c4448050562a36ad2e6ac8dd4a849"
     );
+}
+
+#[test]
+fn the_seal_delivers_only_an_encrypted_credential_and_authenticates_it() {
+    let key = [0x51u8; super::CODE_BYTES];
+    let nonce = [0x52u8; NONCE_BYTES];
+    let credential = Credential::from_hex(&"ab".repeat(32)).unwrap();
+    let seal = seal_computer(&key, &nonce, &credential);
+
+    assert_ne!(seal.credential_ciphertext, credential.hex());
+    assert_eq!(
+        seal.open(&hex::encode(key), &hex::encode(nonce)),
+        Some(credential.hex())
+    );
+
+    let mut tampered = seal.clone();
+    let mut bytes = hex::decode(&tampered.credential_ciphertext).unwrap();
+    bytes[0] ^= 1;
+    tampered.credential_ciphertext = hex::encode(bytes);
+    assert!(tampered
+        .open(&hex::encode(key), &hex::encode(nonce))
+        .is_none());
 }
 
 #[test]
@@ -135,18 +159,15 @@ fn the_computers_mac_is_never_the_phones() {
     let phone = sample_phone();
     let phone_tag = phone_mac(code.bytes(), &nonce, "http://192.168.1.10:4952", &phone);
 
-    // Domain separation, isolated: the SAME bytes under the two domains —
-    // the canonical metadata fed to both — must produce different tags. If
-    // only the domain distinguishes the roles, this is where it shows.
-    let canonical = serde_json::to_vec(&phone).unwrap();
-    let computer_tag = seal_computer(
-        code.bytes(),
-        &nonce,
-        std::str::from_utf8(&canonical).unwrap(),
-    );
-    assert_ne!(computer_tag.mac, hex::encode(phone_tag));
+    // Domain separation, isolated: the SAME bytes under the two domains must
+    // produce different tags. If only the payload distinguishes the roles,
+    // this is where it shows.
+    let ciphertext = hex::decode("ab".repeat(32)).unwrap();
+    let computer_tag = super::computer_mac(code.bytes(), &nonce, &ciphertext);
+    assert_ne!(hex::encode(computer_tag), hex::encode(phone_tag));
 
-    let seal = seal_computer(code.bytes(), &nonce, &"ab".repeat(32));
+    let credential = Credential::from_hex(&"ab".repeat(32)).unwrap();
+    let seal = seal_computer(code.bytes(), &nonce, &credential);
     // The computer's answer is not accepted where the phone's is expected.
     assert!(!verify_phone_mac(
         code.bytes(),

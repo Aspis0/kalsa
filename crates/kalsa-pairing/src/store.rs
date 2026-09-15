@@ -4,7 +4,7 @@
 //! bytes land in a sibling temp file, are flushed with `sync_all`, and only
 //! then is the temp renamed onto the credential's name — a reader of the
 //! final path sees the old complete file or the new complete file, never a
-//! torn half, and a crash mid-write leaves a temp that the next `persist`
+//! torn half, and a crash mid-write leaves a temp that the next write
 //! replaces, never a credential wedged behind `AlreadyPaired`.
 //!
 //! Owner-only means two different machines here, and both are said plainly.
@@ -13,15 +13,15 @@
 //! Windows the mode bits do not exist, so the temp is restricted by an
 //! explicit protected DACL (system, administrators, and the file's owner
 //! get access; Everyone gets nothing) through the raw `windows-sys`
-//! bindings. That Windows path is *declared, not proven*: it never compiles
-//! or runs on this machine, and nothing in the test suite covers it.
+//! bindings. The ACL is applied before any credential bytes are written. That
+//! Windows path is *declared, not proven*: it never compiles or runs on this
+//! machine, and nothing in the test suite covers it.
 //!
-//! Refusing is not forbidding. A stored credential stops existing in exactly
-//! one way: [`forget`], called on purpose — the owner has a new phone, or
-//! reinstalled the app, or is retrying a pairing that went wrong. The refusal
-//! keeps that decision from happening by accident; the operation keeps it
-//! from never happening at all. `forget` does not read the file, so a
-//! credential too corrupt to `load` is not too corrupt to be let go.
+//! Refusing is not forbidding. A stored credential is replaced only by the
+//! owner's explicit replacement decision, and that publication is atomic;
+//! [`forget`] is the separate explicit discard operation. `forget` does not
+//! read the file, so a credential too corrupt to `load` is not too corrupt to
+//! be let go.
 //!
 //! The `Stored*` structs are a serialization shell, not a second description
 //! of the phone: `PhoneModel` lives in `kalsa-catalog` and deliberately
@@ -53,19 +53,30 @@ struct StoredHandshake {
 /// Write the handshake result as a new file. The parent directory must exist;
 /// where the app keeps its data is the shell's business, not the store's.
 ///
-/// Write the handshake result as a new file. The parent directory must exist;
-/// where the app keeps its data is the shell's business, not the store's.
-///
 /// If a credential is already stored the answer is
 /// [`StoreError::AlreadyPaired`] — a refusal the shell can act on, not an
 /// io error to squint at. The way forward is [`forget`], then `persist`
 /// again. The existence check and the publication are two steps on a
 /// single-process machine; the shell runs pairing in one loop, and this
-/// store does not pretend to arbitrate between processes.
+/// store does not pretend to arbitrate between processes. A deliberate
+/// replacement uses [`replace`] instead of this refusal.
 pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     if path.exists() {
         return Err(StoreError::AlreadyPaired);
     }
+    write_temp(handshake, path)?;
+    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
+}
+
+/// Atomically publish a replacement. The old credential remains at `path`
+/// until the complete, owner-only temp file is renamed over it; a write or a
+/// crash before that rename therefore leaves the old credential usable.
+pub fn replace(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+    write_temp(handshake, path)?;
+    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
+}
+
+fn write_temp(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     let stored = StoredHandshake {
         v: STORE_VERSION,
         credential_hex: handshake.credential_hex(),
@@ -73,6 +84,12 @@ pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     };
     let temp = temp_path(path);
     let mut file = open_temp(&temp).map_err(StoreError::Io)?;
+    // On Windows this changes the temp's DACL while it is still empty. No
+    // credential bytes exist during the brief interval before restriction.
+    restrict_to_owner(&temp).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        e
+    })?;
     let written = serde_json::to_writer(&mut file, &stored)
         .map_err(StoreError::Serde)
         .and_then(|()| file.sync_all().map_err(StoreError::Io));
@@ -80,14 +97,46 @@ pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
         let _ = fs::remove_file(&temp);
         return Err(e);
     }
-    restrict_to_owner(&temp).map_err(|e| {
-        let _ = fs::remove_file(&temp);
-        e
-    })?;
-    fs::rename(&temp, path).map_err(|e| {
-        let _ = fs::remove_file(&temp);
-        StoreError::Io(e)
-    })
+    Ok(())
+}
+
+fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        return fs::rename(temp, path).map_err(|e| {
+            let _ = fs::remove_file(temp);
+            e
+        });
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::MoveFileExW;
+
+        let mut source: Vec<u16> = temp.as_os_str().encode_wide().collect();
+        source.push(0);
+        let mut destination: Vec<u16> = path.as_os_str().encode_wide().collect();
+        destination.push(0);
+        let ok = unsafe {
+            MoveFileExW(
+                source.as_ptr(),
+                destination.as_ptr(),
+                0x0000_0001 | 0x0000_0008, // replace existing, write through
+            )
+        };
+        if ok == 0 {
+            let _ = fs::remove_file(temp);
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(())
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        fs::rename(temp, path).map_err(|e| {
+            let _ = fs::remove_file(temp);
+            e
+        })
+    }
 }
 
 /// The sibling name the bytes land in before publication.
@@ -188,9 +237,9 @@ fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
     applied
 }
 
-/// The computer forgets the phone it was paired with: the one way a stored
-/// credential stops existing. Whatever was paired next happens by a fresh
-/// `persist`, never by this function overwriting.
+/// The computer forgets the phone it was paired with. This is an explicit
+/// discard; normal owner-approved replacement uses [`replace`] and never
+/// needs a delete-first gap.
 ///
 /// Forgetting an unpaired computer is doing nothing, successfully: the
 /// postcondition — no credential stored — already holds. And this reads

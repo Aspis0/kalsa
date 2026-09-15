@@ -195,6 +195,11 @@ impl Pairing {
     /// The two results go to two audiences: the handshake is this computer's
     /// to persist and serve from; the seal is the message the phone is
     /// waiting for — proof that its sender knows the QR the phone scanned.
+    /// The declaration remains replayable by an active intermediary: without
+    /// channel binding or another authenticated exchange, this cannot be
+    /// closed by changing this one response. The encrypted credential stops
+    /// that replay from disclosing the credential, but not from winning the
+    /// one-shot race.
     pub fn complete(
         &mut self,
         declaration: PhoneDeclaration,
@@ -223,7 +228,7 @@ impl Pairing {
             return Err(CompleteError::Refused);
         };
         let credential = Credential::generate().map_err(|_| CompleteError::Entropy)?;
-        let seal = seal_computer(claimed.code.bytes(), &claimed.nonce, &credential.hex());
+        let seal = seal_computer(claimed.code.bytes(), &claimed.nonce, &credential);
         let handshake = Handshake::new(phone, credential);
         *self = Self::Paired;
         Ok((handshake, seal))

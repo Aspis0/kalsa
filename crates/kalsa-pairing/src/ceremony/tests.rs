@@ -165,8 +165,10 @@ fn a_valid_proof_completes_the_pairing() {
     assert!(parameters.is_mixture());
     assert_eq!(parameters.total().count(), 7_600_000_000);
     assert!(matches!(session, Pairing::Paired));
-    // The computer answered with its own MAC, deliverable to the phone.
+    // The computer answered with an encrypted credential and its MAC; the
+    // phone's QR secrets are enough to verify and open that delivery.
     assert!(serde_json::to_string(&seal).is_ok());
+    assert_eq!(seal.open(&code, &nonce), Some(handshake.credential_hex()));
 }
 
 #[test]

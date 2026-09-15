@@ -26,7 +26,11 @@ qrcodegen = "1.8.0"
 # Windows-only: the credential file's protected DACL (owner-only access).
 # See store.rs — that path is declared, not proven: it never compiles here.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security"] }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+] }
 
 [dev-dependencies]
 # The decoder the round-trip test needs, and nothing else: default features

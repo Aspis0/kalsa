@@ -85,8 +85,8 @@ pub enum StoreError {
     /// The file could not be written or read.
     Io(std::io::Error),
     /// A credential is already stored, so `persist` refused. Overwriting one
-    /// is never implicit: the computer forgets its phone first (`store::forget`)
-    /// — on purpose, and that operation works whatever is in the file.
+    /// is never implicit; the owner-only replacement path publishes a new
+    /// complete file atomically instead.
     AlreadyPaired,
     /// The store's own JSON failed to encode or parse.
     Serde(serde_json::Error),

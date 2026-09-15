@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use super::{forget, load, persist, temp_path, StoreError};
+use super::{forget, load, persist, replace, temp_path, StoreError};
 use crate::handshake::{Credential, Handshake};
 
 fn scratch(name: &str) -> PathBuf {
@@ -118,6 +118,41 @@ fn the_store_never_overwrites_a_credential() {
     assert_eq!(
         load(&path).unwrap().credential_hex(),
         first.credential_hex()
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_failed_replacement_leaves_the_old_credential_in_place() {
+    let dir = scratch("replace-failure");
+    let path = dir.join("credential.json");
+    let first = sample_handshake();
+    persist(&first, &path).unwrap();
+
+    // The temp name is unusable, so publication fails before the destination
+    // is touched. This is the crash/failure boundary the desk relies on.
+    fs::create_dir(temp_path(&path)).unwrap();
+    assert!(replace(&sample_handshake(), &path).is_err());
+    assert_eq!(
+        load(&path).unwrap().credential_hex(),
+        first.credential_hex()
+    );
+
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_replacement_publishes_the_new_credential_atomically() {
+    let dir = scratch("replace-success");
+    let path = dir.join("credential.json");
+    let first = sample_handshake();
+    let second = sample_handshake();
+    persist(&first, &path).unwrap();
+
+    replace(&second, &path).unwrap();
+    assert_eq!(
+        load(&path).unwrap().credential_hex(),
+        second.credential_hex()
     );
     fs::remove_dir_all(&dir).unwrap();
 }

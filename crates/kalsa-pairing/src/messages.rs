@@ -10,9 +10,9 @@
 //!   canonical phone)` — the metadata stops being asserted and becomes
 //!   bound, and so does the address the square carried: the declaration is
 //!   tied to the whole QR, not just its secrets;
-//! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ credential)`
-//!   — the phone learns that the sender of this credential knows the QR it
-//!   scanned, and that the credential is the one bound to this ceremony.
+//! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ ciphertext)`
+//!   — the phone learns that the sender of this encrypted credential knows
+//!   the QR it scanned, and that the ciphertext is bound to this ceremony.
 //!
 //! The nonce is fresh per offer and travels in the QR, so a proof recorded
 //! in one ceremony is worthless in another. "Canonical phone" is the
@@ -25,7 +25,12 @@
 //! whoever can see the square can compute either — the domain separates the
 //! two *messages*, not two *parties*. The ceiling of this scheme is the
 //! square, exactly as the pairing screen says; the MACs prove knowledge of
-//! it, and nothing beyond it.
+//! it, and nothing beyond it. In particular, `PhoneDeclaration` is a
+//! deterministic bearer proof: an active on-path intermediary can capture a
+//! valid declaration and inject it before the phone. The one-shot ceremony
+//! turns that into a denial of service. Closing that finding needs channel
+//! binding or another authenticated exchange; encrypting the returned
+//! credential removes disclosure, not the replay.
 
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -35,10 +40,13 @@ use subtle::ConstantTimeEq;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
+use crate::handshake::{Credential, CREDENTIAL_BYTES};
 use crate::secret::CODE_BYTES;
 
 const PHONE_DOMAIN: &[u8] = b"kalsa-pairing/phone-mac/v2";
 const COMPUTER_DOMAIN: &[u8] = b"kalsa-pairing/computer-mac/v2";
+const CREDENTIAL_DOMAIN: &[u8] = b"kalsa-pairing/credential-encryption/v1";
+const STREAM_DOMAIN: &[u8] = b"kalsa-pairing/credential-stream/v1";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -157,20 +165,44 @@ impl fmt::Debug for PhoneDeclaration {
 }
 
 /// The computer's answer: a MAC keyed on the same one-time secret, over the
-/// computer's domain, covering the nonce and the credential being delivered.
+/// computer's domain, covering the nonce and the encrypted credential being
+/// delivered.
 /// The phone that holds the QR verifies it and learns that the sender of
 /// this credential knows the QR it scanned — knowledge of the square being
 /// the whole ceiling of this scheme, not a deeper identity.
-#[derive(Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PairingSeal {
+    /// The credential encrypted under the QR's one-time secret and nonce.
+    /// It is opaque to an intermediary that only carries this response.
+    credential_ciphertext: String,
     mac: String,
 }
 
 impl PairingSeal {
-    pub(crate) fn new(mac: [u8; MAC_BYTES]) -> Self {
+    fn new(credential_ciphertext: Vec<u8>, mac: [u8; MAC_BYTES]) -> Self {
         Self {
+            credential_ciphertext: hex::encode(credential_ciphertext),
             mac: hex::encode(mac),
         }
+    }
+
+    /// Verify and open the computer's answer on the phone. The phone already
+    /// has both values from the QR, so the wire never needs to carry the
+    /// decryption key or the credential in clear text.
+    pub fn open(&self, code: &str, nonce: &str) -> Option<String> {
+        let key = decode_code(code)?;
+        let nonce = decode_nonce(nonce)?;
+        let ciphertext = hex::decode(&self.credential_ciphertext).ok()?;
+        if ciphertext.len() != CREDENTIAL_BYTES {
+            return None;
+        }
+        let expected = computer_mac(&key, &nonce, &ciphertext);
+        let mut presented = [0u8; MAC_BYTES];
+        hex::decode_to_slice(&self.mac, &mut presented).ok()?;
+        if !bool::from(presented.ct_eq(&expected)) {
+            return None;
+        }
+        Some(hex::encode(crypt(&key, &nonce, &ciphertext)))
     }
 }
 
@@ -238,9 +270,50 @@ pub(crate) fn verify_phone_mac(
 pub(crate) fn seal_computer(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
-    credential_hex: &str,
+    credential: &Credential,
 ) -> PairingSeal {
-    PairingSeal::new(tag(COMPUTER_DOMAIN, key, nonce, credential_hex.as_bytes()))
+    let ciphertext = crypt(key, nonce, credential.bytes());
+    PairingSeal::new(ciphertext.clone(), computer_mac(key, nonce, &ciphertext))
+}
+
+fn computer_mac(
+    key: &[u8; CODE_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ciphertext: &[u8],
+) -> [u8; MAC_BYTES] {
+    tag(COMPUTER_DOMAIN, key, nonce, ciphertext)
+}
+
+fn decode_code(code: &str) -> Option<[u8; CODE_BYTES]> {
+    let mut key = [0u8; CODE_BYTES];
+    hex::decode_to_slice(code, &mut key).ok()?;
+    Some(key)
+}
+
+fn decode_nonce(nonce: &str) -> Option<[u8; NONCE_BYTES]> {
+    let mut bytes = [0u8; NONCE_BYTES];
+    hex::decode_to_slice(nonce, &mut bytes).ok()?;
+    Some(bytes)
+}
+
+/// Derive a one-off stream key from the QR secret and this offer's nonce.
+fn credential_key(key: &[u8; CODE_BYTES], nonce: &[u8; NONCE_BYTES]) -> [u8; MAC_BYTES] {
+    tag(CREDENTIAL_DOMAIN, key, nonce, b"key")
+}
+
+/// XOR the credential with an HMAC-generated keystream. This is a stream
+/// cipher: reusing the derived key/nonce pair for two credentials would
+/// expose the XOR of their plaintexts. It is safe here only because every
+/// offer gets a fresh nonce and a credential is delivered once.
+fn crypt(key: &[u8; CODE_BYTES], nonce: &[u8; NONCE_BYTES], input: &[u8]) -> Vec<u8> {
+    let stream_key = credential_key(key, nonce);
+    let mut output = Vec::with_capacity(input.len());
+    for (block, chunk) in input.chunks(MAC_BYTES).enumerate() {
+        let counter = (block as u64).to_be_bytes();
+        let stream = tag(STREAM_DOMAIN, &stream_key, nonce, &counter);
+        output.extend(chunk.iter().zip(stream).map(|(byte, mask)| byte ^ mask));
+    }
+    output
 }
 
 #[cfg(test)]
