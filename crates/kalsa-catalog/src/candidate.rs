@@ -48,7 +48,10 @@ impl Prediction {
             Prediction::Range { low, .. } => low,
             Prediction::Floor(value)
             | Prediction::Estimate(value)
-            | Prediction::Measured { tokens_per_second: value, .. } => value,
+            | Prediction::Measured {
+                tokens_per_second: value,
+                ..
+            } => value,
         }
     }
 
@@ -58,7 +61,10 @@ impl Prediction {
             Prediction::Range { high, .. } => high,
             Prediction::Floor(value)
             | Prediction::Estimate(value)
-            | Prediction::Measured { tokens_per_second: value, .. } => value,
+            | Prediction::Measured {
+                tokens_per_second: value,
+                ..
+            } => value,
         }
     }
 }

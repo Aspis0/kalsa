@@ -381,7 +381,9 @@ fn a_measured_decode_is_what_counts() {
                 Prediction::Measured { tokens_per_second, .. } if (tokens_per_second - 62.7).abs() < 1e-9
             ));
             assert!(
-                selection.details.contains("62.7 tokens per second, as measured on M1 Max"),
+                selection
+                    .details
+                    .contains("62.7 tokens per second, as measured on M1 Max"),
                 "{}",
                 selection.details
             );

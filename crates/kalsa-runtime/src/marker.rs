@@ -126,7 +126,10 @@ pub(crate) fn validate(
     let exe = extract::find_server(dir)?;
     // Re-measured, never remembered: the bytes that are here now must still
     // be the bytes the build was proven with.
-    if !sha256_file(&exe).ok()?.eq_ignore_ascii_case(&proven.exe_sha) {
+    if !sha256_file(&exe)
+        .ok()?
+        .eq_ignore_ascii_case(&proven.exe_sha)
+    {
         return None;
     }
     Some(exe)
@@ -139,11 +142,7 @@ pub(crate) fn validate(
 /// and the re-acquire path replaces it); a missing executable is not one
 /// either, only a *different* digest is. The caller refuses the directory
 /// outright instead of re-acquiring over it, so tampering stays visible.
-pub(crate) fn exe_contradicts_table(
-    dir: &Path,
-    runtime: &[(&str, &str)],
-    table_exe: &str,
-) -> bool {
+pub(crate) fn exe_contradicts_table(dir: &Path, runtime: &[(&str, &str)], table_exe: &str) -> bool {
     let Some(proven) = read(dir) else {
         return false;
     };

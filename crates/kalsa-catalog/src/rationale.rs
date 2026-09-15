@@ -194,8 +194,7 @@ pub(crate) fn render(prediction: &Prediction) -> String {
     match *prediction {
         Prediction::Range { low, high } if high >= 10.0 => format!("{:.0}–{:.0}", low, high),
         Prediction::Range { low, high } => format!("{:.1}–{:.1}", low, high),
-        Prediction::Floor(_) => "a decoding speed not yet measured on this machine"
-            .to_string(),
+        Prediction::Floor(_) => "a decoding speed not yet measured on this machine".to_string(),
         Prediction::Estimate(value) => format!("≈ {:.1}", value),
         Prediction::Measured {
             tokens_per_second,
@@ -253,7 +252,10 @@ mod tests {
             tokens_per_second: 62.7,
             machine: "M1 Max",
         });
-        assert!(measured.contains("62.7") && measured.contains("M1 Max"), "{measured}");
+        assert!(
+            measured.contains("62.7") && measured.contains("M1 Max"),
+            "{measured}"
+        );
     }
 
     #[test]

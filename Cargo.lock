@@ -1773,6 +1773,7 @@ dependencies = [
  "kalsa-supervisor",
  "libc",
  "serde",
+ "serde_json",
  "sha2",
  "tauri",
  "tauri-build",

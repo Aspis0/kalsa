@@ -238,12 +238,8 @@ fn a_real_engine_on_a_cool_machine_stays_sustaining() {
 
     let values: Vec<f64> = turns.iter().map(|(_, tps)| *tps).collect();
     let mean = values.iter().sum::<f64>() / values.len() as f64;
-    let spread = (values
-        .iter()
-        .map(|v| (v - mean).powi(2))
-        .sum::<f64>()
-        / values.len() as f64)
-        .sqrt();
+    let spread =
+        (values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64).sqrt();
     let worst = values.iter().cloned().fold(f64::INFINITY, f64::min);
     let best = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     eprintln!("=== the machine's own spread, {} turns ===", values.len());

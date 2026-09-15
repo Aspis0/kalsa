@@ -490,7 +490,8 @@ pub const CATALOG: &[ModelEntry] = &[
             backend: Backend::Metal,
             measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
                           on GPU, context 4096), 2026-09-14",
-        }),        stale: None,
+        }),
+        stale: None,
     },
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
@@ -615,7 +616,11 @@ mod tests {
             .expect("trinity was measured on the real engine");
         assert_eq!(measured.tokens_per_second, 62.7);
         assert_eq!(measured.backend, Backend::Metal);
-        assert!(measured.measured_on.contains("M1 Max"), "{}", measured.measured_on);
+        assert!(
+            measured.measured_on.contains("M1 Max"),
+            "{}",
+            measured.measured_on
+        );
         assert!(
             measured.measured_on.contains("2026-09-14"),
             "{}",

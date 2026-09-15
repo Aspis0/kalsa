@@ -205,10 +205,7 @@ mod tests {
         // failure carrying its own reason — distinct from a missing build,
         // and never a silent re-download.
         let err = map_store_error(StoreError::ExeMismatch);
-        assert!(
-            matches!(err, DecideError::CannotAcquire(_)),
-            "{err}"
-        );
+        assert!(matches!(err, DecideError::CannotAcquire(_)), "{err}");
         assert!(err.to_string().contains("does not match"), "{err}");
     }
 

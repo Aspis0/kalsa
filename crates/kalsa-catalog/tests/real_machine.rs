@@ -41,7 +41,11 @@ const CONTEXT_TOKENS: u64 = 8192;
 /// depend on the budget — only on the path, the weights and the context — so
 /// this is the honest way to ask the catalog about Trinity through the public
 /// walk without lying about anything that matters.
-fn trinity_tier_input(backend: kalsa_probe::Backend, ceiling: f64, lower_bound: bool) -> ChoiceInput {
+fn trinity_tier_input(
+    backend: kalsa_probe::Backend,
+    ceiling: f64,
+    lower_bound: bool,
+) -> ChoiceInput {
     ChoiceInput {
         backend,
         ram_bytes: 8 * GIB,
@@ -166,7 +170,10 @@ fn the_catalog_prediction_meets_the_measured_decode() {
     let ceiling = measurement.ceiling_bytes_per_second;
     let lower_bound = measurement.bandwidth_is_lower_bound();
     for (threads, rate) in &measurement.ramp {
-        eprintln!("probe:    {threads:>2} threads  {rate:>8.1} GB/s", rate = rate / 1e9);
+        eprintln!(
+            "probe:    {threads:>2} threads  {rate:>8.1} GB/s",
+            rate = rate / 1e9
+        );
     }
     eprintln!(
         "probe:    backend {backend:?}, ceiling {:.1} GB/s at {} threads, reliable: {}, \
@@ -281,7 +288,10 @@ fn the_catalog_prediction_meets_the_measured_decode() {
         turns.push(predicted_per_second(body_of(&response)));
     }
     let measured = median_of(&turns);
-    eprintln!("measured: {measured:.2} tok/s (median of {:?} tok/s turns)", turns);
+    eprintln!(
+        "measured: {measured:.2} tok/s (median of {:?} tok/s turns)",
+        turns
+    );
 
     // The comparison, with its distance. The direction is the finding, not
     // an assertion: this test is the instrument, and what the numbers say is
@@ -294,10 +304,6 @@ fn the_catalog_prediction_meets_the_measured_decode() {
     } else {
         "exact"
     };
-    eprintln!(
-        "distance: {distance:+.1}% — {direction}"
-    );
+    eprintln!("distance: {distance:+.1}% — {direction}");
     drop(child);
 }
-
-

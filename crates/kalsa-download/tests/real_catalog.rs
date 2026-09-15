@@ -178,7 +178,11 @@ fn range_probe(start: &str, bytes: u64) {
         response.header("Content-Length"),
         response.header("Content-Range"),
     );
-    assert_eq!(response.status(), 206, "the endpoint did not answer 206 to Range");
+    assert_eq!(
+        response.status(),
+        206,
+        "the endpoint did not answer 206 to Range"
+    );
     let range = response
         .header("Content-Range")
         .expect("a 206 carries Content-Range");
@@ -188,5 +192,8 @@ fn range_probe(start: &str, bytes: u64) {
         .expect("a total after the slash")
         .parse()
         .expect("a numeric total");
-    assert_eq!(total, bytes, "the server's total must equal the manifest's bytes");
+    assert_eq!(
+        total, bytes,
+        "the server's total must equal the manifest's bytes"
+    );
 }

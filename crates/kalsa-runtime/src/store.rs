@@ -559,13 +559,7 @@ mod tests {
             ),
         ] {
             let root = scratch(&format!("refused-{name}"));
-            let dir = claimed_build(
-                &root,
-                ServerBackend::Metal,
-                &runtime,
-                &exe_sha,
-                exe_bytes,
-            );
+            let dir = claimed_build(&root, ServerBackend::Metal, &runtime, &exe_sha, exe_bytes);
             let err = ensure_backend(&root, Platform::MacArm64, ServerBackend::Metal, &mut |_| {})
                 .expect_err("a contradictory build is refused");
             assert!(matches!(err, StoreError::ExeMismatch), "{err}");
@@ -597,8 +591,7 @@ mod tests {
             table,
             b"bytes that are not the release",
         );
-        refuse_contradiction(&dir, &runtime, None)
-            .expect("None records nothing to contradict");
+        refuse_contradiction(&dir, &runtime, None).expect("None records nothing to contradict");
         assert!(
             matches!(
                 refuse_contradiction(&dir, &runtime, Some(table)),
