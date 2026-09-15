@@ -6,9 +6,8 @@
 // handshake) reaches the screen — the phone and the computer become a pair,
 // and that is the whole vocabulary.
 //
-// No Tauri command exists yet, so dev/states.html drives this page from
-// stubs. The contract below is what the shell should hand over — one read,
-// polled; two decisions and a retry:
+// The contract below is what the shell hands over — one read, polled; two
+// decisions and a retry:
 //
 //   {
 //     kind: "pairing",
@@ -45,6 +44,7 @@ const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
 const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
 const REPLACE_PRIMARY = "Use the new phone";
+const REPAIR_PRIMARY = "Pair another phone";
 const FRESH_LINES = {
   expired: "The previous square expired — this one is fresh.",
   "wrong-code": "A square that did not match was replaced — this one is fresh.",
@@ -141,10 +141,14 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
         apply({ text: "A phone is connecting right now." });
         break;
       case "paired":
-        onAction = () => {};
+        onAction = () => {
+          backend.retry().catch(() => {});
+        };
+        onAlt = () => {};
         apply({
           head: "Paired",
           text: `This computer now works with ${dto.phone ?? "your phone"}.`,
+          button: REPAIR_PRIMARY,
         });
         break;
       case "replace":
@@ -166,9 +170,20 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
         });
         break;
       case "failed":
+        if (dto.failure === "could-not-read") {
+          onAction = () => refresh();
+          onAlt = () => {};
+          apply({
+            head: "Could not check",
+            text: "This computer could not read its existing phone connection. Fixing permissions and trying again may help.",
+            button: "Try again",
+          });
+          break;
+        }
         onAction = () => {
           backend.retry().catch(() => {});
         };
+        onAlt = () => {};
         apply({
           head: "Could not finish",
           text: "Your phone connected, but this computer could not save the connection. Trying again usually works.",

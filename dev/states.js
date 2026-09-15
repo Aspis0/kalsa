@@ -320,7 +320,7 @@ card("Pairing", "a phone is connecting", (panel) =>
   mountPairing(panel, { backend: pairingBackend(pairingDto("claiming")) }).refresh(),
 );
 
-card("Pairing", "paired", (panel) =>
+card("Pairing", "paired; another phone can be paired", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(pairingDto("paired", { phone: "Pixel 9a (stub)" })),
   }).refresh(),
@@ -337,5 +337,11 @@ card("Pairing", "already paired; a new phone asks", (panel) =>
 card("Pairing", "the connection could not be saved", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(pairingDto("failed", { failure: "could-not-save" })),
+  }).refresh(),
+);
+
+card("Pairing", "the existing phone connection could not be read", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("failed", { failure: "could-not-read" })),
   }).refresh(),
 );

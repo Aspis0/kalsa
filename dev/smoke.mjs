@@ -371,6 +371,7 @@ const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
 const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
 const REPLACE_PRIMARY = "Use the new phone";
+const REPAIR_PRIMARY = "Pair another phone";
 const FRESH_PHRASINGS = [
   "The previous square expired — this one is fresh.",
   "A square that did not match was replaced — this one is fresh.",
@@ -393,6 +394,9 @@ for (const { heading, sentence, all, qr, fresh, buttons } of results) {
     if (named.length < 2 || !named.includes(REPLACE_PRIMARY)) {
       problems.push(`a replace must offer both choices: ${heading}`);
     }
+  }
+  if (sentence.includes("now works with") && !buttons.includes(REPAIR_PRIMARY)) {
+    problems.push(`a paired phone must offer a deliberate way to pair another: ${heading}`);
   }
 }
 
