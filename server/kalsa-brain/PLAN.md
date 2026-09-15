@@ -1032,6 +1032,59 @@ a product decision, not an implementation detail, and the code should not be
 written until it is made — which is why the listener built today binds
 loopback and says plainly that something else has to carry the phone to it.
 
+### The bridge: decided
+
+The transport question from the section above is answered, and the answer is
+two transports for one door.
+
+**Cloudflare Zero Trust is out.** The tunnel became free in July 2026, but it
+terminates TLS at the edge: every question and every answer would pass through
+a third party in cleartext. A product whose whole claim is that nothing leaves
+the house cannot have that in the path, at any price. It also cannot carry raw
+TCP at all.
+
+**Tailscale is the free tier, not the product.** Its Personal plan is free and
+explicitly non-commercial, which is fine — the *owner* runs it on their own
+machines and we redistribute nothing. What we must never do is put Tailscale
+in our own cost structure: commercial seats are $8/user/month, which is more
+than the whole product is worth per user. So Tailscale is what an advanced
+owner already has, and we meet them there.
+
+**iroh is the paid tier.** Rust, like everything else here; direct QUIC
+between the two devices with hole punching, reported to land directly around
+nine times in ten, and a relay fallback that forwards ciphertext only —
+"authenticated and encrypted end-to-end using the QUIC protocol" — so the
+relay is not a Cloudflare. Dual MIT/Apache-2.0, no commercial restriction.
+n0's public relays are free but documented as unsuitable for production, with
+no SLA and visible metadata; the relay is open source and self-hosting is free
+forever, so we run our own. The managed option exists at $199/month per relay
+and is a problem for a later scale, not a launch cost. It addresses nodes by
+key rather than by IP, which is what our square already carries: pairing
+becomes the network identity exchange too, with nothing added.
+
+The product split follows the axis the market read pointed at. The free tier
+serves the owner who can already build the bridge themselves — the same
+audience that is the cheapest launch channel — and the paid tier sells the one
+thing nobody offers: that the owner does nothing.
+
+#### What this changes in the code
+
+Loopback was made a structural guarantee today: the supervisor refuses to
+spawn an argv that does not bind `127.0.0.1` on exactly the port it
+supervises, and the pairing listener binds loopback and nothing else. A
+tailnet address is not the LAN — it is an authenticated WireGuard interface —
+but it is not loopback either, and the guarantee must not be quietly widened
+to let it in.
+
+So the inference server keeps binding loopback and is never the thing a phone
+talks to. In front of it goes one small authenticated door, and the two
+transports are just two roads to it: iroh delivers a stream to it, and on the
+Tailscale path it is what listens on the tailnet interface. Every request
+carries the credential minted by the pairing ceremony, which is the same
+credential in both cases. One door, one authentication, two ways in — rather
+than two products that drift apart, and rather than widening the one guarantee
+that is currently structural.
+
 ### Not built yet
 
 "Turn on" is wired end to end and has been run end to end on a real machine.
@@ -1043,9 +1096,10 @@ a description.
 
 What is open, in the order it matters:
 
-* **The tunnel.** Everything above assumes the phone can reach this computer,
-  and today that assumption is a developer's USB cable. This is the product,
-  not a feature of it — see the section above, and the decision it names.
+* **The bridge**, now decided and not yet built: the authenticated door in
+  front of the loopback server, then iroh for the paid tier and the tailnet
+  interface for the free one. Everything else assumes the phone can reach this
+  computer, and today that assumption is a developer's USB cable.
 * **The capability split** of section 5bis: the web and documents on the PC,
   the conversation on the phone.
 * **Nine catalog rows with no identified GGUF**, which is the bake-off's job
