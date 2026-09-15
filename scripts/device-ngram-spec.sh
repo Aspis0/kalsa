@@ -170,9 +170,12 @@ run_arm() {
     # (F1); setsid + full stdio redirection so the sampler survives the adb
     # session (the >/dev/null 2>&1 is load-bearing, verified on-device);
     # iteration cap 7200 so a lost stopfile cannot keep it alive for days.
-    adb shell "pkill -f energy-sample.sh 2>/dev/null; \
+    # [e] trick: pkill -f matches its OWN invoking adb shell cmdline (it contains
+    # the pattern), killing the shell before the rm runs - leaving stale
+    # stopfiles that make every later sampler skip its loop (header-only CSVs).
+    adb shell "pkill -f '[e]nergy-sample.sh' 2>/dev/null; \
       rm -f $stop $BENCH_DIR/$tag.marks" </dev/null
-    adb shell "(setsid sh $BENCH_DIR/energy-sample.sh $BENCH_DIR/$tag.csv $stop 1 7200 >/dev/null 2>&1 </dev/null &)" </dev/null
+    adb shell "(setsid sh $BENCH_DIR/energy-sample.sh $BENCH_DIR/$tag.csv $stop 1 7200 >$BENCH_DIR/$tag.err 2>&1 </dev/null &)" </dev/null
     sleep 2
   fi
   for i in $(seq 1 "$REPS"); do
