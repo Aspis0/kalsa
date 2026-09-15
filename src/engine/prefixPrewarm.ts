@@ -5,7 +5,10 @@
  * Messages are system-only — no user, facts, persona, or operative/digest.
  */
 
-import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
+import {
+  WINDOW_CHARS_PER_TOKEN,
+  WINDOW_RESERVE_TOKENS,
+} from "../context/windowProfile";
 
 export type PrewarmToolLike = {
   type?: string;
@@ -83,6 +86,32 @@ export function staticPrefixIdentity(
   });
 }
 
+/**
+ * Persisted static-prefix measurement, schema v2.
+ *
+ * v1 stored a bare number per key. That let two poisons survive:
+ * a corrupted/absurd value was indistinguishable from a real count, and a
+ * value measured under another (larger) n_ctx could exceed the active one.
+ * Any `tokens >= nCtx` collapses `windowCeilingTokens(nCtx, tokens)` to 0,
+ * which makes the ceiling guard fire every held send and keeps the prewarm
+ * that could replace the value from ever running (kv_holds_chat skip).
+ * The bound below is the guard's own: the measurement must leave at least one
+ * token of verbatim window under the SAME reserve the guard subtracts, i.e.
+ * `tokens < nCtx - WINDOW_RESERVE_TOKENS`. No estimator factor, no fudge
+ * constant; `tokens` is the native count the prewarm itself measured.
+ */
+export type StaticPrefixMeasurement = {
+  /** Native token count of the exact system+tools render. */
+  tokens: number;
+  /** Context size the measurement was taken under. */
+  nCtx: number;
+  /** Measurement time (epoch ms). Ordering/eviction only, never a bound. */
+  at: number;
+};
+
+/** Persisted-map cap. Newest by `at` wins; the exact-id key space is small. */
+export const STATIC_PREFIX_MEASUREMENT_MAX_ENTRIES = 32;
+
 /** Storage key for one measured prefix, including the model identity. */
 export function staticPrefixMeasurementKey(
   modelIdentity: string,
@@ -91,30 +120,139 @@ export function staticPrefixMeasurementKey(
   return JSON.stringify({ modelIdentity, prefixIdentity });
 }
 
-/** Parse persisted measurements without trusting malformed storage. */
+/** JSON.parse gives only plain objects; reject exotic prototypes anyway. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * The guard's own plausibility bound. A static prefix that consumes the whole
+ * `nCtx - WINDOW_RESERVE_TOKENS` budget leaves `windowCeilingTokens` at 0, so
+ * it cannot be used for the ceiling decision even if it was really measured.
+ * That is a property of the active context, not of the stored blob.
+ */
+export function isStaticPrefixMeasurementUsable(
+  tokens: number,
+  nCtx: number,
+): boolean {
+  if (!Number.isSafeInteger(tokens) || tokens <= 0) return false;
+  if (!Number.isSafeInteger(nCtx) || nCtx <= 0) return false;
+  return tokens < nCtx - WINDOW_RESERVE_TOKENS;
+}
+
+/** Schema + own-context bound; null for anything not a v2 measurement. */
+function normalizeStaticPrefixMeasurement(
+  value: unknown,
+): StaticPrefixMeasurement | null {
+  if (!isPlainRecord(value)) return null;
+  const { tokens, nCtx, at } = value;
+  if (
+    typeof tokens !== "number" ||
+    typeof nCtx !== "number" ||
+    !isStaticPrefixMeasurementUsable(tokens, nCtx)
+  ) {
+    return null;
+  }
+  if (typeof at !== "number" || !Number.isSafeInteger(at) || at < 0) {
+    return null;
+  }
+  return { tokens, nCtx, at };
+}
+
+/**
+ * Build a measurement for persistence. Returns null when the native count is
+ * not schema-valid or does not leave a verbatim window under `nCtx` — e.g. a
+ * count produced under a different, larger context. Callers keep their
+ * existing in-memory value only if they choose to; the store stays clean.
+ */
+export function makeStaticPrefixMeasurement(
+  tokens: number,
+  nCtx: number,
+  at: number,
+): StaticPrefixMeasurement | null {
+  return normalizeStaticPrefixMeasurement({ tokens, nCtx, at });
+}
+
+/**
+ * Deterministic cap/dedupe: one entry per key (newer `at` wins; on equal `at`
+ * the first occurrence wins, so a given input order is stable), newest first,
+ * key ascending as the tiebreak so the wire bytes do not depend on Map
+ * insertion order. Values that are not valid v2 measurements are dropped.
+ * At most 32 entries.
+ */
+export function capStaticPrefixMeasurements(
+  entries: Iterable<readonly [string, unknown]>,
+): Array<[string, StaticPrefixMeasurement]> {
+  const byKey = new Map<string, StaticPrefixMeasurement>();
+  for (const [key, raw] of entries) {
+    if (typeof key !== "string" || key.length === 0) continue;
+    const measurement = normalizeStaticPrefixMeasurement(raw);
+    if (measurement === null) continue;
+    const previous = byKey.get(key);
+    if (previous === undefined || measurement.at > previous.at) {
+      byKey.set(key, measurement);
+    }
+  }
+  return [...byKey.entries()]
+    .sort(
+      (a, b) =>
+        b[1].at - a[1].at ||
+        (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0),
+    )
+    .slice(0, STATIC_PREFIX_MEASUREMENT_MAX_ENTRIES);
+}
+
+/**
+ * Parse persisted measurements without trusting malformed storage. Only a
+ * plain-object top level is accepted; every value must be a v2 measurement
+ * that satisfies its own-context bound. v1 number values are dropped.
+ * Already capped, so a poisoned oversized blob cannot bloat memory.
+ */
 export function parseStaticPrefixMeasurements(
   raw: string | null | undefined,
-): Array<[string, number]> {
+): Array<[string, StaticPrefixMeasurement]> {
+  if (typeof raw !== "string" || raw.length === 0) return [];
+  let parsed: unknown;
   try {
-    const parsed = raw == null ? null : JSON.parse(raw) as unknown;
-    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return [];
-    }
-    return Object.entries(parsed).flatMap(([key, value]) =>
-      typeof value === "number" && Number.isFinite(value) && value > 0
-        ? [[key, Math.floor(value)] as [string, number]]
-        : [],
-    );
+    parsed = JSON.parse(raw);
   } catch {
     return [];
   }
+  if (!isPlainRecord(parsed)) return [];
+  return capStaticPrefixMeasurements(Object.entries(parsed));
 }
 
-/** Serialize the measured-prefix map as a compact JSON object. */
+/**
+ * Deterministic serialization of the capped, newest-first map. The parameter
+ * is typed to the v2 record so an un-migrated v1 `Map<string, number>` call
+ * site fails to compile instead of silently serializing `{}`; runtime-invalid
+ * values are still dropped by the cap.
+ */
 export function serializeStaticPrefixMeasurements(
-  measurements: ReadonlyMap<string, number>,
+  entries: Iterable<readonly [string, StaticPrefixMeasurement]>,
 ): string {
-  return JSON.stringify(Object.fromEntries(measurements));
+  return JSON.stringify(Object.fromEntries(capStaticPrefixMeasurements(entries)));
+}
+
+/**
+ * Synchronous read for the ceiling guard: the counted tokens if this entry is
+ * plausible for the ACTIVE context, else null (caller falls back to its
+ * estimator and logs why). Never returns a value that could zero the ceiling.
+ */
+export function staticPrefixTokensForActiveNCtx(
+  entry: StaticPrefixMeasurement | null | undefined,
+  activeNCtx: number,
+): number | null {
+  const measurement = normalizeStaticPrefixMeasurement(entry);
+  if (measurement === null) return null;
+  if (!Number.isSafeInteger(activeNCtx) || activeNCtx <= 0) return null;
+  return measurement.tokens < activeNCtx - WINDOW_RESERVE_TOKENS
+    ? measurement.tokens
+    : null;
 }
 
 /**

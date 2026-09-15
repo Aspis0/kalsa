@@ -25,7 +25,6 @@ import {
   sessionFilePath,
   sessionMetaMismatchField,
   sessionAssembleBoundary,
-  sessionWindowSlideBoundary,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
   sessionKvSaveWouldBeInconsistent,
@@ -259,11 +258,18 @@ describe("session meta marker", () => {
     expect(
       sessionMetaMismatchField({ ...base, assembleBoundary: 12 }, base),
     ).toBe(null);
-    expect(sessionAssembleBoundary(undefined)).toBe(0);
+    // Missing/invalid assembleBoundary reads as UNKNOWN (not 0): the restored
+    // KV is held with no start fact and the next send reconciles before
+    // assembling. Only a genuinely full-history KV carries the factual 0.
+    expect(sessionAssembleBoundary(undefined)).toBeUndefined();
+    expect(sessionAssembleBoundary({})).toBeUndefined();
+    expect(sessionAssembleBoundary({ assembleBoundary: -1 })).toBeUndefined();
+    expect(sessionAssembleBoundary({ assembleBoundary: 1.5 })).toBeUndefined();
     expect(sessionAssembleBoundary({ assembleBoundary: 12 })).toBe(12);
+    expect(sessionAssembleBoundary({ assembleBoundary: 0 })).toBe(0);
   });
 
-  test("readSessionMeta keeps assembleBoundary (omit → 0)", async () => {
+  test("readSessionMeta keeps assembleBoundary (omit → unknown)", async () => {
     const required = {
       formatVersion: SESSION_FORMAT_VERSION,
       modelFileId: "1:2",
@@ -275,17 +281,13 @@ describe("session meta marker", () => {
     };
     (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) =>
       key === sessionMetaKey("b12")
-        ? JSON.stringify({ ...required, assembleBoundary: 12, windowSlideBoundary: 18 })
+        ? JSON.stringify({ ...required, assembleBoundary: 12 })
         : key === sessionMetaKey("b0")
           ? JSON.stringify(required)
           : null,
     );
     expect((await readSessionMeta("b12"))?.assembleBoundary).toBe(12);
-    expect((await readSessionMeta("b12"))?.windowSlideBoundary).toBe(18);
-    expect((await readSessionMeta("b0"))?.assembleBoundary).toBe(0);
-    expect((await readSessionMeta("b0"))?.windowSlideBoundary).toBeUndefined();
-    expect(sessionWindowSlideBoundary({ windowSlideBoundary: 18 })).toBe(18);
-    expect(sessionWindowSlideBoundary({ windowSlideBoundary: -1 })).toBeUndefined();
+    expect((await readSessionMeta("b0"))?.assembleBoundary).toBeUndefined();
   });
 });
 

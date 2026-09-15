@@ -62,17 +62,13 @@ export type SessionMeta = {
    */
   bakedUserTails?: Array<{ bare: string; prefixed: string }>;
   /**
-   * assembleEngineHistory start index this .kvs was saved against.
-   * Payload only — ignored by sessionMetaMatches. Missing on old files ≡ 0
-   * (full transcript).
+   * Absolute history start the saved KV was prefilled from (payload only —
+   * ignored by sessionMetaMatches). Absent means unknown: the restore leaves
+   * the KV held with no start fact and the next send reconciles (clears)
+   * before assembling. Never fabricated as 0 — a full-history KV saves the
+   * factual 0.
    */
   assembleBoundary?: number;
-  /**
-   * Start selected after a successful window clear whose following turn did
-   * not complete. This is a re-anchor marker, not a claim about the saved KV;
-   * the next send must clear again before using it.
-   */
-  windowSlideBoundary?: number;
 };
 
 /**
@@ -513,10 +509,15 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
   return null;
 }
 
-/** Old files omit assembleBoundary → 0 (full transcript). */
+/**
+ * Absolute history start the saved KV was prefilled from. Missing/invalid
+ * means UNKNOWN (not 0): the restore leaves the KV held with no start fact,
+ * and the held+unknown send reconciles (clears) before assembling. Only a
+ * genuinely full-history KV carries the factual 0.
+ */
 export function sessionAssembleBoundary(
   meta: { assembleBoundary?: unknown } | null | undefined,
-): number {
+): number | undefined {
   const n = meta?.assembleBoundary;
   if (
     typeof n === "number" &&
@@ -526,17 +527,7 @@ export function sessionAssembleBoundary(
   ) {
     return n;
   }
-  return 0;
-}
-
-/** Missing/invalid marker means no pending window re-anchor. */
-export function sessionWindowSlideBoundary(
-  meta: { windowSlideBoundary?: unknown } | null | undefined,
-): number | undefined {
-  const n = meta?.windowSlideBoundary;
-  return typeof n === "number" && Number.isInteger(n) && Number.isFinite(n) && n >= 0
-    ? n
-    : undefined;
+  return undefined;
 }
 
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────
@@ -859,7 +850,6 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
     }
     if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     meta.assembleBoundary = sessionAssembleBoundary(parsed);
-    meta.windowSlideBoundary = sessionWindowSlideBoundary(parsed);
     return meta;
   } catch {
     return null;

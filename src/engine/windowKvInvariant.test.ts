@@ -2,12 +2,14 @@ import {
   assembleBoundaryAfterTurn,
   assembleBoundaryForAlign,
   assembleStartForLiveKv,
+  completionAdoptedAssembleStart,
   decideAssembleWindowAction,
   kvHeldForAssembleWindow,
   markAssembleOutcome,
   operativeContextForLiveKv,
   shouldApplySlideAdvance,
   shouldDiscardKvForSlide,
+  shouldReconcileAssembleStart,
   shouldSlideAssembleBoundary,
   toolRoundsAdoptedPrompt,
   windowHasDigest,
@@ -127,18 +129,6 @@ describe("decideAssembleWindowAction", () => {
     ).toEqual({ slide: true, discard: true });
   });
 
-  test("ciswire: pending re-anchor clears live KV even below the ceiling", () => {
-    expect(
-      decideAssembleWindowAction({
-        budgetRebuild: false,
-        forceRebuild: false,
-        kvHoldsChatSession: true,
-        anchored: false,
-        pendingWindowSlide: true,
-      }),
-    ).toEqual({ slide: true, discard: true });
-  });
-
   test("ciswire: cold ceiling slide slides without discarding", () => {
     expect(
       decideAssembleWindowAction({
@@ -253,7 +243,7 @@ describe("assembleBoundaryForAlign", () => {
         activeConv: "a",
         boundary: undefined,
       }),
-    ).toBe(0);
+    ).toBeNull();
   });
 
   test("an invalidated identity (no conv, no boundary) is rejected", () => {
@@ -307,7 +297,8 @@ describe("assembleStartForLiveKv", () => {
   test("ciswire + held uses the saved boundary; validation rejects a stale one", () => {
     // The boundary is validated by assembleBoundaryForAlign before it reaches
     // here. A leftover digest B for a different conversation comes back null,
-    // and only then does the held path fall back to 0 (the a21746e shape).
+    // and the held path then falls to the attempted/computed start — never a
+    // fabricated 0 against an unknown-start KV.
     expect(
       assembleStartForLiveKv({
         mode: "ciswire",
@@ -328,7 +319,7 @@ describe("assembleStartForLiveKv", () => {
         computedStart: 20,
         kvHeld: true,
       }),
-    ).toBe(0);
+    ).toBe(20);
   });
 
   test("ciswire + cold keeps the computed start", () => {
@@ -355,7 +346,41 @@ describe("assembleStartForLiveKv", () => {
     ).toBe(36);
   });
 
-  test("ciswire + held after an abort (empty KV, no saved boundary) → 0", () => {
+  test("ciswire + held factless: attempted start wins over computedStart", () => {
+    // Post-clear reconcile: the attempted start pins which start a killed
+    // re-prefill resumes from (never a native-KV claim; the clear is still
+    // required per send by shouldReconcileAssembleStart).
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB: null,
+        computedStart: 23,
+        kvHeld: true,
+        attemptedStart: 11,
+      }),
+    ).toBe(11);
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB: null,
+        computedStart: 23,
+        kvHeld: true,
+        attemptedStart: null,
+      }),
+    ).toBe(23);
+    // A factual boundary outranks the attempt.
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB: 36,
+        computedStart: 0,
+        kvHeld: true,
+        attemptedStart: 11,
+      }),
+    ).toBe(36);
+  });
+
+  test("ciswire + held factless without an attempt keeps the computed start", () => {
     expect(
       assembleStartForLiveKv({
         mode: "ciswire",
@@ -363,7 +388,7 @@ describe("assembleStartForLiveKv", () => {
         computedStart: 23,
         kvHeld: true,
       }),
-    ).toBe(0);
+    ).toBe(23);
   });
 
   test("off while held keeps the c7801f9 full-history clamp", () => {
@@ -396,97 +421,131 @@ describe("assembleStartForLiveKv", () => {
   });
 });
 
-describe("assembleBoundaryAfterTurn", () => {
-  const outcomes: AssembleBoundaryOutcome[] = [
-    "aborted",
-    "tool_ceiling",
-    "context_full",
-    "early_return",
-    "invalidated",
-  ];
-
-  test("a clean completion commits the pending boundary", () => {
+describe("assembleBoundaryAfterTurn (adoption protocol)", () => {
+  test("adoption installs the attempted start", () => {
     expect(
-      assembleBoundaryAfterTurn({ outcome: "completed", pending: 36 }),
+      assembleBoundaryAfterTurn({ prior: 11, pending: 11, adopted: true }),
+    ).toBe(11);
+    expect(
+      assembleBoundaryAfterTurn({ prior: 0, pending: 36, adopted: true }),
     ).toBe(36);
   });
 
-  test("every non-completion outcome drops the boundary", () => {
-    for (const outcome of outcomes) {
-      expect(assembleBoundaryAfterTurn({ outcome, pending: 36 })).toBeUndefined();
-    }
+  test("no adoption retains the prior factual boundary", () => {
+    // Turn 7/12 shape: round 0 adopted, round 1 hit the tool ceiling — the
+    // absolute start is still true, so the next send must append from it.
+    expect(
+      assembleBoundaryAfterTurn({ prior: 11, pending: 11, adopted: false }),
+    ).toBe(11);
   });
 
-  test("abort mid-prefill → dropped boundary → ciswire held start 0", () => {
-    const loadedB = assembleBoundaryAfterTurn({
-      outcome: "aborted",
-      pending: 36,
-    });
-    expect(loadedB).toBeUndefined();
+  test("no adoption with no prior stays unknown (never fabricated)", () => {
+    // Post-clear killed turn: the clear already erased the fact in place;
+    // retention must not resurrect a pre-clear boundary.
     expect(
-      assembleStartForLiveKv({
-        mode: "ciswire",
-        // getLoadedAssembleBoundary turns an undefined boundary into null/0.
-        loadedB: loadedB ?? null,
-        computedStart: 0,
-        kvHeld: true,
+      assembleBoundaryAfterTurn({ prior: undefined, pending: 36, adopted: false }),
+    ).toBeUndefined();
+  });
+});
+
+describe("completionAdoptedAssembleStart", () => {
+  test("any token callback adopts — even on an interrupted result", () => {
+    expect(
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: true,
+        tokensCached: undefined,
       }),
-    ).toBe(0);
+    ).toBe(true);
+    expect(
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: true,
+        tokensCached: 0,
+      }),
+    ).toBe(true);
   });
 
-  test("tool-round ceiling break → dropped boundary → ciswire held start 0", () => {
-    const loadedB = assembleBoundaryAfterTurn({
-      outcome: "tool_ceiling",
-      pending: 36,
-    });
-    expect(loadedB).toBeUndefined();
+  test("a returned result with tokens_cached (n_past) > 0 adopts", () => {
+    // Turn-12 shape: round 0 returned with the full cache before round 1
+    // hit the tool ceiling — the start was adopted by the native.
     expect(
-      assembleStartForLiveKv({
-        mode: "ciswire",
-        loadedB: loadedB ?? null,
-        computedStart: 0,
-        kvHeld: true,
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: false,
+        tokensCached: 6500,
       }),
-    ).toBe(0);
+    ).toBe(true);
   });
 
-  test("a completed slide turn is reused on the next held send", () => {
-    const nextBoundary = assembleBoundaryAfterTurn({
-      outcome: "completed",
-      pending: 36,
-    });
-    expect(nextBoundary).toBe(36);
+  test("tokens_evaluated alone never adopts", () => {
+    // llama.rn populates tokens_evaluated from the PLANNED prompt length
+    // (RNLlamaJSI.cpp num_prompt_tokens) — it is not decode evidence and is
+    // deliberately not an input here.
     expect(
-      assembleStartForLiveKv({
-        mode: "ciswire",
-        loadedB: nextBoundary ?? null,
-        computedStart: 0,
-        kvHeld: true,
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: false,
       }),
-    ).toBe(36);
+    ).toBe(false);
   });
 
-  test("off and anchored ignore the committed boundary as before", () => {
-    const loadedB = assembleBoundaryAfterTurn({
-      outcome: "completed",
-      pending: 36,
-    });
+  test("context_full evidence is rejected", () => {
     expect(
-      assembleStartForLiveKv({
-        mode: "off",
-        loadedB: loadedB ?? null,
-        computedStart: 23,
-        kvHeld: true,
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: false,
+        tokensCached: 8191,
+        contextFull: true,
       }),
-    ).toBe(0);
+    ).toBe(false);
+  });
+
+  test("error evidence is rejected", () => {
     expect(
-      assembleStartForLiveKv({
-        mode: "anchored",
-        loadedB: loadedB ?? null,
-        computedStart: 23,
-        kvHeld: true,
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: false,
+        tokensCached: 4096,
+        error: "loadPrompt failed",
       }),
-    ).toBe(23);
+    ).toBe(false);
+    expect(
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: true,
+        tokensCached: 4096,
+        error: "loadPrompt failed",
+      }),
+    ).toBe(false);
+  });
+
+  test("no evidence at all does not adopt", () => {
+    expect(
+      completionAdoptedAssembleStart({
+        tokenCallbackFired: false,
+        tokensCached: 0,
+      }),
+    ).toBe(false);
+    expect(
+      completionAdoptedAssembleStart({ tokenCallbackFired: false }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldReconcileAssembleStart", () => {
+  test("held KV without a same-chat start fact must clear first", () => {
+    expect(shouldReconcileAssembleStart({ kvHeld: true, loadedB: null })).toBe(
+      true,
+    );
+  });
+
+  test("a factual boundary appends without a clear", () => {
+    expect(shouldReconcileAssembleStart({ kvHeld: true, loadedB: 11 })).toBe(
+      false,
+    );
+    expect(shouldReconcileAssembleStart({ kvHeld: true, loadedB: 0 })).toBe(
+      false,
+    );
+  });
+
+  test("cold KV never reconciles", () => {
+    expect(
+      shouldReconcileAssembleStart({ kvHeld: false, loadedB: null }),
+    ).toBe(false);
   });
 });
 
@@ -506,20 +565,21 @@ describe("markAssembleOutcome", () => {
     }
   });
 
-  test("abort during post-tool telemetry drops the boundary", () => {
-    // Tool rounds adopted, then emitGovernorTelemetry aborts.
+  test("abort during post-tool telemetry keeps the monotone outcome", () => {
+    // The outcome no longer governs the boundary (adoption does) — it stays
+    // monotone for telemetry and the fallback decision. `completed` is
+    // non-terminal, so a later terminal outcome still overwrites it.
     let outcome: AssembleBoundaryOutcome = "early_return";
     outcome = markAssembleOutcome(outcome, "completed");
     outcome = markAssembleOutcome(outcome, "aborted");
-    expect(assembleBoundaryAfterTurn({ outcome, pending: 36 })).toBeUndefined();
+    expect(outcome).toBe("aborted");
   });
 
-  test("context_full in a tool turn drops even if completed is attempted", () => {
+  test("context_full in a tool turn stays terminal even if completed is attempted", () => {
     let outcome: AssembleBoundaryOutcome = "early_return";
     outcome = markAssembleOutcome(outcome, "context_full");
     outcome = markAssembleOutcome(outcome, "completed");
     expect(outcome).toBe("context_full");
-    expect(assembleBoundaryAfterTurn({ outcome, pending: 36 })).toBeUndefined();
   });
 });
 
@@ -544,7 +604,7 @@ describe("toolRoundsAdoptedPrompt", () => {
     ).toBe(true);
   });
 
-  test("failed or empty fallback not adopted → boundary dropped", () => {
+  test("failed or empty fallback not adopted → boundary decided by evidence", () => {
     expect(
       toolRoundsAdoptedPrompt({
         ceilingReached: false,
@@ -552,11 +612,12 @@ describe("toolRoundsAdoptedPrompt", () => {
         fallbackOk: false,
       }),
     ).toBe(false);
-    // The canned-message path never sets completed, so the outcome stays
-    // neutral and assembleBoundaryAfterTurn drops it.
+    // The outcome no longer drops the boundary by itself: without token
+    // callbacks or a cached-prompt result there is no adoption, so the prior
+    // factual boundary is retained instead.
     expect(
-      assembleBoundaryAfterTurn({ outcome: "early_return", pending: 36 }),
-    ).toBeUndefined();
+      assembleBoundaryAfterTurn({ prior: 11, pending: 11, adopted: false }),
+    ).toBe(11);
   });
 
   test("ceiling break not adopted even with a fallback available", () => {
@@ -576,9 +637,8 @@ describe("toolRoundsAdoptedPrompt", () => {
     ).toBe(false);
   });
 
-  test("happy path (no tool and tool) commits the boundary", () => {
+  test("happy path (no tool and tool) keeps the boundary installed", () => {
     // No tool: emitFinalText sets completed directly; this is the same outcome.
-    expect(assembleBoundaryAfterTurn({ outcome: "completed", pending: 36 })).toBe(36);
     // Tool rounds streamed text: toolRoundsAdoptedPrompt → completed.
     const adopted = toolRoundsAdoptedPrompt({
       ceilingReached: false,
@@ -587,8 +647,8 @@ describe("toolRoundsAdoptedPrompt", () => {
     });
     expect(adopted).toBe(true);
     expect(
-      assembleBoundaryAfterTurn({ outcome: "completed", pending: 36 }),
-    ).toBe(36);
+      assembleBoundaryAfterTurn({ prior: 11, pending: 11, adopted: true }),
+    ).toBe(11);
   });
 });
 
@@ -713,18 +773,5 @@ describe("windowSlideDiscardModelId", () => {
   test("empty id is skipped (discardChatKvForWindowSlide returns false)", () => {
     expect(windowSlideDiscardModelId("")).toBeNull();
     expect(windowSlideDiscardModelId("lfm2.5-2.6b")).toBe("lfm2.5-2.6b");
-  });
-});
-
-describe("shouldDiscardKvForSlide", () => {
-  test("a pending marker re-anchors even when the target did not advance", () => {
-    expect(
-      shouldDiscardKvForSlide({
-        discard: true,
-        previousBoundaryIndex: 8,
-        nextBoundaryIndex: 8,
-        reanchor: true,
-      }),
-    ).toBe(true);
   });
 });

@@ -55,22 +55,17 @@ export function decideAssembleWindowAction(args: {
   kvHoldsChatSession: boolean;
   anchored: boolean;
   ceilingCrossed?: boolean;
-  /** A prior clear was followed by a non-completed turn; re-anchor first. */
-  pendingWindowSlide?: boolean;
 }): { slide: boolean; discard: boolean } {
   const slide = shouldSlideAssembleBoundary({
     budgetRebuild: args.budgetRebuild,
-    forceRebuild: args.forceRebuild || args.pendingWindowSlide === true,
+    forceRebuild: args.forceRebuild,
     kvHoldsChatSession: args.kvHoldsChatSession,
     ceilingCrossed: args.ceilingCrossed,
   });
   if (!args.anchored) {
     return {
       slide,
-      discard:
-        slide &&
-        args.kvHoldsChatSession &&
-        (args.ceilingCrossed === true || args.pendingWindowSlide === true),
+      discard: slide && args.kvHoldsChatSession && args.ceilingCrossed === true,
     };
   }
   return { slide, discard: slide && args.kvHoldsChatSession };
@@ -90,13 +85,8 @@ export function shouldDiscardKvForSlide(args: {
   discard: boolean;
   previousBoundaryIndex: number;
   nextBoundaryIndex: number;
-  /** Clear even when the logical start did not advance: native KV is unknown. */
-  reanchor?: boolean;
 }): boolean {
-  return (
-    args.discard &&
-    (args.nextBoundaryIndex > args.previousBoundaryIndex || args.reanchor === true)
-  );
+  return args.discard && args.nextBoundaryIndex > args.previousBoundaryIndex;
 }
 
 /**
@@ -152,7 +142,15 @@ export function assembleBoundaryForAlign(args: {
 }): number | null {
   if (!args.kvHeld) return null;
   if (args.storedConv !== args.activeConv) return null;
-  return args.boundary ?? 0;
+  return args.boundary ?? null;
+}
+
+/** A held KV without a same-chat start fact must be cleared before assembly. */
+export function shouldReconcileAssembleStart(args: {
+  kvHeld: boolean;
+  loadedB: number | null;
+}): boolean {
+  return args.kvHeld && args.loadedB === null;
 }
 
 /**
@@ -161,32 +159,33 @@ export function assembleBoundaryForAlign(args: {
  * While KV is held the start is the boundary saved with that KV. It travels
  * inside the .kvs metadata (meta.assembleBoundary, written at save and read
  * back at restore) and is validated by getLoadedAssembleBoundary (hold + same
- * conversation).
+ * conversation). streamAssistantTurn never erases the boundary at entry: the
+ * absolute start survives appends and head-preserving trims, so a prior
+ * turn's adopted fact stays true until a clear or identity loss. A factless
+ * held KV resolves to `attemptedStart` (the last start attempted after a
+ * clear, never a native-KV claim) or the fresh computedStart — never a
+ * fabricated 0; the send must reconcile (clear) before assembling.
  *
- * Why trusting it while held is safe now, and what made it poison before:
- * `lastAssembleBoundary` used to be written at the top of streamAssistantTurn
- * (a promise, before the native ran); a21746e was a stale B=20 from a send
- * that never re-anchored the native KV while it still held the full chat, and
- * the held branch returned 20 against a start-0 native prefix (S23 91d7b73
- * t5 n_common=0 embd=7779 text_tokens=4524). streamAssistantTurn now clears
- * the boundary when the turn starts and commits it only through
- * assembleBoundaryAfterTurn("completed"); every abort/error/tool-ceiling/
- * context_full/early-return path leaves it undefined, so loadedB is non-null
- * only when the native really evaluated a prompt that starts there.
- *
- * A full-history held KV saves boundary 0, so a chat that never slid still
- * starts at 0. Off keeps the c7801f9 full-history clamp (never trusts
- * loadedB). Anchored leaves computedStart.
+ * Off keeps the c7801f9 full-history clamp (never trusts loadedB). Anchored
+ * leaves computedStart.
  */
 export function assembleStartForLiveKv(args: {
   mode: "off" | "anchored" | "ciswire";
   loadedB: number | null;
   computedStart: number;
   kvHeld: boolean;
+  /** Last logical start attempted after a clear; never a native-KV claim. */
+  attemptedStart?: number | null;
 }): number {
   if (args.mode === "anchored") return args.computedStart;
   if (args.kvHeld) {
-    if (args.mode === "ciswire") return args.loadedB ?? 0;
+    if (args.mode === "ciswire") {
+      if (args.loadedB !== null) return args.loadedB;
+      const attempted = args.attemptedStart;
+      return typeof attempted === "number" && Number.isFinite(attempted)
+        ? Math.max(0, Math.floor(attempted))
+        : args.computedStart;
+    }
     return 0;
   }
   if (args.loadedB !== null) return args.loadedB;
@@ -196,12 +195,9 @@ export function assembleStartForLiveKv(args: {
 /**
  * How a streamed turn ended, for the assemble-boundary identity.
  *
- * `lastAssembleBoundary` must describe the prompt the native actually
- * evaluated. It is a fact only after a completion adopted the prompt and the
- * turn did not abort. Every other outcome leaves the native KV unknown, so
- * the boundary is dropped (`undefined`). Without a separate successful-clear
- * marker, the next held send falls back to start 0 — a safe full re-prefill,
- * never a stale prefix match.
+ * `lastAssembleBoundary` describes the absolute history start represented by
+ * the native KV. Whole-turn completion is not the proof: a partial prefill or
+ * a tool-call round can adopt the start before a later abort/tool ceiling.
  */
 export type AssembleBoundaryOutcome =
   | "completed"
@@ -257,16 +253,36 @@ export function toolRoundsAdoptedPrompt(args: {
 }
 
 /**
- * The assemble boundary to persist after a turn: the pending value only on a
- * clean completion. `aborted` / `tool_ceiling` / `context_full` /
- * `early_return` / `invalidated` all mean the native KV no longer provably
- * starts at `pending`, so the boundary must be dropped.
+ * Native evidence for an attempted assemble start. `tokens_evaluated` is
+ * deliberately absent: llama.rn exports the planned prompt length there, not
+ * decode progress. `tokens_cached` is n_past; a token callback also proves
+ * that prefill completed.
+ */
+export function completionAdoptedAssembleStart(args: {
+  tokenCallbackFired: boolean;
+  tokensCached?: unknown;
+  contextFull?: unknown;
+  error?: unknown;
+}): boolean {
+  if (args.contextFull === true) return false;
+  if (args.error != null && args.error !== "") return false;
+  if (args.tokenCallbackFired) return true;
+  return positiveTokenCount(
+    typeof args.tokensCached === "number" ? args.tokensCached : undefined,
+  );
+}
+
+/**
+ * Adoption installs the attempted start. Without adoption, preserve the
+ * prior factual start; a successful clear has already erased it in the live
+ * module state, so this cannot resurrect a pre-clear boundary.
  */
 export function assembleBoundaryAfterTurn(args: {
-  outcome: AssembleBoundaryOutcome;
+  prior: number | undefined;
   pending: number | undefined;
+  adopted: boolean;
 }): number | undefined {
-  return args.outcome === "completed" ? args.pending : undefined;
+  return args.adopted ? args.pending : args.prior;
 }
 
 /**

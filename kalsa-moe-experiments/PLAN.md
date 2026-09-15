@@ -70,7 +70,8 @@ Measured in `out/t20c-rerun2-20260914/logcat.txt`:
 - `KALSA_WINDOW_SLIDE`: **23**;
 - `window_align ... to:0`: **23**.
 
-Fix v2 is still uncommitted on `c4d3f6f`. It contains two separable ideas:
+Fix v2 was checkpointed as `b6c2104` on top of `c4d3f6f`. It contained two
+separable ideas:
 
 1. Persist the measured static-prefix token count by model/build + locale + exact system/tool
    identity, hydrate it in `initEngine`, and keep the send guard synchronous. This removes the
@@ -79,15 +80,45 @@ Fix v2 is still uncommitted on `c4d3f6f`. It contains two separable ideas:
    the active `n_ctx`; otherwise a poisoned high value collapses the ceiling to zero and prevents
    the prewarm that could replace it.
 2. Persist `windowSlideBoundary` in `.kvs` metadata after a successful clear, to recover a slide
-   whose following turn does not complete. **Park this design:** it covers only the minority abort
-   case because tool turns usually refuse the `.kvs` save, and the audit found paths where the
-   marker can advance the logical window without a corresponding successful clear.
+   whose following turn does not complete. The final protocol below removes this design entirely:
+   it depends on the save that tool turns intentionally refuse and can advance the logical window
+   without a corresponding successful clear.
 
-The next design question is therefore not how to refine that marker. It is: **when the live KV is
-intentionally unsavable, how does the next send retain the compactor's correct logical start
-without claiming anything false about native KV state?** A successful clear is a native fact; a
-computed start is a logical-window fact. They must not be conflated, and `a21746e`'s rejected
-"boundary as promise" must not be reopened.
+### 2026-09-15 final protocol (GLM + DeepSeek committee, converged)
+
+The dominant bug was a protocol error, not missing session persistence. `kv_not_reproducible`
+answers whether a live tool KV can be serialized and replayed byte-for-byte; it does **not** say
+that its absolute history start is unknown. Turn 12 proves the distinction: round 0 reused
+`6042/6042` tokens from start 11 and returned a tool call, then only round 1 was stopped by
+`KALSA_TOOL_CEILING`. The old whole-turn outcome discarded the already-proven start 11, so the
+next send aligned `11 -> 0`, priced 10211 tokens and slid again.
+
+Final state machine (this apply):
+
+- stream entry keeps the previous same-chat boundary fact; it never installs the new requested
+  boundary before native work, so `a21746e` stays closed;
+- prompt-start adoption is monotone and independent from whole-turn completion: any token callback
+  or returned `tokens_cached > 0` (`n_past`, actual native progress) installs the attempted start;
+  `tokens_evaluated` is explicitly not evidence because llama.rn exports the planned prompt size;
+- tool ceiling, later-round abort, or interrupted prefill retain/install the factual start once
+  adoption happened; `kv_not_reproducible` continues to gate only session saving;
+- held KV + same-chat boundary uses that boundary with no clear; held KV + unknown boundary performs
+  one mandatory clear before assembly in **all** context modes. A failed clear invalidates the fact
+  and aborts the send instead of assembling from 0 against unknown native state;
+- the only extra carrier is an in-process attempted logical start for the killed-before-adoption
+  case. It is never persisted and never treated as native state; process death also destroys the
+  RAM KV, so durability is unnecessary;
+- `meta.assembleBoundary` is omitted when unknown; missing is read as unknown, never fabricated 0;
+- `windowSlideBoundary` and all its `.kvs`/stream plumbing are removed.
+
+Static-prefix persistence is now schema v2 `{tokens,nCtx,at}`, capped to the 32 newest exact
+model/build + locale + system/tool identities. Both write and synchronous read reject counts at or
+above `nCtx - WINDOW_RESERVE_TOKENS`; an invalid value falls back with
+`measurement_implausible_for_active_nctx` instead of collapsing the ceiling to zero. A failed
+hydrate cannot overwrite the unknown durable map. No await was added to the send guard.
+
+Parent verification after integration: `tsc --noEmit` exit 0; five targeted Jest suites
+**168/168**, exit 0. This is code proof only, not device proof.
 
 ## Still open
 
@@ -96,16 +127,18 @@ computed start is a logical-window fact. They must not be conflated, and `a21746
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
   silently truncated answer (native sets `truncated=true`, no JS consumer reads it) and the
   `loadPrompt` path still raises `context_full` before `n_common` is computed.
-- Bound persisted static-prefix measurements against the active context before trusting them.
-- Remove or redesign the v2 `.kvs` slide marker; do not ship it in its current form.
-- Preserve the compactor's logical start across `kv_not_reproducible` without fabricating a
-  persisted native-KV boundary and without adding an `await` to the send guard.
+- Build a fresh debuggable APK and confirm it contains the current llama.rn
+  checkpoint-or-full-clear recovery (`recoverStateCheckpoint` / `KALSA_KVDIAG`). The 09-14 APK had
+  seven partial `KALSA_KVDIVERGE` events and zero recovery lines, so it cannot validate this tree.
+- Run the S23 T20C campaign. Pass condition: starts ratchet from the adopted boundary (no repeated
+  `window_align ... to:0`), ceiling slides are monotone, and every unknown-start send logs one
+  successful `window_reconcile` before native assembly.
 - G2 not claimed.
 
 ## Constraints
 
 - Targeted tests only. No full Jest. No phones. No push.
-- The phone stays disconnected. Once the corrected fix is green, produce a fresh debuggable build
-  before the next device run.
+- The phone is charging and ready. Produce a fresh debuggable build before the next device run;
+  never reuse the 09-14 APK for this protocol.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.

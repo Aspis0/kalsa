@@ -128,8 +128,8 @@ import {
   extractMemory,
   getActiveEngineNCtx,
   getActiveModelId,
+  getAttemptedAssembleStart,
   getLoadedAssembleBoundary,
-  getPendingWindowSlideBoundary,
   initEngine,
   invalidateConversationSessions,
   invalidateEngineSession,
@@ -279,6 +279,7 @@ import {
   operativeContextForLiveKv,
   shouldApplySlideAdvance,
   shouldDiscardKvForSlide,
+  shouldReconcileAssembleStart,
   windowHasDigest,
 } from "../engine/windowKvInvariant";
 import { historyReplayCharLength } from "../engine/modelEmittedText";
@@ -5314,7 +5315,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             let boundaryForAssemble = 0;
             // Set when this send follows a deliberate ceiling slide (below).
             let windowSlideForCeiling = false;
-            let clearedWindowBoundary: number | undefined;
+            let nativeClearedForAssemble = false;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
             // threads / ubatch / n_ctx already get. A bench override still wins,
@@ -5335,7 +5336,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               lastSaveTokens,
             });
             const loadedB = getLoadedAssembleBoundary(chatId);
-            const pendingWindowSlide = getPendingWindowSlideBoundary(chatId);
+            const attemptedStart = getAttemptedAssembleStart(chatId);
+            const reconcileRequired = shouldReconcileAssembleStart({
+              kvHeld,
+              loadedB,
+            });
             // Digest share shrinks the verbatim window. While live KV still
             // holds the full chat, that drop is n_common=0 (f441b3d T20C t10:
             // embd=7189 text_tokens=4173 n_common=0 = WINDOW_SHARE_WITH_DIGEST).
@@ -5413,6 +5418,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 loadedB,
                 computedStart,
                 kvHeld,
+                attemptedStart,
               });
               // loadedB travels in the .kvs metadata and can outlive a shrunk
               // history (clear / edit). Clamp it with the same rule a state
@@ -5434,6 +5440,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 } catch {
                   // telemetry must never throw
                 }
+              }
+            }
+            // Off mode has no compactor block below. A held cache without a
+            // same-chat boundary fact must still be cleared before a start-0
+            // prompt is sent; relying on native partial removal here is the
+            // hybrid corruption path this protocol forbids.
+            if (contextMode === "off" && reconcileRequired) {
+              nativeClearedForAssemble = await discardChatKvForWindowSlide(
+                getActiveModelId() ?? currentModel.id,
+                chatId,
+              );
+              if (!nativeClearedForAssemble) {
+                throw new Error(t("chat.serviceUnreachable"));
+              }
+              windowSlideForCeiling = true;
+              try {
+                console.log(
+                  `KALSA_SESSION ${JSON.stringify({
+                    op: "window_reconcile",
+                    start: legacyWindowStart,
+                    kvCleared: true,
+                  })}`,
+                );
+              } catch {
+                // telemetry must never throw
               }
             }
             // promptFacts is declared at the char-budget walk above: the
@@ -5609,7 +5640,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 kvHoldsChatSession: kvHeld,
                 anchored: anchoredOn,
                 ceilingCrossed,
-                pendingWindowSlide: pendingWindowSlide !== null,
               });
               let slideOk = windowAction.slide;
               // A slide is only worth its destructive half — deleting the .kvs
@@ -5621,8 +5651,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               let slideBlocked = false;
               // The gate compares the two real assemble starts: anchored's
               // persisted boundary, ciswire's clamped/trusted window start.
-              const previousStart =
-                pendingWindowSlide ?? (anchoredOn ? pinnedStart : legacyWindowStart);
+              const previousStart = anchoredOn ? pinnedStart : legacyWindowStart;
               if (windowAction.slide) {
                 // At the ceiling the profile's charBudget is exactly what
                 // cannot help (it is Infinity for attachment turns), so derive
@@ -5640,7 +5669,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                         (anchoredOn ? 1 : WINDOW_SHARE_WITH_DIGEST),
                     )
                   : undefined;
-                const nextState = anchoredOn
+                let nextState = anchoredOn
                   ? advanceAnchoredBoundary(state, {
                       chatId,
                       userTurnCount,
@@ -5660,22 +5689,34 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       maxCharsPerMessage: perMessageCap,
                       currentTurnLength: currentTurnChars,
                     });
-                const nextStart = resolveBoundaryIndex(
+                let nextStart = resolveBoundaryIndex(
                   nextState,
                   validatedHistory.length,
                 );
-                if (
-                  shouldDiscardKvForSlide({
-                    discard: windowAction.discard,
-                    previousBoundaryIndex: previousStart,
-                    nextBoundaryIndex: nextStart,
-                    reanchor: pendingWindowSlide !== null,
-                  })
-                ) {
-                  slideOk = await discardChatKvForWindowSlide(
+                // A held window may only advance. In particular, the
+                // attempted-start carrier from a killed post-clear prefill
+                // must not be replaced by a fresh char walk that moved
+                // backwards; that would re-create the repeated-slide loop.
+                if (kvHeld && nextStart < previousStart) {
+                  nextStart = previousStart;
+                  nextState = { ...nextState, boundaryIndex: nextStart };
+                }
+                const boundaryClearRequested = shouldDiscardKvForSlide({
+                  discard: windowAction.discard,
+                  previousBoundaryIndex: previousStart,
+                  nextBoundaryIndex: nextStart,
+                });
+                const clearRequested =
+                  boundaryClearRequested || reconcileRequired;
+                if (clearRequested) {
+                  nativeClearedForAssemble = await discardChatKvForWindowSlide(
                     getActiveModelId() ?? currentModel.id,
                     chatId,
                   );
+                  slideOk = nativeClearedForAssemble;
+                  if (!nativeClearedForAssemble) {
+                    throw new Error(t("chat.serviceUnreachable"));
+                  }
                 } else if (windowAction.discard) {
                   // The boundary cannot move: do not clear the live KV for a
                   // slide that would not happen.
@@ -5685,22 +5726,40 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // Apply the advance only when any requested clear succeeded.
                 if (
                   shouldApplySlideAdvance({
-                    clearRequested: windowAction.discard,
-                    clearSucceeded: slideOk,
+                    clearRequested: windowAction.discard || reconcileRequired,
+                    clearSucceeded: nativeClearedForAssemble,
                   })
                 ) {
                   state = nextState;
-                  if (windowAction.discard && slideOk) {
-                    clearedWindowBoundary = nextStart;
-                  }
-                  if (!anchoredOn && (windowAction.discard || pendingWindowSlide !== null)) {
+                  if (!anchoredOn && (windowAction.discard || reconcileRequired)) {
                     // The live KV was cleared and will be re-prefilled from
                     // this start; ciswire's engine window must use it (its
-                    // boundaryIndex stays the digest bookkeeping value). The
-                    // start is passed to the engine and a successful clear is
-                    // recorded in the .kvs metadata if this turn aborts.
+                    // boundaryIndex stays the digest bookkeeping value).
                     legacyWindowStart = nextStart;
                   }
+                }
+              } else if (reconcileRequired) {
+                // No logical slide is due, but the native cache contains chat
+                // tokens whose absolute start is unknown. Clear once, keep the
+                // attempted logical start, and let adoption install the fact.
+                nativeClearedForAssemble = await discardChatKvForWindowSlide(
+                  getActiveModelId() ?? currentModel.id,
+                  chatId,
+                );
+                if (!nativeClearedForAssemble) {
+                  throw new Error(t("chat.serviceUnreachable"));
+                }
+                windowSlideForCeiling = true;
+                try {
+                  console.log(
+                    `KALSA_SESSION ${JSON.stringify({
+                      op: "window_reconcile",
+                      start: anchoredOn ? pinnedStart : legacyWindowStart,
+                      kvCleared: true,
+                    })}`,
+                  );
+                } catch {
+                  // telemetry must never throw
                 }
               }
 
@@ -5823,7 +5882,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     // A successful clear means the native KV is gone for this
                     // send, so the digest may ride it (7aabfe8 only skips it
                     // while the KV is still alive).
-                    kvHeld: slideOk ? false : kvHeld,
+                    kvHeld: nativeClearedForAssemble ? false : kvHeld,
                     digest: state.frozenDigest || undefined,
                     summary: state.rollingSummary || undefined,
                   });
@@ -6010,7 +6069,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 assembleChatId: chatId,
                 contextMode,
                 ceilingSlide: windowSlideForCeiling,
-                clearedWindowBoundary,
                 onDecodeSample: recordDecodeSample,
                 ciswireFlags: turnCiswireFlags || undefined,
               },

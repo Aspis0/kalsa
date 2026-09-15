@@ -163,7 +163,6 @@ import {
   buildKvDiagPayload,
   sessionNativeErrorReason,
   sessionAssembleBoundary,
-  sessionWindowSlideBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
   sessionNativeSaveCoversNPast,
   shouldSaveSession,
@@ -208,6 +207,7 @@ import { resolveThinkingParams, thinkingSpeedOpts } from "./thinkingBudgets";
 import {
   assembleBoundaryAfterTurn,
   assembleBoundaryForAlign,
+  completionAdoptedAssembleStart,
   kvHeldForAssembleWindow,
   markAssembleOutcome,
   toolRoundsAdoptedPrompt,
@@ -243,6 +243,7 @@ import {
   classifyPrewarmResult,
   computePrewarmPrefixHash,
   estimateStaticPrefixTokens,
+  makeStaticPrefixMeasurement,
   parseStaticPrefixMeasurements,
   planPrefixInputChange,
   serializeStaticPrefixMeasurements,
@@ -251,6 +252,8 @@ import {
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
   staticPrefixIdentity,
+  staticPrefixTokensForActiveNCtx,
+  type StaticPrefixMeasurement,
 } from "./prefixPrewarm";
 import {
   BAKE_FORMAT_B_USER_PREFIX,
@@ -316,12 +319,14 @@ let kvHoldsChatSession = false;
 let lastAssembleBoundary: number | undefined;
 let lastAssembleConvId: string | undefined;
 /**
- * Successful-clear marker for a window slide. This is not a live-KV boundary:
- * if the following turn does not complete, the next send must clear again
- * before using this start. It is persisted in SessionMeta, beside the .kvs.
+ * Last assemble start this process ATTEMPTED without a same-chat boundary
+ * fact (held + unknown, post-clear reconcile). Never a native-KV claim: it
+ * only stabilizes which start a killed re-prefill resumes from. The clear
+ * itself is still required per send — shouldReconcileAssembleStart stays the
+ * gate. Cleared on factual commit, native invalidation, restore, dispose.
  */
-let pendingWindowSlideBoundary: number | undefined;
-let pendingWindowSlideConvId: string | undefined;
+let attemptedAssembleStart: number | undefined;
+let attemptedAssembleConvId: string | undefined;
 /**
  * Last known chat KV used-token count (n_past). llama.rn exposes this as
  * completion tokens_cached and loadSession tokens_loaded. Disk-gate input;
@@ -794,9 +799,9 @@ function resolvePrewarmPrefix(
   };
 }
 
-const STATIC_PREFIX_TOKENS_STORAGE_KEY = "kalsa.engine.staticPrefixTokens.v1";
+const STATIC_PREFIX_TOKENS_STORAGE_KEY = "kalsa.engine.staticPrefixTokens.v2";
 /** Measured count, persisted across native-context reloads. */
-const staticPrefixTokens = new Map<string, number>();
+const staticPrefixTokens = new Map<string, StaticPrefixMeasurement>();
 let staticPrefixTokensHydrated = false;
 let staticPrefixTokensHydrationFailed = false;
 let staticPrefixTokensHydration: Promise<void> | null = null;
@@ -816,8 +821,8 @@ async function hydrateStaticPrefixTokens(): Promise<void> {
   if (staticPrefixTokensHydration) return staticPrefixTokensHydration;
   staticPrefixTokensHydration = AsyncStorage.getItem(STATIC_PREFIX_TOKENS_STORAGE_KEY)
     .then((raw) => {
-      for (const [key, tokens] of parseStaticPrefixMeasurements(raw)) {
-        staticPrefixTokens.set(key, tokens);
+      for (const [key, measurement] of parseStaticPrefixMeasurements(raw)) {
+        staticPrefixTokens.set(key, measurement);
       }
       staticPrefixTokensHydrated = true;
     })
@@ -828,8 +833,17 @@ async function hydrateStaticPrefixTokens(): Promise<void> {
   return staticPrefixTokensHydration;
 }
 
-function persistStaticPrefixTokens(key: string, tokens: number): Promise<void> {
-  staticPrefixTokens.set(key, tokens);
+function persistStaticPrefixTokens(
+  key: string,
+  measurement: StaticPrefixMeasurement,
+): Promise<void> {
+  staticPrefixTokens.set(key, measurement);
+  // A failed hydrate means the existing durable map is unknown. Keep this
+  // process's measurement in memory, but do not overwrite that map with a
+  // partial replacement after a transient read failure.
+  if (staticPrefixTokensHydrationFailed) {
+    return Promise.reject(new Error("static_prefix_measurement_store_unavailable"));
+  }
   const write = staticPrefixTokensWriteChain.then(async () => {
     await AsyncStorage.setItem(
       STATIC_PREFIX_TOKENS_STORAGE_KEY,
@@ -870,9 +884,16 @@ export function resolvedStaticPrefixTokens(input: {
     modelIdentity == null
       ? null
       : staticPrefixMeasurementKey(modelIdentity, prefixIdentity);
-  const measured = key != null ? staticPrefixTokens.get(key) : undefined;
-  if (measured !== undefined) {
-    return { tokens: measured, measured: true };
+  const measuredEntry = key != null ? staticPrefixTokens.get(key) : undefined;
+  // Read-time bound: an entry whose count is implausible for the ACTIVE
+  // context (e.g. measured under a larger nCtx) is not trusted for the
+  // ceiling decision — the caller falls back to the estimator instead.
+  const measuredTokens = staticPrefixTokensForActiveNCtx(
+    measuredEntry ?? null,
+    getActiveEngineNCtx(),
+  );
+  if (measuredTokens !== null) {
+    return { tokens: measuredTokens, measured: true };
   }
   const tokens = estimateStaticPrefixTokens(input.systemText, input.tools);
   try {
@@ -884,7 +905,9 @@ export function resolvedStaticPrefixTokens(input: {
             ? "model_identity_unavailable"
             : staticPrefixTokensHydrationFailed
               ? "measurement_store_unavailable"
-              : "measurement_not_persisted",
+              : measuredEntry != null
+                ? "measurement_implausible_for_active_nctx"
+                : "measurement_not_persisted",
       })}`,
     );
   } catch {
@@ -976,6 +999,9 @@ export async function queueStaticPrefixPrewarm(
         logPrewarm({ op: "skip", reason: "kv_holds_chat" });
         return;
       }
+      // The prewarm prompt is about to own the native context: any recorded
+      // chat boundary fact / reconcile attempt is stale from here on.
+      invalidateChatKvAlignment();
       const result = await trackCompletion(
         engine.completion({
           messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
@@ -1044,13 +1070,22 @@ export async function queueStaticPrefixPrewarm(
           prefix.tools,
         );
         if (modelIdentity != null) {
-          try {
-            await persistStaticPrefixTokens(
-              staticPrefixMeasurementKey(modelIdentity, prefixIdentity),
-              prefixTokens,
-            );
-          } catch {
-            // The in-memory measurement remains usable for this context.
+          // Write-time plausibility: a count that would leave no verbatim
+          // window under the measuring context is not persisted at all.
+          const measurement = makeStaticPrefixMeasurement(
+            prefixTokens,
+            activeEngineCtx,
+            Date.now(),
+          );
+          if (measurement != null) {
+            try {
+              await persistStaticPrefixTokens(
+                staticPrefixMeasurementKey(modelIdentity, prefixIdentity),
+                measurement,
+              );
+            } catch {
+              // The in-memory measurement remains usable for this context.
+            }
           }
         }
         try {
@@ -1346,10 +1381,6 @@ export function chatKvLastSaveTokens(): number | undefined {
 }
 
 export function getLoadedAssembleBoundary(activeChatId: string): number | null {
-  // A saved window-slide marker means the file may contain a partial turn
-  // after the successful clear. Never expose its ordinary boundary as a live
-  // native start; AppShell will clear/re-anchor first.
-  if (getPendingWindowSlideBoundary(activeChatId) !== null) return null;
   return assembleBoundaryForAlign({
     kvHeld: kvHeldForAssembleWindow({
       kvHoldsChatSession,
@@ -1362,15 +1393,19 @@ export function getLoadedAssembleBoundary(activeChatId: string): number | null {
   });
 }
 
-/** Logical re-anchor recovered from .kvs metadata; never a live-KV claim. */
-export function getPendingWindowSlideBoundary(activeChatId: string): number | null {
+/**
+ * Logical start attempted (post-clear reconcile) for this chat; never a
+ * live-KV claim. AppShell may pin the assemble start to it while the factual
+ * boundary is unknown — the per-send reconcile clear is still required.
+ */
+export function getAttemptedAssembleStart(activeChatId: string): number | null {
   if (
-    pendingWindowSlideBoundary === undefined ||
-    (pendingWindowSlideConvId ?? "") !== (activeChatId ?? "")
+    attemptedAssembleStart === undefined ||
+    (attemptedAssembleConvId ?? "") !== (activeChatId ?? "")
   ) {
     return null;
   }
-  return pendingWindowSlideBoundary;
+  return attemptedAssembleStart;
 }
 
 /**
@@ -1420,10 +1455,18 @@ async function discardChatKvForWindowSlideLocked(
     ramOk = false;
   }
   const ok = diskOk && ramOk;
-  if (ok) {
+  if (ramOk) {
+    // The native cache is empty (or there was no live context): the boundary
+    // fact died with it whatever happened on disk, so a failed .kvs delete
+    // must not leave a fact pointing at a cleared cache.
     markChatKvCleared();
     bakedUserTails = [];
     // Keep bakeUnprefixedHealed: this discard IS the one-shot heal.
+  } else {
+    // A failed clear can leave the cache partially mutated: the boundary fact
+    // is no longer trustworthy even if tokens remain. Keep the hold flag so
+    // the next send reconciles (clears again) before assembling.
+    invalidateChatKvAlignment();
   }
   try {
     console.log(
@@ -2270,8 +2313,8 @@ async function disposeEngineLocked(opts?: {
     dropChatKvHold(true);
     lastAssembleBoundary = undefined;
     lastAssembleConvId = undefined;
-    pendingWindowSlideBoundary = undefined;
-    pendingWindowSlideConvId = undefined;
+    attemptedAssembleStart = undefined;
+    attemptedAssembleConvId = undefined;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     lastCompletionPromptEnvHash = undefined;
@@ -2468,10 +2511,21 @@ export function markKvNonReproducible(
 /** Native chat KV is gone — a later save must not overwrite a kept .kvs. */
 function markChatKvCleared(): void {
   dropChatKvHold(true);
+  invalidateChatKvAlignment();
+}
+
+/**
+ * The native context no longer provably starts at the recorded boundary (it
+ * was cleared, partially mutated, or overwritten by a non-chat prompt).
+ * Erases the boundary fact and any reconcile attempt. Hold-flag and
+ * fingerprint decisions stay with the caller — utility paths drop those under
+ * their own native-empty rules.
+ */
+function invalidateChatKvAlignment(): void {
   lastAssembleBoundary = undefined;
   lastAssembleConvId = undefined;
-  pendingWindowSlideBoundary = undefined;
-  pendingWindowSlideConvId = undefined;
+  attemptedAssembleStart = undefined;
+  attemptedAssembleConvId = undefined;
 }
 
 /**
@@ -2510,8 +2564,7 @@ async function dropHoldAfterOptionalNativeClear(
   });
   dropChatKvHold(nativeEmpty);
   if (nativeEmpty) {
-    lastAssembleBoundary = undefined;
-    lastAssembleConvId = undefined;
+    invalidateChatKvAlignment();
   }
   return nativeEmpty;
 }
@@ -2763,12 +2816,11 @@ export async function saveEngineSession(
       if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
         meta.bakedUserTails = bakedUserTails;
       }
-      meta.assembleBoundary = lastAssembleBoundary ?? 0;
-      if (
-        pendingWindowSlideBoundary !== undefined &&
-        (pendingWindowSlideConvId ?? "") === (conversationId ?? "")
-      ) {
-        meta.windowSlideBoundary = pendingWindowSlideBoundary;
+      // Omit when unknown: a fabricated 0 would hand the next restore a false
+      // "KV starts at the full transcript" fact. Missing reads as unknown and
+      // the held+unknown send reconciles (clears) first.
+      if (lastAssembleBoundary !== undefined) {
+        meta.assembleBoundary = lastAssembleBoundary;
       }
       // Meta after rename, before dropping .bak: a failed meta write must not
       // report success, and the .kvs without meta must not stay (F4).
@@ -3046,11 +3098,13 @@ async function tryLoadEngineSession(
     kvHoldsChatSession = true;
     chatKvDiskCurrent = true;
     noteChatNPast(result?.tokens_loaded);
+    // Missing meta.assembleBoundary reads as unknown (not 0): the restored KV
+    // is held with no start fact, so the next send reconciles before assembly.
     lastAssembleBoundary = sessionAssembleBoundary(stored);
     lastAssembleConvId = convId ?? "";
-    pendingWindowSlideBoundary = sessionWindowSlideBoundary(stored);
-    pendingWindowSlideConvId =
-      pendingWindowSlideBoundary === undefined ? undefined : convId ?? "";
+    // A factual restore supersedes any in-memory reconcile attempt.
+    attemptedAssembleStart = undefined;
+    attemptedAssembleConvId = undefined;
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
@@ -3325,8 +3379,6 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * duration of that prefill instead of a bare "thinking".
    */
   ceilingSlide?: boolean;
-  /** Successful clear start to persist if this re-prefill does not complete. */
-  clearedWindowBoundary?: number;
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
@@ -3339,8 +3391,10 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
-  // The boundary is a promise until a completion adopts it. Do not write it at
-  // the top (that was the a21746e root: a claim made before the native ran).
+  // The boundary is installed only by native evidence (see the finally). Do
+  // not claim it here (that was the a21746e root), and do not erase the prior
+  // same-chat fact either: the absolute start survives appends and
+  // head-preserving trims, so it stays true until a clear or identity loss.
   const pendingAssembleBoundary = sessionAssembleBoundary({
     assembleBoundary: options.assembleBoundary,
   });
@@ -3348,28 +3402,27 @@ export async function streamAssistantTurn(
     typeof options.assembleChatId === "string" && options.assembleChatId.length > 0
       ? options.assembleChatId
       : (getSessionConversationId() ?? "");
-  const clearedWindowBoundary =
-    options.clearedWindowBoundary !== undefined &&
-    Number.isInteger(options.clearedWindowBoundary) &&
-    options.clearedWindowBoundary >= 0
-      ? options.clearedWindowBoundary
-      : undefined;
   // Entire turn (incl. tool rounds) is one FIFO engine job — no concurrent
   // completion with extractMemory / translateText. Tool executeTool stays
   // inside the lock but does not call completion, so no self-deadlock.
   return withEngineJob(async () => {
     // Capture context INSIDE the serialized job (not before waiting).
     const engine = context;
-    // Default: the native boundary is unknown. It is committed only on a
-    // clean completion (see the finally); every early return below leaves it
-    // dropped. A successful preceding clear has its separate metadata marker,
-    // which forces another clear before the next send uses that logical start.
     let assembleOutcome: AssembleBoundaryOutcome = "early_return";
-    lastAssembleBoundary = undefined;
-    lastAssembleConvId = undefined;
-    if (clearedWindowBoundary !== undefined) {
-      pendingWindowSlideBoundary = clearedWindowBoundary;
-      pendingWindowSlideConvId = pendingAssembleConvId;
+    // Monotone per-turn adoption: set by any token callback or a returned
+    // completion with tokens_cached (n_past) > 0. A later round can only
+    // append or trim the tail — it cannot change the absolute start — so one
+    // latch covers the whole turn, including tool ceilings and aborts.
+    let promptAdopted = false;
+    // Held+unknown reconcile: record the start this turn attempts so a killed
+    // re-prefill resumes from the same start instead of drifting back. Never
+    // a native-KV claim; the per-send reconcile clear is still required.
+    if (
+      lastAssembleBoundary === undefined &&
+      typeof pendingAssembleBoundary === "number"
+    ) {
+      attemptedAssembleStart = pendingAssembleBoundary;
+      attemptedAssembleConvId = pendingAssembleConvId;
     }
     const locale: Locale = options.locale;
     const strings = getStrings(locale);
@@ -4112,6 +4165,10 @@ export async function streamAssistantTurn(
               benchOracle,
             ),
             (data: TokenData) => {
+              // A token proves decode began, hence prefill completed and
+              // the native evaluated the prompt from its window start.
+              // Latched before the stop guards: evidence, not UI work.
+              promptAdopted = true;
               // Token callbacks run inside this job — not blocked by the FIFO gate.
               // Always use data.token (incremental sent_count slice). data.content
               // is a CUMULATIVE parse of accumulated text (llama.rn TokenData
@@ -4136,6 +4193,20 @@ export async function streamAssistantTurn(
           ),
         );
         stopStallWatchdog();
+        // Capture adoption evidence before the abort early-return: a stopped
+        // completion still returned n_past (tokens_cached), which proves the
+        // prompt's head tokens were laid from the attempted start.
+        // tokens_evaluated is deliberately not consulted: llama.rn populates
+        // it with the planned prompt length, not decode progress.
+        if (
+          completionAdoptedAssembleStart({
+            tokenCallbackFired: promptAdopted,
+            tokensCached: result?.tokens_cached,
+            contextFull: result?.context_full,
+          })
+        ) {
+          promptAdopted = true;
+        }
         if (aborted) return;
         recordBenchCompletion(result);
         // tokens_cached is n_past in llama.rn — used-token disk gate.
@@ -4477,6 +4548,9 @@ export async function streamAssistantTurn(
                   benchOracle,
                 ),
                 (data: TokenData) => {
+                  // Same adoption evidence as the main loop: any token
+                  // proves the fallback prompt was evaluated from its start.
+                  promptAdopted = true;
                   if (finished || aborted) return;
                   clearPrefillDeadline();
                   stallWatchdog.noteToken();
@@ -4494,6 +4568,15 @@ export async function streamAssistantTurn(
               ),
             );
             stopStallWatchdog();
+            if (
+              completionAdoptedAssembleStart({
+                tokenCallbackFired: promptAdopted,
+                tokensCached: fallbackResult?.tokens_cached,
+                contextFull: fallbackResult?.context_full,
+              })
+            ) {
+              promptAdopted = true;
+            }
             if (aborted) return;
             recordBenchCompletion(fallbackResult);
             emitTurnTelemetry(
@@ -4594,21 +4677,25 @@ export async function streamAssistantTurn(
       // Chat completions leave conversation tokens in the native KV — eligible
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {
-        // Commit the assemble boundary only when a clean completion adopted
-        // it; otherwise drop it. Without a separate successful-clear marker,
-        // the next held send falls back to start 0.
-        // (Separate from kvHoldsChatSession: the KV can hold a partial
-        // prefill while its boundary is unknown.)
-        const committedBoundary = assembleBoundaryAfterTurn({
-          outcome: assembleOutcome,
+        // Adoption installs the attempted start; whole-turn completion is not
+        // the proof. Without adoption the prior factual boundary is retained
+        // untouched — it was never erased at entry, and a mid-turn clear has
+        // already erased it in place, so nothing stale is resurrected.
+        const adopted =
+          promptAdopted && typeof pendingAssembleBoundary === "number";
+        const nextBoundary = assembleBoundaryAfterTurn({
+          prior: lastAssembleBoundary,
           pending: pendingAssembleBoundary,
+          adopted,
         });
-        lastAssembleBoundary = committedBoundary;
-        lastAssembleConvId =
-          committedBoundary === undefined ? undefined : pendingAssembleConvId;
-        if (committedBoundary !== undefined) {
-          pendingWindowSlideBoundary = undefined;
-          pendingWindowSlideConvId = undefined;
+        if (adopted) {
+          lastAssembleBoundary = nextBoundary;
+          lastAssembleConvId = pendingAssembleConvId;
+          // A factual commit supersedes any in-memory reconcile attempt.
+          attemptedAssembleStart = undefined;
+          attemptedAssembleConvId = undefined;
+        } else if (nextBoundary !== undefined) {
+          lastAssembleBoundary = nextBoundary;
         }
         kvHoldsChatSession = true;
         chatKvDiskCurrent = false;
@@ -4877,6 +4964,9 @@ export async function extractMemory(
         } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
           const clearCacheSucceeded = await tryClearNativeChatKv(engine);
           dropChatKvHold(nativeEmptyForHoldDrop({ clearCacheSucceeded }));
+          // The extract completion now owns the native context, cleared or
+          // not: the chat boundary fact and any reconcile attempt are stale.
+          invalidateChatKvAlignment();
         } else {
           // Flag on but nothing to restore (kvHoldsChatSession already false).
           // Skip rather than run a naked extract over whatever is in context.
@@ -4943,9 +5033,16 @@ export async function extractMemory(
           const restored = await restoreNativeSession(engine, restorePath);
           kvHoldsChatSession = restored;
           if (!restored) {
+            // The context now holds the extract prompt (or nothing): the chat
+            // boundary fact is gone whatever the hold/clear outcome is.
+            invalidateChatKvAlignment();
             await dropHoldAfterOptionalNativeClear(engine);
           } else if (tempPath && restorePath === tempPath) {
             chatKvDiskCurrent = false;
+          } else {
+            // Restored from the pooled .kvs, not this turn's snapshot: the
+            // native KV starts at the saved boundary, not the live one.
+            invalidateChatKvAlignment();
           }
         } else {
           dropChatKvHold(
@@ -5095,6 +5192,9 @@ export async function translateText(
     try {
       const clearCacheSucceeded = await tryClearNativeChatKv(engine);
       if (aborted || signal?.aborted || engine !== context) {
+        if (clearCacheSucceeded && engine === context) {
+          invalidateChatKvAlignment();
+        }
         dropChatKvHold(
           nativeEmptyForHoldDrop({
             clearCacheSucceeded: clearCacheSucceeded && engine === context,
@@ -5103,6 +5203,9 @@ export async function translateText(
         return { text: "", truncated };
       }
       dropChatKvHold(nativeEmptyForHoldDrop({ clearCacheSucceeded }));
+      // The translate prompt now owns the native context: the chat boundary
+      // fact and any reconcile attempt are stale regardless of hold flags.
+      invalidateChatKvAlignment();
 
       timer = setTimeout(() => {
         timedOut = true;
@@ -5209,6 +5312,9 @@ export async function completeOnce(
     try {
       const clearCacheSucceeded = await tryClearNativeChatKv(engine);
       if (aborted || signal?.aborted || engine !== context) {
+        if (clearCacheSucceeded && engine === context) {
+          invalidateChatKvAlignment();
+        }
         dropChatKvHold(
           nativeEmptyForHoldDrop({
             clearCacheSucceeded: clearCacheSucceeded && engine === context,
@@ -5219,6 +5325,9 @@ export async function completeOnce(
       }
       dropChatKvHold(nativeEmptyForHoldDrop({ clearCacheSucceeded }));
       chatPrefixGone = clearCacheSucceeded;
+      // The utility prompt now owns the native context: the chat boundary
+      // fact and any reconcile attempt are stale regardless of hold flags.
+      invalidateChatKvAlignment();
 
       timer = setTimeout(() => {
         timedOut = true;
