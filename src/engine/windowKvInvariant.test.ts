@@ -127,6 +127,18 @@ describe("decideAssembleWindowAction", () => {
     ).toEqual({ slide: true, discard: true });
   });
 
+  test("ciswire: pending re-anchor clears live KV even below the ceiling", () => {
+    expect(
+      decideAssembleWindowAction({
+        budgetRebuild: false,
+        forceRebuild: false,
+        kvHoldsChatSession: true,
+        anchored: false,
+        pendingWindowSlide: true,
+      }),
+    ).toEqual({ slide: true, discard: true });
+  });
+
   test("ciswire: cold ceiling slide slides without discarding", () => {
     expect(
       decideAssembleWindowAction({
@@ -701,5 +713,18 @@ describe("windowSlideDiscardModelId", () => {
   test("empty id is skipped (discardChatKvForWindowSlide returns false)", () => {
     expect(windowSlideDiscardModelId("")).toBeNull();
     expect(windowSlideDiscardModelId("lfm2.5-2.6b")).toBe("lfm2.5-2.6b");
+  });
+});
+
+describe("shouldDiscardKvForSlide", () => {
+  test("a pending marker re-anchors even when the target did not advance", () => {
+    expect(
+      shouldDiscardKvForSlide({
+        discard: true,
+        previousBoundaryIndex: 8,
+        nextBoundaryIndex: 8,
+        reanchor: true,
+      }),
+    ).toBe(true);
   });
 });

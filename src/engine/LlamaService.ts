@@ -1,4 +1,5 @@
 import { AppState, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   addNativeLogListener,
@@ -162,6 +163,7 @@ import {
   buildKvDiagPayload,
   sessionNativeErrorReason,
   sessionAssembleBoundary,
+  sessionWindowSlideBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
   sessionNativeSaveCoversNPast,
   shouldSaveSession,
@@ -241,10 +243,13 @@ import {
   classifyPrewarmResult,
   computePrewarmPrefixHash,
   estimateStaticPrefixTokens,
+  parseStaticPrefixMeasurements,
   planPrefixInputChange,
+  serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
+  staticPrefixMeasurementKey,
   staticPrefixIdentity,
 } from "./prefixPrewarm";
 import {
@@ -310,6 +315,13 @@ let kvHoldsChatSession = false;
 /** Assemble start index of the live chat KV. Undefined when KV is not held. */
 let lastAssembleBoundary: number | undefined;
 let lastAssembleConvId: string | undefined;
+/**
+ * Successful-clear marker for a window slide. This is not a live-KV boundary:
+ * if the following turn does not complete, the next send must clear again
+ * before using this start. It is persisted in SessionMeta, beside the .kvs.
+ */
+let pendingWindowSlideBoundary: number | undefined;
+let pendingWindowSlideConvId: string | undefined;
 /**
  * Last known chat KV used-token count (n_past). llama.rn exposes this as
  * completion tokens_cached and loadSession tokens_loaded. Disk-gate input;
@@ -782,16 +794,51 @@ function resolvePrewarmPrefix(
   };
 }
 
-// Memo for the measured static-prefix token count. Keyed on context identity
-// (the count belongs to THIS model's tokenizer and template — a reload must
-// re-measure) plus the exact prefix identity string, not its djb2: a hash
-// collision would hand the guard another prefix's count. It asserts nothing
-// about live KV state: a pure function of (context, prefix inputs).
-let staticPrefixTokensCache: {
-  ctx: LlamaContext;
-  key: string;
-  tokens: number;
-} | null = null;
+const STATIC_PREFIX_TOKENS_STORAGE_KEY = "kalsa.engine.staticPrefixTokens.v1";
+/** Measured count, persisted across native-context reloads. */
+const staticPrefixTokens = new Map<string, number>();
+let staticPrefixTokensHydrated = false;
+let staticPrefixTokensHydrationFailed = false;
+let staticPrefixTokensHydration: Promise<void> | null = null;
+let staticPrefixTokensWriteChain: Promise<void> = Promise.resolve();
+
+function staticPrefixModelIdentity(): string | null {
+  if (!activeModelId) return null;
+  return JSON.stringify({
+    modelId: activeModelId,
+    modelFileId: activeModelFileId ?? "",
+    engineBuild: activeEngineBuild ?? "",
+  });
+}
+
+async function hydrateStaticPrefixTokens(): Promise<void> {
+  if (staticPrefixTokensHydrated) return;
+  if (staticPrefixTokensHydration) return staticPrefixTokensHydration;
+  staticPrefixTokensHydration = AsyncStorage.getItem(STATIC_PREFIX_TOKENS_STORAGE_KEY)
+    .then((raw) => {
+      for (const [key, tokens] of parseStaticPrefixMeasurements(raw)) {
+        staticPrefixTokens.set(key, tokens);
+      }
+      staticPrefixTokensHydrated = true;
+    })
+    .catch(() => {
+      staticPrefixTokensHydrationFailed = true;
+      staticPrefixTokensHydrated = true;
+    });
+  return staticPrefixTokensHydration;
+}
+
+function persistStaticPrefixTokens(key: string, tokens: number): Promise<void> {
+  staticPrefixTokens.set(key, tokens);
+  const write = staticPrefixTokensWriteChain.then(async () => {
+    await AsyncStorage.setItem(
+      STATIC_PREFIX_TOKENS_STORAGE_KEY,
+      serializeStaticPrefixMeasurements(staticPrefixTokens),
+    );
+  });
+  staticPrefixTokensWriteChain = write.catch(() => undefined);
+  return write;
+}
 
 /**
  * Synchronous read of the measured static-prefix token count for this exact
@@ -813,19 +860,37 @@ export function resolvedStaticPrefixTokens(input: {
   systemText: string;
   tools: ReadonlyArray<EngineTool> | null | undefined;
 }): { tokens: number; measured: boolean } {
-  const key = staticPrefixIdentity(input.locale, input.systemText, input.tools);
-  const ctx = context;
-  if (
-    ctx &&
-    staticPrefixTokensCache?.ctx === ctx &&
-    staticPrefixTokensCache.key === key
-  ) {
-    return { tokens: staticPrefixTokensCache.tokens, measured: true };
+  const prefixIdentity = staticPrefixIdentity(
+    input.locale,
+    input.systemText,
+    input.tools,
+  );
+  const modelIdentity = staticPrefixModelIdentity();
+  const key =
+    modelIdentity == null
+      ? null
+      : staticPrefixMeasurementKey(modelIdentity, prefixIdentity);
+  const measured = key != null ? staticPrefixTokens.get(key) : undefined;
+  if (measured !== undefined) {
+    return { tokens: measured, measured: true };
   }
-  return {
-    tokens: estimateStaticPrefixTokens(input.systemText, input.tools),
-    measured: false,
-  };
+  const tokens = estimateStaticPrefixTokens(input.systemText, input.tools);
+  try {
+    console.log(
+      `KALSA_PREFIX_FALLBACK ${JSON.stringify({
+        tokens,
+        reason:
+          modelIdentity == null
+            ? "model_identity_unavailable"
+            : staticPrefixTokensHydrationFailed
+              ? "measurement_store_unavailable"
+              : "measurement_not_persisted",
+      })}`,
+    );
+  } catch {
+    // telemetry must never throw
+  }
+  return { tokens, measured: false };
 }
 
 /**
@@ -972,15 +1037,22 @@ export async function queueStaticPrefixPrewarm(
       // audit FAIL 2026-09-14).
       const prefixTokens = Math.max(tokensCached, tokensEvaluated);
       if (Number.isFinite(prefixTokens) && prefixTokens > 0) {
-        staticPrefixTokensCache = {
-          ctx: engine,
-          key: staticPrefixIdentity(
-            locale,
-            prefix.messages[0]?.content ?? "",
-            prefix.tools,
-          ),
-          tokens: prefixTokens,
-        };
+        const modelIdentity = staticPrefixModelIdentity();
+        const prefixIdentity = staticPrefixIdentity(
+          locale,
+          prefix.messages[0]?.content ?? "",
+          prefix.tools,
+        );
+        if (modelIdentity != null) {
+          try {
+            await persistStaticPrefixTokens(
+              staticPrefixMeasurementKey(modelIdentity, prefixIdentity),
+              prefixTokens,
+            );
+          } catch {
+            // The in-memory measurement remains usable for this context.
+          }
+        }
         try {
           console.log(
             `KALSA_PREFIX_MEASURED ${JSON.stringify({ tokens: prefixTokens })}`,
@@ -1274,6 +1346,10 @@ export function chatKvLastSaveTokens(): number | undefined {
 }
 
 export function getLoadedAssembleBoundary(activeChatId: string): number | null {
+  // A saved window-slide marker means the file may contain a partial turn
+  // after the successful clear. Never expose its ordinary boundary as a live
+  // native start; AppShell will clear/re-anchor first.
+  if (getPendingWindowSlideBoundary(activeChatId) !== null) return null;
   return assembleBoundaryForAlign({
     kvHeld: kvHeldForAssembleWindow({
       kvHoldsChatSession,
@@ -1284,6 +1360,17 @@ export function getLoadedAssembleBoundary(activeChatId: string): number | null {
     activeConv: activeChatId,
     boundary: lastAssembleBoundary,
   });
+}
+
+/** Logical re-anchor recovered from .kvs metadata; never a live-KV claim. */
+export function getPendingWindowSlideBoundary(activeChatId: string): number | null {
+  if (
+    pendingWindowSlideBoundary === undefined ||
+    (pendingWindowSlideConvId ?? "") !== (activeChatId ?? "")
+  ) {
+    return null;
+  }
+  return pendingWindowSlideBoundary;
 }
 
 /**
@@ -1600,6 +1687,9 @@ export function initEngine(
       );
     }
     const strings = getStrings(options.locale);
+    // Hydrate before any send can reach the synchronous ceiling guard. This is
+    // storage I/O only; the guard itself remains await-free and native-free.
+    await hydrateStaticPrefixTokens();
     const engineCtx =
       typeof options.nCtx === "number" && Number.isFinite(options.nCtx)
         ? options.nCtx
@@ -2180,6 +2270,8 @@ async function disposeEngineLocked(opts?: {
     dropChatKvHold(true);
     lastAssembleBoundary = undefined;
     lastAssembleConvId = undefined;
+    pendingWindowSlideBoundary = undefined;
+    pendingWindowSlideConvId = undefined;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     lastCompletionPromptEnvHash = undefined;
@@ -2378,6 +2470,8 @@ function markChatKvCleared(): void {
   dropChatKvHold(true);
   lastAssembleBoundary = undefined;
   lastAssembleConvId = undefined;
+  pendingWindowSlideBoundary = undefined;
+  pendingWindowSlideConvId = undefined;
 }
 
 /**
@@ -2670,6 +2764,12 @@ export async function saveEngineSession(
         meta.bakedUserTails = bakedUserTails;
       }
       meta.assembleBoundary = lastAssembleBoundary ?? 0;
+      if (
+        pendingWindowSlideBoundary !== undefined &&
+        (pendingWindowSlideConvId ?? "") === (conversationId ?? "")
+      ) {
+        meta.windowSlideBoundary = pendingWindowSlideBoundary;
+      }
       // Meta after rename, before dropping .bak: a failed meta write must not
       // report success, and the .kvs without meta must not stay (F4).
       if (!(await writeSessionMeta(stem, meta))) {
@@ -2948,6 +3048,9 @@ async function tryLoadEngineSession(
     noteChatNPast(result?.tokens_loaded);
     lastAssembleBoundary = sessionAssembleBoundary(stored);
     lastAssembleConvId = convId ?? "";
+    pendingWindowSlideBoundary = sessionWindowSlideBoundary(stored);
+    pendingWindowSlideConvId =
+      pendingWindowSlideBoundary === undefined ? undefined : convId ?? "";
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
@@ -3222,6 +3325,8 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * duration of that prefill instead of a bare "thinking".
    */
   ceilingSlide?: boolean;
+  /** Successful clear start to persist if this re-prefill does not complete. */
+  clearedWindowBoundary?: number;
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
@@ -3243,6 +3348,12 @@ export async function streamAssistantTurn(
     typeof options.assembleChatId === "string" && options.assembleChatId.length > 0
       ? options.assembleChatId
       : (getSessionConversationId() ?? "");
+  const clearedWindowBoundary =
+    options.clearedWindowBoundary !== undefined &&
+    Number.isInteger(options.clearedWindowBoundary) &&
+    options.clearedWindowBoundary >= 0
+      ? options.clearedWindowBoundary
+      : undefined;
   // Entire turn (incl. tool rounds) is one FIFO engine job — no concurrent
   // completion with extractMemory / translateText. Tool executeTool stays
   // inside the lock but does not call completion, so no self-deadlock.
@@ -3251,11 +3362,15 @@ export async function streamAssistantTurn(
     const engine = context;
     // Default: the native boundary is unknown. It is committed only on a
     // clean completion (see the finally); every early return below leaves it
-    // dropped, so getLoadedAssembleBoundary yields null/0 and the next held
-    // send re-prefills from the full history instead of matching a stale B.
+    // dropped. A successful preceding clear has its separate metadata marker,
+    // which forces another clear before the next send uses that logical start.
     let assembleOutcome: AssembleBoundaryOutcome = "early_return";
     lastAssembleBoundary = undefined;
     lastAssembleConvId = undefined;
+    if (clearedWindowBoundary !== undefined) {
+      pendingWindowSlideBoundary = clearedWindowBoundary;
+      pendingWindowSlideConvId = pendingAssembleConvId;
+    }
     const locale: Locale = options.locale;
     const strings = getStrings(locale);
     if (!engine) {
@@ -4480,7 +4595,8 @@ export async function streamAssistantTurn(
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {
         // Commit the assemble boundary only when a clean completion adopted
-        // it; otherwise drop it so the next held send falls back to start 0.
+        // it; otherwise drop it. Without a separate successful-clear marker,
+        // the next held send falls back to start 0.
         // (Separate from kvHoldsChatSession: the KV can hold a partial
         // prefill while its boundary is unknown.)
         const committedBoundary = assembleBoundaryAfterTurn({
@@ -4490,6 +4606,10 @@ export async function streamAssistantTurn(
         lastAssembleBoundary = committedBoundary;
         lastAssembleConvId =
           committedBoundary === undefined ? undefined : pendingAssembleConvId;
+        if (committedBoundary !== undefined) {
+          pendingWindowSlideBoundary = undefined;
+          pendingWindowSlideConvId = undefined;
+        }
         kvHoldsChatSession = true;
         chatKvDiskCurrent = false;
         // Mark this prefix hot so a later ensure() does not wipe chat KV

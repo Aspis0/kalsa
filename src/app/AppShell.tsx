@@ -129,6 +129,7 @@ import {
   getActiveEngineNCtx,
   getActiveModelId,
   getLoadedAssembleBoundary,
+  getPendingWindowSlideBoundary,
   initEngine,
   invalidateConversationSessions,
   invalidateEngineSession,
@@ -5313,6 +5314,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             let boundaryForAssemble = 0;
             // Set when this send follows a deliberate ceiling slide (below).
             let windowSlideForCeiling = false;
+            let clearedWindowBoundary: number | undefined;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
             // threads / ubatch / n_ctx already get. A bench override still wins,
@@ -5333,6 +5335,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               lastSaveTokens,
             });
             const loadedB = getLoadedAssembleBoundary(chatId);
+            const pendingWindowSlide = getPendingWindowSlideBoundary(chatId);
             // Digest share shrinks the verbatim window. While live KV still
             // holds the full chat, that drop is n_common=0 (f441b3d T20C t10:
             // embd=7189 text_tokens=4173 n_common=0 = WINDOW_SHARE_WITH_DIGEST).
@@ -5606,6 +5609,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 kvHoldsChatSession: kvHeld,
                 anchored: anchoredOn,
                 ceilingCrossed,
+                pendingWindowSlide: pendingWindowSlide !== null,
               });
               let slideOk = windowAction.slide;
               // A slide is only worth its destructive half — deleting the .kvs
@@ -5617,7 +5621,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               let slideBlocked = false;
               // The gate compares the two real assemble starts: anchored's
               // persisted boundary, ciswire's clamped/trusted window start.
-              const previousStart = anchoredOn ? pinnedStart : legacyWindowStart;
+              const previousStart =
+                pendingWindowSlide ?? (anchoredOn ? pinnedStart : legacyWindowStart);
               if (windowAction.slide) {
                 // At the ceiling the profile's charBudget is exactly what
                 // cannot help (it is Infinity for attachment turns), so derive
@@ -5664,6 +5669,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     discard: windowAction.discard,
                     previousBoundaryIndex: previousStart,
                     nextBoundaryIndex: nextStart,
+                    reanchor: pendingWindowSlide !== null,
                   })
                 ) {
                   slideOk = await discardChatKvForWindowSlide(
@@ -5684,12 +5690,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   })
                 ) {
                   state = nextState;
-                  if (windowAction.discard && !anchoredOn) {
+                  if (windowAction.discard && slideOk) {
+                    clearedWindowBoundary = nextStart;
+                  }
+                  if (!anchoredOn && (windowAction.discard || pendingWindowSlide !== null)) {
                     // The live KV was cleared and will be re-prefilled from
                     // this start; ciswire's engine window must use it (its
-                    // boundaryIndex stays the digest bookkeeping value). Next
-                    // turn loadedB is read back from the .kvs this save
-                    // writes, so the advance persists without a second flag.
+                    // boundaryIndex stays the digest bookkeeping value). The
+                    // start is passed to the engine and a successful clear is
+                    // recorded in the .kvs metadata if this turn aborts.
                     legacyWindowStart = nextStart;
                   }
                 }
@@ -6001,6 +6010,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 assembleChatId: chatId,
                 contextMode,
                 ceilingSlide: windowSlideForCeiling,
+                clearedWindowBoundary,
                 onDecodeSample: recordDecodeSample,
                 ciswireFlags: turnCiswireFlags || undefined,
               },

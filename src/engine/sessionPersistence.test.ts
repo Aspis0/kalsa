@@ -25,6 +25,7 @@ import {
   sessionFilePath,
   sessionMetaMismatchField,
   sessionAssembleBoundary,
+  sessionWindowSlideBoundary,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
   sessionKvSaveWouldBeInconsistent,
@@ -274,13 +275,17 @@ describe("session meta marker", () => {
     };
     (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) =>
       key === sessionMetaKey("b12")
-        ? JSON.stringify({ ...required, assembleBoundary: 12 })
+        ? JSON.stringify({ ...required, assembleBoundary: 12, windowSlideBoundary: 18 })
         : key === sessionMetaKey("b0")
           ? JSON.stringify(required)
           : null,
     );
     expect((await readSessionMeta("b12"))?.assembleBoundary).toBe(12);
+    expect((await readSessionMeta("b12"))?.windowSlideBoundary).toBe(18);
     expect((await readSessionMeta("b0"))?.assembleBoundary).toBe(0);
+    expect((await readSessionMeta("b0"))?.windowSlideBoundary).toBeUndefined();
+    expect(sessionWindowSlideBoundary({ windowSlideBoundary: 18 })).toBe(18);
+    expect(sessionWindowSlideBoundary({ windowSlideBoundary: -1 })).toBeUndefined();
   });
 });
 

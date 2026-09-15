@@ -55,10 +55,12 @@ export function decideAssembleWindowAction(args: {
   kvHoldsChatSession: boolean;
   anchored: boolean;
   ceilingCrossed?: boolean;
+  /** A prior clear was followed by a non-completed turn; re-anchor first. */
+  pendingWindowSlide?: boolean;
 }): { slide: boolean; discard: boolean } {
   const slide = shouldSlideAssembleBoundary({
     budgetRebuild: args.budgetRebuild,
-    forceRebuild: args.forceRebuild,
+    forceRebuild: args.forceRebuild || args.pendingWindowSlide === true,
     kvHoldsChatSession: args.kvHoldsChatSession,
     ceilingCrossed: args.ceilingCrossed,
   });
@@ -66,7 +68,9 @@ export function decideAssembleWindowAction(args: {
     return {
       slide,
       discard:
-        slide && args.ceilingCrossed === true && args.kvHoldsChatSession,
+        slide &&
+        args.kvHoldsChatSession &&
+        (args.ceilingCrossed === true || args.pendingWindowSlide === true),
     };
   }
   return { slide, discard: slide && args.kvHoldsChatSession };
@@ -86,8 +90,13 @@ export function shouldDiscardKvForSlide(args: {
   discard: boolean;
   previousBoundaryIndex: number;
   nextBoundaryIndex: number;
+  /** Clear even when the logical start did not advance: native KV is unknown. */
+  reanchor?: boolean;
 }): boolean {
-  return args.discard && args.nextBoundaryIndex > args.previousBoundaryIndex;
+  return (
+    args.discard &&
+    (args.nextBoundaryIndex > args.previousBoundaryIndex || args.reanchor === true)
+  );
 }
 
 /**
@@ -190,8 +199,9 @@ export function assembleStartForLiveKv(args: {
  * `lastAssembleBoundary` must describe the prompt the native actually
  * evaluated. It is a fact only after a completion adopted the prompt and the
  * turn did not abort. Every other outcome leaves the native KV unknown, so
- * the boundary is dropped (`undefined`) and the next held send falls back to
- * start 0 — a safe full re-prefill, never a stale prefix match.
+ * the boundary is dropped (`undefined`). Without a separate successful-clear
+ * marker, the next held send falls back to start 0 — a safe full re-prefill,
+ * never a stale prefix match.
  */
 export type AssembleBoundaryOutcome =
   | "completed"

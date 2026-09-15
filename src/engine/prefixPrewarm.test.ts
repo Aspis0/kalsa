@@ -4,10 +4,13 @@ import {
   computePrewarmPrefixHash,
   djb2,
   estimateStaticPrefixTokens,
+  parseStaticPrefixMeasurements,
+  serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldWipeKvOnPrefixInputChange,
   staticPrefixIdentity,
+  staticPrefixMeasurementKey,
 } from "./prefixPrewarm";
 
 describe("classifyPrewarmResult", () => {
@@ -126,5 +129,28 @@ describe("estimateStaticPrefixTokens", () => {
     expect(computePrewarmPrefixHash("it", "system", tool("web_search"))).toBe(
       djb2(a),
     );
+  });
+});
+
+describe("persisted static-prefix measurements", () => {
+  test("keys the count by model and exact prefix identity", () => {
+    expect(staticPrefixMeasurementKey("model-a", "prefix-a")).not.toBe(
+      staticPrefixMeasurementKey("model-b", "prefix-a"),
+    );
+    expect(staticPrefixMeasurementKey("model-a", "prefix-a")).not.toBe(
+      staticPrefixMeasurementKey("model-a", "prefix-b"),
+    );
+  });
+
+  test("round-trips valid counts and ignores malformed storage", () => {
+    const map = new Map([
+      [staticPrefixMeasurementKey("model-a", "prefix-a"), 1832],
+      [staticPrefixMeasurementKey("model-b", "prefix-b"), 2048],
+    ]);
+    expect(parseStaticPrefixMeasurements(serializeStaticPrefixMeasurements(map))).toEqual(
+      [...map.entries()],
+    );
+    expect(parseStaticPrefixMeasurements("not-json")).toEqual([]);
+    expect(parseStaticPrefixMeasurements(JSON.stringify({ bad: 0 }))).toEqual([]);
   });
 });

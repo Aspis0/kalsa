@@ -67,6 +67,12 @@ export type SessionMeta = {
    * (full transcript).
    */
   assembleBoundary?: number;
+  /**
+   * Start selected after a successful window clear whose following turn did
+   * not complete. This is a re-anchor marker, not a claim about the saved KV;
+   * the next send must clear again before using it.
+   */
+  windowSlideBoundary?: number;
 };
 
 /**
@@ -523,6 +529,16 @@ export function sessionAssembleBoundary(
   return 0;
 }
 
+/** Missing/invalid marker means no pending window re-anchor. */
+export function sessionWindowSlideBoundary(
+  meta: { windowSlideBoundary?: unknown } | null | undefined,
+): number | undefined {
+  const n = meta?.windowSlideBoundary;
+  return typeof n === "number" && Number.isInteger(n) && Number.isFinite(n) && n >= 0
+    ? n
+    : undefined;
+}
+
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────
 
 export function sessionsDirectory(): string {
@@ -843,6 +859,7 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
     }
     if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     meta.assembleBoundary = sessionAssembleBoundary(parsed);
+    meta.windowSlideBoundary = sessionWindowSlideBoundary(parsed);
     return meta;
   } catch {
     return null;

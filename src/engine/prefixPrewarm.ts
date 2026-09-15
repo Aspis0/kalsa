@@ -83,6 +83,40 @@ export function staticPrefixIdentity(
   });
 }
 
+/** Storage key for one measured prefix, including the model identity. */
+export function staticPrefixMeasurementKey(
+  modelIdentity: string,
+  prefixIdentity: string,
+): string {
+  return JSON.stringify({ modelIdentity, prefixIdentity });
+}
+
+/** Parse persisted measurements without trusting malformed storage. */
+export function parseStaticPrefixMeasurements(
+  raw: string | null | undefined,
+): Array<[string, number]> {
+  try {
+    const parsed = raw == null ? null : JSON.parse(raw) as unknown;
+    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return [];
+    }
+    return Object.entries(parsed).flatMap(([key, value]) =>
+      typeof value === "number" && Number.isFinite(value) && value > 0
+        ? [[key, Math.floor(value)] as [string, number]]
+        : [],
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Serialize the measured-prefix map as a compact JSON object. */
+export function serializeStaticPrefixMeasurements(
+  measurements: ReadonlyMap<string, number>,
+): string {
+  return JSON.stringify(Object.fromEntries(measurements));
+}
+
 /**
  * djb2 over staticPrefixIdentity — unchanged wire behavior.
  */
