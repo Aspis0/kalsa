@@ -146,8 +146,8 @@ pub(crate) struct Asset {
     /// sha256 of the extracted `llama-server` inside the engine archive: the
     /// identity of what we execute, re-checked on every start, because
     /// nothing under the user's directory is trusted by provenance alone.
-    /// Engine rows only; None until filled in, and the build marker's own
-    /// record is used meanwhile.
+    /// Engine rows only: the CUDA runtime archives and the probe model hold
+    /// no server, so theirs stays None with no further comment needed.
     pub(crate) exe_sha256: Option<&'static str>,
 }
 
@@ -169,10 +169,16 @@ impl Asset {
 // verbatim. The digest is what makes a download provably the build we meant:
 // `kalsa-download` renames bytes onto their final name only when size and
 // sha256 both hold.
-// TODO(marco): the engine rows' exe_sha256 — hash the llama-server that comes
-// out of each engine archive once, and fill them in. Until then the build
-// marker records what it extracted, which is honest about accident and honest
-// about its limit.
+// The engine rows' exe_sha256 was measured on 2026-09-15 on a macOS arm64
+// machine: each archive downloaded through `kalsa-download` (which refuses
+// to rename bytes whose size and digest do not hold), extracted with this
+// crate's own extractor, and the server executable hashed — `llama-server`
+// under `llama-b10950/` for the macOS tarballs, `llama-server.exe` at the
+// archive root for the Windows zips. Nothing was executed to learn them: a
+// digest is over bytes, and the archive digest already proves whose bytes.
+// The four Windows engine archives ship the byte-identical server; only
+// their backend libraries differ. Non-engine rows carry no server, so
+// theirs stays None: there is nothing to hash.
 const ASSETS: &[Asset] = &[
     // macOS ships one archive per architecture with Metal and CPU inside,
     // and ships it as a tar.gz.
@@ -183,7 +189,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "858a1e5d8f37751479ba9b23db5f6a3c47aef4cb148c25b7ffdfea76bbc67a4f",
+        ),
         size_bytes: Some(11_145_395),
         sha256: Some("6e15e4b6e6646f247dcac1d1de056366b32a1cf73ae747874df9f84bb822e54b"),
     },
@@ -194,7 +202,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-macos-x64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "6a8e01dc4a888709308eb30fe8aad78b238ee90c10fd48705c1e2d6113e6f1a7",
+        ),
         size_bytes: Some(11_194_463),
         sha256: Some("e4ba7d0c11ebb5bdf0279aa5b2e26c8efb28d9694fe8c0a45d12a37437831c75"),
     },
@@ -205,7 +215,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-win-cpu-x64.zip",
         format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457",
+        ),
         size_bytes: Some(18_426_198),
         sha256: Some("36acf4d8880042beaab9d6a248bd47255988b43049a0a91a79f349c4193b79b9"),
     },
@@ -216,7 +228,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-win-vulkan-x64.zip",
         format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457",
+        ),
         size_bytes: Some(31_673_509),
         sha256: Some("787061f560eb2f14db7c03396cb56e59759b6dfccd162dc341b10cfa3bd5b779"),
     },
@@ -228,7 +242,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-win-cuda-12.4-x64.zip",
         format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457",
+        ),
         size_bytes: Some(254_068_367),
         sha256: Some("b184393e8dc54fdcca4f4de5059b02d143d2dc813e7cd5d900d1b494d127004c"),
     },
@@ -252,7 +268,9 @@ const ASSETS: &[Asset] = &[
         home: RELEASE_BASE,
         file: "llama-b10950-bin-win-cuda-13.3-x64.zip",
         format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
+        exe_sha256: Some(
+            "55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457",
+        ),
         size_bytes: Some(149_703_269),
         sha256: Some("f960ae6651bc832c3ddb59e1afbf2c9e8cb6f63cbe125997596ab93b56db8011"),
     },
@@ -373,6 +391,28 @@ mod tests {
                 }
                 (None, None) => {}
                 _ => panic!("{} carries half a promise", asset.file),
+            }
+        }
+    }
+
+    #[test]
+    fn recorded_executables_are_shaped_like_sha256_and_live_on_engine_rows() {
+        // The exe digest is held to the same shape as the archive digest —
+        // 64 lowercase hex characters — and only engine rows may carry one:
+        // the CUDA runtime archives and the probe model hold no server, so
+        // a digest there would bless bytes that are never executed.
+        for asset in ASSETS {
+            match asset.exe_sha256 {
+                Some(sha) => {
+                    assert_eq!(asset.role, Role::Engine, "{} carries an exe digest", asset.file);
+                    assert!(
+                        sha.len() == 64
+                            && sha.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')),
+                        "{} is not 64 lowercase hex characters: {sha}",
+                        asset.file
+                    );
+                }
+                None => {}
             }
         }
     }
