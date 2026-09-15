@@ -27,21 +27,27 @@
 //! * `event` — every ladder move is announced, carrying which step and why as
 //!   data the UI branches on. A silent downgrade is the same defect as a
 //!   truncated message with no marker: the user finds out later, on their
-//!   own, and stops trusting the thing;
-//! * `idle` — idle is the normal state. The model loads on demand and is
-//!   released after inactivity, because a machine that is idle is a machine
-//!   that is not being destroyed.
+//!   own, and stops trusting the thing.
+//!
+//! Release timing is *not* decided here. The server owns it outright:
+//! kalsa-launch renders `--sleep-idle-seconds`, and that flag is the only
+//! unload clock in the product. This crate ran a second one once — ten
+//! minutes against the server's five, announcing a release that had already
+//! happened to nobody — and it is gone. Do not add another: when the model
+//! is released, the server's owner reports it through
+//! [`Sentinel::note_unload`], and the idle time before that report was the
+//! machine's chance to cool, which is why the next session starts at full
+//! settings.
 //!
 //! What this crate does not do: no temperature sensors, no WMI, no `/sys`
 //! reads, no vendor SDKs, no process control, no HTTP, no config files, no
 //! async. It never reads a clock either — time is an input ([`Sample::at`],
-//! [`Sentinel::poll`]) — which is what makes it testable without hardware and
+//! [`Sentinel::note_unload`]) — which is what makes it testable without hardware and
 //! honest under review. This crate decides; whoever owns the server process
 //! acts.
 
 mod detector;
 mod event;
-mod idle;
 mod ladder;
 mod sample;
 mod sentinel;
@@ -51,7 +57,6 @@ pub use detector::{
     RECOVER_AFTER_SAMPLES, RECOVER_RATIO, STREAK_GAP_SECONDS,
 };
 pub use event::Event;
-pub use idle::UNLOAD_AFTER_SECONDS;
 pub use ladder::{Step, LADDER};
 pub use sample::Sample;
 pub use sentinel::Sentinel;

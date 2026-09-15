@@ -82,9 +82,10 @@ pub const MINIMUM_STREAK_SPAN_SECONDS: f64 = 90.0;
 /// Evidence has a shelf life: five idle minutes between turns is long enough
 /// for the package to cool and for the user's context to change, so a slow
 /// turn from before the gap is not the same episode as a slow turn after it.
-/// The budget stays below `UNLOAD_AFTER_SECONDS` — the machine may still be
-/// loaded — but past it, "consecutive turns" no longer means "one sustained
-/// state".
+/// The budget sits at, not past, the server's own sleep interval
+/// (`--sleep-idle-seconds`, owned by kalsa-launch and the only unload clock
+/// in the product): past it the model has necessarily reloaded, so
+/// "consecutive turns" can no longer mean "one sustained state".
 pub const STREAK_GAP_SECONDS: f64 = 300.0;
 
 /// The detector's summary of the machine, as of the last verdict.

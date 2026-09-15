@@ -267,13 +267,14 @@ fn a_real_engine_on_a_cool_machine_stays_sustaining() {
         "a healthy machine moved the ladder: {all_events:?}"
     );
 
-    // And the idle policy still sees the silence after the last turn.
+    // And the idle policy still sees the silence after the last turn: the
+    // owner reports the release, and the sentinel resets for a fresh session.
     let last_at = turns.last().expect("measured turns").0;
     assert_eq!(
-        sentinel.poll(last_at + 600.0),
-        vec![Event::Unload {
+        sentinel.note_unload(last_at + 600.0),
+        Some(Event::Unload {
             idle_seconds: 600.0,
             from: Step::Full,
-        }],
+        }),
     );
 }

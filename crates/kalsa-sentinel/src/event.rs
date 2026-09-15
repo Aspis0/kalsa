@@ -22,8 +22,10 @@ pub enum Event {
     /// the caller's decision. Announced once per fall to the floor, not on
     /// every confirming turn — the floor does not move.
     Exhausted { at: Step },
-    /// Idle past the unload budget: the model is released. `from` is the rung
-    /// it ran at when released; the next session starts at [`Step::Full`],
+    /// The server's owner saw the model released after this much idle: the
+    /// sentinel runs no clock of its own, so this event only ever follows a
+    /// `note_unload` report, never time passing. `from` is the rung it ran
+    /// at when released; the next session starts at [`Step::Full`],
     /// because the idle time was the machine's chance to cool.
     Unload { idle_seconds: f64, from: Step },
 }

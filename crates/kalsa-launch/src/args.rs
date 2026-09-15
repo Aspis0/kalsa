@@ -28,6 +28,13 @@ pub(crate) const ALL_LAYERS: &str = "all";
 /// /props and /models do not reset the timer, so a polling phone does not
 /// keep the machine warm (plan, section 7). 300 s matches the keep-alive
 /// default the plan cites for ollama.
+///
+/// **The single owner of release timing.** This flag is the only unload
+/// clock in the product: the model lives or dies by it. Nothing else —
+/// least of all the sentinel, which must never run a second clock that can
+/// only disagree — decides when an idle machine stops holding the model.
+/// The sentinel learns of a release from the server's owner (its
+/// `note_unload`); it never predicts one.
 pub(crate) const IDLE_UNLOAD_SECONDS: u32 = 300;
 
 /// How the KV cache is stored: q8_0 for both tensors, one byte per element.

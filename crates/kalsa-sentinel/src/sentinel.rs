@@ -1,15 +1,14 @@
 //! The sentinel itself: samples in, decisions and announcements out.
 //!
-//! It ties the detector's verdicts to the ladder's rungs and to the idle
-//! policy, and it is the only type a caller needs. Everything is driven from
-//! outside: [`Sentinel::observe`] for a finished turn's throughput,
-//! [`Sentinel::poll`] for time passing without one. Nothing here reads a
+//! It ties the detector's verdicts to the ladder's rungs, and it is the only
+//! type a caller needs. Everything is driven from outside: [`Sentinel::observe`]
+//! for a finished turn's throughput, [`Sentinel::note_unload`] for the
+//! server owner reporting the model released. Nothing here reads a
 //! clock, opens a socket or touches a process — the caller who owns the
 //! server acts on the [`Event`]s.
 
 use crate::detector::{Detector, Level, Verdict};
 use crate::event::Event;
-use crate::idle;
 use crate::ladder::{Ladder, Step};
 use crate::sample::Sample;
 
@@ -106,27 +105,33 @@ impl Sentinel {
         events
     }
 
-    /// Time passing without a turn. Call it from a UI tick or before serving
-    /// a request; it is how the sentinel learns that the machine is idle,
-    /// and idle is the state the machine should be in almost all the time.
-    pub fn poll(&mut self, now: f64) -> Vec<Event> {
-        let mut events = Vec::new();
-        if self.loaded && idle::unload_due(self.last_activity, now) {
-            events.push(Event::Unload {
-                idle_seconds: now - self.last_activity,
-                from: self.ladder.step(),
-            });
-            // Release is also a reset: the machine has had its chance to
-            // cool, so the next session starts at full settings and the
-            // detector re-learns from live samples. Three slow turns will
-            // re-ease it if the optimism was wrong, and every step down is
-            // announced — a reset must never be a silent downgrade.
-            self.loaded = false;
-            self.ladder.reset();
-            self.detector.reset();
-            self.floor_announced = false;
+    /// The server's owner saw the model released: record it and reset for a
+    /// fresh session. The sentinel runs no unload clock of its own — the
+    /// server's `--sleep-idle-seconds` is the only one, and a second clock
+    /// here could only disagree about when the release happened — so idle
+    /// time alone never releases anything; only this call does. Returns the
+    /// announcement, or nothing when the model was already released (a
+    /// double report is the owner's bookkeeping slipping, not a second
+    /// release).
+    ///
+    /// Release is also a reset: the idle time before the report was the
+    /// machine's chance to cool, so the next session starts at full settings
+    /// and the detector re-learns from live samples. Three slow turns will
+    /// re-ease it if the optimism was wrong, and every step down is
+    /// announced — a reset must never be a silent downgrade.
+    pub fn note_unload(&mut self, now: f64) -> Option<Event> {
+        if !self.loaded {
+            return None;
         }
-        events
+        let event = Event::Unload {
+            idle_seconds: (now - self.last_activity).max(0.0),
+            from: self.ladder.step(),
+        };
+        self.loaded = false;
+        self.ladder.reset();
+        self.detector.reset();
+        self.floor_announced = false;
+        Some(event)
     }
 }
 
@@ -376,26 +381,59 @@ mod tests {
     }
 
     #[test]
-    fn ten_idle_minutes_release_the_model() {
+    fn a_reported_unload_releases_and_resets() {
         let mut sentinel = sentinel();
         assert!(sentinel.observe(s(1000.0, 1.0)).is_empty());
-        assert!(sentinel.poll(1599.0).is_empty());
         assert_eq!(
-            sentinel.poll(1600.0),
-            vec![Event::Unload {
+            sentinel.note_unload(1600.0),
+            Some(Event::Unload {
                 idle_seconds: 600.0,
                 from: Step::Full
-            }]
+            })
         );
-        // Nothing left to release.
-        assert!(sentinel.poll(2000.0).is_empty());
+        // A double report is the owner's bookkeeping slipping, not a second
+        // release: nothing left to release.
+        assert_eq!(sentinel.note_unload(2000.0), None);
     }
 
     #[test]
     fn a_model_loaded_but_never_used_still_gets_released() {
         let mut sentinel = sentinel();
-        assert!(sentinel.poll(599.0).is_empty());
-        assert_eq!(sentinel.poll(600.0).len(), 1);
+        assert_eq!(
+            sentinel.note_unload(600.0),
+            Some(Event::Unload {
+                idle_seconds: 600.0,
+                from: Step::Full
+            })
+        );
+    }
+
+    #[test]
+    fn time_passing_without_a_report_releases_nothing() {
+        // The decision this pins: the sentinel runs no unload clock, so two
+        // idle hours with no owner report change nothing — no release, no
+        // reset. A second clock here could only disagree with the server's
+        // own about when the model left memory.
+        let mut sentinel = sentinel();
+        cliff_to_fewer_threads(&mut sentinel);
+        // Two hours later the next turn arrives: the gap breaks the old
+        // streaks, but the machine is still eased and still Degraded — only
+        // a report resets that.
+        assert!(sentinel.observe(s(7800.0, 1.0)).is_empty());
+        assert_eq!(sentinel.step(), Step::FewerThreads);
+        assert_eq!(sentinel.level(), Level::Degraded);
+        // And the guard still works: the post-gap turn starts new evidence,
+        // good turns re-prove the machine and hand the rung back.
+        for t in [7920.0, 8040.0] {
+            assert!(sentinel.observe(s(t, 1.0)).is_empty());
+        }
+        assert_eq!(
+            sentinel.observe(s(8160.0, 1.0)),
+            vec![Event::Restored {
+                from: Step::FewerThreads,
+                to: Step::Full
+            }]
+        );
     }
 
     #[test]
@@ -403,11 +441,11 @@ mod tests {
         let mut sentinel = sentinel();
         cliff_to_fewer_threads(&mut sentinel);
         assert_eq!(
-            sentinel.poll(1200.0),
-            vec![Event::Unload {
+            sentinel.note_unload(1200.0),
+            Some(Event::Unload {
                 idle_seconds: 600.0,
                 from: Step::FewerThreads
-            }]
+            })
         );
         // The user comes back: the model reloads on demand and the next turn
         // is a fresh session at full settings.
@@ -437,18 +475,30 @@ mod tests {
                 to: Step::FewerThreads
             }]
         );
-        // And the idle clock runs from the broken turn, not before it.
-        assert!(sentinel.poll(780.0).is_empty());
-        assert_eq!(sentinel.poll(1080.0).len(), 1);
+        // And the idle clock ran past the broken turn to the last real one:
+        // the report 600 s later says so.
+        assert_eq!(
+            sentinel.note_unload(1080.0),
+            Some(Event::Unload {
+                idle_seconds: 600.0,
+                from: Step::FewerThreads
+            })
+        );
     }
 
     #[test]
     fn a_sample_from_before_the_previous_one_is_dropped() {
         let mut sentinel = sentinel();
         assert!(sentinel.observe(s(1000.0, 1.0)).is_empty());
-        // The clock went backwards: dropped whole, idle clock untouched.
+        // The clock went backwards: dropped whole, idle clock untouched —
+        // the report still measures from the kept turn.
         assert!(sentinel.observe(s(900.0, 1.0)).is_empty());
-        assert!(sentinel.poll(1500.0).is_empty());
-        assert_eq!(sentinel.poll(1600.0).len(), 1);
+        assert_eq!(
+            sentinel.note_unload(1600.0),
+            Some(Event::Unload {
+                idle_seconds: 600.0,
+                from: Step::Full
+            })
+        );
     }
 }
