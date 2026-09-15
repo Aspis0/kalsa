@@ -1,9 +1,10 @@
 # Energy metric schema
 
 Shared contract for the on-device energy harness (sampler, aggregator, and the
-reserved per-rep phase splitter). Code lives in `scripts/energySchema.mjs`
+per-rep phase splitter). Code lives in `scripts/energySchema.mjs`
 (parsing + integration + export row), `scripts/energy-sample.sh` (producer),
-`scripts/energyAggregate.mjs` (between-arm table + export writer).
+`scripts/energyAggregate.mjs` (between-arm table + export writer), and
+`scripts/energyPhaseSplit.mjs` (per-rep prefill/decode disaggregation).
 
 ## Read this first: the metric is RELATIVE
 
@@ -49,25 +50,81 @@ CSV for post-hoc verification of any window.
 This schema is **frozen**: the sampler writes exactly these columns; new
 signals mean a v2 with a new header, not edits here.
 
-## Per-rep schema `kalsa-energy-rep-v1` — RESERVED (not yet produced)
+## Per-rep schema `kalsa-energy-rep-v1` — PRODUCED by energyPhaseSplit.mjs
 
 One row per rep, joining the sampler CSV with the rep boundary markers
-(`${stem}.marks`, device uptime) so prefill and decode energy separate. The
-schema is reserved now so the exporter and any downstream consumer can rely
-on it; the columns will be filled by `scripts/energyPhaseSplit.mjs`, which
-does not exist yet.
+(`${stem}.marks`) so prefill and decode energy separate.
+`node scripts/energyPhaseSplit.mjs <dir> [stem ...] [--prompt-tokens N]
+[--gen-tokens N]` writes `<dir>/<stem>.phases.csv` and prints a markdown
+table per stem.
 
-| column             | unit | meaning                                        |
-|--------------------|------|------------------------------------------------|
-| `prefill_s`        | s    | duration of the prefill segment of the rep      |
-| `decode_s`         | s    | duration of the decode segment of the rep       |
-| `j_prefill`        | J    | integrated energy over the prefill segment      |
-| `j_decode`         | J    | integrated energy over the decode segment       |
-| `j_per_tok_decode` | J/tok| `j_decode / gen_tokens` (relative metric, see above) |
-| `prompt_tokens`    | tok  | prompt length of the rep                        |
-| `gen_tokens`       | tok  | generated tokens of the rep                     |
+Verified inputs, from `device-ngram-spec.sh` and campaign data:
 
-Rows with this schema do not exist yet; producing them is the next phase.
+- `.marks`: one `r<N> <uptime>` line per rep, written AFTER rep N's llama-cli
+  exits — `mark_N` is rep N's **end**, not its start. The value is
+  `/proc/uptime` field 1, the same monotonic device clock as the CSV `t_s`
+  column: joined as-is, **no conversion**.
+- `${stem}_rN.txt`: the run's guaranteed perf info is the single speed line
+  `[ Prompt: X t/s | Generation: Y t/s ]`. Upstream `llama_perf_context_print`
+  lines ("prompt eval time = ... ms / N tokens", "eval time = ... ms / M runs")
+  are used when present; current campaign data contains none.
+
+**Rep windows**: rep 1 = `[first CSV sample, mark_1)`; rep i>1 =
+`[mark_{i-1}, mark_i)`. Samples after the last mark (sampler shutdown lag)
+belong to no rep. Since windows start where the previous rep ended, rep i>1
+contains the harness's inter-rep `sleep 5` and the model load; whatever the
+boundary convention puts before prompt-eval-end lands in the prefill bucket.
+Phase J is therefore a convention, not a clean physical prefill — but
+between-arm deltas of the same phase stay meaningful because every arm gets
+identical arithmetic.
+
+**Boundary math**: prefill ends at `window_start + prompt-eval duration`,
+where prompt-eval duration is the run's own "prompt eval time" ms when the
+perf line exists (preferred: not rounded), else
+`prompt_tokens / prompt_tps` from the speed line; decode takes the remainder.
+`prompt_tokens`/`gen_tokens` must be verifiable — from the run's own perf
+lines, or from `--prompt-tokens`/`--gen-tokens` supplied by the caller (e.g.
+measured once on-device with a verbose llama-cli run; never assume
+gen_tokens == n_predict — EOS can truncate long before). If neither exists
+the phase columns stay empty with a warning; a rep whose .txt is missing or
+has no parsable speed/perf line is skipped. Never a guess.
+
+**Integration**: `energySchema.integrate` on each sub-window (same
+right-Riemann sums as the whole-arm J). The sample interval straddling the
+boundary is attributed to the decode side (an interval belongs to its
+right-endpoint sample), so `j_prefill + j_decode` equals the whole-window J
+exactly and `prefill_s + decode_s = duration`. An interval belongs to its
+right-endpoint sample; the borrowed predecessor sample affects only that one
+interval, while `mean_w_*` are means over the phase's OWN samples.
+
+**Edge uncertainty**: the sampler is ~1 Hz, so each phase edge carries ≤ 1
+sample (~1 s) of attribution uncertainty — up to ~20 J per edge at the sanity
+band's 20 W ceiling, a few J at the G99's typical 2–5 W. Duration per phase
+inherits the same ≤ ~1 s.
+
+| column             | unit  | meaning                                                     |
+|--------------------|-------|-------------------------------------------------------------|
+| `run_id`           | —     | the stem (`${model}_${arm}_${prompt}`)                       |
+| `rep`              | —     | rep number N (joins `_rN.txt` and `rN` marks)                |
+| `window_start_s`   | s     | device uptime of the rep window start (mark_{i-1}; first CSV sample for rep 1) |
+| `duration`         | s     | integrated duration of the whole rep window                  |
+| `prefill_s`        | s     | integrated duration of the prefill segment (empty if the boundary is not derivable or the segment has no samples) |
+| `decode_s`         | s     | integrated duration of the decode segment (same emptiness rule) |
+| `j_prefill`        | J     | integrated energy over the prefill segment                   |
+| `j_decode`         | J     | integrated energy over the decode segment                    |
+| `j_prefill_per_ptok` | J/tok | `j_prefill / prompt_tokens` — only when prompt_tokens is verifiable and the segment has samples; else empty |
+| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens` — only when gen_tokens is verifiable and the segment has samples; else empty (relative metric, see above) |
+| `prompt_tokens`    | tok   | verified prompt length (run's perf line or `--prompt-tokens`); else empty |
+| `gen_tokens`       | tok   | verified generated tokens (run's perf line or `--gen-tokens`); else empty — never assumed from n_predict |
+| `mean_w_prefill`   | W     | mean `\|V*I\|` over the prefill segment's own samples        |
+| `mean_w_decode`    | W     | mean `\|V*I\|` over the decode segment's own samples         |
+| `n_samples_prefill`| —     | CSV samples with `t` strictly before the boundary            |
+| `n_samples_decode` | —     | CSV samples with `t` at/after the boundary                   |
+| `warnings`         | —     | `; `-joined notes (undeterminable boundary, empty segments, degenerate windows) |
+
+Consumer note: `<stem>.phases.csv` lives in the campaign dir but is NOT a
+sampler CSV — `energyAggregate.mjs` lists every `*.csv`, so run the aggregate
+before splitting (or on a dir without `.phases.csv` files).
 
 ## CodeCarbon-compatible export
 
