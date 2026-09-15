@@ -240,10 +240,12 @@ import {
   assembleStaticPrefix,
   classifyPrewarmResult,
   computePrewarmPrefixHash,
+  estimateStaticPrefixTokens,
   planPrefixInputChange,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
+  staticPrefixIdentity,
 } from "./prefixPrewarm";
 import {
   BAKE_FORMAT_B_USER_PREFIX,
@@ -780,6 +782,52 @@ function resolvePrewarmPrefix(
   };
 }
 
+// Memo for the measured static-prefix token count. Keyed on context identity
+// (the count belongs to THIS model's tokenizer and template — a reload must
+// re-measure) plus the exact prefix identity string, not its djb2: a hash
+// collision would hand the guard another prefix's count. It asserts nothing
+// about live KV state: a pure function of (context, prefix inputs).
+let staticPrefixTokensCache: {
+  ctx: LlamaContext;
+  key: string;
+  tokens: number;
+} | null = null;
+
+/**
+ * Synchronous read of the measured static-prefix token count for this exact
+ * prefix identity (locale + systemText + tool schemas). The measurement is
+ * recorded by the prewarm itself, inside the engine FIFO — see the
+ * KALSA_PREFIX_MEASURED record in queueStaticPrefixPrewarm — so this reader
+ * never awaits and never touches the native side. That is deliberate: an
+ * await in the ceiling guard sat between AppShell's capture of
+ * chatId/kvHeld/loadedB and the slide's clear, letting a chat switch clear
+ * the wrong session (TOCTOU, audit FAIL 2026-09-14).
+ *
+ * Unmeasured identity → estimateStaticPrefixTokens, deliberately high and
+ * never 0 (a 0 reserve is the starting bug). The count is the chat-template
+ * render of system + tool schemas: exactly what the send's prompt carries
+ * and the verbatim window's chars do not (S23: est. 1323 vs 1832 prefilled).
+ */
+export function resolvedStaticPrefixTokens(input: {
+  locale: Locale;
+  systemText: string;
+  tools: ReadonlyArray<EngineTool> | null | undefined;
+}): { tokens: number; measured: boolean } {
+  const key = staticPrefixIdentity(input.locale, input.systemText, input.tools);
+  const ctx = context;
+  if (
+    ctx &&
+    staticPrefixTokensCache?.ctx === ctx &&
+    staticPrefixTokensCache.key === key
+  ) {
+    return { tokens: staticPrefixTokensCache.tokens, measured: true };
+  }
+  return {
+    tokens: estimateStaticPrefixTokens(input.systemText, input.tools),
+    measured: false,
+  };
+}
+
 /**
  * Join: do NOT start a second completion. This enqueues via withEngineJob;
  * streamAssistantTurn is also withEngineJob. FIFO is the join — a send that
@@ -916,6 +964,31 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       prewarmPrefixHash = prefix.hash;
+      // The prefill just run IS the static-prefix measure: tokens_cached /
+      // tokens_evaluated are the native's own count of the exact render the
+      // send's KV prefix matches (comparable to KALSA_KVPREFIX text_tokens).
+      // Recorded inside this FIFO job so the ceiling guard reads it
+      // synchronously — no native call, no await on the send path (TOCTOU,
+      // audit FAIL 2026-09-14).
+      const prefixTokens = Math.max(tokensCached, tokensEvaluated);
+      if (Number.isFinite(prefixTokens) && prefixTokens > 0) {
+        staticPrefixTokensCache = {
+          ctx: engine,
+          key: staticPrefixIdentity(
+            locale,
+            prefix.messages[0]?.content ?? "",
+            prefix.tools,
+          ),
+          tokens: prefixTokens,
+        };
+        try {
+          console.log(
+            `KALSA_PREFIX_MEASURED ${JSON.stringify({ tokens: prefixTokens })}`,
+          );
+        } catch {
+          // telemetry must never throw
+        }
+      }
       // Feed the measured static-prefix prefill into the model EMA.
       recordPrefillSample(
         activeModelId ?? "",
@@ -3829,6 +3902,14 @@ export async function streamAssistantTurn(
       // and the turn closes with what it has, visibly, instead of handing the
       // native a prompt it could only answer with ctx_shift.
       let toolRoundCeilingReached = false;
+      // Tool schemas travel OUTSIDE the messages (tools: on the completion,
+      // see below) but inside the prompt: price them, or the round guard
+      // undercounts by ~500 tokens on the default 7-tool set (audit FAIL
+      // 2026-09-14).
+      const toolsPromptChars =
+        hasTools && toolCallingEnabled
+          ? JSON.stringify(options?.tools ?? []).length
+          : 0;
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
         if (round > 0) {
@@ -3838,7 +3919,8 @@ export async function streamAssistantTurn(
           // that started just under it could cross n_ctx here — and the JS
           // window is already assembled, so a slide is impossible. Stop before
           // the next completion and close with what we have.
-          const promptChars = JSON.stringify(currentMessages).length;
+          const promptChars =
+            JSON.stringify(currentMessages).length + toolsPromptChars;
           const nCtx = getActiveEngineNCtx();
           if (toolRoundCrossesCeiling({ round, nCtx, promptChars })) {
             toolRoundCeilingReached = true;
@@ -3849,6 +3931,7 @@ export async function streamAssistantTurn(
                   turnId,
                   round,
                   promptChars,
+                  toolsChars: toolsPromptChars,
                   promptTokens: projectedWindowTokens(promptChars),
                   ceiling: windowCeilingTokens(nCtx),
                 })}`,

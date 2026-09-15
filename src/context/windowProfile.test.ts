@@ -30,6 +30,17 @@ describe("shouldSlideWindowAtCeiling", () => {
     expect(windowCeilingTokens(Number.NaN)).toBe(0);
   });
 
+  it("prices non-window prompt tokens (the system prompt) into the ceiling", () => {
+    // The S23 run of 2026-09-14: 1832 system tokens invisible to the guard.
+    expect(windowCeilingTokens(8192, 1832)).toBe(8192 - WINDOW_RESERVE_TOKENS - 1832);
+    // A reserve that eats the whole ceiling clamps at 0 — never negative, and
+    // the window minimum is windowStartIndex's job, not an underflowed budget.
+    expect(windowCeilingTokens(8192, 100_000)).toBe(0);
+    // A bogus reserve must not raise the ceiling.
+    expect(windowCeilingTokens(8192, -5)).toBe(6144);
+    expect(windowCeilingTokens(8192, Number.NaN)).toBe(6144);
+  });
+
   it("only slides the pinned window, and only above the ceiling", () => {
     const charsAtCeiling = 6144 * WINDOW_CHARS_PER_TOKEN;
     expect(projectedWindowTokens(charsAtCeiling)).toBe(6144);
@@ -68,6 +79,47 @@ describe("shouldSlideWindowAtCeiling", () => {
       }),
     ).toBe(false);
   });
+
+  it("slides when a valid n_ctx is fully consumed by reserve + prefix", () => {
+    // Ceiling 0 used to switch the guard OFF (`ceiling <= 0 → false`) —
+    // standing down at exactly the worst case. A valid engine there means
+    // every prompt crosses: slide (the advance clamps to the minimum window).
+    expect(
+      shouldSlideWindowAtCeiling({ nCtx: 2048, windowChars: 30, kvHeld: true }),
+    ).toBe(true);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: 30,
+        kvHeld: true,
+        // Reserve + prefix eat the whole ceiling: 8192 - 2048 - 6144 = 0.
+        reservedPromptTokens: 6144,
+      }),
+    ).toBe(true);
+    // The tool-loop sibling must stop too, not run through a consumed ceiling.
+    expect(promptTokensExceedNCtx({ nCtx: 2048, promptChars: 3 })).toBe(true);
+  });
+
+  it("slides a window the un-reduced ceiling would have let pass", () => {
+    // The defect: textEst 5760 < 6144 passed the guard, but the prompt the
+    // native prefilled was 5760 + 1832 system tokens on n_ctx 8192.
+    const charsFor = (tokens: number) => tokens * WINDOW_CHARS_PER_TOKEN;
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsFor(5760),
+        kvHeld: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsFor(5760),
+        kvHeld: true,
+        reservedPromptTokens: 1832,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("promptTokensExceedNCtx", () => {
@@ -84,6 +136,25 @@ describe("promptTokensExceedNCtx", () => {
     expect(
       promptTokensExceedNCtx({ nCtx: 0, promptChars: 10_000_000 }),
     ).toBe(false);
+  });
+
+  it("honours a reserve only when promptChars does not already carry it", () => {
+    // Tool-loop convention: promptChars covers the whole message list, so the
+    // default 0 must not subtract the system twice — a full-prompt 6144 tokens
+    // (system included) sits exactly at the ceiling and is allowed.
+    const fullPromptChars = 6144 * WINDOW_CHARS_PER_TOKEN;
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: fullPromptChars }),
+    ).toBe(false);
+    // The same chars charged AGAIN for the system would flag — which is why
+    // only the AppShell window guard (chars without system) passes a reserve.
+    expect(
+      promptTokensExceedNCtx({
+        nCtx: 8192,
+        promptChars: fullPromptChars,
+        reservedPromptTokens: 1832,
+      }),
+    ).toBe(true);
   });
 });
 

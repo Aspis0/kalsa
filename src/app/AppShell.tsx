@@ -118,6 +118,7 @@ import {
   saveDeviceBandwidthCalibration,
 } from "../engine/deviceThroughputStore";
 import {
+  buildSystemPrompt,
   chatKvIsHeld,
   chatKvLastSaveTokens,
   chatKvNPast,
@@ -133,6 +134,7 @@ import {
   invalidateEngineSession,
   isEngineLostRecovery,
   isEngineReady,
+  resolvedStaticPrefixTokens,
   nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
   queueStaticPrefixPrewarm,
@@ -198,6 +200,7 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
+import { buildMemoryFactsBlock } from "../engine/memoryFactsTail";
 import {
   COMPACTION_ENABLED_DEFAULT,
   EAGER_ENGINE_INIT,
@@ -245,7 +248,9 @@ import {
   getBlockFormat,
   getEngineOverride,
   getSpeculativeOverride,
+  getToolChoiceMode,
   getToolGateEnabled,
+  shouldUseToolCalling,
 } from "../bench/benchConfig";
 import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
@@ -5246,6 +5251,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
             }
 
+            // Resolved BEFORE any state capture below (chatId, kvHeld,
+            // loadedB): the ceiling guard consumes it synchronously, and an
+            // await between capture and use let a chat switch invalidate the
+            // captured state — clearing the wrong session on slide (TOCTOU,
+            // audit FAIL 2026-09-14). Absent key → "auto" (tools on).
+            const toolChoiceMode = await getToolChoiceMode();
+
             const chatId = conversationsRef.current.activeId || DEFAULT_CHAT_ID;
             const hasImages = Boolean(attachments?.length);
             const validatedHistory = validateHistoryMessages(history);
@@ -5342,15 +5354,41 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // it must be charged here or a long message would ride entirely
             // outside the budget — exactly the overflow the budget exists to
             // stop. Charged at the same per-message cap the history pays.
-            // Known under-count: the persona tail (up to
-            // PERSONA_INSTRUCTIONS_CAP) is added later still; it is bounded and
-            // small next to WINDOW_RESERVE_TOKENS, which is what covers it.
-            const perMessageCap = hasImages
+            //
+            // Assembly also adds tails on top of stored text, and they ride in
+            // the budget too (audit FAIL 2026-09-14 — until a run proved
+            // otherwise this was a "known under-count"): the persona frame is
+            // applied to EVERY history user at the send, and its extra is
+            // content-independent, so applyPersonaTail("") prices it exactly.
+            // The bounded facts block (boundMemoryFacts, inside
+            // buildMemoryFactsBlock) rides the last user and — baked — prior
+            // user turns while memory is on. baseMessageCap prices the stored
+            // text; perMessageCap adds the tail so the budget walk never
+            // shaves it back off.
+            const promptFacts = memoryEnabledRef.current
+              ? memoryFactsRef.current
+              : [];
+            const persona = findPersona(
+              personasStateRef.current,
+              activePersonaIdRef.current,
+              builtinCopyFromT(t),
+            );
+            const userTailChars =
+              (persona?.instructions
+                ? applyPersonaTail("", persona.instructions).length
+                : 0) +
+              (memoryEnabledRef.current && promptFacts.length > 0
+                ? buildMemoryFactsBlock(locale, promptFacts).length
+                : 0);
+            const baseMessageCap = hasImages
               ? LEGACY_MAX_CHARS_IMAGES
               : LEGACY_MAX_CHARS;
-            const currentTurnChars = Math.min(promptText.length, perMessageCap);
+            const perMessageCap = baseMessageCap + userTailChars;
+            const currentTurnChars =
+              Math.min(promptText.length, baseMessageCap) + userTailChars;
             const historyLengths = validatedHistory.map((m) =>
-              historyReplayCharLength(m),
+              Math.min(historyReplayCharLength(m), baseMessageCap) +
+                (m.role === "user" ? userTailChars : 0),
             );
             let legacyWindowStart = legacyWindowMode
               ? windowStartIndex(
@@ -5395,6 +5433,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
             }
+            // promptFacts is declared at the char-budget walk above: the
+            // ceiling guard and this send price the same facts.
             if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
@@ -5515,6 +5555,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // cannot evict a prefix, so ctx_shift corrupts instead of
               // recycling. Slide deliberately, before the n_ctx edge.
               const activeNCtx = getActiveEngineNCtx();
+              // The prompt the native sees is window + static prefix, so the
+              // ceiling must price both. Read SYNCHRONOUSLY from the memo the
+              // prewarm fill inside the engine FIFO: an await here sat between
+              // the capture of chatId/kvHeld/loadedB above and the slide's
+              // clear below, so a chat switch could clear the wrong session
+              // (TOCTOU, audit FAIL 2026-09-14). Unmeasured prefix identity →
+              // prudent char-side fallback, never 0.
+              const withTools =
+                Boolean(agentOptions.tools?.length && agentOptions.executeTool) &&
+                shouldUseToolCalling(toolChoiceMode);
+              const systemPromptTokens = resolvedStaticPrefixTokens({
+                locale,
+                systemText: buildSystemPrompt(locale, withTools, promptFacts),
+                tools: withTools ? agentOptions.tools : [],
+              }).tokens;
               const windowStartForCeiling = anchoredOn
                 ? pinnedStart
                 : legacyWindowStart;
@@ -5530,6 +5585,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 nCtx: activeNCtx,
                 windowChars: pinnedWindowChars,
                 kvHeld,
+                reservedPromptTokens: systemPromptTokens,
               });
 
               const windowAction = decideAssembleWindowAction({
@@ -5567,11 +5623,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // cannot help (it is Infinity for attachment turns), so derive
                 // the rebuild target from the token ceiling instead. Ciswire
                 // carries the digest share because the digest re-enters the
-                // prompt the moment this slide clears the live KV.
+                // prompt the moment this slide clears the live KV. The same
+                // system-priced ceiling as the guard above: rebuilding to the
+                // un-reduced ceiling would clear the KV and immediately
+                // re-grow a window that crosses it again.
                 const ceilingBudgetChars = ceilingCrossed
                   ? Math.max(
                       0,
-                      windowCeilingTokens(activeNCtx) *
+                      windowCeilingTokens(activeNCtx, systemPromptTokens) *
                         WINDOW_CHARS_PER_TOKEN *
                         (anchoredOn ? 1 : WINDOW_SHARE_WITH_DIGEST),
                     )
@@ -5653,7 +5712,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   console.log(
                     `KALSA_WINDOW_SLIDE ${JSON.stringify({
                       nCtx: activeNCtx,
-                      ceiling: windowCeilingTokens(activeNCtx),
+                      ceiling: windowCeilingTokens(activeNCtx, systemPromptTokens),
+                      systemTokens: systemPromptTokens,
                       prevStart: previousStart,
                       newStart: anchoredOn ? boundaryForAssemble : legacyWindowStart,
                       promptTokensBefore,
@@ -5796,11 +5856,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               boundaryIndex: boundaryForAssemble,
               legacyWindowStart,
             });
-            const persona = findPersona(
-              personasStateRef.current,
-              activePersonaIdRef.current,
-              builtinCopyFromT(t),
-            );
+            // `persona` was resolved at the char-budget walk above: the same
+            // lookup prices the tails and applies them, so the budget and the
+            // prompt cannot disagree mid-send.
             // Persona on every history user so bake rematch keys equal
             // applyPersonaTail(persist, persona). Keep modelEmittedText so
             // hybrid KV replay is byte-identical to the original completion.
@@ -5851,9 +5909,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
 
-            const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
             // Bound at send so echo-guard + telemetry see the same kept set
             // LlamaService injects (pure; assembly site bounds again).
+            // promptFacts itself was hoisted above the ceiling guard so the
+            // system estimate and this send price the same facts.
             if (memoryEnabledRef.current) {
               const dna = boundMemoryFacts(promptFacts);
               MemoryStore.trackMemoryInjection(dna.health.injectedCount);

@@ -1,8 +1,13 @@
 import {
+  STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS,
   classifyPrewarmResult,
+  computePrewarmPrefixHash,
+  djb2,
+  estimateStaticPrefixTokens,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldWipeKvOnPrefixInputChange,
+  staticPrefixIdentity,
 } from "./prefixPrewarm";
 
 describe("classifyPrewarmResult", () => {
@@ -67,6 +72,59 @@ describe("shouldApplyQueuedPrefixWipe", () => {
     );
     expect(shouldApplyQueuedPrefixWipe(true)).toBe(
       shouldWipeKvOnPrefixInputChange(true),
+    );
+  });
+});
+
+describe("estimateStaticPrefixTokens", () => {
+  it("never returns 0 — a 0 reserve is the bug this guards", () => {
+    expect(estimateStaticPrefixTokens("", [])).toBe(
+      STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS,
+    );
+    expect(estimateStaticPrefixTokens("", null)).toBeGreaterThan(0);
+  });
+
+  it("prices the system text at the window's own chars/token, plus the margin", () => {
+    // 3969 chars = it systemPromptWithSearch, counted 2026-09-14; the
+    // chars/3 part is exactly the estimate that underpriced the S23 prefix.
+    expect(estimateStaticPrefixTokens("x".repeat(3969), [])).toBe(
+      Math.ceil(3969 / 3) + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS,
+    );
+  });
+
+  it("charges tool schemas at the same low ratio and grows with them", () => {
+    const tool = (pad: number) => [
+      { function: { name: "web_search", description: "d".repeat(pad), parameters: {} } },
+    ];
+    const bare = estimateStaticPrefixTokens("", []);
+    const withSmall = estimateStaticPrefixTokens("", tool(100));
+    const withLarge = estimateStaticPrefixTokens("", tool(3000));
+    expect(withSmall).toBeGreaterThan(bare);
+    expect(withLarge).toBeGreaterThan(withSmall);
+  });
+
+  it("prices CJK at ~1 token per char, never the optimistic chars/3", () => {
+    // chars/3 on CJK undercounts ~3x (audit FAIL 2026-09-14: the fallback
+    // must be demonstrably conservative, not formula-checked on ASCII).
+    const latin = estimateStaticPrefixTokens("x".repeat(300), []);
+    const cjk = estimateStaticPrefixTokens("あ".repeat(300), []);
+    expect(cjk).toBeGreaterThanOrEqual(300 + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS);
+    expect(cjk).toBeGreaterThan(latin);
+    expect(latin).toBe(Math.ceil(300 / 3) + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS);
+  });
+
+  it("keys the memo on the exact identity, immune to djb2 collisions", () => {
+    const tool = (name: string) => [
+      { function: { name, description: "d", parameters: {} } },
+    ];
+    const a = staticPrefixIdentity("it", "system", tool("web_search"));
+    const b = staticPrefixIdentity("it", "system", tool("web_search"));
+    const c = staticPrefixIdentity("it", "system", tool("write_note"));
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    // The prewarm hash stays djb2 over the same identity bytes.
+    expect(computePrewarmPrefixHash("it", "system", tool("web_search"))).toBe(
+      djb2(a),
     );
   });
 });

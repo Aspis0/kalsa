@@ -62,10 +62,28 @@ export const WINDOW_MIN_MESSAGES = 2;
  * `n_ctx - WINDOW_RESERVE_TOKENS` (6144 at the loaded 8192). The reserve
  * already covers system prompt, digest and generation room, so this is where
  * the window — not the whole prompt — has to stop.
+ *
+ * `reservedPromptTokens` prices prompt tokens the caller's `windowChars` does
+ * NOT already carry — on the S23 the system prompt alone measured 1832 tokens
+ * per cold prefill, invisible to a guard that only projects the window. Pass
+ * the caller's real non-window tokens; a caller whose char count already
+ * covers the whole message list (the tool loop) passes nothing. The result is
+ * clamped at 0, never negative: when the reserve eats the ceiling the window
+ * falls back to the explicit minimum (WINDOW_MIN_MESSAGES in windowStartIndex),
+ * not to an underflowed budget.
  */
-export function windowCeilingTokens(nCtx: number | null | undefined): number {
+export function windowCeilingTokens(
+  nCtx: number | null | undefined,
+  reservedPromptTokens = 0,
+): number {
   if (typeof nCtx !== "number" || !Number.isFinite(nCtx) || nCtx <= 0) return 0;
-  return Math.max(0, Math.floor(nCtx) - WINDOW_RESERVE_TOKENS);
+  const reserved =
+    typeof reservedPromptTokens === "number" &&
+    Number.isFinite(reservedPromptTokens) &&
+    reservedPromptTokens > 0
+      ? Math.floor(reservedPromptTokens)
+      : 0;
+  return Math.max(0, Math.floor(nCtx) - WINDOW_RESERVE_TOKENS - reserved);
 }
 
 /** Charged chars → tokens, the same ceil ratio the KALSA_WINDOW `textEst` uses. */
@@ -95,10 +113,22 @@ export function shouldSlideWindowAtCeiling(args: {
   nCtx: number | null | undefined;
   windowChars: number;
   kvHeld: boolean;
+  /** Non-window prompt tokens (the system prompt) the ceiling must also pay. */
+  reservedPromptTokens?: number;
 }): boolean {
   if (!args.kvHeld) return false;
-  const ceiling = windowCeilingTokens(args.nCtx);
-  if (ceiling <= 0) return false;
+  // Inert ONLY without an engine: no nCtx, nothing to protect. A VALID n_ctx
+  // whose ceiling is fully consumed by reserve + prefix means every prompt
+  // crosses — slide (the advance clamps to the minimum window) instead of
+  // standing down at exactly the worst case.
+  if (
+    typeof args.nCtx !== "number" ||
+    !Number.isFinite(args.nCtx) ||
+    args.nCtx <= 0
+  ) {
+    return false;
+  }
+  const ceiling = windowCeilingTokens(args.nCtx, args.reservedPromptTokens);
   return projectedWindowTokens(args.windowChars) > ceiling;
 }
 
@@ -110,13 +140,26 @@ export function shouldSlideWindowAtCeiling(args: {
  * again without re-running the send guard, so `promptChars` must cover the
  * ENTIRE message list (system included). The reserve then only pays for
  * generation room, which is conservative and errs toward stopping early.
+ * Because the system rides inside `promptChars` here, `reservedPromptTokens`
+ * stays 0 — the AppShell window guard, whose chars exclude the system, is the
+ * caller that passes it.
  */
 export function promptTokensExceedNCtx(args: {
   nCtx: number | null | undefined;
   promptChars: number;
+  reservedPromptTokens?: number;
 }): boolean {
-  const ceiling = windowCeilingTokens(args.nCtx);
-  if (ceiling <= 0) return false;
+  // Same semantics as shouldSlideWindowAtCeiling: inert only without an
+  // engine; a valid n_ctx with a fully-consumed ceiling means every prompt
+  // exceeds, so the tool loop stops instead of running through it.
+  if (
+    typeof args.nCtx !== "number" ||
+    !Number.isFinite(args.nCtx) ||
+    args.nCtx <= 0
+  ) {
+    return false;
+  }
+  const ceiling = windowCeilingTokens(args.nCtx, args.reservedPromptTokens);
   return projectedWindowTokens(args.promptChars) > ceiling;
 }
 

@@ -5,6 +5,8 @@
  * Messages are system-only — no user, facts, persona, or operative/digest.
  */
 
+import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
+
 export type PrewarmToolLike = {
   type?: string;
   function?: {
@@ -63,20 +65,82 @@ export function toolsForPrewarmHash(
 }
 
 /**
- * djb2 over JSON.stringify({locale, systemText, tools: [{name, schema}]}).
+ * Exact prefix identity, pre-hash: locale + systemText + {name,schema} rows.
+ * This is the memo key for the measured static-prefix token count — the raw
+ * string, not its djb2, so two different prefixes can never collide onto one
+ * cached count (djb2 is 32-bit; the hash stays for prewarm identity only,
+ * where a collision costs a skipped prewarm, not a wrong reserve).
+ */
+export function staticPrefixIdentity(
+  locale: string,
+  systemText: string,
+  tools?: ReadonlyArray<PrewarmToolLike> | null,
+): string {
+  return JSON.stringify({
+    locale: typeof locale === "string" ? locale : "",
+    systemText: typeof systemText === "string" ? systemText : "",
+    tools: toolsForPrewarmHash(tools),
+  });
+}
+
+/**
+ * djb2 over staticPrefixIdentity — unchanged wire behavior.
  */
 export function computePrewarmPrefixHash(
   locale: string,
   systemText: string,
   tools?: ReadonlyArray<PrewarmToolLike> | null,
 ): string {
-  return djb2(
-    JSON.stringify({
-      locale: typeof locale === "string" ? locale : "",
-      systemText: typeof systemText === "string" ? systemText : "",
-      tools: toolsForPrewarmHash(tools),
-    }),
-  );
+  return djb2(staticPrefixIdentity(locale, systemText, tools));
+}
+
+/**
+ * Chat-template scaffolding margin for the fallback count below: role
+ * headers, special tokens and the user-line render around the system block.
+ * Declared, not derived — the measured S23 static prefix (1832) exceeds the
+ * chars/3 content estimate (1323) mostly through the tool schemas, so the
+ * scaffolding itself is bounded high-side here.
+ */
+export const STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS = 128;
+
+/**
+ * CJK and emoji ranges: on this class of tokenizers they price near 1 token
+ * per char, so a flat chars/3 would undercount them ~3x — the fallback must
+ * never be optimistic (audit FAIL 2026-09-14: facts/system text is not
+ * charset-limited). Priced at 1 token per char; everything else at the
+ * window's low /3.
+ */
+const WIDE_CHAR_RE =
+  /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF\u{20000}-\u{2FA1F}\u{1F000}-\u{1FAFF}]/gu;
+
+/**
+ * Char-side fallback for the static-prefix token count. Only used when the
+ * prefix has not been measured yet (no prewarm for this identity yet) — the
+ * honest count is the measured one, never this.
+ *
+ * Deliberately OVERSHOOTS: the reserve shields the n_ctx ceiling, so an
+ * underestimate re-creates the silent-overflow bug this exists to prevent,
+ * while an overestimate costs one extra window slide. Both terms use the
+ * window's own low chars/token ratio — the S23 t20c run measured the 4045
+ * schema chars of the default 7-tool set at only ~500 tokens (~8 chars/token;
+ * the tokenizer merges repetitive schema JSON), so /3 stays above the
+ * measured density while assuming nothing else — plus the declared template
+ * margin and per-char pricing for CJK/emoji. Never returns 0 — a 0 reserve
+ * is the starting bug.
+ */
+export function estimateStaticPrefixTokens(
+  systemText: string,
+  tools?: ReadonlyArray<PrewarmToolLike> | null,
+): number {
+  const text = typeof systemText === "string" ? systemText : "";
+  const wideChars = text.match(WIDE_CHAR_RE)?.length ?? 0;
+  const narrowTokens = Math.ceil((text.length - wideChars) / WINDOW_CHARS_PER_TOKEN);
+  const list = Array.isArray(tools) ? tools : [];
+  const schemaTokens =
+    list.length > 0
+      ? Math.ceil(JSON.stringify(toolsForPrewarmHash(list)).length / WINDOW_CHARS_PER_TOKEN)
+      : 0;
+  return wideChars + narrowTokens + schemaTokens + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS;
 }
 
 /** System-only chat. Never user / assistant / tool roles. */
