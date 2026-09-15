@@ -1,0 +1,5 @@
+stem,prompt_tokens,gen_tokens,count_run_gen_tps,campaign_gen_tps_r1,campaign_gen_tps_r2,campaign_gen_tps_r3,count_run_output
+LFM2.5-1.2B-Instruct-Q4_K_M_none_PURE,51,30,9.1,9.1,9.0,9.1,LFM2.5-1.2B-Instruct-Q4_K_M_none_PURE_counts.txt
+LFM2.5-1.2B-Instruct-Q4_K_M_none_REP,72,256,8.4,8.4,8.4,8.4,LFM2.5-1.2B-Instruct-Q4_K_M_none_REP_counts.txt
+LFM2.5-2.6B-Q4_K_M_none_PURE,52,204,3.9,3.9,3.9,3.9,LFM2.5-2.6B-Q4_K_M_none_PURE_counts.txt
+LFM2.5-2.6B-Q4_K_M_none_REP,73,256,3.7,3.6,3.6,3.6,LFM2.5-2.6B-Q4_K_M_none_REP_counts.txt

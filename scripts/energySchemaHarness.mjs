@@ -437,13 +437,13 @@ function main() {
       mkdirSync(dir);
       writeFileSync(path.join(dir, "x_none_P.csv"), THREE_ROW);
       // What energyPhaseSplit.mjs leaves next to it: same stem, .phases.csv
-      // suffix, kalsa-energy-rep-v1 header — must not enter the arm table.
+      // suffix, kalsa-energy-rep-v2 header — must not enter the arm table.
       writeFileSync(
         path.join(dir, "x_none_P.phases.csv"),
-        "run_id,rep,window_start_s,duration,prefill_s,decode_s,j_prefill,j_decode," +
-          "j_prefill_per_ptok,j_per_tok_decode,prompt_tokens,gen_tokens,mean_w_prefill," +
-          "mean_w_decode,n_samples_prefill,n_samples_decode,warnings\n" +
-          "x_none_P,1,100.0,2.000,1.000,1.000,1.000,1.000,0.500,0.500,51,30,1.000,1.000,1,1,\n",
+        "run_id,rep,window_start_s,window_end_s,duration,decode_s,prefill_est_s,j_pre,j_decode," +
+          "j_per_tok_decode,prompt_tokens,gen_tokens,w_decode,n_pre,n_decode,cadence_median_s," +
+          "cadence_max_s,warnings\n" +
+          "x_none_P,1,100.0,102.0,2.000,1.000,0.500,1.000,1.000,0.500,51,30,1.000,1,1,1.000,1.000,\n",
       );
       const r = spawnSync(
         process.execPath,

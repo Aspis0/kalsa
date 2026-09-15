@@ -1,8 +1,20 @@
 #!/usr/bin/env node
-// Per-rep phase split: disaggregate each rep's energy into PREFILL vs DECODE
-// (the kalsa-energy-rep-v1 schema, reserved in docs/ENERGY-SCHEMA.md until
-// now). One rep = one llama-cli run; the sampler CSV covers the whole arm, the
-// ${stem}.marks sidecar carries one boundary per rep.
+// Per-rep phase split, schema kalsa-energy-rep-v2: divide each rep's window
+// energy into a PRE phase (j_pre) and a DECODE phase (j_decode), anchored the
+// only way the data supports. History: v1 (572d3be) placed the boundary at
+// window_start + prompt-eval duration, but the run's startup — inter-rep
+// sleep, process spawn, model load — sits between the window start and the
+// real prompt processing. In the 2026-09 campaign the v1 "prefill" bucket was
+// pure idle (0.03-1.1 W) in 8/12 reps and j_decode carried load + prefill +
+// decode (audit ENERGY-PHASE-AUDIT-2026-09-15, F1/F2: NO-SHIP). v2 re-anchors:
+// decode duration = gen_tokens / gen tps from the rep's own speed line (the
+// perf "eval time" ms when present), so decode occupies the LAST decode_s
+// seconds of the window ending at mark_N; everything before it is j_pre.
+//
+// HONEST NAMING: j_pre is model load + inter-rep idle + prompt eval. The
+// prompt-eval-only J is NOT resolvable at 1 Hz with the model load inside the
+// window — a future in-engine phase timestamp would be needed. prefill_est_s
+// (prompt_tokens / prompt tps) is informational only and drives nothing.
 //
 // VERIFIED FORMATS (device-ngram-spec.sh + real campaign data):
 //   marks: one line "r<N> <uptime>" per rep, e.g. "r1 554225.50", written by
@@ -16,34 +28,32 @@
 //
 // Rep windows: rep 1 = [first CSV sample, mark_1); rep i>1 = [mark_{i-1},
 // mark_i). Samples after the last mark (sampler shutdown lag) belong to no
-// rep. Boundary math: prefill ends at window_start + prompt-eval duration,
-// where prompt-eval duration is the run's own "prompt eval time" ms when the
-// perf line exists, else prompt_tokens / prompt t/s from the speed line.
-// prompt_tokens/gen_tokens must be verifiable — from the run's own perf
-// lines, or from --prompt-tokens/--gen-tokens supplied by the operator (e.g.
-// measured once on-device with a verbose llama-cli run). Neither present ->
-// the phase columns stay EMPTY with a warning; never a guess. A rep whose
-// .txt is missing or has no parsable speed/perf line is skipped entirely.
+// rep. Marks hygiene is fatal (never silently absorb samples): out-of-order
+// marks, or a mark before the first CSV sample, refuse the whole stem.
 //
-// Integration is energySchema.integrate on each sub-window, so per-phase J is
-// computed from the same right-Riemann sums as the whole-arm J. The sample
-// interval straddling the boundary is attributed to the decode side (an
-// interval belongs to its right-endpoint sample, which is at/after the
-// boundary; the borrowed predecessor sample affects only that one interval),
-// so j_prefill + j_decode equals the whole-window J exactly. The sampler is
-// ~1 Hz, so each phase edge carries <= 1 sample (~1 s) of attribution
-// uncertainty — at the sanity band's ceiling that is up to ~20 J per edge, a
-// few J at the G99's typical 2-5 W. mean_w_* are means over the phase's OWN
-// samples (the borrowed straddle sample is excluded); durations partition the
-// window exactly (prefill_s + decode_s = duration) except that an empty phase
-// reports no duration at all.
+// Counts provenance (never a guess): --counts-manifest <csv> — the committed
+// scripts/fixtures/energy-counts/manifest.csv — is the preferred source. The
+// run's own llama_perf lines still win when present; --prompt-tokens/
+// --gen-tokens remain a caller-verified fallback and say so on stderr.
+// Without any count source the phase columns stay EMPTY with a warning.
 //
-// By convention the window starts where the previous rep ENDED, so for i>1 it
-// contains the harness's inter-rep sleep and the model load; the boundary
-// formula attributes whatever falls before prompt-eval-end to the prefill
-// bucket. Phase J is therefore a convention, not a clean physical prefill —
-// between-arm deltas of the same phase remain meaningful because every arm
-// gets the identical arithmetic.
+// Integration is energySchema.integrate on each sub-window (right-Riemann: an
+// interval belongs to its right-endpoint sample). The interval straddling
+// decode_start starts BEFORE the boundary, so it is attributed to j_pre
+// ("decode starts strictly after its start point"); j_decode is the exact
+// remainder (whole-window J minus j_pre), so j_pre + j_decode equals the
+// whole-window J exactly (harness-tested) and n_pre + n_decode equals the
+// window's sample count. w_decode is the mean over the decode segment's OWN
+// samples. Edge uncertainty: each phase edge carries up to ONE SAMPLE
+// INTERVAL of attribution uncertainty — the sampler is ~1 Hz nominal but the
+// observed interval reaches 3.5 s under load, so the per-CSV observed
+// median/max interval is reported in cadence_median_s/cadence_max_s (with a
+// warning past 2 s) instead of a flat "~1 s" claim.
+//
+// Guards, exit 1: decode duration >= window duration; gen_tokens <= 0 with a
+// count source present; out-of-order marks; a mark before the first CSV
+// sample. Warnings (not failures): implied decode power (j_decode / decode_s)
+// outside the 0.1-20 W sanity band; cadence max > 2 s.
 //
 // Output: <dir>/<stem>.phases.csv (one row per rep) plus a markdown table on
 // stdout. NOTE for consumers: the file lands in the campaign dir and does NOT
@@ -51,8 +61,9 @@
 // globs the dir's *.csv, so splitting before aggregating is safe.
 //
 // Usage: node scripts/energyPhaseSplit.mjs [dir=device-ngram-spec-out] [stem ...]
-//        [--prompt-tokens N] [--gen-tokens N]
-// Exit 0 with per-rep warnings on stderr; exit 1 only if nothing was produced.
+//        [--counts-manifest file] [--prompt-tokens N] [--gen-tokens N]
+// Exit 0 with per-rep warnings on stderr; exit 1 if nothing was produced or
+// any stem hit a fatal input error.
 
 import { readdirSync, readFileSync, existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -60,10 +71,20 @@ import { pathToFileURL } from "node:url";
 import { parseEnergyCsv, integrate } from "./energySchema.mjs";
 
 export const PHASES_COLUMNS = [
-  "run_id", "rep", "window_start_s", "duration", "prefill_s", "decode_s",
-  "j_prefill", "j_decode", "j_prefill_per_ptok", "j_per_tok_decode",
-  "prompt_tokens", "gen_tokens", "mean_w_prefill", "mean_w_decode",
-  "n_samples_prefill", "n_samples_decode", "warnings",
+  "run_id", "rep", "window_start_s", "window_end_s", "duration", "decode_s",
+  "prefill_est_s", "j_pre", "j_decode", "j_per_tok_decode",
+  "prompt_tokens", "gen_tokens", "w_decode",
+  "n_pre", "n_decode", "cadence_median_s", "cadence_max_s", "warnings",
+];
+
+// scripts/fixtures/energy-counts/manifest.csv (tracked): one row per stem.
+// count_run_gen_tps and count_run_output are provenance only — the tool never
+// reads them; campaign_gen_tps_rN is cross-checked against each rep's speed
+// line (warning on mismatch: wrong manifest/campaign pairing).
+export const COUNTS_MANIFEST_COLUMNS = [
+  "stem", "prompt_tokens", "gen_tokens", "count_run_gen_tps",
+  "campaign_gen_tps_r1", "campaign_gen_tps_r2", "campaign_gen_tps_r3",
+  "count_run_output",
 ];
 
 // "[ Prompt: 11.2 t/s | Generation: 9.1 t/s ]" — the one perf line the
@@ -80,11 +101,11 @@ export function parseSpeedLine(text) {
 }
 
 // Upstream llama.cpp perf summary (stderr, present only in builds that print
-// it). Each field is used only when its line exists. The direct promptEvalMs
-// is preferred over promptTokens/promptTps: the speed line's t/s is rounded,
-// the ms value is the run's own measurement.
+// it). Each field is used only when its line exists. The direct ms values are
+// preferred over counts/tps: the speed line's t/s is rounded, the ms values
+// are the run's own measurements.
 export function parsePerfLines(text) {
-  const out = { promptEvalMs: null, promptTokens: null, genTokens: null };
+  const out = { promptEvalMs: null, evalMs: null, promptTokens: null, genTokens: null };
   // Anchored on the llama_perf prefix so "prompt eval time" can never be
   // matched by the plain eval-time pattern (\s* then "eval" vs "prompt ...").
   const pe = text.match(/llama_perf_context_print:\s*prompt eval time\s*=\s*([0-9.]+)\s*ms\s*\/\s*([0-9]+)\s*tokens/);
@@ -93,7 +114,10 @@ export function parsePerfLines(text) {
     out.promptTokens = parseInt(pe[2], 10);
   }
   const ev = text.match(/llama_perf_context_print:\s*eval time\s*=\s*([0-9.]+)\s*ms\s*\/\s*([0-9]+)\s*runs/);
-  if (ev) out.genTokens = parseInt(ev[2], 10);
+  if (ev) {
+    out.evalMs = parseFloat(ev[1]);
+    out.genTokens = parseInt(ev[2], 10);
+  }
   return out;
 }
 
@@ -111,30 +135,120 @@ export function parseMarks(text) {
   return { marks, skipped };
 }
 
+// Counts manifest parser. Rows that cannot parse are returned in errors so
+// main() can refuse the whole run (an incoherent manifest is caller error,
+// not a per-stem skip); a well-formed gen_tokens=0 row is kept so the
+// stem-level guard can name it.
+export function parseCountsManifest(text) {
+  const byStem = new Map();
+  const errors = [];
+  const lines = text.split("\n").filter((l) => l.trim());
+  if (!lines.length) {
+    errors.push("counts manifest is empty");
+    return { byStem, errors };
+  }
+  if (lines[0].trim() !== COUNTS_MANIFEST_COLUMNS.join(",")) {
+    errors.push(`counts manifest header mismatch: expected ${COUNTS_MANIFEST_COLUMNS.join(",")}`);
+    return { byStem, errors };
+  }
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",");
+    if (cols.length !== COUNTS_MANIFEST_COLUMNS.length) {
+      errors.push(`counts manifest line ${i + 1}: expected ${COUNTS_MANIFEST_COLUMNS.length} fields, got ${cols.length}`);
+      continue;
+    }
+    const [stem, pTok, gTok, countRunGenTps, r1, r2, r3, countRunOutput] = cols.map((c) => c.trim());
+    if (!stem) {
+      errors.push(`counts manifest line ${i + 1}: empty stem`);
+      continue;
+    }
+    if (!/^\d+$/.test(pTok) || !/^\d+$/.test(gTok)) {
+      errors.push(`counts manifest line ${i + 1} (${stem}): prompt_tokens/gen_tokens must be non-negative integers`);
+      continue;
+    }
+    byStem.set(stem, {
+      promptTokens: parseInt(pTok, 10),
+      genTokens: parseInt(gTok, 10),
+      countRunGenTps,
+      campaignGenTps: [r1, r2, r3],
+      countRunOutput,
+    });
+  }
+  return { byStem, errors };
+}
+
+// Median/max inter-sample interval over the stem's WHOLE CSV — the honest
+// per-stem sampler cadence (audit F5: the nominal ~1 Hz reaches 3.5 s under
+// load, so "edge uncertainty <= 1 s" was false).
+export function sampleCadence(samples) {
+  const dts = [];
+  for (let i = 1; i < samples.length; i++) dts.push(samples[i].t - samples[i - 1].t);
+  if (!dts.length) return { median: NaN, max: NaN };
+  const sorted = [...dts].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return { median, max: sorted[sorted.length - 1] };
+}
+
 const fmt = (x, d = 3) => (Number.isFinite(x) ? x.toFixed(d) : "");
 const esc = (x) => (/[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x);
 
-// All phase splitting for one stem. Returns { rows, notes }: rows are
+// All phase splitting for one stem. Returns { rows, notes, fatal }: rows are
 // PHASES_COLUMNS objects (values already formatted strings), notes are
-// stem-level stderr messages (rep skips, missing files).
-export function splitStem(stem, { csvText, marksText, repTexts, cliPromptTokens, cliGenTokens }) {
+// stem-level stderr messages (rep skips, missing files), and fatal is a
+// stem-refusing input error (marks hygiene, incoherent counts) — a stem with
+// a fatal produces NO file and fails the run.
+export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, cliPromptTokens, cliGenTokens }) {
   const rows = [];
   const notes = [];
+  let fatal = null;
+  const setFatal = (msg) => {
+    if (fatal === null) fatal = msg;
+  };
+
   const { rows: samples } = parseEnergyCsv(csvText);
   if (!samples.length) {
     notes.push(`${stem}: no usable CSV samples — stem skipped`);
-    return { rows, notes };
+    return { rows, notes, fatal };
   }
   samples.sort((a, b) => a.t - b.t);
   const firstT = samples[0].t;
+  const cad = sampleCadence(samples);
+  const cadenceWarn =
+    Number.isFinite(cad.max) && cad.max > 2
+      ? `sampler cadence max ${cad.max.toFixed(3)} s exceeds 2 s (edge uncertainty up to one interval)`
+      : null;
 
   if (marksText === undefined) {
     notes.push(`${stem}: no .marks file — no rep windows, stem skipped`);
-    return { rows, notes };
+    return { rows, notes, fatal };
   }
   const parsed = parseMarks(marksText);
   if (parsed.skipped) notes.push(`${stem}: ${parsed.skipped} unparsable .marks line(s)`);
   const marks = parsed.marks;
+
+  // Marks hygiene (audit F7): a marks file that cannot be trusted must
+  // refuse the stem, never silently absorb samples into the wrong window.
+  for (const [n, t] of [...marks.entries()].sort((a, b) => a[0] - b[0])) {
+    if (t < firstT) setFatal(`mark r${n} (${t}) precedes the first CSV sample (${firstT}) — refusing the stem`);
+  }
+  const markNums = [...marks.keys()].sort((a, b) => a - b);
+  for (let i = 1; i < markNums.length; i++) {
+    const prev = marks.get(markNums[i - 1]);
+    const cur = marks.get(markNums[i]);
+    if (cur <= prev) {
+      setFatal(`marks out of order: r${markNums[i]} (${cur}) <= r${markNums[i - 1]} (${prev}) — refusing the stem`);
+    }
+  }
+  if (fatal !== null) return { rows, notes, fatal };
+
+  // Guard (audit F4): a count source with gen_tokens <= 0 is incoherent.
+  // The CLI flags cannot produce this (validated >= 1); the manifest and the
+  // perf lines can.
+  if (manifestEntry && manifestEntry.genTokens <= 0) {
+    setFatal(`counts manifest gen_tokens = ${manifestEntry.genTokens} <= 0 with a count source present — incoherent input`);
+    return { rows, notes, fatal };
+  }
 
   const repNums = [...new Set([...marks.keys(), ...repTexts.keys()])].sort((a, b) => a - b);
   for (const n of repNums) {
@@ -146,7 +260,9 @@ export function splitStem(stem, { csvText, marksText, repTexts, cliPromptTokens,
       continue;
     }
     if (start >= end) {
-      notes.push(`${repLabel} non-monotonic marks (${start} >= ${end}) — rep skipped`);
+      // Out-of-order was already fatal above; only an exact tie can reach
+      // this (e.g. mark_1 == first CSV sample): an empty window, not data.
+      notes.push(`${repLabel} empty rep window (start ${start} >= end ${end}) — rep skipped`);
       continue;
     }
     const text = repTexts.get(n);
@@ -156,39 +272,60 @@ export function splitStem(stem, { csvText, marksText, repTexts, cliPromptTokens,
     }
     const speed = parseSpeedLine(text);
     const perf = parsePerfLines(text);
-    if (!speed && perf.promptEvalMs === null) {
+    if (!speed && perf.evalMs === null) {
       notes.push(`${repLabel} no parsable speed/perf line (failed run?) — rep skipped`);
       continue;
     }
 
-    // Token counts: the run's own perf lines win over the CLI values; the
-    // speed line alone is never enough.
-    const promptTokens = perf.promptTokens ?? cliPromptTokens ?? null;
-    const genTokens = perf.genTokens ?? cliGenTokens ?? null;
-    const promptEvalS =
-      perf.promptEvalMs !== null
-        ? perf.promptEvalMs / 1000
-        : promptTokens !== null && speed
-          ? promptTokens / speed.promptTps
+    // Token counts per rep: the run's own perf lines win over the manifest;
+    // the manifest (preferred) wins over the CLI flags. Resolved per field.
+    const promptTokens = perf.promptTokens ?? manifestEntry?.promptTokens ?? cliPromptTokens ?? null;
+    const genTokens = perf.genTokens ?? manifestEntry?.genTokens ?? cliGenTokens ?? null;
+    if (genTokens !== null && genTokens <= 0) {
+      setFatal(`${repLabel} gen_tokens = ${genTokens} <= 0 with a count source present — incoherent input`);
+      break;
+    }
+
+    // Decode duration: the perf eval-time ms when present (the run's own
+    // measurement, not rounded), else gen_tokens / gen tps.
+    const decodeDur =
+      perf.evalMs !== null
+        ? perf.evalMs / 1000
+        : genTokens !== null && speed
+          ? genTokens / speed.genTps
           : null;
 
     const warnings = [];
+    if (cadenceWarn) warnings.push(cadenceWarn);
+    // Manifest/campaign pairing check: each rep's own speed line must agree
+    // with the manifest's recorded campaign t/s (both printed to 0.1 t/s).
+    if (manifestEntry && speed) {
+      const claimed = parseFloat(manifestEntry.campaignGenTps[n - 1]);
+      if (Number.isFinite(claimed) && Math.abs(claimed - speed.genTps) > 0.05) {
+        warnings.push(
+          `manifest campaign_gen_tps_r${n} (${claimed}) differs from this run's speed line (${speed.genTps}) — wrong manifest/campaign pairing?`,
+        );
+      }
+    }
     const win = samples.filter((r) => r.t >= start && r.t < end);
     const row = {
       run_id: stem,
       rep: String(n),
       window_start_s: start.toFixed(2),
-      duration: "", prefill_s: "", decode_s: "",
-      j_prefill: "", j_decode: "", j_prefill_per_ptok: "", j_per_tok_decode: "",
+      window_end_s: end.toFixed(2),
+      duration: "", decode_s: "", prefill_est_s: "",
+      j_pre: "", j_decode: "", j_per_tok_decode: "",
       prompt_tokens: promptTokens ?? "", gen_tokens: genTokens ?? "",
-      mean_w_prefill: "", mean_w_decode: "",
-      n_samples_prefill: "", n_samples_decode: "",
+      w_decode: "",
+      n_pre: "", n_decode: "",
+      cadence_median_s: Number.isFinite(cad.median) ? cad.median.toFixed(3) : "",
+      cadence_max_s: Number.isFinite(cad.max) ? cad.max.toFixed(3) : "",
       warnings: "",
     };
     if (!win.length) {
       warnings.push("rep window has no samples");
-      row.n_samples_prefill = "0";
-      row.n_samples_decode = "0";
+      row.n_pre = "0";
+      row.n_decode = "0";
       row.warnings = warnings.join("; ");
       rows.push(row);
       continue;
@@ -196,52 +333,76 @@ export function splitStem(stem, { csvText, marksText, repTexts, cliPromptTokens,
     const whole = integrate(win);
     row.duration = fmt(whole.duration_s);
 
-    if (promptEvalS === null) {
+    if (decodeDur === null) {
       warnings.push(
-        `prompt-eval duration not derivable: no token counts in _r${n}.txt and no --prompt-tokens`,
+        "decode duration not derivable (needs gen token counts from counts manifest / --gen-tokens / perf line, and a speed line)",
       );
       row.warnings = warnings.join("; ");
       rows.push(row);
       continue;
     }
 
-    // b = index of the first sample at/after the boundary; samples strictly
-    // before it are prefill. The decode integration borrows win[b-1] so the
-    // straddling interval's energy lands in decode and the two phases sum to
-    // the whole-window J.
-    const found = win.findIndex((r) => r.t >= start + promptEvalS);
-    const b = found === -1 ? win.length : found;
-    const ownPre = win.slice(0, b);
-    const ownDec = win.slice(b);
-    const preInt = integrate(ownPre);
-    const decJoules = ownDec.length
-      ? integrate(b > 0 ? [win[b - 1], ...ownDec] : ownDec).joules
-      : null;
+    // Guard (audit F4): the anchored decode cannot fill (or exceed) the
+    // whole window — that means counts/speed line vs window are incoherent.
+    // A degenerate 0-duration window (single sample) carries no evidence
+    // either way, so it keeps the warning-row path instead.
+    if (whole.duration_s > 0 && decodeDur >= whole.duration_s) {
+      setFatal(
+        `${repLabel} decode duration (${decodeDur.toFixed(3)} s) >= window duration (${whole.duration_s.toFixed(3)} s) — counts/speed line incoherent with the window`,
+      );
+      break;
+    }
 
-    row.prefill_s = ownPre.length ? fmt(preInt.duration_s) : "";
-    row.decode_s = ownDec.length ? fmt(whole.duration_s - preInt.duration_s) : "";
-    row.j_prefill = ownPre.length ? fmt(preInt.joules) : "";
+    // b = index of the first sample at/after decode_start (B). Samples
+    // strictly before B are the pre side; the interval straddling B —
+    // [win[b-1].t, win[b].t) — starts before B, so it belongs to j_pre and
+    // preInt integrates through win[b]. j_decode is the exact remainder
+    // (whole - preJ), keeping the partition invariant bit-exact.
+    const B = end - decodeDur;
+    const found = win.findIndex((r) => r.t >= B);
+    const b = found === -1 ? win.length : found;
+    const preInt = integrate(win.slice(0, Math.min(b + 1, win.length)));
+    const decSeg = win.slice(b);
+    const decInt = decSeg.length ? integrate(decSeg) : null;
+    const decJoules = decInt ? whole.joules - preInt.joules : null;
+
+    row.decode_s = fmt(decodeDur);
+    const promptEvalS =
+      perf.promptEvalMs !== null
+        ? perf.promptEvalMs / 1000
+        : promptTokens !== null && speed
+          ? promptTokens / speed.promptTps
+          : null;
+    row.prefill_est_s = promptEvalS !== null ? fmt(promptEvalS) : "";
+    row.j_pre = fmt(preInt.joules);
     row.j_decode = decJoules !== null ? fmt(decJoules) : "";
-    row.mean_w_prefill = ownPre.length ? fmt(preInt.mean_w) : "";
-    row.mean_w_decode = ownDec.length ? fmt(integrate(ownDec).mean_w) : "";
-    row.n_samples_prefill = String(ownPre.length);
-    row.n_samples_decode = String(ownDec.length);
-    if (!ownPre.length) warnings.push("prefill segment has no samples");
-    if (!ownDec.length) warnings.push("decode segment has no samples");
-    if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
-    if (promptTokens > 0 && ownPre.length) row.j_prefill_per_ptok = fmt(preInt.joules / promptTokens);
+    row.w_decode = decInt && Number.isFinite(decInt.mean_w) ? fmt(decInt.mean_w) : "";
     if (genTokens > 0 && decJoules !== null) row.j_per_tok_decode = fmt(decJoules / genTokens);
+    row.n_pre = String(b);
+    row.n_decode = String(win.length - b);
+
+    if (b === 0) warnings.push("decode_start at/before the first window sample — pre phase has no interval");
+    if (decInt === null) warnings.push("decode segment has no samples (decode_s shorter than the tail gap to the mark)");
+    if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
+    if (decJoules !== null) {
+      const impliedW = decJoules / decodeDur;
+      if (Number.isFinite(impliedW) && (impliedW < 0.1 || impliedW > 20)) {
+        const w = `implied decode power ${impliedW.toFixed(2)} W (j_decode / decode_s) outside the 0.1-20 W sanity band — counts wrong?`;
+        warnings.push(w);
+        notes.push(`${repLabel} ${w}`);
+      }
+    }
     row.warnings = warnings.join("; ");
     rows.push(row);
   }
-  return { rows, notes };
+  return { rows, notes, fatal };
 }
 
 function main() {
   const args = process.argv.slice(2);
   const positional = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--prompt-tokens" || args[i] === "--gen-tokens") i++; // skip the value
+    if (args[i] === "--prompt-tokens" || args[i] === "--gen-tokens" || args[i] === "--counts-manifest") i++; // skip the value
     else positional.push(args[i]);
   }
   const flag = (name) => {
@@ -256,11 +417,39 @@ function main() {
   };
   const cliPromptTokens = flag("--prompt-tokens");
   const cliGenTokens = flag("--gen-tokens");
-  if (cliPromptTokens !== undefined) {
-    console.error(`energyPhaseSplit: using --prompt-tokens ${cliPromptTokens} for every rep (caller-verified count)`);
-  }
-  if (cliGenTokens !== undefined) {
-    console.error(`energyPhaseSplit: using --gen-tokens ${cliGenTokens} for every rep (caller-verified count)`);
+
+  let manifestByStem = new Map();
+  let hasManifest = false;
+  const mi = args.indexOf("--counts-manifest");
+  if (mi !== -1) {
+    const manifestPath = args[mi + 1];
+    if (!manifestPath) {
+      console.error("energyPhaseSplit: --counts-manifest needs a file path");
+      process.exit(1);
+    }
+    let text;
+    try {
+      text = readFileSync(manifestPath, "utf8");
+    } catch {
+      console.error(`energyPhaseSplit: cannot read counts manifest: ${manifestPath}`);
+      process.exit(1);
+    }
+    const { byStem, errors } = parseCountsManifest(text);
+    for (const e of errors) console.error(`energyPhaseSplit: ${e}`);
+    if (errors.length) {
+      console.error("energyPhaseSplit: counts manifest is invalid — refusing to split");
+      process.exit(1);
+    }
+    console.error(`energyPhaseSplit: counts from manifest ${manifestPath} (preferred count source)`);
+    if (cliPromptTokens !== undefined || cliGenTokens !== undefined) {
+      console.error("energyPhaseSplit: ignoring --prompt-tokens/--gen-tokens where the manifest has the stem (manifest takes precedence)");
+    }
+    manifestByStem = byStem;
+    hasManifest = true;
+  } else if (cliPromptTokens !== undefined || cliGenTokens !== undefined) {
+    console.error(
+      "energyPhaseSplit: WARNING: --counts-manifest is the preferred count source; --prompt-tokens/--gen-tokens apply to every stem (caller-verified counts)",
+    );
   }
 
   const dir = positional.shift() ?? "device-ngram-spec-out";
@@ -278,6 +467,7 @@ function main() {
   }
 
   let wroteAny = false;
+  let anyFatal = false;
   for (const stem of stems) {
     let csvText;
     try {
@@ -299,8 +489,24 @@ function main() {
       if (m) repTexts.set(parseInt(m[1], 10), readFileSync(path.join(dir, f), "utf8"));
     }
 
-    const { rows, notes } = splitStem(stem, { csvText, marksText, repTexts, cliPromptTokens, cliGenTokens });
+    const manifestEntry = manifestByStem.get(stem);
+    if (hasManifest && !manifestEntry && (cliPromptTokens !== undefined || cliGenTokens !== undefined)) {
+      console.error(`energyPhaseSplit: ${stem}: no manifest entry — falling back to --prompt-tokens/--gen-tokens`);
+    }
+    const { rows, notes, fatal } = splitStem(stem, {
+      csvText,
+      marksText,
+      repTexts,
+      manifestEntry,
+      cliPromptTokens,
+      cliGenTokens,
+    });
     for (const n of notes) console.error(`energyPhaseSplit: ${n}`);
+    if (fatal !== null) {
+      console.error(`energyPhaseSplit: FATAL ${stem}: ${fatal}`);
+      anyFatal = true;
+      continue;
+    }
     if (!rows.length) continue;
 
     const out = path.join(dir, `${stem}.phases.csv`);
@@ -313,27 +519,29 @@ function main() {
     wroteAny = true;
 
     console.log(`\n## ${stem}\n`);
-    console.log("| rep | window_start_s | duration | prefill_s | decode_s | J_prefill | J_decode | J/prefill-tok | J/decode-tok | W_prefill | W_decode | n_prefill | n_decode | warnings |");
+    console.log("| rep | window_start_s | window_end_s | duration | decode_s | prefill_est_s | J_pre | J_decode | J/decode-tok | W_decode | n_pre | n_decode | cadence med/max | warnings |");
     console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
     for (const r of rows) {
       const na = (x) => (x === "" ? "n/a" : x);
       console.log(
-        `| ${r.rep} | ${r.window_start_s} | ${na(r.duration)} | ${na(r.prefill_s)} | ${na(r.decode_s)} | ` +
-        `${na(r.j_prefill)} | ${na(r.j_decode)} | ${na(r.j_prefill_per_ptok)} | ${na(r.j_per_tok_decode)} | ` +
-        `${na(r.mean_w_prefill)} | ${na(r.mean_w_decode)} | ${r.n_samples_prefill} | ${r.n_samples_decode} | ` +
-        `${r.warnings || "—"} |`,
+        `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.decode_s)} | ${na(r.prefill_est_s)} | ` +
+        `${na(r.j_pre)} | ${na(r.j_decode)} | ${na(r.j_per_tok_decode)} | ${na(r.w_decode)} | ` +
+        `${r.n_pre} | ${r.n_decode} | ${r.cadence_median_s}/${r.cadence_max_s} | ${r.warnings || "—"} |`,
       );
     }
   }
 
-  console.log("\nPhase boundary: prefill ends window_start + prompt-eval duration (the run's");
-  console.log("prompt-eval perf line, else prompt_tokens / prompt t/s); decode takes the");
-  console.log("remainder. Sampler is ~1 Hz: each phase edge carries <= 1 sample (~1 s) of");
-  console.log("attribution uncertainty. Still the RELATIVE battery-terminal metric: the");
-  console.log("inter-rep sleep and model load inside a rep window follow the boundary");
-  console.log("convention, not a separate measurement.");
-  if (!wroteAny) {
-    console.error("energyPhaseSplit: nothing produced");
+  console.log("\nPhase boundary (kalsa-energy-rep-v2): decode = the LAST decode_s seconds of");
+  console.log("the window ending at mark_N, decode_s = gen_tokens / gen tps from the run's");
+  console.log("own speed line (perf eval-time ms when present). j_pre is everything before");
+  console.log("it: model load + inter-rep idle + prompt eval — the prompt-eval-only J is");
+  console.log("NOT resolvable at 1 Hz with the load in-window. The interval straddling");
+  console.log("decode_start belongs to j_pre (decode starts strictly after its start");
+  console.log("point), so j_pre + j_decode equals the whole-window J exactly. Each phase");
+  console.log("edge carries up to ONE SAMPLE INTERVAL of uncertainty: see cadence_median_s");
+  console.log("/cadence_max_s per stem. Still the RELATIVE battery-terminal metric.");
+  if (!wroteAny || anyFatal) {
+    if (!wroteAny) console.error("energyPhaseSplit: nothing produced");
     process.exit(1);
   }
 }
