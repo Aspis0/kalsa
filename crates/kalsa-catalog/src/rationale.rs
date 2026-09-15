@@ -42,18 +42,30 @@ pub(crate) fn details(
     justification: Justification,
 ) -> String {
     // The head names the model as the user knows it, never by repo or quant:
-    // those are ours, and this sentence is the user's. A floor decode is
-    // never introduced with "about" — a floor does not claim a speed, it
-    // claims a direction.
+    // those are ours, and this sentence is the user's. The shape of the
+    // number decides the shape of the sentence: a floor gets words only —
+    // tonight a floor figure was wrong by twenty times in front of the user,
+    // so the formatter is not allowed digits for it — and a measurement
+    // names the machine it was taken on.
     let mut parts = vec![match chosen.decode {
         Prediction::Floor(_) => format!(
-            "{} ({} of weights): decode {} tokens per second on the path that was \
-             measured — the model will run on a faster one — and {} for prompt \
-             processing.",
+            "{} ({} of weights): decoding and prompt-processing speeds on this machine \
+             have not been measured — the probe runs on the CPU, the model will decode \
+             on a faster path, and any figure here would be a guess. Both will be \
+             measured on this machine.",
+            chosen.entry.display_name,
+            gib_text(chosen.entry.weights_bytes)
+        ),
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!(
+            "{} ({} of weights): {:.1} tokens per second, as measured on {} — and \
+             prompt processing on this machine not yet measured.",
             chosen.entry.display_name,
             gib_text(chosen.entry.weights_bytes),
-            render(&chosen.decode),
-            render(&chosen.prefill)
+            tokens_per_second,
+            machine
         ),
         _ => format!(
             "{} ({} of weights): about {} tokens per second, and {} for prompt \
@@ -64,18 +76,6 @@ pub(crate) fn details(
             render(&chosen.prefill)
         ),
     }];
-
-    // The honesty that travels with a floor decode, in the same breath as the
-    // number: the figure under-promises on purpose, and the real one is
-    // measured here, on this machine.
-    if matches!(chosen.decode, Prediction::Floor(_)) {
-        parts.push(
-            "The decode figure is a floor: it was measured on a slower path than the \
-             model will run on, so the true speed is higher, and it will be measured on \
-             this machine."
-                .to_string(),
-        );
-    }
 
     if chosen.entry.parameters.is_mixture() {
         parts.push(format!(
@@ -185,16 +185,22 @@ pub(crate) fn gib_text(bytes: u64) -> String {
 }
 
 /// One formatter, because there is only one question: which shape is it? A
-/// range prints with an en dash, a floor prints with the probe's ≥, an
-/// estimate prints with ≈ — and there is no wrong call to make, because the
-/// type carries the shape. A degenerate band (a failed measurement would
-/// make one) renders harmlessly instead of taking the app down.
+/// range prints with an en dash, an estimate prints with ≈ — and a floor
+/// prints NO figure at all: its number has been wrong by twenty times in
+/// front of a user, so the type's words are all it may say. A degenerate
+/// band (a failed measurement would make one) renders harmlessly instead of
+/// taking the app down.
 pub(crate) fn render(prediction: &Prediction) -> String {
     match *prediction {
         Prediction::Range { low, high } if high >= 10.0 => format!("{:.0}–{:.0}", low, high),
         Prediction::Range { low, high } => format!("{:.1}–{:.1}", low, high),
-        Prediction::Floor(value) => format!("≥ {:.1}", value),
+        Prediction::Floor(_) => "a decoding speed not yet measured on this machine"
+            .to_string(),
         Prediction::Estimate(value) => format!("≈ {:.1}", value),
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!("{tokens_per_second:.1} tok/s on {machine} (measured)"),
     }
 }
 
@@ -220,11 +226,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_floor_prints_as_a_floor_and_a_range_as_a_range() {
+    fn a_floor_prints_words_and_a_range_prints_its_band() {
         // The shape is decided by the type, not by the caller picking a
-        // formatter: one render, two honest outputs.
-        assert_eq!(render(&Prediction::Floor(16.1)), "≥ 16.1");
-        assert_eq!(render(&Prediction::Floor(4.2)), "≥ 4.2");
+        // formatter: one render, and a floor can never wear a figure —
+        // tonight's floor was wrong by twenty times in front of the user.
+        let floor = render(&Prediction::Floor(3.0));
+        assert!(!floor.chars().any(|c| c.is_ascii_digit()), "{floor}");
+        assert_eq!(floor, "a decoding speed not yet measured on this machine");
         assert_eq!(
             render(&Prediction::Range {
                 low: 25.4,
@@ -241,6 +249,11 @@ mod tests {
             "below ten, a decimal"
         );
         assert_eq!(render(&Prediction::Estimate(16.7)), "≈ 16.7");
+        let measured = render(&Prediction::Measured {
+            tokens_per_second: 62.7,
+            machine: "M1 Max",
+        });
+        assert!(measured.contains("62.7") && measured.contains("M1 Max"), "{measured}");
     }
 
     #[test]

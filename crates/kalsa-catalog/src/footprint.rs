@@ -156,6 +156,7 @@ mod tests {
             kv_bytes_per_token: None,
             kv_assumption_undercounts: false,
             dense_equivalent: None,
+            measured_decode: None,
             stale: None,
         }
     }

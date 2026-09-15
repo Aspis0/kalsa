@@ -14,6 +14,8 @@
 //! tells the vintages apart: only rows the API was actually asked about carry
 //! one, and it is complete or absent, never partial.
 
+use kalsa_probe::Backend;
+
 use crate::licence::{Licence, Standing};
 use crate::parameters::Parameters;
 
@@ -47,6 +49,23 @@ pub struct GgufSource {
     /// proves a digest: `kalsa-download` refuses bytes that do not match, so
     /// a wrong digest fails loudly and nothing unverified ever runs.
     pub sha256: &'static str,
+}
+
+/// A decode rate measured for real, with the machine it was measured on —
+/// because a rate is a fact about one machine, never a property of the
+/// model. The catalog uses it only for a machine that decodes on the same
+/// backend; anywhere else the probe prediction is the honest answer, and the
+/// measurement stays on the record for whoever rebuilds the traffic model.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MeasuredDecode {
+    /// Decode throughput, from the serving engine's own timings.
+    pub tokens_per_second: f64,
+    /// The backend the rate was measured on: the figure is used only for a
+    /// machine that decodes on the same path.
+    pub backend: Backend,
+    /// The machine, the configuration and the date — verbatim enough that
+    /// the reader can judge the figure.
+    pub measured_on: &'static str,
 }
 
 impl GgufSource {
@@ -126,6 +145,11 @@ pub struct ModelEntry {
     /// record of why the measurement was needed — and so that removing the
     /// measurement closes the door again.
     pub kv_assumption_undercounts: bool,
+    /// A decode rate measured on the real path, where one exists. When it
+    /// does, it is what the row's speed sentence says — a measurement beats
+    /// a prediction. None on every row not yet measured: those keep the
+    /// probe-side prediction, and none of them pretends otherwise.
+    pub measured_decode: Option<MeasuredDecode>,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
 }
@@ -199,6 +223,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -214,6 +239,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -229,6 +255,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -244,6 +271,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -259,6 +287,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -274,6 +303,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -289,6 +319,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -304,6 +335,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -328,6 +360,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: Some(163_840),
         dense_equivalent: None,
         kv_assumption_undercounts: true,
+        measured_decode: None,
         stale: None,
     },
     // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
@@ -362,6 +395,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -391,6 +425,7 @@ pub const CATALOG: &[ModelEntry] = &[
             source: "Microsoft's Phi-mini-MoE-instruct model card, accessed 2026-09-14",
         }),
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -420,6 +455,7 @@ pub const CATALOG: &[ModelEntry] = &[
             source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
         }),
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -445,7 +481,16 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
-        stale: None,
+        // Measured tonight, 2026-09-14, on the machine this catalog is
+        // developed on: the real engine, the real path, the server's own
+        // timings. Every other row is unmeasured, and none of them pretends
+        // otherwise.
+        measured_decode: Some(MeasuredDecode {
+            tokens_per_second: 62.7,
+            backend: Backend::Metal,
+            measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
+                          on GPU, context 4096), 2026-09-14",
+        }),        stale: None,
     },
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
@@ -464,6 +509,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: None,
     },
     ModelEntry {
@@ -479,6 +525,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
     ModelEntry {
@@ -494,6 +541,7 @@ pub const CATALOG: &[ModelEntry] = &[
         kv_bytes_per_token: None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
+        measured_decode: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
 ];
@@ -551,6 +599,33 @@ mod tests {
             !unmeasured.is_usable(),
             "without the measurement, the assumption is known wrong for this row"
         );
+    }
+
+    #[test]
+    fn trinitys_measured_decode_names_its_machine() {
+        // Measured tonight on the M1 Max, on the path the row will decode
+        // on: the figure and the machine travel together, and the backend
+        // gate means a different machine is never told this one's speed.
+        let trinity = CATALOG
+            .iter()
+            .find(|entry| entry.repo == "arcee-ai/Trinity-Nano-Preview")
+            .expect("trinity is in the catalog");
+        let measured = trinity
+            .measured_decode
+            .expect("trinity was measured on the real engine");
+        assert_eq!(measured.tokens_per_second, 62.7);
+        assert_eq!(measured.backend, Backend::Metal);
+        assert!(measured.measured_on.contains("M1 Max"), "{}", measured.measured_on);
+        assert!(
+            measured.measured_on.contains("2026-09-14"),
+            "{}",
+            measured.measured_on
+        );
+        // Every other row is unmeasured, and none of them pretends otherwise.
+        assert!(CATALOG
+            .iter()
+            .filter(|entry| entry.repo != trinity.repo)
+            .all(|entry| entry.measured_decode.is_none()));
     }
 
     #[test]

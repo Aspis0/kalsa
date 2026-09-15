@@ -361,9 +361,12 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
 }
 
 #[test]
-fn a_floor_never_prints_as_a_confident_range() {
-    // The same machine at the 8 GiB tier: the relief offer's speed is a
-    // floor, rendered as one, with the honesty in the same breath.
+fn a_measured_decode_is_what_counts() {
+    // The 8 GiB Metal tier picks Trinity, and Trinity's speed is no longer a
+    // prediction: the row carries the rate measured tonight on this very
+    // machine, the machine and the conditions travel with it, and the
+    // probe's floor figure is nowhere in the prose — a floor speaks words,
+    // and this row has graduated past words.
     let mac = ChoiceInput {
         backend: Backend::Metal,
         bandwidth_is_lower_bound: true,
@@ -373,15 +376,19 @@ fn a_floor_never_prints_as_a_confident_range() {
     match choose(&mac) {
         Decision::Pick(selection) => {
             assert_eq!(selection.justification, Justification::Relief);
-            assert!(matches!(selection.decode, Prediction::Floor(_)));
-            assert!(selection.details.contains("≥ "), "{}", selection.details);
+            assert!(matches!(
+                selection.decode,
+                Prediction::Measured { tokens_per_second, .. } if (tokens_per_second - 62.7).abs() < 1e-9
+            ));
             assert!(
-                selection.details.contains("measured on a slower path"),
+                selection.details.contains("62.7 tokens per second, as measured on M1 Max"),
                 "{}",
                 selection.details
             );
+            // No floor glyph anywhere: the row is past floors.
+            assert!(!selection.details.contains('≥'), "{}", selection.details);
         }
-        other => panic!("expected a relief pick, got {other:?}"),
+        other => panic!("expected a pick, got {other:?}"),
     }
 }
 

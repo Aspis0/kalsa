@@ -22,13 +22,23 @@ pub enum Prediction {
     Range { low: f64, high: f64 },
     /// A lower bound — decode predicted from a bandwidth measured on a
     /// slower path than the model will run on. It can keep a candidate, but
-    /// it can never refuse one or be printed as a confident speed.
+    /// it can never refuse one, and the formatter gives it words, not
+    /// figures: tonight a floor built from a busy probe said ">= 3.0" for a
+    /// machine doing 62, and a figure that wrong must not be pronounceable.
     Floor(f64),
     /// An estimate — prefill, from the compute probe. The probe counts the
     /// weights' work and omits attention and routing, which grow with
     /// context, so the figure is neither a floor nor a range and prints as
     /// an approximation.
     Estimate(f64),
+    /// A decode rate measured for real, on the real path, for the measured
+    /// row — it replaces the probe prediction entirely, and it names the
+    /// machine, because a rate is a fact about one machine, never a
+    /// property of the model.
+    Measured {
+        tokens_per_second: f64,
+        machine: &'static str,
+    },
 }
 
 impl Prediction {
@@ -36,7 +46,9 @@ impl Prediction {
     pub fn floor(&self) -> f64 {
         match *self {
             Prediction::Range { low, .. } => low,
-            Prediction::Floor(value) | Prediction::Estimate(value) => value,
+            Prediction::Floor(value)
+            | Prediction::Estimate(value)
+            | Prediction::Measured { tokens_per_second: value, .. } => value,
         }
     }
 
@@ -44,7 +56,9 @@ impl Prediction {
     pub fn ceiling(&self) -> f64 {
         match *self {
             Prediction::Range { high, .. } => high,
-            Prediction::Floor(value) | Prediction::Estimate(value) => value,
+            Prediction::Floor(value)
+            | Prediction::Estimate(value)
+            | Prediction::Measured { tokens_per_second: value, .. } => value,
         }
     }
 }
@@ -77,20 +91,44 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     // re-read every token — the omission kalsa-probe documents, charged here
     // where the context is known. Attention may read the cache more than
     // once; the efficiency band absorbs that slop.
+    //
+    // KNOWN DEBT, measured 2026-09-14 on the M1 Max (Metal, q8_0 KV, flash-
+    // attention, all layers on GPU, context 4096): Trinity-Nano-Preview
+    // (MoE, 6B total / 1B active, 3.79 GB file) decoded at 62.7 tok/s, while
+    // LFM2.5-8B-A1B (MoE, 8.2B total / 1.5B active, 4.59 GB file) decoded at
+    // 107-114 tok/s. The smaller, less-active model is ~1.8x SLOWER: real
+    // per-token traffic does not follow the active bytes this model charges
+    // (for Trinity-class MoEs llama.cpp reads far more than the routed
+    // experts). Until the traffic model is rebuilt from per-row measurement,
+    // every decode figure here is a probe-side guess that a measured decode
+    // (`ModelEntry::measured_decode`) corrects.
     let traffic = active_bytes.saturating_add(footprint.kv_bytes);
     let decode = |efficiency| {
         decode_tokens_per_second(input.bandwidth_bytes_per_second, traffic, efficiency)
     };
     let (low_efficiency, high_efficiency) = DECODE_EFFICIENCY_BAND;
-    let decode = if input.bandwidth_is_lower_bound {
-        // The bandwidth was measured on a slower path than the model will run
-        // on, so the honest prediction is the pessimistic end of the band: a
-        // floor, never a range the real path can outrun.
-        Prediction::Floor(decode(low_efficiency).unwrap_or(0.0))
-    } else {
-        Prediction::Range {
-            low: decode(low_efficiency).unwrap_or(0.0),
-            high: decode(high_efficiency).unwrap_or(0.0),
+    let decode = match entry.measured_decode {
+        // A rate measured on the real path beats any prediction — but only
+        // for a machine that decodes on the same path: the figure is a fact
+        // about the machine it was measured on, and saying it elsewhere is
+        // the number-without-a-path mistake all over again.
+        Some(measured) if measured.backend == input.backend => Prediction::Measured {
+            tokens_per_second: measured.tokens_per_second,
+            machine: measured.measured_on,
+        },
+        _ => {
+            if input.bandwidth_is_lower_bound {
+                // The bandwidth was measured on a slower path than the model
+                // will run on, so the honest prediction is the pessimistic
+                // end of the band: a floor, never a range the real path can
+                // outrun.
+                Prediction::Floor(decode(low_efficiency).unwrap_or(0.0))
+            } else {
+                Prediction::Range {
+                    low: decode(low_efficiency).unwrap_or(0.0),
+                    high: decode(high_efficiency).unwrap_or(0.0),
+                }
+            }
         }
     };
     Candidate {
@@ -168,6 +206,7 @@ mod tests {
             kv_bytes_per_token: None,
             kv_assumption_undercounts: false,
             dense_equivalent: None,
+            measured_decode: None,
             stale: None,
         }
     }

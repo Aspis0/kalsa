@@ -22,7 +22,7 @@
 //!   cargo test -p kalsa-catalog --test real_machine -- --ignored --nocapture
 //! ```
 
-use kalsa_catalog::{choose, ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, GIB};
+use kalsa_catalog::{choose, ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB};
 use kalsa_probe::{measure_reliable, ProbeConfig};
 use std::io::{Read, Write};
 use std::net::TcpStream;

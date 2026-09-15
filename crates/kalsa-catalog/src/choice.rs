@@ -528,14 +528,20 @@ fn nothing_fits(budget: MemoryBudget, candidates: &[Candidate]) -> Refusal {
 /// The honest span of a set of predictions: from the most pessimistic end to
 /// the most optimistic. None for an empty set — there is no speed to
 /// summarise, and no fabricated pair of infinities stands in for one.
+/// Floors and measurements are not ranges: their ends are not two ends, and
+/// spanning a measured rate against a predicted band would be a fabrication.
 fn span_of<'a>(predictions: impl Iterator<Item = &'a Prediction>) -> Option<Prediction> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
+    let mut seen_range = false;
     for prediction in predictions {
-        low = low.min(prediction.floor());
-        high = high.max(prediction.ceiling());
+        if let Prediction::Range { low: l, high: h } = *prediction {
+            seen_range = true;
+            low = low.min(l);
+            high = high.max(h);
+        }
     }
-    (high >= low).then_some(Prediction::Range { low, high })
+    seen_range.then_some(Prediction::Range { low, high })
 }
 
 /// The numbers and the sentence for the candidate the walk settled on.
