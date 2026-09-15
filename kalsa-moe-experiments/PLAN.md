@@ -146,6 +146,14 @@ AppShell wiring lacks an integration-level test, and a truly wedged JS-only awai
 engine job can keep the engine resident in the foreground. Those paths need their own bounded
 awaits, not a return of the idle age escape.
 
+Commit `c37b419` contains the fix and this evidence. A fresh `:app:assembleDebug --rerun-tasks`
+completed all 548 tasks in 2m07s. The artifact is 340,974,889 bytes, manifest-debuggable, signed
+with the Android Debug certificate, and has SHA-256
+`ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`. It is byte-identical to
+the preceding debug APK because this correction is JS-only and the debug variant loads JS from
+Metro; the current source/Metro session supplies the fix. The APK has not been installed after
+this build and the device was not contacted.
+
 ## Still open
 
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
@@ -160,9 +168,9 @@ awaits, not a return of the idle age escape.
   variants in the APK contain `kalsa-native-patches`, `q23k`, `KALSA_KVDIAG`, and
   `restored state checkpoint`. The 09-14 APK remains invalid for this protocol and must not be
   reused.
-- Re-run S23 T20C with the foreground-idle fix after producing and installing a new debuggable
-  APK. Preserve the same pass conditions: no repeated `window_align ... to:0`, monotone slides,
-  and one successful `window_reconcile` before assembly whenever held+unknown is reached.
+- Install/launch the verified debug APK with Metro serving `c37b419`, then re-run S23 T20C.
+  Preserve the same pass conditions: no repeated `window_align ... to:0`, monotone slides, and
+  one successful `window_reconcile` before assembly whenever held+unknown is reached.
 - Add a focused AppShell wiring test for both foreground-idle checks without duplicating the
   in-flight source of truth. Separately bound JS-only tool/pre-turn awaits that are not covered by
   an engine-job watchdog.
@@ -172,8 +180,8 @@ awaits, not a return of the idle age escape.
 
 - Targeted tests only. No full Jest. No push. Device work is pinned to the S23 serial above;
   never contact the Jelly Star.
-- The previous debuggable APK is installed, but it predates the foreground-idle correction. The
-  last campaign left the S23 unplugged, force-stopped, and at 18%; recharge before the next run,
-  then unplug before measuring. Never reuse the 09-14 APK for this protocol.
+- The newly verified debug APK is not installed. The last campaign left the S23 unplugged,
+  force-stopped, and at 18%; recharge before installation/run, then unplug before measuring.
+  Never reuse the 09-14 APK for this protocol.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.
