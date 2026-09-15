@@ -100,6 +100,7 @@ EOF
   # DIV: wiki excerpt — adversarial, near-zero repeats; measures the pure
   # overhead of a speculative arm when the draft should rarely fire.
   head -c 1500 "$LOCAL_MODELS/wiki.test.raw" > "$OUT/div.txt" 2>/dev/null
+  adb push "$_NGS_DIR/energy-sample.sh" "$BENCH_DIR/energy-sample.sh" </dev/null >/dev/null 2>&1
   adb push "$OUT/rep.txt" "$BENCH_DIR/rep.txt" </dev/null >/dev/null 2>&1
   adb push "$OUT/div.txt" "$BENCH_DIR/div.txt" </dev/null >/dev/null 2>&1
 }
@@ -115,10 +116,22 @@ clean_out() {
     | sed -e 's/[[:space:]]*$//' -e '/^$/d'
 }
 
+# Energy window: the WHOLE arm (load + prefill + reps). This makes J/token a
+# RELATIVE metric — identical load+prefill across arms of the same (model,
+# prompt), so between-arm deltas are meaningful, absolute J/token is not.
+# The CSV also holds per-CPU clocks, which is how we attribute tok/s decay to
+# clock throttling instead of guessing (battery temp proved useless: pinned
+# at 38.0C while tok/s swung 2x on the G99).
 run_arm() {
   local model="$1" arm="$2" prompt="$3" rep i out speed
   # macOS ships bash 3.2: no ${var,,}. tr it.
   local pf="$BENCH_DIR/$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]').txt"
+  local tag="$(basename "$model" .gguf)_${arm}_${prompt}"
+  local stop="$BENCH_DIR/stop.energy"
+  if [ "${ENERGY:-1}" = "1" ]; then
+    adb shell "rm -f $stop" </dev/null
+    adb shell "(sh $BENCH_DIR/energy-sample.sh $BENCH_DIR/$tag.csv $stop 1 >/dev/null 2>&1 &)" </dev/null
+  fi
   for i in $(seq 1 "$REPS"); do
     out="$OUT/$(basename "$model" .gguf)_${arm}_${prompt}_r$i.txt"
     adb shell "cd $BENCH_DIR && LD_LIBRARY_PATH=. timeout 600 ./llama-cli \
@@ -140,6 +153,12 @@ run_arm() {
     blog "    r$i: ${speed}"
     sleep 5
   done
+  if [ "${ENERGY:-1}" = "1" ]; then
+    adb shell "touch $stop" </dev/null
+    sleep 1
+    adb pull "$BENCH_DIR/$tag.csv" "$OUT/" </dev/null >/dev/null 2>&1 \
+      || blog "  energy csv pull FAILED for $tag"
+  fi
   return 0
 }
 
