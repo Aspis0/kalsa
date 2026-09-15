@@ -933,17 +933,123 @@ The lesson is the same one as the security round, one level up. A test that
 builds its own subject cannot see the subject's defects; a suite that never
 executes the thing it configures cannot see that the configuration is refused.
 
+### Built, and attached to nothing
+
+The flag that would not start the server turned out to be the small version of
+a bigger habit, so the whole workspace was swept for it — every public entry
+point, against every caller, tests excluded. Four finished pieces were wired to
+nothing at all.
+
+The launcher was not in any crate's dependencies; what started the server was
+the supervisor's own argument list. The thermal guard's two entry points were
+called only by its own tests: nothing ever handed it a sample. The progress
+event was emitted by the shell and listened to by nobody, so a 3.5 GB download
+ran with the screen showing "Off". And the ceremony had no transport.
+
+The fourth one is the one that mattered. The Pairing page invoked four
+commands — `brain_pairing`, `brain_pairing_retry`, `brain_pairing_replace`,
+`brain_pairing_keep` — and **none of the four existed in Rust**. Nothing ever
+called `store::persist`, so the file the shell reads on startup was never
+written by anything, so `phone()` answered `None` every single time. Which
+means the sentence this product is built on — *run a model that knows more
+than the one on your phone* — has never once been evaluated against a phone.
+Every choice ever made here took the no-phone branch.
+
+So the two questions a crate must answer before it counts as done are now
+part of the method, next to the mutation:
+
+1. `grep` the crate's name across every `Cargo.toml` but its own. Empty means
+   dead, and that is the headline, not a footnote.
+2. Every `emit` needs a `listen` with the same string, and every `invoke` needs
+   a command that exists. Both directions: a page calling something that was
+   never written fails silently for as long as nobody looks.
+
+### The hostile round, and the two regressions it caught
+
+The pairing proof and the launcher wiring went to an adversarial read by a
+different model, which returned twenty-eight findings. Several of the crate's
+defences held and are worth recording as held: no secret in any `Debug`, error
+string or panic; the two MAC domains genuinely disjoint, neither a prefix of
+the other; a zero nonce is a value and not a sentinel; a malformed MAC
+allocates nothing. The QR test, once burned for building its own quiet zone,
+now checks all four sides.
+
+Two findings were regressions introduced by the fix that preceded them, which
+is the argument for auditing every step rather than every release:
+
+* **The budget followed the wrong card.** The build that wins is decided
+  before the model is chosen, but the memory budget was still derived from the
+  *detected* backend. On a machine where the GPU build fails and the CPU build
+  wins, the model was sized against VRAM and would then decode out of system
+  RAM. Two different type families — the probe's backend and the server's —
+  which is exactly why nobody saw it.
+* **Loopback stopped being structural.** Collapsing the two argument renderers
+  into one left the supervisor taking an argv it never reads, so nothing
+  prevented `--host 0.0.0.0` while the health check still asked `127.0.0.1`. A
+  guarantee had quietly become a convention. The supervisor now refuses to
+  spawn an argv that does not bind loopback on exactly the port it supervises.
+
+And one the crate had claimed was closed and was not: the ceremony answered
+*two different refusals* — one for a wrong proof, another for no live
+ceremony — which tells a prober whether a square is on a screen it cannot see.
+Its own test froze that as the specification. One refusal now, for everything.
+
+The rest came in: the store writes through a temp file and a rename, so a
+crash cannot leave a credential half-written and lock the owner out; the
+protocol has known-answer vectors, including RFC 4231's, instead of tests that
+recompute the MAC with the function under test; an absurd window is an error
+rather than a panic; the recorded server digest now belongs to the executable,
+so a binary swapped after extraction is refused rather than silently repaired
+by a re-download; a recycled pid is never signalled; and the second unload
+clock is deleted, because the server's own `--sleep-idle-seconds` was already
+the only one that could fire.
+
+Two mistakes of ours are on the record too. A crate committed by path added a
+field to a shared type and broke another crate, because per-crate test runs
+cannot see across the boundary — a workspace check now precedes any change to
+a public type. And a commit made by path silently left out its two new files,
+because `git commit -- <path>` does not add what git has never tracked.
+
+### Where the moat actually is
+
+A market read, commissioned separately, lands on one sentence: the thing
+nobody offers is a PC→phone bridge an ordinary person can set up, because
+today it means Tailscale or WireGuard by hand. Local inference itself is not
+the moat — the phone's own OS gives it away free, and the desktop tools give
+it away to anyone comfortable with a terminal.
+
+That is worth stating against what is actually built. Everything proved
+tonight — the engine, the weights, the choice, the arguments, the supervision
+— is the part that is already free elsewhere. The part that is ours is the one
+step still missing: the phone reached this Mac through `adb reverse`, which is
+a cable trick for developers, not a product.
+
+It also puts a question in front of the transport rather than behind it. A
+tunnel through an intermediary is the easy build and the cheap bill, and it
+puts a third party in the path of a product whose whole pitch is that nothing
+leaves the house. Peer-to-peer keeps the promise and costs more work. That is
+a product decision, not an implementation detail, and the code should not be
+written until it is made — which is why the listener built today binds
+loopback and says plainly that something else has to carry the phone to it.
+
 ### Not built yet
 
-"Turn on" is wired end to end and has now been run end to end: decide the
-backend, fetch the build, choose and fetch the model, start the server with
-the plan's own arguments. The pages render every state of it, including the
-slow ones and the five ways the first run can fail. The ceremony no longer
-authenticates nobody: completing it requires a MAC over the offer's nonce and
-the phone's own declaration, one attempt only, and every refusal is the same
-refusal so that nothing can be learned by probing it.
+"Turn on" is wired end to end and has been run end to end on a real machine.
+Pairing is wired too: the page's four commands exist, the ceremony has a
+loopback transport, the credential is written, and the catalog is finally
+handed a phone. The phone's own side of the protocol ships in the same crate,
+because a MAC that covers exact serialized bytes cannot be reimplemented from
+a description.
 
-What is open: the **pairing transport** — the proof exists as data, and
-nothing yet carries it over a socket; the **capability split** of section
-5bis; and **nine catalog rows with no identified GGUF**, which is the
-bake-off's job and not a coding task.
+What is open, in the order it matters:
+
+* **The tunnel.** Everything above assumes the phone can reach this computer,
+  and today that assumption is a developer's USB cable. This is the product,
+  not a feature of it — see the section above, and the decision it names.
+* **The capability split** of section 5bis: the web and documents on the PC,
+  the conversation on the phone.
+* **Nine catalog rows with no identified GGUF**, which is the bake-off's job
+  and not a coding task.
+* **The phone has no name.** The declaration carries capability and nothing a
+  person would call a name, so the screen says "your phone". True today; worth
+  a protocol field the day a second phone exists.
