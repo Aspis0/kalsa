@@ -16,7 +16,7 @@
 //!   not a defect here.
 //!
 //! Size arithmetic, worked out rather than guessed: `payload::encode` emits
-//! `{"v":1,"reachable":"http://192.168.1.10:4952","code":"<32 hex>","binding":"<64 hex>"}`
+//! `{"v":2,"reachable":"http://192.168.1.10:4952","code":"<32 hex>","nonce":"<64 hex>"}`
 //! — 165 bytes for a 24-character address. Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm conditions,
 //! and level H would grow the same payload from a version-9 symbol (53×53

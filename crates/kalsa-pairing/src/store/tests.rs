@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use super::{forget, load, persist, StoreError};
+use super::{forget, load, persist, temp_path, StoreError};
 use crate::handshake::{Credential, Handshake};
 
 fn scratch(name: &str) -> PathBuf {
@@ -84,6 +84,21 @@ fn the_credential_file_is_owner_only() {
 
     let mode = fs::metadata(&path).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_torn_temp_from_an_earlier_crash_never_becomes_the_credential() {
+    let dir = scratch("torn");
+    let path = dir.join("credential.json");
+    // A previous persist died between writing the temp and renaming it.
+    fs::write(temp_path(&path), b"half a write").unwrap();
+
+    persist(&sample_handshake(), &path).unwrap();
+    // What loads is a complete handshake, and the torn bytes were consumed
+    // by the publication, not promoted.
+    assert!(load(&path).is_ok());
+    assert!(!temp_path(&path).exists());
     fs::remove_dir_all(&dir).unwrap();
 }
 

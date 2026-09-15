@@ -8,7 +8,7 @@ use std::fmt;
 /// The operating system would not provide entropy. Nothing was generated: no
 /// code was offered, no credential was minted.
 #[derive(Debug)]
-pub struct EntropyError;
+pub(crate) struct EntropyError;
 
 impl fmt::Display for EntropyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -17,6 +17,28 @@ impl fmt::Display for EntropyError {
 }
 
 impl Error for EntropyError {}
+
+/// Why an offer could not be put on the table.
+#[derive(Debug)]
+pub enum OfferError {
+    /// The operating system would not provide entropy. No offer exists.
+    Entropy,
+    /// The caller's `ttl` does not fit the wall clock, so no deadline can be
+    /// computed. No offer exists — a window that cannot be represented must
+    /// not silently become an eternal one.
+    Deadline,
+}
+
+impl fmt::Display for OfferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Entropy => "the operating system would not provide entropy",
+            Self::Deadline => "the requested window does not fit the clock",
+        })
+    }
+}
+
+impl Error for OfferError {}
 
 /// The pairing payload does not fit in a QR code, so nothing was rendered:
 /// a truncated symbol would scan into a payload that is not the ceremony's.
@@ -33,14 +55,13 @@ impl Error for PayloadTooLong {}
 
 #[derive(Debug)]
 pub enum CompleteError {
-    /// `complete` was called on a ceremony that no phone has claimed.
-    NotClaimed,
-    /// The ceremony is finished: the window closed, or the completion proof
-    /// did not verify — deliberately **one** answer for both. Distinguishing
+    /// The ceremony is finished or was never alive — offered without a
+    /// claim, already paired, expired, or burned by a proof that did not
+    /// verify. Deliberately **one** answer for every cause: distinguishing
     /// them would hand a prober an oracle for "is there a live, claimed
-    /// ceremony sitting here", worth mining before deciding to keep guessing;
-    /// and since a failed verification burns the ceremony, the two cases end
-    /// in the same state with nothing left to tell apart.
+    /// ceremony sitting here". A completion against a session with nothing
+    /// claimed changes no state; a completion against a live claim whose
+    /// proof fails burns it.
     Refused,
     /// The long-lived credential could not be minted. This one is not
     /// attacker-facing — nothing the phone presented caused it — so the
@@ -51,7 +72,6 @@ pub enum CompleteError {
 impl fmt::Display for CompleteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::NotClaimed => "the ceremony was completed without a claim",
             Self::Refused => "the pairing ceremony refused completion",
             Self::Entropy => "the operating system would not provide entropy",
         })

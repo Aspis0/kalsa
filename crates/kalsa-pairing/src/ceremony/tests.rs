@@ -1,22 +1,23 @@
 use std::time::{Duration, SystemTime};
 
 use super::{ClaimResult, Pairing};
-use crate::error::{CompleteError, EntropyError, StoreError};
+use crate::error::{CompleteError, OfferError, StoreError};
 use crate::messages::{phone_mac, PhoneDeclaration, PhoneFields, NONCE_BYTES};
 use crate::secret::OneTimeCode;
 use kalsa_catalog::{Parameters, PhoneModel};
 
 const TTL: Duration = Duration::from_secs(300);
 const REACHABLE: &str = "http://192.168.1.10:4952";
+const ELSEWHERE: &str = "http://192.168.1.66:1";
 
 fn offered() -> (Pairing, SystemTime) {
     let start = SystemTime::now();
-    (Pairing::offer(start, TTL).unwrap(), start)
+    (Pairing::offer(REACHABLE, start, TTL).unwrap(), start)
 }
 
 /// The code and the nonce, exactly as the QR carried them.
 fn qr_secrets(session: &Pairing) -> (String, String) {
-    let json = session.qr_payload(REACHABLE).unwrap();
+    let json = session.qr_payload().unwrap();
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     (
         value["code"].as_str().unwrap().to_string(),
@@ -47,13 +48,18 @@ fn declined_phone() -> PhoneFields {
 }
 
 /// The phone's side of the recipe in `messages`: decode what the QR gave,
-/// MAC the canonical metadata over the phone domain.
-fn declaration(code_hex: &str, nonce_hex: &str, phone: PhoneFields) -> PhoneDeclaration {
+/// MAC the address and the canonical metadata over the phone domain.
+fn declaration(
+    code_hex: &str,
+    nonce_hex: &str,
+    reachable: &str,
+    phone: PhoneFields,
+) -> PhoneDeclaration {
     let mut key = [0u8; 16];
     hex::decode_to_slice(code_hex, &mut key).unwrap();
     let mut nonce = [0u8; NONCE_BYTES];
     hex::decode_to_slice(nonce_hex, &mut nonce).unwrap();
-    let mac = hex::encode(phone_mac(&key, &nonce, &phone));
+    let mac = hex::encode(phone_mac(&key, &nonce, reachable, &phone));
     PhoneDeclaration { phone, mac }
 }
 
@@ -74,16 +80,10 @@ fn a_code_is_single_use() {
     let (code, _) = qr_secrets(&session);
     let middle = start + TTL / 2;
 
-    assert!(matches!(
-        session.claim(&code, middle),
-        ClaimResult::Claimed
-    ));
+    assert!(matches!(session.claim(&code, middle), ClaimResult::Claimed));
     // The same code, still inside the window: refused, exactly as a wrong
     // one would be.
-    assert!(matches!(
-        session.claim(&code, middle),
-        ClaimResult::Rejected
-    ));
+    assert!(matches!(session.claim(&code, middle), ClaimResult::Rejected));
     assert!(matches!(session, Pairing::Claimed(_)));
 }
 
@@ -152,7 +152,7 @@ fn every_rejection_is_the_same_rejection() {
 #[test]
 fn a_valid_proof_completes_the_pairing() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, sample_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
 
     let (handshake, seal) = session
         .complete(declaration, start + Duration::from_secs(2))
@@ -169,7 +169,7 @@ fn a_valid_proof_completes_the_pairing() {
 #[test]
 fn a_single_flipped_bit_burns_the_ceremony() {
     let (mut session, start, code, nonce) = claimed();
-    let mut tampered = declaration(&code, &nonce, sample_phone());
+    let mut tampered = declaration(&code, &nonce, REACHABLE, sample_phone());
     let mut raw = hex::decode(&tampered.mac).unwrap();
     raw[0] ^= 0x01;
     tampered.mac = hex::encode(raw);
@@ -180,14 +180,13 @@ fn a_single_flipped_bit_burns_the_ceremony() {
     ));
     assert!(matches!(session, Pairing::Expired));
     // The burned secret is worth nothing: the *valid* proof, presented
-    // after the burn, pairs nothing. The API reports NotClaimed there — the
-    // state machine's way of saying there is no claimed ceremony left — and
-    // the state stays Expired regardless.
-    let replay = declaration(&code, &nonce, sample_phone());
-    assert!(
-        session.complete(replay, start + Duration::from_secs(3)).is_err(),
-        "a burned ceremony pairs nothing"
-    );
+    // after the burn, pairs nothing. The answer is Refused now — the same
+    // answer any dead ceremony gives — and the state stays Expired.
+    let replay = declaration(&code, &nonce, REACHABLE, sample_phone());
+    assert!(matches!(
+        session.complete(replay, start + Duration::from_secs(3)),
+        Err(CompleteError::Refused)
+    ));
     assert!(matches!(session, Pairing::Expired));
 }
 
@@ -196,7 +195,7 @@ fn metadata_altered_after_the_mac_is_refused() {
     let (mut session, start, code, nonce) = claimed();
     // MAC the honest metadata, then swap the field afterwards — exactly the
     // alteration a lying endpoint would attempt.
-    let mut declaration = declaration(&code, &nonce, sample_phone());
+    let mut declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
     declaration.phone = phone_with_weights(2_200_000_001);
 
     assert!(matches!(
@@ -207,9 +206,23 @@ fn metadata_altered_after_the_mac_is_refused() {
 }
 
 #[test]
+fn the_declaration_is_bound_to_the_whole_square() {
+    // The address rode in the QR, so it rides in the MAC: a declaration
+    // composed over one square's address verifies against no other.
+    let (mut session, start, code, nonce) = claimed();
+    let wrong_square = declaration(&code, &nonce, ELSEWHERE, sample_phone());
+
+    assert!(matches!(
+        session.complete(wrong_square, start + Duration::from_secs(2)),
+        Err(CompleteError::Refused)
+    ));
+    assert!(matches!(session, Pairing::Expired));
+}
+
+#[test]
 fn a_declining_phone_is_taken_at_its_word() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, declined_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, declined_phone());
 
     let (handshake, _seal) = session
         .complete(declaration, start + Duration::from_secs(2))
@@ -224,18 +237,18 @@ fn a_declining_phone_is_taken_at_its_word() {
 #[test]
 fn completion_is_one_shot() {
     let (mut session, start, code, nonce) = claimed();
-    let first = declaration(&code, &nonce, sample_phone());
+    let first = declaration(&code, &nonce, REACHABLE, sample_phone());
     session
         .complete(first, start + Duration::from_secs(2))
         .unwrap()
         .0;
 
-    // A second completion — even with a fresh, valid proof — has no
-    // ceremony left to complete.
-    let second = declaration(&code, &nonce, sample_phone());
+    // A second completion — even with a fresh, valid proof — is refused,
+    // and the paired state is untouched.
+    let second = declaration(&code, &nonce, REACHABLE, sample_phone());
     assert!(matches!(
         session.complete(second, start + Duration::from_secs(3)),
-        Err(CompleteError::NotClaimed)
+        Err(CompleteError::Refused)
     ));
     assert!(matches!(session, Pairing::Paired));
 }
@@ -243,7 +256,7 @@ fn completion_is_one_shot() {
 #[test]
 fn the_window_covers_the_whole_ceremony() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, sample_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
 
     let outcome = session.complete(declaration, start + TTL + Duration::from_secs(1));
     assert!(matches!(outcome, Err(CompleteError::Refused)));
@@ -252,39 +265,35 @@ fn the_window_covers_the_whole_ceremony() {
 
 #[test]
 fn a_refusal_does_not_say_why() {
-    // Two ceremonies, two causes: one proof wrong, one window closed. The
-    // caller sees the same error for both, and both burn the same way —
-    // nothing here tells a prober which situation it is in.
+    // Three ceremonies, three causes: a wrong proof, a closed window, and a
+    // session nothing ever claimed. The caller sees the same error for all
+    // three — no oracle here tells a prober whether a live, claimed
+    // ceremony is on the table.
     let (mut wrong_proof, w_start, w_code, w_nonce) = claimed();
-    let mut wrong_declaration = declaration(&w_code, &w_nonce, sample_phone());
+    let mut wrong_declaration = declaration(&w_code, &w_nonce, REACHABLE, sample_phone());
     wrong_declaration.mac = "0".repeat(64);
     let wrong = wrong_proof.complete(wrong_declaration, w_start + Duration::from_secs(2));
 
     let (mut closed, c_start, c_code, c_nonce) = claimed();
-    let closed_declaration = declaration(&c_code, &c_nonce, sample_phone());
+    let closed_declaration = declaration(&c_code, &c_nonce, REACHABLE, sample_phone());
     let expired = closed.complete(closed_declaration, c_start + TTL + Duration::from_secs(1));
 
-    assert_eq!(
-        format!("{wrong:?}"),
-        format!("{expired:?}"),
-        "Err(Refused) both times: no oracle"
+    let (mut unclaimed, u_start) = offered();
+    let stranger = unclaimed.complete(
+        declaration(&"0".repeat(32), &"0".repeat(64), REACHABLE, declined_phone()),
+        u_start + Duration::from_secs(1),
     );
+
+    assert_eq!(format!("{wrong:?}"), format!("{expired:?}"));
+    assert_eq!(format!("{expired:?}"), format!("{stranger:?}"));
     assert!(matches!(wrong, Err(CompleteError::Refused)));
     assert!(matches!(expired, Err(CompleteError::Refused)));
+    assert!(matches!(stranger, Err(CompleteError::Refused)));
+    // And the stranger's completion changed nothing: the live offer stands,
+    // untouched, for the real phone.
+    assert!(matches!(unclaimed, Pairing::Offered(_)));
     assert!(matches!(wrong_proof, Pairing::Expired));
     assert!(matches!(closed, Pairing::Expired));
-}
-
-#[test]
-fn completion_without_a_claim_is_refused() {
-    let (mut session, start) = offered();
-    let (code, nonce) = qr_secrets(&session);
-    let outcome = session.complete(
-        declaration(&code, &nonce, declined_phone()),
-        start + Duration::from_secs(1),
-    );
-    assert!(matches!(outcome, Err(CompleteError::NotClaimed)));
-    assert!(matches!(session, Pairing::Offered(_)));
 }
 
 #[test]
@@ -296,10 +305,19 @@ fn the_offer_expires_on_its_own() {
     assert!(matches!(session, Pairing::Expired));
 }
 
-// The sweep the brief asks for: render everything a log line could plausibly
-// hit — the session in every state, the handshake, the errors — and search
-// the renderings for each secret, both in the hex it travels as and in the
-// decimal array a derived Debug would have printed.
+#[test]
+fn an_absurd_window_is_an_error_not_a_panic() {
+    let start = SystemTime::now();
+    let outcome = Pairing::offer(REACHABLE, start, Duration::from_secs(u64::MAX));
+    assert!(matches!(outcome, Err(OfferError::Deadline)));
+    // And a sane window is fine.
+    assert!(Pairing::offer(REACHABLE, start, TTL).is_ok());
+}
+
+// The sweep: render everything a log line could plausibly hit — the session
+// in every state, the handshake, the errors — and search the renderings for
+// each secret, both in the hex it travels as and in the decimal array a
+// derived Debug would have printed.
 #[test]
 fn no_rendering_carries_a_secret() {
     // The secret-holding types themselves: if any of their Debug impls ever
@@ -321,27 +339,29 @@ fn no_rendering_carries_a_secret() {
     rendered.push_str(&format!("{:?}", session));
     let (handshake, seal) = session
         .complete(
-            declaration(&code_hex, &nonce_hex, sample_phone()),
+            declaration(&code_hex, &nonce_hex, REACHABLE, sample_phone()),
             start + Duration::from_secs(2),
         )
         .unwrap();
-    rendered.push_str(&format!("{:?}", seal));
     let credential_hex = handshake.credential_hex();
     let credential_bytes = hex::decode(&credential_hex).unwrap();
     rendered.push_str(&format!("{:?}", session));
     rendered.push_str(&format!("{handshake:?}"));
+    rendered.push_str(&format!("{:?}", seal));
 
     // A session that died unused renders as Expired and holds nothing.
     let (mut lapsed, late) = offered();
     lapsed.expire_if_due(late + TTL + Duration::from_secs(1));
     rendered.push_str(&format!("{:?}", lapsed));
 
-    rendered.push_str(&format!("{EntropyError:?} {EntropyError}"));
-    for outcome in [
-        CompleteError::NotClaimed,
-        CompleteError::Refused,
-        CompleteError::Entropy,
-    ] {
+    rendered.push_str(&format!(
+        "{:?} {} {:?} {}",
+        OfferError::Entropy,
+        OfferError::Entropy,
+        OfferError::Deadline,
+        OfferError::Deadline
+    ));
+    for outcome in [CompleteError::Refused, CompleteError::Entropy] {
         rendered.push_str(&format!("{outcome:?} {outcome}"));
     }
     rendered.push_str(&format!("{:?}", StoreError::Corrupt("tag")));

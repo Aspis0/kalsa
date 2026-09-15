@@ -1,5 +1,5 @@
-//! What the QR encodes: one versioned JSON document with everything the
-//! phone needs — how to reach this computer, the one-time code the whole
+//! What the QR encodes: one versioned JSON document with everything the phone
+//! needs — how to reach this computer, the one-time code the whole
 //! completion protocol is keyed on, and the per-offer nonce both MACs cover.
 //! The version field comes first: a phone that meets a `v` it does not know
 //! refuses the whole document instead of guessing at the fields.
@@ -23,7 +23,8 @@ struct QrPayloadV2 {
     v: u8,
     /// How the phone reaches this computer on the LAN. Version 2 carries it
     /// as a URL (for example `http://192.168.1.10:4952`); the computer's
-    /// transport decides what goes here.
+    /// transport decides what goes here. Covered by the phone's completion
+    /// MAC, like everything else the square showed.
     reachable: String,
     /// The one-time code, hex. Single use; keyed on for both completion MACs.
     code: String,
@@ -36,9 +37,9 @@ struct QrPayloadV2 {
 /// of strings it cannot, but a desktop app does not get to bet on "cannot":
 /// `None` just means there is no QR to show.
 pub(crate) fn encode(
+    reachable: &str,
     code: &OneTimeCode,
     nonce: &[u8; NONCE_BYTES],
-    reachable: &str,
 ) -> Option<String> {
     serde_json::to_string(&QrPayloadV2 {
         v: VERSION,
@@ -59,7 +60,7 @@ mod tests {
     fn the_qr_names_its_version_and_carries_both_secrets() {
         let code = OneTimeCode::generate().unwrap();
         let nonce = [9u8; NONCE_BYTES];
-        let json = encode(&code, &nonce, REACHABLE).unwrap();
+        let json = encode(REACHABLE, &code, &nonce).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(value["v"], 2);
@@ -75,9 +76,9 @@ mod tests {
 
     #[test]
     fn every_offer_is_fresh() {
-        let first = encode(&OneTimeCode::generate().unwrap(), &[1u8; NONCE_BYTES], REACHABLE)
+        let first = encode(REACHABLE, &OneTimeCode::generate().unwrap(), &[1u8; NONCE_BYTES])
             .unwrap();
-        let second = encode(&OneTimeCode::generate().unwrap(), &[2u8; NONCE_BYTES], REACHABLE)
+        let second = encode(REACHABLE, &OneTimeCode::generate().unwrap(), &[2u8; NONCE_BYTES])
             .unwrap();
         assert_ne!(first, second);
     }

@@ -10,9 +10,9 @@
 //!
 //! * the one-time code and the per-offer nonce, both from OS entropy, compared
 //!   in constant time, printed by no `Debug` (`secret`);
-//! * what the QR encodes — a versioned JSON payload: how to reach this
-//!   computer, the code the whole completion protocol is keyed on, and the
-//!   nonce both MACs cover (`payload`, `secret`, `messages`);
+//! * what the QR encodes — a versioned JSON payload: the address, the code
+//!   the whole completion protocol is keyed on, and the nonce and address
+//!   the completion MACs cover (`payload`, `secret`, `messages`);
 //! * the square itself, that payload as the symbol a phone camera reads —
 //!   the one place the secrets are rendered on purpose (`qr`);
 //! * the completion handshake — the phone's declaration, bound by a MAC
@@ -40,7 +40,7 @@ mod secret;
 pub mod store;
 
 pub use ceremony::{ClaimResult, Pairing};
-pub use error::{CompleteError, EntropyError, PayloadTooLong, StoreError};
+pub use error::{CompleteError, OfferError, PayloadTooLong, StoreError};
 pub use handshake::Handshake;
 pub use messages::{PairingSeal, PhoneDeclaration};
 pub use qr::qr_svg;

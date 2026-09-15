@@ -6,19 +6,26 @@
 //! over domain prefixes that keep the two roles apart — a MAC computed for
 //! one direction can never verify in the other:
 //!
-//! * phone → computer: `HMAC(S, "…/phone-mac/v2" ‖ nonce ‖ canonical phone)`
-//!   — the metadata stops being asserted and becomes bound: altered after
-//!   the MAC was computed, it refuses;
+//! * phone → computer: `HMAC(S, "…/phone-mac/v2" ‖ nonce ‖ reachable ‖
+//!   canonical phone)` — the metadata stops being asserted and becomes
+//!   bound, and so does the address the square carried: the declaration is
+//!   tied to the whole QR, not just its secrets;
 //! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ credential)`
-//!   — the phone learns it is talking to the computer that showed the
-//!   square, and that the credential it just received is the one bound to
-//!   this ceremony.
+//!   — the phone learns that the sender of this credential knows the QR it
+//!   scanned, and that the credential is the one bound to this ceremony.
 //!
 //! The nonce is fresh per offer and travels in the QR, so a proof recorded
 //! in one ceremony is worthless in another. "Canonical phone" is the
 //! `serde_json` encoding of [`PhoneFields`]: struct serialization is
 //! field-ordered and deterministic, so the phone and this crate compute
-//! identical bytes for identical values, whatever whitespace the wire carried.
+//! identical bytes for identical values, whatever whitespace the wire
+//! carried. A known-answer test freezes that encoding.
+//!
+//! What neither MAC claims: identity. Key and nonce both ride the QR, so
+//! whoever can see the square can compute either — the domain separates the
+//! two *messages*, not two *parties*. The ceiling of this scheme is the
+//! square, exactly as the pairing screen says; the MACs prove knowledge of
+//! it, and nothing beyond it.
 
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -28,7 +35,7 @@ use subtle::ConstantTimeEq;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use crate::secret::{CODE_BYTES, OneTimeCode};
+use crate::secret::CODE_BYTES;
 
 const PHONE_DOMAIN: &[u8] = b"kalsa-pairing/phone-mac/v2";
 const COMPUTER_DOMAIN: &[u8] = b"kalsa-pairing/computer-mac/v2";
@@ -44,6 +51,12 @@ pub(crate) const NONCE_BYTES: usize = 32;
 /// total` — the constraint `Parameters::mixture` asserts on, which is why it
 /// is checked on the way back in, and a file or declaration that fails it is
 /// corrupt rather than a crash.
+///
+/// Beyond that structural check, every value here is a **declaration**: the
+/// MAC proves the phone *said* it, never that it is true. A zero weight, a
+/// zero or negative speed, a battery flag that is wrong — these pass, and
+/// whoever consumes them (the catalog, the UI) treats them as claims from
+/// the device, not measurements by this crate.
 #[derive(Serialize, Deserialize)]
 pub struct PhoneFields {
     weights_bytes: u64,
@@ -100,7 +113,8 @@ impl PhoneFields {
 pub struct PhoneDeclaration {
     /// The metadata the phone declares about itself. Covered by the MAC.
     pub phone: PhoneFields,
-    /// The phone's MAC over (phone domain ‖ nonce ‖ canonical phone), hex.
+    /// The phone's MAC over (phone domain ‖ nonce ‖ reachable ‖ canonical
+    /// phone), hex.
     pub mac: String,
 }
 
@@ -114,9 +128,9 @@ impl fmt::Debug for PhoneDeclaration {
 
 /// The computer's answer: a MAC keyed on the same one-time secret, over the
 /// computer's domain, covering the nonce and the credential being delivered.
-/// The phone that holds the QR verifies it and knows both that this is the
-/// computer the square was about and that the credential is the one bound to
-/// this ceremony.
+/// The phone that holds the QR verifies it and learns that the sender of
+/// this credential knows the QR it scanned — knowledge of the square being
+/// the whole ceiling of this scheme, not a deeper identity.
 #[derive(Serialize)]
 pub struct PairingSeal {
     mac: String,
@@ -158,6 +172,7 @@ fn tag(domain: &[u8], key: &[u8], nonce: &[u8], payload: &[u8]) -> [u8; MAC_BYTE
 pub(crate) fn phone_mac(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
+    reachable: &str,
     phone: &PhoneFields,
 ) -> [u8; MAC_BYTES] {
     let canonical = match serde_json::to_vec(phone) {
@@ -166,19 +181,22 @@ pub(crate) fn phone_mac(
         // verifies against nothing.
         Err(_) => Vec::new(),
     };
-    tag(PHONE_DOMAIN, key, nonce, &canonical)
+    let mut payload = reachable.as_bytes().to_vec();
+    payload.extend_from_slice(&canonical);
+    tag(PHONE_DOMAIN, key, nonce, &payload)
 }
 
 /// Constant-time verification of the phone's completion MAC. A malformed,
 /// wrong-length, or wrong-value presentation is the same "no": nothing here
 /// says how wrong it was.
 pub(crate) fn verify_phone_mac(
-    code: &OneTimeCode,
+    key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
+    reachable: &str,
     phone: &PhoneFields,
     presented: &str,
 ) -> bool {
-    let expected = phone_mac(code.bytes(), nonce, phone);
+    let expected = phone_mac(key, nonce, reachable, phone);
     let mut tag_bytes = [0u8; MAC_BYTES];
     if hex::decode_to_slice(presented, &mut tag_bytes).is_err() {
         return false;
@@ -188,13 +206,13 @@ pub(crate) fn verify_phone_mac(
 
 /// The computer's answer, over the computer's domain.
 pub(crate) fn seal_computer(
-    code: &OneTimeCode,
+    key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     credential_hex: &str,
 ) -> PairingSeal {
     PairingSeal::new(tag(
         COMPUTER_DOMAIN,
-        code.bytes(),
+        key,
         nonce,
         credential_hex.as_bytes(),
     ))

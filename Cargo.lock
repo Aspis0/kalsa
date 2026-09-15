@@ -1784,6 +1784,7 @@ name = "kalsa-catalog"
 version = "0.0.1"
 dependencies = [
  "kalsa-probe",
+ "serde_json",
 ]
 
 [[package]]
@@ -1820,6 +1821,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "subtle",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

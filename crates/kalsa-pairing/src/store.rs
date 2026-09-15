@@ -1,14 +1,20 @@
 //! The credential store: the handshake result, on disk, owner-only.
 //!
-//! On Unix the file is created `0600` — owner read and write, nothing for
-//! group or other — and a test checks the mode, not the intention. On Windows
-//! the POSIX mode bits do not exist, so nothing carries over and nothing is
-//! pretended: what is achieved is `create_new`, which refuses to overwrite a
-//! credential that is already there (a second pairing must never silently
-//! destroy the first); what is *not* achieved is an owner-only ACL — the file
-//! is exactly as readable as the directory it is created in, which on a
-//! normal install means the user's own profile and no tighter because of
-//! anything done here.
+//! Publication is atomic, in the spirit of `kalsa-download`'s publish: the
+//! bytes land in a sibling temp file, are flushed with `sync_all`, and only
+//! then is the temp renamed onto the credential's name — a reader of the
+//! final path sees the old complete file or the new complete file, never a
+//! torn half, and a crash mid-write leaves a temp that the next `persist`
+//! replaces, never a credential wedged behind `AlreadyPaired`.
+//!
+//! Owner-only means two different machines here, and both are said plainly.
+//! On Unix the temp file is created `0600` — owner read and write, nothing
+//! for group or other — and a test checks the mode, not the intention. On
+//! Windows the mode bits do not exist, so the temp is restricted by an
+//! explicit protected DACL (system, administrators, and the file's owner
+//! get access; Everyone gets nothing) through the raw `windows-sys`
+//! bindings. That Windows path is *declared, not proven*: it never compiles
+//! or runs on this machine, and nothing in the test suite covers it.
 //!
 //! Refusing is not forbidding. A stored credential stops existing in exactly
 //! one way: [`forget`], called on purpose — the owner has a new phone, or
@@ -26,7 +32,7 @@
 //! same fields on disk and in the completion message, one conversion.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -47,24 +53,140 @@ struct StoredHandshake {
 /// Write the handshake result as a new file. The parent directory must exist;
 /// where the app keeps its data is the shell's business, not the store's.
 ///
+/// Write the handshake result as a new file. The parent directory must exist;
+/// where the app keeps its data is the shell's business, not the store's.
+///
 /// If a credential is already stored the answer is
 /// [`StoreError::AlreadyPaired`] — a refusal the shell can act on, not an
 /// io error to squint at. The way forward is [`forget`], then `persist`
-/// again.
+/// again. The existence check and the publication are two steps on a
+/// single-process machine; the shell runs pairing in one loop, and this
+/// store does not pretend to arbitrate between processes.
 pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+    if path.exists() {
+        return Err(StoreError::AlreadyPaired);
+    }
     let stored = StoredHandshake {
         v: STORE_VERSION,
         credential_hex: handshake.credential_hex(),
         phone: PhoneFields::of(handshake.phone),
     };
-    let mut file = create_exclusive(path).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::AlreadyExists {
-            StoreError::AlreadyPaired
-        } else {
-            StoreError::Io(e)
-        }
+    let temp = temp_path(path);
+    let mut file = open_temp(&temp).map_err(StoreError::Io)?;
+    let written = serde_json::to_writer(&mut file, &stored)
+        .map_err(StoreError::Serde)
+        .and_then(|()| file.sync_all().map_err(StoreError::Io));
+    if let Err(e) = written {
+        let _ = fs::remove_file(&temp);
+        return Err(e);
+    }
+    restrict_to_owner(&temp).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        e
     })?;
-    serde_json::to_writer(&mut file, &stored).map_err(StoreError::Serde)
+    fs::rename(&temp, path).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        StoreError::Io(e)
+    })
+}
+
+/// The sibling name the bytes land in before publication.
+fn temp_path(path: &Path) -> PathBuf {
+    path.with_extension("tmp")
+}
+
+#[cfg(unix)]
+fn open_temp(temp: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(temp)
+}
+
+#[cfg(not(unix))]
+fn open_temp(temp: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(temp)
+}
+
+// Unix achieved owner-only at creation (`0600`); there is nothing further
+// to do, and a test checks the published file's mode.
+#[cfg(unix)]
+fn restrict_to_owner(_temp: &Path) -> Result<(), StoreError> {
+    Ok(())
+}
+
+// Windows: the POSIX mode bits do not exist, so owner-only is done by hand —
+// an explicit *protected* DACL (no inherited ACEs) granting full access to
+// SYSTEM, Administrators and the file's owner, and nothing to anyone else.
+// DECLARED, NOT PROVEN: this code never compiles or runs on this machine
+// (it is behind `cfg(windows)`), and the report says so rather than claiming
+// a test covered it.
+#[cfg(windows)]
+fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::{
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityDescriptorDacl,
+        SetFileSecurityW, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+    };
+
+    const SDDL_REVISION_1: u32 = 1;
+    // Protected DACL: System, Administrators, Owner Rights — full access.
+    // Everyone, and anything inherited: nothing.
+    let sddl: Vec<u16> = "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;OW)"
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut wide: Vec<u16> = temp.as_os_str().encode_wide().collect();
+    wide.push(0);
+
+    let mut descriptor = std::ptr::null_mut();
+    let ok = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl.as_ptr(),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(StoreError::Io(std::io::Error::last_os_error()));
+    }
+    let mut present = 0;
+    let mut defaulted = 0;
+    let mut dacl = std::ptr::null_mut();
+    let ok = unsafe {
+        GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted)
+    };
+    let applied = if ok == 0 || present == 0 || dacl.is_null() {
+        Err(StoreError::Io(std::io::Error::other(
+            "the security descriptor carried no DACL",
+        )))
+    } else {
+        let ok = unsafe {
+            SetFileSecurityW(
+                wide.as_ptr(),
+                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                descriptor,
+            )
+        };
+        if ok == 0 {
+            Err(StoreError::Io(std::io::Error::last_os_error()))
+        } else {
+            Ok(())
+        }
+    };
+    unsafe {
+        LocalFree(descriptor);
+    }
+    applied
 }
 
 /// The computer forgets the phone it was paired with: the one way a stored
@@ -98,24 +220,6 @@ pub fn load(path: &Path) -> Result<Handshake, StoreError> {
         .into_phone()
         .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?;
     Ok(Handshake::new(phone, credential))
-}
-
-#[cfg(unix)]
-fn create_exclusive(path: &Path) -> std::io::Result<std::fs::File> {
-    use std::os::unix::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path)
-}
-
-#[cfg(not(unix))]
-fn create_exclusive(path: &Path) -> std::io::Result<std::fs::File> {
-    std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
 }
 
 #[cfg(test)]

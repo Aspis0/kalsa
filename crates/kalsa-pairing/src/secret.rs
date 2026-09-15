@@ -6,16 +6,23 @@
 //! the network has seen.
 //!
 //! The completion proof is symmetric and keyed on this one secret, with the
-//! domains kept apart (`messages`). The QR carries the code and a per-offer
-//! nonce; the phone completes with `HMAC(code, "…/phone-mac/v2" ‖ nonce ‖
-//! metadata)` and the computer answers `HMAC(code, "…/computer-mac/v2" ‖
-//! nonce ‖ credential)`. The first binds the phone's metadata to knowledge
-//! of the code; the second tells the phone it is talking to the computer
-//! that showed the square, about the credential that ceremony minted. This
-//! is aimed at the attacker the QR alone cannot stop: one on the same
-//! network who can answer faster than the real computer (a squatted
-//! hostname, ARP spoofing) but has *not* seen the QR. It lacks the code, and
-//! nothing it observed lets it compute either MAC.
+//! domains kept apart (`messages`). The QR carries the code, a per-offer
+//! nonce, and the address; the phone completes with `HMAC(code,
+//! "…/phone-mac/v2" ‖ nonce ‖ address ‖ metadata)` and the computer answers
+//! `HMAC(code, "…/computer-mac/v2" ‖ nonce ‖ credential)`. The first binds
+//! the phone's metadata to knowledge of the code; the second binds the
+//! delivered credential to it. This is aimed at the attacker the QR alone
+//! cannot stop: one on the same network who can answer faster than the real
+//! computer (a squatted hostname, ARP spoofing) but has *not* seen the QR.
+//! It lacks the code, and nothing it observed lets it compute either MAC.
+//!
+//! What the MACs prove — and their ceiling, said exactly: they prove
+//! **knowledge of the square**, nothing more. Key and nonce ride the QR, so
+//! whoever can see it can compute either MAC; the domains separate the two
+//! *messages*, not two *parties*. "The computer answered" and "the phone
+//! completed" both ever mean "someone who scanned the square did". The
+//! pairing screen says the same thing to the user: anyone who can see this
+//! square can connect a phone.
 //!
 //! What this does **not** protect against, said plainly:
 //!
@@ -98,6 +105,7 @@ impl OneTimeCode {
     pub(crate) fn bytes(&self) -> &[u8; CODE_BYTES] {
         &self.bytes
     }
+
 }
 
 // A derived Debug would print the code the first time anything logged the

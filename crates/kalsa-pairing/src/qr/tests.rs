@@ -11,8 +11,8 @@ const REACHABLE: &str = "http://192.168.1.10:4952";
 
 /// A real offer, composed the way the shell will: ceremony, then square.
 fn offered_svg() -> (String, String) {
-    let session = Pairing::offer(SystemTime::now(), Duration::from_secs(300)).unwrap();
-    let payload = session.qr_payload(REACHABLE).unwrap();
+    let session = Pairing::offer(REACHABLE, SystemTime::now(), Duration::from_secs(300)).unwrap();
+    let payload = session.qr_payload().unwrap();
     let svg = qr_svg(&payload).unwrap();
     (payload, svg)
 }
