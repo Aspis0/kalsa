@@ -304,7 +304,8 @@ fn credential_key(key: &[u8; CODE_BYTES], nonce: &[u8; NONCE_BYTES]) -> [u8; MAC
 /// XOR the credential with an HMAC-generated keystream. This is a stream
 /// cipher: reusing the derived key/nonce pair for two credentials would
 /// expose the XOR of their plaintexts. It is safe here only because every
-/// offer gets a fresh nonce and a credential is delivered once.
+/// offer gets a fresh nonce and only one credential is ever encrypted under
+/// it; a delivery retry replays that same ciphertext.
 fn crypt(key: &[u8; CODE_BYTES], nonce: &[u8; NONCE_BYTES], input: &[u8]) -> Vec<u8> {
     let stream_key = credential_key(key, nonce);
     let mut output = Vec::with_capacity(input.len());
