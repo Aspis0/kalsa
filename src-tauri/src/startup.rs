@@ -36,13 +36,14 @@ const READY_TIMEOUT: Duration = Duration::from_secs(600);
 /// Long enough for a clean unload, short enough that closing the window is not
 /// a hang: the supervisor escalates to SIGKILL after the second one.
 const STOP_GRACE: Duration = Duration::from_secs(2);
-/// The context the catalog sizes its candidates against. The context that
-/// actually runs is `kalsa_launch::plan`'s, derived for the chosen row from
-/// the same budget and re-checked against it — whatever is chosen therefore
-/// always runs within the machine, whatever this figure says. It exists
-/// because the chooser needs a context to price the cache with, before it
-/// knows which row it will choose.
-const PROVISIONAL_CONTEXT_TOKENS: u64 = 8192;
+/// The context the chooser prices each candidate's cache at. It must exclude
+/// nothing: priced at 8192 it refused rows the machine funds at a smaller
+/// context — Granite 4 Tiny funds 6112 tokens on an 8 GiB machine, and at
+/// 8192 the tier was handed to a smaller row. The context that actually runs
+/// is `kalsa_launch::plan`'s, derived for the chosen row from the same
+/// budget and re-checked against it; a row that cannot fund even one token
+/// is refused there, with words.
+const CHOOSER_CONTEXT_TOKENS: u64 = 1;
 /// The context a development run starts with. The developer pinned the model
 /// and owns its bytes, so this is a convenience, not a budgeted decision —
 /// the product path never uses it.
@@ -88,6 +89,10 @@ pub(crate) fn run(
     root: &Path,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<ServerConfig, StartupFailure> {
+    // A measurement the probe itself calls unreliable — every attempt failed
+    // its checks — would decide a real model on noise. The walk stops; the
+    // next turn-on measures again.
+    require_reliable(&machine.measurement)?;
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -110,7 +115,7 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let (selection, row) = choose_model(&machine, phone)?;
+            let (selection, row) = choose_model(backend, &machine, phone)?;
             let path = place_model(selection.download.as_ref(), root, progress)?;
             return planned_config(backend, exe, path, row, &machine, state_file);
         }
@@ -123,25 +128,84 @@ pub(crate) fn run(
 /// launch decision derives the context from the row's per-token cache
 /// figure, which the selection alone does not carry.
 fn choose_model(
+    winner: ServerBackend,
     machine: &Machine,
     phone: Option<PhoneModel>,
 ) -> Result<(Selection, &'static ModelEntry), StartupFailure> {
-    let selection = match kalsa_catalog::choose(&choice_input(machine, phone)) {
+    let selection = match kalsa_catalog::choose(&choice_input(winner, machine, phone)) {
         Decision::Pick(selection) => selection,
         Decision::Refuse(refusal) => return Err(refusal.into()),
     };
-    let row = CATALOG
-        .iter()
-        .find(|entry| entry.repo == selection.repo)
-        .expect("the catalog picked a row it does not carry");
+    let row = chosen_row(
+        selection.repo,
+        selection.display_name,
+        selection.quant,
+        selection.weights_bytes,
+    )?;
     Ok((selection, row))
 }
 
+/// The row a selection names. `repo` alone is not a key — two rows can share
+/// one repo, and taking the first would run somebody else's quantisation,
+/// footprint and digest — so the row is answered only when exactly one
+/// matches on everything the selection carries. Anything else stops the walk
+/// instead of starting a model whose numbers belong to another row.
+fn chosen_row(
+    repo: &str,
+    display_name: &str,
+    quant: &str,
+    weights_bytes: u64,
+) -> Result<&'static ModelEntry, StartupFailure> {
+    let matches: Vec<&ModelEntry> = CATALOG
+        .iter()
+        .filter(|entry| {
+            entry.repo == repo
+                && entry.display_name == display_name
+                && entry.quant == quant
+                && entry.weights_bytes == weights_bytes
+        })
+        .collect();
+    match matches.as_slice() {
+        [row] => Ok(row),
+        [] | [_, _, ..] => Err(StartupFailure::ChosenModelUnresolved),
+    }
+}
+
+/// The memory path of the build that won. These are two different kinds of
+/// fact — what the machine *offers* (`kalsa_probe::Backend`) and which build
+/// *won* (`ServerBackend`) — and the budget must follow the winner: when the
+/// GPU builds fail and the CPU build wins on a machine with a card, the
+/// model will run in system RAM, and sizing it on the VRAM refuses models
+/// the machine funds or starts one that does not fit.
+///
+/// The walk decides the build before it chooses the model, so the winner is
+/// known here; nothing is re-derived after the fact.
+fn budget_backend(winner: ServerBackend, detected: kalsa_probe::Backend) -> kalsa_probe::Backend {
+    match winner {
+        ServerBackend::Metal => kalsa_probe::Backend::Metal,
+        ServerBackend::Cpu => kalsa_probe::Backend::Cpu,
+        // A GPU build decodes in the card's memory: the budget is the VRAM
+        // detection read, when it could read one honestly.
+        ServerBackend::Vulkan | ServerBackend::Cuda12 | ServerBackend::Cuda13 => match detected {
+            kalsa_probe::Backend::DiscreteGpu { vram_bytes } => {
+                kalsa_probe::Backend::DiscreteGpu { vram_bytes }
+            }
+            _ => kalsa_probe::Backend::DiscreteGpu { vram_bytes: None },
+        },
+    }
+}
+
 /// The catalog's input, gathered from the measurement as it stands — every
-/// fact travels, none is re-derived or dropped.
-fn choice_input(machine: &Machine, phone: Option<PhoneModel>) -> ChoiceInput {
+/// fact travels, none is re-derived or dropped. The backend is the budget
+/// path of the build that won, not the machine's raw detection: the catalog
+/// sizes candidates for the memory they will actually run in.
+fn choice_input(
+    winner: ServerBackend,
+    machine: &Machine,
+    phone: Option<PhoneModel>,
+) -> ChoiceInput {
     ChoiceInput {
-        backend: machine.measurement.will_run_on,
+        backend: budget_backend(winner, machine.measurement.will_run_on),
         ram_bytes: machine.ram_bytes,
         bandwidth_bytes_per_second: machine.measurement.ceiling_bytes_per_second,
         compute_flops_per_second: machine.measurement.compute.max(),
@@ -150,8 +214,20 @@ fn choice_input(machine: &Machine, phone: Option<PhoneModel>) -> ChoiceInput {
         // refuse one. Hardcoding this false re-creates the bug that refused
         // a runnable model with a precise and wrong number.
         bandwidth_is_lower_bound: machine.measurement.bandwidth_is_lower_bound(),
-        context_tokens: PROVISIONAL_CONTEXT_TOKENS,
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
         phone,
+    }
+}
+
+/// A measurement the probe itself distrusts — every attempt failed its
+/// checks, and the last one came back anyway — must not decide which model a
+/// real machine runs. The probe's own word is the authority; this adds
+/// nothing to it.
+pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupFailure> {
+    if measurement.is_reliable() {
+        Ok(())
+    } else {
+        Err(StartupFailure::MeasurementUnreliable)
     }
 }
 
@@ -223,7 +299,10 @@ fn planned_config(
     let input = LaunchInput {
         backend,
         model: row,
-        budget: memory_budget(machine.measurement.will_run_on, machine.ram_bytes),
+        budget: memory_budget(
+            budget_backend(backend, machine.measurement.will_run_on),
+            machine.ram_bytes,
+        ),
         thread_ramp: &machine.measurement.ramp,
         model_path: model,
         port: PORT,
@@ -445,17 +524,17 @@ mod tests {
         // The exact fact that was once dropped: a CPU-path measurement under
         // a GPU decode is a floor, and the decision must know it from the
         // measurement, not from a constant.
-        let cpu = choice_input(&machine(Backend::Cpu), None);
+        let cpu = choice_input(ServerBackend::Cpu, &machine(Backend::Cpu), None);
         assert!(!cpu.bandwidth_is_lower_bound);
         assert_eq!(cpu.bandwidth_bytes_per_second, 80.0e9);
-        let metal = choice_input(&machine(Backend::Metal), None);
+        let metal = choice_input(ServerBackend::Metal, &machine(Backend::Metal), None);
         assert!(metal.bandwidth_is_lower_bound);
         assert_eq!(metal.bandwidth_bytes_per_second, 80.0e9);
     }
 
     #[test]
     fn an_unpaired_machine_is_asked_to_pair_before_anything_else() {
-        let err = choose_model(&machine(Backend::Cpu), None)
+        let err = choose_model(ServerBackend::Cpu, &machine(Backend::Cpu), None)
             .expect_err("nothing can be compared to a phone that never said");
         assert!(matches!(err, StartupFailure::PairPhoneFirst), "{err:?}");
     }
@@ -557,6 +636,141 @@ mod tests {
         // rather than guessed.
         assert!(!joined.contains("--threads"), "{joined}");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_measurement_the_probe_distrusts_stops_the_walk() {
+        // Every attempt failed the probe's own checks and the last one came
+        // back anyway: deciding on it would decide on noise.
+        let mut measurement = measured(80.0e9, Backend::Cpu);
+        measurement.reliability.reliable = false;
+        let root = scratch("unreliable");
+        let err = run(
+            Some(PathBuf::from("/server/llama-server")),
+            Machine {
+                measurement,
+                ram_bytes: 16 * 1024 * 1024 * 1024,
+            },
+            None,
+            Some(PathBuf::from("/dev/model.gguf")),
+            PathBuf::from("/state/server.state"),
+            &root,
+            &mut |_| {},
+        )
+        .expect_err("an unreliable measurement is not a decision");
+        assert!(
+            matches!(err, StartupFailure::MeasurementUnreliable),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_selection_that_names_no_row_stops_instead_of_guessing() {
+        // repo alone is not a key: a ghost selection must stop the walk, not
+        // panic the app with a sentence that says nothing.
+        let err = chosen_row("ghost/repo", "Ghost", "Q4_K_M", 1)
+            .expect_err("nothing in the catalog is named ghost");
+        assert!(
+            matches!(err, StartupFailure::ChosenModelUnresolved),
+            "{err:?}"
+        );
+        // And a real row is found on everything the selection carries.
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let found = chosen_row(row.repo, row.display_name, row.quant, row.weights_bytes)
+            .expect("the row is in the catalog");
+        assert_eq!(found.repo, row.repo);
+    }
+
+    #[test]
+    fn no_two_catalog_rows_share_an_identity() {
+        // chosen_row's key is only as good as the catalog's uniqueness: two
+        // rows matching on everything the selection carries would make the
+        // lookup ambiguous, and ambiguity must fail loudly here.
+        for (index, a) in CATALOG.iter().enumerate() {
+            for b in &CATALOG[index + 1..] {
+                let same = a.repo == b.repo
+                    && a.display_name == b.display_name
+                    && a.quant == b.quant
+                    && a.weights_bytes == b.weights_bytes;
+                assert!(
+                    !same,
+                    "{} and {} share an identity",
+                    a.display_name, b.display_name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_budget_follows_the_build_that_won_not_the_machine_detected() {
+        // A 6 GiB card was detected, the GPU builds failed, the CPU build
+        // won: the model will run in system RAM, so a 13.6 GiB row is funded
+        // by the 32 GiB machine and must not be budgeted against the card.
+        let detected = Backend::DiscreteGpu {
+            vram_bytes: Some(6 * 1024 * 1024 * 1024),
+        };
+        let machine = Machine {
+            measurement: measured(80.0e9, detected),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        assert_eq!(
+            budget_backend(ServerBackend::Cpu, detected),
+            Backend::Cpu,
+            "the CPU build runs in system RAM"
+        );
+        assert_eq!(
+            budget_backend(ServerBackend::Cuda12, detected),
+            detected,
+            "a GPU build decodes in the card"
+        );
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "Google Gemma 4 26B")
+            .expect("the test row left the catalog");
+        let config = planned_config(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect("system RAM funds what the VRAM budget refused");
+        let joined = config.argv.join(" ");
+        assert!(joined.contains("--n-gpu-layers") == false, "{joined}");
+    }
+
+    #[test]
+    fn the_chooser_does_not_exclude_a_model_the_machine_funds_at_a_smaller_context() {
+        // On 8 GiB, the rows around 4 GiB fund 5–6k tokens each; priced at
+        // 8192 the chooser refused every one of them and handed the tier to
+        // a smaller row. The pick must come from what the machine funds.
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let phone = PhoneModel {
+            weights_bytes: 2_200_000_000,
+            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: None,
+            battery_powered: Some(true),
+        };
+        let (selection, row) =
+            choose_model(ServerBackend::Cpu, &machine, Some(phone)).expect("the tier is not empty");
+        let trinity = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "Arcee Trinity Nano")
+            .expect("the comparison row left the catalog");
+        assert!(
+            selection.weights_bytes > trinity.weights_bytes,
+            "the tier went to {} when bigger funded rows exist",
+            selection.display_name
+        );
+        assert_eq!(row.repo, selection.repo);
     }
 
     #[test]

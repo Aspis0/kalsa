@@ -1,8 +1,8 @@
 //! The one small function at the edge: the value rendered as a command line.
 //!
-//! `kalsa-supervisor`'s `ServerConfig::arguments` renders the same flag
-//! spellings; this renderer exists so the decisions above never have to be
-//! expressed as strings.
+//! The supervisor carries the rendered argv through untouched — it renders
+//! nothing itself, so the flags cannot drift between the decision and the
+//! process that runs it.
 
 use crate::args::{
     ServerArgs, ALL_LAYERS, BATCH, FLASH_ATTN, HOST, IDLE_UNLOAD_SECONDS, KV_CACHE_TYPE, UBATCH,

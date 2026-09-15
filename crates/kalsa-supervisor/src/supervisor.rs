@@ -60,6 +60,10 @@ pub enum Failure {
     ServerExited { detail: String },
     /// It never answered the readiness probe within the deadline.
     NotReady { seconds: u64 },
+    /// The command line did not bind loopback on the supervised port: a
+    /// server the supervisor could not find, or one exposed off loopback.
+    /// The start refused it before any process was made.
+    UnsafeBinding { detail: String },
 }
 
 enum Command {
@@ -197,11 +201,33 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                 // OS kill, a model it could not load). Reporting it is the whole
                 // point of hosting it in another process.
                 if let Some(run) = owned.as_mut() {
-                    if let Some(child) = run.child.as_mut() {
-                        if let Ok(Some(status)) = child.try_wait() {
-                            let reason = exit_reason(child, status);
-                            owned = None;
-                            set(&state, ServerState::Failed { reason });
+                    match run.child.as_mut() {
+                        Some(child) => {
+                            if let Ok(Some(status)) = child.try_wait() {
+                                let reason = exit_reason(child, status);
+                                owned = None;
+                                set(&state, ServerState::Failed { reason });
+                            }
+                        }
+                        // An adopted server has no handle: the pid is what we
+                        // watch, and a dead pid is a stopped server, whatever
+                        // the process table now holds in its place.
+                        None => {
+                            if let Some(pid) = run.adopted_pid {
+                                if !child::pid_alive(pid) {
+                                    owned = None;
+                                    set(
+                                        &state,
+                                        ServerState::Failed {
+                                            reason: Failure::ServerExited {
+                                                detail: format!(
+                                                    "the adopted server (pid {pid}) is no longer alive"
+                                                ),
+                                            },
+                                        },
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -221,9 +247,19 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
                 }
             }
             (None, Some(pid), _) => {
-                // Adopted from an earlier run: no handle, but the state file's
-                // lock proved it is the process we started.
-                let _ = child::terminate_pid(pid, run.config.stop_grace);
+                // Adopted from an earlier run. The proof it was ours was the
+                // lock, and time has passed: if the server died and the pid
+                // was recycled, the lock is gone and the pid now names
+                // somebody else's program. Terminate only a pid the file
+                // still vouches for.
+                if let Ok(Existing::Live { pid: current, .. }) =
+                    InstanceFile::inspect(&run.config.state_file)
+                {
+                    if current == pid {
+                        let _ = child::terminate_pid(pid, run.config.stop_grace);
+                    }
+                    let _ = std::fs::remove_file(&run.config.state_file);
+                }
             }
             (None, None, _) => {}
         }
@@ -233,6 +269,11 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
 
 /// Reuses or clears a previous instance, then spawns and waits for readiness.
 fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
+    // Before anything exists: an unsafe binding must be refused, not started
+    // and then failed to be found.
+    config
+        .verified_binding()
+        .map_err(|detail| Failure::UnsafeBinding { detail })?;
     if let Some(started) = take_over(config)? {
         return Ok(started);
     }
@@ -247,6 +288,7 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
         })?;
     instance
         .describe(child.pid(), config.port)
+        .and_then(|_| instance.describe_binding(&config.binding()))
         .map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
@@ -281,8 +323,16 @@ fn take_over(config: &ServerConfig) -> Result<Option<Started>, Failure> {
             let _ = std::fs::remove_file(&config.state_file);
             Ok(None)
         }
-        Ok(Existing::Live { pid, port }) => {
+        Ok(Existing::Live { pid, port, binding }) => {
+            // The lock vouches for the pid being a server we started; the
+            // binding says it is the server we are asking for. Same binary
+            // under different arguments is a different server — adopting it
+            // would run a model and flags nobody asked for. A file with no
+            // binding predates the record and describes a server started
+            // under the old contract: nothing to mismatch.
+            let same_command = binding.as_deref().map_or(true, |b| b == config.binding());
             if port == config.port
+                && same_command
                 && child::pid_alive(pid)
                 && health::health_ok(config.address(), "/health", PROBE_TIMEOUT)
             {
@@ -332,5 +382,119 @@ fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure
 fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
     if let Ok(mut current) = state.lock() {
         *current = next;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn config(port: u16) -> ServerConfig {
+        ServerConfig {
+            exe: PathBuf::from("/nonexistent/llama-server"),
+            argv: vec![
+                "--host".into(),
+                "127.0.0.1".into(),
+                "--port".into(),
+                port.to_string(),
+            ],
+            state_file: std::env::temp_dir().join(format!("kalsa-supervisor-unit-{port}.state")),
+            port,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        }
+    }
+
+    #[test]
+    fn an_argv_that_leaves_loopback_is_refused_before_any_process_exists() {
+        let mut config = config(8290);
+        config.argv = vec![
+            "--host".into(),
+            "0.0.0.0".into(),
+            "--port".into(),
+            "8290".into(),
+        ];
+        let err = start_blocking(&config)
+            .err()
+            .expect("the spawn had to fail on a nonexistent exe");
+        match err {
+            Failure::UnsafeBinding { detail } => assert!(detail.contains("0.0.0.0"), "{detail}"),
+            other => panic!("a non-loopback argv reached the spawn path: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_argv_on_another_port_is_refused_before_any_process_exists() {
+        // The health handshake and the port guard read config.port; an argv
+        // that binds elsewhere would start a server this one can never find.
+        let mut config = config(8291);
+        config.argv = vec![
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            "9999".into(),
+        ];
+        let err = start_blocking(&config)
+            .err()
+            .expect("the spawn had to fail on a nonexistent exe");
+        match err {
+            Failure::UnsafeBinding { detail } => assert!(detail.contains("9999"), "{detail}"),
+            other => panic!("a port mismatch reached the spawn path: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_well_bound_argv_passes_the_gate_and_fails_later_at_the_spawn() {
+        // The exe does not exist: getting as far as ServerNotStarted proves
+        // the binding gate let a correct argv through.
+        let config = config(8292);
+        let err = start_blocking(&config)
+            .err()
+            .expect("the spawn had to fail on a nonexistent exe");
+        match err {
+            Failure::ServerNotStarted { .. } => {}
+            other => panic!("unexpected outcome for a well-bound argv: {other:?}"),
+        }
+        let _ = std::fs::remove_file(&config.state_file);
+    }
+
+    #[test]
+    fn stopping_an_adopted_server_spares_a_recycled_pid() {
+        // The orphan died and its pid was recycled onto this innocent sleeper:
+        // the state file says Live but nobody holds the lock, so the pid must
+        // not be signalled.
+        let port = 8293;
+        let stand_in_path = std::env::temp_dir().join(format!("kalsa-recycle-{port}.bin"));
+        let mut stand_in = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn the stand-in for a recycled pid");
+        let stand_in_pid = stand_in.id();
+        std::fs::write(
+            &config(port).state_file,
+            format!("kalsa-brain v1\npid={stand_in_pid}\nport={port}\n"),
+        )
+        .expect("write a state file nobody holds");
+        let _ = std::fs::remove_file(&stand_in_path);
+
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: Some(stand_in_pid),
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running {
+            pid: stand_in_pid,
+            port,
+        }));
+        stop(&mut owned, &state);
+        assert!(
+            stand_in.try_wait().expect("poll the stand-in").is_none(),
+            "a recycled pid was signalled: we killed somebody else's program"
+        );
+        let _ = stand_in.kill();
+        let _ = stand_in.wait();
+        let _ = std::fs::remove_file(&config(port).state_file);
     }
 }

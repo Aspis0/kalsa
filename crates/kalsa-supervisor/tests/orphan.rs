@@ -111,6 +111,80 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
 }
 
 #[test]
+fn an_adopted_server_that_dies_is_reported_not_kept_running() {
+    let port = unique_port();
+    clear_files(port);
+    let mut orphan = common::sleeper();
+    let _health = FakeHealth::start(port, When::Now);
+    let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+    claim.describe(orphan.id(), port).expect("describe");
+
+    // The executable does not exist: Running can only mean the orphan was
+    // adopted.
+    let supervisor = Supervisor::new();
+    let mut cfg = config("fake_server.sh", port);
+    cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
+    supervisor.start(cfg);
+    wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
+
+    // The adopted server dies with no supervisor handle on it: the state must
+    // follow, not stay Running forever.
+    orphan.kill().expect("kill the orphan");
+    let _ = orphan.wait();
+    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    assert!(
+        matches!(
+            state,
+            ServerState::Failed {
+                reason: Failure::ServerExited { .. }
+            }
+        ),
+        "an adopted server's death went unreported: {state:?}"
+    );
+    supervisor.shutdown();
+}
+
+#[test]
+fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
+    let port = unique_port();
+    clear_files(port);
+    // Ours, alive, answering now — pid, port and health all check out. The
+    // only thing that refuses this adoption must be the command: it is a
+    // different server than the one being asked for.
+    let mut orphan = common::sleeper();
+    let orphan_pid = orphan.id();
+    let _health = FakeHealth::start(port, When::Now);
+    let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+    claim.describe(orphan_pid, port).expect("describe");
+    claim
+        .describe_binding("/other/llama-server\x1f--ctx-size\x1f512")
+        .expect("describe binding");
+
+    let supervisor = Supervisor::new();
+    supervisor.start(config("fake_server.sh", port));
+
+    // Refused as the wrong server: the orphan is closed, and the start then
+    // reports the port the fake health still holds — never adopted.
+    let state = wait_for(&supervisor, |s| {
+        matches!(s, ServerState::Running { .. } | ServerState::Failed { .. })
+    });
+    match &state {
+        ServerState::Running { pid, .. } => {
+            panic!("a server of a different command was adopted (pid {pid})")
+        }
+        ServerState::Failed {
+            reason: Failure::PortTaken,
+        } => {}
+        other => panic!("unexpected state {other:?}"),
+    }
+    assert!(
+        wait_reaped(&mut orphan, Duration::from_secs(5)),
+        "the different-command orphan was left alive"
+    );
+    supervisor.shutdown();
+}
+
+#[test]
 fn a_port_held_by_another_program_is_reported_and_left_alone() {
     let port = unique_port();
     clear_files(port);

@@ -26,8 +26,13 @@ pub enum Existing {
     /// A file is there but nobody holds it: a crashed run, or a pid that has
     /// since been recycled. Nothing in it may be trusted.
     Stale,
-    /// Somebody holds the lock: an instance of ours is alive.
-    Live { pid: u32, port: u16 },
+    /// Somebody holds the lock: an instance of ours is alive. `binding` is
+    /// the exact command it was started with, when the file records one.
+    Live {
+        pid: u32,
+        port: u16,
+        binding: Option<String>,
+    },
 }
 
 /// The state file of a running instance. Dropping it without `release` leaves
@@ -78,6 +83,20 @@ impl InstanceFile {
         self.file.flush()
     }
 
+    /// Records the process and the exact command it runs, so a later start
+    /// can tell an orphan of this server from an orphan of a different
+    /// configuration.
+    pub fn describe_binding(&mut self, binding: &str) -> io::Result<()> {
+        let mut body = String::new();
+        self.file.seek(SeekFrom::Start(0))?;
+        self.file.read_to_string(&mut body)?;
+        body.push_str(&format!("binding={binding}\n"));
+        self.file.set_len(0)?;
+        self.file.seek(SeekFrom::Start(0))?;
+        self.file.write_all(body.as_bytes())?;
+        self.file.flush()
+    }
+
     /// The locked handle the child must inherit (see `child::spawn`).
     pub fn handle(&self) -> &File {
         &self.file
@@ -100,17 +119,21 @@ impl InstanceFile {
         file.read_to_string(&mut body)?;
         let mut pid = None;
         let mut port = None;
+        let mut binding = None;
         for line in body.lines() {
             match line.split_once('=') {
                 Some(("pid", value)) => pid = value.trim().parse().ok(),
                 Some(("port", value)) => port = value.trim().parse().ok(),
+                Some(("binding", value)) => binding = Some(value.trim().to_string()),
                 _ => {}
             }
         }
         match (pid, port) {
-            (Some(pid), Some(port)) if body.starts_with(MAGIC) => Ok(Existing::Live { pid, port }),
-            // Locked by someone who is not us, or written by a version we do not
-            // understand. Either way: do not touch it.
+            (Some(pid), Some(port)) if body.starts_with(MAGIC) => {
+                Ok(Existing::Live { pid, port, binding })
+            }
+            // Locked by someone who is not us, or written by a version we do
+            // not understand. Either way: do not touch it.
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "the state file is locked but does not describe an instance",
@@ -154,7 +177,20 @@ mod tests {
             InstanceFile::inspect(&path).expect("inspect"),
             Existing::Live {
                 pid: 4242,
-                port: 8130
+                port: 8130,
+                binding: None
+            }
+        );
+        // The exact command travels with the instance: a later start must be
+        // able to tell this server from one started differently.
+        file.describe_binding("/server/llama-server\x1f--port\x1f8130")
+            .expect("describe binding");
+        assert_eq!(
+            InstanceFile::inspect(&path).expect("inspect"),
+            Existing::Live {
+                pid: 4242,
+                port: 8130,
+                binding: Some("/server/llama-server\x1f--port\x1f8130".into())
             }
         );
         file.release();

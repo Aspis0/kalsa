@@ -35,6 +35,12 @@ pub(crate) enum StartupFailure {
     /// The chosen model cannot be given even one token of context within
     /// this machine's budget: it is never started smaller, the start fails.
     ChosenModelUnfundable,
+    /// The selection the catalog returned does not name exactly one row, so
+    /// starting would run numbers that belong to some other row.
+    ChosenModelUnresolved,
+    /// The probe retried past its budget and still calls the measurement
+    /// unreliable: deciding on it would decide on noise.
+    MeasurementUnreliable,
     // — placing the model on disk —
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
@@ -103,6 +109,16 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              give it, even to start. An app update may bring a smaller option."
                 .into()
         }
+        StartupFailure::ChosenModelUnresolved => {
+            "The model chosen for this computer could not be matched to its catalogue \
+             entry, so it was not started. An app update may fix this."
+                .into()
+        }
+        StartupFailure::MeasurementUnreliable => {
+            "This computer could not be measured just now — it may be busy. Waiting a \
+             moment and turning on again usually works."
+                .into()
+        }
         StartupFailure::WeightsUnverified => {
             "The model chosen for this computer cannot yet be verified against its \
              publisher, so it was not downloaded. A future app update finishes this."
@@ -145,6 +161,11 @@ fn supervisor_words(failure: &Failure) -> String {
         }
         Failure::NotReady { .. } => {
             "The assistant took too long to get ready. Turning it on again usually works.".into()
+        }
+        Failure::UnsafeBinding { .. } => {
+            "The assistant was about to start in an unsafe way and stopped itself. An app \
+             update may fix this."
+                .into()
         }
     }
 }

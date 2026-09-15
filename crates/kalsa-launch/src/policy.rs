@@ -154,6 +154,7 @@ mod tests {
             mmproj_bytes: None,
             kv_bytes_per_token: Some(0),
             kv_assumption_undercounts: false,
+            measured_decode: None,
             dense_equivalent: None,
             stale: None,
         }

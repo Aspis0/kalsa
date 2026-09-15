@@ -10,6 +10,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+/// Loopback only: the phone reaches the server through a tunnel, so the
+/// server is never exposed on the LAN (plan, section 7).
+pub(crate) const HOST: &str = "127.0.0.1";
+
 /// How long the server gets to exit after stdin EOF, and again after SIGTERM.
 pub const DEFAULT_STOP_GRACE: Duration = Duration::from_secs(5);
 
@@ -31,6 +35,42 @@ pub struct ServerConfig {
 impl ServerConfig {
     pub(crate) fn address(&self) -> SocketAddr {
         SocketAddr::from(([127, 0, 0, 1], self.port))
+    }
+
+    /// The identity of this exact command, as a state file records it: the
+    /// same binary with different arguments is a different server, and an
+    /// orphan of one must not be adopted as the other.
+    pub(crate) fn binding(&self) -> String {
+        format!("{}\x1f{}", self.exe.display(), self.argv.join("\x1f"))
+    }
+
+    /// The renderer's structural guarantees, checked where the process is
+    /// made: loopback only, on exactly the port the supervisor supervises.
+    /// Both the health handshake and the port guard read `port`; an argv that
+    /// bound elsewhere would start a server this one could never find — or
+    /// expose it off loopback.
+    pub(crate) fn verified_binding(&self) -> Result<(), String> {
+        let mut host: Option<&String> = None;
+        let mut port: Option<&String> = None;
+        let mut previous: Option<&String> = None;
+        for arg in &self.argv {
+            match previous {
+                Some(flag) if flag == "--host" => host = Some(arg),
+                Some(flag) if flag == "--port" => port = Some(arg),
+                _ => {}
+            }
+            previous = Some(arg);
+        }
+        let want_port = self.port.to_string();
+        if host.map(String::as_str) != Some(HOST)
+            || port.map(String::as_str) != Some(want_port.as_str())
+        {
+            return Err(format!(
+                "host is {host:?}, port is {port:?}, want --host {HOST} --port {}",
+                self.port
+            ));
+        }
+        Ok(())
     }
 }
 

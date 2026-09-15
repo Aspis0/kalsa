@@ -178,6 +178,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         };
         // A machine nobody has measured yet is measured here, once: turning
         // on must not dead-end on a button the user has to find elsewhere.
+        // A kept measurement the probe itself called unreliable decides on
+        // noise: dropped, so the walk measures again.
+        let kept = kept.filter(|m| m.is_reliable());
         let (machine, measured) = match kept {
             Some(measurement) => (
                 startup::Machine {
