@@ -201,6 +201,15 @@ mod tests {
             map_store_error(StoreError::NoExecutable),
             DecideError::CannotAcquire(_)
         ));
+        // A build contradicting the recorded digest surfaces as a fetch
+        // failure carrying its own reason — distinct from a missing build,
+        // and never a silent re-download.
+        let err = map_store_error(StoreError::ExeMismatch);
+        assert!(
+            matches!(err, DecideError::CannotAcquire(_)),
+            "{err}"
+        );
+        assert!(err.to_string().contains("does not match"), "{err}");
     }
 
     #[test]
@@ -218,9 +227,16 @@ mod tests {
         let backend = ServerBackend::Metal;
         let detected = Backend::Metal;
 
-        // The build on disk is proven, not merely present: the marker is
-        // written the way extraction writes it, against this table's digests,
-        // exactly as a previous run of the walk would have left it.
+        // The build on disk is proven, not merely present: a copy of the
+        // release's own server plus the marker written the way extraction
+        // writes it, against this table's digests, exactly as a previous
+        // run of the walk would have left it. Skipped loudly on machines
+        // with no build on disk — only the release's bytes are accepted
+        // now, so invented fixture bytes cannot stand in.
+        let Some(server_bytes) = real_metal_server_bytes() else {
+            eprintln!("skipping: no real metal build on this machine's disk");
+            return;
+        };
         let assets = crate::assets::assets_for(platform, backend);
         let runtime: Vec<(&str, &str)> = assets
             .iter()
@@ -231,7 +247,7 @@ mod tests {
             .join(backend.name())
             .join("llama-server");
         std::fs::create_dir_all(exe.parent().expect("parent")).expect("mkdirs");
-        std::fs::write(&exe, b"a build that was proven long ago").expect("exe");
+        std::fs::write(&exe, server_bytes).expect("exe");
         let exe_sha = marker::sha256_file(&exe).expect("hash");
         marker::write(exe.parent().expect("parent"), &runtime, &exe_sha).expect("marker");
         verdict::save(
@@ -248,6 +264,19 @@ mod tests {
         assert_eq!(decision.backend, backend);
         assert_eq!(decision.exe, exe, "the on-disk build is the answer");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The release's own server bytes, copied off this machine's disk when a
+    /// previous run left a build behind. The short-circuit needs a build the
+    /// table accepts, and only the release's bytes hash to the recorded
+    /// digest — so the fixture is a copy of them, never invented bytes.
+    /// None when there is no build to copy; the caller skips loudly.
+    fn real_metal_server_bytes() -> Option<Vec<u8>> {
+        let dir = crate::store::root()
+            .join("builds")
+            .join(ServerBackend::Metal.name());
+        let exe = crate::extract::find_server(&dir)?;
+        std::fs::read(exe).ok()
     }
 
     /// A launcher whose whole job is to fail the test if the walk ever

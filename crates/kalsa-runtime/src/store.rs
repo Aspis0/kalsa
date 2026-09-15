@@ -28,6 +28,11 @@ pub(crate) enum StoreError {
     Unverified,
     /// An archive extracted cleanly but held no server.
     NoExecutable,
+    /// The build on disk names this release's archives but its executable
+    /// is not the release's own. Refused outright, never repaired in place:
+    /// re-acquiring over it would destroy the evidence, and a build whose
+    /// bytes contradict the table is not repaired but deleted by hand.
+    ExeMismatch,
     Io(io::Error),
     Download(DownloadError),
 }
@@ -41,6 +46,12 @@ impl std::fmt::Display for StoreError {
                  sizes and sha256 digests are filled in"
             ),
             StoreError::NoExecutable => write!(f, "the archive contained no llama-server"),
+            StoreError::ExeMismatch => write!(
+                f,
+                "the executable in the saved build does not match the release digest in \
+                 the asset table, so it will not run; delete the build directory to \
+                 download it again"
+            ),
             StoreError::Io(e) => write!(f, "{e}"),
             StoreError::Download(e) => write!(f, "{e}"),
         }
@@ -125,6 +136,11 @@ pub(crate) fn ensure_backend(
     if let Some(exe) = marker::validate(&dir, &runtime, table_exe) {
         return Ok(exe);
     }
+    // A build that claims this release but carries another executable is
+    // refused, not repaired: re-downloading over it would hide the tamper.
+    // Rows without a recorded digest keep today's behaviour and fall
+    // through to the re-acquire below.
+    refuse_contradiction(&dir, &runtime, table_exe)?;
     // Repair: prove the archives again, extract them into staging, and let
     // the build appear under its own name only once it is whole.
     let staging = staging_path(&dir);
@@ -139,6 +155,23 @@ pub(crate) fn ensure_backend(
         extract_into(&staging, &archives).map_err(StoreError::Io)?;
     }
     publish(&staging, &dir, &runtime, table_exe)
+}
+
+/// Refuses a build that claims this release but carries another
+/// executable. Rows without a recorded digest always pass: with nothing
+/// recorded there is nothing to contradict, and the build is re-acquired
+/// below exactly as today.
+fn refuse_contradiction(
+    dir: &Path,
+    runtime: &[(&str, &str)],
+    table_exe: Option<&str>,
+) -> Result<(), StoreError> {
+    if let Some(table) = table_exe {
+        if marker::exe_contradicts_table(dir, runtime, table) {
+            return Err(StoreError::ExeMismatch);
+        }
+    }
+    Ok(())
 }
 
 /// The staging directory a build is assembled in, beside its final name.
@@ -209,8 +242,8 @@ fn publish(
     // archive that produces a different executable is not the release.
     if let Some(table) = table_exe {
         if !exe_sha.eq_ignore_ascii_case(table) {
-            let error = io::Error::other("the extracted executable does not match the release");
-            return Err(give_up(error));
+            let _ = std::fs::remove_dir_all(staging);
+            return Err(StoreError::ExeMismatch);
         }
     }
     marker::write(staging, runtime, &exe_sha).map_err(give_up)?;
@@ -472,6 +505,146 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// The metal row's recorded promises, as the walk sees them: the archive
+    /// set plus the release's own exe digest. Fails loudly if the row ever
+    /// stops recording one — the refusal below is load-bearing on it.
+    fn metal_promises() -> (Vec<(&'static str, &'static str)>, &'static str) {
+        let assets = assets::assets_for(Platform::MacArm64, ServerBackend::Metal);
+        let runtime: Vec<(&str, &str)> = assets
+            .iter()
+            .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))
+            .collect();
+        let table = assets
+            .iter()
+            .find(|asset| asset.role == assets::Role::Engine)
+            .and_then(|asset| asset.exe_sha256)
+            .expect("the metal row records its executable");
+        (runtime, table)
+    }
+
+    /// A build directory claiming this release: `dir` holds `exe_bytes` and
+    /// a marker naming these archives with `exe_sha` recorded.
+    fn claimed_build(
+        root: &Path,
+        backend: ServerBackend,
+        runtime: &[(&str, &str)],
+        exe_sha: &str,
+        exe_bytes: &[u8],
+    ) -> PathBuf {
+        let dir = builds_dir(root, backend);
+        std::fs::create_dir_all(&dir).expect("mkdirs");
+        std::fs::write(dir.join("llama-server"), exe_bytes).expect("exe");
+        marker::write(&dir, runtime, exe_sha).expect("marker");
+        dir
+    }
+
+    #[test]
+    fn a_build_contradicting_the_recorded_digest_is_refused_not_repaired() {
+        // Two tamper shapes: bytes flipped after proving (the marker still
+        // records the release digest), and a marker recording another
+        // build's digest outright. Both are refused with the distinct
+        // error — and nothing is fetched to paper over them: the scratch
+        // root holds no archives afterwards, and the build is untouched.
+        let (runtime, table) = metal_promises();
+        for (name, exe_sha, exe_bytes) in [
+            (
+                "flipped",
+                table.to_string(),
+                b"bytes that are not the release".as_slice(),
+            ),
+            (
+                "recorded-other",
+                digest_of(b"another build's server"),
+                b"another build's server".as_slice(),
+            ),
+        ] {
+            let root = scratch(&format!("refused-{name}"));
+            let dir = claimed_build(
+                &root,
+                ServerBackend::Metal,
+                &runtime,
+                &exe_sha,
+                exe_bytes,
+            );
+            let err = ensure_backend(&root, Platform::MacArm64, ServerBackend::Metal, &mut |_| {})
+                .expect_err("a contradictory build is refused");
+            assert!(matches!(err, StoreError::ExeMismatch), "{err}");
+            assert!(
+                !root.join("archives").exists(),
+                "the refusal must not fetch anything"
+            );
+            assert_eq!(
+                std::fs::read(dir.join("llama-server")).expect("exe"),
+                exe_bytes,
+                "the build is left alone, not repaired"
+            );
+            let _ = std::fs::remove_dir_all(&root);
+        }
+    }
+
+    #[test]
+    fn without_a_recorded_digest_there_is_nothing_to_contradict() {
+        // The None arm of the guard: even flipped bytes pass it, and the
+        // build is re-acquired exactly as today. Pinned at the guard
+        // because every engine row now records a digest, so the walk itself
+        // no longer exercises this arm.
+        let (runtime, table) = metal_promises();
+        let root = scratch("no-record");
+        let dir = claimed_build(
+            &root,
+            ServerBackend::Metal,
+            &runtime,
+            table,
+            b"bytes that are not the release",
+        );
+        refuse_contradiction(&dir, &runtime, None)
+            .expect("None records nothing to contradict");
+        assert!(
+            matches!(
+                refuse_contradiction(&dir, &runtime, Some(table)),
+                Err(StoreError::ExeMismatch)
+            ),
+            "the same bytes contradict the record"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_birth_check_against_the_record_stops_a_foreign_executable() {
+        // publish's side of the same promise: a staged executable that is
+        // not the release's never becomes a build, whatever the archives
+        // proved.
+        let root = scratch("birth-check");
+        let dir = builds_dir(&root, ServerBackend::Cpu);
+        let bytes = make_fake_zip(b"a stand-in binary");
+        let archive = place_archive(&root, "real.zip", &bytes);
+        let sha = digest_of(&bytes);
+        let runtime = [("real.zip", sha.as_str())];
+        let staging = staging_path(&dir);
+        extract_into(&staging, &[(archive, assets::ArchiveFormat::Zip)]).expect("extracts");
+        let err = publish(&staging, &dir, &runtime, Some(&"c".repeat(64)))
+            .expect_err("a foreign exe is not the release");
+        assert!(matches!(err, StoreError::ExeMismatch), "{err}");
+        assert!(!dir.exists(), "no build appears");
+        assert!(!staging.exists(), "staging is wiped");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Needs this machine's real downloaded build; when the build is already
+    /// valid it runs nothing and downloads nothing. Run it deliberately,
+    /// with `cargo test -p kalsa-runtime -- --ignored`.
+    #[test]
+    #[ignore = "needs the real macOS build on this machine's disk"]
+    fn the_recorded_digest_accepts_the_real_build() {
+        let exe = ensure_backend(
+            &root(),
+            Platform::MacArm64,
+            ServerBackend::Metal,
+            &mut |_| {},
+        )
+        .expect("the real build matches the recorded digest");
+        assert!(exe.is_file());
+    }
     /// A miniature release archive: nested dir, the server inside it, exec
     /// bit set — the real extraction paths run over it.
     fn make_fake_zip(body: &[u8]) -> Vec<u8> {

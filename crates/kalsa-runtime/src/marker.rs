@@ -52,6 +52,50 @@ pub(crate) fn write(dir: &Path, runtime: &[(&str, &str)], exe_sha: &str) -> io::
     std::fs::write(dir.join(MARKER), body)
 }
 
+/// What a marker records: the archive set a build came from and the hash
+/// the executable had when it was proven.
+struct Provenance {
+    runtime: Vec<(String, String)>,
+    exe_sha: String,
+}
+
+/// The marker's own record, if it parses. None for anything else: a missing
+/// marker, a foreign one, or a half-written one is not a build.
+fn read(dir: &Path) -> Option<Provenance> {
+    let marker = std::fs::read_to_string(dir.join(MARKER)).ok()?;
+    let mut lines = marker.lines();
+    if lines.next()? != MAGIC {
+        return None;
+    }
+    let mut runtime = Vec::new();
+    let mut exe_sha = None;
+    for line in lines {
+        match line.split_once('=') {
+            Some(("runtime", pair)) => {
+                let (file, sha) = pair.split_once(':')?;
+                runtime.push((file.to_string(), sha.to_string()));
+            }
+            Some(("exe", sha)) => exe_sha = Some(sha.to_string()),
+            _ => return None,
+        }
+    }
+    Some(Provenance {
+        runtime,
+        exe_sha: exe_sha?,
+    })
+}
+
+/// The archive set `runtime` names, normalised: order is not identity (the
+/// table lists the engine first, but `cudart` sorts before `llama`), so
+/// both sides sort before they are compared.
+fn sorted_runtime(runtime: &[(&str, &str)]) -> Vec<(String, String)> {
+    let mut pairs: Vec<(String, String)> = runtime
+        .iter()
+        .map(|(file, sha)| ((*file).to_string(), (*sha).to_string()))
+        .collect();
+    pairs.sort();
+    pairs
+}
 /// The executable in `dir`, if `dir` is exactly the build these digests
 /// describe. `table_exe`, when the table knows the release's own exe digest,
 /// outranks the marker's record: a marker from any other build refuses the
@@ -61,52 +105,60 @@ pub(crate) fn validate(
     runtime: &[(&str, &str)],
     table_exe: Option<&str>,
 ) -> Option<PathBuf> {
-    let marker = std::fs::read_to_string(dir.join(MARKER)).ok()?;
-    let mut lines = marker.lines();
-    if lines.next()? != MAGIC {
-        return None;
-    }
-    let mut built: Vec<(String, String)> = Vec::new();
-    let mut exe_line = None;
-    for line in lines {
-        match line.split_once('=') {
-            Some(("runtime", pair)) => {
-                let (file, sha) = pair.split_once(':')?;
-                built.push((file.to_string(), sha.to_string()));
-            }
-            Some(("exe", sha)) => exe_line = Some(sha.to_string()),
-            _ => return None,
-        }
-    }
+    let proven = read(dir)?;
+    let mut built = proven.runtime;
     built.sort();
     // Order is not identity: the marker records a *set* of (archive, digest)
     // pairs. The table lists the engine first, but `cudart` sorts before
     // `llama`, so both sides are normalised — a build must validate against
     // the marker it just wrote, whatever order each side was handed over in,
     // or a CUDA machine re-acquires 645 MB on every launch.
-    let mut expected: Vec<(String, String)> = runtime
-        .iter()
-        .map(|(file, sha)| ((*file).to_string(), (*sha).to_string()))
-        .collect();
-    expected.sort();
-    if built != expected {
+    if built != sorted_runtime(runtime) {
         return None;
     }
-    let exe_line = exe_line?;
     // The table outranks the marker: a marker claiming another build's exe
     // is a marker from another build.
     if let Some(table) = table_exe {
-        if !exe_line.eq_ignore_ascii_case(table) {
+        if !proven.exe_sha.eq_ignore_ascii_case(table) {
             return None;
         }
     }
     let exe = extract::find_server(dir)?;
     // Re-measured, never remembered: the bytes that are here now must still
     // be the bytes the build was proven with.
-    if !sha256_file(&exe).ok()?.eq_ignore_ascii_case(&exe_line) {
+    if !sha256_file(&exe).ok()?.eq_ignore_ascii_case(&proven.exe_sha) {
         return None;
     }
     Some(exe)
+}
+
+/// Whether `dir` claims to be exactly this build yet carries another
+/// release's executable: its marker names these archives, but the recorded
+/// exe digest — or the bytes on disk — is not the table's own. A stale
+/// build from another release is not a contradiction (its archives differ,
+/// and the re-acquire path replaces it); a missing executable is not one
+/// either, only a *different* digest is. The caller refuses the directory
+/// outright instead of re-acquiring over it, so tampering stays visible.
+pub(crate) fn exe_contradicts_table(
+    dir: &Path,
+    runtime: &[(&str, &str)],
+    table_exe: &str,
+) -> bool {
+    let Some(proven) = read(dir) else {
+        return false;
+    };
+    let mut built = proven.runtime;
+    built.sort();
+    if built != sorted_runtime(runtime) {
+        return false;
+    }
+    if !proven.exe_sha.eq_ignore_ascii_case(table_exe) {
+        return true;
+    }
+    match extract::find_server(dir) {
+        None => false,
+        Some(exe) => !matches!(sha256_file(&exe), Ok(hash) if hash.eq_ignore_ascii_case(table_exe)),
+    }
 }
 
 #[cfg(test)]
@@ -247,6 +299,44 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    #[test]
+    fn only_a_different_digest_contradicts_the_table() {
+        let table = "a".repeat(64);
+        let runtime_sha = "0".repeat(64);
+        let runtime = [("fake.zip", runtime_sha.as_str())];
+        // The marker names these archives but records another build's exe.
+        let dir = scratch("recorded-other");
+        std::fs::write(dir.join("llama-server"), b"whatever was here").expect("exe");
+        write(&dir, &runtime, &"b".repeat(64)).expect("marker");
+        assert!(exe_contradicts_table(&dir, &runtime, &table));
+        let _ = std::fs::remove_dir_all(&dir);
+        // The marker records the table's exe, but the bytes were flipped.
+        let dir = scratch("measured-other");
+        std::fs::write(dir.join("llama-server"), b"a proven build").expect("exe");
+        let table = digest_of(b"a proven build");
+        write(&dir, &runtime, &table).expect("marker");
+        assert!(!exe_contradicts_table(&dir, &runtime, &table));
+        let mut bytes = b"a proven build".to_vec();
+        bytes[0] ^= 0xff;
+        std::fs::write(dir.join("llama-server"), bytes).expect("tamper");
+        assert!(exe_contradicts_table(&dir, &runtime, &table));
+        let _ = std::fs::remove_dir_all(&dir);
+        // A stale build, an unmarked directory and a missing executable are
+        // not contradictions: the re-acquire path replaces them as today.
+        let (dir, _, _, _) = proven_build("stale-table", b"a proven build");
+        let other = "1".repeat(64);
+        let wrong = [("fake.zip", other.as_str())];
+        assert!(!exe_contradicts_table(&dir, &wrong, &table));
+        let _ = std::fs::remove_dir_all(&dir);
+        let dir = scratch("unmarked-table");
+        std::fs::write(dir.join("llama-server"), b"who made this?").expect("exe");
+        assert!(!exe_contradicts_table(&dir, &runtime, &table));
+        let _ = std::fs::remove_dir_all(&dir);
+        let dir = scratch("missing-exe");
+        write(&dir, &runtime, &table).expect("marker");
+        assert!(!exe_contradicts_table(&dir, &runtime, &table));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
     #[test]
     fn the_table_outranks_a_marker_claiming_another_build() {
         let (dir, _, exe_sha, runtime_sha) = proven_build("outranked", b"a proven build");
