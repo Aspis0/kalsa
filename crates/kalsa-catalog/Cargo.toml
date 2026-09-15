@@ -12,3 +12,6 @@ kalsa-probe = { path = "../kalsa-probe" }
 [[bin]]
 name = "kalsa-catalog"
 path = "src/bin/kalsa-catalog.rs"
+
+[dev-dependencies]
+serde_json = "1"
