@@ -1,31 +1,32 @@
 #!/usr/bin/env node
 // Aggregate the energy CSVs produced by device-ngram-spec.sh (ENERGY=1).
 //
-// CSV rows (scripts/energy-sample.sh, on-device, ~1 Hz):
-//   t_s,current_uA,voltage_uV,batt_temp_deciC,status,cpu_freqs_kHz
-// cpu_freqs_kHz is colon-joined across CPUs.
+// Parsing + integration live in scripts/energySchema.mjs (shared with the
+// reserved per-rep phase splitter). This file is the between-arm table over a
+// campaign dir, plus the optional CodeCarbon-compatible export (--emissions):
+// one <dir>/emissions/<stem>_emissions.csv per arm; stdout stays table-only,
+// export notes go to stderr. KALSA_GRID_G_PER_KWH (gCO2eq/kWh) fills the
+// emissions column; unset/empty keeps it empty (battery-powered run).
 //
-// Audit-hardened (deepseek-v4.1 audit of c5fae2f):
-// - torn last line (pull during write) is dropped: the file must end with \n;
-// - strict field regex, rows that do not parse are dropped and counted;
-// - monotonic t enforced: a row with t <= previous (device reboot) is dropped
-//   with a warning instead of yielding negative durations;
-// - per-metric valid counts: mean W and mean kHz divide by their own n, so a
-//   failed read cannot dilute the mean; fmin prints n/a instead of Infinity;
-// - power sanity band 0.1-20 W: outside it we warn (unit mismatch detection);
-// - J/rep derives REPS from the sibling ${stem}_r<N>.txt files, no hardcode.
+// Audit-hardened via energySchema.mjs (deepseek-v4.1 audit of c5fae2f): torn
+// last line dropped, strict field regex, monotonic t enforced, per-metric
+// valid counts, 0.1-20 W sanity band; J/rep derives REPS from the sibling
+// ${stem}_r<N>.txt files, no hardcode.
 //
 // Still true: power = |V*I| at the battery terminal, ~1 s gauge smoothing —
 // a RELATIVE between-arm metric only (window includes load+prefill). The
 // dilution from display/radio floor means J deltas run smaller than tok/s
 // deltas; do not quote absolute J/token from this harness.
 //
-// Usage: node scripts/energyAggregate.mjs [dir=device-ngram-spec-out]
+// Usage: node scripts/energyAggregate.mjs [dir=device-ngram-spec-out] [--emissions]
 
-import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { parseEnergyCsv, integrate, toEmissionsRow, toEmissionsCsv } from "./energySchema.mjs";
 
-const dir = process.argv[2] ?? "device-ngram-spec-out";
+const args = process.argv.slice(2);
+const emissions = args.includes("--emissions");
+const dir = args.find((a) => !a.startsWith("--")) ?? "device-ngram-spec-out";
 if (!existsSync(dir)) {
   console.error(`no such directory: ${dir}`);
   process.exit(1);
@@ -36,54 +37,35 @@ if (!files.length) {
   process.exit(1);
 }
 
-const ROW = /^(\d+\.\d+),(-?\d*),(-?\d*),(-?\d*),([^,]*),([:\d]*)$/;
-
-const rows = (file) => {
-  let text = readFileSync(path.join(dir, file), "utf8");
-  const torn = !text.endsWith("\n");
-  if (torn) text = text.slice(0, text.lastIndexOf("\n") + 1); // drop torn tail
-  const out = [];
-  for (const l of text.split("\n")) {
-    if (!l || l.startsWith("t_s,")) continue;
-    const m = l.match(ROW);
-    if (m) out.push({ t: parseFloat(m[1]), i: m[2], v: m[3], f: m[6] });
+let grid;
+const gridRaw = process.env.KALSA_GRID_G_PER_KWH;
+if (gridRaw !== undefined && gridRaw !== "") {
+  grid = Number(gridRaw);
+  if (!Number.isFinite(grid)) {
+    console.error(`energyAggregate: ignoring non-numeric KALSA_GRID_G_PER_KWH=${gridRaw}`);
+    grid = undefined;
   }
-  return { rows: out, torn };
-};
+}
 
+const emissionsDir = path.join(dir, "emissions");
+const wrote = [];
 console.log("| arm | n | s | mean W | J | J/rep | sumCPU kHz mean | min |");
 console.log("|---|---|---|---|---|---|---|---|");
 for (const f of files) {
   const stem = f.replace(/\.csv$/, "");
-  const { rows: rs, torn } = rows(f);
+  const { rows: rs, torn } = parseEnergyCsv(readFileSync(path.join(dir, f), "utf8"));
   if (rs.length < 2) {
     console.log(`| ${stem} | ${rs.length}${torn ? " (torn tail dropped)" : ""} | too few samples | | | | | |`);
     continue;
   }
-  let joules = 0, wsum = 0, nP = 0, fwsum = 0, nF = 0, fmin = Infinity;
-  let dur = 0, tPrev = rs[0].t, tReg = 0;
-  for (const r of rs) {
-    if (r.t < tPrev) { tReg++; continue; } // non-monotonic (reboot): drop
-    const dt = r.t - tPrev;
-    tPrev = r.t;
-    dur += dt;
-    const cur = Math.abs(parseFloat(r.i));
-    const volt = Math.abs(parseFloat(r.v));
-    if (Number.isFinite(cur) && Number.isFinite(volt) && cur !== 0 && volt !== 0) {
-      const p = (cur * volt) / 1e12; // uA*uV -> W
-      joules += p * dt;
-      wsum += p;
-      nP++;
-    }
-    const freqSum = (r.f || "").split(":").reduce((s, x) => s + (parseInt(x) || 0), 0);
-    if (freqSum > 0) { fwsum += freqSum; nF++; if (freqSum < fmin) fmin = freqSum; }
+  const m = integrate(rs);
+  for (const w of m.warnings) console.log(`  WARNING: ${stem} ${w}`);
+  if (emissions && m.n_power > 0) {
+    mkdirSync(emissionsDir, { recursive: true });
+    const out = path.join(emissionsDir, `${stem}_emissions.csv`);
+    writeFileSync(out, toEmissionsCsv([toEmissionsRow({ stem, ...m, gridGPerKwh: grid })]));
+    wrote.push(out);
   }
-  const meanW = nP ? wsum / nP : NaN;
-  const meanF = nF ? fwsum / nF : NaN;
-  if (Number.isFinite(meanW) && (meanW < 0.1 || meanW > 20)) {
-    console.log(`  WARNING: ${stem} mean W ${meanW.toFixed(2)} outside the 0.1-20 W sanity band (unit mismatch?)`);
-  }
-  if (tReg) console.log(`  WARNING: ${stem} dropped ${tReg} non-monotonic row(s)`);
   // REPS from sibling per-rep outputs: ${stem}_r<N>.txt
   let reps = 0;
   try {
@@ -91,9 +73,19 @@ for (const f of files) {
   } catch { /* dir unreadable: no J/rep */ }
   const fmt = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : "n/a");
   console.log(
-    `| ${stem} | ${rs.length}${torn ? "+torn" : ""} | ${fmt(dur, 0)} | ${fmt(meanW)} | ` +
-    `${fmt(joules, 0)} | ${reps ? fmt(joules / reps, 0) : "n/a"} | ${fmt(meanF, 0)} | ${nF ? fmt(fmin, 0) : "n/a"} |`,
+    `| ${stem} | ${rs.length}${torn ? "+torn" : ""} | ${fmt(m.duration_s, 0)} | ${fmt(m.mean_w)} | ` +
+    `${fmt(m.joules, 0)} | ${reps ? fmt(m.joules / reps, 0) : "n/a"} | ${fmt(m.sum_cpu_khz_mean, 0)} | ${fmt(m.sum_cpu_khz_min, 0)} |`,
   );
+}
+if (emissions) {
+  for (const out of wrote) console.error(`emissions: wrote ${out}`);
+  if (wrote.length) {
+    console.error(
+      grid !== undefined
+        ? `emissions: grid factor ${grid} gCO2eq/kWh (KALSA_GRID_G_PER_KWH) applied`
+        : "emissions: KALSA_GRID_G_PER_KWH unset — emissions column left empty (battery-powered)",
+    );
+  }
 }
 console.log("\nRelative metric only: window includes load+prefill; power = |V*I| at the");
 console.log("battery terminal (gauge ~1 s smoothing). J/rep needs the per-rep txt files.");
