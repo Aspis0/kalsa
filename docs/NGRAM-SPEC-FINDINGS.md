@@ -94,6 +94,34 @@ MECHANISM is the tuned pass: PURE (periodic, no digits) and COPY (verbatim
 repetition) prompts with window ablation --spec-ngram-simple-size-n
 4/5/6, energy instrumentation on (commit c5fae2f).
 
+## FINAL VERDICT: n-gram self-speculation is a NO for the app (2026-09-15)
+
+Tuned pass on the 1.2B (PURE = periodic digit-free lines; COPY = verbatim
+reproduction of a prompt paragraph — the most favorable workload possible
+for prompt-lookup), W ablation 4/5/6, energy instrumentation on:
+
+| workload | none | ngram-simple | delta |
+|---|---|---|---|
+| PURE W=4 | 9.05 t/s | 4.80 | -47% |
+| PURE W=5 | 9.05 t/s | 9.05 | 0% |
+| PURE W=6 | 9.10 t/s | 9.05 | -0.5% |
+| COPY W=4 | 8.40 t/s | 6.40 | -24% |
+| COPY W=6 | 8.40 t/s | 6.40 | -24% |
+
+Even on COPY — where the draft fires with near-ideal acceptance — the arm
+is 24% SLOWER: on 2 CPU threads the verify batch of k tokens costs more
+than k sequential decodes (CPU kernels scale with tokens; the "weights
+read once" amortization argument holds on GPU, not here). Energy
+(fuel-gauge, W=6 COPY): 1.93 W / 79 J per rep baseline vs 1.62 W / 75 J
+with the drafter — J/token PARITY. So speculation neither buys speed nor
+battery: latency collapses, energy is flat. Decision: no n-gram knob in
+the app; the greedy gate, energy harness and clock telemetry are the
+durable assets and apply to any future technique (DSpark, next pin).
+
+Durable side-finding: ngram-cache violates greedy transparency on hybrid
+KV (accepted a wrong token, Mac repro) — upstream-reportable with the
+one-command reproducer in this document's history.
+
 ## Device campaign (armed, runs automatically)
 
 `tmp/wait-and-run.sh` polls the Jelly battery (every 2 min, 90 min budget) and
