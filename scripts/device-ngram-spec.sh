@@ -145,15 +145,35 @@ clean_out() {
 # The CSV also holds per-CPU clocks, which is how we attribute tok/s decay to
 # clock throttling instead of guessing (battery temp proved useless: pinned
 # at 38.0C while tok/s swung 2x on the G99).
+# F1 (audit): every exit path from run_arm must stop the sampler. A leaked
+# sampler survives the adb session indefinitely, and the next arm used to rm
+# its own stopfile and start a second one - accumulating strays that steal
+# CPU from the SoC being measured and interleave into the same CSV.
+energy_stop() {
+  local tag="$1"
+  adb shell "touch $BENCH_DIR/stop.energy.$tag 2>/dev/null; sleep 2; \
+    kill \$(cat $BENCH_DIR/$tag.csv.pid 2>/dev/null) 2>/dev/null; \
+    rm -f $BENCH_DIR/$tag.csv.pid" </dev/null
+  adb pull "$BENCH_DIR/$tag.csv" "$OUT/" </dev/null >/dev/null 2>&1 \
+    || blog "  energy csv pull FAILED for $tag"
+  adb pull "$BENCH_DIR/$tag.marks" "$OUT/" </dev/null >/dev/null 2>&1
+}
+
 run_arm() {
   local model="$1" arm="$2" prompt="$3" rep i out speed
   # macOS ships bash 3.2: no ${var,,}. tr it.
   local pf="$BENCH_DIR/$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]').txt"
   local tag="$(basename "$model" .gguf)_${arm}_${prompt}"
-  local stop="$BENCH_DIR/stop.energy"
+  local stop="$BENCH_DIR/stop.energy.$tag"
   if [ "${ENERGY:-1}" = "1" ]; then
-    adb shell "rm -f $stop" </dev/null
-    adb shell "(sh $BENCH_DIR/energy-sample.sh $BENCH_DIR/$tag.csv $stop 1 >/dev/null 2>&1 &)" </dev/null
+    # kill strays from any earlier aborted arm BEFORE removing stopfiles
+    # (F1); setsid + full stdio redirection so the sampler survives the adb
+    # session (the >/dev/null 2>&1 is load-bearing, verified on-device);
+    # iteration cap 7200 so a lost stopfile cannot keep it alive for days.
+    adb shell "pkill -f energy-sample.sh 2>/dev/null; \
+      rm -f $stop $BENCH_DIR/$tag.marks" </dev/null
+    adb shell "(setsid sh $BENCH_DIR/energy-sample.sh $BENCH_DIR/$tag.csv $stop 1 7200 >/dev/null 2>&1 </dev/null &)" </dev/null
+    sleep 2
   fi
   for i in $(seq 1 "$REPS"); do
     out="$OUT/$(basename "$model" .gguf)_${arm}_${prompt}_r$i.txt"
@@ -163,6 +183,7 @@ run_arm() {
       </dev/null > "$out" 2>&1
     if [ ! -s "$out" ]; then
       blog "EMPTY OUTPUT $out"
+      [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
       return 1
     fi
     speed="$(speed_of "$out")"
@@ -171,17 +192,17 @@ run_arm() {
       # Never let a failed run reach the greedy gate: two identical failures
       # compare equal and would masquerade as a pass (seen in the first smoke).
       blog "    r$i: FAILED: $(tail -1 "$out" | cut -c1-120)"
+      [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
       return 1
     fi
     blog "    r$i: ${speed}"
+    # F5: rep boundary marker (device uptime) so per-rep tok/s can be joined
+    # with per-rep power and clocks - the thermal-vs-KV attribution data.
+    [ "${ENERGY:-1}" = "1" ] && \
+      adb shell "echo r$i \$(cut -d' ' -f1 /proc/uptime) >> $BENCH_DIR/$tag.marks" </dev/null
     sleep 5
   done
-  if [ "${ENERGY:-1}" = "1" ]; then
-    adb shell "touch $stop" </dev/null
-    sleep 1
-    adb pull "$BENCH_DIR/$tag.csv" "$OUT/" </dev/null >/dev/null 2>&1 \
-      || blog "  energy csv pull FAILED for $tag"
-  fi
+  [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
   return 0
 }
 
@@ -243,4 +264,4 @@ for m in $MODELS; do
 done
 
 blog "done -> $RESULT"
-blog "aggregate with: node scripts/ngramSpecAggregate.mjs"
+blog "aggregate with: node scripts/ngramSpecAggregate.mjs && node scripts/energyAggregate.mjs"
