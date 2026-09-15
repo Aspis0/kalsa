@@ -93,6 +93,10 @@ jobs:
           node scripts/toolRoundExhaustedHarness.mjs
           node scripts/toolBenchHarness.mjs
           node scripts/telemetryClampHarness.mjs
+          # Same energy harnesses as bench.yml (parity is enforced by
+          # matrixParityHarness.mjs): both offline on synthetic fixtures.
+          node scripts/energySchemaHarness.mjs
+          node scripts/energyPhaseSplitHarness.mjs
           # npx jest and scripts/test_sideload_guards.sh are intentionally NOT
           # run here: they gate the emulator/sideload path, not the sideloadable
           # artifact this workflow produces, so they have nothing to assert on a
