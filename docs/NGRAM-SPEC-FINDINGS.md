@@ -69,6 +69,31 @@ rollback/acceptance bug in the fork's ngram-cache self-speculation on hybrid
 (common/speculative.cpp, ngram-cache accept path). The on-device smoke already
 reproduced the other three arms' IDENTICAL gate at n=24 (Jelly, t=2).
 
+## First-pass results (defaults, 2026-09-15, Jelly Star, t=2, n=256, r=2)
+
+Greedy gate: IDENTICAL everywhere, on device too (simple/map-k4v/mod).
+With DEFAULT lookup parameters the draft never fires (proven host-side:
+REP has line period 8 tokens with a changing digit inside every >=8-token
+window, so 0% of generation steps can match) and an inactive drafter is
+pure overhead:
+
+| block | none | simple | map-k4v | mod |
+|---|---|---|---|---|
+| 2.6B REP | 3.90 | +-0.0% | +-0.0% | -9.0% |
+| 2.6B DIV | 2.85 | -22.8% | -15.8% | -22.8% |
+| 1.2B REP | 7.60* | -24.3% | -3.9% | -7.2% |
+| 1.2B DIV | 5.90* | -9.3% | -7.6% | -0.8% |
+
+*1.2B blocks ran thermally bimodal (8.8/6.4 within one arm, battery temp
+pinned at 38.0C) — small deltas there are noise; the tight 2.6B numbers
+are the trustworthy ones.
+
+Verdict so far: with defaults, n-gram self-speculation on LFM2.5 hybrid is
+strictly negative (0% best case, -23% worst). The decisive test of the
+MECHANISM is the tuned pass: PURE (periodic, no digits) and COPY (verbatim
+repetition) prompts with window ablation --spec-ngram-simple-size-n
+4/5/6, energy instrumentation on (commit c5fae2f).
+
 ## Device campaign (armed, runs automatically)
 
 `tmp/wait-and-run.sh` polls the Jelly battery (every 2 min, 90 min budget) and

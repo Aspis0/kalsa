@@ -103,6 +103,29 @@ EOF
   adb push "$_NGS_DIR/energy-sample.sh" "$BENCH_DIR/energy-sample.sh" </dev/null >/dev/null 2>&1
   adb push "$OUT/rep.txt" "$BENCH_DIR/rep.txt" </dev/null >/dev/null 2>&1
   adb push "$OUT/div.txt" "$BENCH_DIR/div.txt" </dev/null >/dev/null 2>&1
+  # PURE: periodic lines with NO varying token — the default 12-token window
+  # provably never matched on REP (line = 8 tokens, changing digit inside
+  # every window); PURE removes the digit so periodicity survives any window.
+  cat > "$OUT/pure.txt" <<'PEOF'
+Incident log:
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+Continue the log with the same format.
+PEOF
+  # COPY: verbatim reproduction of a paragraph from the prompt — the native
+  # prompt-lookup showcase (RAG quotes, memory echoes in the real app).
+  {
+    echo " Memorize this paragraph exactly:"
+    head -c 600 "$LOCAL_MODELS/wiki.test.raw"
+    echo ""
+    echo "Now repeat the paragraph above verbatim, word for word:"
+  } > "$OUT/copy.txt"
+  adb push "$OUT/pure.txt" "$BENCH_DIR/pure.txt" </dev/null >/dev/null 2>&1
+  adb push "$OUT/copy.txt" "$BENCH_DIR/copy.txt" </dev/null >/dev/null 2>&1
 }
 
 # Speed lines look like: [ Prompt: 266.6 t/s | Generation: 91.5 t/s ]
@@ -136,7 +159,7 @@ run_arm() {
     out="$OUT/$(basename "$model" .gguf)_${arm}_${prompt}_r$i.txt"
     adb shell "cd $BENCH_DIR && LD_LIBRARY_PATH=. timeout 600 ./llama-cli \
       -m /data/local/tmp/llamabench/$model -f $pf -n $NGEN -t $THREADS \
-      -st --temp 0 --simple-io ${arm:+--spec-type $arm}" \
+      -st --temp 0 --simple-io ${arm:+--spec-type $arm ${SPEC_EXTRA:+$SPEC_EXTRA}}" \
       </dev/null > "$out" 2>&1
     if [ ! -s "$out" ]; then
       blog "EMPTY OUTPUT $out"
