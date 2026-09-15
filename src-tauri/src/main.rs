@@ -10,11 +10,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod failure;
+mod pairing;
 mod startup;
+mod transport;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::SystemTime;
 
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{ServerState, Supervisor};
@@ -63,10 +67,17 @@ impl Brain {
 /// state, not an error: the catalog answers it with a refusal the user can
 /// act on.
 fn phone(app: &tauri::AppHandle) -> Option<kalsa_catalog::PhoneModel> {
-    let path = app.path().app_data_dir().ok()?.join(PAIRING_FILE);
-    kalsa_pairing::store::load(&path)
-        .ok()
-        .map(|handshake| handshake.phone)
+    app.try_state::<Desk>()?.desk.phone()
+}
+
+/// The pairing desk and the address its square advertises, made once at
+/// startup because the listener's port is what the square has to carry.
+/// Absent only when loopback itself could not be bound, which is a machine
+/// with no working network stack: the page then has nothing to show, and
+/// says so rather than drawing a square nothing can reach.
+struct Desk {
+    desk: pairing::SharedDesk,
+    reachable: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -254,6 +265,36 @@ fn brain_stop(brain: State<Brain>) {
     brain.supervisor.stop();
 }
 
+/// The Pairing page's one read, polled. A square is only offered while the
+/// server is running: a phone that scans one and finds nothing behind it has
+/// been lied to, so "not running" is `idle` and the page sends the owner to
+/// Status instead.
+#[tauri::command]
+fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto {
+    let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
+    desk.desk.read(serving, &desk.reachable, SystemTime::now())
+}
+
+/// The owner asked for another square. Whatever was in flight is abandoned.
+#[tauri::command]
+fn brain_pairing_retry(desk: State<Desk>) {
+    desk.desk.retry(&desk.reachable, SystemTime::now());
+}
+
+/// The owner says the new phone is theirs. The stored credential is replaced;
+/// the old phone stops working, which is what replacing means.
+#[tauri::command]
+fn brain_pairing_replace(desk: State<Desk>) {
+    desk.desk.decide(true);
+}
+
+/// The owner says the new phone is not theirs. Nothing is written and the
+/// asking phone is dropped.
+#[tauri::command]
+fn brain_pairing_keep(desk: State<Desk>) {
+    desk.desk.decide(false);
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Brain::new())
@@ -263,8 +304,25 @@ fn main() {
             brain_measured,
             brain_measure,
             brain_start,
-            brain_stop
+            brain_stop,
+            brain_pairing,
+            brain_pairing_retry,
+            brain_pairing_replace,
+            brain_pairing_keep
         ])
+        .setup(|app| {
+            // The desk needs this machine's data directory, and the square
+            // needs the listener's port: both are only knowable once the app
+            // has a handle, so this is where the pairing side is born.
+            let file = app.path().app_data_dir()?.join(PAIRING_FILE);
+            if let Some(parent) = file.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let desk = Arc::new(pairing::Desk::new(file));
+            let reachable = transport::serve(desk.clone())?;
+            app.manage(Desk { desk, reachable });
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("kalsa-brain: could not start")
         .run(|app, event| {

@@ -83,7 +83,10 @@ fn a_code_is_single_use() {
     assert!(matches!(session.claim(&code, middle), ClaimResult::Claimed));
     // The same code, still inside the window: refused, exactly as a wrong
     // one would be.
-    assert!(matches!(session.claim(&code, middle), ClaimResult::Rejected));
+    assert!(matches!(
+        session.claim(&code, middle),
+        ClaimResult::Rejected
+    ));
     assert!(matches!(session, Pairing::Claimed(_)));
 }
 
@@ -280,7 +283,12 @@ fn a_refusal_does_not_say_why() {
 
     let (mut unclaimed, u_start) = offered();
     let stranger = unclaimed.complete(
-        declaration(&"0".repeat(32), &"0".repeat(64), REACHABLE, declined_phone()),
+        declaration(
+            &"0".repeat(32),
+            &"0".repeat(64),
+            REACHABLE,
+            declined_phone(),
+        ),
         u_start + Duration::from_secs(1),
     );
 

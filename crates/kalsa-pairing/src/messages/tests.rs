@@ -51,7 +51,10 @@ fn the_computer_seal_is_a_frozen_known_answer() {
     let key = [0x41u8; super::CODE_BYTES];
     let nonce = [0x42u8; NONCE_BYTES];
     let seal = seal_computer(&key, &nonce, &"ab".repeat(32));
-    assert_eq!(seal.mac, "c061e29036aaf2152a005e6f6d956ebd3ba087d5621702711977133cb2e2e73d");
+    assert_eq!(
+        seal.mac,
+        "c061e29036aaf2152a005e6f6d956ebd3ba087d5621702711977133cb2e2e73d"
+    );
 }
 
 #[test]

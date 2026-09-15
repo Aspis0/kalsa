@@ -27,7 +27,9 @@ use getrandom::fill;
 
 use crate::error::{CompleteError, OfferError};
 use crate::handshake::{Credential, Handshake};
-use crate::messages::{seal_computer, verify_phone_mac, PairingSeal, PhoneDeclaration, NONCE_BYTES};
+use crate::messages::{
+    seal_computer, verify_phone_mac, PairingSeal, PhoneDeclaration, NONCE_BYTES,
+};
 use crate::payload;
 use crate::secret::OneTimeCode;
 
@@ -109,20 +111,14 @@ impl Pairing {
     /// entropy, alive for `ttl` on the wall clock. `reachable` is the address
     /// the square advertises — it rides inside the offer because the phone's
     /// completion MAC covers it, binding the declaration to the whole square.
-    pub fn offer(
-        reachable: &str,
-        now: SystemTime,
-        ttl: Duration,
-    ) -> Result<Self, OfferError> {
+    pub fn offer(reachable: &str, now: SystemTime, ttl: Duration) -> Result<Self, OfferError> {
         let mut nonce = [0u8; NONCE_BYTES];
         fill(&mut nonce).map_err(|_| OfferError::Entropy)?;
         let code = OneTimeCode::generate().map_err(|_| OfferError::Entropy)?;
         // A deadline that cannot be represented is no window at all, and a
         // panic here would take the window down in front of the user; the
         // caller gets an error and shows a fresh QR with a sane ttl.
-        let expires_at = now
-            .checked_add(ttl)
-            .ok_or(OfferError::Deadline)?;
+        let expires_at = now.checked_add(ttl).ok_or(OfferError::Deadline)?;
         Ok(Self::Offered(Offer {
             reachable: reachable.to_string(),
             code,

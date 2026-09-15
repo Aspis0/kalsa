@@ -105,7 +105,6 @@ impl OneTimeCode {
     pub(crate) fn bytes(&self) -> &[u8; CODE_BYTES] {
         &self.bytes
     }
-
 }
 
 // A derived Debug would print the code the first time anything logged the

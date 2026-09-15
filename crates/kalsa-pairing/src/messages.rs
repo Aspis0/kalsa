@@ -118,6 +118,36 @@ pub struct PhoneDeclaration {
     pub mac: String,
 }
 
+impl PhoneDeclaration {
+    /// The phone's side of the ceremony: everything it scanned, plus what it
+    /// says about itself, signed.
+    ///
+    /// This exists because the recipe cannot be written down accurately
+    /// enough to be re-implemented. The MAC covers `serde_json`'s exact bytes
+    /// for [`PhoneFields`] — field order, number formatting, which optional
+    /// fields are omitted — and a phone that guesses any of that produces a
+    /// message this computer refuses, with the same silent refusal it gives
+    /// an attacker. One implementation, shared: the phone links this crate
+    /// and calls this, or the protocol is a guess on one side.
+    ///
+    /// `code` and `nonce` are the hex strings out of the square. `None` when
+    /// either is not the hex this ceremony writes — a square that was
+    /// mistyped or truncated cannot be signed, and saying so here is better
+    /// than sending a message that will be refused without a reason.
+    pub fn sign(code: &str, nonce: &str, reachable: &str, phone: PhoneModel) -> Option<Self> {
+        let mut key = [0u8; CODE_BYTES];
+        hex::decode_to_slice(code, &mut key).ok()?;
+        let mut nonce_bytes = [0u8; NONCE_BYTES];
+        hex::decode_to_slice(nonce, &mut nonce_bytes).ok()?;
+        let fields = PhoneFields::of(phone);
+        let mac = phone_mac(&key, &nonce_bytes, reachable, &fields);
+        Some(Self {
+            phone: fields,
+            mac: hex::encode(mac),
+        })
+    }
+}
+
 // A MAC next to the data it authenticates: no derived Debug to log them
 // together.
 impl fmt::Debug for PhoneDeclaration {
@@ -210,12 +240,7 @@ pub(crate) fn seal_computer(
     nonce: &[u8; NONCE_BYTES],
     credential_hex: &str,
 ) -> PairingSeal {
-    PairingSeal::new(tag(
-        COMPUTER_DOMAIN,
-        key,
-        nonce,
-        credential_hex.as_bytes(),
-    ))
+    PairingSeal::new(tag(COMPUTER_DOMAIN, key, nonce, credential_hex.as_bytes()))
 }
 
 #[cfg(test)]

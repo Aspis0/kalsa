@@ -162,9 +162,8 @@ fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
     let mut present = 0;
     let mut defaulted = 0;
     let mut dacl = std::ptr::null_mut();
-    let ok = unsafe {
-        GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted)
-    };
+    let ok =
+        unsafe { GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted) };
     let applied = if ok == 0 || present == 0 || dacl.is_null() {
         Err(StoreError::Io(std::io::Error::other(
             "the security descriptor carried no DACL",

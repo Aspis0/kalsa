@@ -76,10 +76,18 @@ mod tests {
 
     #[test]
     fn every_offer_is_fresh() {
-        let first = encode(REACHABLE, &OneTimeCode::generate().unwrap(), &[1u8; NONCE_BYTES])
-            .unwrap();
-        let second = encode(REACHABLE, &OneTimeCode::generate().unwrap(), &[2u8; NONCE_BYTES])
-            .unwrap();
+        let first = encode(
+            REACHABLE,
+            &OneTimeCode::generate().unwrap(),
+            &[1u8; NONCE_BYTES],
+        )
+        .unwrap();
+        let second = encode(
+            REACHABLE,
+            &OneTimeCode::generate().unwrap(),
+            &[2u8; NONCE_BYTES],
+        )
+        .unwrap();
         assert_ne!(first, second);
     }
 }
