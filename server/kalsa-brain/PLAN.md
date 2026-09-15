@@ -1085,6 +1085,43 @@ credential in both cases. One door, one authentication, two ways in — rather
 than two products that drift apart, and rather than widening the one guarantee
 that is currently structural.
 
+#### What the spike measured, and what it did not
+
+A standalone spike carried a plain TCP stream between two iroh endpoints and
+forwarded it into a loopback HTTP server. Measured, not quoted:
+
+| path | connect | first byte | 100-byte round trip (p50) | bulk |
+|---|---|---|---|---|
+| direct | 7.5 ms | 3.3 ms | 0.8 ms | 75 Mbit/s |
+| n0's public relay | 34.9 ms | 28.1 ms | 25.0 ms | 11 Mbit/s |
+| our own relay | 8.6 ms | 2.3 ms | 1.7 ms | 81 Mbit/s |
+
+The relay's cost is one extra hop of latency, paid once, not a tax per token:
+a decode pushes tokens outward and the phone does not acknowledge each one, so
+25 ms lands on the first token and the rest stream behind it. Our own relay's
+1.7 ms is not a result — it ran on the same machine. The honest figure for a
+hosted relay is the round trip to wherever it is hosted.
+
+Four facts that shape the build. **The key alone is enough to dial**: 32
+bytes, resolved through iroh's own discovery, so the square grows by 32 bytes
+and needs no address hints. **Running our own relay is one command** —
+`cargo install iroh-relay --features server`, then both endpoints pointed at
+it — with a certificate and ports 80/443/7842 in production. **It is heavy**:
+a release client is 15.2 MiB and pulls 361 crates, which is nothing on a
+desktop and something to weigh on a phone. And **it hangs rather than fails**:
+dialling a node that is published but offline blocks for at least 25 seconds
+with no error, and killing the far side mid-stream leaves later requests
+waiting at least 12 seconds in silence. Every dial and every read needs our
+own deadline; iroh will not supply one.
+
+**What the spike did not test, and it is the load-bearing claim.** Both
+endpoints were on this LAN — the path iroh reported as "direct" was a private
+address on this network, not a hole punched between two different ones. The reported figure of roughly nine
+connections in ten going direct is n0's, not ours. The first honest test of it
+is the phone on mobile data against this machine behind its home router, and
+until that runs, the relay is not the fallback for a minority: it is the path
+we have actually seen work between two networks, which is zero of them so far.
+
 ### Not built yet
 
 "Turn on" is wired end to end and has been run end to end on a real machine.
