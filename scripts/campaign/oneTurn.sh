@@ -67,13 +67,32 @@ campaign_recover_status() {
 campaign_finish_turn() {
   local slice="$1"
   campaign_snapshot_messages "$OUT/.messages.json"
-  local charging rec
-  charging=$(campaign_charging_now)
+  local charging rec charging_rc=0
+  charging=$(campaign_charging_now) || charging_rc=$?
+  if [ "$charging_rc" -ne 0 ]; then
+    charging=true
+    log "turn $CAMPAIGN_TURN_I charging state unreadable — recording timing invalid"
+  fi
   rec="$OUT/.turn.json"
   campaign_collect_file "$slice" "$OUT/.messages.json" "$charging" "$rec"
   campaign_score_record "$rec"
   campaign_store_turn "$rec"
   log "turn $CAMPAIGN_TURN_I collected charging=$charging"
+}
+
+# Run-level gate (defect 2, 2026-09-16): the completion signal is emitted once
+# per finished turn. When it stops arriving the run can only repeat the same
+# 30-45 min wait, and the 2026-09-16 T20C run burned 96 minutes force-stopping
+# healthy engines before a human killed it. Turn 1 is tolerated (a cold launch
+# can lose its marker); from turn 2 on, the missing marker stops the run.
+# Called by the T20C runner only: supervisor.sh drives a different campaign on
+# a different phone and must not inherit this policy.
+campaign_completion_signal_lost() {
+  local i="${1:?}" slice="${2:?}"
+  [ "$i" -ge 2 ] || return 1
+  campaign_slice_has_telemetry "$slice" && return 1
+  log "ABORT after turn $i: completion signal 'KALSA_TELEMETRY ' is not in $slice — the app has stopped emitting it; stopping the run instead of repeating the ${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}ms wait per turn"
+  return 0
 }
 
 # Retry once (CAMPAIGN_RETRIED=1) then skip hang/timeout. Thermal/adb/pid: recover, retry, skip if still bad.
@@ -91,7 +110,7 @@ campaign_one_turn() {
   if ! campaign_send_turn "$user"; then
     if [ "${CAMPAIGN_TURN_STATUS:-}" = "thermal" ]; then
       log "turn $i send aborted by thermal — cooldown then retry"
-      campaign_thermal_cooldown || return 0
+      campaign_thermal_cooldown || { campaign_record_recovery "thermal-cooldown-failed"; return 0; }
       CAMPAIGN_TURN_STATUS=""
       # M5 (audit GLM): after cooldown the share may already have landed (race
       # between the thermal check and the land-check, poll 3s). Re-sharing
@@ -112,6 +131,7 @@ campaign_one_turn() {
       sleep 1
       if ! campaign_send_turn "$user"; then
         log "WARN: share-send retry failed turn $i — skip"
+        campaign_record_recovery "send-failed"
         return 0
       fi
     fi
@@ -124,12 +144,16 @@ campaign_one_turn() {
   rec_rc=0
   campaign_recover_status "$CAMPAIGN_TURN_STATUS" || rec_rc=$?
   if [ "$rec_rc" -eq 2 ]; then
+    # No path in campaign_recover_status returns 2 today (it returns 0 or
+    # dies); the record keeps this from ever becoming a silent skip.
+    campaign_record_recovery "recovery-refused"
     return 0
   fi
   CAMPAIGN_RETRIED=1
   if campaign_user_landed "$OUT/.messages.json" "$user"; then
     if campaign_assistant_advanced "$prev"; then
       log "turn $i user+assistant already landed — skip retry send (no duplicate share)"
+      campaign_record_recovery "already-landed-skip-send"
       return 0
     fi
     log "turn $i $CAMPAIGN_TURN_STATUS — user landed but assistant did not advance; post-crash resume of same user turn (no duplicate share)"
@@ -146,7 +170,7 @@ campaign_one_turn() {
   prev=$(campaign_assistant_count)
   case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
   offset=$(campaign_logcat_offset)
-  campaign_send_turn "$user" || { log "turn $i retry send failed — skip"; return 0; }
+  campaign_send_turn "$user" || { log "turn $i retry send failed — skip"; campaign_record_recovery "retry-send-failed"; return 0; }
   if campaign_wait_turn "$prev" "$slice" "$offset"; then
     campaign_finish_turn "$slice"
     return 0

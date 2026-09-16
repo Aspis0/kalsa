@@ -54,6 +54,7 @@ export function isMonotoneArms(cells, armIds) {
 export function shuffleCells(cfg, seed) {
   const rng = mulberry32(seed >>> 0);
   const armIds = cfg.arms.map((a) => a.id);
+  if (armIds.length <= 1) return cellsFrom(cfg);
   let cells = fisherYates(cellsFrom(cfg), rng);
   let guard = 0;
   while (isMonotoneArms(cells, armIds) && guard < 32) {

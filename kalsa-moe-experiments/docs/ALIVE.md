@@ -32,6 +32,7 @@ Living state. Numbers only when measured. No G2 claim without device proof.
 | 2026-09-16 | Failed T20C validation in `out/t20c-idlefix-20260915/` used stale Metro and executed the pre-`c37b419` `FOREGROUND_STUCK_INFLIGHT_MS=900000` escape. Evidence: `KALSA_THINKING` **6**, `KALSA_STALL` **0**, `KALSA_TELEMETRY` **2**, `model.unload` **1** at `idleMs=948606` (`23:28:05.391`) after turn 3 started at `23:12:16.962`; `.expo/dev/logs/start.log` records Metro `_t=1789498042371` at 14:47:22 EDT, before `c37b419` at 18:50:08. DeepSeek audit agent `eee67cde-cdb5-4a23-b2b6-5f9d8bcfc594` confirmed the served old symbols. c37b419 runtime logic was not exercised; no rerun; **G2 not claimed**. |
 | 2026-09-16 | Permanent host-only delivery gate corrected: `metroGate.mjs` requires the caller-supplied `CAMPAIGN_METRO_BUNDLE_URL` to match the actual Expo virtual Android entry `/.expo/.virtual-metro-entry.bundle` and shared debug query (`lazy=true`, plus `excludeSource=true&sourcePaths=url-server` when Fusebox is enabled), while permitting only the complete set of Expo rewrite additions (`routerRoot=src/app`, `engine=hermes`, `bytecode=1`, `unstable_transformProfile=hermes-stable`); every partial subset is rejected. It fetches raw bytes into memory only, and records requested URL, observable response metadata, SHA-256, byte count, booleans, bounded excerpts/offsets, stdout, stderr, exit status, and JSON result under unique `OUT/.metro-preflight.*` evidence; `OUT/metro-gate-evidence.txt` makes the evidence discoverable. It fails closed on missing `KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419`, missing `if (args.inFlight) return false;`, stale `FOREGROUND_STUCK_INFLIGHT_MS`/`stuckExpired`, HTTP/network/abort/deadline/partial-body failures, and overwrite refusal (unique sibling failure evidence preserves prior files). Every launch proves the marker in new threadtime logcat bytes with the newly launched PID; every share intent/send rechecks PID and relaunches on death/change. Campaign selftest passes **143 checks**, including real temp JSONL holes, root validation, virtual-entry/query fixtures, rewrite-subset rejection, gate failure fixtures, PID, and logcat fixtures. Live Metro/device gate has not been run. **No AppShell predicate refactor; no rerun; G2 not claimed.** |
 | 2026-09-16 | Final handoff: `0bfe985` is the permanent provenance gate for the actual virtual-entry bundle, served marker `c37b419`, PID-qualified device log, PID re-gate before every share, and fail-closed networking/evidence; campaign selftest **143/143** and the final hostile audit found zero P0/P1/P2. Fresh current Metro host gate passed with PID `2445`, bundle `14,606,658` bytes, SHA-256 `8b78376703aa9d15dbcf94e98516af85b0e03c0e26ef244a81ab8cda86dba1f4`; host proof only, not device proof or G2. S23 handback: app stopped, unplugged, 52%, 34.4 C last, 36.8 C peak; 2.4 GB models under `/data/local/tmp/llamabench` plus `/data/local/tmp/ngramspec` remain intentionally. Energy framework/recovery/status docs are merged and pushed through `4d69e42`; use ABBA ordering, thermal gate, per-session idle floor; cold-to-warm decode time +26–52%, joules/token −6 to +7%, between-run spread 2–7% (not 0.68%); Android ggml affinity controls inert, thread count effective, external `taskset` works; S23 shell fuel-gauge reads are permission-denied/empty and future high-rate energy needs app-side `BatteryManager`. **G2 not claimed.** |
+| 2026-09-16 | T20C rerun prepared; for the first time BOTH halves of delivery provenance are pinned before device contact, and no device run has happened yet. Metro PID `2445` was dead; fresh Metro is PID `13030`. Host gate `0bfe985` PASS: HTTP 200, `14,606,658` bytes, SHA-256 `8b78376703aa9d15dbcf94e98516af85b0e03c0e26ef244a81ab8cda86dba1f4` — byte-identical to the PID-2445 gate — marker `c37b419` present, `if (args.inFlight) return false;` present, `FOREGROUND_STUCK_INFLIGHT_MS`/`stuckExpired` absent. The installed S23 APK was verified by on-device `sha256sum` as `ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`, i.e. the `244c6c0`/`c37b419` debuggable build, so the forbidden 09-14 APK is not in play. Campaign selftest **143/143**, 0 fail. Three harness defects were found before any device contact: (1) `campaigns/ciswire.json` has `device` = `192.168.1.82:34037`, the **Jelly** — driving T20C through that config targets the wrong phone; (2) the T20C runner AND its 20-turn script were both lost, and `campaigns/ciswire/script.json` is a DIFFERENT experiment (its turn 20 is `drift-probe`, not `chat-20`) — the real script survives in three byte-identical copies under the 09-14 out dirs, md5 `5970b695301ac808af050d71ad8d0374`, 20 turns `chat-1`..`chat-20`, now tracked at `campaigns/t20c/script.json`; (3) the supervisor path has NO charging refusal and NO battery floor — `campaign_charging_now` (`turn.sh:5`) is called once at `oneTurn.sh:71` and only RECORDS into the turn record; both guards died with the lost wrapper. The thermal gate by contrast IS wired (`turn.sh:121`,`:133`,`:232`; `oneTurn.sh:45`,`:94`). The uncommitted `recovery.sh` `|| return 1` is load-bearing: `oneTurn.sh:40`/`:57` call `campaign_relaunch_or_reinstall || die`, a tested context that disables `set -e` inside the function, so without it a `campaign_launch` that fails the marker proof falls through to `sleep 8`. `runOrder.mjs` needed a single-arm short-circuit: with one arm `armSequence` is `['T20C']`, `isMonotoneArms` is always true, the 32-iteration reshuffle guard is exhausted and control reaches `throw new Error("runOrder produced monotone R1->R8 after reshuffle")`. Measurement note: the pass conditions are JSON, so `grep 'window_align.*to:0'` reads 0 while `'"to":0'` reads 1. Baseline from `out/t20c-fixprotocol-20260915/logcat.txt`: 17 aligns, exactly **1** `"to":0`, 6 monotone slides `0->4->10->15->(17)->20->28->36`, 0 `window_reconcile`, 0 `KALSA_STALL`, 1 `model.unload` idle. That run's `chat-15` record holds the canonical 907-char prompt DUPLICATED (1816 chars) — a re-send/record artifact, not a different script. S23 released in writing by the other session. **No device run in this entry. G2 not claimed.** |
 
 ## Not measured this apply
 
@@ -54,4 +55,72 @@ Living state. Numbers only when measured. No G2 claim without device proof.
 - S23 handback is complete: app stopped, unplugged, 52%, 34.4 C last, 36.8 C peak; the 2.4 GB
   models under `/data/local/tmp/llamabench` plus `/data/local/tmp/ngramspec` remain intentionally.
 - T20C continuation requires S23 charge to **>=85%**, unplug, thermal-gate confirmation, and the
-  fresh Metro/PID gate; G2 remains unclaimed.
+  fresh Metro/PID gate; G2 remains unclaimed. The entrypoint is `scripts/campaign/run-t20c.sh`,
+  recovered from the previous run directories and now tracked, with `campaigns/t20c.json` (S23
+  serial, single arm `T20C`, single variant `V1`, 20 turns) and `campaigns/t20c/script.json`.
+  It is **not** `supervisor.sh`: the supervisor carries no thermal-cooldown override, so a thermal
+  pause there reaches `campaign_force_stop` (`scripts/campaign/recovery.sh:173-176`) and destroys
+  the live KV, which is the object of this measurement. The `0bfe985` Metro gate is single-sourced
+  in `scripts/campaign/metroPreflight.sh` and both entrypoints call it before any device arm or
+  send.
+- No integration test covers the `notifyStaticPrefixInputs` wiring: no `*.test.ts` in `src/`
+  references it, which is why every fix in this area can only be validated by a ~2.5 h device run.
+  All five 2026-09-13 scratchpad audits converge on exactly this one open item; their code-level
+  P1s (F1 post-governor guard, F2 lifecycle hostage) were closed by the LOCKS2 re-audit, and the
+  `default`/`never` exhaustiveness nit is closed on disk.
+
+## 2026-09-16 — T20C gate run stopped at 1/20; the app regression that caused it; Jelly prefill measured
+
+**T20C `out/t20c-gate-20260916` ran 96 minutes and recorded ONE turn (2 recoveries, battery 82%→63%,
+40.1 C at stop). Stopped by hand. G2 remains unclaimed and no G2 claim is made from this run.**
+The engine was healthy throughout — full KV prefix reuse at every turn
+(`KALSA_KVPREFIX embd=3877 text_tokens=5441 n_common=3877`), `nPast` growing 2853→3877 across
+force-stops. Two independent defects, one in the app and one in the harness, produced the loss.
+
+**App regression, root cause, verified on disk.** `c37b419` ("fix(app): preserve active foreground
+generation") removed the stuck-in-flight safety net in `src/app/foregroundIdleDispose.ts`:
+`-export const FOREGROUND_STUCK_INFLIGHT_MS = 900_000;` / `-  if (args.inFlight) return args.idleMs >= stuckLimit;`
+/ `+  if (args.inFlight) return false;`. The change was made for a real reason — the 2026-09-15 run
+"lost turn 9 to a stuck-in-flight disposal while the stream was healthy" — but its stated
+justification, "True stalls have their own prefill/decode watchdogs", is false in practice:
+`grep -c KALSA_STALL out/t20c-gate-20260916/logcat.txt` = **0** across 32,683 lines while three app
+processes hung. Cost of the false positive it fixed: 1 turn. Cost of removing the net: 19 turns.
+Today's logcat contains both cases and is the fixture for the correct detector — PID 19312 and 8213
+emitted **zero** native lines for 30+ minutes after their last `loadPrompt` (dead), while PID 26488
+emitted **934** `Grammar still awaiting trigger` lines over 17 minutes (alive but slow; the healthy
+baseline has 6372 of them across 8 turns). **Liveness must be judged on whether the engine is still
+producing, never on how long the turn has run.**
+
+**Harness defect: liveness and completion are the same signal.** `scripts/campaign/watchdog.sh:17`
+greps for `"KALSA_TELEMETRY "`, and `scripts/campaign/turn.sh:216-224` puts both the only `return 0`
+AND the `last_progress="$now"` update inside that one branch. The app emitted that line exactly once
+(11:50:53, turn 1), so every later turn could only end as `hang` after the 30-minute gap while health
+probes kept printing every 120 s. The baseline's 8 recoveries were `{thermal: 7, hang: 1}` — a
+different disease with the same symptom, so the cause is never inferable from the count.
+
+**Jelly: prefill is compute, not page-in. Hypothesis REFUTED by measurement.** Two invocations of
+`llama-cli -f rep.4096.txt -n 1 -t 2`, unplugged, LFM2.5-2.6B-Q4_K_M (1,674,454,848 bytes):
+run 1 cold cache **890 s wall, `[ Prompt: 3.6 t/s ]`**, completed; run 2 with the model already in
+page cache (7.97 GB RAM) **killed by `timeout 1200`**, never finished. The rate FALLS with length
+(5.0 t/s at 66 tokens → 3.6 t/s at ~4096) where a fixed page-in cost would have amortised and made it
+rise. Consequences: (a) **a 4096-token prompt costs a quarter of an hour before the first token** —
+a product ceiling on this tier, not a curve to refine; (b) the 512/1024/2048/4096 sweep needs ~2.8 h
+and more than a full charge against a 30% floor, so the block moves to **128/256/512/1024**.
+
+**Thermal, honest accounting.** Battery 56%→37% and 26.0→37.0 C for the two prefills. Run 2 was
+slower than run 1 on identical work, which is the direction the thermal hypothesis predicts, but the
+magnitude is NOT clean: a stray `llama-cli` holding 3.7 GB was found afterwards and `ps` was not
+sampled during the runs, so contention is not excluded. Recorded as an indication, not a measurement;
+the per-arm temperature recording and the forward↔reverse refusal now in the sweep instrument are
+what will settle it.
+
+**Instrument.** `scripts/device-energy-sweep.sh` gained a `promptlen` block through three
+write→audit→fix rounds (writer GLM, auditor deepseek, every load-bearing line verified on disk here).
+Two audit findings were defects the fixes themselves introduced; the worst was a drift gate that
+passed **vacuously** when a length had only one half (`fwd` and `rev` resolved to the same set, giving
+`drift = 0`), i.e. the check meant to prove temperature was not producing the slope declared
+cleanliness exactly when half the experiment had not run. Now refuses by name with `n/a%`.
+
+**Repo.** `energy-framework` and `ngram-spec-bench` deleted (both 0 commits ahead of main).
+`kalsa/energy-merge` still blocked by the `kalsa-ngram-spec` worktree, whose 2.9 GB `tmp/` holds
+**zero tracked files** (1.4 GB build-android-phase-stamps, 1.4 GB build-android, 160 MB kalsallama-pin).

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Device recovery: offline → connect+backoff; unauthorized → re-pair note;
-# IP change → adb mdns services then connect Jelly. Pull RKStorage (+wal/shm)
+# IP change → adb mdns services then connect the configured device. Pull RKStorage (+wal/shm)
 # BEFORE any restart. App won't start → adb install -r SAME apk (never
 # uninstall, never pm clear). Thermal status>=3: stop, cooldown, resume
 # SAME arm/conv only.
@@ -32,15 +32,19 @@ campaign_connect() {
   return 1
 }
 
-campaign_mdns_jelly() {
-  local line ip
+campaign_mdns_for_serial() {
+  local configured_serial="${1:-$CAMPAIGN_SERIAL}" configured_ip line ip discovered_ip
+  configured_ip="${configured_serial%%:*}"
   # mDNS only helps IP change; pairing persists.
   while IFS= read -r line; do
     ip=$(printf '%s' "$line" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+' | head -1)
     [ -z "$ip" ] && continue
-    case "$ip" in
-      192.168.1.82:*) printf '%s\n' "$ip"; return 0 ;;
-    esac
+    discovered_ip="${ip%%:*}"
+    if [ "$discovered_ip" = "$configured_ip" ]; then
+      printf '%s\n' "$ip"
+      return 0
+    fi
+    log "RECOVERY refusal: mdns serial=$ip has different IP from configured serial=$configured_serial" >&2
   done <<EOF
 $(adb mdns services </dev/null 2>/dev/null || true)
 EOF
@@ -66,7 +70,7 @@ campaign_ensure_device() {
         return 0
       fi
       local found
-      if found=$(campaign_mdns_jelly); then
+      if found=$(campaign_mdns_for_serial "$serial"); then
         log "RECOVERY reason=ip-change mdns=$found"
         export ANDROID_SERIAL="$found"
         CAMPAIGN_SERIAL="$found"
@@ -121,14 +125,14 @@ campaign_app_running() {
 }
 
 campaign_relaunch_or_reinstall() {
-  campaign_launch
+  campaign_launch || return 1
   sleep 8
   if campaign_app_running; then
     return 0
   fi
   log "app did not start — install -r same apk"
   campaign_reinstall_r || return 1
-  campaign_launch
+  campaign_launch || return 1
   sleep 8
   campaign_app_running
 }
@@ -139,7 +143,9 @@ campaign_thermal_should_pause() {
   case "$st" in
     ''|unknown|*[!0-9]*) return 1 ;;
   esac
-  # Pause only on REAL heat: battery temp > max (43°C) or a critical system
+  # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (T20C sets
+  # 42 in run-t20c.sh:32; the 45 default here only applies if nothing sets it)
+  # or a critical system
   # status (≥5, genuine overheating). Status 2-3 while charging is the Jelly's
   # normal equilibrium — work through it; the battery temp is the honest gate.
   [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ] && return 0

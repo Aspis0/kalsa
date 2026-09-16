@@ -3,8 +3,16 @@
 set -uo pipefail
 
 campaign_charging_now() {
-  local dump
-  dump=$(adb shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' || true)
+  local dump serial
+  serial="${ANDROID_SERIAL:-${CAMPAIGN_SERIAL:-}}"
+  if [ -z "$serial" ] || ! dump=$(adb -s "$serial" shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r'); then
+    printf '%s\n' false
+    return 2
+  fi
+  if ! printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless) powered:[[:space:]]*(true|false)'; then
+    printf '%s\n' false
+    return 2
+  fi
   if printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless) powered:[[:space:]]*true'; then
     echo true
   else
@@ -162,18 +170,44 @@ sys.exit(2 if "Risposta interrotta" in text or "removed from memory" in text els
   return 1
 }
 
+# Evidence that the turn is still producing something, from state the wait loop
+# already collects: assistant bubble count, length of the last assistant text
+# (a reply streaming on screen), and native engine lines in this turn's slice.
+# Grounded on the 2026-09-16 run: PID 19312/8213 logged zero native lines for
+# 30+ min after their last loadPrompt (dead), PID 26488 logged 934 "Grammar
+# still awaiting trigger" lines in 17 min (alive but slow).
+campaign_progress_fingerprint() {
+  local count="${1:?}" messages="${2:?}" slice="${3:?}" asst_len native
+  asst_len=$(python3 -c '
+import json, sys
+try:
+    data = json.loads(open(sys.argv[1], encoding="utf-8").read() or "[]")
+except Exception:
+    data = []
+asst = [m.get("text") or "" for m in data if isinstance(m, dict) and m.get("role") == "assistant"]
+print(len(asst[-1]) if asst else 0)
+' "$messages" 2>/dev/null) || asst_len=0
+  case "$asst_len" in ''|*[!0-9]*) asst_len=0 ;; esac
+  native=$(LC_ALL=C grep -cE 'loadPrompt|KALSA_NATIVE |llama_' "$slice" 2>/dev/null) || native=0
+  case "$native" in ''|*[!0-9]*) native=0 ;; esac
+  printf '%s:%s:%s\n' "$count" "$asst_len" "$native"
+}
+
 # Wait until assistant count increases AND KALSA_TELEMETRY lands, or abort.
 # An interrupted bubble completes the turn without requiring count/telemetry.
+# Liveness (the hang watchdog) is NOT the completion marker: see
+# campaign_progress_fingerprint above.
 # Sets CAMPAIGN_TURN_STATUS=ok|interrupted|timeout|hang|pid-death|adb-drop
 campaign_wait_turn() {
   local prev="${1:?}" dest="${2:?}" offset="${3:-0}"
   local timeout_ms="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
   local gap_ms="${CAMPAIGN_TELEMETRY_GAP_MS:-1800000}"
   local poll_ms="${CAMPAIGN_POLL_MS:-5000}"
-  local start now elapsed last_progress pid state count poll_s last_health
+  local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
   start=$(python3 -c 'import time; print(int(time.time()*1000))')
   last_progress="$start"
   last_health=0
+  last_fingerprint=""
   poll_s=$(python3 -c "print(max(1, int($poll_ms)/1000))")
   CAMPAIGN_TURN_STATUS="timeout"
 
@@ -200,6 +234,15 @@ campaign_wait_turn() {
     case "$count" in ''|*[!0-9]*) count=0 ;; esac
 
     campaign_snapshot_messages "$OUT/.messages.json"
+    # Liveness advances on ANY evidence of progress. Reading it from the
+    # completion marker is the 2026-09-16 defect: the app emitted
+    # KALSA_TELEMETRY once in 32,683 logcat lines, and every later turn could
+    # only end as "hang" while the engine was still producing text.
+    fingerprint=$(campaign_progress_fingerprint "$count" "$OUT/.messages.json" "$dest")
+    if [ "$fingerprint" != "$last_fingerprint" ]; then
+      last_progress="$now"
+      last_fingerprint="$fingerprint"
+    fi
     # H2 (audit GLM): the interrupted-bubble check must run AFTER count>prev —
     # at turn N+1 following an interrupted turn N, the stale bubble of N is the
     # last assistant message and would "complete" N+1 at the first poll (~5s)

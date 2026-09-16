@@ -120,6 +120,11 @@ import {
   GENERATION_STALL_GAP_MS,
 } from "./stallWatchdog";
 import {
+  createBackgroundTimer,
+  createRepeatingTimer,
+  type TimerHandle,
+} from "../platform/backgroundTimer";
+import {
   getLastPromptTokens,
   getPrefillTokPerSec,
   recordPrefillSample,
@@ -2280,6 +2285,25 @@ async function disposeEngineLocked(opts?: {
   /** Lost-mark path: timeout ⇒ hung; never force-release a suspect handle. */
   neverForceRelease?: boolean;
 }): Promise<void> {
+  // Pause-proof safety bounds: dispose is triggered from native-timer
+  // callbacks (idle stall net, background grace) and must conclude while the
+  // host is paused, where plain RN timers never fire.
+  const safetyTimer = createBackgroundTimer();
+  const safetyTimeoutFalse = () => {
+    let handle: TimerHandle | null = null;
+    const promise = new Promise<boolean>((resolve) => {
+      handle = safetyTimer.setTimeout(
+        () => resolve(false),
+        DISPOSE_SAFETY_TIMEOUT_MS,
+      );
+    });
+    return {
+      promise,
+      cancel: () => {
+        if (handle !== null) safetyTimer.clearTimeout(handle);
+      },
+    };
+  };
   // Set BEFORE invalidating context: any job already running (or about to run)
   // in engineJobChain sees this immediately and bails before its next completion().
   disposing = true;
@@ -2334,14 +2358,15 @@ async function disposeEngineLocked(opts?: {
         () => undefined,
         () => undefined,
       );
+      const stopSafety = safetyTimeoutFalse();
       const settled = await Promise.race([
         Promise.allSettled([
           stopP,
           engineJobChain.then(() => undefined, () => undefined),
           ...activeCompletionSet,
         ]).then(() => true),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
-      ]);
+        stopSafety.promise,
+      ]).finally(() => stopSafety.cancel());
       const hasActive =
         activeCompletionSet.size > 0 || engineJobPendingCount > 0;
       const lostOutcome = decideBoundedReleaseOutcome({
@@ -2394,15 +2419,14 @@ async function disposeEngineLocked(opts?: {
           // A sync throw from release() hits the outer catch and sets
           // contextHung (fail-safe: throw ⇒ hung ⇒ restart). Implausible
           // (createPromiseTask wraps the native call) but documented.
+          const releaseSafety = safetyTimeoutFalse();
           const released = await Promise.race([
             current.release().then(
               () => true,
               () => true,
             ),
-            new Promise<boolean>((resolve) =>
-              setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS),
-            ),
-          ]);
+            releaseSafety.promise,
+          ]).finally(() => releaseSafety.cancel());
           if (!released) {
             contextHung = true;
             console.warn(
@@ -2418,10 +2442,11 @@ async function disposeEngineLocked(opts?: {
       }
     } else {
       // Still drain the job queue in case a job is mid-flight with a captured ctx.
-      const settled = await Promise.race([
-        engineJobChain.then(() => true, () => true),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
-      ]);
+        const chainSafety = safetyTimeoutFalse();
+        const settled = await Promise.race([
+          engineJobChain.then(() => true, () => true),
+          chainSafety.promise,
+        ]).finally(() => chainSafety.cancel());
       if (!settled) {
         const hasActive =
           activeCompletionSet.size > 0 || engineJobPendingCount > 0;
@@ -3446,20 +3471,20 @@ export async function streamAssistantTurn(
       gapMs: GENERATION_STALL_GAP_MS,
       now: Date.now,
     });
-    let stallTimer: ReturnType<typeof setInterval> | null = null;
-    let prefillTimer: ReturnType<typeof setTimeout> | null = null;
+    // Pause-proof timers: these watchdogs must fire while the Android host is
+    // paused, where plain RN timers are suspended (KALSA_STALL never fired in
+    // the t20c-gate 2026-09-16 run for exactly this reason).
+    const turnTimer = createBackgroundTimer();
+    let prefillTimer: TimerHandle | null = null;
     let stallTokenCount = 0;
     const clearPrefillDeadline = () => {
       if (prefillTimer !== null) {
-        clearTimeout(prefillTimer);
+        turnTimer.clearTimeout(prefillTimer);
         prefillTimer = null;
       }
     };
     const stopStallWatchdog = () => {
-      if (stallTimer !== null) {
-        clearInterval(stallTimer);
-        stallTimer = null;
-      }
+      stallTimer.stop();
       clearPrefillDeadline();
       stallWatchdog.reset();
     };
@@ -3518,10 +3543,15 @@ export async function streamAssistantTurn(
         ),
       );
     };
+    // Re-armed one-shot, not setInterval: a 2 s check that overruns cannot
+    // stack callbacks on the native timer.
+    const stallTimer = createRepeatingTimer({
+      run: checkStall,
+      delayMs: 2_000,
+      timer: turnTimer,
+    });
     const startStallWatchdog = () => {
-      if (stallTimer === null) {
-        stallTimer = setInterval(checkStall, 2_000);
-      }
+      stallTimer.start();
     };
     const armPrefillDeadline = () => {
       // Use the native promptN lower bound when available: it includes chat
@@ -3544,7 +3574,7 @@ export async function streamAssistantTurn(
         prefillTokPerSec,
         minMs: MIN_PREFILL_DEADLINE_MS,
       });
-      prefillTimer = setTimeout(() => {
+      prefillTimer = turnTimer.setTimeout(() => {
         prefillTimer = null;
         if (finished || aborted) return;
         try {

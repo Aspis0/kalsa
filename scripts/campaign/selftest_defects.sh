@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+# Host-only proofs for the three 2026-09-16 campaign-harness defects. A fake
+# `adb` (selftest_fakedevice.sh) on PATH replays fixtures; no device is touched
+# and no real logcat/turn timing is waited for.
+#
+#   bash scripts/campaign/selftest_defects.sh
+#
+# (a) a turn that keeps producing text but never emits KALSA_TELEMETRY is NOT
+#     declared hang — one case per liveness signal (native lines, growing
+#     reply, new assistant bubble) plus a frozen negative control that must
+#     still be a hang;
+# (b) a run whose completion signal never appears stops after turn 2, rc=4,
+#     naming 'KALSA_TELEMETRY ';
+# (c) every skip path in oneTurn.sh appends a RECOVERY-shaped record,
+#     verified by reading the jsonl back.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/kalsa-defects.XXXXXX")"
+
+# The one KALSA_TELEMETRY line the app emitted in 32,683 logcat lines on
+# 2026-09-16 (out/t20c-gate-20260916/logcat.txt, 11:50:53.532).
+TELEMETRY_LINE='-16 11:50:53.532 19312 19372 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2865,"tokensEvaluated":2662,"tokensPredicted":202,"draftTokens":0,"draftAccepted":0,"promptMs":8659.059,"predictedMs":21862.297,"predictedPerSecond":9.23965125896881,"contextFull":false,"interrupted":false,"prompt_n":282,"ciswireFlags":1}'
+
+export FAKE_DEV="$WORK/device"
+mkdir -p "$FAKE_DEV/fake" "$FAKE_DEV/databases" "$FAKE_DEV/data/local/tmp"
+mkdir -p "$WORK/bin"
+cp "$HERE/selftest_fakedevice.sh" "$WORK/bin/adb"
+chmod +x "$WORK/bin/adb"
+PATH="$WORK/bin:$PATH"
+export PATH
+
+pass=0
+fail=0
+ok() { printf 'PASS: %s\n' "$1"; pass=$((pass + 1)); }
+bad() { printf 'FAIL: %s\n' "$1"; fail=$((fail + 1)); }
+
+cleanup() {
+  pkill -f "$WORK" >/dev/null 2>&1 || true
+  rm -rf "$WORK"
+}
+trap cleanup EXIT
+
+# ── fake device fixtures ────────────────────────────────────────────────────
+fake_reset() {
+  local mode="$1" temp=350
+  [ "$mode" = "hot" ] && temp=500
+  rm -rf "$FAKE_DEV/fake" "$FAKE_DEV/databases"
+  mkdir -p "$FAKE_DEV/fake" "$FAKE_DEV/databases" "$FAKE_DEV/data/local/tmp"
+  sqlite3 "$FAKE_DEV/databases/RKStorage" \
+    'CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT);'
+  printf '%s\n' "$mode" > "$FAKE_DEV/fake/mode"
+  printf '%s' 4242 > "$FAKE_DEV/fake/pid"
+  printf '%s' 4242 > "$FAKE_DEV/fake/pid_base"
+  printf '%s\n' device > "$FAKE_DEV/fake/adb_state"
+  printf '%s' 0 > "$FAKE_DEV/fake/turn"
+  printf '%s\n' "$TELEMETRY_LINE" > "$FAKE_DEV/fake/telemetry.line"
+  cat > "$FAKE_DEV/fake/battery.txt" <<EOF
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 90
+  temperature: $temp
+EOF
+  printf '%s\n' 'Thermal Status: 0' > "$FAKE_DEV/fake/thermalservice.txt"
+  cat > "$FAKE_DEV/fake/stream.txt" <<'EOF'
+09-16 12:00:00.000 4242 4243 I ReactNativeJS: KALSA_CTX_FLOOR n_ctx=8192
+09-16 12:00:00.010 4242 4243 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"fake","nGpuLayers":0}
+09-16 12:00:00.020 4242 4243 I llama_context: n_ctx = 8192
+EOF
+  cat > "$FAKE_DEV/fake/ui.xml" <<'EOF'
+<hierarchy>
+<node class="android.widget.TextView" text="Pronto" bounds="[0,0][10,10]"/>
+<node class="android.widget.Button" text="Send" bounds="[900,2000][1000,2100]"/>
+</hierarchy>
+EOF
+}
+
+db_put_messages() {
+  python3 - "$FAKE_DEV/databases/RKStorage" "$1" <<'PY'
+import sqlite3, sys
+conn = sqlite3.connect(sys.argv[1])
+conn.execute(
+    "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES (?,?)",
+    ("kalsa.messages.v1", open(sys.argv[2], encoding="utf-8").read()),
+)
+conn.commit()
+PY
+}
+
+# make_messages <path> <n_assistant> <assistant_len>
+make_messages() {
+  python3 -c '
+import json, sys
+path, n_asst, asst_len = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+msgs = [{"role": "user", "text": "domanda"}]
+for k in range(n_asst):
+    msgs.append({"role": "assistant", "text": ("r%d " % k) + "x" * asst_len})
+json.dump(msgs, open(path, "w", encoding="utf-8"))
+' "$1" "$2" "$3"
+}
+
+# jsonl_reason <jsonl> <i> <reason> — exit 0 only when a RECOVERY-shaped record
+# for turn <i> with <reason> is on disk.
+jsonl_reason() {
+  python3 -c '
+import json, sys
+path, want_i, want_reason = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+rows = []
+try:
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if line:
+            rows.append(json.loads(line))
+except OSError:
+    pass
+hit = [
+    r for r in rows
+    if r.get("event") == "RECOVERY"
+    and r.get("reason") == want_reason
+    and r.get("i") == want_i
+    and r.get("scores") is None
+    and r.get("arm") == "T20C"
+    and r.get("variant") == "V1"
+    and r.get("conv") == "c1-V1"
+]
+print("records=%d summary=%s" % (len(rows), " ".join(
+    "%s/%s%s" % (r.get("i"), r.get("event", "TURN"), "/" + str(r.get("reason")) if r.get("reason") else "")
+    for r in rows)))
+sys.exit(0 if len(hit) == 1 else 1)
+' "$1" "$2" "$3"
+}
+
+# ── (a) liveness is not the completion marker ───────────────────────────────
+# driver = background mutation; expect = CAMPAIGN_TURN_STATUS the wait must end
+# with. hang is the failure mode being fixed; timeout means liveness kept the
+# turn alive for the whole budget.
+liveness_case() {
+  local label="$1" expect="$2" driver="$3" out="$WORK/live"
+  fake_reset marker-turn1
+  rm -rf "$out"
+  mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    # shellcheck source=../../scripts/ci-lib.sh
+    source "$REPO/scripts/ci-lib.sh"
+    # shellcheck source=../../scripts/device-share-send.sh
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=6000
+    CAMPAIGN_TELEMETRY_GAP_MS=2000
+    CAMPAIGN_POLL_MS=1000
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    case "$driver" in
+      native)
+        (
+          for i in $(seq 1 30); do
+            printf '09-16 12:00:30.%03d 4242 4243 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token %d\n' "$i" "$i" \
+              >> "$FAKE_DEV/fake/stream.txt"
+            sleep 0.5
+          done
+        ) >/dev/null 2>&1 &
+        ;;
+      reply)
+        (
+          for i in $(seq 1 30); do
+            make_messages "$FAKE_DEV/fake/live.json" 1 "$((10 + i))"
+            db_put_messages "$FAKE_DEV/fake/live.json"
+            sleep 0.5
+          done
+        ) >/dev/null 2>&1 &
+        ;;
+      bubble)
+        (
+          for i in $(seq 1 30); do
+            make_messages "$FAKE_DEV/fake/live.json" "$i" 20
+            db_put_messages "$FAKE_DEV/fake/live.json"
+            sleep 0.5
+          done
+        ) >/dev/null 2>&1 &
+        ;;
+      complete)
+        make_messages "$FAKE_DEV/fake/live.json" 1 20
+        db_put_messages "$FAKE_DEV/fake/live.json"
+        printf '%s\n' "$TELEMETRY_LINE" >> "$FAKE_DEV/fake/stream.txt"
+        ;;
+      frozen) : ;;
+    esac
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    wait >/dev/null 2>&1 || true
+  )
+  local status
+  status=$(cat "$out/status.txt" 2>/dev/null || printf 'missing')
+  if [ "$status" = "$expect" ]; then
+    ok "$label (status=$status)"
+  else
+    bad "$label (status=$status, want $expect)"
+  fi
+}
+
+printf '== (a) liveness vs completion marker ==\n'
+liveness_case "frozen turn is still a hang" hang frozen
+liveness_case "native engine lines keep it alive" timeout native
+liveness_case "growing reply keeps it alive" timeout reply
+liveness_case "new assistant bubbles keep it alive" timeout bubble
+liveness_case "telemetry + new bubble still completes ok" ok complete
+
+# ── (b) the run stops after turn 2 without the completion signal ────────────
+# marker-turn1 = today's replay: turn 1 emits KALSA_TELEMETRY, turn 2 does not.
+# never        = the signal never appears at all.
+run_campaign_case() {
+  local mode="$1" want_rc="$2" out served port url
+  out="$WORK/out-b-$mode"
+  served="$WORK/bundle"
+  fake_reset "$mode"
+  rm -rf "$out" "$served"
+  mkdir -p "$out" "$served/.expo"
+  {
+    printf '%s\n' "KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419"
+    printf '%s\n' "if (args.inFlight) return false;"
+  } > "$served/.expo/.virtual-metro-entry.bundle"
+  port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+  python3 -m http.server "$port" --directory "$served" >/dev/null 2>&1 &
+  local http_pid=$!
+  disown "$http_pid" 2>/dev/null || true
+  url="http://127.0.0.1:$port/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
+    ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
+    CAMPAIGN_METRO_BUNDLE_URL="$url" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  local rc=$?
+  kill "$http_pid" >/dev/null 2>&1 || true
+  printf 'mode=%s rc=%d (want %s)\n' "$mode" "$rc" "$want_rc"
+  if [ "$rc" -eq "$want_rc" ]; then
+    ok "$mode run exit rc=$want_rc"
+  else
+    bad "$mode run exit rc=$rc (want $want_rc); tail: $(tail -3 "$out/run.log" | tr '\n' '|')"
+  fi
+  if grep -q "ABORT after turn 2: completion signal 'KALSA_TELEMETRY '" "$out/run.log"; then
+    ok "$mode abort names the missing signal"
+  else
+    bad "$mode abort message missing in $out/run.log"
+  fi
+  if grep -q 'UNHANDLED' "$FAKE_DEV/fake/unhandled.log" 2>/dev/null; then
+    bad "$mode fake-device gaps: $(sort -u "$FAKE_DEV/fake/unhandled.log" | tr '\n' '|')"
+  else
+    ok "$mode fake adb handled every call"
+  fi
+  printf '   jsonl: %s\n' "$(jsonl_reason "$out/T20C/c1-V1.jsonl" 2 already-landed-skip-send >/dev/null 2>&1 && printf ok || printf 'no already-landed row')"
+}
+
+printf '\n== (b) early abort after turn 2 ==\n'
+run_campaign_case marker-turn1 4
+run_campaign_case never 4
+
+# Turn 1 must have produced a TURN record only in marker-turn1; turn 2 must
+# never vanish silently in either mode (defect 3 site at oneTurn.sh's
+# "user+assistant already landed — skip retry send").
+check_jsonl() {
+  local mode="$1" want_turns="$2" want_skips="$3" out
+  out="$WORK/out-b-$mode"
+  local got
+  got=$(python3 -c '
+import json, sys
+rows = []
+for line in open(sys.argv[1], encoding="utf-8"):
+    line = line.strip()
+    if line:
+        rows.append(json.loads(line))
+turns = sorted({r["i"] for r in rows if r.get("event") != "RECOVERY"})
+skips = [r for r in rows if r.get("event") == "RECOVERY" and r.get("reason") == "already-landed-skip-send"]
+print("%s|%s|%s" % (",".join(map(str, turns)), len(skips), ",".join(sorted({str(r["i"]) for r in skips}))))
+' "$out/T20C/c1-V1.jsonl")
+  printf '%-12s turns=[%s] already-landed-skips=%s (i=%s)\n' "$mode" "${got%%|*}" \
+    "$(printf '%s' "$got" | cut -d'|' -f2)" "$(printf '%s' "$got" | cut -d'|' -f3)"
+  if [ "$(printf '%s' "$got" | cut -d'|' -f1)" = "$want_turns" ] \
+    && [ "$(printf '%s' "$got" | cut -d'|' -f2)" -eq "$want_skips" ]; then
+    ok "$mode: skip rows=$want_skips, no silent disappearance (turns=[$want_turns])"
+  else
+    bad "$mode: jsonl turns=[$(printf '%s' "$got" | cut -d'|' -f1)] want [$want_turns], skip rows=$(printf '%s' "$got" | cut -d'|' -f2) want $want_skips"
+  fi
+}
+
+check_jsonl marker-turn1 1 1
+check_jsonl never "" 2
+
+# ── (c) every skip path appends a record ────────────────────────────────────
+# stub: none | cooldown-fail | recover-2 — only the dependency that would wait
+# hours (or that is unreachable) is replaced; the skip path itself is real.
+skip_case() {
+  local mode="$1" stub="$2" want="$3" out
+  out="$WORK/out-c-$mode-$stub"
+  fake_reset "$mode"
+  rm -rf "$out"
+  mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_ROOT="$HERE" CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+    export SCRIPT="$REPO/campaigns/t20c/script.json"
+    # shellcheck source=../../scripts/ci-lib.sh
+    source "$REPO/scripts/ci-lib.sh"
+    # shellcheck source=../../scripts/device-share-send.sh
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/conversation.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    CAMPAIGN_LAUNCHED_PID=4242
+    CAMPAIGN_TURN_TIMEOUT_MS=6000
+    CAMPAIGN_TELEMETRY_GAP_MS=2000
+    CAMPAIGN_POLL_MS=1000
+    CAMPAIGN_THERMAL_MAX_C=42
+    case "$stub" in
+      cooldown-fail) campaign_thermal_cooldown() { return 1; } ;;
+      recover-2) campaign_recover_status() { return 2; } ;;
+    esac
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    user=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["turns"][0]["user"])' "$SCRIPT")
+    campaign_one_turn 1 "$user"
+    printf '%s' "$?" > "$out/rc.txt"
+    campaign_logcat_stop
+  ) > "$out/turn.log" 2>&1
+  local rc
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf 'missing')
+  if [ "$rc" = "0" ] && jsonl_reason "$out/T20C/c1-V1.jsonl" 1 "$want" >/dev/null 2>&1; then
+    ok "skip path '$want' recorded (oneTurn rc=$rc)"
+    printf '   jsonl: %s\n' "$(jsonl_reason "$out/T20C/c1-V1.jsonl" 1 "$want" | sed 's/^records=[0-9]* //')"
+  else
+    bad "skip path '$want': rc=$rc jsonl=$(jsonl_reason "$out/T20C/c1-V1.jsonl" 1 "$want" 2>&1 | head -1)"
+    tail -5 "$out/turn.log" | sed 's/^/   | /' 
+  fi
+}
+
+printf '\n== (c) skip paths leave a RECOVERY-shaped record ==\n'
+skip_case fail-send none send-failed
+skip_case vanish none retry-send-failed
+skip_case hot cooldown-fail thermal-cooldown-failed
+skip_case never recover-2 recovery-refused
+
+printf '\npassed=%d failed=%d\n' "$pass" "$fail"
+[ "$fail" -eq 0 ]

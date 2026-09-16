@@ -129,7 +129,7 @@ campaign_wait_ready() {
 campaign_new_conversation() {
   campaign_force_stop
   campaign_wipe_chat
-  campaign_launch
+  campaign_launch || die "new conversation: launch startup marker proof failed"
   campaign_wait_ready || die "new conversation: app never reached Pronto/Ready"
 }
 
@@ -139,6 +139,6 @@ campaign_restore_same_conv() {
   campaign_force_stop
   COMPACTION_VAL="${COMPACTION_VAL:?}" MEMORY_VAL="${MEMORY_VAL:?}" TOOLHELP_VAL="${TOOLHELP_VAL:?}" \
     campaign_write_flags
-  campaign_launch
+  campaign_launch || die "restore: launch startup marker proof failed"
   campaign_wait_ready || die "restore: app never reached Pronto/Ready"
 }

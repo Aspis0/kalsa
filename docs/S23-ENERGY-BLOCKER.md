@@ -53,9 +53,19 @@ Three things follow.
    not unexplained: the device was heating through the run.
 3. The broadcast cadence is 30–90 s under load, far too coarse for per-phase
    attribution. Reading `BatteryManager.getIntProperty(BATTERY_PROPERTY_CURRENT_NOW)`
-   from an app is the high-rate path, and the project already ships a native
-   battery module (`native/GovernorBatteryModule.kt`). That is a different
-   harness from the CLI one: it means driving the app, which is the same
+   from an app is the high-rate path. A source file for such a module exists at
+   `native/GovernorBatteryModule.kt`, but **it is not in the shipped APK**:
+   verified 2026-09-16 against the installed build
+   (`ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`), the
+   string `GovernorBattery` appears 0 times across all 21 dex files, while the
+   controls `MainApplication` (5) and `KalsaThermalModule` (13) are present.
+   The `plugins/withGovernorBattery.js` copy step runs only at `expo prebuild`,
+   `android/` is untracked, and the APK is built with a direct
+   `:app:assembleDebug`, so the plugin never runs. At runtime
+   `NativeModules.GovernorBattery` is undefined and `src/engine/governorInputs.ts`
+   falls through to `sensor_valid:false`; the unit test mocks the module, so the
+   suite stays green. Wiring this module is therefore a prerequisite, not an
+   existing asset. It also means driving the app, which is the same
    infrastructure the app-side benches use.
 
 ## Consequences recorded

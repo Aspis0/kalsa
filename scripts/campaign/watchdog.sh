@@ -17,12 +17,15 @@ campaign_slice_has_telemetry() {
   LC_ALL=C grep -qF "KALSA_TELEMETRY " "$slice"
 }
 
-# Force-stop and append a recovery record. Never just stdout.
-campaign_abort_turn() {
+# Append a RECOVERY-shaped record for the current turn and advance the
+# checkpoint. Never just stdout. Split out of campaign_abort_turn (2026-09-16)
+# so a SKIP path can leave a trace without force-stopping an app that is still
+# holding a live generation: a turn that produced no TURN record must still be
+# explainable in the jsonl (resume.mjs treats RECOVERY rows as markers, not as
+# a filled turn, so the hole stays visible).
+campaign_record_recovery() {
   local reason="${1:-timeout}" rec="$OUT/.recovery.json" retried=0
   [ -n "${CAMPAIGN_RETRIED:-}" ] && retried=1
-  log "RECOVERY reason=$reason (force-stop $PKG)"
-  campaign_force_stop
   python3 -c '
 import json, sys
 rec = {
@@ -45,6 +48,14 @@ sys.stdout.write("\n")
     node "$CAMPAIGN_ROOT/datastore.mjs" --checkpoint "$OUT" "$CAMPAIGN_ARM_ID" "$CAMPAIGN_VARIANT_ID" \
       "$CAMPAIGN_CONV_ID" "${CAMPAIGN_TURN_I:-0}"
   fi
+}
+
+# Force-stop and append a recovery record. Never just stdout.
+campaign_abort_turn() {
+  local reason="${1:-timeout}"
+  log "RECOVERY reason=$reason (force-stop $PKG)"
+  campaign_force_stop
+  campaign_record_recovery "$reason"
 }
 
 campaign_health() {

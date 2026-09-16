@@ -219,6 +219,61 @@ decode time changed **+26–52%**, joules/token **−6 to +7%**, and between-run
 while external `taskset` worked. S23 shell fuel-gauge reads are permission-denied/empty; future
 high-rate energy work needs app-side `BatteryManager` coordination. G2 is not claimed.
 
+### 2026-09-16 harness recovery before the rerun
+
+The T20C entrypoint had to be reconstructed before the rerun could be trusted. Three defects were
+found host-side, before any device contact.
+
+1. **Wrong device in the only campaign config.** `campaigns/ciswire.json` carries
+   `"device": "192.168.1.82:34037"` — the Jelly Star. Driving T20C through it would have run the
+   acceptance test on the wrong phone. T20C now has its own `campaigns/t20c.json`, pinned to the
+   S23 serial, with one arm `T20C` (`compaction=ciswire`, `memory=0`, `toolhelp=0`, proven by the
+   hot readback in `out/t20c-fixprotocol-20260915/run-t20c.log`), one variant `V1`, and 20 turns.
+
+2. **The runner and the turn script were untracked, not lost.** Correction to an earlier entry in
+   this section: they were never missing. Every `out/t20c-*/` directory carries the harness that
+   produced it — `run-t20c.sh`, `t20c-config.json`, `t20c-script.json` — and the first two searches
+   for them failed for search reasons, not because they were absent (one passed
+   `--exclude-dir=out`, excluding the only directory that held them). The runner is now tracked at
+   `scripts/campaign/run-t20c.sh` and is the entrypoint; no old run holds a `run-order.json` or a
+   `.resume-plan.txt`, confirming those runs did not go through `supervisor.sh --run`, and the
+   rerun does not either. What makes the `0bfe985` Metro gate mandatory by construction is that it
+   is single-sourced in `scripts/campaign/metroPreflight.sh` and called by both entrypoints before
+   any device operation.
+   `campaigns/ciswire/script.json` is NOT the T20C script — its turn 20 is `drift-probe`, while the
+   turn the previous run actually sent was `chat-20`. The real script survives in three
+   byte-identical copies inside the 09-14 out directories (md5 `5970b695301ac808af050d71ad8d0374`,
+   20 turns `chat-1`..`chat-20`) and is now tracked at `campaigns/t20c/script.json`, so it cannot be
+   lost again. Every intent still present in the surviving run records matches it, with one explained
+   exception: the `chat-15` record in `out/t20c-fixprotocol-20260915/T20C/c1-V1.jsonl` contains the
+   canonical 907-character prompt duplicated (1816 characters), a re-send artifact rather than a
+   different script.
+
+3. **The charging refusal and the battery floor did not survive the wrapper.** In the supervisor
+   path `campaign_charging_now` (`scripts/campaign/turn.sh:5`) is called once, at
+   `scripts/campaign/oneTurn.sh:71`, and its value is only recorded into the turn record; nothing
+   refused to start or continue on charge. A fail-closed start preflight now refuses unless the
+   device is genuinely unplugged and at or above the level floor, reading the plug state from
+   `(AC|USB|Wireless) powered: true` rather than any spoofable framework state. The floor is a
+   fresh-start condition only: a 20-turn run drains the S23 by roughly 40 points, so enforcing it on
+   every supervisor start would make `resilient.sh` fail every resume as a crash. The thermal gate,
+   by contrast, was already wired and was left alone (`turn.sh:121`, `:133`, `:232`;
+   `oneTurn.sh:45`, `:94`).
+
+Two smaller corrections belong to the same recovery. `scripts/campaign/recovery.sh` now propagates
+`campaign_launch` failure with `|| return 1`: `oneTurn.sh:40` and `:57` call
+`campaign_relaunch_or_reinstall || die`, a tested context that disables `set -e` inside the function,
+so without it a launch that fails the marker proof fell through to `sleep 8` and the campaign
+continued against a process whose served JS was never proven. And `runOrder.mjs` needed a single-arm
+short-circuit: with one arm `isMonotoneArms` is always true, the 32-iteration reshuffle guard is
+exhausted, and control reaches the `throw` that exists to catch a monotone R1..R8 order.
+
+**Reading the result.** The acceptance counters are JSON, so `grep 'window_align.*to:0'` reads 0
+while `'"to":0'` reads 1 — validate the pattern against a known logcat before judging a run. The
+reference is `out/t20c-fixprotocol-20260915/logcat.txt`: 17 aligns, exactly one `"to":0`, six
+monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_reconcile`, zero
+`KALSA_STALL`, one `model.unload` idle.
+
 ## Still open
 
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
@@ -228,8 +283,10 @@ high-rate energy work needs app-side `BatteryManager` coordination. G2 is not cl
   `loadPrompt` path still raises `context_full` before `n_common` is computed.
 - S23 handback: app stopped, unplugged, **52%**, **34.4 C** last and **36.8 C** peak. The 2.4 GB
   models under `/data/local/tmp/llamabench` plus `/data/local/tmp/ngramspec` remain intentionally.
-- T20C still needs S23 charge to **>=85%**, unplugged, then a rerun using the existing fresh Metro
-  (PID `2445` only if alive) plus the required `CAMPAIGN_METRO_BUNDLE_URL`. Preserve the same pass
+- T20C still needs S23 charge to **>=85%**, unplugged, then a rerun. Metro PID `2445` is DEAD; the
+  current Metro is PID `13030`, and its gate reproduces the same bundle byte-for-byte
+  (`14,606,658` bytes, SHA-256 `8b78376703aa9d15dbcf94e98516af85b0e03c0e26ef244a81ab8cda86dba1f4`).
+  The host must still supply `CAMPAIGN_METRO_BUNDLE_URL`. Preserve the same pass
   conditions: no repeated `window_align ... to:0`, monotone slides, and one successful
   `window_reconcile` before assembly whenever held+unknown is reached. The gate and post-launch
   logcat marker are mandatory acceptance evidence.
@@ -237,6 +294,39 @@ high-rate energy work needs app-side `BatteryManager` coordination. G2 is not cl
   in-flight source of truth. Separately bound JS-only tool/pre-turn awaits that are not covered by
   an engine-job watchdog.
 - G2 not claimed.
+
+### 2026-09-16 open items after the gate run was stopped at 1/20
+
+Blocking the T20C rerun (both must land first; a rerun before them repeats today's 96 minutes):
+
+1. **App — restore stall protection with the right criterion.** `c37b419` removed the 15-minute
+   stuck-in-flight disposal and its stated fallback (`KALSA_STALL`) never fires. The replacement must
+   key on whether the engine is still PRODUCING, not on the age of the turn: today's logcat holds both
+   cases (PID 26488 alive at 934 native lines / 17 min; PIDs 19312 and 8213 silent for 30+ min) and is
+   the fixture. A plain revert is wrong — it re-breaks the healthy slow decode that motivated `c37b419`.
+2. **Harness — liveness must not depend on the completion marker.** `turn.sh:216-224` updates
+   `last_progress` only inside the `campaign_slice_has_telemetry` branch. Also: abort the run if the
+   completion marker has not appeared by the end of turn 2, and make every skip path in `oneTurn.sh`
+   write a RECOVERY-shaped record (`:119`, `:153`, and every other `return 0` in that file).
+
+Energy axis, unblocked and independent of the S23:
+
+3. **Sweep lengths move to 128/256/512/1024.** At the measured ~5 tok/s prefill the old
+   512/1024/2048/4096 block needs ~2.8 h and more than one charge. The refusal machinery
+   (per-arm timeout, loud stamp abort, `bothHalves` drift gate, headline gating) is unchanged and is
+   now known to be load-bearing rather than defensive.
+4. **The thermal penalty needs one clean measurement.** Today's back-to-back prefill pair suggests a
+   large cost (26.0→37.0 C, run 2 slower on identical work) but contention was not excluded. This is
+   the number the phase governor is justified by, so it must be measured with per-arm temperature and
+   process sampling, not inferred.
+5. **Jelly must be charged before any arm** — left at 37% after the probe, against a 30% floor.
+
+Repo hygiene:
+
+6. `energy-framework` and `ngram-spec-bench` deleted. `kalsa/energy-merge` is still checked out by the
+   `kalsa-ngram-spec` worktree; its 2.9 GB `tmp/` has zero tracked files. Order matters: repoint both
+   `LOCAL_BIN` defaults FIRST, then move `tmp/`, then remove the worktree, then delete the branch —
+   never leave a script pointing at a path that has already moved.
 
 ## Constraints
 

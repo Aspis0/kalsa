@@ -124,7 +124,7 @@ sys.exit(1 if remaining else 0)
 PY
 }
 
-# N9: serial derivato dal config (campaigns/*.json device) con fallback.
+# N9: serial derived from config (campaigns/*.json device) with fallback.
 SERIAL="${CAMPAIGN_SERIAL:-$(python3 -c 'import json,sys
 print(json.load(open(sys.argv[1]))["device"])' "$CONFIG" 2>/dev/null || echo "192.168.1.82:34037")}"
 device_lost() {

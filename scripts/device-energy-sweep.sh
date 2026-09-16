@@ -12,6 +12,20 @@
 #   primary_t2: a55_t2 a76_t2 a76_t2 a55_t2
 #   a55_t6:    a55_t6 a76_t2 a76_t2 a55_t6
 #   control:   none
+#   promptlen: p128 p256 p512 p1024 p1024 p512 p256 p128
+#
+# promptlen asks a different question on the same instrument: prefill energy
+# as a function of prompt length (the price of one chat-window slide). Its
+# arms select a generated prompt of a nominal token length instead of a CPU
+# mask (placement stays the unset control), and the order is a forward-then-
+# reverse sweep so any block-level drift shows up as a forward↔reverse
+# disagreement. The report fits j_prefill against MEASURED prompt tokens
+# (v3 stamped prompt_n): the slope is the marginal prefill cost of a slide —
+# the number that matters mid-session — and the intercept is whatever fixed
+# per-invocation cost remains. Measured on the reference phone (2026-09-16),
+# prefill is genuine compute at roughly 5 tokens/s with the rate falling
+# slowly with length; the earlier page-in story is refuted, so the lengths
+# are 128..1024 and the whole block fits one charge.
 #
 # The first two are ABBA blocks. The unset-mask control is run as its own
 # block and is reported separately. No device command runs at source time.
@@ -33,6 +47,7 @@
 #   IDLE_SECONDS          default: 60
 #   REPS                  default: 3
 #   NGEN                  default: 256
+#   PROMPTLEN_NGEN        default: 32 (NGEN for the promptlen block only)
 #   SETTLE_SECONDS        default: 45
 #   STABILITY_MAX_PCT     default: 5
 #   BLOCKS                default: "primary_t2 a55_t6 control"
@@ -44,7 +59,7 @@ _SWEEP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${OUT:-device-energy-sweep-out}"
 BENCH_DIR="${BENCH_DIR:-/data/local/tmp/energy-sweep}"
 MODEL_DIR="${MODEL_DIR:-/data/local/tmp/llamabench}"
-LOCAL_BIN="${LOCAL_BIN:-$_SWEEP_DIR/../tmp/build-android-phase-stamps/bin}"
+LOCAL_BIN="${LOCAL_BIN:-$HOME/Projects/kalsa-device-build/build-android-phase-stamps/bin}"
 MODELS="${MODELS:-LFM2.5-2.6B-Q4_K_M.gguf}"
 INCLUDE_1P2B="${INCLUDE_1P2B:-0}"
 TEMP_GATE_DECI="${TEMP_GATE_DECI:-300}"
@@ -53,6 +68,7 @@ TEMP_GATE_POLL_S="${TEMP_GATE_POLL_S:-30}"
 IDLE_SECONDS="${IDLE_SECONDS:-60}"
 REPS="${REPS:-3}"
 NGEN="${NGEN:-256}"
+PROMPTLEN_NGEN="${PROMPTLEN_NGEN:-32}"
 SETTLE_SECONDS="${SETTLE_SECONDS:-45}"
 STABILITY_MAX_PCT="${STABILITY_MAX_PCT:-5}"
 BLOCKS="${BLOCKS:-primary_t2 a55_t6 control}"
@@ -284,6 +300,35 @@ EOF
   adb push "$OUT/rep.txt" "$REMOTE_PROMPT" </dev/null >/dev/null 2>&1
 }
 
+# Prompt-length generator for the promptlen block: one checklist prompt per
+# nominal length, same content shape at every length (only the item count
+# varies), so length is the only thing that changes between points. Item
+# counts are NOMINAL, calibrated against the committed REP-style counts
+# (scripts/fixtures/energy-counts/manifest.csv, ~9-10 tokens per checklist
+# line); the count the report plots against is the engine's stamped prompt_n
+# carried in the v3 phase rows, never the nominal target.
+generate_prompt_lengths() {
+  local len items i
+  for len in 128 256 512 1024; do
+    items=$(( (len - 20) / 9 ))
+    {
+      printf 'Checklist for the warehouse audit:\n'
+      for ((i = 1; i <= items; i++)); do printf -- '- item %d: checked\n' "$i"; done
+      printf 'Continue the checklist with item %d onward, same format.\n' "$((items + 1))"
+    } > "$OUT/rep.$len.txt"
+  done
+}
+
+push_prompt_lengths() {
+  local len
+  for len in 128 256 512 1024; do
+    if ! adb push "$OUT/rep.$len.txt" "$BENCH_DIR/rep.$len.txt" </dev/null >/dev/null 2>&1; then
+      blog "ABORT: failed to push rep.$len.txt"
+      return 1
+    fi
+  done
+}
+
 verify_models() {
   local model
   for model in $MODELS; do
@@ -351,12 +396,39 @@ speed_of() {
   grep -o 'Generation: [0-9.]* t/s' "$1" | head -1
 }
 
+# Worst-case per-invocation ceiling for promptlen arms, from the generated
+# file's ACTUAL line count at a pessimistic 10 tokens/line (the per-line
+# calibration is uncertain, so the count comes from the file, not the
+# nominal target): prefill at the measured worst-case 5.0 t/s scaled 1.5x
+# (lines*10/5*1.5 = lines*3), plus 90 s of fixed slack for load and decode.
+# The 1024-length file has 113 lines -> 429 s; the audited blocks keep
+# timeout 600.
+promptlen_timeout() {
+  local lines
+  if ! lines=$(wc -l < "$1" | tr -d ' '); then
+    blog "ABORT: cannot count lines of $1 for the promptlen timeout"
+    return 1
+  fi
+  printf '%s\n' $(( lines * 3 + 90 ))
+}
+
 arm_config() {
+  # Defaults for the existing mask arms; promptlen arms override these.
+  ARM_PROMPT=""
+  ARM_NGEN="$NGEN"
+  ARM_TIMEOUT=""
   case "$1" in
     a55_t2) ARM_MASK=3f; ARM_THREADS=2; ARM_LABEL=a55_t2 ;;
     a55_t6) ARM_MASK=3f; ARM_THREADS=6; ARM_LABEL=a55_t6 ;;
     a76_t2) ARM_MASK=c0; ARM_THREADS=2; ARM_LABEL=a76_t2 ;;
     none) ARM_MASK=""; ARM_THREADS=2; ARM_LABEL=none ;;
+    p128|p256|p512|p1024)
+      local len="${1#p}"
+      ARM_MASK=""; ARM_THREADS=2; ARM_LABEL="$1"
+      ARM_PROMPT="$BENCH_DIR/rep.$len.txt"
+      ARM_NGEN="$PROMPTLEN_NGEN"
+      ARM_TIMEOUT="$(promptlen_timeout "$OUT/rep.$len.txt")" || return 1
+      ;;
     *) blog "ABORT: unknown sweep arm '$1'"; return 1 ;;
   esac
 }
@@ -369,7 +441,12 @@ run_one_arm() {
   threads="$ARM_THREADS"
   model_base="$(basename "$model" .gguf)"
   stem="${model_base}_${block}_p${position}_${ARM_LABEL}"
-  pf="$REMOTE_PROMPT"
+  pf="${ARM_PROMPT:-$REMOTE_PROMPT}"
+  # The audited mask arms keep the literal timeout 600; promptlen arms carry
+  # a per-arm ceiling (promptlen_timeout) sized for a full prefill at the
+  # measured worst-case rate.
+  local to="timeout 600"
+  [ -n "$ARM_TIMEOUT" ] && to="timeout $ARM_TIMEOUT"
   energy_start "$stem" 7200 || return 1
   # Positive placement evidence from inside the wrapped command: the masked
   # process prints its own Cpus_allowed lines before exec, so each rep output
@@ -385,20 +462,31 @@ run_one_arm() {
     stamp_out="$DATA_DIR/${stem}_r${i}.stamps"
     rm -f "$out" "$stamp_out"
     adb shell "rm -f $stamps" </dev/null
-    adb shell "cd $BENCH_DIR && KALSA_PHASE_STAMPS=$stamps LD_LIBRARY_PATH=. timeout 600 $launcher -m $MODEL_DIR/$model -f $pf -n $NGEN -t $threads -st --temp 0 --simple-io" \
+    adb shell "cd $BENCH_DIR && KALSA_PHASE_STAMPS=$stamps LD_LIBRARY_PATH=. $to $launcher -m $MODEL_DIR/$model -f $pf -n $ARM_NGEN -t $threads -st --temp 0 --simple-io" \
       </dev/null > "$out" 2>&1
     rc=$?
     # The mark is deliberately the first host-side action after llama-cli.
     adb shell "echo r$i \$(cut -d' ' -f1 /proc/uptime) >> $BENCH_DIR/$stem.marks" </dev/null
-    adb pull "$stamps" "$stamp_out" </dev/null >/dev/null 2>&1 \
-      || blog "phase stamps pull FAILED for $stem r$i"
-    if [ ! -s "$stamp_out" ]; then
-      blog "phase stamps MISSING/EMPTY for $stem r$i (expected $stamp_out)"
-    fi
+    # Report the CLI failure before anything about stamps: a timeout kill
+    # writes no stamp at all, and the rc is the real diagnostic.
     if [ "$rc" -ne 0 ]; then
       blog "    r$i: llama-cli failed with status $rc"
       energy_stop "$stem"
       return 1
+    fi
+    adb pull "$stamps" "$stamp_out" </dev/null >/dev/null 2>&1
+    if [ ! -s "$stamp_out" ]; then
+      # One retry: a transient adb hiccup must not cost a rep.
+      sleep 2
+      adb pull "$stamps" "$stamp_out" </dev/null >/dev/null 2>&1
+    fi
+    if [ ! -s "$stamp_out" ] && [ "$block" = "promptlen" ]; then
+      blog "ABORT: phase stamps pull FAILED or EMPTY for $stem r$i (expected $stamp_out); a promptlen rep without a stamp must not silently leave the split"
+      energy_stop "$stem"
+      return 1
+    fi
+    if [ ! -s "$stamp_out" ]; then
+      blog "phase stamps MISSING/EMPTY for $stem r$i (expected $stamp_out)"
     fi
     speed="$(speed_of "$out")"
     if [ -z "$speed" ]; then
@@ -418,6 +506,10 @@ block_arm_list() {
     primary_t2) printf '%s\n' 'a55_t2 a76_t2 a76_t2 a55_t2' ;;
     a55_t6) printf '%s\n' 'a55_t6 a76_t2 a76_t2 a55_t6' ;;
     control) printf '%s\n' 'none' ;;
+    # Forward-then-reverse sweep: any linear drift over the block cancels
+    # between the two halves of each length. Every arm_config p-arm fixes
+    # placement at the unset control so only the prompt length varies.
+    promptlen) printf '%s\n' 'p128 p256 p512 p1024 p1024 p512 p256 p128' ;;
     *) return 1 ;;
   esac
 }
@@ -531,14 +623,15 @@ generate_report() {
   node "$_SWEEP_DIR/energyPhaseSplit.mjs" "$DATA_DIR" --counts-manifest "$COUNTS_MANIFEST" > "$OUT/split.stdout" 2> "$OUT/split.stderr"
   split_rc=$?
   [ "$split_rc" -eq 0 ] || { blog "ABORT: phase split failed; see $OUT/split.stderr"; return 1; }
-  node --input-type=module - "$DATA_DIR" "$OUT" "$_SWEEP_DIR/energySchema.mjs" "$STABILITY_MAX_PCT" "$REPS" > "$REPORT" <<'NODE'
+  node --input-type=module - "$DATA_DIR" "$OUT" "$_SWEEP_DIR/energySchema.mjs" "$STABILITY_MAX_PCT" "$REPS" "$PROMPTLEN_NGEN" > "$REPORT" <<'NODE'
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-const [dataDir, outDir, schemaPath, stabilityLimitRaw, expectedRepsRaw] = process.argv.slice(2);
+const [dataDir, outDir, schemaPath, stabilityLimitRaw, expectedRepsRaw, promptlenNgenRaw] = process.argv.slice(2);
 const { parseEnergyCsv, integrate } = await import(pathToFileURL(schemaPath).href);
 const stabilityLimit = Number(stabilityLimitRaw);
 const expectedReps = Number(expectedRepsRaw);
+const promptlenNgen = Number(promptlenNgenRaw);
 
 function csvLine(line) {
   const out = [];
@@ -893,6 +986,7 @@ console.log("| model | comparison | arm | mean decode_s | mean J/decode-tok | sl
 console.log("|---|---|---|---:|---:|---:|---:|---|");
 const armGroups = new Map();
 for (const e of entries) {
+  if (e.block === "promptlen") continue; // placement frontier; the promptlen curve is section 8
   const key = `${e.model}|${e.block}|${e.arm}`;
   if (!armGroups.has(key)) armGroups.set(key, { model: e.model, block: e.block, arm: e.arm, durations: [], jtok: [] });
   const g = armGroups.get(key);
@@ -921,6 +1015,169 @@ console.log("");
 console.log("- Raw sampler CSVs, `.marks`, `.stamps`, and CLI output are under `phase-data/`; `idle-floor.csv` is the 60-second screen-awake floor.");
 console.log("- Sweep stems are not entries in the committed counts manifest; prompt_n and predicted_n come from the phase stamps. The manifest is passed for compatibility but is not consulted for these stem names; see `split.stdout` and `split.stderr` for the exact rerun output.");
 console.log("- Absolute J/token is session-relative. Compare the frontier only after the stability check and the session idle floor are recorded.");
+
+const plEntries = entries.filter((e) => e.block === "promptlen");
+if (plEntries.length) {
+  console.log("\n## 8. Window-slide curve: promptlen block — prefill cost versus prompt length");
+  console.log("");
+  console.log("The v3 prefill bucket is prompt evaluation through the first generated token (docs/ENERGY-SCHEMA.md). A page-in-dominated prefill would amortise a fixed cost and get faster with length; the reference phone shows the opposite — prompt evaluation runs at roughly 5 tokens/s at 66 tokens and 3.6 tokens/s near 4096, and a warm page cache did not speed it up — so prefill is genuine compute, and the lengths are 128..1024 nominal tokens so the whole block prices it inside one charge. The fit therefore reads: the **slope** is the marginal prefill energy per prompt token — the recurring cost of a mid-conversation window slide, where the model is already resident — and the **intercept** is whatever fixed per-invocation cost remains (model load residual, warm-up), which a slide does not pay. No warm-up rep is excluded: the intercept absorbs the fixed part. Measured token counts are the v3 stamped `prompt_n`, never the nominal target; the fit is a least-squares line on the per-length means of measured (prompt_tokens, j_prefill).");
+  console.log("");
+  console.log("Arm order is the forward-then-reverse sweep p128 → p256 → p512 → p1024 → p1024 → p512 → p256 → p128. Thermal confound, stated so the checks below make sense: arms of different lengths heat the die by different amounts DURING their own measurement (leakage rises with temperature), and that heating is intrinsic to each length, so the forward↔reverse ordering does not remove it. What the ordering buys is a test: the reverse pass of each length runs on a globally hotter die, so if forward and reverse agree per length, temperature is not moving the number. This gate is load-bearing, not decorative: on the reference phone, two identical back-to-back prefills differed by at least 49% across an 11 °C battery-temperature rise. Any length whose forward↔reverse J step exceeds the configured stability limit refuses the slope, and the per-arm start→end battery temperature and observed clocks are printed in the table to keep the confound visible.");
+  console.log("");
+
+  let idleW = NaN;
+  if (existsSync(`${outDir}/idle-floor.csv`)) {
+    idleW = integrate(parseEnergyCsv(readFileSync(`${outDir}/idle-floor.csv`, "utf8")).rows).mean_w;
+  }
+  // Expected arms come from the order rows, which are written BEFORE each arm
+  // runs: a vanished arm must be visible instead of silently shrinking the
+  // denominator (a 4-of-8 block must never read "all arms stable").
+  const plExpectedKeys = [...new Set(orderRows.filter((r) => r.block === "promptlen").map((r) => `${r.model}|${r.block}|${r.position}|${r.arm}`))];
+  const plGroupKeys = new Set(plEntries.map((e) => `${e.model}|${e.block}|${e.position}|${e.arm}`));
+  const plMissingArms = plExpectedKeys.filter((k) => !plGroupKeys.has(k));
+  const plUnstableCount = plExpectedKeys.filter((k) => blockGroups.get(k)?.unstable).length;
+  const plStateParts = [];
+  if (plUnstableCount) plStateParts.push(`${plUnstableCount} of ${plExpectedKeys.length} expected arms UNINTERPRETABLE (section 1)`);
+  if (plMissingArms.length) plStateParts.push(`${plMissingArms.length} of ${plExpectedKeys.length} expected arms produced no rows (${plMissingArms.map((k) => k.split("|")[3]).join(", ")})`);
+  if (!plStateParts.length) plStateParts.push(`all ${plExpectedKeys.length} expected arms stable (section 1)`);
+  console.log(`Block state: ${plStateParts.join("; ")}; session idle floor ${f(idleW, 3)} W (section 2); per-arm battery, temperature, ordering and screen state in sections 1 and 3. Absolute joules are session-relative (docs/ENERGY-SCHEMA.md). Each rep generates ${Number.isFinite(promptlenNgen) ? promptlenNgen : "n/a"} tokens (PROMPTLEN_NGEN) so the decode bucket is present as a reference only — at that length decode J/token is low-resolution by the schema's own coverage discipline and is not a J/token claim.`);
+  console.log("");
+
+  const plByArm = new Map();
+  for (const e of plEntries) {
+    if (!plByArm.has(e.arm)) plByArm.set(e.arm, []);
+    plByArm.get(e.arm).push(e);
+  }
+  const meanOf = (list, field) => {
+    const v = list.map((e) => finite(e.row[field])).filter((x) => x !== null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN;
+  };
+  const covOf = (list, nomField, intField) => {
+    const v = list.map((e) => {
+      const nom = finite(e.row[nomField]);
+      const int = finite(e.row[intField]);
+      return nom && int !== null && nom > 0 ? int / nom : null;
+    }).filter((x) => x !== null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN;
+  };
+  // A rep enters its length point only with a real stamped prefill bucket.
+  // The v2 fallback writes j_prefill = "0.000" (energyPhaseSplit.mjs:408),
+  // which is finite and would drag the mean toward zero, so zero prefill
+  // seconds or zero prefill energy marks the row unusable for this section.
+  const plRepUsable = (e) => {
+    const ps = finite(e.row.prefill_s);
+    const jp = finite(e.row.j_prefill);
+    const np = Number(e.row.n_prefill);
+    return ps !== null && ps > 0 && jp !== null && jp > 0 && Number.isFinite(np) && np > 0;
+  };
+  const plTempOf = (half) => {
+    const e = half[0];
+    if (!e) return "n/a";
+    const meta = metaByKey.get(`${e.model}|${e.block}|${e.position}|${e.arm}`);
+    return meta ? `${meta.startTemp}→${meta.endTemp}` : "n/a";
+  };
+  const plPoints = [...plByArm.entries()].map(([arm, list]) => {
+    const good = list.filter(plRepUsable);
+    const nominal = Number(arm.slice(1));
+    const positions = [...new Set(list.map((e) => e.position))].sort((a, b) => a - b);
+    const fwd = good.filter((e) => e.position === positions[0]);
+    const rev = good.filter((e) => e.position === positions[positions.length - 1]);
+    const measuredSet = [...new Set(good.map((e) => finite(e.row.prompt_tokens)).filter((x) => x !== null))];
+    // Forward↔reverse agreement exists only when BOTH halves ran and each
+    // kept a usable rep: with a single position, fwd and rev would be the
+    // same set and drift would read 0.0% — a phantom proof of cleanliness.
+    const bothHalves = positions.length >= 2 && fwd.length > 0 && rev.length > 0;
+    const fwdJ = meanOf(fwd, "j_prefill");
+    const revJ = meanOf(rev, "j_prefill");
+    const meanJPrefill = meanOf(good, "j_prefill");
+    return {
+      arm,
+      nominal,
+      used: good.length,
+      total: list.length,
+      bothHalves,
+      measured: measuredSet.length === 1 ? measuredSet[0] : NaN,
+      meanPrefillS: meanOf(good, "prefill_s"),
+      meanJPrefill,
+      jPer1k: measuredSet.length === 1 && Number.isFinite(meanJPrefill) ? meanJPrefill / (measuredSet[0] / 1000) : NaN,
+      decodeJ: meanOf(good, "j_decode"),
+      decodeCov: covOf(good, "decode_s", "decode_s_int"),
+      prefillCov: covOf(good, "prefill_s", "prefill_s_int"),
+      fwdJ,
+      revJ,
+      drift: bothHalves && Number.isFinite(fwdJ) && Number.isFinite(revJ) && fwdJ !== 0 ? ((revJ / fwdJ) - 1) * 100 : NaN,
+      stable: list.every((e) => !blockGroups.get(`${e.model}|${e.block}|${e.position}|${e.arm}`)?.unstable),
+      fwdTemp: plTempOf(fwd),
+      revTemp: plTempOf(rev),
+      clocks: fwd[0] ? (clocksByStem.get(fwd[0].stem) || "n/a") : "n/a",
+    };
+  }).sort((a, b) => a.nominal - b.nominal);
+
+  console.log("| nominal target | measured tokens | reps used | mean prefill s | mean j_prefill J | J per 1000 prompt tok (raw, incl. fixed cost) | forward J | reverse J | fwd→rev step | decode ref (cov) | prefill coverage | fwd temp deci-C start→end | rev temp deci-C start→end | observed clocks (fwd) | stable |");
+  console.log("|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|---|---|---|");
+  for (const p of plPoints) {
+    const decodeRef = Number.isFinite(p.decodeJ) ? `${f(p.decodeJ, 2)} J (${f(p.decodeCov * 100, 0)}%)` : "n/a";
+    // Without both halves a forward or reverse mean is not a measurement;
+    // print n/a instead of echoing the surviving half.
+    const fwdCell = p.bothHalves ? f(p.fwdJ) : "n/a";
+    const revCell = p.bothHalves ? f(p.revJ) : "n/a";
+    console.log(`| ${p.nominal} | ${Number.isFinite(p.measured) ? p.measured : "n/a"} | ${p.used}/${p.total} | ${f(p.meanPrefillS)} | ${f(p.meanJPrefill)} | ${f(p.jPer1k, 2)} | ${fwdCell} | ${revCell} | ${f(p.drift, 1)}% | ${decodeRef} | ${f(p.prefillCov * 100, 0)}% | ${p.fwdTemp} | ${p.revTemp} | ${p.clocks} | ${p.stable ? "stable" : "**UNINTERPRETABLE**"} |`);
+  }
+  console.log("");
+
+  const fitPts = plPoints.filter((p) => Number.isFinite(p.measured) && Number.isFinite(p.meanJPrefill) && Number.isFinite(p.meanPrefillS))
+    .map((p) => ({ x: p.measured, y: p.meanJPrefill, y2: p.meanPrefillS, label: p.arm }));
+  function linfit(pts, key) {
+    const n = pts.length;
+    if (n < 3) return null;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (const p of pts) { sx += p.x; sy += p[key]; sxx += p.x * p.x; sxy += p.x * p[key]; }
+    const denom = n * sxx - sx * sx;
+    if (denom === 0) return null;
+    const slope = (n * sxy - sx * sy) / denom;
+    const intercept = (sy - slope * sx) / n;
+    const ymean = sy / n;
+    let ssres = 0, sstot = 0;
+    const residuals = pts.map((p) => {
+      const r = p[key] - (intercept + slope * p.x);
+      ssres += r * r;
+      sstot += (p[key] - ymean) ** 2;
+      return r;
+    });
+    return { slope, intercept, n, r2: sstot > 0 ? 1 - ssres / sstot : NaN, residuals };
+  }
+  const fitJ = linfit(fitPts, "y");
+  const fitS = linfit(fitPts, "y2");
+  // The headline inherits every refusal: all four designed length points
+  // must survive with every rep, every arm stable, every length carrying a
+  // real forward↔reverse pair within the stability limit, and the fit clean.
+  const driftFailures = plPoints.filter((p) => p.bothHalves && !(Number.isFinite(p.drift) && Math.abs(p.drift) <= stabilityLimit));
+  const reasons = [];
+  if (fitPts.length < 4) reasons.push(`only ${fitPts.length} of 4 length points survived into the fit (missing stamps, zeroed v2-fallback prefill rows, or undeterminable counts — see the reps-used column)`);
+  for (const p of plPoints.filter((p) => !p.stable)) reasons.push(`${p.arm} is UNINTERPRETABLE in section 1`);
+  for (const p of plPoints.filter((p) => !p.bothHalves)) reasons.push(`${p.arm} has no forward↔reverse pair (a half is missing or kept no usable reps) — thermal agreement cannot be checked`);
+  for (const p of plPoints.filter((p) => p.used < p.total)) reasons.push(`${p.arm} lost ${p.total - p.used} of ${p.total} reps to unusable prefill buckets`);
+  for (const p of driftFailures) reasons.push(`${p.arm} forward↔reverse J step ${f(p.drift, 1)}% is not within the ${stabilityLimit}% stability limit`);
+  if (fitJ && !(Number.isFinite(fitJ.r2) && fitJ.r2 > 0.99)) reasons.push(`fit not clean: R² = ${f(fitJ.r2, 4)}`);
+  // The residual table prints on refusals too: it is the diagnostic for an
+  // unclean or refused fit.
+  if (fitJ && fitS) {
+    console.log("| point | measured tokens | mean j_prefill J | j_prefill residual J | mean prefill s | prefill residual s |");
+    console.log("|---|---:|---:|---:|---:|---:|");
+    fitPts.forEach((p, i) => {
+      console.log(`| ${p.label} | ${p.x} | ${f(p.y)} | ${f(fitJ.residuals[i])} | ${f(p.y2)} | ${f(fitS.residuals[i])} |`);
+    });
+    console.log("");
+  }
+  if (reasons.length === 0 && fitJ && fitS) {
+    console.log(`**Headline: a window slide of N prompt tokens costs about ${f(fitJ.slope * 1000, 1)} J per 1000 tokens (${f(fitJ.slope, 4)} J/token) of marginal prefill energy, on top of a fixed ${f(fitJ.intercept, 1)} J per-invocation cost that a mid-session slide does not pay** — least-squares fit of mean j_prefill on measured prompt tokens over ${fitJ.n} points, R² = ${f(fitJ.r2, 4)}.`);
+    console.log(`Marginal time: ${f(fitS.slope * 1000, 2)} s per 1000 prompt tokens (${f(fitS.slope * 1000, 2)} ms/token), fixed per-invocation intercept ${f(fitS.intercept, 2)} s, R² = ${f(fitS.r2, 4)}.`);
+  } else {
+    console.log(`**SLOPE REFUSED:** ${reasons.join("; ") || "no fit could be computed"}. The per-point table above is the published curve; do not quote a slope from it.`);
+  }
+  console.log("");
+  console.log("Provenance: measured token counts and phase energies come from the `.stamps` sidecars joined by `energyPhaseSplit.mjs` (schema kalsa-energy-rep-v3); nominal lengths come from `generate_prompt_lengths` in this script and set the target only. Raw rows: section 4 and `phase-data/*.phases.csv`.");
+}
 NODE
   local report_rc=$?
   [ "$report_rc" -eq 0 ] || { blog "ABORT: report generation failed"; return 1; }
@@ -932,7 +1189,8 @@ NODE
 main() {
   local model block
   is_pos_uint "$TEMP_GATE_DECI" && is_pos_uint "$TEMP_GATE_TIMEOUT_S" && is_pos_uint "$TEMP_GATE_POLL_S" && \
-    is_pos_uint "$IDLE_SECONDS" && is_pos_uint "$REPS" && is_pos_uint "$NGEN" && is_uint "$SETTLE_SECONDS" \
+    is_pos_uint "$IDLE_SECONDS" && is_pos_uint "$REPS" && is_pos_uint "$NGEN" && is_uint "$SETTLE_SECONDS" && \
+    is_pos_uint "$PROMPTLEN_NGEN" \
     || { blog "ABORT: numeric environment values are invalid"; return 2; }
   case "$STABILITY_MAX_PCT" in ''|*[!0-9.]*|.*|*.*.*) blog "ABORT: STABILITY_MAX_PCT is invalid"; return 2 ;; esac
   case "$INCLUDE_1P2B" in
@@ -952,6 +1210,12 @@ main() {
   push_bin || return 1
   verify_models || return 1
   push_prompt || { blog "ABORT: failed to push REP prompt"; return 1; }
+  case " $BLOCKS " in
+    *" promptlen "*)
+      generate_prompt_lengths || { blog "ABORT: could not generate length prompts"; return 1; }
+      push_prompt_lengths || return 1
+      ;;
+  esac
   run_idle_floor || return 1
 
   for model in $MODELS; do
