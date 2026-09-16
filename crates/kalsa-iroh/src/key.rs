@@ -93,8 +93,16 @@ impl fmt::Debug for NodeKey {
 fn write_temp(temp: &Path, key_hex: &str) -> Result<(), BridgeError> {
     use std::io::Write;
     let mut file = open_temp(temp)?;
-    // Restrict before any key byte exists on disk (a no-op on Unix, where
-    // the temp is already `0600` by creation).
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // The open file, not the path: a temp left behind by a crash with
+        // wide permissions is narrowed here, before a key byte lands in it.
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+            .map_err(BridgeError::Io)?;
+    }
+    // Restrict before any key byte exists on disk (on Unix this path is a
+    // no-op; the permissions were set on the open file above).
     restrict_to_owner(temp)?;
     let body = format!("{FILE_TAG}\n{key_hex}\n");
     file.write_all(body.as_bytes())

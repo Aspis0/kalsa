@@ -10,7 +10,11 @@
 //! A bearer credential is therefore enough at this boundary: both intended
 //! roads are confidential and replay-proof before they reach the door. This
 //! must not be read as permission to expose the listener directly on a LAN or
-//! the public Internet.
+//! the public Internet — with one exception, earned elsewhere: the iroh road
+//! (`kalsa-iroh`) terminates its tunnel on this listener, and that road is
+//! reachable by strangers. The door answers them with its short head
+//! patience (`proxy`) and per-peer budgets live in the road itself; the
+//! credential, not reachability, is still what opens the upstream.
 //!
 //! The acceptor and queue are bounded. Each connection has one absolute
 //! deadline beginning at accept, and workers relay bytes without buffering a
@@ -25,6 +29,7 @@ mod tests;
 
 use std::fmt;
 use std::io;
+use std::time::Duration;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, Mutex};
@@ -35,10 +40,15 @@ const WORKERS: usize = 4;
 const QUEUE: usize = 8;
 const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
+pub(crate) const HEAD_PATIENCE: Duration = Duration::from_secs(15);
 const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
 const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
 const UNAUTHORIZED_RESPONSE: &[u8] =
     b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+/// The answer for a connection the door never got to read: pressure, not
+/// authentication, and the words must not say "unauthorized".
+pub(crate) const BUSY_RESPONSE: &[u8] =
+    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const UPSTREAM_FAILURE_RESPONSE: &[u8] =
     b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
@@ -74,6 +84,7 @@ pub struct Door {
     address: SocketAddr,
     upstream_port: u16,
     credential: [u8; TOKEN_BYTES],
+    head_patience: Duration,
     response_observer: Option<ResponseObserverFactory>,
 }
 
@@ -105,8 +116,17 @@ impl Door {
             address,
             upstream_port,
             credential,
+            head_patience: HEAD_PATIENCE,
             response_observer: None,
         })
+    }
+
+    /// Replace how long a worker waits for a complete request head before
+    /// taking the connection off its slot. Production keeps the default;
+    /// tests shrink it, the way they shrink the tunnel's deadlines.
+    pub fn with_head_patience(mut self, head_patience: Duration) -> Self {
+        self.head_patience = head_patience;
+        self
     }
 
     /// Build a per-connection observer for response bytes after forwarding.

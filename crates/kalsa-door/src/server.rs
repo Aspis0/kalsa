@@ -3,7 +3,7 @@ use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::{proxy, Door, DoorError, RunningDoor, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, WORKERS};
 
@@ -45,6 +45,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let worker_receiver = Arc::clone(&receiver);
         let credential = door.credential;
         let port = door.upstream_port;
+        let head_patience = door.head_patience;
         let observer = door.response_observer.clone();
         let result = thread::Builder::new()
             .name(format!("kalsa-door-worker-{index}"))
@@ -55,6 +56,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_receiver,
                     credential,
                     port,
+                    head_patience,
                     observer,
                 )
             });
@@ -148,6 +150,7 @@ fn worker(
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     credential: [u8; crate::TOKEN_BYTES],
     upstream_port: u16,
+    head_patience: Duration,
     observer: Option<crate::ResponseObserverFactory>,
 ) {
     loop {
@@ -162,6 +165,7 @@ fn worker(
                     proxy::handle(
                         work.stream,
                         work.accepted,
+                        head_patience,
                         upstream_port,
                         &credential,
                         &stop,
@@ -181,10 +185,7 @@ fn worker(
 
 fn reject_busy(stream: &mut TcpStream) {
     let _ = stream.set_nonblocking(true);
-    let _ = std::io::Write::write_all(
-        stream,
-        b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-    );
+    let _ = std::io::Write::write_all(stream, crate::BUSY_RESPONSE);
 }
 
 fn join_all(threads: Vec<thread::JoinHandle<()>>) {

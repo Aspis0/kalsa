@@ -99,6 +99,7 @@ function advancedDto(extra = {}) {
     threads: 8,
     threads_batch: 8,
     door_port: 8131,
+    internet_road: true,
     iroh_sentence:
       "The internet road is open. The phone can find this computer by " +
       "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.",
@@ -317,6 +318,21 @@ card("Model", "advanced settings with the internet road unavailable", (panel) =>
       advancedDto({
         iroh_sentence:
           "The internet road could not open on this computer. The other roads to it still work.",
+      }),
+    ),
+  });
+  view.refresh().then(() => view.advanced.open());
+  return view;
+});
+
+card("Model", "advanced settings with the internet road turned off", (panel) => {
+  const view = mountModel(panel, {
+    backend: modelBackend({ kind: "running" }),
+    advancedBackend: advancedBackend(
+      advancedDto({
+        internet_road: false,
+        iroh_sentence:
+          "The internet road is turned off. The phone reaches this computer the Tailscale way.",
       }),
     ),
   });

@@ -23,9 +23,10 @@
 //!   because iroh's are not.
 //!
 //! The node's secret key persists beside the pairing file, owner-only
-//! (`key`), so the computer keeps its identity — the phone finds it again
-//! after a restart by its 32 public bytes alone, which is all the pairing
-//! square carries.
+//! (`key`), so the computer keeps its identity across restarts. The phone
+//! dials it by its 32 public bytes alone — bytes that do not travel yet:
+//! today's pairing square carries no node id, and they will ride along when
+//! the phone side exists and the square gains them.
 
 mod bridge;
 mod error;
@@ -36,4 +37,4 @@ mod transport;
 pub use bridge::{Bridge, BridgeConfig, RelayChoice};
 pub use error::BridgeError;
 pub use key::{NodeId, NodeKey};
-pub use transport::{AddressBook, TunnelStream};
+pub use transport::{AddressBook, TunnelStream, STREAMS_PER_PEER};

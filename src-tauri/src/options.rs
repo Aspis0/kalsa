@@ -18,6 +18,14 @@ pub(crate) const MAX_CONTEXT_TOKENS: u64 = 32_768;
 pub(crate) struct LaunchOverrides {
     pub(crate) context_tokens: Option<u64>,
     pub(crate) idle_unload_seconds: Option<u32>,
+    /// Whether the computer may open its second, internet-facing road at
+    /// all. Opening it announces the machine on a public directory service,
+    /// which is not a thing consent may be presumed from: the default is
+    /// off. `#[serde(default)]` so files written before the switch existed
+    /// keep loading — a missing field reads as the owner never having
+    /// asked for the road, which is the truth.
+    #[serde(default)]
+    pub(crate) internet_road: bool,
 }
 
 pub(crate) fn load(state_file: &Path) -> LaunchOverrides {
@@ -133,6 +141,7 @@ pub(crate) struct AdvancedDto {
     /// The second road to the door, in words for being human. Absent
     /// secrets: the node id is public, failures are the road's own.
     pub(crate) iroh_sentence: String,
+    pub(crate) internet_road: bool,
     pub(crate) running: bool,
 }
 
@@ -174,6 +183,7 @@ pub(crate) fn dto(
         threads_batch: settings.threads_batch,
         door_port,
         iroh_sentence,
+        internet_road: overrides.internet_road,
         running,
     }
 }
@@ -200,6 +210,7 @@ mod tests {
         let values = LaunchOverrides {
             context_tokens: Some(4096),
             idle_unload_seconds: Some(600),
+            internet_road: true,
         };
         save(&state_file, values).expect("save advanced settings");
         assert_eq!(load(&state_file), values);
@@ -221,6 +232,20 @@ mod tests {
         )
         .expect("write invalid settings");
         assert_eq!(load(&state_file), defaults);
+
+        // A file written before the switch existed still loads: the missing
+        // field is the owner never having asked for the road.
+        fs::write(
+            path_for(&state_file),
+            br#"{"context_tokens": 4096, "idle_unload_seconds": 600}"#,
+        )
+        .expect("write pre-switch settings");
+        let loaded = load(&state_file);
+        assert_eq!(loaded.context_tokens, Some(4096));
+        assert!(
+            !loaded.internet_road,
+            "a missing switch is a closed road"
+        );
     }
 
     #[test]
@@ -251,10 +276,12 @@ mod tests {
         let a = LaunchOverrides {
             context_tokens: Some(1024),
             idle_unload_seconds: Some(600),
+            internet_road: true,
         };
         let b = LaunchOverrides {
             context_tokens: Some(2048),
             idle_unload_seconds: None,
+            internet_road: false,
         };
         // The readers start before any writer has published: seed the file,
         // or the first reads would honestly see "no file", which is a state

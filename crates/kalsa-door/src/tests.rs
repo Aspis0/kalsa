@@ -136,6 +136,198 @@ fn an_unauthenticated_socket_is_not_an_active_phone() {
 }
 
 #[test]
+fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
+    // The accepted stamp here is long stale — the shape of a connection
+    // that waited in the queue. The head arrives complete, so the worker's
+    // own patience reads it and answers on its merits: the credential
+    // below is wrong, and the answer says exactly that, byte for byte.
+    // (A connection whose head was never read at all is answered busy
+    // instead — see the true-path test.)
+    let upstream = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let upstream_port = upstream.local_addr().unwrap().port();
+    drop(upstream);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        let stop = AtomicBool::new(false);
+        let active = AtomicUsize::new(0);
+        let accepted = Instant::now()
+            .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(5))
+            .unwrap();
+        proxy::handle(
+            stream,
+            accepted,
+            super::HEAD_PATIENCE,
+            upstream_port,
+            &[0u8; TOKEN_BYTES],
+            &stop,
+            &active,
+            None,
+        );
+    });
+    let mut client = TcpStream::connect(address).unwrap();
+    client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    client
+        .write_all(b"POST / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .unwrap();
+    let mut response = Vec::new();
+    client.read_to_end(&mut response).expect("answer arrives");
+    assert_eq!(
+        response,
+        super::UNAUTHORIZED_RESPONSE.to_vec(),
+        "a complete head on a stale stamp was not read and answered"
+    );
+    server.join().unwrap();
+}
+
+#[test]
+fn a_queued_request_is_served_and_a_silent_one_answered_busy() {
+    // The true path: accept loop, queue, workers. Four long exchanges fill
+    // the pool, so the next connections wait in the queue longer than the
+    // head patience. One of them arrives complete — bytes already on the
+    // wire — and must be read with a fresh patience and answered. One says
+    // nothing at all: its answer is the busy one, never a lying 401.
+    let head_patience = Duration::from_millis(300);
+    let upstream = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let upstream_port = upstream.local_addr().unwrap().port();
+    let upstream_stop = Arc::new(AtomicBool::new(false));
+    let upstream_thread = {
+        let stop = Arc::clone(&upstream_stop);
+        thread::spawn(move || {
+            upstream.set_nonblocking(true).unwrap();
+            while !stop.load(Ordering::SeqCst) {
+                match upstream.accept() {
+                    // Each connection is served on its own thread: a held
+                    // exchange must not stop the next one from being
+                    // accepted and answered.
+                    Ok((stream, _)) => {
+                        thread::spawn(move || {
+                            let mut stream = stream;
+                            stream.set_nonblocking(false).expect("blocking");
+                            let mut head = Vec::new();
+                            let mut byte = [0u8; 1];
+                            loop {
+                                use std::io::Read;
+                                if stream.read(&mut byte).unwrap_or(0) == 0
+                                    || (head.push(byte[0]), head.ends_with(b"\r\n\r\n")).1
+                                {
+                                    break;
+                                }
+                            }
+                            if head.windows(7).any(|window| window == b"/answer") {
+                                let _ = std::io::Write::write_all(
+                                    &mut stream,
+                                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello",
+                                );
+                            }
+                            // Anything else is a held exchange: open and
+                            // silent for a fixed hold — long enough that
+                            // the queued connections outwait the head
+                            // patience — then the socket is dropped, which
+                            // frees the worker that serves it. Read
+                            // timeouts are not a close: the hold survives
+                            // them.
+                            let hold_until = std::time::Instant::now()
+                                + Duration::from_millis(600);
+                            let _ = stream
+                                .set_read_timeout(Some(Duration::from_millis(50)));
+                            loop {
+                                if std::time::Instant::now() >= hold_until {
+                                    break;
+                                }
+                                match stream.read(&mut byte) {
+                                    Ok(0) => break,
+                                    Err(ref e)
+                                        if e.kind() == io::ErrorKind::WouldBlock
+                                            || e.kind() == io::ErrorKind::TimedOut =>
+                                    {
+                                        continue
+                                    }
+                                    Err(_) => break,
+                                    Ok(_) => {}
+                                }
+                            }
+                        });
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let token = credential();
+    let door = Door::new(listener, upstream_port, token.clone())
+        .unwrap()
+        .with_head_patience(head_patience)
+        .start()
+        .unwrap();
+
+    let request_for = |path: &str, stream: &mut TcpStream| {
+        stream
+            .set_write_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        stream
+            .write_all(
+                format!(
+                    "POST {path} HTTP/1.1\r\nHost: localhost\r\n\
+                     Authorization: Bearer {token}\r\nContent-Length: 0\r\n\
+                     Connection: close\r\n\r\n"
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+    };
+
+    // Four exchanges the upstream holds open: the pool is full.
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        let mut stream = TcpStream::connect(address).unwrap();
+        request_for("/hold", &mut stream);
+        held.push(stream);
+    }
+    thread::sleep(Duration::from_millis(100));
+
+    // The victims of the queue: one speaks at once, one never speaks.
+    let mut speaking = TcpStream::connect(address).unwrap();
+    request_for("/answer", &mut speaking);
+    let mut silent = TcpStream::connect(address).unwrap();
+    thread::sleep(head_patience + Duration::from_millis(200));
+
+    drop(held);
+    let mut served = Vec::new();
+    speaking
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    speaking.read_to_end(&mut served).expect("the queued request is served");
+    assert!(
+        served.starts_with(b"HTTP/1.1 200 OK"),
+        "a complete request that waited in the queue was refused on the queue's clock: {served:?}"
+    );
+
+    let mut busy = Vec::new();
+    silent
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    silent.read_to_end(&mut busy).expect("the silent one is answered");
+    assert!(
+        busy.starts_with(b"HTTP/1.1 503"),
+        "a connection whose head was never read must be answered busy, not unauthorized: {busy:?}"
+    );
+
+    drop(speaking);
+    drop(silent);
+    door.shutdown();
+    upstream_stop.store(true, Ordering::SeqCst);
+    upstream_thread.join().unwrap();
+}
+
+#[test]
 fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
     let unused = TcpListener::bind("127.0.0.1:0").unwrap();
     let upstream_port = unused.local_addr().unwrap().port();
@@ -173,6 +365,9 @@ fn handled_requests_free_their_slot_so_the_door_stays_open() {
             while !stop.load(Ordering::SeqCst) {
                 match upstream.accept() {
                     Ok((mut stream, _)) => {
+                        // macOS inherits the listener's non-blocking flag on
+                        // accepted sockets; the relay below is blocking.
+                        stream.set_nonblocking(false).expect("accepted stream blocking");
                         let mut request = Vec::new();
                         let _ = read_until(&mut stream, b"\r\n\r\n", &mut request);
                         let _ = std::io::Write::write_all(
@@ -222,6 +417,7 @@ fn a_connection_past_its_lifetime_is_cut() {
         proxy::handle(
             stream,
             accepted,
+            super::HEAD_PATIENCE,
             1,
             &[0u8; TOKEN_BYTES],
             &stop,

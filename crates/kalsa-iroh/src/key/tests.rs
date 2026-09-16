@@ -35,6 +35,37 @@ fn the_stored_key_is_owner_only() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[cfg(unix)]
+#[test]
+fn a_wide_temp_left_behind_is_narrowed_before_the_key_lands() {
+    use std::os::unix::fs::PermissionsExt;
+
+    // A crash can leave the temp beside the key with any permissions, and
+    // the next mint reopens that same file — where creation-mode `0600`
+    // never applies. The permissions must be narrowed on the open file
+    // before a key byte lands in it, or the rename publishes the secret
+    // world-readable.
+    let dir = temp_dir("wide-temp");
+    let path = dir.join("node-key");
+    let temp = path.with_extension("tmp");
+    std::fs::write(&temp, b"leftover").expect("plant a wide temp");
+    std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o644))
+        .expect("widen the temp");
+
+    NodeKey::load_or_create(&path).expect("mint into the reused temp");
+
+    let mode = std::fs::metadata(&path)
+        .expect("the key exists")
+        .permissions()
+        .mode();
+    assert_eq!(
+        mode & 0o777,
+        0o600,
+        "the key was published through a wide temp"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_corrupt_key_file_is_refused_not_replaced() {
     let dir = temp_dir("corrupt");

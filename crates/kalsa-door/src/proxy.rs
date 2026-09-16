@@ -7,12 +7,14 @@ use subtle::ConstantTimeEq;
 
 use crate::request;
 use crate::{
-    CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE,
+    BUSY_RESPONSE, CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE,
+    UPSTREAM_FAILURE_RESPONSE,
 };
 
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
+    head_patience: Duration,
     upstream_port: u16,
     credential: &[u8; TOKEN_BYTES],
     stop: &AtomicBool,
@@ -20,11 +22,33 @@ pub(super) fn handle(
     observer: Option<&(dyn Fn(&[u8]) + Send + Sync)>,
 ) {
     let deadline = accepted + CONNECTION_LIFETIME;
-    let head = match request::read_head(&mut client, deadline) {
-        Ok(head) => head,
-        Err(()) => {
-            let _ = refuse(&mut client, deadline);
+    // The head patience is the worker's, not the queue's: it counts from
+    // when this worker begins reading, so a connection that waited in the
+    // queue is not punished for the wait. The session lifetime, though, is
+    // the connection's own, and keeps counting from accept.
+    let started = Instant::now();
+    let head = {
+        let head_deadline = deadline.min(started + head_patience);
+        // A connection past its lifetime is dead on arrival: it is closed
+        // rather than read, whatever the head patience would say.
+        if Instant::now() >= head_deadline {
+            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, head_deadline);
             return;
+        }
+        match request::read_head(&mut client, head_deadline) {
+            Ok(head) => head,
+            Err(()) => {
+                // Two different facts, two different answers. If the
+                // patience was already spent, the door never read a byte:
+                // that is pressure, and the answer is the busy one. A head
+                // that was read and found wanting is the unauthorized one.
+                if Instant::now() >= head_deadline {
+                    let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+                } else {
+                    let _ = refuse(&mut client, deadline);
+                }
+                return;
+            }
         }
     };
     if !authenticated(head.authorization.as_deref(), credential) {

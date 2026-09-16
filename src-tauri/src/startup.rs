@@ -900,6 +900,7 @@ mod tests {
             LaunchOverrides {
                 context_tokens: Some(1024),
                 idle_unload_seconds: Some(600),
+                internet_road: false,
             },
         )
         .expect("save advanced settings");
@@ -932,6 +933,7 @@ mod tests {
             LaunchOverrides {
                 context_tokens: Some(DEV_CONTEXT_TOKENS + 1),
                 idle_unload_seconds: Some(600),
+                internet_road: false,
             },
         )
         .expect("save advanced settings");
@@ -973,6 +975,7 @@ mod tests {
             LaunchOverrides {
                 context_tokens: Some(8192),
                 idle_unload_seconds: Some(600),
+                internet_road: false,
             },
         )
         .expect_err("8192 exceeds Granite's funded maximum on 8 GiB");

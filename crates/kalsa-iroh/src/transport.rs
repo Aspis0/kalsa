@@ -20,8 +20,10 @@
 //! in-process book lets two endpoints on one machine resolve each other
 //! without touching any network — which is what the round-trip test needs.
 
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -39,6 +41,63 @@ use crate::pump;
 /// The application protocol tag of this tunnel. Bump when the framing
 /// changes; iroh refuses peers that do not answer this ALPN.
 const ALPN: &[u8] = b"kalsa/door-tunnel/1";
+
+/// How many tunneled streams one remote peer may hold toward the door at
+/// the same time. Stated honestly, this ceiling does NOT close the threat
+/// it aims at: the node id is public and a new identity costs nothing, so
+/// an attacker simply mints several — six identities at two streams each
+/// still fill the door's twelve slots. It also counts streams, not
+/// connections, which an attacker opens freely. What it buys is a cost
+/// multiple (roughly six times more identities and bookkeeping to hold
+/// every slot) and a guarantee that ONE peer cannot alone take the whole
+/// queue. The closure is the pairing allowlist: when the phone side
+/// exists and the square carries the paired node id, the accept path will
+/// refuse every peer that is not on it — until then, this ceiling and the
+/// door's short head patience are what holds.
+pub const STREAMS_PER_PEER: usize = 2;
+
+/// The in-flight stream count per remote peer.
+#[derive(Clone, Default)]
+pub(crate) struct PeerBudgets {
+    in_flight: Arc<Mutex<HashMap<NodeId, usize>>>,
+}
+
+impl PeerBudgets {
+    /// One stream's worth of a peer's budget, or none when the peer is at
+    /// its ceiling — the stream is then dropped unopened toward the door,
+    /// which from the phone is a tunnel that closes at once.
+    fn acquire(&self, peer: &NodeId) -> Option<StreamPermit> {
+        let mut in_flight = self.in_flight.lock().ok()?;
+        let held = in_flight.entry(*peer).or_insert(0);
+        if *held >= STREAMS_PER_PEER {
+            return None;
+        }
+        *held += 1;
+        Some(StreamPermit {
+            budgets: self.clone(),
+            peer: *peer,
+        })
+    }
+}
+
+/// One held stream's worth of budget; dropping it hands it back.
+pub(crate) struct StreamPermit {
+    budgets: PeerBudgets,
+    peer: NodeId,
+}
+
+impl Drop for StreamPermit {
+    fn drop(&mut self) {
+        if let Ok(mut in_flight) = self.budgets.in_flight.lock() {
+            if let Some(held) = in_flight.get_mut(&self.peer) {
+                *held -= 1;
+                if *held == 0 {
+                    in_flight.remove(&self.peer);
+                }
+            }
+        }
+    }
+}
 
 /// The crate's hex-form node id, as the transport's key type. Fallible
 /// because the transport re-checks the ed25519 curve point: 32 arbitrary
@@ -126,6 +185,7 @@ impl AsyncWrite for TunnelStream {
 #[derive(Clone)]
 pub(crate) struct Transport {
     endpoint: Endpoint,
+    runtime: Option<tokio::runtime::Handle>,
 }
 
 impl Transport {
@@ -137,6 +197,9 @@ impl Transport {
         relay: &RelayChoice,
         book: Option<&AddressBook>,
     ) -> Result<Self, BridgeError> {
+        // Captured for a graceful close: `Endpoint::close` is async, and
+        // shutdown is called from threads that own no runtime.
+        let runtime = tokio::runtime::Handle::try_current().ok();
         let mut builder = match relay {
             RelayChoice::N0Public | RelayChoice::Custom { .. } => Endpoint::builder(presets::N0),
             RelayChoice::Disabled => Endpoint::builder(presets::Minimal),
@@ -160,7 +223,21 @@ impl Transport {
             .bind()
             .await
             .map_err(|e| BridgeError::Transport(e.to_string()))?;
-        Ok(Self { endpoint })
+        Ok(Self { endpoint, runtime })
+    }
+
+    /// Close the endpoint gracefully: QUIC close frames reach the tunnels
+    /// in flight, so a peer sees an ending, not a reset. The close runs on
+    /// the runtime the endpoint was bound on; without one (nothing should
+    /// bind outside a runtime) the caller's abort of the accept loop is
+    /// what remains.
+    pub(crate) fn close(&self) {
+        if let Some(runtime) = &self.runtime {
+            let endpoint = self.endpoint.clone();
+            runtime.spawn(async move {
+                endpoint.close().await;
+            });
+        }
     }
 
     pub(crate) fn node_id(&self) -> NodeId {
@@ -214,6 +291,7 @@ impl Transport {
     /// The accept loop: every accepted bidirectional stream becomes one TCP
     /// connection to the door on loopback. Runs until the endpoint closes.
     pub(crate) async fn serve(self, door: SocketAddr, dial_timeout: Duration, idle: Duration) {
+        let budgets = PeerBudgets::default();
         while let Some(incoming) = self.endpoint.accept().await {
             let accepting = match incoming.accept() {
                 Ok(accepting) => accepting,
@@ -223,7 +301,17 @@ impl Transport {
                 Ok(connection) => connection,
                 Err(_) => continue,
             };
-            tokio::spawn(forward_connection(connection, door, dial_timeout, idle));
+            // The peer is known from the tunnel's own handshake; its budget
+            // is checked per stream, before anything is forwarded.
+            let peer = NodeId::from_bytes(*connection.remote_id().as_bytes());
+            tokio::spawn(forward_connection(
+                connection,
+                door,
+                dial_timeout,
+                idle,
+                budgets.clone(),
+                peer,
+            ));
         }
     }
 }
@@ -240,6 +328,8 @@ async fn forward_connection(
     door: SocketAddr,
     dial_timeout: Duration,
     idle: Duration,
+    budgets: PeerBudgets,
+    peer: NodeId,
 ) {
     loop {
         let stream = match timeout_at(
@@ -253,7 +343,12 @@ async fn forward_connection(
             // peer must close the tunnel, not park it.
             Ok(Err(_)) | Err(_) => return,
         };
-        tokio::spawn(forward_stream(stream, door, dial_timeout, idle));
+        let Some(permit) = budgets.acquire(&peer) else {
+            // Past the ceiling: the stream is dropped here, never given a
+            // chance to hold a door slot.
+            continue;
+        };
+        tokio::spawn(forward_stream(stream, door, dial_timeout, idle, permit));
     }
 }
 
@@ -262,6 +357,7 @@ async fn forward_stream(
     door: SocketAddr,
     dial_timeout: Duration,
     idle: Duration,
+    _permit: StreamPermit,
 ) {
     let tcp = match tokio::time::timeout(dial_timeout, tokio::net::TcpStream::connect(door)).await {
         Ok(Ok(tcp)) => tcp,

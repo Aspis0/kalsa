@@ -143,7 +143,12 @@ impl Brain {
         })
     }
 
-    fn start_door_if_paired(&self, upstream_port: u16, file: &Path) -> Result<(), String> {
+    fn start_door_if_paired(
+        &self,
+        upstream_port: u16,
+        file: &Path,
+        internet_road: bool,
+    ) -> Result<(), String> {
         let credential = match kalsa_pairing::store::load(file) {
             Ok(handshake) => handshake.credential_hex(),
             Err(kalsa_pairing::StoreError::Io(error))
@@ -165,9 +170,20 @@ impl Brain {
             .as_ref()
             .is_some_and(|active| active.credential == credential)
         {
+            // The door is already the right one — and the switch still
+            // governs the road. This poll reads the same file the panel
+            // reads; without the reconcile, a switch flipped outside the
+            // panel would leave the machine announced while the owner is
+            // told the road is off. The address comes from the lock this
+            // function already holds.
+            let address = stored.as_ref().map(|active| active.address);
+            self.reconcile_road(internet_road, address, file, false);
             return Ok(());
         }
         if let Some(old) = stored.take() {
+            // The road is re-pointed before the old door dies: between the
+            // two, an Open road would name an address nothing serves.
+            self.road.close();
             old.door.shutdown();
         }
         let listener =
@@ -197,10 +213,13 @@ impl Brain {
             address,
             door: running,
         });
-        // The road opens toward the address the running door itself
-        // reported — never a port reconstructed from elsewhere. A road that
-        // cannot open says so in the panel and leaves the door standing.
-        road::open(&self.road, address, road::key_path(file));
+        // The road opens only while the owner's switch has it on, and
+        // toward the address the running door itself reported — never a
+        // port reconstructed from elsewhere. A road that cannot open says
+        // so in the panel and leaves the door standing.
+        if internet_road {
+            road::open(&self.road, address, road::key_path(file));
+        }
         Ok(())
     }
 
@@ -211,18 +230,27 @@ impl Brain {
             .as_ref()
             .and_then(|stored| stored.as_ref())
             .map(|info| (&info.args, info.maximum_context_tokens));
-        options::dto(overrides, active, self.door_port(), self.road.sentence())
+        let iroh_sentence = if overrides.internet_road {
+            self.road.sentence()
+        } else {
+            road::OFF_SENTENCE.to_string()
+        };
+        options::dto(overrides, active, self.door_port(), iroh_sentence)
     }
 
     fn set_advanced(
         &self,
         state_file: &Path,
+        pairing_file: &Path,
         context_tokens: Option<u64>,
         idle_unload_seconds: Option<u32>,
+        internet_road: Option<bool>,
     ) -> Result<options::AdvancedDto, String> {
+        let kept = options::load(state_file);
         let next = options::LaunchOverrides {
             context_tokens,
             idle_unload_seconds,
+            internet_road: internet_road.unwrap_or(kept.internet_road),
         };
         next.validate().map_err(str::to_string)?;
         if let Some(maximum) = self
@@ -237,7 +265,52 @@ impl Brain {
         }
         options::save(state_file, next)
             .map_err(|_| "The advanced settings could not be saved.".to_string())?;
+        options::save(state_file, next)
+            .map_err(|_| "The advanced settings could not be saved.".to_string())?;
+        // The road switch is one of the settings that can act at once: a
+        // door that is up right now opens or closes its second road with
+        // the save, not at the next turn-on. A save is a gesture, so a
+        // failed road is retried; a poll may not.
+        let address = self
+            .door
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().map(|active| active.address));
+        self.reconcile_road(next.internet_road, address, pairing_file, true);
         Ok(self.advanced(state_file))
+    }
+
+    /// Brings the road in line with the switch, for a door that is up right
+    /// now. This is what keeps the panel and the machine from diverging:
+    /// the panel reads the same file, so a road left open against a file
+    /// that says off would be a machine announced in a public directory
+    /// while its owner is told it is off.
+    ///
+    /// `retry_failed` separates a gesture from a poll: a save that turns
+    /// the road on may re-open a road that failed before — the owner acted.
+    /// A once-a-second poll may not re-attack a dead relay every second;
+    /// the next door restart or save does that.
+    fn reconcile_road(
+        &self,
+        internet_road: bool,
+        address: Option<SocketAddr>,
+        pairing_file: &Path,
+        retry_failed: bool,
+    ) {
+        match (internet_road, address) {
+            (false, _) => self.road.close(),
+            (true, Some(address)) => {
+                let retryable = match self.road.snapshot() {
+                    road::RoadState::Closed => true,
+                    road::RoadState::Unavailable => retry_failed,
+                    _ => false,
+                };
+                if retryable {
+                    road::open(&self.road, address, road::key_path(pairing_file));
+                }
+            }
+            (true, None) => {}
+        }
     }
 }
 
@@ -301,13 +374,16 @@ enum StateDto {
 }
 
 #[tauri::command]
-fn brain_state(brain: State<Brain>, desk: State<Desk>) -> StateDto {
+fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) -> StateDto {
     let state = brain.supervisor.state();
     brain.clear_launch_for_state(&state);
     match state {
         ServerState::Running { port, .. } => {
+            let internet_road = state_file(&app)
+                .map(|path| persisted_internet_road(&path))
+                .unwrap_or(false);
             if brain
-                .start_door_if_paired(port, &desk.pairing_file)
+                .start_door_if_paired(port, &desk.pairing_file, internet_road)
                 .is_err()
             {
                 brain.stop_door();
@@ -360,9 +436,24 @@ fn brain_set_advanced(
     brain: State<Brain>,
     context_tokens: Option<u64>,
     idle_unload_seconds: Option<u32>,
+    internet_road: Option<bool>,
 ) -> Result<options::AdvancedDto, String> {
     let state_file = state_file(&app)?;
-    brain.set_advanced(&state_file, context_tokens, idle_unload_seconds)
+    let pairing_file = pairing_file(&app)?;
+    brain.set_advanced(
+        &state_file,
+        &pairing_file,
+        context_tokens,
+        idle_unload_seconds,
+        internet_road,
+    )
+}
+
+/// The owner's road switch, as last saved. Read once per poll, alongside
+/// the pairing read this branch already does: it is what lets the switch
+/// act on a door that is already running.
+fn persisted_internet_road(state_file: &Path) -> bool {
+    options::load(state_file).internet_road
 }
 
 /// Whether a model is configured at all — the development override is the
@@ -515,6 +606,15 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
             "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".to_string()
         })?;
     Ok(dir.join("server.state"))
+}
+
+/// Where the pairing handshake is kept — the same directory the road's
+/// node key lives beside.
+fn pairing_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|_| {
+        "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".to_string()
+    })?;
+    Ok(dir.join(PAIRING_FILE))
 }
 
 #[tauri::command]
@@ -750,7 +850,73 @@ mod tests {
     const UPSTREAM_RESPONSE: &[u8] =
         b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello";
 
-    fn scratch_pairing(name: &str) -> PathBuf {
+    /// The canned upstream behind the door in the wiring tests: one response
+    /// per connection, stopped and joined on drop, so a failed assert does
+    /// not leave a thread spinning behind it.
+    struct TestUpstream {
+        stop: Arc<AtomicBool>,
+        thread: Option<std::thread::JoinHandle<()>>,
+    }
+
+    impl TestUpstream {
+        fn start() -> (Self, u16) {
+            let upstream =
+                std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+            let port = upstream.local_addr().unwrap().port();
+            let stop = Arc::new(AtomicBool::new(false));
+            let thread = {
+                let stop = Arc::clone(&stop);
+                std::thread::spawn(move || {
+                    upstream.set_nonblocking(true).unwrap();
+                    while !stop.load(Ordering::SeqCst) {
+                        match upstream.accept() {
+                            Ok((mut stream, _)) => {
+                                // macOS inherits the listener's flag on the
+                                // accepted socket; the relay is blocking.
+                                stream.set_nonblocking(false).unwrap();
+                                let mut head = Vec::new();
+                                let mut byte = [0u8; 1];
+                                loop {
+                                    use std::io::Read;
+                                    if stream.read(&mut byte).unwrap_or(0) == 0
+                                        || (head.push(byte[0]), head.ends_with(b"\r\n\r\n")).1
+                                    {
+                                        break;
+                                    }
+                                }
+                                let _ = std::io::Write::write_all(&mut stream, &UPSTREAM_RESPONSE);
+                            }
+                            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                                std::thread::sleep(Duration::from_millis(2));
+                            }
+                            Err(_) => return,
+                        }
+                    }
+                })
+            };
+            (Self { stop, thread: Some(thread) }, port)
+        }
+    }
+
+    impl Drop for TestUpstream {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::SeqCst);
+            if let Some(thread) = self.thread.take() {
+                let _ = thread.join();
+            }
+        }
+    }
+
+    /// A scratch directory that removes itself — assertions included.
+    struct ScratchDir(PathBuf);
+
+    impl Drop for ScratchDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn scratch_pairing(name: &str) -> (ScratchDir, PathBuf) {
         let directory = std::env::temp_dir().join(format!(
             "kalsa-brain-road-{name}-{}",
             std::process::id()
@@ -759,7 +925,7 @@ mod tests {
         std::fs::create_dir_all(&directory).unwrap();
         let file = directory.join("pairing.json");
         persist_pairing(&file);
-        file
+        (ScratchDir(directory), file)
     }
 
     fn wait_for_road(brain: &Brain, wanted: road::RoadState) {
@@ -778,10 +944,10 @@ mod tests {
         // The key path is a directory, so the bridge fails before any
         // network is touched. The road must own that failure — the door
         // keeps standing, and the panel says the road is not available.
-        let file = scratch_pairing("failure");
+        let (_dir, file) = scratch_pairing("failure");
         std::fs::create_dir_all(road::key_path(&file)).unwrap();
         let brain = Brain::new();
-        let started = brain.start_door_if_paired(8130, &file);
+        let started = brain.start_door_if_paired(8130, &file, true);
         assert!(
             started.is_ok(),
             "a road failure must not fail the door: {started:?}"
@@ -797,16 +963,83 @@ mod tests {
     }
 
     #[test]
+    fn a_road_turned_off_by_its_switch_stays_closed_while_the_door_serves() {
+        // The road exists only while the owner has asked for it: with the
+        // switch off, a running door does not open one — and the door keeps
+        // serving, because the road was always additive.
+        let (dir, file) = scratch_pairing("switch-off");
+        let brain = Brain::new();
+        let started = brain.start_door_if_paired(8130, &file, false);
+        assert!(started.is_ok(), "{started:?}");
+        assert!(brain.door_port().is_some(), "the door must be serving");
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(matches!(brain.road.snapshot(), road::RoadState::Closed));
+        // What the owner is told is the switch's own words, not the road's.
+        let state_file = dir.0.join("server.state");
+        let panel = brain.advanced(&state_file);
+        assert!(!panel.internet_road);
+        assert_eq!(
+            panel.iroh_sentence,
+            "The internet road is turned off. The phone reaches this computer the Tailscale way."
+        );
+    }
+
+    #[test]
+    fn a_poll_reconciles_the_road_with_the_switch_the_file_carries() {
+        // The file is what the panel reads and what the poll reads: when it
+        // says off while the door is up with the road open, the poll must
+        // close the road — a machine announced in a public directory while
+        // its owner is told the road is off is the one state that may not
+        // exist. The switch here is flipped in the file, not through the
+        // panel, the way a manual edit or a restore would do it.
+        let (dir, file) = scratch_pairing("reconcile");
+        let state_file = dir.0.join("server.state");
+        let book = kalsa_iroh::AddressBook::new();
+        let mut brain = Brain::new();
+        brain.road = Arc::new(road::Road::offline(book.clone()));
+        brain
+            .start_door_if_paired(8130, &file, true)
+            .expect("the door starts with the road on");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !matches!(brain.road.snapshot(), road::RoadState::Open { .. }) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the road never opened"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        options::save(
+            &state_file,
+            options::LaunchOverrides {
+                context_tokens: None,
+                idle_unload_seconds: None,
+                internet_road: false,
+            },
+        )
+        .expect("flip the switch off in the file");
+        let internet_road = persisted_internet_road(&state_file);
+        assert!(!internet_road, "the file must carry the switch");
+        brain
+            .start_door_if_paired(8130, &file, internet_road)
+            .expect("the poll still serves the door");
+        assert!(
+            matches!(brain.road.snapshot(), road::RoadState::Closed),
+            "the road stayed open against a file that says off"
+        );
+    }
+
+    #[test]
     fn a_second_poll_with_the_same_door_does_not_restart_the_road() {
         // start_door_if_paired runs once a second; the road, like the door,
         // must not be torn down and rebuilt by every poll.
-        let file = scratch_pairing("idempotent");
+        let (_dir, file) = scratch_pairing("idempotent");
         std::fs::create_dir_all(road::key_path(&file)).unwrap();
         let brain = Brain::new();
-        brain.start_door_if_paired(8130, &file).unwrap();
+        brain.start_door_if_paired(8130, &file, true).unwrap();
         wait_for_road(&brain, road::RoadState::Unavailable);
         let before = brain.road.snapshot();
-        brain.start_door_if_paired(8130, &file).unwrap();
+        brain.start_door_if_paired(8130, &file, true).unwrap();
         assert_eq!(
             before,
             brain.road.snapshot(),
@@ -838,51 +1071,19 @@ mod tests {
         // round-trip test runs. The road attempt goes through the app's own
         // wiring (start_door_if_paired), so a bridge opened toward any
         // address but the running door's own leaves this response unborn.
-        let file = scratch_pairing("full-loop");
+        let (_dir, file) = scratch_pairing("full-loop");
         let credential = kalsa_pairing::store::load(&file)
             .unwrap()
             .credential_hex();
 
-        // The upstream behind the door: one canned response per connection.
-        let upstream = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
-        let upstream_port = upstream.local_addr().unwrap().port();
-        let upstream_stop = Arc::new(AtomicBool::new(false));
-        let upstream_thread = std::thread::spawn({
-            let stop = Arc::clone(&upstream_stop);
-            move || {
-                upstream.set_nonblocking(true).unwrap();
-                while !stop.load(Ordering::SeqCst) {
-                    match upstream.accept() {
-                        Ok((mut stream, _)) => {
-                            let mut head = Vec::new();
-                            let mut byte = [0u8; 1];
-                            loop {
-                                use std::io::Read;
-                                if stream.read(&mut byte).unwrap_or(0) == 0
-                                    || (head.push(byte[0]), head.ends_with(b"\r\n\r\n")).1
-                                {
-                                    break;
-                                }
-                            }
-                            let _ = std::io::Write::write_all(
-                                &mut stream,
-                                &UPSTREAM_RESPONSE,
-                            );
-                        }
-                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                            std::thread::sleep(Duration::from_millis(2));
-                        }
-                        Err(_) => return,
-                    }
-                }
-            }
-        });
+        // The upstream behind the door: one canned response per connection,
+        // stopped and joined with the test whatever way the test ends.
+        let (upstream, upstream_port) = TestUpstream::start();
 
         let book = kalsa_iroh::AddressBook::new();
         let mut brain = Brain::new();
         brain.road = Arc::new(road::Road::offline(book.clone()));
-        brain.start_door_if_paired(upstream_port, &file).unwrap();
-        wait_for_road(&brain, road::RoadState::Opening);
+        brain.start_door_if_paired(upstream_port, &file, true).unwrap();
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         let node_id = loop {
             match brain.road.snapshot() {
@@ -939,8 +1140,7 @@ mod tests {
         );
 
         brain.stop_door();
-        upstream_stop.store(true, Ordering::SeqCst);
-        upstream_thread.join().unwrap();
+        drop(upstream);
         let _ = std::fs::remove_file(&client_key);
     }
 
@@ -952,7 +1152,10 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         let state_file = root.join("server.state");
         let brain = Brain::new();
-        let dto = brain.set_advanced(&state_file, Some(2048), None).unwrap();
+        let pairing = root.join("pairing.json");
+        let dto = brain
+            .set_advanced(&state_file, &pairing, Some(2048), None, Some(false))
+            .unwrap();
         let stored = options::load(&state_file);
         assert_eq!(stored.context_tokens, Some(2048));
         assert_eq!(stored.idle_unload_seconds, None);

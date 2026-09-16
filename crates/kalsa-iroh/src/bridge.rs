@@ -142,8 +142,11 @@ impl Bridge {
         })
     }
 
-    /// The node's public identity, hex — the string the pairing square
-    /// carries so the phone can dial this computer by key alone.
+    /// The node's public identity, hex — what the phone will dial this
+    /// computer by once the pairing square carries it. Today the square
+    /// carries no node id, so the id reaches the phone out of band; the
+    /// wire format of the square is the phone side's to extend, not ours
+    /// to assume.
     pub fn node_id(&self) -> NodeId {
         self.node_id
     }
@@ -155,9 +158,11 @@ impl Bridge {
         self.transport.dial(&remote, self.dial_timeout).await
     }
 
-    /// Stop accepting and close the endpoint. Idempotent.
+    /// Stop accepting and close the endpoint gracefully: the tunnels in
+    /// flight see QUIC close frames, not a reset. Idempotent.
     pub fn shutdown(&self) {
         self.accept_loop.abort();
+        self.transport.close();
     }
 }
 

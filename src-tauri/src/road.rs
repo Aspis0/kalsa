@@ -33,6 +33,11 @@ use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, RelayChoice};
 /// bridge bounds its own dials; this bounds the whole opening.
 const OPEN_BUDGET: Duration = Duration::from_secs(15);
 
+/// What the panel says when the switch has the road off — the owner's own
+/// choice, not a failure, so the words name it as one.
+pub(crate) const OFF_SENTENCE: &str =
+    "The internet road is turned off. The phone reaches this computer the Tailscale way.";
+
 /// Where the node's secret key lives: beside the pairing file, the same
 /// neighborhood as `door.port`. The bytes in it never travel; the public id
 /// they imply is what the phone dials.
@@ -148,16 +153,21 @@ impl Road {
     }
 
     /// Starts an attempt: the state goes to Opening and the caller's attempt
-    /// is identified by the returned generation.
+    /// is identified by the returned generation. The generation moves under
+    /// the same lock as the state: a begin and a close interleaved between
+    /// bump and write once left the road Opening forever against a door
+    /// already closed.
     pub(crate) fn begin(&self) -> u64 {
+        let Ok(mut live) = self.live.lock() else {
+            // A poisoned road serves nobody; the attempt is still numbered,
+            // so its outcome is a ghost wherever it lands.
+            return self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        };
         let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
-        if let Ok(mut live) = self.live.lock() {
-            // Assigning drops any bridge a previous door left open.
-            *live = LiveRoad {
-                state: RoadState::Opening,
-                bridge: None,
-            };
-        }
+        *live = LiveRoad {
+            state: RoadState::Opening,
+            bridge: None,
+        };
         epoch
     }
 
@@ -165,13 +175,15 @@ impl Road {
     /// since: an outcome under an older generation belongs to a door that no
     /// longer exists and is dropped whole.
     pub(crate) fn finish(&self, epoch: u64, opened: Option<Bridge>) {
+        // One check, under the lock: begin and close bump the generation
+        // while holding it, so an epoch read here cannot race a state write.
+        let Ok(mut live) = self.live.lock() else {
+            return;
+        };
         if self.epoch.load(Ordering::SeqCst) != epoch {
             return;
         }
-        if let Ok(mut live) = self.live.lock() {
-            if self.epoch.load(Ordering::SeqCst) != epoch {
-                return;
-            }
+        {
             *live = match opened {
                 Some(bridge) => LiveRoad {
                     state: RoadState::Open {
@@ -191,15 +203,17 @@ impl Road {
     /// the endpoint) and any in-flight attempt is cancelled by its
     /// generation.
     pub(crate) fn close(&self) {
+        // The generation moves under the same lock as the state: see begin.
+        let Ok(mut live) = self.live.lock() else {
+            return;
+        };
         self.epoch.fetch_add(1, Ordering::SeqCst);
-        if let Ok(mut live) = self.live.lock() {
-            // Assigning drops the bridge, if one was open; its Drop is what
-            // stops the accept loop and closes the endpoint.
-            *live = LiveRoad {
-                state: RoadState::Closed,
-                bridge: None,
-            };
-        }
+        // Assigning drops the bridge, if one was open; its Drop is what
+        // stops the accept loop and closes the endpoint.
+        *live = LiveRoad {
+            state: RoadState::Closed,
+            bridge: None,
+        };
     }
 }
 

@@ -9,10 +9,11 @@ const tauriBackend = {
     if (!available()) return Promise.resolve(null);
     return invoke("brain_advanced");
   },
-  save(contextTokens, idleUnloadSeconds) {
+  save(contextTokens, idleUnloadSeconds, internetRoad) {
     return invoke("brain_set_advanced", {
       contextTokens,
       idleUnloadSeconds,
+      internetRoad,
     });
   },
 };
@@ -52,6 +53,8 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
       <p class="field-help" data-el="context-help"></p>
       <label class="field"><span class="field-label">Unload after idle</span><input type="number" data-el="idle" min="60" max="3600" step="60" /></label>
       <p class="field-help">Between 60 seconds and 1 hour, so an ordinary pause does not reload the model.</p>
+      <label class="field"><span class="field-label">Internet road</span><input type="checkbox" data-el="road" /></label>
+      <p class="field-help" data-el="road-help"></p>
       <p class="effective-values" data-el="effective"></p>
       <p class="field-help" data-el="door"></p>
       <p class="field-help" data-el="iroh"></p>
@@ -60,6 +63,8 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
     `;
     const context = body.querySelector('[data-el="context"]');
     const idle = body.querySelector('[data-el="idle"]');
+    const road = body.querySelector('[data-el="road"]');
+    const roadHelp = body.querySelector('[data-el="road-help"]');
     const note = body.querySelector('[data-el="note"]');
     const contextHelp = body.querySelector('[data-el="context-help"]');
     const effective = body.querySelector('[data-el="effective"]');
@@ -67,8 +72,8 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
     const iroh = body.querySelector('[data-el="iroh"]');
     const save = body.querySelector('[data-el="save"]');
     const feedback = body.querySelector('[data-el="feedback"]');
-    view = { context, idle, note, contextHelp, effective, door, iroh, save, feedback };
-    for (const input of [context, idle]) {
+    view = { context, idle, road, roadHelp, note, contextHelp, effective, door, iroh, save, feedback };
+    for (const input of [context, idle, road]) {
       input.addEventListener("input", () => {
         dirty = true;
       });
@@ -89,6 +94,7 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
         const saved = await backend.save(
           numberOrNull(view.context.value, "Context size"),
           numberOrNull(view.idle.value, "Idle time"),
+          view.road.checked,
         );
         dto = saved;
         dirty = false;
@@ -111,13 +117,17 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
       view.effective.textContent = "The values in force will appear here when the app is open.";
       view.door.textContent = "The local door is waiting for the server to run.";
       view.iroh.textContent = "The internet road is waiting for the server to run.";
+      view.road.checked = false;
       view.save.hidden = true;
       return;
     }
     if (!dirty && !focused) {
       view.context.value = dto.context_override ?? "";
       view.idle.value = dto.idle_override ?? dto.idle_unload_seconds ?? "";
+      view.road.checked = dto.internet_road ?? false;
     }
+    view.roadHelp.textContent =
+      "Opens a second way in over the internet: this computer announces itself on a public directory service, so the phone can find it without Tailscale. The door stays password-checked. Off is the default.";
     view.note.textContent = dto.running
       ? "The current server stays as it is. Changes apply next time you turn on."
       : "Changes apply next time you turn on.";
