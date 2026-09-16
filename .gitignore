@@ -114,3 +114,8 @@ results/ciswire-campaign/
 # Local Expo modules ship their native sources (the blanket android/ rule above must not swallow them)
 !modules/*/android/
 !modules/*/android/**
+
+# kalsa-moe-experiments is a SEPARATE repo (Aspis0/kalsa-moe-experiments), cloned at
+# ../kalsa-moe-experiments. Its PLAN.md and docs/ALIVE.md are the two living docs.
+# A copy of them grew here on 15/09 and diverged for two days; do not track it again.
+kalsa-moe-experiments/
