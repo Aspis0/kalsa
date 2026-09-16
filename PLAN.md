@@ -539,7 +539,14 @@ I collegamenti ai worktree sono comodi per la revisione su questo Mac. L'identit
 - Deleghe solo Paseo; un audit ostile per step; docs a ogni step.
 
 ## Budget QDC
-~900 (7xx) / ~866 (8G3) / ~900 (8G2) / 981 (8sG3) / 623 (8E) minuti.
+
+~900 (7xx) / ~866 (8G3) / ~900 (8G2) / 981 (8sG3) / 623 (8E) minuti — **STORICI, non il saldo
+attuale.** Questa riga contraddiceva la sezione 11 ("non riusare i vecchi budget di circa 900
+minuti come disponibilita' presente"): le memorie dell'8/09 riportavano 35 minuti residui sul
+QRD8650 e 89 sul QRD8750. I minuti si sbloccano PER DEVICE con il questionario "Claim Offer"
+(1000 min ottenuti sul QRD8750 il 28/08, poi consumati dalle celle governor del 5-7/09).
+**Il saldo va riletto nel portale prima di pianificare qualunque cella**, e l'accesso e' oggi
+scaduto: serve il codice 2FA via email dell'owner.
 
 ## Regole vive
 - End Session: ref-click, conferma, reload, "Ended On" entro un minuto.
