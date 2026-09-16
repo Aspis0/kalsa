@@ -6,8 +6,8 @@
 
 | Branch | Reference | Status |
 |---|---|---|
-| `origin/main` | `eaee200` | True main head; CI engine-pin merge line |
-| `main` | `348588b` | Stale local checkout, 101 commits behind `origin/main`; no silent fast-forward |
+| `origin/main` | `16ba535` | Current main head; energy framework merge line |
+| `main` | `0bfe985` | Stale local checkout, 42 commits behind `origin/main`; no silent fast-forward |
 | `feat/moe-stream` | `74531a8` at verification | Active development |
 | `chore/repo-reorg-v2` | `6b6c69c` | Six reorganization commits above `feat/moe-stream`; published as `origin/chore/repo-reorg-v2`; not adopted |
 
@@ -17,7 +17,7 @@ The Android engine is assembled from three parts:
 
 1. `llama.rn` `0.12.8` from npm. It is declared in `package.json`.
 2. `vendor/kalsallama-cpp/`, a flattened copy of the fork at the commit recorded in
-   `native/kalsallama.pin` (`a0cabca6b`). The sync script applies `LM_`/`lm_` symbol
+   `native/kalsallama.pin` (`kalsa/gemm-f32-mul-q4k`, `67c73d26cb4ce53d8f04b199b523bf05d18fbd61`). The sync script applies `LM_`/`lm_` symbol
    prefixes and copies the tree with `rsync -a --delete` to
    `node_modules/llama.rn/cpp/`.
 3. `patches/llama.rn+0.12.8.patch`, applied by `patch-package`. It touches 13 files

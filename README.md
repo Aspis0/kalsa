@@ -53,6 +53,12 @@ end-to-end proof on a KVM-accelerated emulator**: it builds the APK, sideloads a
 UI through adb, sends a message and waits for the model's actual reply — failing the job if no
 reply is produced. Screenshots, UI dumps, logcat and the chat database are uploaded as artifacts.
 
+On-device energy tests read power at the battery terminal at about 1 Hz on a physical phone. They
+separate prompt processing from generation and publish coverage and bias instead of one flattering
+number. So far they show two negative results: n-gram speculation has no reliable latency or energy
+win, and moving decode onto the little cores costs about five times the time with no measurable energy gain.
+See [`docs/ENERGY-FRAMEWORK-STATUS.md`](docs/ENERGY-FRAMEWORK-STATUS.md).
+
 ## Architecture at a glance
 
 ```
