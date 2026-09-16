@@ -1,9 +1,9 @@
-# N-gram self-speculative decoding on kalsallama — findings (WIP)
+# N-gram self-speculative decoding on kalsallama — findings
 
 Branch: `ngram-spec-bench` · Worktree: `/Users/marco/Projects/kalsa-ngram-spec`
-Status: harness built and smoke-verified on the Jelly Star; full campaign armed
-(waiting for the device to be unplugged — timings on charge are not comparable,
-project rule).
+Status: tuned pass complete; verdict **NO n-gram knob in the app**. Energy was at
+parity, and the durable assets are the greedy-transparency gate, the energy
+harness and the clock telemetry.
 
 ## Why
 
@@ -122,7 +122,7 @@ Durable side-finding: ngram-cache violates greedy transparency on hybrid
 KV (accepted a wrong token, Mac repro) — upstream-reportable with the
 one-command reproducer in this document's history.
 
-## Device campaign (armed, runs automatically)
+## Device campaign (historical record)
 
 `tmp/wait-and-run.sh` polls the Jelly battery (every 2 min, 90 min budget) and
 starts `scripts/device-ngram-spec.sh` the moment it is unplugged, then runs the
@@ -136,11 +136,9 @@ show ~parity (draft rarely fires, small verify overhead). If REP wins < 5% on
 
 ## Next steps
 
-1. Full campaign verdict (auto-runs on unplug).
+1. Verdict complete: no n-gram knob in the app; the tuned pass found energy parity.
 2. Triage ngram-cache acceptance bug in the fork (upstream-reportable).
-3. If REP wins materially: wire an `ngram` speculative knob through
-   LlamaService → JSI (`speculative.types` already accepts it) and run an
-   app-level A/B like `ci-dflash-ab.sh` on real chat traffic shapes.
-4. The Reddit 4.68x combo — DFlash + n-gram drafter together — is testable on
-   Qwen3.5-4B (both draft model and n-gram drafter present on the Jelly): pass
-   `--spec-type draft-dflash,ngram-simple`. Not attempted until (1) lands.
+3. Preserve and reuse the greedy-transparency gate, energy harness and clock
+   telemetry for future techniques.
+4. The Reddit 4.68x combo — DFlash + n-gram drafter together — remains unattempted
+   and is not a basis for wiring an app knob.

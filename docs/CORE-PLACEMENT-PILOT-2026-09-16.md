@@ -70,18 +70,15 @@ recorded as the outcome, not worked around.
 
 ## Status of the instrument
 
-`scripts/device-energy-sweep.sh` did its job: masks proven in-band, the temperature
-gate run before every arm, the sampler started and stopped cleanly with nothing
-left alive on the device, the idle floor sampled with its screen state recorded,
-and the report's own gates refusing to publish an interpretable number from
-unstable blocks. Two fixes are owed before it runs again:
+`scripts/device-energy-sweep.sh` is current after commit `40ca30d`: it re-arms
+keep-awake and wakes the display before every arm, records and checks the screen
+state at the arm's start and end, and marks a block **UNINTERPRETABLE** when doze
+is observed during the arm. The pilot's own numbers were produced before
+`40ca30d` and remain invalidated by the doze observed in that run; this fix does
+not retroactively make them usable.
 
-1. hold the device awake for the whole arm and assert `Awake` at the arm's *end*,
-   not only at its start;
-2. treat a doze during an arm as a block-invalidating condition.
-
-Fix 1 may also clear the cadence degradation, which is plausibly a symptom of the
-same doze rather than of load.
+The cadence degradation may share the doze's root cause rather than load, but
+that remains unverified.
 
 ## Provenance
 

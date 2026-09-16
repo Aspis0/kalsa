@@ -154,13 +154,14 @@ flagged (97 % coverage) but stays out of cross-stem statements by the rule in
   1.2B/REP stem, 0.293–0.295 J/tok at 95 % coverage (2.6B/REP: 0.645–0.653).
   A gating arm that skips draft work must show its per-decode-token delta
   against exactly this number, same stem, same protocol.
-- **Next steps**: replicate on the Galaxy S23 with the same manifest discipline
-  and coverage gates, but with ABBA ordering inside a thermally stable window,
-  an explicit temperature gate, and a measured idle floor for that session.
-  Test whether the thermally qualified ratio and coverage profile transfer;
-  do not compare absolute J/tok levels across sessions. Prefill-only J stays
-  out of reach at 1 Hz with the model load inside the window — it needs an
-  in-engine phase timestamp (Fase 2 bus) rather than a sampler-side fix.
+- **Next steps**: shell-based S23 energy replication is blocked: the shell user
+  receives `Permission denied` for `/sys/class/power_supply/battery/*`, so that
+  path can provide timing, thermal and clock evidence but not comparable joules.
+  See `S23-ENERGY-BLOCKER.md`; any future energy comparison needs an app-side
+  sampler and its own idle floor, with the same thermal and ABBA gates. The
+  earlier “prefill-only J is out of reach” statement is superseded on the Jelly:
+  phase stamps have landed and schema v3 now splits each window into load+idle,
+  prefill and decode. See `ENERGY-SCHEMA.md`.
 
 ## 7. Provenance
 
