@@ -1,0 +1,6 @@
+{
+  "extract_n": 1,
+  "log_tail": [
+    "09-10 20:00:40.285 I/ReactNativeJS( 9974): KALSA_MEMORY_EXTRACT {\"memoryEnabled\":1,\"factsExtracted\":0,\"factsStored\":0,\"factsRejectedFull\":0,\"factsInjected\":-1,\"totalFactsInStore\":8,\"dnaDeferred\":-1,\"dnaInjected\":-1,\"dnaBudgetTokens\":-1,\"extractParseOutcome\":0,\"extractGateSource\":1,\"extractStopReason\":0,\"ciswireFlags\":6,\"durationMs\":6149,\"timeoutMs\":37368.21553901951,\"stopReason\":\"aborted_by_send\"}"
+  ]
+}

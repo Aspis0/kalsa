@@ -1,0 +1,709 @@
+{
+  "activeId": "conv-g1-i14-1789042691",
+  "items": [
+    {
+      "id": "conv-g1-i14-1789042691",
+      "title": "Dimmi una frase breve sul sale, in italiano.",
+      "updatedAt": 1789089914336,
+      "preview": "Il vino \u00e8 un liquido fermentato prodotto dai frutti della vite, consumato come b",
+      "searchBlob": "dimmi una frase breve sul sale, in italiano.\n\u26a0\ufe0f la risposta si \u00e8 bloccata (nessuna parola nuova per 10 s). il dispositivo potrebbe avere poca memoria o essere troppo caldo; riprova o scarica il modello.\ndimmi una frase breve sul sale, in italiano.\nil sale \u00e8 un condimento fondamentale che valorizza molti piatti.\nscrivi una frase breve sul miele, in italiano.\n\u26a0\ufe0f la risposta si \u00e8 bloccata (nessuna parola nuova per 11 s). il dispositivo potrebbe avere poca memoria o essere troppo caldo; riprova o scarica il modello.\nscrivi una frase breve sul miele, in italiano.\nil miele \u00e8 un dolce ingrediente naturale che si ottiene da fiori di api.\nscrivi una frase breve sul vino, in italiano.\nil vino \u00e8 un liquido fermentato prodotto dai frutti della vite, consumato come bevanda o utilizzato in cucina.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i12-1789042175",
+      "title": "Convert 125 minutes into hours and minutes. Repl",
+      "updatedAt": 1789042651266,
+      "preview": "2 hours and 5 minutes",
+      "searchBlob": "convert 125 minutes into hours and minutes. reply as '<number> hours and <number> minutes', with no explanation.\n2 hours and 5 minutes",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i10-1789041527",
+      "title": "Reply with a two-column Markdown table, Product ",
+      "updatedAt": 1789042137604,
+      "preview": "| Product | Quantity | |---------|----------| | apples | 4 |",
+      "searchBlob": "reply with a two-column markdown table, product and quantity, with exactly one data row: apples | 4. add no prose.\n| product | quantity |\n|---------|----------|\n| apples  | 4        |",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i08-1789040908",
+      "title": "Extract only the name and number from: 'Contact:",
+      "updatedAt": 1789041486928,
+      "preview": "{\"name\": \"Daniel Reed\", \"phone\": \"555-0182\"}",
+      "searchBlob": "extract only the name and number from: 'contact: daniel reed, phone 555-0182'. use json with keys name and phone, with no extra text.\n{\"name\": \"daniel reed\", \"phone\": \"555-0182\"}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i07-1789040281",
+      "title": "Estrai dal testo solo il nome e il numero: 'Cont",
+      "updatedAt": 1789040870549,
+      "preview": "{\"name\": \"Giulia Bianchi\", \"phone\": \"333-1234567\"}",
+      "searchBlob": "estrai dal testo solo il nome e il numero: 'contatto: giulia bianchi, telefono 333-1234567'. usa json con le chiavi name e phone, senza testo extra.\n{\"name\": \"giulia bianchi\", \"phone\": \"333-1234567\"}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i06-1789039016",
+      "title": "Format the sentence 'Bring the charger tomorrow'",
+      "updatedAt": 1789040251087,
+      "preview": "The user wants me to create a Markdown checklist with one unchecked box and no o",
+      "searchBlob": "format the sentence 'bring the charger tomorrow' as a markdown checklist with one unchecked box and no other text.\nthe user wants me to create a markdown checklist with one unchecked box and no other text. i can use the create_miniapp tool with the",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i05-1789038496",
+      "title": "Formatta la frase 'Porta il caricatore domani' c",
+      "updatedAt": 1789038978213,
+      "preview": "```markdown - [ ] Porta il caricatore domani ```",
+      "searchBlob": "formatta la frase 'porta il caricatore domani' come una checklist markdown con una sola casella non selezionata e nessun altro testo.\n```markdown\n- [ ] porta il caricatore domani\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i04-1789038114",
+      "title": "Reply only with JSON. Create an object with prio",
+      "updatedAt": 1789038460073,
+      "preview": "{\"priority\":\"low\",\"done\":true,\"tags\":[\"phone\",\"offline\"]}",
+      "searchBlob": "reply only with json. create an object with priority='low', done=true, and tags=['phone','offline'].\n{\"priority\":\"low\",\"done\":true,\"tags\":[\"phone\",\"offline\"]}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i03-1789037608",
+      "title": "Rispondi solo con JSON. Crea un oggetto con prio",
+      "updatedAt": 1789038075861,
+      "preview": "{\"priority\":\"high\",\"done\":false,\"tags\":[\"chat\",\"mobile\"]}",
+      "searchBlob": "rispondi solo con json. crea un oggetto con priority='high', done=false e tags=['chat','mobile'].\n{\"priority\":\"high\",\"done\":false,\"tags\":[\"chat\",\"mobile\"]}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i02-1789037076",
+      "title": "Return only valid JSON with exactly these fields",
+      "updatedAt": 1789037566786,
+      "preview": "{\"city\":\"London\",\"days\":4}",
+      "searchBlob": "return only valid json with exactly these fields and values: city='london', days=4.\n{\"city\":\"london\",\"days\":4}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i01-1789035777",
+      "title": "Restituisci solo JSON valido con esattamente que",
+      "updatedAt": 1789037057869,
+      "preview": "L'utente vuole che io restituisca solo JSON valido con specifici campi e valori.",
+      "searchBlob": "restituisci solo json valido con esattamente questi campi e valori: city='roma', days=3.\nl'utente vuole che io restituisca solo json valido con specifici campi e valori. non ho bisogno di usare strumenti \u2014 \u00e8 una richiesta semplice di",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c07-1789034833",
+      "title": "Ho una riunione alle 10:00 e devo uscire di casa",
+      "updatedAt": 1789035736810,
+      "preview": "Per preparare la checklist, ecco una mini-app interattiva per le tue azioni: **M",
+      "searchBlob": "ho una riunione alle 10:00 e devo uscire di casa alle 9:20. preparami una mini-checklist per arrivare puntuale, con tre azioni realistiche e senza inventare informazioni sul traffico.\nper preparare la checklist, ecco una mini-app interattiva per le tue azioni:\n\n**mini-checklist per la riunione**\n\n**azioni:**\n1. preparare gli appunti prima di uscire\n2. controllare il telefono per non dimenticare l'orologio\n3. assicurarsi che il cammino sia sicuro\n\n**riflettere:**\n- la uscita alle 9:20 garantisce 40 minuti di margine\n- nessuna informazione sul traffico \u00e8 stata inventata\n- le tre azioni sono reali e pratiche\n\nse vuoi, posso anche generare una mini-app interattiva che apri insegni direttamente nella chat.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c06-1789034165",
+      "title": "I want to exercise three times: Monday, Wednesda",
+      "updatedAt": 1789034793070,
+      "preview": "Monday, Wednesday, Friday",
+      "searchBlob": "i want to exercise three times: monday, wednesday, and friday. list only these three days in that order, separated by commas, with no extra text.\nmonday, wednesday, friday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c05-1789033749",
+      "title": "Voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e ",
+      "updatedAt": 1789034127748,
+      "preview": "luned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "searchBlob": "voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e venerd\u00ec. elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.\nluned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c04-1789033133",
+      "title": "What day comes after Tuesday? Reply with one wor",
+      "updatedAt": 1789033712771,
+      "preview": "Wednesday",
+      "searchBlob": "what day comes after tuesday? reply with one word in english.\nwednesday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c03-1789032665",
+      "title": "Quale giorno viene dopo marted\u00ec? Rispondi con un",
+      "updatedAt": 1789033095434,
+      "preview": "Mercoled\u00ec",
+      "searchBlob": "quale giorno viene dopo marted\u00ec? rispondi con una sola parola, in italiano.\nmercoled\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c05-1789005927",
+      "title": "Voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e ",
+      "updatedAt": 1789032587610,
+      "preview": "L'utente vuole elencare tre giorni: luned",
+      "searchBlob": "voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e venerd\u00ec. elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.\nl'utente vuole elencare tre giorni: luned",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c04-1789005063",
+      "title": "What day comes after Tuesday? Reply with one wor",
+      "updatedAt": 1789005353424,
+      "preview": "\u26a0\ufe0f Risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. Re",
+      "searchBlob": "what day comes after tuesday? reply with one word in english.\n\u26a0\ufe0f risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. reinvia il messaggio.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c03-1789004193",
+      "title": "Quale giorno viene dopo marted\u00ec? Rispondi con un",
+      "updatedAt": 1789004534084,
+      "preview": "\u26a0\ufe0f Risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. Re",
+      "searchBlob": "quale giorno viene dopo marted\u00ec? rispondi con una sola parola, in italiano.\n\u26a0\ufe0f risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. reinvia il messaggio.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c02-1789003651",
+      "title": "Convert 7 kilometers to miles. Reply with the nu",
+      "updatedAt": 1789004156360,
+      "preview": "The user wants to convert 7 kilometers to miles, and wants only the number round",
+      "searchBlob": "convert 7 kilometers to miles. reply with the number rounded to two decimals only.\nthe user wants to convert 7 kilometers to miles, and wants only the number rounded to two decimals.\n\ni know the conversion: 1 mile = 1.60934 km, so 1 km = 0.621371 miles.\n7 km \u00d7 0.621371 = 4.35... let me calculate: 7 \u00d7 0.621371 = 4.349597. rounded to two decimals: 4.35.\n\ni don't need web search for this - it's a straightforward math conversion. but let me use device_calc to be precise.\n\n\n<function name=\"device_calc\"><param name=\"expression\">7 * 0.621371</param></function>\n\n4.35",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1789003237",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1789003615015,
+      "preview": "4",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1789003053",
+      "title": "",
+      "updatedAt": 1789003053645,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c01-1789002933",
+      "title": "",
+      "updatedAt": 1789002933301,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c01-1789002812",
+      "title": "",
+      "updatedAt": 1789002812374,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-t11-1789001049",
+      "title": "Salva una nota intitolata 'Idee weekend' con il ",
+      "updatedAt": 1789001224980,
+      "preview": "The user wants me to create a note titled 'Idee weekend' with the text 'Visitare",
+      "searchBlob": "salva una nota intitolata 'idee weekend' con il testo 'visitare il mercato e il parco'. usa lo strumento note.\nthe user wants me to create a note titled 'idee weekend' with the text 'visitare il mercato e il parco' using the note tool. this is straightforward - i need to call write_note with the title and body parameters.la nota \"idee weekend\" \u00e8 stata salvata con successo. ecco i dettagli:\n\n- **titolo:** idee weekend\n- **testo:** visitare il mercato e il parco\n- **id:** note-1789001204565-n6xax02u\n\nla nota \u00e8 ora disponibile nella tua libreria locale.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-t09-1789000864",
+      "title": "Usa lo strumento calcolatrice con expression='18",
+      "updatedAt": 1789001041896,
+      "preview": "The user wants me to use the calculator tool with the expression '18 / 3'. They ",
+      "searchBlob": "usa lo strumento calcolatrice con expression='18 / 3'. voglio una chiamata allo strumento, non il risultato scritto direttamente.\nthe user wants me to use the calculator tool with the expression '18 / 3'. they explicitly want the tool call, not the result written directly in the response. let me make the tool call to the device_calc function.il risultato del calcolo \u00e8 **6**.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-m04-1789000518",
+      "title": "Keep this in mind: on Tuesday I call Sara, on Th",
+      "updatedAt": 1789000826248,
+      "preview": "Based on your schedule, **Thursday** is for **paying rent**.",
+      "searchBlob": "keep this in mind: on tuesday i call sara, on thursday i pay rent, and on saturday i want to take a walk.\ngot it! i've noted your schedule:\n\n- **tuesday**: call sara\n- **thursday**: pay rent\n- **saturday**: take a walk\n\ni'll keep this in mind for future reference. is there anything else you'd like me to help with?\nwhat is the capital of france?\nthe capital of france is **paris**.\ntranslate the word 'casa' into english.\nthe word **casa** translates to **house** in english.\nwhat is scheduled for thursday?\nbased on your schedule, **thursday** is for **paying rent**.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-m03-1789000162",
+      "title": "Tieni a mente il mio piano: marted\u00ec devo chiamar",
+      "updatedAt": 1789000480418,
+      "preview": "Il tuo impegno gioved\u00ec \u00e8 **pagare l'affitto**. \ud83c\udfe0",
+      "searchBlob": "tieni a mente il mio piano: marted\u00ec devo chiamare sara, gioved\u00ec devo pagare l'affitto e sabato voglio fare una passeggiata.\nho memorizzato il tuo piano per la settimana:\n\n- **marted\u00ec**: chiamare sara\n- **gioved\u00ec**: pagare l'affitto\n- **sabato**: fare una passeggiata\n\nse hai bisogno di un promemoria o di organizzare questi impegni, fammi sapere come preferisci gestirli!\nqual \u00e8 la capitale della francia?\nla capitale della francia \u00e8 **parigi**. \ud83c\uddeb\ud83c\uddf7\n\nse hai bisogno di ulteriori informazioni o vuoi organizzare i tuoi impegni della settimana, dimmi pure!\ntraduci in inglese la parola 'casa'.\nla parola \"casa\" in inglese si traduce come **\"house\"**.\nquale impegno ho gioved\u00ec?\nil tuo impegno gioved\u00ec \u00e8 **pagare l'affitto**. \ud83c\udfe0",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i06-1788999965",
+      "title": "Format the sentence 'Bring the charger tomorrow'",
+      "updatedAt": 1789000126376,
+      "preview": "- [ ] Bring the charger tomorrow",
+      "searchBlob": "format the sentence 'bring the charger tomorrow' as a markdown checklist with one unchecked box and no other text.\n- [ ] bring the charger tomorrow",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i03-1788999772",
+      "title": "Rispondi solo con JSON. Crea un oggetto con prio",
+      "updatedAt": 1788999929608,
+      "preview": "```json { \"priority\": \"high\", \"done\": false, \"tags\": [\"chat\", \"mobile\"] } ```",
+      "searchBlob": "rispondi solo con json. crea un oggetto con priority='high', done=false e tags=['chat','mobile'].\n```json\n{\n  \"priority\": \"high\",\n  \"done\": false,\n  \"tags\": [\"chat\", \"mobile\"]\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i02-1788999586",
+      "title": "Return only valid JSON with exactly these fields",
+      "updatedAt": 1788999737026,
+      "preview": "```json { \"city\": \"London\", \"days\": 4 } ```",
+      "searchBlob": "return only valid json with exactly these fields and values: city='london', days=4.\n```json\n{\n  \"city\": \"london\",\n  \"days\": 4\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i01-1788999387",
+      "title": "Restituisci solo JSON valido con esattamente que",
+      "updatedAt": 1788999549248,
+      "preview": "```json { \"city\": \"Roma\", \"days\": 3 } ```",
+      "searchBlob": "restituisci solo json valido con esattamente questi campi e valori: city='roma', days=3.\n```json\n{\n  \"city\": \"roma\",\n  \"days\": 3\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c07-1788999185",
+      "title": "Ho una riunione alle 10:00 e devo uscire di casa",
+      "updatedAt": 1788999376855,
+      "preview": "The user wants me to create a mini checklist for arriving on time to a meeting a",
+      "searchBlob": "ho una riunione alle 10:00 e devo uscire di casa alle 9:20. preparami una mini-checklist per arrivare puntuale, con tre azioni realistiche e senza inventare informazioni sul traffico.\nthe user wants me to create a mini checklist for arriving on time to a meeting at 10:00, leaving home at 9:20. they want three realistic actions and i should not invent traffic information. this is a straightforward task - i need to create a checklist using the create_miniapp tool with the \"checklist\" template.\n\nlet me create a checklist with three realistic actions that would help them arrive on time. i'll use the create_miniapp function with template \"checklist\" and appropriate slots.\n\nthe checklist should have three items. realistic actions could be:\n1. check traffic conditions (but i shouldn't invent info - i can suggest checking traffic)\n2. pack necessary items (documents, wallet, etc.)\n3. leave by 9:20 (which means leaving by 9:20 to arrive by 10:00)\n\nactually, looking at the create_miniapp parameters for checklist, it expects \"steps[] or items[]\" as slots. i need to provide a proper checklist structure.\n\nlet me create this using the tool.the miniapp has been created successfully. the user asked for a checklist with three realistic actions to arrive on time for their 10:00 meeting. the checklist has been created with:\n1. controlla le condizioni del traffico tramite un app di navigazione o il tuo smartphone\n2. prepara i documenti e gli oggetti necessari (borsa, portafoglio, ecc.)\n3. lascia casa entro le 9:20 per arrivare puntuale alla riunione\n\nthis is exactly what was requested - a concise, realistic checklist with three steps. i should present this to the user in italian since that's the language they used. the tool response confirms the miniapp was created successfully.ecco la tua checklist per arrivare puntuale alla riunione alle 10:00:\n\n## \u2705 checklist per arrivare alla riunione alle 10:00\n\n1. **controlla le condizioni del traffico** tramite un'app di navigazione o il",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c06-1788998994",
+      "title": "I want to exercise three times: Monday, Wednesda",
+      "updatedAt": 1788999150897,
+      "preview": "Monday, Wednesday, Friday",
+      "searchBlob": "i want to exercise three times: monday, wednesday, and friday. list only these three days in that order, separated by commas, with no extra text.\nmonday, wednesday, friday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c05-1788998810",
+      "title": "Voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e ",
+      "updatedAt": 1788998959941,
+      "preview": "luned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "searchBlob": "voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e venerd\u00ec. elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.\nluned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c03-1788998629",
+      "title": "Quale giorno viene dopo marted\u00ec? Rispondi con un",
+      "updatedAt": 1788998773586,
+      "preview": "mercoled\u00ec",
+      "searchBlob": "quale giorno viene dopo marted\u00ec? rispondi con una sola parola, in italiano.\nmercoled\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c02-1788998426",
+      "title": "Convert 7 kilometers to miles. Reply with the nu",
+      "updatedAt": 1788998593552,
+      "preview": "The user wants me to convert 7 kilometers to miles and reply with the number rou",
+      "searchBlob": "convert 7 kilometers to miles. reply with the number rounded to two decimals only.\nthe user wants me to convert 7 kilometers to miles and reply with the number rounded to two decimals only. this is a straightforward calculation. i can use the device_calc tool to perform this conversion accurately.\n\n7 km to miles: 1 km = 0.621371 miles\n7 \u00d7 0.621371 = 4.349597 miles\n\nrounded to two decimals: 4.35\n\nlet me use the calculator tool to verify this.4.35",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-m03-1788994300",
+      "title": "Tieni a mente il mio piano: marted\u00ec devo chiamar",
+      "updatedAt": 1788994872505,
+      "preview": "Il tuo impegno gioved\u00ec \u00e8 **pagare l'affitto**.",
+      "searchBlob": "tieni a mente il mio piano: marted\u00ec devo chiamare sara, gioved\u00ec devo pagare l'affitto e sabato voglio fare una passeggiata.\nthe user is sharing their plan for the week (call sara on tuesday, pay rent on thursday, walk on saturday). they're not asking a specific question that requires tool use - they're just informing me about their plan. this is a simple statement of their schedule.\n\ni should acknowledge this plan and perhaps offer to help organize it or set reminders. however, i don't have any tools for setting reminders or calendar events - those would be outside my capabilities. i can simply acknowledge their plan and offer assistance if they need anything else.\n\nthe user also mentioned \"sei kalsa, un assistente ai privato che gira interamente su questo dispositivo\" - they're confirming my identity. i should respond in italian since that's the language they're using.\n\nlet me provide a concise response in italian acknowledging their plan.ho memorizzato il tuo piano per la settimana:\n\n- **marted\u00ec**: chiamare sara\n- **gioved\u00ec**: pagare l'affitto\n- **sabato**: fare una passeggiata\n\nnon ho la\nqual \u00e8 la capitale della francia?\nla capitale della francia \u00e8 **parigi**.\ntraduci in inglese la parola 'casa'.\nla parola \"casa\" in inglese significa **house** (o \"home\").\nquale impegno ho gioved\u00ec?\nil tuo impegno gioved\u00ec \u00e8 **pagare l'affitto**.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-m02-1788993790",
+      "title": "Remember for this conversation: my train leaves ",
+      "updatedAt": 1788994264920,
+      "preview": "**Train:** Leaves from **Bristol** at **07:25**. **Tea preference:** Without mil",
+      "searchBlob": "remember for this conversation: my train leaves from bristol at 07:25, and i prefer tea without milk.\nthe user wants me to remember two pieces of information for this conversation:\n1. their train leaves from bristol at 07:25\n2. they prefer tea without milk\n\nthese are personal preferences/facts that should be remembered for the conversation. i should store these in a note since they're not explicitly in the tool list, but i can use the write_note function to create a local note with this information.\n\nlet me create a note with these facts. the user also wants me to follow the language rules - since they wrote in english, i should respond in english.\n\ni'll create a note with these details.ho salvato le tue preferenze nella nota di conversazione. \n\n**ricordato:**\n- **treno:** partenza da bristol alle 07:25\n- **t\u00e8:** preferisci il t\u00e8 senza latte\n\nsono pronto per la prossima richiesta!\nwhat is 8 plus 5?\nthe user is asking a simple arithmetic question: 8 plus 5. this is a straightforward calculation that i can answer directly using the device_calc tool, but i should also note that this is a basic arithmetic problem that doesn't require web search. however, the instructions say to use web_search when needed for time-sensitive or updated information. this is a simple math fact, not time-sensitive or requiring web search.\n\nactually, let me think about this more carefully. the user is asking a basic math question. the device_calc tool can evaluate arithmetic expressions. i should use it to get an accurate result. but wait - the instructions also say i should use web_search when the user mentions the web search tool explicitly or when they want information from the web. this is just a math problem.\n\nactually, looking at the rules again: \"non rispondere mai a domande time-sensitive solo dalla memoria. se ti chiedono qualcosa che pu\u00f2 essere cambiato (prezzi, notizie, eventi, persone), usa web_search\" - this is a simple arithmetic question, not time-sensitive, not about prices/events/people. i can answer this directly.\n\nbut i should use the device_calc tool as it's designed for this purpose and ensures accuracy. let8 plus 5 equals **13**.\nrewrite briefly: 'the parcel arrived this morning.'\n\"the parcel arrived this morning.\" \u2192 \"the parcel arrived this morning.\" (already brief, but i can make it even more concise)\n\n**rewritten:** \"the parcel arrived this morning.\"\n\n(this is already brief. if you'd like an even shorter version: \"the parcel arrived this morning.\" is already optimal for brevity.)\nwhere does my train leave from, when, and how do i prefer my tea?\n**train:** leaves from **bristol** at **07:25**.  \n**tea preference:** without milk.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-m01-1788993433",
+      "title": "Ricorda per questa conversazione: il mio treno p",
+      "updatedAt": 1788993754658,
+      "preview": "Il tuo treno parte alle 08:40 da Bologna e preferisci il caff\u00e8 senza zucchero.",
+      "searchBlob": "ricorda per questa conversazione: il mio treno parte da bologna alle 08:40 e preferisco il caff\u00e8 senza zucchero.\nho memorizzato le tue preferenze per questa conversazione:\n\n- **treno**: parte da bologna alle 08:40\n- **caff\u00e8**: preferisci il caff\u00e8 senza zucchero\n\nresto a tua disposizione per qualsiasi altra richiesta. se hai bisogno di informazioni aggiuntive o di aiuto con altro, fammi sapere!\nquanto fa 6 pi\u00f9 7?\n6 + 7 = 13\nriscrivi in modo pi\u00f9 breve: 'il pacco \u00e8 arrivato stamattina'.\narrivato stamattina.\na che ora parte il mio treno e come preferisco il caff\u00e8?\nil tuo treno parte alle 08:40 da bologna e preferisci il caff\u00e8 senza zucchero.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i14-1788993232",
+      "title": "Give me three alternative titles, each no more t",
+      "updatedAt": 1788993395555,
+      "preview": "1. Dentist Appointment Reminder 2. Don't Forget Your Dentist 3. Dental Visit Com",
+      "searchBlob": "give me three alternative titles, each no more than five words, for a reminder about a dentist appointment.\n1. dentist appointment reminder\n2. don't forget your dentist\n3. dental visit coming up\n\nthese are three alternative titles, each under five words, for a dentist appointment reminder.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i12-1788993047",
+      "title": "Convert 125 minutes into hours and minutes. Repl",
+      "updatedAt": 1788993193586,
+      "preview": "2 hours and 5 minutes",
+      "searchBlob": "convert 125 minutes into hours and minutes. reply as '<number> hours and <number> minutes', with no explanation.\n2 hours and 5 minutes",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i10-1788992867",
+      "title": "Reply with a two-column Markdown table, Product ",
+      "updatedAt": 1788993010376,
+      "preview": "| Product | Quantity | |---------|----------| | apples | 4 |",
+      "searchBlob": "reply with a two-column markdown table, product and quantity, with exactly one data row: apples | 4. add no prose.\n| product | quantity |\n|---------|----------|\n| apples | 4 |",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i08-1788992658",
+      "title": "Extract only the name and number from: 'Contact:",
+      "updatedAt": 1788992832232,
+      "preview": "```json { \"name\": \"Daniel Reed\", \"phone\": \"555-0182\" } ```",
+      "searchBlob": "extract only the name and number from: 'contact: daniel reed, phone 555-0182'. use json with keys name and phone, with no extra text.\n```json\n{\n  \"name\": \"daniel reed\",\n  \"phone\": \"555-0182\"\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i07-1788992454",
+      "title": "Estrai dal testo solo il nome e il numero: 'Cont",
+      "updatedAt": 1788992619801,
+      "preview": "```json { \"name\": \"Giulia Bianchi\", \"phone\": \"333-1234567\" } ```",
+      "searchBlob": "estrai dal testo solo il nome e il numero: 'contatto: giulia bianchi, telefono 333-1234567'. usa json con le chiavi name e phone, senza testo extra.\n```json\n{\n  \"name\": \"giulia bianchi\",\n  \"phone\": \"333-1234567\"\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i06-1788992243",
+      "title": "Format the sentence 'Bring the charger tomorrow'",
+      "updatedAt": 1788992420633,
+      "preview": "The user wants me to format the sentence \"Bring the charger tomorrow\" as a Markd",
+      "searchBlob": "format the sentence 'bring the charger tomorrow' as a markdown checklist with one unchecked box and no other text.\nthe user wants me to format the sentence \"bring the charger tomorrow\" as a markdown checklist with one unchecked box and no other text.\n\nthis is a straightforward formatting task. i need to create a markdown checklist with:\n- one unchecked box (e.g., \"- [ ] item\")\n- the sentence \"bring the charger tomorrow\" as the content of the unchecked box\n- no other text\n\nlet me create this using the create_miniapp tool with the \"checklist\" template, or i could just output the markdown directly. since the user wants a specific format, i should use the create_miniapp tool to ensure it's properly formatted as a miniapp.\n\nactually, looking at the tool description for create_miniapp, it builds an interactive on-device miniapp. the checklist template would have steps/items. but the user wants a simple markdown checklist with one unchecked box.\n\ni could use the create_miniapp with template \"checklist\" and provide the appropriate slots. however, the instruction says \"if the tool is not available or you need a layout it doesn't offer, emmit a miniapp as json object with schema miniapp_v1\". the create_miniapp tool is available, so i should use it- [ ] bring the charger tomorrow",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i05-1788992055",
+      "title": "Formatta la frase 'Porta il caricatore domani' c",
+      "updatedAt": 1788992207303,
+      "preview": "- [ ] Porta il caricatore domani",
+      "searchBlob": "formatta la frase 'porta il caricatore domani' come una checklist markdown con una sola casella non selezionata e nessun altro testo.\n- [ ] porta il caricatore domani",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i04-1788991868",
+      "title": "Reply only with JSON. Create an object with prio",
+      "updatedAt": 1788992017153,
+      "preview": "```json { \"priority\": \"low\", \"done\": true, \"tags\": [\"phone\", \"offline\"] } ```",
+      "searchBlob": "reply only with json. create an object with priority='low', done=true, and tags=['phone','offline'].\n```json\n{\n  \"priority\": \"low\",\n  \"done\": true,\n  \"tags\": [\"phone\", \"offline\"]\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i03-1788991670",
+      "title": "Rispondi solo con JSON. Crea un oggetto con prio",
+      "updatedAt": 1788991832771,
+      "preview": "```json { \"priority\": \"high\", \"done\": false, \"tags\": [\"chat\", \"mobile\"] } ```",
+      "searchBlob": "rispondi solo con json. crea un oggetto con priority='high', done=false e tags=['chat','mobile'].\n```json\n{\n  \"priority\": \"high\",\n  \"done\": false,\n  \"tags\": [\"chat\", \"mobile\"]\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i02-1788991490",
+      "title": "Return only valid JSON with exactly these fields",
+      "updatedAt": 1788991634924,
+      "preview": "{\"city\": \"London\", \"days\": 4}",
+      "searchBlob": "return only valid json with exactly these fields and values: city='london', days=4.\n{\"city\": \"london\", \"days\": 4}",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i01-1788991310",
+      "title": "Restituisci solo JSON valido con esattamente que",
+      "updatedAt": 1788991454653,
+      "preview": "```json { \"city\": \"Roma\", \"days\": 3 } ```",
+      "searchBlob": "restituisci solo json valido con esattamente questi campi e valori: city='roma', days=3.\n```json\n{\n  \"city\": \"roma\",\n  \"days\": 3\n}\n```",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c04-1788991124",
+      "title": "What day comes after Tuesday? Reply with one wor",
+      "updatedAt": 1788991275989,
+      "preview": "Wednesday",
+      "searchBlob": "what day comes after tuesday? reply with one word in english.\nwednesday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c07-1788988088",
+      "title": "Ho una riunione alle 10:00 e devo uscire di casa",
+      "updatedAt": 1788988289242,
+      "preview": "The user wants me to create a mini-checklist for them to arrive on time for a me",
+      "searchBlob": "ho una riunione alle 10:00 e devo uscire di casa alle 9:20. preparami una mini-checklist per arrivare puntuale, con tre azioni realistiche e senza inventare informazioni sul traffico.\nthe user wants me to create a mini-checklist for them to arrive on time for a meeting at 10:00, leaving home at 9:20. they want three realistic actions and no invented traffic information.\n\nlet me create a checklist using the create_miniapp tool with the \"checklist\" template. i need to provide:\n- template: \"checklist\"\n- slots: checklist with title and steps/items\n\nthe checklist should have three realistic actions for getting to a meeting at 10:00 when leaving at 9:20. since i don't have specific traffic info (and the user explicitly said not to invent traffic information), i should focus on time management actions that are realistic regardless of traffic.\n\nthree realistic actions could be:\n1. check traffic conditions before leaving\n2. leave home at 9:20 (already given)\n3. arrive at destination by 10:00 (allowing buffer)\n\nbut wait, the user said \"preparami una mini-checklist per arrivare puntuale, con tre azioni realistiche\" - they want three actions. the departure time is already given as 9:20, so one action might be \"leave home at 9:20\" and two others.\n\nlet me create the miniecco la tua checklist per la riunione alle 10:00:\n\n**checklist per la riunione alle 10:00**\n\n1. **verificare le condizioni del traffico** prima di partire (senza inventare dati, puoi consultare un'app di traffico in tempo reale).\n2. **lasciare casa alle 9:20** come pianificato per arrivare entro le 10:00.\n3. **pagare l\u2019autobus/uscire in orario** per garantire l\u2019arrivo puntuale.\n\nla checklist \u00e8 pronta e senza informazioni inventate sul traffico. buona riunione!",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c06-1788987910",
+      "title": "I want to exercise three times: Monday, Wednesda",
+      "updatedAt": 1788988052002,
+      "preview": "Monday, Wednesday, Friday",
+      "searchBlob": "i want to exercise three times: monday, wednesday, and friday. list only these three days in that order, separated by commas, with no extra text.\nmonday, wednesday, friday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c05-1788987731",
+      "title": "Voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e ",
+      "updatedAt": 1788987875237,
+      "preview": "Luned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "searchBlob": "voglio allenarmi tre volte: luned\u00ec, mercoled\u00ec e venerd\u00ec. elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.\nluned\u00ec, mercoled\u00ec, venerd\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c04-1788987549",
+      "title": "What day comes after Tuesday? Reply with one wor",
+      "updatedAt": 1788987694188,
+      "preview": "Wednesday",
+      "searchBlob": "what day comes after tuesday? reply with one word in english.\nwednesday",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c03-1788987367",
+      "title": "Quale giorno viene dopo marted\u00ec? Rispondi con un",
+      "updatedAt": 1788987513692,
+      "preview": "mercoled\u00ec",
+      "searchBlob": "quale giorno viene dopo marted\u00ec? rispondi con una sola parola, in italiano.\nmercoled\u00ec",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c02-1788987172",
+      "title": "Convert 7 kilometers to miles. Reply with the nu",
+      "updatedAt": 1788987328177,
+      "preview": "The user wants me to convert 7 kilometers to miles and provide the answer rounde",
+      "searchBlob": "convert 7 kilometers to miles. reply with the number rounded to two decimals only.\nthe user wants me to convert 7 kilometers to miles and provide the answer rounded to two decimals only. this is a straightforward calculation. i need to use the device_calc tool to perform this conversion accurately.\n\nlet me calculate: 7 km to miles. the conversion factor is 1 km = 0.621371 miles (approximately).\n\n7 \u00d7 0.621371 = 4.349597 miles\n\nrounded to two decimals: 4.35 miles\n\ni should use the device_calc tool to get the precise result.4.35",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788986959",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788987103881,
+      "preview": "The user is asking \"Quanto fa 2 + 2?\" which means \"How much is 2 + 2?\" in Italia",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\nthe user is asking \"quanto fa 2 + 2?\" which means \"how much is 2 + 2?\" in italian. they want the answer only with the number. this is a simple arithmetic calculation. i can use the device_calc tool to compute this, or i can just compute it directly since it's a basic arithmetic operation. let me use the device_calc tool to ensure accuracy as per the instructions (even though it's a simple calculation, the tool is available and should be used for arithmetic expressions).\n\nactually, looking at the instructions: \"when calculating, use the device_calc tool for arithmetic expressions.\" so i should use it.\n\nthe calculation is 2 + 2 = 4.\n\nlet me use the device_calc tool to verify.4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i06-1788986473",
+      "title": "Format the sentence 'Bring the charger tomorrow'",
+      "updatedAt": 1788986824471,
+      "preview": "The user wants me to: 1. Format the sentence \"Bring the charger tomorrow\" as a M",
+      "searchBlob": "format the sentence 'bring the charger tomorrow' as a markdown checklist with one unchecked box and no other text.\n\nciao, dimmi qualcosa di divertente\nthe user wants me to:\n1. format the sentence \"bring the charger tomorrow\" as a markdown checklist with one unchecked box and no other text\n2. also say something fun in italian (since they said \"ciao, dimmi qualcosa di divertente\" - \"hi, tell me something fun\")\n\nlet me break this down:\n- first part: create a markdown checklist with \"bring the charger tomorrow\" as one item, unchecked, and nothing else\n- second part: say something fun in italian\n\nfor the checklist, i need to use the create_miniapp tool with template \"checklist\". the slots for checklist should be an array of steps/items. since they want one unchecked box, i'll create a checklist with one item.\n\nactually, looking at the create_miniapp parameters, for checklist template, it takes \"steps[] or items[]\". so i should pass a list with one item - the task \"bring the charger tomorrow\" with an unchecked box.\n\nlet me create the miniapp first, then also provide the fun thing in italian.\n\nwait, i should also check if there are any device info or other tools needed. the user is asking for two things:\n1. a markdown checklist with onethe user wants me to:\n1. format the sentence \"bring the charger tomorrow\" as a markdown checklist with one unchecked box and no other text\n2. also respond to \"ciao, dimmi qualcosa di divertente\" (hi, tell me something fun)\n\nlet me create the checklist first using the create_miniapp tool with the \"checklist\" template. the user specifically wants one unchecked box and no other text.\n\nlooking at the create_miniapp tool, for checklist template, i need to provide slots with a \"items\" array containing the checklist items.\n\nthen i also need to respond to the second part in italian (since the user spoke in italian) with something fun.\n\nlet me first create the miniapp, then provide the response.- [ ] bring the charger tomorrow",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-i05-1788986098",
+      "title": "",
+      "updatedAt": 1788986099282,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-i04-1788985726",
+      "title": "",
+      "updatedAt": 1788985727162,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-i03-1788985350",
+      "title": "",
+      "updatedAt": 1788985350673,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-i02-1788984982",
+      "title": "",
+      "updatedAt": 1788984983020,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-i01-1788984613",
+      "title": "",
+      "updatedAt": 1788984613447,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c07-1788984227",
+      "title": "",
+      "updatedAt": 1788984227427,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c06-1788983813",
+      "title": "",
+      "updatedAt": 1788983813388,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c05-1788983445",
+      "title": "",
+      "updatedAt": 1788983446147,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c04-1788983033",
+      "title": "",
+      "updatedAt": 1788983033693,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c03-1788982672",
+      "title": "",
+      "updatedAt": 1788982672873,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c02-1788982304",
+      "title": "",
+      "updatedAt": 1788982305039,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c01-1788982134",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788982268343,
+      "preview": "4",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c02-1788981254",
+      "title": "",
+      "updatedAt": 1788981254539,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c02-1788980913",
+      "title": "",
+      "updatedAt": 1788980913763,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-c01-1788980734",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788980860866,
+      "preview": "4",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788980427",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788980592158,
+      "preview": "The user is asking a simple arithmetic question: \"Quanto fa 2 + 2?\" (How much is",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\nthe user is asking a simple arithmetic question: \"quanto fa 2 + 2?\" (how much is 2 + 2?) and wants the answer only as a number.\n\nthis is a straightforward calculation. i can compute this directly using the device_calc tool or just calculate it myself. since it's such a simple operation, i can use the calculator tool to be precise and follow the guidelines.\n\nlet me use the device_calc tool to compute 2 + 2.4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788979761",
+      "title": "Ciao prova 2 + 2?",
+      "updatedAt": 1788980215358,
+      "preview": "The user is asking me to compute 2 + 2. This is a simple arithmetic calculation.",
+      "searchBlob": "ciao prova 2 + 2?\nthe user is asking me to compute 2 + 2. this is a simple arithmetic calculation. i should use the device_calc tool to ensure accuracy and follow the instructions. let me calculate 2 + 2.4\n\n(2 + 2 = 4)",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788979261",
+      "title": "",
+      "updatedAt": 1788979261267,
+      "preview": "",
+      "searchBlob": "",
+      "hasMessages": false
+    },
+    {
+      "id": "conv-g1-t09-en-1788966650",
+      "title": "Use the calculator tool with expression='18 / 3'",
+      "updatedAt": 1788968027479,
+      "preview": "The user wants me to use the calculator tool (device_calc) with the expression '",
+      "searchBlob": "use the calculator tool with expression='18 / 3'. i want a tool call, not the result written directly.\nthe user wants me to use the calculator tool (device_calc) with the expression '18 / 3'. they explicitly say they want a tool call, not the result written directly. let me make the tool call.\n\n\n<function name=\"device_calc\"><param name=\"expression\">18 / 3</param></function>\n\ndone \u2014 the tool call was made. the expression `18 / 3` evaluates to 6.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-t09-en-1788966332",
+      "title": "Use the calculator tool with expression='18 / 3'",
+      "updatedAt": 1788966593405,
+      "preview": "The user wants me to use the calculator tool with the expression '18 / 3'. They ",
+      "searchBlob": "use the calculator tool with expression='18 / 3'. i want a tool call, not the result written directly.\nthe user wants me to use the calculator tool with the expression '18 / 3'. they specifically want a tool call, not the result written directly. i need to call the device_calc function with this expression.il risultato del calcolo \u00e8 **6**.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788965808",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788966214274,
+      "preview": "4",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788965085",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788965558302,
+      "preview": "\u26a0\ufe0f Risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. Re",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n\u26a0\ufe0f risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. reinvia il messaggio.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788964787",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788965017583,
+      "preview": "The user is asking \"Quanto fa 2 + 2?\" which is Italian for \"How much is 2 + 2?\" ",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\nthe user is asking \"quanto fa 2 + 2?\" which is italian for \"how much is 2 + 2?\" they want the answer only with the number.\n\nthis is a simple arithmetic calculation. i need to use the device_calc tool to calculate 2 + 2 and return the result.\n\naccording to the instructions, i should:\n1. use web_search when needed for time-sensitive or updated information\n2. for simple arithmetic, i can use device_calc\n3. the response should be just the number (as per the user's request: \"rispondi solo con il numero\")\n\nlet me calculate 2 + 2 using device_calc.4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788964289",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788964568739,
+      "preview": "The user is asking \"Quanto fa 2 + 2?\" which is Italian for \"How much is 2 + 2?\" ",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\nthe user is asking \"quanto fa 2 + 2?\" which is italian for \"how much is 2 + 2?\" they want the answer only with the number. this is a simple arithmetic fact. according to the rules, i should answer concisely. the user wants just the number. let me calculate this using the device_calc tool to be safe and follow the instructions properly. actually, i can just compute 2+2 which is 4. but let me use the calculator tool to be precise and follow the protocol of using web_search only when needed for time-sensitive/up-to-date info - this is a basic arithmetic fact that doesn't require web search. however, the device_calc tool is specifically for evaluating arithmetic expressions. i should use it to ensure accuracy.\n\nwait, the instructions say: \"non rispondere mai a domande time-sensitive solo dalla memoria. se ti chiedono qualcosa che pu\u00f2 essere cambiato (prezzi, notizie, eventi, persone), usa web_search \u2014 ma riporta solo ci\u00f2 che dicono davvero i risultati.\" this is not time-sensitive - it's a basic math fact. the device_calc tool is available and designed for this purpose. i'll use it to compute 2+2 and4",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788963880",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788964014347,
+      "preview": "\u26a0\ufe0f Risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. Re",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\n\u26a0\ufe0f risposta interrotta \u2014 il modello \u00e8 stato cambiato o rimosso dalla memoria. reinvia il messaggio.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-g1-c01-1788963649",
+      "title": "Quanto fa 2 + 2? Rispondi solo con il numero.",
+      "updatedAt": 1788963747164,
+      "preview": "The",
+      "searchBlob": "quanto fa 2 + 2? rispondi solo con il numero.\nthe",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-s23-restore-20260909",
+      "title": "Trasforma questi dati in una tabella di confront",
+      "updatedAt": 1788960079493,
+      "preview": "Mi dispiace, ma non hai fornito alcun dataset o dati da trasformare. Per creare ",
+      "searchBlob": "trasforma questi dati in una tabella di confronto.\nho bisogno dei dati specifici per trasformarli in una tabella di confronto. non vedo nessun dataset fornito nella tua richiesta.\n\npotresti fornirmi i dati che desideri confrontare? ad esempio:\n- un elenco di prodotti, servizi, personaggi, ecc.\n- dati di confronto (prezzi, caratteristiche, specs, ecc.)\n- qualsiasi altra struttura che desideri trasformare in tabella\n\nnon posso creare una tabella senza i contenuti da elaborare.\ntrasforma questi dati in una tabella di confronto.\nmi dispiace, ma non hai fornito alcun dataset o dati da trasformare. per creare una tabella di confronto, ho bisogno che tu mi indichi esattamente quali informazioni vuoi confrontare.\n\nper favore, condividi i dati (ad esempio):\n- elenco di prodotti, servizi, personaggi, ecc.\n- caratteristiche da confrontare (prezzi, specs, date, ecc.)\n- qualsiasi altra struttura che desideri organizzare in tabella\n\nnon posso procedere senza i contenuti da elaborare. una volta ricevuti i dati, sar\u00f2 felice di trasformarli in una tabella di confronto per te.",
+      "hasMessages": true
+    },
+    {
+      "id": "conv-1787517658392-zwr9eqqr",
+      "title": "Ricorda questi dati il gatto si chiama Leopoldo ",
+      "updatedAt": 1788957677234,
+      "preview": "| Dato | Descrizione | Valore | |------|-------------|--------| | Gatto | Nome d",
+      "searchBlob": "ricorda questi dati il gatto si chiama leopoldo il budget e 4500 euro la citta e torino il codice e pk42\ngatto: leopoldo; budget: 4\u202f500\u202f\u20ac; citt\u00e0: torino; codice: pk42.\nricorda anche il colore e zaffiro il modello e xr9 il porto e brindisi il vino e nebbiolo\nmotoreelettrico\npotresti specificare cosa intendi per \u201cmotoreelettrico\u201d?\nricettaveloce\ningredienti:\n- 200\u202fg spaghetti\n- 3 spicchi d\u2019aglio\n- 400\u202fg pomodorini pelati\n- 50\u202fml olio d\u2019oliva\n- 1 cucchiaino di sale\n- pepe al gusto\n- basilico fresco, grattugiato\n\nprocedimento:\n1. cuocere gli spaghetti al dente secondo le istruzioni della confezione. 2. in una padella, riscaldare l\u2019olio e soffrire l\u2019aglio fino a dorarlo leggermente. 3. aggiungere i pomodorini pelati, salare e cuocere 5\u20117\u202fminetti. 4. scolare, mes\nbeneficisport\nnon dispongo di informazioni su \u201cbeneficisport\u201d. se desideri, posso aiutarti a cercare dati aggiornati tramite una ricerca sul web.\ncuriositaspazio\nnon dispongo di informazioni su \u201ccuriositaspazio\u201d. se intendi una documentazione o un documento specifico, forniscimi il testo o la domanda.\nping\nc1 test\ntrasforma questi dati in una tabella\n di confronto.\n| dato | descrizione | valore |\n|------|-------------|--------|\n| gatto | nome del gatto | leopoldo |\n| gatto | budget | 4\u202f500 \u20ac |\n| citt\u00e0 | localit\u00e0 | torino |\n| citt\u00e0 | codice | pk42 |\n| colore | colore preferito | zaffiro |\n| modello | modello | xr9 |\n| porto | porto | brindisi |\n| vino | tipo di vino | nebbiolo |\n| motoreelettrico | tipo di motore | (non specificato) |\n| ricettaveloce | tipo di ricetta | ricetta veloce |\n| beneficisport | nome | (non specificato) |\n| curiositaspazio | titolo | (non specificato) |\n| ping | termine | (non specificato) |\n| c1 test | nome | (non specificato) |",
+      "hasMessages": true
+    }
+  ]
+}

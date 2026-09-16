@@ -1,0 +1,8 @@
+{
+  "stopReason": "timeout",
+  "extractStopReason": 0,
+  "extractGateSource": 1,
+  "durationMs": 20211,
+  "pass": false,
+  "raw": "{\"memoryEnabled\":1,\"factsExtracted\":0,\"factsStored\":0,\"factsRejectedFull\":0,\"factsInjected\":-1,\"totalFactsInStore\":10,\"dnaDeferred\":-1,\"dnaInjected\":-1,\"dnaBudgetTokens\":-1,\"extractParseOutcome\":0,\"extractGateSource\":1,\"extractStopReason\":0,\"ciswireFlags\":6,\"durationMs\":20211,\"timeoutMs\":20000,\"stopReason\":\"timeout\"}"
+}

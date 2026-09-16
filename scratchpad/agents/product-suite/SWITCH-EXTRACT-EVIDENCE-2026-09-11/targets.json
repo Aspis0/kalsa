@@ -1,0 +1,60 @@
+{
+  "menu": {
+    "desc": "Menu",
+    "x1": 19,
+    "y1": 147,
+    "x2": 69,
+    "y2": 196
+  },
+  "other": {
+    "desc": "Usa lo strumento calcolatrice con expression='18",
+    "x1": 58,
+    "y1": 632,
+    "x2": 422,
+    "y2": 672
+  },
+  "titles": [
+    {
+      "desc": "Dimmi solo la parola: ciao.",
+      "x1": 58,
+      "y1": 433,
+      "x2": 422,
+      "y2": 473
+    },
+    {
+      "desc": "Il pane \u00e8 un alimento fondamentale per molte culture.",
+      "x1": 58,
+      "y1": 476,
+      "x2": 422,
+      "y2": 505
+    },
+    {
+      "desc": "Dimmi solo la parola: ciao.",
+      "x1": 58,
+      "y1": 533,
+      "x2": 422,
+      "y2": 573
+    },
+    {
+      "desc": "Dimmi solo la parola: pronto. Dimmi solo la parola: pronto.",
+      "x1": 58,
+      "y1": 576,
+      "x2": 422,
+      "y2": 605
+    },
+    {
+      "desc": "Usa lo strumento calcolatrice con expression='18",
+      "x1": 58,
+      "y1": 632,
+      "x2": 422,
+      "y2": 672
+    },
+    {
+      "desc": "Keep this in mind: on Tuesday I call Sara, on Th",
+      "x1": 58,
+      "y1": 731,
+      "x2": 422,
+      "y2": 756
+    }
+  ]
+}

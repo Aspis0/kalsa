@@ -52,3 +52,24 @@ scratchpad/agents/q66-app-lifecycle-s23/llama.rn-src/
 
 # KLD baseline logit dumps: 434 MB each, regenerable on device, never useful in git
 scratchpad/agents/*/raw/*/*.kld
+
+# Device-run evidence: keep the reports (.md), the records (.json) and the harness (.sh),
+# ignore the raw dumps. 1810 logcat/uiautomator/screenshot files under scratchpad/agents were
+# 195 MB against 1.8 MB of conclusions; the pack is already 530 MiB.
+scratchpad/agents/**/*.txt
+scratchpad/agents/**/*.xml
+scratchpad/agents/**/*.png
+scratchpad/agents/**/*.log
+scratchpad/agents/**/*.err
+scratchpad/agents/**/*.stdout
+scratchpad/agents/**/*.pid
+scratchpad/agents/**/*.tools
+scratchpad/agents/**/*.exit
+scratchpad/agents/**/*.done
+scratchpad/agents/**/*.out
+scratchpad/agents/**/*.meta
+
+# RKStorage-docs are SQLite pulls of the app's AsyncStorage: they contain real chat
+# transcripts, so they stay out of git the same way .messages.json/.share_hist.json do.
+scratchpad/agents/**/RKStorage*
+scratchpad/agents/**/did-switch
