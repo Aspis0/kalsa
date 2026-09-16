@@ -938,7 +938,7 @@ Repo hygiene:
 
 - **T20C non e' mai arrivato in fondo.** Il miglior run resta `out/t20c-fixprotocol-20260915/`, 8
   turni completi su 20. Serve l'S23 a >=85% staccato. Le condizioni di pass non cambiano.
-- **La penalita' termica non e' misurata** (apertoxs 4). E' il numero che giustifica il governor per fase.
+- **La penalita' termica non e' misurata** (aperto 4). E' il numero che giustifica il governor per fase.
 - **Jelly al 36-37% contro un pavimento del 30%** (aperto 5): va caricato prima di qualunque arm.
 - **q4_K non e' MAI stato misurato**, ne' in fedelta' ne' in costo, pur essendo la quantizzazione
   spedita in fascia alta. Non e' in nessuna lista di aperti: aggiunto qui perche' e' un buco reale.
