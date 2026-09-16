@@ -71,9 +71,38 @@ pub enum Failure {
 }
 
 enum Command {
-    Start(Box<ServerConfig>),
+    Start(Box<ServerConfig>, mpsc::Sender<StartOutcome>),
     Stop,
     Shutdown,
+}
+
+/// What the worker decided about a start request. `Accepted` means the
+/// request became the supervisor's business: the described server is the one
+/// coming up. `Refused` means this request started nothing — a server was
+/// already owned, or the supervisor went away before answering.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StartOutcome {
+    Accepted,
+    Refused,
+}
+
+/// The pending verdict on a start request. Ownership of "already on" lives on
+/// the worker thread, so the answer can only arrive from it:
+/// [`StartWaiter::outcome`] blocks until the worker has decided. `#[must_use]`
+/// because a caller that records a launch for a verdict it never asked for is
+/// publishing an argv nobody runs.
+#[must_use = "a start whose verdict is ignored cannot tell a taken start from a refused one"]
+pub struct StartWaiter {
+    receiver: mpsc::Receiver<StartOutcome>,
+}
+
+impl StartWaiter {
+    /// Blocks until the worker decides. The wait is bounded by the command
+    /// the worker is currently serving — a start request is answered before
+    /// any handshake begins, so only another start's handshake can delay it.
+    pub fn outcome(self) -> StartOutcome {
+        self.receiver.recv().unwrap_or(StartOutcome::Refused)
+    }
 }
 
 enum Started {
@@ -141,10 +170,14 @@ impl Supervisor {
             .unwrap_or(ServerState::Stopped)
     }
 
-    /// Starts the server and returns at once: adoption, the handshake and the
-    /// spawn all happen on the worker thread, and the UI watches `state()`.
-    pub fn start(&self, config: ServerConfig) {
-        let _ = self.commands.send(Command::Start(Box::new(config)));
+    /// Sends the start to the worker and returns at once with the handle to
+    /// its verdict: adoption, the handshake and the spawn all happen on the
+    /// worker thread, the UI watches `state()`, and a caller that must know
+    /// whether the request was taken blocks on the waiter's outcome.
+    pub fn start(&self, config: ServerConfig) -> StartWaiter {
+        let (sender, receiver) = mpsc::channel();
+        let _ = self.commands.send(Command::Start(Box::new(config), sender));
+        StartWaiter { receiver }
     }
 
     /// Asks the worker to stop the server and reaps it there: the state follows
@@ -179,10 +212,15 @@ fn work(
     let mut owned: Option<Owned> = None;
     loop {
         match inbox.recv_timeout(TICK) {
-            Ok(Command::Start(config)) => {
+            Ok(Command::Start(config, outcome)) => {
                 if owned.is_some() {
+                    let _ = outcome.send(StartOutcome::Refused);
                     continue; // already on: the switch is not a restart button
                 }
+                // The verdict comes before the work: a caller that records
+                // the launch on acceptance must not wait out a handshake
+                // whose answer decides whether the record exists at all.
+                let _ = outcome.send(StartOutcome::Accepted);
                 set(&state, ServerState::Starting);
                 match start_blocking(&config, Arc::clone(&releases)) {
                     Ok(Started::Adopted { pid }) => {

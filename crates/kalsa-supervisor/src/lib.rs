@@ -17,4 +17,4 @@ mod supervisor;
 pub use child::{pid_alive, terminate_pid};
 pub use config::{ServerConfig, DEFAULT_STOP_GRACE};
 pub use instance::{Existing, InstanceFile};
-pub use supervisor::{Failure, ServerState, Supervisor};
+pub use supervisor::{Failure, ServerState, StartOutcome, StartWaiter, Supervisor};

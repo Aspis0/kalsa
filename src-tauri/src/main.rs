@@ -26,7 +26,7 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 use kalsa_probe::{Measurement, ProbeConfig};
-use kalsa_supervisor::{ServerState, Supervisor};
+use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
 
@@ -90,6 +90,18 @@ impl Brain {
         let door = self.door.lock().ok().and_then(|mut stored| stored.take());
         if let Some(door) = door {
             door.door.shutdown();
+        }
+    }
+
+    /// Keeps the record of what the walk built, but only for a start the
+    /// supervisor took. A refusal means the running server kept its own argv:
+    /// overwriting the record would make the panel describe a server nobody
+    /// started, and the context guard would defend a plan that never ran.
+    fn record_launch(&self, info: startup::LaunchInfo, outcome: StartOutcome) {
+        if outcome == StartOutcome::Accepted {
+            if let Ok(mut launch) = self.launch.lock() {
+                *launch = Some(info);
+            }
         }
     }
 
@@ -464,12 +476,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                     *stored = Some(measured);
                 }
             }
-            if let Ok(mut launch) = brain.launch.lock() {
-                *launch = Some(prepared.info);
-            }
             // The supervisor reports starting, running and its own failures
-            // through brain_state; its sentences live in failure too.
-            brain.supervisor.start(prepared.server);
+            // through brain_state; its sentences live in failure too. The
+            // record follows the verdict, not the wish: only a start the
+            // supervisor took may replace what the panel describes.
+            let outcome = brain.supervisor.start(prepared.server).outcome();
+            brain.record_launch(prepared.info, outcome);
             Ok(())
         }
         Ok(Err(sentence)) => Err(sentence),
@@ -647,6 +659,42 @@ mod tests {
         assert!(brain.launch.lock().unwrap().is_some());
         brain.clear_launch_for_state(&ServerState::Stopped);
         assert!(brain.launch.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn a_refused_start_never_publishes_its_record() {
+        // The second walk of a double start is refused by the supervisor:
+        // its argv must not replace the record of the server that kept
+        // running, and an accepted start must still publish.
+        let brain = Brain::new();
+        let running = startup::LaunchInfo {
+            args: launch_args("/models/running.gguf", 8137),
+            maximum_context_tokens: Some(8192),
+        };
+        let rejected = startup::LaunchInfo {
+            args: launch_args("/models/rejected.gguf", 8138),
+            maximum_context_tokens: Some(4096),
+        };
+        brain.record_launch(running, StartOutcome::Accepted);
+        brain.record_launch(rejected, StartOutcome::Refused);
+        let launch = brain.launch.lock().unwrap();
+        let published = launch.as_ref().expect("an accepted start published");
+        assert_eq!(
+            published.args.model_path,
+            PathBuf::from("/models/running.gguf"),
+            "a refused start overwrote the record of the server that runs"
+        );
+    }
+
+    fn launch_args(model: &str, port: u16) -> kalsa_launch::ServerArgs {
+        kalsa_launch::ServerArgs {
+            model_path: PathBuf::from(model),
+            port,
+            context_tokens: 4096,
+            threads: Some(4),
+            offload: kalsa_launch::Offload::NoGpuBuild,
+            idle_unload_seconds: 300,
+        }
     }
 
     #[test]

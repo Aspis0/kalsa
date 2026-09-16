@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalsa_launch::{
     ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_IDLE_UNLOAD_SECONDS,
@@ -44,12 +45,24 @@ fn path_for(state_file: &Path) -> PathBuf {
     state_file.with_file_name("advanced.json")
 }
 
+/// Distinct temporary names, one per save: two saves sharing a temporary can
+/// interleave their writes and publish a torn file, which [`load`] would read
+/// as defaults — the owner's choices silently reset. The pid separates app
+/// instances writing the same directory; the counter separates this
+/// instance's saves. The temporary stays beside the destination, so the
+/// rename never crosses a filesystem.
+static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
 fn write_atomic(
     path: &Path,
     bytes: &[u8],
     before_rename: impl FnOnce(&Path) -> io::Result<()>,
 ) -> io::Result<()> {
-    let temporary = path.with_extension("json.tmp");
+    let temporary = path.with_extension(format!(
+        "json.tmp.{}.{}",
+        std::process::id(),
+        TEMPORARY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ));
     let result = (|| {
         let mut file = fs::File::create(&temporary)?;
         file.write_all(bytes)?;
@@ -220,5 +233,58 @@ mod tests {
         })
         .expect("publish settings");
         assert_eq!(fs::read(path).expect("read new settings"), b"new settings");
+    }
+
+    #[test]
+    fn concurrent_saves_publish_only_whole_files_that_were_asked_for() {
+        // Two saves racing for one file: whatever is published must be a
+        // whole `a` or a whole `b` at every instant a reader can look, not
+        // just at the end — a torn file that is overwritten a moment later
+        // still had one reader window in which `load` reads it as defaults,
+        // silently resetting the owner's choices.
+        let state_file = scratch("concurrent");
+        let a = LaunchOverrides {
+            context_tokens: Some(1024),
+            idle_unload_seconds: Some(600),
+        };
+        let b = LaunchOverrides {
+            context_tokens: Some(2048),
+            idle_unload_seconds: None,
+        };
+        // The readers start before any writer has published: seed the file,
+        // or the first reads would honestly see "no file", which is a state
+        // this test does not investigate.
+        save(&state_file, a).expect("seed the file with a whole value");
+        std::thread::scope(|scope| {
+            for values in [a, b] {
+                for _ in 0..2 {
+                    let writer_state = state_file.clone();
+                    scope.spawn(move || {
+                        for _ in 0..40 {
+                            save(&writer_state, values).expect("concurrent save");
+                            std::thread::yield_now();
+                        }
+                    });
+                }
+            }
+            for _ in 0..2 {
+                let reader_state = state_file.clone();
+                scope.spawn(move || {
+                    for _ in 0..4000 {
+                        let observed = load(&reader_state);
+                        assert!(
+                            observed == a || observed == b,
+                            "a torn file was published: {observed:?}"
+                        );
+                        std::thread::yield_now();
+                    }
+                });
+            }
+        });
+        let observed = load(&state_file);
+        assert!(
+            observed == a || observed == b,
+            "the last writer left something else behind: {observed:?}"
+        );
     }
 }

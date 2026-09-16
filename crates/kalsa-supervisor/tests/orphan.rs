@@ -28,7 +28,7 @@ fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
 
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
         ServerState::Running { pid, .. } => {
@@ -62,7 +62,7 @@ fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
     let supervisor = Supervisor::new();
     let mut cfg = config("fake_server.sh", port);
     cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
@@ -94,7 +94,7 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
 
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
@@ -124,7 +124,7 @@ fn an_adopted_server_that_dies_is_reported_not_kept_running() {
     let supervisor = Supervisor::new();
     let mut cfg = config("fake_server.sh", port);
     cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
 
     // The adopted server dies with no supervisor handle on it: the state must
@@ -163,7 +163,7 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     claim.describe(orphan_pid, port).expect("describe");
 
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
 
     // Refused as the wrong server: the orphan is closed, and the start then
     // reports the port the fake health still holds — never adopted.
@@ -210,7 +210,7 @@ fn a_mid_sentence_orphan_is_adopted_blind_not_left_invisible() {
     };
 
     let supervisor = Supervisor::new();
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
         ServerState::Running { pid: 0, port: reported } => assert_eq!(reported, port),
@@ -253,7 +253,7 @@ fn a_mid_sentence_orphan_of_a_different_command_is_reported_not_adopted() {
     };
 
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     assert!(
         matches!(
@@ -292,7 +292,7 @@ fn a_silent_mid_sentence_orphan_is_reported_after_its_deadline() {
     };
 
     let supervisor = Supervisor::new();
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     assert!(
         matches!(
@@ -325,7 +325,7 @@ fn a_port_held_by_another_program_is_reported_and_left_alone() {
     // Somebody's listener that is not ours and not a Kalsa state file.
     let foreign = TcpListener::bind(("127.0.0.1", port)).expect("bind the port");
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {

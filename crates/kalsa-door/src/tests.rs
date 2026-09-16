@@ -1,11 +1,12 @@
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
-use super::{proxy, Door, DoorError, CONNECTION_LIFETIME, TOKEN_BYTES};
+use super::{proxy, Door, DoorError, CONNECTION_LIFETIME, MAX_CONNECTIONS, TOKEN_BYTES};
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
@@ -152,6 +153,59 @@ fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
         b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );
     door.shutdown();
+}
+
+#[test]
+fn handled_requests_free_their_slot_so_the_door_stays_open() {
+    // One slot per in-flight request, handed back when the request is done:
+    // twice as many sequential requests as the budget allows must all be
+    // served. A slot leaked per request would fill the door at exactly
+    // MAX_CONNECTIONS and start refusing.
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    let upstream_port = upstream.local_addr().unwrap().port();
+    let upstream_stop = Arc::new(AtomicBool::new(false));
+    let upstream_thread = thread::spawn({
+        let stop = Arc::clone(&upstream_stop);
+        move || {
+            upstream
+                .set_nonblocking(true)
+                .expect("upstream nonblocking");
+            while !stop.load(Ordering::SeqCst) {
+                match upstream.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut request = Vec::new();
+                        let _ = read_until(&mut stream, b"\r\n\r\n", &mut request);
+                        let _ = std::io::Write::write_all(
+                            &mut stream,
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        }
+    });
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let token = credential();
+    let door = Door::new(listener, upstream_port, token.clone())
+        .unwrap()
+        .start()
+        .unwrap();
+    for _ in 0..(MAX_CONNECTIONS * 2) {
+        let response = request(address, Some(&format!("Bearer {token}")));
+        assert_eq!(
+            response,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+            "a handled request did not free its slot: the door filled up"
+        );
+    }
+    door.shutdown();
+    upstream_stop.store(true, Ordering::SeqCst);
+    upstream_thread.join().unwrap();
 }
 
 #[test]

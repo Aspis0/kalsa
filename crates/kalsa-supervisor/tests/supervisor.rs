@@ -12,7 +12,7 @@ use std::time::Duration;
 use common::{
     clear_files, config, is_dead, recorded_pid, unique_port, wait_dead, wait_for, FakeHealth, When,
 };
-use kalsa_supervisor::{Failure, ServerState, Supervisor};
+use kalsa_supervisor::{Failure, ServerState, StartOutcome, Supervisor};
 
 #[test]
 fn start_reports_running_once_the_server_answers() {
@@ -20,7 +20,7 @@ fn start_reports_running_once_the_server_answers() {
     clear_files(port);
     let health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(config("fake_server.sh", port));
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
@@ -45,7 +45,7 @@ fn start_fails_when_the_server_never_answers() {
     let supervisor = Supervisor::new();
     let mut cfg = config("fake_server.sh", port);
     cfg.ready_timeout = Duration::from_millis(600);
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {
@@ -65,7 +65,7 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_dies.sh", port));
+    let _ = supervisor.start(config("fake_dies.sh", port));
 
     // It answered (the listener is up), so the handshake succeeded...
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
@@ -96,7 +96,7 @@ fn stop_takes_the_stdin_route_when_the_child_listens_for_it() {
     // Generous grace: the child must die from the closed pipe, not from the
     // signal escalation that would follow it.
     cfg.stop_grace = Duration::from_secs(3);
-    supervisor.start(cfg);
+    let _ = supervisor.start(cfg);
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
 
     let pid = recorded_pid(port);
@@ -114,13 +114,35 @@ fn stop_escalates_to_sigkill_for_a_wedged_child() {
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
-    supervisor.start(config("fake_stubborn.sh", port));
+    let _ = supervisor.start(config("fake_stubborn.sh", port));
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
 
     let pid = recorded_pid(port);
     supervisor.stop();
     wait_for(&supervisor, |s| *s == ServerState::Stopped);
     assert!(wait_dead(pid), "SIGTERM-ignoring child was not killed");
+    supervisor.shutdown();
+}
+
+#[test]
+fn a_start_while_owning_a_server_is_refused_not_silently_dropped() {
+    // The "already on" answer is the supervisor's to give, and it must be
+    // given: a caller that cannot tell a refusal from a success ends up
+    // describing a server nobody started.
+    let port = unique_port();
+    clear_files(port);
+    let _health = FakeHealth::start(port, When::OnceChildIsUp);
+    let supervisor = Supervisor::new();
+    let first = supervisor.start(config("fake_server.sh", port)).outcome();
+    assert_eq!(first, StartOutcome::Accepted);
+    wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
+
+    let second = supervisor.start(config("fake_server.sh", port)).outcome();
+    assert_eq!(second, StartOutcome::Refused);
+    assert!(
+        matches!(supervisor.state(), ServerState::Running { .. }),
+        "a refused start stopped the server already running"
+    );
     supervisor.shutdown();
 }
 

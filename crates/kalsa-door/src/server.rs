@@ -10,6 +10,25 @@ use crate::{proxy, Door, DoorError, RunningDoor, MAX_CONNECTIONS, POLL_INTERVAL,
 struct Work {
     stream: TcpStream,
     accepted: Instant,
+    /// The accept-budget slot this work occupies. Dropping the work — at the
+    /// end of handling, on an early return, or through an unwind — hands the
+    /// slot back, so one panicked request cannot shrink the door forever.
+    _slot: SlotLease,
+}
+
+/// The RAII half of the accept budget: created when the accept loop counts a
+/// connection in, dropped wherever the work ends up being handled or thrown
+/// away. This is the same shape as proxy's `ActiveConnection`, for the same
+/// reason: a `fetch_sub` after the call site is skippable by a panic, a Drop
+/// is not.
+struct SlotLease {
+    connections: Arc<AtomicUsize>,
+}
+
+impl Drop for SlotLease {
+    fn drop(&mut self) {
+        self.connections.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
@@ -22,7 +41,6 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
 
     for index in 0..WORKERS {
         let worker_stop = Arc::clone(&stop);
-        let worker_connections = Arc::clone(&connections);
         let worker_active = Arc::clone(&active);
         let worker_receiver = Arc::clone(&receiver);
         let credential = door.credential;
@@ -33,7 +51,6 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
             .spawn(move || {
                 worker(
                     worker_stop,
-                    worker_connections,
                     worker_active,
                     worker_receiver,
                     credential,
@@ -89,22 +106,24 @@ fn accept_loop(
                     continue;
                 }
                 connections.fetch_add(1, Ordering::SeqCst);
+                let lease = SlotLease {
+                    connections: Arc::clone(&connections),
+                };
                 if stream.set_nonblocking(false).is_err() {
-                    connections.fetch_sub(1, Ordering::SeqCst);
-                    continue;
+                    continue; // the lease drops here: the slot is handed back
                 }
                 let work = Work {
                     stream,
                     accepted: Instant::now(),
+                    _slot: lease,
                 };
                 match sender.try_send(work) {
                     Ok(()) => {}
                     Err(mpsc::TrySendError::Full(mut work)) => {
-                        connections.fetch_sub(1, Ordering::SeqCst);
                         reject_busy(&mut work.stream);
+                        // work drops here: the lease hands the slot back
                     }
                     Err(mpsc::TrySendError::Disconnected(mut work)) => {
-                        connections.fetch_sub(1, Ordering::SeqCst);
                         reject_busy(&mut work.stream);
                         eprintln!("kalsa door worker pool stopped");
                         stop.store(true, Ordering::SeqCst);
@@ -125,7 +144,6 @@ fn accept_loop(
 
 fn worker(
     stop: Arc<AtomicBool>,
-    connections: Arc<AtomicUsize>,
     active: Arc<AtomicUsize>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     credential: [u8; crate::TOKEN_BYTES],
@@ -151,7 +169,8 @@ fn worker(
                         response_observer.as_deref(),
                     );
                 }
-                connections.fetch_sub(1, Ordering::SeqCst);
+                // The work — and with it its slot — drops here, on every
+                // path an unwind included. No manual fetch_sub to forget.
             }
             Err(mpsc::RecvTimeoutError::Timeout) if stop.load(Ordering::SeqCst) => return,
             Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -171,5 +190,23 @@ fn reject_busy(stream: &mut TcpStream) {
 fn join_all(threads: Vec<thread::JoinHandle<()>>) {
     for thread in threads {
         let _ = thread.join();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dropping_a_lease_frees_its_slot() {
+        let connections = Arc::new(AtomicUsize::new(1));
+        drop(SlotLease {
+            connections: Arc::clone(&connections),
+        });
+        assert_eq!(
+            connections.load(Ordering::SeqCst),
+            0,
+            "a dropped work item kept its accept slot"
+        );
     }
 }
