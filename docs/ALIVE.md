@@ -5674,3 +5674,32 @@ branch no longer exists — `main` is now that commit.
 
 The account's other repos (devboule-v2, pubspark, aspis-biovision and the rest) were left alone on
 the owner's call: different projects, and two of them had pushes the same day.
+
+### 16/09 late — five repos become three, and a map so nobody has to guess again
+
+Owner: "ci si perde con tutte queste cose", two living docs only, and add something that explains
+the repos. Decisions taken and executed:
+
+**Three live, two archived read-only.** `kalsa` (app), `kalsallama` (engine), and this repo (lab)
+stay. `kalsa-forkbigmoeonedge` and `llama.rn` are archived on GitHub: still cloneable, nothing
+lost, one click to reopen. The BigMoeOnEdge fork is superseded by `kalsallama` but survives
+because it is still this repo's submodule and the PC campaign binary was built from it; the dead
+RN binding fork survives nothing — `package.json` takes `llama.rn` 0.12.8 from npm.
+
+**They cannot become one repo, and the reason is upstream.** `kalsallama` has a live `upstream`
+remote on `ggml-org/llama.cpp` whose tree owns the repository root, so in a monorepo every future
+`git merge upstream/master` becomes a subtree merge — a cost paid forever, for tidiness. And
+BigMoeOnEdge is *also* a llama.cpp fork: two forks cannot share one root. Folding the lab into
+the app was measured and rejected separately: it would take the app from 4.033 files / 15,76 MiB
+to ~55.000 files / ~546 MiB on every clone and CI checkout.
+
+**196,8 MB of device evidence was living on one disk, untracked.** Committing it whole would have
+added ~197 MB to a 530 MiB pack, nearly all raw logcat and uiautomator XML. Split by what survives
+re-reading: 262 files and 2,2 MB tracked — the reports, the JSON/JSONL records, the harness that
+produced them. The 1810 raw files are ignored. `RKStorage-docs` is ignored for a different reason:
+it is a SQLite pull of the app's AsyncStorage and holds real chat transcripts. `git status` here
+now reports nothing, which was the point — 372 phantom entries made every check useless.
+
+**`REPOS.md` in the app repo** is the map: which repo holds what, with numbers read from the repos,
+and the two conventions (one branch per repo, every deleted tip kept as `archive/<name>`; never
+push to a third-party remote). `AGENTS.md` points at it in its first bullet.
