@@ -1,14 +1,16 @@
 # Energy Framework — Status & Recovery
 
 Single entry point to resume work. Updated 2026-09-15 after Tema 1 closed on the
-Jelly Star. Read this, then `ENERGY-PERPHASE-FINDINGS.md` for the numbers.
+Jelly Star, and revised the same day after the Fase-2b self-audit
+(`ENERGY-2B-SELF-AUDIT-2026-09-15.md`). Read this, then `ENERGY-PERPHASE-FINDINGS.md`
+for the numbers.
 
 ## Where the framework stands (5 themes, dependency order)
 
 | Tema | Name | State |
 |---|---|---|
 | 1 | Per-phase (prefill/decode) J profiler | **DONE on Jelly** (this branch). S23 replication queued. |
-| 2 | Modular policy/actuator bus (fork C++) | Not started. Branch `kalsa/energy-bus` off the fork pin. Include an in-engine phase timestamp (prompt-eval-only J is not resolvable at 1 Hz with load in-window — see findings doc). |
+| 2 | Energy-objective decision layer | Split into 2a and 2b on 2026-09-15; the two do NOT depend on each other. **2a** = phase stamps that unlock true prefill J. **2b** = an energy-objective policy on the existing governor seam. Both detailed in Next steps. |
 | 3 | Acceptance+energy-gated speculation (DFlash) | Not started. Baseline ready: decode J/tok 1.2B vs 2.6B = 2.20-2.21x (REP-vs-REP only). |
 | 4 | J-driven MoE expert residency | Blocked on HTP/NPU lane. |
 | 5 | Homeostatic multi-effector loop | Capstone; needs 2-4. |
@@ -30,6 +32,10 @@ Jelly Star. Read this, then `ENERGY-PERPHASE-FINDINGS.md` for the numbers.
 - Docs: `ENERGY-SCHEMA.md` (schemas v1 frozen / rep-v2 + CodeCarbon mapping),
   `ENERGY-PERPHASE-FINDINGS.md` (the G99 baseline results + usage contract),
   `NGRAM-SPEC-FINDINGS.md` (n-gram verdict: NO).
+- Fase-2b planning: `ENERGY-2B-SELF-AUDIT-2026-09-15.md` (repo root) — the
+  orchestrator's hostile self-audit of the first 2b experiment proposal. Read it
+  before dispatching any 2b work: it retracts three claims made from this doc's
+  earlier framing (noise floor, "no code needed", three-arm shape).
 - Audit reports (repo root): `ENERGY-SCHEMA-AUDIT-2026-09-15.md` (SHIP after F1-F13),
   `ENERGY-PHASE-AUDIT-2026-09-15.md` (NO-SHIP: bucket semantics),
   `ENERGY-PHASE-AUDIT-R3-2026-09-15.md` (NO-SHIP narrow: coverage honesty),
@@ -48,22 +54,95 @@ Jelly Star. Read this, then `ENERGY-PERPHASE-FINDINGS.md` for the numbers.
 
 ## Devices
 
-- **Jelly Star** 192.168.1.82:5555 — ours. Battery 51% last seen, cool.
-- **Galaxy S23** 192.168.1.152:43089 — ANOTHER SESSION's device. Last probe:
-  charging (AC), 10%. Needs: charge > 80%, unplug, explicit coordination
-  before any campaign. Models LFM2.5-* not verified on it yet.
+- **Jelly Star** 192.168.1.82:5555 — ours. 2026-09-15 evening: 89 % and charging
+  (AC), so no campaign until unplugged. Harness artefacts: `taskset` is present
+  (`/system/bin/taskset`, toybox 0.8.6-android), bare hex masks only (`3f` → cpu0-5,
+  `c0` → cpu6-7; `0x3f` is rejected as a bad mask), topology is 6×A55 @2.0 GHz +
+  2×A76 @2.2 GHz.
+- **Galaxy S23** 192.168.1.152:43089 — ANOTHER SESSION's device. 2026-09-15:
+  charging (AC), ~23 %, storage cleaned on the owner's instruction from 94 % to 63 %
+  full (39 GB free; record in `~/kalsa-models/s23-cleanup-2026-09-15.md`). Needs:
+  > 80 %, unplug, explicit coordination before any campaign. LFM2.5-* are still not
+  on it — `/data/local/tmp/llamabench/` does not exist, so provisioning is part of
+  the campaign. `com.kalsa.app` holds 15.6 GiB of another session's model set: do not
+  touch.
 
-## Next steps (ordered)
+## Next steps (ordered, revised 2026-09-15 after the self-audit)
 
 1. S23 replication of the per-phase campaign (same protocol; arm64 binaries in
-   `tmp/build-android/bin` should run on both devices — verify with the harness
-   smoke step). Coordinates with the other session.
-2. Fase 2: fork worktree, branch `kalsa/energy-bus` off the pin; EnergyPolicy /
-   Actuator interface split of the governor (default behavior byte-identical,
-   gated); in-engine phase timestamps to unlock true prefill J.
-3. Fase 3: DFlash acceptance+energy gating on S23 (Qwen3.5-4B), Jelly cross-check.
-4. Fase 4: ADPF actuator (probe PerformanceHintManager on both devices;
-   Fixed Performance Mode for calibration runs; Power Efficiency Mode API 35+).
+   `tmp/build-android/bin` run on both devices — verify with the harness smoke
+   step). Coordinates with the other session. Provisioning is cheap, measured:
+   `adb push` runs 17.8 MB/s, so ~2.4 GB of models is ~2.5 min and the G99
+   campaign itself took 14m44s. Blocked only on: unplugged, >80 %, coordination.
+2. Fase 2a — phase stamps, and it is NOT part of the 2b bus. Two facts found on
+   2026-09-15 make this much smaller than this doc's earlier framing:
+   - the fork already splits policy from mechanism: `src/llama-governor-policy.{h,cpp}`
+     (thermal classification, `admit_prefill`, `select_decode`, hysteresis) with
+     `llama_governor` holding it behind `policy_enabled_` (default off = the legacy
+     byte-identical path). There is no bus to build.
+   - the phase durations are already measured and already reach the CLI: the device
+     `llama-cli` is a client of an embedded server, reads `chunk["timings"]`
+     (`tools/cli/cli-context.cpp:351-380`) and keeps only two doubles in `cli_timings`
+     (`cli-context.h:14-17`), while the server sends `prompt_ms`/`prompt_n`/
+     `predicted_ms`/`predicted_n` (`tools/server/server-task.cpp:244-250`).
+     `mark_N` (device uptime, same clock base as the CSV `t_s`) is already the anchor,
+     so walking back from it with `predicted_ms` and `prompt_ms` yields the
+     load/idle, prefill and decode buckets with **no new clock and no engine change**.
+     Do not introduce a second clock: `/proc/uptime` is `get_monotonic_boottime()`
+     (kernel commit 1d98a5fa), so a CLOCK_MONOTONIC stamp would silently drift from
+     the CSV on any device that suspends.
+   Re-anchoring means new numbers: schema v3 plus an explicit reconciliation with the
+   v2 figures (the v1→v2 lesson).
+3. Step 0 of 2b — **the null experiment, before any policy.** Documented in the
+   self-audit as F1: 2.6B/PURE spreads **10.06 %** across three reps while passing
+   every published gate (96.7–96.9 % coverage, no low-resolution warning), so the
+   quoted 0.68 % (1.2B/REP) is not a noise floor. Run the same configuration
+   interleaved, ABBA-ordered, and report the spread. `scripts/device-moe-stream-abba.sh`
+   already documents the ABBA rationale and the `COOL_DC` thermal gate; reuse it.
+   Until this number exists, any A/B on this metric is unfalsifiable.
+4. Fase 2b — an energy-objective policy on that seam, **after** step 0 clears.
+   Framing accepted from the self-audit (F7): the candidate lever is core placement
+   during decode, which is MNN-AECS's published lever one engine away, so a positive
+   result is a transfer/validation of a published finding, not novelty. Our own
+   candidate-novel object is the split-context prefill/decode handoff as a schedulable
+   boundary. A shipping lever needs ggml's Android affinity path, which is compiled
+   out (`ggml-cpu.c:2445-2448`, stub at `:2517`) — evidence-only via the harness
+   `taskset` first, engine change only after its own prior-art pass.
+5. Fase 3: DFlash acceptance+energy gating on S23 (Qwen3.5-4B), Jelly cross-check.
+   Prior art is direct (PELM 10.1145/3774906.3802783, AHASD 2604.25326, GELATO
+   2605.10124) — position differentially or drop.
+6. Fase 4: ADPF actuator. Verified from the official docs on 2026-09-15:
+   `PowerManager.getThermalHeadroom` is API 30 (NDK `AThermal_getThermalHeadroom`
+   API 31) → **available on the Jelly (SDK 33)**; `Session.setPreferPowerEfficiency`
+   is Android 15 = API 35 → **S23 only (SDK 36)**. So Fase 4 runs at two different
+   depths on the two devices.
+
+## Prior art (checked 2026-09-15, before any mechanism claim)
+
+Temi 1, 2b and 3 all have direct published prior art. Our contribution is not the
+mechanism; it is the measurement discipline (battery-terminal ~1 Hz, published
+coverage and bias, a retraction trail), the negative results, and the hybrid LFM2.5 /
+llama.cpp-fork setting.
+
+- Phase-level energy on mobile: "How Do Prompt Variations Affect Energy Consumption
+  in On-Device LLMs?" (arXiv 2609.01798) profiles prefill and decode energy
+  separately; 2607.22568; 2605.27435 (stage-level, OPMASK).
+- Energy-aware engines and governors: MNN-AECS (2506.19884) — "the first engine-level
+  system solution without requiring root access", adaptive low-power core selection
+  during decode, 23 % energy cut at no slowdown over 7 devices; CORE (MLSys'26 Oral)
+  — unified DVFS governor, "default governors make independent decisions" costing
+  23.0–40.4 % latency or 5.0–16.6 % energy; EnerInfer (2606.23001); 2507.02135;
+  DVFSLM (2609.13153).
+- Speculation plus energy: PELM, AHASD, GELATO, and a battery-aware speculative
+  decoding scheduler (ICPP'26).
+
+Release status of the two closest neighbours, as far as it could be checked: MNN-AECS
+has no code link on its abstract page, one arXiv version (v1, 2025-06-24), and no
+file name or commit in `alibaba/MNN` master implementing it (the single "AECS" commit
+match is acoustic echo cancellation, `c3cdf189`). That is *not* proof of absence — the
+authors are MNN maintainers and the check covered names and commit messages, not the
+whole tree. CORE's actuator is DVFS, so an unprivileged app cannot use it by
+construction.
 
 ## House rules
 
