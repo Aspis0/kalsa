@@ -477,7 +477,7 @@ function main() {
       readCsvRows(path.join(dir, "empty_decode.phases.csv"))[1],
     );
 
-    // ── 11. v3: one-sample decode tail has no attributable interval ──
+    // ── 12. v3: one-sample decode tail has no attributable interval ──
     writeFileSync(path.join(dir, "one_sample_tail.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
     writeFileSync(path.join(dir, "one_sample_tail.marks"), "r1 54.00\n");
     writeFileSync(path.join(dir, "one_sample_tail_r1.txt"), `banner\n${SPEED}`);
@@ -496,7 +496,7 @@ function main() {
       readCsvRows(path.join(dir, "one_sample_tail.phases.csv"))[1],
     );
 
-    // ── 12. v3: absurd stamped count is fatal ─────────────────────────
+    // ── 13. v3: absurd stamped count is fatal ─────────────────────────
     writeFileSync(path.join(dir, "absurd_count.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
     writeFileSync(path.join(dir, "absurd_count.marks"), "r1 54.00\n");
     writeFileSync(path.join(dir, "absurd_count_r1.txt"), `banner\n${SPEED}`);
@@ -514,7 +514,7 @@ function main() {
       `status=${absurdCountRun.status} stderr=${absurdCountRun.stderr}`,
     );
 
-    // ── 13. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
+    // ── 14. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
     writeFileSync(path.join(dir, "mixed_rep.csv"), MIXED_CSV);
     writeFileSync(path.join(dir, "mixed_rep.marks"), "r1 20.00\nr2 30.00\n");
     writeFileSync(path.join(dir, "mixed_rep_r1.txt"), `banner\n${SPEED}`);
