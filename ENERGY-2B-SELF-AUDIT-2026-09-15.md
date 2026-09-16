@@ -256,6 +256,41 @@ Results of step 0 decide the shape of everything downstream:
 - If it is not, the sweep is not runnable at this sampling resolution and 2b needs a
   different instrument before it needs a policy.
 
+## Addendum (same night): F3 partially overturned by later read-only recon
+
+Verified myself, line by line, after the first pass:
+
+- `ggml/src/ggml-cpu/ggml-cpu.c:2907` guards the affinity block with
+  `#elif defined(__gnu_linux__)`, a **glibc-only** macro that Android's clang does
+  not define, and the Android branch sits dead inside it at `:2923-2924`
+  (`sched_setaffinity(0, sizeof(cpuset), &cpuset)`). So the stale comment at `:2446`
+  is not just stale — an Android implementation was written and has never compiled.
+  NDK r27's sysroot declares `sched_setaffinity` with no `__INTRODUCED_IN` gate and
+  the android-28 platform libc exports the symbol; bionic has no
+  `pthread_*_affinity_np`, which is why that call site would not have compiled.
+- The mask plumbing above the stub is **alive in the shipped app**:
+  `set_best_cores()` builds a best-cores mask and sets `strict_cpu = true`,
+  `mask_valid = true` (`node_modules/llama.rn/cpp/jsi/JSIParams.cpp:25`, `:60-61`,
+  called at `:333`). The app pins into the void; only the thread count survives.
+  Everything else in the same family is inert for the same reason: `-C/--cpu-mask`,
+  `-Cr/--cpu-range`, `--prio`, `--poll`, `--numa`.
+- The repo already knows this and has already measured the fix:
+  `archived/docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md` records the guard flip making a
+  thread stick (3.95 vs 11.43 tok/s on A55 vs A76) and a same-session A/B on the G99
+  of **+26 % prefill at 8 threads pinned** (28.48/28.47 vs 21.48/22.54) and +12.5 % at
+  6, with temperature excluded, and finds **decode and prefill want opposite
+  configurations** (decode prefers the two big cores alone, 6.39 vs 6.07).
+
+What this changes, and what it does not. F7 is untouched: that lever is MNN-AECS's
+lever one engine away, and the archived document says so in its own words ("measure on
+the Snapdragon first"). F3's conclusion changes from *mechanism design plus prior art*
+to **port-and-gate**, and the port has a trap the audit must keep: a bare guard flip is
+**not** default-off, because the shipped init path always fills the mask — un-stubbing
+would move decode workers on every context load and change `librnllama.so` bytes. The
+gate has to suppress mask-filling unless a mask is explicitly requested. Residual
+unknowns stay as the recon states them: the flipped guard compiling in the app's exact
+matrix, and which cores decode actually occupies today.
+
 ## What would flip this to GO
 
 1. Step 0 executed and reported with a stated confidence bound.

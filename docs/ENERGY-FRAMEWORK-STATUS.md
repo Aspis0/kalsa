@@ -69,12 +69,23 @@ for the numbers.
 
 ## Next steps (ordered, revised 2026-09-15 after the self-audit)
 
-1. S23 replication of the per-phase campaign (same protocol; arm64 binaries in
+1. S23 replication of the per-phase campaign. Handover protocol agreed with the
+   other session (message of 2026-09-15 late): they will release the S23 explicitly
+   by message after their overnight T20C campaign; do NOT assume > 80 % charge on
+   handover, because that campaign discharges it materially — plan a recharge first
+   (the S23 charged at ~1 %/min from ~23 % at 21:12). No overlap: no S23 action until
+   their explicit release.
+   AFTER 2a LANDS: cross-build arm64 into `tmp/build-android-phase-stamps/bin`, NOT
+   into `tmp/build-android/` — `scripts/fixtures/energy-counts/README.md` pins the
+   md5 of the pristine binaries there (`llama-cli` cca1187c7974655a50efe45d3cfd73d8,
+   `libllama-cli-impl.so` 4e1eab9cd3d99a65373fe720193e4c24), exactly as it pins the
+   line numbers in `tmp/kalsallama-pin`.
+2. S23 campaign, same protocol; arm64 binaries in
    `tmp/build-android/bin` run on both devices — verify with the harness smoke
    step). Coordinates with the other session. Provisioning is cheap, measured:
    `adb push` runs 17.8 MB/s, so ~2.4 GB of models is ~2.5 min and the G99
    campaign itself took 14m44s. Blocked only on: unplugged, >80 %, coordination.
-2. Fase 2a — phase stamps, and it is NOT part of the 2b bus. Two facts found on
+2. Fase 2a is NOT part of any 2b bus. Two facts found on
    2026-09-15 make this much smaller than this doc's earlier framing:
    - the fork already splits policy from mechanism: `src/llama-governor-policy.{h,cpp}`
      (thermal classification, `admit_prefill`, `select_decode`, hysteresis) with
