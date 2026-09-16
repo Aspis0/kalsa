@@ -146,7 +146,6 @@ mod tests {
         ModelEntry {
             repo: "test/dense",
             display_name: "Test Dense",
-            source: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
             parameters: crate::parameters::Parameters::dense(8_000_000_000),

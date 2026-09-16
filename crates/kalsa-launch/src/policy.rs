@@ -125,7 +125,7 @@ fn offload(input: &LaunchInput) -> Offload {
 mod tests {
     use super::*;
     use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB};
-    use kalsa_catalog::CATALOG;
+    use kalsa_catalog::rows;
     use kalsa_probe::Backend;
 
     /// The row most of these tests ride on: small enough to be fundable on
@@ -139,8 +139,7 @@ mod tests {
     /// when the row's shape changes, and the tests exercise something the
     /// product actually ships.
     fn shipped_row(name: &str) -> &'static ModelEntry {
-        CATALOG
-            .iter()
+        rows()
             .find(|entry| entry.display_name == name)
             .unwrap_or_else(|| {
                 panic!("{name} left the catalog: re-point these tests at a shipped row")
@@ -154,7 +153,6 @@ mod tests {
         ModelEntry {
             repo: "test/broken",
             display_name: "Broken Row",
-            source: None,
             last_modified: "2026-01-01",
             licence: kalsa_catalog::Licence::Open("apache-2.0"),
             parameters: kalsa_catalog::Parameters::dense(8_000_000_000),

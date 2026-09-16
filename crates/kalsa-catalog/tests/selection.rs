@@ -5,7 +5,7 @@
 
 use kalsa_catalog::{
     capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis, ChoiceInput,
-    Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason, GIB,
+    Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -145,17 +145,16 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
 }
 
 #[test]
-fn a_downloadable_pick_carries_its_pinned_plan() {
-    // The 8 GiB pick has an identified GGUF, so the selection hands the shell
-    // everything the fetch needs: the exact file at the pinned commit, the
-    // size every byte must add up to, and the digest nothing unverified gets
-    // past. No part of this is derived from the quant string.
+fn every_pick_carries_its_pinned_plan() {
+    // There is no "pick without a plan" case to test: the selection's plan
+    // is not an Option, because the chooser only sees rows that carry their
+    // file's address. The 8 GiB pick hands the shell the exact file at the
+    // pinned commit, the size every byte must add up to, and the digest
+    // nothing unverified gets past.
     match choose(&input(8, true)) {
         Decision::Pick(selection) => {
             assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
-            let plan = selection
-                .download
-                .expect("Trinity has an identified, pinned source");
+            let plan = &selection.download;
             assert_eq!(
                 plan.url,
                 "https://huggingface.co/arcee-ai/Trinity-Nano-Preview-GGUF/resolve/2aa08593b79242d224da0215fb36924dcc0f87ea/Trinity-Nano-Preview-Q4_K_M.gguf"
@@ -171,15 +170,26 @@ fn a_downloadable_pick_carries_its_pinned_plan() {
 }
 
 #[test]
-fn a_row_without_an_identified_source_is_visibly_unfetchable() {
-    // The 16 GiB tier picks a research-table row: no GGUF has ever been
-    // identified for it. The plan is an Option built only from a complete
-    // source, so a half-filled row is not a state that exists — the shell
-    // gets None and cannot ask for a URL.
+fn sixteen_gigabytes_picks_a_downloadable_moe_whose_plan_matches_its_row() {
+    // The old winner here was a research-table row — a model the app could
+    // name but never fetch. The menu is now the download table, and the
+    // tier's winner is a MoE whose file, size and digest were verified
+    // against the pinned commit.
     match choose(&input(16, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
-            assert!(selection.download.is_none());
+            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(
+                selection.justification,
+                Justification::ExpectedButUnmeasured
+            );
+            let plan = &selection.download;
+            assert!(plan.url.ends_with("/Ling-mini-2.0.Q4_K_M.gguf"), "{}", plan.url);
+            assert!(plan.url.contains("/resolve/76f2da561c6519b8f70ceb868e6be78526c69b79/"));
+            assert_eq!(plan.bytes, 9_911_575_904);
+            assert_eq!(
+                plan.sha256,
+                "bbb4ef25c6aa7842a93fa999cc6638ba5a8330fb0bd46dc5d7bd85a0db80d74f"
+            );
         }
         other => panic!("expected a pick, got {other:?}"),
     }
@@ -226,14 +236,29 @@ fn a_device_that_does_not_run_on_battery_gets_no_relief() {
 #[test]
 fn capability_does_not_need_a_battery() {
     // Capability is a claim about the model, not about the device's power:
-    // it is offered to a wall-powered device all the same.
-    match choose(&input_with_phone(16, Some(false))) {
+    // it is offered to a wall-powered device all the same. The reachable
+    // capability route on shipped rows is the publisher's own dense
+    // comparison: IBM places Granite near dense 3B, which clears the bar
+    // against a dense 2B phone.
+    let machine = pc_with_phone(
+        32,
+        Some(9),
+        PhoneModel {
+            weights_bytes: 2_000_000_000,
+            parameters: Some(Parameters::dense(2_000_000_000)),
+            ..phone(Some(false))
+        },
+    );
+    match choose(&machine) {
         Decision::Pick(selection) => {
-            assert_eq!(
+            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
+            assert!(matches!(
                 selection.justification,
-                Justification::Capability(CapabilityBasis::Parameters)
-            );
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+                Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
+                    parameters: 3_000_000_000,
+                    ..
+                })
+            ));
         }
         other => panic!("expected a capability pick, got {other:?}"),
     }
@@ -241,9 +266,10 @@ fn capability_does_not_need_a_battery() {
 
 #[test]
 fn a_small_card_is_not_bypassed_by_the_system_ram() {
-    // 32 GiB of RAM would fit the 35B MoE; the 6 GiB card gives a 3 GiB
-    // budget, which fits nothing. The machine is refused — a model sized to
-    // its RAM would spill across both memories, and the spill is a loss.
+    // 32 GiB of RAM would fit the 19 GiB research MoE; the 6 GiB card gives a
+    // 3 GiB budget, which fits nothing. The machine is refused — a model
+    // sized to its RAM would spill across both memories, and the spill is a
+    // loss.
     let biggest_on_ram = kalsa_catalog::CATALOG
         .iter()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
@@ -259,10 +285,10 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
 
 #[test]
 fn a_model_that_would_spill_is_never_offered() {
-    // The card holds 9 GiB; the RAM alone would hold the 35B MoE (20.5 GiB of
-    // footprint). A model that only partially fits the card is not a candidate
-    // for the GPU path, so the tier takes the largest model that fits it
-    // entirely.
+    // The card holds 9 GiB; the RAM alone would hold rows three times
+    // bigger. Only what fits the card entirely is a candidate, and among
+    // those the same-class fastest decoder wins: Granite reads 1B per
+    // token, less than anything else on the tier.
     let machine = pc(32, Some(12));
     match choose(&machine) {
         Decision::Pick(selection) => {
@@ -270,7 +296,7 @@ fn a_model_that_would_spill_is_never_offered() {
                 selection.repo, "Qwen/Qwen3.6-35B-A3B",
                 "the 35B row does not fit the card and must not be offered"
             );
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
             assert!(
                 selection.footprint.total_bytes() <= selection.budget.usable_bytes,
                 "the pick fits the chosen budget entirely"
@@ -303,7 +329,7 @@ fn an_undetected_backend_runs_on_the_cpu_it_has() {
         ..input(32, true)
     }) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
             assert!(!selection.budget.gpu_accounted_for);
             assert!(
                 selection.details.contains("could not be detected"),
@@ -317,11 +343,10 @@ fn an_undetected_backend_runs_on_the_cpu_it_has() {
 
 #[test]
 fn a_floor_measurement_offers_what_a_range_would_refuse() {
-    // The reported defect, as a test: 64 GiB of RAM, the CPU path measured at
-    // 107 GB/s, a GPU path several times faster. Every decode prediction is a
-    // floor, so nothing is refused for speed, the offer carries the promise
-    // that the real figure is measured on this machine, and the row whose
-    // cache we know the assumption under-counts stays dark.
+    // A bandwidth measured on a slower path than the model will decode on
+    // makes every prediction a floor — a shape that can keep a candidate
+    // but must never refuse one. The pick carries the promise that the real
+    // figure is measured on this machine, and it is never called slow.
     let mac = ChoiceInput {
         backend: Backend::Metal,
         bandwidth_is_lower_bound: true,
@@ -330,19 +355,8 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
     };
     match choose(&mac) {
         Decision::Pick(selection) => {
-            // Apertus is the biggest row, and on this machine its speed is a
-            // floor — kept, offered, and to be measured, never refused.
-            assert_eq!(selection.repo, "swiss-ai/Apertus-v1.5-70B");
-            assert_eq!(
-                selection.justification,
-                Justification::Capability(CapabilityBasis::Parameters)
-            );
+            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
             assert!(matches!(selection.decode, Prediction::Floor(_)));
-            assert!(
-                selection.decode.floor() < 3.0,
-                "the CPU-path floor is below reading speed, which is the point: got {}",
-                selection.decode.floor()
-            );
             assert!(
                 selection
                     .details
@@ -396,8 +410,9 @@ fn a_measured_decode_is_what_counts() {
 
 #[test]
 fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
-    let lfm = kalsa_catalog::CATALOG
+    let lfm = DOWNLOADABLE
         .iter()
+        .map(|row| &row.model)
         .find(|entry| entry.repo == "LiquidAI/LFM2.5-8B-A1B")
         .expect("the LFM row exists");
     match lfm.licence {
@@ -438,11 +453,11 @@ fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
 }
 
 #[test]
-fn an_unsourced_large_moe_is_expected_but_unmeasured_and_never_relief_or_capability() {
-    // A dense 2B phone: Qwen3.6-35B clears the parameter bar on BOTH axes
-    // (total 17.5×, active 1.5×) — and the claim is still not capability,
-    // because nothing published settles a MoE against a dense model of the
-    // same total. But it is not relief either: calling a 35B MoE
+fn a_large_unsourced_moe_is_expected_but_unmeasured_and_never_capability() {
+    // A dense 2B phone: Ling-mini clears the TOTAL parameter bar (8.1×) but
+    // not the active one (1.43B against the 2.8B bar), so the claim is not
+    // capability — MoE against dense is a claim across shapes, and nothing
+    // published settles it. But it is not relief either: calling a 16B MoE
     // "comparable" to a 2B phone is as false as the opposite error. The
     // honest third state says we expect stronger and will measure it here.
     let model = PhoneModel {
@@ -452,17 +467,21 @@ fn an_unsourced_large_moe_is_expected_but_unmeasured_and_never_relief_or_capabil
     };
     match choose(&input_with_phone_model(32, model)) {
         Decision::Pick(selection) => {
-            let qwen = kalsa_catalog::CATALOG
+            let ling = DOWNLOADABLE
                 .iter()
-                .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
-                .expect("the 35B row exists")
+                .find(|row| row.model.repo == "inclusionAI/Ling-mini-2.0")
+                .expect("the Ling row exists")
+                .model
                 .parameters;
             assert!(
-                qwen.total().count() as f64 >= 2_000_000_000.0 * 1.4
-                    && qwen.active().count() as f64 >= 2_000_000_000.0 * 1.4,
-                "the premise is that every numeric bar is cleared"
+                ling.total().count() as f64 >= 2_000_000_000.0 * 1.4,
+                "the total bar is cleared"
             );
-            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert!(
+                (ling.active().count() as f64) < 2_000_000_000.0 * 1.4,
+                "the active bar is NOT cleared, which is what keeps this from capability"
+            );
+            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
             assert_eq!(
                 selection.justification,
                 Justification::ExpectedButUnmeasured
@@ -499,15 +518,12 @@ fn a_sourced_equivalent_claims_capability_through_that_route_and_says_so() {
             assert_eq!(selection.display_name, "IBM Granite 4 Tiny");
             assert_eq!(
                 selection.justification,
-                Justification::Capability(
-                    kalsa_catalog::CapabilityBasis::PublishedDenseEquivalent {
-                        parameters: 3_000_000_000,
-                        note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below \
-                               on BBH and IFEval",
-                        source: "IBM's Granite 4.0 model documentation, accessed \
-                                 2026-09-14",
-                    }
-                )
+                Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
+                    parameters: 3_000_000_000,
+                    note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below \
+                           on BBH and IFEval",
+                    source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
+                })
             );
             assert!(
                 selection.details.contains("publisher's own comparison"),
@@ -554,7 +570,7 @@ fn a_phone_without_parameter_counts_is_never_offered_capability() {
     };
     match choose(&input_with_phone_model(16, model)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
             assert_eq!(selection.justification, Justification::Relief);
         }
         other => panic!("expected a relief pick, got {other:?}"),
@@ -614,25 +630,31 @@ fn the_plain_reason_speaks_the_readers_language() {
     };
     say(8, "about as good as what your phone");
     say(8, "keeps the heat and the battery drain off your phone");
-    say(16, "a bigger, stronger model");
+    say(16, "we have not checked it on this computer yet");
     say(32, "we have not checked it on this computer yet");
     say(64, "we have not checked it on this computer yet");
 }
 
 #[test]
-fn sixteen_gigabytes_takes_the_largest_dense_model_that_fits() {
-    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
+fn sixteen_gigabytes_offers_the_biggest_downloadable_class_not_the_biggest_name() {
+    // The research table has a 12B dense row that fits this tier and would
+    // once have won on size alone; nobody can fetch it, so it is not in the
+    // menu. The winner comes from the download table: the biggest rows are
+    // the two verified MoEs, same class, and the one that reads fewer bytes
+    // per token decodes faster.
+    assert_eq!(chosen(&input(16, true)), "inclusionAI/Ling-mini-2.0");
+    assert!(kalsa_catalog::usable().all(|entry| entry.entry().repo != "google/gemma-4-12B-it"));
 }
 
 #[test]
 fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
-    // Both 32 GiB rows fit and are the same class, so the numbers decide:
-    // Qwen3.6-35B-A3B reads 3.0B per token, llm-jp-4-32b-a3b-thinking 3.83B.
-    // Against the dense default phone nothing published settles the MoE
-    // comparison, so the pick is offered as expected-but-unmeasured, to be
-    // measured on this machine before it is called an upgrade.
+    // Both verified MoEs fit and are the same class, so the numbers decide:
+    // Ling-mini reads 1.43B parameters per token, Moonlight 2.24B. Against
+    // the dense default phone nothing published settles the MoE comparison,
+    // so the pick is offered as expected-but-unmeasured, to be measured on
+    // this machine before it is called an upgrade.
     let input = input(32, true);
-    assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
+    assert_eq!(chosen(&input), "inclusionAI/Ling-mini-2.0");
     match choose(&input) {
         Decision::Pick(selection) => {
             assert_eq!(
@@ -645,7 +667,7 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
             );
             assert!(
                 selection.decode.floor() > 20.0,
-                "3B active on 85 GB/s should be well above 20 tok/s, got {}",
+                "1.43B active on 85 GB/s should be well above 20 tok/s, got {}",
                 selection.decode.floor()
             );
         }
@@ -654,30 +676,25 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
 }
 
 #[test]
-fn sixty_four_gigabytes_leaves_the_dense_70b_on_the_table_for_being_too_slow() {
-    // The biggest row in the catalog fits, and on the CPU path that this
-    // machine measures directly it would decode at about 1.3-1.7 tokens per
-    // second — its cache is now measured at 160 KiB per token, and the
-    // traffic it adds drags the floor down with the weights. A recommendation
-    // nobody can read at is not a recommendation, so the tier takes the large
-    // MoE instead, and says why.
-    let input = input(64, true);
-    assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
-    match choose(&input) {
-        Decision::Pick(selection) => {
-            assert!(
-                selection.details.contains("A bigger model fits"),
-                "{}",
-                selection.details
-            );
-            assert!(
-                selection.details.contains("slower than reading"),
-                "{}",
-                selection.details
-            );
-        }
-        other => panic!("expected a pick, got {other:?}"),
-    }
+fn sixty_four_gigabytes_offers_a_downloadable_pick_not_the_biggest_research_row() {
+    // The 70B row fits this tier, its cache is measured, its speed on the
+    // CPU path would be a floor — and none of that matters, because no file
+    // was ever identified for it: it is not in the menu, however well
+    // studied. The tier takes the downloadable pick instead.
+    let apertus = kalsa_catalog::CATALOG
+        .iter()
+        .find(|entry| entry.repo.starts_with("swiss-ai/"))
+        .expect("apertus is in the catalog");
+    assert!(
+        footprint_bytes(apertus, 8192).total_bytes() <= usable_bytes(64 * GIB),
+        "apertus fits, which is what makes this test meaningful"
+    );
+    assert!(apertus.is_usable(), "the licence and cache gates pass");
+    assert!(
+        kalsa_catalog::usable().all(|entry| entry.entry().repo != apertus.repo),
+        "without an identified file it is still never offered"
+    );
+    assert_eq!(chosen(&input(64, true)), "inclusionAI/Ling-mini-2.0");
 }
 
 #[test]
@@ -710,8 +727,9 @@ fn without_the_phone_there_is_no_decision_to_make() {
 
 #[test]
 fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
-    // On 16 GiB the refused Instella MoE (9.75 GiB, 16B/2.8B) would be a bigger
-    // and faster pick than the chosen dense row: the gate is what stops it.
+    // On 16 GiB the refused Instella MoE (9.75 GiB, 16B/2.8B) would be a
+    // bigger pick than the chosen row: the licence gate keeps it out of the
+    // menu, and the type split keeps it from ever coming back by accident.
     let instella = kalsa_catalog::CATALOG
         .iter()
         .find(|entry| entry.repo.starts_with("amd/"))
@@ -721,10 +739,10 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
         "the refused row does fit, which is what makes this test meaningful"
     );
     assert!(
-        instella.weights_bytes > 7 * GIB,
+        instella.weights_bytes > 9 * GIB,
         "and it is bigger than the chosen row"
     );
-    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
+    assert_eq!(chosen(&input(16, true)), "inclusionAI/Ling-mini-2.0");
     assert!(kalsa_catalog::excluded().any(|(entry, reason)| {
         entry.repo == instella.repo && reason.contains("research only")
     }));
@@ -735,7 +753,7 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
     match choose(&input(32, true)) {
         Decision::Pick(selection) => {
             let why = &selection.details;
-            assert!(why.contains("Alibaba Qwen 3.6"), "{why}");
+            assert!(why.contains("InclusionAI Ling Mini 2.0"), "{why}");
             assert!(why.contains("tokens per second"), "{why}");
             // A range, never a point estimate dressed up as data.
             assert!(why.contains('–'), "expected a range in: {why}");

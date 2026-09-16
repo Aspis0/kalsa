@@ -6,18 +6,18 @@
 //! progress as data; two presses cannot run two walks, which is the command
 //! guard's job, not this file's.
 //!
-//! The model step follows the catalog: a row with a download plan is fetched
-//! against its digest (a verified copy in another program's cache beats the
-//! download), and a row without a plan stops the walk honestly — bytes that
-//! cannot be proven are not downloaded, and no plausible URL is derived to
-//! paper over it.
+//! The model step follows the catalog: the choice is fetched against its
+//! digest (a verified copy in another program's cache beats the download).
+//! There is no "choice without a plan" case to handle: the catalog's type
+//! split means a pick always carries its file's pinned address, and a row
+//! with no identified file can never be chosen in the first place.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_catalog::{
-    memory_budget, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel, Selection, CATALOG,
+    memory_budget, rows, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel, Selection,
 };
 use kalsa_download::{default_roots, download, find_local};
 use kalsa_launch::{LaunchInput, Offload, ServerArgs};
@@ -132,7 +132,7 @@ pub(crate) fn run(
         None => {
             progress(Progress::Choosing);
             let (selection, row) = choose_model(backend, &machine, phone)?;
-            let path = place_model(selection.download.as_ref(), root, progress)?;
+            let path = place_model(&selection.download, root, progress)?;
             return planned_config_with_overrides(
                 backend, exe, path, row, &machine, state_file, overrides,
             );
@@ -174,8 +174,7 @@ fn chosen_row(
     quant: &str,
     weights_bytes: u64,
 ) -> Result<&'static ModelEntry, StartupFailure> {
-    let matches: Vec<&ModelEntry> = CATALOG
-        .iter()
+    let matches: Vec<&ModelEntry> = rows()
         .filter(|entry| {
             entry.repo == repo
                 && entry.display_name == display_name
@@ -249,17 +248,14 @@ pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupF
     }
 }
 
-/// Puts the chosen model on disk. A row with a plan is fetched against its
-/// digest; a row without one stops the walk honestly.
+/// Puts the chosen model on disk, against the plan's digest. The plan is
+/// not optional: the catalog's pick always carries its file's address.
 fn place_model(
-    plan: Option<&DownloadPlan>,
+    plan: &DownloadPlan,
     root: &Path,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
-    match plan {
-        Some(plan) => acquire_model(plan, &root.join("models"), progress),
-        None => Err(StartupFailure::WeightsUnverified),
-    }
+    acquire_model(plan, &root.join("models"), progress)
 }
 
 /// Puts the chosen model on disk, against the plan's digest. A copy already
@@ -624,20 +620,6 @@ mod tests {
         assert!(matches!(err, StartupFailure::PairPhoneFirst), "{err:?}");
     }
 
-    #[test]
-    fn a_row_without_a_plan_stops_the_walk_honestly() {
-        let root = scratch("no-plan");
-        let err = place_model(None, &root, &mut |_| {})
-            .expect_err("bytes that cannot be proven are not downloaded");
-        assert!(matches!(err, StartupFailure::WeightsUnverified), "{err:?}");
-        assert_eq!(
-            std::fs::read_dir(&root).expect("root").count(),
-            0,
-            "the stop must not touch the disk"
-        );
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
     // The loopback body and its digest, both constants: the plan's digest
     // field is 'static because the catalog's rows are, so the test does the
     // same thing a row does — pins bytes to a digest known in advance.
@@ -653,7 +635,7 @@ mod tests {
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
         };
-        let path = place_model(Some(&plan), &root, &mut |_| {}).expect("downloaded");
+        let path = place_model(&plan, &root, &mut |_| {}).expect("downloaded");
         assert_eq!(
             std::fs::read(&path).expect("read"),
             PLAN_BODY,
@@ -662,7 +644,7 @@ mod tests {
         assert_eq!(digest_of(PLAN_BODY), PLAN_SHA256);
         // A second pass with the file already on disk downloads nothing: the
         // on-disk bytes are re-hashed, and the server must not be asked again.
-        let path_again = place_model(Some(&plan), &root, &mut |_| {}).expect("from disk");
+        let path_again = place_model(&plan, &root, &mut |_| {}).expect("from disk");
         assert_eq!(path_again, path);
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
@@ -683,7 +665,7 @@ mod tests {
             sha256: "0000000000000000000000000000000000000000000000000000000000000000",
         };
         let err =
-            place_model(Some(&plan), &root, &mut |_| {}).expect_err("the digest is the promise");
+            place_model(&plan, &root, &mut |_| {}).expect_err("the digest is the promise");
         assert!(matches!(err, StartupFailure::DownloadCorrupted), "{err:?}");
         assert!(
             !root.join("models").join("stories260K.gguf").exists(),
@@ -761,9 +743,7 @@ mod tests {
             "{err:?}"
         );
         // And a real row is found on everything the selection carries.
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
             .expect("the test row left the catalog");
         let found = chosen_row(row.repo, row.display_name, row.quant, row.weights_bytes)
             .expect("the row is in the catalog");
@@ -774,9 +754,12 @@ mod tests {
     fn no_two_catalog_rows_share_an_identity() {
         // chosen_row's key is only as good as the catalog's uniqueness: two
         // rows matching on everything the selection carries would make the
-        // lookup ambiguous, and ambiguity must fail loudly here.
-        for (index, a) in CATALOG.iter().enumerate() {
-            for b in &CATALOG[index + 1..] {
+        // lookup ambiguous, and ambiguity must fail loudly here. Both
+        // tables: the lookup searches the research record and the download
+        // menu together.
+        let all: Vec<_> = rows().collect();
+        for (index, a) in all.iter().enumerate() {
+            for b in &all[index + 1..] {
                 let same = a.repo == b.repo
                     && a.display_name == b.display_name
                     && a.quant == b.quant
@@ -812,9 +795,7 @@ mod tests {
             detected,
             "a GPU build decodes in the card"
         );
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "Google Gemma 4 26B")
+        let row = rows().find(|entry| entry.display_name == "Google Gemma 4 26B")
             .expect("the test row left the catalog");
         let config = planned_config(
             ServerBackend::Cpu,
@@ -846,9 +827,7 @@ mod tests {
         };
         let (selection, row) =
             choose_model(ServerBackend::Cpu, &machine, Some(phone)).expect("the tier is not empty");
-        let trinity = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "Arcee Trinity Nano")
+        let trinity = rows().find(|entry| entry.display_name == "Arcee Trinity Nano")
             .expect("the comparison row left the catalog");
         assert!(
             selection.weights_bytes > trinity.weights_bytes,
@@ -865,9 +844,7 @@ mod tests {
         // 6112 tokens, not a constant), and the flags are the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -955,9 +932,7 @@ mod tests {
 
     #[test]
     fn a_catalog_context_above_the_funded_maximum_is_rejected() {
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -981,9 +956,7 @@ mod tests {
 
     #[test]
     fn a_model_the_machine_cannot_fund_stops_the_walk_honestly() {
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "Google Gemma 4 E4B")
+        let row = rows().find(|entry| entry.display_name == "Google Gemma 4 E4B")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -1006,9 +979,7 @@ mod tests {
 
     #[test]
     fn a_metal_machine_gets_the_full_offload_the_budget_accounted_for() {
-        let row = CATALOG
-            .iter()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Metal),
