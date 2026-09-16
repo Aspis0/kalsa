@@ -2,14 +2,16 @@
 // shim just big enough to run dev/states.js against the real page modules.
 // It exists to (1) prove every state renders, (2) print every sentence in one
 // list so the copy can be read together, and (3) enforce the copy rules:
-// no jargon, no exclamation marks, and every state ends in something the
-// user can press or an explicit "nothing to do".
+// no jargon in ordinary copy, no exclamation marks, and every state ends in
+// something the user can press or an explicit "nothing to do". The live
+// counter and Advanced card are explicit expert surfaces with a small allowlist.
 //
 //   node dev/smoke.mjs; echo $?
 
 // The status page is mounted directly for the hostile-input checks below;
 // states.js brings its own copies through the same module paths.
 import { mountStatus } from "../src/pages/status.js";
+import { mountAdvanced } from "../src/pages/advanced.js";
 
 // ---- the shim ----
 
@@ -30,16 +32,30 @@ class FakeEl {
 
   set innerHTML(html) {
     this.children = [];
-    // The skeletons are flat matched tags; a line-by-line parse is enough.
-    const pattern = /<(\w+)\s+([^>]*)>([^<]*)<\/\1>/g;
+    this._text = null;
+    // The real pages have small nested structures and void controls. A
+    // stack keeps the bench honest when a new panel adds hierarchy.
+    const stack = [this];
+    const voidTags = new Set(["input", "br", "hr", "img", "meta", "link", "path", "rect"]);
+    const pattern = /<\/?([\w-]+)([^>]*)>|([^<]+)/g;
     for (const match of html.matchAll(pattern)) {
       const [, tag, attrText, text] = match;
+      if (text !== undefined) {
+        const node = new FakeEl("#text");
+        node._text = text;
+        stack[stack.length - 1].children.push(node);
+        continue;
+      }
+      if (match[0].startsWith("</")) {
+        if (stack.length > 1) stack.pop();
+        continue;
+      }
       const child = new FakeEl(tag);
       for (const attr of attrText.matchAll(/([\w-]+)(?:="([^"]*)")?/g)) {
         child.attrs[attr[1]] = attr[2] ?? true;
       }
-      if (text) child._text = text;
-      this.children.push(child);
+      stack[stack.length - 1].children.push(child);
+      if (!voidTags.has(tag) && !attrText.trimEnd().endsWith("/")) stack.push(child);
     }
   }
 
@@ -56,9 +72,18 @@ class FakeEl {
   querySelector(selector) {
     const name = selector.match(/data-el="([^"]+)"/)?.[1];
     if (name) {
-      return this.children.find((child) => child.attrs["data-el"] === name) ?? null;
+      return this.find((child) => child.attrs["data-el"] === name);
     }
-    return this.children.find((child) => child.tag === selector) ?? null;
+    return this.find((child) => child.tag === selector);
+  }
+
+  find(predicate) {
+    for (const child of this.children) {
+      if (predicate(child)) return child;
+      const nested = child.find?.(predicate);
+      if (nested) return nested;
+    }
+    return null;
   }
 
   append(...nodes) {
@@ -79,6 +104,18 @@ class FakeEl {
 
   click() {
     for (const handler of this.handlers.click ?? []) handler({});
+  }
+
+  setAttribute(name, value) {
+    this.attrs[name] = String(value);
+  }
+
+  get classList() {
+    return {
+      add: () => {},
+      remove: () => {},
+      toggle: () => {},
+    };
   }
 
   get hidden() {
@@ -225,17 +262,76 @@ for (const { heading, lines, button, progress, working } of results) {
 // ---- lint ----
 
 const problems = [];
-// The blanket bans run over everything the user can read — every visible
-// line, control labels included — so no sentence can carry a banned word
-// that the one element named "sentence" does not.
+// Ordinary Status and Pairing copy stays plain. The live decode figure and
+// the Advanced panel are the deliberate expert surface: `tokens/s` and the
+// engine's exact cache spelling are allowed there, but not in normal prose.
+const expertCards = results.filter(
+  ({ heading }) =>
+    heading.includes("running, live metrics") ||
+    heading === "Model — advanced settings are visible",
+);
+const expertText = expertCards
+  .flatMap((r) => r.lines.map((line) => line.text))
+  .join("\n");
+const normalText = results
+  .filter((r) => !expertCards.includes(r))
+  .flatMap((r) => r.lines.map((line) => line.text))
+  .join("\n");
 const ALL_TEXT = results
   .flatMap((r) => r.lines.map((line) => line.text))
   .join("\n");
 
-for (const word of ["port", "token", "url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"]) {
+const NORMAL_BANNED = ["port", "url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret", "token"];
+for (const word of NORMAL_BANNED) {
   const re = new RegExp(`\\b${word}\\w*`, "i");
-  const hit = ALL_TEXT.match(re);
+  const hit = normalText.match(re);
   if (hit) problems.push(`jargon: "${hit[0]}"`);
+}
+if (!NORMAL_BANNED.includes("token")) {
+  problems.push("normal copy must continue to reject token jargon");
+}
+
+if (!/tokens\/s/.test(expertText)) {
+  problems.push("the expert Status counter must identify tokens per second");
+}
+if (!/KV q8_0/.test(expertText)) {
+  problems.push("the expert Advanced panel must show the cache format");
+}
+if (ALL_TEXT.includes("Memory use") || ALL_TEXT.includes("Loaded model")) {
+  problems.push("Status must not promise a memory measurement the app does not have");
+}
+
+// A poll while Advanced is open updates read-only copy, never the input the
+// owner is editing. This is the same refresh path Model uses every two
+// seconds, with a real field value and a real input event.
+const advancedProbe = new FakeEl("div");
+const advancedProbeDto = {
+  context_tokens: 4096,
+  context_max: 8192,
+  context_override: null,
+  idle_unload_seconds: 300,
+  idle_override: null,
+  batch_size: 512,
+  ubatch_size: 128,
+  kv_cache_type: "q8_0",
+  flash_attention: "on",
+  gpu_layers: "all",
+  threads: 8,
+  door_port: 8131,
+  running: true,
+};
+const advancedProbeView = mountAdvanced(advancedProbe, {
+  backend: { read: async () => advancedProbeDto, save: async () => advancedProbeDto },
+});
+await advancedProbeView.refresh();
+advancedProbeView.open();
+const advancedInput = advancedProbe.querySelector('[data-el="context"]');
+advancedInput.value = "8192";
+for (const handler of advancedInput.handlers.input ?? []) handler({});
+await advancedProbeView.refresh();
+const currentAdvancedInput = advancedProbe.querySelector('[data-el="context"]');
+if (currentAdvancedInput !== advancedInput || currentAdvancedInput.value !== "8192") {
+  problems.push("an open Advanced field was overwritten by polling");
 }
 
 if (/!/.test(ALL_TEXT)) problems.push("exclamation mark");

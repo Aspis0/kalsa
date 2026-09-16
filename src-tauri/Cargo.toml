@@ -18,6 +18,7 @@ kalsa-download = { path = "../crates/kalsa-download" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }
 kalsa-probe = { path = "../crates/kalsa-probe" }
 kalsa-runtime = { path = "../crates/kalsa-runtime" }
+kalsa-sentinel = { path = "../crates/kalsa-sentinel" }
 kalsa-supervisor = { path = "../crates/kalsa-supervisor" }
 serde = { version = "1", features = ["derive"] }
 # The two pairing messages on the wire, and the DTO the page reads.
@@ -31,5 +32,6 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    "Win32_Storage_FileSystem",
     "Win32_System_Memory",
 ] }

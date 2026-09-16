@@ -73,6 +73,7 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         context_tokens: 512,
         threads: Some(4),
         offload: Offload::All,
+        idle_unload_seconds: 300,
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

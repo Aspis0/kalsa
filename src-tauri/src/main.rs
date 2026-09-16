@@ -11,6 +11,8 @@
 
 mod door;
 mod failure;
+mod metrics;
+mod options;
 mod pairing;
 mod startup;
 mod transport;
@@ -41,6 +43,8 @@ const PAIRING_FILE: &str = "pairing.json";
 struct Brain {
     supervisor: Supervisor,
     door: Mutex<Option<ActiveDoor>>,
+    launch: Mutex<Option<startup::LaunchInfo>>,
+    metrics: Arc<metrics::RuntimeMetrics>,
     /// The measurement of this machine, kept so a turn-on does not measure
     /// again and the Model page can say whether numbers exist. Memory only:
     /// a restart measures again rather than pretending a result survived.
@@ -61,6 +65,8 @@ impl Brain {
         Self {
             supervisor: Supervisor::new(),
             door: Mutex::new(None),
+            launch: Mutex::new(None),
+            metrics: Arc::new(metrics::RuntimeMetrics::new()),
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
         }
@@ -78,6 +84,20 @@ impl Brain {
         if let Some(door) = door {
             door.door.shutdown();
         }
+        self.metrics.note_unload();
+    }
+
+    fn clear_launch(&self) {
+        if let Ok(mut launch) = self.launch.lock() {
+            *launch = None;
+        }
+    }
+
+    fn clear_launch_for_state(&self, state: &ServerState) {
+        match state {
+            ServerState::Stopped | ServerState::Failed { .. } => self.clear_launch(),
+            ServerState::Starting | ServerState::Running { .. } => {}
+        }
     }
 
     fn door_port(&self) -> Option<u16> {
@@ -85,6 +105,14 @@ impl Brain {
             .lock()
             .ok()
             .and_then(|stored| stored.as_ref().map(|active| active.address.port()))
+    }
+
+    fn door_connected(&self) -> Option<bool> {
+        self.door.lock().ok().map(|stored| {
+            stored
+                .as_ref()
+                .is_some_and(|active| active.door.has_active_connection())
+        })
     }
 
     fn start_door_if_paired(&self, upstream_port: u16, file: &Path) -> Result<(), String> {
@@ -116,8 +144,22 @@ impl Brain {
         }
         let listener =
             door::bind(file).map_err(|_| "The authenticated door could not bind.".to_string())?;
+        let metrics = Arc::clone(&self.metrics);
         let door = kalsa_door::Door::new(listener, upstream_port, credential.clone())
-            .map_err(|_| "The authenticated door could not start.".to_string())?;
+            .map_err(|_| "The authenticated door could not start.".to_string())?
+            .with_response_observer(move || {
+                let metrics = Arc::clone(&metrics);
+                let scanner = Mutex::new(metrics::TimingScanner::new());
+                move |bytes| {
+                    let rate = scanner
+                        .lock()
+                        .ok()
+                        .and_then(|mut scanner| scanner.feed(bytes));
+                    if let Some(rate) = rate {
+                        metrics.observe_decode(rate);
+                    }
+                }
+            });
         let running = door
             .start()
             .map_err(|_| "The authenticated door could not start.".to_string())?;
@@ -128,6 +170,42 @@ impl Brain {
             door: running,
         });
         Ok(())
+    }
+
+    fn advanced(&self, state_file: &Path) -> options::AdvancedDto {
+        let overrides = options::load(state_file);
+        let launch = self.launch.lock().ok();
+        let active = launch
+            .as_ref()
+            .and_then(|stored| stored.as_ref())
+            .map(|info| (&info.args, info.maximum_context_tokens));
+        options::dto(overrides, active, self.door_port())
+    }
+
+    fn set_advanced(
+        &self,
+        state_file: &Path,
+        context_tokens: Option<u64>,
+        idle_unload_seconds: Option<u32>,
+    ) -> Result<options::AdvancedDto, String> {
+        let next = options::LaunchOverrides {
+            context_tokens,
+            idle_unload_seconds,
+        };
+        next.validate().map_err(str::to_string)?;
+        if let Some(maximum) = self
+            .launch
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().and_then(|info| info.maximum_context_tokens))
+        {
+            if context_tokens.is_some_and(|context| context > maximum) {
+                return Err("That context is larger than this model's funded maximum.".to_string());
+            }
+        }
+        options::save(state_file, next)
+            .map_err(|_| "The advanced settings could not be saved.".to_string())?;
+        Ok(self.advanced(state_file))
     }
 }
 
@@ -182,6 +260,7 @@ enum StateDto {
     Starting,
     Running {
         port: u16,
+        metrics: metrics::RuntimeMetricsDto,
     },
     /// Already in the user's words, produced only by `failure::words`.
     Failed {
@@ -189,39 +268,69 @@ enum StateDto {
     },
 }
 
-impl From<ServerState> for StateDto {
-    fn from(state: ServerState) -> Self {
-        match state {
-            ServerState::Stopped => Self::Stopped,
-            ServerState::Starting => Self::Starting,
-            ServerState::Running { port, .. } => Self::Running { port },
-            ServerState::Failed { reason } => Self::Failed {
+#[tauri::command]
+fn brain_state(brain: State<Brain>, desk: State<Desk>) -> StateDto {
+    let state = brain.supervisor.state();
+    brain.clear_launch_for_state(&state);
+    match state {
+        ServerState::Running { port, .. } => {
+            if brain
+                .start_door_if_paired(port, &desk.pairing_file)
+                .is_err()
+            {
+                brain.stop_door();
+                desk.desk.stop_serving();
+                return StateDto::Failed {
+                    reason: "The authenticated door could not start. Trying again usually works."
+                        .to_string(),
+                };
+            }
+            let phone_connected = brain.door_connected();
+            StateDto::Running {
+                port,
+                metrics: brain.metrics.snapshot(phone_connected),
+            }
+        }
+        ServerState::Starting => {
+            brain.stop_door();
+            // The upstream is not ready while it starts, so a pairing square
+            // would point at a door that cannot complete a request.
+            desk.desk.stop_serving();
+            StateDto::Starting
+        }
+        ServerState::Stopped => {
+            brain.stop_door();
+            desk.desk.stop_serving();
+            StateDto::Stopped
+        }
+        ServerState::Failed { reason } => {
+            brain.stop_door();
+            desk.desk.stop_serving();
+            StateDto::Failed {
                 reason: failure::words(&failure::StartupFailure::Supervisor(reason)),
-            },
+            }
         }
     }
 }
 
 #[tauri::command]
-fn brain_state(brain: State<Brain>, desk: State<Desk>) -> StateDto {
-    let state = brain.supervisor.state();
-    if let ServerState::Running { port, .. } = state {
-        if brain
-            .start_door_if_paired(port, &desk.pairing_file)
-            .is_err()
-        {
-            brain.stop_door();
-            desk.desk.stop_serving();
-            return StateDto::Failed {
-                reason: "The authenticated door could not start. Trying again usually works."
-                    .to_string(),
-            };
-        }
-    } else {
-        brain.stop_door();
-        desk.desk.stop_serving();
-    }
-    state.into()
+fn brain_advanced(
+    app: tauri::AppHandle,
+    brain: State<Brain>,
+) -> Result<options::AdvancedDto, String> {
+    let state_file = state_file(&app)?;
+    Ok(brain.advanced(&state_file))
+}
+
+#[tauri::command]
+fn brain_set_advanced(
+    app: tauri::AppHandle,
+    brain: State<Brain>,
+    context_tokens: Option<u64>,
+    idle_unload_seconds: Option<u32>,
+) -> Result<options::AdvancedDto, String> {
+    let state_file = state_file(&app)?;
+    brain.set_advanced(&state_file, context_tokens, idle_unload_seconds)
 }
 
 /// Whether a model is configured at all — the development override is the
@@ -282,6 +391,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     if !brain.begin_turn_on() {
         return Err("The assistant is already starting.".into());
     }
+    brain.metrics.reset();
     let kept = brain
         .measurement
         .lock()
@@ -342,15 +452,18 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     brain.turning_on.store(false, Ordering::SeqCst);
 
     match outcome {
-        Ok(Ok((config, measured))) => {
+        Ok(Ok((prepared, measured))) => {
             if let Some(measured) = measured {
                 if let Ok(mut stored) = brain.measurement.lock() {
                     *stored = Some(measured);
                 }
             }
+            if let Ok(mut launch) = brain.launch.lock() {
+                *launch = Some(prepared.info);
+            }
             // The supervisor reports starting, running and its own failures
             // through brain_state; its sentences live in failure too.
-            brain.supervisor.start(config);
+            brain.supervisor.start(prepared.server);
             Ok(())
         }
         Ok(Err(sentence)) => Err(sentence),
@@ -375,6 +488,7 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 #[tauri::command]
 fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
     brain.stop_door();
+    brain.clear_launch();
     desk.desk.stop_serving();
     brain.supervisor.stop();
 }
@@ -430,6 +544,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .manage(Brain::new())
         .invoke_handler(tauri::generate_handler![
             brain_state,
+            brain_advanced,
+            brain_set_advanced,
             brain_model,
             brain_measured,
             brain_measure,
@@ -502,5 +618,44 @@ mod tests {
             Err(io::Error::other("loopback unavailable"))
         });
         assert_eq!(result.err().unwrap().to_string(), "loopback unavailable");
+    }
+
+    #[test]
+    fn starting_keeps_the_launch_record_until_the_server_is_running() {
+        let brain = Brain::new();
+        let args = kalsa_launch::ServerArgs {
+            model_path: PathBuf::from("/models/model.gguf"),
+            port: startup::PORT,
+            context_tokens: 4096,
+            threads: Some(4),
+            offload: kalsa_launch::Offload::NoGpuBuild,
+            idle_unload_seconds: 300,
+        };
+        if let Ok(mut launch) = brain.launch.lock() {
+            *launch = Some(startup::LaunchInfo {
+                args,
+                maximum_context_tokens: Some(8192),
+            });
+        }
+        brain.clear_launch_for_state(&ServerState::Starting);
+        assert!(brain.launch.lock().unwrap().is_some());
+        brain.clear_launch_for_state(&ServerState::Stopped);
+        assert!(brain.launch.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn setting_advanced_values_writes_the_file_used_by_startup() {
+        let root =
+            std::env::temp_dir().join(format!("kalsa-brain-main-advanced-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let state_file = root.join("server.state");
+        let brain = Brain::new();
+        let dto = brain.set_advanced(&state_file, Some(2048), None).unwrap();
+        let stored = options::load(&state_file);
+        assert_eq!(stored.context_tokens, Some(2048));
+        assert_eq!(stored.idle_unload_seconds, None);
+        assert_eq!(dto.idle_override, None);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

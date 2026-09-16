@@ -28,6 +28,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::failure::StartupFailure;
+use crate::options::LaunchOverrides;
 
 /// Loopback port. The phone reaches it through a tunnel, never over the LAN.
 pub(crate) const PORT: u16 = 8130;
@@ -77,6 +78,20 @@ pub(crate) enum Progress {
     ModelBytes { done: u64, total: u64 },
 }
 
+/// The exact launch data kept by the shell after the supervisor receives it.
+/// The UI reads this rather than reconstructing values from argv strings.
+#[derive(Debug)]
+pub(crate) struct LaunchInfo {
+    pub(crate) args: ServerArgs,
+    pub(crate) maximum_context_tokens: Option<u64>,
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedStart {
+    pub(crate) server: ServerConfig,
+    pub(crate) info: LaunchInfo,
+}
+
 /// The whole walk. `server_override` (development) replaces the decide step:
 /// the developer pins a binary and owns its bytes. Everything else is the
 /// product order.
@@ -88,11 +103,12 @@ pub(crate) fn run(
     state_file: PathBuf,
     root: &Path,
     progress: &mut dyn FnMut(Progress),
-) -> Result<ServerConfig, StartupFailure> {
+) -> Result<PreparedStart, StartupFailure> {
     // A measurement the probe itself calls unreliable — every attempt failed
     // its checks — would decide a real model on noise. The walk stops; the
     // next turn-on measures again.
     require_reliable(&machine.measurement)?;
+    let overrides = crate::options::load(&state_file);
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -117,10 +133,12 @@ pub(crate) fn run(
             progress(Progress::Choosing);
             let (selection, row) = choose_model(backend, &machine, phone)?;
             let path = place_model(selection.download.as_ref(), root, progress)?;
-            return planned_config(backend, exe, path, row, &machine, state_file);
+            return planned_config_with_overrides(
+                backend, exe, path, row, &machine, state_file, overrides,
+            );
         }
     };
-    Ok(dev_config(exe, model, state_file, &machine))
+    dev_config_with_overrides(exe, model, state_file, &machine, overrides)
 }
 
 /// The catalog's answer for this machine. Pure: nothing here touches the
@@ -288,6 +306,7 @@ fn acquire_model(
 /// build that won. `None` from [`kalsa_launch::plan`] means the machine
 /// cannot fund this model even with a single token of context, and the walk
 /// stops honestly — it never starts the server smaller.
+#[cfg(test)]
 fn planned_config(
     backend: ServerBackend,
     exe: PathBuf,
@@ -295,8 +314,28 @@ fn planned_config(
     row: &ModelEntry,
     machine: &Machine,
     state_file: PathBuf,
-) -> Result<ServerConfig, StartupFailure> {
-    let input = LaunchInput {
+) -> Result<PreparedStart, StartupFailure> {
+    planned_config_with_overrides(
+        backend,
+        exe,
+        model,
+        row,
+        machine,
+        state_file,
+        LaunchOverrides::default(),
+    )
+}
+
+fn planned_config_with_overrides(
+    backend: ServerBackend,
+    exe: PathBuf,
+    model: PathBuf,
+    row: &ModelEntry,
+    machine: &Machine,
+    state_file: PathBuf,
+    overrides: LaunchOverrides,
+) -> Result<PreparedStart, StartupFailure> {
+    let mut input = LaunchInput {
         backend,
         model: row,
         budget: memory_budget(
@@ -306,15 +345,37 @@ fn planned_config(
         thread_ramp: &machine.measurement.ramp,
         model_path: model,
         port: PORT,
+        context_limit: None,
     };
-    let plan = kalsa_launch::plan(&input).ok_or(StartupFailure::ChosenModelUnfundable)?;
-    Ok(ServerConfig {
+    let maximum = kalsa_launch::plan(&input)
+        .ok_or(StartupFailure::ChosenModelUnfundable)?
+        .args
+        .context_tokens;
+    if let Some(context) = overrides.context_tokens {
+        if context > maximum {
+            return Err(StartupFailure::ContextTooLarge);
+        }
+        input.context_limit = Some(context);
+    }
+    let mut plan = kalsa_launch::plan(&input).ok_or(StartupFailure::ChosenModelUnfundable)?;
+    if let Some(seconds) = overrides.idle_unload_seconds {
+        plan.args.idle_unload_seconds = seconds;
+    }
+    let args = plan.args;
+    let server = ServerConfig {
         exe,
-        argv: plan.args.argv(),
+        argv: args.argv(),
         state_file,
         port: PORT,
         ready_timeout: READY_TIMEOUT,
         stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
+    };
+    Ok(PreparedStart {
+        server,
+        info: LaunchInfo {
+            args,
+            maximum_context_tokens: Some(maximum),
+        },
     })
 }
 
@@ -324,27 +385,51 @@ fn planned_config(
 /// measurement only when there is one, and the offload follows the build the
 /// dev walk assumed — there is no verdict for a binary that was never
 /// decided.
-fn dev_config(
+fn dev_config_with_overrides(
     exe: PathBuf,
     model: PathBuf,
     state_file: PathBuf,
     machine: &Machine,
-) -> ServerConfig {
-    let args = ServerArgs {
+    overrides: LaunchOverrides,
+) -> Result<PreparedStart, StartupFailure> {
+    // A pinned development model has no catalog budget. Its conservative
+    // default is therefore the maximum this path will promise; Advanced may
+    // lower it, but cannot silently ask an unbudgeted run for more.
+    if overrides
+        .context_tokens
+        .is_some_and(|context| context > DEV_CONTEXT_TOKENS)
+    {
+        return Err(StartupFailure::ContextTooLarge);
+    }
+    let mut args = ServerArgs {
         model_path: model,
         port: PORT,
         context_tokens: DEV_CONTEXT_TOKENS,
         threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
         offload: offload_of_build(&dev_backend()),
+        idle_unload_seconds: kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS,
     };
-    ServerConfig {
+    if let Some(context) = overrides.context_tokens {
+        args.context_tokens = context;
+    }
+    if let Some(seconds) = overrides.idle_unload_seconds {
+        args.idle_unload_seconds = seconds;
+    }
+    let server = ServerConfig {
         exe,
         argv: args.argv(),
         state_file,
         port: PORT,
         ready_timeout: READY_TIMEOUT,
         stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
-    }
+    };
+    Ok(PreparedStart {
+        server,
+        info: LaunchInfo {
+            args,
+            maximum_context_tokens: Some(DEV_CONTEXT_TOKENS),
+        },
+    })
 }
 
 /// The build a dev-pinned binary is assumed to be: the platform's own
@@ -627,9 +712,9 @@ mod tests {
             &mut |_| {},
         )
         .expect("the override is the answer");
-        assert_eq!(config.exe, PathBuf::from("/server/llama-server"));
-        assert_eq!(config.port, PORT);
-        let joined = config.argv.join(" ");
+        assert_eq!(config.server.exe, PathBuf::from("/server/llama-server"));
+        assert_eq!(config.server.port, PORT);
+        let joined = config.server.argv.join(" ");
         assert!(joined.contains("--host 127.0.0.1"), "{joined}");
         assert!(joined.contains("--model /dev/model.gguf"), "{joined}");
         // The machine was never measured, so the thread count is omitted
@@ -740,7 +825,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
         )
         .expect("system RAM funds what the VRAM budget refused");
-        let joined = config.argv.join(" ");
+        let joined = config.server.argv.join(" ");
         assert!(joined.contains("--n-gpu-layers") == false, "{joined}");
     }
 
@@ -797,13 +882,101 @@ mod tests {
             PathBuf::from("/state/server.state"),
         )
         .expect("the model is fundable");
-        let joined = config.argv.join(" ");
+        let joined = config.server.argv.join(" ");
         assert!(joined.contains("--ctx-size 6112"), "{joined}");
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
         assert!(joined.contains("--threads 2"), "{joined}");
         assert!(joined.contains("--cache-type-k q8_0"), "{joined}");
         assert!(joined.contains("--flash-attn on"), "{joined}");
         assert!(!joined.contains("n-gpu-layers"), "{joined}");
+    }
+
+    #[test]
+    fn persisted_advanced_overrides_reach_the_supervisor_argv() {
+        let root = scratch("advanced");
+        let state_file = root.join("server.state");
+        crate::options::save(
+            &state_file,
+            LaunchOverrides {
+                context_tokens: Some(1024),
+                idle_unload_seconds: Some(600),
+            },
+        )
+        .expect("save advanced settings");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let config = run(
+            Some(PathBuf::from("/server/llama-server")),
+            machine,
+            None,
+            Some(PathBuf::from("/models/chosen.gguf")),
+            state_file,
+            &root,
+            &mut |_| {},
+        )
+        .expect("the saved values are within the machine's bounds");
+        let joined = config.server.argv.join(" ");
+        assert!(joined.contains("--ctx-size 1024"), "{joined}");
+        assert!(joined.contains("--sleep-idle-seconds 600"), "{joined}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_dev_context_above_its_safe_ceiling_is_rejected() {
+        let root = scratch("dev-context-too-large");
+        let state_file = root.join("server.state");
+        crate::options::save(
+            &state_file,
+            LaunchOverrides {
+                context_tokens: Some(DEV_CONTEXT_TOKENS + 1),
+                idle_unload_seconds: Some(600),
+            },
+        )
+        .expect("save advanced settings");
+        let err = run(
+            Some(PathBuf::from("/server/llama-server")),
+            Machine {
+                measurement: measured(0.0, Backend::Cpu),
+                ram_bytes: 0,
+            },
+            None,
+            Some(PathBuf::from("/models/chosen.gguf")),
+            state_file,
+            &root,
+            &mut |_| {},
+        )
+        .expect_err("the dev path has a conservative context ceiling");
+        assert!(matches!(err, StartupFailure::ContextTooLarge));
+        assert!(crate::failure::words(&err).contains("Choose a smaller context"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_catalog_context_above_the_funded_maximum_is_rejected() {
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let err = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+            LaunchOverrides {
+                context_tokens: Some(8192),
+                idle_unload_seconds: Some(600),
+            },
+        )
+        .expect_err("8192 exceeds Granite's funded maximum on 8 GiB");
+        assert!(matches!(err, StartupFailure::ContextTooLarge));
     }
 
     #[test]
@@ -850,7 +1023,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
         )
         .expect("the model is fundable");
-        let joined = config.argv.join(" ");
+        let joined = config.server.argv.join(" ");
         assert!(joined.contains("--n-gpu-layers all"), "{joined}");
     }
 

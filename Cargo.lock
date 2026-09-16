@@ -1771,6 +1771,7 @@ dependencies = [
  "kalsa-pairing",
  "kalsa-probe",
  "kalsa-runtime",
+ "kalsa-sentinel",
  "kalsa-supervisor",
  "libc",
  "serde",

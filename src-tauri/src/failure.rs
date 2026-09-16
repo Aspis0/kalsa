@@ -35,6 +35,8 @@ pub(crate) enum StartupFailure {
     /// The chosen model cannot be given even one token of context within
     /// this machine's budget: it is never started smaller, the start fails.
     ChosenModelUnfundable,
+    /// The user requested more context than this model's budget funds.
+    ContextTooLarge,
     /// The selection the catalog returned does not name exactly one row, so
     /// starting would run numbers that belong to some other row.
     ChosenModelUnresolved,
@@ -107,6 +109,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::ChosenModelUnfundable => {
             "The model chosen for this computer needs more memory than the computer can \
              give it, even to start. An app update may bring a smaller option."
+                .into()
+        }
+        StartupFailure::ContextTooLarge => {
+            "This context is too large for the chosen model on this computer. \
+             Choose a smaller context in Advanced and try again."
                 .into()
         }
         StartupFailure::ChosenModelUnresolved => {

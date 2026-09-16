@@ -5,7 +5,7 @@
 //! process that runs it.
 
 use crate::args::{
-    ServerArgs, ALL_LAYERS, BATCH, FLASH_ATTN, HOST, IDLE_UNLOAD_SECONDS, KV_CACHE_TYPE, UBATCH,
+    ServerArgs, ServerSettings, ALL_LAYERS, BATCH, FLASH_ATTN, HOST, KV_CACHE_TYPE, UBATCH,
 };
 
 impl ServerArgs {
@@ -64,9 +64,28 @@ impl ServerArgs {
         ]);
         argv.extend([
             "--sleep-idle-seconds".to_string(),
-            IDLE_UNLOAD_SECONDS.to_string(),
+            self.idle_unload_seconds.to_string(),
             "--no-webui".to_string(),
         ]);
         argv
+    }
+
+    /// The same values as `argv`, for the settings panel and no other owner.
+    pub fn settings(&self) -> ServerSettings {
+        let gpu_layers = match self.offload {
+            crate::args::Offload::All => Some(ALL_LAYERS),
+            crate::args::Offload::ForcedOff => Some("0"),
+            crate::args::Offload::NoGpuBuild => None,
+        };
+        ServerSettings {
+            batch_size: BATCH,
+            ubatch_size: UBATCH,
+            kv_cache_type: KV_CACHE_TYPE,
+            flash_attention: FLASH_ATTN,
+            idle_unload_seconds: self.idle_unload_seconds,
+            gpu_layers,
+            threads: self.threads,
+            threads_batch: self.threads,
+        }
     }
 }

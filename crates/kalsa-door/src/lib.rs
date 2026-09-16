@@ -26,7 +26,7 @@ mod tests;
 use std::fmt;
 use std::io;
 use std::net::{SocketAddr, TcpListener};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
@@ -41,6 +41,9 @@ const UNAUTHORIZED_RESPONSE: &[u8] =
     b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const UPSTREAM_FAILURE_RESPONSE: &[u8] =
     b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+type ResponseObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
+type ResponseObserverFactory = Arc<dyn Fn() -> ResponseObserver + Send + Sync>;
 
 /// A construction failure. `NonLoopback` is separate so callers cannot turn
 /// an unsafe binding into a normal I/O failure by accident.
@@ -71,12 +74,14 @@ pub struct Door {
     address: SocketAddr,
     upstream_port: u16,
     credential: [u8; TOKEN_BYTES],
+    response_observer: Option<ResponseObserverFactory>,
 }
 
 /// The running door. Dropping it stops and joins its bounded thread set.
 pub struct RunningDoor {
     stop: Arc<AtomicBool>,
     address: SocketAddr,
+    active_connections: Arc<AtomicUsize>,
     threads: Mutex<Vec<JoinHandle<()>>>,
 }
 
@@ -100,7 +105,20 @@ impl Door {
             address,
             upstream_port,
             credential,
+            response_observer: None,
         })
+    }
+
+    /// Build a per-connection observer for response bytes after forwarding.
+    /// Each observer must stay small and incremental: the door never buffers
+    /// an SSE body and separate responses never share parser state.
+    pub fn with_response_observer<F, O>(mut self, factory: F) -> Self
+    where
+        F: Fn() -> O + Send + Sync + 'static,
+        O: Fn(&[u8]) + Send + Sync + 'static,
+    {
+        self.response_observer = Some(Arc::new(move || Arc::new(factory()) as ResponseObserver));
+        self
     }
 
     /// Start the acceptor and its fixed worker pool.
@@ -115,6 +133,14 @@ impl RunningDoor {
     /// a preferred port or an address remembered before binding.
     pub fn address(&self) -> SocketAddr {
         self.address
+    }
+
+    /// Whether a client is currently being served by the door. This is a
+    /// transport fact, not a guess based on whether a credential exists.
+    pub fn has_active_connection(&self) -> bool {
+        self.active_connections
+            .load(std::sync::atomic::Ordering::SeqCst)
+            > 0
     }
 
     /// Stop accepting and wait for the bounded thread set to leave.

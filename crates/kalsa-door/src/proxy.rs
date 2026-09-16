@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use subtle::ConstantTimeEq;
@@ -16,6 +16,8 @@ pub(super) fn handle(
     upstream_port: u16,
     credential: &[u8; TOKEN_BYTES],
     stop: &AtomicBool,
+    active: &AtomicUsize,
+    observer: Option<&(dyn Fn(&[u8]) + Send + Sync)>,
 ) {
     let deadline = accepted + CONNECTION_LIFETIME;
     let head = match request::read_head(&mut client, deadline) {
@@ -29,6 +31,7 @@ pub(super) fn handle(
         let _ = refuse(&mut client, deadline);
         return;
     }
+    let _active = ActiveConnection::new(active);
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {
         Some(timeout) => timeout,
@@ -47,7 +50,24 @@ pub(super) fn handle(
     if relay_exact(&mut client, &mut upstream, head.body_length, deadline, stop).is_err() {
         return;
     }
-    let _ = relay_response(&mut upstream, &mut client, deadline, stop);
+    let _ = relay_response(&mut upstream, &mut client, deadline, stop, observer);
+}
+
+struct ActiveConnection<'a> {
+    active: &'a AtomicUsize,
+}
+
+impl<'a> ActiveConnection<'a> {
+    fn new(active: &'a AtomicUsize) -> Self {
+        active.fetch_add(1, Ordering::SeqCst);
+        Self { active }
+    }
+}
+
+impl Drop for ActiveConnection<'_> {
+    fn drop(&mut self) {
+        self.active.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 fn authenticated(value: Option<&[u8]>, expected: &[u8; TOKEN_BYTES]) -> bool {
@@ -96,6 +116,7 @@ fn relay_response(
     to: &mut TcpStream,
     deadline: Instant,
     stop: &AtomicBool,
+    observer: Option<&(dyn Fn(&[u8]) + Send + Sync)>,
 ) -> io::Result<()> {
     let mut buffer = [0u8; 16 * 1024];
     loop {
@@ -109,6 +130,9 @@ fn relay_response(
             return Ok(());
         }
         to.write_all(&buffer[..read])?;
+        if let Some(observer) = observer {
+            observer(&buffer[..read]);
+        }
     }
 }
 

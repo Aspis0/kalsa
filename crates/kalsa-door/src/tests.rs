@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
@@ -108,6 +108,7 @@ fn every_authentication_failure_has_the_same_refusal() {
     let wrong = format!("Bearer {}", wrong_credential(&token));
     let refusal = request(address, Some(&wrong));
     assert!(refusal.starts_with(b"HTTP/1.1 401"));
+    assert!(!door.has_active_connection());
     assert_eq!(
         request(address, None),
         refusal,
@@ -115,6 +116,21 @@ fn every_authentication_failure_has_the_same_refusal() {
     );
     assert_eq!(request(address, Some("Basic anything")), refusal);
     assert_eq!(request(address, Some("Bearer")), refusal);
+    door.shutdown();
+}
+
+#[test]
+fn an_unauthenticated_socket_is_not_an_active_phone() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let door = Door::new(listener, 1, credential())
+        .unwrap()
+        .start()
+        .unwrap();
+    let client = TcpStream::connect(address).unwrap();
+    thread::sleep(Duration::from_millis(25));
+    assert!(!door.has_active_connection());
+    drop(client);
     door.shutdown();
 }
 
@@ -145,10 +161,19 @@ fn a_connection_past_its_lifetime_is_cut() {
     let server = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
+        let active = AtomicUsize::new(0);
         let accepted = Instant::now()
             .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))
             .unwrap();
-        proxy::handle(stream, accepted, 1, &[0u8; TOKEN_BYTES], &stop);
+        proxy::handle(
+            stream,
+            accepted,
+            1,
+            &[0u8; TOKEN_BYTES],
+            &stop,
+            &active,
+            None,
+        );
     });
     let mut client = TcpStream::connect(address).unwrap();
     client

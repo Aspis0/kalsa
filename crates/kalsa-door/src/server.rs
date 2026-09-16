@@ -14,6 +14,7 @@ struct Work {
 
 pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let stop = Arc::new(AtomicBool::new(false));
+    let connections = Arc::new(AtomicUsize::new(0));
     let active = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
@@ -21,19 +22,23 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
 
     for index in 0..WORKERS {
         let worker_stop = Arc::clone(&stop);
+        let worker_connections = Arc::clone(&connections);
         let worker_active = Arc::clone(&active);
         let worker_receiver = Arc::clone(&receiver);
         let credential = door.credential;
         let port = door.upstream_port;
+        let observer = door.response_observer.clone();
         let result = thread::Builder::new()
             .name(format!("kalsa-door-worker-{index}"))
             .spawn(move || {
                 worker(
                     worker_stop,
+                    worker_connections,
                     worker_active,
                     worker_receiver,
                     credential,
                     port,
+                    observer,
                 )
             });
         match result {
@@ -50,10 +55,10 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let address = door.address;
     let listener = door.listener;
     let accept_stop = Arc::clone(&stop);
-    let accept_active = Arc::clone(&active);
+    let accept_connections = Arc::clone(&connections);
     let result = thread::Builder::new()
         .name("kalsa-door".into())
-        .spawn(move || accept_loop(listener, sender, accept_stop, accept_active));
+        .spawn(move || accept_loop(listener, sender, accept_stop, accept_connections));
     match result {
         Ok(thread) => threads.push(thread),
         Err(error) => {
@@ -65,6 +70,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     Ok(RunningDoor {
         stop,
         address,
+        active_connections: active,
         threads: Mutex::new(threads),
     })
 }
@@ -73,18 +79,18 @@ fn accept_loop(
     listener: std::net::TcpListener,
     sender: mpsc::SyncSender<Work>,
     stop: Arc<AtomicBool>,
-    active: Arc<AtomicUsize>,
+    connections: Arc<AtomicUsize>,
 ) {
     while !stop.load(Ordering::SeqCst) {
         match listener.accept() {
             Ok((mut stream, _)) => {
-                if active.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
+                if connections.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
                     reject_busy(&mut stream);
                     continue;
                 }
-                active.fetch_add(1, Ordering::SeqCst);
+                connections.fetch_add(1, Ordering::SeqCst);
                 if stream.set_nonblocking(false).is_err() {
-                    active.fetch_sub(1, Ordering::SeqCst);
+                    connections.fetch_sub(1, Ordering::SeqCst);
                     continue;
                 }
                 let work = Work {
@@ -94,11 +100,11 @@ fn accept_loop(
                 match sender.try_send(work) {
                     Ok(()) => {}
                     Err(mpsc::TrySendError::Full(mut work)) => {
-                        active.fetch_sub(1, Ordering::SeqCst);
+                        connections.fetch_sub(1, Ordering::SeqCst);
                         reject_busy(&mut work.stream);
                     }
                     Err(mpsc::TrySendError::Disconnected(mut work)) => {
-                        active.fetch_sub(1, Ordering::SeqCst);
+                        connections.fetch_sub(1, Ordering::SeqCst);
                         reject_busy(&mut work.stream);
                         eprintln!("kalsa door worker pool stopped");
                         stop.store(true, Ordering::SeqCst);
@@ -119,10 +125,12 @@ fn accept_loop(
 
 fn worker(
     stop: Arc<AtomicBool>,
+    connections: Arc<AtomicUsize>,
     active: Arc<AtomicUsize>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     credential: [u8; crate::TOKEN_BYTES],
     upstream_port: u16,
+    observer: Option<crate::ResponseObserverFactory>,
 ) {
     loop {
         let result = receiver
@@ -132,15 +140,18 @@ fn worker(
         match result {
             Ok(work) => {
                 if !stop.load(Ordering::SeqCst) {
+                    let response_observer = observer.as_ref().map(|factory| factory());
                     proxy::handle(
                         work.stream,
                         work.accepted,
                         upstream_port,
                         &credential,
                         &stop,
+                        &active,
+                        response_observer.as_deref(),
                     );
                 }
-                active.fetch_sub(1, Ordering::SeqCst);
+                connections.fetch_sub(1, Ordering::SeqCst);
             }
             Err(mpsc::RecvTimeoutError::Timeout) if stop.load(Ordering::SeqCst) => return,
             Err(mpsc::RecvTimeoutError::Timeout) => {}

@@ -35,7 +35,13 @@ pub(crate) const ALL_LAYERS: &str = "all";
 /// only disagree — decides when an idle machine stops holding the model.
 /// The sentinel learns of a release from the server's owner (its
 /// `note_unload`); it never predicts one.
-pub(crate) const IDLE_UNLOAD_SECONDS: u32 = 300;
+pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
+
+/// The user-facing idle range. Below a minute the model churns during normal
+/// pauses; above an hour an unattended machine keeps the model resident for
+/// no useful reason. Both bounds are deliberately conservative.
+pub const MIN_IDLE_UNLOAD_SECONDS: u32 = 60;
+pub const MAX_IDLE_UNLOAD_SECONDS: u32 = 3_600;
 
 /// How the KV cache is stored: q8_0 for both tensors, one byte per element.
 /// That is exactly what the catalog's per-token arithmetic counts
@@ -104,6 +110,39 @@ pub struct ServerArgs {
     /// disguised as our number.
     pub threads: Option<usize>,
     pub offload: Offload,
+    /// How long the server keeps an unused model resident.
+    pub idle_unload_seconds: u32,
+}
+
+/// The settings the UI may show after the command line has been built.
+/// Values here are the renderer's values, not a second set of defaults.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ServerSettings {
+    pub batch_size: u32,
+    pub ubatch_size: u32,
+    pub kv_cache_type: &'static str,
+    pub flash_attention: &'static str,
+    pub idle_unload_seconds: u32,
+    pub gpu_layers: Option<&'static str>,
+    pub threads: Option<usize>,
+    pub threads_batch: Option<usize>,
+}
+
+impl ServerSettings {
+    /// The values known before a backend measurement. GPU layers and thread
+    /// counts stay absent until the real launch decision supplies them.
+    pub fn defaults(idle_unload_seconds: u32) -> Self {
+        Self {
+            batch_size: BATCH,
+            ubatch_size: UBATCH,
+            kv_cache_type: KV_CACHE_TYPE,
+            flash_attention: FLASH_ATTN,
+            idle_unload_seconds,
+            gpu_layers: None,
+            threads: None,
+            threads_batch: None,
+        }
+    }
 }
 
 /// What the arguments cost, for the user-facing copy. The catalog says the

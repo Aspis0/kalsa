@@ -6,8 +6,8 @@
 // Stub rules: failure sentences marked "(real words)" are copied verbatim
 // from main.rs `words()` — keep them in sync when the words change there.
 // Invented examples carry "(stub)" in the text itself, and numbers stay as
-// bracketed placeholders: this page reviews words, it never rehearses
-// plausible measurements.
+// explicitly marked stubs: this page reviews words and shapes, it never
+// presents a bench value as a production measurement.
 
 import { mountStatus } from "../src/pages/status.js";
 import { mountModel } from "../src/pages/model.js";
@@ -63,6 +63,56 @@ function modelBackend(state) {
   return {
     async read() {
       return state ?? null;
+    },
+  };
+}
+
+function advancedBackend(dto) {
+  return {
+    async read() {
+      return dto ?? null;
+    },
+    async save(contextTokens, idleUnloadSeconds) {
+      return {
+        ...dto,
+        context_override: contextTokens,
+        context_tokens: contextTokens ?? dto.context_tokens,
+        idle_override: idleUnloadSeconds,
+        idle_unload_seconds: idleUnloadSeconds,
+      };
+    },
+  };
+}
+
+function advancedDto(extra = {}) {
+  return {
+    context_tokens: 4096,
+    context_max: 8192,
+    context_override: null,
+    idle_unload_seconds: 300,
+    idle_override: null,
+    batch_size: 512,
+    ubatch_size: 128,
+    kv_cache_type: "q8_0",
+    flash_attention: "on",
+    gpu_layers: "all",
+    threads: 8,
+    threads_batch: 8,
+    door_port: 8131,
+    running: true,
+    ...extra,
+  };
+}
+
+function runningState(metrics = {}) {
+  return {
+    kind: "running",
+    port: 8130,
+    metrics: {
+      decode_tokens_per_second: null,
+      phone_connected: null,
+      throttled: null,
+      ...metrics,
     },
   };
 }
@@ -177,21 +227,22 @@ card("Status", "starting", (panel) =>
 
 card("Status", "running, phone unknown", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }),
+    backend: statusBackend(runningState()),
   }).refresh(),
 );
 
-card("Status", "running, phone connected", (panel) =>
+card("Status", "running, live metrics (stub)", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }),
-    phone: true,
+    backend: statusBackend(runningState({
+      decode_tokens_per_second: 18.6,
+      phone_connected: true,
+    })),
   }).refresh(),
 );
 
-card("Status", "running, phone known absent", (panel) =>
+card("Status", "running, phone not connected", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }),
-    phone: false,
+    backend: statusBackend(runningState({ phone_connected: false })),
   }).refresh(),
 );
 
@@ -233,8 +284,7 @@ card("Status", "state unreadable", (panel) =>
 
 card("Status", "running, with a slowdown announced", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }),
-    throttled: true,
+    backend: statusBackend(runningState({ throttled: true })),
   }).refresh(),
 );
 
@@ -247,6 +297,15 @@ card("Status", "running, with a slowdown announced", (panel) =>
 card("Model", "running: the choice is automatic", (panel) =>
   mountModel(panel, { backend: modelBackend({ kind: "running" }) }).refresh(),
 );
+
+card("Model", "advanced settings are visible", (panel) => {
+  const view = mountModel(panel, {
+    backend: modelBackend({ kind: "running" }),
+    advancedBackend: advancedBackend(advancedDto()),
+  });
+  view.refresh().then(() => view.advanced.open());
+  return view;
+});
 
 card("Model", "starting on the chosen model", (panel) =>
   mountModel(panel, { backend: modelBackend({ kind: "starting" }) }).refresh(),

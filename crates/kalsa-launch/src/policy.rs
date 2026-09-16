@@ -25,6 +25,9 @@ pub struct LaunchInput<'a> {
     pub thread_ramp: &'a [(usize, f64)],
     pub model_path: PathBuf,
     pub port: u16,
+    /// A user-selected lower context. `None` keeps the largest context the
+    /// budget funds; a larger request is rejected rather than silently capped.
+    pub context_limit: Option<u64>,
 }
 
 /// The start command for this machine and model, with the memory it implies.
@@ -34,13 +37,19 @@ pub struct LaunchInput<'a> {
 /// per-token figure is garbage — a model that cannot be given even one token
 /// of context must not be started smaller, it must not be started.
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
-    let context_tokens = context_tokens(input.model, input.budget.usable_bytes)?;
+    let maximum_context = context_tokens(input.model, input.budget.usable_bytes)?;
+    let context_tokens = match input.context_limit {
+        Some(limit) if limit > 0 && limit <= maximum_context => limit,
+        Some(_) => return None,
+        None => maximum_context,
+    };
     let args = ServerArgs {
         model_path: input.model_path.clone(),
         port: input.port,
         context_tokens,
         threads: plateau(input.thread_ramp).map(|(threads, _rate)| threads),
         offload: offload(input),
+        idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     let memory = MemoryAssumption {
@@ -173,6 +182,7 @@ mod tests {
             thread_ramp: ramp,
             model_path: PathBuf::from("/models/chosen.gguf"),
             port: 8123,
+            context_limit: None,
         }
     }
 

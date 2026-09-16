@@ -12,7 +12,9 @@ function select(name, moveFocus = false) {
     const on = tab.dataset.page === name;
     tab.setAttribute("aria-selected", String(on));
     tab.tabIndex = on ? 0 : -1;
-    document.getElementById(tab.dataset.page).hidden = !on;
+    const panel = document.getElementById(`page-${tab.dataset.page}`);
+    panel.hidden = !on;
+    panel.classList.toggle("is-active", on);
     if (on && moveFocus) tab.focus();
   }
 }

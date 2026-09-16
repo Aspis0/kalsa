@@ -1,16 +1,14 @@
-// The Model page: what this computer runs for the phone, and why.
-//
-// The choice is not the user's to make, and it is not made on this page:
-// the first Turn on measures this machine, picks a model from the catalog
-// (kalsa-catalog, via startup::run) and starts it. This page explains that
-// choice. Which model was picked, and its exact reason, arrive when the
-// shell grows a command for the walk's Selection — until then the page says
-// what is true without inventing a name, and never asks the user to do a
-// step the walk does on its own.
+// The Model page explains that selection is automatic and owns the advanced
+// launch controls. The chooser remains in Rust; this page only reads its
+// answer and sends explicit edits back to the start command.
 
 import { available, invoke } from "../lib/tauri.js";
+import { mountAdvanced } from "./advanced.js";
 
 const POLL_MS = 2000;
+const MODEL_AUTO =
+  "A model is chosen automatically — from this computer's memory and what your phone runs — every time you turn on.";
+const MODEL_NO_PICK = "You never have to pick one.";
 
 const tauriBackend = {
   async read() {
@@ -19,23 +17,34 @@ const tauriBackend = {
   },
 };
 
-// The two sentences the checker holds the page to (dev/smoke.mjs owns its
-// own copies): the choice is automatic, and picking is never the user's job.
-const MODEL_AUTO =
-  "A model is chosen automatically — from this computer's memory and what your phone runs — every time you turn on.";
-const MODEL_NO_PICK = "You never have to pick one.";
+const tauriAdvancedBackend = {
+  read() {
+    if (!available()) return Promise.resolve(null);
+    return invoke("brain_advanced");
+  },
+  save(contextTokens, idleUnloadSeconds) {
+    return invoke("brain_set_advanced", { contextTokens, idleUnloadSeconds });
+  },
+};
 
-export function mountModel(root, { goTo = () => {}, backend = tauriBackend } = {}) {
+export function mountModel(
+  root,
+  { goTo = () => {}, backend = tauriBackend, advancedBackend = tauriAdvancedBackend } = {},
+) {
   root.innerHTML = `
-    <h2>Model</h2>
+    <p class="eyebrow">MODEL</p>
+    <h2>How this computer thinks</h2>
     <p class="headline" data-el="headline" hidden></p>
     <p class="sentence" data-el="sentence"></p>
     <button type="button" class="primary" data-el="action" hidden></button>
+    <div data-el="advanced"></div>
   `;
   const headline = root.querySelector('[data-el="headline"]');
   const sentence = root.querySelector('[data-el="sentence"]');
   const action = root.querySelector('[data-el="action"]');
-
+  const advanced = mountAdvanced(root.querySelector('[data-el="advanced"]'), {
+    backend: advancedBackend,
+  });
   let onAction = () => {};
 
   function apply({ head = null, text, button = null }) {
@@ -53,14 +62,10 @@ export function mountModel(root, { goTo = () => {}, backend = tauriBackend } = {
       });
       return;
     }
-
     switch (state.kind) {
       case "running":
         onAction = () => {};
-        apply({
-          head: "Chosen for this computer",
-          text: `${MODEL_AUTO} ${MODEL_NO_PICK}`,
-        });
+        apply({ head: "Chosen for this computer", text: `${MODEL_AUTO} ${MODEL_NO_PICK}` });
         break;
       case "starting":
         onAction = () => {};
@@ -92,28 +97,30 @@ export function mountModel(root, { goTo = () => {}, backend = tauriBackend } = {
   }
 
   async function refresh() {
+    let state = null;
+    if (backend) {
+      try {
+        state = await backend.read();
+      } catch {
+        state = null;
+      }
+    }
     if (!backend) {
-      onAction = () => {};
       apply({
         text: "This page works inside the Kalsa Brain app. Open the app on this computer.",
       });
-      return;
+    } else {
+      render(state);
     }
-    let state = null;
-    try {
-      state = await backend.read();
-    } catch {
-      state = null; // unknown, not stopped
-    }
-    render(state);
+    await advanced.refresh();
   }
 
-  return { refresh };
+  action.addEventListener("click", () => onAction());
+  return { refresh, advanced };
 }
 
 export function initModel(goTo) {
   const page = mountModel(document.getElementById("page-model"), { goTo });
-  const tick = () => page.refresh();
-  tick();
-  setInterval(tick, POLL_MS);
+  setInterval(() => page.refresh(), POLL_MS);
+  page.refresh();
 }
