@@ -9,7 +9,7 @@
 mod parser;
 
 use std::io::{self, Read, Write};
-use std::net::{Ipv4Addr, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -263,8 +263,8 @@ fn accept_connections(
 ) -> io::Result<bool> {
     let mut progressed = false;
     loop {
-        match listener.accept() {
-            Ok((mut stream, _)) => {
+        match classify(listener.accept()) {
+            Accepted::Socket(mut stream) => {
                 #[cfg(test)]
                 accepted.fetch_add(1, Ordering::SeqCst);
                 progressed = true;
@@ -286,13 +286,29 @@ fn accept_connections(
                     buffer: Vec::with_capacity(MAX_BUFFER),
                 });
             }
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock => return Ok(progressed),
-            Err(error) if accept_error_is_transient(&error) => {
+            Accepted::Idle => return Ok(progressed),
+            Accepted::Retry => {
                 thread::sleep(POLL_INTERVAL);
                 return Ok(true);
             }
-            Err(error) => return Err(error),
+            Accepted::Fatal(error) => return Err(error),
         }
+    }
+}
+
+enum Accepted {
+    Socket(TcpStream),
+    Idle,
+    Retry,
+    Fatal(io::Error),
+}
+
+fn classify(result: io::Result<(TcpStream, SocketAddr)>) -> Accepted {
+    match result {
+        Ok((stream, _)) => Accepted::Socket(stream),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock => Accepted::Idle,
+        Err(error) if accept_error_is_transient(&error) => Accepted::Retry,
+        Err(error) => Accepted::Fatal(error),
     }
 }
 

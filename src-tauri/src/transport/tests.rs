@@ -10,7 +10,7 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use kalsa_pairing::PhoneDeclaration;
 
 use super::{
-    accept_error_is_transient, connection_expired, handle, parser, request_queue, serve, worker,
+    classify, connection_expired, handle, parser, request_queue, serve, worker, Accepted,
     Connection, Listener, LogState, Request, Work, WriteErrorLog, CONNECTION_LIFETIME,
     LOG_INTERVAL, PATIENCE, QUEUE, WORKERS,
 };
@@ -330,19 +330,17 @@ fn an_idle_connection_expires_even_before_the_absolute_deadline() {
 
 #[cfg(unix)]
 #[test]
-fn resource_exhaustion_accept_errors_are_retryable() {
-    assert!(accept_error_is_transient(
-        &std::io::Error::from_raw_os_error(libc::EMFILE)
+fn resource_exhaustion_accept_results_are_retried() {
+    for errno in [libc::EMFILE, libc::ENFILE, libc::ECONNABORTED] {
+        assert!(matches!(
+            classify(Err(std::io::Error::from_raw_os_error(errno))),
+            Accepted::Retry
+        ));
+    }
+    assert!(matches!(
+        classify(Err(std::io::Error::other("fatal accept"))),
+        Accepted::Fatal(_)
     ));
-    assert!(accept_error_is_transient(
-        &std::io::Error::from_raw_os_error(libc::ENFILE)
-    ));
-    assert!(accept_error_is_transient(
-        &std::io::Error::from_raw_os_error(libc::ECONNABORTED)
-    ));
-    assert!(!accept_error_is_transient(&std::io::Error::other(
-        "fatal accept"
-    )));
 }
 
 #[test]
