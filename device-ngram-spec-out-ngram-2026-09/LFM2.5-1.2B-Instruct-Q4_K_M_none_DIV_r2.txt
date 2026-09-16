@@ -1,0 +1,47 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b674-c6e2376
+model      : /data/local/tmp/llamabench/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+>  
+ = Robert Boulter = 
+ 
+ Robert Boulter is an English film , television and theatre actor . He had a guest @-@ starring role on the television series The Bill in 2000 . This was followed by a starring role in the play Herons written by Simon Stephens , which was performed in 2001 at the Royal Court Theatre . He had a guest role in the television series Judge John Deed in 2002 . In 2004 Boulter landed a role as " Craig " in the episode " Teddy 's Story " of the television series The Long Firm ;  ... (truncated)
+Robert Boulter has had a diverse and notable career in film, television, and theatre. Here's a summary of his key roles and achievements based on the information provided:
+
+### **Acting Career Highlights:**
+
+- **2000:** Guest starring role in *The Bill* (TV series).
+- **2001:** Starring role in the play *Herons* at the Royal Court Theatre.
+- **2002:** Guest role in *Judge John Deed*.
+- **2004:** Role as "Craig" in *The Long Firm*, alongside Mark Strong and Derek Jacobi.
+- **2005:** Theatre production of *Mercury Fur* at Drum Theatre (Plymouth) and Menier Chocolate Factory (London).
+- **2006:** Starred in *Citizenship* with Mark Ravenhill, appearing on *Doctors* and in the theatre production *How to Curse*.
+- **2007:** Appeared in the play *How to Curse* directed by Josie Rourke, at Bush Theatre (Hammersmith and Fulham).
+- **2008:** Starred in *Daylight Robbery* (film) and *Donkey Punch* (film), directed by Paris
+
+[ Prompt: 9.0 t/s | Generation: 5.3 t/s ]
+
+
+Exiting...

@@ -1,0 +1,45 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b674-c6e2376
+model      : /data/local/tmp/llamabench/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Incident log:
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+Continue the log with the same format.
+- status: ok  
+- status: ok  
+- status: ok  
+- status: ok  
+- status: ok  
+- status: ok
+
+[ Prompt: 11.3 t/s | Generation: 9.1 t/s ]
+
+
+Exiting...
