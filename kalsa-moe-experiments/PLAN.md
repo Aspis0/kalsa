@@ -164,9 +164,9 @@ with the source and found the old `FOREGROUND_STUCK_INFLIGHT_MS=900000` escape a
 `23:12:16.962`. The Metro session recorded `devserver:start _t=1789498042371` (14:47:22 EDT),
 before commit `c37b419` at 18:50:08. This timestamp is chronology only, not proof of served bytes.
 
-The c37b419 runtime logic was not exercised by the failed run and remains device-unproven. The
-run directory has no prior content-based Metro preflight record. No T20C rerun was performed and
-G2 remains unclaimed.
+The c37b419 runtime logic was not exercised by the failed run and remains device-unproven; this
+failure is not evidence against c37b419. The run directory has no prior content-based Metro
+preflight record. No T20C rerun was performed and G2 remains unclaimed.
 
 The permanent T20C acceptance gate is now part of the host campaign path. Before any device
 arm/send, the supervisor allocates a unique `.metro-preflight.*` directory under `OUT`, records
@@ -200,6 +200,25 @@ and source timestamps are intentionally not delivery evidence.
 
 The optional AppShell in-flight-predicate refactor is not part of this change.
 
+Commit `0bfe985` is the permanent provenance gate: it proves the actual virtual-entry bundle,
+requires marker `c37b419` in the served bytes and in a PID-qualified device log, re-gates the PID
+before every share, fails closed on networking and evidence errors, and passed the campaign
+selftest **143/143**. The final hostile audit found zero P0/P1/P2 findings.
+
+Fresh current Metro was restarted and the host gate passed with PID `2445`, bundle size
+`14,606,658` bytes, and SHA-256
+`8b78376703aa9d15dbcf94e98516af85b0e03c0e26ef244a81ab8cda86dba1f4`. This is host proof only,
+not device proof or G2 evidence.
+
+### Energy handoff (2026-09-16)
+
+The energy framework and recovery/status docs are merged and pushed through `4d69e42`. Read
+future measurements with ABBA ordering, a thermal gate, and a per-session idle floor: cold-to-warm
+decode time changed **+26–52%**, joules/token **−6 to +7%**, and between-run energy spread was
+**2–7%**, not 0.68%. Android ggml affinity controls were inert; only thread count was effective,
+while external `taskset` worked. S23 shell fuel-gauge reads are permission-denied/empty; future
+high-rate energy work needs app-side `BatteryManager` coordination. G2 is not claimed.
+
 ## Still open
 
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
@@ -207,17 +226,13 @@ The optional AppShell in-flight-predicate refactor is not part of this change.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
   silently truncated answer (native sets `truncated=true`, no JS consumer reads it) and the
   `loadPrompt` path still raises `context_full` before `n_common` is computed.
-- Fresh debuggable APK built from `244c6c0` with `:app:assembleDebug --rerun-tasks` (548 tasks,
-  `BUILD SUCCESSFUL`) and installed with `adb install -r` on the S23 only. Artifact SHA-256:
-  `ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`. Manifest reports
-  `application-debuggable`, `run-as com.kalsa.app id` succeeds, and all seven arm64 engine
-  variants in the APK contain `kalsa-native-patches`, `q23k`, `KALSA_KVDIAG`, and
-  `restored state checkpoint`. The 09-14 APK remains invalid for this protocol and must not be
-  reused.
-- Install/launch the verified debug APK with the new content gate passing, then re-run S23 T20C.
-  Preserve the same pass conditions: no repeated `window_align ... to:0`, monotone slides, and
-  one successful `window_reconcile` before assembly whenever held+unknown is reached. The gate
-  and the post-launch logcat marker are mandatory acceptance evidence for that future run.
+- S23 handback: app stopped, unplugged, **52%**, **34.4 C** last and **36.8 C** peak. The 2.4 GB
+  models under `/data/local/tmp/llamabench` plus `/data/local/tmp/ngramspec` remain intentionally.
+- T20C still needs S23 charge to **>=85%**, unplugged, then a rerun using the existing fresh Metro
+  (PID `2445` only if alive) plus the required `CAMPAIGN_METRO_BUNDLE_URL`. Preserve the same pass
+  conditions: no repeated `window_align ... to:0`, monotone slides, and one successful
+  `window_reconcile` before assembly whenever held+unknown is reached. The gate and post-launch
+  logcat marker are mandatory acceptance evidence.
 - Add a focused AppShell wiring test for both foreground-idle checks without duplicating the
   in-flight source of truth. Separately bound JS-only tool/pre-turn awaits that are not covered by
   an engine-job watchdog.
@@ -225,10 +240,9 @@ The optional AppShell in-flight-predicate refactor is not part of this change.
 
 ## Constraints
 
-- Targeted tests only. No full Jest. No push. Device work is pinned to the S23 serial above;
+- Targeted tests only. No full Jest. Marco authorized the final push on `main` only. Device work is pinned to the S23 serial above;
   never contact the Jelly Star.
-- The newly verified debug APK is not installed. The last campaign left the S23 unplugged,
-  force-stopped, and at 18%; recharge before installation/run, then unplug before measuring.
-  Never reuse the 09-14 APK for this protocol.
+- Never reuse the 09-14 APK for this protocol. The S23 was handed back stopped and unplugged at
+  52%, with the recorded 34.4 C last and 36.8 C peak temperatures.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.
