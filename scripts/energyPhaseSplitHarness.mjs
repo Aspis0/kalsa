@@ -80,6 +80,8 @@ const csv = (rows) => [HEADER, ...rows, ""].join("\n");
 const SPEED = "[ Prompt: 4.0 t/s | Generation: 2.0 t/s ]\n";
 const SPEED84 = "[ Prompt: 8.4 t/s | Generation: 8.4 t/s ]\n";
 const STAMP = "phase prompt_n=8 prompt_ms=2000.000 predicted_n=6 predicted_ms=3000.000\n";
+const EMPTY_DECODE_STAMP = "phase prompt_n=8 prompt_ms=1000.000 predicted_n=6 predicted_ms=1000.000\n";
+const ABSURD_STAMP = "phase prompt_n=8 prompt_ms=1000.000 predicted_n=100000000000000000000 predicted_ms=1000.000\n";
 const STAMPED_CSV = csv([
   row(10, 250000), row(11, 250000), row(12, 250000), row(13, 250000), row(14, 250000),
   row(15, 500000), row(16, 500000), row(17, 1000000), row(18, 1000000), row(19, 1000000),
@@ -119,6 +121,7 @@ const PERF_TXT =
 const MANIFEST = [
   COUNTS_MANIFEST_COLUMNS.join(","),
   "two_rep,8,7,2.0,2.0,2.0,2.0,two_rep_counts.txt",
+  "stamped_rep,9,7,2.0,2.0,2.0,2.0,stamped_rep_counts.txt",
   "perf_line,8,16,1.6,1.6,1.6,1.6,perf_line_counts.txt",
   "edge_missing,8,7,2.0,2.0,2.0,2.0,edge_missing_counts.txt",
   "edge_empty,8,3,2.0,2.0,2.0,2.0,edge_empty_counts.txt",
@@ -152,6 +155,7 @@ function main() {
       JSON.stringify(parsed),
     );
     check("stamps: clock-like line rejected", parsePhaseStamp("phase t=12.345\n").stamp === null);
+    check("stamps: negative count is retained for fatal validation", parsePhaseStamp("phase prompt_n=-1 prompt_ms=2.000 predicted_n=6 predicted_ms=3.000\n").stamp?.promptN === -1);
     const multi = parsePhaseStamp(`${STAMP}${STAMP}`);
     check("stamps: last line wins with a warning", multi.stamp?.predictedN === 6 && multi.error !== null, JSON.stringify(multi));
   }
@@ -186,7 +190,7 @@ function main() {
   // ── 4. parseCountsManifest: tracked format ──────────────────────────
   {
     const { byStem, errors } = parseCountsManifest(MANIFEST);
-    check("manifest: every stem parsed", byStem.size === 7 && errors.length === 0, JSON.stringify(errors));
+    check("manifest: every stem parsed", byStem.size === 8 && errors.length === 0, JSON.stringify(errors));
     const e = byStem.get("two_rep");
     check(
       "manifest: fields land per stem",
@@ -400,7 +404,7 @@ function main() {
     writeFileSync(path.join(dir, "stamped_rep_r1.stamps"), STAMP);
     const stampedRun = spawnSync(
       process.execPath,
-      [tool, dir, "stamped_rep", "--prompt-tokens", "99", "--gen-tokens", "99"],
+      [tool, dir, "stamped_rep", "--counts-manifest", manifestPath, "--prompt-tokens", "99", "--gen-tokens", "99"],
       { encoding: "utf8" },
     );
     check("v3: stamped fixture exits 0", stampedRun.status === 0, `status=${stampedRun.status} stderr=${stampedRun.stderr}`);
@@ -412,6 +416,12 @@ function main() {
       sr[4] === "9.000" && sr[5] === "5.000" && sr[6] === "2.000" && sr[7] === "3.000" &&
         sr[15] === "8" && sr[16] === "6" && sr[18] === "5" && sr[19] === "2" && sr[20] === "3",
       stampedLines[1],
+    );
+    check(
+      "v3: stamp count disagreement is named",
+      sr[23].includes("phase stamp prompt_n (8) differs from manifest prompt_tokens (9)") &&
+        sr[23].includes("phase stamp predicted_n (6) differs from manifest gen_tokens (7)"),
+      sr[23],
     );
     check(
       "v3: load/prefill/decode energy partition is exact",
@@ -426,7 +436,44 @@ function main() {
       sr[23],
     );
 
-    // ── 10. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
+    // ── 10. v3: empty decode bucket publishes unavailable energy cells ──
+    writeFileSync(path.join(dir, "empty_decode.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
+    writeFileSync(path.join(dir, "empty_decode.marks"), "r1 54.00\n");
+    writeFileSync(path.join(dir, "empty_decode_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "empty_decode_r1.stamps"), EMPTY_DECODE_STAMP);
+    const emptyDecodeRun = spawnSync(
+      process.execPath,
+      [tool, dir, "empty_decode", "--prompt-tokens", "8", "--gen-tokens", "6"],
+      { encoding: "utf8" },
+    );
+    check("v3: empty decode fixture exits 0", emptyDecodeRun.status === 0, `status=${emptyDecodeRun.status} stderr=${emptyDecodeRun.stderr}`);
+    const emptyDecodeRow = readCsvRows(path.join(dir, "empty_decode.phases.csv"))[1].split(",");
+    check(
+      "v3: empty decode publishes empty energy cells",
+      emptyDecodeRow[10] === "" && emptyDecodeRow[13] === "" && emptyDecodeRow[14] === "" &&
+        emptyDecodeRow[23].includes("decode bucket has no intervals"),
+      readCsvRows(path.join(dir, "empty_decode.phases.csv"))[1],
+    );
+
+    // ── 11. v3: absurd stamped count is fatal ─────────────────────────
+    writeFileSync(path.join(dir, "absurd_count.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
+    writeFileSync(path.join(dir, "absurd_count.marks"), "r1 54.00\n");
+    writeFileSync(path.join(dir, "absurd_count_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "absurd_count_r1.stamps"), ABSURD_STAMP);
+    const absurdCountRun = spawnSync(
+      process.execPath,
+      [tool, dir, "absurd_count", "--prompt-tokens", "8", "--gen-tokens", "6"],
+      { encoding: "utf8" },
+    );
+    check(
+      "v3: absurd stamped count is rejected",
+      absurdCountRun.status === 1 &&
+        absurdCountRun.stderr.includes("phase stamp predicted_n = 100000000000000000000 is outside the sane range") &&
+        !existsSync(path.join(dir, "absurd_count.phases.csv")),
+      `status=${absurdCountRun.status} stderr=${absurdCountRun.stderr}`,
+    );
+
+    // ── 12. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
     writeFileSync(path.join(dir, "mixed_rep.csv"), MIXED_CSV);
     writeFileSync(path.join(dir, "mixed_rep.marks"), "r1 20.00\nr2 30.00\n");
     writeFileSync(path.join(dir, "mixed_rep_r1.txt"), `banner\n${SPEED}`);

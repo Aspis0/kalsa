@@ -156,13 +156,13 @@ export function parsePerfLines(text) {
 export function parsePhaseStamp(text) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const matches = lines.filter((line) => {
-    return /^phase prompt_n=\d+ prompt_ms=\d+\.\d{3} predicted_n=\d+ predicted_ms=\d+\.\d{3}$/.test(line);
+    return /^phase prompt_n=-?\d+ prompt_ms=\d+\.\d{3} predicted_n=-?\d+ predicted_ms=\d+\.\d{3}$/.test(line);
   });
   if (!matches.length) {
     return { stamp: null, lineCount: lines.length, error: "no valid phase stamp line" };
   }
   const m = matches[matches.length - 1].match(
-    /^phase prompt_n=(\d+) prompt_ms=(\d+\.\d{3}) predicted_n=(\d+) predicted_ms=(\d+\.\d{3})$/,
+    /^phase prompt_n=(-?\d+) prompt_ms=(\d+\.\d{3}) predicted_n=(-?\d+) predicted_ms=(\d+\.\d{3})$/,
   );
   return {
     stamp: {
@@ -248,6 +248,7 @@ export function sampleCadence(samples) {
 
 const fmt = (x, d = 3) => (Number.isFinite(x) ? x.toFixed(d) : "");
 const esc = (x) => (/[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x);
+const MAX_STAMP_TOKENS = 1_000_000_000;
 
 const roundJ = (x) => Math.round((x + Number.EPSILON) * 1000) / 1000;
 const LOWRES_TAIL =
@@ -308,6 +309,28 @@ function splitStampedRep({
     warnings: "",
   };
   if (cadenceWarn) warnings.push(cadenceWarn);
+
+  if (stamp) {
+    for (const [name, value] of [["prompt_n", stamp.promptN], ["predicted_n", stamp.predictedN]]) {
+      if (!Number.isSafeInteger(value) || value <= 0 || value > MAX_STAMP_TOKENS) {
+        return {
+          row,
+          fatal: `${repLabel} phase stamp ${name} = ${value} is outside the sane range 1..${MAX_STAMP_TOKENS} - incoherent input`,
+        };
+      }
+    }
+    const countSources = [
+      ["prompt_n", stamp.promptN, "perf prompt_tokens", perf.promptTokens],
+      ["prompt_n", stamp.promptN, "manifest prompt_tokens", manifestEntry?.promptTokens],
+      ["predicted_n", stamp.predictedN, "perf gen_tokens", perf.genTokens],
+      ["predicted_n", stamp.predictedN, "manifest gen_tokens", manifestEntry?.genTokens],
+    ];
+    for (const [stampName, stampValue, sourceName, sourceValue] of countSources) {
+      if (sourceValue !== undefined && sourceValue !== null && stampValue !== sourceValue) {
+        warnings.push(`phase stamp ${stampName} (${stampValue}) differs from ${sourceName} (${sourceValue})`);
+      }
+    }
+  }
 
   if (manifestEntry && speed) {
     const claimed = parseFloat(manifestEntry.campaignGenTps[n - 1]);
@@ -435,18 +458,18 @@ function splitStampedRep({
   const loadText = roundJ(jLoad);
   const prefillText = roundJ(jPrefill);
   const wholeText = roundJ(whole.joules);
-  const decodeText = roundJ(wholeText - loadText - prefillText);
+  const decodeText = decodeInt ? roundJ(wholeText - loadText - prefillText) : null;
 
   row.load_idle_s = fmt(loadIdleDur);
   row.prefill_s = fmt(prefillDur);
   row.decode_s = fmt(decodeDur);
   row.load_idle_s_int = fmt(loadInt.duration_s);
   row.prefill_s_int = fmt(prefillInt ? prefillInt.duration_s : 0);
-  row.decode_s_int = fmt(decodeInt ? decodeInt.duration_s : 0);
+  row.decode_s_int = decodeInt ? fmt(decodeInt.duration_s) : "";
   row.j_load_idle = fmt(loadText);
   row.j_prefill = fmt(prefillText);
-  row.j_decode = fmt(decodeText);
-  row.j_per_tok_decode = genTokens > 0 ? fmt(jDecode / genTokens) : "";
+  row.j_decode = decodeInt ? fmt(decodeText) : "";
+  row.j_per_tok_decode = decodeInt && genTokens > 0 ? fmt(jDecode / genTokens) : "";
   row.w_decode = decodeInt && Number.isFinite(decodeInt.mean_w) ? fmt(decodeInt.mean_w) : "";
   row.n_load_idle = String(p);
   row.n_prefill = String(Math.max(0, d - p));

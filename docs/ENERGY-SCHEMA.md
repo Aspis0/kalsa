@@ -121,6 +121,11 @@ the sanctioned use: both arms carry the same bias only when their decode
 buckets have similar coverage — read `decode_s_int` before comparing arms
 with very different decode lengths.
 
+That caveat is normative even though the historical v2 row-warning text ends
+at "the sanctioned use": the tracked v2 sidecars retain that wording for
+byte identity. Always read `decode_s_int` and compare coverage before using a
+low-resolution between-arm delta.
+
 **Honest phase naming**: `j_pre` is model load + inter-rep idle + prompt
 eval. The prompt-eval-only J was NOT resolvable at 1 Hz with the model load
 inside the v2 window; schema v3 below adds the existing in-engine phase
@@ -220,8 +225,9 @@ present. A fully unstamped stem continues to write the v2 header and rows
 unchanged; this is required so the four committed v2 sidecars and archived
 campaigns reproduce byte-for-byte. A mixed stem writes v3: rows with a stamp
 use the engine boundaries, while rows without one use v2 arithmetic and say so
-in their `warnings` cell. The command also reports that fallback per row on
-stderr. This compatibility rule does not change the meaning of v2.
+in their `warnings` cell. A fully unstamped stem reports one fallback line per
+emitted row on stderr; a mixed stem records fallback only in the v3 row's
+`warnings` cell. This compatibility rule does not change the meaning of v2.
 
 The CLI sidecar has exactly one duration-only line per completed request:
 
@@ -233,7 +239,10 @@ The values come from the final timings chunk carrying `finish_reason`. It has
 no clock. The harness already joins `mark_N` and `t_s` through `/proc/uptime`,
 which is CLOCK_BOOTTIME; adding a CLI clock based on CLOCK_MONOTONIC would
 silently drift across suspend. A missing or unreadable stamp is an
-instrumentation failure, not a run failure.
+instrumentation failure, not a run failure. If the CLI cannot open or write
+the sidecar, it fails silently: it writes no stamp line, emits nothing on
+stdout or stderr, and continues. The device harness detects the missing or
+empty pulled sidecar and logs the rep and expected path through `blog()`.
 
 For a stamped rep ending at `mark_N`, the nominal intervals are:
 
@@ -243,6 +252,17 @@ prefill   = [mark_N - predicted_ms/1000 - prompt_ms/1000,
              mark_N - predicted_ms/1000)
 decode    = [mark_N - predicted_ms/1000, mark_N)
 ```
+
+`mark_N` is written after the CLI process exits, so both reconstructed
+boundaries are late by a residual lag. The lag covers final streaming work,
+the speed-line print, process teardown, and the `adb shell` round trip. Its
+direction is one-way: the decode bucket contains that teardown, the first part
+of real decode energy sits in prefill, and the first part of prompt processing
+sits in load+idle. The lag is not measured. On this geometry, a plausible
+0.05–0.5 s lag is 0.1–2% of decode and up to about 10% of a short prefill.
+The mark is restored to the v2 order before the stamp pull, so this residual
+lag is identical in v2 and v3 for the decode side and the two remain
+comparable. No timestamp or clock is added to the stamp line.
 
 The `prefill` bucket is named precisely: it is prompt evaluation through the
 first generated token. The model's mmap page faults caused by the first prompt
@@ -263,6 +283,12 @@ bucket. A low-resolution warning uses the v2 discipline for every non-zero
 bucket: fewer than 3 attributed intervals or coverage below 0.7. The warning
 is per bucket and does not turn an otherwise coherent row into a failure.
 
+Stamped `prompt_n` and `predicted_n` win as the row's count values, but are
+cross-checked against any run perf-line or manifest counts. A disagreement is
+named in `warnings`; a non-positive, non-safe, or absurd stamped count is a
+fatal incoherent-input error. The accepted stamped count range is 1 through
+1,000,000,000 tokens.
+
 If a row has no valid stamp, v3 retains the v2 decode anchor
 (`gen_tokens / gen tps`, with the perf eval-time value preferred when present).
 The entire old v2 PRE energy becomes `j_load_idle`, `j_prefill` is zero, and
@@ -279,8 +305,8 @@ V3 columns are:
 | `duration` | s | integrated duration of the sampled rep window |
 | `load_idle_s`, `prefill_s`, `decode_s` | s | nominal stamped bucket durations; `prefill_s = prompt_ms/1000`, `decode_s = predicted_ms/1000` |
 | `load_idle_s_int`, `prefill_s_int`, `decode_s_int` | s | durations actually covered by full sampler intervals in each bucket |
-| `j_load_idle`, `j_prefill`, `j_decode` | J | energy in the three bucket interval sets; their sum is the whole-window J |
-| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens`; relative and coverage-limited as in v2 |
+| `j_load_idle`, `j_prefill`, `j_decode` | J | energy in the three bucket interval sets; their raw sum is the whole-window J; `j_decode` is empty when the decode bucket has no intervals |
+| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens`; empty when the decode bucket has no intervals; relative and coverage-limited as in v2 |
 | `prompt_tokens`, `gen_tokens` | tok | stamped engine counts when available; otherwise the v2 provenance order |
 | `w_decode` | W | mean power over the decode segment's own samples |
 | `n_load_idle`, `n_prefill`, `n_decode` | - | sample positions used to describe the three interval regions |

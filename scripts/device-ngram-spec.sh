@@ -160,7 +160,7 @@ energy_stop() {
 }
 
 run_arm() {
-  local model="$1" arm="$2" prompt="$3" rep i out speed
+  local model="$1" arm="$2" prompt="$3" rep i out stamps stamp_out speed
   # macOS ships bash 3.2: no ${var,,}. tr it.
   local pf="$BENCH_DIR/$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]').txt"
   local tag="$(basename "$model" .gguf)_${arm}_${prompt}"
@@ -181,13 +181,22 @@ run_arm() {
   for i in $(seq 1 "$REPS"); do
     out="$OUT/$(basename "$model" .gguf)_${arm}_${prompt}_r$i.txt"
     stamps="$BENCH_DIR/${tag}_r$i.stamps"
+    stamp_out="$OUT/$(basename "$stamps")"
+    rm -f "$stamp_out"
     adb shell "rm -f $stamps" </dev/null
     adb shell "cd $BENCH_DIR && KALSA_PHASE_STAMPS=$stamps LD_LIBRARY_PATH=. timeout 600 ./llama-cli \
       -m /data/local/tmp/llamabench/$model -f $pf -n $NGEN -t $THREADS \
       -st --temp 0 --simple-io ${arm:+--spec-type $arm ${SPEC_EXTRA:+$SPEC_EXTRA}}" \
       </dev/null > "$out" 2>&1
+    # Keep the rep marker immediately after llama-cli, as in the pin. The
+    # stamp pull and its integrity check must not move this boundary later.
+    [ "${ENERGY:-1}" = "1" ] && \
+      adb shell "echo r$i \$(cut -d' ' -f1 /proc/uptime) >> $BENCH_DIR/$tag.marks" </dev/null
     adb pull "$stamps" "$OUT/" </dev/null >/dev/null 2>&1 \
       || blog "  phase stamps pull FAILED for $tag r$i"
+    if [ ! -s "$stamp_out" ]; then
+      blog "  phase stamps MISSING/EMPTY for $tag r$i (expected $stamp_out)"
+    fi
     if [ ! -s "$out" ]; then
       blog "EMPTY OUTPUT $out"
       [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
@@ -203,10 +212,6 @@ run_arm() {
       return 1
     fi
     blog "    r$i: ${speed}"
-    # F5: rep boundary marker (device uptime) so per-rep tok/s can be joined
-    # with per-rep power and clocks - the thermal-vs-KV attribution data.
-    [ "${ENERGY:-1}" = "1" ] && \
-      adb shell "echo r$i \$(cut -d' ' -f1 /proc/uptime) >> $BENCH_DIR/$tag.marks" </dev/null
     sleep 5
   done
   [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
