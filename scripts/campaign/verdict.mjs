@@ -69,6 +69,13 @@ function evaluate(run, expectedTurns) {
     (p) => p.op === "window_align",
   );
   const slides = payloadsFor(run.logcat, "KALSA_WINDOW_SLIDE ");
+  const truncations = payloadsFor(run.logcat, "KALSA_ANSWER_TRUNCATED ");
+  // The flag rides every KALSA_TELEMETRY line once the app emits it, so its
+  // presence there — not the absence of the rarer marker — is what proves the
+  // build could have reported a truncation at all.
+  const instrumented = payloadsFor(run.logcat, "KALSA_TELEMETRY ").some(
+    (t) => t.truncated !== undefined,
+  );
   const alignsToZero = aligns.filter((a) => a.to === 0);
 
   // A skipped turn still writes a record; only a record carrying assistant text
@@ -97,6 +104,29 @@ function evaluate(run, expectedTurns) {
       name: "slide boundaries never go backwards",
       pass: regressions.length === 0,
       detail: starts.length ? `${starts.join(" -> ")}` : "no slides",
+    },
+    {
+      // A truncated answer means generation reached n_ctx and the K-shift was
+      // refused: the turn returned something, but it is not the answer the
+      // script asked for. The ceiling slide and the tool-round guard exist
+      // precisely so this never happens, so one occurrence means a guard
+      // failed and the run measured a mutilated conversation.
+      //
+      // "No occurrences" only counts when the build could have reported one.
+      // A run recorded before the instrumentation landed cannot produce the
+      // marker, and scoring that as PASS would be the vacuous pass this file
+      // exists to refuse.
+      name: instrumented
+        ? "no answer was truncated at the context ceiling"
+        : "truncation UNVERIFIABLE — build predates the instrumentation",
+      pass: instrumented && truncations.length === 0,
+      detail: !instrumented
+        ? "no KALSA_TELEMETRY payload carries a truncated field"
+        : truncations.length
+          ? truncations
+              .map((t) => `${t.turnId}/r${t.round} cached=${t.tokensCached}`)
+              .join(", ")
+          : "none",
     },
   ];
 

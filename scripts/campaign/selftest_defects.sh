@@ -363,6 +363,10 @@ mkdir -p "$VRUN/T20C"
   printf '%s\n' '09-15 15:47:11.832  9858  9918 I ReactNativeJS: KALSA_SESSION {"op":"window_align","from":2,"to":4}'
   printf '%s\n' '09-15 15:45:41.617  9858  9918 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"ceiling":4312,"prevStart":0,"newStart":4,"advanced":true,"kvCleared":true}'
   printf '%s\n' '09-15 16:03:35.302  9858  9918 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"ceiling":4312,"prevStart":4,"newStart":10,"advanced":true,"kvCleared":true}'
+  # A telemetry line carrying `truncated` is what proves the build COULD have
+  # reported a truncation; without it the verdict must refuse to score that
+  # condition rather than pass it vacuously (asserted below).
+  printf '%s\n' '09-15 16:03:40.100  9858  9918 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":10,"tokensEvaluated":10,"tokensPredicted":5,"truncated":false}'
 } > "$VRUN/logcat.txt"
 {
   printf '%s\n' '{"arm":"T20C","i":1,"intent":"chat-1","assistant":"a"}'
@@ -384,6 +388,20 @@ if [ "$vrc" -eq 0 ]; then
 else
   bad "verdict exited $vrc on a clean synthetic run"
   printf '%s\n' "$vout" | sed 's/^/   | /'
+fi
+
+VBARE="$WORK/verdict-bare"
+mkdir -p "$VBARE/T20C"
+grep -v KALSA_TELEMETRY "$VRUN/logcat.txt" > "$VBARE/logcat.txt"
+cp "$VRUN/T20C/c1-V1.jsonl" "$VBARE/T20C/c1-V1.jsonl"
+# Capture, then grep: verdict.mjs exits 1 here by design, and under pipefail a
+# `node ... | grep -q` pipeline inherits that 1 and sends the `if` to else even
+# when grep matched.
+vbout="$(node "$HERE/verdict.mjs" "$VBARE" --turns 2 2>&1 || true)"
+if printf '%s' "$vbout" | grep -q 'UNVERIFIABLE'; then
+  ok "verdict refuses to score truncation on a build that cannot report it"
+else
+  bad "verdict scored truncation vacuously on an uninstrumented run"
 fi
 
 printf '%s\n' '{"arm":"T20C","i":3,"intent":"chat-3","assistant":""}' >> "$VRUN/T20C/c1-V1.jsonl"
