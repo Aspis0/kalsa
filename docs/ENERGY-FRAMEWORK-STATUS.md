@@ -117,6 +117,15 @@ for the numbers.
    is Android 15 = API 35 → **S23 only (SDK 36)**. So Fase 4 runs at two different
    depths on the two devices.
 
+## Slowdown bound (provisional, owner's reading rule)
+
+Owner, 2026-09-15: "accept up to +25 % decode time if J/token drops by ≥15 %" — and,
+explicitly, **measure first, then decide**. So this is a reading rule for a published
+curve, not a pre-fixed threshold, and F12 of the self-audit is closed on those terms:
+sweep the lever, publish the whole J/token-versus-slowdown frontier, and pick the point
+afterwards. Publishing the full frontier is what removes the anti-rationalization
+problem a fixed threshold was there to solve — there is no threshold left to move.
+
 ## Prior art (checked 2026-09-15, before any mechanism claim)
 
 Temi 1, 2b and 3 all have direct published prior art. Our contribution is not the
