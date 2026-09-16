@@ -31,8 +31,13 @@ fn request(address: std::net::SocketAddr, authorization: Option<&str>) -> Vec<u8
 
 fn credential() -> String {
     let now = SystemTime::now();
-    let mut pairing =
-        Pairing::offer("http://127.0.0.1:8131", now, Duration::from_secs(60)).unwrap();
+    let mut pairing = Pairing::offer(
+        "http://127.0.0.1:8131",
+        None,
+        now,
+        Duration::from_secs(60),
+    )
+    .unwrap();
     let payload: serde_json::Value = serde_json::from_str(&pairing.qr_payload().unwrap()).unwrap();
     let code = payload["code"].as_str().unwrap();
     let nonce = payload["nonce"].as_str().unwrap();
@@ -41,6 +46,7 @@ fn credential() -> String {
         code,
         nonce,
         payload["reachable"].as_str().unwrap(),
+        None,
         PhoneModel {
             weights_bytes: 1,
             parameters: None,

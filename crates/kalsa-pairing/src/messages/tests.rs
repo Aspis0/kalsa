@@ -28,24 +28,71 @@ fn the_phone_tag_is_a_frozen_known_answer() {
     // Frozen from one real run and never recomputed by the test: if the
     // canonical serialization, the domain, the composition, or the
     // primitive drifts, this goes red and the drift is a deliberate
-    // decision, not a phone that silently stops pairing.
+    // decision, not a phone that silently stops pairing. The second vector
+    // freezes the node id in: a square that carries one and a square that
+    // does not are different documents, and their tags must differ.
     let key = [0x31u8; super::CODE_BYTES];
     let nonce = [0x32u8; NONCE_BYTES];
     let reachable = "http://192.168.1.10:4952";
-    let mac = phone_mac(&key, &nonce, reachable, &sample_phone());
-    assert_eq!(
-        hex::encode(mac),
-        "0b3e3692f65ee00bf5e7aaeba33b2fd3f5448acdff46e7899e058a2b76f05367"
-    );
-    // The same vector verifies through the ceremony's checking path.
+    let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let mac = phone_mac(&key, &nonce, reachable, "", &sample_phone());
+    let with_node = phone_mac(&key, &nonce, reachable, node, &sample_phone());
+    assert_ne!(hex::encode(mac), hex::encode(with_node));
+    // The same vectors verify through the ceremony's checking path.
     assert!(verify_phone_mac(
         &key,
         &nonce,
         reachable,
+        "",
         &sample_phone(),
-        "0b3e3692f65ee00bf5e7aaeba33b2fd3f5448acdff46e7899e058a2b76f05367"
+        FROZEN_PHONE_MAC_NO_NODE
+    ));
+    assert!(verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        node,
+        &sample_phone(),
+        FROZEN_PHONE_MAC_WITH_NODE
+    ));
+    // The composition has one deliberate change on record: the fields were
+    // once concatenated bare, and two (reachable, node) pairs that shifted
+    // the boundary between them produced the same MAC. Those old digests
+    // are frozen too, and their refusal is the recorded decision — not a
+    // regression.
+    assert!(!verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        "",
+        &sample_phone(),
+        FROZEN_PHONE_MAC_NO_NODE_FLAT_CONCAT
+    ));
+    assert!(!verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        node,
+        &sample_phone(),
+        FROZEN_PHONE_MAC_WITH_NODE_FLAT_CONCAT
     ));
 }
+
+/// The v3 recipe's known answers: square without and with the node id.
+/// Frozen from one real run; recomputing them is a deliberate recipe
+/// change and goes through review.
+// The first freeze: bare concatenation of the fields. Replaced the same
+// day it was born, when the boundary between reachable and node proved
+// shiftable into a shared digest.
+const FROZEN_PHONE_MAC_NO_NODE_FLAT_CONCAT: &str =
+    "54efe7d7cb77c19b34faa1ba6c85389ac7bf8129bfaf8a635465dba6e56e54a6";
+const FROZEN_PHONE_MAC_WITH_NODE_FLAT_CONCAT: &str =
+    "05c5ab9f3eab4049e44f4c67edaec8d08c527a353f71b89f28a9bc7a7ebdbf06";
+// The current freeze: length-delimited fields.
+const FROZEN_PHONE_MAC_NO_NODE: &str =
+    "51e82d91c365352b430a40533ec8ea76966762ac1413557712e110889b44905e";
+const FROZEN_PHONE_MAC_WITH_NODE: &str =
+    "0503754d7ad8a465ffcf82506231bf961da877ff802087c8f8c5756da0de0d83";
 
 #[test]
 fn the_computer_seal_is_a_frozen_known_answer() {
@@ -86,12 +133,13 @@ fn a_valid_mac_verifies_and_a_single_flipped_bit_does_not() {
     let code = OneTimeCode::generate().unwrap();
     let nonce = [7u8; NONCE_BYTES];
     let phone = sample_phone();
-    let mut mac = phone_mac(code.bytes(), &nonce, "http://192.168.1.10:4952", &phone);
+    let mut mac = phone_mac(code.bytes(), &nonce, "http://192.168.1.10:4952", "", &phone);
 
     assert!(verify_phone_mac(
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &phone,
         &hex::encode(mac)
     ));
@@ -100,6 +148,7 @@ fn a_valid_mac_verifies_and_a_single_flipped_bit_does_not() {
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &phone,
         &hex::encode(mac)
     ));
@@ -108,6 +157,7 @@ fn a_valid_mac_verifies_and_a_single_flipped_bit_does_not() {
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &phone,
         "not hex"
     ));
@@ -118,7 +168,7 @@ fn metadata_altered_after_the_mac_does_not_verify() {
     let code = OneTimeCode::generate().unwrap();
     let nonce = [3u8; NONCE_BYTES];
     let reachable = "http://192.168.1.10:4952";
-    let mac = phone_mac(code.bytes(), &nonce, reachable, &sample_phone());
+    let mac = phone_mac(code.bytes(), &nonce, reachable, "", &sample_phone());
 
     let altered = PhoneFields::of(PhoneModel {
         weights_bytes: 2_200_000_001,
@@ -127,7 +177,7 @@ fn metadata_altered_after_the_mac_does_not_verify() {
         battery_powered: Some(true),
     });
     assert!(
-        !verify_phone_mac(code.bytes(), &nonce, reachable, &altered, &hex::encode(mac)),
+        !verify_phone_mac(code.bytes(), &nonce, reachable, "", &altered, &hex::encode(mac)),
         "the metadata is bound, not asserted"
     );
 }
@@ -140,6 +190,7 @@ fn an_address_altered_after_the_mac_does_not_verify() {
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &sample_phone(),
     );
     // The address rode in the square, so it rides in the MAC.
@@ -147,9 +198,95 @@ fn an_address_altered_after_the_mac_does_not_verify() {
         code.bytes(),
         &nonce,
         "http://192.168.1.66:1",
+        "",
         &sample_phone(),
         &hex::encode(mac)
     ));
+}
+
+#[test]
+fn two_pairs_of_fields_that_concatenate_identically_produce_different_macs() {
+    // The composition's own property, independent of who validates what:
+    // two DIFFERENT (reachable, node) pairs whose naive concatenation is
+    // byte-identical — the boundary between the two fields has moved one
+    // character — must produce two different MACs. The second pair's node
+    // is one character longer than a legal node id on purpose: the recipe
+    // cannot lean on somebody else's validation to make its fields
+    // unambiguous.
+    let key = [0x77u8; super::CODE_BYTES];
+    let nonce = [0x78u8; NONCE_BYTES];
+    let phone = sample_phone();
+
+    let tail = "2".repeat(63);
+    let pair_a = ("http://a.b:49", format!("5{tail}"));
+    let pair_b = ("http://a.b:4", format!("95{tail}"));
+
+    // The trap this test is aimed at: the two naive concatenations are the
+    // same bytes.
+    assert_eq!(
+        format!("{}{}", pair_a.0, pair_a.1),
+        format!("{}{}", pair_b.0, pair_b.1)
+    );
+
+    let mac_a = phone_mac(&key, &nonce, pair_a.0, &pair_a.1, &phone);
+    let mac_b = phone_mac(&key, &nonce, pair_b.0, &pair_b.1, &phone);
+    assert_ne!(
+        hex::encode(mac_a),
+        hex::encode(mac_b),
+        "shifted field boundaries produced the same MAC: the composition is ambiguous"
+    );
+}
+
+#[test]
+fn a_node_id_swapped_in_the_square_does_not_verify() {
+    // The pairing hijack this field exists to stop: the machine showed node
+    // A, an attacker replaced it with node B on screen, and the phone,
+    // faithfully signing what it scanned, presents a declaration MACed over
+    // B. The computer — which showed A — must refuse it, exactly as it
+    // refuses a swapped address. The same refusal covers a declaration
+    // MACed over "no node" where the square showed one.
+    let key = [0x71u8; super::CODE_BYTES];
+    let nonce = [0x72u8; NONCE_BYTES];
+    let reachable = "http://192.168.1.10:4952";
+    let shown = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let swapped = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    let phone = sample_phone();
+
+    let honest = verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        shown,
+        &phone,
+        &hex::encode(phone_mac(&key, &nonce, reachable, shown, &phone)),
+    );
+    assert!(honest, "the honest square must verify");
+
+    let hijacked = verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        shown,
+        &phone,
+        &hex::encode(phone_mac(&key, &nonce, reachable, swapped, &phone)),
+    );
+    assert!(
+        !hijacked,
+        "a swapped node id paired the phone with an attacker"
+    );
+
+    let absent = verify_phone_mac(
+        &key,
+        &nonce,
+        reachable,
+        shown,
+        &phone,
+        &hex::encode(phone_mac(&key, &nonce, reachable, "", &phone)),
+    );
+    assert!(
+        !absent,
+        "a node-less declaration passed where the square showed a node id"
+    );
 }
 
 #[test]
@@ -157,7 +294,7 @@ fn the_computers_mac_is_never_the_phones() {
     let code = OneTimeCode::generate().unwrap();
     let nonce = [5u8; NONCE_BYTES];
     let phone = sample_phone();
-    let phone_tag = phone_mac(code.bytes(), &nonce, "http://192.168.1.10:4952", &phone);
+    let phone_tag = phone_mac(code.bytes(), &nonce, "http://192.168.1.10:4952", "", &phone);
 
     // Domain separation, isolated: the SAME bytes under the two domains must
     // produce different tags. If only the payload distinguishes the roles,
@@ -173,6 +310,7 @@ fn the_computers_mac_is_never_the_phones() {
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &phone,
         &seal.mac
     ));
@@ -180,6 +318,7 @@ fn the_computers_mac_is_never_the_phones() {
         code.bytes(),
         &nonce,
         "http://192.168.1.10:4952",
+        "",
         &phone,
         &hex::encode(phone_tag)
     ));
@@ -193,6 +332,7 @@ fn a_mac_is_worthless_under_a_different_nonce() {
         code.bytes(),
         &[1u8; NONCE_BYTES],
         "http://192.168.1.10:4952",
+        "",
         &phone,
     );
 
@@ -202,6 +342,7 @@ fn a_mac_is_worthless_under_a_different_nonce() {
         code.bytes(),
         &[2u8; NONCE_BYTES],
         "http://192.168.1.10:4952",
+        "",
         &phone,
         &hex::encode(mac)
     ));

@@ -12,7 +12,15 @@ const ELSEWHERE: &str = "http://192.168.1.66:1";
 
 fn offered() -> (Pairing, SystemTime) {
     let start = SystemTime::now();
-    (Pairing::offer(REACHABLE, start, TTL).unwrap(), start)
+    (Pairing::offer(REACHABLE, None, start, TTL).unwrap(), start)
+}
+
+fn offered_with_node(node: Option<&str>) -> (Pairing, SystemTime) {
+    let start = SystemTime::now();
+    (
+        Pairing::offer(REACHABLE, node, start, TTL).unwrap(),
+        start,
+    )
 }
 
 /// The code and the nonce, exactly as the QR carried them.
@@ -48,11 +56,13 @@ fn declined_phone() -> PhoneFields {
 }
 
 /// The phone's side of the recipe in `messages`: decode what the QR gave,
-/// MAC the address and the canonical metadata over the phone domain.
+/// MAC the address, the node id and the canonical metadata over the phone
+/// domain. `node` is what the scanned square carried — empty when none.
 fn declaration(
     code_hex: &str,
     nonce_hex: &str,
     reachable: &str,
+    node: &str,
     phone: PhoneFields,
 ) -> PhoneDeclaration {
     let mut key = [0u8; 16];
@@ -64,6 +74,7 @@ fn declaration(
         &key,
         &nonce,
         reachable,
+        node,
         &delivery_token,
         &phone,
     ));
@@ -166,7 +177,7 @@ fn every_rejection_is_the_same_rejection() {
 #[test]
 fn a_valid_proof_completes_the_pairing() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, "", sample_phone());
 
     let (handshake, seal) = session
         .complete(declaration, start + Duration::from_secs(2))
@@ -185,7 +196,7 @@ fn a_valid_proof_completes_the_pairing() {
 #[test]
 fn a_single_flipped_bit_burns_the_ceremony() {
     let (mut session, start, code, nonce) = claimed();
-    let mut tampered = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let mut tampered = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     let mut raw = hex::decode(&tampered.mac).unwrap();
     raw[0] ^= 0x01;
     tampered.mac = hex::encode(raw);
@@ -198,7 +209,7 @@ fn a_single_flipped_bit_burns_the_ceremony() {
     // The burned secret is worth nothing: the *valid* proof, presented
     // after the burn, pairs nothing. The answer is Refused now — the same
     // answer any dead ceremony gives — and the state stays Expired.
-    let replay = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let replay = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     assert!(matches!(
         session.complete(replay, start + Duration::from_secs(3)),
         Err(CompleteError::Refused)
@@ -211,7 +222,7 @@ fn metadata_altered_after_the_mac_is_refused() {
     let (mut session, start, code, nonce) = claimed();
     // MAC the honest metadata, then swap the field afterwards — exactly the
     // alteration a lying endpoint would attempt.
-    let mut declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let mut declaration = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     declaration.phone = phone_with_weights(2_200_000_001);
 
     assert!(matches!(
@@ -226,7 +237,7 @@ fn the_declaration_is_bound_to_the_whole_square() {
     // The address rode in the QR, so it rides in the MAC: a declaration
     // composed over one square's address verifies against no other.
     let (mut session, start, code, nonce) = claimed();
-    let wrong_square = declaration(&code, &nonce, ELSEWHERE, sample_phone());
+    let wrong_square = declaration(&code, &nonce, ELSEWHERE, "", sample_phone());
 
     assert!(matches!(
         session.complete(wrong_square, start + Duration::from_secs(2)),
@@ -236,9 +247,64 @@ fn the_declaration_is_bound_to_the_whole_square() {
 }
 
 #[test]
+fn a_swapped_node_in_the_square_cannot_pair() {
+    // The machine showed node A; an attacker swapped it for node B before
+    // the phone scanned, and the phone — faithfully — signed what it saw.
+    // The completion must refuse: the declaration is bound to the square
+    // the machine actually showed, node id included.
+    const NODE_A: &str =
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    const NODE_B: &str =
+        "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    let start = SystemTime::now();
+    let (mut session, _) = offered_with_node(Some(NODE_A));
+    let json = session.qr_payload().unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let code = value["code"].as_str().unwrap().to_string();
+    let nonce = value["nonce"].as_str().unwrap().to_string();
+    assert!(matches!(
+        session.claim(&code, start + Duration::from_secs(1)),
+        ClaimResult::Claimed
+    ));
+
+    let swapped = declaration(&code, &nonce, REACHABLE, NODE_B, sample_phone());
+    assert!(matches!(
+        session.complete(swapped, start + Duration::from_secs(2)),
+        Err(CompleteError::Refused)
+    ));
+    assert!(matches!(session, Pairing::Expired));
+}
+
+#[test]
+fn the_honest_node_id_completes_the_pairing() {
+    // The other side of the hijack test: with the road on and its node id
+    // in the square, a phone that signs exactly what the square showed
+    // pairs normally.
+    const NODE_A: &str =
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let start = SystemTime::now();
+    let (mut session, _) = offered_with_node(Some(NODE_A));
+    let json = session.qr_payload().unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let code = value["code"].as_str().unwrap().to_string();
+    let nonce = value["nonce"].as_str().unwrap().to_string();
+    assert!(matches!(
+        session.claim(&code, start + Duration::from_secs(1)),
+        ClaimResult::Claimed
+    ));
+
+    let honest = declaration(&code, &nonce, REACHABLE, NODE_A, sample_phone());
+    let (handshake, _seal) = session
+        .complete(honest, start + Duration::from_secs(2))
+        .unwrap();
+    assert_eq!(handshake.phone.weights_bytes, 2_200_000_000);
+    assert!(matches!(session, Pairing::Paired));
+}
+
+#[test]
 fn a_declining_phone_is_taken_at_its_word() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, REACHABLE, declined_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, "", declined_phone());
 
     let (handshake, _seal) = session
         .complete(declaration, start + Duration::from_secs(2))
@@ -253,7 +319,7 @@ fn a_declining_phone_is_taken_at_its_word() {
 #[test]
 fn completion_is_one_shot() {
     let (mut session, start, code, nonce) = claimed();
-    let first = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let first = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     session
         .complete(first, start + Duration::from_secs(2))
         .unwrap()
@@ -261,7 +327,7 @@ fn completion_is_one_shot() {
 
     // A second completion — even with a fresh, valid proof — is refused,
     // and the paired state is untouched.
-    let second = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let second = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     assert!(matches!(
         session.complete(second, start + Duration::from_secs(3)),
         Err(CompleteError::Refused)
@@ -272,7 +338,7 @@ fn completion_is_one_shot() {
 #[test]
 fn the_window_covers_the_whole_ceremony() {
     let (mut session, start, code, nonce) = claimed();
-    let declaration = declaration(&code, &nonce, REACHABLE, sample_phone());
+    let declaration = declaration(&code, &nonce, REACHABLE, "", sample_phone());
 
     let outcome = session.complete(declaration, start + TTL + Duration::from_secs(1));
     assert!(matches!(outcome, Err(CompleteError::Refused)));
@@ -286,12 +352,12 @@ fn a_refusal_does_not_say_why() {
     // three — no oracle here tells a prober whether a live, claimed
     // ceremony is on the table.
     let (mut wrong_proof, w_start, w_code, w_nonce) = claimed();
-    let mut wrong_declaration = declaration(&w_code, &w_nonce, REACHABLE, sample_phone());
+    let mut wrong_declaration = declaration(&w_code, &w_nonce, REACHABLE, "", sample_phone());
     wrong_declaration.mac = "0".repeat(64);
     let wrong = wrong_proof.complete(wrong_declaration, w_start + Duration::from_secs(2));
 
     let (mut closed, c_start, c_code, c_nonce) = claimed();
-    let closed_declaration = declaration(&c_code, &c_nonce, REACHABLE, sample_phone());
+    let closed_declaration = declaration(&c_code, &c_nonce, REACHABLE, "", sample_phone());
     let expired = closed.complete(closed_declaration, c_start + TTL + Duration::from_secs(1));
 
     let (mut unclaimed, u_start) = offered();
@@ -300,6 +366,7 @@ fn a_refusal_does_not_say_why() {
             &"0".repeat(32),
             &"0".repeat(64),
             REACHABLE,
+            "",
             declined_phone(),
         ),
         u_start + Duration::from_secs(1),
@@ -329,10 +396,10 @@ fn the_offer_expires_on_its_own() {
 #[test]
 fn an_absurd_window_is_an_error_not_a_panic() {
     let start = SystemTime::now();
-    let outcome = Pairing::offer(REACHABLE, start, Duration::from_secs(u64::MAX));
+    let outcome = Pairing::offer(REACHABLE, None, start, Duration::from_secs(u64::MAX));
     assert!(matches!(outcome, Err(OfferError::Deadline)));
     // And a sane window is fine.
-    assert!(Pairing::offer(REACHABLE, start, TTL).is_ok());
+    assert!(Pairing::offer(REACHABLE, None, start, TTL).is_ok());
 }
 
 // The sweep: render everything a log line could plausibly hit — the session
@@ -360,7 +427,7 @@ fn no_rendering_carries_a_secret() {
     rendered.push_str(&format!("{:?}", session));
     let (handshake, seal) = session
         .complete(
-            declaration(&code_hex, &nonce_hex, REACHABLE, sample_phone()),
+            declaration(&code_hex, &nonce_hex, REACHABLE, "", sample_phone()),
             start + Duration::from_secs(2),
         )
         .unwrap();

@@ -24,9 +24,12 @@
 //!
 //! The node's secret key persists beside the pairing file, owner-only
 //! (`key`), so the computer keeps its identity across restarts. The phone
-//! dials it by its 32 public bytes alone — bytes that do not travel yet:
-//! today's pairing square carries no node id, and they will ride along when
-//! the phone side exists and the square gains them.
+//! dials it by its 32 public bytes alone, and those bytes travel in the
+//! pairing square — payload version 3 — whenever the internet road is open
+//! and the owner's switch has it on. A square made with the road off
+//! carries no node id (it must not promise what the machine is not
+//! announcing); the next square on screen carries the id once the road
+//! opens.
 
 mod bridge;
 mod error;

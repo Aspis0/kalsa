@@ -47,8 +47,13 @@ use crate::secret::OneTimeCode;
 /// ceremony already treats whoever presents the code as the phone.
 pub struct Offer {
     /// Everything the square showed, held together: the phone's declaration
-    /// is MACed over this address too, so it is bound to the whole square.
+    /// is MACed over this address and this node id too, so it is bound to
+    /// the whole square.
     reachable: String,
+    /// The iroh node id the square advertised, when the road was open. The
+    /// phone's completion MAC must cover the same value, so a square whose
+    /// node id was swapped pairs with nobody.
+    node: Option<String>,
     code: OneTimeCode,
     /// Fresh per offer, carried in the QR: both completion MACs cover it, so
     /// a proof recorded in one ceremony verifies in no other.
@@ -62,6 +67,7 @@ pub struct Offer {
 /// window, on the same wall-clock terms as `Offer`.
 pub struct Claimed {
     reachable: String,
+    node: Option<String>,
     code: OneTimeCode,
     nonce: [u8; NONCE_BYTES],
     expires_at: SystemTime,
@@ -111,7 +117,12 @@ impl Pairing {
     /// entropy, alive for `ttl` on the wall clock. `reachable` is the address
     /// the square advertises — it rides inside the offer because the phone's
     /// completion MAC covers it, binding the declaration to the whole square.
-    pub fn offer(reachable: &str, now: SystemTime, ttl: Duration) -> Result<Self, OfferError> {
+    pub fn offer(
+        reachable: &str,
+        node: Option<&str>,
+        now: SystemTime,
+        ttl: Duration,
+    ) -> Result<Self, OfferError> {
         let mut nonce = [0u8; NONCE_BYTES];
         fill(&mut nonce).map_err(|_| OfferError::Entropy)?;
         let code = OneTimeCode::generate().map_err(|_| OfferError::Entropy)?;
@@ -121,6 +132,7 @@ impl Pairing {
         let expires_at = now.checked_add(ttl).ok_or(OfferError::Deadline)?;
         Ok(Self::Offered(Offer {
             reachable: reachable.to_string(),
+            node: node.map(str::to_string),
             code,
             nonce,
             expires_at,
@@ -132,9 +144,12 @@ impl Pairing {
     /// offer; there is no QR to show then.
     pub fn qr_payload(&self) -> Option<String> {
         match self {
-            Self::Offered(offer) => {
-                payload::encode(offer.reachable.as_str(), &offer.code, &offer.nonce)
-            }
+            Self::Offered(offer) => payload::encode(
+                offer.reachable.as_str(),
+                &offer.code,
+                &offer.nonce,
+                offer.node.as_deref(),
+            ),
             _ => None,
         }
     }
@@ -166,6 +181,7 @@ impl Pairing {
         };
         *self = Self::Claimed(Claimed {
             reachable: offer.reachable,
+            node: offer.node,
             code: offer.code,
             nonce: offer.nonce,
             expires_at: deadline,
@@ -218,6 +234,7 @@ impl Pairing {
             claimed.code.bytes(),
             &claimed.nonce,
             claimed.reachable.as_str(),
+            claimed.node.as_deref().unwrap_or_default(),
             declaration.delivery_token(),
             &declaration.phone,
             &declaration.mac,

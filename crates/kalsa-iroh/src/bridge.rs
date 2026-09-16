@@ -142,11 +142,10 @@ impl Bridge {
         })
     }
 
-    /// The node's public identity, hex — what the phone will dial this
-    /// computer by once the pairing square carries it. Today the square
-    /// carries no node id, so the id reaches the phone out of band; the
-    /// wire format of the square is the phone side's to extend, not ours
-    /// to assume.
+    /// The node's public identity, hex — the value the pairing square
+    /// carries (payload version 3) while this road is open, so the phone
+    /// can dial this computer by it. A square made with the road off
+    /// carries no node id, and the completion MAC covers the one shown.
     pub fn node_id(&self) -> NodeId {
         self.node_id
     }

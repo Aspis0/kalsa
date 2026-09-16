@@ -6,13 +6,24 @@
 //! over domain prefixes that keep the two roles apart — a MAC computed for
 //! one direction can never verify in the other:
 //!
-//! * phone → computer: `HMAC(S, "…/phone-mac/v2" ‖ nonce ‖ reachable ‖
-//!   delivery token ‖ canonical phone)` — the metadata stops being asserted
-//!   and becomes bound, and so does the address the square carried: the
-//!   declaration is tied to the whole QR, not just its secrets;
+//! * phone → computer: `HMAC(S, "…/phone-mac/v3" ‖ nonce ‖ len‖reachable ‖
+//!   reachable ‖ len‖node ‖ node ‖ len‖token ‖ token ‖ len‖canonical ‖
+//!   canonical)` — every field carries its byte length in front of it, so
+//!   two different fields can never concatenate into the same bytes (a
+//!   reachable shorter by one character and a node id longer by one would,
+//!   under a bare concatenation, produce the same MAC). The metadata stops
+//!   being asserted and becomes bound, and so does everything the square
+//!   showed: the address and, since the square carries the iroh node id,
+//!   that too. A square whose node id was swapped produces a declaration
+//!   this computer refuses — the pairing goes where the square pointed, or
+//!   it does not happen;
 //! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ ciphertext)`
 //!   — the phone learns that the sender of this encrypted credential knows
 //!   the QR it scanned, and that the ciphertext is bound to this ceremony.
+//!
+//! The node is the empty string when the square carried none (the road was
+//! off): absence is a value here, so a square with the field and a square
+//! without it can never produce the same MAC.
 //!
 //! The nonce is fresh per offer and travels in the QR, so a proof recorded
 //! in one ceremony is worthless in another. "Canonical phone" is the
@@ -45,7 +56,7 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use crate::handshake::{Credential, CREDENTIAL_BYTES};
 use crate::secret::CODE_BYTES;
 
-const PHONE_DOMAIN: &[u8] = b"kalsa-pairing/phone-mac/v2";
+const PHONE_DOMAIN: &[u8] = b"kalsa-pairing/phone-mac/v3";
 const COMPUTER_DOMAIN: &[u8] = b"kalsa-pairing/computer-mac/v2";
 const CREDENTIAL_DOMAIN: &[u8] = b"kalsa-pairing/credential-encryption/v1";
 const STREAM_DOMAIN: &[u8] = b"kalsa-pairing/credential-stream/v1";
@@ -124,8 +135,8 @@ impl PhoneFields {
 pub struct PhoneDeclaration {
     /// The metadata the phone declares about itself. Covered by the MAC.
     pub phone: PhoneFields,
-    /// The phone's MAC over (phone domain ‖ nonce ‖ reachable ‖ delivery token
-    /// ‖ canonical phone), hex.
+    /// The phone's MAC over (phone domain ‖ nonce ‖ reachable ‖ node ‖
+    /// delivery token ‖ canonical phone), hex.
     pub mac: String,
     /// Stable for this pairing attempt so a retry may carry a fresh
     /// measurement without becoming a different claimant.
@@ -144,14 +155,22 @@ impl PhoneDeclaration {
     /// an attacker. One implementation, shared: the phone links this crate
     /// and calls this, or the protocol is a guess on one side.
     ///
-    /// `code` and `nonce` are the hex strings out of the square. `None` when
-    /// either is not the hex this ceremony writes — a square that was
-    /// mistyped or truncated cannot be signed, and saying so here is better
-    /// than sending a message that will be refused without a reason.
-    pub fn sign(code: &str, nonce: &str, reachable: &str, phone: PhoneModel) -> Option<Self> {
+    /// `code`, `nonce`, `reachable` and `node` are the values out of the
+    /// square — `node` the square's node id, or `None` when the square
+    /// carried none. `None` is returned when any hex field is not the hex
+    /// this ceremony writes — a square that was mistyped or truncated cannot
+    /// be signed, and saying so here is better than sending a message that
+    /// will be refused without a reason.
+    pub fn sign(
+        code: &str,
+        nonce: &str,
+        reachable: &str,
+        node: Option<&str>,
+        phone: PhoneModel,
+    ) -> Option<Self> {
         let mut token = [0u8; DELIVERY_TOKEN_BYTES];
         fill(&mut token).ok()?;
-        Self::sign_with_token(code, nonce, reachable, &hex::encode(token), phone)
+        Self::sign_with_token(code, nonce, reachable, node, &hex::encode(token), phone)
     }
 
     /// Re-sign the same pairing attempt after the phone refreshes its
@@ -162,9 +181,17 @@ impl PhoneDeclaration {
         code: &str,
         nonce: &str,
         reachable: &str,
+        node: Option<&str>,
         phone: PhoneModel,
     ) -> Option<Self> {
-        Self::sign_with_token(code, nonce, reachable, &self.delivery_token, phone)
+        Self::sign_with_token(
+            code,
+            nonce,
+            reachable,
+            node,
+            &self.delivery_token,
+            phone,
+        )
     }
 
     /// The phone keeps this opaque token with its in-flight attempt. It is
@@ -188,6 +215,7 @@ impl PhoneDeclaration {
         code: &str,
         nonce: &str,
         reachable: &str,
+        node: Option<&str>,
         delivery_token: &str,
         phone: PhoneModel,
     ) -> Option<Self> {
@@ -198,7 +226,14 @@ impl PhoneDeclaration {
         let mut token = [0u8; DELIVERY_TOKEN_BYTES];
         hex::decode_to_slice(delivery_token, &mut token).ok()?;
         let fields = PhoneFields::of(phone);
-        let mac = phone_mac_with_token(&key, &nonce_bytes, reachable, delivery_token, &fields);
+        let mac = phone_mac_with_token(
+            &key,
+            &nonce_bytes,
+            reachable,
+            node.unwrap_or_default(),
+            delivery_token,
+            &fields,
+        );
         Some(Self {
             phone: fields,
             mac: hex::encode(mac),
@@ -287,15 +322,17 @@ pub(crate) fn phone_mac(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     reachable: &str,
+    node: &str,
     phone: &PhoneFields,
 ) -> [u8; MAC_BYTES] {
-    phone_mac_with_token(key, nonce, reachable, "", phone)
+    phone_mac_with_token(key, nonce, reachable, node, "", phone)
 }
 
 pub(crate) fn phone_mac_with_token(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     reachable: &str,
+    node: &str,
     delivery_token: &str,
     phone: &PhoneFields,
 ) -> [u8; MAC_BYTES] {
@@ -305,10 +342,22 @@ pub(crate) fn phone_mac_with_token(
         // verifies against nothing.
         Err(_) => Vec::new(),
     };
-    let mut payload = reachable.as_bytes().to_vec();
-    payload.extend_from_slice(delivery_token.as_bytes());
-    payload.extend_from_slice(&canonical);
+    let mut payload = Vec::new();
+    field(&mut payload, reachable.as_bytes());
+    field(&mut payload, node.as_bytes());
+    field(&mut payload, delivery_token.as_bytes());
+    field(&mut payload, &canonical);
     tag(PHONE_DOMAIN, key, nonce, &payload)
+}
+
+/// One length-delimited field: the byte length in front of the bytes, so
+/// that no two different field values can compose the same MAC input. A
+/// bare concatenation lets the boundary between adjacent fields shift — a
+/// reachable shorter by one character and a node id longer by one would
+/// authenticate as one another's document.
+fn field(payload: &mut Vec<u8>, bytes: &[u8]) {
+    payload.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+    payload.extend_from_slice(bytes);
 }
 
 /// Constant-time verification of the phone's completion MAC. A malformed,
@@ -319,21 +368,23 @@ pub(crate) fn verify_phone_mac(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     reachable: &str,
+    node: &str,
     phone: &PhoneFields,
     presented: &str,
 ) -> bool {
-    verify_phone_mac_with_token(key, nonce, reachable, "", phone, presented)
+    verify_phone_mac_with_token(key, nonce, reachable, node, "", phone, presented)
 }
 
 pub(crate) fn verify_phone_mac_with_token(
     key: &[u8; CODE_BYTES],
     nonce: &[u8; NONCE_BYTES],
     reachable: &str,
+    node: &str,
     delivery_token: &str,
     phone: &PhoneFields,
     presented: &str,
 ) -> bool {
-    let expected = phone_mac_with_token(key, nonce, reachable, delivery_token, phone);
+    let expected = phone_mac_with_token(key, nonce, reachable, node, delivery_token, phone);
     let mut tag_bytes = [0u8; MAC_BYTES];
     if hex::decode_to_slice(presented, &mut tag_bytes).is_err() {
         return false;

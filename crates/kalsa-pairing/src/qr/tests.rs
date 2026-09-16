@@ -8,10 +8,29 @@ use crate::ceremony::Pairing;
 use crate::error::PayloadTooLong;
 
 const REACHABLE: &str = "http://192.168.1.10:4952";
+const NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 
 /// A real offer, composed the way the shell will: ceremony, then square.
+/// This one carries no node id — the common case while the internet road is
+/// off, and the shape of every square before this release.
 fn offered_svg() -> (String, String) {
-    let session = Pairing::offer(REACHABLE, SystemTime::now(), Duration::from_secs(300)).unwrap();
+    let session =
+        Pairing::offer(REACHABLE, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
+    let payload = session.qr_payload().unwrap();
+    let svg = qr_svg(&payload).unwrap();
+    (payload, svg)
+}
+
+/// The same, with the internet road open: the square now carries the node
+/// id the phone dials the inference road by.
+fn offered_svg_with_node() -> (String, String) {
+    let session = Pairing::offer(
+        REACHABLE,
+        Some(NODE),
+        SystemTime::now(),
+        Duration::from_secs(300),
+    )
+    .unwrap();
     let payload = session.qr_payload().unwrap();
     let svg = qr_svg(&payload).unwrap();
     (payload, svg)
@@ -116,6 +135,56 @@ fn a_payload_that_does_not_fit_is_an_error_not_a_smaller_symbol() {
     assert!(matches!(qr_svg(&too_long), Err(PayloadTooLong)));
     // The 165-byte payload the ceremony actually produces does fit.
     assert!(qr_svg(&offered_svg().0).is_ok());
+}
+
+#[test]
+fn a_square_carrying_the_node_id_decodes_from_its_rendered_svg() {
+    let (payload, svg) = offered_svg_with_node();
+    let (dimension, modules) = svg_modules(&svg);
+
+    // Same honesty as the base test: the raster is exactly the rendered
+    // SVG — the shell's real deliverable — with nothing the test invents.
+    let scale = 8i32;
+    let side = (dimension * scale) as usize;
+    let mut prepared = rqrr::PreparedImage::prepare_from_bitmap(side, side, |x, y| {
+        modules.contains(&((x as i32) / scale, (y as i32) / scale))
+    });
+    let grids = prepared.detect_grids();
+    assert_eq!(grids.len(), 1);
+    let (_meta, decoded) = grids[0].decode().unwrap();
+    assert_eq!(decoded, payload);
+    let value: serde_json::Value = serde_json::from_str(&decoded).unwrap();
+    assert_eq!(value["node"], NODE);
+}
+
+#[test]
+fn the_node_square_s_size_is_measured_and_stays_in_camera_reach() {
+    // Measured, not assumed: the node id is 64 hex characters, and with a
+    // 24-character reachable address the payload renders a version-11
+    // symbol at level M — 61×61 modules, eight more per side than the
+    // version-9 square of release one. A base32 node id (52 characters)
+    // measures the same version 11, so the simpler hex wins. The bound
+    // below is not cosmetic: a silent growth past it shrinks the modules a
+    // phone camera must resolve, and goes through review.
+    let (payload, svg) = offered_svg_with_node();
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(
+        code.version().value(),
+        11,
+        "the node square grew past the measured size a phone camera handles"
+    );
+    let (dimension, _) = svg_modules(&svg);
+    assert_eq!(dimension, 61 + QUIET_ZONE * 2);
+}
+
+#[test]
+fn a_square_with_the_road_off_carries_no_node_id() {
+    let (payload, _svg) = offered_svg();
+    let value: serde_json::Value = serde_json::from_str(&payload).unwrap();
+    assert!(
+        value.get("node").is_none(),
+        "the square promised a node id while the road was off: {payload}"
+    );
 }
 
 #[test]

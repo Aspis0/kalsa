@@ -87,6 +87,17 @@ impl Brain {
             .is_ok()
     }
 
+    /// The road's public identity, exactly while it is open and announced.
+    /// The pairing square carries it only then: advertising a node id while
+    /// the switch is off, or while the road is still opening, would promise
+    /// a way in that does not exist yet.
+    pub(crate) fn road_node_id(&self) -> Option<String> {
+        match self.road.snapshot() {
+            road::RoadState::Open { node_id } => Some(node_id),
+            _ => None,
+        }
+    }
+
     fn stop_door(&self) {
         // Deliberately no metrics call here: shutting the door is not
         // releasing the model. The sentinel learns of a release only from the
@@ -632,8 +643,14 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
 #[tauri::command]
 fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
+    let road_node_id = brain.road_node_id();
     desk.desk
-        .read(serving, &desk.reachable, SystemTime::now())
+        .read(
+            serving,
+            &desk.reachable,
+            road_node_id.as_deref(),
+            SystemTime::now(),
+        )
         .with_door_port(brain.door_port())
 }
 
@@ -641,7 +658,9 @@ fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto 
 #[tauri::command]
 fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
-    desk.desk.retry(serving, &desk.reachable, SystemTime::now());
+    let road_node_id = brain.road_node_id();
+    desk.desk
+        .retry(serving, &desk.reachable, road_node_id.as_deref(), SystemTime::now());
 }
 
 /// The owner says the new phone is theirs. The stored credential is replaced;
@@ -818,6 +837,7 @@ mod tests {
         let now = SystemTime::now();
         let mut pairing = kalsa_pairing::Pairing::offer(
             "http://127.0.0.1:8131",
+            None,
             now,
             Duration::from_secs(60),
         )
@@ -834,6 +854,7 @@ mod tests {
             code,
             nonce,
             payload["reachable"].as_str().unwrap(),
+            None,
             kalsa_catalog::PhoneModel {
                 weights_bytes: 1,
                 parameters: None,
