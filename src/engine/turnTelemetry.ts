@@ -9,6 +9,12 @@
  * - tokensPredicted: generation length; also a hidden-token detector when UI
  *   token count diverges from native predicted count.
  * - draftTokens / draftAccepted: multi-token prediction (MTP) acceptance rate.
+ * - truncated: native completion-result flag. On the shipped patch the only
+ *   live setter is the generation-time ceiling branch (rn-completion.cpp:1103,
+ *   under `KALSA_KVSHIFT refused embd=`): embd reached n_ctx and the K-shift
+ *   was refused, so the ANSWER was cut with the live KV deliberately kept.
+ *   It does NOT mean the prompt failed to fit. Reported as-is; never a
+ *   JS-derived mirror of KV state.
  * - promptMs / predictedMs / predictedPerSecond: prefill vs decode split.
  * - tool / strategy: last SUCCESSFUL tool earlier in this turn (see
  *   ToolAttributionTracker). Omitted when no successful tool has run yet.
@@ -132,6 +138,13 @@ export type RoundTelemetry = {
   contextFull: boolean;
   interrupted: boolean;
   /**
+   * Native stopped generating because embd reached n_ctx and the K-shift was
+   * refused (result.truncated) — the answer is cut, the prompt is not the
+   * cause. Report-only: read from the completion result at the point of use,
+   * never cached in JS. The turn still completes and returns what it produced.
+   */
+  truncated: boolean;
+  /**
    * Optional: tool name actually invoked successfully earlier in this turn
    * (e.g. "document_chat" / "web_search" / "web_fetch").
    * Omitted when no successful tool ran yet (backward-compatible JSON).
@@ -155,6 +168,7 @@ export type CompletionLikeResult = {
   draft_tokens_accepted?: number;
   context_full?: boolean;
   interrupted?: boolean;
+  truncated?: boolean;
   timings?: {
     prompt_ms?: number;
     prompt_n?: number;
@@ -185,6 +199,7 @@ export function roundTelemetryFromResult(
     predictedPerSecond: timings?.predicted_per_second ?? -1,
     contextFull: result.context_full ?? false,
     interrupted: result.interrupted ?? false,
+    truncated: result.truncated ?? false,
   };
 }
 
@@ -200,5 +215,25 @@ export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
     ...telemetry,
     prompt_n: promptN,
     ...(ciswireFlags ? { ciswireFlags } : {}),
+  })}`;
+}
+
+/**
+ * Distinct campaign-greppable line for one truncated answer. Named for the
+ * effect, not a cause: the flag's live setter is the refused-K-shift ceiling
+ * branch, so calling it a PROMPT truncation would send a reader looking at
+ * prompt assembly for a generation-time event. Payload is counters already on
+ * the record — never user text. Visibility only.
+ */
+export function formatTruncationLine(
+  turnId: string,
+  r: RoundTelemetry,
+): string {
+  return `KALSA_ANSWER_TRUNCATED ${JSON.stringify({
+    turnId,
+    round: r.round,
+    tokensEvaluated: r.tokensEvaluated,
+    tokensPredicted: r.tokensPredicted,
+    tokensCached: r.tokensCached,
   })}`;
 }

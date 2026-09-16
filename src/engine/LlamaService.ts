@@ -108,6 +108,7 @@ import { shouldFireToolRoundFallback } from "./toolRoundFallback";
 import { toolRoundCrossesCeiling } from "./toolRoundCeiling";
 import {
   formatTelemetryLine,
+  formatTruncationLine,
   isSuccessfulToolOutcome,
   roundTelemetryFromResult,
   ToolAttributionTracker,
@@ -1225,7 +1226,8 @@ function trackCompletion<T>(promise: Promise<T>): Promise<T> {
 }
 
 /**
- * Emit one KALSA_TELEMETRY line. Must never throw out of a turn.
+ * Emit one KALSA_TELEMETRY line, plus one KALSA_ANSWER_TRUNCATED line when the
+ * native result reports a cut answer. Must never throw out of a turn.
  *
  * Event-order contract for optional tool/strategy fields:
  * - Fields reflect the last SUCCESSFUL tool executed before this completion
@@ -1252,6 +1254,12 @@ function emitTurnTelemetry(
     if (attribution?.strategy != null) r.strategy = attribution.strategy;
     if (ciswireFlags !== undefined) r.ciswireFlags = ciswireFlags;
     console.log(formatTelemetryLine(turnId, r));
+    // Native stopped at the context ceiling and refused the K-shift, so the
+    // answer is cut; the turn still returns what it produced. One extra line
+    // so the campaign can count it — visibility only, no control flow.
+    if (r.truncated) {
+      console.log(formatTruncationLine(turnId, r));
+    }
     if (model != null) {
       // Feed prompt_n, not tokens_evaluated, so cache hits do not inflate speed.
       recordPrefillSample(model.id, r.promptN > 0 ? r.promptN : 0, result.timings?.prompt_ms ?? -1);

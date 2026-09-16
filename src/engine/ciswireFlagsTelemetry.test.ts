@@ -26,6 +26,7 @@ const baseRound: RoundTelemetry = {
   predictedPerSecond: 25,
   contextFull: false,
   interrupted: false,
+  truncated: false,
 };
 
 const baseMemory = {
