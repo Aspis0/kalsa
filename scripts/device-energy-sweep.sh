@@ -627,6 +627,30 @@ for (const file of readdirSync(dataDir).filter((name) => name.endsWith(".phases.
 }
 entries.sort((a, b) => a.sequence - b.sequence || a.rep - b.rep);
 
+function placementWarningOf(entry) {
+  const meta = metaByKey.get(`${entry.model}|${entry.block}|${entry.position}|${entry.arm}`) ?? {};
+  const inBand = observedCpusOf(entry.stem, entry.rep);
+  const observed = inBand ?? meta.effectiveCpus ?? null;
+  const mismatch = (entry.mask === "3f" && observed !== "0-5") ||
+    (entry.mask === "c0" && observed !== "6-7") ||
+    (entry.mask === "" && observed !== "0-7");
+  return mismatch
+    ? `MASK PLACEMENT WARNING: requested ${entry.mask || "unset"}, observed ${observed || "unreadable"}${inBand ? " (in-band)" : " (probe fallback; in-band record absent)"}`
+    : "";
+}
+
+function observedCpusLabel(stem, rep, probeFallback) {
+  const inBand = observedCpusOf(stem, rep);
+  if (inBand) return `${inBand} (in-band)`;
+  if (probeFallback) return `${probeFallback} (probe fallback)`;
+  return "n/a";
+}
+
+for (const entry of entries) {
+  const warning = placementWarningOf(entry);
+  if (warning) entry.row.warnings = [entry.row.warnings || "", warning].filter(Boolean).join("; ");
+}
+
 const blockGroups = new Map();
 for (const info of orderRows) {
   const key = `${info.model}|${info.block}|${info.position}|${info.arm}`;
@@ -658,7 +682,7 @@ for (const group of blockGroups.values()) {
     group.usable < expectedReps ||
     group.entries.some((e) => !Number.isFinite(e.speed) || finite(e.row.decode_s) === null) ||
     group.spread > stabilityLimit ||
-    group.entries.some((e) => /low-resolution|cadence max/.test(e.row.warnings || ""));
+    group.entries.some((e) => /low-resolution|cadence max|MASK PLACEMENT WARNING/.test(e.row.warnings || ""));
 }
 
 const groupsByComparison = new Map();
@@ -683,14 +707,16 @@ for (const group of [...blockGroups.values()].sort((a, b) => {
   return as - bs;
 })) {
   const meta = metaByKey.get(`${group.model}|${group.block}|${group.position}|${group.arm}`) ?? {};
-  const stem = orderRows.find((r) => r.model === group.model && r.block === group.block && r.position === group.position && r.arm === group.arm)?.stem;
   const order = orderRows.filter((r) => r.model === group.model && r.block === group.block)
     .sort((a, b) => a.sequence - b.sequence)
     .map((r) => `${r.arm}(p${r.position})`).join(" → ");
   const values = group.entries.sort((a, b) => a.rep - b.rep)
     .map((e) => `r${e.rep}=${f(e.speed, 1)}`).join("/");
+  const observedLabels = group.entries.map((e) => observedCpusLabel(e.stem, e.rep, meta.effectiveCpus));
+  const observedDisplay = [...new Set(observedLabels)].join(" / ") || observedCpusLabel("", 0, meta.effectiveCpus);
   const status = group.unstable ? "**UNINTERPRETABLE**" : "stable";
-  console.log(`| ${md(group.model)} | ${group.block} | ${group.position} | ${group.arm} | ${order} | ${meta.effectiveCpus || "n/a"} | ${stem ? clocksByStem.get(stem) : "n/a"} | ${values || "none"} | ${f(group.spread, 1)}% | ${group.usable}/${expectedReps} | ${status} |`);
+  const stem = group.entries[0]?.stem;
+  console.log(`| ${md(group.model)} | ${group.block} | ${group.position} | ${group.arm} | ${order} | ${observedDisplay} | ${stem ? clocksByStem.get(stem) : "n/a"} | ${values || "none"} | ${f(group.spread, 1)}% | ${group.usable}/${expectedReps} | ${status} |`);
 }
 if (anyUnstable) console.log("\n**STOP:** at least one block exceeded the 5% stability limit; its arm block and comparison frontier are uninterpretable, while unaffected comparisons remain separately marked.");
 else console.log("\nAll completed blocks are within the configured throughput-spread limit.");
@@ -715,7 +741,10 @@ console.log("| model | comparison | position | arm | executed order | observed C
 console.log("|---|---|---:|---|---|---|---|---|---|---|");
 for (const meta of metaRows) {
   const actualOrder = actualOrderByComparison.get(`${meta.model}|${meta.block}`)?.join(" → ") || "n/a";
-  console.log(`| ${md(meta.model)} | ${meta.block} | ${meta.position} | ${meta.arm} | ${actualOrder} | ${meta.effectiveCpus || "n/a"} | ${meta.startScreen || "n/a"} | ${meta.endScreen || "n/a"} | ${meta.startLevel}% / ${meta.startTemp} deci-C | ${meta.endLevel}% / ${meta.endTemp} deci-C |`);
+  const metaEntries = entries.filter((e) => e.model === meta.model && e.block === meta.block && e.position === meta.position && e.arm === meta.arm);
+  const observedLabels = metaEntries.map((e) => observedCpusLabel(e.stem, e.rep, meta.effectiveCpus));
+  const observedDisplay = [...new Set(observedLabels)].join(" / ") || observedCpusLabel("", 0, meta.effectiveCpus);
+  console.log(`| ${md(meta.model)} | ${meta.block} | ${meta.position} | ${meta.arm} | ${actualOrder} | ${observedDisplay} | ${meta.startScreen || "n/a"} | ${meta.endScreen || "n/a"} | ${meta.startLevel}% / ${meta.startTemp} deci-C | ${meta.endLevel}% / ${meta.endTemp} deci-C |`);
 }
 
 console.log("\n## 4. Per-arm, per-rep results");
@@ -728,12 +757,8 @@ for (const e of entries) {
   const integrated = finite(e.row.decode_s_int);
   const coverage = nominal && integrated !== null ? `${f((integrated / nominal) * 100, 1)}%` : "n/a";
   const status = blockGroups.get(`${e.model}|${e.block}|${e.position}|${e.arm}`)?.unstable ? "UNINTERPRETABLE" : "stable";
-  const inBand = observedCpusOf(e.stem, e.rep);
-  const observed = inBand ?? meta.effectiveCpus ?? null;
-  const observedDisplay = inBand ?? (meta.effectiveCpus ? `${meta.effectiveCpus} (probe)` : "n/a");
-  const placementWarning = ((e.mask === "3f" && observed !== "0-5") || (e.mask === "c0" && observed !== "6-7") || (e.mask === "" && observed !== "0-7"))
-    ? `MASK PLACEMENT WARNING: requested ${e.mask || "unset"}, observed ${observed || "unreadable"}${inBand ? " (in-band)" : " (probe fallback; in-band record absent)"}` : "";
-  const warnings = [e.row.warnings || "", placementWarning].filter(Boolean).join("; ") || "—";
+  const observedDisplay = observedCpusLabel(e.stem, e.rep, meta.effectiveCpus);
+  const warnings = e.row.warnings || "—";
   console.log(`| ${md(e.model)} | ${e.block} | ${e.position} | ${e.arm} | ${e.mask || "unset"} | ${observedDisplay} | ${clocksByStem.get(e.stem) || "n/a"} | ${e.threads} | ${e.rep} | ${f(e.speed, 1)} | ${md(e.row.decode_s)} | ${coverage} | ${md(e.row.j_per_tok_decode)} | ${md(e.row.j_load_idle)} | ${md(e.row.j_prefill)} | ${md(e.row.j_decode)} | ${md(warnings)} | ${meta.startScreen || "n/a"}→${meta.endScreen || "n/a"} | ${meta.startLevel}%/${meta.startTemp} → ${meta.endLevel}%/${meta.endTemp} | ${status} |`);
 }
 
