@@ -5703,3 +5703,49 @@ now reports nothing, which was the point — 372 phantom entries made every chec
 **`REPOS.md` in the app repo** is the map: which repo holds what, with numbers read from the repos,
 and the two conventions (one branch per repo, every deleted tip kept as `archive/<name>`; never
 push to a third-party remote). `AGENTS.md` points at it in its first bullet.
+
+### 16/09 sera — lavoro senza telefoni: rendere interpretabile il prossimo run
+
+Tre run su tre sono morti per difetti dell'osservabilità, non del modello. Quindi, senza telefoni,
+il lavoro che vale e' quello che rende leggibile il prossimo.
+
+**Il verdetto di T20C non era calcolato da nessuno.** Le condizioni di pass vivevano solo nella prosa
+del PLAN e si contavano a mano con grep alla fine di 96 minuti — con un pattern che il PLAN stesso
+documenta come sbagliato (`window_align.*to:0` legge 0, `'"to":0'` legge 1 sullo stesso file).
+`scripts/campaign/verdict.mjs` (`1f4b5c3`) ora prende una cartella di run e asserisce le tre
+condizioni asseribili: tutti i turni risposti, al massimo un `window_align` che atterra su 0, e
+confini di slide mai all'indietro. Il resto lo riporta come numeri senza spacciarlo per giudizio —
+in particolare `window_reconcile: 0` viene stampato come **non esercitato**, perche' il run di
+riferimento non ha mai raggiunto held+unknown e l'assenza di un percorso non e' prova che funzioni.
+
+Sul run di riferimento riproduce le cifre documentate: 17 align con **uno** solo `to:0`, sei slide
+`4 -> 10 -> 15 -> 20 -> 28 -> 36`, zero reconcile, zero stall, un `model.unload` idle, **8 turni su
+20** — ed esce 1.
+
+**Lo strumento e' nato col difetto che deve prevenire, e vale registrarlo.** Cercava la graffa del
+payload DOPO `"op":"window_align"`, ma sulla riga la graffa precede quel campo: trovava zero align e
+**passava a vuoto**. Se ne e' accorto solo il confronto con `grep -c`. Il selftest ora lo blocca con
+tre asserzioni su un fixture sintetico (il logcat vero e' 5,4 MB sotto `out/`, che e' gitignored e
+non puo' essere una dipendenza di test). `selftest_defects.sh` e' 20/20.
+
+**Il wiring del foreground-idle era scoperto** (`854cd50`). L'audit di `c37b419` aveva chiesto un test
+d'integrazione: il predicato era testato, la logica che lo alimenta stava inline in `AppShell.tsx` e
+non la esercitava niente. Il punto che conta e' `lastRawTokenAt > turnStartedAt`: il polso dei token
+e' **un solo orologio monotono condiviso da tutti i turni**, quindi senza quel confronto l'ultimo
+token del turno precedente si legge come vitalita' di quello corrente, e un turno che non decodifica
+mai sembra vivo finche' il precedente ha parlato. Estratto come `deriveTokenSilenceMs`, sei casi,
+13/13, `tsc` 0.
+
+**La troncatura silenziosa (in audit, non ancora committata).** `truncated` e' un campo di
+`NativeCompletionResult` (`llama.rn/src/types.ts:559`), il nativo lo scrive
+(`rn-completion.cpp:396`, `:1103`) e **nessun consumatore JS lo leggeva**: 115 occorrenze di
+"truncated" in `src/`, tutte di altro. I due fratelli sullo stesso oggetto sono gestiti —
+`context_full` alza un errore (`LlamaService.ts:4273`), `interrupted` finisce nel record del turno
+(`:1258-1264`). Quindi un prompt tagliato produceva una risposta plausibile senza segnale, e siccome
+T20C giudica dai log, un run del genere sarebbe stato contato come sano. Il lavoro aggiunge
+`KALSA_PROMPT_TRUNCATED` con soli contatori, dentro il try/catch "telemetry must never break a turn",
+su tutte e cinque le call site di `emitTurnTelemetry` (le due di chat piu' le tre utility: un prompt
+di estrazione memoria tagliato avvelena i fatti, quindi vale vederlo). Verificato dall'orchestratore:
+`tsc` 0 con log vuoto, jest 10/10. Integrazione con l'harness controllata a parte: nessuna collisione
+di marker, e `telemetryParse.mjs` e' permissivo (`applySchema` aggiunge default, non valida), quindi
+il campo nuovo nel JSON di `KALSA_TELEMETRY` non rompe la raccolta.
