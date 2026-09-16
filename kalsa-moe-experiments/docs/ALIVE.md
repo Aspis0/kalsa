@@ -124,3 +124,51 @@ cleanliness exactly when half the experiment had not run. Now refuses by name wi
 **Repo.** `energy-framework` and `ngram-spec-bench` deleted (both 0 commits ahead of main).
 `kalsa/energy-merge` still blocked by the `kalsa-ngram-spec` worktree, whose 2.9 GB `tmp/` holds
 **zero tracked files** (1.4 GB build-android-phase-stamps, 1.4 GB build-android, 160 MB kalsallama-pin).
+
+### 2026-09-16 afternoon — the governor was never missing, only unreachable
+
+Three commits on main today: `c45fd1f` (three-layer stall fix), `9bdec94` (energy instrument fit
+gate), `41e9372` (backstop correction **plus the governor switch** — the switch is in that commit
+but not in its message, because a broad `git add -A src/` swept it in while the agent was still
+writing it; recorded here so it is findable).
+
+**The per-phase governor is fully built and fully wired, and could never turn on.** Verified on
+disk: the engine is vendored in the patched `llama.rn` and built from source
+(`android/gradle.properties:65`), init loads it with fallback, `refreshGovernorBeforeCompletion` is
+called from five sites on the real completion path, and `GovernorBatteryModule` ships via its Expo
+config plugin (`plugins/withGovernorBattery.js`, registered `app.config.js:101`). But:
+
+```
+src/engine/governorRuntime.ts:3    export const GOVERNOR_ENABLED_KEY = "kalsa.governor.enabled";
+src/engine/governorRuntime.ts:17     const value = await AsyncStorage.getItem(GOVERNOR_ENABLED_KEY);
+```
+
+read there, referenced nowhere else but its own test, **no writer anywhere in the app**, and the
+reader's catch returns false — so it also failed silently. Months of engine work behind a flag with
+no switch. `writeGovernorEnabled` and a Settings > Models toggle now exist; default stays OFF, since
+making ON the default is a decision that belongs after phone validation.
+
+Two corrections to earlier notes, both mine: the QDC map's "#1 open item: host the two-context
+governor in llama.rn/LlamaService" is **wrong** — it is already hosted. And `resolveBackendPolicy`
+returning cpu-only is real but **irrelevant** to the governor: it governs the static non-governor
+path, and the governor computes its own `gpu_fit`. One correction to an agent: `android/` is
+entirely untracked (`.gitignore:42`, zero tracked android files), so a claim resting on
+`MainApplication.kt` is a claim about one machine's generated tree, not about the repo — the plugin
+is what makes the module ship.
+
+**`c45fd1f` was itself defective and a hostile audit caught it.** Its net watched the CLEANED delta
+(`onDelta` fires only `if (delta)`, and `cleanStreamDelta` strips `<think>` and tool calls), so a
+reasoning round went 45 s without a pulse and the app disposed a healthy engine — strictly stricter
+than the engine's own watchdog, which resets on the raw token one line earlier. And its
+pre-first-token bound used `idleMs`, time since the user last touched the screen, so it killed any
+turn 900 s after the last tap — against a measured ~5.2 tok/s prefill and a legitimate 5441-token
+prompt needing ~1046 s. `41e9372` puts the pulse on the same statement as `stallWatchdog.noteToken()`
+and derives the remaining bound as `3 * GENERATION_STALL_GAP_MS`, so the invariant "the backstop is
+looser than the primary" lives in arithmetic rather than in a comment.
+
+**Repo:** three merged branches deleted, the `kalsa-ngram-spec` worktree removed and its 2.9 GB of
+untracked build output moved to `~/Projects/kalsa-device-build` (both `LOCAL_BIN` defaults repointed
+FIRST, then the move). Still open: the fork `kalsallama` has 15 worktrees / ~15 GB, but unlike the
+app branches these are NOT deletable — each is 1 to 51 commits ahead of fork main. Their bulk is
+untracked build output; the Mac builds are cheap to regenerate, the Android cross-builds may be
+pinned, so that call is the owner's.
