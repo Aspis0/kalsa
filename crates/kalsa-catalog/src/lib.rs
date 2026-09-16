@@ -43,6 +43,7 @@
 mod candidate;
 mod rationale;
 
+pub mod audit;
 pub mod choice;
 pub mod footprint;
 pub mod licence;
