@@ -352,5 +352,47 @@ skip_case vanish none retry-send-failed
 skip_case hot cooldown-fail thermal-cooldown-failed
 skip_case never recover-2 recovery-refused
 
+printf '\n== (d) the verdict tool reads the markers it claims to read ==\n'
+# Synthetic run, because the real 5.4 MB reference logcat lives under the
+# gitignored out/. Line shapes copied from
+# out/t20c-fixprotocol-20260915/logcat.txt.
+VRUN="$WORK/verdict-run"
+mkdir -p "$VRUN/T20C"
+{
+  printf '%s\n' '09-15 15:45:41.563  9858  9918 I ReactNativeJS: KALSA_SESSION {"op":"window_align","from":1,"to":0}'
+  printf '%s\n' '09-15 15:47:11.832  9858  9918 I ReactNativeJS: KALSA_SESSION {"op":"window_align","from":2,"to":4}'
+  printf '%s\n' '09-15 15:45:41.617  9858  9918 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"ceiling":4312,"prevStart":0,"newStart":4,"advanced":true,"kvCleared":true}'
+  printf '%s\n' '09-15 16:03:35.302  9858  9918 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"ceiling":4312,"prevStart":4,"newStart":10,"advanced":true,"kvCleared":true}'
+} > "$VRUN/logcat.txt"
+{
+  printf '%s\n' '{"arm":"T20C","i":1,"intent":"chat-1","assistant":"a"}'
+  printf '%s\n' '{"arm":"T20C","i":2,"intent":"chat-2","assistant":"b"}'
+} > "$VRUN/T20C/c1-V1.jsonl"
+
+vout="$(node "$HERE/verdict.mjs" "$VRUN" --turns 2 2>&1)"
+vrc=$?
+# The align count is the regression guard: keying on the inner "op" field finds
+# no payload (the brace precedes it) and reports 0 of 0, which PASSES vacuously.
+if printf '%s' "$vout" | grep -q '1 of 2 aligns land on 0'; then
+  ok "verdict parses window_align through the outer marker (1 of 2)"
+else
+  bad "verdict lost the aligns (vacuous pass regression)"
+  printf '%s\n' "$vout" | sed 's/^/   | /'
+fi
+if [ "$vrc" -eq 0 ]; then
+  ok "verdict exits 0 when every turn answered and slides are monotone"
+else
+  bad "verdict exited $vrc on a clean synthetic run"
+  printf '%s\n' "$vout" | sed 's/^/   | /'
+fi
+
+printf '%s\n' '{"arm":"T20C","i":3,"intent":"chat-3","assistant":""}' >> "$VRUN/T20C/c1-V1.jsonl"
+node "$HERE/verdict.mjs" "$VRUN" --turns 3 > /dev/null 2>&1
+if [ $? -eq 1 ]; then
+  ok "verdict exits 1 when a turn was never answered"
+else
+  bad "verdict did not fail on an unanswered turn"
+fi
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
