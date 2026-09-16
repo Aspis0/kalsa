@@ -64,12 +64,33 @@ sidecars.
 | 2.6B none REP | 2 | 3.6 | 71.111 | 0.645 | 99 % | cadence max 3.520 s |
 | 2.6B none REP | 3 | 3.6 | 71.111 | 0.653 | 98 % | cadence max 3.520 s |
 
+> **Retraction (2026-09-16; campaign audit).** The original headline said:
+> “2.20–2.21x per decode token ... the ratio is stable across reps.” The
+> committed 2.20–2.21x figure remains the earlier reference, but the stamped
+> cold run is 2.18–2.20x paired per rep (2.175, 2.179, 2.203), straddling the
+> lower edge of that band; under throttling it drifts to 2.31–2.33x.
+
 **The headline**: the cross-stem cost of doubling the model, read the only
-sanctioned way (REP-vs-REP, paired per rep), is **2.20–2.21x per decode
-token** (r1 0.646/0.293 = 2.20, r2 0.645/0.293 = 2.20, r3 0.653/0.295 = 2.21;
-2.21x on decode-J sums, 497.675/225.518 J). Rep-to-rep spread inside each arm
-is ≤ 1.3 % (1.2B: 0.293–0.295; 2.6B: 0.645–0.653), so the ratio is stable
-across reps.
+sanctioned way (REP-vs-REP, paired per rep), is **2.18–2.20x in the cold
+stamped run** (2.175, 2.179, 2.203; decode-J sums ratio 2.19x), straddling
+the lower edge of the committed 2.20–2.21x reference. Under throttling it
+drifts to **2.31–2.33x** (run2/run3). The ratio is therefore thermally
+qualified, not stable across a multi-run session.
+
+Rep-to-rep spread inside 1.2B/REP is 1.6–5.0 % in today's three runs,
+against the 0.68 % quoted before; the between-run spread across the campaign
+stems is 2.0–6.7 %. The 2.6B/PURE spread quoted before, 10.06 %, does not
+reproduce here (0.79/4.54/0.83 %), while the 1.2B/PURE fragility does.
+
+### Thermal qualification and design effect
+
+The campaign's run1-to-run3 change is a time/throughput effect, not a
+matching energy-per-token collapse. In a sequential A-then-B design, effects
+below roughly 5–10 % are not distinguishable at this resolution. With the
+nested run effect, 1.2B/REP needs a 25.4 % MDE at n=3, so increasing the
+number of reps inside a sequential block does not remove the run-order
+confound. A comparison therefore needs ABBA interleaving inside a thermally
+stable window, with a temperature gate.
 
 The PURE arms are a different story: 1.2B/PURE r1 and r2 are flagged
 low-resolution (2 attributed intervals, coverage 62–63 %) and their cells
@@ -113,9 +134,10 @@ flagged (97 % coverage) but stays out of cross-stem statements by the rule in
    model, same prompt, different arm, identical arithmetic per arm. This
    baseline campaign ran `arms=none` only, so it contains no arm deltas; it
    is the reference future arm campaigns diff against.
-2. **Cross-stem statements are REP-vs-REP only**, with the arm label and the
-   coverage caveat attached, or they stay out of a report. The sanctioned
-   figure from this campaign: 2.6B/1.2B = 2.20–2.21x per decode token.
+2. **Cross-stem statements are REP-vs-REP only**, with the arm label, thermal
+   state, and coverage caveat attached, or they stay out of a report. This
+   campaign gives 2.18–2.20x in the cold run and 2.31–2.33x under throttling;
+   the committed 2.20–2.21x is the earlier reference band.
 3. **Decode J is a lower bound**, biased low by at most two sample
    intervals; coverage per row says how much of the nominal span the bucket
    actually integrated. Read `decode_s_int` before comparing arms whose
@@ -132,11 +154,13 @@ flagged (97 % coverage) but stays out of cross-stem statements by the rule in
   1.2B/REP stem, 0.293–0.295 J/tok at 95 % coverage (2.6B/REP: 0.645–0.653).
   A gating arm that skips draft work must show its per-decode-token delta
   against exactly this number, same stem, same protocol.
-- **Next steps**: replicate on the Galaxy S23 with the same protocol (same
-  manifest discipline, same coverage gates) to see whether the 2.20–2.21x
-  ratio and the coverage profile transfer. Prefill-only J stays out of reach
-  at 1 Hz with the model load inside the window — it needs an in-engine phase
-  timestamp (Fase 2 bus) rather than a sampler-side fix.
+- **Next steps**: replicate on the Galaxy S23 with the same manifest discipline
+  and coverage gates, but with ABBA ordering inside a thermally stable window,
+  an explicit temperature gate, and a measured idle floor for that session.
+  Test whether the thermally qualified ratio and coverage profile transfer;
+  do not compare absolute J/tok levels across sessions. Prefill-only J stays
+  out of reach at 1 Hz with the model load inside the window — it needs an
+  in-engine phase timestamp (Fase 2 bus) rather than a sampler-side fix.
 
 ## 7. Provenance
 

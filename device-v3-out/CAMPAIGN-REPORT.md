@@ -82,11 +82,17 @@ md5 of the stamped build (unchanged at start, post-run1, post-run2, post-run3):
 | run3 pre 1.2B/PURE | 73% | 38.0 C | false | — |
 | post-run3 | 73% | 38.0 C | false/false/false | 3 |
 
-Charging evidence: preflight gate passed 3/3 runs; mid-campaign gate never
-tripped; every per-stem `before:` line reads AC/USB powered false; all 2319
-sampler rows across the 12 sampler CSVs read `Discharging` (zero exceptions).
-No run aborted. All 36 reps produced speed lines; all 36 `.stamps` files
-present and non-empty (74–77 bytes).
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “mid-campaign gate never tripped.” **Corrected claim:** the mid-campaign
+> gate did not execute (`ARMS=none` short-circuits before it) and therefore
+> provided no protection. Charging is excluded by the 2319/2319 sampler rows
+> reading `Discharging` and the 15/15 `powered: false` lines.
+
+Charging evidence: preflight gate passed 3/3 runs; the mid-campaign gate did
+not execute under `ARMS=none`; every per-stem `before:` line reads AC/USB
+powered false; all 2319 sampler rows across the 12 sampler CSVs read
+`Discharging` (zero exceptions). No run aborted. All 36 reps produced speed
+lines; all 36 `.stamps` files present and non-empty (74–77 bytes).
 
 Throughput log (Generation t/s, r1/r2/r3 — the thermal story in one glance):
 - run1: 2.6B/REP 3.9/3.9/3.9; 2.6B/PURE 4.0/4.0/4.0; 1.2B/REP 8.8/8.8/8.8; 1.2B/PURE 9.4/9.3/9.3
@@ -157,9 +163,15 @@ _s_int/_s per bucket. j_per_tok_decode = j_decode/gen_tokens.
 | 2.6B/REP | 2 | 14.882 | 36.870 | 220.595 | 16.532 (100.2%) | 94.116 (99.0%) | 0.862 |
 | 2.6B/REP | 3 | 14.546 | 38.220 | 221.462 | 16.198 (102.2%) | 95.356 (98.6%) | 0.865 |
 
-Warnings, verbatim from the CSVs. Every row carries a manifest tps-mismatch
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “Every row carries a manifest tps-mismatch note.” **Corrected claim:** 35 of
+> 36 rows carry that note; the exception is run2 1.2B/PURE r3, whose manifest
+> t/s equals its speed line.
+
+Warnings, verbatim from the CSVs. 35 of 36 rows carry a manifest tps-mismatch
 note of this exact form (numbers vary per stem/rep, quoted here for run1 r1
-of each stem; the full per-row texts are in the phases.csv files):
+of each stem; the full per-row texts are in the phases.csv files). The
+exception is run2 1.2B/PURE r3.
 - `manifest campaign_gen_tps_r1 (8.4) differs from this run's speed line (8.8) - wrong manifest/campaign pairing?`
 - `manifest campaign_gen_tps_r1 (9.1) differs from this run's speed line (9.4) - wrong manifest/campaign pairing?`
 - `manifest campaign_gen_tps_r1 (3.9) differs from this run's speed line (4) - wrong manifest/campaign pairing?`
@@ -205,9 +217,41 @@ Range of the three run-means divided by their grand mean:
 
 Sanctioned cross-stem check (REP-vs-REP paired per rep): run1 gives
 0.868/0.394 = 2.20, 0.881/0.405 = 2.18, 0.902/0.414 = 2.18 (decode-J sums
-ratio 2.19x) — the committed 2.20–2.21x finding reproduces in the cold run.
-Under throttling it drifts: run-means ratio 2.33x (run2), 2.31x (run3).
-The headline ratio is therefore thermal-state dependent.
+ratio 2.19x).
+
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “the committed 2.20–2.21x finding reproduces in the cold run.” **Corrected
+> claim:** the paired cold-run ratios are 2.18–2.20 (2.175, 2.179, 2.203),
+> straddling the lower edge of the committed 2.20–2.21x band. Under throttling
+> the run-means ratio drifts to 2.33x (run2) and 2.31x (run3).
+
+The cold-run paired ratio is therefore 2.18–2.20, straddling the lower edge
+of the committed 2.20–2.21x finding. Under throttling it drifts to 2.33x
+(run2) and 2.31x (run3): the headline ratio is thermal-state dependent.
+
+## 5a. Cross-session baseline caveat
+
+The idle floor measured tonight is 0.900/0.926/0.926 W for runs 1/2/3,
+against 0.035 W in the older campaign. Tonight's `j_per_tok_decode` is also
+36–40 % above the older campaign on all four stems (for example, 1.2B/REP is
+0.293 tonight versus 0.394 in the older campaign). Absolute levels are
+therefore **not comparable across sessions**. Every session must measure its
+own idle floor; only ratios and within-session deltas may be compared.
+
+The conclusions that survive are the within-tonight run spreads, the thermal
+run-to-run trend, the REP-vs-REP ratio qualified by thermal state, and the
+v2/v3 isolation on identical run1 bytes. The conclusions that do not survive
+are any absolute tonight-versus-old energy-per-token comparison or use of the
+older session as an absolute baseline. The S23 replication must measure its
+own idle floor before interpreting absolute levels.
+
+## 5b. Thermal collapse is a time cost, not an energy-per-token cost
+
+From run1 to run3, decode time grows by 25.9–52.4 % while decode power falls
+by 25.9–38.3 %. In contrast, `j_per_tok_decode` moves only −6.0 to +6.9 %.
+Throughput is therefore strongly thermal-state dependent, while energy per
+token is nearly invariant over this campaign. The 31–35 % “collapse” framing
+refers to throughput/time, not to an equivalent energy-per-token collapse.
 
 ## 6. v2-versus-v3 on the SAME run1 bytes (stamps deleted in scratch copy)
 
@@ -226,13 +270,24 @@ The headline ratio is therefore thermal-state dependent.
 | 2.6B/REP | 2 | 0.881 | 0.881 | 0.00% | 65.292 → 65.641 |
 | 2.6B/REP | 3 | 0.902 | 0.902 | 0.00% | 65.531 → 65.641 |
 
-Whole-window J is conserved exactly (v3 li+pre+dec equals v2 pre+dec to
-≤0.001 J on all 12 reps). On 10/12 reps the decode bucket is bit-identical;
-on 2.6B/PURE r1 and r3 the engine re-anchor moves exactly one sample interval
-(~3.8 J, ~2%) between decode and pre-decode. The re-anchoring effect, isolated
-from any device difference, is therefore: zero at 3-decimal display on 10/12
-reps, ~2% on 2/12. The new information in v3 is the pre-decode subdivision
-(j_load_idle vs j_prefill), not a changed decode number.
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “Whole-window J is conserved exactly” and “On 10/12 reps the decode bucket
+> is bit-identical.” **Corrected claim:** the conservation is by construction
+> because one bucket is the residual; an independent whole-window integration
+> agrees to ≤0.002 J (worst printed-sum difference 0.000469 J). The interval
+> set is identical on 10/12 reps, and the printed decode value is identical to
+> three-decimal resolution (≤0.001 J), not bit-identical.
+
+Whole-window J is conserved by construction (v3 li+pre+dec equals v2 pre+dec
+because one bucket is the residual). Independent re-integration agrees to
+≤0.002 J on all 12 reps (worst printed-sum difference 0.000469 J). On 10/12
+reps the interval set and printed decode value are identical to three-decimal
+resolution (≤0.001 J); on 2.6B/PURE r1 and r3 the engine re-anchor moves exactly
+one sample interval (~3.8 J, ~2%) between decode and pre-decode. The
+re-anchoring effect, isolated from any device difference, is therefore zero at
+the published resolution on 10/12 reps and ~2% on 2/12. The new information in
+v3 is the pre-decode subdivision (`j_load_idle` vs `j_prefill`), not a changed
+decode number.
 
 ## 7. Design decision
 
@@ -240,8 +295,17 @@ DECISION: sequential A-then-B comparison on j_per_tok_decode is NOT usable
 for the effect sizes this program cares about. Any future A/B needs ABBA
 interleaving AND a temperature gate.
 
-Minimum distinguishable effect (two-sample, two-sided alpha 0.05, power 0.8;
-SD = pooled 9-rep SD including the thermal drift a sequential design suffers):
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “Minimum distinguishable effect (two-sample, two-sided alpha 0.05, power
+> 0.8; SD = pooled 9-rep SD including the thermal drift a sequential design
+> suffers).” **Corrected claim:** the published figures use
+> `MDE = (t_{0.975,2n−2} + t_{0.80,2n−2})·SD·sqrt(2/n)`, with `df = 2n−2`;
+> the normal approximation would give 23.9/7.6/5.5/6.4 % at n=3 instead.
+
+Minimum distinguishable effect under the stated two-sample, two-sided alpha
+0.05, power 0.8 convention (the published figures use
+`MDE = (t_{0.975,2n−2} + t_{0.80,2n−2})·SD·sqrt(2/n)`, with `df = 2n−2`;
+SD is the pooled 9-rep SD including the thermal drift):
 
 | stem | pooled CV | MDE at n=3 | MDE at n=5 |
 |---|---|---|---|
@@ -250,43 +314,92 @@ SD = pooled 9-rep SD including the thermal drift a sequential design suffers):
 | 2.6B/PURE | 2.41% | 7.3% | 4.9% |
 | 2.6B/REP | 2.81% | 8.5% | 5.7% |
 
-Plainly: in a sequential design, effects below ~5–10% are not distinguishable
-at this resolution, and on 1.2B/PURE nothing is. With ABBA interleaving inside
-a thermally stable window, the floor drops to the within-run MDE (cold-regime
-run1: 1.2% on 2.6B/PURE, 2.8% on 1.2B/PURE, 5.9% on 2.6B/REP, 7.5% on
-1.2B/REP at n=3) — still percent-scale, so the temperature gate (start arms in
-a narrow battery-temp band, refuse runs with monotonic rep-to-rep decay) is
-load-bearing, not cosmetic.
+> **Retraction (2026-09-16; campaign audit).** The original wording presented
+> the pooled 9-rep SD as the sequential-design error term. **Corrected claim:**
+> the nested run effect is the relevant term for sequential A-then-B ordering;
+> at n=3 it requires a 25.4 % MDE for 1.2B/REP and 18.5 % for 2.6B/PURE.
+
+The additional nested run-effect calculation is:
+
+| stem | pooled MDE n=3 | nested MDE n=3 | nested MDE n=5 |
+|---|---:|---:|---:|
+| 1.2B/PURE | 31.7% | 31.7% | 24.6% |
+| 1.2B/REP | 10.1% | 25.4% | 24.9% |
+| 2.6B/PURE | 7.3% | 18.5% | 18.1% |
+| 2.6B/REP | 8.5% | 8.5% | 6.6% |
+
+In the sequential design, effects below roughly 5–10 % are not
+distinguishable at this resolution. The run1-to-run3 run-mean artefact is
+stem-dependent: +6.9 % (1.2B/PURE), −6.0 % (1.2B/REP), −4.6 % (2.6B/PURE),
+and −0.9 % (2.6B/REP). Increasing n does not remove that run-order effect;
+even n=5 leaves the nested MDE at 18–25 % for the two affected stems. ABBA
+interleaving inside a thermally stable window and a temperature gate are
+therefore load-bearing, not cosmetic. The cold-regime within-run MDE remains
+percent-scale (run1: 1.2% on 2.6B/PURE, 2.8% on 1.2B/PURE, 5.9% on 2.6B/REP,
+7.5% on 1.2B/REP at n=3).
 
 ## 8. Unexplained items, cadence, clocks
 
 - Cadence: median 1.03 s, max 1.04–1.05 s on every stem in every run. No
   warning. The 3.0–3.5 s stalls of the 2026-09-15 campaign did not recur —
   why they occurred there and not here is unexplained.
+
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “the sampled big-core clocks (cpu6/cpu7) read a pinned 2.20 GHz mean in
+> EVERY decode window of runs 1–3.” **Corrected claim:** the median is 2.20 GHz
+> in all 36 decode windows, with a single 725–1200 MHz sample at the mark
+> boundary in 5/36 windows, including two in cold run1. The original paragraph
+> also said: “The per-CPU clocks in the CSVs therefore do not account for the
+> decay; its mechanism is recorded as unexplained, not attributed.” The
+> corrected mechanism statement is that the reported clock cannot decide the
+> mechanism; the power drop points to an unrecorded achieved-frequency or
+> memory-subsystem reduction.
+
 - Throughput decayed progressively across the back-to-back runs (2.6B/REP
-  3.9 → 2.7 t/s) coincident with battery temperature rising 27 → 38 C, yet
-  the sampled big-core clocks (cpu6/cpu7) read a pinned 2.20 GHz mean in
-  EVERY decode window of runs 1–3, including the slowest reps. The per-CPU
-  clocks in the CSVs therefore do not account for the decay; its mechanism
-  is recorded as unexplained, not attributed.
+  3.9 → 2.7 t/s) coincident with battery temperature rising 27 → 38 C. The
+  sampled big-core clock median is 2.20 GHz in all 36 decode windows, but five
+  means are lower because of one 725–1200 MHz mark-boundary sample. A constant
+  reported clock with a 30–38% power drop is not evidence of a constant
+  achieved clock: the achieved frequency almost certainly fell, and this
+  column cannot see it. The recorded clock therefore cannot explain the
+  decay; the mechanism remains unresolved between an unrecorded achieved CPU
+  frequency reduction and a memory-subsystem reduction.
+
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “max 110.7%, run3 1.2B/REP r2.” **Corrected claim:** the 110.7% maximum is
+> run3 1.2B/PURE r2; run3 1.2B/REP r2 is 109.8%.
+
 - Prefill coverage reads above 100% on several rows (max 110.7%, run3
-  1.2B/REP r2). This follows the documented straddle-to-earlier-bucket
+  1.2B/PURE r2). This follows the documented straddle-to-earlier-bucket
   assignment (prefill gains the boundary interval); decode coverage is below
   100% on all 36 rows, as constructed.
-- Run2 1.2B/PURE r1 (85.0% coverage, 4 intervals, no flag, 0.319 J/tok) vs its
-  flagged siblings r2/r3 (0.226/0.236) is sample-phase luck of the kind the
-  low-resolution warning exists for — no further claim made.
+
+> **Retraction (2026-09-16; campaign audit).** The original wording was:
+> “Run2 1.2B/PURE r1 (85.0% coverage, 4 intervals, no flag, 0.319 J/tok).”
+> **Corrected claim:** `n_decode = 4` is four samples, or 3 intervals; the
+> row is unflagged because it has 3 intervals and 85.0% coverage.
+
+- Run2 1.2B/PURE r1 (85.0% coverage, 3 intervals / 4 samples, no flag,
+  0.319 J/tok) vs its flagged siblings r2/r3 (0.226/0.236) is sample-phase
+  luck of the kind the low-resolution warning exists for — no further claim
+  made.
 
 ## 9. What I could not verify / did not do
 
-1. Did NOT copy evidence into /Users/marco/Projects/kalsa-ngram-spec/device-v3-out/run{1,2,3}:
-   the task brief orders it, but the hard read-only rule for the repo forbids
-   creating anything there. Evidence lives at /tmp/kalsa-v3/run1|run2|run3/device-ngram-spec-out/
-   (each with 4 sampler CSVs, 4 .marks, 12 _rN.txt, 12 .stamps, 4 .phases.csv,
-   results.txt) plus the v2-only scratch copy at /tmp/kalsa-v3/run1-v2only/.
-2. The residual mark lag (CLI-exit → mark write teardown, one-way into decode
-   per the schema doc) is not measured per rep; its 0.05–0.5 s plausible range
-   is taken from the doc, not verified here.
+1. **Retraction (2026-09-16; campaign audit).** The original wording was:
+   “Did NOT copy evidence into `/Users/marco/Projects/kalsa-ngram-spec/device-v3-out/run{1,2,3}`.”
+   **Corrected claim:** the committed copy is byte-identical to the campaign
+   working copy, verified with `cmp` (41/41 files for each run). The committed
+   run directories are therefore the reference evidence; the working copy
+   remains at `/tmp/kalsa-v3/run1|run2|run3/device-ngram-spec-out/` for
+   provenance.
+2. **Retraction (2026-09-16; campaign audit).** The original wording was:
+   “The residual mark lag ... is not measured per rep; its 0.05–0.5 s plausible
+   range is taken from the doc.” **Corrected claim:** it is still not measured
+   per rep, but 5/36 reps end the decode bucket with an idle-clock sample
+   0.020–0.090 s before the mark, so the lag can reach one full sample interval
+   (about 1.0 s). On the low-resolution PURE reps that closing interval is
+   about 30% of the bucket and cannot be trimmed from the fuel-gauge samples.
 3. Absolute J/token is unverifiable by contract (relative metric); none quoted.
 4. No verification that no other party touched the Jelly Star during the
    campaign window beyond the observed clean adb session and the absence of

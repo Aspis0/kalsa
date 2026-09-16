@@ -9,9 +9,9 @@ for the numbers.
 
 | Tema | Name | State |
 |---|---|---|
-| 1 | Per-phase (prefill/decode) J profiler | **DONE on Jelly** (this branch). S23 replication queued. |
-| 2 | Energy-objective decision layer | Split into 2a and 2b on 2026-09-15; the two do NOT depend on each other. **2a** = phase stamps that unlock true prefill J. **2b** = an energy-objective policy on the existing governor seam. Both detailed in Next steps. |
-| 3 | Acceptance+energy-gated speculation (DFlash) | Not started. Baseline ready: decode J/tok 1.2B vs 2.6B = 2.20-2.21x (REP-vs-REP only). |
+| 1 | Per-phase (prefill/decode) J profiler | **DONE on Jelly** (this branch), with a measured multi-run thermal effect; the Jelly is not thermally flat. S23 replication queued. |
+| 2 | Energy-objective decision layer | Split into 2a and 2b on 2026-09-15; the two do NOT depend on each other. **2a** = phase stamps that unlock true prefill J. **2b** = an energy-objective policy on the existing governor seam, to be validated with thermal-gated ABBA ordering. Both detailed in Next steps. |
+| 3 | Acceptance+energy-gated speculation (DFlash) | Not started. Baseline is thermally qualified: decode J/tok 1.2B vs 2.6B = 2.18-2.20x cold and 2.31-2.33x under throttling (REP-vs-REP only). |
 | 4 | J-driven MoE expert residency | Blocked on HTP/NPU lane. |
 | 5 | Homeostatic multi-effector loop | Capstone; needs 2-4. |
 
@@ -43,8 +43,9 @@ for the numbers.
 
 ## Headline results (G99, LFM2.5 Q4_K_M, --temp 0)
 
-- Decode energy: 2.6B costs **2.20-2.21x** per token vs 1.2B (REP-vs-REP, the
-  only sanctioned cross-stem read). PURE stems are low-resolution buckets
+- Decode energy: 2.6B costs **2.18-2.20x** per token vs 1.2B in the cold
+  stamped run and **2.31-2.33x** under throttling (REP-vs-REP, the only
+  sanctioned cross-stem read). PURE stems are low-resolution buckets
   (flagged in the sidecar `warnings` column; coverage 62-99% published).
 - Exact token counts (from the embedded server's SSE `timings`, which the CLI
   client used to discard): 1.2B PURE 51/30 (EOS-truncated), 1.2B REP 72/256,
@@ -82,8 +83,10 @@ for the numbers.
    14m44s), so the recharge is comfort, not a blocker. Ask them before any later
    rerun: they want to coordinate before touching that device again.
    Provisioning is cheap, measured: `adb push` runs 17.8 MB/s, so ~2.4 GB of models is
-   ~2.5 min, and the G99 campaign itself took 14m44s. Blocked only on: unplugged,
-   >80 %, coordination.
+   ~2.5 min, and the G99 campaign itself took 14m44s. The replication must use
+   ABBA ordering inside a thermally stable window, enforce a narrow battery-
+   temperature gate, and measure its own idle floor before absolute levels are
+   interpreted. Blocked only on: unplugged, >80 %, coordination.
 2. Fase 2a — phase stamps. It is NOT part of any 2b bus, and two facts found on
    2026-09-15 make this much smaller than this doc's earlier framing:
    - the fork already splits policy from mechanism: `src/llama-governor-policy.{h,cpp}`
@@ -108,20 +111,16 @@ for the numbers.
    md5 of the pristine binaries there (`llama-cli` cca1187c7974655a50efe45d3cfd73d8,
    `libllama-cli-impl.so` 4e1eab9cd3d99a65373fe720193e4c24), exactly as it pins the
    line numbers in `tmp/kalsallama-pin`.
-3. Step 0 and the Jelly v3 campaign are ONE device session, decided 2026-09-15. A run
-   with stamps ON can be read both ways (v3 with them, v2-style by ignoring them via the
-   tool's fallback), but a stamps-free run can never be upgraded to v3 — so a separate
-   v2 repeatability session would be work to redo. Therefore: **three back-to-back runs
-   of the v3 protocol on the Jelly**, which yields all three of
-   (a) the v3 numbers, and the reference the S23 replicates;
-   (b) step 0: within-run and between-run spread = the minimum detectable effect that
-       the self-audit's F1 says does not exist (2.6B/PURE spreads 10.06 % across three
-       reps while passing every published gate, against 0.68 % on 1.2B/REP);
-   (c) the v2→v3 delta measured on identical runs, with no device difference in it.
-   Read it with `node scripts/energyPhaseSplit.mjs <dir> --counts-manifest
-   scripts/fixtures/energy-counts/manifest.csv`. Until (b) exists, any A/B on this
-   metric is unfalsifiable.
-4. Fase 2b — an energy-objective policy on that seam, after step 0 clears. Two
+3. **Step 0 is now answered by the Jelly v3 campaign.** The three back-to-back
+   stamped runs establish the within-run and between-run spread, the thermal
+   run-order effect, and the v2→v3 delta on identical run1 bytes. The result is
+   that sequential A-then-B is not usable: effects below roughly 5–10 % are
+   not distinguishable, and the nested run effect requires a 25.4 % MDE for
+   1.2B/REP at n=3. Any future A/B must use ABBA ordering and a temperature
+   gate. Read the campaign with `node scripts/energyPhaseSplit.mjs <dir>
+   --counts-manifest scripts/fixtures/energy-counts/manifest.csv`.
+4. Fase 2b — an energy-objective policy on that seam, after the step-0 result
+   and the thermal-gated ABBA protocol are incorporated. Two
    corrections to this doc's earlier framing, both from the 2026-09-15 recon:
    - the lever is **not** mechanism design. ggml's affinity apply is compiled out by the
      glibc-only guard `#elif defined(__gnu_linux__)` (`ggml-cpu.c:2907`), with an Android
