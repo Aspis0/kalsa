@@ -1,0 +1,8 @@
+Checklist for the warehouse audit:
+- item 1: checked
+- item 2: checked
+- item 3: checked
+- item 4: checked
+- item 5: checked
+- item 6: checked
+Continue the checklist with items 7 through 40, same format.
