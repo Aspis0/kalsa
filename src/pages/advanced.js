@@ -54,6 +54,7 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
       <p class="field-help">Between 60 seconds and 1 hour, so an ordinary pause does not reload the model.</p>
       <p class="effective-values" data-el="effective"></p>
       <p class="field-help" data-el="door"></p>
+      <p class="field-help" data-el="iroh"></p>
       <button type="button" class="primary" data-el="save">Save settings</button>
       <p class="feedback" data-el="feedback" hidden></p>
     `;
@@ -63,9 +64,10 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
     const contextHelp = body.querySelector('[data-el="context-help"]');
     const effective = body.querySelector('[data-el="effective"]');
     const door = body.querySelector('[data-el="door"]');
+    const iroh = body.querySelector('[data-el="iroh"]');
     const save = body.querySelector('[data-el="save"]');
     const feedback = body.querySelector('[data-el="feedback"]');
-    view = { context, idle, note, contextHelp, effective, door, save, feedback };
+    view = { context, idle, note, contextHelp, effective, door, iroh, save, feedback };
     for (const input of [context, idle]) {
       input.addEventListener("input", () => {
         dirty = true;
@@ -108,6 +110,7 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
       view.contextHelp.textContent = "The app will read the machine before choosing a value.";
       view.effective.textContent = "The values in force will appear here when the app is open.";
       view.door.textContent = "The local door is waiting for the server to run.";
+      view.iroh.textContent = "The internet road is waiting for the server to run.";
       view.save.hidden = true;
       return;
     }
@@ -126,6 +129,7 @@ export function mountAdvanced(root, { backend = tauriBackend } = {}) {
     view.door.textContent = dto.door_port
       ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve ${dto.door_port}`
       : "The local door is waiting for the server to run.";
+    view.iroh.textContent = dto.iroh_sentence ?? "";
     view.save.hidden = false;
   }
 

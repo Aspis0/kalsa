@@ -2512,6 +2512,7 @@ dependencies = [
  "kalsa-catalog",
  "kalsa-door",
  "kalsa-download",
+ "kalsa-iroh",
  "kalsa-launch",
  "kalsa-pairing",
  "kalsa-probe",
@@ -2524,6 +2525,7 @@ dependencies = [
  "sha2 0.10.9",
  "tauri",
  "tauri-build",
+ "tokio",
  "windows-sys 0.59.0",
 ]
 

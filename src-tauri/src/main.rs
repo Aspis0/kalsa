@@ -14,6 +14,7 @@ mod failure;
 mod metrics;
 mod options;
 mod pairing;
+mod road;
 mod startup;
 mod transport;
 
@@ -49,6 +50,10 @@ struct Brain {
     /// again and the Model page can say whether numbers exist. Memory only:
     /// a restart measures again rather than pretending a result survived.
     measurement: Mutex<Option<Measurement>>,
+    /// The second road to the door (iroh). It lives and dies with the door:
+    /// opened beside it, closed by `stop_door`. Its failures are the road's
+    /// own — the door does not answer for them.
+    road: Arc<road::Road>,
     /// One walk at a time: a second press while the first is still deciding,
     /// downloading or starting must not start a second of anything.
     turning_on: AtomicBool,
@@ -69,6 +74,7 @@ impl Brain {
             door: Mutex::new(None),
             launch: Mutex::new(None),
             metrics,
+            road: Arc::new(road::Road::new()),
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
         }
@@ -87,6 +93,10 @@ impl Brain {
         // server's own announcement, which RuntimeMetrics applies wherever it
         // is next read; a note_unload on door shutdown fired once a second
         // against a stopped server and reset evidence nobody had challenged.
+        // The road dies here too: it pointed at this door and only at this
+        // door. A road that outlived its door would carry traffic to a dead
+        // listener, and an in-flight attempt would answer to nobody.
+        self.road.close();
         let door = self.door.lock().ok().and_then(|mut stored| stored.take());
         if let Some(door) = door {
             door.door.shutdown();
@@ -187,6 +197,10 @@ impl Brain {
             address,
             door: running,
         });
+        // The road opens toward the address the running door itself
+        // reported — never a port reconstructed from elsewhere. A road that
+        // cannot open says so in the panel and leaves the door standing.
+        road::open(&self.road, address, road::key_path(file));
         Ok(())
     }
 
@@ -197,7 +211,7 @@ impl Brain {
             .as_ref()
             .and_then(|stored| stored.as_ref())
             .map(|info| (&info.args, info.maximum_context_tokens));
-        options::dto(overrides, active, self.door_port())
+        options::dto(overrides, active, self.door_port(), self.road.sentence())
     }
 
     fn set_advanced(
@@ -615,6 +629,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn a_second_press_while_a_walk_is_running_starts_nothing() {
@@ -695,6 +710,238 @@ mod tests {
             offload: kalsa_launch::Offload::NoGpuBuild,
             idle_unload_seconds: 300,
         }
+    }
+
+    /// A real persisted pairing, the way the phone leaves it, so the door
+    /// can be started for real in these tests.
+    fn persist_pairing(file: &Path) {
+        let now = SystemTime::now();
+        let mut pairing = kalsa_pairing::Pairing::offer(
+            "http://127.0.0.1:8131",
+            now,
+            Duration::from_secs(60),
+        )
+        .unwrap();
+        let payload: serde_json::Value =
+            serde_json::from_str(&pairing.qr_payload().unwrap()).unwrap();
+        let code = payload["code"].as_str().unwrap();
+        let nonce = payload["nonce"].as_str().unwrap();
+        assert!(matches!(
+            pairing.claim(code, now),
+            kalsa_pairing::ClaimResult::Claimed
+        ));
+        let declaration = kalsa_pairing::PhoneDeclaration::sign(
+            code,
+            nonce,
+            payload["reachable"].as_str().unwrap(),
+            kalsa_catalog::PhoneModel {
+                weights_bytes: 1,
+                parameters: None,
+                measured_tokens_per_second: None,
+                battery_powered: None,
+            },
+        )
+        .unwrap();
+        let (handshake, _) = pairing.complete(declaration, now).unwrap();
+        kalsa_pairing::store::persist(&handshake, file).unwrap();
+    }
+
+    /// What llama-server answers behind the door in this test.
+    const UPSTREAM_RESPONSE: &[u8] =
+        b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello";
+
+    fn scratch_pairing(name: &str) -> PathBuf {
+        let directory = std::env::temp_dir().join(format!(
+            "kalsa-brain-road-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("pairing.json");
+        persist_pairing(&file);
+        file
+    }
+
+    fn wait_for_road(brain: &Brain, wanted: road::RoadState) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while brain.road.snapshot() != wanted {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the road never reached {wanted:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[test]
+    fn a_road_that_cannot_open_leaves_the_door_serving() {
+        // The key path is a directory, so the bridge fails before any
+        // network is touched. The road must own that failure — the door
+        // keeps standing, and the panel says the road is not available.
+        let file = scratch_pairing("failure");
+        std::fs::create_dir_all(road::key_path(&file)).unwrap();
+        let brain = Brain::new();
+        let started = brain.start_door_if_paired(8130, &file);
+        assert!(
+            started.is_ok(),
+            "a road failure must not fail the door: {started:?}"
+        );
+        assert!(brain.door_port().is_some(), "the door must be serving");
+        wait_for_road(&brain, road::RoadState::Unavailable);
+        assert_eq!(
+            brain.road.sentence(),
+            "The internet road could not open on this computer. The other roads to it still work."
+        );
+        brain.stop_door();
+        assert!(matches!(brain.road.snapshot(), road::RoadState::Closed));
+    }
+
+    #[test]
+    fn a_second_poll_with_the_same_door_does_not_restart_the_road() {
+        // start_door_if_paired runs once a second; the road, like the door,
+        // must not be torn down and rebuilt by every poll.
+        let file = scratch_pairing("idempotent");
+        std::fs::create_dir_all(road::key_path(&file)).unwrap();
+        let brain = Brain::new();
+        brain.start_door_if_paired(8130, &file).unwrap();
+        wait_for_road(&brain, road::RoadState::Unavailable);
+        let before = brain.road.snapshot();
+        brain.start_door_if_paired(8130, &file).unwrap();
+        assert_eq!(
+            before,
+            brain.road.snapshot(),
+            "the same door restarted the road"
+        );
+        brain.stop_door();
+    }
+
+    #[test]
+    fn stopping_the_door_closes_the_road() {
+        let brain = Brain::new();
+        let epoch = brain.road.begin();
+        brain.road.finish(epoch, None);
+        assert!(matches!(
+            brain.road.snapshot(),
+            road::RoadState::Unavailable
+        ));
+        brain.stop_door();
+        assert!(
+            matches!(brain.road.snapshot(), road::RoadState::Closed),
+            "the road outlived its door"
+        );
+    }
+
+    #[test]
+    fn the_road_reaches_the_door_the_app_started() {
+        // The full loop, offline: relays disabled, addresses through one
+        // in-process book — the crate's own seam, the same way its
+        // round-trip test runs. The road attempt goes through the app's own
+        // wiring (start_door_if_paired), so a bridge opened toward any
+        // address but the running door's own leaves this response unborn.
+        let file = scratch_pairing("full-loop");
+        let credential = kalsa_pairing::store::load(&file)
+            .unwrap()
+            .credential_hex();
+
+        // The upstream behind the door: one canned response per connection.
+        let upstream = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let upstream_port = upstream.local_addr().unwrap().port();
+        let upstream_stop = Arc::new(AtomicBool::new(false));
+        let upstream_thread = std::thread::spawn({
+            let stop = Arc::clone(&upstream_stop);
+            move || {
+                upstream.set_nonblocking(true).unwrap();
+                while !stop.load(Ordering::SeqCst) {
+                    match upstream.accept() {
+                        Ok((mut stream, _)) => {
+                            let mut head = Vec::new();
+                            let mut byte = [0u8; 1];
+                            loop {
+                                use std::io::Read;
+                                if stream.read(&mut byte).unwrap_or(0) == 0
+                                    || (head.push(byte[0]), head.ends_with(b"\r\n\r\n")).1
+                                {
+                                    break;
+                                }
+                            }
+                            let _ = std::io::Write::write_all(
+                                &mut stream,
+                                &UPSTREAM_RESPONSE,
+                            );
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            std::thread::sleep(Duration::from_millis(2));
+                        }
+                        Err(_) => return,
+                    }
+                }
+            }
+        });
+
+        let book = kalsa_iroh::AddressBook::new();
+        let mut brain = Brain::new();
+        brain.road = Arc::new(road::Road::offline(book.clone()));
+        brain.start_door_if_paired(upstream_port, &file).unwrap();
+        wait_for_road(&brain, road::RoadState::Opening);
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let node_id = loop {
+            match brain.road.snapshot() {
+                road::RoadState::Open { node_id } => break node_id,
+                road::RoadState::Opening => {
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "the road never opened against the running door"
+                    );
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                other => panic!("the road gave up instead of opening: {other:?}"),
+            }
+        };
+
+        // The phone side: another bridge sharing the book, dialing the road
+        // by its public bytes alone, then speaking HTTP to it — with the
+        // door's own credential, so authentication must pass too.
+        let client_key = file.with_file_name("client-node.key");
+        let client = road::runtime().block_on(async {
+            kalsa_iroh::Bridge::start(
+                kalsa_iroh::BridgeConfig::new(SocketAddr::from((
+                    std::net::Ipv4Addr::LOCALHOST,
+                    8131,
+                )))
+                .with_relay(kalsa_iroh::RelayChoice::Disabled)
+                .with_address_book(book),
+                &client_key,
+            )
+            .await
+            .expect("a relayless client bridge binds locally")
+        });
+        let response: Vec<u8> = road::runtime().block_on(async {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+            let remote = node_id.parse().expect("the node id is 64 hex characters");
+            let mut stream = client.connect(remote).await.expect("the tunnel dials");
+            let request = format!(
+                "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+                 Authorization: Bearer {credential}\r\nContent-Length: 0\r\n\
+                 Connection: close\r\n\r\n"
+            );
+            stream.write_all(request.as_bytes()).await.unwrap();
+            stream.shutdown().await.unwrap();
+            let mut response = Vec::new();
+            tokio::time::timeout(Duration::from_secs(5), stream.read_to_end(&mut response))
+                .await
+                .expect("the tunnel answer arrived")
+                .unwrap();
+            response
+        });
+        assert!(
+            response.starts_with(b"HTTP/1.1 200 OK") && response.ends_with(b"hello"),
+            "the tunnel did not reach the door the app started: {response:?}"
+        );
+
+        brain.stop_door();
+        upstream_stop.store(true, Ordering::SeqCst);
+        upstream_thread.join().unwrap();
+        let _ = std::fs::remove_file(&client_key);
     }
 
     #[test]
