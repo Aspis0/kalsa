@@ -1043,10 +1043,13 @@ if (plEntries.length) {
   console.log(`Block state: ${plStateParts.join("; ")}; session idle floor ${f(idleW, 3)} W (section 2); per-arm battery, temperature, ordering and screen state in sections 1 and 3. Absolute joules are session-relative (docs/ENERGY-SCHEMA.md). Each rep generates ${Number.isFinite(promptlenNgen) ? promptlenNgen : "n/a"} tokens (PROMPTLEN_NGEN) so the decode bucket is present as a reference only — at that length decode J/token is low-resolution by the schema's own coverage discipline and is not a J/token claim.`);
   console.log("");
 
+  // Points are keyed by model|arm: with INCLUDE_1P2B=1 both models produce
+  // the same arm labels, and their rows must never merge into one curve.
   const plByArm = new Map();
   for (const e of plEntries) {
-    if (!plByArm.has(e.arm)) plByArm.set(e.arm, []);
-    plByArm.get(e.arm).push(e);
+    const key = `${e.model}|${e.arm}`;
+    if (!plByArm.has(key)) plByArm.set(key, []);
+    plByArm.get(key).push(e);
   }
   const meanOf = (list, field) => {
     const v = list.map((e) => finite(e.row[field])).filter((x) => x !== null);
@@ -1076,7 +1079,10 @@ if (plEntries.length) {
     const meta = metaByKey.get(`${e.model}|${e.block}|${e.position}|${e.arm}`);
     return meta ? `${meta.startTemp}→${meta.endTemp}` : "n/a";
   };
-  const plPoints = [...plByArm.entries()].map(([arm, list]) => {
+  const plPoints = [...plByArm.entries()].map(([key, list]) => {
+    const sep = key.indexOf("|");
+    const model = key.slice(0, sep);
+    const arm = key.slice(sep + 1);
     const good = list.filter(plRepUsable);
     const nominal = Number(arm.slice(1));
     const positions = [...new Set(list.map((e) => e.position))].sort((a, b) => a - b);
@@ -1091,6 +1097,7 @@ if (plEntries.length) {
     const revJ = meanOf(rev, "j_prefill");
     const meanJPrefill = meanOf(good, "j_prefill");
     return {
+      model,
       arm,
       nominal,
       used: good.length,
@@ -1111,17 +1118,17 @@ if (plEntries.length) {
       revTemp: plTempOf(rev),
       clocks: fwd[0] ? (clocksByStem.get(fwd[0].stem) || "n/a") : "n/a",
     };
-  }).sort((a, b) => a.nominal - b.nominal);
+  }).sort((a, b) => a.model.localeCompare(b.model) || a.nominal - b.nominal);
 
-  console.log("| nominal target | measured tokens | reps used | mean prefill s | mean j_prefill J | J per 1000 prompt tok (raw, incl. fixed cost) | forward J | reverse J | fwd→rev step | decode ref (cov) | prefill coverage | fwd temp deci-C start→end | rev temp deci-C start→end | observed clocks (fwd) | stable |");
-  console.log("|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|---|---|---|");
+  console.log("| model | nominal target | measured tokens | reps used | mean prefill s | mean j_prefill J | J per 1000 prompt tok (raw, incl. fixed cost) | forward J | reverse J | fwd→rev step | decode ref (cov) | prefill coverage | fwd temp deci-C start→end | rev temp deci-C start→end | observed clocks (fwd) | stable |");
+  console.log("|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|---|---|---|");
   for (const p of plPoints) {
     const decodeRef = Number.isFinite(p.decodeJ) ? `${f(p.decodeJ, 2)} J (${f(p.decodeCov * 100, 0)}%)` : "n/a";
     // Without both halves a forward or reverse mean is not a measurement;
     // print n/a instead of echoing the surviving half.
     const fwdCell = p.bothHalves ? f(p.fwdJ) : "n/a";
     const revCell = p.bothHalves ? f(p.revJ) : "n/a";
-    console.log(`| ${p.nominal} | ${Number.isFinite(p.measured) ? p.measured : "n/a"} | ${p.used}/${p.total} | ${f(p.meanPrefillS)} | ${f(p.meanJPrefill)} | ${f(p.jPer1k, 2)} | ${fwdCell} | ${revCell} | ${f(p.drift, 1)}% | ${decodeRef} | ${f(p.prefillCov * 100, 0)}% | ${p.fwdTemp} | ${p.revTemp} | ${p.clocks} | ${p.stable ? "stable" : "**UNINTERPRETABLE**"} |`);
+    console.log(`| ${md(p.model)} | ${p.nominal} | ${Number.isFinite(p.measured) ? p.measured : "n/a"} | ${p.used}/${p.total} | ${f(p.meanPrefillS)} | ${f(p.meanJPrefill)} | ${f(p.jPer1k, 2)} | ${fwdCell} | ${revCell} | ${f(p.drift, 1)}% | ${decodeRef} | ${f(p.prefillCov * 100, 0)}% | ${p.fwdTemp} | ${p.revTemp} | ${p.clocks} | ${p.stable ? "stable" : "**UNINTERPRETABLE**"} |`);
   }
   console.log("");
 
@@ -1150,22 +1157,44 @@ if (plEntries.length) {
   const fitS = linfit(fitPts, "y2");
   // The headline inherits every refusal: all four designed length points
   // must survive with every rep, every arm stable, every length carrying a
-  // real forward↔reverse pair within the stability limit, and the fit clean.
+  // real forward↔reverse pair within the stability limit, exactly one model
+  // in the block, and a slope that survives dropping any single point.
+  const plModels = [...new Set(plEntries.map((e) => e.model))];
   const driftFailures = plPoints.filter((p) => p.bothHalves && !(Number.isFinite(p.drift) && Math.abs(p.drift) <= stabilityLimit));
   const reasons = [];
   if (fitPts.length < 4) reasons.push(`only ${fitPts.length} of 4 length points survived into the fit (missing stamps, zeroed v2-fallback prefill rows, or undeterminable counts — see the reps-used column)`);
+  if (plModels.length > 1) reasons.push(`promptlen entries span ${plModels.length} models (${plModels.join(", ")}) — the marginal prefill cost is per-model and this section is calibrated to one reference model; run one campaign per model instead of fitting across them`);
   for (const p of plPoints.filter((p) => !p.stable)) reasons.push(`${p.arm} is UNINTERPRETABLE in section 1`);
   for (const p of plPoints.filter((p) => !p.bothHalves)) reasons.push(`${p.arm} has no forward↔reverse pair (a half is missing or kept no usable reps) — thermal agreement cannot be checked`);
   for (const p of plPoints.filter((p) => p.used < p.total)) reasons.push(`${p.arm} lost ${p.total - p.used} of ${p.total} reps to unusable prefill buckets`);
   for (const p of driftFailures) reasons.push(`${p.arm} forward↔reverse J step ${f(p.drift, 1)}% is not within the ${stabilityLimit}% stability limit`);
-  if (fitJ && !(Number.isFinite(fitJ.r2) && fitJ.r2 > 0.99)) reasons.push(`fit not clean: R² = ${f(fitJ.r2, 4)}`);
-  // The residual table prints on refusals too: it is the diagnostic for an
-  // unclean or refused fit.
-  if (fitJ && fitS) {
-    console.log("| point | measured tokens | mean j_prefill J | j_prefill residual J | mean prefill s | prefill residual s |");
-    console.log("|---|---:|---:|---:|---:|---:|");
+  // Leave-one-out slope gate, replacing an R² threshold: at four points
+  // spread over an 8x range one bad endpoint barely moves R² while moving
+  // the published slope a lot. Refuse when dropping any single point moves
+  // the slope by more than 5% — the same stability limit the instrument
+  // already applies to throughput spread — i.e. the tolerance is the slope
+  // error we are willing to publish, not how straight the line looks.
+  const PL_LOO_TOLERANCE_PCT = 5;
+  const looSlopes = plModels.length === 1 && fitPts.length >= 4
+    ? fitPts.map((_, i) => {
+        const loo = linfit(fitPts.filter((_, j) => j !== i), "y");
+        return loo && fitJ && fitJ.slope !== 0 ? ((loo.slope / fitJ.slope) - 1) * 100 : NaN;
+      })
+    : [];
+  for (let i = 0; i < looSlopes.length; i++) {
+    if (!(Number.isFinite(looSlopes[i]) && Math.abs(looSlopes[i]) <= PL_LOO_TOLERANCE_PCT)) {
+      reasons.push(`${fitPts[i].label} is load-bearing: dropping it moves the slope ${f(looSlopes[i], 1)}%, over the ${PL_LOO_TOLERANCE_PCT}% leave-one-out tolerance`);
+    }
+  }
+  // The residual table prints on refusals too: it is the diagnostic for a
+  // refused fit, with each point's leave-one-out slope showing which point
+  // is load-bearing. R² stays as information, never as the gate.
+  if (plModels.length === 1 && fitJ && fitS) {
+    console.log(`Full fit (informational; the gate is the ${PL_LOO_TOLERANCE_PCT}% leave-one-out slope tolerance): slope ${f(fitJ.slope, 4)} J/token, intercept ${f(fitJ.intercept, 1)} J, R² = ${f(fitJ.r2, 4)}.`);
+    console.log("| point | measured tokens | mean j_prefill J | j_prefill residual J | mean prefill s | prefill residual s | leave-one-out slope step |");
+    console.log("|---|---:|---:|---:|---:|---:|---:|");
     fitPts.forEach((p, i) => {
-      console.log(`| ${p.label} | ${p.x} | ${f(p.y)} | ${f(fitJ.residuals[i])} | ${f(p.y2)} | ${f(fitS.residuals[i])} |`);
+      console.log(`| ${p.label} | ${p.x} | ${f(p.y)} | ${f(fitJ.residuals[i])} | ${f(p.y2)} | ${f(fitS.residuals[i])} | ${looSlopes.length ? `${f(looSlopes[i], 1)}%` : "n/a"} |`);
     });
     console.log("");
   }
