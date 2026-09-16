@@ -30,6 +30,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 - The governor and corrected Adreno prefill path are measured, but each generation/model path still requires its own correctness evidence (ALIVE §9; diary 7/09).
 - NPU, GPU, thermal, memory, session, and tool-loop work remains gated by measured correctness and product behavior (ALIVE §6, §9, and §10).
 - Open work is listed at the end of this plan with its numerical evidence pointer in ALIVE §9 or the dated ALIVE diary.
+- **14/09 G2 leftovers:** Overnight **S23 only** (Xiaomi tomorrow, Jelly off). Digest-share + latch APPLY `1215770b` then APK then S23 20t. Do not 20t on `94dd4e5`. pos_max uncommitted. G2 not claimed.
 
 ## Decisioni prese
 

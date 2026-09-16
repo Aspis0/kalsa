@@ -4768,3 +4768,643 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (`device_calc`), in-app document if already imported (adb SEND-PDF
   still HARNESS_MISS), 20 turns with n_common not stuck at 1833.
   Xiaomi not in this slice. G2 not claimed.
+
+- **13/09 — S23 leftovers oneshot: tools PASS, 20t FAIL 1/20.** Agent
+  `fd6471d4` stubbed and was killed; `leftovers.sh` still finished
+  12:44:49Z. SHA `1a0fb8f5…`. stayon 0 timeout null. Tools:
+  `KALSA_TOOLCALL executed=1 toolNames=["device_calc"]` 08:43:38.672
+  (sent into live i14 KV `embd=5199 n_common=1829` — tool still ran).
+  Docs SKIP/HARNESS_MISS library n=0. 20 turns: 1/20 because
+  `thermal()` `adb shell` without `</dev/null` ate `prompts-20.txt`
+  stdin, and “Nuova chat” did not switch (t1 still tools KV
+  `embd=2136 n_common=2122`, second device_calc). Restore
+  `no_file` on i14 stem after force-stop. Evidence
+  `scratchpad/agents/product-suite/S23-D39FA51-G2-LEFTOVERS-2026-09-13/`.
+  Successor `a2e75eff` (grok-4.6): S23 20t on a real new chat, then
+  Jelly tools+docs+20t. G2 not claimed.
+
+- **13/09 — a2e75eff stubbed; S23 T20 leftovers.sh still live.** Killed.
+  Prior watches: `new_chat_t20` abort ×2, then send-during-prewarm
+  `complete_fail=1`. New evid `S23-D39FA51-G2-T20-2026-09-13/`, PID
+  86048, skip_tools=1. Boot load `no_file` stem
+  `conv-g1-c01-1789002933`, `PREWARM start` + `KVPREFIX embd=0
+  n_common=0` at 09:50:14 (fresh chat). App pid 22268, stayon 0,
+  timeout 300000 (restore on script EXIT). Successor `d99e8914`
+  waits that PID then Jelly. G2 not claimed.
+
+- **13/09 — S23 T20 n=2 then thermal; T20B stopped (unplugged).**
+  T20: t1 COMPLETE `n_common=1829` `predicted=513` (long answer);
+  t2 `KVPREFIX n_common=2667=embd` then FAIL at 40.3°C unplugged
+  (`complete_fail=2`). T20B: PREWARM done, drawer Nuova chat empty,
+  second prewarm `no_file` stem `conv-g1-c01-1789002812`, cool_wait.
+  S23 **AC powered:false** since 09:47, 96%, keep_awake draining.
+  Parent SIGTERM 89583; trap stayon 0 timeout null. `d99e8914`
+  stubbed (killed). Successor `1937d22a`: Jelly tools+docs+20t
+  now (library has `kalsa-v2-small-condominium.pdf`, AC true).
+  S23 20t BLOCKED until plugged. G2 not claimed.
+
+- **13/09 — owner override: S23 20t UNPLUGGED is the battery test.**
+  Do not wait for AC. Measure drain of 20 messages (app vs
+  inference vs screen). Hard abort only ≥43°C or level ≤15%;
+  cool_wait at 40°C then continue (T20 died at 40.3 on t2).
+  Agent `10c54600` on S23; `1937d22a` Jelly only. G2 not claimed.
+
+- **13/09 — S23 20t battery FAIL n=6 (parent-verified).** Evid
+  `S23-D39FA51-G2-T20-BATT-2026-09-13/`. SHA `1a0fb8f5…`, stayon 0
+  timeout null after. Unplugged 53%→40% in 28.2 min, peak 42.9°C,
+  brightness=1 (harness, not real user). t1 `n_common=1829`
+  predicted=287. t4 `KVPREFIX embd=0 n_common=0` (KV wiped). t6
+  no TELEMETRY 840s (1 screen-off sample). `10c54600` done.
+  Successor `d9f8c024`: retry 20t unplugged, screen on, no dim,
+  poke during decode, cool_wait ≤60s. Jelly still live: tools
+  `device_calc executed=1`, docs TOOLCALL executed=0, 20t at t16
+  `n_common=11772=embd`, screen on. G2 not claimed.
+
+- **13/09 — S23 20t retry cancelled; two findings banked.** Owner:
+  results already enough. `d9f8c024` closed. S23 idle 39% unplugged,
+  stayon 0 timeout null, no Kalsa pid. Banked: (1) unplugged drain
+  53→40% in 28 min at brightness=1, peak 42.9°C; (2) KV wipe t4
+  `embd=0 n_common=0` mid-chat. Jelly continues t17
+  `n_common=12397=embd`, screen on, AC 100%. G2 not claimed.
+
+- **13/09 — t4 KV wipe root cause: prewarm clearCache.** After t3
+  save `kv_inconsistent n_tokens=2316 pos_max=2929`, logcat
+  `12:31:58 KALSA_PREWARM skip reason=kv_holds_chat` then
+  `12:32:13 KALSA_PREWARM start hash=3586270056` then
+  `KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0`.
+  `notifyStaticPrefixInputs` (`LlamaService.ts`) `clearCache` +
+  `markChatKvCleared` while `kvHoldsChatSession` was true — it did
+  not check the hold; `queueStaticPrefixPrewarm` already skips via
+  `shouldSkipPrewarmWhenKvHoldsChat`. Next user send cold-prefilled
+  ~46s (t4 `n_common=0`). App fix landed: `shouldWipeKvOnPrefixInputChange`
+  in `prefixPrewarm.ts` (skip helper inverted); notify returns
+  `KALSA_PREWARM skip reason=kv_holds_chat` **before**
+  `resetPrewarmState` / `clearCache` / `markChatKvCleared` /
+  `queueStaticPrefixPrewarm`. In-flight busy path kept. Next send
+  may hash-miss; that is correct. G2 not claimed. Out of scope:
+  `save_refused kv_inconsistent pos_max=2973 n_tokens=2360`
+  (hybrid frontier). Battery research is a separate agent.
+
+- **13/09 — S23 T20 leftovers PID 86048: 2/20, thermal 40.3°C on turn 2.**
+  SHA `1a0fb8f5…`. PREWARM done
+  `'KALSA_PREWARM', '{"op":"done","promptMs":159838.57200000001,"promptN":1832,"hash":"3586270056"}'`
+  at 09:52:54. Empty chat skip drawer (`did-switch=0`), skip
+  fresh_engine. t1 KVPREFIX `embd=1832 text_tokens=2153 n_common=1829`
+  then TELEMETRY `turnId":"1"` `tokensCached":2667` `tokensPredicted":513`
+  `interrupted":false`. t2 KVPREFIX `embd=2667 n_common=2667` (reuse grew).
+  `temp_deci=403` during wait_kv_tel → abort `complete_fail=2` (thermal,
+  mislabeled). Cleanup: `timeout restore: deleted` `stay_on_after=0`
+  `timeout_after=null`. Evidence
+  `S23-D39FA51-G2-T20-2026-09-13/`. T20B 20t-only PID 89583 in
+  `S23-D39FA51-G2-T20B-2026-09-13/` with inter-turn cool_wait (abort still
+  ≥40°C). Jelly SHA match, not started. G2 not claimed.
+
+- **13/09 — S23 20t unplugged battery ABORT `complete_fail=6` (not G2).**
+  SHA `1a0fb8f5…`. stayon 0, timeout 300000 during run, restore DELETE
+  null. Hard abort ≥43°C / ≤15% not hit (peak 42.9°C, end 40%).
+  PREWARM `'op":"done","promptMs":40516.792,"promptN":1832,"hash":"3586270056"'`.
+  t1 KVPREFIX `n_common=1829` TELEMETRY `tokensPredicted":287` 10.82 tok/s.
+  t2 `n_common=2137` predicted=199. t3 `n_common=2137` predicted=159.
+  t4 KVPREFIX `embd=0 text_tokens=1832 n_common=0` then tel predicted=109.
+  t5 `n_common=2153` predicted=252. t6 KVPREFIX `n_common=1093` then
+  `WARN no telemetry after 840s` (`complete_fail=6`).
+  Battery 53→40% (−13) in 28.2 min; decode current_now mean/peak
+  −970/−2914; 1 screen_off sample at t6 16:45:32Z (contaminated).
+  keep_awake is a drain line item (screen on, brightness=1).
+  cpu-decode/cpu-idle files empty of `com.kalsa.app` lines.
+  Evidence `S23-D39FA51-G2-T20-BATT-2026-09-13/`. G2 not claimed.
+
+- **13/09 — t4 notifyStaticPrefixInputs wipe fix landed (code, not G2).**
+  S23 20t battery logcat (parent-verified): after t3 save
+  `kv_inconsistent n_tokens=2316 pos_max=2929`,
+  `12:31:58 KALSA_PREWARM skip reason=kv_holds_chat`, then
+  `12:32:13 KALSA_PREWARM start hash=3586270056` +
+  `KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0`.
+  Cause: `notifyStaticPrefixInputs` cleared live chat KV to re-prewarm.
+  Fix: skip via `shouldWipeKvOnPrefixInputChange` (wraps
+  `shouldSkipPrewarmWhenKvHoldsChat`) before any wipe. Device proof
+  not this PR. G2 not claimed.
+
+- **13/09 — battery research (`c1922408`); audit of wipe fix in flight.**
+  13%/28 min ≈ 1.09 A on 3900 mAh. Samsung `dumpsys current now`
+  −1692..−2914 is almost certainly **mA** (AOSP `CURRENT_NOW` is µA;
+  this vendor field unlabeled). Use charge-counter as ground truth.
+  Ranked levers (owner: screen stays on in real use — do not
+  “optimize” by turning it off between turns): no re-prefill while
+  chat KV live (the 46s prewarm); finite n_predict/stop for short
+  answers; thread sweep for J/token. Screen-off Doze throttles CPU.
+  Hostile audit `db5acdab` (mimo ≠ grok-4.6 writer). G2 not claimed.
+
+- **13/09 — battery split parent-read from batterystats.** 28m 11s
+  unplugged, brightness **dark**. Discharge **484 mAh** (computed
+  472). Screen on 99.8%. Estimated: CPU **529 mAh**, screen **44
+  mAh** (~9% at dark). `com.kalsa.app` u0a347: **195 mAh CPU + 44
+  mAh screen**; proc **58m 34s user** in 28m wall (~2.1 cores).
+  UID **1000 system 325 mAh CPU bg** — larger than the app;
+  attribution OPEN. Decode `current_now` mean −970 peak −2914
+  (treat as mA). cool_wait still ~−1.1A (engine+screen, not rest).
+  User brightness adds screen on top of 44 mAh; do not turn the
+  screen off between turns. Deeper recon: `4c11baf0` web,
+  `3bdf4b4a` repo.
+
+- **13/09 — S23 20t for G2 in flight on `d39fa51` (`e146dc2f`).**
+  AC on, 35%, 29°C. Same APK (wipe fix not installed — harness must
+  not flip locale/web/device/calendar). Xiaomi leftovers blocked:
+  `mDreamingLockscreen=true`. Jelly leftovers already PASS. G2 not
+  claimed.
+
+- **13/09 — e146dc2f/3034ef58 stubbed (killed); parent waits 13c.**
+  13b SIGTERM mid-t1. 13c leftovers PID 28731 live: t1 Invia
+  `n_common=3743` on i02, generating, screen on, AC, timeout
+  300000. Parent monitor until EXIT. No second script. G2 not
+  claimed.
+
+- **13/09 — S23 20t blocked by idle-unload during think.** 13c:
+  `model.unload reason=idle idleMs=331390` while UI «Sto pensando».
+  13d: fresh chat `n_common=1829` then same `unload idleMs=270197`
+  at 14:49:36, zero TELEMETRY. `inFlight` false during thinking on
+  this APK; 180s foreground idle kills the turn. 13e: tap composer
+  during wait to bump `keyboardDidShow` idle clock. G2 not claimed.
+
+- **13/09 — `e8c8886` pushed; APK CI `34776965185` queued.** Wipe
+  skip + `nativeEngineWorkInFlight()` in idle dispose (thinking
+  counts as in-flight). d39fa51 cannot finish S23 20t (13c/d/e
+  idle-unload). G2 waits this APK on S23 then Xiaomi leftovers
+  (PIN). Jelly 20t was on d39fa51 — same-APK G2 needs this build
+  on all three. G2 not claimed.
+
+- **13/09 — session resume 19:35Z.** CI `34776965185` still
+  in_progress (~23 min, typical ~40). adb empty: S23/Xiaomi mDNS
+  visible, connect no-route (152:33983 / 193:38413 / Jelly :5555).
+  Parent re-watching the APK run. G2 not claimed.
+
+- **13/09 — parallel while APK builds.** S23: wait `e8c8886` APK
+  then 20t (d39fa51 20t dead: idle-unload). Jelly: do **not** redo
+  20t on d39fa51; leftover PASS already; same-APK G2 means sideload
+  `e8c8886` when ready. PC: Reviewer luna `47498383` of e8c8886
+  (MiMo `4f380143` killed — no MiMo on roster). grok `97bb1c05`
+  hybrid `kv_inconsistent pos_max>>n_tokens`. Phones still
+  no-route. G2 not claimed.
+
+- **13/09 — luna Reviewer FIX on `e8c8886`.** TDZ/think-tracking
+  REFUTED. P1: wipe job does not recheck `kvHoldsChatSession`
+  after restore; idle misses `nativeOp` + model-switch. APPLY
+  `0fffdaa2` (grok-4.6 ≠ luna). G2 not claimed.
+
+- **13/09 — `e8c8886` APK on S23+Jelly.** CI `34776965185` SUCCESS.
+  SHA `1dd4af1db22d734ba4d0c79bd48123c1412187361f7d8bc480a9362a067f9b09`.
+  S23 `192.168.1.152:33983` AC 83% stayon 0. Jelly `:5555` AC 100%
+  stayon 0. S23 20t agent `2532512d`. G2 not claimed.
+
+- **13/09 — hybrid pos_max cause parent-checked.** S23
+  `save_refused n_tokens=2360 pos_max=2973` after restore 2441 +
+  recover 1827 (extra 614). Native patch on disk (`skip_ckpt`,
+  `recover_trim_failed`). Jest is arithmetic, not seq_rm. Luna
+  review `634b13a2`. Not in `e8c8886` APK. G2 not claimed.
+
+- **13/09 — e8c8886 APPLY P1s on disk (uncommitted).** Recheck
+  before `clearCache`; idle ORs `!isNativeOpChainEmpty()` +
+  `modelSwitchInFlightRef`. Harness EXIT 0. Luna re-audit
+  `958d1687`. Not on the phone APK. G2 not claimed.
+
+- **13/09 — 2532512d stubbed (killed).** T20 e8c8886 FAIL harness:
+  nuova `no_file` stem `conv-g1-c06`, then wait PREWARM 20s while
+  skip `kv_holds_chat` was **before** the mark. Abort
+  `prewarm_missing_after_nuova` n=0. Parent T20B PID 68779: wait
+  180s then SEND anyway. SHA `1dd4af1d…`. G2 not claimed.
+
+- **13/09 — luna re-audit APPLY still FIX.** P1: wipe `withEngineJob`
+  vs restore `withLifecycleLock` (recheck not a lock). P1: prewarm
+  enqueues without recheck inside the job. APPLY `c1eb5336`
+  (grok ≠ luna). Hybrid pos_max FIX parked (not this APK). G2 not
+  claimed.
+
+- **13/09 — battery recon parent-checked.** S23 production: 5/5
+  threads, `n_gpu_layers=0`, `no_extra_bufts:0` (repack ON,
+  logcat init). LFM `nPredict=2048`, thinking always on; first
+  turns budget **512** because `decodeTokPerSec=null` (EMA
+  withhold), not extended. t1 `forceShort:false` “Solo il numero”
+  still 287 predicted. Memory was ON this phone (`factsInjected:11`)
+  so extract 192-token ran after turns (default store is opt-in
+  OFF). Keep-awake download-only. UID 1000 325 mAh is **not** ggml
+  threads (JNI stays u0a347); system/SurfaceFlinger/vendor
+  accounting. Screen-off is not a lever. G2 not claimed.
+
+- **13/09 — MiMo audit FIX applied (code, not G2).** Wipe skip at
+  `notifyStaticPrefixInputs` kv-holds path was already correct.
+  `resetPrewarmState` no longer runs on the in_flight skip.
+  `planPrefixInputChange({ hashSkip, kvHoldsChat, busy })` is the
+  pure planner (`skip_hash` | `skip_kv_holds` | `skip_inflight` |
+  `wipe_and_queue`); only wipe_and_queue resets + clearCache +
+  queue. Harness asserts all four outcomes and skip_inflight ≠
+  wipe. Still no device proof. G2 not claimed. Out of scope:
+  `kv_inconsistent` pos_max>>n_tokens.
+
+- **13/09 — prewarm-wipe re-audit SHIP (code).** MiMo `5d47c0df`:
+  both FIX items closed; no clearCache while chat KV held.
+  Report `AUDIT-PREWARM-WIPE-APPLY-2026-09-13.md`. Parent added
+  exhaustive `default: never` on the notify switch (nit). Device
+  proof not this PR. G2 not claimed.
+
+- **13/09 — Jelly leftovers tools+docs+20t PASS scoped (not G2).**
+  SHA `1a0fb8f5a00b2d52f80648c41967213b19577bce8f09844ffe44bd112032598c`
+  hash match, no reinstall. stayon 0 throughout; timeout 600000 during
+  run, restore DELETE `timeout_after=null`. Screen kept on via
+  KEYCODE_WAKEUP+swipe ≤15s (never stayon true, never 86400000).
+  Tools: `'KALSA_PREWARM', '{"op":"done","promptMs":60308.285,"promptN":1832,"hash":"3586270056"}'`
+  then KVPREFIX `embd=1832 text_tokens=2178 n_common=1829`
+  then `KALSA_TOOLCALL {"turnId":"1","round":0,...,"executed":1,...,"toolNames":["device_calc"]}`
+  TELEMETRY `tokensPredicted":80,"predictedPerSecond":6.61175821858076`.
+  Docs (fresh recycle; in-app `kalsa-v2-small-condominium.pdf`, no adb SEND-PDF):
+  KVPREFIX `embd=1832 text_tokens=2363 n_common=1829`
+  `KALSA_DOC_STRATEGY {"strategy":"full_context","estTokens":489,...}`
+  `KALSA_TOOLCALL {"turnId":"1","round":0,...,"executed":1,...,"toolNames":["document_chat"]}`.
+
+- **13/09 — S23 e8c8886 20t started (not G2).** APK SHA
+  `1dd4af1db22d734ba4d0c79bd48123c1412187361f7d8bc480a9362a067f9b09`
+  hash match, no reinstall. serial `192.168.1.152:33983`. stayon 0,
+  timeout_saved=null, AC 86%, temp 33.3°C. skip_tools=1 skip_docs=1.
+  Evidence `S23-E8C8886-G2-T20-2026-09-13`. TURN_WAIT=240, no composer
+  tap, no recycle after Nuova. Jelly leftovers on this APK pending.
+  Xiaomi out. G2 not claimed.
+  20t: `oneshot.done` + `turns-count=20`. t1 `n_common=1829 embd=1832`;
+  t2 `n_common=2751`; t5 `n_common=4774`; t20 `n_common=14273 embd=14273`
+  TELEMETRY turn 20 `tokensCached":14896,"tokensEvaluated":14790,"tokensPredicted":105`.
+  Restore `KALSA_SESSION {"op":"load","ms":140,"ok":true,"tokensOnDisk":14896,...,"tokens":14896}`.
+  After: `stay_on_after=0` `timeout_after=null`. Battery 100% 32.0°C → 100% 37.0°C.
+  Evidence `JELLY-D39FA51-G2-LEFTOVERS-2026-09-13/`. S23 not touched
+  (sibling battery). G2 not claimed.
+
+- **13/09 — hybrid `pos_max>>n_tokens` cause + native RAM fix (code, not G2).**
+  S23 20t battery logcat (parent-verified),
+  `S23-D39FA51-G2-T20-BATT-2026-09-13/logcat.txt`:
+  t1 save `'KALSA_SESSION {"op":"save",...,"ok":true,...,"tokens":2441}'`.
+  Extract `KALSA_KVPREFIX embd=2441 text_tokens=213 n_common=2` then
+  `KALSA_KVDIAG n_common=2 total=213 search_max=2 checkpoints=[1827,1829,] keep_prefix=0`
+  then `loadSession:108 KALSA_KVRESUME n_tokens=2441 pos_max=2440 ... resumable=1`
+  `'KALSA_SESSION {"op":"load","source":"memory_extract_restore",...,"ok":true,...,"tokens":2441}'`.
+  t2 `KALSA_KVPREFIX embd=2441 text_tokens=2160 n_common=2137` then
+  TELEMETRY `tokensCached":2360,...,"tokensEvaluated":2160,"tokensPredicted":199,...,"prompt_n":333`
+  then `saveSession:207 KALSA_KVRESUME save_refused kv_inconsistent=1 n_tokens=2360 pos_max=2973`.
+  t3 `n_tokens=2316 pos_max=2929` (same extra 614 = 2441−1827).
+  Cause: `llama_memory_seq_rm` of the 2441→2137 tail fails on hybrid
+  (`n_rs_seq` window; `llama-memory-recurrent.cpp` rollback then
+  `return false`). loadSession then captured message boundaries by
+  dumping the *current* 2441 recurrent tail under labels 1827/1829.
+  recover ignored `seq_rm` and set `n_past=1827`; decode appended at
+  `pos_max+1=2441` (`2440+333+200=2973`). Save still refuses a lying
+  file. RAM: capture only when `pos_max+1==n`; recover requires
+  `seq_rm_ok && pos_max+1==k` else drop that snapshot; extract miss
+  `llama_memory_clear` but does **not** `clearStateCheckpoints` (keep
+  honest 1827/1829). No JS `clearCache`. `.kvs` kept on refuse.
+  Targeted Jest `sessionPersistence.test.ts` 24/24. Device proof not
+  this PR. G2 not claimed.
+
+- **13/09 — T20B e8c8886 FAIL n=1 stall, not idle-first.** PREWARM
+  done 104s; t1 `n_common=1829`; `KALSA_STALL gapMs=10143 tokens=1
+  tokPerSec=0.098` then abort; save 2202; idle unload 206s after
+  (turn already dead). 10s stall gap kills thinking. Fix in flight
+  `f75e2f4b`. G2 not claimed.
+
+- **13/09 — wipe/prewarm lock APPLY on disk.** Outer lifecycle +
+  inner engine job; recheck before `clearCache`; catch does not
+  mark cleared; prewarm rechecks hold before `completion`. Luna
+  re-audit `a80a067d`. Not on phone APK. G2 not claimed.
+
+- **13/09 — stall gap 45s / rate after 8 tokens on disk.** Parent
+  verified `stallWatchdog.ts`; Jest 5/5 EXIT 0; 10.143s first-token
+  pause no longer stalls. Luna review `d5b33088`. Not on `e8c8886`
+  APK. G2 not claimed.
+
+- **13/09 — stall + lock audits both FIX.** Stall: rate rule aborts
+  at token 8 with gap 0 (0.38 tok/s); APPLY `cac66961` trailing
+  rate + 0.2 tok/s floor. Locks: prewarm stale ctx after governor
+  await; wipe holds lifecycle behind hung job; APPLY `7655822b`.
+  G2 not claimed.
+
+- **13/09 — lock F1/F2 APPLY on disk.** Post-governor: gen /
+  disposing / `context===engine`. Wipe skips if engine job pending
+  (does not hold lifecycle behind a hung FIFO). Luna re-audit
+  `a450ce91`. Not on phone APK. G2 not claimed.
+
+- **13/09 — stall trailing-rate APPLY on disk.** Gap 45s; rate
+  trailing 8 tokens, 0.2 tok/s, not if gap<1s. Jest 6/6. Luna
+  re-audit `d67c59c6`. Not on `e8c8886` APK. G2 not claimed.
+
+- **13/09 — lock F1/F2 races closed (luna LOCKS2).** Identity
+  guards parent-verified. Remaining FIX is helper-only tests, not
+  a live race. Code-SHIP with test debt. Not on phone APK. G2 not
+  claimed.
+
+- **13/09 — lock F1/F2 APPLY (code, not G2).** Luna
+  `AUDIT-E8C8886-LOCKS-2026-09-13.md`. F1: after
+  `refreshGovernorBeforeCompletion` prewarm rechecks
+  `gen === prewarmGeneration`, `!disposing`, `context === engine`
+  before `engine.completion`. F2: inside `withLifecycleLock`,
+  `engineJobPendingCount > 0` → skip `in_flight` (do not queue
+  behind a running job while holding lifecycle). Recheck before
+  `clearCache` kept. Lock order unchanged. Helper tests left.
+  `stallWatchdog.ts` not touched. G2 not claimed.
+
+- **13/09 — `5abdafa` pushed; APK CI `34782009006` queued.** Stall
+  45s + trailing rate 0.2; no-EMA prefill min 90s; wipe/prewarm
+  locks. pos_max patch left uncommitted (luna FIX). Next: sideload
+  S23 20t. G2 not claimed.
+
+- **13/09 — `5abdafa` APK on S23+Jelly.** SHA
+  `4cb1305a29a283aa5f76e420dfa56252fbe5182c18df822905ea78d855ad5657`.
+  CI `34782009006` SUCCESS. S23 20t leftovers PID 1000 evid
+  `S23-5ABDAFA-G2-T20-2026-09-13`. stayon 0. G2 not claimed.
+
+- **13/09 — 5abdafa t1 actually COMPLETE; harness false-wipe.** First
+  KVPREFIX `embd=0` (send raced prewarm); then THINKING
+  `n_common=1829`; TELEMETRY predicted=184 5.65 tok/s. Harness
+  grepped the first line. Parser now last-before-TELEMETRY.
+  T20B PID 5150. G2 not claimed.
+
+- **13/09 — T20B FAIL still harness: kvout froze at first
+  KVPREFIX embd=0** while TELEMETRY 513 tok 10.6 tok/s existed.
+  T20C refreshes kvout until TELEMETRY. PID 9089. G2 not claimed.
+
+- **13/09 — T20C t1 COMPLETE again; harness used extract
+  n_common=2.** TELEMETRY 513 tok 10.26 tok/s. kvout is
+  KVPREFIX-only so last-before-tel never saw TELEMETRY; extract
+  2/2715 won. Parser now max n_common (1829). T20D PID 14746.
+  G2 not claimed.
+
+- **13/09 — T20D product stall rate at 329 tok.** `KALSA_STALL
+  reason=rate gapMs=1812 tokens=329 tokPerSec=0.166`. Think was
+  live. `96d3d06` MIN_GAP_MS_BEFORE_RATE=10s. CI `34786110208`.
+  G2 not claimed.
+
+- **13/09 — `96d3d06` APK on S23+Jelly.** SHA `4510e94c…`. CI
+  SUCCESS. S23 20t leftovers PID 38551 evid
+  `S23-96D3D06-G2-T20-2026-09-13`. stayon 0 AC 100% 29°C. G2 not
+  claimed.
+
+- **13/09 — 96d3d06 12/20 then thermal 43°C.** t1 `n_common=1829`
+  t5 `4127=embd` t12 `7655=embd`. No stall-rate. THERMAL_ABORT t13.
+  T20B PID 51588 abort 45°C while charging. G2 not claimed.
+
+- **13/09 — T20B 12/20 then t13 n_common=0.** t1–12 reuse
+  1829→7438=embd. t13 `KVPREFIX embd=7905 text_tokens=4205
+  n_common=0` KVDIVERGE (assemble window vs live KV). TELEMETRY
+  still completed prompt_n=4205 118 tok. Harness `n_common=missing`
+  abort. Phone 42.6°C 88% AC but current_avg −1.5A. No relaunch
+  until cooler. G2 not claimed.
+
+- **13/09 — T20C 9/20 then t10 n_common=0 again.** t1–9
+  1829→7284=embd. t10 `embd=7840 text_tokens=4219 n_common=0`
+  KVDIVERGE (ciswireFlags=3). Same wall as T20B t13. Not stall.
+  Do not relaunch 20t until assemble window vs live KV is fixed.
+  G2 not claimed.
+
+- **13/09 — ciswire window clamp on disk.** `assembleStartForLiveKv`
+  off/ciswire+held → `loadedB ?? 0`. Ciswire does not slide while KV
+  held. `nPast>0` counts as live. Jest 18/18. Luna review
+  `8b0512d0`. Not on `96d3d06` APK. G2 not claimed.
+
+- **13/09 — luna ciswire FIX (not SHIP).** Clamp wiring is used;
+  cause of t10 not fully proven. P1: kvHeld sampled before await;
+  loadedB null vs 0; nPast OR can keep stale hold. APPLY `e82df5fe`.
+  Native token-id logs out of scope. G2 not claimed.
+
+- **13/09 — ciswire TOCTOU APPLY on disk.** Hold sampled after
+  bench await; clamp only if `loadedB !== null`. Jest 18/18. Luna
+  re-audit `1d161e9c`. Not on `96d3d06`. G2 not claimed.
+
+- **13/09 — `f441b3d` pushed; APK CI `34795609158` queued.** Ciswire
+  clamp SHIP for 20t (TOCTOU + loadedB-only). Luna leftover P2:
+  digest vs kvHeld, post-snapshot awaits, unearned B on failed
+  turn, no AppShell integration test. pos_max still uncommitted.
+  G2 not claimed.
+
+- **14/09 — overnight: S23 then Xiaomi; Jelly off-limits.** Owner
+  testing a new branch on Jelly — no sideload, no leftovers.
+  When `f441b3d` APK is green: S23 20t only. If PASS, Xiaomi
+  tools/docs/20t. Same-APK G2 waits Jelly. G2 not claimed.
+
+- **14/09 — `f441b3d` APK on S23 only.** SHA `75ab1bc6…`. CI
+  SUCCESS. Jelly not installed. 20t leftovers PID 16983 evid
+  `S23-F441B3D-G2-T20-2026-09-14`. 100% 28.5°C stayon 0. Xiaomi
+  after PASS. G2 not claimed.
+
+- **14/09 — f441b3d T20 FAIL t1 stale KV + rate stall.** Nuova UI
+  empty but load `conv-g1-c01` tokens=4364. Then
+  `KALSA_STALL reason=rate gapMs=10080 tokens=8 tokPerSec=0.079`.
+  T20B requires `no_file` before send. Jelly untouched. Xiaomi
+  waits PASS. G2 not claimed.
+
+- **14/09 — T20B abort new_chat_t20.** Nuova tap does not emit a
+  new load (still 2304-token stem). T20C CONTINUE_EXISTING on held
+  KV, PID 30874. Jelly untouched. Xiaomi waits 20t PASS. G2 not
+  claimed.
+
+- **14/09 — f441b3d T20C 9/20 then t10 n_common=0 again.**
+  1829→7101=embd then `embd=7189 text_tokens=4173 n_common=0`
+  (4173/7189=0.58 = digest share 0.6). kvHeld was false. Clamp
+  not enough. Fix `3dd51fa8`. Xiaomi not started. Jelly off.
+  G2 not claimed.
+
+- **14/09 — `84f6195` pushed; APK CI `34800786969`.** hasDigest
+  false while last save tokens live. Luna `44865c48`. S23 20t
+  after APK. Xiaomi after 20t PASS. Jelly off. G2 not claimed.
+
+- **14/09 — luna digest-share FIX.** `lastSuccessfulSessionSave` not
+  cleared on dispose/failed restore (false-positive kvHeld). APPLY
+  `b3a37f08`. Do not 20t on `84f6195` until latch is on the APK.
+  Jelly off. G2 not claimed.
+
+- **14/09 — `94dd4e5` pushed; APK CI `34801835149`.** Native-empty
+  clears last-save hint; identity-bound. Luna `c8e19b31`. S23 20t
+  on this APK not `84f6195`. Xiaomi after PASS. Jelly off. G2 not
+  claimed.
+
+- **14/09 — luna latch FIX: drop(true) without native clear.**
+  Invalidation/failed restore/utility drop fingerprint while KV
+  still live → hasDigest=true → t10. APPLY `1215770b`. Do not 20t
+  on `94dd4e5`. Jelly off. G2 not claimed.
+
+- **14/09 — `b907290` pushed; APK CI `34803289189`.** drop(true)
+  only after clearCache / overwrite / contextReleased. Luna
+  `8ed3935c`. S23 20t on this APK. Xiaomi tomorrow. Jelly off.
+  G2 not claimed.
+
+- **14/09 — luna b907290 FIX do not ship.** overwriteCompletion
+  return ≠ empty KV; failed-load still drop(true). APPLY
+  `cec27153`. Do not 20t on `b907290`. Jelly off. G2 not claimed.
+
+- **14/09 — `32dfe3c` pushed; APK CI `34804546223`.** No
+  overwriteCompletionReturned. drop(true) only clearCache/dispose.
+  Luna `41338b8e`. S23 20t on this APK. Xiaomi tomorrow. Jelly off.
+  G2 not claimed.
+
+- **14/09 — luna 32dfe3c still FIX (dispose/no_file), t10 contract
+  held.** Remaining: drop(true) before native release; no-op
+  clearCache; no_file skip after flag-only drop. Same-chat 20t
+  needs fingerprint keep (CONFIRMED). Overnight: 20t on `32dfe3c`
+  when APK green, CONTINUE_EXISTING. Do not APPLY more tonight
+  unless t10 repeats. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — `32dfe3c` APK on S23 only.** SHA `f3715ae1…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 4431 evid
+  `S23-32DFE3C-G2-T20-2026-09-14`. 100% 28.9°C stayon 0. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — 32dfe3c t1 digest OK, prefill stall 90s.** KALSA_WINDOW
+  kvHeld=true nPast=4499 hasDigest=false loadedB=0. KVPREFIX
+  n_common=4243/4499. Then `KALSA_STALL reason=prefill` 90s 0 tok.
+  `9151f78` no-EMA deadline 180s floor / prompt/10. CI
+  `34807982723`. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — `9151f78` APK on S23 only.** SHA `2bb294dd…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 31848 TURN_WAIT=420
+  evid `S23-9151F78-G2-T20-2026-09-14`. 100% 29°C stayon 0. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — 9151f78 t2–5 reuse OK; t6 n_common=0 despite
+  hasDigest=false start=0.** WINDOW t6: kvHeld true nPast=8009
+  loadedB=0 hasDigest=false start=0. Then `embd=8009
+  text_tokens=4438 n_common=0` heads disjoint. Digest fix is not
+  enough. Cause hunt `d2c4af80`. 42°C no relaunch. Jelly off.
+  Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — t6 cause: ciswire digest still injected while kvHeld.**
+  WINDOW hasDigest=false start=0 but injectBlock still passed
+  frozenDigest into jinja → heads ≠ system prefix. LFM
+  preserveThinking split unchanged (not Qwen). `7aabfe8` skips
+  digest/summary while kvHeld. CI `34814802788`. Jelly off.
+  Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — `7aabfe8` APK on S23 only.** SHA `426fdc71…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 72549 TURN_WAIT=420
+  evid `S23-7AABFE8-G2-T20-2026-09-14`. 100% 29°C stayon 0. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — 7aabfe8 digest inject OK; rate stall t1.** WINDOW
+  kvHeld=true hasDigest=false start=0 textEst=6200. KVPREFIX
+  n_common=5466=embd. Then `KALSA_STALL reason=rate gapMs=11377
+  tokens=8 tokPerSec=0.08`. `91d7b73` drops rate stall; 45s gap
+  remains. CI `34819733882`. Jelly off. Xiaomi tomorrow. G2 not
+  claimed.
+
+- **14/09 — `91d7b73` APK on S23 only.** SHA `83960d10…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 98238 TURN_WAIT=420
+  evid `S23-91D7B73-G2-T20-2026-09-14`. 100% 30.6°C stayon 0. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — 91d7b73 t1 PRODUCT PASS; harness old_kv abort.** WINDOW
+  hasDigest=false start=0 textEst=6227. KVPREFIX n_common=6001/6010.
+  TELEMETRY 236 tok 9.5 tok/s no stall. Harness treated 6001 as i02.
+  T20B PID 1640. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — 91d7b73 t5 n_common=0; leftover B=20.** t2–4 WINDOW
+  kvHeld=true hasDigest=false but `loadedB=20 start=20` (t1 cold
+  digest slid B, then clamp kept it). t5 `embd=7779
+  text_tokens=4524 n_common=0`. `a21746e` kvHeld → start=0. CI
+  `34826115569`. 40.9°C no relaunch on 91d7b73. Jelly off. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — `a21746e` APK on S23 only.** SHA `0fd4fd21…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 30349 TURN_WAIT=420
+  evid `S23-A21746E-G2-T20-2026-09-14`. 100% 30°C stayon 0. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — a21746e start=0 OK; t1 n_common=0 leftover KV vs new
+  JS.** WINDOW start=0 hasDigest=false textEst=8035. KV 4780 from
+  previous APK vs text_tokens=7602 heads disjoint. Prefill stall
+  at 300s cap. `2bbef14` no-EMA cap 900s. CI `34832022868`. Jelly
+  off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — `2bbef14` APK on S23 only.** SHA `86453147…`. CI SUCCESS.
+  Jelly not installed. 20t CONTINUE_EXISTING PID 54663 TURN_WAIT=960
+  evid `S23-2BBEF14-G2-T20-2026-09-14`. 100% 30°C stayon 0. t1 may
+  heal leftover KV (n_common=0 OK). Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — 2bbef14 t1 PRODUCT PASS (297s prefill, 513 tok, 9
+  tok/s, no stall); harness empty kvout.** WINDOW start=0
+  hasDigest=false textEst=8095. T20B PID 61309. Jelly off. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — overnight S23 only.** Owner: Xiaomi tomorrow; Jelly
+  off (new branch). APPLY `1215770b` then APK then S23 20t. Do
+  not 20t on `94dd4e5`. G2 not claimed.
+
+- **14/09 — T20C 4/20 reuse then t5 KV shrink.** t1–4 n_common=embd
+  4617→7379 start=0 hasDigest=false. t5 WINDOW nPast=4304 (from
+  7379) then n_common=0. No stall. Phone unplugged 89% 39.3°C.
+  No relaunch. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — t5 KV shrink is native K-shift.** t4 `n_common=7379`
+  then `applying K-shift` then TELEMETRY `tokensCached:4304` save
+  4304. Next send n_common=0. Work in kalsallama / llama.rn patch
+  only (`21192ad9`). No ggml-org. Jelly off. Xiaomi tomorrow.
+  G2 not claimed.
+
+- **14/09 — ctx_shift at n_ctx=8192; refuse in llama.rn patch.**
+  n_discard=n_left/2 → 4304. `4004117` stops generation instead of
+  seq_add. kalsallama pin untouched. Luna `7903aa53`. CI
+  `34846661272`. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — luna KVSHIFT FIX.** Refuse seq_add CONFIRMED. JS ignores
+  `truncated`; prompt>=n_ctx throws context_full before
+  n_common (start=0 10k vs 8k). Token-id logs in release. APPLY
+  `1d406ce1`. Do not 20t on `4004117`. Jelly off. Xiaomi tomorrow.
+  G2 not claimed.
+
+- **14/09 — ctx_shift "impossible" was OVERSTATED; correction.**
+  `llama-memory-recurrent.cpp:170` ("Mamba/RWKV can't partially
+  erase") is about UNBOUNDED state. LFM2 is not that:
+  `llama-hparams.cpp:199-201` n_embd_r = `n_embd *
+  (n_shortconv_l_cache - 1)`, a SHORT CONV = finite memory, tail
+  state depends only on last l_cache-1 tokens. So 4304 → n_common=0
+  is BOOKKEEPING (native dropped a middle span, JS resent the full
+  history), not proven numeric corruption. Native ctx_shift on LFM2
+  may be fixable; the expensive half is telling JS what was
+  dropped. NOT verified: attention tolerance to renumbering, real
+  l_cache for LFM2.5 (GGUF, not source). Jelly off. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — n_ctx ceiling handled in JS, anchored. `8a2579c`.**
+  Slide before `n_ctx - WINDOW_RESERVE_TOKENS`: compute boundary →
+  clear KV only if it MOVES → advance only if clear succeeded.
+  Naive order destroyed live KV on attachment turns (hasImages ⇒
+  charBudget Infinity ⇒ boundary never moved). Tool rounds
+  re-check and break (2500 chars/result after the send guard).
+  tsc 0, jest 82/82 exit 0 (parent-run). APK CI `34856087364`
+  SUCCESS, arm64 debuggable. NOT run on device. Jelly off. Xiaomi
+  tomorrow. G2 not claimed.
+
+- **14/09 — T20C cells are ciswire (`ciswireFlags=3` =
+  COMPACTION|MEMORY, bit1 only when contextMode==="ciswire",
+  AppShell:5290).** So the anchored-only fix was untestable
+  against our own evidence. Owner: extend ciswire before the run.
+  Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — `windowSlid` REJECTED, 3rd bug of the same family.**
+  A persisted JS flag asserting native-KV state desyncs on: failed
+  AsyncStorage write + restart, abort mid-prefill, edit/regenerate
+  without native clear, dispose/switch, chat switch during await.
+  5 CONFIRMED, one cause. Boundary already travels IN the .kvs
+  (`meta.assembleBoundary` LlamaService:2595, read back :2872).
+  Flag removed. Same family as `94dd4e5`, `b907290`. Jelly off.
+  Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — root cause of the a21746e clamp, owner: fix at source.**
+  `lastAssembleBoundary` is written at the TOP of streamAssistantTurn
+  (LlamaService:3160-3164) — a promise, before any native work — and
+  `kvHoldsChatSession = true` is unconditional in the finally
+  (:4359-4360). So loadedB can describe a prompt native never
+  evaluated; that is why a21746e had to clamp to 0. Fix: commit the
+  boundary only on real adoption, invalidate on every other outcome
+  (abort, tool-ceiling break, context_full, pre-decode throw,
+  dispose). `kvHoldsChatSession` untouched (e8c8886 prewarm guard).
+  In flight. Jelly off. Xiaomi tomorrow. G2 not claimed.
+
+- **14/09 — app repo housekeeping.** `1dd07e1` device-preflight
+  honors ANDROID_SERIAL via `device_pick_serial` (died on 2 phones
+  attached; the reflex workaround is `adb disconnect`, which kills
+  the other session). `bbc9442` gitignores
+  `results/ciswire-campaign/`: `.messages.json` / `.share_hist.json`
+  are real chat transcripts, untracked but not ignored. Jelly off.
+  Xiaomi tomorrow. G2 not claimed.
