@@ -1,4 +1,5 @@
 import {
+  deriveTokenSilenceMs,
   FOREGROUND_DECODE_SILENCE_MS,
   FOREGROUND_IDLE_DISPOSE_MS,
   shouldRunForegroundIdleDispose,
@@ -132,5 +133,102 @@ describe("shouldRunForegroundIdleDispose", () => {
         idleMs: FOREGROUND_IDLE_DISPOSE_MS - 1,
       }),
     ).toBe(false);
+  });
+});
+
+describe("deriveTokenSilenceMs — the AppShell wiring", () => {
+  const TURN_START = 1_000_000;
+
+  test("a token from the PREVIOUS turn is not this turn's liveness", () => {
+    // The pulse is one monotonic clock shared by every turn. A turn that has
+    // not decoded yet must read as undefined even when the clock is recent,
+    // otherwise the tail of the previous turn keeps the next one alive.
+    expect(
+      deriveTokenSilenceMs({
+        streamInFlight: true,
+        turnStartedAt: TURN_START,
+        lastRawTokenAt: TURN_START - 1,
+        now: TURN_START + 5_000,
+      }),
+    ).toBeUndefined();
+  });
+
+  test("a token exactly at turn start is still the previous turn's", () => {
+    expect(
+      deriveTokenSilenceMs({
+        streamInFlight: true,
+        turnStartedAt: TURN_START,
+        lastRawTokenAt: TURN_START,
+        now: TURN_START + 5_000,
+      }),
+    ).toBeUndefined();
+  });
+
+  test("once this turn decodes, silence is measured from its own token", () => {
+    expect(
+      deriveTokenSilenceMs({
+        streamInFlight: true,
+        turnStartedAt: TURN_START,
+        lastRawTokenAt: TURN_START + 2_000,
+        now: TURN_START + 9_000,
+      }),
+    ).toBe(7_000);
+  });
+
+  test("no stream, or no turn, is undefined rather than zero", () => {
+    expect(
+      deriveTokenSilenceMs({
+        streamInFlight: false,
+        turnStartedAt: TURN_START,
+        lastRawTokenAt: TURN_START + 2_000,
+        now: TURN_START + 9_000,
+      }),
+    ).toBeUndefined();
+    expect(
+      deriveTokenSilenceMs({
+        streamInFlight: true,
+        turnStartedAt: 0,
+        lastRawTokenAt: TURN_START + 2_000,
+        now: TURN_START + 9_000,
+      }),
+    ).toBeUndefined();
+  });
+
+  test("undefined reaches the predicate as pre-first-token, never disposed", () => {
+    // The wiring contract: whatever the clock says, a turn that has not
+    // decoded is never app-disposed, at any age.
+    const silence = deriveTokenSilenceMs({
+      streamInFlight: true,
+      turnStartedAt: TURN_START,
+      lastRawTokenAt: TURN_START - 1,
+      now: TURN_START + 86_400_000,
+    });
+    expect(
+      shouldRunForegroundIdleDispose({
+        engineReady: true,
+        inFlight: true,
+        idleMs: 86_400_000,
+        tokenSilenceMs: silence,
+      }),
+    ).toBe(false);
+  });
+
+  test("a decoding turn silent past the backstop is disposed, and not before", () => {
+    const at = (silenceMs: number) =>
+      shouldRunForegroundIdleDispose({
+        engineReady: true,
+        inFlight: true,
+        idleMs: 0,
+        tokenSilenceMs: deriveTokenSilenceMs({
+          streamInFlight: true,
+          turnStartedAt: TURN_START,
+          lastRawTokenAt: TURN_START + 1,
+          now: TURN_START + 1 + silenceMs,
+        }),
+      });
+    expect(at(FOREGROUND_DECODE_SILENCE_MS - 1)).toBe(false);
+    expect(at(FOREGROUND_DECODE_SILENCE_MS)).toBe(true);
+    // Strictly looser than the engine's own abort, which owns one gap window.
+    expect(at(GENERATION_STALL_GAP_MS)).toBe(false);
   });
 });

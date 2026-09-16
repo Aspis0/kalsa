@@ -218,6 +218,7 @@ import {
 } from "./backgroundDiscardPlan";
 import {
   bumpForegroundIdleRef,
+  deriveTokenSilenceMs,
   FOREGROUND_IDLE_DISPOSE_MS,
   shouldRunForegroundIdleDispose,
 } from "./foregroundIdleDispose";
@@ -3136,13 +3137,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // not the cleaned UI stream: <think>/tool-call tokens strip to an
         // empty delta. undefined → this turn has not decoded yet, and the
         // engine's prompt-scaled prefill deadline owns that window.
-        const rawTokenAt = lastNativeTokenAtMs();
-        const tokenSilenceMs =
-          streamInFlightRef.current &&
-          nativeTurnStartAtRef.current > 0 &&
-          rawTokenAt > nativeTurnStartAtRef.current
-            ? Date.now() - rawTokenAt
-            : undefined;
+        const tokenSilenceMs = deriveTokenSilenceMs({
+          streamInFlight: streamInFlightRef.current,
+          turnStartedAt: nativeTurnStartAtRef.current,
+          lastRawTokenAt: lastNativeTokenAtMs(),
+          now: Date.now(),
+        });
         if (
           !shouldRunForegroundIdleDispose({
             engineReady: isEngineReady(),
