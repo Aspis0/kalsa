@@ -24,9 +24,10 @@
  * only the MIRROR direction (counts implying decode_s >= window) exits 1.
  * decode_s_int (integrated seconds actually attributed to the decode bucket)
  * is asserted in the golden header and rows, with the low-resolution warning
- * fixtures for both triggers: a short decode bucket and the wrong-counts-on-
- * REP direction. Marks hygiene is fatal: out-of-order
- * marks and marks before the first CSV sample refuse the stem.
+ * fixtures for both triggers: a short decode bucket (fewer than 3 intervals),
+ * the wrong-counts-on-REP direction, and the coverage-only branch (3
+ * intervals but coverage < 0.7, audit R4/N4). Marks hygiene is fatal:
+ * out-of-order marks and marks before the first CSV sample refuse the stem.
  *
  * Zero npm deps. Exit 1 on any failure.
  */
@@ -77,7 +78,7 @@ const SPEED84 = "[ Prompt: 8.4 t/s | Generation: 8.4 t/s ]\n";
 // text stays comma-free like every row warning — the warnings field is the
 // last CSV column and naive consumers split on plain commas.
 const LOWRES_TAIL =
-  "; j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use";
+  "; j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use (the same bias on both arms only when the sibling arm's decode bucket has similar coverage — compare decode_s_int first)";
 const lowres = (n, cov, nom) =>
   `decode bucket low-resolution: ${n} interval(s) attributed to decode (coverage ${cov}/${nom} s = ${Math.round((100 * cov) / nom)}%)${LOWRES_TAIL}`;
 
@@ -279,6 +280,20 @@ function main() {
     );
     writeFileSync(path.join(dir, "wrongcounts_rep.marks"), "r1 50.00\n");
     writeFileSync(path.join(dir, "wrongcounts_rep_r1.txt"), `banner\n${SPEED84}`);
+    // cov_only (audit R4/N4): the coverage-only branch of the low-resolution
+    // trigger — 3 attributed intervals (not < 3) whose decode_s_int 3.000 s
+    // covers only 67% of the 4.500 s nominal (gen 9 at 2.0 t/s). 6 samples at
+    // 1.0 W, mark at 16.00 -> decode_start 11.5, straddle [11,12) to j_pre,
+    // decode segment {12,13,14,15}.
+    writeFileSync(
+      path.join(dir, "cov_only.csv"),
+      csv([
+        row(10, 250000), row(11, 250000), row(12, 250000),
+        row(13, 250000), row(14, 250000), row(15, 250000),
+      ]),
+    );
+    writeFileSync(path.join(dir, "cov_only.marks"), "r1 16.00\n");
+    writeFileSync(path.join(dir, "cov_only_r1.txt"), `banner\n${SPEED}`);
     writeFileSync(path.join(dir, "lonely.csv"), csv([row(10, 250000), row(11, 250000)]));
     const manifestPath = path.join(tmp, "manifest.csv");
     writeFileSync(manifestPath, MANIFEST);
@@ -503,6 +518,30 @@ function main() {
       rm.status === 0 && wm[5] === "30.476" && wm[6] === "29.000" && wm[10] === "0.113" &&
         wm[14] === "10" && wm[15] === "30" && !wm[18].includes("low-resolution"),
       readCsvRows(path.join(dir, "wrongcounts_rep.phases.csv"))[1],
+    );
+
+    // ── 10c. audit R4/N4: the coverage-only low-resolution trigger. Enough
+    // intervals (3, not < 3) but coverage < 0.7 (3.000 s of 4.500 s = 67%):
+    // the warning must fire on coverage alone. decode_start 11.5 -> straddle
+    // [11,12) to j_pre (2.000 J); decode {12,13,14,15} -> j_decode 3.000 J,
+    // per-tok 3/9 = 0.333; implied power 3/4.5 = 0.667 W stays in band.
+    const rv = spawnSync(
+      process.execPath,
+      [tool, dir, "cov_only", "--prompt-tokens", "8", "--gen-tokens", "9"],
+      { encoding: "utf8" },
+    );
+    check(
+      "lowres coverage-only: 3 intervals / 67% coverage exits 0 with the warning",
+      rv.status === 0,
+      `status=${rv.status} stderr=${rv.stderr}`,
+    );
+    const co = readCsvRows(path.join(dir, "cov_only.phases.csv"))[1].split(",");
+    check(
+      "lowres coverage-only: exact cells, warning fires on coverage alone",
+      co[4] === "5.000" && co[5] === "4.500" && co[6] === "3.000" && co[8] === "2.000" &&
+        co[9] === "3.000" && co[10] === "0.333" && co[14] === "2" && co[15] === "4" &&
+        co[18] === lowres(3, "3.00", "4.50"),
+      readCsvRows(path.join(dir, "cov_only.phases.csv"))[1],
     );
 
     // ── 11. guards: decode>=window via manifest, band warnings ─────────

@@ -39,7 +39,8 @@
 //
 // Integration is energySchema.integrate on each sub-window (right-Riemann: an
 // interval belongs to its right-endpoint sample). EXACT interval set of the
-// decode bucket: every interval whose RIGHT-ENDPOINT sample is at/after
+// decode bucket: every interval fully inside [decode_start, mark_N) — the
+// right-endpoint samples strictly after the first sample at/after
 // decode_start. Consequences, both one-directional (audit R1): the interval
 // straddling decode_start starts BEFORE the boundary and is attributed to
 // j_pre IN FULL ("decode starts strictly after its start point"), and the
@@ -412,7 +413,7 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
       warnings.push(
         `decode bucket low-resolution: ${decIntervals} interval(s) attributed to decode ` +
           `(coverage ${decodeSInt.toFixed(2)}/${decodeDur.toFixed(2)} s = ${Math.round((100 * decodeSInt) / decodeDur)}%); ` +
-          "j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use",
+          "j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use (the same bias on both arms only when the sibling arm's decode bucket has similar coverage — compare decode_s_int first)",
       );
     }
     if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);

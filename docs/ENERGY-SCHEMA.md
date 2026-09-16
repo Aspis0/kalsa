@@ -95,9 +95,11 @@ Decode occupies the LAST `decode_s` seconds of the window ending at
 the PRE phase. `prefill_est_s` (`prompt_tokens / prompt tps`) is
 INFORMATIONAL ONLY and drives nothing.
 
-**What `j_decode` actually integrates (exact interval set)**: the sample
-intervals whose RIGHT-ENDPOINT sample is at/after `decode_start` — nothing
-else. Two one-directional truncations follow, both reading the same way:
+**What `j_decode` actually integrates (exact interval set)**: exactly the
+intervals fully inside `[decode_start, mark_N)` — equivalently, the intervals
+whose right-endpoint sample comes strictly after the first sample at/after
+`decode_start`. Two one-directional truncations follow, both reading the same
+way:
 
 - the interval straddling `decode_start` starts before the boundary and is
   attributed to `j_pre` IN FULL ("decode starts strictly after its start
@@ -155,8 +157,9 @@ band; sampler cadence max > 2 s.
 
 **Integration**: `energySchema.integrate` on each sub-window (same
 right-Riemann sums as the whole-arm J; an interval belongs to its
-right-endpoint sample). The decode bucket is exactly the intervals whose
-right-endpoint sample is at/after `decode_start` (see Boundary math above
+right-endpoint sample). The decode bucket is exactly the intervals fully
+inside `[decode_start, mark_N)` — right-endpoint samples strictly after the
+first sample at/after `decode_start` (see Boundary math above
 for the two one-directional truncations); `j_decode` is taken as the exact
 remainder, so `j_pre + j_decode` equals the whole-window J exactly
 (harness-tested), and `n_pre + n_decode` equals the window's sample count.
@@ -186,10 +189,10 @@ On the decode side the two truncations point the SAME way (straddle →
 | `window_end_s`     | s     | device uptime of the rep window end (mark_N — the rep's END) |
 | `duration`         | s     | integrated duration of the whole rep window                  |
 | `decode_s`         | s     | nominal decode duration = `gen_tokens / gen tps` (perf eval-time ms when present); the boundary anchor |
-| `decode_s_int`     | s     | integrated seconds actually attributed to the decode bucket (right-endpoint samples at/after `decode_start`; last partial interval before `mark_N` excluded); coverage = `decode_s_int / decode_s`, low-resolution warning below 3 intervals or coverage < 0.7; empty when the segment has no samples |
+| `decode_s_int`     | s     | integrated seconds actually attributed to the decode bucket (intervals fully inside `[decode_start, mark_N)`; last partial interval before `mark_N` excluded); coverage = `decode_s_int / decode_s`, low-resolution warning below 3 intervals or coverage < 0.7; empty when the segment has no samples |
 | `prefill_est_s`    | s     | `prompt_tokens / prompt tps` — INFORMATIONAL ONLY, drives nothing; empty when not derivable |
 | `j_pre`            | J     | energy before `decode_start`: model load + inter-rep idle + prompt eval (not resolvable further) |
-| `j_decode`         | J     | energy of the intervals whose right-endpoint sample is at/after `decode_start` — NOT the full `[decode_start, mark_N)` span: the straddle interval goes to `j_pre` and the last partial interval to no bucket, so this is a LOWER bound biased LOW by at most two sample intervals; `j_pre + j_decode` = whole-window J exactly |
+| `j_decode`         | J     | energy of the intervals fully inside `[decode_start, mark_N)` — NOT the full span: the straddle interval goes to `j_pre` and the last partial interval to no bucket, so this is a LOWER bound biased LOW by at most two sample intervals; `j_pre + j_decode` = whole-window J exactly |
 | `j_per_tok_decode` | J/tok | `j_decode / gen_tokens` — only when gen_tokens is verifiable and the segment has samples; else empty (relative metric, see above; biased LOW on short buckets — read `decode_s_int` first) |
 | `prompt_tokens`    | tok   | verified prompt length (perf line > manifest > `--prompt-tokens`); else empty |
 | `gen_tokens`       | tok   | verified generated tokens, EOS included (perf line > manifest > `--gen-tokens`); else empty — never assumed from n_predict |

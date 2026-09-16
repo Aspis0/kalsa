@@ -29,6 +29,7 @@ import {
   toEmissionsCsv,
   emptyEmissionsCsv,
 } from "./energySchema.mjs";
+import { PHASES_COLUMNS } from "./energyPhaseSplit.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -437,13 +438,13 @@ function main() {
       mkdirSync(dir);
       writeFileSync(path.join(dir, "x_none_P.csv"), THREE_ROW);
       // What energyPhaseSplit.mjs leaves next to it: same stem, .phases.csv
-      // suffix, kalsa-energy-rep-v2 header — must not enter the arm table.
+      // suffix, the current kalsa-energy-rep-v2 header (PHASES_COLUMNS, so
+      // the fixture cannot go stale — audit R4/N5) — must not enter the arm
+      // table.
       writeFileSync(
         path.join(dir, "x_none_P.phases.csv"),
-        "run_id,rep,window_start_s,window_end_s,duration,decode_s,prefill_est_s,j_pre,j_decode," +
-          "j_per_tok_decode,prompt_tokens,gen_tokens,w_decode,n_pre,n_decode,cadence_median_s," +
-          "cadence_max_s,warnings\n" +
-          "x_none_P,1,100.0,102.0,2.000,1.000,0.500,1.000,1.000,0.500,51,30,1.000,1,1,1.000,1.000,\n",
+        PHASES_COLUMNS.join(",") + "\n" +
+          "x_none_P,1,100.0,102.0,2.000,1.000,1.000,0.500,1.000,1.000,0.500,51,30,1.000,1,1,1.000,1.000,\n",
       );
       const r = spawnSync(
         process.execPath,
