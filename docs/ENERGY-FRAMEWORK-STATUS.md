@@ -75,17 +75,10 @@ for the numbers.
    handover, because that campaign discharges it materially — plan a recharge first
    (the S23 charged at ~1 %/min from ~23 % at 21:12). No overlap: no S23 action until
    their explicit release.
-   AFTER 2a LANDS: cross-build arm64 into `tmp/build-android-phase-stamps/bin`, NOT
-   into `tmp/build-android/` — `scripts/fixtures/energy-counts/README.md` pins the
-   md5 of the pristine binaries there (`llama-cli` cca1187c7974655a50efe45d3cfd73d8,
-   `libllama-cli-impl.so` 4e1eab9cd3d99a65373fe720193e4c24), exactly as it pins the
-   line numbers in `tmp/kalsallama-pin`.
-2. S23 campaign, same protocol; arm64 binaries in
-   `tmp/build-android/bin` run on both devices — verify with the harness smoke
-   step). Coordinates with the other session. Provisioning is cheap, measured:
-   `adb push` runs 17.8 MB/s, so ~2.4 GB of models is ~2.5 min and the G99
-   campaign itself took 14m44s. Blocked only on: unplugged, >80 %, coordination.
-2. Fase 2a is NOT part of any 2b bus. Two facts found on
+   Provisioning is cheap, measured: `adb push` runs 17.8 MB/s, so ~2.4 GB of models is
+   ~2.5 min, and the G99 campaign itself took 14m44s. Blocked only on: unplugged,
+   >80 %, coordination.
+2. Fase 2a — phase stamps. It is NOT part of any 2b bus, and two facts found on
    2026-09-15 make this much smaller than this doc's earlier framing:
    - the fork already splits policy from mechanism: `src/llama-governor-policy.{h,cpp}`
      (thermal classification, `admit_prefill`, `select_decode`, hysteresis) with
@@ -104,21 +97,41 @@ for the numbers.
      the CSV on any device that suspends.
    Re-anchoring means new numbers: schema v3 plus an explicit reconciliation with the
    v2 figures (the v1→v2 lesson).
-3. Step 0 of 2b — **the null experiment, before any policy.** Documented in the
-   self-audit as F1: 2.6B/PURE spreads **10.06 %** across three reps while passing
-   every published gate (96.7–96.9 % coverage, no low-resolution warning), so the
-   quoted 0.68 % (1.2B/REP) is not a noise floor. Run the same configuration
-   interleaved, ABBA-ordered, and report the spread. `scripts/device-moe-stream-abba.sh`
-   already documents the ABBA rationale and the `COOL_DC` thermal gate; reuse it.
-   Until this number exists, any A/B on this metric is unfalsifiable.
-4. Fase 2b — an energy-objective policy on that seam, **after** step 0 clears.
-   Framing accepted from the self-audit (F7): the candidate lever is core placement
-   during decode, which is MNN-AECS's published lever one engine away, so a positive
-   result is a transfer/validation of a published finding, not novelty. Our own
-   candidate-novel object is the split-context prefill/decode handoff as a schedulable
-   boundary. A shipping lever needs ggml's Android affinity path, which is compiled
-   out (`ggml-cpu.c:2445-2448`, stub at `:2517`) — evidence-only via the harness
-   `taskset` first, engine change only after its own prior-art pass.
+   Still owed after 2a lands: cross-build arm64 into `tmp/build-android-phase-stamps/bin`,
+   NOT into `tmp/build-android/` — `scripts/fixtures/energy-counts/README.md` pins the
+   md5 of the pristine binaries there (`llama-cli` cca1187c7974655a50efe45d3cfd73d8,
+   `libllama-cli-impl.so` 4e1eab9cd3d99a65373fe720193e4c24), exactly as it pins the
+   line numbers in `tmp/kalsallama-pin`.
+3. Step 0 and the Jelly v3 campaign are ONE device session, decided 2026-09-15. A run
+   with stamps ON can be read both ways (v3 with them, v2-style by ignoring them via the
+   tool's fallback), but a stamps-free run can never be upgraded to v3 — so a separate
+   v2 repeatability session would be work to redo. Therefore: **three back-to-back runs
+   of the v3 protocol on the Jelly**, which yields all three of
+   (a) the v3 numbers, and the reference the S23 replicates;
+   (b) step 0: within-run and between-run spread = the minimum detectable effect that
+       the self-audit's F1 says does not exist (2.6B/PURE spreads 10.06 % across three
+       reps while passing every published gate, against 0.68 % on 1.2B/REP);
+   (c) the v2→v3 delta measured on identical runs, with no device difference in it.
+   Read it with `node scripts/energyPhaseSplit.mjs <dir> --counts-manifest
+   scripts/fixtures/energy-counts/manifest.csv`. Until (b) exists, any A/B on this
+   metric is unfalsifiable.
+4. Fase 2b — an energy-objective policy on that seam, after step 0 clears. Two
+   corrections to this doc's earlier framing, both from the 2026-09-15 recon:
+   - the lever is **not** mechanism design. ggml's affinity apply is compiled out by the
+     glibc-only guard `#elif defined(__gnu_linux__)` (`ggml-cpu.c:2907`), with an Android
+     implementation dead inside it at `:2923-2924`, while NDK r27 declares
+     `sched_setaffinity` with no API gate. The app already fills a best-cores mask with
+     `strict_cpu = true` (`node_modules/llama.rn/cpp/jsi/JSIParams.cpp:25`, `:60-61`,
+     used at `:333`) and pins into the void, so `-C`, `-Cr`, `--prio`, `--poll` and
+     `--numa` are all inert. The repo already measured the fix on the G99:
+     `archived/docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md` (+26 % prefill pinned at 8
+     threads, 28.48 vs 21.48; decode prefers the two big cores, 6.39 vs 6.07). F3 of
+     the self-audit therefore becomes **port-and-gate**, with one trap kept: a bare
+     guard flip is NOT default-off, because the mask is always filled — the gate has to
+     suppress mask-filling unless a mask is requested.
+   - F7 is unchanged: that lever is MNN-AECS's lever one engine away, so a positive
+     result is a transfer/validation, not novelty. Our own candidate-novel object stays
+     the split-context prefill/decode handoff as a schedulable boundary.
 5. Fase 3: DFlash acceptance+energy gating on S23 (Qwen3.5-4B), Jelly cross-check.
    Prior art is direct (PELM 10.1145/3774906.3802783, AHASD 2604.25326, GELATO
    2605.10124) — position differentially or drop.
