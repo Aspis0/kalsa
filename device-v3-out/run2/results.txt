@@ -1,0 +1,29 @@
+00:01:53 preflight:   AC powered: false   USB powered: false   Wireless powered: false   level: 85   temperature: 350 
+version: 10083 (2998ad5d6)
+built with Clang 18.0.2 for Android aarch64
+00:01:58 --- LFM2.5-2.6B-Q4_K_M.gguf  prompt=REP  (t=2, n=256, r=3)
+00:01:58     before:   AC powered: false   USB powered: false   Wireless powered: false   level: 85   temperature: 350 
+00:01:58   arm: none
+00:03:26     r1: Generation: 3.9 t/s
+00:05:16     r2: Generation: 3.0 t/s
+00:07:13     r3: Generation: 2.8 t/s
+00:07:20 --- LFM2.5-2.6B-Q4_K_M.gguf  prompt=PURE  (t=2, n=256, r=3)
+00:07:20     before:   AC powered: false   USB powered: false   Wireless powered: false   level: 82   temperature: 370 
+00:07:20   arm: none
+00:08:50     r1: Generation: 2.8 t/s
+00:10:27     r2: Generation: 2.7 t/s
+00:12:08     r3: Generation: 2.6 t/s
+00:12:16 --- LFM2.5-1.2B-Instruct-Q4_K_M.gguf  prompt=REP  (t=2, n=256, r=3)
+00:12:16     before:   AC powered: false   USB powered: false   Wireless powered: false   level: 80   temperature: 370 
+00:12:16   arm: none
+00:13:09     r1: Generation: 6.1 t/s
+00:14:08     r2: Generation: 5.9 t/s
+00:15:05     r3: Generation: 6.0 t/s
+00:15:12 --- LFM2.5-1.2B-Instruct-Q4_K_M.gguf  prompt=PURE  (t=2, n=256, r=3)
+00:15:12     before:   AC powered: false   USB powered: false   Wireless powered: false   level: 79   temperature: 370 
+00:15:12   arm: none
+00:15:25     r1: Generation: 8.2 t/s
+00:15:40     r2: Generation: 8.7 t/s
+00:15:55     r3: Generation: 9.1 t/s
+00:16:03 done -> device-ngram-spec-out/results.txt
+00:16:03 aggregate with: node scripts/ngramSpecAggregate.mjs && node scripts/energyAggregate.mjs

@@ -1,0 +1,5 @@
+energyPhaseSplit: counts from manifest /Users/marco/Projects/kalsa-ngram-spec/scripts/fixtures/energy-counts/manifest.csv (preferred count source)
+energyPhaseSplit: wrote /tmp/kalsa-pilot/out/phase-data/LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2.phases.csv (3 rep rows)
+energyPhaseSplit: wrote /tmp/kalsa-pilot/out/phase-data/LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2.phases.csv (3 rep rows)
+energyPhaseSplit: wrote /tmp/kalsa-pilot/out/phase-data/LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2.phases.csv (3 rep rows)
+energyPhaseSplit: wrote /tmp/kalsa-pilot/out/phase-data/LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2.phases.csv (3 rep rows)

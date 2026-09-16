@@ -1,0 +1,2 @@
+start_screen	end_screen	start_level	start_temp_deci	end_level	end_temp_deci	start_state	end_state
+mWakefulness=Awake	mWakefulness=Dozing	64	230	63	240	  AC powered: false   USB powered: false   Wireless powered: false   level: 64   temperature: 230 	  AC powered: false   USB powered: false   Wireless powered: false   level: 63   temperature: 240 

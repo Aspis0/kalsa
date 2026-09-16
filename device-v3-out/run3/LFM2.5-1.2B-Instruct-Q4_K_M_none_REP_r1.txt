@@ -1,0 +1,74 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b10083-2998ad5d6
+model      : /data/local/tmp/llamabench/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Checklist for the warehouse audit:
+- item 1: checked
+- item 2: checked
+- item 3: checked
+- item 4: checked
+- item 5: checked
+- item 6: checked
+Continue the checklist with items 7 through 40, same format.
+Certainly! Here’s a continuation of the warehouse audit checklist, continuing from item 7 through item 40 in the same format:
+
+- item 7: checked  
+- item 8: checked  
+- item 9: checked  
+- item 10: checked  
+- item 11: checked  
+- item 12: checked  
+- item 13: checked  
+- item 14: checked  
+- item 15: checked  
+- item 16: checked  
+- item 17: checked  
+- item 18: checked  
+- item 19: checked  
+- item 20: checked  
+- item 21: checked  
+- item 22: checked  
+- item 23: checked  
+- item 24: checked  
+- item 25: checked  
+- item 26: checked  
+- item 27: checked  
+- item 28: checked  
+- item 29: checked  
+- item 30: checked  
+- item 31: checked  
+- item 32: checked  
+- item 33: checked  
+- item 34: checked  
+- item 35: checked  
+- item 36: checked  
+- item 37: checked  
+- item 38: checked  
+- item 39
+
+[ Prompt: 10.6 t/s | Generation: 5.9 t/s ]
+
+
+Exiting...

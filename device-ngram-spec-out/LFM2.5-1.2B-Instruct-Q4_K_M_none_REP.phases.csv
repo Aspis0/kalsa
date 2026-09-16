@@ -1,0 +1,4 @@
+run_id,rep,window_start_s,window_end_s,duration,decode_s,decode_s_int,prefill_est_s,j_pre,j_decode,j_per_tok_decode,prompt_tokens,gen_tokens,w_decode,n_pre,n_decode,cadence_median_s,cadence_max_s,warnings
+LFM2.5-1.2B-Instruct-Q4_K_M_none_REP,1,558904.63,558947.05,41.450,30.476,28.990,6.429,19.119,75.001,0.293,72,256,2.589,12,29,1.040,1.070,
+LFM2.5-1.2B-Instruct-Q4_K_M_none_REP,2,558947.05,558992.59,44.560,30.476,28.970,6.372,19.944,74.992,0.293,72,256,2.590,15,29,1.040,1.070,
+LFM2.5-1.2B-Instruct-Q4_K_M_none_REP,3,558992.59,559038.13,44.540,30.476,28.980,6.486,20.364,75.525,0.295,72,256,2.608,15,29,1.040,1.070,

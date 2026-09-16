@@ -1,0 +1,77 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b674-c6e2376
+model      : /data/local/tmp/llamabench/LFM2.5-2.6B-QAD-Q4_0.gguf
+ftype      : Q4_0
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Checklist for the warehouse audit:
+- item 1: checked
+- item 2: checked
+- item 3: checked
+- item 4: checked
+- item 5: checked
+- item 6: checked
+Continue the checklist with items 7 through 40, same format.
+
+[Start thinking]
+
+
+The user wants a checklist continuation from item 7 to 40, same format as the given items (each line: "item X: checked"). So we need to produce lines 7 through 40, each "item i: checked". Ensure numbering correct. No extra commentary. Just the list.
+
+Let's count: items 1-6 already listed. So 7-40 inclusive is 34 items. We'll produce them.
+
+Make sure format matches: "item 7: checked" etc. No extra spaces at start? Probably fine.
+
+Proceed.
+[End thinking]
+
+
+item 7: checked
+item 8: checked
+item 9: checked
+item 10: checked
+item 11: checked
+item 12: checked
+item 13: checked
+item 14: checked
+item 15: checked
+item 16: checked
+item 17: checked
+item 18: checked
+item 19: checked
+item 20: checked
+item 21: checked
+item 22: checked
+item 23: checked
+item 24: checked
+item 25: checked
+item 26: checked
+item 27: checked
+item 28: checked
+item 29: checked
+item
+
+[ Prompt: 4.8 t/s | Generation: 3.9 t/s ]
+
+
+Exiting...

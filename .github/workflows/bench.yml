@@ -151,6 +151,10 @@ jobs:
           node scripts/toolRoundExhaustedHarness.mjs
           node scripts/toolBenchHarness.mjs
           node scripts/telemetryClampHarness.mjs
+          # Energy metric contracts (schema parsing/integration/export and the
+          # per-rep phase splitter), both offline on synthetic fixtures.
+          node scripts/energySchemaHarness.mjs
+          node scripts/energyPhaseSplitHarness.mjs
           npx jest --silent
           # Sideload guards are bash, so the *Harness.mjs sweep does not see them.
           bash scripts/test_sideload_guards.sh

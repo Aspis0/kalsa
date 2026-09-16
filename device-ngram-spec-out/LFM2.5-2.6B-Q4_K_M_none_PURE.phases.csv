@@ -1,0 +1,4 @@
+run_id,rep,window_start_s,window_end_s,duration,decode_s,decode_s_int,prefill_est_s,j_pre,j_decode,j_per_tok_decode,prompt_tokens,gen_tokens,w_decode,n_pre,n_decode,cadence_median_s,cadence_max_s,warnings
+LFM2.5-2.6B-Q4_K_M_none_PURE,1,559045.81,559120.26,73.630,52.308,50.710,11.064,41.775,137.032,0.672,52,204,2.702,22,50,1.040,3.020,sampler cadence max 3.020 s exceeds 2 s (edge uncertainty up to one interval)
+LFM2.5-2.6B-Q4_K_M_none_PURE,2,559120.26,559197.05,75.600,52.308,50.690,11.064,38.098,128.370,0.629,52,204,2.540,24,49,1.040,3.020,sampler cadence max 3.020 s exceeds 2 s (edge uncertainty up to one interval)
+LFM2.5-2.6B-Q4_K_M_none_PURE,3,559197.05,559301.73,101.600,52.308,50.600,13.333,29.087,124.034,0.608,52,204,2.490,23,49,1.040,3.020,sampler cadence max 3.020 s exceeds 2 s (edge uncertainty up to one interval)

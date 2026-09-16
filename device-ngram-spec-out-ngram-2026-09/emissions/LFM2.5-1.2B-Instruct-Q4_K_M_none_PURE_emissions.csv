@@ -1,0 +1,2 @@
+timestamp,project_name,run_id,duration,cpu_power,cpu_energy,emissions,os,cpu_count,cpu_model
+2026-09-15T22:02:15.189Z,kalsa,LFM2.5-1.2B-Instruct-Q4_K_M_none_PURE,33.21,1.55,0.000014351458194497477,,Android,,

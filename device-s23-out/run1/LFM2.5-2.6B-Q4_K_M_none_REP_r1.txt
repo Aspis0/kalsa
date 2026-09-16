@@ -1,0 +1,63 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b10083-2998ad5d6
+model      : /data/local/tmp/llamabench/LFM2.5-2.6B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Checklist for the warehouse audit:
+- item 1: checked
+- item 2: checked
+- item 3: checked
+- item 4: checked
+- item 5: checked
+- item 6: checked
+Continue the checklist with items 7 through 40, same format.
+
+[Start thinking]
+
+The user wants a checklist continuation. They have items 1-6 marked "checked". Need to continue with items 7 through 40, same format (i.e., "item X: checked"). Probably all should be "checked". The format: "- item 1: checked". So we need to produce lines for items 7 to 40, each with "- item 7: checked", etc. Ensure total 40 items. Let's count: 1-6 done, then 7-40 inclusive is 34 items. So total 40 items. Provide them in order.
+
+Make sure formatting matches: dash space then "item N: checked". No extra punctuation. Provide all lines.
+[End thinking]
+
+- item 7: checked  
+- item 8: checked  
+- item 9: checked  
+- item 10: checked  
+- item 11: checked  
+- item 12: checked  
+- item 13: checked  
+- item 14: checked  
+- item 15: checked  
+- item 16: checked  
+- item 17: checked  
+- item 18: checked  
+- item 19: checked  
+- item 20: checked  
+- item 21: checked  
+- item 22: checked  
+
+[ Prompt: 8.6 t/s | Generation: 6.0 t/s ]
+
+
+Exiting...
