@@ -70,11 +70,17 @@ for the numbers.
 ## Next steps (ordered, revised 2026-09-15 after the self-audit)
 
 1. S23 replication of the per-phase campaign. Handover protocol agreed with the
-   other session (message of 2026-09-15 late): they will release the S23 explicitly
-   by message after their overnight T20C campaign; do NOT assume > 80 % charge on
-   handover, because that campaign discharges it materially — plan a recharge first
-   (the S23 charged at ~1 %/min from ~23 % at 21:12). No overlap: no S23 action until
-   their explicit release.
+   other session. **Released to us 2026-09-15 ~23:30** (their T20C validation failed
+   at 23:28 on an unrelated foreground-idle unload bug, so they stopped early):
+   connected over Wi-Fi, unplugged, 67 %, 37.0 °C, app force-stopped, Metro still
+   running. **Decision: do not run on the S23 until the Jelly v3 dataset and its
+   analysis have cleared**, so that both devices are measured with one frozen
+   protocol — a protocol flaw found after an S23 run would cost the whole device
+   session. The S23 was deliberately left untouched overnight, because their
+   post-mortem may need the state as they left it. 67 % is already enough for one
+   campaign (the project floor is 30 %, and the G99 run of this protocol took
+   14m44s), so the recharge is comfort, not a blocker. Ask them before any later
+   rerun: they want to coordinate before touching that device again.
    Provisioning is cheap, measured: `adb push` runs 17.8 MB/s, so ~2.4 GB of models is
    ~2.5 min, and the G99 campaign itself took 14m44s. Blocked only on: unplugged,
    >80 %, coordination.
