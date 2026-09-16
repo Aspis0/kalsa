@@ -172,3 +172,50 @@ FIRST, then the move). Still open: the fork `kalsallama` has 15 worktrees / ~15 
 app branches these are NOT deletable — each is 1 to 51 commits ahead of fork main. Their bulk is
 untracked build output; the Mac builds are cheap to regenerate, the Android cross-builds may be
 pinned, so that call is the owner's.
+
+### 2026-09-16 evening — the NPU judge was salvaged, and the file it lives in had not compiled since the merge
+
+`kalsa/npu-judge-v79` is older than the governor it appeared to contain. Its tip is `ca82efa8b`
+(2026-09-02); fork `main` is two weeks newer and holds 18 governor commits the branch never saw,
+including today's hybrid-memory cast fix. `git diff --stat main...kalsa/npu-judge-v79` shows it
+re-adding its own 2026-09-02 copies of `tests/test-governor-v0-turns.cpp` (+249) and
+`-shared-cells.cpp` (+194) — the exact two files fixed today. So the branch was never merged:
+its five unique commits were cherry-picked onto current `main` as `kalsa/npu-salvage`, and the
+rest was left where it was. Four files cross, none of them governor:
+
+```
+KALSA_FORK.md  ggml-hexagon.cpp  htp/matmul-ops.c  tests/test-backend-ops.cpp
+```
+
+Governor suite re-run on the salvage build against LFM2.5-2.6B-Q4_K_M: `0 0 77 77 0 0 0`,
+identical to main.
+
+**The salvage exposed a defect nobody could have seen from a green suite.** `test-backend-ops`
+does not build on `main` — and has not since the upstream snapshot merged. The Mellum2-12B-A2.5B
+MUL_MAT_ID block opens a bare scope at `tests/test-backend-ops.cpp:10781` to keep `n_mats`/`n_used`
+local, and its closing brace was lost where upstream inserted new SWIGLU, CONT and conv2d perf
+cases into the same region. Everything after it parsed as nested: nine "function definition is not
+allowed here" errors and `expected '}'` at EOF. One missing `}`.
+
+It stayed invisible because `test-backend-ops` is not one of the seven governor targets the suite
+builds, and because the agent that first hit it reported it as pre-existing and moved on — which
+was true and not the end of the story. The judge harness the whole NPU campaign runs through lives
+in that file, so the judge was unbuildable and the salvage would have landed on top of a broken
+target. Fixed in `cf5510a99`, verified with the project's own compile flags: rc=1 with 10 errors
+before, rc=0 after.
+
+**Two rows of the reconciled branch map were wrong on the remote side** and are corrected:
+`origin/main` is `67c73d26cb`, 861 commits behind local `main` and the commit the app pins — the
+map had collapsed the two into one row, hiding the one decision that matters before a push. And
+`origin/kalsa/npu-judge-v79` is `022458a28b`, one commit *ahead* of the local branch the salvage
+was cut from (upstream #25968, hexagon descriptor type check); `main` already carries that change
+at `ggml-hexagon.cpp:1725`, so nothing was lost — but the map should say so rather than imply the
+refs are equal.
+
+**Worktrees, recounted.** The earlier note that the fork's worktrees are "NOT deletable — each is
+1 to 51 commits ahead of fork main" is now stale. After the consolidation, 14 of 17 are fully
+contained in `main`; the only work not reachable from `main` is `gemm-acc-probe` (+3, the
+diagnostic probe) and the fault-inject pair (+2, marked "never merge" in its own commit message).
+The 28-commit `wt-governor` lineage is content-complete in `main`: every one of its 27 governor
+files exists there, plus two more. Nothing in any of them is uncommitted but `CMakeUserPresets.json`
+and `pkg-snapdragon/`. Their ~10 GB is build output, and per the owner the builds stay.
