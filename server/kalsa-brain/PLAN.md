@@ -1122,6 +1122,42 @@ is the phone on mobile data against this machine behind its home router, and
 until that runs, the relay is not the fallback for a minority: it is the path
 we have actually seen work between two networks, which is zero of them so far.
 
+### Four fixes, four mutations, and the one that survived
+
+The pairing round closed seven findings from a hostile audit. A report is not
+evidence, so each fix was checked the same way: break it on purpose, watch the
+suite go red, restore it, watch it go green. Three of the four load-bearing
+ones died as they should.
+
+* Hand the saved seal to a phone that did not earn it — deleting the delivery
+  token check — and `a_different_attempt_cannot_collect_a_saved_seal` fails.
+* Remove the body ceiling and the server stops refusing an oversized
+  `Content-Length`: it sits and waits for a body that never comes, and the test
+  that was written for exactly that fails on the read timeout.
+* Remove the admission bound and the listener stops answering when it is full.
+
+The fourth survived, and it is worth recording because the suite had nothing to
+say about it. The listener treats a transient `accept()` failure — the process
+out of file descriptors, the machine out of them, a connection aborted between
+the queue and the call — as something to sleep on and retry, instead of a
+reason to die. Delete that branch and the transport goes back to being killed
+permanently by a temporary condition, which is the defect the round was
+supposed to close. The suite answered: forty-six passed, nothing failed, not
+even a warning about unused code.
+
+The reason is that the test asserts the *classifier* classifies — hand
+`accept_error_is_transient` an `EMFILE` and it says yes — and never asks
+whether the accept loop consults it. It also keeps the function alive, so the
+compiler stays quiet too. That is the night's defect class wearing a lab coat:
+correct code, a green test above it, and nothing joining the two.
+
+The fix is not a better test. Where a decision has a small closed set of
+outcomes, it should return an enum and its caller should be an exhaustive
+match, so that deleting the retry arm is a compile error rather than a passing
+suite. A type-level proof cannot be satisfied by a test looking somewhere else.
+And the acceptance bar for a repair belongs in the brief, literally: *after
+your change, deleting that branch must break the build or fail a test.*
+
 ### Not built yet
 
 "Turn on" is wired end to end and has been run end to end on a real machine.
