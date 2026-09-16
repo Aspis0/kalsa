@@ -1,0 +1,31 @@
+[package]
+name = "kalsa-iroh"
+description = "Direct iroh (QUIC) road to the authenticated loopback door"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Pinned exactly on purpose; see the upgrade header at the top of
+# src/transport.rs — the one file allowed to import the iroh crate.
+iroh = "=1.2.0"
+# The pump and the accept loop are async; iroh runs on tokio.
+tokio = { version = "1", features = ["rt", "net", "io-util", "time"] }
+# The node secret key is stored as 64 hex characters, owner-only.
+hex = "0.4"
+# The 32 key bytes are drawn from the operating system's entropy pool.
+getrandom = "0.3"
+
+# Windows-only: the node key file's protected DACL (owner-only access).
+# Declared, not proven: see key.rs — it never compiles on this machine.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+] }
+
+[dev-dependencies]
+# The round-trip test runs the real door as the tunnel's upstream.
+kalsa-door = { path = "../kalsa-door" }
+# #[tokio::test] and the multi-thread flavor the endpoint's tasks need.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
