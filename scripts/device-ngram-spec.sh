@@ -239,6 +239,15 @@ check_correctness() {
   return 0
 }
 
+check_mid_campaign_charge() {
+  # The baseline arm has no correctness gate or settling sleep, but it still
+  # needs the same safety re-check before the next arm or prompt begins.
+  if [ "${SMOKE:-0}" != "1" ] && printf '%s' "$(battery_line)" | grep -qE '(AC|USB) powered: true'; then
+    blog "ABORT: device plugged in mid-campaign."
+    exit 1
+  fi
+}
+
 device_keepawake_begin
 # SMOKE=1 skips the charging gate: correctness-only runs produce no timings,
 # so they are valid on charge. Any run meant for SPEED must go unplugged.
@@ -260,17 +269,15 @@ for m in $MODELS; do
         blog "  arm $arm failed, continuing"
       fi
       if [ "$arm" = "none" ]; then
-        continue  # baseline is the reference, no gate against itself
+        check_mid_campaign_charge
+        continue  # baseline is the reference, no correctness gate against itself
       fi
       check_correctness "$m" "$arm" "$p" || true
       blog "    after:  $(battery_line)"
       # Let the SoC settle so the next arm does not start hot.
       sleep 45
       # Mid-campaign re-check: plugging in mid-run invalidates the rest.
-      if [ "${SMOKE:-0}" != "1" ] && printf '%s' "$(battery_line)" | grep -qE '(AC|USB) powered: true'; then
-        blog "ABORT: device plugged in mid-campaign."
-        exit 1
-      fi
+      check_mid_campaign_charge
     done
   done
 done
