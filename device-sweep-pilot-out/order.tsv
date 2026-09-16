@@ -1,0 +1,5 @@
+sequence	model	block	position	arm	mask	threads	stem
+1	LFM2.5-2.6B-Q4_K_M	primary_t2	1	a55_t2	3f	2	LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2
+2	LFM2.5-2.6B-Q4_K_M	primary_t2	2	a76_t2	c0	2	LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2
+3	LFM2.5-2.6B-Q4_K_M	primary_t2	3	a76_t2	c0	2	LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2
+4	LFM2.5-2.6B-Q4_K_M	primary_t2	4	a55_t2	3f	2	LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2

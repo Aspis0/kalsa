@@ -1,0 +1,42 @@
+04:34:32 serial=192.168.1.82:5555
+04:34:32 preflight:   AC powered: false   USB powered: false   Wireless powered: false   level: 64   temperature: 230 
+version: 10083 (2998ad5d6)
+built with Clang 18.0.2 for Android aarch64
+04:34:38 preflight:   AC powered: false   USB powered: false   Wireless powered: false   level: 64   temperature: 230 
+04:34:38 idle floor: screen awake, no llama-cli process, sampling 60s
+04:35:45 comparison start: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+04:35:45 preflight:   AC powered: false   USB powered: false   Wireless powered: false   level: 63   temperature: 240 
+04:35:45 temperature gate: ready at 240 deci-C (threshold 300), waited 0s
+04:35:45 placement: requested 3f, observed Cpus_allowed_list=0-5
+04:35:45 block start: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=1 arm=a55_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+04:44:07     LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2 r1: Generation: 0.8 t/s
+05:01:07     LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2 r2: Generation: 0.7 t/s
+05:18:53     LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2 r3: Generation: 0.7 t/s
+05:19:04 block end: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=1 arm=a55_t2 start=63%/240dC end=60%/230dC
+05:19:49 temperature gate: ready at 230 deci-C (threshold 300), waited 0s
+05:19:49 placement: requested c0, observed Cpus_allowed_list=6-7
+05:19:50 block start: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=2 arm=a76_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+05:21:40     LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2 r1: Generation: 3.7 t/s
+05:23:57     LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2 r2: Generation: 3.7 t/s
+05:26:08     LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2 r3: Generation: 3.7 t/s
+05:26:19 block end: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=2 arm=a76_t2 start=60%/230dC end=58%/260dC
+05:27:04 temperature gate: ready at 260 deci-C (threshold 300), waited 0s
+05:27:04 placement: requested c0, observed Cpus_allowed_list=6-7
+05:27:04 block start: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=3 arm=a76_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+05:28:50     LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2 r1: Generation: 3.7 t/s
+05:31:05     LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2 r2: Generation: 3.7 t/s
+05:33:14     LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2 r3: Generation: 3.7 t/s
+05:33:25 block end: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=3 arm=a76_t2 start=58%/260dC end=56%/280dC
+05:34:10 temperature gate: ready at 280 deci-C (threshold 300), waited 0s
+05:34:11 placement: requested 3f, observed Cpus_allowed_list=0-5
+05:34:11 block start: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=4 arm=a55_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+05:35:54 p4-restart: host harness was killed by client timeout at ~05:34 local; orphaned p4 r1 (no mark written, speed line lost) killed; sampler restarted fresh; placement probe + temp gate from 05:34:10 stand (mask 3f observed 0-5)
+05:35:54 p4-restart preflight:   AC powered: false   USB powered: false   Wireless powered: false   level: 56   temperature: 270 
+05:35:54 p4-restart block start sample: level=56 temp=270 screen=mWakefulness=Awake
+05:53:07     LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2 r1: Generation: 0.7 t/s
+06:10:47     LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2 r2: Generation: 0.7 t/s
+06:28:28     LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2 r3: Generation: 0.7 t/s
+06:28:39 block end: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 position=4 arm=a55_t2 start=56%/270dC end=53%/240dC
+06:28:39 comparison end: model=LFM2.5-2.6B-Q4_K_M.gguf block=primary_t2 order=a55_t2,a76_t2,a76_t2,a55_t2
+06:28:39 p4-restart: DONE
+06:33:43 done -> /tmp/kalsa-pilot/out/SWEEP-REPORT.md

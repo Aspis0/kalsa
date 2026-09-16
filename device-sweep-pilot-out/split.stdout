@@ -1,0 +1,38 @@
+
+## LFM2.5-2.6B-Q4_K_M_primary_t2_p1_a55_t2
+
+| rep | window_start_s | window_end_s | duration | load_idle_s | prefill_s | decode_s | load_idle_s_int | prefill_s_int | decode_s_int | J_load_idle | J_prefill | J_decode | J/decode-tok | W_decode | n_load_idle | n_prefill | n_decode | cadence med/max | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 596494.07 | 596995.00 | 499.610 | 127.747 | 50.122 | 323.061 | 128.550 | 49.470 | 321.590 | 131.275 | 52.336 | 191.121 | 0.747 | 0.792 | 125 | 48 | 203 | 2.460/4.500 | sampler cadence max 4.500 s exceeds 2 s (edge uncertainty up to one interval) |
+| 2 | 596995.00 | 598014.92 | 1017.720 | 611.895 | 57.766 | 350.259 | 613.080 | 56.240 | 348.400 | 145.145 | 13.267 | 81.319 | 0.318 | 0.257 | 252 | 21 | 138 | 2.460/4.500 | sampler cadence max 4.500 s exceeds 2 s (edge uncertainty up to one interval) |
+| 3 | 598014.92 | 599080.90 | 1062.730 | 653.913 | 58.325 | 353.742 | 655.070 | 58.160 | 349.500 | 140.470 | 10.213 | 71.703 | 0.280 | 0.230 | 252 | 22 | 139 | 2.460/4.500 | sampler cadence max 4.500 s exceeds 2 s (edge uncertainty up to one interval) |
+
+## LFM2.5-2.6B-Q4_K_M_primary_t2_p2_a76_t2
+
+| rep | window_start_s | window_end_s | duration | load_idle_s | prefill_s | decode_s | load_idle_s_int | prefill_s_int | decode_s_int | J_load_idle | J_prefill | J_decode | J/decode-tok | W_decode | n_load_idle | n_prefill | n_decode | cadence med/max | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 599138.62 | 599248.76 | 108.350 | 24.705 | 15.660 | 69.775 | 26.050 | 14.390 | 67.910 | 25.541 | 10.859 | 157.677 | 0.616 | 2.368 | 17 | 7 | 65 | 1.040/3.490 | sampler cadence max 3.490 s exceeds 2 s (edge uncertainty up to one interval) |
+| 2 | 599248.76 | 599385.66 | 134.980 | 51.389 | 16.640 | 68.871 | 52.450 | 16.040 | 66.490 | 11.553 | 11.253 | 160.013 | 0.625 | 2.425 | 20 | 8 | 64 | 1.040/3.490 | sampler cadence max 3.490 s exceeds 2 s (edge uncertainty up to one interval) |
+| 3 | 599385.66 | 599516.15 | 130.260 | 44.273 | 16.578 | 69.640 | 44.440 | 17.190 | 68.630 | 9.430 | 15.317 | 161.499 | 0.631 | 2.398 | 19 | 9 | 65 | 1.040/3.490 | sampler cadence max 3.490 s exceeds 2 s (edge uncertainty up to one interval) |
+
+## LFM2.5-2.6B-Q4_K_M_primary_t2_p3_a76_t2
+
+| rep | window_start_s | window_end_s | duration | load_idle_s | prefill_s | decode_s | load_idle_s_int | prefill_s_int | decode_s_int | J_load_idle | J_prefill | J_decode | J/decode-tok | W_decode | n_load_idle | n_prefill | n_decode | cadence med/max | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 599572.94 | 599678.51 | 104.890 | 21.184 | 15.310 | 69.076 | 23.890 | 12.640 | 68.360 | 24.349 | 7.548 | 168.120 | 0.657 | 2.460 | 16 | 6 | 66 | 1.040/3.350 | sampler cadence max 3.350 s exceeds 2 s (edge uncertainty up to one interval) |
+| 2 | 599678.51 | 599812.91 | 132.560 | 48.434 | 16.740 | 69.226 | 48.300 | 17.160 | 67.100 | 18.651 | 14.132 | 161.870 | 0.632 | 2.438 | 19 | 8 | 65 | 1.040/3.350 | sampler cadence max 3.350 s exceeds 2 s (edge uncertainty up to one interval) |
+| 3 | 599812.91 | 599942.73 | 129.400 | 44.815 | 16.194 | 68.810 | 45.620 | 15.670 | 68.110 | 23.632 | 12.875 | 159.860 | 0.624 | 2.404 | 18 | 9 | 65 | 1.040/3.350 | sampler cadence max 3.350 s exceeds 2 s (edge uncertainty up to one interval) |
+
+## LFM2.5-2.6B-Q4_K_M_primary_t2_p4_a55_t2
+
+| rep | window_start_s | window_end_s | duration | load_idle_s | prefill_s | decode_s | load_idle_s_int | prefill_s_int | decode_s_int | J_load_idle | J_prefill | J_decode | J/decode-tok | W_decode | n_load_idle | n_prefill | n_decode | cadence med/max | warnings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 600102.54 | 601134.99 | 1031.040 | 621.424 | 58.025 | 353.000 | 623.610 | 56.710 | 350.720 | 156.314 | 16.613 | 88.253 | 0.345 | 0.271 | 251 | 23 | 137 | 2.530/4.100 | sampler cadence max 4.100 s exceeds 2 s (edge uncertainty up to one interval) |
+| 2 | 601134.99 | 602195.55 | 1058.930 | 648.425 | 58.527 | 353.608 | 648.030 | 57.810 | 353.090 | 152.732 | 8.756 | 72.644 | 0.284 | 0.232 | 250 | 24 | 140 | 2.530/4.100 | sampler cadence max 4.100 s exceeds 2 s (edge uncertainty up to one interval) |
+| 3 | 602195.55 | 603256.64 | 1058.070 | 650.596 | 58.048 | 352.446 | 651.580 | 57.300 | 349.190 | 130.569 | 11.571 | 85.210 | 0.333 | 0.272 | 250 | 23 | 140 | 2.530/4.100 | sampler cadence max 4.100 s exceeds 2 s (edge uncertainty up to one interval) |
+
+Phase boundary (kalsa-energy-rep-v3): stamped decode = [mark_N - predicted_ms/1000, mark_N)
+and stamped prefill = [mark_N - predicted_ms/1000 - prompt_ms/1000, mark_N - predicted_ms/1000).
+Prefill is prompt evaluation through the first generated token; load+idle is the earlier remainder.
+Each bucket reports nominal and sampler-integrated seconds, and j_load_idle + j_prefill + j_decode
+equals the whole-window J exactly. Missing stamps use v2 arithmetic and are named per row.
