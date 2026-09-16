@@ -360,8 +360,13 @@ run_one_arm() {
   stem="${model_base}_${block}_p${position}_${ARM_LABEL}"
   pf="$REMOTE_PROMPT"
   energy_start "$stem" 7200 || return 1
-  launcher="./llama-cli"
-  [ -n "$mask" ] && launcher="taskset $mask ./llama-cli"
+  # Positive placement evidence from inside the wrapped command: the masked
+  # process prints its own Cpus_allowed lines before exec, so each rep output
+  # records the CPU set the CLI itself had. A separate probe child cannot
+  # prove that (probe_placement stays the fail-closed gate; this is the
+  # per-rep record). "$@" carries the CLI arguments through sh -c.
+  launcher="sh -c 'grep -E ^Cpus_allowed /proc/self/status; exec ./llama-cli \"\$@\"' _"
+  [ -n "$mask" ] && launcher="taskset $mask $launcher"
 
   for i in $(seq 1 "$REPS"); do
     out="$DATA_DIR/${stem}_r${i}.txt"
@@ -558,6 +563,13 @@ function speedOf(stem, rep) {
   return match ? Number(match[1]) : null;
 }
 
+function observedCpusOf(stem, rep) {
+  const file = `${dataDir}/${stem}_r${rep}.txt`;
+  if (!existsSync(file)) return null;
+  const match = readFileSync(file, "utf8").match(/^Cpus_allowed_list:\s*(\S+)/m);
+  return match ? match[1] : null;
+}
+
 const orderRows = readTsv(`${outDir}/order.tsv`).map((v) => ({
   sequence: Number(v[0]), model: v[1], block: v[2], position: Number(v[3]),
   arm: v[4], mask: v[5], threads: v[6], stem: v[7],
@@ -716,10 +728,13 @@ for (const e of entries) {
   const integrated = finite(e.row.decode_s_int);
   const coverage = nominal && integrated !== null ? `${f((integrated / nominal) * 100, 1)}%` : "n/a";
   const status = blockGroups.get(`${e.model}|${e.block}|${e.position}|${e.arm}`)?.unstable ? "UNINTERPRETABLE" : "stable";
-  const placementWarning = ((e.mask === "3f" && meta.effectiveCpus !== "0-5") || (e.mask === "c0" && meta.effectiveCpus !== "6-7") || (e.mask === "" && meta.effectiveCpus !== "0-7"))
-    ? `MASK PLACEMENT WARNING: requested ${e.mask || "unset"}, observed ${meta.effectiveCpus || "unreadable"}` : "";
+  const inBand = observedCpusOf(e.stem, e.rep);
+  const observed = inBand ?? meta.effectiveCpus ?? null;
+  const observedDisplay = inBand ?? (meta.effectiveCpus ? `${meta.effectiveCpus} (probe)` : "n/a");
+  const placementWarning = ((e.mask === "3f" && observed !== "0-5") || (e.mask === "c0" && observed !== "6-7") || (e.mask === "" && observed !== "0-7"))
+    ? `MASK PLACEMENT WARNING: requested ${e.mask || "unset"}, observed ${observed || "unreadable"}${inBand ? " (in-band)" : " (probe fallback; in-band record absent)"}` : "";
   const warnings = [e.row.warnings || "", placementWarning].filter(Boolean).join("; ") || "—";
-  console.log(`| ${md(e.model)} | ${e.block} | ${e.position} | ${e.arm} | ${e.mask || "unset"} | ${meta.effectiveCpus || "n/a"} | ${clocksByStem.get(e.stem) || "n/a"} | ${e.threads} | ${e.rep} | ${f(e.speed, 1)} | ${md(e.row.decode_s)} | ${coverage} | ${md(e.row.j_per_tok_decode)} | ${md(e.row.j_load_idle)} | ${md(e.row.j_prefill)} | ${md(e.row.j_decode)} | ${md(warnings)} | ${meta.startScreen || "n/a"}→${meta.endScreen || "n/a"} | ${meta.startLevel}%/${meta.startTemp} → ${meta.endLevel}%/${meta.endTemp} | ${status} |`);
+  console.log(`| ${md(e.model)} | ${e.block} | ${e.position} | ${e.arm} | ${e.mask || "unset"} | ${observedDisplay} | ${clocksByStem.get(e.stem) || "n/a"} | ${e.threads} | ${e.rep} | ${f(e.speed, 1)} | ${md(e.row.decode_s)} | ${coverage} | ${md(e.row.j_per_tok_decode)} | ${md(e.row.j_load_idle)} | ${md(e.row.j_prefill)} | ${md(e.row.j_decode)} | ${md(warnings)} | ${meta.startScreen || "n/a"}→${meta.endScreen || "n/a"} | ${meta.startLevel}%/${meta.startTemp} → ${meta.endLevel}%/${meta.endTemp} | ${status} |`);
 }
 
 function meanMetric(model, block, position, arm, field) {
