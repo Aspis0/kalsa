@@ -1,5 +1,9 @@
 # Agent rules (kalsa project)
 
+- Repositories: **`REPOS.md`** maps the five repos and says which one holds what.
+  Read it before assuming where a file lives. The two living documents (`PLAN.md`,
+  `docs/ALIVE.md`) are in the **`kalsa-moe-experiments` repo** at
+  `~/Projects/kalsa-moe-experiments`, never in a directory of that name inside this repo.
 - Language: ALL agent communication, code comments, commit messages, docs,
   and log/stderr strings must be in **English**. Italian is ONLY for direct
   conversation with Marco. Never let Italian leak into code or docs.
