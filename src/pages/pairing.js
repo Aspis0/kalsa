@@ -17,6 +17,7 @@
 //     phone: string | null,    // the phone this computer works with
 //     new_phone: string | null,// the phone asking to take over (replace)
 //     delivery_pending: boolean, // saved here, response still needs delivery
+//     door_port: number | null, // the local door's actual port, when running
 //     failure: "could-not-save" | "could-not-read" | "service-unavailable" | null,
 //   }
 
@@ -54,6 +55,10 @@ const FRESH_LINES = {
   expired: "The previous square expired — this one is fresh.",
   "wrong-code": "A square that did not match was replaced — this one is fresh.",
 };
+
+function doorNote(port) {
+  return Number.isInteger(port) && port > 0 ? `Run for Tailscale: tailscale serve ${port}` : null;
+}
 
 const POLL_MS = 2000;
 
@@ -161,6 +166,7 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
             ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
             : `This computer now works with ${dto.phone ?? "your phone"}.`,
           button: REPAIR_PRIMARY,
+          note: doorNote(dto.door_port),
         });
         break;
       case "replace":
@@ -179,6 +185,7 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
           } is yours, you can switch — the old connection ends when the new one is saved.`,
           button: REPLACE_PRIMARY,
           alt: "Keep this phone",
+          note: doorNote(dto.door_port),
         });
         break;
       case "failed":

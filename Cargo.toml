@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/kalsa-catalog",
+    "crates/kalsa-door",
     "crates/kalsa-download",
     "crates/kalsa-launch",
     "crates/kalsa-pairing",

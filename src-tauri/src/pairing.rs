@@ -143,6 +143,14 @@ pub(crate) struct PairingDto {
     new_phone: Option<String>,
     delivery_pending: bool,
     failure: Option<&'static str>,
+    door_port: Option<u16>,
+}
+
+impl PairingDto {
+    pub(crate) fn with_door_port(mut self, door_port: Option<u16>) -> Self {
+        self.door_port = door_port;
+        self
+    }
 }
 
 impl Desk {
@@ -490,6 +498,7 @@ fn dto(state: &State) -> PairingDto {
         new_phone: None,
         delivery_pending: false,
         failure: None,
+        door_port: None,
     };
     match state {
         State::Idle => empty,

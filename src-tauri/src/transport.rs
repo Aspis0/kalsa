@@ -269,12 +269,10 @@ fn accept_connections(
                 accepted.fetch_add(1, Ordering::SeqCst);
                 progressed = true;
                 if connections.len() >= MAX_CONNECTIONS {
-                    let _ = stream.set_nonblocking(false);
                     refuse_connection(&mut stream, logger);
                     continue;
                 }
                 if stream.set_nonblocking(true).is_err() {
-                    let _ = stream.set_nonblocking(false);
                     refuse_connection(&mut stream, logger);
                     continue;
                 }
@@ -476,6 +474,9 @@ fn respond(stream: &mut TcpStream, body: &str, deadline: Instant) -> io::Result<
 fn refuse(stream: &mut TcpStream, deadline: Instant) -> io::Result<()> {
     remaining(deadline)
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "connection deadline"))?;
+    // Refusals stay non-blocking deliberately: a peer that refuses to read
+    // must not make the acceptor wait. This is best-effort, bounded by the
+    // caller's deadline, rather than a blocking promise that can be abused.
     stream.set_nonblocking(true)?;
     stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
 }

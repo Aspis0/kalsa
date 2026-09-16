@@ -9,13 +9,15 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod door;
 mod failure;
 mod pairing;
 mod startup;
 mod transport;
 
 use std::io;
-use std::path::PathBuf;
+use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -38,6 +40,7 @@ const PAIRING_FILE: &str = "pairing.json";
 
 struct Brain {
     supervisor: Supervisor,
+    door: Mutex<Option<ActiveDoor>>,
     /// The measurement of this machine, kept so a turn-on does not measure
     /// again and the Model page can say whether numbers exist. Memory only:
     /// a restart measures again rather than pretending a result survived.
@@ -47,10 +50,17 @@ struct Brain {
     turning_on: AtomicBool,
 }
 
+struct ActiveDoor {
+    credential: String,
+    address: SocketAddr,
+    door: kalsa_door::RunningDoor,
+}
+
 impl Brain {
     fn new() -> Self {
         Self {
             supervisor: Supervisor::new(),
+            door: Mutex::new(None),
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
         }
@@ -61,6 +71,63 @@ impl Brain {
         self.turning_on
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
+    }
+
+    fn stop_door(&self) {
+        let door = self.door.lock().ok().and_then(|mut stored| stored.take());
+        if let Some(door) = door {
+            door.door.shutdown();
+        }
+    }
+
+    fn door_port(&self) -> Option<u16> {
+        self.door
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().map(|active| active.address.port()))
+    }
+
+    fn start_door_if_paired(&self, upstream_port: u16, file: &Path) -> Result<(), String> {
+        let credential = match kalsa_pairing::store::load(file) {
+            Ok(handshake) => handshake.credential_hex(),
+            Err(kalsa_pairing::StoreError::Io(error))
+                if error.kind() == io::ErrorKind::NotFound =>
+            {
+                self.stop_door();
+                return Ok(());
+            }
+            Err(_) => {
+                self.stop_door();
+                return Err("The authenticated door could not read its credential.".to_string());
+            }
+        };
+        let mut stored = self
+            .door
+            .lock()
+            .map_err(|_| "The authenticated door could not start.".to_string())?;
+        if stored
+            .as_ref()
+            .is_some_and(|active| active.credential == credential)
+        {
+            return Ok(());
+        }
+        if let Some(old) = stored.take() {
+            old.door.shutdown();
+        }
+        let listener =
+            door::bind(file).map_err(|_| "The authenticated door could not bind.".to_string())?;
+        let door = kalsa_door::Door::new(listener, upstream_port, credential.clone())
+            .map_err(|_| "The authenticated door could not start.".to_string())?;
+        let running = door
+            .start()
+            .map_err(|_| "The authenticated door could not start.".to_string())?;
+        let address = running.address();
+        *stored = Some(ActiveDoor {
+            credential,
+            address,
+            door: running,
+        });
+        Ok(())
     }
 }
 
@@ -85,19 +152,18 @@ struct Desk {
     desk: pairing::SharedDesk,
     reachable: String,
     listener: transport::Listener,
+    pairing_file: PathBuf,
 }
 
 fn pairing_desk(file: PathBuf) -> Result<Desk, Box<dyn std::error::Error>> {
     pairing_desk_with(file, transport::serve)
 }
 
-fn pairing_desk_with<S>(
-    file: PathBuf,
-    serve: S,
-) -> Result<Desk, Box<dyn std::error::Error>>
+fn pairing_desk_with<S>(file: PathBuf, serve: S) -> Result<Desk, Box<dyn std::error::Error>>
 where
     S: FnOnce(pairing::SharedDesk) -> io::Result<transport::Listener>,
 {
+    let pairing_file = file.clone();
     let desk = Arc::new(pairing::Desk::new(file));
     let listener = serve(desk.clone())?;
     let reachable = listener.address().to_string();
@@ -105,6 +171,7 @@ where
         desk,
         reachable,
         listener,
+        pairing_file,
     })
 }
 
@@ -138,7 +205,20 @@ impl From<ServerState> for StateDto {
 #[tauri::command]
 fn brain_state(brain: State<Brain>, desk: State<Desk>) -> StateDto {
     let state = brain.supervisor.state();
-    if !matches!(state, ServerState::Running { .. }) {
+    if let ServerState::Running { port, .. } = state {
+        if brain
+            .start_door_if_paired(port, &desk.pairing_file)
+            .is_err()
+        {
+            brain.stop_door();
+            desk.desk.stop_serving();
+            return StateDto::Failed {
+                reason: "The authenticated door could not start. Trying again usually works."
+                    .to_string(),
+            };
+        }
+    } else {
+        brain.stop_door();
         desk.desk.stop_serving();
     }
     state.into()
@@ -294,6 +374,7 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 #[tauri::command]
 fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
+    brain.stop_door();
     desk.desk.stop_serving();
     brain.supervisor.stop();
 }
@@ -305,7 +386,9 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
 #[tauri::command]
 fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
-    desk.desk.read(serving, &desk.reachable, SystemTime::now())
+    desk.desk
+        .read(serving, &desk.reachable, SystemTime::now())
+        .with_door_port(brain.door_port())
 }
 
 /// The owner asked for another square. Whatever was in flight is abandoned.
@@ -318,7 +401,8 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
 /// The owner says the new phone is theirs. The stored credential is replaced;
 /// the old phone stops working, which is what replacing means.
 #[tauri::command]
-fn brain_pairing_replace(desk: State<Desk>) {
+fn brain_pairing_replace(brain: State<Brain>, desk: State<Desk>) {
+    brain.stop_door();
     desk.desk.decide(true, SystemTime::now());
 }
 
@@ -333,7 +417,8 @@ fn brain_pairing_keep(desk: State<Desk>) {
 /// way out of `StoreUnavailable`; a read error is never silently treated as
 /// an unpaired computer.
 #[tauri::command]
-fn brain_pairing_forget(desk: State<Desk>) -> Result<(), String> {
+fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), String> {
+    brain.stop_door();
     desk.desk.forget().map_err(|_| {
         "This computer could not forget the old phone connection. Check its permissions and try again."
             .to_string()
@@ -385,6 +470,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 desk.listener.shutdown();
             }
             if let Some(brain) = app.try_state::<Brain>() {
+                brain.stop_door();
                 brain.supervisor.shutdown();
             }
         }

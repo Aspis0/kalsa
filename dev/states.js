@@ -289,6 +289,7 @@ function pairingDto(state, extra = {}) {
     phone: null,
     new_phone: null,
     delivery_pending: false,
+    door_port: null,
     failure: null,
     ...extra,
   };
@@ -328,14 +329,14 @@ card("Pairing", "a phone is connecting", (panel) =>
 
 card("Pairing", "paired; another phone can be paired", (panel) =>
   mountPairing(panel, {
-    backend: pairingBackend(pairingDto("paired", { phone: "Pixel 9a (stub)" })),
+    backend: pairingBackend(pairingDto("paired", { phone: "Pixel 9a (stub)", door_port: 8131 })),
   }).refresh(),
 );
 
 card("Pairing", "saved here; the phone still needs the response", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(
-      pairingDto("paired", { phone: "Pixel 9a (stub)", delivery_pending: true }),
+      pairingDto("paired", { phone: "Pixel 9a (stub)", delivery_pending: true, door_port: 8131 }),
     ),
   }).refresh(),
 );
@@ -343,7 +344,11 @@ card("Pairing", "saved here; the phone still needs the response", (panel) =>
 card("Pairing", "already paired; a new phone asks", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(
-      pairingDto("replace", { phone: "Pixel 9a (stub)", new_phone: "New phone (stub)" }),
+      pairingDto("replace", {
+        phone: "Pixel 9a (stub)",
+        new_phone: "New phone (stub)",
+        door_port: 8131,
+      }),
     ),
   }).refresh(),
 );

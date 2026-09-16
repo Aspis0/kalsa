@@ -1765,6 +1765,7 @@ name = "kalsa-brain"
 version = "0.0.1"
 dependencies = [
  "kalsa-catalog",
+ "kalsa-door",
  "kalsa-download",
  "kalsa-launch",
  "kalsa-pairing",
@@ -1786,6 +1787,16 @@ version = "0.0.1"
 dependencies = [
  "kalsa-probe",
  "serde_json",
+]
+
+[[package]]
+name = "kalsa-door"
+version = "0.0.1"
+dependencies = [
+ "kalsa-catalog",
+ "kalsa-pairing",
+ "serde_json",
+ "subtle",
 ]
 
 [[package]]

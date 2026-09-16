@@ -1,0 +1,16 @@
+[package]
+name = "kalsa-door"
+description = "Authenticated loopback door for the Kalsa Brain OpenAI endpoint"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The bearer credential is fixed-size and compared without a timing branch.
+subtle = "2"
+
+[dev-dependencies]
+# The test mints the same public handshake credential the desktop stores.
+kalsa-catalog = { path = "../kalsa-catalog" }
+kalsa-pairing = { path = "../kalsa-pairing" }
+serde_json = "1"
