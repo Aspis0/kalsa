@@ -7,10 +7,12 @@
 //! guard's job, not this file's.
 //!
 //! The model step follows the catalog: the choice is fetched against its
-//! digest (a verified copy in another program's cache beats the download).
-//! There is no "choice without a plan" case to handle: the catalog's type
-//! split means a pick always carries its file's pinned address, and a row
-//! with no identified file can never be chosen in the first place.
+//! digest (a verified copy in another program's cache beats the download,
+//! and the stores that name their blobs by digest are asked first, at the
+//! price of a stat). There is no "choice without a plan" case to handle:
+//! the catalog's type split means a pick always carries its file's pinned
+//! address, and a row with no identified file can never be chosen in the
+//! first place.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -19,7 +21,11 @@ use std::time::Duration;
 use kalsa_catalog::{
     memory_budget, rows, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel, Selection,
 };
-use kalsa_download::{default_roots, download, find_local};
+use kalsa_download::{default_roots, download};
+// The cheap first pass over stores that name blobs by digest; find_local
+// stays underneath it, so this is an optimization on top of the engine the
+// download path already used.
+use kalsa_reuse::find_reusable;
 use kalsa_launch::{LaunchInput, Offload, ServerArgs};
 use kalsa_probe::Measurement;
 use kalsa_runtime::ServerBackend;
@@ -255,15 +261,21 @@ fn place_model(
     root: &Path,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
-    acquire_model(plan, &root.join("models"), progress)
+    acquire_model(plan, &root.join("models"), &default_roots(), progress)
 }
 
 /// Puts the chosen model on disk, against the plan's digest. A copy already
 /// on disk — ours, or another program's — is hash-checked or digest-found
-/// before any download happens.
+/// before any download happens. Another program's stores are searched cheap
+/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
+/// stat, and the store whose name claims our digest is read once to
+/// confirm), with `find_local` underneath for stores that name files like
+/// files. `roots` is handed in rather than taken from the environment so
+/// the search is a fact a test can pin.
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
+    roots: &[PathBuf],
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
     let name = plan.url.rsplit('/').next().unwrap_or_default();
@@ -277,8 +289,10 @@ fn acquire_model(
         return Ok(path);
     }
     // A digest-verified copy under ollama, LM Studio or the HF cache beats
-    // any download, and it is only ever read.
-    if let Some(found) = find_local(&default_roots(), plan.bytes, plan.sha256) {
+    // any download, and it is only ever read. A "not found" from the reuse
+    // pass is an optimization failing, never a verdict: find_local still
+    // runs underneath it.
+    if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
     }
     progress(Progress::ModelBytes {
@@ -572,6 +586,108 @@ mod tests {
 
     fn digest_of(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))
+    }
+
+    /// Writes `bytes` under `rel` below `root`, creating directories — the
+    /// test-side twin of what ollama, LM Studio or a hub cache has on disk.
+    fn planted(root: &std::path::Path, rel: &[&str], bytes: &[u8]) -> PathBuf {
+        let mut path = root.to_path_buf();
+        for part in rel {
+            path = path.join(part);
+        }
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdirs");
+        std::fs::write(&path, bytes).expect("write");
+        path
+    }
+
+    /// The cheap pass over digest-named stores answers BEFORE the generic
+    /// scan can reach an equally valid, friendly-named copy in an earlier
+    /// root. Both copies hold the exact pinned bytes, so every byte of the
+    /// answer is correct either way — this pins WHO answers: a store that
+    /// names its blob by the digest is settled by a stat and one confirming
+    /// read, and removing the reuse pass (falling back to find_local alone)
+    /// turns this red, because the generic engine would return the
+    /// friendly-named copy it meets first.
+    #[test]
+    fn a_digest_named_store_is_reused_before_the_generic_scan_answers() {
+        let digest = digest_of(PLAN_BODY);
+        let friendly_root = scratch("reuse-friendly");
+        let blob_root = scratch("reuse-blobs");
+        let friendly = planted(
+            &friendly_root,
+            &["pub", "unsloth", "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"],
+            PLAN_BODY,
+        );
+        let blob = planted(
+            &blob_root,
+            &["models", "blobs", &format!("sha256-{digest}")],
+            PLAN_BODY,
+        );
+        let root = scratch("reuse-plan");
+        let plan = DownloadPlan {
+            url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+        };
+        let found = acquire_model(
+            &plan,
+            &root.join("models"),
+            &[friendly_root.clone(), blob_root.clone()],
+            &mut |_| {},
+        )
+        .expect("the pinned copy in the digest store is on this disk");
+        assert_eq!(found, blob, "the cheap pass must answer first, not {found:?}");
+        assert_ne!(found, friendly);
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&friendly_root);
+        let _ = std::fs::remove_dir_all(&blob_root);
+    }
+
+    /// The reuse pass's own promise, kept at the call site: a blob whose
+    /// right name lies about its bytes (a torn pull) is refused by the cheap
+    /// pass, and that "no" is an optimization failing, not a verdict — the
+    /// generic engine underneath still finds the honest copy, named like a
+    /// file, in another store. No download is attempted: the plan's URL
+    /// points nowhere, so an attempted fetch would fail loudly here.
+    #[test]
+    fn a_failed_fast_pass_falls_through_to_the_generic_scan() {
+        let digest = digest_of(PLAN_BODY);
+        let mut torn = PLAN_BODY.to_vec();
+        let last = torn.len() - 1;
+        torn[last] ^= 0xff;
+        let blob_root = scratch("reuse-torn");
+        let friendly_root = scratch("reuse-honest");
+        planted(
+            &blob_root,
+            &["models", "blobs", &format!("sha256-{digest}")],
+            &torn,
+        );
+        let friendly = planted(
+            &friendly_root,
+            &["models", "publisher", "weights.gguf"],
+            PLAN_BODY,
+        );
+        let root = scratch("reuse-fallthrough");
+        let plan = DownloadPlan {
+            url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+        };
+        let found = acquire_model(
+            &plan,
+            &root.join("models"),
+            &[blob_root.clone(), friendly_root.clone()],
+            &mut |_| {},
+        )
+        .expect("the honest copy is still found");
+        assert_eq!(found, friendly);
+        assert!(
+            !root.join("models").join("weights.gguf").exists(),
+            "nothing was downloaded: reuse answered"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&friendly_root);
+        let _ = std::fs::remove_dir_all(&blob_root);
     }
 
     /// A loopback HTTP server answering every request with the same body:

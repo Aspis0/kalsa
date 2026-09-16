@@ -2516,6 +2516,7 @@ dependencies = [
  "kalsa-launch",
  "kalsa-pairing",
  "kalsa-probe",
+ "kalsa-reuse",
  "kalsa-runtime",
  "kalsa-sentinel",
  "kalsa-supervisor",
