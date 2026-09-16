@@ -62,11 +62,13 @@ struct ActiveDoor {
 
 impl Brain {
     fn new() -> Self {
+        let supervisor = Supervisor::new();
+        let metrics = Arc::new(metrics::RuntimeMetrics::new(supervisor.release_watcher()));
         Self {
-            supervisor: Supervisor::new(),
+            supervisor,
             door: Mutex::new(None),
             launch: Mutex::new(None),
-            metrics: Arc::new(metrics::RuntimeMetrics::new()),
+            metrics,
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
         }
@@ -80,11 +82,15 @@ impl Brain {
     }
 
     fn stop_door(&self) {
+        // Deliberately no metrics call here: shutting the door is not
+        // releasing the model. The sentinel learns of a release only from the
+        // server's own announcement, which RuntimeMetrics applies wherever it
+        // is next read; a note_unload on door shutdown fired once a second
+        // against a stopped server and reset evidence nobody had challenged.
         let door = self.door.lock().ok().and_then(|mut stored| stored.take());
         if let Some(door) = door {
             door.door.shutdown();
         }
-        self.metrics.note_unload();
     }
 
     fn clear_launch(&self) {

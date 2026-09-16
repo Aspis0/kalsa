@@ -19,6 +19,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -26,6 +27,17 @@ use std::time::{Duration, Instant};
 const OUTPUT_TAIL: usize = 12;
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
+
+/// The stderr line llama-server b10950 prints at the moment
+/// `--sleep-idle-seconds` releases the model ("I srv  handle_sleep: server is
+/// entering sleeping state"). This is how the owner learns of a release: the
+/// server offers no endpoint for it — `/health` keeps answering 200 and
+/// `/props` carries `is_sleeping` but only a poll would read it — so the
+/// announcement on the pipe we already drain is the signal. The wording is a
+/// contract with the shipped build, which the runtime pins by digest; a
+/// future build that rewords the line stops being watched, and releases then
+/// go unannounced rather than invented.
+const MODEL_RELEASED_LINE: &str = "server is entering sleeping state";
 
 pub struct ChildHandle {
     child: Child,
@@ -40,12 +52,20 @@ impl ChildHandle {
     /// job (Windows), with stdin piped: dropping our end is the child's stop
     /// signal, so `Stdio::null()` would be an immediate EOF.
     ///
+    /// `releases` is bumped once per model release the server announces on
+    /// stderr; see [`MODEL_RELEASED_LINE`].
+    ///
     /// The working directory is pinned to the binary's own directory because
     /// ggml's backend scan puts the process' current directory in its module
     /// search path and loads the first `ggml-*` name it scores — a module
     /// planted in an inherited directory would run. Absolute paths only: a
     /// relative program path is resolved against `current_dir`.
-    pub fn spawn(exe: &Path, args: &[String], inherit: Option<&File>) -> io::Result<Self> {
+    pub fn spawn(
+        exe: &Path,
+        args: &[String],
+        inherit: Option<&File>,
+        releases: Arc<AtomicU64>,
+    ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
             .stdin(Stdio::piped())
@@ -94,7 +114,7 @@ impl ChildHandle {
             child.raw_handle().and_then(job::confine)
         };
         let stdin = child.stdin.take();
-        let tail = drain_stderr(child.stderr.take());
+        let tail = drain_stderr(child.stderr.take(), releases);
         Ok(Self {
             child,
             stdin,
@@ -278,8 +298,14 @@ fn signal_group(pid: u32, signal: i32) {
 }
 
 /// A child that fills its stderr pipe blocks forever mid-generation, so the
-/// pipe is drained. Keeping the tail is what lets the UI say why it died.
-fn drain_stderr(stderr: Option<std::process::ChildStderr>) -> Arc<Mutex<VecDeque<String>>> {
+/// pipe is drained. Keeping the tail is what lets the UI say why it died, and
+/// watching for the release line here is how a model unload becomes an event:
+/// the drain sees every line the moment the server writes it, so no release
+/// can fall between polls.
+fn drain_stderr(
+    stderr: Option<std::process::ChildStderr>,
+    releases: Arc<AtomicU64>,
+) -> Arc<Mutex<VecDeque<String>>> {
     let tail = Arc::new(Mutex::new(VecDeque::new()));
     let Some(stderr) = stderr else {
         return tail;
@@ -287,6 +313,9 @@ fn drain_stderr(stderr: Option<std::process::ChildStderr>) -> Arc<Mutex<VecDeque
     let sink = Arc::clone(&tail);
     std::thread::spawn(move || {
         for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if line.contains(MODEL_RELEASED_LINE) {
+                releases.fetch_add(1, Ordering::Relaxed);
+            }
             if let Ok(mut lines) = sink.lock() {
                 if lines.len() == OUTPUT_TAIL {
                     lines.pop_front();
@@ -366,5 +395,59 @@ mod tests {
         // signal our own process group. Instant by construction: no process
         // is touched, so there is nothing to wait for.
         assert!(terminate_pid(0, Duration::from_millis(10)).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_release_announcement_on_stderr_bumps_the_counter() {
+        // A real child, a real pipe: the drain must turn the server's own
+        // announcement into an event. The child prints the exact line b10950
+        // prints and stays alive, so the pipe stays open the way a serving
+        // server's does.
+        let releases = Arc::new(AtomicU64::new(0));
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' '0.12.154.170 I srv  handle_sleep: server is entering sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+        )
+        .expect("spawn the announcing child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while releases.load(Ordering::Relaxed) == 0 {
+            assert!(
+                Instant::now() < deadline,
+                "the drain never turned the server's announcement into an event"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert!(matches!(child.try_wait(), Ok(None)), "the child must still be running");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stderr_that_announces_nothing_moves_no_counter() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' 'I srv  handle_sleep: server is exiting sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+        )
+        .expect("spawn the quiet child");
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(
+            releases.load(Ordering::Relaxed),
+            0,
+            "a non-release line (here: the wake-up) counted as a release"
+        );
+        assert!(matches!(child.try_wait(), Ok(None)));
     }
 }

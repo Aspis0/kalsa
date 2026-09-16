@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use kalsa_sentinel::{Level, Sample, Sentinel};
@@ -12,6 +13,14 @@ const TIMING_KEY: &[u8] = b"\"predicted_per_second\"";
 pub(crate) struct RuntimeMetrics {
     started: Instant,
     state: Mutex<MetricState>,
+    /// The supervisor's count of model releases the server itself announced
+    /// on stderr (`--sleep-idle-seconds` firing). The supervisor owns the
+    /// server process, the server owns the release decision, and this side
+    /// only ever reacts to the announcement — the sentinel runs no unload
+    /// clock of its own and nothing here predicts one.
+    releases: Arc<AtomicU64>,
+    /// How many of those announcements have been applied to the sentinel.
+    applied_releases: AtomicU64,
 }
 
 struct MetricState {
@@ -27,26 +36,43 @@ pub(crate) struct RuntimeMetricsDto {
 }
 
 impl RuntimeMetrics {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(releases: Arc<AtomicU64>) -> Self {
         Self {
             started: Instant::now(),
             state: Mutex::new(MetricState {
                 latest_decode: None,
                 sentinel: None,
             }),
+            releases,
+            applied_releases: AtomicU64::new(0),
         }
     }
 
-    pub(crate) fn note_unload(&self) -> bool {
-        if let Ok(mut state) = self.state.lock() {
-            let notified = state.sentinel.as_mut().is_some_and(|sentinel| {
-                let at = self.started.elapsed().as_secs_f64();
-                sentinel.note_unload(at).is_some()
-            });
-            state.latest_decode = None;
-            return notified;
+    /// Applies every announced release not yet applied, before the sentinel
+    /// is read or written. Both readers of the sentinel go through here, so a
+    /// release reaches the guard however the next touch arrives: the page's
+    /// once-a-second poll, or the first phone turn after the reload — which
+    /// is the next session, and starts at full settings.
+    fn apply_releases(&self) {
+        let mut applied = self.applied_releases.load(Ordering::Relaxed);
+        while applied < self.releases.load(Ordering::Relaxed) {
+            self.note_unload();
+            applied += 1;
+            self.applied_releases.store(applied, Ordering::Relaxed);
         }
-        false
+    }
+
+    /// One announced model release: tells the sentinel (a double report is
+    /// its own no-op) and drops the live rate the sleeping model no longer
+    /// backs.
+    fn note_unload(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            if let Some(sentinel) = state.sentinel.as_mut() {
+                let at = self.started.elapsed().as_secs_f64();
+                let _ = sentinel.note_unload(at);
+            }
+            state.latest_decode = None;
+        }
     }
 
     pub(crate) fn reset(&self) {
@@ -60,6 +86,7 @@ impl RuntimeMetrics {
         if !tokens_per_second.is_finite() || tokens_per_second <= 0.0 {
             return;
         }
+        self.apply_releases();
         if let Ok(mut state) = self.state.lock() {
             let at = self.started.elapsed().as_secs_f64();
             match state.sentinel.as_mut() {
@@ -76,6 +103,7 @@ impl RuntimeMetrics {
     }
 
     pub(crate) fn snapshot(&self, phone_connected: Option<bool>) -> RuntimeMetricsDto {
+        self.apply_releases();
         let (decode, throttled) = self
             .state
             .lock()
@@ -238,15 +266,57 @@ impl TimingScanner {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
     use super::{RuntimeMetrics, TimingScanner};
 
+    fn metrics() -> (RuntimeMetrics, Arc<AtomicU64>) {
+        let releases = Arc::new(AtomicU64::new(0));
+        (RuntimeMetrics::new(Arc::clone(&releases)), releases)
+    }
+
     #[test]
-    fn unloading_notifies_the_sentinel_and_clears_the_live_rate() {
-        let metrics = RuntimeMetrics::new();
+    fn an_announced_release_clears_the_rate_the_page_would_show() {
+        // The server announced a release and no phone turn has happened yet:
+        // the page's once-a-second poll alone must apply it, so the UI stops
+        // quoting a rate the sleeping model no longer backs.
+        let (metrics, releases) = metrics();
         metrics.observe_decode(12.0);
-        assert!(metrics.note_unload());
+        releases.fetch_add(1, Ordering::Relaxed);
         let snapshot = metrics.snapshot(None);
         assert_eq!(snapshot.decode_tokens_per_second, None);
+    }
+
+    #[test]
+    fn the_first_turn_after_a_release_opens_a_fresh_session() {
+        // Decay announced, then the model reloads on demand: the first turn
+        // is measured against a fresh baseline at full settings, not against
+        // the eased rung the release threw away.
+        let (metrics, releases) = metrics();
+        metrics.observe_decode(12.0);
+        releases.fetch_add(1, Ordering::Relaxed);
+        metrics.observe_decode(12.0);
+        let snapshot = metrics.snapshot(None);
+        assert_eq!(snapshot.decode_tokens_per_second, Some(12.0));
+        assert_eq!(snapshot.throttled, Some(false));
+    }
+
+    #[test]
+    fn a_release_before_any_measurement_is_applied_without_a_sentinel() {
+        // The model can be released before its first measured turn (a start
+        // nobody used, then the idle clock fired). The announcement still
+        // counts as applied; nothing panics, nothing is invented.
+        let (metrics, releases) = metrics();
+        releases.fetch_add(1, Ordering::Relaxed);
+        let snapshot = metrics.snapshot(None);
+        assert_eq!(snapshot.decode_tokens_per_second, None);
+        assert_eq!(snapshot.throttled, None);
+        metrics.observe_decode(12.0);
+        assert_eq!(
+            metrics.snapshot(None).decode_tokens_per_second,
+            Some(12.0)
+        );
     }
 
     #[test]

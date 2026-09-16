@@ -8,6 +8,7 @@
 
 use std::net::TcpListener;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -99,21 +100,38 @@ pub struct Supervisor {
     commands: Sender<Command>,
     state: Arc<Mutex<ServerState>>,
     worker: Mutex<Option<JoinHandle<()>>>,
+    /// How many model releases the server has announced on stderr (see
+    /// `MODEL_RELEASED_LINE` in `child`). The drain thread adds; readers
+    /// compare against their last-seen value and act on the difference — an
+    /// event no poll can miss, because the count never goes back down.
+    releases: Arc<AtomicU64>,
 }
 
 impl Supervisor {
     pub fn new() -> Self {
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
+        let releases = Arc::new(AtomicU64::new(0));
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
-            move || work(inbox, state)
+            let releases = Arc::clone(&releases);
+            move || work(inbox, state, releases)
         });
         Self {
             commands,
             state,
             worker: Mutex::new(Some(worker)),
+            releases,
         }
+    }
+
+    /// The release count, shared with the stderr drain: a consumer that owns
+    /// the model's session state (the app's metrics) keeps its last-applied
+    /// value and applies every release it has not seen yet. An adopted server
+    /// is the gap: we hold no pipe to it, so releases during adoption are
+    /// unannounced to us.
+    pub fn release_watcher(&self) -> Arc<AtomicU64> {
+        Arc::clone(&self.releases)
     }
 
     pub fn state(&self) -> ServerState {
@@ -153,7 +171,11 @@ impl Default for Supervisor {
     }
 }
 
-fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
+fn work(
+    inbox: Receiver<Command>,
+    state: Arc<Mutex<ServerState>>,
+    releases: Arc<AtomicU64>,
+) {
     let mut owned: Option<Owned> = None;
     loop {
         match inbox.recv_timeout(TICK) {
@@ -162,7 +184,7 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                     continue; // already on: the switch is not a restart button
                 }
                 set(&state, ServerState::Starting);
-                match start_blocking(&config) {
+                match start_blocking(&config, Arc::clone(&releases)) {
                     Ok(Started::Adopted { pid }) => {
                         set(
                             &state,
@@ -295,7 +317,7 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
 }
 
 /// Reuses or clears a previous instance, then spawns and waits for readiness.
-fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
+fn start_blocking(config: &ServerConfig, releases: Arc<AtomicU64>) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
     config
@@ -317,10 +339,11 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
         .map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
-    let mut child = ChildHandle::spawn(&config.exe, &config.argv, Some(instance.handle()))
-        .map_err(|e| Failure::ServerNotStarted {
-            detail: format!("could not start the server: {e}"),
-        })?;
+    let mut child =
+        ChildHandle::spawn(&config.exe, &config.argv, Some(instance.handle()), releases)
+            .map_err(|e| Failure::ServerNotStarted {
+                detail: format!("could not start the server: {e}"),
+            })?;
     instance
         .describe(child.pid(), config.port)
         .map_err(|e| Failure::InstanceUnwritable {
@@ -501,7 +524,7 @@ mod tests {
             "--port".into(),
             "8290".into(),
         ];
-        let err = start_blocking(&config)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -521,7 +544,7 @@ mod tests {
             "--port".into(),
             "9999".into(),
         ];
-        let err = start_blocking(&config)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -535,7 +558,7 @@ mod tests {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
         let config = config(8292);
-        let err = start_blocking(&config)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
