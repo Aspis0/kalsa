@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Offline harness for scripts/energyPhaseSplit.mjs (kalsa-energy-rep-v2).
+ * Offline harness for scripts/energyPhaseSplit.mjs (kalsa-energy-rep-v2 and
+ * kalsa-energy-rep-v3).
  *
  * Feeds synthetic campaign dirs (sampler CSV + .marks + _rN.txt per stem) to
  * the splitter end-to-end and asserts hand-computed phase energies. The main
@@ -28,6 +29,9 @@
  * the wrong-counts-on-REP direction, and the coverage-only branch (3
  * intervals but coverage < 0.7, audit R4/N4). Marks hygiene is fatal:
  * out-of-order marks and marks before the first CSV sample refuse the stem.
+ * The v3 fixtures cover final-engine stamps, the three-bucket exact partition,
+ * stamped low resolution, and a mixed stem where an unstamped rep falls back
+ * to v2 arithmetic.
  *
  * Zero npm deps. Exit 1 on any failure.
  */
@@ -38,10 +42,13 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   PHASES_COLUMNS,
+  PHASES_V3_COLUMNS,
+  PHASES_SCHEMA_V3,
   COUNTS_MANIFEST_COLUMNS,
   parseSpeedLine,
   parsePerfLines,
   parseMarks,
+  parsePhaseStamp,
   parseCountsManifest,
   sampleCadence,
   splitStem,
@@ -72,13 +79,19 @@ const row = (t, uA) => `${t.toFixed(2)},${uA},4000000,300,Discharging,500000:500
 const csv = (rows) => [HEADER, ...rows, ""].join("\n");
 const SPEED = "[ Prompt: 4.0 t/s | Generation: 2.0 t/s ]\n";
 const SPEED84 = "[ Prompt: 8.4 t/s | Generation: 8.4 t/s ]\n";
+const STAMP = "phase prompt_n=8 prompt_ms=2000.000 predicted_n=6 predicted_ms=3000.000\n";
+const STAMPED_CSV = csv([
+  row(10, 250000), row(11, 250000), row(12, 250000), row(13, 250000), row(14, 250000),
+  row(15, 500000), row(16, 500000), row(17, 1000000), row(18, 1000000), row(19, 1000000),
+]);
+const MIXED_CSV = csv(Array.from({ length: 20 }, (_, i) => row(10 + i, 250000)));
 
 // The exact decode-bucket low-resolution warning string (audit R1/R2), built
 // from the formatted CSV cells so golden comparisons stay byte-exact. The
 // text stays comma-free like every row warning — the warnings field is the
 // last CSV column and naive consumers split on plain commas.
 const LOWRES_TAIL =
-  "; j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use (the same bias on both arms only when the sibling arm's decode bucket has similar coverage — compare decode_s_int first)";
+  "; j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use";
 const lowres = (n, cov, nom) =>
   `decode bucket low-resolution: ${n} interval(s) attributed to decode (coverage ${cov}/${nom} s = ${Math.round((100 * cov) / nom)}%)${LOWRES_TAIL}`;
 
@@ -129,7 +142,21 @@ function main() {
     check("speed: non-positive tps rejected", parseSpeedLine("[ Prompt: 0 t/s | Generation: 9.1 t/s ]") === null);
   }
 
-  // ── 2. parsePerfLines: upstream llama_perf_context_print ────────────
+  // ── 2. parsePhaseStamp: final engine timing sidecar ────────────────
+  {
+    const parsed = parsePhaseStamp(`noise\n${STAMP}`);
+    check(
+      "stamps: final phase line parsed",
+      parsed.stamp?.promptN === 8 && parsed.stamp.promptMs === 2000 &&
+        parsed.stamp.predictedN === 6 && parsed.stamp.predictedMs === 3000,
+      JSON.stringify(parsed),
+    );
+    check("stamps: clock-like line rejected", parsePhaseStamp("phase t=12.345\n").stamp === null);
+    const multi = parsePhaseStamp(`${STAMP}${STAMP}`);
+    check("stamps: last line wins with a warning", multi.stamp?.predictedN === 6 && multi.error !== null, JSON.stringify(multi));
+  }
+
+  // ── 3. parsePerfLines: upstream llama_perf_context_print ────────────
   {
     const both = parsePerfLines(PERF_TXT);
     check(
@@ -364,6 +391,62 @@ function main() {
       "marks join: window_end_s equals the raw mark value (uptime, no conversion)",
       r1[3] === "16.00" && r2[3] === "24.00",
       `r1=${r1[3]} r2=${r2[3]}`,
+    );
+
+    // ── 9. stamped v3: three buckets, exact partition, low resolution ──
+    writeFileSync(path.join(dir, "stamped_rep.csv"), STAMPED_CSV);
+    writeFileSync(path.join(dir, "stamped_rep.marks"), "r1 20.00\n");
+    writeFileSync(path.join(dir, "stamped_rep_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "stamped_rep_r1.stamps"), STAMP);
+    const stampedRun = spawnSync(
+      process.execPath,
+      [tool, dir, "stamped_rep", "--prompt-tokens", "99", "--gen-tokens", "99"],
+      { encoding: "utf8" },
+    );
+    check("v3: stamped fixture exits 0", stampedRun.status === 0, `status=${stampedRun.status} stderr=${stampedRun.stderr}`);
+    const stampedLines = readCsvRows(path.join(dir, "stamped_rep.phases.csv"));
+    check("v3: stamped header is the new schema", stampedLines[0] === PHASES_V3_COLUMNS.join(",") && PHASES_SCHEMA_V3 === "kalsa-energy-rep-v3", stampedLines[0]);
+    const sr = stampedLines[1].split(",");
+    check(
+      "v3: final stamp durations and counts win",
+      sr[4] === "9.000" && sr[5] === "5.000" && sr[6] === "2.000" && sr[7] === "3.000" &&
+        sr[15] === "8" && sr[16] === "6" && sr[18] === "5" && sr[19] === "2" && sr[20] === "3",
+      stampedLines[1],
+    );
+    check(
+      "v3: load/prefill/decode energy partition is exact",
+      sr[11] === "6.000" && sr[12] === "6.000" && sr[13] === "8.000" &&
+        Math.abs(Number(sr[11]) + Number(sr[12]) + Number(sr[13]) - integrate(parseEnergyCsv(STAMPED_CSV).rows).joules) < 1e-9,
+      stampedLines[1],
+    );
+    check(
+      "v3: stamped low-resolution warning covers prefill and decode",
+      sr[23].includes("prefill bucket low-resolution") && sr[23].includes("decode bucket low-resolution") &&
+        sr[9] === "2.000" && sr[10] === "2.000",
+      sr[23],
+    );
+
+    // ── 10. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
+    writeFileSync(path.join(dir, "mixed_rep.csv"), MIXED_CSV);
+    writeFileSync(path.join(dir, "mixed_rep.marks"), "r1 20.00\nr2 30.00\n");
+    writeFileSync(path.join(dir, "mixed_rep_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "mixed_rep_r2.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "mixed_rep_r1.stamps"), STAMP);
+    const mixedRun = spawnSync(
+      process.execPath,
+      [tool, dir, "mixed_rep", "--prompt-tokens", "8", "--gen-tokens", "7"],
+      { encoding: "utf8" },
+    );
+    check("v3: mixed stamped/unstamped fixture exits 0", mixedRun.status === 0, `status=${mixedRun.status} stderr=${mixedRun.stderr}`);
+    const mixedLines = readCsvRows(path.join(dir, "mixed_rep.phases.csv"));
+    check("v3: mixed fixture keeps the v3 schema", mixedLines[0] === PHASES_V3_COLUMNS.join(",") && mixedLines.length === 4, mixedLines[0]);
+    const mr2 = mixedLines[2].split(",");
+    check(
+      "v3: absent stamp says fallback per row",
+      mr2[23].includes("phase stamps absent; fell back to kalsa-energy-rep-v2 arithmetic") &&
+        mr2[23].includes("prefill bucket unavailable") && mr2[6] === "" && mr2[12] === "0.000" &&
+        Math.abs(Number(mr2[11]) + Number(mr2[12]) + Number(mr2[13]) - 9) < 1e-9,
+      mixedLines[2],
     );
 
     // perf_line: decode_s from the run's own eval-time ms (2.5 s, not

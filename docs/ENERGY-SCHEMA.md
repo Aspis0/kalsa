@@ -4,8 +4,9 @@ Shared contract for the on-device energy harness (sampler, aggregator, and the
 per-rep phase splitter). Code lives in `scripts/energySchema.mjs`
 (parsing + integration + export row), `scripts/energy-sample.sh` (producer),
 `scripts/energyAggregate.mjs` (between-arm table + export writer), and
-`scripts/energyPhaseSplit.mjs` (per-rep pre/decode phase split,
-`kalsa-energy-rep-v2`).
+`scripts/energyPhaseSplit.mjs` (per-rep v2 fallback and stamped
+load-idle/prefill/decode split, schemas `kalsa-energy-rep-v2` and
+`kalsa-energy-rep-v3`).
 
 ## Read this first: the metric is RELATIVE
 
@@ -121,8 +122,9 @@ buckets have similar coverage — read `decode_s_int` before comparing arms
 with very different decode lengths.
 
 **Honest phase naming**: `j_pre` is model load + inter-rep idle + prompt
-eval. The prompt-eval-only J is NOT resolvable at 1 Hz with the model load
-inside the window — a future in-engine phase timestamp would be needed.
+eval. The prompt-eval-only J was NOT resolvable at 1 Hz with the model load
+inside the v2 window; schema v3 below adds the existing in-engine phase
+durations and resolves that split.
 Between-arm deltas of the same phase stay meaningful (identical arithmetic
 per arm), but `j_pre` is not a prefill measurement and must not be quoted as
 one.
@@ -204,11 +206,95 @@ On the decode side the two truncations point the SAME way (straddle →
 | `warnings`         | —     | `; `-joined notes (undeterminable boundary, empty segments, degenerate windows, low-resolution decode bucket, band/cadence warnings) |
 
 `kalsa-energy-rep-v1` was never published outside this repository;
-`kalsa-energy-rep-v2` is the first published phases schema.
+`kalsa-energy-rep-v2` is the published unstamped phases schema, and
+`kalsa-energy-rep-v3` is the engine-stamped schema described below.
 
 Consumer note: `<stem>.phases.csv` lives in the campaign dir but is NOT a
 sampler CSV — `energyAggregate.mjs` skips `*.phases.csv` when it globs the
 dir's `*.csv`, so aggregating after a split is safe.
+
+## Per-rep schema `kalsa-energy-rep-v3` — ENGINE-STAMPED
+
+Schema v3 is selected for a stem when at least one `${stem}_rN.stamps` file is
+present. A fully unstamped stem continues to write the v2 header and rows
+unchanged; this is required so the four committed v2 sidecars and archived
+campaigns reproduce byte-for-byte. A mixed stem writes v3: rows with a stamp
+use the engine boundaries, while rows without one use v2 arithmetic and say so
+in their `warnings` cell. The command also reports that fallback per row on
+stderr. This compatibility rule does not change the meaning of v2.
+
+The CLI sidecar has exactly one duration-only line per completed request:
+
+```
+phase prompt_n=<int> prompt_ms=<float, 3 decimals> predicted_n=<int> predicted_ms=<float, 3 decimals>
+```
+
+The values come from the final timings chunk carrying `finish_reason`. It has
+no clock. The harness already joins `mark_N` and `t_s` through `/proc/uptime`,
+which is CLOCK_BOOTTIME; adding a CLI clock based on CLOCK_MONOTONIC would
+silently drift across suspend. A missing or unreadable stamp is an
+instrumentation failure, not a run failure.
+
+For a stamped rep ending at `mark_N`, the nominal intervals are:
+
+```
+load+idle = [window_start, mark_N - predicted_ms/1000 - prompt_ms/1000)
+prefill   = [mark_N - predicted_ms/1000 - prompt_ms/1000,
+             mark_N - predicted_ms/1000)
+decode    = [mark_N - predicted_ms/1000, mark_N)
+```
+
+The `prefill` bucket is named precisely: it is prompt evaluation through the
+first generated token. The model's mmap page faults caused by the first prompt
+therefore land in `prefill`, not in `load+idle`. `load+idle` is only the
+earlier remainder of the rep window, including inter-rep idle and any model
+loading before the prompt is accepted.
+
+The sampler still uses right-Riemann integration. An interval is assigned to a
+bucket only when its full sample interval lies inside that bucket. The
+interval straddling a boundary is assigned to the earlier bucket; the partial
+interval from the last sample to `mark_N` is assigned to no bucket. Thus every
+sampled interval belongs to exactly one of the three buckets and the tool
+computes `j_decode` as the exact remaining J after `j_load_idle` and
+`j_prefill`: `j_load_idle + j_prefill + j_decode` equals the whole-window J
+exactly. The `_s_int` columns expose the sampler-integrated seconds actually
+attributed to each bucket, and coverage is `_s_int / _s` for each nominal
+bucket. A low-resolution warning uses the v2 discipline for every non-zero
+bucket: fewer than 3 attributed intervals or coverage below 0.7. The warning
+is per bucket and does not turn an otherwise coherent row into a failure.
+
+If a row has no valid stamp, v3 retains the v2 decode anchor
+(`gen_tokens / gen tps`, with the perf eval-time value preferred when present).
+The entire old v2 PRE energy becomes `j_load_idle`, `j_prefill` is zero, and
+the row explicitly says that the prefill bucket is unavailable and that
+`j_load_idle` includes prompt evaluation. No prompt phase is invented from
+the rounded speed line.
+
+V3 columns are:
+
+| column             | unit  | meaning |
+|--------------------|-------|---------|
+| `run_id`, `rep` | - | stem and rep number |
+| `window_start_s`, `window_end_s` | s | sampler window boundaries; the end is `mark_N` |
+| `duration` | s | integrated duration of the sampled rep window |
+| `load_idle_s`, `prefill_s`, `decode_s` | s | nominal stamped bucket durations; `prefill_s = prompt_ms/1000`, `decode_s = predicted_ms/1000` |
+| `load_idle_s_int`, `prefill_s_int`, `decode_s_int` | s | durations actually covered by full sampler intervals in each bucket |
+| `j_load_idle`, `j_prefill`, `j_decode` | J | energy in the three bucket interval sets; their sum is the whole-window J |
+| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens`; relative and coverage-limited as in v2 |
+| `prompt_tokens`, `gen_tokens` | tok | stamped engine counts when available; otherwise the v2 provenance order |
+| `w_decode` | W | mean power over the decode segment's own samples |
+| `n_load_idle`, `n_prefill`, `n_decode` | - | sample positions used to describe the three interval regions |
+| `cadence_median_s`, `cadence_max_s` | s | whole-CSV sampler cadence |
+| `warnings` | - | per-bucket coverage, fallback, cadence, and sanity notes |
+
+V2 figures are not carried over into v3 and must not be relabeled as stamped
+numbers. V2's `j_pre` aggregates everything before its approximate decode
+anchor: model load, idle, and prompt evaluation. V3 re-anchors decode with the
+engine's measured `predicted_ms` and subdivides the preceding energy using the
+measured `prompt_ms`; `j_load_idle + j_prefill` is the new, more specific
+pre-decode view, not a renamed historical number. Re-anchoring means new
+measurements and new comparisons: v2 sidecars remain valid v2 evidence, but
+v2 and v3 phase figures are not a continuous numeric series.
 
 ## CodeCarbon-compatible export
 

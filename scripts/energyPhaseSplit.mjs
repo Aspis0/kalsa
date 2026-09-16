@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Per-rep phase split, schema kalsa-energy-rep-v2: divide each rep's window
+// Per-rep phase split, schemas kalsa-energy-rep-v2 and kalsa-energy-rep-v3:
+// divide each rep's window
 // energy into a PRE phase (j_pre) and a DECODE phase (j_decode), anchored the
 // only way the data supports. History: v1 (572d3be) placed the boundary at
 // window_start + prompt-eval duration, but the run's startup — inter-rep
@@ -94,6 +95,17 @@ export const PHASES_COLUMNS = [
   "n_pre", "n_decode", "cadence_median_s", "cadence_max_s", "warnings",
 ];
 
+export const PHASES_SCHEMA_V2 = "kalsa-energy-rep-v2";
+export const PHASES_SCHEMA_V3 = "kalsa-energy-rep-v3";
+
+export const PHASES_V3_COLUMNS = [
+  "run_id", "rep", "window_start_s", "window_end_s", "duration",
+  "load_idle_s", "prefill_s", "decode_s", "load_idle_s_int", "prefill_s_int", "decode_s_int",
+  "j_load_idle", "j_prefill", "j_decode", "j_per_tok_decode",
+  "prompt_tokens", "gen_tokens", "w_decode",
+  "n_load_idle", "n_prefill", "n_decode", "cadence_median_s", "cadence_max_s", "warnings",
+];
+
 // scripts/fixtures/energy-counts/manifest.csv (tracked): one row per stem.
 // count_run_gen_tps and count_run_output are provenance only — the tool never
 // reads them; campaign_gen_tps_rN is cross-checked against each rep's speed
@@ -136,6 +148,33 @@ export function parsePerfLines(text) {
     out.genTokens = parseInt(ev[2], 10);
   }
   return out;
+}
+
+// One line written by the CLI after the final chunk carrying finish_reason.
+// Durations are intentionally text-compatible with the CLI's three-decimal
+// format; no clock or timestamp is accepted here.
+export function parsePhaseStamp(text) {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const matches = lines.filter((line) => {
+    return /^phase prompt_n=\d+ prompt_ms=\d+\.\d{3} predicted_n=\d+ predicted_ms=\d+\.\d{3}$/.test(line);
+  });
+  if (!matches.length) {
+    return { stamp: null, lineCount: lines.length, error: "no valid phase stamp line" };
+  }
+  const m = matches[matches.length - 1].match(
+    /^phase prompt_n=(\d+) prompt_ms=(\d+\.\d{3}) predicted_n=(\d+) predicted_ms=(\d+\.\d{3})$/,
+  );
+  return {
+    stamp: {
+      promptN: parseInt(m[1], 10),
+      promptMs: parseFloat(m[2]),
+      predictedN: parseInt(m[3], 10),
+      predictedMs: parseFloat(m[4]),
+    },
+    lineCount: lines.length,
+    validLineCount: matches.length,
+    error: matches.length > 1 ? "multiple phase stamp lines; using the last line" : null,
+  };
 }
 
 // "r1 554225.50" per line; last write wins (the harness appends). Non-mark
@@ -210,15 +249,250 @@ export function sampleCadence(samples) {
 const fmt = (x, d = 3) => (Number.isFinite(x) ? x.toFixed(d) : "");
 const esc = (x) => (/[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x);
 
+const roundJ = (x) => Math.round((x + Number.EPSILON) * 1000) / 1000;
+const LOWRES_TAIL =
+  "; j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use";
+
+function lowResolutionWarning(label, intervals, integratedS, nominalS) {
+  if (!(nominalS > 0) || !(intervals < 3 || integratedS < 0.7 * nominalS)) {
+    return null;
+  }
+  return `${label} bucket low-resolution: ${intervals} interval(s) attributed to ${label} ` +
+    `(coverage ${integratedS.toFixed(2)}/${nominalS.toFixed(2)} s = ${Math.round((100 * integratedS) / nominalS)}%)${LOWRES_TAIL}`;
+}
+
+function splitStampedRep({
+  stem,
+  n,
+  start,
+  end,
+  win,
+  stamp,
+  stampError,
+  speed,
+  perf,
+  manifestEntry,
+  cliPromptTokens,
+  cliGenTokens,
+  cad,
+  cadenceWarn,
+}) {
+  const warnings = [];
+  const repLabel = `${stem}: r${n}:`;
+  const promptTokens = stamp?.promptN ?? perf.promptTokens ?? manifestEntry?.promptTokens ?? cliPromptTokens ?? null;
+  const genTokens = stamp?.predictedN ?? perf.genTokens ?? manifestEntry?.genTokens ?? cliGenTokens ?? null;
+  const row = {
+    run_id: stem,
+    rep: String(n),
+    window_start_s: start.toFixed(2),
+    window_end_s: end.toFixed(2),
+    duration: "",
+    load_idle_s: "",
+    prefill_s: "",
+    decode_s: "",
+    load_idle_s_int: "",
+    prefill_s_int: "",
+    decode_s_int: "",
+    j_load_idle: "",
+    j_prefill: "",
+    j_decode: "",
+    j_per_tok_decode: "",
+    prompt_tokens: promptTokens ?? "",
+    gen_tokens: genTokens ?? "",
+    w_decode: "",
+    n_load_idle: "",
+    n_prefill: "",
+    n_decode: "",
+    cadence_median_s: Number.isFinite(cad.median) ? cad.median.toFixed(3) : "",
+    cadence_max_s: Number.isFinite(cad.max) ? cad.max.toFixed(3) : "",
+    warnings: "",
+  };
+  if (cadenceWarn) warnings.push(cadenceWarn);
+
+  if (manifestEntry && speed) {
+    const claimed = parseFloat(manifestEntry.campaignGenTps[n - 1]);
+    if (Number.isFinite(claimed) && Math.abs(claimed - speed.genTps) > 0.05) {
+      warnings.push(
+        `manifest campaign_gen_tps_r${n} (${claimed}) differs from this run's speed line (${speed.genTps}) - wrong manifest/campaign pairing?`,
+      );
+    }
+  }
+
+  if (!win.length) {
+    warnings.push("rep window has no samples");
+    row.n_load_idle = "0";
+    row.n_prefill = "0";
+    row.n_decode = "0";
+    row.warnings = warnings.join("; ");
+    return { row, fatal: null };
+  }
+
+  const whole = integrate(win);
+  row.duration = fmt(whole.duration_s);
+
+  const decodeDur = stamp
+    ? stamp.predictedMs / 1000
+    : perf.evalMs !== null
+      ? perf.evalMs / 1000
+      : genTokens !== null && speed
+        ? genTokens / speed.genTps
+        : null;
+  if (decodeDur === null) {
+    warnings.push(
+      stampError
+        ? `phase stamps ${stampError}; fell back to kalsa-energy-rep-v2 arithmetic`
+        : "phase stamps absent; fell back to kalsa-energy-rep-v2 arithmetic",
+    );
+    warnings.push(
+      "decode duration not derivable (needs gen token counts from counts manifest / --gen-tokens / perf line, and a speed line)",
+    );
+    row.warnings = warnings.join("; ");
+    return { row, fatal: null };
+  }
+  if (genTokens !== null && genTokens <= 0) {
+    return {
+      row,
+      fatal: `${repLabel} gen_tokens = ${genTokens} <= 0 with a count source present - incoherent input`,
+    };
+  }
+
+  if (!stamp) {
+    warnings.push(
+      stampError
+        ? `phase stamps ${stampError}; fell back to kalsa-energy-rep-v2 arithmetic`
+        : "phase stamps absent; fell back to kalsa-energy-rep-v2 arithmetic",
+    );
+    warnings.push("prefill bucket unavailable; j_load_idle includes the v2 PRE phase (model load + idle + prompt eval)");
+    if (whole.duration_s > 0 && decodeDur >= whole.duration_s) {
+      return {
+        row,
+        fatal: `${repLabel} decode duration (${decodeDur.toFixed(3)} s) >= window duration (${whole.duration_s.toFixed(3)} s) - counts/speed line incoherent with the window`,
+      };
+    }
+    const B = end - decodeDur;
+    const found = win.findIndex((r) => r.t >= B);
+    const b = found === -1 ? win.length : found;
+    const preInt = integrate(win.slice(0, Math.min(b + 1, win.length)));
+    const decSeg = win.slice(b);
+    const decInt = decSeg.length ? integrate(decSeg) : null;
+    const decJoules = decInt ? whole.joules - preInt.joules : 0;
+    row.decode_s = fmt(decodeDur);
+    row.load_idle_s_int = fmt(preInt.duration_s);
+    row.decode_s_int = fmt(decInt ? decInt.duration_s : 0);
+    row.j_load_idle = fmt(roundJ(preInt.joules));
+    row.j_prefill = "0.000";
+    row.j_decode = fmt(roundJ(whole.joules - preInt.joules));
+    row.j_per_tok_decode = genTokens > 0 ? fmt(decJoules / genTokens) : "";
+    row.w_decode = decInt && Number.isFinite(decInt.mean_w) ? fmt(decInt.mean_w) : "";
+    row.n_load_idle = String(b);
+    row.n_prefill = "0";
+    row.n_decode = String(win.length - b);
+    if (b === 0) warnings.push("decode_start at/before the first window sample - pre phase has no interval");
+    if (decInt === null) warnings.push("decode segment has no samples (decode_s shorter than the tail gap to the mark)");
+    const decIntervals = decSeg.length - 1;
+    const decodeSInt = decInt ? decInt.duration_s : 0;
+    if (decInt !== null && (decIntervals < 3 || decodeSInt < 0.7 * decodeDur)) {
+      warnings.push(
+        `decode bucket low-resolution: ${decIntervals} interval(s) attributed to decode ` +
+          `(coverage ${decodeSInt.toFixed(2)}/${decodeDur.toFixed(2)} s = ${Math.round((100 * decodeSInt) / decodeDur)}%)` +
+          LOWRES_TAIL,
+      );
+    }
+    if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
+    if (decJoules !== null) {
+      const impliedW = decJoules / decodeDur;
+      if (Number.isFinite(impliedW) && (impliedW < 0.1 || impliedW > 20)) {
+        warnings.push(`implied decode power ${impliedW.toFixed(2)} W (j_decode / decode_s) outside the 0.1-20 W sanity band - counts wrong?`);
+      }
+    }
+    row.warnings = warnings.join("; ");
+    return { row, fatal: null };
+  }
+
+  const prefillDur = stamp.promptMs / 1000;
+  const windowSpan = end - start;
+  if (prefillDur + decodeDur > windowSpan) {
+    return {
+      row,
+      fatal: `${repLabel} stamped phase duration (${(prefillDur + decodeDur).toFixed(3)} s) exceeds window span (${windowSpan.toFixed(3)} s) - timings incoherent with the window`,
+    };
+  }
+  const loadIdleDur = windowSpan - prefillDur - decodeDur;
+  const decodeStart = end - decodeDur;
+  const prefillStart = decodeStart - prefillDur;
+  const prefillFound = win.findIndex((r) => r.t >= prefillStart);
+  const decodeFound = win.findIndex((r) => r.t >= decodeStart);
+  const p = prefillFound === -1 ? win.length : prefillFound;
+  const d = decodeFound === -1 ? win.length : decodeFound;
+  const loadInt = integrate(win.slice(0, Math.min(p + 1, win.length)));
+  const prefillSeg = win.slice(p, Math.min(d + 1, win.length));
+  const decodeSeg = win.slice(d);
+  const prefillInt = p < d ? integrate(prefillSeg) : null;
+  const decodeInt = d < win.length ? integrate(decodeSeg) : null;
+  const jLoad = loadInt.joules;
+  const jPrefill = prefillInt ? prefillInt.joules : 0;
+  const jDecode = whole.joules - jLoad - jPrefill;
+  const loadText = roundJ(jLoad);
+  const prefillText = roundJ(jPrefill);
+  const wholeText = roundJ(whole.joules);
+  const decodeText = roundJ(wholeText - loadText - prefillText);
+
+  row.load_idle_s = fmt(loadIdleDur);
+  row.prefill_s = fmt(prefillDur);
+  row.decode_s = fmt(decodeDur);
+  row.load_idle_s_int = fmt(loadInt.duration_s);
+  row.prefill_s_int = fmt(prefillInt ? prefillInt.duration_s : 0);
+  row.decode_s_int = fmt(decodeInt ? decodeInt.duration_s : 0);
+  row.j_load_idle = fmt(loadText);
+  row.j_prefill = fmt(prefillText);
+  row.j_decode = fmt(decodeText);
+  row.j_per_tok_decode = genTokens > 0 ? fmt(jDecode / genTokens) : "";
+  row.w_decode = decodeInt && Number.isFinite(decodeInt.mean_w) ? fmt(decodeInt.mean_w) : "";
+  row.n_load_idle = String(p);
+  row.n_prefill = String(Math.max(0, d - p));
+  row.n_decode = String(win.length - d);
+
+  const loadIntervals = Math.max(0, Math.min(p, win.length - 1));
+  const prefillIntervals = prefillInt ? prefillSeg.length - 1 : 0;
+  const decodeIntervals = decodeInt ? decodeSeg.length - 1 : 0;
+  const loadLow = lowResolutionWarning("load+idle", loadIntervals, loadInt.duration_s, loadIdleDur);
+  const prefillLow = lowResolutionWarning("prefill", prefillIntervals, prefillInt ? prefillInt.duration_s : 0, prefillDur);
+  const decodeLow = lowResolutionWarning("decode", decodeIntervals, decodeInt ? decodeInt.duration_s : 0, decodeDur);
+  if (loadLow) warnings.push(loadLow);
+  if (prefillLow) warnings.push(prefillLow);
+  if (decodeLow) warnings.push(decodeLow);
+  if (!decodeInt) warnings.push("decode bucket has no intervals (decode_s is shorter than the tail gap to the mark)");
+  if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
+  const impliedW = jDecode / decodeDur;
+  if (Number.isFinite(impliedW) && (impliedW < 0.1 || impliedW > 20)) {
+    warnings.push(`implied decode power ${impliedW.toFixed(2)} W (j_decode / decode_s) outside the 0.1-20 W sanity band - stamped timing or energy window needs review`);
+  }
+  if (stampError) warnings.push(`phase stamps: ${stampError}`);
+  row.warnings = warnings.join("; ");
+  return { row, fatal: null };
+}
+
 // All phase splitting for one stem. Returns { rows, notes, fatal }: rows are
-// PHASES_COLUMNS objects (values already formatted strings), notes are
+// PHASES_COLUMNS or PHASES_V3_COLUMNS objects (values already formatted strings), notes are
 // stem-level stderr messages (rep skips, missing files), and fatal is a
 // stem-refusing input error (marks hygiene, incoherent counts) — a stem with
 // a fatal produces NO file and fails the run.
-export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, cliPromptTokens, cliGenTokens }) {
+export function splitStem(
+  stem,
+  {
+    csvText,
+    marksText,
+    repTexts,
+    manifestEntry,
+    cliPromptTokens,
+    cliGenTokens,
+    phaseStampTexts = new Map(),
+  },
+) {
   const rows = [];
   const notes = [];
   let fatal = null;
+  const useV3 = phaseStampTexts.size > 0;
   const setFatal = (msg) => {
     if (fatal === null) fatal = msg;
   };
@@ -262,7 +536,7 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
   // Guard (audit F4): a count source with gen_tokens <= 0 is incoherent.
   // The CLI flags cannot produce this (validated >= 1); the manifest and the
   // perf lines can.
-  if (manifestEntry && manifestEntry.genTokens <= 0) {
+  if (!useV3 && manifestEntry && manifestEntry.genTokens <= 0) {
     setFatal(`counts manifest gen_tokens = ${manifestEntry.genTokens} <= 0 with a count source present — incoherent input`);
     return { rows, notes, fatal };
   }
@@ -287,10 +561,40 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
       notes.push(`${repLabel} missing _r${n}.txt — rep skipped`);
       continue;
     }
+    const stampText = phaseStampTexts.get(n);
+    const stampResult = stampText === undefined ? null : parsePhaseStamp(stampText);
+    const stamp = stampResult?.stamp ?? null;
+    const stampError = stampResult?.error ?? null;
     const speed = parseSpeedLine(text);
     const perf = parsePerfLines(text);
-    if (!speed && perf.evalMs === null) {
+    if (!speed && perf.evalMs === null && !stamp) {
       notes.push(`${repLabel} no parsable speed/perf line (failed run?) — rep skipped`);
+      continue;
+    }
+
+    const win = samples.filter((r) => r.t >= start && r.t < end);
+    if (useV3) {
+      const split = splitStampedRep({
+        stem,
+        n,
+        start,
+        end,
+        win,
+        stamp,
+        stampError,
+        speed,
+        perf,
+        manifestEntry,
+        cliPromptTokens,
+        cliGenTokens,
+        cad,
+        cadenceWarn,
+      });
+      if (split.fatal !== null) {
+        setFatal(split.fatal);
+        break;
+      }
+      rows.push(split.row);
       continue;
     }
 
@@ -324,7 +628,6 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
         );
       }
     }
-    const win = samples.filter((r) => r.t >= start && r.t < end);
     const row = {
       run_id: stem,
       rep: String(n),
@@ -413,7 +716,7 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
       warnings.push(
         `decode bucket low-resolution: ${decIntervals} interval(s) attributed to decode ` +
           `(coverage ${decodeSInt.toFixed(2)}/${decodeDur.toFixed(2)} s = ${Math.round((100 * decodeSInt) / decodeDur)}%); ` +
-          "j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use (the same bias on both arms only when the sibling arm's decode bucket has similar coverage — compare decode_s_int first)",
+          "j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use",
       );
     }
     if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
@@ -501,6 +804,8 @@ function main() {
 
   let wroteAny = false;
   let anyFatal = false;
+  let wroteV2 = false;
+  let wroteV3 = false;
   for (const stem of stems) {
     let csvText;
     try {
@@ -517,9 +822,13 @@ function main() {
     }
     const repTexts = new Map();
     const repRe = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_r([0-9]+)\\.txt$`);
+    const phaseStampTexts = new Map();
+    const stampRe = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_r([0-9]+)\\.stamps$`);
     for (const f of readdirSync(dir)) {
       const m = f.match(repRe);
       if (m) repTexts.set(parseInt(m[1], 10), readFileSync(path.join(dir, f), "utf8"));
+      const s = f.match(stampRe);
+      if (s) phaseStampTexts.set(parseInt(s[1], 10), readFileSync(path.join(dir, f), "utf8"));
     }
 
     const manifestEntry = manifestByStem.get(stem);
@@ -533,8 +842,14 @@ function main() {
       manifestEntry,
       cliPromptTokens,
       cliGenTokens,
+      phaseStampTexts,
     });
     for (const n of notes) console.error(`energyPhaseSplit: ${n}`);
+    if (phaseStampTexts.size === 0) {
+      for (const r of rows) {
+        console.error(`energyPhaseSplit: ${stem}: r${r.rep}: phase stamps absent; falling back to kalsa-energy-rep-v2 arithmetic`);
+      }
+    }
     if (fatal !== null) {
       console.error(`energyPhaseSplit: FATAL ${stem}: ${fatal}`);
       anyFatal = true;
@@ -542,45 +857,70 @@ function main() {
     }
     if (!rows.length) continue;
 
+    const columns = phaseStampTexts.size ? PHASES_V3_COLUMNS : PHASES_COLUMNS;
+    const schema = phaseStampTexts.size ? PHASES_SCHEMA_V3 : PHASES_SCHEMA_V2;
     const out = path.join(dir, `${stem}.phases.csv`);
     const body = [
-      PHASES_COLUMNS.join(","),
-      ...rows.map((r) => PHASES_COLUMNS.map((c) => esc(r[c])).join(",")),
+      columns.join(","),
+      ...rows.map((r) => columns.map((c) => esc(r[c])).join(",")),
     ].join("\n") + "\n";
     writeFileSync(out, body);
     console.error(`energyPhaseSplit: wrote ${out} (${rows.length} rep row${rows.length === 1 ? "" : "s"})`);
     wroteAny = true;
+    if (schema === PHASES_SCHEMA_V3) wroteV3 = true;
+    else wroteV2 = true;
 
     console.log(`\n## ${stem}\n`);
-    console.log("| rep | window_start_s | window_end_s | duration | decode_s | decode_s_int | prefill_est_s | J_pre | J_decode | J/decode-tok | W_decode | n_pre | n_decode | cadence med/max | warnings |");
-    console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
-    for (const r of rows) {
-      const na = (x) => (x === "" ? "n/a" : x);
-      console.log(
-        `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.decode_s)} | ${na(r.decode_s_int)} | ${na(r.prefill_est_s)} | ` +
-        `${na(r.j_pre)} | ${na(r.j_decode)} | ${na(r.j_per_tok_decode)} | ${na(r.w_decode)} | ` +
-        `${r.n_pre} | ${r.n_decode} | ${r.cadence_median_s}/${r.cadence_max_s} | ${r.warnings || "—"} |`,
-      );
+    if (schema === PHASES_SCHEMA_V3) {
+      console.log("| rep | window_start_s | window_end_s | duration | load_idle_s | prefill_s | decode_s | load_idle_s_int | prefill_s_int | decode_s_int | J_load_idle | J_prefill | J_decode | J/decode-tok | W_decode | n_load_idle | n_prefill | n_decode | cadence med/max | warnings |");
+      console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+      for (const r of rows) {
+        const na = (x) => (x === "" ? "n/a" : x);
+        console.log(
+          `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.load_idle_s)} | ${na(r.prefill_s)} | ${na(r.decode_s)} | ${na(r.load_idle_s_int)} | ${na(r.prefill_s_int)} | ${na(r.decode_s_int)} | ` +
+          `${na(r.j_load_idle)} | ${na(r.j_prefill)} | ${na(r.j_decode)} | ${na(r.j_per_tok_decode)} | ${na(r.w_decode)} | ${r.n_load_idle} | ${r.n_prefill} | ${r.n_decode} | ${r.cadence_median_s}/${r.cadence_max_s} | ${r.warnings || "-"} |`,
+        );
+      }
+    } else {
+      console.log("| rep | window_start_s | window_end_s | duration | decode_s | decode_s_int | prefill_est_s | J_pre | J_decode | J/decode-tok | W_decode | n_pre | n_decode | cadence med/max | warnings |");
+      console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+      for (const r of rows) {
+        const na = (x) => (x === "" ? "n/a" : x);
+        console.log(
+          `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.decode_s)} | ${na(r.decode_s_int)} | ${na(r.prefill_est_s)} | ` +
+          `${na(r.j_pre)} | ${na(r.j_decode)} | ${na(r.j_per_tok_decode)} | ${na(r.w_decode)} | ` +
+          `${r.n_pre} | ${r.n_decode} | ${r.cadence_median_s}/${r.cadence_max_s} | ${r.warnings || "—"} |`,
+        );
+      }
     }
   }
 
-  console.log("\nPhase boundary (kalsa-energy-rep-v2): decode = the LAST decode_s seconds of");
-  console.log("the window ending at mark_N, decode_s = gen_tokens / gen tps from the run's");
-  console.log("own speed line (perf eval-time ms when present). j_pre is everything before");
-  console.log("it: model load + inter-rep idle + prompt eval — the prompt-eval-only J is");
-  console.log("NOT resolvable at 1 Hz with the load in-window. The interval straddling");
-  console.log("decode_start belongs to j_pre (decode starts strictly after its start");
-  console.log("point) and the last partial interval before mark_N to no bucket, so");
-  console.log("j_pre + j_decode equals the whole-window J exactly, but j_decode — and");
-  console.log("j_per_tok_decode with it — is biased LOW on short buckets (at most two");
-  console.log("sample intervals): decode_s_int shows the integrated seconds actually in");
-  console.log("the decode bucket (coverage = decode_s_int/decode_s), and a LOW-RESOLUTION");
-  console.log("warning fires below 3 attributed intervals or coverage < 0.7. w_decode");
-  console.log("includes the boundary sample (its interval energy is in j_pre), so it is");
-  console.log("NOT j_decode / decode_s. Still the RELATIVE battery-terminal metric:");
-  console.log("j_per_tok_decode is arm-anchored — cross-stem ratios are REP-vs-REP only;");
-  console.log("PURE numbers are low-resolution (see warnings); deltas between arms of the");
-  console.log("same stem remain the sanctioned use.");
+  if (wroteV2) {
+    console.log("\nPhase boundary (kalsa-energy-rep-v2): decode = the LAST decode_s seconds of");
+    console.log("the window ending at mark_N, decode_s = gen_tokens / gen tps from the run's");
+    console.log("own speed line (perf eval-time ms when present). j_pre is everything before");
+    console.log("it: model load + inter-rep idle + prompt eval — the prompt-eval-only J is");
+    console.log("NOT resolvable at 1 Hz with the load in-window. The interval straddling");
+    console.log("decode_start belongs to j_pre (decode starts strictly after its start");
+    console.log("point) and the last partial interval before mark_N to no bucket, so");
+    console.log("j_pre + j_decode equals the whole-window J exactly, but j_decode — and");
+    console.log("j_per_tok_decode with it — is biased LOW on short buckets (at most two");
+    console.log("sample intervals): decode_s_int shows the integrated seconds actually in");
+    console.log("the decode bucket (coverage = decode_s_int/decode_s), and a LOW-RESOLUTION");
+    console.log("warning fires below 3 attributed intervals or coverage < 0.7. w_decode");
+    console.log("includes the boundary sample (its interval energy is in j_pre), so it is");
+    console.log("NOT j_decode / decode_s. Still the RELATIVE battery-terminal metric:");
+    console.log("j_per_tok_decode is arm-anchored — cross-stem ratios are REP-vs-REP only;");
+    console.log("PURE numbers are low-resolution (see warnings); deltas between arms of the");
+    console.log("same stem remain the sanctioned use.");
+  }
+  if (wroteV3) {
+    console.log("\nPhase boundary (kalsa-energy-rep-v3): stamped decode = [mark_N - predicted_ms/1000, mark_N)");
+    console.log("and stamped prefill = [mark_N - predicted_ms/1000 - prompt_ms/1000, mark_N - predicted_ms/1000).");
+    console.log("Prefill is prompt evaluation through the first generated token; load+idle is the earlier remainder.");
+    console.log("Each bucket reports nominal and sampler-integrated seconds, and j_load_idle + j_prefill + j_decode");
+    console.log("equals the whole-window J exactly. Missing stamps use v2 arithmetic and are named per row.");
+  }
   if (!wroteAny || anyFatal) {
     if (!wroteAny) console.error("energyPhaseSplit: nothing produced");
     process.exit(1);

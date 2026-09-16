@@ -180,10 +180,14 @@ run_arm() {
   fi
   for i in $(seq 1 "$REPS"); do
     out="$OUT/$(basename "$model" .gguf)_${arm}_${prompt}_r$i.txt"
-    adb shell "cd $BENCH_DIR && LD_LIBRARY_PATH=. timeout 600 ./llama-cli \
+    stamps="$BENCH_DIR/${tag}_r$i.stamps"
+    adb shell "rm -f $stamps" </dev/null
+    adb shell "cd $BENCH_DIR && KALSA_PHASE_STAMPS=$stamps LD_LIBRARY_PATH=. timeout 600 ./llama-cli \
       -m /data/local/tmp/llamabench/$model -f $pf -n $NGEN -t $THREADS \
       -st --temp 0 --simple-io ${arm:+--spec-type $arm ${SPEC_EXTRA:+$SPEC_EXTRA}}" \
       </dev/null > "$out" 2>&1
+    adb pull "$stamps" "$OUT/" </dev/null >/dev/null 2>&1 \
+      || blog "  phase stamps pull FAILED for $tag r$i"
     if [ ! -s "$out" ]; then
       blog "EMPTY OUTPUT $out"
       [ "${ENERGY:-1}" = "1" ] && energy_stop "$tag"
