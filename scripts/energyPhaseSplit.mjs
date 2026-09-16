@@ -322,8 +322,10 @@ function splitStampedRep({
     const countSources = [
       ["prompt_n", stamp.promptN, "perf prompt_tokens", perf.promptTokens],
       ["prompt_n", stamp.promptN, "manifest prompt_tokens", manifestEntry?.promptTokens],
+      ["prompt_n", stamp.promptN, "--prompt-tokens", cliPromptTokens],
       ["predicted_n", stamp.predictedN, "perf gen_tokens", perf.genTokens],
       ["predicted_n", stamp.predictedN, "manifest gen_tokens", manifestEntry?.genTokens],
+      ["predicted_n", stamp.predictedN, "--gen-tokens", cliGenTokens],
     ];
     for (const [stampName, stampValue, sourceName, sourceValue] of countSources) {
       if (sourceValue !== undefined && sourceValue !== null && stampValue !== sourceValue) {
@@ -451,7 +453,7 @@ function splitStampedRep({
   const prefillSeg = win.slice(p, Math.min(d + 1, win.length));
   const decodeSeg = win.slice(d);
   const prefillInt = p < d ? integrate(prefillSeg) : null;
-  const decodeInt = d < win.length ? integrate(decodeSeg) : null;
+  const decodeInt = d < win.length - 1 ? integrate(decodeSeg) : null;
   const jLoad = loadInt.joules;
   const jPrefill = prefillInt ? prefillInt.joules : 0;
   const jDecode = whole.joules - jLoad - jPrefill;

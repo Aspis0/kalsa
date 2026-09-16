@@ -81,6 +81,8 @@ const SPEED = "[ Prompt: 4.0 t/s | Generation: 2.0 t/s ]\n";
 const SPEED84 = "[ Prompt: 8.4 t/s | Generation: 8.4 t/s ]\n";
 const STAMP = "phase prompt_n=8 prompt_ms=2000.000 predicted_n=6 predicted_ms=3000.000\n";
 const EMPTY_DECODE_STAMP = "phase prompt_n=8 prompt_ms=1000.000 predicted_n=6 predicted_ms=1000.000\n";
+const ONE_SAMPLE_TAIL_STAMP = "phase prompt_n=8 prompt_ms=1000.000 predicted_n=6 predicted_ms=2000.000\n";
+const CLI_COUNT_MISMATCH_STAMP = "phase prompt_n=7 prompt_ms=2000.000 predicted_n=7 predicted_ms=3500.000\n";
 const ABSURD_STAMP = "phase prompt_n=8 prompt_ms=1000.000 predicted_n=100000000000000000000 predicted_ms=1000.000\n";
 const STAMPED_CSV = csv([
   row(10, 250000), row(11, 250000), row(12, 250000), row(13, 250000), row(14, 250000),
@@ -436,7 +438,27 @@ function main() {
       sr[23],
     );
 
-    // ── 10. v3: empty decode bucket publishes unavailable energy cells ──
+    // ── 10. v3: stamped counts cross-check the CLI fallback flags ──
+    writeFileSync(path.join(dir, "cli_count_mismatch.csv"), MIXED_CSV);
+    writeFileSync(path.join(dir, "cli_count_mismatch.marks"), "r1 30.00\n");
+    writeFileSync(path.join(dir, "cli_count_mismatch_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "cli_count_mismatch_r1.stamps"), CLI_COUNT_MISMATCH_STAMP);
+    const cliCountMismatchRun = spawnSync(
+      process.execPath,
+      [tool, dir, "cli_count_mismatch", "--prompt-tokens", "51", "--gen-tokens", "30"],
+      { encoding: "utf8" },
+    );
+    check("v3: CLI count mismatch fixture exits 0", cliCountMismatchRun.status === 0, `status=${cliCountMismatchRun.status} stderr=${cliCountMismatchRun.stderr}`);
+    const cliCountMismatchRow = readCsvRows(path.join(dir, "cli_count_mismatch.phases.csv"))[1].split(",");
+    check(
+      "v3: stamped counts win but name CLI count disagreements",
+      cliCountMismatchRow[15] === "7" && cliCountMismatchRow[16] === "7" &&
+        cliCountMismatchRow[23].includes("phase stamp prompt_n (7) differs from --prompt-tokens (51)") &&
+        cliCountMismatchRow[23].includes("phase stamp predicted_n (7) differs from --gen-tokens (30)"),
+      readCsvRows(path.join(dir, "cli_count_mismatch.phases.csv"))[1],
+    );
+
+    // ── 11. v3: empty decode bucket publishes unavailable energy cells ──
     writeFileSync(path.join(dir, "empty_decode.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
     writeFileSync(path.join(dir, "empty_decode.marks"), "r1 54.00\n");
     writeFileSync(path.join(dir, "empty_decode_r1.txt"), `banner\n${SPEED}`);
@@ -455,7 +477,26 @@ function main() {
       readCsvRows(path.join(dir, "empty_decode.phases.csv"))[1],
     );
 
-    // ── 11. v3: absurd stamped count is fatal ─────────────────────────
+    // ── 11. v3: one-sample decode tail has no attributable interval ──
+    writeFileSync(path.join(dir, "one_sample_tail.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
+    writeFileSync(path.join(dir, "one_sample_tail.marks"), "r1 54.00\n");
+    writeFileSync(path.join(dir, "one_sample_tail_r1.txt"), `banner\n${SPEED}`);
+    writeFileSync(path.join(dir, "one_sample_tail_r1.stamps"), ONE_SAMPLE_TAIL_STAMP);
+    const oneSampleTailRun = spawnSync(
+      process.execPath,
+      [tool, dir, "one_sample_tail", "--prompt-tokens", "8", "--gen-tokens", "6"],
+      { encoding: "utf8" },
+    );
+    check("v3: one-sample decode tail exits 0", oneSampleTailRun.status === 0, `status=${oneSampleTailRun.status} stderr=${oneSampleTailRun.stderr}`);
+    const oneSampleTailRow = readCsvRows(path.join(dir, "one_sample_tail.phases.csv"))[1].split(",");
+    check(
+      "v3: one-sample decode tail publishes empty energy cells",
+      oneSampleTailRow[10] === "" && oneSampleTailRow[13] === "" && oneSampleTailRow[14] === "" &&
+        oneSampleTailRow[20] === "1" && oneSampleTailRow[23].includes("decode bucket has no intervals"),
+      readCsvRows(path.join(dir, "one_sample_tail.phases.csv"))[1],
+    );
+
+    // ── 12. v3: absurd stamped count is fatal ─────────────────────────
     writeFileSync(path.join(dir, "absurd_count.csv"), csv([row(50, 250000), row(51, 250000), row(52, 250000)]));
     writeFileSync(path.join(dir, "absurd_count.marks"), "r1 54.00\n");
     writeFileSync(path.join(dir, "absurd_count_r1.txt"), `banner\n${SPEED}`);
@@ -473,7 +514,7 @@ function main() {
       `status=${absurdCountRun.status} stderr=${absurdCountRun.stderr}`,
     );
 
-    // ── 12. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
+    // ── 13. mixed v3 stem: unstamped rep uses v2 arithmetic per row ──
     writeFileSync(path.join(dir, "mixed_rep.csv"), MIXED_CSV);
     writeFileSync(path.join(dir, "mixed_rep.marks"), "r1 20.00\nr2 30.00\n");
     writeFileSync(path.join(dir, "mixed_rep_r1.txt"), `banner\n${SPEED}`);

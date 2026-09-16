@@ -259,10 +259,15 @@ the speed-line print, process teardown, and the `adb shell` round trip. Its
 direction is one-way: the decode bucket contains that teardown, the first part
 of real decode energy sits in prefill, and the first part of prompt processing
 sits in load+idle. The lag is not measured. On this geometry, a plausible
-0.05–0.5 s lag is 0.1–2% of decode and up to about 10% of a short prefill.
-The mark is restored to the v2 order before the stamp pull, so this residual
-lag is identical in v2 and v3 for the decode side and the two remain
-comparable. No timestamp or clock is added to the stamp line.
+0.05–0.5 s lag is about 0.07–15% of decode because the committed decode
+durations span 71.111 s down to 3.297 s; the short fast-end bucket dominates
+the range. It can also be up to about 10% of a short prefill. The mark is
+restored to the v2 order before the stamp pull, so v3 and v2 remain comparable
+on the decode side, but their residual lags are not identical: v3 removes the
+host-side output, speed, and log checks before the mark and adds the sidecar
+write inside the CLI. In this geometry that makes v3 a few milliseconds
+smaller, so the direction favours v3. No timestamp or clock is added to the
+stamp line.
 
 The `prefill` bucket is named precisely: it is prompt evaluation through the
 first generated token. The model's mmap page faults caused by the first prompt
