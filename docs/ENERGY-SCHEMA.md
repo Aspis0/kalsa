@@ -95,12 +95,43 @@ Decode occupies the LAST `decode_s` seconds of the window ending at
 the PRE phase. `prefill_est_s` (`prompt_tokens / prompt tps`) is
 INFORMATIONAL ONLY and drives nothing.
 
+**What `j_decode` actually integrates (exact interval set)**: the sample
+intervals whose RIGHT-ENDPOINT sample is at/after `decode_start` — nothing
+else. Two one-directional truncations follow, both reading the same way:
+
+- the interval straddling `decode_start` starts before the boundary and is
+  attributed to `j_pre` IN FULL ("decode starts strictly after its start
+  point");
+- the partial interval between the last window sample and `mark_N` is
+  charged to NO bucket.
+
+So `j_decode` is a LOWER bound on the nominal `[decode_start, mark_N)` span:
+`j_per_tok_decode` is biased LOW on short decode buckets, never HIGH, short
+by at most two sample intervals (one per truncation). The row makes the
+truncation visible: `decode_s_int` is the integrated seconds actually
+attributed to the decode bucket, and **coverage** = `decode_s_int /
+decode_s`. A row warning (`decode bucket low-resolution`) fires when fewer
+than 3 intervals are attributed to decode or coverage < 0.7 — the honest
+catch for short-decode stems, where the convention (not the physics)
+dominates the per-token figure. Deltas between arms of the same stem remain
+the sanctioned use: both arms carry the same bias only when their decode
+buckets have similar coverage — read `decode_s_int` before comparing arms
+with very different decode lengths.
+
 **Honest phase naming**: `j_pre` is model load + inter-rep idle + prompt
 eval. The prompt-eval-only J is NOT resolvable at 1 Hz with the model load
 inside the window — a future in-engine phase timestamp would be needed.
 Between-arm deltas of the same phase stay meaningful (identical arithmetic
 per arm), but `j_pre` is not a prefill measurement and must not be quoted as
 one.
+
+**Reading `j_per_tok_decode` (arm-anchored)**: the relative-metric rule
+above applies per model+prompt arm. Cross-stem ratios (e.g. 2.6B vs 1.2B)
+are the forbidden absolute use: they hold only between REP arms of the same
+prompt style — REP-vs-REP only; PURE numbers are low-resolution (see the
+row warnings) and must not be quoted against another stem. Any cross-stem
+statement needs the arm label and the `decode_s_int` coverage caveat, or it
+stays out of a report.
 
 **Token counts provenance (never a guess)**: `--counts-manifest
 scripts/fixtures/energy-counts/manifest.csv` is the preferred source — a
@@ -117,23 +148,35 @@ missing or has no parsable speed/perf line is skipped. Never a guess.
 
 **Guards** (exit 1): decode duration ≥ window duration; `gen_tokens ≤ 0`
 with a count source present; out-of-order marks; a mark before the first CSV
-sample. Warnings, not failures: implied decode power (`j_decode / decode_s`)
-outside the 0.1–20 W sanity band; sampler cadence max > 2 s.
+sample. Warnings, not failures: decode bucket low-resolution (fewer than 3
+intervals attributed to decode, or `decode_s_int` < 0.7 × `decode_s`);
+implied decode power (`j_decode / decode_s`) outside the 0.1–20 W sanity
+band; sampler cadence max > 2 s.
 
 **Integration**: `energySchema.integrate` on each sub-window (same
 right-Riemann sums as the whole-arm J; an interval belongs to its
-right-endpoint sample). The interval straddling `decode_start` starts before
-the boundary, so it is attributed to `j_pre` ("decode starts strictly after
-its start point"); `j_decode` is taken as the exact remainder, so
-`j_pre + j_decode` equals the whole-window J exactly (harness-tested), and
-`n_pre + n_decode` equals the window's sample count. `w_decode` is the mean
-over the decode segment's OWN samples.
+right-endpoint sample). The decode bucket is exactly the intervals whose
+right-endpoint sample is at/after `decode_start` (see Boundary math above
+for the two one-directional truncations); `j_decode` is taken as the exact
+remainder, so `j_pre + j_decode` equals the whole-window J exactly
+(harness-tested), and `n_pre + n_decode` equals the window's sample count.
+`w_decode` is the mean `|V*I|` over the decode segment's own samples —
+which INCLUDES the boundary sample (the first sample at/after
+`decode_start`) whose interval energy is charged to `j_pre`. Therefore
+`w_decode ≠ j_decode / decode_s` by construction (audit: up to 59% apart on
+a 3-sample bucket): `w_decode` is a plain power average over the segment's
+samples, while `j_decode / decode_s` is the energy rate consistent with
+`j_per_tok_decode`; on low-resolution buckets quote the latter.
 
 **Edge uncertainty**: each phase edge carries up to ONE SAMPLE INTERVAL of
 attribution uncertainty. The sampler is ~1 Hz nominal, but the observed
 interval reaches 3.5 s under load, so there is no flat "≤ 1 s" claim: edge
 uncertainty ≤ max sample interval, and the observed median/max per stem are
 in the phases.csv (`cadence_median_s`/`cadence_max_s`, warning past 2 s).
+On the decode side the two truncations point the SAME way (straddle →
+`j_pre`, tail gap → no bucket), so the edge uncertainty is not a symmetric
+±: `j_decode` is a lower bound, and its realized size per row is
+`decode_s_int` with the low-resolution warning at small coverage.
 
 | column             | unit  | meaning                                                     |
 |--------------------|-------|-------------------------------------------------------------|
@@ -143,18 +186,19 @@ in the phases.csv (`cadence_median_s`/`cadence_max_s`, warning past 2 s).
 | `window_end_s`     | s     | device uptime of the rep window end (mark_N — the rep's END) |
 | `duration`         | s     | integrated duration of the whole rep window                  |
 | `decode_s`         | s     | nominal decode duration = `gen_tokens / gen tps` (perf eval-time ms when present); the boundary anchor |
+| `decode_s_int`     | s     | integrated seconds actually attributed to the decode bucket (right-endpoint samples at/after `decode_start`; last partial interval before `mark_N` excluded); coverage = `decode_s_int / decode_s`, low-resolution warning below 3 intervals or coverage < 0.7; empty when the segment has no samples |
 | `prefill_est_s`    | s     | `prompt_tokens / prompt tps` — INFORMATIONAL ONLY, drives nothing; empty when not derivable |
 | `j_pre`            | J     | energy before `decode_start`: model load + inter-rep idle + prompt eval (not resolvable further) |
-| `j_decode`         | J     | energy of `[decode_start, mark_N)`; `j_pre + j_decode` = whole-window J exactly |
-| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens` — only when gen_tokens is verifiable and the segment has samples; else empty (relative metric, see above) |
+| `j_decode`         | J     | energy of the intervals whose right-endpoint sample is at/after `decode_start` — NOT the full `[decode_start, mark_N)` span: the straddle interval goes to `j_pre` and the last partial interval to no bucket, so this is a LOWER bound biased LOW by at most two sample intervals; `j_pre + j_decode` = whole-window J exactly |
+| `j_per_tok_decode` | J/tok | `j_decode / gen_tokens` — only when gen_tokens is verifiable and the segment has samples; else empty (relative metric, see above; biased LOW on short buckets — read `decode_s_int` first) |
 | `prompt_tokens`    | tok   | verified prompt length (perf line > manifest > `--prompt-tokens`); else empty |
 | `gen_tokens`       | tok   | verified generated tokens, EOS included (perf line > manifest > `--gen-tokens`); else empty — never assumed from n_predict |
-| `w_decode`         | W     | mean `\|V*I\|` over the decode segment's own samples         |
+| `w_decode`         | W     | mean `\|V*I\|` over the decode segment's own samples — INCLUDES the boundary sample whose interval energy is in `j_pre`, so `w_decode ≠ j_decode / decode_s` (see Integration above) |
 | `n_pre`            | —     | CSV samples with `t` strictly before `decode_start`          |
 | `n_decode`         | —     | CSV samples with `t` at/after `decode_start`                 |
 | `cadence_median_s` | s     | median inter-sample interval of the stem's whole CSV         |
 | `cadence_max_s`    | s     | max inter-sample interval of the stem's whole CSV (warning when > 2 s) |
-| `warnings`         | —     | `; `-joined notes (undeterminable boundary, empty segments, degenerate windows, band/cadence warnings) |
+| `warnings`         | —     | `; `-joined notes (undeterminable boundary, empty segments, degenerate windows, low-resolution decode bucket, band/cadence warnings) |
 
 `kalsa-energy-rep-v1` was never published outside this repository;
 `kalsa-energy-rep-v2` is the first published phases schema.

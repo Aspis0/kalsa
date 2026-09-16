@@ -48,7 +48,7 @@ only place that matches the artifacts — the SSE timings handler in
 ```diff
 --- tmp/kalsallama-pin/tools/cli/cli-context.cpp (pristine, b674-c6e2376)
 +++ diagnostic build (scratch, never committed)
-@@ -373,6 +373,12 @@
+@@ -376,6 +376,12 @@
          if (chunk.contains("timings")) {
              const auto & t = chunk.at("timings");
              timings.prompt_per_second    = t.value("prompt_per_second",    0.0);

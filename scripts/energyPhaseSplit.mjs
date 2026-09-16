@@ -38,22 +38,37 @@
 // Without any count source the phase columns stay EMPTY with a warning.
 //
 // Integration is energySchema.integrate on each sub-window (right-Riemann: an
-// interval belongs to its right-endpoint sample). The interval straddling
-// decode_start starts BEFORE the boundary, so it is attributed to j_pre
-// ("decode starts strictly after its start point"); j_decode is the exact
-// remainder (whole-window J minus j_pre), so j_pre + j_decode equals the
-// whole-window J exactly (harness-tested) and n_pre + n_decode equals the
-// window's sample count. w_decode is the mean over the decode segment's OWN
-// samples. Edge uncertainty: each phase edge carries up to ONE SAMPLE
-// INTERVAL of attribution uncertainty — the sampler is ~1 Hz nominal but the
-// observed interval reaches 3.5 s under load, so the per-CSV observed
-// median/max interval is reported in cadence_median_s/cadence_max_s (with a
-// warning past 2 s) instead of a flat "~1 s" claim.
+// interval belongs to its right-endpoint sample). EXACT interval set of the
+// decode bucket: every interval whose RIGHT-ENDPOINT sample is at/after
+// decode_start. Consequences, both one-directional (audit R1): the interval
+// straddling decode_start starts BEFORE the boundary and is attributed to
+// j_pre IN FULL ("decode starts strictly after its start point"), and the
+// partial interval between the last window sample and mark_N is charged to
+// NO bucket — so j_decode is a LOWER bound on the nominal
+// [decode_start, mark_N) span, short by at most two sample intervals, and
+// j_per_tok_decode reads LOW on short decode buckets. decode_s_int carries
+// the integrated seconds actually attributed to the decode bucket (coverage
+// = decode_s_int / decode_s), so the truncation is visible per row. The
+// split stays exact: j_pre + j_decode equals the whole-window J exactly
+// (harness-tested) and n_pre + n_decode equals the window's sample count.
+// w_decode is the mean over the decode segment's OWN samples — which
+// INCLUDES the boundary sample whose interval energy sits in j_pre, so
+// w_decode is NOT j_decode / decode_s (audit R4; they can diverge by tens of
+// percent on short buckets). A LOW-RESOLUTION warning fires per row when
+// fewer than 3 intervals are attributed to decode or coverage < 0.7 — the
+// honest catch for short-decode stems where the convention dominates the
+// per-token figure (audit R2). Edge uncertainty: each phase edge carries up
+// to ONE SAMPLE INTERVAL of attribution uncertainty — the sampler is ~1 Hz
+// nominal but the observed interval reaches 3.5 s under load, so the
+// per-CSV observed median/max interval is reported in cadence_median_s/cadence_max_s
+// (with a warning past 2 s) instead of a flat "~1 s" claim.
 //
 // Guards, exit 1: decode duration >= window duration; gen_tokens <= 0 with a
 // count source present; out-of-order marks; a mark before the first CSV
-// sample. Warnings (not failures): implied decode power (j_decode / decode_s)
-// outside the 0.1-20 W sanity band; cadence max > 2 s.
+// sample. Warnings (not failures): decode bucket low-resolution (< 3
+// attributed intervals or decode_s_int < 0.7 * decode_s); implied decode
+// power (j_decode / decode_s) outside the 0.1-20 W sanity band; cadence max
+// > 2 s.
 //
 // Output: <dir>/<stem>.phases.csv (one row per rep) plus a markdown table on
 // stdout. NOTE for consumers: the file lands in the campaign dir and does NOT
@@ -72,6 +87,7 @@ import { parseEnergyCsv, integrate } from "./energySchema.mjs";
 
 export const PHASES_COLUMNS = [
   "run_id", "rep", "window_start_s", "window_end_s", "duration", "decode_s",
+  "decode_s_int",
   "prefill_est_s", "j_pre", "j_decode", "j_per_tok_decode",
   "prompt_tokens", "gen_tokens", "w_decode",
   "n_pre", "n_decode", "cadence_median_s", "cadence_max_s", "warnings",
@@ -313,7 +329,7 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
       rep: String(n),
       window_start_s: start.toFixed(2),
       window_end_s: end.toFixed(2),
-      duration: "", decode_s: "", prefill_est_s: "",
+      duration: "", decode_s: "", decode_s_int: "", prefill_est_s: "",
       j_pre: "", j_decode: "", j_per_tok_decode: "",
       prompt_tokens: promptTokens ?? "", gen_tokens: genTokens ?? "",
       w_decode: "",
@@ -367,6 +383,7 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
     const decJoules = decInt ? whole.joules - preInt.joules : null;
 
     row.decode_s = fmt(decodeDur);
+    row.decode_s_int = decInt ? fmt(decInt.duration_s) : "";
     const promptEvalS =
       perf.promptEvalMs !== null
         ? perf.promptEvalMs / 1000
@@ -383,6 +400,21 @@ export function splitStem(stem, { csvText, marksText, repTexts, manifestEntry, c
 
     if (b === 0) warnings.push("decode_start at/before the first window sample — pre phase has no interval");
     if (decInt === null) warnings.push("decode segment has no samples (decode_s shorter than the tail gap to the mark)");
+    // Low-resolution decode bucket (audit R1/R2): with fewer than three
+    // attributed intervals, or integrated coverage under 70% of the nominal
+    // decode duration, a single convention truncation moves a double-digit
+    // share of the bucket (1.2B/PURE: 2 intervals for a 3.3 s decode ->
+    // published j_per_tok_decode 37-41% below the nominal window with no
+    // other warning — cadence 1.06 s stays under the 2 s cadence rule).
+    const decIntervals = decSeg.length - 1;
+    const decodeSInt = decInt ? decInt.duration_s : 0;
+    if (decInt !== null && (decIntervals < 3 || decodeSInt < 0.7 * decodeDur)) {
+      warnings.push(
+        `decode bucket low-resolution: ${decIntervals} interval(s) attributed to decode ` +
+          `(coverage ${decodeSInt.toFixed(2)}/${decodeDur.toFixed(2)} s = ${Math.round((100 * decodeSInt) / decodeDur)}%); ` +
+          "j_per_tok_decode is sampling-granularity dominated — between-arm deltas of the same stem remain the sanctioned use",
+      );
+    }
     if (win.length < 2) warnings.push(`window has ${win.length} sample(s); integration degenerate`);
     if (decJoules !== null) {
       const impliedW = decJoules / decodeDur;
@@ -519,12 +551,12 @@ function main() {
     wroteAny = true;
 
     console.log(`\n## ${stem}\n`);
-    console.log("| rep | window_start_s | window_end_s | duration | decode_s | prefill_est_s | J_pre | J_decode | J/decode-tok | W_decode | n_pre | n_decode | cadence med/max | warnings |");
-    console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+    console.log("| rep | window_start_s | window_end_s | duration | decode_s | decode_s_int | prefill_est_s | J_pre | J_decode | J/decode-tok | W_decode | n_pre | n_decode | cadence med/max | warnings |");
+    console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
     for (const r of rows) {
       const na = (x) => (x === "" ? "n/a" : x);
       console.log(
-        `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.decode_s)} | ${na(r.prefill_est_s)} | ` +
+        `| ${r.rep} | ${r.window_start_s} | ${r.window_end_s} | ${na(r.duration)} | ${na(r.decode_s)} | ${na(r.decode_s_int)} | ${na(r.prefill_est_s)} | ` +
         `${na(r.j_pre)} | ${na(r.j_decode)} | ${na(r.j_per_tok_decode)} | ${na(r.w_decode)} | ` +
         `${r.n_pre} | ${r.n_decode} | ${r.cadence_median_s}/${r.cadence_max_s} | ${r.warnings || "—"} |`,
       );
@@ -537,9 +569,17 @@ function main() {
   console.log("it: model load + inter-rep idle + prompt eval — the prompt-eval-only J is");
   console.log("NOT resolvable at 1 Hz with the load in-window. The interval straddling");
   console.log("decode_start belongs to j_pre (decode starts strictly after its start");
-  console.log("point), so j_pre + j_decode equals the whole-window J exactly. Each phase");
-  console.log("edge carries up to ONE SAMPLE INTERVAL of uncertainty: see cadence_median_s");
-  console.log("/cadence_max_s per stem. Still the RELATIVE battery-terminal metric.");
+  console.log("point) and the last partial interval before mark_N to no bucket, so");
+  console.log("j_pre + j_decode equals the whole-window J exactly, but j_decode — and");
+  console.log("j_per_tok_decode with it — is biased LOW on short buckets (at most two");
+  console.log("sample intervals): decode_s_int shows the integrated seconds actually in");
+  console.log("the decode bucket (coverage = decode_s_int/decode_s), and a LOW-RESOLUTION");
+  console.log("warning fires below 3 attributed intervals or coverage < 0.7. w_decode");
+  console.log("includes the boundary sample (its interval energy is in j_pre), so it is");
+  console.log("NOT j_decode / decode_s. Still the RELATIVE battery-terminal metric:");
+  console.log("j_per_tok_decode is arm-anchored — cross-stem ratios are REP-vs-REP only;");
+  console.log("PURE numbers are low-resolution (see warnings); deltas between arms of the");
+  console.log("same stem remain the sanctioned use.");
   if (!wroteAny || anyFatal) {
     if (!wroteAny) console.error("energyPhaseSplit: nothing produced");
     process.exit(1);
