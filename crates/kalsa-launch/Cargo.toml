@@ -14,3 +14,10 @@ kalsa-probe = { path = "../kalsa-probe" }
 # The server build that won: the arguments follow from the build, not the
 # other way round.
 kalsa-runtime = { path = "../kalsa-runtime" }
+
+[dev-dependencies]
+# The cache measurement reads the server's own timings out of the response.
+serde_json = "1"
+# The same conversation repeated through the real door, the way the app
+# wires door and server together.
+kalsa-door = { path = "../kalsa-door" }

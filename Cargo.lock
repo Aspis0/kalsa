@@ -2576,8 +2576,10 @@ name = "kalsa-launch"
 version = "0.0.1"
 dependencies = [
  "kalsa-catalog",
+ "kalsa-door",
  "kalsa-probe",
  "kalsa-runtime",
+ "serde_json",
 ]
 
 [[package]]
