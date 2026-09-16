@@ -1,0 +1,4 @@
+run_id,rep,window_start_s,window_end_s,duration,decode_s,decode_s_int,prefill_est_s,j_pre,j_decode,j_per_tok_decode,prompt_tokens,gen_tokens,w_decode,n_pre,n_decode,cadence_median_s,cadence_max_s,warnings
+LFM2.5-2.6B-Q4_K_M_none_REP,1,579379.71,579467.98,87.510,65.641,63.860,14.898,59.332,222.317,0.868,73,256,3.481,23,63,1.030,1.040,manifest campaign_gen_tps_r1 (3.6) differs from this run's speed line (3.9) — wrong manifest/campaign pairing?
+LFM2.5-2.6B-Q4_K_M_none_REP,2,579467.98,579557.71,88.510,65.641,63.790,14.898,53.674,225.663,0.881,73,256,3.538,24,63,1.030,1.040,manifest campaign_gen_tps_r2 (3.6) differs from this run's speed line (3.9) — wrong manifest/campaign pairing?
+LFM2.5-2.6B-Q4_K_M_none_REP,3,579557.71,579647.47,89.590,65.641,64.860,14.898,54.433,230.994,0.902,73,256,3.561,24,64,1.030,1.040,manifest campaign_gen_tps_r3 (3.6) differs from this run's speed line (3.9) — wrong manifest/campaign pairing?

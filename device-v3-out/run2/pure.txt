@@ -1,0 +1,8 @@
+Incident log:
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+- status: ok
+Continue the log with the same format.
