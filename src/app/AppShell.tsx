@@ -135,6 +135,7 @@ import {
   invalidateEngineSession,
   isEngineLostRecovery,
   isEngineReady,
+  lastNativeTokenAtMs,
   resolvedStaticPrefixTokens,
   nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
@@ -2867,13 +2868,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const chatGateGenRef = useRef<number | null>(null);
   const streamInFlightRef = useRef(false);
   /**
-   * Native liveness pulse: Date.now() of the current generation's last token,
-   * bumped from handleSendStream's onDelta (all sends/regs flow through it),
-   * 0 before the first token or between turns. Read by the foreground idle
-   * clock — the only dispose trigger that still runs while the Android host
-   * is paused, when the engine's KALSA_STALL timers are suspended.
+   * Send-start wall-clock of the generation the idle clock tracks. The stall
+   * backstop compares the engine's RAW token pulse (lastNativeTokenAtMs)
+   * against it — the cleaned UI stream strips <think>/tool-call markup and
+   * can stay empty for minutes of healthy decoding.
    */
-  const lastNativeTokenAtRef = useRef(0);
+  const nativeTurnStartAtRef = useRef(0);
   const modelSwitchInFlightRef = useRef(false);
   /** Single-flight waiter that drains pendingModelSwitchQueue after sendClaim. */
   const modelSwitchDrainInFlightRef = useRef(false);
@@ -3132,9 +3132,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (disposed) return;
         const idleMs = Date.now() - idleClock.lastUserActivityAt;
         const inFlight = engineWorkInFlight();
+        // RAW-token pulse from the engine (stallWatchdog.noteToken sites),
+        // not the cleaned UI stream: <think>/tool-call tokens strip to an
+        // empty delta. undefined → this turn has not decoded yet, and the
+        // engine's prompt-scaled prefill deadline owns that window.
+        const rawTokenAt = lastNativeTokenAtMs();
         const tokenSilenceMs =
-          streamInFlightRef.current && lastNativeTokenAtRef.current > 0
-            ? Date.now() - lastNativeTokenAtRef.current
+          streamInFlightRef.current &&
+          nativeTurnStartAtRef.current > 0 &&
+          rawTokenAt > nativeTurnStartAtRef.current
+            ? Date.now() - rawTokenAt
             : undefined;
         if (
           !shouldRunForegroundIdleDispose({
@@ -4899,7 +4906,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           settled = true;
           activeDocumentAttachmentRef.current = null;
           streamInFlightRef.current = false;
-          lastNativeTokenAtRef.current = 0;
           setStreaming(false);
           // Clear the create_miniapp hook so a stale turn can never route into
           // a newer turn's onMiniapp (defence for F7; sends are serial anyway).
@@ -4923,7 +4929,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return;
         }
         streamInFlightRef.current = true;
-        lastNativeTokenAtRef.current = 0;
+        nativeTurnStartAtRef.current = Date.now();
         bumpForegroundIdleRef.current();
         setStreaming(true);
         lastUserRawRef.current = typeof text === "string" ? text : "";
@@ -6016,7 +6022,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               {
                 onDelta: (delta, full) => {
                   assistantFull = full;
-                  lastNativeTokenAtRef.current = Date.now();
                   callbacks.onDelta?.(delta, full);
                 },
                 onModelEmittedText: (text) => {

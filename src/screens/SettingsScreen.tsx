@@ -57,6 +57,7 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
 import {
   deviceBandwidthForModel,
   type DeviceBandwidthCalibration,
@@ -223,6 +224,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [telemetryBusy, setTelemetryBusy] = useState(false);
+
+  // ── Per-phase thermal governor (experimental; consulted at model load) ────
+  const [governorEnabled, setGovernorEnabled] = useState(false);
 
   // ── Thinking mode (bench/benchConfig — same storage key as /bench thinking) ──
   const [thinkingMode, setThinkingModeState] = useState<ThinkingMode>("default");
@@ -423,6 +427,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         setCalendarToolsEnabled(parseToolToggle(calendarRaw, false));
       })
       .catch(() => undefined);
+    // readGovernorEnabled never rejects (it catches internally).
+    void readGovernorEnabled().then((on) => {
+      if (mounted) setGovernorEnabled(on);
+    });
     return () => {
       mounted = false;
     };
@@ -443,6 +451,15 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       if (mountedRef.current) setCalendarToolsEnabled(previous);
     });
   }, [calendarToolsEnabled]);
+
+  // writeGovernorEnabled never rejects; it reports whether the write persisted,
+  // so the switch rolls back when persistence failed.
+  const handleToggleGovernor = useCallback((next: boolean) => {
+    setGovernorEnabled(next);
+    void writeGovernorEnabled(next).then((persisted) => {
+      if (!persisted && mountedRef.current) setGovernorEnabled(!next);
+    });
+  }, []);
 
   // Single writer of COMPACTION_ENABLED_KEY (raw 'off' | 'anchored' | 'ciswire').
   // Also stamps COMPACTION_CHOICE_KEY='1'; on failure rolls back all affected state.
@@ -2156,6 +2173,30 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 : ""}
             </Text>
           ) : null}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("settings.governor")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                {t("settings.governorBody")}
+              </Text>
+            </View>
+            <Switch
+              value={governorEnabled}
+              onValueChange={handleToggleGovernor}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={governorEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.governor")}
+            />
+          </View>
 
           <View style={{ gap: spacing.sm }}>
             {MODEL_REGISTRY.map((entry) => {

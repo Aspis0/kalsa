@@ -1,6 +1,9 @@
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
-  default: { getItem: jest.fn(async () => null) },
+  default: {
+    getItem: jest.fn(async () => null),
+    setItem: jest.fn(async () => undefined),
+  },
 }));
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -9,6 +12,7 @@ import {
   initWithGovernorFallback,
   isGovernorFallback,
   readGovernorEnabled,
+  writeGovernorEnabled,
 } from "./governorRuntime";
 
 describe("governor runtime gate", () => {
@@ -16,6 +20,8 @@ describe("governor runtime gate", () => {
     jest.resetAllMocks();
     (AsyncStorage.getItem as jest.Mock).mockReset();
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockReset();
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
   test("defaults the feature flag off and uses CPU params", async () => {
@@ -68,5 +74,36 @@ describe("governor runtime gate", () => {
     const stale = 'KALSA_GOVERNOR_FALLBACK {stage:"old"}';
     const current = `${stale}\nKALSA_GOVERNOR_FALLBACK {stage:"params"}`;
     expect(isGovernorFallback(new Error("native load failed"), current, stale)).toBe(true);
+  });
+
+  test("reads false when nothing is stored", async () => {
+    expect(await readGovernorEnabled()).toBe(false);
+  });
+
+  test("round-trips a write followed by a read", async () => {
+    const store = new Map<string, string>();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      async (key: string) => store.get(key) ?? null,
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation(async (key: string, value: string) => {
+      store.set(key, value);
+    });
+
+    await writeGovernorEnabled(true);
+    expect(await readGovernorEnabled()).toBe(true);
+
+    await writeGovernorEnabled(false);
+    expect(await readGovernorEnabled()).toBe(false);
+  });
+
+  test("logs a failed write and does not throw", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+
+    await expect(writeGovernorEnabled(true)).resolves.toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain(GOVERNOR_ENABLED_KEY);
+
+    warn.mockRestore();
   });
 });

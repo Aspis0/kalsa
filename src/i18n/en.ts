@@ -111,6 +111,9 @@ export const en = {
     models: "Models",
     modelsHint:
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
+    governor: "Thermal governor (experimental)",
+    governorBody:
+      "Adapts CPU/GPU per inference phase to temperature and battery. Takes effect on the next model load.",
     modelActive: "Active",
     modelSelect: "Select",
     modelDownload: "Download",

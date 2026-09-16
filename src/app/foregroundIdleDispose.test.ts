@@ -1,9 +1,10 @@
 import {
+  FOREGROUND_DECODE_SILENCE_MS,
   FOREGROUND_IDLE_DISPOSE_MS,
-  FOREGROUND_STUCK_INFLIGHT_MS,
-  FOREGROUND_TOKEN_SILENCE_MS,
   shouldRunForegroundIdleDispose,
 } from "./foregroundIdleDispose";
+import { GENERATION_STALL_GAP_MS } from "../engine/stallWatchdog";
+import { createThinkStreamCleaner } from "../engine/thinkStream";
 
 describe("shouldRunForegroundIdleDispose", () => {
   test("quiet idle at 180s disposes; in-flight at 180s does not", () => {
@@ -23,17 +24,58 @@ describe("shouldRunForegroundIdleDispose", () => {
     ).toBe(false);
   });
 
-  test("slow-but-producing turn never disposes, however old the turn is", () => {
-    // S23 T20C 2026-09-15 lost turn 9 to a wall-clock disposal while the
-    // stream was healthy; liveness is the last token, not the turn age.
+  test("60 s inside <think>: cleaned stream silent, raw pulse fresh, never disposed", () => {
+    // c45fd1f defect A: the net watched the cleaned delta, which strips
+    // <think> content, so a healthy reasoning round went stale past 45 s and
+    // was killed. Reproduce the exact condition through the real cleaner,
+    // then require the decision to keep the turn alive on a fresh RAW pulse.
+    const cleaner = createThinkStreamCleaner();
+    const cleaned: string[] = [];
+    let rawTokenAt = 0;
+    const feedThinkToken = (raw: string, atMs: number) => {
+      rawTokenAt = atMs;
+      cleaned.push(cleaner.cleanDelta(raw));
+    };
+    feedThinkToken("<think>", 1_000);
+    for (let s = 2; s <= 60; s += 1) {
+      feedThinkToken(` step ${s}`, s * 1_000);
+    }
+    // The defect condition holds: a full minute of reasoning produced an
+    // empty cleaned stream, while raw tokens kept arriving.
+    expect(cleaned.join("")).toBe("");
+    expect(
+      shouldRunForegroundIdleDispose({
+        engineReady: true,
+        inFlight: true,
+        idleMs: 6 * 60 * 60 * 1000,
+        tokenSilenceMs: 61_000 - rawTokenAt,
+      }),
+    ).toBe(false);
+  });
+
+  test("backstop is strictly looser than the engine gap: 60 s silence is the engine's call", () => {
     const sixHours = 6 * 60 * 60 * 1000;
-    const justUnderSilence = FOREGROUND_TOKEN_SILENCE_MS - 1;
+    expect(FOREGROUND_DECODE_SILENCE_MS).toBe(3 * GENERATION_STALL_GAP_MS);
     expect(
       shouldRunForegroundIdleDispose({
         engineReady: true,
         inFlight: true,
         idleMs: sixHours,
-        tokenSilenceMs: justUnderSilence,
+        tokenSilenceMs: GENERATION_STALL_GAP_MS + 15_000,
+      }),
+    ).toBe(false);
+  });
+
+  test("cold 1046 s prefill is not disposed before its first token", () => {
+    // c45fd1f defect B: the pre-token branch killed at 900 s of USER idle
+    // while the reference device prefills 5441 tokens at ~5.2 tok/s
+    // (~1046 s). The engine's prompt-scaled deadline owns this window; the
+    // app imposes no bound before the first token.
+    expect(
+      shouldRunForegroundIdleDispose({
+        engineReady: true,
+        inFlight: true,
+        idleMs: 1_200_000,
       }),
     ).toBe(false);
     expect(
@@ -41,47 +83,25 @@ describe("shouldRunForegroundIdleDispose", () => {
         engineReady: true,
         inFlight: true,
         idleMs: Number.MAX_SAFE_INTEGER,
-        tokenSilenceMs: 0,
       }),
     ).toBe(false);
   });
 
-  test("a decoding turn silent past 45s disposes", () => {
-    // t20c-gate 2026-09-16: max healthy inter-token gap was 21.7s (turn 4),
-    // so 45s of decode silence is a stall, not thermal slowness.
+  test("a genuinely silent decode past 3 engine gaps is still disposed", () => {
     expect(
       shouldRunForegroundIdleDispose({
         engineReady: true,
         inFlight: true,
         idleMs: FOREGROUND_IDLE_DISPOSE_MS,
-        tokenSilenceMs: FOREGROUND_TOKEN_SILENCE_MS,
-      }),
-    ).toBe(true);
-  });
-
-  test("in-flight with no token yet disposes at the 15 min stuck net", () => {
-    // t20c-gate 2026-09-16 turns 2/3: native loadPrompt wedged pre-token for
-    // 30+ min; the engine's KALSA_STALL timers cannot run while the host is
-    // paused, so this net is the only recovery for that window.
-    expect(
-      shouldRunForegroundIdleDispose({
-        engineReady: true,
-        inFlight: true,
-        idleMs: FOREGROUND_STUCK_INFLIGHT_MS - 1,
-      }),
-    ).toBe(false);
-    expect(
-      shouldRunForegroundIdleDispose({
-        engineReady: true,
-        inFlight: true,
-        idleMs: FOREGROUND_STUCK_INFLIGHT_MS,
+        tokenSilenceMs: FOREGROUND_DECODE_SILENCE_MS,
       }),
     ).toBe(true);
     expect(
       shouldRunForegroundIdleDispose({
         engineReady: true,
         inFlight: true,
-        idleMs: Number.MAX_SAFE_INTEGER,
+        idleMs: FOREGROUND_IDLE_DISPOSE_MS,
+        tokenSilenceMs: Number.MAX_SAFE_INTEGER,
       }),
     ).toBe(true);
   });

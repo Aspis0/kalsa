@@ -21,6 +21,17 @@ export async function readGovernorEnabled(): Promise<boolean> {
   }
 }
 
+/** Persists the flag; returns whether the write landed. Never throws — failures are logged. */
+export async function writeGovernorEnabled(enabled: boolean): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(GOVERNOR_ENABLED_KEY, enabled ? "1" : "0");
+    return true;
+  } catch (error) {
+    console.warn(`Failed to persist ${GOVERNOR_ENABLED_KEY}`, error);
+    return false;
+  }
+}
+
 export function isGovernorFallback(
   error: unknown,
   nativeLog: string,

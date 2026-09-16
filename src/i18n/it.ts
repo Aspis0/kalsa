@@ -110,6 +110,9 @@ export const it: typeof en = {
     models: "Modelli",
     modelsHint:
       "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
+    governor: "Governor termico (sperimentale)",
+    governorBody:
+      "Adatta CPU/GPU per fase di inferenza in base a temperatura e batteria. Ha effetto al prossimo caricamento del modello.",
     modelActive: "Attivo",
     modelSelect: "Seleziona",
     modelDownload: "Scarica",

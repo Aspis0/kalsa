@@ -731,6 +731,18 @@ export function nativeEngineWorkInFlight(): boolean {
 }
 
 /**
+ * Wall-clock of the last RAW decode token, written beside the
+ * stallWatchdog.noteToken pulse. The foreground-idle backstop must read this,
+ * not the cleaned UI stream: <think>/tool-call markup strips to an empty
+ * delta, so onDelta can stay silent for minutes of healthy decoding.
+ */
+let lastNativeTokenAt = 0;
+
+export function lastNativeTokenAtMs(): number {
+  return lastNativeTokenAt;
+}
+
+/**
  * FIFO gate for ALL engine completions (stream / extract / translate).
  * llama.cpp does not support concurrent completions on one LlamaContext.
  * The lock covers the entire job: context capture, clearCache, completion,
@@ -4209,6 +4221,7 @@ export async function streamAssistantTurn(
               if (finished || aborted) return;
               clearPrefillDeadline();
               stallWatchdog.noteToken();
+              lastNativeTokenAt = Date.now();
               stallTokenCount += 1;
               startStallWatchdog();
               emitBenchProbs(data);
@@ -4584,6 +4597,7 @@ export async function streamAssistantTurn(
                   if (finished || aborted) return;
                   clearPrefillDeadline();
                   stallWatchdog.noteToken();
+                  lastNativeTokenAt = Date.now();
                   stallTokenCount += 1;
                   startStallWatchdog();
                   emitBenchProbs(data);
