@@ -7,6 +7,8 @@ set -uo pipefail
 
 CAMPAIGN_LOGCAT_PID=""
 CAMPAIGN_LOGCAT_FILE=""
+CAMPAIGN_STARTUP_MARKER="KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419"
+CAMPAIGN_STARTUP_MARKER_TIMEOUT_S="${CAMPAIGN_STARTUP_MARKER_TIMEOUT_S:-240}"
 
 # Broader than -s ReactNativeJS (that filter drops AndroidRuntime/native).
 _CAMPAIGN_LOGCAT_FILTER="ReactNativeJS:V AndroidRuntime:V libc:V llama:V native:V DEBUG:V *:W"
@@ -78,4 +80,45 @@ campaign_logcat_slice() {
   : > "$dest"
   [ -n "$file" ] && [ -f "$file" ] || return 0
   tail -c +"$((offset + 1))" "$file" > "$dest" 2>/dev/null || : > "$dest"
+}
+
+# Require the current foreground-idle provenance marker after a specific
+# launch offset. A marker from an earlier process is not evidence for this
+# launch, so the check is deliberately scoped to new logcat bytes.
+campaign_logcat_require_startup_marker() {
+  local offset="${1:?}" expected_pid="${2:?}" timeout_s="${3-${CAMPAIGN_STARTUP_MARKER_TIMEOUT_S:-240}}" file="${CAMPAIGN_LOGCAT_FILE:-}" t=0 tmp
+  case "$expected_pid" in
+    ''|*[!0-9]*)
+      log "startup marker gate failed: expected PID is not numeric"
+      return 1
+      ;;
+  esac
+  case "$timeout_s" in
+    ''|*[!0-9]*|0)
+      log "startup marker gate failed: timeout is not a positive integer"
+      return 1
+      ;;
+  esac
+  [ -n "$file" ] && [ -f "$file" ] || {
+    log "startup marker gate failed: logcat file is not configured"
+    return 1
+  }
+  tmp=$(mktemp "${TMPDIR:-/tmp}/kalsa-startup-marker.XXXXXX") || {
+    log "startup marker gate failed: could not create temporary slice"
+    return 1
+  }
+  while [ "$t" -lt "$timeout_s" ]; do
+    tail -c +"$((offset + 1))" "$file" > "$tmp" 2>/dev/null || : > "$tmp"
+    if LC_ALL=C awk -v expected_pid="$expected_pid" -v marker="$CAMPAIGN_STARTUP_MARKER" \
+      'index($0, marker) > 0 && $3 == expected_pid { found=1 } END { exit(found ? 0 : 1) }' "$tmp"; then
+      rm -f "$tmp"
+      log "startup marker present for PID $expected_pid: $CAMPAIGN_STARTUP_MARKER"
+      return 0
+    fi
+    sleep 1
+    t=$((t + 1))
+  done
+  rm -f "$tmp"
+  log "startup marker missing after ${timeout_s}s: $CAMPAIGN_STARTUP_MARKER"
+  return 1
 }

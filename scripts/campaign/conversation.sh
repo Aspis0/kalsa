@@ -9,6 +9,7 @@ set -uo pipefail
 
 CAMPAIGN_READY_TIMEOUT="${CAMPAIGN_READY_TIMEOUT:-240}"
 CAMPAIGN_ACTIVITY="${CAMPAIGN_ACTIVITY:-com.kalsa.app/.MainActivity}"
+CAMPAIGN_LAUNCHED_PID=""
 
 # campaign_wipe_chat — app MUST already be force-stopped.
 campaign_wipe_chat() {
@@ -53,8 +54,58 @@ campaign_quarantine_conv() {
 }
 
 campaign_launch() {
-  adb shell am start -n "$CAMPAIGN_ACTIVITY" </dev/null >/dev/null 2>&1
-  sleep 5
+  local logcat_offset launched_pid startup_timeout start_epoch elapsed remaining
+  startup_timeout="${CAMPAIGN_STARTUP_MARKER_TIMEOUT_S:-240}"
+  case "$startup_timeout" in
+    ''|*[!0-9]*|0)
+      log "launch failed: CAMPAIGN_STARTUP_MARKER_TIMEOUT_S must be a positive integer"
+      return 1
+      ;;
+  esac
+  CAMPAIGN_LAUNCHED_PID=""
+  logcat_offset=$(campaign_logcat_offset)
+  start_epoch=$(date +%s)
+  adb shell am start -n "$CAMPAIGN_ACTIVITY" </dev/null >/dev/null 2>&1 || return 1
+  launched_pid=""
+  while true; do
+    launched_pid=$(campaign_pidof)
+    case "$launched_pid" in
+      ''|*[!0-9]*) ;;
+      *) break ;;
+    esac
+    elapsed=$(( $(date +%s) - start_epoch ))
+    [ "$elapsed" -lt "$startup_timeout" ] || {
+      log "launch failed: app PID did not appear within ${startup_timeout}s"
+      return 1
+    }
+    sleep 1
+  done
+  elapsed=$(( $(date +%s) - start_epoch ))
+  remaining=$((startup_timeout - elapsed))
+  [ "$remaining" -gt 0 ] || {
+    log "launch failed: no startup-marker budget remains after PID appeared"
+    return 1
+  }
+  campaign_logcat_require_startup_marker "$logcat_offset" "$launched_pid" "$remaining" || return 1
+  CAMPAIGN_LAUNCHED_PID="$launched_pid"
+  log "launch gated for PID $CAMPAIGN_LAUNCHED_PID"
+}
+
+# Check the process immediately before a share intent. A process death must
+# relaunch and pass the startup-marker gate before another message is sent.
+campaign_ensure_launch_pid() {
+  local expected="${CAMPAIGN_LAUNCHED_PID:-}" current
+  current=$(campaign_pidof)
+  case "$expected" in ''|*[!0-9]*) ;; *)
+    case "$current" in
+      ''|*[!0-9]*) ;;
+      *) [ "$expected" = "$current" ] && return 0 ;;
+    esac
+  esac
+  log "share preflight: launch PID changed or missing (expected=${expected:-none} current=${current:-none}); relaunching"
+  campaign_force_stop || return 1
+  campaign_launch || return 1
+  campaign_wait_ready || return 1
 }
 
 campaign_wait_ready() {

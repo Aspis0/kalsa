@@ -31,9 +31,14 @@ import {
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { AppShell } from "./src/app/AppShell";
+import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
 import { configureModelRegistry } from "./src/engine/ModelRegistry";
 import { LocaleProvider, useLocale } from "./src/i18n";
+
+if (__DEV__) {
+  console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
+}
 
 type ThemeContextValue = {
   colors: ThemeColors;

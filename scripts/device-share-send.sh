@@ -124,6 +124,9 @@ device_share_intent() {
   local enc nonce
   enc=$(device_share_encode "$1") || return 1
   nonce="${2:-1}"
+  if declare -F campaign_ensure_launch_pid >/dev/null 2>&1; then
+    campaign_ensure_launch_pid || return 1
+  fi
   adb shell am start -a android.intent.action.VIEW \
     -d "'kalsa://share?text=${enc}#n=${nonce}'" >/dev/null
 }
@@ -135,6 +138,9 @@ device_share_send() {
   local msg="$1"
   local prev count ctext ui needle attempt send_attempt sub_t seen
   [ -n "${msg//[[:space:]]/}" ] || { log "share-send: empty text"; return 1; }
+  if declare -F campaign_ensure_launch_pid >/dev/null 2>&1; then
+    campaign_ensure_launch_pid || return 1
+  fi
   mkdir -p "$OUT"
   device_collapse_shade
   prev=$(device_history_assistant_count)

@@ -11,7 +11,7 @@
  * - Everything else: "new" (arm_begin wipes the chat anyway).
  * Conv ids are c{n}-{variantId}. Does not reshuffle.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { readCheckpoint, readTurns } from "./datastore.mjs";
 
 function convPath(root, arm, conv) {
@@ -55,7 +55,23 @@ function cellIndex(cells, arm, variant) {
   return cells.findIndex((c) => c.arm === arm && c.variant === variant);
 }
 
+function assertResumeRoot(root) {
+  if (typeof root !== "string" || root.trim() === "") {
+    throw new TypeError("resumePlan requires root to be an existing directory");
+  }
+  let stats;
+  try {
+    stats = statSync(root);
+  } catch {
+    throw new Error(`resumePlan root is not an existing directory: ${root}`);
+  }
+  if (!stats.isDirectory()) {
+    throw new Error(`resumePlan root is not a directory: ${root}`);
+  }
+}
+
 export function resumePlan({ cells, checkpoint, nPerVariant, nTurns, root }) {
+  assertResumeRoot(root);
   const checkpointConv = String(checkpoint?.conv || "");
   if (checkpoint && (checkpointConv.startsWith("dry-") || !/^c\d+-/.test(checkpointConv))) {
     checkpoint = null;

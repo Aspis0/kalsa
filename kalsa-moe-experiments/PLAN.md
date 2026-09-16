@@ -151,8 +151,54 @@ completed all 548 tasks in 2m07s. The artifact is 340,974,889 bytes, manifest-de
 with the Android Debug certificate, and has SHA-256
 `ffe1690956569997446b61a9326a2e097ca1de85abc0f9360a957abf031c8c4d`. It is byte-identical to
 the preceding debug APK because this correction is JS-only and the debug variant loads JS from
-Metro; the current source/Metro session supplies the fix. The APK has not been installed after
-this build and the device was not contacted.
+Metro. The byte-identical APK/build record does not prove which JS bytes the device executed.
+
+### 2026-09-16 T20C delivery failure and permanent acceptance gate
+
+The failed validation in `out/t20c-idlefix-20260915/` executed the pre-`c37b419` foreground-idle
+protocol. DeepSeek audit agent `eee67cde-cdb5-4a23-b2b6-5f9d8bcfc594` compared the served bundle
+with the source and found the old `FOREGROUND_STUCK_INFLIGHT_MS=900000` escape and
+`stuckExpired` path. The device evidence is consistent with that exact failure: six
+`KALSA_THINKING` lines, zero `KALSA_STALL` lines, two `KALSA_TELEMETRY` lines, and one
+`model.unload` at `09-15 23:28:05.391` with `idleMs=948606`, after turn 3 started at
+`23:12:16.962`. The Metro session recorded `devserver:start _t=1789498042371` (14:47:22 EDT),
+before commit `c37b419` at 18:50:08. This timestamp is chronology only, not proof of served bytes.
+
+The c37b419 runtime logic was not exercised by the failed run and remains device-unproven. The
+run directory has no prior content-based Metro preflight record. No T20C rerun was performed and
+G2 remains unclaimed.
+
+The permanent T20C acceptance gate is now part of the host campaign path. Before any device
+arm/send, the supervisor allocates a unique `.metro-preflight.*` directory under `OUT`, records
+that directory in append-only `OUT/metro-gate-evidence.txt`, and runs
+`scripts/campaign/metroGate.mjs`. The host must supply `CAMPAIGN_METRO_BUNDLE_URL`; there is no
+hardcoded Metro host or DHCP assumption. The supplied full URL must have this exact Android
+debug path/query, derived from `scripts/campaign/metroBundleConfig.mjs`:
+`/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true`.
+When the debug app has Fusebox enabled, the same path additionally has exactly
+`&excludeSource=true&sourcePaths=url-server`. Expo may rewrite that virtual-entry request by
+adding the complete set `routerRoot=src/app`, `engine=hermes`, `bytecode=1`, and
+`unstable_transformProfile=hermes-stable`; the gate permits that complete rewrite set while
+rejecting partial or unexpected query options. This is the app's Android `DevServerHelper`
+request shape, not a claim about a particular Metro host. If `CAMPAIGN_METRO_FUSEBOX=1` (or
+`true`/`yes`) is set, the gate requires the Fusebox options; with no override it infers Fusebox
+from the supplied URL and still rejects a partial Fusebox pair. The evidence records the
+requested URL and any final or rewritten response metadata exposed by the HTTP response.
+
+The gate persists raw-wire SHA-256, raw byte count, HTTP status, verification booleans, bounded
+match excerpts/offsets, stdout, stderr, exit status, and JSON result. It never persists the raw
+multi-megabyte bundle. It fails closed unless the served bytes contain
+`KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419`, the post-fix
+`if (args.inFlight) return false;` semantics, and neither `FOREGROUND_STUCK_INFLIGHT_MS` nor
+`stuckExpired`. HTTP, network, response-abort, deadline, and partial-body failures also write a
+result. Existing evidence is never overwritten; a preparation refusal is recorded in a unique
+sibling failure directory. After every campaign launch, `campaign_pidof` is recorded only after
+the same marker is found in threadtime logcat bytes after that launch's offset and with the new
+launch PID field. Immediately before each share intent, a missing or changed PID force-stops,
+relaunches, and repeats this marker proof before sending. Metro liveness, git state, APK hash,
+and source timestamps are intentionally not delivery evidence.
+
+The optional AppShell in-flight-predicate refactor is not part of this change.
 
 ## Still open
 
@@ -168,9 +214,10 @@ this build and the device was not contacted.
   variants in the APK contain `kalsa-native-patches`, `q23k`, `KALSA_KVDIAG`, and
   `restored state checkpoint`. The 09-14 APK remains invalid for this protocol and must not be
   reused.
-- Install/launch the verified debug APK with Metro serving `c37b419`, then re-run S23 T20C.
+- Install/launch the verified debug APK with the new content gate passing, then re-run S23 T20C.
   Preserve the same pass conditions: no repeated `window_align ... to:0`, monotone slides, and
-  one successful `window_reconcile` before assembly whenever held+unknown is reached.
+  one successful `window_reconcile` before assembly whenever held+unknown is reached. The gate
+  and the post-launch logcat marker are mandatory acceptance evidence for that future run.
 - Add a focused AppShell wiring test for both foreground-idle checks without duplicating the
   in-flight source of truth. Separately bound JS-only tool/pre-turn awaits that are not covered by
   an engine-job watchdog.

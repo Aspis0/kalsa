@@ -92,6 +92,9 @@ scripts/.build*/
 # Local benchmark output (grader/aggregator scratch)
 bench-out/
 
+# Campaign evidence and other local run output
+out/
+
 # Coder scratch: backups next to the file they copy. Committed once by a
 # `git add -A` (2026-08-15); do not let it happen again.
 *.bak
