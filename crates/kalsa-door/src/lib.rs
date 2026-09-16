@@ -15,10 +15,38 @@
 //! The acceptor and queue are bounded. Each connection has one absolute
 //! deadline beginning at accept, and workers relay bytes without buffering a
 //! response, so SSE reaches the client as the upstream emits it.
+//!
+//! An event-stream answer is different in one way: it becomes a job. The
+//! door numbers every event (`id: <token>:<index>`, the standard SSE id the
+//! client echoes back as `Last-Event-ID`) and accumulates them while the
+//! generation runs, so the answer belongs to the door, not to the socket
+//! that happened to ask for it. A phone that disappears mid-answer leaves
+//! the generation running; when it comes back and sends its last seen id,
+//! the door replays what it missed and then follows the tail live — in
+//! order, without duplicates and without holes. Resuming asks for the same
+//! bearer credential as everything else and the same unguessable token the
+//! phone alone was shown; a job answers to nobody else, and it dies with
+//! the door that started it: no stopped server ever keeps a job promising
+//! that more of an answer is coming.
+//!
+//! The model being released while an answer is alive is not a door event:
+//! the server releases its weights only when idle, and a generating request
+//! is the opposite of idle, so a release can never cut a live job. What the
+//! door can observe is the upstream dying or going silent — a crash, a
+//! supervisor stop, a restart behind the door — and for all of those the
+//! job fails with one honest sentence, kept for the retention window so a
+//! returning phone is told the truth instead of being kept waiting.
 
+mod chunk;
+mod jobs;
 mod proxy;
 mod request;
+mod response;
+mod registry;
 mod server;
+mod sse;
+mod stream;
+mod token;
 
 #[cfg(test)]
 mod tests;
@@ -37,10 +65,25 @@ const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
 const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
 const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+/// How long a finished answer stays resumable after its last event. A phone
+/// may be away for minutes; it is not away forever.
+const JOB_RETENTION: std::time::Duration = std::time::Duration::from_secs(600);
+/// Jobs alive at once, running plus kept. Running ones cannot exceed the
+/// workers; this roof exists so kept answers alone can never grow without
+/// bound either.
+const MAX_JOBS: usize = 64;
+/// The most memory one answer may accumulate. A whole completion is tens of
+/// kilobytes; reaching this roof means something is wrong, and the job
+/// fails loudly instead of silently dropping what it could not keep.
+const MAX_JOB_BYTES: usize = 2 * 1024 * 1024;
+/// How often the reaper looks for kept answers past their retention.
+const REAP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
 const UNAUTHORIZED_RESPONSE: &[u8] =
     b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const UPSTREAM_FAILURE_RESPONSE: &[u8] =
     b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const BUSY_RESPONSE: &[u8] =
+    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
 type ResponseObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
 type ResponseObserverFactory = Arc<dyn Fn() -> ResponseObserver + Send + Sync>;

@@ -9,6 +9,9 @@ pub(super) struct Head {
     pub(super) forwarded: Vec<u8>,
     pub(super) body_length: usize,
     pub(super) authorization: Option<Vec<u8>>,
+    /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
+    /// id namespace belongs to the door, and the upstream must never see it.
+    pub(super) last_event_id: Option<Vec<u8>>,
 }
 
 pub(super) fn read_head(stream: &mut TcpStream, deadline: Instant) -> Result<Head, ()> {
@@ -49,6 +52,7 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
     forwarded.extend_from_slice(request_line);
     forwarded.extend_from_slice(b"\r\n");
     let mut authorization = None;
+    let mut last_event_id = None;
     let mut body_length = None;
     for line in lines {
         let line = line.strip_suffix(b"\r").ok_or(())?;
@@ -63,6 +67,11 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
                 return Err(());
             }
             authorization = Some(trim_ows(value).to_vec());
+        } else if name.eq_ignore_ascii_case(b"last-event-id") {
+            if last_event_id.is_some() {
+                return Err(());
+            }
+            last_event_id = Some(trim_ows(value).to_vec());
         } else if name.eq_ignore_ascii_case(b"content-length") {
             if body_length.is_some() {
                 return Err(());
@@ -77,7 +86,9 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
         } else if name.eq_ignore_ascii_case(b"transfer-encoding") {
             return Err(());
         }
-        if !name.eq_ignore_ascii_case(b"authorization") {
+        let kept = !name.eq_ignore_ascii_case(b"authorization")
+            && !name.eq_ignore_ascii_case(b"last-event-id");
+        if kept {
             forwarded.extend_from_slice(line);
             forwarded.extend_from_slice(b"\r\n");
         }
@@ -87,6 +98,7 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
         forwarded,
         body_length: body_length.unwrap_or(0),
         authorization,
+        last_event_id,
     })
 }
 

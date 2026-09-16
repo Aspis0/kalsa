@@ -5,19 +5,30 @@ use std::time::{Duration, Instant};
 
 use subtle::ConstantTimeEq;
 
+use crate::jobs::ResumeDecision;
+use crate::registry::{Registry, StartRefused};
+use crate::token::parse_resume;
 use crate::request;
+use crate::response;
+use crate::stream;
 use crate::{
-    CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE,
+    CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, BUSY_RESPONSE, UNAUTHORIZED_RESPONSE,
+    UPSTREAM_FAILURE_RESPONSE,
 };
+
+/// The observer type every serving path shares: it sees exactly the bytes
+/// the client receives, never a byte it does not.
+pub(super) type Observed = dyn Fn(&[u8]) + Send + Sync;
 
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
     upstream_port: u16,
     credential: &[u8; TOKEN_BYTES],
+    registry: &Registry,
     stop: &AtomicBool,
     active: &AtomicUsize,
-    observer: Option<&(dyn Fn(&[u8]) + Send + Sync)>,
+    observer: Option<&Observed>,
 ) {
     let deadline = accepted + CONNECTION_LIFETIME;
     let head = match request::read_head(&mut client, deadline) {
@@ -28,10 +39,26 @@ pub(super) fn handle(
         }
     };
     if !authenticated(head.authorization.as_deref(), credential) {
+        // The refusal must be readable: an unread body would reset the
+        // socket on close and erase it. The body is bounded and the read is
+        // deadline-bound; the request still goes nowhere.
+        let _ = discard_request_body(&mut client, head.body_length, deadline);
         let _ = refuse(&mut client, deadline);
         return;
     }
     let _active = ActiveConnection::new(active);
+    if let Some(last_event_id) = head.last_event_id.as_deref() {
+        // Resuming never reaches the upstream: the answer this request asks
+        // for already exists in the door or it does not. The retried body is
+        // read and discarded first — an unread body sitting in the receive
+        // buffer makes the kernel reset the socket on close, and a reset
+        // erases everything the client had not read yet.
+        if discard_request_body(&mut client, head.body_length, deadline).is_err() {
+            return;
+        }
+        resume(&mut client, registry, last_event_id, credential, observer, deadline, stop);
+        return;
+    }
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {
         Some(timeout) => timeout,
@@ -50,7 +77,103 @@ pub(super) fn handle(
     if relay_exact(&mut client, &mut upstream, head.body_length, deadline, stop).is_err() {
         return;
     }
-    let _ = relay_response(&mut upstream, &mut client, deadline, stop, observer);
+    let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
+        Ok(head) => head,
+        Err(_) => return,
+    };
+    if !upstream_head.event_stream {
+        // Everything the door does not take custody of moves through as it
+        // always has: the upstream's own bytes, untouched.
+        if write_with_deadline(&mut client, &upstream_head.raw, deadline).is_err() {
+            return;
+        }
+        if let Some(observer) = observer {
+            observer(&upstream_head.raw);
+        }
+        let _ = relay_response(&mut upstream, &mut client, deadline, stop, observer);
+        return;
+    }
+    let job = match registry.start(*credential, response::client_head(&upstream_head.raw)) {
+        Ok(job) => job,
+        Err(StartRefused::Entropy) => {
+            eprintln!("kalsa door could not mint a job id");
+            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+            return;
+        }
+        Err(StartRefused::Busy) => {
+            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+            return;
+        }
+    };
+    stream::produce_and_serve(
+        &job,
+        upstream,
+        client,
+        upstream_head.chunked,
+        deadline,
+        stop,
+        observer,
+    );
+}
+
+/// Serves a `Last-Event-ID`: the missed events first, then the live tail —
+/// or the honest refusal when the answer is gone.
+fn resume(
+    client: &mut TcpStream,
+    registry: &Registry,
+    last_event_id: &[u8],
+    credential: &[u8; TOKEN_BYTES],
+    observer: Option<&Observed>,
+    deadline: Instant,
+    stop: &AtomicBool,
+) {
+    let words = match parse_resume(last_event_id) {
+        Some(resume) => match registry.find(&resume.token) {
+            Some(job) => match job.resume_decision(resume.seen, credential) {
+                ResumeDecision::Serve => {
+                    // The client saw `seen`; the next byte of the answer it
+                    // is owed is the event after it.
+                    stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, stop);
+                    return;
+                }
+                ResumeDecision::Refused(words) => words,
+            },
+            None => "That answer is no longer kept here.",
+        },
+        None => "The door cannot resume an answer from that id.",
+    };
+    let gone = gone_response(words);
+    let _ = write_with_deadline(client, &gone, deadline);
+}
+
+fn gone_response(words: &str) -> Vec<u8> {
+    format!(
+        "HTTP/1.1 410 Gone\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{words}",
+        words.len()
+    )
+    .into_bytes()
+}
+
+fn discard_request_body(
+    client: &mut TcpStream,
+    length: usize,
+    deadline: Instant,
+) -> io::Result<()> {
+    let mut left = length;
+    let mut buffer = [0u8; 16 * 1024];
+    while left > 0 {
+        set_read_deadline(client, deadline)?;
+        let chunk = left.min(buffer.len());
+        let read = client.read(&mut buffer[..chunk])?;
+        if read == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "request body ended",
+            ));
+        }
+        left -= read;
+    }
+    Ok(())
 }
 
 struct ActiveConnection<'a> {
@@ -116,7 +239,7 @@ fn relay_response(
     to: &mut TcpStream,
     deadline: Instant,
     stop: &AtomicBool,
-    observer: Option<&(dyn Fn(&[u8]) + Send + Sync)>,
+    observer: Option<&Observed>,
 ) -> io::Result<()> {
     let mut buffer = [0u8; 16 * 1024];
     loop {
@@ -140,18 +263,22 @@ fn refuse(stream: &mut TcpStream, deadline: Instant) -> io::Result<()> {
     write_with_deadline(stream, UNAUTHORIZED_RESPONSE, deadline)
 }
 
-fn write_with_deadline(stream: &mut TcpStream, bytes: &[u8], deadline: Instant) -> io::Result<()> {
+pub(super) fn write_with_deadline(
+    stream: &mut TcpStream,
+    bytes: &[u8],
+    deadline: Instant,
+) -> io::Result<()> {
     set_write_deadline(stream, deadline)?;
     stream.write_all(bytes)
 }
 
-fn set_read_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
+pub(super) fn set_read_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
     let timeout = remaining(deadline)
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "door deadline"))?;
     stream.set_read_timeout(Some(timeout.min(PATIENCE)))
 }
 
-fn set_write_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
+pub(super) fn set_write_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
     let timeout = remaining(deadline)
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "door deadline"))?;
     stream.set_write_timeout(Some(timeout.min(PATIENCE)))
@@ -173,5 +300,14 @@ mod tests {
         assert!(authenticated(Some(value.as_bytes()), &expected));
         assert!(!authenticated(Some(b"Bearer wrong"), &expected));
         assert!(!authenticated(None, &expected));
+    }
+
+    #[test]
+    fn the_gone_response_carries_its_words_and_their_length() {
+        let response = super::gone_response("It is gone.");
+        let text = String::from_utf8(response).unwrap();
+        assert!(text.starts_with("HTTP/1.1 410 Gone\r\n"));
+        assert!(text.contains("Content-Length: 11\r\n"));
+        assert!(text.ends_with("\r\n\r\nIt is gone."));
     }
 }
