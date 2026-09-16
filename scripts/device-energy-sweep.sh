@@ -114,6 +114,17 @@ screen_state() {
   adb shell 'dumpsys power | grep -m1 mWakefulness' </dev/null 2>/dev/null | tr -d '\r' | sed 's/^[[:space:]]*//'
 }
 
+# Doze detected inside an arm invalidates the block, exactly like a
+# stability-limit breach or a cadence warning. Pure decision on the recorded
+# screen line (e.g. "mWakefulness=Dozing"): Dozing/Asleep/Dreaming is a doze,
+# anything else (including an unreadable probe) is not claimed here.
+screen_shows_doze() {
+  case "${1:-}" in
+    *Dozing*|*Asleep*|*Dreaming*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 preflight() {
   local b lvl
   b="$(battery_line)" || true
@@ -431,6 +442,18 @@ run_block() {
     # order while preventing the schedule itself from measuring warm-up.
     wait_for_temperature_gate || return 1
     probe_placement "$mask" || return 1
+    # Hold the device awake for the WHOLE arm, not just at its start. The
+    # campaign-start keep-awake alone did not survive the ~350 s A55 arms:
+    # every pilot arm recorded mWakefulness=Awake at its start and
+    # mWakefulness=Dozing at its end. Re-assert the keep-awake screen timeout
+    # and wake the display before every arm, the same keep-awake the campaign
+    # setup applies (re-put rather than device_keepawake_begin, which is
+    # idempotent and would also clobber this script's combined EXIT trap).
+    if ! adb shell "settings put system screen_off_timeout $KA_SCREEN_TIMEOUT_MS" </dev/null >/dev/null 2>&1; then
+      blog "ABORT: could not re-arm screen timeout before arm $ARM_LABEL"
+      return 1
+    fi
+    device_termux_wakelock_setup >/dev/null 2>&1 || true
     if ! adb shell input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1; then
       blog "ABORT: could not wake the display before arm $ARM_LABEL"
       return 1
@@ -457,7 +480,15 @@ run_block() {
     end_level="$(battery_level_from_line "$end")"
     end_temp="$(battery_temp_from_line "$end")"
     end_screen="$(screen_state)" || true
-    [ -n "$end_screen" ] || end_screen="unknown"
+    [ -n "$end_screen" ] || { blog "ABORT: screen state is unreadable after arm $ARM_LABEL"; return 1; }
+    # The end-of-arm awake state is load-bearing, not just recorded: a doze
+    # detected at either endpoint invalidates the block in the report (the
+    # rows carry the warning, the block and its frontier point read
+    # UNINTERPRETABLE). Logged here, gated there, so the session still
+    # publishes what it has.
+    if screen_shows_doze "$start_screen" || screen_shows_doze "$end_screen"; then
+      blog "DOZE DETECTED during arm $ARM_LABEL position $position (screen ${start_screen} -> ${end_screen}): block will be marked UNINTERPRETABLE"
+    fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$model_base" "$block" "$position" "$ARM_LABEL" "$mask" "$threads" "$effective_cpus" \
       "$start_level" "$start_temp" "$end_level" "$end_temp" "$start_screen" "$end_screen" "$start" "$end" "$order" >> "$BLOCK_META_TSV"
@@ -646,9 +677,28 @@ function observedCpusLabel(stem, rep, probeFallback) {
   return "n/a";
 }
 
+// A doze detected inside an arm invalidates the block, exactly like a
+// stability-limit breach or a cadence warning. Mirrors the shell-side
+// screen_shows_doze: Dozing/Asleep/Dreaming at either recorded endpoint.
+function screenShowsDoze(screen) {
+  return /Dozing|Asleep|Dreaming/.test(screen || "");
+}
+
+function dozeWarningOf(meta) {
+  const start = meta?.startScreen || "";
+  const end = meta?.endScreen || "";
+  if (screenShowsDoze(start) || screenShowsDoze(end)) {
+    return `device dozed during arm (screen ${start || "unknown"}->${end || "unknown"})`;
+  }
+  return "";
+}
+
 for (const entry of entries) {
   const warning = placementWarningOf(entry);
   if (warning) entry.row.warnings = [entry.row.warnings || "", warning].filter(Boolean).join("; ");
+  const meta = metaByKey.get(`${entry.model}|${entry.block}|${entry.position}|${entry.arm}`) ?? {};
+  const dozeWarning = dozeWarningOf(meta);
+  if (dozeWarning) entry.row.warnings = [entry.row.warnings || "", dozeWarning].filter(Boolean).join("; ");
 }
 
 const blockGroups = new Map();
@@ -676,13 +726,17 @@ for (const group of blockGroups.values()) {
   const mean = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : NaN;
   group.spread = speeds.length && mean > 0 ? ((Math.max(...speeds) - Math.min(...speeds)) / mean) * 100 : NaN;
   group.usable = group.entries.filter((e) => finite(e.row.j_per_tok_decode) !== null).length;
+  const meta = metaByKey.get(`${group.model}|${group.block}|${group.position}|${group.arm}`) ?? {};
+  const dozed = screenShowsDoze(meta.startScreen) || screenShowsDoze(meta.endScreen);
+  group.dozed = dozed;
   group.unstable =
     !Number.isFinite(group.spread) ||
     group.entries.length < expectedReps ||
     group.usable < expectedReps ||
     group.entries.some((e) => !Number.isFinite(e.speed) || finite(e.row.decode_s) === null) ||
     group.spread > stabilityLimit ||
-    group.entries.some((e) => /low-resolution|cadence max|MASK PLACEMENT WARNING/.test(e.row.warnings || ""));
+    dozed ||
+    group.entries.some((e) => /low-resolution|cadence max|MASK PLACEMENT WARNING|dozed during arm/.test(e.row.warnings || ""));
 }
 
 const groupsByComparison = new Map();
