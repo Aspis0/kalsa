@@ -39,7 +39,8 @@ const READY_TIMEOUT: Duration = Duration::from_secs(600);
 const STOP_GRACE: Duration = Duration::from_secs(2);
 /// The context the chooser prices each candidate's cache at. It must exclude
 /// nothing: priced at 8192 it refused rows the machine funds at a smaller
-/// context — Granite 4 Tiny funds 6112 tokens on an 8 GiB machine, and at
+/// context — Granite 4 Tiny funds 4584 tokens on an 8 GiB machine (6112
+/// before the sleeping-chat reserve was carved out), and at
 /// 8192 the tier was handed to a smaller row. The context that actually runs
 /// is `kalsa_launch::plan`'s, derived for the chosen row from the same
 /// budget and re-checked against it; a row that cannot fund even one token
@@ -405,6 +406,11 @@ fn dev_config_with_overrides(
         model_path: model,
         port: PORT,
         context_tokens: DEV_CONTEXT_TOKENS,
+        // No catalog budget here to carve the roof from; one chat
+        // reservation at the dev context keeps the behavior honest.
+        cache_ram_mib: kalsa_catalog::footprint::ASSUMED_KV_BYTES_PER_TOKEN
+            * DEV_CONTEXT_TOKENS
+            / kalsa_catalog::footprint::MIB,
         threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
         offload: offload_of_build(&dev_backend()),
         idle_unload_seconds: kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS,
@@ -861,8 +867,10 @@ mod tests {
     #[test]
     fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
         // The product path: the context comes from the chosen row's cache
-        // geometry against the real budget (Granite 4 Tiny on 8 GiB funds
-        // 6112 tokens, not a constant), and the flags are the launch
+        // geometry against the real budget. Granite 4 Tiny on 8 GiB used to
+        // fund 6112 tokens; now the sleeping-chat reserve is carved out
+        // first (150_215_464 of the 600_861_856 bytes left) and the context
+        // funds the rest: 4584 tokens. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
         let row = CATALOG
@@ -883,7 +891,8 @@ mod tests {
         )
         .expect("the model is fundable");
         let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--ctx-size 6112"), "{joined}");
+        assert!(joined.contains("--ctx-size 4584"), "{joined}");
+        assert!(joined.contains("--cache-ram 143"), "{joined}");
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
         assert!(joined.contains("--threads 2"), "{joined}");
         assert!(joined.contains("--cache-type-k q8_0"), "{joined}");

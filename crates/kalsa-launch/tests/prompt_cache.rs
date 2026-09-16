@@ -11,8 +11,21 @@
 //!
 //! The argv is the crate's own launch plan — no flag is added, none is
 //! removed; only the context size is this harness's, so the conversation
-//! fits. Ignored by default, one model at a time, thermal level printed
-//! before and after:
+//! fits. For measuring candidate configurations (harness-only, never the
+//! shipped plan) the environment can append flags and vary the harness:
+//!
+//! ```text
+//! KALSA_MEASURE_ARGS="--cache-reuse 256"   extra flags, appended verbatim
+//! KALSA_MEASURE_CTX=16384                  overrides the harness context
+//! KALSA_MEASURE_PARAGRAPHS=30              shorter conversations
+//! KALSA_MEASURE_QUICK=1                    warmup + first turn only (sweeps)
+//! KALSA_MEASURE_LAYOUT=four                four conversations, then all four
+//!                                          continuations, with the server's
+//!                                          RSS sampled between the phases
+//! ```
+//!
+//! Ignored by default, one model at a time, thermal level printed before and
+//! after:
 //!
 //! ```text
 //! KALSA_REAL_SERVER=/path/to/llama-server \
@@ -63,29 +76,73 @@ fn the_second_turn_is_measured_against_the_first() {
         return;
     };
 
+    let extra_args: Vec<String> = std::env::var("KALSA_MEASURE_ARGS")
+        .unwrap_or_default()
+        .split_whitespace()
+        .map(str::to_string)
+        .collect();
+    let context_tokens: u64 = std::env::var("KALSA_MEASURE_CTX")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(CONTEXT_TOKENS);
+    let paragraphs: usize = std::env::var("KALSA_MEASURE_PARAGRAPHS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(60);
+    let quick = std::env::var("KALSA_MEASURE_QUICK").is_ok_and(|value| value == "1");
+    // The harness context is fixed at 8192; 1536 MiB kept four 4.5k-token
+    // conversations warm. Production derives its own roof from the budget
+    // (see policy); this env is for measuring other roofs.
+    let cache_ram_mib: u64 = std::env::var("KALSA_MEASURE_CACHE_RAM")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1536);
+    eprintln!(
+        "variant: extra_args={extra_args:?} ctx={context_tokens} cache_ram={cache_ram_mib} paragraphs={paragraphs} quick={quick}"
+    );
+
     let args = ServerArgs {
         model_path: PathBuf::from(&model),
         port: PORT,
-        context_tokens: CONTEXT_TOKENS,
+        context_tokens,
+        cache_ram_mib,
         threads: Some(4),
         offload: Offload::All,
         idle_unload_seconds: 300,
     };
-    let argv = args.argv();
+    let mut argv = args.argv();
+    // Harness-only variants, appended after the plan: what a changed launch
+    // plan would carry, measured before it is proposed.
+    argv.extend(extra_args.clone());
+    let argv = argv;
     eprintln!("argv: {argv:?}");
 
     let stderr_path = std::env::temp_dir().join(format!("kalsa-prompt-cache-{}.log", PORT));
+    let stdout_path = std::env::temp_dir().join(format!("kalsa-prompt-cache-{}.out.log", PORT));
     let stderr = std::fs::File::create(&stderr_path).expect("create the server log file");
+    let stdout = std::fs::File::create(&stdout_path).expect("create the server stdout file");
     let mut child = ServerChild(
         Command::new(&exe)
             .args(&argv)
-            .stdout(Stdio::null())
+            .stdout(Stdio::from(stdout))
             .stderr(Stdio::from(stderr))
             .spawn()
             .expect("spawn the real llama-server"),
     );
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     wait_until_healthy(&mut child, &addr, &stderr_path);
+    for path in [&stderr_path, &stdout_path] {
+        for line in std::fs::read_to_string(path)
+            .unwrap_or_default()
+            .lines()
+            .filter(|line| {
+                let lower = line.to_ascii_lowercase();
+                lower.contains("kv") || lower.contains("mib") || lower.contains("slots")
+            })
+        {
+            eprintln!("server: {line}");
+        }
+    }
 
     thermal("before");
     // One tiny turn first: Metal shader compilation is a one-off cost that
@@ -93,13 +150,24 @@ fn the_second_turn_is_measured_against_the_first() {
     let warmup = chat(&addr, None, &[("user", "Reply with the single word OK.")]);
     assert_eq!(warmup.status, 200, "warmup answered");
     eprintln!("warmup  timings: {}", warmup.timings);
+    if quick {
+        let c1 = chat(&addr, None, &[("user", long_text("cedar", paragraphs).as_str())]);
+        eprintln!("C1      timings: {}", c1.timings);
+        thermal("after");
+        return;
+    }
+    if std::env::var("KALSA_MEASURE_LAYOUT").is_ok_and(|value| value == "four") {
+        four_conversations(&addr, child.0.id(), paragraphs);
+        thermal("after");
+        return;
+    }
 
     // Two conversations with different long pasts, alternated the way two
     // people or two tabs would alternate on one machine.
     // First the base case, with nothing in between: C2 follows C1
     // immediately. Whatever this shows, the alternation below then shows
     // what two conversations do to it.
-    let c_text = long_text("cedar", 60);
+    let c_text = long_text("cedar", paragraphs);
     let c_question = "In one short sentence, what is this archive about?";
     let c1_prompt = format!("{c_text}\n\n{c_question}");
     let c1 = chat(&addr, None, &[("user", c1_prompt.as_str())]);
@@ -119,7 +187,7 @@ fn the_second_turn_is_measured_against_the_first() {
     // is the same conversation's next turn through the real door, sent
     // immediately after. If the door stripped or rewrote anything the
     // prefix match needs, D2 pays the whole prefill while C2 did not.
-    let d_text = long_text("dogwood", 60);
+    let d_text = long_text("dogwood", paragraphs);
     let d_question = "In one short sentence, what is this archive about?";
     let d1_prompt = format!("{d_text}\n\n{d_question}");
     let d1 = chat(&addr, None, &[("user", d1_prompt.as_str())]);
@@ -142,8 +210,8 @@ fn the_second_turn_is_measured_against_the_first() {
     eprintln!("D2 door timings: {}", d2.timings);
     running.shutdown();
 
-    let a_text = long_text("alder", 60);
-    let b_text = long_text("beech", 60);
+    let a_text = long_text("alder", paragraphs);
+    let b_text = long_text("beech", paragraphs);
     let a_question = "In one short sentence, what is this archive about?";
     let a_followup = "And which detail in it mentions the weather?";
     let b_question = "In one short sentence, what does this ledger record?";
@@ -176,6 +244,7 @@ fn the_second_turn_is_measured_against_the_first() {
     assert_eq!(a2.status, 200, "A2 answered");
     assert!(!a2.answer.is_empty(), "A2 said something");
     let _ = std::fs::remove_file(&stderr_path);
+    let _ = std::fs::remove_file(&stdout_path);
 }
 
 struct Response {
@@ -307,6 +376,52 @@ fn thermal(label: &str) {
         }
         Err(error) => eprintln!("--- thermal {label}: pmset unavailable: {error}"),
     }
+}
+
+/// Four distinct conversations, each a few thousand tokens, then all four
+/// continuations: the question is how many chats stay warm on one slot, and
+/// what the prompt cache does to the server's own memory on the way.
+fn four_conversations(addr: &SocketAddr, server_pid: u32, paragraphs: usize) {
+    let seeds = ["alder", "beech", "cedar", "dogwood"];
+    let followups = [
+        "Which detail in it mentions the weather?",
+        "What does the ledger say about the mills?",
+        "Where did the festival move, and why?",
+        "What was left on the train?",
+    ];
+    let question = "In one short sentence, what is this archive about?";
+    let mut turns: Vec<(String, String)> = Vec::new();
+    for seed in seeds {
+        let prompt = format!("{}\n\n{question}", long_text(seed, paragraphs));
+        let response = chat(addr, None, &[("user", prompt.as_str())]);
+        eprintln!("{seed}1     timings: {}", response.timings);
+        turns.push((prompt, response.answer));
+    }
+    eprintln!("rss after the four first turns: {} KB", rss_kb(server_pid));
+    for (index, seed) in seeds.iter().enumerate() {
+        let (prompt, answer) = &turns[index];
+        let response = chat(
+            addr,
+            None,
+            &[
+                ("user", prompt.as_str()),
+                ("assistant", answer.as_str()),
+                ("user", followups[index]),
+            ],
+        );
+        eprintln!("{seed}2     timings: {}", response.timings);
+    }
+    eprintln!("rss after the four continuations: {} KB", rss_kb(server_pid));
+}
+
+/// The server child's resident memory, for watching the prompt cache grow.
+fn rss_kb(pid: u32) -> u64 {
+    Command::new("ps")
+        .args(["-o", "rss=", "-p", &pid.to_string()])
+        .output()
+        .ok()
+        .and_then(|output| String::from_utf8_lossy(&output.stdout).trim().parse().ok())
+        .unwrap_or(0)
 }
 
 fn wait_until_healthy(child: &mut ServerChild, addr: &SocketAddr, stderr_path: &PathBuf) {

@@ -12,7 +12,7 @@
 //! starts it: the argv mirrors the live run — `--flash-attn on` (in build
 //! b10950 the flag takes a value and a bare flag swallows the next one),
 //! `all` layers on the Metal build, cache q8_0 both tensors, batch 512,
-//! ubatch 128, context 4096.
+//! ubatch 512, context 4096.
 //!
 //! Ignored by default: it probes the machine and runs a child server. It
 //! needs the same two environment variables the other real tests use:
@@ -235,9 +235,9 @@ fn the_catalog_prediction_meets_the_measured_decode() {
             .arg(&model)
             .args([
                 "--batch-size",
-                "512",
+                "2048",
                 "--ubatch-size",
-                "128",
+                "512",
                 "--ctx-size",
                 &CONTEXT_TOKENS.to_string(),
                 "--n-gpu-layers",

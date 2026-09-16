@@ -6,16 +6,20 @@ use std::path::PathBuf;
 /// server is never exposed on the LAN (plan, section 7).
 pub(crate) const HOST: &str = "127.0.0.1";
 
-/// The logical prompt batch. The supervisor ships the same figure today; a
-/// smaller batch is a gentler prefill burst on a machine whose thermal paste
-/// is a decade old, and prefill speed is not the axis the product wins on.
-pub(crate) const BATCH: u32 = 512;
+/// The logical prompt batch, at the binary's own default (b10950 `--help`:
+/// "batch-size N (default: 2048)"). Measured on the shipped build with the
+/// shipped Trinity row: the first turn's prefill — the turn the phone
+/// actually waits for — went from 1151 to 1883 tokens per second against
+/// the old 512, with the thermal state unchanged.
+pub(crate) const BATCH: u32 = 2048;
 
-/// The micro-batch. Load-bearing for the memory story: the catalog's
-/// `COMPUTE_BUFFER_BYTES` (512 MiB) is computed for ubatch 128 — "they follow
-/// the batch, not the model" — so the server must be *told* 128 or the
-/// reported footprint is a number the arguments do not produce.
-pub(crate) const UBATCH: u32 = 128;
+/// The micro-batch, also at the binary's own default ("ubatch-size N
+/// (default: 512)"). Measured on the same run: 1883 tokens/s of prefill at
+/// 512 against 1151 at the old 128, decode unchanged, and the allocator's
+/// own compute buffers grew from 24 to 60 MiB — far inside the catalog's
+/// 512 MiB forfait, which is kept for the dense rows that cost more (see
+/// `kalsa_catalog::footprint::COMPUTE_BUFFER_BYTES`).
+pub(crate) const UBATCH: u32 = 512;
 
 /// How "every layer" is spelled to this build. b10950's `--help`, verbatim:
 /// "-ngl, --gpu-layers, --n-gpu-layers N   max. number of layers to store in
@@ -101,9 +105,13 @@ pub struct ServerArgs {
     pub model_path: PathBuf,
     pub port: u16,
     /// The largest context whose KV cache fits the budget that is left after
-    /// the weights. Also in [`MemoryAssumption`], where the memory it implies
-    /// travels with it.
+    /// the weights and the prompt-cache roof. Also in [`MemoryAssumption`],
+    /// where the memory it implies travels with it.
     pub context_tokens: u64,
+    /// The prompt-cache roof in MiB, decided where the context is sized: it
+    /// is carved out of the budget before the context, so it travels here
+    /// instead of being re-derived from a context that already excludes it.
+    pub cache_ram_mib: u64,
     /// The measured plateau of the probe's thread ramp. None when nothing
     /// measurable came back: the flag is then omitted and the server picks
     /// its own default, which is stated in the assumption rather than

@@ -139,9 +139,11 @@ fn a_real_engine_on_a_cool_machine_stays_sustaining() {
     };
     let port = free_port();
     // The canonical argv of `ServerArgs::argv()`, Metal build: `all` layers,
-    // flash attention stated with its value, cache q8_0, batch 512, ubatch
-    // 128. No `--threads`: that flag renders only when the probe measured a
-    // plateau, and this test lets the server pick its own default.
+    // flash attention stated with its value, cache q8_0, batch 2048, ubatch
+    // 512. No `--threads`: that flag renders only when the probe measured a
+    // plateau, and this test lets the server pick its own default. (The
+    // plan's `--parallel 1 --cache-ram N` are omitted here; this test does
+    // not exercise conversations.)
     let mut child = ChildGuard(
         std::process::Command::new(&bin)
             .args([
@@ -154,9 +156,9 @@ fn a_real_engine_on_a_cool_machine_stays_sustaining() {
             .arg(&model)
             .args([
                 "--batch-size",
-                "512",
+                "2048",
                 "--ubatch-size",
-                "128",
+                "512",
                 "--ctx-size",
                 "4096",
                 "--n-gpu-layers",

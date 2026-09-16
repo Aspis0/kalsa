@@ -67,6 +67,32 @@ impl ServerArgs {
             self.idle_unload_seconds.to_string(),
             "--no-webui".to_string(),
         ]);
+        // One classic slot, so yesterday's chat starts warm. With the
+        // default slot count this build runs a unified KV buffer and clears
+        // idle slots on every new task ("--cache-idle-slots"), measured on
+        // the shipped build: an alternating conversation paid the whole
+        // prefill every turn (cache_n 0, ~4.0 s at 4.5k tokens). One slot
+        // keeps the prompt cache in the game and the chat comes back at
+        // ~0.2 s — at the price of one generation at a time, which one
+        // phone does not exceed.
+        //
+        // The slot count is about to become a product decision (one PC
+        // serving a family's phones): measured on the shipped build, four
+        // people at once cost +23% wall each and 40 tok/s per head instead
+        // of 72, an explicit `-np` keeps every chat's cache warm anyway,
+        // and the context divides by the slot count — the arithmetic above
+        // would carve per person. Not implemented; measured, so tomorrow
+        // starts from numbers.
+        argv.extend(["--parallel".to_string(), "1".to_string()]);
+        // The roof travels from the policy: it was carved out of the
+        // budget before the context was sized, so it cannot be re-derived
+        // from a context that already excludes it. `--cache-ram 0` — on an
+        // unbudgeted dev run, say — is the honest answer: no reserved RAM,
+        // no sleeping chats.
+        argv.extend([
+            "--cache-ram".to_string(),
+            self.cache_ram_mib.to_string(),
+        ]);
         argv
     }
 
