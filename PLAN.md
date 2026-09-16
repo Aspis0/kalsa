@@ -871,21 +871,24 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
 
 ### 2026-09-16 open items after the gate run was stopped at 1/20
 
+**Stato al 16/09 sera:** i due bloccanti sono atterrati e verificati sul disco; restano senza
+prova su telefono. Il rerun T20C e' ora bloccato solo dalla carica dell'S23 (>=85%, staccato).
+
 Blocking the T20C rerun (both must land first; a rerun before them repeats today's 96 minutes):
 
-1. **App — restore stall protection with the right criterion.** `c37b419` removed the 15-minute
+1. **[LANDED `41e9372`] App — restore stall protection with the right criterion.** `c37b419` removed the 15-minute
    stuck-in-flight disposal and its stated fallback (`KALSA_STALL`) never fires. The replacement must
    key on whether the engine is still PRODUCING, not on the age of the turn: today's logcat holds both
    cases (PID 26488 alive at 934 native lines / 17 min; PIDs 19312 and 8213 silent for 30+ min) and is
    the fixture. A plain revert is wrong — it re-breaks the healthy slow decode that motivated `c37b419`.
-2. **Harness — liveness must not depend on the completion marker.** `turn.sh:216-224` updates
+2. **[LANDED `90b8e05`] Harness — liveness must not depend on the completion marker.** `turn.sh:216-224` updates
    `last_progress` only inside the `campaign_slice_has_telemetry` branch. Also: abort the run if the
    completion marker has not appeared by the end of turn 2, and make every skip path in `oneTurn.sh`
    write a RECOVERY-shaped record (`:119`, `:153`, and every other `return 0` in that file).
 
 Energy axis, unblocked and independent of the S23:
 
-3. **Sweep lengths move to 128/256/512/1024.** At the measured ~5 tok/s prefill the old
+3. **[LANDED `9bdec94`] Sweep lengths move to 128/256/512/1024.** At the measured ~5 tok/s prefill the old
    512/1024/2048/4096 block needs ~2.8 h and more than one charge. The refusal machinery
    (per-arm timeout, loud stamp abort, `bothHalves` drift gate, headline gating) is unchanged and is
    now known to be load-bearing rather than defensive.
@@ -897,7 +900,7 @@ Energy axis, unblocked and independent of the S23:
 
 Repo hygiene:
 
-6. `energy-framework` and `ngram-spec-bench` deleted. `kalsa/energy-merge` is still checked out by the
+6. **[DONE 16/09, beyond scope]** `energy-framework` and `ngram-spec-bench` deleted. `kalsa/energy-merge` is still checked out by the
    `kalsa-ngram-spec` worktree; its 2.9 GB `tmp/` has zero tracked files. Order matters: repoint both
    `LOCAL_BIN` defaults FIRST, then move `tmp/`, then remove the worktree, then delete the branch —
    never leave a script pointing at a path that has already moved.
@@ -910,3 +913,33 @@ Repo hygiene:
   52%, with the recorded 34.4 C last and 36.8 C peak temperatures.
 - Do not duplicate the KV-hold boolean. Do not reshuffle `engineJobPendingCount` (TDZ REFUTED).
 - Do not reverse lock order vs dispose (lifecycle then wait engineJob). Wipe attaches to lifecycle synchronously after the disposing check.
+
+### 16/09 sera — cosa e' atterrato, e cosa resta davvero
+
+**Atterrato e verificato dall'orchestratore sul disco, senza prova su telefono:**
+
+1. `41e9372` — la rete dell'idle non puo' piu' battere il watchdog del motore. Il criterio non e'
+   piu' l'eta' del turno ma il silenzio dei token GREZZI: `foregroundIdleDispose.ts:38-41`, con
+   `FOREGROUND_DECODE_SILENCE_MS = 3 * GENERATION_STALL_GAP_MS` (`:12`). Il polso e' sulla stessa
+   istruzione di `stallWatchdog.noteToken()`, quindi il backstop e' piu' permissivo del primario
+   per costruzione, non per commento.
+2. `90b8e05` — la liveness dell'harness non dipende piu' dal marker di completamento:
+   `campaign_progress_fingerprint` (`turn.sh:179`, usata a `:241`) conta le righe del motore invece
+   di cercarne la presenza, quindi solo output NUOVO avanza il progresso. Il marker mancante ferma
+   il run dal turno 2 (`oneTurn.sh:87`). Ogni percorso di skip scrive un record RECOVERY.
+3. `9bdec94` — lo sweep energetico usa 128/256/512/1024 con timeout per arm e gate di drift.
+4. Il governor ha finalmente un interruttore: `writeGovernorEnabled` (`governorRuntime.ts:25`) e il
+   toggle in Settings > Models (`SettingsScreen.tsx:459`). Default OFF. Era codice completo e
+   irraggiungibile per mancanza di uno scrittore da 20 righe.
+5. Motore: `kalsallama` consolidato e pushato (871 commit, fast-forward), 7/7 test governor verdi,
+   e `test-backend-ops` — dove vive il giudice NPU — torna a compilare dopo 12 giorni.
+
+**Resta aperto, e sono tutte cose che vogliono un telefono:**
+
+- **T20C non e' mai arrivato in fondo.** Il miglior run resta `out/t20c-fixprotocol-20260915/`, 8
+  turni completi su 20. Serve l'S23 a >=85% staccato. Le condizioni di pass non cambiano.
+- **La penalita' termica non e' misurata** (apertoxs 4). E' il numero che giustifica il governor per fase.
+- **Jelly al 36-37% contro un pavimento del 30%** (aperto 5): va caricato prima di qualunque arm.
+- **q4_K non e' MAI stato misurato**, ne' in fedelta' ne' in costo, pur essendo la quantizzazione
+  spedita in fascia alta. Non e' in nessuna lista di aperti: aggiunto qui perche' e' un buco reale.
+- **Il governor non e' mai stato acceso su un telefono.** Ora l'interruttore esiste; l'evidenza no.
