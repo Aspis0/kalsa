@@ -219,3 +219,40 @@ diagnostic probe) and the fault-inject pair (+2, marked "never merge" in its own
 The 28-commit `wt-governor` lineage is content-complete in `main`: every one of its 27 governor
 files exists there, plus two more. Nothing in any of them is uncommitted but `CMakeUserPresets.json`
 and `pkg-snapdragon/`. Their ~10 GB is build output, and per the owner the builds stay.
+
+### 2026-09-16 night — one branch per repo, across the whole family
+
+Owner: delete every branch except the remote brain. Done on all five Kalsa repos, and the rule
+applied was: **tag the tip, verify the tag is on the remote, then delete the branch**. Nothing is
+lost and every deletion reverses with `git push origin <sha>:refs/heads/<name>`.
+
+| repo | branches now | archive tags |
+|---|---|---|
+| `kalsa` | `main`, `remote-brain` | 19 |
+| `kalsallama` | `main` | 21 |
+| `kalsa-moe-experiments` | `main` | 0 |
+| `kalsa-forkbigmoeonedge` | `main` | 9 |
+| `llama.rn` | `main` | 4 |
+
+Two of these needed more than a delete.
+
+**The fork's `main` was pushed** — `67c73d26c..134a35cf2`, 871 commits, and it is a
+**fast-forward**, not a rewrite: `git merge-base --is-ancestor origin/main main` returns 0. I had
+told the owner the opposite earlier today and that was wrong. The app is unaffected for a second
+reason: `native/kalsallama.pin` pins a **commit**, `67c73d26cb`, and `sync-kalsallama.sh:587`
+enforces `VENDOR_SHA == PIN_COMMIT` — it never resolves a branch head to build. The pin's `branch`
+field did name `kalsa/gemm-f32-mul-q4k`, which was being deleted, and `sync-kalsallama.sh:623`
+resolves `origin/${PIN_BRANCH}` when it recomputes a pin. So the label now reads `main`, which is
+the correct name for that same commit since it is an ancestor of fork main. Same engine, same SHA.
+
+**`kalsa-forkbigmoeonedge` was consolidated, not just pruned.** Its branches form a chain —
+verified through the compare API, not from memory: `kernel-s2-layer-fuse` is `main +3 / -0` and
+contains both `mellum-recipe` and `kernel-s1-expert-pack`. So `main` was fast-forwarded onto it
+(`0c54a2787`), absorbing three branches, and the genuinely divergent ones (`kf-layer-ahead` 7/12,
+`selfspec-f1` 22/12, which holds the pinned E4 build) survive as tags. That matters beyond tidiness:
+the PC campaign binary behind every quality number came from `kernel-s2`, and the standing
+instruction was "check out `kalsa/kernel-s2-layer-fuse` before building anything comparable". That
+branch no longer exists — `main` is now that commit.
+
+The account's other repos (devboule-v2, pubspark, aspis-biovision and the rest) were left alone on
+the owner's call: different projects, and two of them had pushes the same day.
