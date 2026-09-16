@@ -341,21 +341,8 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         stale: None,
     },
-    ModelEntry {
-        repo: "Qwen/Qwen3.6-35B-A3B",
-        display_name: "Alibaba Qwen 3.6",
-        last_modified: "2026-04-24",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(35_000_000_000, 3_000_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(19, 2),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        stale: None,
-    },
+    // Qwen3.6-35B-A3B moved to DOWNLOADABLE (2026-09-16): its pinned file
+    // was identified and verified. See the download table.
     ModelEntry {
         repo: "llm-jp/llm-jp-4-32b-a3b-thinking",
         display_name: "LLM-jp 4",
@@ -371,30 +358,9 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         stale: None,
     },
-    ModelEntry {
-        repo: "swiss-ai/Apertus-v1.5-70B",
-        display_name: "Swiss AI Apertus 1.5",
-        last_modified: "2026-07-24",
-        licence: Licence::Open("apache-2.0+AUP"),
-        parameters: Parameters::dense(70_000_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(40, 72),
-        mmproj_bytes: None,
-        // Its per-token cache is measured, not assumed: the pinned file's
-        // GGUF header reads block_count 80, head_count_kv 8, key/value
-        // lengths 128 — 80 × 8 × 256 = 163,840 elements per token. At the
-        // q8_0 cache the launcher pins (one byte per element) that is
-        // 160 KiB. Stored at that precision rather than f16's 320 KiB
-        // because the whole catalog's arithmetic already assumes a quantised
-        // cache — the same launcher pin the 96 KiB constant rides — and
-        // budgeting this one row for f16 would halve its context to insure
-        // against a dependency every other row already carries.
-        kv_bytes_per_token: Some(163_840),
-        dense_equivalent: None,
-        kv_assumption_undercounts: true,
-        measured_decode: None,
-        stale: None,
-    },
+    // Apertus-v1.5-70B moved to DOWNLOADABLE (2026-09-16): its pinned file
+    // was identified, its measured cache re-read from that file's header.
+    // See the download table.
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
@@ -657,6 +623,91 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "Moonlight-16B-A3B-Instruct-Q4_K_M.gguf",
             bytes: 10_537_205_632,
             sha256: "42f6e4d55765811b5710dcb1b30e79b8315735f956363da4965e0471d5b7e2b7",
+        },
+    },
+    // ── verified on 2026-09-16, filling the upper tiers ─────────────────────
+    // For each row: the architecture string was read from the pinned file's
+    // own GGUF header (`general.architecture`) and found in llama-arch.cpp
+    // at b10950 (quote from that file): `qwen35moe` line 42, `qwen3next`
+    // line 38, `apertus` line 135. `curl -sI` on the resolve URL returned
+    // exactly the `x-linked-size` / `x-linked-etag` recorded below.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "Qwen/Qwen3.6-35B-A3B",
+            display_name: "Alibaba Qwen 3.6",
+            last_modified: "2026-04-24T02:53:42.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::mixture(35_000_000_000, 3_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes: 22_134_528_992,
+            mmproj_bytes: None,
+            kv_bytes_per_token: None,
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "unsloth/Qwen3.6-35B-A3B-GGUF",
+            commit: "a483e9e6cbd595906af30beda3187c2663a1118c",
+            file: "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+            bytes: 22_134_528_992,
+            sha256: "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
+        },
+    },
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "Qwen/Qwen3-Next-80B-A3B-Instruct",
+            display_name: "Alibaba Qwen 3 Next 80B",
+            last_modified: "2025-09-17T06:57:40.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::mixture(80_000_000_000, 3_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes: 48_410_988_384,
+            mmproj_bytes: None,
+            kv_bytes_per_token: None,
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
+            commit: "4c8630cf7af926a9c5095cb4bbbbc65d36e20f77",
+            file: "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+            bytes: 48_410_988_384,
+            sha256: "d103b2733ec1012a52d01edda66b7e5c24ae50508c9f99f5297ea459ef3c061a",
+        },
+    },
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "swiss-ai/Apertus-v1.5-70B",
+            display_name: "Swiss AI Apertus 1.5",
+            last_modified: "2026-07-24T08:50:27.000Z",
+            licence: Licence::Open("apache-2.0+AUP"),
+            parameters: Parameters::dense(70_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes: 43_721_600_512,
+            mmproj_bytes: None,
+            // Re-measured 2026-09-16 from THIS pinned file's GGUF header, by
+            // range-requesting its first kilobytes: `apertus.block_count 80`,
+            // `apertus.attention.head_count_kv 8`,
+            // `apertus.rope.dimension_count 128` — 80 × 8 × 128 × 2 tensors =
+            // 163,840 elements per token, one byte each at the q8_0 cache
+            // the launcher pins. The under-count flag stays true as the
+            // record of why a measurement was required.
+            kv_bytes_per_token: Some(163_840),
+            dense_equivalent: None,
+            kv_assumption_undercounts: true,
+            measured_decode: None,
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "katya228/Apertus-v1.5-70B-text-GGUF",
+            commit: "602f2f01c1e3ed4f8e3da4c56fb52c7b593f43ab",
+            file: "apertus-70b-Q4_K_M.gguf",
+            bytes: 43_721_600_512,
+            sha256: "8507a6c4ef21a41848db84cdc8cd687b10a90fb9e7edbe94d08e05b228265de2",
         },
     },
 ];

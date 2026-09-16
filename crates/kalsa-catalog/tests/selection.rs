@@ -270,8 +270,7 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
     // 3 GiB budget, which fits nothing. The machine is refused — a model
     // sized to its RAM would spill across both memories, and the spill is a
     // loss.
-    let biggest_on_ram = kalsa_catalog::CATALOG
-        .iter()
+    let biggest_on_ram = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
         .expect("the 35B row exists");
     assert!(
@@ -329,7 +328,7 @@ fn an_undetected_backend_runs_on_the_cpu_it_has() {
         ..input(32, true)
     }) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert!(!selection.budget.gpu_accounted_for);
             assert!(
                 selection.details.contains("could not be detected"),
@@ -355,7 +354,7 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
     };
     match choose(&mac) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(selection.repo, "Qwen/Qwen3-Next-80B-A3B-Instruct");
             assert!(matches!(selection.decode, Prediction::Floor(_)));
             assert!(
                 selection
@@ -454,12 +453,12 @@ fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
 
 #[test]
 fn a_large_unsourced_moe_is_expected_but_unmeasured_and_never_capability() {
-    // A dense 2B phone: Ling-mini clears the TOTAL parameter bar (8.1×) but
-    // not the active one (1.43B against the 2.8B bar), so the claim is not
-    // capability — MoE against dense is a claim across shapes, and nothing
-    // published settles it. But it is not relief either: calling a 16B MoE
-    // "comparable" to a 2B phone is as false as the opposite error. The
-    // honest third state says we expect stronger and will measure it here.
+    // A dense 2B phone: Qwen3.6 clears the TOTAL parameter bar (17.5×) but
+    // the shapes differ — MoE against dense is a claim nothing published
+    // settles, and the row publishes no dense equivalent. But it is not
+    // relief either: calling a 35B MoE "comparable" to a 2B phone is as
+    // false as the opposite error. The honest third state says we expect
+    // stronger and will measure it here.
     let model = PhoneModel {
         weights_bytes: 2_000_000_000,
         parameters: Some(Parameters::dense(2_000_000_000)),
@@ -467,21 +466,20 @@ fn a_large_unsourced_moe_is_expected_but_unmeasured_and_never_capability() {
     };
     match choose(&input_with_phone_model(32, model)) {
         Decision::Pick(selection) => {
-            let ling = DOWNLOADABLE
+            let qwen = DOWNLOADABLE
                 .iter()
-                .find(|row| row.model.repo == "inclusionAI/Ling-mini-2.0")
-                .expect("the Ling row exists")
+                .find(|row| row.model.repo == "Qwen/Qwen3.6-35B-A3B")
+                .expect("the Qwen3.6 row exists")
                 .model
                 .parameters;
             assert!(
-                ling.total().count() as f64 >= 2_000_000_000.0 * 1.4,
+                qwen.total().count() as f64 >= 2_000_000_000.0 * 1.4,
                 "the total bar is cleared"
             );
-            assert!(
-                (ling.active().count() as f64) < 2_000_000_000.0 * 1.4,
-                "the active bar is NOT cleared, which is what keeps this from capability"
+            assert!(qwen.is_mixture() && !PHONE_PARAMS.is_mixture(),
+                "the shapes differ, which is what keeps this from capability"
             );
-            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert_eq!(
                 selection.justification,
                 Justification::ExpectedButUnmeasured
@@ -647,27 +645,28 @@ fn sixteen_gigabytes_offers_the_biggest_downloadable_class_not_the_biggest_name(
 }
 
 #[test]
-fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
-    // Both verified MoEs fit and are the same class, so the numbers decide:
-    // Ling-mini reads 1.43B parameters per token, Moonlight 2.24B. Against
-    // the dense default phone nothing published settles the MoE comparison,
-    // so the pick is offered as expected-but-unmeasured, to be measured on
-    // this machine before it is called an upgrade.
+fn thirty_two_gigabytes_takes_the_twenty_gigabyte_moe_and_its_pinned_plan() {
+    // Qwen3.6-35B-A3B (20.61 GiB of verified weights) is the biggest row
+    // that fits the 24 GiB budget, and nothing else is in its class: the
+    // tier's winner is a model the earlier catalog could name but never
+    // fetch. Against the dense default phone nothing published settles the
+    // MoE comparison, so the pick is expected-but-unmeasured, to be
+    // measured on this machine before it is called an upgrade.
     let input = input(32, true);
-    assert_eq!(chosen(&input), "inclusionAI/Ling-mini-2.0");
+    assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
             assert_eq!(
                 selection.justification,
                 Justification::ExpectedButUnmeasured
             );
-            assert!(
-                selection.decode.floor() > 0.0
-                    && selection.decode.ceiling() > selection.decode.floor()
-            );
+            assert!(selection.download.bytes == 22_134_528_992);
+            assert!(selection.download.url.contains(
+                "unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6cbd595906af30beda3187c2663a1118c/"
+            ));
             assert!(
                 selection.decode.floor() > 20.0,
-                "1.43B active on 85 GB/s should be well above 20 tok/s, got {}",
+                "3B active on 85 GB/s should be well above 20 tok/s, got {}",
                 selection.decode.floor()
             );
         }
@@ -676,25 +675,35 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
 }
 
 #[test]
-fn sixty_four_gigabytes_offers_a_downloadable_pick_not_the_biggest_research_row() {
-    // The 70B row fits this tier, its cache is measured, its speed on the
-    // CPU path would be a floor — and none of that matters, because no file
-    // was ever identified for it: it is not in the menu, however well
-    // studied. The tier takes the downloadable pick instead.
-    let apertus = kalsa_catalog::CATALOG
-        .iter()
-        .find(|entry| entry.repo.starts_with("swiss-ai/"))
-        .expect("apertus is in the catalog");
-    assert!(
-        footprint_bytes(apertus, 8192).total_bytes() <= usable_bytes(64 * GIB),
-        "apertus fits, which is what makes this test meaningful"
-    );
-    assert!(apertus.is_usable(), "the licence and cache gates pass");
-    assert!(
-        kalsa_catalog::usable().all(|entry| entry.entry().repo != apertus.repo),
-        "without an identified file it is still never offered"
-    );
-    assert_eq!(chosen(&input(64, true)), "inclusionAI/Ling-mini-2.0");
+fn sixty_four_gigabytes_takes_the_eighty_billion_moe_and_its_pinned_plan() {
+    // The 80B MoE fits the 48 GiB budget with 1.7 GiB to spare, is the
+    // biggest fitting row, and no other row is in its class: a 64 GiB
+    // machine finally uses its memory. The plan is the file at the pinned
+    // commit of the vendor's own GGUF repo, with the digest the download
+    // is held to.
+    let input = input(64, true);
+    assert_eq!(chosen(&input), "Qwen/Qwen3-Next-80B-A3B-Instruct");
+    match choose(&input) {
+        Decision::Pick(selection) => {
+            assert_eq!(
+                selection.justification,
+                Justification::ExpectedButUnmeasured
+            );
+            assert!(
+                selection.footprint.total_bytes() <= selection.budget.usable_bytes,
+                "the pick fits the 48 GiB budget entirely"
+            );
+            assert!(selection.download.bytes == 48_410_988_384);
+            assert!(selection.download.url.contains(
+                "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF/resolve/4c8630cf7af926a9c5095cb4bbbbc65d36e20f77/"
+            ));
+            assert_eq!(
+                selection.download.sha256,
+                "d103b2733ec1012a52d01edda66b7e5c24ae50508c9f99f5297ea459ef3c061a"
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
 }
 
 #[test]
@@ -753,7 +762,7 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
     match choose(&input(32, true)) {
         Decision::Pick(selection) => {
             let why = &selection.details;
-            assert!(why.contains("InclusionAI Ling Mini 2.0"), "{why}");
+            assert!(why.contains("Alibaba Qwen 3.6"), "{why}");
             assert!(why.contains("tokens per second"), "{why}");
             // A range, never a point estimate dressed up as data.
             assert!(why.contains('–'), "expected a range in: {why}");

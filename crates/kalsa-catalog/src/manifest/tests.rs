@@ -34,31 +34,27 @@ fn the_chooser_menu_is_the_download_table_and_nothing_else() {
 }
 
 #[test]
-fn the_largest_row_carries_its_measured_cache() {
-    // Measured from the pinned file's GGUF header: block_count 80,
-    // head_count_kv 8, key/value lengths 128 — 163,840 elements per
-    // token, one byte each at the q8_0 cache the launcher pins. Apertus
-    // stays a research row (no identified file), so even measured it is
-    // not offerable until it is in the download table.
-    let apertus = CATALOG
+fn the_apertus_row_is_offerable_only_through_its_measured_cache() {
+    // Apertus 70B is deeper than the shared 96 KiB constant models: it
+    // entered the download table only because its per-token cache was
+    // measured from the pinned file's GGUF header (80 layers × 8 KV heads ×
+    // 256 elements, one byte each at q8_0). Removing the measurement closes
+    // the door again, because the flag records that the constant lies.
+    let apertus = DOWNLOADABLE
         .iter()
-        .find(|entry| entry.repo.starts_with("swiss-ai/"))
-        .expect("apertus is in the catalog");
-    assert_eq!(apertus.kv_bytes_per_token, Some(163_840));
-    assert!(apertus.is_usable());
+        .find(|row| row.model.repo.starts_with("swiss-ai/"))
+        .expect("apertus is in the download table");
+    assert_eq!(apertus.model.kv_bytes_per_token, Some(163_840));
+    assert!(apertus.model.is_usable());
     assert!(
-        apertus.kv_assumption_undercounts,
+        apertus.model.kv_assumption_undercounts,
         "the record stays: the shared constant under-counts this row"
     );
-    let mut unmeasured = *apertus;
+    let mut unmeasured = apertus.model;
     unmeasured.kv_bytes_per_token = None;
     assert!(
         !unmeasured.is_usable(),
         "without the measurement, the assumption is known wrong for this row"
-    );
-    assert!(
-        usable().all(|entry| entry.entry().repo != apertus.repo),
-        "a research row is never offerable, however well measured"
     );
 }
 
@@ -136,6 +132,9 @@ fn every_row_has_a_name_a_person_can_say() {
             ("arcee-ai/Trinity-Nano-Preview", "Arcee Trinity Nano"),
             ("inclusionAI/Ling-mini-2.0", "InclusionAI Ling Mini 2.0"),
             ("moonshotai/Moonlight-16B-A3B-Instruct", "Moonshot Moonlight 16B"),
+            ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
+            ("Qwen/Qwen3-Next-80B-A3B-Instruct", "Alibaba Qwen 3 Next 80B"),
+            ("swiss-ai/Apertus-v1.5-70B", "Swiss AI Apertus 1.5"),
         ]
     );
 }
@@ -174,6 +173,9 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "arcee-ai/Trinity-Nano-Preview-GGUF",
             "mradermacher/Ling-mini-2.0-GGUF",
             "mmnga/Moonlight-16B-A3B-Instruct-gguf",
+            "unsloth/Qwen3.6-35B-A3B-GGUF",
+            "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
+            "katya228/Apertus-v1.5-70B-text-GGUF",
         ]
     );
 }
@@ -260,6 +262,9 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
             ("inclusionAI/Ling-mini-2.0", 9_911_575_904),
             ("moonshotai/Moonlight-16B-A3B-Instruct", 10_537_205_632),
+            ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
+            ("Qwen/Qwen3-Next-80B-A3B-Instruct", 48_410_988_384),
+            ("swiss-ai/Apertus-v1.5-70B", 43_721_600_512),
         ]
     );
 }
@@ -286,14 +291,17 @@ fn dense_equivalents_carry_only_published_comparisons() {
         assert!(source.contains("accessed 2026-09-14"), "{source}");
     }
     // LFM publishes vendor-to-vendor tables, not a same-recipe dense LFM
-    // comparison, and Trinity, Ling and Moonlight publish nothing: None is
-    // the honest value, and it means nothing was published — not that the
-    // model is weak.
+    // comparison, and Trinity, Ling, Moonlight, Qwen 3.6, Qwen 3 Next and
+    // Apertus publish nothing: None is the honest value, and it means
+    // nothing was published — not that the model is weak.
     for repo in [
         "LiquidAI/LFM2.5-8B-A1B",
         "arcee-ai/Trinity-Nano-Preview",
         "inclusionAI/Ling-mini-2.0",
         "moonshotai/Moonlight-16B-A3B-Instruct",
+        "Qwen/Qwen3.6-35B-A3B",
+        "Qwen/Qwen3-Next-80B-A3B-Instruct",
+        "swiss-ai/Apertus-v1.5-70B",
     ] {
         let row = DOWNLOADABLE
             .iter()
@@ -328,7 +336,9 @@ fn the_mixture_rows_are_the_ones_with_a_gap() {
         .map(|entry| entry.repo)
         .collect();
     assert!(mixtures.contains(&"Qwen/Qwen3.6-35B-A3B"));
+    assert!(mixtures.contains(&"Qwen/Qwen3-Next-80B-A3B-Instruct"));
     assert!(mixtures.contains(&"inclusionAI/Ling-mini-2.0"));
     assert!(mixtures.contains(&"moonshotai/Moonlight-16B-A3B-Instruct"));
     assert!(!mixtures.contains(&"google/gemma-4-12B-it"));
+    assert!(!mixtures.contains(&"swiss-ai/Apertus-v1.5-70B"));
 }
