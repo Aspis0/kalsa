@@ -539,6 +539,110 @@ async function main() {
     await page.close();
   }
 
+  // --- giro 22: the thought cloud ---
+
+  if (want("cloudthinking")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("slowthink-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Think slowly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(1500);
+    await must(page, ".thought-rise", "rising cloud");
+    await shot(page, "shots/50-thinking.png");
+    await page.close();
+  }
+
+  if (want("settled")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-settle") !== null,
+      null,
+      { timeout: 20000 },
+    );
+    await page.waitForTimeout(500);
+    await shot(page, "shots/51-settled.png");
+    await page.close();
+  }
+
+  if (want("rest")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("8 sheep left"),
+      null,
+      { timeout: 20000 },
+    );
+    await page.waitForTimeout(2500);
+    await must(page, ".thought-rest", "resting cloud");
+    await shot(page, "shots/52-rest.png");
+    await page.close();
+  }
+
+  if (want("cloudopen")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("8 sheep left"),
+      null,
+      { timeout: 20000 },
+    );
+    await page.waitForTimeout(2000);
+    await page.getByRole("button", { name: /Show thinking/ }).click();
+    await page.waitForTimeout(400);
+    await must(page, ".thought-body", "open cloud");
+    await shot(page, "shots/53-open.png");
+    await page.close();
+  }
+
+  if (want("clouddark")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo"), theme: "dark" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("8 sheep left"),
+      null,
+      { timeout: 20000 },
+    );
+    await page.waitForTimeout(2500);
+    await must(page, ".thought-rest", "dark resting cloud");
+    await shot(page, "shots/54-dark.png");
+    await page.close();
+  }
+
+  if (want("cloudplain")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Just answer.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/55-plain.png");
+    await page.close();
+  }
+
   await browser.close();
 }
 

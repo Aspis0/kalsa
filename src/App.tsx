@@ -81,7 +81,14 @@ export function App() {
     if (direct) return direct;
     if (streaming) return null;
     const last = active.messages.at(-1);
-    if (last && last.role === "assistant" && last.content === "" && !last.stopped) {
+    // A thinking-only tail is not a failure: the no-answer note owns it.
+    if (
+      last &&
+      last.role === "assistant" &&
+      last.content === "" &&
+      !last.stopped &&
+      !last.reasoning
+    ) {
       return { messageId: last.id, kind: "network" };
     }
     return null;
@@ -106,6 +113,8 @@ export function App() {
       });
       setLiveMessage("Responding. Waiting for the first word.");
       let firstToken = true;
+      let thoughtStartedAt: number | null = null;
+      let answerStartedAt: number | null = null;
       try {
         await streamChatCompletion({
           endpoint: currentSettings.endpoint,
@@ -113,9 +122,25 @@ export function App() {
           model: currentSettings.model,
           messages: history,
           signal: controller.signal,
+          onReasoning: (text) => {
+            if (thoughtStartedAt === null) {
+              thoughtStartedAt = performance.now();
+              setLiveMessage("Thinking.");
+            }
+            const latest = store.get(conversationId);
+            if (!latest) return;
+            store.put({
+              ...latest,
+              updatedAt: Date.now(),
+              messages: latest.messages.map((m) =>
+                m.id === assistantId ? { ...m, reasoning: (m.reasoning ?? "") + text } : m,
+              ),
+            });
+          },
           onToken: (token) => {
             if (firstToken) {
               firstToken = false;
+              answerStartedAt = performance.now();
               setLiveMessage("Responding.");
             }
             const latest = store.get(conversationId);
@@ -130,8 +155,27 @@ export function App() {
           },
         });
         const done = store.get(conversationId);
-        if (done) store.put({ ...done, updatedAt: Date.now() });
-        setLiveMessage("Response complete.");
+        if (done) {
+          const finished = done.messages.find((m) => m.id === assistantId);
+          const hasThought = (finished?.reasoning ?? "") !== "";
+          const hasAnswer = (finished?.content ?? "") !== "";
+          const ms =
+            thoughtStartedAt !== null
+              ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
+              : undefined;
+          store.put({
+            ...done,
+            updatedAt: Date.now(),
+            messages: done.messages.map((m) =>
+              m.id === assistantId && ms !== undefined ? { ...m, reasoningMs: ms } : m,
+            ),
+          });
+          setLiveMessage(
+            !hasAnswer && hasThought ? "Thinking complete, no answer arrived." : "Response complete.",
+          );
+        } else {
+          setLiveMessage("Response complete.");
+        }
       } catch (error) {
         if (error instanceof ChatRequestError && error.kind === "aborted") {
           const latest = store.get(conversationId);
@@ -216,19 +260,20 @@ export function App() {
     if (assistantId) controllers.current.get(assistantId)?.abort();
   }
 
-  function retry(): void {
-    if (!active || !effectiveFailed) return;
+  function retry(messageId: string): void {
+    if (!active) return;
     if (streamingByConv[active.id] !== undefined) return;
-    const assistantId = effectiveFailed.messageId;
     const latest = store.get(active.id);
     if (!latest) return;
     store.put({
       ...latest,
       messages: latest.messages.map((m) =>
-        m.id === assistantId ? { ...m, content: "", stopped: false } : m,
+        m.id === messageId
+          ? { ...m, content: "", stopped: false, reasoning: "", reasoningMs: undefined }
+          : m,
       ),
     });
-    void runAssistant(active.id, assistantId, settings);
+    void runAssistant(active.id, messageId, settings);
   }
 
   function toggleTheme(): void {

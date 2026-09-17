@@ -103,6 +103,32 @@ const LONG_MD = [
 
 const JSON_MD = "Non-streaming reply: some servers ignore stream:true and answer plain JSON. This text arrived that way.";
 
+// Thinking filler: original deliberation-like text, in the model's voice.
+const THINK_A = [
+  "Let me think about this properly before answering.",
+  "",
+  "First, what is actually being asked? Strip the politeness, keep the need.",
+  "There are two readings; the second one survives contact with the numbers.",
+  "Check the arithmetic twice, because confidence is cheap and errors are not.",
+  "Eight sheep left. Yes — eight. Now say it plainly.",
+].join("\n");
+
+const THINK_SHORT = [
+  "Hmm. Quick one — no need to overthink.",
+  "The answer is 8 sheep left.",
+].join("\n");
+
+const THINK_LONG = Array.from(
+  { length: 40 },
+  (_, i) =>
+    `Consideration ${i + 1}: turn the problem around, check the edges, distrust the first answer, keep the units honest, and write down what would change my mind.`,
+).join("\n");
+
+const THINK_SLOW = Array.from(
+  { length: 24 },
+  (_, i) => `Slow thought ${i + 1}: patience first, conclusions later.`,
+).join("\n");
+
 function scenarioFor(model) {
   if (model.includes("code")) return { text: CODE_MD, delay: 12 };
   if (model.includes("heavy")) return { text: HEAVY_MD, delay: 8 };
@@ -158,7 +184,8 @@ const server = http.createServer((req, res) => {
         model = JSON.parse(bodyPeek).model ?? "";
       } catch { /* default scenario */ }
       model = String(model);
-      // Order matters: "emptycut-demo" contains "cut-demo".
+      // Order matters: "emptycut-demo" contains "cut-demo"; the think
+      // family shares the "think-demo" tail the same way.
       if (model.includes("emptycut-demo")) {
         res.writeHead(200, { "Content-Type": "text/event-stream", ...CORS });
         res.end();
@@ -181,10 +208,102 @@ const server = http.createServer((req, res) => {
         // Never write: the client's idle timer must give up first.
         return;
       }
+      // Thinking family: reasoning travels in delta.reasoning_content
+      // (llama.cpp, DeepSeek) or delta.reasoning (vLLM). Same stream.
+      if (model.includes("splitthink-demo")) return streamThinkSplit(res);
+      if (model.includes("slowthink-demo")) return streamThink(res, THINK_SLOW, 150, "content");
+      if (model.includes("longthink-demo")) return streamThink(res, THINK_LONG, 8, "content");
+      if (model.includes("thinkonly-demo")) return streamThink(res, THINK_A, 25, null);
+      if (model.includes("vllm-demo")) return streamThink(res, THINK_A, 25, "reasoning");
+      if (model.includes("both-demo")) return streamBoth(res);
+      if (model.includes("think-demo")) return streamThink(res, THINK_A, 25, "content");
       streamNormal(res, bodyPeek);
     });
     return;
   }
+// Thinking family: reasoning first, then (usually) the answer.
+function streamThink(res, thought, delayMs, answerField) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  const rparts = [];
+  for (let i = 0; i < thought.length; i += 24) rparts.push(thought.slice(i, i + 24));
+  const answer = "The answer is 8 sheep left.";
+  const aparts = [];
+  for (let i = 0; i < answer.length; i += 7) aparts.push(answer.slice(i, i + 7));
+  const field = answerField === "reasoning" ? "reasoning" : "reasoning_content";
+  let ri = 0;
+  let ai = 0;
+  const timer = setInterval(() => {
+    if (ri < rparts.length) {
+      const delta = {};
+      delta[field] = rparts[ri];
+      res.write(`data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
+      ri++;
+    } else if (answerField !== null && ai < aparts.length) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: aparts[ai] } }] })}\n\n`);
+      ai++;
+    } else {
+      clearInterval(timer);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }
+  }, delayMs);
+  res.on("close", () => clearInterval(timer));
+}
+
+// One delta carrying both fields at once.
+function streamBoth(res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  const pairs = [
+    ["Considering ", "Well, "],
+    ["the flock… ", "counting "],
+    ["eight remain. ", "heads: "],
+    ["Say it plainly. ", "eight sheep left."],
+  ];
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i < pairs.length) {
+      res.write(
+        `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: pairs[i][0], content: pairs[i][1] } }] })}\n\n`,
+      );
+      i++;
+    } else {
+      clearInterval(timer);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }
+  }, 25);
+  res.on("close", () => clearInterval(timer));
+}
+
+// A reasoning payload torn across two writes (terminated lines otherwise).
+function streamThinkSplit(res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  const line = `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "Split thinking reassembled." } }] })}\n\n`;
+  const cut = Math.floor(line.length / 2);
+  res.write(line.slice(0, cut));
+  setTimeout(() => {
+    res.write(line.slice(cut));
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "Answered." } }] })}\n\n`);
+    res.write("data: [DONE]\n\n");
+    res.end();
+  }, 30);
+}
+
 function streamNormal(res, bodyText) {
       let model = "";
       try {

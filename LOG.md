@@ -354,3 +354,41 @@ Le preview sono cambiate dopo lo strip markdown: rigenerate e riverificate.
   tutti (403, drain, copy onesta, matchMedia, idle timeout). C ✓ (indice +
   payload, 38ms su 1000 voci senza payload). D ✓ (mock ostile, no swallow,
   re-read storage, LOG onesto). E ✓ (no push, comandi limitati, scarti).
+
+## Giro 22 — il pensiero fuori dalla risposta (2026-09-18)
+
+- `chat.ts`: `delta.reasoning_content` (llama.cpp, DeepSeek) e `delta.reasoning`
+  (vLLM) escono su `onReasoning`, mai concatenati a `content`. Scelta
+  deterministica se arrivano entrambi: vince `reasoning_content` (è il nome
+  che llama.cpp e DeepSeek usano; vLLM stesso lo chiama "il vecchio nome").
+  Annidati un livello (`reasoning.content`/`.text`); il resto scartato —
+  perderlo batte mescolarlo. Niente euristiche sul testo: il non delimitato
+  resta irrecuperabile per scelta (un `<think>` in un code block è identico
+  al vero), si risolve scegliendo il modello.
+- Responses API di OpenAI (item tipizzati, eventi response.reasoning_text)
+  ESCLUSA apposta: altro protocollo, non Chat Completions. Se un giorno serve,
+  è un client a parte, non un ramo in più qui.
+- Cronologia al server solo `content`: il pensiero non torna indietro.
+- Persistenza nel payload (`reasoning`, `reasoningMs` misurato primo pensiero
+  -> prima risposta); puliti al retry; indice intatto; vecchi messaggi senza
+  nuvoletta.
+- Nuvoletta: sopra la risposta, scia di bollicine verso la prima riga,
+  chiusa sempre, riepilogo misurato, ticker dell'ultima riga mentre pensa,
+  respiro, bordo blob + sbuffi in CSS puro, tetto 320px con scroll, reduced
+  motion = comparsa e basta, `aria-expanded` + region, niente aria-live sul
+  ticker (solo inizio/fine annunciati).
+- Bollicine con senso: salita sfalsata mentre pensa, discesa una tantum
+  all'avvio della risposta, ferme a riposo. Solo transform/opacity.
+  Battito sul ritmo vero dei token (finestra 2s, scrittura var max ~3/s,
+  mai per-token). Stillness assert: 0 animazioni a riposo nel thread.
+- Mock: think/thinkonly/both/splitthink/longthink/slowthink + vllm col
+  secondo nome (un client a un nome solo resta verde e muto — ora c'è
+  l'assert che lo inchioda). 9 test nuovi, 75 assert totali verdi.
+- Shot visti uno a uno: 50-thinking, 51-settled, 52-rest, 53-open,
+  54-dark, 55-plain. Tutti promossi.
+- Contrasto pensiero: face/body 6.41/6.40, toggle 7.49/6.82 (×2 temi).
+- Buttato: il fade del ticker (remount a ogni riga + turnover veloce =
+  testo fantasma perpetuo; il respiro basta); il mio split-test oltre-spec
+  del giro 17 resta la lezione madre (due eventi su una riga); un fail
+  "duration" era HMR non ancora applicata + marker sul primo paint invece
+  che sullo stato assestato (aspetta il riepilogo, non il token).

@@ -7,6 +7,10 @@ export interface ChatMessage {
   createdAt: number;
   /** True when generation was stopped by the user; content is partial. */
   stopped?: boolean;
+  /** The model's thinking, kept apart from the answer. Never rendered inline. */
+  reasoning?: string;
+  /** First reasoning delta to first answer delta, milliseconds. Measured, not set. */
+  reasoningMs?: number;
 }
 
 export interface ConversationMeta {

@@ -72,6 +72,23 @@ const SEEDED = [
       },
     ],
   },
+  {
+    id: "seed-4",
+    title: "Thinking model",
+    createdAt: 3,
+    updatedAt: 3,
+    messages: [
+      { id: "m7", role: "user", content: "Count the sheep.", createdAt: 3 },
+      {
+        id: "m8",
+        role: "assistant",
+        content: "The answer is 8 sheep left.",
+        reasoning: "First, strip the question. Then count twice.",
+        reasoningMs: 2400,
+        createdAt: 4,
+      },
+    ],
+  },
 ];
 
 // [label, fgSelector, bgSelector-or-null(walk from fg), setup]
@@ -104,6 +121,9 @@ const CHECKS = [
   ["sidebar group", ".sidebar-group", null, "thread"],
   ["sidebar new", ".sidebar-new", ".sidebar-new", "thread"],
   ["blocked image", ".blocked-image", null, "img"],
+  ["thought face", ".thought-face", null, "think"],
+  ["thought toggle", ".thought-toggle", null, "think"],
+  ["thought body", ".thought-body", null, "thinkopen"],
 ];
 
 async function setupPage(browser, theme, mode) {
@@ -123,15 +143,25 @@ async function setupPage(browser, theme, mode) {
   );
   await page.goto(APP);
   await page.waitForTimeout(1200);
-  if (mode === "thread" || mode === "failed" || mode === "img") {
+  if (mode === "thread" || mode === "failed" || mode === "img" || mode === "think" || mode === "thinkopen") {
     const target =
-      mode === "thread" ? "Seeded thread" : mode === "failed" ? "Interrupted thread" : "Tracker model";
+      mode === "thread"
+        ? "Seeded thread"
+        : mode === "failed"
+          ? "Interrupted thread"
+          : mode === "img"
+            ? "Tracker model"
+            : "Thinking model";
     await page
       .locator(".sidebar")
       .getByRole("button", { name: new RegExp(target, "i") })
       .first()
       .click();
     await page.waitForTimeout(400);
+    if (mode === "thinkopen") {
+      await page.getByRole("button", { name: /Show thinking/ }).click();
+      await page.waitForTimeout(400);
+    }
   } else if (mode === "nav") {
     await page
       .locator(".sidebar")

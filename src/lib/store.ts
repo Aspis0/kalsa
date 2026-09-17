@@ -65,6 +65,10 @@ function cleanMessage(value: unknown): ChatMessage | null {
     content: value.content,
     createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
     ...(typeof value.stopped === "boolean" ? { stopped: value.stopped } : {}),
+    ...(typeof value.reasoning === "string" && value.reasoning
+      ? { reasoning: value.reasoning }
+      : {}),
+    ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
   };
 }
 

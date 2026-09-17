@@ -42,6 +42,8 @@ export interface StreamOptions {
   messages: WireMessage[];
   signal: AbortSignal;
   onToken: (text: string) => void;
+  /** Reasoning tokens. A separate buffer, never concatenated with content. */
+  onReasoning: (text: string) => void;
 }
 
 /** No new words for this long means the server is gone, not slow. */
@@ -58,6 +60,30 @@ export function completionsUrl(endpoint: string): string {
   return `${base}/v1/chat/completions`;
 }
 
+function extractReasoning(payload: string): string | null {
+  try {
+    const delta = (JSON.parse(payload) as { choices?: Array<{ delta?: unknown }> }).choices?.[0]
+      ?.delta;
+    if (!delta || typeof delta !== "object") return null;
+    const d = delta as Record<string, unknown>;
+    // The common field first, then the known dialect, then one nesting level.
+    // Anything else is dropped on purpose: an unknown text field must never
+    // leak into the answer — losing it beats mixing it.
+    const direct = d.reasoning_content ?? d.reasoning;
+    if (typeof direct === "string") return direct;
+    if (direct && typeof direct === "object") {
+      const nested = direct as Record<string, unknown>;
+      if (typeof nested.content === "string") return nested.content;
+      if (typeof nested.text === "string") return nested.text;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// NOTE: only delta.content ever becomes answer text. Unknown fields are
+// ignored (see extractReasoning): never merged into content.
 function extractDelta(payload: string): string | null {
   try {
     const data = JSON.parse(payload) as {
@@ -80,7 +106,7 @@ function extractMessage(payload: unknown): string | null {
 }
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
-  const { token, model, messages, signal, onToken } = options;
+  const { token, model, messages, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
 
   // The user's signal (Stop) and our idle timer share one controller so a
@@ -146,9 +172,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // A server ignoring stream:true answers plain JSON (or an HTML login
     // page with status 200). Read it as a completion before giving up.
     try {
-      const text = extractMessage(await response.json());
+      const raw: unknown = await response.json();
+      const text = extractMessage(raw);
+      const thought = extractReasoning(JSON.stringify(raw));
       finish();
-      if (text === null) throw new Error("not a completion");
+      if (text === null && thought === null) throw new Error("not a completion");
+      if (thought) onReasoning(thought);
       if (text) onToken(text);
       return;
     } catch {
@@ -161,6 +190,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   const decoder = new TextDecoder();
   let buffer = "";
   let gotToken = false;
+  let gotReasoning = false;
   let sawDone = false;
 
   function handleLine(line: string): void {
@@ -170,6 +200,13 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     if (payload === "[DONE]") {
       sawDone = true;
       return;
+    }
+    // One delta may carry both fields; each goes to its own buffer.
+    const thought = extractReasoning(payload);
+    if (thought) {
+      gotReasoning = true;
+      poke();
+      onReasoning(thought);
     }
     const delta = extractDelta(payload);
     if (delta) {
@@ -201,8 +238,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     }
     finish();
     // Partial text stays with the caller either way; only the diagnosis
-    // differs: accidental cut vs nothing arrived at all.
-    if (gotToken) throw new ChatRequestError("truncated", "Cut without [DONE]", undefined, url);
+    // differs: accidental cut vs nothing arrived at all. Reasoning alone
+    // (no content, clean close) is a complete thinking-only answer, not
+    // an error — the thread says so.
+    if (gotToken || gotReasoning) {
+      throw new ChatRequestError("truncated", "Cut without [DONE]", undefined, url);
+    }
     throw new ChatRequestError("bad-response", "Empty stream", undefined, url);
   } catch (error) {
     finish();
@@ -211,9 +252,9 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ChatRequestError("aborted", "Stopped", undefined, url);
     }
-    // The socket died mid-answer (reset, proxy cut): tokens arrived but no
-    // [DONE]. That is a truncation, not an unreachable server.
-    if (gotToken && !sawDone) {
+    // The socket died mid-answer (reset, proxy cut): anything arrived but
+    // no [DONE]. That is a truncation, not an unreachable server.
+    if ((gotToken || gotReasoning) && !sawDone) {
       throw new ChatRequestError("truncated", "Connection dropped", undefined, url);
     }
     throw new ChatRequestError("network", "Network failure", undefined, url);

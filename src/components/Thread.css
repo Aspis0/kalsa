@@ -63,6 +63,16 @@
   font-size: 0.82rem;
 }
 
+.no-answer {
+  margin-top: 0.75rem;
+}
+
+.no-answer p {
+  margin: 0 0 0.6rem;
+  color: var(--silence);
+  font-size: 0.9rem;
+}
+
 /* --- markdown --- */
 
 .markdown > *:first-child {

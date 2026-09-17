@@ -3,6 +3,7 @@ import type { UIEvent } from "react";
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
 import { Markdown } from "./Markdown";
+import { ThoughtCloud } from "./ThoughtCloud";
 import "./Thread.css";
 
 export interface FailedState {
@@ -16,7 +17,7 @@ interface ThreadProps {
   messages: ChatMessage[];
   streaming: boolean;
   failed: FailedState | null;
-  onRetry: () => void;
+  onRetry: (messageId: string) => void;
   onOpenSettings: () => void;
 }
 
@@ -88,13 +89,28 @@ function AssistantRow({
   message: ChatMessage;
   streaming: boolean;
   failed: FailedState | null;
-  onRetry: () => void;
+  onRetry: (messageId: string) => void;
   onOpenSettings: () => void;
 }) {
-  const showThinking = streaming && message.content.length === 0 && !failed;
+  const failedHere = failed !== null && failed.messageId === message.id;
+  const hasReasoning = (message.reasoning ?? "") !== "";
+  // Dots only when nothing has arrived at all: reasoning, once present,
+  // is the waiting face.
+  const showThinking = streaming && message.content.length === 0 && !hasReasoning && !failedHere;
+  const showNoAnswer =
+    hasReasoning && message.content === "" && !streaming && !failedHere && !message.stopped;
   return (
     <div className="row row-assistant" title={stamp(message.createdAt)}>
       <div className="assistant-body">
+        {hasReasoning ? (
+          <ThoughtCloud
+            messageId={message.id}
+            reasoning={message.reasoning ?? ""}
+            reasoningMs={message.reasoningMs}
+            working={streaming && message.content === ""}
+            answered={message.content !== ""}
+          />
+        ) : null}
         {showThinking ? (
           <>
             <Thinking />
@@ -103,16 +119,24 @@ function AssistantRow({
         ) : message.content ? (
           <Markdown text={message.content} />
         ) : null}
-        {message.stopped && !failed ? (
+        {message.stopped && !failedHere ? (
           <p className="row-note">Stopped early — showing what arrived.</p>
         ) : null}
-        {failed && failed.messageId === message.id ? (
+        {showNoAnswer ? (
+          <div className="no-answer">
+            <p>The model thought but gave no answer.</p>
+            <button type="button" className="btn-quiet" onClick={() => onRetry(message.id)}>
+              Try again
+            </button>
+          </div>
+        ) : null}
+        {failedHere ? (
           <div className="error-block" role="alert">
             <p className="error-title">{errorCopy(failed.kind, failed.status).title}</p>
             <p className="error-body">{errorCopy(failed.kind, failed.status).body}</p>
             {failed.url ? <p className="error-url">Called: {failed.url}</p> : null}
             <div className="error-actions">
-              <button type="button" className="btn-primary" onClick={onRetry}>
+              <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 Try again
               </button>
               <button type="button" className="btn-quiet" onClick={onOpenSettings}>

@@ -563,6 +563,169 @@ const tests = {
     check("surfaces: no fake controls", (await page.locator(".stage button").count()) === 0);
     await browser.close();
   },
+
+  // Thinking separates from answering: same stream, two buffers.
+  async think() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Count the sheep.", "8 sheep left");
+    // The duration persists after [DONE], one tick behind the last token:
+    // wait for the settled summary, not the first paint of the answer.
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("think: reasoning stored apart", (answer?.reasoning ?? "").includes("Strip the politeness"));
+    check("think: thinking kept out of content", !(answer?.content ?? "").includes("politeness"));
+    check("think: duration measured", typeof answer?.reasoningMs === "number" && answer.reasoningMs >= 0);
+    check("think: cloud collapsed with summary", ((await page.locator(".thought-face").textContent()) ?? "").includes("Thought for"));
+    await browser.close();
+  },
+
+  // Reasoning only, clean close: cloud stays, empty answer said aloud.
+  async thinkonly() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("thinkonly-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Think, don't speak.", "Thought for");
+    check("thinkonly: cloud present", (await page.locator(".thought").count()) === 1);
+    check("thinkonly: no-answer said", ((await page.locator(".thread").textContent()) ?? "").includes("gave no answer"));
+    check("thinkonly: not an error", (await page.locator(".error-block").count()) === 0);
+    await browser.close();
+  },
+
+  // No reasoning anywhere: no cloud, not even closed.
+  async plain() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Just answer.", "line is open");
+    check("plain: zero clouds", (await page.locator(".thought").count()) === 0);
+    await browser.close();
+  },
+
+  // Both fields in one delta: each reaches its own buffer.
+  async both() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("both-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Both at once.", "eight sheep left.");
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("both: reasoning kept", (answer?.reasoning ?? "").includes("Considering the flock"));
+    check("both: content kept", (answer?.content ?? "").includes("Well, counting"));
+    await browser.close();
+  },
+
+  // A reasoning payload torn across two writes reassembles.
+  async splitthink() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("splitthink-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Torn thinking.", "Answered.");
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("splitthink: reassembled", (answer?.reasoning ?? "").includes("Split thinking reassembled."));
+    await browser.close();
+  },
+
+  // Thousands of reasoning chars: the open cloud caps and scrolls inside.
+  async longthink() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("longthink-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Think hard.", "8 sheep left");
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("longthink: thousands kept", (answer?.reasoning ?? "").length > 3000, `${answer?.reasoning?.length} chars`);
+    await page.getByRole("button", { name: /Show thinking/ }).click();
+    await page.waitForTimeout(400);
+    const box = await page.locator(".thought-body").boundingBox();
+    check("longthink: cloud capped", (box?.height ?? 9999) <= 340, `${Math.round(box?.height ?? 0)}px tall`);
+    const scrolls = await page.evaluate(() => {
+      const el = document.querySelector(".thought-body");
+      return el ? el.scrollHeight > el.clientHeight : false;
+    });
+    check("longthink: scrolls inside", scrolls);
+    await browser.close();
+  },
+
+  // Stop while thinking: partial reasoning kept, honest note, cloud stays.
+  async stopthink() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("slowthink-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Think slowly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(600);
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("stopthink: partial thinking kept", (answer?.reasoning ?? "").length > 0);
+    check("stopthink: no answer yet", (answer?.content ?? "") === "");
+    const body = (await page.locator(".thread").textContent()) ?? "";
+    check("stopthink: stopped honestly", body.includes("Stopped early"));
+    check("stopthink: cloud stays", (await page.locator(".thought").count()) === 1);
+    await browser.close();
+  },
+
+  // vLLM names the field `reasoning`: a one-name client stays silent here.
+  async vllm() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("vllm-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "vLLM style.", "8 sheep left");
+    check("vllm: second field name read", (await page.locator(".thought").count()) === 1);
+    await browser.close();
+  },
+
+  // At rest, nothing moves: zero running animations in a settled thread.
+  async stillness() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("think-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Count the sheep.", "8 sheep left");
+    await page.waitForTimeout(3000);
+    const running = await page.evaluate(() =>
+      document
+        .getAnimations()
+        .filter((a) => a.playState === "running")
+        .filter((a) => {
+          const t = a.effect?.target;
+          return t instanceof Element && t.closest(".thread") !== null;
+        }).length,
+    );
+    check("stillness: zero running animations at rest", running === 0, `${running} running`);
+    await browser.close();
+  },
   async silent() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
