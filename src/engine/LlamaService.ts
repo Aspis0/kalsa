@@ -183,6 +183,7 @@ import {
   sessionBytesPerTokenForModel,
   type SessionDiskCalibration,
 } from "./sessionDiskCalibration";
+import { registrySessionBytesPerToken } from "./sessionDiskFallback";
 import {
   loadSessionDiskCalibration,
   saveSessionDiskCalibration,
@@ -2729,7 +2730,11 @@ async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
     nPast,
     historyLength,
     nCtx: activeEngineCtx,
-    bytesPerToken: sessionBytesPerTokenForModel(calibration, modelId),
+    bytesPerToken: sessionBytesPerTokenForModel(
+      calibration,
+      modelId,
+      registrySessionBytesPerToken(modelId),
+    ),
     calibration,
   };
 }
@@ -2984,6 +2989,7 @@ export async function saveEngineSession(
               ? fileInfo.size
               : undefined,
           usedTokens: tokens,
+          knownBytesPerToken: registrySessionBytesPerToken(modelId),
         });
         if (nextCalibration !== diskCalibration) {
           await saveSessionDiskCalibration(nextCalibration);

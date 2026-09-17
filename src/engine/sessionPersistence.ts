@@ -18,6 +18,9 @@ import {
 import { toPersistableHistoryMessages } from "./historyPersistable";
 
 export { SESSION_DISK_GATE_USED_TOKENS };
+// Part of this module's gate arithmetic, re-exported so callers (and the
+// standalone harnesses) read the estimate and its fixed term from one place.
+export { SESSION_FIXED_BYTES };
 
 export const SESSION_FORMAT_VERSION = 2;
 

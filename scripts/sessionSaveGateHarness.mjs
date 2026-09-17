@@ -143,6 +143,7 @@ async function main() {
     sessionDiskBytesRequired,
     SESSION_DISK_GATE_USED_TOKENS,
     SESSION_BYTES_PER_TOKEN,
+    SESSION_FIXED_BYTES,
     SESSION_DISK_MARGIN,
     SESSION_DISK_FLOOR_BYTES,
     SESSION_DISK_TOKEN_FLOOR,
@@ -345,8 +346,15 @@ async function main() {
   });
 
   // ── P1-2 / V2-0.2: disk-gate on used tokens, not full nCtx ──────────────
-  test("estimateSessionBytes is usedTokens * 64KB", () => {
-    assert(estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN, "8192");
+  // A session file is affine, not proportional: SESSION_FIXED_BYTES of
+  // recurrent state and layer headers are there whatever the token count.
+  test("estimateSessionBytes is usedTokens * rate + the fixed term", () => {
+    assert(
+      estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN + SESSION_FIXED_BYTES,
+      "8192",
+    );
+    assert(estimateSessionBytes(1946, 6672) === 1946 * 6672 + SESSION_FIXED_BYTES, "measured rate");
+    assert(SESSION_FIXED_BYTES === 361228, "fixed term is the byte measured on the S23");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
   });
@@ -405,9 +413,16 @@ async function main() {
   test("sessionDiskBytesRequired applies margin and floor", () => {
     const mid = sessionDiskBytesRequired(400);
     assert(
-      mid === Math.max(SESSION_DISK_FLOOR_BYTES, 400 * SESSION_BYTES_PER_TOKEN * SESSION_DISK_MARGIN),
+      mid ===
+        Math.max(
+          SESSION_DISK_FLOOR_BYTES,
+          (400 * SESSION_BYTES_PER_TOKEN + SESSION_FIXED_BYTES) * SESSION_DISK_MARGIN,
+        ),
       "400 tokens",
     );
+    // The write's peak is the old .kvs plus the .tmp being written beside it,
+    // so a margin at or below 2.0 passes a write that cannot finish.
+    assert(SESSION_DISK_MARGIN > 2, "margin covers old + tmp");
     assert(sessionDiskBytesRequired(1) === SESSION_DISK_FLOOR_BYTES, "tiny → floor");
     assert(
       sessionDiskBytesRequired(400) < estimateSessionBytes(16384) * SESSION_DISK_MARGIN,

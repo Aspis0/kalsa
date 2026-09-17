@@ -26,9 +26,9 @@ import {
   applySessionDiskCalibration,
   mergeSessionDiskCalibrations,
   recordSessionDiskSample,
-  registrySessionBytesPerToken,
   sessionBytesPerTokenForModel,
 } from "./sessionDiskCalibration";
+import { registrySessionBytesPerToken } from "./sessionDiskFallback";
 import {
   loadSessionDiskCalibration,
   saveSessionDiskCalibration,
@@ -65,20 +65,20 @@ describe("registry fallback", () => {
   });
 
   it("is used when nothing has been calibrated", () => {
-    expect(sessionBytesPerTokenForModel({}, MODEL)).toBe(6656 + 16);
-    expect(sessionBytesPerTokenForModel(null, MODEL)).toBe(6656 + 16);
+    expect(sessionBytesPerTokenForModel({}, MODEL, registrySessionBytesPerToken(MODEL))).toBe(6656 + 16);
+    expect(sessionBytesPerTokenForModel(null, MODEL, registrySessionBytesPerToken(MODEL))).toBe(6656 + 16);
   });
 
   it("returns null for a model the catalog does not know", () => {
     expect(registrySessionBytesPerToken("not-a-model")).toBeNull();
-    expect(sessionBytesPerTokenForModel({}, "not-a-model")).toBeNull();
+    expect(sessionBytesPerTokenForModel({}, "not-a-model", registrySessionBytesPerToken("not-a-model"))).toBeNull();
   });
 
   it("keeps an uncalibrated device inside a plausible disk budget", () => {
     // The regression this guards: with the 64 KiB dense fallback the gate
     // demanded 639 MB free for a 43.6 MB file, and since a rate is only
     // learned from a SUCCESSFUL save, such a device could never correct it.
-    const rate = sessionBytesPerTokenForModel({}, MODEL);
+    const rate = sessionBytesPerTokenForModel({}, MODEL, registrySessionBytesPerToken(MODEL));
     const required = sessionDiskBytesRequired(REAL_FILE_TOKENS, rate ?? undefined);
     expect(required).toBeLessThan(150 * 1024 * 1024);
     // Still above the write's real peak (old file + tmp).
@@ -95,9 +95,10 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: REAL_FILE_BYTES,
         usedTokens: REAL_FILE_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
-    const rate = sessionBytesPerTokenForModel(learned, MODEL);
+    const rate = sessionBytesPerTokenForModel(learned, MODEL, registrySessionBytesPerToken(MODEL));
     const estimated = estimateSessionBytes(REAL_FILE_TOKENS, rate ?? undefined);
     expect(Math.abs(estimated - REAL_FILE_BYTES)).toBeLessThan(1024);
     // The round-trip above is an identity for ANY fixed term, so pin the term
@@ -115,7 +116,7 @@ describe("recordSessionDiskSample", () => {
     // B/token, 4.5x the truth, and v1 kept that number forever.
     const tiny = recordSessionDiskSample(
       {},
-      { ok: true, modelId: MODEL, fileBytes: 565_564, usedTokens: 19 },
+      { ok: true, modelId: MODEL, fileBytes: 565_564, usedTokens: 19, knownBytesPerToken: registrySessionBytesPerToken(MODEL) },
     );
     expect(tiny[MODEL]).toBeUndefined();
   });
@@ -129,6 +130,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: bytes,
         usedTokens: SESSION_CALIBRATION_MIN_TOKENS - 1,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
     expect(below[MODEL]).toBeUndefined();
@@ -140,6 +142,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: bytes,
         usedTokens: SESSION_CALIBRATION_MIN_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
     // Pin the value, not just its presence: asserting non-null lets a
@@ -164,9 +167,10 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: Math.round(n0 * slope + realFixed),
         usedTokens: n0,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
-    const rate = sessionBytesPerTokenForModel(learned, MODEL);
+    const rate = sessionBytesPerTokenForModel(learned, MODEL, registrySessionBytesPerToken(MODEL));
     const estimated = estimateSessionBytes(N_CTX, rate ?? undefined);
     const trueBytes = N_CTX * slope + realFixed;
     expect(estimated).toBeGreaterThan(trueBytes);
@@ -184,6 +188,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: Math.round(2000 * (floor / 10)) + SESSION_FIXED_BYTES,
         usedTokens: 2000,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
     expect(tooCheap[MODEL]).toBe(8000);
@@ -197,6 +202,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: REAL_FILE_BYTES,
         usedTokens: REAL_FILE_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
     expect(corrected[MODEL]).toBeLessThan(29_910);
@@ -211,6 +217,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: REAL_FILE_BYTES,
         usedTokens: REAL_FILE_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       }),
     ).toEqual(start);
     expect(
@@ -219,6 +226,7 @@ describe("recordSessionDiskSample", () => {
         modelId: MODEL,
         fileBytes: REAL_FILE_BYTES,
         usedTokens: REAL_FILE_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       }).other,
     ).toBe(1234);
   });

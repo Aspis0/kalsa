@@ -129,6 +129,7 @@ async function main() {
     sessionDiskBytesRequired,
     SESSION_DISK_GATE_USED_TOKENS,
     SESSION_BYTES_PER_TOKEN,
+    SESSION_FIXED_BYTES,
     SESSION_DISK_MARGIN,
     SESSION_DISK_FLOOR_BYTES,
     SESSION_DISK_TOKEN_FLOOR,
@@ -139,6 +140,7 @@ async function main() {
   const {
     recordSessionDiskSample,
     sessionBytesPerTokenForModel,
+    SESSION_CALIBRATION_MIN_TOKENS,
   } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibration.js")).href);
   const {
     loadSessionDiskCalibration,
@@ -419,8 +421,15 @@ async function main() {
     );
   });
 
-  test("estimateSessionBytes is usedTokens * 64KB", () => {
-    assert(estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN, "8192");
+  // A session file is affine, not proportional: SESSION_FIXED_BYTES of
+  // recurrent state and layer headers are there whatever the token count.
+  test("estimateSessionBytes is usedTokens * rate + the fixed term", () => {
+    assert(
+      estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN + SESSION_FIXED_BYTES,
+      "8192",
+    );
+    assert(estimateSessionBytes(1946, 6672) === 1946 * 6672 + SESSION_FIXED_BYTES, "measured rate");
+    assert(SESSION_FIXED_BYTES === 361228, "fixed term is the byte measured on the S23");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
   });
@@ -625,9 +634,16 @@ async function main() {
   test("sessionDiskBytesRequired applies margin and floor", () => {
     const mid = sessionDiskBytesRequired(400);
     assert(
-      mid === Math.max(SESSION_DISK_FLOOR_BYTES, 400 * SESSION_BYTES_PER_TOKEN * SESSION_DISK_MARGIN),
+      mid ===
+        Math.max(
+          SESSION_DISK_FLOOR_BYTES,
+          (400 * SESSION_BYTES_PER_TOKEN + SESSION_FIXED_BYTES) * SESSION_DISK_MARGIN,
+        ),
       "400 tokens",
     );
+    // The write's peak is the old .kvs plus the .tmp being written beside it,
+    // so a margin at or below 2.0 passes a write that cannot finish.
+    assert(SESSION_DISK_MARGIN > 2, "margin covers old + tmp");
     assert(sessionDiskBytesRequired(1) === SESSION_DISK_FLOOR_BYTES, "tiny → floor");
     assert(
       sessionDiskBytesRequired(400) < estimateSessionBytes(16384) * SESSION_DISK_MARGIN,
@@ -690,82 +706,96 @@ async function main() {
 
   test("session disk calibration rejects zero/missing/failed samples", () => {
     const empty = {};
-    assert(sessionBytesPerTokenForModel(empty, "kexp") === null, "missing measurement");
-    assert(
-      recordSessionDiskSample(empty, {
+    const KNOWN = 6672; // what the catalog measures for the shipped hybrid
+    const BYTES = 10041119;
+    const TOKENS = 1946; // above SESSION_CALIBRATION_MIN_TOKENS
+    const sample = (calibration, over) =>
+      recordSessionDiskSample(calibration, {
         ok: true,
         modelId: "kexp",
-        fileBytes: 10041119,
-        usedTokens: 0,
-      }) === empty,
-      "zero tokens must not calibrate",
+        fileBytes: BYTES,
+        usedTokens: TOKENS,
+        knownBytesPerToken: KNOWN,
+        ...over,
+      });
+
+    assert(
+      sessionBytesPerTokenForModel(empty, "kexp", null) === null,
+      "missing measurement and no catalog value",
     );
     assert(
-      recordSessionDiskSample(empty, {
-        ok: true,
-        modelId: "kexp",
-        fileBytes: 10041119,
-        usedTokens: -1,
-      }) === empty,
-      "negative tokens must not calibrate",
+      sessionBytesPerTokenForModel(empty, "kexp", KNOWN) === KNOWN,
+      "unmeasured device falls back to the catalog cost",
+    );
+    assert(sample(empty, { usedTokens: 0 }) === empty, "zero tokens must not calibrate");
+    assert(sample(empty, { usedTokens: -1 }) === empty, "negative tokens must not calibrate");
+    assert(sample(empty, { fileBytes: undefined }) === empty, "missing file size must not calibrate");
+    assert(sample(empty, { ok: false }) === empty, "failed save must not calibrate");
+    // A short write is nearly all fixed term, so charging it to the tokens
+    // teaches a rate several times the truth — and v1 kept it forever.
+    assert(
+      sample(empty, { usedTokens: SESSION_CALIBRATION_MIN_TOKENS - 1 }) === empty,
+      "below the min-token floor must not calibrate",
+    );
+
+    // The fixed term is charged to the fixed term, not to the tokens.
+    const measured = sample(empty);
+    const rate = (BYTES - SESSION_FIXED_BYTES) / TOKENS;
+    assert(
+      sessionBytesPerTokenForModel(measured, "kexp", KNOWN) === rate,
+      "successful save records bytes/token net of the fixed term",
     );
     assert(
-      recordSessionDiskSample(empty, {
-        ok: true,
-        modelId: "kexp",
-        fileBytes: undefined,
-        usedTokens: 1946,
-      }) === empty,
-      "missing file size must not calibrate",
+      estimateSessionBytes(TOKENS, sessionBytesPerTokenForModel(measured, "kexp", KNOWN)) === BYTES,
+      "next gate reproduces the file it learned from",
     );
     assert(
-      recordSessionDiskSample(empty, {
-        ok: false,
-        modelId: "kexp",
-        fileBytes: 10041119,
-        usedTokens: 1946,
-      }) === empty,
-      "failed save must not calibrate",
-    );
-    const measured = recordSessionDiskSample(empty, {
-      ok: true,
-      modelId: "kexp",
-      fileBytes: 10041119,
-      usedTokens: 1946,
-    });
-    assert(
-      sessionBytesPerTokenForModel(measured, "kexp") === 10041119 / 1946,
-      "successful save records bytes/token",
-    );
-    assert(
-      estimateSessionBytes(1946, sessionBytesPerTokenForModel(measured, "kexp")) === 10041119,
-      "next gate uses the measured rate",
-    );
-    assert(
-      estimateSessionBytes(1, null) === SESSION_BYTES_PER_TOKEN,
+      estimateSessionBytes(1, null) === SESSION_BYTES_PER_TOKEN + SESSION_FIXED_BYTES,
       "missing rate uses the unmeasured default",
     );
     assert(
-      sessionBytesPerTokenForModel(measured, "other") === null,
+      sessionBytesPerTokenForModel(measured, "other", null) === null,
       "calibration is per model",
     );
-    const larger = recordSessionDiskSample(measured, {
-      ok: true,
-      modelId: "kexp",
-      fileBytes: 10041119 * 2,
-      usedTokens: 1946,
+
+    // A long write measures the asymptote directly, so it REPLACES the stored
+    // rate in both directions. Keeping a higher number learned from a shorter
+    // write is not caution, it is a stale reading that never expires.
+    const larger = sample(measured, { fileBytes: BYTES * 2 });
+    assert(
+      sessionBytesPerTokenForModel(larger, "kexp", KNOWN) === (BYTES * 2 - SESSION_FIXED_BYTES) / TOKENS,
+      "a larger sample replaces the calibration",
+    );
+    const smaller = sample(larger);
+    assert(
+      sessionBytesPerTokenForModel(smaller, "kexp", KNOWN) === rate,
+      "a smaller sample also replaces it — corrections must survive",
+    );
+
+    // Replacing removed the only guard against a LOW outlier, so the catalog
+    // cost is a physical floor: the file contains the quantized KV rows.
+    const tooCheap = sample(smaller, {
+      fileBytes: Math.round(TOKENS * (KNOWN / 10)) + SESSION_FIXED_BYTES,
     });
     assert(
-      sessionBytesPerTokenForModel(larger, "kexp") === (10041119 * 2) / 1946,
-      "larger sample replaces the calibration",
+      sessionBytesPerTokenForModel(tooCheap, "kexp", KNOWN) === rate,
+      "a rate an order of magnitude below the cache is refused",
     );
-    const smaller = recordSessionDiskSample(larger, {
+    // With no catalog value there is nothing to compare against, so the
+    // sample must still be learned rather than silently dropped.
+    const cheapBytes = Math.round(TOKENS * (KNOWN / 10)) + SESSION_FIXED_BYTES;
+    const noFloor = recordSessionDiskSample(smaller, {
       ok: true,
       modelId: "kexp",
-      fileBytes: 10041119,
-      usedTokens: 1946,
+      fileBytes: cheapBytes,
+      usedTokens: TOKENS,
+      knownBytesPerToken: null,
     });
-    assert(smaller === larger, "smaller sample must keep the maximum");
+    assert(
+      sessionBytesPerTokenForModel(noFloor, "kexp", null) ===
+        (cheapBytes - SESSION_FIXED_BYTES) / TOKENS,
+      "no catalog cost means no floor",
+    );
   });
 
   async function asyncTest(name, fn) {
