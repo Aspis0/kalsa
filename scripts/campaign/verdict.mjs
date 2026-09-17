@@ -13,6 +13,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { spend } from "./verdictSpend.mjs";
 
 const EXPECTED_TURNS_DEFAULT = 20;
 
@@ -136,6 +137,7 @@ function evaluate(run, expectedTurns) {
     "model.unload idle": countOccurrences(run.logcat, '"reason":"idle"'),
     "slides advanced": slides.filter((s) => s.advanced).length,
     "slides that cleared KV": slides.filter((s) => s.kvCleared).length,
+    ...spend(run.logcat),
   };
 
   return { checks, reported, missing: expectedTurns - complete.length };

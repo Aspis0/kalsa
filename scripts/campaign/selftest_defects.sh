@@ -477,5 +477,51 @@ else
   bad "verdict did not fail on an unanswered turn"
 fi
 
+
+# -- (f) the run-cost report survives the shapes a real logcat throws at it ---
+# Hostile audit 2026-09-17 found three defects in verdictSpend.mjs, all of them
+# invisible because nothing asserted its output: the -1 "missing counter"
+# sentinel printed as a measurement ("-1 tok in -0s") because -1 is finite;
+# two slides with no turn between them billed the SAME turn twice; and the
+# prewarm's prefill was dropped entirely, because React Native renders a
+# multi-arg console.log quoted and JSON.parse threw on a well-formed line.
+SRUN="$WORK/spend-run"
+mkdir -p "$SRUN/T20C"
+{
+  # Quoted RN shape: this is how a multi-argument console.log reaches logcat.
+  printf '%s\n' "09-17 10:00:00.000 1 2 I ReactNativeJS: KALSA_PREWARM', '{\"op\":\"done\",\"promptMs\":10000,\"promptN\":1832}'"
+  printf '%s\n' '09-17 10:01:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"promptMs":2000,"prompt_n":100,"predictedMs":8000,"predictedPerSecond":10.0}'
+  printf '%s\n' '09-17 10:02:00.000 1 2 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"prevStart":0,"newStart":4,"advanced":true,"kvCleared":true}'
+  printf '%s\n' '09-17 10:02:01.000 1 2 I ReactNativeJS: KALSA_WINDOW_SLIDE {"nCtx":8192,"prevStart":4,"newStart":8,"advanced":true,"kvCleared":true}'
+  printf '%s\n' '09-17 10:03:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","round":0,"promptMs":4000,"prompt_n":400,"predictedMs":8000,"predictedPerSecond":5.0}'
+  # Every counter absent: the app encodes that as -1, not as a missing field.
+  printf '%s\n' '09-17 10:04:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"promptMs":-1,"prompt_n":-1,"predictedMs":-1,"predictedPerSecond":-1}'
+} > "$SRUN/logcat.txt"
+printf '%s\n' '{"arm":"T20C","i":1,"intent":"chat-1","assistant":"a"}' > "$SRUN/T20C/c1-V1.jsonl"
+
+sout="$(node "$HERE/verdict.mjs" "$SRUN" --turns 1 2>&1 || true)"
+
+printf '\n== (f) the run-cost report is asserted, not just printed ==\n'
+if printf '%s' "$sout" | grep -qF '16s prefill (10s of it prewarm) / 16s decode (prefill 50%)'; then
+  ok "spend: prewarm prefill is counted, and named separately"
+else
+  bad "spend: prefill split wrong: $(printf '%s' "$sout" | grep -F 'prefill vs decode')"
+fi
+if printf '%s' "$sout" | grep -qF '400 tok in 4s, turn after the slide reported no prefill counters'; then
+  ok "spend: one turn pays one slide, and -1 is refused as a measurement"
+else
+  bad "spend: slide bill wrong: $(printf '%s' "$sout" | grep -F 're-prefill after')"
+fi
+if printf '%s' "$sout" | grep -q 'tok in -0s'; then
+  bad "spend: the -1 sentinel printed as a measurement"
+else
+  ok "spend: no negative bill reached the report"
+fi
+if printf '%s' "$sout" | grep -qF '10.00 -> 5.00 (-50%)'; then
+  ok "spend: decode decay skips the turn with no rate"
+else
+  bad "spend: decay wrong: $(printf '%s' "$sout" | grep -F 'decode tok/s')"
+fi
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
