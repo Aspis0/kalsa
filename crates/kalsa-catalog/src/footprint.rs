@@ -29,8 +29,13 @@ pub const GIB: u64 = 1024 * MIB;
 pub const MARGIN_FLOOR_BYTES: u64 = 3 * GIB;
 pub const MARGIN_FRACTION: f64 = 0.25;
 
-/// Buffers for the micro-batch the supervisor ships (ubatch 128): they follow
-/// the batch, not the model, which is the naive formula's first mistake.
+/// The compute buffers (the micro-batch's attention and FFN intermediates):
+/// they follow the batch, not the model, which is the naive formula's first
+/// mistake. Measured on the shipped build with the shipped Trinity row at
+/// the shipped ubatch 512, the allocator reports ~60 MiB where the weights
+/// are ~4 GiB; the forfait stays 512 MiB on purpose, because a large dense
+/// row's buffers cost more than an MoE's and the point of a forfait is to
+/// stop the arithmetic from chasing per-model measurements.
 pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
 
 /// Until a row carries its measured `kv_bytes_per_token`, assume the

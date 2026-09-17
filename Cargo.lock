@@ -2542,6 +2542,7 @@ dependencies = [
 name = "kalsa-door"
 version = "0.0.1"
 dependencies = [
+ "getrandom 0.3.4",
  "kalsa-catalog",
  "kalsa-pairing",
  "serde_json",
@@ -2576,8 +2577,10 @@ name = "kalsa-launch"
 version = "0.0.1"
 dependencies = [
  "kalsa-catalog",
+ "kalsa-door",
  "kalsa-probe",
  "kalsa-runtime",
+ "serde_json",
 ]
 
 [[package]]

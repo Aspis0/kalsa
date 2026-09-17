@@ -71,6 +71,8 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         model_path: PathBuf::from(&model),
         port: PORT,
         context_tokens: 512,
+        // The smoke test does not exercise conversations: no cache roof.
+        cache_ram_mib: 0,
         threads: Some(4),
         offload: Offload::All,
         idle_unload_seconds: 300,

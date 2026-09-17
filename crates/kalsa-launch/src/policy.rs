@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 use kalsa_catalog::footprint::{
-    footprint_bytes, MemoryBudget, ASSUMED_KV_BYTES_PER_TOKEN, COMPUTE_BUFFER_BYTES,
+    footprint_bytes, MemoryBudget, ASSUMED_KV_BYTES_PER_TOKEN, COMPUTE_BUFFER_BYTES, MIB,
 };
 use kalsa_catalog::manifest::ModelEntry;
 use kalsa_probe::plateau;
@@ -37,7 +37,8 @@ pub struct LaunchInput<'a> {
 /// per-token figure is garbage — a model that cannot be given even one token
 /// of context must not be started smaller, it must not be started.
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
-    let maximum_context = context_tokens(input.model, input.budget.usable_bytes)?;
+    let (maximum_context, prompt_cache_roof) =
+        context_and_prompt_cache_roof(input.model, input.budget.usable_bytes)?;
     let context_tokens = match input.context_limit {
         Some(limit) if limit > 0 && limit <= maximum_context => limit,
         Some(_) => return None,
@@ -47,6 +48,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         model_path: input.model_path.clone(),
         port: input.port,
         context_tokens,
+        cache_ram_mib: prompt_cache_roof / MIB,
         threads: plateau(input.thread_ramp).map(|(threads, _rate)| threads),
         offload: offload(input),
         idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
@@ -62,11 +64,27 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     Some(LaunchPlan { args, memory })
 }
 
-/// The largest context whose KV cache fits what is left of the budget after
-/// the fixed footprint — the catalog's arithmetic
-/// `weights + mmproj + compute buffers + KV + margin <= usable RAM`, solved
-/// for KV's term. Whole tokens: the floor is the answer, never a rounding up
-/// that the budget did not pay for.
+/// THE BUDGET ARITHMETIC, AMENDED — this function now splits what is left
+/// after the fixed footprint into the live context and the prompt cache
+/// that keeps yesterday's chat warm. Before the amendment the context spent
+/// the whole leftover, and the cache roof — computed from the context,
+/// then — grew with the machine: on a 64 GiB row the roof reached 90 GiB,
+/// above the 8192 MiB binary default it was meant to cap. Now the roof is
+/// carved first and the context takes the rest.
+///
+/// Per shipped row, context before → after the amendment (Metal, measured
+/// through `plan`): Trinity-Nano 16 GiB 87 087 → 65 315; Qwen 3.5 16 GiB
+/// 94 917 → 71 188; Granite 4 Tiny 32 GiB 213 642 → 160 232; Qwen 3.5
+/// 64 GiB 488 133 → 422 597. The lost tokens were never usable: a context
+/// ten times the model's training length is funded arithmetic, not memory
+/// anyone's conversation reaches. The roof itself is bounded by the chats
+/// it serves, never by the machine's size (see
+/// [`prompt_cache_roof_bytes`]).
+///
+/// The catalog's arithmetic is otherwise unchanged:
+/// `weights + mmproj + compute buffers + KV + roof + margin <= usable
+/// RAM`, solved for KV's term after the roof. Whole tokens: the floor is
+/// the answer, never a rounding up that the budget did not pay for.
 ///
 /// On the assumed per-token figure the choice is conservative by direction:
 /// 96 KiB is "above every dense model in this catalog", so an unmeasured
@@ -80,7 +98,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
 /// would halve every dense row's context to insure against a direction the
 /// constant already guards; the honest fix for the rows above it is a
 /// measurement, not a bigger guess.
-fn context_tokens(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
+fn context_and_prompt_cache_roof(model: &ModelEntry, usable_bytes: u64) -> Option<(u64, u64)> {
     let per_token = match model.kv_bytes_per_token {
         // A zero measurement is broken data: refuse it rather than silently
         // substituting the assumption and calling the result measured.
@@ -92,9 +110,38 @@ fn context_tokens(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
         .weights_bytes
         .saturating_add(model.mmproj_bytes.unwrap_or(0))
         .saturating_add(COMPUTE_BUFFER_BYTES);
-    let kv_budget = usable_bytes.checked_sub(fixed)?;
-    let tokens = kv_budget / per_token;
-    (tokens > 0).then_some(tokens)
+    let leftover = usable_bytes.checked_sub(fixed)?;
+    let prompt_cache_roof = prompt_cache_roof_bytes(leftover);
+    let tokens = (leftover - prompt_cache_roof) / per_token;
+    (tokens > 0).then_some((tokens, prompt_cache_roof))
+}
+
+/// The prompt cache keeps yesterday's chat warm; its roof is carved out of
+/// the leftover before the context is sized, because the context otherwise
+/// spends every byte that is left and the roof would grow with the machine
+/// instead of with the chats it serves.
+///
+/// Measured on the shipped build with four 4.5k-token conversations, about
+/// 100 MiB stored each: with the roof at 768 MiB only the most recent chat
+/// stayed warm, at 1536 MiB all four did. That measurement is where
+/// PROMPT_CACHE_CHAT_TOKENS and PROMPT_CACHE_KEPT_CHATS come from — two
+/// long chats at the budget's own KV assumption, one alive and one asleep.
+///
+/// The quarter-of-the-leftover share is a rule, not a measurement: no
+/// experiment chose it. It is the brake that keeps a big machine from
+/// turning its whole advance into sleeping chats — hoarding the advance
+/// would be the "gentle on the PC" rule broken from the other side.
+const PROMPT_CACHE_CHAT_TOKENS: u64 = 32 * 1024;
+/// One chat alive, one asleep.
+const PROMPT_CACHE_KEPT_CHATS: u64 = 2;
+/// A rule, not a measurement: the roof takes at most this share of the
+/// leftover after the fixed footprint.
+const PROMPT_CACHE_ROOF_SHARE: u64 = 4;
+
+fn prompt_cache_roof_bytes(leftover_bytes: u64) -> u64 {
+    let two_long_chats =
+        ASSUMED_KV_BYTES_PER_TOKEN * PROMPT_CACHE_CHAT_TOKENS * PROMPT_CACHE_KEPT_CHATS;
+    (leftover_bytes / PROMPT_CACHE_ROOF_SHARE).min(two_long_chats)
 }
 
 /// What the GPU gets: everything, or nothing — never a share of the layers.
@@ -124,7 +171,7 @@ fn offload(input: &LaunchInput) -> Offload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB};
+    use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB, MIB};
     use kalsa_catalog::rows;
     use kalsa_probe::Backend;
 
@@ -167,6 +214,17 @@ mod tests {
         }
     }
 
+    /// The roof as the production argv states it, MiB.
+    fn cache_ram_mib(line: &str) -> u64 {
+        let words: Vec<&str> = line.split_whitespace().collect();
+        words
+            .iter()
+            .position(|word| *word == "--cache-ram")
+            .and_then(|index| words.get(index + 1))
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| panic!("the plan must always state a cache roof: {line}"))
+    }
+
     fn input<'a>(
         backend: ServerBackend,
         budget: MemoryBudget,
@@ -191,26 +249,45 @@ mod tests {
     const QUAD_CORE_RAMP: &[(usize, f64)] = &[(1, 20.0), (2, 35.0), (4, 36.0)];
 
     #[test]
-    fn the_context_is_the_biggest_that_fits_and_not_one_token_more() {
+    fn the_context_fits_after_the_chat_reserve_and_never_one_token_into_it() {
         // Granite 4 Tiny (4_230_976_352 bytes) on an 8 GiB CPU machine:
         // 5 GiB usable, minus the weights and 512 MiB of compute buffers,
-        // leaves 600_861_856 bytes of cache at 96 KiB/token = 6112 whole
-        // tokens. 6113 would need memory the machine does not have.
+        // leaves 600_861_856 bytes. The sleeping-chat reserve takes a
+        // quarter — 150_215_464 bytes — and the context funds the rest:
+        // 450_646_392 bytes at 96 KiB/token = 4584 whole tokens. The
+        // machine could fund a 4585th; the reserve is what stops it, and
+        // that boundary is what the last assertions pin.
         let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 8 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 6112);
+        assert_eq!(launched.args.context_tokens, 4584);
         assert!(fits(model, launched.args.context_tokens, &budget));
         assert!(
-            !fits(model, launched.args.context_tokens + 1, &budget),
-            "one more token would not be paid for"
+            fits(model, launched.args.context_tokens + 1, &budget),
+            "the machine could fund one more token: the reserve is what stops it"
         );
-        assert_eq!(launched.memory.kv_cache_bytes, 6112 * 96 * KIB);
+        let leftover = budget.usable_bytes
+            - model
+                .weights_bytes
+                .saturating_add(model.mmproj_bytes.unwrap_or(0))
+                .saturating_add(COMPUTE_BUFFER_BYTES);
+        let roof = leftover / PROMPT_CACHE_ROOF_SHARE;
+        assert!(
+            roof + (launched.args.context_tokens + 1) * ASSUMED_KV_BYTES_PER_TOKEN > leftover,
+            "one more token would be taken from the sleeping chats' reserve"
+        );
+        assert!(
+            roof + launched.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN <= leftover,
+            "the funded context never reaches into the reserve"
+        );
+        assert_eq!(launched.memory.kv_cache_bytes, 4584 * 96 * KIB);
         assert!(
             launched.memory.kv_per_token_assumed,
             "no shipped row carries a measured KV figure"
         );
+        // The roof the plan carries is the reserve, in whole MiB.
+        assert_eq!(launched.args.cache_ram_mib, (leftover / PROMPT_CACHE_ROOF_SHARE) / MIB);
     }
 
     #[test]
@@ -338,34 +415,96 @@ mod tests {
 
         // And the arguments produce the cache the arithmetic counted: one
         // byte per element (q8_0, with flash attention, without which a
-        // quantized V cache is refused) and the ubatch the 512 MiB compute
-        // buffer was computed for.
+        // quantized V cache is refused) and the binary's own default
+        // micro-batch, whose compute buffers measured 60 MiB — inside the
+        // 512 MiB forfait this arithmetic carries.
         let line = launched.args.argv().join(" ");
         assert!(line.contains("--cache-type-k q8_0"), "{line}");
         assert!(line.contains("--cache-type-v q8_0"), "{line}");
         assert!(line.contains("--flash-attn on"), "{line}");
-        assert!(line.contains("--ubatch-size 128"), "{line}");
+        assert!(line.contains("--ubatch-size 512"), "{line}");
+        assert!(line.contains("--batch-size 2048"), "{line}");
     }
 
-#[test]
-fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
-    // Apertus 70B is the row the 96 KiB assumption under-counted; its
-    // measured cache is 163_840 bytes per token at the q8_0 this crate
-    // pins. On 64 GiB (48 GiB usable), 43_721_600_512 bytes of weights
-    // (the pinned file's exact size) and 512 MiB of buffers leave
-    // 7_281_136_128 bytes of cache: 44_440 whole tokens. A usable server
-    // context, not a floor-division artefact.
+    #[test]
+    fn yesterdays_chat_starts_warm_because_the_server_runs_one_classic_slot() {
+        // With the default slot count this build runs a unified KV buffer
+        // and clears idle slots on every new task, measured on the shipped
+        // build: an alternating conversation paid the whole prefill every
+        // turn (cache_n 0, ~4.0 s at 4.5k tokens). One classic slot keeps
+        // the prompt cache in the game — the same turn measured 187 ms —
+        // which is why the flag says 1 and not the default.
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Metal, 64 * GIB);
+        let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        let line = launched.args.argv().join(" ");
+        assert!(line.contains("--parallel 1"), "{line}");
+    }
+
+    #[test]
+    fn every_shipped_plan_keeps_the_whole_reservation_inside_the_budget() {
+        // A property, not a formula: whatever the roof arithmetic says, the
+        // whole reservation — weights, mmproj, compute buffers, the live
+        // context, and the sleeping chats — must fit inside what the
+        // machine can give, for every shipped row on every machine size.
+        // And the roof never exceeds the binary's own 8192 MiB default: a
+        // limit wider than the default it replaces is not a limit. The
+        // first cut of the roof ("two KV reservations", computed from a
+        // context that had already spent the whole leftover) failed both
+        // here: 90 GiB of cache on a 64 GiB machine.
+        for model in rows() {
+            for gib in [8u64, 16, 32, 64] {
+                let budget = memory_budget(Backend::Metal, gib * GIB);
+                let Some(launched) = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+                else {
+                    continue; // not fundable on this machine: nothing is promised
+                };
+                let line = launched.args.argv().join(" ");
+                let roof_mib = cache_ram_mib(&line);
+                let footprint = footprint_bytes(model, launched.args.context_tokens);
+                let reserved = footprint.total_bytes() + roof_mib * MIB;
+                assert!(
+                    reserved <= budget.usable_bytes,
+                    "{} on {gib} GiB: context {} tokens, roof {roof_mib} MiB, \
+                     reserved {reserved} over usable {}",
+                    model.display_name,
+                    launched.args.context_tokens,
+                    budget.usable_bytes
+                );
+                assert!(
+                    roof_mib <= 8192,
+                    "{} on {gib} GiB: roof {roof_mib} MiB is wider than the \
+                     binary default it replaces",
+                    model.display_name
+                );
+                eprintln!(
+                    "{:<26} {:>3} GiB | ctx {:>7} | roof {:>5} MiB",
+                    model.display_name, gib, launched.args.context_tokens, roof_mib
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
+        // Apertus 70B is the row the 96 KiB assumption under-counted; its
+        // measured cache is 163_840 bytes per token at the q8_0 this crate
+        // pins. On 64 GiB (48 GiB usable), 43_721_600_512 bytes of weights
+        // (the pinned file's exact size) and 512 MiB of buffers leave
+        // 7_281_136_128 bytes; the sleeping-chat reserve takes a quarter,
+        // and the context funds the rest.
         let model = shipped_row(APERTUS);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 44_440);
+        assert_eq!(launched.args.context_tokens, 33_330);
         assert!(fits(model, launched.args.context_tokens, &budget));
-        assert!(
-            !fits(model, launched.args.context_tokens + 1, &budget),
-            "one more token would not be paid for"
-        );
-        assert_eq!(launched.memory.kv_cache_bytes, 44_440 * 163_840);
+        // The machine would pay for another token: the sleeping-chat
+        // reserve is what stops it, which is the whole point of carving
+        // the roof before the context rather than after.
+        assert!(fits(model, launched.args.context_tokens + 1, &budget));
+        assert_eq!(launched.memory.kv_cache_bytes, 33_330 * 163_840);
         assert!(
             !launched.memory.kv_per_token_assumed,
             "this row carries a measurement, not the assumption"

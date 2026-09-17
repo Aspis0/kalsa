@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 # The bearer credential is fixed-size and compared without a timing branch.
 subtle = "2"
+# 128 random bits per job id: a resume id nobody can guess its way into.
+getrandom = "0.3"
 
 [dev-dependencies]
 # The test mints the same public handshake credential the desktop stores.

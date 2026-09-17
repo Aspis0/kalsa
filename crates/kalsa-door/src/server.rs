@@ -5,7 +5,8 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::{proxy, Door, DoorError, RunningDoor, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, WORKERS};
+use crate::registry::Registry;
+use crate::{proxy, Door, DoorError, RunningDoor, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
 struct Work {
     stream: TcpStream,
@@ -35,14 +36,16 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let stop = Arc::new(AtomicBool::new(false));
     let connections = Arc::new(AtomicUsize::new(0));
     let active = Arc::new(AtomicUsize::new(0));
+    let registry = Arc::new(Registry::new());
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
-    let mut threads = Vec::with_capacity(WORKERS + 1);
+    let mut threads = Vec::with_capacity(WORKERS + 2);
 
     for index in 0..WORKERS {
         let worker_stop = Arc::clone(&stop);
         let worker_active = Arc::clone(&active);
         let worker_receiver = Arc::clone(&receiver);
+        let worker_registry = Arc::clone(&registry);
         let credential = door.credential;
         let port = door.upstream_port;
         let head_patience = door.head_patience;
@@ -54,6 +57,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_stop,
                     worker_active,
                     worker_receiver,
+                    worker_registry,
                     credential,
                     port,
                     head_patience,
@@ -68,6 +72,20 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                 join_all(threads);
                 return Err(DoorError::Thread(error));
             }
+        }
+    }
+
+    let reaper_stop = Arc::clone(&stop);
+    let reaper_registry = Arc::clone(&registry);
+    let result = thread::Builder::new()
+        .name("kalsa-door-reaper".into())
+        .spawn(move || reaper(reaper_stop, reaper_registry));
+    match result {
+        Ok(thread) => threads.push(thread),
+        Err(error) => {
+            stop.store(true, Ordering::SeqCst);
+            join_all(threads);
+            return Err(DoorError::Thread(error));
         }
     }
 
@@ -92,6 +110,18 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         active_connections: active,
         threads: Mutex::new(threads),
     })
+}
+
+/// Forgets kept answers whose retention ran out, whether or not anything
+/// else ever touches the registry again.
+fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
+    while !stop.load(Ordering::SeqCst) {
+        registry.reap();
+        let wake = Instant::now() + REAP_INTERVAL;
+        while Instant::now() < wake && !stop.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_millis(200));
+        }
+    }
 }
 
 fn accept_loop(
@@ -148,6 +178,7 @@ fn worker(
     stop: Arc<AtomicBool>,
     active: Arc<AtomicUsize>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
+    registry: Arc<Registry>,
     credential: [u8; crate::TOKEN_BYTES],
     upstream_port: u16,
     head_patience: Duration,
@@ -168,6 +199,7 @@ fn worker(
                         head_patience,
                         upstream_port,
                         &credential,
+                        &registry,
                         &stop,
                         &active,
                         response_observer.as_deref(),
@@ -185,7 +217,7 @@ fn worker(
 
 fn reject_busy(stream: &mut TcpStream) {
     let _ = stream.set_nonblocking(true);
-    let _ = std::io::Write::write_all(stream, crate::BUSY_RESPONSE);
+    let _ = std::io::Write::write_all(stream, BUSY_RESPONSE);
 }
 
 fn join_all(threads: Vec<thread::JoinHandle<()>>) {
