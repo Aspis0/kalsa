@@ -917,6 +917,44 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   declared waiting ceiling. Deliberately NOT built unilaterally — storing a number nothing reads is
   the API-nobody-constructs rule, and which axis may deny a model is a product call.
 
+- **Correction to the entry above, and the measurement that forced it.** That entry said the
+  prefill EMA is "read by `documentChatStrategy` alone". False, and the truth matters: it has
+  three consumers, two of which can ABORT work — `documentChatStrategy.ts:35` (document budget),
+  `LlamaService.ts:3671` (the prefill stall deadline) and `LlamaService.ts:5046` (the
+  memory-extract timeout). The accurate claim is narrower: the EMA is never PERSISTED, so it is
+  empty at first launch and unavailable to catalogue admission — not that nothing reads it.
+
+  **A single per-token cost is not a constant; it grows with the prompt.** Jelly, 2026-09-17,
+  `lfm2.5-2.6b` QAD-Q4_0 at the RAM-upgraded `n_ctx` 16384, one ordinary question sent into an
+  existing 28-message conversation:
+  - the EMA, measured on the 2153-token prewarm, stood at **32.98 tok/s**
+    (`KALSA_STALL {"reason":"prefill","tokPerSec":32.98…}`), i.e. the same 30.3 ms/token as the
+    prewarm — two independent agreeing measurements;
+  - `prefillDeadlineMs` is `max(180 s, 5 × estimate)`, and it produced **885 s**;
+  - the prefill did not finish inside it. The saved KV holds 8292 tokens, so the real rate was
+    below **9.4 tok/s** — at least **3.5x worse than the EMA**, because the EMA was taken on a
+    short prompt and the turn needed a long one.
+
+  So a per-(device, model) prefill cost has to be a curve over prompt length, not one number. A
+  catalogue gate built on a short-prompt EMA would under-estimate the wait it exists to prevent.
+
+  **What the user saw instead.** The turn was killed by the watchdog and the app said:
+  *"La risposta non è iniziata entro 885 s. Il dispositivo potrebbe avere poca memoria o essere
+  troppo caldo; riprova o scarica il modello."* (`i18n/it.ts:662`, key `prefillStalled`). Both
+  offered causes are wrong here — the app had logged `availableMb: 2440` six seconds earlier and
+  the battery was at 38 °C against a 56 °C device threshold — and both offered remedies (retry,
+  re-download) fail identically, because the cause is the model-and-context pair on this device.
+  **Fifteen minutes of waiting, then a misdiagnosis.** That is the product behaviour the owner is
+  pointing at, produced by the shipped recommended model, not by the 4B.
+
+- **`saveSession` on the slow device: measured, and the worry was misplaced.** Same run:
+  `KALSA_SESSION {"op":"save","ms":454,"ok":true,"usedTokens":14336,"tokens":8292,
+  "estimatedBytes":225514063,"messageCount":28}`. 8292 tokens in **454 ms** on the Jelly against
+  the S23's worst recorded 1022 ms at 6636 tokens — the slow phone is ~2.8x FASTER per token than
+  the fast phone's worst case. The reason the aux call was left unbounded was "no sample from a
+  slow device"; there is one now, and a 15 s bound would sit ~33x above it. The comment in
+  `snapshotNativeSession` can be closed out and the bound applied.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
