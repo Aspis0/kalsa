@@ -11,6 +11,7 @@
 
 mod door;
 mod failure;
+mod instance;
 mod metrics;
 mod options;
 mod pairing;
@@ -753,8 +754,6 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
         .retry(serving, &desk.reachable, road_node_id.as_deref(), SystemTime::now());
 }
 
-/// The owner says the new phone is theirs. The stored credential is replaced;
-/// the old phone stops working, which is what replacing means.
 /// The owner says a device is no longer part of the house. The others keep
 /// their credentials and their ids.
 #[tauri::command]
@@ -778,6 +777,19 @@ fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), St
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // First statement, before anything that can read or write the
+    // credential store: the store assumes a single writing process, and
+    // this is where that becomes true. A second instance knocks on the
+    // guard (which brings the running window forward) and starts nothing.
+    // Shared with the setup hook, because the hook can outlive this frame:
+    // the guard must live as long as the app, not as long as the hook.
+    let guard = std::sync::Arc::new(match instance::claim() {
+        Ok(guard) => guard,
+        Err(instance::AlreadyRunning) => {
+            eprintln!("Kalsa Brain is already running — its window is coming forward.");
+            return Ok(());
+        }
+    });
     let app = tauri::Builder::default()
         .manage(Brain::new())
         .invoke_handler(tauri::generate_handler![
@@ -794,7 +806,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_forget_device,
             brain_pairing_forget
         ])
-        .setup(|app| {
+        .setup({
+            let guard = std::sync::Arc::clone(&guard);
+            move |app| {
             // The desk needs this machine's data directory, and the square
             // needs the listener's port: both are only knowable once the app
             // has a handle, so this is where the pairing side is born.
@@ -806,8 +820,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // pairing state: `?` aborts setup and the outer error mapper
             // reports it instead of drawing a QR that cannot work.
             app.manage(pairing_desk(file)?);
+            // A knock means a second instance was launched: bring this
+            // window forward, so the owner sees the app they already have.
+            let handle = app.handle().clone();
+            guard.watch(move || {
+                if let Some(window) = handle.get_webview_window("main") {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            });
             Ok(())
-        })
+        }})
         .build(tauri::generate_context!())
         .map_err(|error| {
             eprintln!("kalsa-brain: pairing service could not start: {error}");
