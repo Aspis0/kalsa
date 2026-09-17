@@ -13,7 +13,7 @@
  * Compile-from-disk pattern (same as streamCoalescerHarness). Exit 1 on fail.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -21,6 +21,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 function compile() {
+  // Wipe first. tsc mirrors the common root of its inputs, so the moment
+  // turnTelemetry.ts gained an import the output moved from .build/ to
+  // .build/engine/ — and resolveBuilt, which checks the flat path first, kept
+  // loading a stale artefact while tsc exited 0 and printed nothing. This
+  // harness reported green for six days against a build from 2026-09-10.
+  rmSync(path.join(projectRoot, "scripts/.build"), {
+    recursive: true,
+    force: true,
+  });
   const r = spawnSync(
     "npx",
     [
@@ -75,6 +84,11 @@ const EXPECTED_KEYS = [
   "predictedPerSecond",
   "contextFull",
   "interrupted",
+  "truncated",
+  // prompt_n is the reuse metric this whole line exists for, and it was
+  // missing from this list: the hand-written sample never set promptN, so
+  // JSON.stringify dropped the key and the guard never saw it.
+  "prompt_n",
 ].sort();
 
 async function main() {
@@ -116,6 +130,8 @@ async function main() {
     predictedPerSecond: 15,
     contextFull: false,
     interrupted: false,
+    truncated: false,
+    promptN: 96,
   };
 
   // ── 1. Prefix ──────────────────────────────────────────────────────────
@@ -131,19 +147,29 @@ async function main() {
   });
 
   // ── 2. JSON round-trip ─────────────────────────────────────────────────
-  test("JSON round-trip equals { turnId, ...r }", () => {
+  test("JSON round-trip is { turnId, ...r } with promptN renamed to prompt_n", () => {
+    // Not a plain spread: the formatter pulls promptN and ciswireFlags out of
+    // the record and re-emits promptN under its wire name. The old assertion
+    // compared against a plain spread and only passed because the sample had
+    // no promptN — the one rename this line performs went unchecked.
     const line = formatTelemetryLine("turn-42", sample);
     const json = line.slice("KALSA_TELEMETRY ".length);
     const parsed = JSON.parse(json);
+    const { promptN, ciswireFlags, ...rest } = sample;
     assert(
-      JSON.stringify(parsed) === JSON.stringify({ turnId: "turn-42", ...sample }),
+      JSON.stringify(parsed) ===
+        JSON.stringify({ turnId: "turn-42", ...rest, prompt_n: promptN }),
       `payload mismatch: ${json}`,
     );
   });
 
   // ── 3. No extra fields (base sample has no optional tool/strategy) ─────
   test("payload keys are exactly the expected set", () => {
-    const line = formatTelemetryLine("2", sample);
+    // Build the record the way production does. Feeding the hand-written
+    // `sample` here made this guard test a literal this file owns: a field
+    // added to RoundTelemetry by roundTelemetryFromResult would ship while the
+    // key-set check stayed green, which is how `truncated` got in unnoticed.
+    const line = formatTelemetryLine("2", roundTelemetryFromResult({}, 1));
     const parsed = JSON.parse(line.slice("KALSA_TELEMETRY ".length));
     const keys = Object.keys(parsed).sort();
     assert(
