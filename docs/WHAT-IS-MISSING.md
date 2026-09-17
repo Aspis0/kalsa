@@ -91,3 +91,61 @@ Retrieval and embeddings on the PC (measured: full context is cheaper than a
 download — `DESKTOP-FEATURES-ALREADY-OURS.md` §7). A catalog gate threshold (the
 owner holds that number). Model-authored HTML without isolation (six critical CVEs
 say do not, §8 of the same doc).
+
+---
+
+## Addendum: yes there is a queue, and it is the wrong one
+
+Asked by the owner, 2026-09-17: what happens when two people prompt at the same time,
+and could the app show that the AI is currently busy with a named person.
+
+Read in the server we ship (b10950, `tools/server/`), not assumed:
+
+```cpp
+// server-context.cpp:2389
+// if no slot is available, we defer this task for processing later
+queue_tasks.defer(std::move(task));
+```
+
+```cpp
+// server-queue.h:25
+    std::deque<server_task> queue_tasks_deferred;
+```
+
+So a request that finds every slot busy is **deferred, not refused**, and when a slot
+frees exactly one deferred task is popped — FIFO, except a task that asked for the slot
+that just freed jumps ahead (`server-queue.cpp:90-108`).
+
+Two properties of that queue decide the design:
+
+1. **It is unbounded.** Nothing in the code caps the deque. Ten phones against a
+   one-slot server means ten held HTTP connections and a tenth person waiting behind
+   nine complete answers, with no error and no notice. On a phone that is
+   indistinguishable from a broken app.
+2. **It is silent.** Nothing on the wire tells a waiting client that it is waiting, or
+   where it is in the line. The only observability is Prometheus text on `/metrics`:
+   `requests_processing` and `requests_deferred` (`server-task.cpp:1578-1584`) — two
+   global counters with no identity attached.
+
+**Therefore the queue has to be ours.** The door is the only component that sees every
+request and — once one credential per device exists — knows *who* is asking. That makes
+the owner's two ideas the same mechanism:
+
+- the door admits as many concurrent requests as the server has slots, and holds the
+  rest in a **bounded** queue of its own, refusing with a real answer when it is full
+  instead of hanging;
+- because it knows the device, it can say *"busy with Marco, you are next"* instead of
+  showing a spinner that means nothing.
+
+Constraints this must respect, all already measured:
+- `id_slot` out of range is **not** refused, it wraps (`server-context.cpp:1521`). If
+  the door assigns slots it must never emit an out-of-range one, because the server
+  will silently put two people in the same slot.
+- Slot count is not free: slots divide the context per person, and `--parallel 1` was
+  worth **21x** on prompt-cache reuse because unified KV erases inactive slots. The
+  number of slots is item 2 of the morning list, and it now has a third constraint
+  besides memory and context: how long the queue gets.
+- A profile is a human label on a device credential, so it costs almost nothing once
+  per-device credentials exist. But "busy with X" is itself a disclosure: it may show a
+  **name**, never the prompt, never the content, and the active label needs a timeout
+  so a device that vanished mid-stream does not hold it forever.
