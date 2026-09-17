@@ -1035,7 +1035,13 @@ export async function queueStaticPrefixPrewarm(
   ) {
     return;
   }
-  if (prewarmGivenUp(staticPrefixPrewarmFailures.get(prewarmBudgetKey(prefix.hash)) ?? 0)) {
+  // Bound once, here: dispose nulls activeModelId before the job's finally
+  // runs, and initEngine sets it a few awaits after the context exists — so a
+  // key read live at either end can be written under ":<hash>" and never read
+  // again. The budget belongs to the model that was active when we decided to
+  // prewarm, which is this one.
+  const budgetKey = prewarmBudgetKey(prefix.hash);
+  if (prewarmGivenUp(staticPrefixPrewarmFailures.get(budgetKey) ?? 0)) {
     logPrewarm({ op: "skip", reason: "given_up", hash: prefix.hash });
     return;
   }
@@ -1427,7 +1433,6 @@ export async function queueStaticPrefixPrewarm(
       }
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
-      const budgetKey = prewarmBudgetKey(prefix.hash);
       if (succeeded) {
         staticPrefixPrewarmFailures.delete(budgetKey);
       } else if (persistentFailure) {

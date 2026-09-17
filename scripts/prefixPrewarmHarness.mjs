@@ -560,26 +560,34 @@ async function main() {
     return shapeOf(llamaSrc.slice(a, b + to.length));
   };
 
+  // The key is bound once at queue time: dispose nulls activeModelId before
+  // the job's finally runs, and initEngine sets it a few awaits after the
+  // context exists, so a key read live at either end lands under ":<hash>" and
+  // is never read again — the failure silently stops counting.
   const queueGuard = regionBetween(
-    "if (prewarmGivenUp(staticPrefixPrewarmFailures.get(",
+    "const budgetKey = prewarmBudgetKey(prefix.hash);",
     "return;\n  }",
   );
   assert(
     queueGuard ===
-      'if (prewarmGivenUp(staticPrefixPrewarmFailures.get(prewarmBudgetKey(prefix.hash)) ?? 0)) ' +
+      "const budgetKey = prewarmBudgetKey(prefix.hash); " +
+        "if (prewarmGivenUp(staticPrefixPrewarmFailures.get(budgetKey) ?? 0)) " +
         '{ logPrewarm({ op: "skip", reason: "given_up", hash: prefix.hash }); return; }',
-    `the queue guard must log AND return, keyed on this prefix — found: ${queueGuard}`,
+    `the queue guard binds the key once, logs AND returns — found: ${queueGuard}`,
+  );
+  assert(
+    (llamaSrc.match(/prewarmBudgetKey\(/g) || []).length === 2,
+    "prewarmBudgetKey is called in exactly one place besides its declaration",
   );
 
   const budgetUpdate = regionBetween(
-    "const budgetKey = prewarmBudgetKey(prefix.hash);",
+    "if (succeeded) {\n        staticPrefixPrewarmFailures.delete(budgetKey);",
     "+ 1,\n        );\n      }",
   );
   assert(
     budgetUpdate ===
-      "const budgetKey = prewarmBudgetKey(prefix.hash); if (succeeded) { " +
-        "staticPrefixPrewarmFailures.delete(budgetKey); } else if (persistentFailure) { " +
-        "staticPrefixPrewarmFailures.set( budgetKey, " +
+      "if (succeeded) { staticPrefixPrewarmFailures.delete(budgetKey); } " +
+        "else if (persistentFailure) { staticPrefixPrewarmFailures.set( budgetKey, " +
         "(staticPrefixPrewarmFailures.get(budgetKey) ?? 0) + 1, ); }",
     `the budget update must clear on success and increment by one otherwise — found: ${budgetUpdate}`,
   );
@@ -621,6 +629,14 @@ async function main() {
   // ── The device run's verdict, against fixtures ───────────────────────────
   // It used to be a `node -e` string inside device-restore-protocol.sh, so the
   // only way to find out whether a counter was right was to run a phone.
+  const verdictRaw = (name, evidence) => {
+    const file = path.join(outDir, `evidence-${name}.txt`);
+    writeFileSync(file, evidence, "utf8");
+    return spawnSync("node", [path.join(projectRoot, "scripts/restoreVerdict.mjs"), file], {
+      cwd: projectRoot,
+      encoding: "utf8",
+    });
+  };
   const verdict = (name, evidence) => {
     const file = path.join(outDir, `evidence-${name}.txt`);
     writeFileSync(file, evidence, "utf8");
@@ -734,12 +750,18 @@ async function main() {
   );
 
   // A run that produced nothing must say so, not divide by zero.
-  const noEvidence = verdict("empty", "");
+  // An empty evidence file means the capture failed. It must not print the same
+  // zeros as a real run where nothing was reused — that reads like a finding.
+  const noEvidence = verdictRaw("empty", "");
   assert(
-    /KV_PREFIX: no KALSA_KVPREFIX line with a live cache/.test(noEvidence),
-    "an empty evidence file states that, and does not crash",
+    noEvidence.status === 2,
+    `empty evidence must fail the run, not report it — exited ${noEvidence.status}`,
   );
-  assert(/restore_ok=0 /.test(noEvidence), "empty evidence counts zero restores");
+  assert(
+    /EVIDENCE: empty or unreadable/.test(noEvidence.stdout) &&
+      /KV_PREFIX_CRITERION: FAIL \(no evidence captured/.test(noEvidence.stdout),
+    "an empty evidence file says so in the verdict itself",
+  );
 
   console.log("prefixPrewarmHarness OK");
 }

@@ -11,7 +11,16 @@
  */
 import { readFileSync } from "node:fs";
 const read = (p) => { try { return readFileSync(p, "utf8"); } catch { return ""; } };
-const ev = read(process.argv[2]);
+const evidencePath = process.argv[2];
+const ev = read(evidencePath);
+// A run whose logcat capture failed prints the same zeros as a run where the
+// prefix was never reused, and the second reads like a finding. It is not one:
+// exit non-zero so the protocol's pipeline fails instead of reporting it.
+if (ev.trim() === "") {
+  console.log("EVIDENCE: empty or unreadable — " + (evidencePath ?? "<no path given>"));
+  console.log("KV_PREFIX_CRITERION: FAIL (no evidence captured; this is not a measurement)");
+  process.exit(2);
+}
 const n = (re) => (ev.match(re) || []).length;
 console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
   " restore_miss=" + n(/"op":"restore","ok":false/g) +
