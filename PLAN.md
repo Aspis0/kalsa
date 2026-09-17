@@ -1666,3 +1666,74 @@ CI verde con lo sha bumpato, `assert-native-patch` verde, una verifica su telefo
 `patches/`/`vendor/`/pin va ri-derivata nel fork (commit B/C sono script, si rilanciano e il
 manifest dice se torna). Dopo lo step 3 le modifiche native vanno nel fork (rn-*/jsi) o in
 kalsallama (motore) + bump dello sha.
+
+**Step 6 — iOS dal fork (owner 17/09 sera: "l'app varra' anche per iOS").** Stessa regola di
+Android: il motore si compila da sorgente, `RNLLAMA_BUILD_FROM_SOURCE=1` nel Podfile/env cosi'
+`llama-rn.podspec:33-40` compila `cpp/**` (gia' patchato: `ios/CMakeLists.txt` include
+`rn-governor*`). Niente xcframework da ospitare. Da verificare PRIMA di dichiararlo: (a) la build
+iOS da sorgente vuole `cpp/ggml-metal/ggml-metal-embed.s` (upstream lo genera in bootstrap e lo
+gitignora; il nostro flatten ha `generate_metal_embed_s` ma il vendor non lo contiene: capire se
+e' condizionale a macOS/xcode e se `.s` manca la build iOS fallisce al link o salta Metal);
+(b) un workflow iOS in CI non esiste oggi: serve un runner macOS. Dopo lo step 4, mai insieme.
+Prova: build iOS in CI verde da sorgente + il marker `kalsa-native-patches` in `librnllama` iOS.
+
+## 17/09 sera — la KV: trovata la causa, e non era la capacita'
+
+Sette commit su `Aspis0/kalsa@main`: `5de99f3`, `ad7ff7d`, `235444f`, `f62272b`, `57bad0c`,
+`f4b28d6`, `899f355`, `3a504a6`.
+
+**La causa, in una riga.** Il prewarm accodava `{role:"user", content:"."}` al prefisso statico,
+sempre. Quei quattro token stanno **oltre** il punto in cui il prompt successivo diverge, e su un
+modello ibrido questo costa tutto: `llama-memory-recurrent.cpp:194` entra nel ramo di rollback
+solo se `0 < p0 && p0 <= cell.pos`, e quel ramo e' limitato da `n_rs_seq` — 0 senza draft model,
+quindi entrarci significa **fallire**. `seq_rm` fallisce, `rn-completion.cpp:620-640` fa
+`llama_memory_clear` e `n_past = 0`: re-prefill dell'intera finestra. Senza il filler
+`n_common == embd.size()`, `p0 > cell.pos`, il ramo non si attiva e il prefisso sopravvive.
+
+Spiega anche perche' lo snapshot su disco da solo non poteva rendere: `loadSession` un checkpoint
+lo registra (`jsi/JSISession.h:148`, "Kalsa patch #2") ma a `embd.size()`, e il suo commento dice
+per cosa — *"when n_common equals this length (next prompt extends this history)"*. Un prefisso
+ripristinato non viene esteso, ci si diverge dentro, al filler.
+
+**I template, letti dal GGUF spedito e non dal `.jinja` di riferimento.** Questo e' il passo che
+ha trovato il difetto peggiore della giornata, uno che nessun audit delegato poteva vedere.
+- **LFM2.5-2.6B**: con il solo system rende `<|im_start|>system\n…<|im_end|>\n` e i due loop sui
+  messaggi girano zero volte. Nessun filler, prefisso riusato intero. E' il modello che spediamo.
+- **Qwen3.5-4B**: rifiuta. `multi_step_tool` parte true e si azzera solo su un ruolo `user`, poi
+  `raise_exception('No user query found in messages.')` (riga 78 del suo template). Nessuno dei
+  tre pattern che avevo scritto in `57bad0c` corrispondeva a quella stringa: il fallimento cadeva
+  su `reason:"fail"`, il modello non entrava mai nel set del filler, e il suo prewarm sarebbe
+  fallito a ogni tentativo per tutta la vita del processo. Corretto in `899f355` + `3a504a6`
+  (ri-accodamento, perche' i quattro chiamanti del prewarm non ne garantiscono un altro).
+
+**Due strade chiuse per costruzione, perche' nessuno le ripercorra.**
+- Salvare solo il prefisso troncando (`saveSession(path, {tokenSize})`): `jsi/JSISession.h:198-206`
+  lancia `kv_inconsistent` se `save_pos_max + 1 != save_size`.
+- Far registrare a `loadSession` un checkpoint al confine del prefisso: vietato dal commento della
+  patch #2 stessa — *"capture dumps the current recurrent tail, so a shorter label on a 2441-token
+  KV is a lie"*.
+
+**Governor e persistenza di sessione si escludono.** `jsi/JSISession.h:48-50` e `:173-175` lanciano
+su save e load col governor acceso, e il motivo e' reale:
+`llama_governor_init(model_prefill, model_decode, params_prefill, params_decode)` possiede **due**
+contesti con due KV, `clear_cache` le svuota separatamente, e il passaggio di lato copia fra le due
+(`llama-governor.cpp:105`). `active_ctx()` e' quello che ha girato per ultimo. Oggi non morde
+(governor OFF di default e sulla fascia high), ma le due meta' del piano termico non possono stare
+accese insieme.
+
+**Il gate che mancava.** `scripts/assert-overlay-includes.sh`: risolve ogni `#include "..."` locale
+nell'albero assemblato e fallisce nominando file e includenti, in CI subito dopo `npm ci`. Nato
+perche' la allow-list dell'overlay non conosceva **nove** file del fork (`common/json.{h,cpp}`,
+`llama-kv-cache-dsa-iswa`, `llama-kv-cache-msa`, `llama-memory-hybrid-idx`, `mtmd-internal.h`,
+`mtmd-helper-common.h`, `vendor/hash`) e la build moriva a cinque minuti dentro l'NDK.
+
+### Cosa resta, in ordine
+
+1. **CI verde su `3a504a6`** — e' il gate, non il mio `npm run typecheck`.
+2. **Un run sull'S23** (serve il via dell'owner). Criterio: una riga
+   `KALSA_PREWARM op:"restore" ok:true` per slide al posto dei 40 s, e sul send dietro un
+   `KALSA_KVPREFIX` con `n_common == embd`. `f4b28d6` lo fa gia' stampare in `RESULT.txt` come
+   `PREFIX_PREWARM:` e `KV_PREFIX: … whole_cache_reused=YES|NO`.
+3. **Audit ostile di `f62272b`** (GLM) ancora fuori — e' l'unico pezzo nel send path.
+4. Aperte e non mie: soglia del gate di catalogo, soglia termica, `WINDOW_RESERVE_TOKENS`,
+   n_ctx 8192→16384 (**~+52 MiB**, non +239 MB).
