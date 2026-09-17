@@ -4,6 +4,9 @@
   flex-direction: column;
   height: 100dvh;
   background: var(--page);
+  /* The crescent glow bleeds 60px past the shell on both sides by design;
+     clip it so narrow windows never gain a horizontal scrollbar. */
+  overflow-x: clip;
 }
 
 .topbar {

@@ -134,6 +134,20 @@ Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.
 
 Voti: recovery 5 · switch 5.
 
+## Giro 7 — mezzaluna: pochi punti, punto attivo, finestra stretta (2026-09-18)
+
+- 23: tre punti sull'arco intero — arioso, voluto, non perso. La matematica
+  di devboule resta intatta: guardato, tenuto.
+- 24: punto attivo in accento fra punti bianchi + thread dimmato dietro.
+  Il giudizio accento-su-arco: promosso, niente da cambiare.
+- 25: a 700px c'era overflow orizzontale di 60px (body scrollWidth 760 su
+  700): il `.crescent-glow` sborda di 60px per lato by design e allargava
+  l'area scrollabile. **Fix**: `overflow-x: clip` su `.shell` (il glow è
+  decorativo). Riverificato: tutto dentro, freccia › intera.
+  Misurato, non indovinato: probe con getBoundingClientRect prima/dopo.
+
+Voti: pochi 5 · attiva 5 · stretta-aperta 5 (dopo fix).
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
