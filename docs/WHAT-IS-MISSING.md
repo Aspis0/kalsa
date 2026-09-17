@@ -1,9 +1,12 @@
 # What is missing, 2026-09-17
 
+*Updated the same evening. Two items closed, three added. Each closure names the
+commit that closed it, so the claim can be checked instead of believed.*
+
 Written after the morning's measurements, by reading the code rather than the notes.
 Ordered by what blocks the product, not by what is interesting.
 
-## 1. There is one credential, for everybody
+## 1. There is one credential, for everybody — CLOSED
 
 `crates/kalsa-door/src/lib.rs:127` holds exactly one:
 
@@ -14,7 +17,17 @@ Ordered by what blocks the product, not by what is interesting.
 So every paired phone presents the same secret. You cannot tell two devices apart,
 you cannot revoke one without breaking all of them, and you cannot show the owner
 who is connected. This is the item that turns the app from "mine" into "something I
-can give to my family", and nothing in the code starts it.
+can give to my family", and nothing in the code started it.
+
+**Closed by `02a2139`** — `crates/kalsa-door/src/devices.rs` now holds one credential per
+device, compared in constant time with no early exit, folded into a single branch so the
+loop cannot leak *which* device matched through timing. The credential field is private,
+`Debug` is not derived on anything holding one, and the whole thing was proven by mutation:
+breaking the comparison leaves it compiling and turns the tests red.
+
+What it unlocked is bigger than revocation: the door can now answer *who*, which is the
+precondition for every multi-device surface — profiles, "busy with X", per-person turn
+rotation, and the room.
 
 ## 2. Slots wrap instead of refusing — silently
 
@@ -31,7 +44,12 @@ other's prompt cache and each sees the other's context vanish. Any multi-device 
 has to own the mapping from device to slot and refuse when there is no room, because
 the server will not refuse for us.
 
-## 3. The compute-buffer measurement got MORE important today, not less
+**Still open, but no longer only on paper.** It is now the acceptance criterion of the
+multi-device measurement running tonight: one conversation's tokens must never appear in
+another's, tested with a marker string and a tokenized shared-prefix length rather than by
+reading upstream's intentions. See `HOUSEHOLD-RULES.md` §1.
+
+## 3. The compute-buffer budget on a large dense model — CLOSED
 
 The morning's first item was the 512 MiB budget on a large dense model. Today's
 numbers came from Trinity, and Trinity flatters us: it is a sliding-window model.
@@ -46,6 +64,15 @@ how big the context gets. A dense model has no sliding window — every layer is
 full-window layer. Reading today's 175 MiB at 16k as if it were a constant would
 under-predict a dense row by something like four times. The measurement is still
 owed, and the whole "how much context can we offer per person" question sits on it.
+
+**Closed by `8aefd76`, `e0652c7` and `31cc0d8`** (`COMPUTE-BUFFERS-DENSE.md`). Gemma 4 12B —
+a real dense row, 48 layers, no sliding window — was downloaded, pinned by sha256, and
+measured. The 512 MiB budget holds at ubatch 512 with 2.95x of margin and is breached at
+2048 on the GPU buffer alone, so **ubatch is capped at 1024**, lower on smaller machines.
+
+The finding that outlived the measurement: the per-token KV cost is **affine, not linear**.
+A sliding-window model's cost per token falls as context grows, so no scalar constant can
+carry it. `ASSUMED_KV_BYTES_PER_TOKEN` is a fixture for the tests, never a predictor.
 
 ## 4. iroh on the mobile network
 
@@ -79,11 +106,54 @@ has to be Rust, because a web page cannot enumerate a disk. Started today as
 components against a few document folders), since a command that reads a path chosen
 by the page is a capability handed to the least trustworthy part of the program.
 
+**Written, not wired.** `crates/kalsa-files` exists and its tests pass (`8c87ba9`), and it is
+called by nothing: no Tauri command, no UI. That is this repo's recurring defect class — code
+that is correct and never connected — and it stays on this list until a real click reaches it.
+
 ## 8. The phone's conversations and the PC's are not the same conversations
 
 The decision says the PC is the store of record and the phone a client with a cache.
 There is no protocol. Not urgent while one person uses one device; it becomes the
 whole product the moment §1 exists.
+
+## 9. The upstream model router exists — and its admission policy is not ours
+
+b10950 ships a real router (`tools/server/server-models.cpp`): a parent process, one child
+server per model, `POST /models/load`, LRU unloading. Changing model in a household does not
+have to mean killing everything, which is better news than the design assumed.
+
+But `common/common.h:686`:
+
+```cpp
+    int models_max = 4;                 // maximum number of models to load simultaneously
+```
+
+It counts models. It does not weigh them. Four Gemma 4 12B children is 28 GB of weights on a
+16 GB machine and the router will allow it, because nothing in it knows what a model costs.
+Our catalog does know — it carries the bytes. Admission stays with us; the router is a
+mechanism we drive, never a policy we inherit. Nothing of this is wired yet.
+
+## 10. The room is designed and not built
+
+`HOUSEHOLD-RULES.md` §4–§5: a shared conversation with the AI inside it, one turn at a time
+because a shared history generated concurrently stops being reproducible, ordered by rotation
+between people with at most one pending prompt each, ties to whoever waited longest, and the
+turn order shown to everyone. The AI hears the whole room and pays at the moment it is
+addressed, so nothing is prefilled for chatter.
+
+None of it exists in code. What it needs first is §1 (done) and a queue that is ours
+(the addendum below).
+
+## 11. Two numbers nobody has taken yet
+
+- **The cost of a switch.** Every alternation between conversations throws away the prompt
+  cache and pays a full re-prefill. Rotation is the fair turn policy only if that cost is
+  small; if it is seconds, the policy should serve two prompts from the same conversation
+  before yielding. Asked of tonight's measurement.
+- **The cost of self-summarisation.** Seconds for the big model to write a ~200-token summary
+  of ~4k tokens of room history, which is what decides whether the window problem needs a
+  second small model at all (`HOUSEHOLD-RULES.md` §6). Cannot be taken while the GPU is
+  running the multi-device measurement — a second server would corrupt those numbers.
 
 ## Not missing, deliberately
 
