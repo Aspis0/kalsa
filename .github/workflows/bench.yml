@@ -177,8 +177,9 @@ jobs:
       - name: Prebuild (CNG)
         # llama.rn ships PREBUILT jniLibs, but the plugin defaults to a source
         # build of its cpp/ so the patched cpp/ is compiled and patches/ take
-        # effect; KALSA_LLAMA_FROM_SOURCE=0 is the opt-out that restores
-        # prebuilt jniLibs. The env is set here only for explicitness. The real
+        # effect; KALSA_LLAMA_FROM_SOURCE=0 is not supported (the fork ships
+        # no prebuilt jniLibs) and setting it hard-fails the build. The env is
+        # set here only for explicitness. The real
         # guarantee the patches are in the binary is assert-native-patch.sh
         # below, not this env.
         env:

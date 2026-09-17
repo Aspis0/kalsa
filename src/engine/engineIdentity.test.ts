@@ -140,8 +140,8 @@ describe("engine build id generator", () => {
     kalsallamaSha: "134a35cf201f3a9c4b25eb32768198b8cb3f3c5d",
     llamaRnVersion: "0.12.8",
     sourceBuildPlugin: "0123456789abcdef".repeat(4),
-    native: ["bmoe/rn/bmoe_stream.cpp:native-sha"],
-    engineTree: ["cpp/rn-governor.cpp:engine-sha"],
+    native: [`bmoe/rn/bmoe_stream.cpp:${"a".repeat(64)}`],
+    engineTree: [`cpp/rn-governor.cpp:${"b".repeat(64)}`],
   };
 
   // One "changes when" test per input: if that input's line were dropped from
@@ -196,7 +196,7 @@ describe("engine build id generator", () => {
     expect(
       engineBuildIdFromInputs({
         ...baseInputs,
-        native: ["bmoe/rn/bmoe_stream.cpp:different-native-sha"],
+        native: [`bmoe/rn/bmoe_stream.cpp:${"c".repeat(64)}`],
       }),
     ).not.toBe(engineBuildIdFromInputs(baseInputs));
   });
@@ -206,9 +206,24 @@ describe("engine build id generator", () => {
     expect(
       engineBuildIdFromInputs({
         ...baseInputs,
-        engineTree: ["cpp/rn-governor.cpp:different-engine-sha"],
+        engineTree: [`cpp/rn-governor.cpp:${"d".repeat(64)}`],
       }),
     ).not.toBe(engineBuildIdFromInputs(baseInputs));
+  });
+
+  test("digest list order does not change the id", () => {
+    const { engineBuildIdFromInputs } = engineBuildIdModule;
+    const native = [
+      `bmoe/rn/bmoe_stream.cpp:${"a".repeat(64)}`,
+      `bmoe/rn/GovernorBatteryModule.kt:${"b".repeat(64)}`,
+      `bmoe/rn/third.cpp:${"c".repeat(64)}`,
+    ];
+    const first = engineBuildIdFromInputs({ ...baseInputs, native });
+    const second = engineBuildIdFromInputs({
+      ...baseInputs,
+      native: [native[2], native[0], native[1]],
+    });
+    expect(first).toBe(second);
   });
 
   test("throws on missing, empty, or malformed inputs", () => {
@@ -230,12 +245,16 @@ describe("engine build id generator", () => {
     expect(() =>
       engineBuildIdFromInputs({ ...baseInputs, native: [] }),
     ).toThrow(/input native/);
-    expect(() =>
-      engineBuildIdFromInputs({
-        ...baseInputs,
-        native: ["bmoe/rn/bmoe_stream.cpp:native\nsha"],
-      }),
-    ).toThrow(/must not contain newlines/);
+    for (const garbage of [
+      "garbage",
+      `bmoe/rn/bmoe_stream.cpp:${"a".repeat(63)}`,
+      `bmoe/rn/bmoe_stream.cpp:${"a".repeat(64)}extra`,
+      `bmoe/rn/bmoe_stream.cpp:${"a".repeat(64)}\nnext`,
+    ]) {
+      expect(() =>
+        engineBuildIdFromInputs({ ...baseInputs, native: [garbage] }),
+      ).toThrow(/'<path>:<64-hex sha256>'/);
+    }
   });
 
   test("collects the real committed inputs and is stable across calls", () => {
@@ -272,35 +291,37 @@ describe("engine build id generator", () => {
     expect(first.startsWith(`${ENGINE_BUILD_ID_PREFIX}:`)).toBe(true);
   });
 
-  // Scaffold a minimal fork checkout: enough for collectEngineBuildInputs to
-  // reach the lockfile check (refusals) or finish a full collect (accepts).
+  // File inside the fake checkout, creating parent dirs.
+  function addPkgFile(base: string, rel: string, content: string): void {
+    const abs = path.join(base, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content);
+  }
+
+  // Scaffold a minimal fork checkout with NON-EMPTY engine subtrees: enough
+  // for a full collect, and for exclusion tests to prove real paths matter.
   function scaffoldForkRoot(root: string, resolved: string): void {
-    fs.mkdirSync(path.join(root, "node_modules", "llama.rn", "cpp"), {
-      recursive: true,
-    });
-    // The full collect digests all four engine-tree subdirs.
-    for (const sub of ["android", "bin", "ios"]) {
-      fs.mkdirSync(path.join(root, "node_modules", "llama.rn", sub));
-    }
-    fs.mkdirSync(path.join(root, "native"), { recursive: true });
-    fs.mkdirSync(path.join(root, "plugins"), { recursive: true });
-    fs.writeFileSync(
-      path.join(root, "package-lock.json"),
-      JSON.stringify({
-        packages: { "node_modules/llama.rn": { resolved } },
-      }),
+    const pkg = path.join(root, "node_modules", "llama.rn");
+    addPkgFile(
+      root,
+      "package-lock.json",
+      JSON.stringify({ packages: { "node_modules/llama.rn": { resolved } } }),
     );
-    fs.writeFileSync(
-      path.join(root, "node_modules", "llama.rn", "package.json"),
+    addPkgFile(
+      pkg,
+      "package.json",
       JSON.stringify({ name: "llama.rn", version: "0.12.8" }),
     );
-    fs.writeFileSync(
-      path.join(root, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA"),
-      `${"1".repeat(40)}\n`,
-    );
-    fs.writeFileSync(path.join(root, "native", "GovernorBatteryModule.kt"), "class X\n");
-    fs.writeFileSync(
-      path.join(root, "plugins", "withLlamaFromSource.js"),
+    addPkgFile(pkg, "cpp/KALSALLAMA_SHA", `${"1".repeat(40)}\n`);
+    addPkgFile(pkg, "cpp/rnllama.cpp", "int rnllama_main();\n");
+    addPkgFile(pkg, "android/build.gradle", "android { }\n");
+    addPkgFile(pkg, "ios/llama-rn.podspec", "s.name = 'llama.rn'\n");
+    addPkgFile(pkg, "src/index.ts", "export const ready = true;\n");
+    addPkgFile(pkg, "lib/bridge.js", "module.exports = { ready: true };\n");
+    addPkgFile(root, "native/GovernorBatteryModule.kt", "class GovernorBatteryModule\n");
+    addPkgFile(
+      root,
+      "plugins/withLlamaFromSource.js",
       "module.exports = (config) => config;\n",
     );
   }
@@ -365,6 +386,39 @@ describe("engine build id generator", () => {
         `git+ssh://git@github.com/Aspis0/llama.rn.git#${"a".repeat(39)}`,
       );
       expect(() => collectEngineBuildInputs(tmp)).toThrow(/#<40-char sha>/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("build output and nested node_modules are excluded; bridge sources are digested", () => {
+    const { computeEngineBuildId } = engineBuildIdModule;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
+    try {
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      const pkg = path.join(tmp, "node_modules", "llama.rn");
+      const baseline = computeEngineBuildId(tmp);
+
+      // Generated or third-party content: the id must not move.
+      for (const rel of [
+        "android/build/junk.txt",
+        "android/.cxx/junk.txt",
+        "ios/build/junk.txt",
+        "ios/rnllama.xcframework/junk.a",
+        "node_modules/gyp/junk.py",
+      ]) {
+        addPkgFile(pkg, rel, "noise\n");
+        expect(computeEngineBuildId(tmp)).toBe(baseline);
+      }
+
+      // Compiled engine content: the id must move every time.
+      let previous = baseline;
+      for (const rel of ["android/src/New.java", "src/extra.ts", "lib/extra.js"]) {
+        addPkgFile(pkg, rel, "real\n");
+        const next = computeEngineBuildId(tmp);
+        expect(next).not.toBe(previous);
+        previous = next;
+      }
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

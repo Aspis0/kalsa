@@ -1,36 +1,24 @@
 #!/usr/bin/env node
 /**
  * Deterministic engine build id from the inputs the compiled engine actually
- * depends on, shaped `kalsa-eng-v2:<64 hex>`.
- *
- * WHY THIS EXISTS: the saved KV sidecar must be invalidated when the compiled
- * engine changes. A runtime marker alone ("kalsa-native-patches") is a boolean
- * literal and cannot tell two engine builds apart (audit of e2e09f5,
- * 2026-09-10).
+ * depends on, shaped `kalsa-eng-v2:<64 hex>`. The saved KV sidecar must be
+ * invalidated when the compiled engine changes; a bare runtime marker cannot
+ * tell two engine builds apart (audit of e2e09f5, 2026-09-10).
  *
  * llama.rn is a git dependency on the fork and its installed cpp/ IS the
  * engine tree (no overlay, no patch-package). The id binds CONTENT, not just
- * pointers to it:
- *   - llamaRnCommit: the fork commit from package-lock.json (fail-closed
- *     provenance of the dependency)
- *   - kalsallamaSha: cpp/KALSALLAMA_SHA (fail-closed proof the installed tree
- *     is the kalsallama fork, not upstream llama.rn)
- *   - engineTree: digest of node_modules/llama.rn/{cpp,android,bin,ios} minus
- *     in-place build output — the actual compiled content, so a drifted or
- *     re-resolved tree changes the id even when every pointer matches
- *   - native: digest of the native/ sources compiled on top (bmoe streamer,
- *     GovernorBatteryModule)
- *   - sourceBuildPlugin: plugins/withLlamaFromSource.js
- *   - llamaRnVersion: the bridge version string
+ * pointers: the fork commit from package-lock.json; cpp/KALSALLAMA_SHA as
+ * fail-closed proof the tree is the kalsallama fork, not upstream; the
+ * digested engine tree node_modules/llama.rn/{android,cpp,ios,lib,src} (in
+ * place build output, prebuilt xcframework, and nested node_modules
+ * excluded); the digested native/ sources compiled on top; the source-build
+ * plugin; the bridge version. No variant: the fork ships no prebuilt
+ * jniLibs, the engine is always compiled from source.
  *
- * There is no variant: the fork ships no prebuilt jniLibs, the engine is
- * always compiled from source.
- *
- * The result is embedded at prebuild into the shipped APK's app.config `extra`
- * (see app.config.js) and consumed at runtime by src/engine/engineIdentity.ts.
- * Same inputs -> same id, any input change -> different id. It never
- * fabricates a value: unreadable or malformed inputs throw so prebuild fails
- * loudly instead of shipping an unidentifiable engine.
+ * The result is embedded at prebuild into the APK's app.config `extra` (see
+ * app.config.js) and read at runtime by src/engine/engineIdentity.ts. Same
+ * inputs -> same id, any input change -> different id. It never fabricates a
+ * value: unreadable or malformed inputs throw so prebuild fails loudly.
  */
 "use strict";
 
@@ -41,22 +29,29 @@ const crypto = require("crypto");
 const ENGINE_BUILD_ID_PREFIX = "kalsa-eng-v2";
 
 // Filesystem noise that is not a build input and must not change the id.
-const IGNORED_BASENAMES = new Set([
-  ".DS_Store",
-  "Thumbs.db",
-  "desktop.ini",
-]);
+const IGNORED_BASENAMES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 
-// In-place build output generated inside the installed package: not an input.
-function isBuildOutput(rel) {
+// Engine-tree subtrees the compiled engine actually consumes, evaluated on
+// PACKAGE-relative paths. src/ and lib/ carry the JS bridge the app bundles;
+// bin/ is the prebuilt-binary drop, never linked by a from-source build.
+const ENGINE_TREE_DIRS = new Set(["android", "cpp", "ios", "lib", "src"]);
+
+// Not engine input: in-place build output, the prebuilt xcframework (npm's
+// files field excludes it too — it is why the commit tree and the npm-packed
+// tree differ), and top-level nested node_modules.
+const ENGINE_TREE_EXCLUDED = [
+  "android/.cxx",
+  "android/build",
+  "ios/build",
+  "ios/rnllama.xcframework",
+];
+
+function isEngineTreeExcluded(rel) {
+  const top = rel.split("/")[0];
   return (
-    rel === "android/.cxx" ||
-    rel.startsWith("android/.cxx/") ||
-    rel === "android/build" ||
-    rel.startsWith("android/build/") ||
-    rel === "ios/build" ||
-    rel.startsWith("ios/build/") ||
-    rel.split("/").includes("node_modules")
+    !ENGINE_TREE_DIRS.has(top) ||
+    top === "node_modules" ||
+    ENGINE_TREE_EXCLUDED.some((dir) => rel === dir || rel.startsWith(`${dir}/`))
   );
 }
 
@@ -81,9 +76,9 @@ function readJsonOrThrow(file) {
 }
 
 /**
- * Recursive file list, POSIX-relative, sorted. Ignores filesystem noise,
- * skips paths the caller excludes, and refuses symlinks: a link could make
- * the digest depend on state outside the tree it names.
+ * Recursive file list, POSIX-relative to base, sorted. Ignores filesystem
+ * noise, skips paths the caller excludes, and refuses symlinks: a link could
+ * make the digest depend on state outside the tree it names.
  */
 function listFilesRecursive(dir, base = dir, exclude = null) {
   let entries;
@@ -116,17 +111,12 @@ function digestTree(dir, exclude = null) {
   );
 }
 
-// Both npm serializations of the github.com git dependency. The ssh form is
-// npm's normal lockfile form and needs no SSH key: pacote clones over https
-// first and only falls back to ssh.
+// Both npm serializations of the github.com git dependency (the ssh form is
+// npm's normal lockfile form; pacote clones it over https, no SSH key needed).
 const LLAMA_RN_GIT_URL =
   /^git\+(?:ssh|https):\/\/(?:git@)?github\.com\/Aspis0\/llama\.rn(?:\.git)?$/;
 
-/**
- * The 40-hex llama.rn fork commit: the sha after the last '#' of the lockfile
- * resolved URL for node_modules/llama.rn. A wrong host/owner/repo or a
- * missing/short sha fails closed.
- */
+/** The fork commit: the sha after the last '#' of the lockfile resolved URL. */
 function llamaRnCommit(root) {
   const lock = readJsonOrThrow(path.join(root, "package-lock.json"));
   const entry = lock.packages && lock.packages["node_modules/llama.rn"];
@@ -148,10 +138,8 @@ function llamaRnCommit(root) {
   return commit;
 }
 
-/**
- * The 40-hex kalsallama commit stamped into the installed engine tree. A tree
- * without it is upstream llama.rn, not our fork, and must not be identified.
- */
+/** The kalsallama commit stamped into the installed tree: without it the
+ * tree is upstream llama.rn, not our fork, and must not be identified. */
 function kalsallamaSha(root) {
   const file = path.join(root, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA");
   let raw;
@@ -171,10 +159,7 @@ function kalsallamaSha(root) {
   return sha;
 }
 
-/**
- * Read the committed build inputs from a repository checkout.
- * Throws when a required input is missing so the build fails closed.
- */
+/** Read the committed build inputs; throws so the build fails closed. */
 function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
   const llamaRnPkg = readJsonOrThrow(
     path.join(root, "node_modules", "llama.rn", "package.json"),
@@ -189,9 +174,8 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
   return {
     llamaRnCommit: llamaRnCommit(root),
     kalsallamaSha: kalsallamaSha(root),
-    engineTree: ["cpp", "android", "bin", "ios"].flatMap((sub) =>
-      digestTree(path.join(packageDir, sub), isBuildOutput),
-    ),
+    // Walked from packageDir so exclusions see package-relative paths.
+    engineTree: digestTree(packageDir, isEngineTreeExcluded),
     native: digestTree(path.join(root, "native")),
     sourceBuildPlugin: sha256Hex(
       readFileOrThrow(path.join(root, "plugins", "withLlamaFromSource.js")),
@@ -200,19 +184,10 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
   };
 }
 
-function requireSha40(value, field) {
-  if (typeof value !== "string" || !/^[0-9a-f]{40}$/.test(value)) {
+function requireHex(value, field, length) {
+  if (typeof value !== "string" || !new RegExp(`^[0-9a-f]{${length}}$`).test(value)) {
     throw new Error(
-      `engine-build-id: input ${field} must be a 40-hex sha (got ${JSON.stringify(value)})`,
-    );
-  }
-  return value;
-}
-
-function requireSha256(value, field) {
-  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
-    throw new Error(
-      `engine-build-id: input ${field} must be a 64-hex digest (got ${JSON.stringify(value)})`,
+      `engine-build-id: input ${field} must be a ${length}-hex digest (got ${JSON.stringify(value)})`,
     );
   }
   return value;
@@ -227,25 +202,25 @@ function requireNonEmptyString(value, field) {
   return value;
 }
 
+// Digest lines are '<path>:<sha256 hex>'; the shape keeps the canonical
+// string newline-free and unforgeable by field content.
+const DIGEST_LINE = /^[^\n:]+:[0-9a-f]{64}$/;
+
+/** Validate digest lines and return a sorted copy: the id hashes a SET. */
 function requireDigestLines(value, field) {
   if (!Array.isArray(value) || value.length === 0) {
     throw new Error(
-      `engine-build-id: input ${field} must be a non-empty array of strings (got ${JSON.stringify(value)})`,
+      `engine-build-id: input ${field} must be a non-empty array of digest lines (got ${JSON.stringify(value)})`,
     );
   }
   for (const entry of value) {
-    if (typeof entry !== "string" || entry.length === 0) {
+    if (typeof entry !== "string" || !DIGEST_LINE.test(entry)) {
       throw new Error(
-        `engine-build-id: input ${field} entries must be non-empty strings (got ${JSON.stringify(entry)})`,
-      );
-    }
-    if (entry.includes("\n")) {
-      throw new Error(
-        `engine-build-id: input ${field} entries must not contain newlines (got ${JSON.stringify(entry)})`,
+        `engine-build-id: input ${field} entries must be '<path>:<64-hex sha256>' (got ${JSON.stringify(entry)})`,
       );
     }
   }
-  return value;
+  return [...value].sort();
 }
 
 /** Validate inputs and hash them into a stable engine build id. */
@@ -254,10 +229,10 @@ function engineBuildIdFromInputs(inputs) {
     throw new Error("engine-build-id: inputs required");
   }
   const canonical = [
-    `llama-rn:${requireSha40(inputs.llamaRnCommit, "llamaRnCommit")}`,
-    `kalsallama:${requireSha40(inputs.kalsallamaSha, "kalsallamaSha")}`,
+    `llama-rn:${requireHex(inputs.llamaRnCommit, "llamaRnCommit", 40)}`,
+    `kalsallama:${requireHex(inputs.kalsallamaSha, "kalsallamaSha", 40)}`,
     `llama-rn-version:${requireNonEmptyString(inputs.llamaRnVersion, "llamaRnVersion")}`,
-    `source-plugin:${requireSha256(inputs.sourceBuildPlugin, "sourceBuildPlugin")}`,
+    `source-plugin:${requireHex(inputs.sourceBuildPlugin, "sourceBuildPlugin", 64)}`,
     ...requireDigestLines(inputs.native, "native").map((n) => `native:${n}`),
     ...requireDigestLines(inputs.engineTree, "engineTree").map((n) => `engine:${n}`),
   ].join("\n");
