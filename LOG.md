@@ -84,3 +84,23 @@ lo confermano (04-heavy, 05-denied, 06-stopped).
   riscrivere. Accettato per ora, non è fra i 12 stati.
 
 Voti: heavy 5/5/5 · 401 (stato d'errore) 5 · stop 5. Lo stato d'errore sale a 5.
+
+## Giro 3 — mezzaluna ×20, 200 messaggi, 700/1800px, thread scuro (2026-09-17)
+
+- 07: venti conversazioni sull'arco, paginazione ‹ ›, titoli lunghi con
+  ellissi. Trovata collisione fra label a 100px (ereditati da devboule,
+  dove i nomi sono corti): con sei punti su ~460px i 100px si toccano.
+  **Fix**: `CONVERSATION_LABEL_MAX_WIDTH = 78` nel componente, geometria
+  dell'arco intatta. Riverificato in screenshot: tutto chiaro, frecce
+  libere.
+- Tastiera verificata con driver: ArrowRight pagina (label 1→2), Escape
+  chiude (0 nodi aperti). Focus va alle frecce/punti come in Shell.tsx.
+- 08: 200 messaggi, apertura in coda, ritmo regolare, `content-visibility`
+  al suo posto. Niente virtual-list vera per ora — da rivalutare se il
+  driver mostrerà lentezza (fin qui no).
+- 09/10: 700px tiene (topbar affollata ma intera, codebox dentro), 1800px
+  resta a misura, mai full-bleed. Nessun fix.
+- 11: thread scuro curato quanto il chiaro — link, code, tabella, bolla.
+  Il danger scuro resta solo da numeri (7.11): 401 in dark da vedere.
+
+Voti: mezzaluna 5 · lunga 4 · stretta 4 · larga 5 · scuro 5. Movimento sale a 4.

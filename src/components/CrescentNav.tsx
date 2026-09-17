@@ -2,12 +2,15 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import type { Conversation } from "../lib/types";
 import {
-  CRESCENT_LABEL_MAX_WIDTH,
   CRESCENT_SHELL_WIDTH,
   CRESCENT_VISIBLE_COUNT,
   layoutCrescent,
 } from "../app/crescentLayout";
 import "./CrescentNav.css";
+
+// devboule-v2 allows 100px labels for short surface names; conversation
+// titles run longer, and six 100px labels collide across ~92px point gaps.
+const CONVERSATION_LABEL_MAX_WIDTH = 78;
 
 interface CrescentNavProps {
   conversations: Conversation[];
@@ -202,7 +205,7 @@ export function CrescentNav({
               <span className="nav-point-circle" aria-hidden="true">
                 {initial}
               </span>
-              <span className="nav-point-label" style={{ maxWidth: CRESCENT_LABEL_MAX_WIDTH }}>
+              <span className="nav-point-label" style={{ maxWidth: CONVERSATION_LABEL_MAX_WIDTH }}>
                 {conv.title}
               </span>
             </button>

@@ -189,6 +189,78 @@ async function main() {
     await shot(page, "shots/06-stopped.png");
     await page.close();
   }
+  // 8 — twenty conversations on the arc: paging, long titles, keyboard
+  if (want("crescent20")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: twentyConvos(), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await shot(page, "shots/07-crescent20.png");
+    await page.getByRole("button", { name: "Show next conversations" }).click();
+    await page.waitForTimeout(500);
+    await shot(page, "shots/07b-crescent20-p2.png");
+    await page.close();
+  }
+
+  // 9 — two hundred messages: must scroll fluidly, tail visible on open
+  if (want("long")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: longConvo(), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await shot(page, "shots/08-long.png");
+    await page.close();
+  }
+
+  const SEEDED_THREAD = [
+    conv("Seeded thread", [
+      msg("user", "What does the dark side look like?"),
+      msg(
+        "assistant",
+        "Like this: a [link](https://example.com), some `inline code`, and a block:\n\n```python\ndef greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n",
+      ),
+    ]),
+  ];
+
+  // 10 — narrow window (700px): thread, composer, topbar must hold
+  if (want("narrow")) {
+    const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await shot(page, "shots/09-narrow.png");
+    await page.close();
+  }
+
+  // 11 — wide window (1800px): measure must stay narrow, never full-bleed
+  if (want("wide")) {
+    const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await shot(page, "shots/10-wide.png");
+    await page.close();
+  }
+
+  // 12 — dark thread: link accent, code block, table next to dark surfaces
+  if (want("darkthread")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "dark" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await shot(page, "shots/11-dark-thread.png");
+    await page.close();
+  }
+
   if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("code-demo"), theme: "light" });
