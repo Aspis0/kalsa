@@ -161,3 +161,66 @@ The order of value, if we do them: websearch first (it is nearly free and the ph
 already proves it), then attachments (PDF/DOCX with the existing strategy gate), then
 the preview panel (which is a security design task, not a UI task), then web deep
 research (which is the first two composed).
+
+## 7. Correction: no embedding model, no RAG on the PC
+
+The owner pushed back on §3 — "one thing is Kalsa on the phone, another is Kalsa on the
+PC; does the embedding really serve? the user has to download more stuff" — and then
+said what he actually wants: a nice file manager for Windows and macOS where you find
+a file without going mad, one click attaches it, it stays in the AI's memory for that
+conversation, plus a history of attachments. **No RAG.**
+
+He is right, and the machine says so. Measured today on this Mac, Trinity-Nano
+Q4_K_M (afmoe 6B), Metal, flash-attn on, `llama-bench -r 2`:
+
+| prompt | prefill |
+|---|---|
+| pp2048 | 2136.53 ± 3.52 t/s |
+| pp8192 | 1801.18 ± 0.15 t/s |
+| pp16384 | 1586.08 ± 0.33 t/s |
+
+16,384 tokens — roughly 30 dense pages — prefill in **10.3 seconds**, once. And the
+memory it costs is smaller than expected, because Trinity is a sliding-window model.
+From `llama-cli -c 16384 --cache-type-k q8_0 --cache-type-v q8_0 -v`:
+
+```
+llama_kv_cache: size =  119.00 MiB ( 16384 cells,  14 layers,  1/1 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB
+llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells
+llama_kv_cache: size =   55.78 MiB (  2560 cells,  42 layers,  1/1 seqs), K (q8_0):   27.89 MiB, V (q8_0):   27.89 MiB
+```
+
+Only **14 of 56 layers** hold the full window; the other 42 hold 2560 cells and do not
+grow with the context. Total KV at 16k = **174.8 MiB**, plus 53.4 MiB of Metal compute
+buffer. Raising the context mostly scales those 14 layers: ~64k costs about half a GiB.
+
+So on a PC the document simply goes **into the context**, and the prompt cache keeps it
+warm — the 10 seconds are paid once and every following question about that document
+starts instantly (the cache is worth 21x with `--parallel 1`, measured 2026-09-16).
+Retrieval exists to avoid a prefill the phone cannot afford. The PC can afford it.
+
+What survives from §2–§3, then, is only the **extraction**:
+
+- `src/util/pdfText.ts` (804, 0 rn) + `src/pdf/pdfTextService.ts` (319, 0 rn) — pdf.js,
+  Apache-2.0, already pinned
+- `src/documents/docxToText.ts` (180, 0 rn) — fflate, MIT, already a dependency
+- `src/documents/documentKinds.ts` (113, 0 rn) — mime/extension sniffing
+- pptx/xlsx: the same fflate path, a different XML file
+
+What we do NOT port: `semanticIndex.ts` (587), `EmbeddingService.ts` (864),
+`embeddingPure.ts` (175), `DocumentLibrary.ts` (531), the whole `documentChat*`
+strategy family, and the 132 MB e5-small download. That is ~2,500 lines and one model
+file the desktop does not need.
+
+### The two things this design must not get wrong
+
+1. **A document that does not fit must be said out loud, not truncated in silence.**
+   Show pages and tokens at attach time and refuse clearly. A silent truncation makes
+   the model answer confidently about a file it only half read — the worst failure this
+   feature can have, and invisible to every green test.
+2. **Attachments are pinned; chat turns are what gets dropped.** When the context fills,
+   the oldest turns go first and the attached documents stay — otherwise the file
+   silently leaves the conversation the user believes it is in.
+
+The file manager itself is the genuinely new part: recent files, the three folders
+people actually use, name search, one click to attach, and a per-conversation
+attachment history. Not a library, not an index.
