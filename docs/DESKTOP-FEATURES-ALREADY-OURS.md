@@ -224,3 +224,80 @@ file the desktop does not need.
 The file manager itself is the genuinely new part: recent files, the three folders
 people actually use, name search, one click to attach, and a per-conversation
 attachment history. Not a library, not an index.
+
+## 8. The prior art came back: nobody has the file manager, and the preview has a body count
+
+Full report at `/tmp/prior-art-2026-09-17.md`. Licences read from each repository's own
+LICENSE file: LibreChat MIT, AnythingLLM MIT, big-AGI MIT, Jan Apache-2.0, DeepChat
+Apache-2.0. **Cherry Studio is AGPL and Chatbox is GPL-3.0 — both disqualified.** Lobe
+Chat's upstream LICENSE did not resolve cleanly (Apache-2.0 plus additional commercial
+conditions): treat as unresolved, do not port.
+
+### The file manager does not exist anywhere
+
+- **AnythingLLM** is the closest: a real document manager with folders and hierarchy —
+  but server-backed, files copied into `custom-documents/<name>-<uuid>.json`, with
+  workspaces and embeddings around it.
+- **Jan** documents a right-side *Project Files* panel; **DeepChat** a workspace tree.
+
+All three are lists of files **already imported into the app**. None of them browses the
+user's computer, because they are web applications and a browser cannot enumerate a
+disk. We are a Tauri desktop app, so the thing the owner asked for is precisely the one
+thing none of them can do. This is not a gap in our research — it is a structural
+advantage. We design it ourselves.
+
+### The HTML preview: four patches, four bypasses
+
+I re-verified this against GitHub's advisory database myself, because the delegate's
+advisory IDs were wrong even though its substance was right.
+
+`gh api /repos/ThinkInAIXYZ/deepchat/security-advisories` — **seven advisories, six
+critical**, and they are the same feature over and over:
+
+| id | published | summary |
+|---|---|---|
+| GHSA-f7q5-vc93-wp6j | 2025-09-09 | Mermaid rendering has XSS leading to RCE |
+| GHSA-v8v5-c872-mf8r | 2025-12-03 | XSS escalates to RCE |
+| GHSA-h9f5-7hhf-fqm4 | 2025-12-08 | **Incomplete XSS fix** allows RCE |
+| GHSA-w8w8-82pv-5rg9 | 2025-12-13 | RCE via Mermaid XSS (again) |
+| GHSA-7r59-67v3-3mgp | 2026-04-25 | DOM XSS via HTML entity encoding in `<antArtifact>` SVG (**bypass of `svgSanitizer.ts`**) |
+| GHSA-cp8j-jx7q-7r5f | 2026-04-25 | **Incomplete fix** for CVE-2025-55733, RCE via markdown links |
+
+The April one is the instructive one. Their sanitiser stripped the `javascript:`
+protocol with a regex (`svgSanitizer.ts:227`), the payload was written
+`j&#x61;vascript:`, the browser decoded the entity *after* the check, and the result
+landed in `SvgArtifact.vue:16`:
+
+```vue
+    <div class="w-full" v-else-if="sanitizedContent" v-html="sanitizedContent"></div>
+```
+
+A variable named `sanitizedContent` that was not sanitised. Our own recurring defect
+class — a check whose contract is with itself — with a CVE attached.
+
+Lobe Chat, **CVE-2026-23733**, critical, published 2026-01-20, `<= 1.143.2`,
+`first_patched_version: null` — still unpatched at the time of reading. The proof of
+concept is the part that matters here: the *model's own answer* contains a Mermaid
+artifact whose node label is
+`<img src=x onerror=fetch('/trpc/desktop/mcp.getStdioMcpServerManifest?…command=open…')>`
+and the app launches a local process. Model output → code execution on the user's
+machine.
+
+LibreChat is the only one with a defensible architecture — it hands the problem to
+Sandpack (`client/src/components/Artifacts/ArtifactPreview.tsx`) — but Sandpack's
+default bundler is CodeSandbox's public CDN, an external service. For an app whose
+entire promise is that nothing leaves the PC, that is not a drop-in.
+
+### What this changes
+
+1. **Model output is untrusted input.** Not a posture — a critical unpatched CVE in one
+   of the most popular clients, triggered by the assistant's own message.
+2. **Sanitising by inspection loses.** Four fixes, four bypasses, in a project that was
+   actively trying. If we render model-authored markup, the boundary must be isolation
+   (an iframe with no network and no same-origin), not a filter.
+3. **Mermaid is an execution surface**, not a diagram format. Both projects were breached
+   through it. crescent-chat does not render Mermaid today; adding it is a security
+   decision, not a formatting one.
+4. The phone's answer — `create_miniapp` with a fixed template enum and slots, no
+   model-authored markup at all (`src/agent/createMiniappTool.ts:18-40`) — looks a lot
+   better after reading these six advisories than it did before.
