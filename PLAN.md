@@ -1038,6 +1038,38 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   background-transition path (`LlamaService.ts:4819` — "eligible for saveSession on background"),
   where a JS-timer bound would be a guard that cannot fire. Do not wrap the two the same way.
 
+- **Correction: "the recovery already works" was wrong, and the failure is self-perpetuating.**
+  The entry above concluded, from a 141 ms session load, that the warm path is fine. The load is
+  fine; the turn after it is not. Measured immediately afterwards on the same Jelly, same
+  conversation, engine holding the restored KV (`KALSA_WINDOW {"kvHeld":true,"nPast":8292}`):
+
+  ```
+  loadPrompt:501 KALSA_KVPREFIX  embd=8292 text_tokens=8893 n_common=2148
+  loadPrompt:519 KALSA_KVDIVERGE n_common=2148 shared_lo=2140 embd_hi=2160 text_hi=2160
+  ```
+
+  The restored KV holds 8292 tokens, the new prompt needs 8893, and only **2148 match** — the
+  divergence lands exactly at the static-prefix boundary the prewarm measured at 2153 tokens. So
+  everything past the system prompt was thrown away and **6745 tokens had to be prefilled again**.
+  The turn then died on the same prefill watchdog as the cold one (`KALSA_STALL
+  {"reason":"prefill","tokPerSec":null}` — a fresh process has no EMA, so the no-EMA deadline
+  applies), roughly 10.7 minutes after it started.
+
+  It closed by refusing to save: `{"op":"save","ms":125,"ok":false,
+  "reason":"native_shorter_than_npast","tokens":5732}` — the native context reported 5732 tokens
+  against a JS `nPast` of 8292. The guard did its job and did not write a short session over a
+  good one, but the two counters had diverged by 2560 tokens.
+
+  **Why this matters more than the single slow turn.** The most likely mechanism is that the
+  failed turn's own error bubble enters the conversation, so the next prompt no longer matches
+  the KV that was saved for the previous one. That turns one timeout into a loop: fail, poison the
+  cache, full prefill again, fail again. Every measurement tonight is consistent with it, but the
+  mechanism itself is NOT yet proven — it needs a run that sends a second turn after a SUCCESSFUL
+  turn on the same device to separate "long conversation" from "history mutated by the failure".
+
+  Practical reading for the catalogue gate: the cold path is not a one-off tax that a warm cache
+  pays off. On this pairing the device can be stuck paying it every turn.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
