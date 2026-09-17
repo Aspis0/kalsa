@@ -1,12 +1,14 @@
 # HANDOFF — finishing the llama.rn fork migration (Steps 2c → 6)
 
-Written 2026-09-17 ~16:30 EDT by the orchestrating session (kalsa-c8) for the Opus session
+Written 2026-09-17 ~16:30 EDT by the orchestrating session (the orchestrator; session NAMES
+change on every restart — find the current one with ListAgents, e.g. kalsa-5b on 17/09 evening) for the Opus session
 that takes the remaining steps. Everything in §1 was verified on disk at that time; re-verify
 with the commands given before asserting any of it — both repos move.
 
 The owner's rule for this handoff: **the executing session does the steps; the orchestrator
-(kalsa-c8) is called only where a step cannot proceed or a question needs a human/orchestrator
-decision.** Escalation points are marked ⛔ ASK.
+is called only where a step cannot proceed or a question needs a human/orchestrator
+decision.** Escalation points are marked ⛔ ASK. Marco has told both peer sessions (KV and
+fork execution) to ask the orchestrator for technical questions.
 
 ---
 
@@ -18,7 +20,7 @@ path, a delegate's output is not evidence). Plus the migration-specific ones:
 
 - **Do not touch on the app's `main` without warning Marco first:** `patches/`, `vendor/`,
   `native/kalsallama.pin`, `src/engine/LlamaService.ts`. They belong to the KV session
-  (kalsa-07), which is HOLDING until this migration lands. Step 4 deletes three of them: it
+  (kalsa-0c on 17/09; re-check with ListAgents), which is HOLDING until this migration lands. Step 4 deletes three of them: it
   is announced, not sneaked in.
 - **Push policy.** Committing is always fine. Pushes already authorised by Marco: fork
   `Aspis0/llama.rn` (any branch), app branches `llama-rn-fork` and `baseline-67c73d26c`
@@ -47,8 +49,12 @@ path, a delegate's output is not evidence). Plus the migration-specific ones:
 | Reviewer, fork | `pi/opencode-go/deepseek-v4.1-flash` | thinking max | `e5220fda-74fc-4a8d-9cb5-b6abb9ddf36a` | three hostile audits of the fork; knows the MTP/shared-KV premise |
 | Reviewer, app | same | same | `bd1aa19c-afb5-46ad-8dfb-d07daba51f08` | audited the engine id |
 
-Peer Claude sessions on this machine (ListAgents / SendMessage): **kalsa-07** (KV cache; owns
-the four paths above; holding), **kalsa-64** (kalsa-brain, unrelated).
+Peer Claude sessions on this machine (ListAgents / SendMessage; names change on restart, so
+always re-list before sending): the KV-cache session (kalsa-0c on 17/09; owns the four paths
+above; holding), the orchestrator (kalsa-5b on 17/09 evening), kalsa-brain sessions (unrelated).
+The KV session may work meanwhile ONLY on: native code in the fork on its own branch `kalsa-kv`
+off `kalsa` (never directly on `kalsa`, never in `patches/`/`vendor/` on main), and JS/TS on
+main outside the switch files; its device checks wait for the switch.
 
 ### The audit brief (paste into every review dispatch)
 
