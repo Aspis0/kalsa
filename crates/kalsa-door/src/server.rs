@@ -5,6 +5,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::devices::Devices;
 use crate::registry::Registry;
 use crate::{proxy, Door, DoorError, RunningDoor, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
@@ -46,7 +47,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let worker_active = Arc::clone(&active);
         let worker_receiver = Arc::clone(&receiver);
         let worker_registry = Arc::clone(&registry);
-        let credential = door.credential;
+        let worker_devices = Arc::clone(&door.devices);
         let port = door.upstream_port;
         let head_patience = door.head_patience;
         let observer = door.response_observer.clone();
@@ -58,7 +59,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_active,
                     worker_receiver,
                     worker_registry,
-                    credential,
+                    worker_devices,
                     port,
                     head_patience,
                     observer,
@@ -179,7 +180,7 @@ fn worker(
     active: Arc<AtomicUsize>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     registry: Arc<Registry>,
-    credential: [u8; crate::TOKEN_BYTES],
+    devices: Arc<Devices>,
     upstream_port: u16,
     head_patience: Duration,
     observer: Option<crate::ResponseObserverFactory>,
@@ -198,7 +199,7 @@ fn worker(
                         work.accepted,
                         head_patience,
                         upstream_port,
-                        &credential,
+                        &devices,
                         &registry,
                         &stop,
                         &active,

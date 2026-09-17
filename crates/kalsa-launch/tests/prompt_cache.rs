@@ -194,7 +194,14 @@ fn the_second_turn_is_measured_against_the_first() {
     eprintln!("D1      timings: {}", d1.timings);
     let credential = "a".repeat(64);
     let listener = TcpListener::bind("127.0.0.1:0").expect("the door binds loopback");
-    let running = kalsa_door::Door::new(listener, PORT, credential.clone())
+    let entry = kalsa_door::DeviceEntry::new(
+        kalsa_door::DeviceId::new(0),
+        "test device",
+        credential.clone(),
+    )
+    .expect("a valid test credential");
+    let devices = kalsa_door::Devices::new(vec![entry]).expect("a valid device set");
+    let running = kalsa_door::Door::new(listener, PORT, devices)
         .expect("the door accepts its credential")
         .start()
         .expect("the door starts");

@@ -32,6 +32,17 @@ const CREDENTIAL: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 const UPSTREAM_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello";
 
+/// The one-device set the door is handed in these tests.
+fn one_device(credential: &str) -> kalsa_door::Devices {
+    let entry = kalsa_door::DeviceEntry::new(
+        kalsa_door::DeviceId::new(0),
+        "test device",
+        credential.to_string(),
+    )
+    .expect("a valid test credential");
+    kalsa_door::Devices::new(vec![entry]).expect("a valid device set")
+}
+
 /// A stand-in for llama-server: it reads one request head, answers with one
 /// canned response, closes its write side, and drains until EOF — the shape
 /// a non-streaming completion has.
@@ -111,7 +122,7 @@ async fn the_full_loop_carries_http_through_the_tunnel_and_the_door() {
     let running_door = kalsa_door::Door::new(
         door_listener,
         _upstream.1.port(),
-        CREDENTIAL.to_string(),
+        one_device(CREDENTIAL),
     )
     .expect("door builds")
     .start()
@@ -168,7 +179,7 @@ async fn the_n0_road_carries_http_by_node_id_alone() {
     let running_door = kalsa_door::Door::new(
         door_listener,
         _upstream.1.port(),
-        CREDENTIAL.to_string(),
+        one_device(CREDENTIAL),
     )
     .expect("door builds")
     .start()

@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::registry::Registry;
-use super::{proxy, Door, DoorError, CONNECTION_LIFETIME, MAX_CONNECTIONS, TOKEN_BYTES};
+use super::{proxy, Door, DoorError, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
@@ -66,10 +66,29 @@ fn wrong_credential(token: &str) -> String {
     String::from_utf8(wrong).unwrap()
 }
 
+/// The set the door is handed: one entry per credential, ids by position.
+/// Each credential validates on its own way in; the set is the door's to
+/// refuse if it were ambiguous or empty.
+fn door_devices(credentials: &[&str]) -> Devices {
+    let entries = credentials
+        .iter()
+        .enumerate()
+        .map(|(index, token)| {
+            DeviceEntry::new(
+                DeviceId::new(index as u32),
+                format!("device {index}"),
+                token.to_string(),
+            )
+            .unwrap()
+        })
+        .collect();
+    Devices::new(entries).unwrap()
+}
+
 #[test]
 fn a_non_loopback_listener_is_refused_at_construction() {
     let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    let result = Door::new(listener, 1, credential());
+    let result = Door::new(listener, 1, door_devices(&[&credential()]));
     assert!(matches!(result, Err(DoorError::NonLoopback(_))));
 }
 
@@ -88,7 +107,7 @@ fn the_running_door_reports_the_address_it_serves() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let bound_address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, token.clone())
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -109,7 +128,7 @@ fn every_authentication_failure_has_the_same_refusal() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, token.clone())
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -124,6 +143,16 @@ fn every_authentication_failure_has_the_same_refusal() {
     );
     assert_eq!(request(address, Some("Basic anything")), refusal);
     assert_eq!(request(address, Some("Bearer")), refusal);
+    // A real credential of a device the set never held: pairing minted it,
+    // this door does not know it. "No such credential" and "wrong
+    // credential" must stay one answer.
+    let unknown = credential();
+    assert_ne!(unknown, token, "pairing mints every credential fresh");
+    assert_eq!(
+        request(address, Some(&format!("Bearer {unknown}"))),
+        refusal,
+        "an unknown device's credential is the same refusal"
+    );
     door.shutdown();
 }
 
@@ -131,7 +160,7 @@ fn every_authentication_failure_has_the_same_refusal() {
 fn an_unauthenticated_socket_is_not_an_active_phone() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, 1, credential())
+    let door = Door::new(listener, 1, door_devices(&[&credential()]))
         .unwrap()
         .start()
         .unwrap();
@@ -160,6 +189,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
         let stop = AtomicBool::new(false);
         let active = AtomicUsize::new(0);
         let registry = Registry::new();
+        let devices = door_devices(&[&"0".repeat(64)]);
         let accepted = Instant::now()
             .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(5))
             .unwrap();
@@ -168,7 +198,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
             accepted,
             super::HEAD_PATIENCE,
             upstream_port,
-            &[0u8; TOKEN_BYTES],
+            &devices,
             &registry,
             &stop,
             &active,
@@ -271,7 +301,7 @@ fn a_queued_request_is_served_and_a_silent_one_answered_busy() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, token.clone())
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
         .unwrap()
         .with_head_patience(head_patience)
         .start()
@@ -344,7 +374,7 @@ fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, token.clone())
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -402,7 +432,7 @@ fn handled_requests_free_their_slot_so_the_door_stays_open() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, token.clone())
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -428,6 +458,7 @@ fn a_connection_past_its_lifetime_is_cut() {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
         let active = AtomicUsize::new(0);
+        let devices = door_devices(&[&"0".repeat(64)]);
         let accepted = Instant::now()
             .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))
             .unwrap();
@@ -436,7 +467,7 @@ fn a_connection_past_its_lifetime_is_cut() {
             accepted,
             super::HEAD_PATIENCE,
             1,
-            &[0u8; TOKEN_BYTES],
+            &devices,
             &registry,
             &stop,
             &active,
@@ -485,7 +516,7 @@ fn an_sse_response_reaches_the_client_before_the_upstream_finishes() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), token.clone())
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -592,7 +623,7 @@ fn an_answer_survives_a_brutal_disconnect_and_resumes_from_the_last_event_id() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), token.clone())
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -676,7 +707,7 @@ fn a_returning_client_rejoins_an_answer_still_in_motion() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), token.clone())
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -719,7 +750,7 @@ fn a_resume_the_door_cannot_honor_is_refused_and_starts_nothing() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), token.clone())
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -805,7 +836,7 @@ fn the_generation_continues_after_its_client_dies() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), token.clone())
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
         .unwrap()
         .start()
         .unwrap();
@@ -861,4 +892,223 @@ fn the_generation_continues_after_its_client_dies() {
     }
     upstream_thread.join().unwrap();
     door.shutdown();
+}
+
+/// A canned upstream that answers every request with a short event stream
+/// — one numbered event, a pause that keeps the answer genuinely in
+/// flight, then the tail — for as many connections as arrive, until told
+/// to stop.
+fn sse_upstream() -> (std::net::SocketAddr, Arc<AtomicBool>, thread::JoinHandle<()>) {
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = upstream.local_addr().unwrap();
+    let stop = Arc::new(AtomicBool::new(false));
+    let thread = {
+        let stop = Arc::clone(&stop);
+        thread::spawn(move || {
+            upstream.set_nonblocking(true).unwrap();
+            while !stop.load(Ordering::SeqCst) {
+                match upstream.accept() {
+                    Ok((stream, _)) => {
+                        let mut stream = stream;
+                        stream.set_nonblocking(false).unwrap();
+                        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+                        let mut head = Vec::new();
+                        if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
+                            continue;
+                        }
+                        let mut body = vec![0u8; 7];
+                        let _ = stream.read_exact(&mut body);
+                        let _ = std::io::Write::write_all(
+                            &mut stream,
+                            b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n",
+                        );
+                        write_chunk(&mut stream, b"data: one\n\n");
+                        // Long enough that the door is shut down with the
+                        // answer still running, in the revocation test.
+                        thread::sleep(Duration::from_millis(200));
+                        write_chunk(&mut stream, b"data: two\n\ndata: [DONE]\n\n");
+                        let _ = stream.write_all(b"0\r\n\r\n");
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+    (address, stop, thread)
+}
+
+/// The job token and the last id a client saw, extracted from what it read.
+fn job_of(seen: &[u8]) -> (String, String) {
+    let ids = event_ids(&String::from_utf8_lossy(seen));
+    assert!(!ids.is_empty(), "the door numbered the events: {ids:?}");
+    let job = ids[0]
+        .rsplit_once(':')
+        .map(|(token, _)| token.to_string())
+        .unwrap();
+    let last_seen = ids[ids.len() - 1].clone();
+    (job, last_seen)
+}
+
+#[test]
+fn two_devices_each_open_the_door_with_their_own_credential() {
+    let (upstream_address, upstream_stop, upstream_thread) = sse_upstream();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (first, second) = (credential(), credential());
+    assert_ne!(first, second, "pairing mints every device its own secret");
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&first, &second]))
+        .unwrap()
+        .start()
+        .unwrap();
+    for token in [&first, &second, &first] {
+        let mut client = post(address, token, None);
+        let mut seen = Vec::new();
+        read_until(&mut client, b"data: one\n\n", &mut seen).unwrap();
+        assert!(
+            String::from_utf8_lossy(&seen).contains("id: "),
+            "an authenticated device gets its answer: {seen:?}"
+        );
+    }
+    door.shutdown();
+    upstream_stop.store(true, Ordering::SeqCst);
+    upstream_thread.join().unwrap();
+}
+
+#[test]
+fn device_b_cannot_resume_device_a_s_answer() {
+    // Both devices are valid; the set tells them apart. A's answer — its
+    // job token, its ids — is A's alone: B, fully authenticated, asking
+    // for it by token and index must be refused with the same words a lost
+    // answer gets, learning neither that it exists nor that it does not.
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    let upstream_address = upstream.local_addr().unwrap();
+    let (client_died, client_gone) = mpsc::channel();
+    let upstream_thread = thread::spawn(move || {
+        let (mut stream, _) = upstream.accept().unwrap();
+        let mut request = Vec::new();
+        read_until(&mut stream, b"\r\n\r\n", &mut request).unwrap();
+        let mut body = vec![0u8; 7];
+        stream.read_exact(&mut body).unwrap();
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n")
+            .unwrap();
+        write_chunk(&mut stream, b"data: one\n\ndata: two\n\n");
+        client_gone.recv_timeout(Duration::from_secs(5)).unwrap();
+        write_chunk(&mut stream, b"data: three\n\ndata: [DONE]\n\n");
+        stream.write_all(b"0\r\n\r\n").unwrap();
+    });
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (mine, theirs) = (credential(), credential());
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&mine, &theirs]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    let (job, last_seen) = {
+        let mut client = post(address, &mine, None);
+        let mut seen = Vec::new();
+        read_until(&mut client, b"data: two\n\n", &mut seen).unwrap();
+        // No goodbye: the transport dies under the client, mid-answer.
+        client.shutdown(Shutdown::Both).unwrap();
+        drop(client);
+        client_died.send(()).unwrap();
+        job_of(&seen)
+    };
+    upstream_thread.join().unwrap();
+
+    // Device B asks for A's answer by its real token and real index.
+    let thief = post(address, &theirs, Some(&last_seen));
+    let stolen = read_all(thief);
+    assert!(
+        stolen.starts_with(b"HTTP/1.1 410 Gone"),
+        "another device's valid credential must not serve A's answer: {}",
+        String::from_utf8_lossy(&stolen)
+    );
+    assert!(
+        String::from_utf8_lossy(&stolen).contains("no longer kept"),
+        "the refusal is the lost-answer words, revealing nothing: {}",
+        String::from_utf8_lossy(&stolen)
+    );
+
+    // The control: the owner still resumes the very same answer, so the
+    // refusal above is about the device, not the token.
+    let owner = post(address, &mine, Some(&last_seen));
+    let own = read_all(owner);
+    assert!(
+        own.starts_with(b"HTTP/1.1 200 OK"),
+        "the device that started the answer still resumes it: {}",
+        String::from_utf8_lossy(&own)
+    );
+    let ids = event_ids(&String::from_utf8(own).unwrap());
+    let wanted: Vec<String> = (2..4).map(|index| format!("{job}:{index}")).collect();
+    assert_eq!(ids, wanted, "the owner gets exactly the missed events");
+    door.shutdown();
+}
+
+#[test]
+fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
+    // Revocation is the app's act: it rebuilds the door from the set
+    // without the removed device. The decision about the revoked device's
+    // in-flight job is the door's lifecycle, applied without a special
+    // case: every job dies with the door, so the restart destroys the
+    // revoked device's answer too — nothing remains that it, or anyone,
+    // could still resume.
+    let (upstream_address, upstream_stop, upstream_thread) = sse_upstream();
+    let (leaving, staying) = (credential(), credential());
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&leaving, &staying]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    // The device about to leave is mid-answer when the revocation lands.
+    let (_job, last_seen) = {
+        let mut client = post(door.address(), &leaving, None);
+        let mut seen = Vec::new();
+        read_until(&mut client, b"data: one\n\n", &mut seen).unwrap();
+        job_of(&seen)
+    };
+    door.shutdown();
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let rebuilt = Door::new(listener, upstream_address.port(), door_devices(&[&staying]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    // The revoked device's next request is the one plain 401 — the same
+    // bytes a total stranger gets, revealing nothing about the past.
+    let revoked = request(address, Some(&format!("Bearer {leaving}")));
+    assert!(revoked.starts_with(b"HTTP/1.1 401"));
+    let stranger = request(address, Some(&format!("Bearer {}", wrong_credential(&staying))));
+    assert_eq!(revoked, stranger, "revoked and wrong are the same refusal");
+    // Even naming the job token it was shown, the revoked device cannot
+    // resume: authentication comes before any question about the job.
+    let attempt = post(address, &leaving, Some(&last_seen));
+    assert!(read_all(attempt).starts_with(b"HTTP/1.1 401"));
+    // And the answer itself went with the door: the one device that
+    // remains, asking with the revoked device's own token, is told the
+    // answer is not kept — not served somebody else's stream.
+    let survivor = post(address, &staying, Some(&last_seen));
+    let answer = read_all(survivor);
+    assert!(answer.starts_with(b"HTTP/1.1 410 Gone"));
+    assert!(
+        String::from_utf8_lossy(&answer).contains("no longer kept"),
+        "the revoked device's answer died with the door: {}",
+        String::from_utf8_lossy(&answer)
+    );
+    // The surviving device still opens the rebuilt door.
+    let mut own = post(address, &staying, None);
+    let mut seen = Vec::new();
+    read_until(&mut own, b"data: one\n\n", &mut seen).unwrap();
+
+    rebuilt.shutdown();
+    upstream_stop.store(true, Ordering::SeqCst);
+    upstream_thread.join().unwrap();
 }

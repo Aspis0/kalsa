@@ -6,9 +6,10 @@ use std::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::devices::DeviceId;
 use crate::jobs::Job;
 use crate::token::Token;
-use crate::{MAX_JOBS, TOKEN_BYTES};
+use crate::MAX_JOBS;
 
 pub(super) struct Registry {
     jobs: Mutex<HashMap<[u8; 16], Arc<Job>>>,
@@ -31,7 +32,7 @@ impl Registry {
 
     pub(super) fn start(
         &self,
-        owner: [u8; TOKEN_BYTES],
+        owner: DeviceId,
         head: Vec<u8>,
     ) -> Result<Arc<Job>, StartRefused> {
         let token = Token::mint().map_err(|_| StartRefused::Entropy)?;
@@ -101,8 +102,8 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    fn owner() -> [u8; TOKEN_BYTES] {
-        [7u8; TOKEN_BYTES]
+    fn owner() -> DeviceId {
+        DeviceId::new(7)
     }
 
     fn head() -> Vec<u8> {

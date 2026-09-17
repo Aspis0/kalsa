@@ -3,8 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use subtle::ConstantTimeEq;
-
+use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
 use crate::registry::{Registry, StartRefused};
 use crate::token::parse_resume;
@@ -25,7 +24,7 @@ pub(super) fn handle(
     accepted: Instant,
     head_patience: Duration,
     upstream_port: u16,
-    credential: &[u8; TOKEN_BYTES],
+    devices: &Devices,
     registry: &Registry,
     stop: &AtomicBool,
     active: &AtomicUsize,
@@ -61,14 +60,17 @@ pub(super) fn handle(
             }
         }
     };
-    if !authenticated(head.authorization.as_deref(), credential) {
-        // The refusal must be readable: an unread body would reset the
-        // socket on close and erase it. The body is bounded and the read is
-        // deadline-bound; the request still goes nowhere.
-        let _ = discard_request_body(&mut client, head.body_length, deadline);
-        let _ = refuse(&mut client, deadline);
-        return;
-    }
+    let device = match authenticated(head.authorization.as_deref(), devices) {
+        Some(device) => device,
+        None => {
+            // The refusal must be readable: an unread body would reset the
+            // socket on close and erase it. The body is bounded and the read is
+            // deadline-bound; the request still goes nowhere.
+            let _ = discard_request_body(&mut client, head.body_length, deadline);
+            let _ = refuse(&mut client, deadline);
+            return;
+        }
+    };
     let _active = ActiveConnection::new(active);
     if let Some(last_event_id) = head.last_event_id.as_deref() {
         // Resuming never reaches the upstream: the answer this request asks
@@ -79,7 +81,7 @@ pub(super) fn handle(
         if discard_request_body(&mut client, head.body_length, deadline).is_err() {
             return;
         }
-        resume(&mut client, registry, last_event_id, credential, observer, deadline, stop);
+        resume(&mut client, registry, last_event_id, device, observer, deadline, stop);
         return;
     }
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
@@ -116,7 +118,7 @@ pub(super) fn handle(
         let _ = relay_response(&mut upstream, &mut client, deadline, stop, observer);
         return;
     }
-    let job = match registry.start(*credential, response::client_head(&upstream_head.raw)) {
+    let job = match registry.start(device, response::client_head(&upstream_head.raw)) {
         Ok(job) => job,
         Err(StartRefused::Entropy) => {
             eprintln!("kalsa door could not mint a job id");
@@ -140,19 +142,20 @@ pub(super) fn handle(
 }
 
 /// Serves a `Last-Event-ID`: the missed events first, then the live tail —
-/// or the honest refusal when the answer is gone.
+/// or the honest refusal when the answer is gone. The asking device was
+/// already identified by the bearer scan; the job answers to that device.
 fn resume(
     client: &mut TcpStream,
     registry: &Registry,
     last_event_id: &[u8],
-    credential: &[u8; TOKEN_BYTES],
+    device: DeviceId,
     observer: Option<&Observed>,
     deadline: Instant,
     stop: &AtomicBool,
 ) {
     let words = match parse_resume(last_event_id) {
         Some(resume) => match registry.find(&resume.token) {
-            Some(job) => match job.resume_decision(resume.seen, credential) {
+            Some(job) => match job.resume_decision(resume.seen, device) {
                 ResumeDecision::Serve => {
                     // The client saw `seen`; the next byte of the answer it
                     // is owed is the event after it.
@@ -216,7 +219,11 @@ impl Drop for ActiveConnection<'_> {
     }
 }
 
-fn authenticated(value: Option<&[u8]>, expected: &[u8; TOKEN_BYTES]) -> bool {
+/// Which device the bearer credential belongs to, if any. The format check
+/// and the credential scan are the same shape as ever — a fixed buffer, a
+/// constant-time comparison — and the verdict is combined only after both
+/// have run, so a badly formed head costs the same as a well-formed one.
+fn authenticated(value: Option<&[u8]>, devices: &Devices) -> Option<DeviceId> {
     let mut presented = [0u8; TOKEN_BYTES];
     let format_ok = value.is_some_and(|value| {
         value.len() == b"Bearer ".len() + TOKEN_BYTES && value.starts_with(b"Bearer ") && {
@@ -224,8 +231,8 @@ fn authenticated(value: Option<&[u8]>, expected: &[u8; TOKEN_BYTES]) -> bool {
             true
         }
     });
-    let equal = bool::from(presented.ct_eq(expected));
-    format_ok && equal
+    let matched = devices.authenticate(&presented);
+    if format_ok { matched } else { None }
 }
 
 fn relay_exact(
@@ -315,14 +322,41 @@ fn remaining(deadline: Instant) -> Option<Duration> {
 #[cfg(test)]
 mod tests {
     use super::authenticated;
+    use crate::devices::{DeviceEntry, DeviceId, Devices};
+
+    fn devices_with(credentials: &[&str]) -> Devices {
+        let entries = credentials
+            .iter()
+            .enumerate()
+            .map(|(index, token)| {
+                DeviceEntry::new(
+                    DeviceId::new(index as u32),
+                    format!("device {index}"),
+                    token.to_string(),
+                )
+                .unwrap()
+            })
+            .collect();
+        Devices::new(entries).unwrap()
+    }
 
     #[test]
-    fn bearer_comparison_accepts_only_the_exact_credential() {
-        let expected = [b'a'; super::super::TOKEN_BYTES];
-        let value = format!("Bearer {}", "a".repeat(super::super::TOKEN_BYTES));
-        assert!(authenticated(Some(value.as_bytes()), &expected));
-        assert!(!authenticated(Some(b"Bearer wrong"), &expected));
-        assert!(!authenticated(None, &expected));
+    fn bearer_comparison_answers_with_the_device_that_matched() {
+        let devices = devices_with(&[&"a".repeat(super::super::TOKEN_BYTES), &"b".repeat(64)]);
+        let bearer = |token: &str| format!("Bearer {token}").into_bytes();
+        assert_eq!(
+            authenticated(
+                Some(&bearer(&"a".repeat(super::super::TOKEN_BYTES))),
+                &devices
+            ),
+            Some(DeviceId::new(0))
+        );
+        assert_eq!(
+            authenticated(Some(&bearer(&"b".repeat(64))), &devices),
+            Some(DeviceId::new(1))
+        );
+        assert_eq!(authenticated(Some(&b"Bearer wrong"[..]), &devices), None);
+        assert_eq!(authenticated(None, &devices), None);
     }
 
     #[test]

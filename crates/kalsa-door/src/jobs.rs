@@ -12,8 +12,9 @@ use std::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::devices::DeviceId;
 use crate::token::Token;
-use crate::{MAX_JOB_BYTES, TOKEN_BYTES};
+use crate::MAX_JOB_BYTES;
 
 /// How a generation stopped before its last event. The words go to the
 /// resuming client verbatim; they must stay truthful and carry no secrets.
@@ -51,7 +52,10 @@ struct Log {
 /// One answer being produced, or kept after its end.
 pub(super) struct Job {
     token: Token,
-    owner: [u8; TOKEN_BYTES],
+    /// The device that started the answer. An id, not a secret: the
+    /// credential that named the device was already checked by the bearer
+    /// scan before the job was started, and again before any resume.
+    owner: DeviceId,
     /// The response head exactly as the live client received it; a resuming
     /// client gets the same head, so both see one answer, not two.
     head: Vec<u8>,
@@ -88,7 +92,7 @@ pub(super) enum ResumeDecision {
 }
 
 impl Job {
-    pub(super) fn new(token: Token, owner: [u8; TOKEN_BYTES], head: Vec<u8>) -> Self {
+    pub(super) fn new(token: Token, owner: DeviceId, head: Vec<u8>) -> Self {
         Self {
             token,
             owner,
@@ -186,14 +190,17 @@ impl Job {
     }
 
     /// Whether a client that last saw `seen` may resume this answer, and if
-    /// not, the honest sentence it gets instead. The log never truncates
+    /// not, the honest sentence it gets instead. The asking device is
+    /// compared against the device that started the answer: another
+    /// device's credential may be perfectly valid, but this job answers to
+    /// the device that created it and nobody else. The log never truncates
     /// while it exists — overflowing fails the job instead — so anything
     /// past the end claims events the door never sent. A failed answer
     /// already fully seen is refused rather than re-served as an empty
     /// stream: an empty 200 promises an end that never comes.
-    pub(super) fn resume_decision(&self, seen: usize, owner: &[u8; TOKEN_BYTES]) -> ResumeDecision {
+    pub(super) fn resume_decision(&self, seen: usize, owner: DeviceId) -> ResumeDecision {
         let log = self.lock();
-        if self.owner != *owner {
+        if self.owner != owner {
             // The same words as a lost job: who may not resume it learns
             // nothing about whether it exists.
             return ResumeDecision::Refused("That answer is no longer kept here.");
@@ -240,8 +247,8 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    fn owner() -> [u8; TOKEN_BYTES] {
-        [7u8; TOKEN_BYTES]
+    fn owner() -> DeviceId {
+        DeviceId::new(7)
     }
 
     fn head() -> Vec<u8> {
@@ -310,15 +317,15 @@ mod tests {
         let job = Job::new(Token::mint().unwrap(), owner(), head());
         job.append(event("one"));
         assert!(matches!(
-            job.resume_decision(0, &owner()),
+            job.resume_decision(0, owner()),
             ResumeDecision::Serve
         ));
         assert!(
-            matches!(job.resume_decision(1, &owner()), ResumeDecision::Serve),
+            matches!(job.resume_decision(1, owner()), ResumeDecision::Serve),
             "running: the client may wait at the end"
         );
         assert!(matches!(
-            job.resume_decision(2, &owner()),
+            job.resume_decision(2, owner()),
             ResumeDecision::Refused(_)
         ));
     }
@@ -329,7 +336,7 @@ mod tests {
         let job = Job::new(Token::mint().unwrap(), owner(), head());
         job.append(vec![b'x'; ONE_MIB].into());
         job.append(vec![b'x'; ONE_MIB + 1].into());
-        let refused = match job.resume_decision(1, &owner()) {
+        let refused = match job.resume_decision(1, owner()) {
             ResumeDecision::Refused(words) => words,
             ResumeDecision::Serve => panic!("a failed answer cannot promise more"),
         };
@@ -337,7 +344,7 @@ mod tests {
         // A clean end arriving after a failure changes nothing.
         job.close(Status::Done);
         assert_eq!(
-            match job.resume_decision(1, &owner()) {
+            match job.resume_decision(1, owner()) {
                 ResumeDecision::Refused(words) => words,
                 ResumeDecision::Serve => panic!("a failed answer cannot promise more"),
             },
@@ -349,13 +356,13 @@ mod tests {
     fn a_job_answers_only_to_its_owner() {
         let job = Job::new(Token::mint().unwrap(), owner(), head());
         job.append(event("one"));
-        let refused = match job.resume_decision(0, &[8u8; TOKEN_BYTES]) {
+        let refused = match job.resume_decision(0, DeviceId::new(8)) {
             ResumeDecision::Refused(words) => words,
             ResumeDecision::Serve => panic!("another owner must not resume the job"),
         };
         assert_eq!(refused, "That answer is no longer kept here.");
         assert!(matches!(
-            job.resume_decision(0, &owner()),
+            job.resume_decision(0, owner()),
             ResumeDecision::Serve
         ));
     }

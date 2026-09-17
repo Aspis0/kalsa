@@ -60,7 +60,10 @@ struct Brain {
 }
 
 struct ActiveDoor {
-    credential: String,
+    /// The set the running door was built from, kept so the once-a-second
+    /// poll can tell "the store still holds what the door serves" from "the
+    /// store changed and the door must be rebuilt".
+    devices: kalsa_door::Devices,
     address: SocketAddr,
     door: kalsa_door::RunningDoor,
 }
@@ -160,8 +163,21 @@ impl Brain {
         file: &Path,
         internet_road: bool,
     ) -> Result<(), String> {
-        let credential = match kalsa_pairing::store::load(file) {
-            Ok(handshake) => handshake.credential_hex(),
+        let devices = match kalsa_pairing::store::load(file) {
+            Ok(handshake) => {
+                // The store holds exactly one pairing today, so the id is
+                // stable because there is nothing else it could point at,
+                // and the label is the app's until the store learns to hold
+                // more. Validation of the stored credential happens here,
+                // per entry, by the door's own type.
+                kalsa_door::DeviceEntry::new(
+                    kalsa_door::DeviceId::new(0),
+                    "Paired phone",
+                    handshake.credential_hex(),
+                )
+                .and_then(|entry| kalsa_door::Devices::new(vec![entry]))
+                .map_err(|_| "The authenticated door could not read its credential.".to_string())?
+            }
             Err(kalsa_pairing::StoreError::Io(error))
                 if error.kind() == io::ErrorKind::NotFound =>
             {
@@ -179,7 +195,7 @@ impl Brain {
             .map_err(|_| "The authenticated door could not start.".to_string())?;
         if stored
             .as_ref()
-            .is_some_and(|active| active.credential == credential)
+            .is_some_and(|active| active.devices == devices)
         {
             // The door is already the right one — and the switch still
             // governs the road. This poll reads the same file the panel
@@ -200,7 +216,7 @@ impl Brain {
         let listener =
             door::bind(file).map_err(|_| "The authenticated door could not bind.".to_string())?;
         let metrics = Arc::clone(&self.metrics);
-        let door = kalsa_door::Door::new(listener, upstream_port, credential.clone())
+        let door = kalsa_door::Door::new(listener, upstream_port, devices.clone())
             .map_err(|_| "The authenticated door could not start.".to_string())?
             .with_response_observer(move || {
                 let metrics = Arc::clone(&metrics);
@@ -220,7 +236,7 @@ impl Brain {
             .map_err(|_| "The authenticated door could not start.".to_string())?;
         let address = running.address();
         *stored = Some(ActiveDoor {
-            credential,
+            devices,
             address,
             door: running,
         });

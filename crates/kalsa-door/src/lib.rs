@@ -7,8 +7,9 @@
 //! the tailnet road, and iroh supplies QUIC confidentiality on its road; the
 //! transports, not this local HTTP hop, protect traffic crossing the network.
 //!
-//! A bearer credential is therefore enough at this boundary: both intended
-//! roads are confidential and replay-proof before they reach the door. This
+//! A bearer credential per paired device is therefore enough at this
+//! boundary: both intended roads are confidential and replay-proof before
+//! they reach the door. This
 //! must not be read as permission to expose the listener directly on a LAN or
 //! the public Internet — with one exception, earned elsewhere: the iroh road
 //! (`kalsa-iroh`) terminates its tunnel on this listener, and that road is
@@ -29,7 +30,8 @@
 //! the door replays what it missed and then follows the tail live — in
 //! order, without duplicates and without holes. Resuming asks for the same
 //! bearer credential as everything else and the same unguessable token the
-//! phone alone was shown; a job answers to nobody else, and it dies with
+//! one device alone was shown; a job answers to the device that started it
+//! and nobody else, and it dies with
 //! the door that started it: no stopped server ever keeps a job promising
 //! that more of an answer is coming.
 //!
@@ -42,6 +44,7 @@
 //! returning phone is told the truth instead of being kept waiting.
 
 mod chunk;
+mod devices;
 mod jobs;
 mod proxy;
 mod request;
@@ -54,6 +57,8 @@ mod token;
 
 #[cfg(test)]
 mod tests;
+
+pub use devices::{DeviceEntry, DeviceId, Devices};
 
 use std::fmt;
 use std::io;
@@ -124,7 +129,7 @@ pub struct Door {
     listener: TcpListener,
     address: SocketAddr,
     upstream_port: u16,
-    credential: [u8; TOKEN_BYTES],
+    devices: Arc<Devices>,
     head_patience: Duration,
     response_observer: Option<ResponseObserverFactory>,
 }
@@ -138,17 +143,14 @@ pub struct RunningDoor {
 }
 
 impl Door {
-    /// Validate the caller's bound listener and retain the pairing credential.
-    pub fn new(
-        listener: TcpListener,
-        upstream_port: u16,
-        credential: String,
-    ) -> Result<Self, DoorError> {
+    /// Validate the caller's bound listener and retain the set of paired
+    /// devices. The set already validated itself when it was built; the
+    /// door does not know where it came from and never changes it.
+    pub fn new(listener: TcpListener, upstream_port: u16, devices: Devices) -> Result<Self, DoorError> {
         let address = listener.local_addr().map_err(DoorError::Listener)?;
         if !address.ip().is_loopback() {
             return Err(DoorError::NonLoopback(address));
         }
-        let credential = credential_bytes(&credential).ok_or(DoorError::InvalidCredential)?;
         listener
             .set_nonblocking(true)
             .map_err(DoorError::Listener)?;
@@ -156,7 +158,7 @@ impl Door {
             listener,
             address,
             upstream_port,
-            credential,
+            devices: Arc::new(devices),
             head_patience: HEAD_PATIENCE,
             response_observer: None,
         })
@@ -224,13 +226,4 @@ impl Drop for RunningDoor {
     fn drop(&mut self) {
         self.shutdown();
     }
-}
-
-fn credential_bytes(credential: &str) -> Option<[u8; TOKEN_BYTES]> {
-    if credential.len() != TOKEN_BYTES || !credential.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return None;
-    }
-    let mut bytes = [0u8; TOKEN_BYTES];
-    bytes.copy_from_slice(credential.as_bytes());
-    Some(bytes)
 }

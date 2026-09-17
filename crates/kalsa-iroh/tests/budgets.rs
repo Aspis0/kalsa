@@ -14,6 +14,17 @@ const CREDENTIAL: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 const UPSTREAM_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello";
 
+/// The one-device set the door is handed in these tests.
+fn one_device(credential: &str) -> kalsa_door::Devices {
+    let entry = kalsa_door::DeviceEntry::new(
+        kalsa_door::DeviceId::new(0),
+        "test device",
+        credential.to_string(),
+    )
+    .expect("a valid test credential");
+    kalsa_door::Devices::new(vec![entry]).expect("a valid device set")
+}
+
 /// Canned upstream, the same shape a completion answer has.
 async fn fake_upstream(listener: TcpListener) {
     loop {
@@ -60,7 +71,7 @@ async fn a_stranger_past_its_budget_is_refused_and_the_owner_is_not() {
 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door binds");
     let door_address = listener.local_addr().unwrap();
-    let door = Door::new(listener, upstream_port, CREDENTIAL.to_string())
+    let door = Door::new(listener, upstream_port, one_device(CREDENTIAL))
         .expect("door builds")
         .start()
         .expect("door starts");
