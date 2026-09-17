@@ -43,8 +43,11 @@ impl Kind {
     }
 }
 
-/// One row. `path` is canonical, so the page hands back exactly what the
-/// boundary already approved.
+/// One row. Symlinks are not listed, so a row describes the file its path
+/// named when the folder was read — the disk can still swap that file
+/// between the read and the open, which is why the parser that opens the
+/// path has the last word. Through [`crate::listing::list_dir`] the parent
+/// of the path is the canonical one the boundary approved.
 #[derive(Debug, Clone, Serialize)]
 pub struct Entry {
     pub name: String,
@@ -63,6 +66,14 @@ impl Entry {
         let name = entry.file_name().to_str()?.to_owned();
         // Dotfiles are the machine's business, not the person's.
         if name.starts_with('.') {
+            return None;
+        }
+        // A symlink is dropped, not followed or labeled: labeling the link
+        // presents the target's file as a document in this folder, and
+        // following it would hand out a path the boundary never approved.
+        // Checking the target would need the roots, which this layer is not
+        // given — so out it goes.
+        if entry.file_type().ok()?.is_symlink() {
             return None;
         }
         let meta = entry.metadata().ok()?;

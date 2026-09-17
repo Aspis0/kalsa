@@ -23,7 +23,7 @@ mod scope;
 
 pub use entry::{Entry, Kind};
 pub use listing::{list_dir, recent, Listing, MAX_RECENT, MAX_ROWS};
-pub use scope::{home_dir, roots, ScopeError};
+pub use scope::{home_dir, resolve_within, roots, ScopeError};
 
 #[cfg(test)]
 mod tests;
