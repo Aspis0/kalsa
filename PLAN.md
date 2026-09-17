@@ -1625,6 +1625,14 @@ non viene toccata).**
 (`llama-rn-fork/fork-f39c757.so.sha256` == `baseline-3ce0992.so.sha256`); la pipeline NDK e'
 riproducibile (controllo `35258973938`). Il fork al pin vecchio E' il motore spedito.
 
+**Stato fork (17/09 sera EDT): CHIUSO e pushato.** `Aspis0/llama.rn` branch `kalsa` = `628f4517`
+(script indurito, allow-list +23, dieci call site ricablati al pin `134a35cf2` con la regola
+"un errore, poi modalita' normale", gate onesto su 447 file; quattro audit ostili + un re-audit,
+tutti "ship"). Evidenza solo di compilazione per MTP; a questo pin un draft su target denso non
+puo' decodificare (barriera `TAG_KV_CACHE_SHARE_CELLS` di kalsallama). Il resto lo esegue un altro
+Opus da `llama-rn-fork/HANDOFF.md` §3 (primo update del motore); l'orchestratore interviene solo
+ai punti ⛔ ASK.
+
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 

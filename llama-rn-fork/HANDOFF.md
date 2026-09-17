@@ -67,9 +67,9 @@ the four paths above; holding), **kalsa-64** (kalsa-brain, unrelated).
 
 | what | where | state |
 |---|---|---|
-| Fork | `/Users/marco/Projects/llama.rn-kalsa`, branch `kalsa`, `origin`=Aspis0, `upstream`=mybigday | local head `49546c8d` + Coder e39bdd71 mid-way on two commits (A rewire v3, B gate). GitHub has `kalsa` only up to `987799a1`; `kalsa-step1@4b823e95` pushed |
+| Fork | `/Users/marco/Projects/llama.rn-kalsa`, branch `kalsa`, `origin`=Aspis0, `upstream`=mybigday | head `628f4517`, PUSHED (`origin/kalsa == kalsa`); `kalsa-step1@4b823e95` pushed too |
 | Fork pin | `kalsallama.pin` at the fork root; marker `cpp/KALSALLAMA_SHA` | `134a35cf201f3a9c4b25eb32768198b8cb3f3c5d` (= kalsallama `main` HEAD today, 0 commits ahead) |
-| Fork commits | `987799a1` kalsa patch set → `eb9a6da7` sync script → `bb4a2c60` hardening → `de67c015` allow-list +23 & llama-ext rewrite → `bff76818` rewire of the 10 API drifts → `49546c8d` honest gate | each audited except the two pending commits |
+| Fork commits | `987799a1` kalsa patch set → `eb9a6da7` sync script → `bb4a2c60` hardening → `de67c015` allow-list +23 & llama-ext rewrite → `bff76818` rewire of the 10 API drifts → `49546c8d` honest gate → `a0bfc383` advisory draft rollback → `5d679fef` gate + opencl → `57c530cc` init probe (fenced draft → plain) → `628f4517` nextn off on fallback | all audited (four hostile audits + one targeted re-audit, all "ship") |
 | App switch worktree | `/Users/marco/Projects/kalsa-fork-switch`, branch `llama-rn-fork`, branched from `5de99f3` | `0fc723b` → `ecc0c08` → `ed1994e` → `52f88b3` → `f39c757` (dep = fork `4b823e95`, old pin). Pushed. |
 | App `main` | `/Users/marco/Projects/kalsa` (shared checkout, dirty with kalsa-07's untracked files — do not clean it) | `f0e4e2b`, 10 commits ahead of the branch point; only `ad7ff7d` touches a switch file (`apk.yml`/`e2e-emulator.yml`: the `assert-overlay-includes` step). **Not natively buildable since `c4d23be`** (rn-* API drift at the new pin) |
 | Old-road baseline | app branch `baseline-67c73d26c` = `3ce0992` | run `35254554590` green; control `35258973938` byte-identical (NDK pipeline is reproducible) |
@@ -93,7 +93,7 @@ digest and was identical across fresh installs.
 
 ---
 
-## 2. Step 2b — close the rewire (probably done by the orchestrator; verify, do not redo)
+## 2. Step 2b — close the rewire (DONE 2026-09-17 evening EDT: head `628f4517` pushed; verify, do not redo)
 
 Goal: fork `kalsa` head = `49546c8d` + commit A ("the draft rollback is advisory; a slot
 whose MTP init fails re-queues its prompt") + commit B ("gate parses ggml-opencl too; hexagon
