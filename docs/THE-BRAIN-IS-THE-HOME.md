@@ -43,16 +43,28 @@ the brain first — utility, not a statement about what the product is.
 > what this section is about.
 >
 > **Cut — the seats gathering into a crescent.** The prototype choreographed four seats
-> threading into a five-point arc, and that was wrong for a reason worth writing down:
-> **there is no crescent in this app.** The navigation is a flat row of three tab buttons —
-> Status, Model, Pairing (`src/index.html:18-25`) — transparent and muted until the pointer
-> lands on them (`src/styles.css:124`), sitting at the top and close to invisible at rest.
-> The crescent is a form borrowed from `devboule-v2` and described in
-> `DESKTOP-CHAT-DECISION.md`; nothing here has ever drawn one. So the prototype animated a
-> destination that does not exist, toward a bar the owner barely sees. **The chat does not
-> need to show a crescent at all.** Whatever carries the way back is a separate decision,
-> made when that navigation is actually built — not smuggled in as the subject of an
-> animation.
+> threading into a five-point arc. Two separate things are wrong with that, and an earlier
+> draft of this note conflated them.
+>
+> First, the arc is not in `kalsa-brain`. This app's navigation is a flat row of three tab
+> buttons — Status, Model, Pairing (`src/index.html:18-25`) — transparent and muted until
+> the pointer lands on them (`src/styles.css:124`). So the prototype, which ran here,
+> animated toward something this app has never drawn.
+>
+> Second — and this is the owner's actual objection — **the crescent that does exist is
+> nearly invisible.** It lives in `crescent-chat`, inherited from `devboule-v2`, and its
+> resting state is a transparent button 18 px tall whose only mark is a 3 px line at 0.8
+> opacity that changes colour on hover or focus (`src/components/CrescentNav.css:11-40`).
+> It sits at the top of the page. Animating four seats into a destination the reader cannot
+> see until they happen to point at it spends the whole budget of the gesture on something
+> invisible.
+>
+> What is NOT cut is the crescent's purpose, which `DESKTOP-CHAT-DECISION.md` §6 already
+> settled and this note does not reopen: it is top-level navigation over a small fixed set
+> of surfaces, never a conversation list. What is cut is the idea that the transition's job
+> is to *build* it. **The chat does not need to show a crescent during the move.** Whatever
+> carries the way back is decided on its own terms — starting with the fact that, as drawn
+> today, nobody can see it.
 >
 > The mechanism was never in doubt. It ran on the View Transitions path, not a fallback:
 > **672 ms measured against a 640 ms setting, 5022 ms against 5000 ms**, thirty-five
@@ -125,13 +137,14 @@ which is worse than showing none.
 
 ## 7. Not decided
 
-- **What this app's navigation actually is.** The two bullets that used to sit here asked
-  whether the first-run walk should build the crescent, and whether five points sit well on
-  an arc drawn with six in `devboule-v2`. Both assumed a crescent exists here. It does not
-  (§3), and that assumption is what wasted a prototype. The real open question is the plain
-  one underneath: today the way between surfaces is three tab buttons that are invisible
-  until hovered, and nothing has decided what replaces them. Until that is decided, no
-  animation into it can be designed.
+- **Whether the crescent can be seen at all.** The two bullets that used to sit here asked
+  whether the first-run walk should build the crescent and whether five points sit well on
+  an arc drawn with six. Both skipped past the prior question the owner asked on looking at
+  it: as drawn in `crescent-chat` today, the resting crescent is an 18 px transparent
+  sliver with a 3 px line, and you find it by pointing at it. Its *purpose* is settled
+  (`DESKTOP-CHAT-DECISION.md` §6: navigation over a small fixed set of surfaces). Its
+  visibility is not, and nothing further about it — animation included — is worth designing
+  until it is.
 - **How long the transition lasts.** Reopened — see §3. Measured as a mechanism, never
   judged as a feeling on a real screen.
 - What the brain shows when nobody is talking and everything is idle. An empty room is the
