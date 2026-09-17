@@ -1029,6 +1029,9 @@ export async function queueStaticPrefixPrewarm(
     toolCount: prefix.toolCount,
   });
   void withEngineJob(async () => {
+    // Set when this attempt learns the template needs a filler turn, so the
+    // finally can re-queue once the dedupe key is released.
+    let retryWithFiller = false;
     try {
       if (gen !== prewarmGeneration) {
         logPrewarm({ op: "skip", reason: "stale" });
@@ -1345,11 +1348,14 @@ export async function queueStaticPrefixPrewarm(
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
-      // A template that cannot render a system-only chat: remember it and let
-      // the next prewarm append the filler turn. Not retried inline — this
-      // job already holds the FIFO, and the next queue is cheap.
+      // A template that cannot render a system-only chat (Qwen3.5: "No user
+      // query found in messages."). Remember it and re-queue: the refusal
+      // happens at template render, before any compute, so the retry is free —
+      // and without it this model's ONLY boot prewarm is lost, since nothing
+      // else re-queues until a model reload or a window slide.
       if (!needsFiller && isSystemOnlyTemplateFailure(msg) && activeModelId) {
         staticPrefixFillerModels.add(activeModelId);
+        retryWithFiller = true;
         logPrewarm({
           op: "skip",
           reason: "system_only_template",
@@ -1378,6 +1384,13 @@ export async function queueStaticPrefixPrewarm(
       }
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
+      // After the dedupe key is released, never before — the retry would
+      // otherwise be rejected by `prewarmQueuedKey === prefix.hash`. Bounded
+      // to one attempt: the re-queue reads needsFiller as true, so it cannot
+      // reach the branch that set this flag.
+      if (retryWithFiller) {
+        void queueStaticPrefixPrewarm(locale, tools, resolvedToolChoiceMode);
+      }
     }
   });
 }
