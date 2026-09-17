@@ -104,3 +104,21 @@ Voti: heavy 5/5/5 · 401 (stato d'errore) 5 · stop 5. Lo stato d'errore sale a 
   Il danger scuro resta solo da numeri (7.11): 401 in dark da vedere.
 
 Voti: mezzaluna 5 · lunga 4 · stretta 4 · larga 5 · scuro 5. Movimento sale a 4.
+
+## Giro 4 — attesa primo token, 401 scuro, copia, incollone, reduced-motion (2026-09-17)
+
+Mock esteso con scenario `patient` (primo token dopo 1.5s) per rendere
+osservabile l'attesa — senza, i 45ms dello slow la nascondevano.
+
+- 12: tre puntini quieti + stop armato, niente spinner. Specifica tempi ok.
+- 13: 401 scuro — il rosso desaturato convive col verde, niente semaforo.
+  Danger scuro promosso da numeri a screenshot.
+- 14: bottone copia conferma "Copied" in accento, 1.6s.
+- 15: 5000 righe incollate, composer tappato a 200px con scroll interno,
+  layout fermo, invio attivo. Nessun salto.
+- 16: `prefers-reduced-motion: reduce` — lo stream resta leggibile, le
+  transizioni congelate non rompono nulla (regola globale in base.css).
+- Buttato: niente da buttare in questo giro — tutto verificato al primo colpo.
+
+Voti: attesa 5 · 401-scuro 5 · copia 5 · incollone 5 · reduced 5.
+Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.

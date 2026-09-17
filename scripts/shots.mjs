@@ -261,6 +261,80 @@ async function main() {
     await page.close();
   }
 
+  // 13 — waiting for the first token: dots, no idle spinner
+  if (want("thinking")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("patient-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Take your time.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(700);
+    await shot(page, "shots/12-thinking.png");
+    await page.close();
+  }
+
+  // 14 — 401 in the dark theme: desaturated red on dark surfaces
+  if (want("darkdenied")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "x" },
+      theme: "dark",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Hello?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("did not accept the key"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/13-dark-denied.png");
+    await page.close();
+  }
+
+  // 15 — copy confirmation on a code block
+  if (want("copyconfirm")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await page.getByRole("button", { name: "Copy" }).click();
+    await shot(page, "shots/14-copied.png");
+    await page.close();
+  }
+
+  // 16 — five thousand pasted lines: composer caps and scrolls, never jumps
+  if (want("paste")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    const big = Array.from({ length: 5000 }, (_, i) => `pasted line ${i + 1}`).join("\n");
+    await page.getByRole("textbox", { name: "Message" }).fill(big);
+    await shot(page, "shots/15-paste.png");
+    await page.close();
+  }
+
+  // 17 — reduced motion: streaming must read fine with transitions frozen
+  if (want("reduced")) {
+    const page = await browser.newPage({
+      viewport: { width: 1400, height: 900 },
+      reducedMotion: "reduce",
+    });
+    await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Tell me slowly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    await shot(page, "shots/16-reduced.png");
+    await page.close();
+  }
+  // 4 — code answer complete, nav closed: color interplay frame
   if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("code-demo"), theme: "light" });

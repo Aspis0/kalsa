@@ -105,6 +105,8 @@ function scenarioFor(model) {
   if (model.includes("code")) return { text: CODE_MD, delay: 12 };
   if (model.includes("heavy")) return { text: HEAVY_MD, delay: 8 };
   if (model.includes("slow")) return { text: LONG_MD, delay: 45 };
+  // Patient: first token takes 1.5s so the waiting state is observable.
+  if (model.includes("patient")) return { text: LONG_MD, delay: 20, firstDelay: 1500 };
   return { text: "Hello! The line is open and streaming works.", delay: 10 };
 }
 
@@ -145,7 +147,7 @@ const server = http.createServer((req, res) => {
       try {
         model = JSON.parse(body).model ?? "";
       } catch { /* default scenario */ }
-      const { text, delay } = scenarioFor(String(model));
+      const { text, delay, firstDelay } = scenarioFor(String(model));
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -155,9 +157,15 @@ const server = http.createServer((req, res) => {
       const parts = chunk(text);
       let i = 0;
       let finished = false;
+      // Optional beat before the first token (waiting-state tests).
+      let wait = firstDelay ?? 0;
       const timer = setInterval(() => {
         if (finished) {
           clearInterval(timer);
+          return;
+        }
+        if (wait > 0) {
+          wait -= delay;
           return;
         }
         if (i < parts.length) {
