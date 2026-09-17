@@ -857,6 +857,44 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
 
 ## Still open
 
+- **T20C aborted itself on a healthy app, and the cause is thermal throttling it cannot see.**
+  Run 2026-09-17 on APK `9bd5d0d`, S23 unplugged from 91% and 31.8 °C. Result: **INCOMPLETE,
+  2/20 turns, exit 4**. Evidence in `results/t20c-thermal-2026-09-17/`.
+
+  What the harness decided: *"completion signal 'KALSA_TELEMETRY ' is not in .slice.txt — the app
+  has stopped emitting it; stopping the run instead of repeating the 2700000ms wait per turn"*.
+
+  What the app was actually doing, from its own telemetry:
+
+  | time | app turn | tokens predicted | tok/s |
+  |---|---|---|---|
+  | 00:18:37 | 2 | 281 | 10.69 |
+  | 00:22:11 | 3 | 1402 | 8.66 |
+  | 00:37:34 | 5 | 1618 | **2.19** |
+
+  The slice ran 00:22:20 → 00:36:31 and the next telemetry landed at 00:37:34, **63 s after the
+  harness gave up**. The app never stopped emitting: it had throttled to 2.19 tok/s, 4.9x down
+  from the run's start, so 1618 tokens legitimately took 12+ minutes. The turn timeout (45 min)
+  and the telemetry gap (30 min) were both generous enough; the check that fired is the
+  post-recovery completion probe, and it has no notion of "slower" — only "absent".
+
+  That is not an edge case on an unplugged phone, it is the steady state. The thermal trace shows
+  why: battery 39.6 °C flat through turns 1-3, then 40.8 → 42.4 → 42.8 → 43.1 within four minutes,
+  skin status 2 → 3, AP peaking at 59.8 °C.
+
+  **The thermal pause itself worked correctly** — `thermal cool after 120s`, app never force-stopped,
+  battery peaked at 43.3 °C and fell to 41.5 within a minute of the load stopping. The AP collapses
+  first (55.7 → 46.4 °C in 25 s) and the battery follows with a lag, so battery temperature keeps
+  RISING for a minute or two after a pause begins. Any future gate must expect that overshoot.
+
+  **Gap worth closing:** the harness pauses at battery > 42 °C but has no hard abort at the owner's
+  44 °C stop line for an unplugged run ([[device-thermal-watchdog-mandatory]] says kill at 43 °C);
+  in cooldown it simply waits up to 600 s regardless of which way the temperature is going. It was
+  covered externally for this run and never triggered.
+
+  **Why a re-run did not happen the same night:** the battery finished at 80% and the fresh-start
+  floor is 85%. Charging the phone would both need the owner and invalidate the measurement.
+
 - **The catalogue offers models a device cannot run.** Owner, 16/09 night: *"un qwen 3.5 4b sul
   jelly non dovrebbe essere nemmeno proposto, perche' ci mette 30 minuti per un prefill."*
   Measured that night on the Jelly with CI APK `4553062`: `KALSA_PREWARM done promptMs=214122

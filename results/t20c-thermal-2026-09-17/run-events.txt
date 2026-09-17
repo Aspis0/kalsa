@@ -1,0 +1,18 @@
+[ci] battery level=91 temp=31.8C charging=false
+[ci] thermal preflight status=0 battery_deci=318
+[ci] battery level=90 temp=33.1C charging=false
+[ci] battery level=88 temp=37.9C charging=false
+[ci] battery level=86 temp=41.1C charging=false
+[ci] RECOVERY reason=thermal (record only — app NOT force-stopped)
+{"i": 3, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal", "retried": false, "scores": null}
+[ci] RECOVERY reason=thermal — pause WITHOUT force-stop (app stays alive+foreground; resume when battery <= 42°C; current=42.9°C)
+[ci] thermal still hot (30s, battery=43.1°C) — app left running
+[ci] thermal still hot (60s, battery=43.2°C) — app left running
+[ci] thermal still hot (90s, battery=43.3°C) — app left running
+[ci] thermal cool after 120s (battery <= 42°C, app never stopped)
+[ci] restore: app still running (thermal path) — no force-stop, no relaunch
+{"i": 3, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] ABORT after turn 3: completion signal 'KALSA_TELEMETRY ' is not in /Users/marco/Projects/kalsa/out/t20c-newengine-20260917/.slice.txt — the app has stopped emitting it; stopping the run instead of repeating the 2700000ms wait per turn
+[ci] battery level=80 temp=42.0C charging=false
+[ci] T20C RUN INCOMPLETE — turns=2/20 recoveries=2 unparseable=0 jsonl=/Users/marco/Projects/kalsa/out/t20c-newengine-20260917/T20C/c1-V1.jsonl
+T20C_EXIT=4
