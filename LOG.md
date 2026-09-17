@@ -1,5 +1,4 @@
 # LOG — diario di lavoro (in italiano)
-
 ## Giro 1 — scheletro, token verdi, stato vuoto (2026-09-17)
 
 ### Contrasto verificato con script (scripts/palette.mjs, WCAG 2.1, AA >= 4.5)
@@ -66,7 +65,6 @@ movimento ancora da giudicare) · stato d'errore 4 (rete visto e buono;
 Comandi rete sempre limitati: `curl --max-time` + `| head`, mai client che
 aspettano `end` su SSE. In node, autodistruzione con `setTimeout` come prima
 riga. Il tool-bash non uccide i foreground appesi.
-
 ## Giro 2 — 401, stop, markdown pesante (2026-09-17)
 
 Nessuna modifica all'app: i tre stati erano già a posto e gli screenshot
@@ -84,7 +82,6 @@ lo confermano (04-heavy, 05-denied, 06-stopped).
   riscrivere. Accettato per ora, non è fra i 12 stati.
 
 Voti: heavy 5/5/5 · 401 (stato d'errore) 5 · stop 5. Lo stato d'errore sale a 5.
-
 ## Giro 3 — mezzaluna ×20, 200 messaggi, 700/1800px, thread scuro (2026-09-17)
 
 - 07: venti conversazioni sull'arco, paginazione ‹ ›, titoli lunghi con
@@ -104,7 +101,6 @@ Voti: heavy 5/5/5 · 401 (stato d'errore) 5 · stop 5. Lo stato d'errore sale a 
   Il danger scuro resta solo da numeri (7.11): 401 in dark da vedere.
 
 Voti: mezzaluna 5 · lunga 4 · stretta 4 · larga 5 · scuro 5. Movimento sale a 4.
-
 ## Giro 4 — attesa primo token, 401 scuro, copia, incollone, reduced-motion (2026-09-17)
 
 Mock esteso con scenario `patient` (primo token dopo 1.5s) per rendere
@@ -122,7 +118,15 @@ osservabile l'attesa — senza, i 45ms dello slow la nascondevano.
 
 Voti: attesa 5 · 401-scuro 5 · copia 5 · incollone 5 · reduced 5.
 Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.
+## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
+- 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
+- 18: URL sbagliato -> errore in chiaro, niente gergo da regex.
+- 19: delete in due passi sul posto, niente modale.
+- 20: Tab fino a Invia — anello di focus visibile sul bottone verde.
+- Buttato: niente. Nota driver: `getByRole(name: "Settings")` matcha per
+  sottostringa anche "Open settings" — ora `exact: true` (terza istanza
+  della stessa lezione: nei selettori Playwright, sempre exact o regex).
 ## Giro 6 — flussi veri: recovery dopo 401, cambio chat in streaming (2026-09-18)
 
 - 21: 401 -> "Open settings" -> endpoint corretto -> Save -> "Try again"
@@ -133,7 +137,6 @@ Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.
 - Buttato: niente.
 
 Voti: recovery 5 · switch 5.
-
 ## Giro 7 — mezzaluna: pochi punti, punto attivo, finestra stretta (2026-09-18)
 
 - 23: tre punti sull'arco intero — arioso, voluto, non perso. La matematica
@@ -147,7 +150,6 @@ Voti: recovery 5 · switch 5.
   Misurato, non indovinato: probe con getBoundingClientRect prima/dopo.
 
 Voti: pochi 5 · attiva 5 · stretta-aperta 5 (dopo fix).
-
 ## Giro 8 — a11y funzionale, Tauri, regressione totale (2026-09-18)
 
 - Live region verificata via driver, non solo a codice: durante l'attesa
@@ -165,7 +167,6 @@ Voti: pochi 5 · attiva 5 · stretta-aperta 5 (dopo fix).
 
 Voti: a11y 5 · tauri-readiness 4 (frontend pronto, bundle da fare) ·
 regressione verde.
-
 ## Giro 9 — coda vuota dopo reload + timestamp invisibili (2026-09-18)
 
 - Bug vero, trovato leggendo: risposta fallita + reload = riga assistente
@@ -177,7 +178,6 @@ regressione verde.
 - Timestamp dei messaggi in `title` (hover nativo, zero UI, zero bottoni).
 - Buttato: l'idea di persistere il `kind` d'errore — una riga in più sullo
   store per un dato che il retry rende inutile.
-
 ## Giro 10 — maniglia della mezzaluna trovabile (2026-09-18)
 
 - Problema: da chiusa, la mezzaluna è un trattino grigio con 0 come con 20
@@ -188,13 +188,11 @@ regressione verde.
 - Il cambio ha rotto il driver due volte (label esatta -> regex, poi
   singolare/plurale): ora `/Show.*conversation/`. Quarta istanza della
   stessa lezione sui selettori — da qui in poi solo regex/exact.
-
 ## Giro 11 — mezzaluna scura aperta (2026-09-18)
 
 Mai fotografata prima. 28-dark-nav: punti leggibili, attiva in accento
 schiarito con glifo scuro, label chiare, glow verde-notte coerente.
 Nessun fix — il tema scuro resta curato quanto il chiaro.
-
 ## Giro 12 — movimento campionato, 200 messaggi misurati (2026-09-18)
 
 Gli still non mostrano il moto: campionato via JS invece che a occhio.
@@ -206,7 +204,6 @@ Gli still non mostrano il moto: campionato via JS invece che a occhio.
   niente virtual-list, niente dipendenze. Da ricontrollare in build prod.
 
 Voti: movimento 5 (con misura) · lunga 5 (con numeri).
-
 ## Giro 13 — prod perf + icone Tauri (2026-09-18)
 
 - 200 messaggi in build prod (`vite preview`): mount+apertura 1703ms vs
@@ -221,7 +218,6 @@ Voti: movimento 5 (con misura) · lunga 5 (con numeri).
   (centro sbagliato). Lezione: con `A r r 0 large sweep` e due centri
   possibili, il rendering batte il ragionamento — screenshot ogni volta.
   Terza istanza di "verifica con gli occhi, non con la testa".
-
 ## Giro 14 — chiusura: tutti gli stati coperti, cosa resta a Marco (2026-09-18)
 
 Verificati su disco i 13 file dei 12 stati del brief (+16 extra). Build
@@ -239,18 +235,70 @@ Bloccato, da decidere da Marco (non da me):
 3. Push: mai fatto senza approvazione esplicita (regola standing).
 
 ---
+# Audit ostile — giri di riparazione (seconda parte)
+## Giro 15 — B1 token fantasma + contrasto dal DOM + B8 (2026-09-18)
 
-# Audit ostile — giri di riparazione (terza parte)
+- B1: i due `var(--white)` (token mai definito) diventano `var(--accent-ink`)
+  — la coppia per cui era nato. L'audit aveva ragione su tutta la riga, e
+  aveva ragione anche sul LOG: il giro 7 promuoveva a "scelta di design"
+  quello che era un token mancante ("glifo scuro"). Correggo qui, non
+  cancello: resta scritto sopra, sbagliato, e qui la smentita.
+- Verifica rifatta come chiede l'audit: `scripts/contrast-dom.mjs` legge
+  `getComputedStyle` su pagina vera (chiaro+scuro), foreground dall'elemento
+  e fondo dal primo antenato opaco. 22 coppie × 2 temi = 44/44 PASS, inclusi
+  punto attivo (7.49 chiaro, 7.59 scuro), bolla utente, manda, link, code,
+  errori, composer, settings, empty, nav. `palette.mjs` resta come derivazione
+  oklch, ma non è più citato come verifica.
+- B8: validazione per messaggio in lettura (id/ruolo/contenuto richiesti,
+  resto con default; conversazioni senza id scartate) + `ErrorBoundary` con
+  fallback statico e due vie d'uscita (reload / cancella dati e riparti).
+- `scripts/verify.mjs`: asserzioni funzionali (exit 1 al primo fallimento).
+  Primo test `corrupt`: `[null, content:42, valido, coda vuota]` -> il valido
+  si vede, niente boundary, niente finestra bianca (30-corrupt-data.png).
+- Nota onesta: il fallback del boundary non ha screenshot — nessuna via
+  pubblica lo raggiunge senza hook di test, che mi rifiuto di spedire.
+  Rivisto a codice, coperto da validazione prima.
+## Giro 16 — store v2: indice + payload, migrazione, quota, due finestre (2026-09-18)
 
-## Giro 19 — igiene post-ristrutturazione (2026-09-18)
+- C: `crescent-chat.index.v2` (id/titolo/date/preview/search 500capped/
+  hasMessages) + `crescent-chat.msgs.<id>.v2` per conversazione. Lista e
+  ricerca non toccano mai un payload. Deviazione documentata nel commento:
+  `list()` rende `ConversationMeta[]`, non `Conversation[]` — l'alternativa
+  (payload pieni in lista) annullerebbe lo split. Nomi e regola del seam
+  invariati; `rename`/`search` arrivano con la sidebar al giro 18.
+- Migrazione v1->v2: una volta sola (flag), verifica rilettura, rimuove la
+  vecchia chiave solo dopo. Mai persa, mai ripetuta (7 assert).
+- B9: `storage` listener — seconda finestra vede senza reload (assert).
+- B7: errori di scrittura in un canale (`getWriteError`) + banner che lo
+  dice chiaro, sessione coerente in memoria (31-quota.png). Il test quota
+  riempie fino al bordo PROVATO: top-up a granularità 256B dopo il break a
+  1MB (la quota ha slack: un conteggio fisso in MB è flaky, misurato).
+- `verify.mjs`: 16 assert verdi (migrate 7, roundtrip 2, multiwindow 2,
+  quota 3, corrupt 3). Lo storage si rilegge dopo ogni scrittura (D).
+## Giro 17 — chat.ts onesto: URL, non-SSE, tagli, timeout, B6 (2026-09-18)
 
-- Cancellati dal tree gli shot del prodotto ritirato (arco-conversazioni,
-  dialog settings, delete in topbar): restano nella storia git, non in
-  galleria. Grep riferimenti morti: pulito (resta solo l'assert che vieta
-  le frecce di paginazione — voluto).
-- Visti uno a uno anche 41-search (20->1, ⌘K+× convivono) e 42-rename
-  (input inline con bordo accento). Nessun fix.
-
+- B4: `completionsUrl` non raddoppia più `/v1` (/v1 finale -> +chat only) e
+  ogni errore mostra `Called:` con l'URL davvero chiamato (4 assert badurl).
+- B3: content-type guardato; 200 non-SSE letto come completion JSON prima
+  di arrendersi; 200 vuoto e 200-HTML diventano bad-response, mai bolla
+  vuota con diagnosi sbagliata (json/html/emptycut assert + 32-html.png).
+- B5: fine senza `[DONE]` = truncated (testo parziale tenuto) o bad-response
+  (zero token); mai più "complete". Read spezzato a metà stream = truncated
+  (cut assert). Live region distinta per truncated.
+- 403 con copia sua (non più "401", assert forbidden403).
+- Minori: drain dell'ultimo frame senza `\n`; idle timeout 60s con controller
+  collegato (silent assert, 65s veri); 200 vuoto = bad-response non http;
+  copy dice "Copied" solo se riuscito ("Copy failed" altrimenti) + cleanup
+  timer; tema che segue il sistema finché non scegli (themeChoiceMade).
+- B6: streaming per conversazione (`streamingByConv` + mappa controller).
+  Stop e delete abortiscono solo la visibile; invio in B non tocca A.
+  twostream assert: A 555->1056 dopo lo stop di B, B "Stopped early".
+- Buttato per strada e ripreso: il mio primo `poke()` leakava timer (falsi
+  timeout) — handle tracciato; il dispatch mock `cut-demo` mangiava
+  `emptycut-demo` (sottostringa, ordine) — emptycut prima; il mio split-test
+  era oltre-spec (due eventi su una riga: nessun parser può) — riscritto
+  legittimo (frame spezzati + coda senza newline + niente DONE).
+- 05-denied.png rigenerato con la riga Called: promosso a vista.
 ## Giro 18 — correzione di prodotto: superfici sull'arco, sidebar (2026-09-18)
 
 - A: la mezzaluna porta sei superfici fisse (Chat Models Server Devices
@@ -278,79 +326,31 @@ Bloccato, da decidere da Marco (non da me):
   dalla vista: preview con URL markdown grezzi -> strip in `describe()`.
 - Suite intere verdi dopo la riscrittura: shots 28/28, verify 44 assert,
   contrast-dom 56 coppie (incluse 6 nuove sidebar/blocked).
+## Giro 19 — igiene post-ristrutturazione (2026-09-18)
 
-## Giro 15 — B1 token fantasma + contrasto dal DOM + B8 (2026-09-18)
+- Cancellati dal tree gli shot del prodotto ritirato (arco-conversazioni,
+  dialog settings, delete in topbar): restano nella storia git, non in
+  galleria. Grep riferimenti morti: pulito (resta solo l'assert che vieta
+  le frecce di paginazione — voluto).
+- Visti uno a uno anche 41-search (20->1, ⌘K+× convivono) e 42-rename
+  (input inline con bordo accento). Nessun fix.
+## Giro 20 — igiene + assert Cmd+K (2026-09-18)
 
-- B1: i due `var(--white)` (token mai definito) diventano `var(--accent-ink`)
-  — la coppia per cui era nato. L'audit aveva ragione su tutta la riga, e
-  aveva ragione anche sul LOG: il giro 7 promuoveva a "scelta di design"
-  quello che era un token mancante ("glifo scuro"). Correggo qui, non
-  cancello: resta scritto sopra, sbagliato, e qui la smentita.
-- Verifica rifatta come chiede l'audit: `scripts/contrast-dom.mjs` legge
-  `getComputedStyle` su pagina vera (chiaro+scuro), foreground dall'elemento
-  e fondo dal primo antenato opaco. 22 coppie × 2 temi = 44/44 PASS, inclusi
-  punto attivo (7.49 chiaro, 7.59 scuro), bolla utente, manda, link, code,
-  errori, composer, settings, empty, nav. `palette.mjs` resta come derivazione
-  oklch, ma non è più citato come verifica.
-- B8: validazione per messaggio in lettura (id/ruolo/contenuto richiesti,
-  resto con default; conversazioni senza id scartate) + `ErrorBoundary` con
-  fallback statico e due vie d'uscita (reload / cancella dati e riparti).
-- `scripts/verify.mjs`: asserzioni funzionali (exit 1 al primo fallimento).
-  Primo test `corrupt`: `[null, content:42, valido, coda vuota]` -> il valido
-  si vede, niente boundary, niente finestra bianca (30-corrupt-data.png).
-- Nota onesta: il fallback del boundary non ha screenshot — nessuna via
-  pubblica lo raggiunge senza hook di test, che mi rifiuto di spedire.
-  Rivisto a codice, coperto da validazione prima.
+- Cmd+K/Ctrl+K mette il focus su #conversation-search da ovunque (assert
+  cmdk: requisito esplicito del brief, mai provato prima).
+- Riparato per la terza volta lo stesso inciampo: edit con oldText da una
+  riga di commento che mangia l'apertura del blocco dopo. Regola nuova:
+  negli script, gli anchor degli edit devono includere almeno due righe di
+  codice vero, mai solo un commento.
+## Giro 21 — certificazione post-strip (2026-09-18)
 
-## Giro 16 — store v2: indice + payload, migrazione, quota, due finestre (2026-09-18)
-
-- C: `crescent-chat.index.v2` (id/titolo/date/preview/search 500capped/
-  hasMessages) + `crescent-chat.msgs.<id>.v2` per conversazione. Lista e
-  ricerca non toccano mai un payload. Deviazione documentata nel commento:
-  `list()` rende `ConversationMeta[]`, non `Conversation[]` — l'alternativa
-  (payload pieni in lista) annullerebbe lo split. Nomi e regola del seam
-  invariati; `rename`/`search` arrivano con la sidebar al giro 18.
-- Migrazione v1->v2: una volta sola (flag), verifica rilettura, rimuove la
-  vecchia chiave solo dopo. Mai persa, mai ripetuta (7 assert).
-- B9: `storage` listener — seconda finestra vede senza reload (assert).
-- B7: errori di scrittura in un canale (`getWriteError`) + banner che lo
-  dice chiaro, sessione coerente in memoria (31-quota.png). Il test quota
-  riempie fino al bordo PROVATO: top-up a granularità 256B dopo il break a
-  1MB (la quota ha slack: un conteggio fisso in MB è flaky, misurato).
-- `verify.mjs`: 16 assert verdi (migrate 7, roundtrip 2, multiwindow 2,
-  quota 3, corrupt 3). Lo storage si rilegge dopo ogni scrittura (D).
-
-## Giro 17 — chat.ts onesto: URL, non-SSE, tagli, timeout, B6 (2026-09-18)
-
-- B4: `completionsUrl` non raddoppia più `/v1` (/v1 finale -> +chat only) e
-  ogni errore mostra `Called:` con l'URL davvero chiamato (4 assert badurl).
-- B3: content-type guardato; 200 non-SSE letto come completion JSON prima
-  di arrendersi; 200 vuoto e 200-HTML diventano bad-response, mai bolla
-  vuota con diagnosi sbagliata (json/html/emptycut assert + 32-html.png).
-- B5: fine senza `[DONE]` = truncated (testo parziale tenuto) o bad-response
-  (zero token); mai più "complete". Read spezzato a metà stream = truncated
-  (cut assert). Live region distinta per truncated.
-- 403 con copia sua (non più "401", assert forbidden403).
-- Minori: drain dell'ultimo frame senza `\n`; idle timeout 60s con controller
-  collegato (silent assert, 65s veri); 200 vuoto = bad-response non http;
-  copy dice "Copied" solo se riuscito ("Copy failed" altrimenti) + cleanup
-  timer; tema che segue il sistema finché non scegli (themeChoiceMade).
-- B6: streaming per conversazione (`streamingByConv` + mappa controller).
-  Stop e delete abortiscono solo la visibile; invio in B non tocca A.
-  twostream assert: A 555->1056 dopo lo stop di B, B "Stopped early".
-- Buttato per strada e ripreso: il mio primo `poke()` leakava timer (falsi
-  timeout) — handle tracciato; il dispatch mock `cut-demo` mangiava
-  `emptycut-demo` (sottostringa, ordine) — emptycut prima; il mio split-test
-  era oltre-spec (due eventi su una riga: nessun parser può) — riscritto
-  legittimo (frame spezzati + coda senza newline + niente DONE).
-- 05-denied.png rigenerato con la riga Called: promosso a vista.
-
-## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
-
-- 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
-- 18: URL sbagliato -> errore in chiaro, niente gergo da regex.
-- 19: delete in due passi sul posto, niente modale.
-- 20: Tab fino a Invia — anello di focus visibile sul bottone verde.
-- Buttato: niente. Nota driver: `getByRole(name: "Settings")` matcha per
-  sottostringa anche "Open settings" — ora `exact: true` (terza istanza
-  della stessa lezione: nei selettori Playwright, sempre exact o regex).
+Le preview sono cambiate dopo lo strip markdown: rigenerate e riverificate.
+- shots 28/28 senza errori; verify 55 PASS zero fail (silent incluso);
+  contrast-dom TUTTE PASS (incluse sidebar e blocked-image).
+- 14-copied rivisto: preview "Like this: a link, some inline code…" —
+  lo strip funziona nel rendering vero (migrazione -> metaFor -> plain).
+- Audit ostile: copertura completa. A ✓ (superfici, sidebar, gruppi,
+  ricerca, rename, delete, velo condizionato). B1–B9 ✓ tutti. Minori ✓
+  tutti (403, drain, copy onesta, matchMedia, idle timeout). C ✓ (indice +
+  payload, 38ms su 1000 voci senza payload). D ✓ (mock ostile, no swallow,
+  re-read storage, LOG onesto). E ✓ (no push, comandi limitati, scarti).
