@@ -106,9 +106,15 @@ has to be Rust, because a web page cannot enumerate a disk. Started today as
 components against a few document folders), since a command that reads a path chosen
 by the page is a capability handed to the least trustworthy part of the program.
 
-**Written, not wired.** `crates/kalsa-files` exists and its tests pass (`8c87ba9`), and it is
-called by nothing: no Tauri command, no UI. That is this repo's recurring defect class — code
-that is correct and never connected — and it stays on this list until a real click reaches it.
+**Written, not wired.** `crates/kalsa-files` exists and its tests pass, and it is called by
+nothing: no Tauri command, no UI. That is this repo's recurring defect class — code that is
+correct and never connected — and it stays on this list until a real click reaches it.
+
+Being unwired also hid four real defects until someone read it hostilely (`1001ce1`, tests
+8 → 23): a symlink was listed as an approved document, the boundary could not be called from
+outside the crate, a derived `Debug` reopened the probing oracle `Display` closes by hand, and
+the headline promise — never the home directory — had no assertion behind it at all. Passing
+tests on unwired code say less than they look like they say.
 
 ## 8. The phone's conversations and the PC's are not the same conversations
 
@@ -144,16 +150,44 @@ addressed, so nothing is prefilled for chatter.
 None of it exists in code. What it needs first is §1 (done) and a queue that is ours
 (the addendum below).
 
-## 11. Two numbers nobody has taken yet
+## 11. Two numbers — one taken, one now unblocked
 
-- **The cost of a switch.** Every alternation between conversations throws away the prompt
-  cache and pays a full re-prefill. Rotation is the fair turn policy only if that cost is
-  small; if it is seconds, the policy should serve two prompts from the same conversation
-  before yielding. Asked of tonight's measurement.
+- **The cost of a switch — TAKEN, and it depends on size** (`dev/results/multi-device-shape/SWITCH-A/results.json`,
+  committed `85a7b75`). Alternating between two conversations on one slot is free only while
+  both fit the 384 MiB prompt cache. At ~1.9k tokens the return costs **0.15 s** and
+  `cached_tokens` stays at 1862. At ~7.5k it costs **4.51 s** and at ~14.7k **9.62 s**, both
+  with `cached_tokens` **0** — the second conversation evicts the first, and coming back pays
+  the whole prefill again.
+  So rotation-per-turn is the right policy for short exchanges and the wrong one for
+  documents: past roughly 2k tokens per person, a turn policy must serve several prompts from
+  one conversation before yielding. Note this is conversation switching on ONE model; changing
+  the model is the other thing entirely and kills every slot and cache in the house.
 - **The cost of self-summarisation.** Seconds for the big model to write a ~200-token summary
   of ~4k tokens of room history, which is what decides whether the window problem needs a
-  second small model at all (`HOUSEHOLD-RULES.md` §6). Cannot be taken while the GPU is
-  running the multi-device measurement — a second server would corrupt those numbers.
+  second small model at all (`HOUSEHOLD-RULES.md` §6). It was blocked while the GPU was busy
+  with the multi-device measurement; that measurement is done (`d6daf16`, `85a7b75`), so
+  nothing blocks it now except someone taking it.
+
+## 12. The brain's own screen cannot be drawn yet — two fields short
+
+`docs/THE-BRAIN-IS-THE-HOME.md` puts the brain on the home surface: which model is loaded,
+whether it is warm, how many of the four seats are taken and by whom. Almost everything that
+screen needs is already in the Rust and half of it is shown to nobody — state with the failure
+already phrased in human words, decode tokens/s, `throttled`, context and its maximum, idle
+unload, paired devices. Two fields are missing, and they are the two the screen rests on:
+
+- **The model has no name.** `main.rs` `ModelDto` is `{ chosen: bool }`. The startup path
+  carries `bytes` and `sha256` through `acquire_model`; nothing in the shipped state answers
+  "which model is this".
+- **The seats cannot be counted.** `metrics.rs` `RuntimeMetricsDto` has
+  `phone_connected: Option<bool>` — one yes/no for the whole house. The screen needs how many
+  of the four are busy and which one is yours, and §1's per-device credential (`02a2139`) is
+  what makes "whose" answerable at all.
+
+This is the same gap §1 left open — *the door knows who, but it does not tell anyone yet* —
+arriving from the other side. It stops being an improvement to the queue and becomes the
+substance of the first screen: anything built before it shows seats it is guessing at, which
+is worse than showing none.
 
 ## Not missing, deliberately
 
