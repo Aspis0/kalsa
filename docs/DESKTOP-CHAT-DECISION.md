@@ -194,3 +194,23 @@ appears only in the `Authorization` header — there is not a single `console.` 
 
 All of it is now in front of the agent that wrote the code, together with the crescent
 correction, as one brief.
+
+## 8. The fix for §7's first finding, proven by mutation
+
+The agent replaced the literal-pair script with `scripts/contrast-dom.mjs`, which reads
+`getComputedStyle()` from a live page in both themes and takes the background from the first
+opaque ancestor. Its header says what it is for: *"An undefined token (the --white bug) fails
+here because the computed value is what the user gets, not what we meant."*
+
+A check nobody has watched fail is not a verified check — that is the whole lesson of §7. So I
+copied the tree to a scratch directory (never the live one, an agent was writing in it), served
+it on a spare port and ran the mutation:
+
+- unmutated: **exit 0**, 44 pairs, including `7.49 PASS active nav point (rgb(255,255,255) on
+  rgb(31,95,78))` — the element that was broken.
+- `color: var(--accent-ink)` → `color: var(--white)` on `CrescentNav.css:141`: **exit 1**,
+  `2.23 FAIL active nav point (rgb(23,32,28) on rgb(31,95,78))` in light and `2.08 FAIL` in dark.
+
+Those are the same two numbers the auditor measured independently. The check has teeth.
+
+Scratch tree removed, live tree untouched.
