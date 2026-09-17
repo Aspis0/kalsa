@@ -155,8 +155,9 @@ not the problem we have.
   attention prefix changes attention outputs at later positions — the same
   approximation StreamingLLM accepts, but we have not verified it here.
 - The decisive number: **`n_common` on the turn after a shift.** High means the
-  on-device discard is avoidable. Zero means the original decision was right and
-  we stop arguing.
+  on-device discard is avoidable. Zero means the original decision was right.
+  *(Superseded later the same day — see §10: the run log already answers a
+  sharper version of this question.)*
 
 ## 7. The Governor: one lever is already refuted, one is untouched
 
@@ -205,3 +206,53 @@ The chat template opens the block itself, so the completion carries only the
 close. `src/engine/thinkStream.ts` has no rule for a closing tag that precedes
 any opening tag: in both phases it deletes the tag and keeps the reasoning.
 Under repair.
+
+## 10. Later the same day: we already ship the fix, and the slide deletes it
+
+Reading the shipped fork instead of re-arguing the theory.
+
+`node_modules/llama.rn/cpp/rn-completion.cpp` carries a RAM **state checkpoint
+cache** for hybrid models, enabled by default (`rn-llama.h:132-133`: 160 MiB,
+8 snapshots; `rn-completion.cpp:150` gates it on
+`llama_model_is_recurrent || llama_model_is_hybrid`). When `seq_rm` fails on the
+recurrent half, `recoverStateCheckpoint` (`:325`) restores the longest snapshot
+that is a prefix of the prompt and verifies `pos_max + 1 == k` before trusting
+it. `evictStateCheckpoints` (`:158`) pins the lowest-position snapshot —
+*"the first message boundary (system-prompt end) a brand-new session shares."*
+
+That is the technique §5 reports nobody shipping.
+
+**It works on this model on this phone.** `out/t20c-sendfix-20260917/logcat.txt:4357`:
+
+```
+KALSA_KVPREFIX embd=3993 text_tokens=4257 n_common=3189
+```
+
+804 tokens past the shared prefix, reused, with no `KALSA_KVDIAG` failure in the
+run. Three times. *Caveat: the run captured RNLlama at W level only, so this does
+not separate "seq_rm succeeded" from "a checkpoint was restored" — the success
+path logs at INFO. Both readings support partial reuse; they are not the same
+proof.*
+
+**And the slide throws it away.** `rn-llama.cpp:1150` — `clearCache()` calls
+`clearStateCheckpoints()`; `discardChatKvForWindowSlideLocked`
+(`src/engine/LlamaService.ts:1528`) calls `clearCache()`. The system prompt is
+byte-identical across a slide, so the recoverable prefix is 1832 tokens:
+**4954 → 3122, −37 %**, exact.
+
+This does not make the slide free. Dropping a prefix invalidates every later K/V
+in any transformer — only the system prefix is recoverable, and that was always
+the honest ceiling.
+
+**Separately, and larger than the slide:** `src/app/foregroundIdleDispose.ts:4`
+sets `FOREGROUND_IDLE_DISPOSE_MS = 180_000` while the thermal cooldowns in §2 run
+300–360 s, so every cooldown unloads the model:
+
+```
+10:36:55  'model.unload', '{"reason":"idle","idleMs":343158}'
+10:42:59  'model.unload', '{"reason":"idle","idleMs":331491}'
+```
+
+Each is followed by a reload and a fresh system prefill — prewarm ran three times
+for the same 1832 tokens (71.9 s / 40.4 s / 40.3 s = 152 s in a 30-minute run).
+The cooldown produces the compute that reheats the phone.
