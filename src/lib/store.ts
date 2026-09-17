@@ -1,4 +1,5 @@
 import type { ChatMessage, Conversation, ConversationMeta } from "./types";
+import type { Attachment, AttachmentKind } from "./attachments";
 
 /**
  * The ONLY module that knows where conversations live. The rest of the app
@@ -22,6 +23,12 @@ export interface ConversationStore {
   remove(id: string): void;
   /** Retitle without touching the message payload (index-only). */
   rename(id: string, title: string): void;
+  /** Attachments of one conversation (active and history). Small; no cache. */
+  getAttachments(convId: string): Attachment[];
+  /** Insert or replace one attachment; history beyond 20 falls off. */
+  putAttachment(convId: string, attachment: Attachment): void;
+  /** Detach into history (kept, re-attachable) — never deletes the text. */
+  removeAttachment(convId: string, attachmentId: string): void;
   /** Last persist failure, if any (quota). Null after a successful write. */
   getWriteError(): string | null;
   clearWriteError(): void;
@@ -39,6 +46,35 @@ const PREFIX = "crescent-chat.";
 const INDEX_KEY = "crescent-chat.index.v2";
 const MIGRATED_KEY = "crescent-chat.migrated.v2";
 const OLD_KEY = "crescent-chat.conversations.v1";
+
+function attachKey(convId: string): string {
+  return `crescent-chat.attach.${convId}.v2`;
+}
+
+const ATTACH_KINDS: AttachmentKind[] = ["txt", "md", "pdf", "docx", "pptx"];
+
+function cleanAttachment(value: unknown): Attachment | null {
+  if (typeof value !== "object" || value === null) return null;
+  const a = value as Record<string, unknown>;
+  if (typeof a.id !== "string" || !a.id) return null;
+  if (typeof a.name !== "string" || !a.name) return null;
+  if (typeof a.text !== "string") return null;
+  if (!ATTACH_KINDS.includes(a.kind as AttachmentKind)) return null;
+  if (typeof a.chars !== "number" || typeof a.tokens !== "number") return null;
+  if (typeof a.attachedAt !== "number" || typeof a.active !== "boolean") return null;
+  if (a.pages !== undefined && typeof a.pages !== "number") return null;
+  return {
+    id: a.id,
+    name: a.name,
+    kind: a.kind as AttachmentKind,
+    ...(typeof a.pages === "number" ? { pages: a.pages } : {}),
+    chars: a.chars,
+    tokens: a.tokens,
+    text: a.text,
+    attachedAt: a.attachedAt,
+    active: a.active,
+  };
+}
 const PREVIEW_CHARS = 140;
 const SEARCH_CHARS = 500;
 
@@ -289,6 +325,7 @@ export function createStore(): ConversationStore {
     remove(id) {
       const ok = writeThrough(() => {
         localStorage.removeItem(msgKey(id));
+        localStorage.removeItem(attachKey(id));
         const next = readIndex().filter((m) => m.id !== id);
         localStorage.setItem(INDEX_KEY, JSON.stringify(next));
         index = next;
@@ -316,10 +353,45 @@ export function createStore(): ConversationStore {
       }
       notify();
     },
+    getAttachments(convId) {
+      try {
+        const raw = localStorage.getItem(attachKey(convId));
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map(cleanAttachment)
+          .filter((a): a is Attachment => a !== null)
+          .sort((a, b) => b.attachedAt - a.attachedAt);
+      } catch {
+        return [];
+      }
+    },
+    putAttachment(convId, attachment) {
+      const clean = cleanAttachment(attachment);
+      if (!clean) return;
+      const rest = this.getAttachments(convId).filter((a) => a.id !== clean.id);
+      const next = [clean, ...rest];
+      const active = next.filter((a) => a.active);
+      const history = next.filter((a) => !a.active).slice(0, 20);
+      const capped = [...active, ...history].sort((a, b) => b.attachedAt - a.attachedAt);
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(capped));
+      });
+      notify();
+    },
+    removeAttachment(convId, attachmentId) {
+      const next = this.getAttachments(convId).map((a) =>
+        a.id === attachmentId ? { ...a, active: false } : a,
+      );
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(next));
+      });
+      notify();
+    },
     getWriteError() {
       return writeError;
-    },
-    clearWriteError() {
+    },    clearWriteError() {
       writeError = null;
       notify();
     },

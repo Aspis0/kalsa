@@ -151,10 +151,37 @@ const CORS = {
   "Access-Control-Allow-Headers": "content-type, authorization",
 };
 
+let lastBody = null;
+
 const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, CORS);
     res.end();
+    return;
+  }
+  // Test-only: what did the client actually send last? Lets asserts check
+  // the wire (documents pinned, turns pruned) without guessing from UI.
+  if (req.method === "GET" && req.url === "/__last-body") {
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ body: lastBody }));
+    return;
+  }
+  // Context sizes: big by default, tiny under /small, tight under /tight.
+  // /ok behaves like a server root (its own /props), so the default flow
+  // sees a known size. Anything else stays silent: unknown, never invented.
+  if (req.method === "GET" && (req.url === "/props" || req.url === "/ok/props")) {
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ n_ctx: 32768 }));
+    return;
+  }
+  if (req.method === "GET" && req.url === "/small/props") {
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ n_ctx: 256 }));
+    return;
+  }
+  if (req.method === "GET" && req.url === "/tight/props") {
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ n_ctx: 1024 }));
     return;
   }
   if (req.method !== "POST") {
@@ -173,12 +200,19 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: { message: "Forbidden", type: "invalid_request_error" } }));
     return;
   }
-  if (req.url === "/ok/v1/chat/completions") {
+  // /ok streams the scenarios; /tight and /small behave the same (their
+  // /props is what differs). Every chat body is remembered for __last-body.
+  if (
+    req.url === "/ok/v1/chat/completions" ||
+    req.url === "/tight/v1/chat/completions" ||
+    req.url === "/small/v1/chat/completions"
+  ) {
     // Hard cases first: split frames, cuts, wrong shapes. Each exercises a
     // client branch the happy path never touches.
     let bodyPeek = "";
     req.on("data", (c) => (bodyPeek += c));
     req.on("end", () => {
+      lastBody = bodyPeek;
       let model = "";
       try {
         model = JSON.parse(bodyPeek).model ?? "";

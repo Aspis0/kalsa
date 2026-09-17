@@ -302,6 +302,14 @@
   overflow-wrap: anywhere;
 }
 
+.error-detail {
+  margin: 0.4rem 0 0;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .btn-primary {
   min-height: 32px;
   padding: 0 1rem;

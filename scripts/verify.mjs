@@ -4,6 +4,7 @@
 // then `node scripts/verify.mjs [test ...]`.
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
+import { zipSync, strToU8 } from "fflate";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -59,6 +60,95 @@ async function openSidebar(page, titlePart) {
     .first()
     .click();
   await page.waitForTimeout(400);
+}
+
+function xmlEsc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Minimal valid 1-2 page PDF with computed xref (latin1, ASCII content).
+function makePdf(pages) {
+  const enc = (s) => Buffer.from(s, "latin1");
+  const esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const objects = [];
+  const kids = [];
+  let next = 4;
+  for (const text of pages) {
+    const stream = Buffer.from(`BT /F1 12 Tf 72 720 Td (${esc(text)}) Tj ET`, "latin1");
+    kids.push(next);
+    objects[next] = enc(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${next + 1} 0 R >>`,
+    );
+    objects[next + 1] = Buffer.concat([
+      enc(`<< /Length ${stream.length} >>\nstream\n`),
+      stream,
+      enc("\nendstream"),
+    ]);
+    next += 2;
+  }
+  objects[1] = enc("<< /Type /Catalog /Pages 2 0 R >>");
+  objects[2] = enc(`<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(" ")}] /Count ${pages.length} >>`);
+  objects[3] = enc("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const total = next - 1;
+  const out = [enc("%PDF-1.4\n")];
+  const offsets = [0];
+  for (let i = 1; i <= total; i++) {
+    offsets[i] = out.reduce((n, b) => n + b.length, 0);
+    out.push(enc(`${i} 0 obj\n`), objects[i], enc("\nendobj\n"));
+  }
+  const xrefAt = out.reduce((n, b) => n + b.length, 0);
+  let xref = `xref\n0 ${total + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= total; i++) xref += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  out.push(enc(`${xref}trailer\n<< /Size ${total + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF`));
+  return Buffer.concat(out);
+}
+
+function makeDocx(paras) {
+  const doc =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+    paras.map((p) => `<w:p><w:r><w:t>${xmlEsc(p)}</w:t></w:r></w:p>`).join("") +
+    `</w:body></w:document>`;
+  const types =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
+    `</Types>`;
+  return Buffer.from(zipSync({ "[Content_Types].xml": strToU8(types), "word/document.xml": strToU8(doc) }));
+}
+
+function makePptx(slides) {
+  const parts = {
+    "[Content_Types].xml": strToU8(
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+        `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+        `<Default Extension="xml" ContentType="application/xml"/>` +
+        slides
+          .map(
+            (_, i) =>
+              `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`,
+          )
+          .join("") +
+        `</Types>`,
+    ),
+  };
+  slides.forEach((text, i) => {
+    parts[`ppt/slides/slide${i + 1}.xml`] = strToU8(
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+        `<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+        `<p:cSld><p:spTree><p:sp><p:txBody><a:bodyPr/><a:p><a:r><a:t>${xmlEsc(text)}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>`,
+    );
+  });
+  return Buffer.from(zipSync(parts));
+}
+
+async function lastBody(page) {
+  const res = await page.evaluate(async () => {
+    const r = await fetch("http://127.0.0.1:18081/__last-body");
+    return r.json();
+  });
+  return JSON.parse(res.body ?? "null");
 }
 
 const tests = {
@@ -876,6 +966,292 @@ const tests = {
       `${incrementalMs}ms vs ${naiveMs}ms`,
     );
   },
+  // Attachments: txt fits, reaches the wire, never the index.
+  async attachtxt() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    const text = `Report body. ${"x".repeat(3985)}`;
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "report.txt", mimeType: "text/plain", buffer: Buffer.from(text) },
+    ]);
+    await page.waitForTimeout(800);
+    const row = (await page.locator(".panel-row .panel-name").textContent()) ?? "";
+    check("attachtxt: panel lists file", row.includes("report.txt"));
+    const meta = (await page.locator(".panel-row .panel-meta").textContent()) ?? "";
+    check("attachtxt: type and estimate shown", meta.includes("txt") && meta.includes("1000"));
+    const attachId = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const attachRaw = await stored(page, attachId);
+    check("attachtxt: payload stored", (attachRaw ?? "").includes("Report body."));
+    const indexRaw = (await stored(page, "crescent-chat.index.v2")) ?? "";
+    check("attachtxt: index clean", !indexRaw.includes("Report body."));
+    check(
+      "attachtxt: body never rendered",
+      !((await page.locator(".panel").textContent()) ?? "").includes("Report body."),
+    );
+    await page.getByRole("textbox", { name: "Message" }).fill("Summarize.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+      null,
+      { timeout: 20000 },
+    );
+    const body = await lastBody(page);
+    const sys = (body?.messages ?? []).find((m) => m.role === "system");
+    check("attachtxt: wire has pinned block", (sys?.content ?? "").includes("Report body.") && (sys?.content ?? "").includes("report.txt"));
+    await browser.close();
+  },
+
+  // PDF: two pages out, both texts kept, zero network while parsing.
+  async attachpdf() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    // Listener starts after load: only parsing-time requests count, and the
+    // configured endpoint is legitimate traffic — third parties are not.
+    let external = 0;
+    page.on("request", (req) => {
+      const url = req.url();
+      if (!url.startsWith("http://localhost:5173") && !url.startsWith("http://127.0.0.1:18081")) external++;
+    });
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "doc.pdf", mimeType: "application/pdf", buffer: makePdf(["Hello PDF page one", "Hello PDF page two"]) },
+    ]);
+    await page.waitForTimeout(2500);
+    const meta = (await page.locator(".panel-row .panel-meta").textContent()) ?? "";
+    check("attachpdf: two pages", meta.includes("2 pages"), meta.trim());
+    const id = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const storedText = JSON.parse((await stored(page, id)) ?? "[]")[0]?.text ?? "";
+    check("attachpdf: both pages extracted", storedText.includes("page one") && storedText.includes("page two"));
+    check("attachpdf: zero external requests while parsing", external === 0, `${external} seen`);
+    await browser.close();
+  },
+
+  // DOCX + PPTX: same zip, text out.
+  async attachoffice() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      {
+        name: "doc.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        buffer: makeDocx(["Hello DOCX world", "Second paragraph here"]),
+      },
+      {
+        name: "deck.pptx",
+        mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        buffer: makePptx(["Hello PPTX slide one", "Hello PPTX slide two"]),
+      },
+    ]);
+    await page.waitForTimeout(2500);
+    const names = (await page.locator(".panel-list").textContent()) ?? "";
+    check("attachoffice: both listed", names.includes("doc.docx") && names.includes("deck.pptx"));
+    check("attachoffice: slides counted", names.includes("2 pages"));
+    const id = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const atts = JSON.parse((await stored(page, id)) ?? "[]");
+    const docx = atts.find((a) => a.name === "doc.docx");
+    const pptx = atts.find((a) => a.name === "deck.pptx");
+    check("attachoffice: docx text", (docx?.text ?? "").includes("Hello DOCX world"));
+    check("attachoffice: pptx text", (pptx?.text ?? "").includes("Hello PPTX slide two"));
+    await browser.close();
+  },
+
+  // Drag and drop onto the thread attaches too.
+  async attachdrop() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.evaluate(([name, bytes]) => {
+      const file = new File([new Uint8Array(bytes)], name, { type: "text/plain" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const el = document.querySelector(".main-col");
+      el.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    }, ["dropped.txt", [...Buffer.from("Dropped file text.")]]);
+    await page.waitForTimeout(800);
+    check("attachdrop: dropped file listed", ((await page.locator(".panel-list").textContent()) ?? "").includes("dropped.txt"));
+    await browser.close();
+  },
+
+  // Wrong kind and absurd size: said aloud, never attached.
+  async attachrejects() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "run.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ") },
+    ]);
+    await page.waitForTimeout(600);
+    const status = (await page.locator(".attach-status").textContent()) ?? "";
+    check("attachrejects: unsupported said", status.includes("not a readable kind"));
+    check("attachrejects: nothing stored", (await page.locator(".panel-row").count()) === 0);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "huge.txt", mimeType: "text/plain", buffer: Buffer.alloc(33 * 1024 * 1024, 97) },
+    ]);
+    await page.waitForTimeout(1200);
+    const status2 = (await page.locator(".attach-status").textContent()) ?? "";
+    check("attachrejects: too-big said", status2.includes("too large"));
+    check("attachrejects: still nothing stored", (await page.locator(".panel-row").count()) === 0);
+    await browser.close();
+  },
+
+  // Small context: the oversized file is refused WITH its numbers.
+  async refusefit() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: { endpoint: "http://127.0.0.1:18081/small", token: "t", model: "x" } });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "big.txt", mimeType: "text/plain", buffer: Buffer.from(`B testo. ${"y".repeat(1185)}`) },
+    ]);
+    await page.waitForTimeout(1500);
+    const banner = page.locator(".refusal-banner");
+    check("refusefit: refusal shown", (await banner.count()) === 1);
+    const text = (await banner.textContent()) ?? "";
+    // 1194 chars -> 299 tokens; 299 + 0 + 512 reserve = 811 > 256.
+    check("refusefit: real numbers", text.includes("256") && text.includes("811"), text.slice(0, 120));
+    check("refusefit: never attached", (await page.locator(".panel-row").count()) === 0);
+    await page.screenshot({ path: "shots/62-refusal.png" });
+    await browser.close();
+  },
+
+  // Unknown context: attached, but the panel says the size is unchecked.
+  async unknownctx() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: { endpoint: "http://127.0.0.1:18081/denied", token: "t", model: "x" } });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "note.txt", mimeType: "text/plain", buffer: Buffer.from("Small note.") },
+    ]);
+    await page.waitForTimeout(1500);
+    check("unknownctx: attached anyway", ((await page.locator(".panel-list").textContent()) ?? "").includes("note.txt"));
+    check(
+      "unknownctx: unknown said aloud",
+      ((await page.locator(".panel-context").textContent()) ?? "").includes("unknown"),
+    );
+    check("unknownctx: no refusal", (await page.locator(".refusal-banner").count()) === 0);
+    await browser.close();
+  },
+
+  // Tight context: old turns drop from the wire, the document stays.
+  // Exact arithmetic (estTokens = ceil(chars/4)):
+  // attach: doc 100 + hist 377 + 512 reserve = 989 <= 1024.
+  // send:   doc 100 + hist 477 + 512 reserve = 1089 > 1024 -> prune 3.
+  async prunekeep() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 13; i++) {
+      const tag = `Q${String(i).padStart(2, "0")}`;
+      messages.push({ id: `u${i}`, role: "user", content: `${tag} ${"q".repeat(112)}`, createdAt: i });
+    }
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
+      convos: [{ id: "t1", title: "Tight", createdAt: 1, updatedAt: 1, messages }],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Tight");
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "keep.txt", mimeType: "text/plain", buffer: Buffer.from(`KEEPME ${"k".repeat(393)}`) },
+    ]);
+    await page.waitForTimeout(1500);
+    check("prunekeep: attached", ((await page.locator(".panel-list").textContent()) ?? "").includes("keep.txt"));
+    const newMsg = `Summarize it all now, every early part included, please do not skip anything at all, full detail now. ${"z".repeat(292)}`;
+    await page.getByRole("textbox", { name: "Message" }).fill(newMsg);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+      null,
+      { timeout: 20000 },
+    );
+    const body = await lastBody(page);
+    const wire = JSON.stringify(body?.messages ?? []);
+    check("prunekeep: document still pinned", wire.includes("KEEPME"));
+    check("prunekeep: oldest turns dropped", !wire.includes("Q00") && !wire.includes("Q02"));
+    check("prunekeep: newest kept", wire.includes("Q12") && wire.includes("zzzzzzzzzz"));
+    // Pruning is wire-only: the visible thread keeps everything.
+    const threadText = (await page.locator(".thread").textContent()) ?? "";
+    check("prunekeep: storage intact", threadText.includes("Q00"));
+    await browser.close();
+  },
+
+  // Detached to history and back, text intact.
+  async historyreattach() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "cycle.txt", mimeType: "text/plain", buffer: Buffer.from("Round-trip text.") },
+    ]);
+    await page.waitForTimeout(800);
+    await page.locator(".sidebar-row").first().hover();
+    await page.getByRole("button", { name: "Remove" }).click();
+    await page.waitForTimeout(400);
+    check("historyreattach: in history", ((await page.locator(".panel-list").textContent()) ?? "").includes("Reattach"));
+    await page.getByRole("button", { name: "Reattach" }).click();
+    await page.waitForTimeout(400);
+    const id = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const atts = JSON.parse((await stored(page, id)) ?? "[]");
+    const back = atts.find((a) => a.name === "cycle.txt");
+    check("historyreattach: active again with text", back?.active === true && back?.text === "Round-trip text.");
+    await browser.close();
+  },
+
+  // Growth after attaching can still overflow: the send is refused aloud.
+  // Exact arithmetic: doc 500 + newest 25 + 512 reserve = 1037 > 1024,
+  // while attach time (500 + 0 + 512 = 1012) fit.
+  async oversizesend() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(1993)}`) },
+    ]);
+    await page.waitForTimeout(1500);
+    check("oversizesend: attached first", ((await page.locator(".panel-list").textContent()) ?? "").includes("anchor.txt"));
+    await page.getByRole("textbox", { name: "Message" }).fill(`Tip it over the edge now, please, and do not hold anything back at all. ${"m".repeat(28)}`);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("exceeds the context"),
+      null,
+      { timeout: 20000 },
+    );
+    const detail = (await page.locator(".error-detail").textContent()) ?? "";
+    check("oversizesend: numbers shown", detail.includes("1,024"), detail.slice(0, 100));
+    await browser.close();
+  },
+
+  // At rest, nothing moves document-wide (sidebar included): zero running
   // animations anywhere once every stream settled. getAnimations() cannot
   // see setInterval/rAF — the app holds no rAF loops, and live timers are
   // counted separately below; both limits are stated, not implied.

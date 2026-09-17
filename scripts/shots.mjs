@@ -481,6 +481,32 @@ async function main() {
     await page.close();
   }
 
+  if (want("panelempty")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Seeded thread");
+    await page.getByRole("button", { name: "Toggle attachments panel" }).click();
+    await must(page, ".panel-open", "empty panel");
+    await shot(page, "shots/60-panel-empty.png");
+    await page.close();
+  }
+
+  if (want("panelfile")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Seeded thread");
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("Panel notes. " + "n".repeat(400)) },
+    ]);
+    await must(page, ".panel-row", "panel file");
+    await shot(page, "shots/61-panel-file.png");
+    await page.close();
+  }
+
   if (want("imgblocked")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {

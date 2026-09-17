@@ -415,3 +415,69 @@ Le preview sono cambiate dopo lo strip markdown: rigenerate e riverificate.
   (getBoundingClientRect è post-transform: i 9px c'erano); top-up quota
   ragionato male due volte prima della versione a granularità.
 - Certificazione: shots 34/34, verify 87 PASS, contrast TUTTE PASS.
+
+## Giro 24 — allegati: testo nel contesto, niente retrieval (2026-09-18)
+
+- Estrazione solo browser: txt/md via File.text, pdf via pdfjs-dist
+  (Apache-2.0, worker locale impacchettato, zero richieste misurate),
+  docx/pptx via fflate (MIT) + DOMParser su w:t/a:t. Niente upload, mai.
+  Dipendenze: solo queste due, motivo e licenza qui.
+- pptx incluso perché costava ~20 righe (stesso zip, a:t): slide marcate,
+  conteggio = pagine. docx senza pagine ("—"); header/footer scartati
+  (solo body: scelta scritta, non dimenticanza).
+- Pannello a destra, per conversazione: attivi (nome, tipo, pagine, ≈token),
+  remove, storico con reattach, riga contesto. Toggle Files, drawer sotto
+  1200px. Niente superfici nuove (arco intatto, sei punti).
+- Onestà: fit-check con n_ctx vero da /props (sconosciuto = detto, mai
+  inventato); rifiuto con numeri prima di allegare; al send i turni vecchi
+  cadono dal wire (mai i file); store separato (indice/payload puliti);
+  testo estratto mai renderizzato (né panel, né thread). Cap 32MB anti-OOM
+  con rifiuto proprio.
+- Mock: /props + /small(256) + /tight(1024) + /ok/props, __last-body per
+  leggere il wire, PDF/DOCX/PPTX generati a xref calcolati nel driver.
+- 12 test (fit, wire, pin, drop×turni, history, oversize, unknown, pdf,
+  office, drop-ui, reject×2, refusal). Mutazioni, tutte exit 1 -> 0:
+  rifiuto spento, pin che droppa i file, cap rimosso, unknown inventato
+  (4096: la prima versione non scattava perché il 404 vuoto usciva prima
+  dal parse — il path onesto passa per il 404, documentato), panel che
+  mostra il testo.
+- Shot visti uno a uno: 60-vuoto, 61-file (con numeri veri), 62-rifiuto
+  (con numeri veri). Nessun fix dalla vista: il mock /ok senza /props
+  mostrava "unknown" ingiusto — aggiunto /ok/props, non era l'app.
+- Certificazione: shots 36/36, verify 120 PASS, contrast TUTTE PASS.
+
+- #1: pick sulla prima stringa NON vuota (`reasoning_content`, poi nest,
+  poi `reasoning`, poi nest). Fixture emptywins (rc "" + r pieno) e
+  bothfull (precedenza inchiodata). Mutazione (`??`-style: vince ""):
+  exit 1, emptywins rosso ×2, bothfull verde (giusto: non tocca quel caso).
+- #2: `extractMessageReasoning` legge il message-shape (il ramo non-stream
+  prima chiamava l'estrattore delta su un JSON senza delta: sempre null,
+  ramo morto). thinking-only non-stream = nuvoletta + detto, mai
+  "irraggiungibile"; 200 vuoto = bad-response. Fixture jsonthink.
+  Mutazione (message unread): exit 1, timeout su "gave no answer" — e
+  mostra la diagnosi sbagliata originale (irraggiungibile su un 200).
+- #3: buffer in memoria per run, render da lì, persist trailing 500ms +
+  flush su fine/errore/stop. x-model: 4 setItem contro ~18. Assert doppia:
+  conteggio ≤10 E payload identico. Mutazione (persist a ogni token):
+  exit 1, 18 scritture, risultato identico (il throttle cambia il quando,
+  mai il cosa — ed è per questo che l'assert doppio serve).
+- #4: `src/lib/tail.ts`, coda incrementale O(chunk) con marker di break;
+  equivalenza provata contro full scan su chunking ostili (1 char alla
+  volta incluso); 2ms vs 695ms su 6000 append. Mutazione (rescan storico
+  per chiamata): exit 1 sul rapporto (930 vs 685), equivalenza verde —
+  i due assert misurano cose diverse, apposta.
+- #5: stillness su tutto il documento (0 running) + 0 timer vivi contati
+  via patch in init (nessun rAF nel codice). Limite scritto: getAnimations
+  non vede setInterval/rAF — i timer li contiamo, i rAF non esistono per
+  costruzione. Mutazione (pallino sidebar sempre acceso): exit 1, 1 running
+  document-wide; la vecchia scope-thread segnava 0 — la prova che
+  l'allargamento serviva.
+- Conseguenza strutturale del throttle: lo storage rincorre la memoria —
+  i test leggono il disco solo a stato assestato (riepilogo/riga Called/
+  Stop sparito), mai al primo paint. Tre test resi verdi così (erano race,
+  non bug).
+- Buttato: fade ticker (già al 22); probe stillness su sidebar vuota (0/0,
+  errore mio di setup, il test vero l'ha preso); allarme trail fantasma
+  (getBoundingClientRect è post-transform: i 9px c'erano); top-up quota
+  ragionato male due volte prima della versione a granularità.
+- Certificazione: shots 34/34, verify 87 PASS, contrast TUTTE PASS.

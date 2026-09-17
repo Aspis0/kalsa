@@ -11,6 +11,7 @@ export interface FailedState {
   kind: ChatErrorKind;
   status?: number;
   url?: string;
+  detail?: string;
 }
 
 interface ThreadProps {
@@ -53,6 +54,11 @@ function errorCopy(kind: ChatErrorKind, status?: number): { title: string; body:
       return {
         title: "The server took too long to answer.",
         body: "A full minute with no new words, so the request was dropped. Try again.",
+      };
+    case "oversize":
+      return {
+        title: "This exceeds the context.",
+        body: "Even without the older turns, this message plus its attachments don't fit. Remove a file or shorten the message.",
       };
     default:
       return {
@@ -139,6 +145,7 @@ function AssistantRow({
             <p className="error-title">{errorCopy(failed.kind, failed.status).title}</p>
             <p className="error-body">{errorCopy(failed.kind, failed.status).body}</p>
             {failed.url ? <p className="error-url">Called: {failed.url}</p> : null}
+            {failed.detail ? <p className="error-detail">{failed.detail}</p> : null}
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 Try again

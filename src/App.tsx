@@ -3,9 +3,11 @@ import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
-import { ChatRequestError, streamChatCompletion } from "./lib/chat";
+import { ChatRequestError, fetchContextSize, serverBase, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
 import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
+import type { Attachment } from "./lib/attachments";
+import { AttachmentError, buildPinnedContext, extractAttachment } from "./lib/attachments";
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
 import { CrescentNav } from "./components/CrescentNav";
@@ -14,12 +16,21 @@ import { Composer } from "./components/Composer";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
+import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
 import { PLACEHOLDER_LINES, SurfacePlaceholder } from "./components/SurfacePlaceholder";
 import { EmptyState } from "./components/EmptyState";
 import "./App.css";
 
 const store = createStore();
+
+interface Refusal {
+  names: string;
+  docTokens: number;
+  historyTokens: number;
+  need: number;
+  have: number;
+}
 
 function surfaceLabel(surface: SurfaceKey): string {
   return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
@@ -39,6 +50,12 @@ export function App() {
   const [streamingByConv, setStreamingByConv] = useState<Record<string, string>>({});
   const [failedById, setFailedById] = useState<Record<string, FailedState>>({});
   const controllers = useRef(new Map<string, AbortController>());
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [attachStatus, setAttachStatus] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
+  const nctxCache = useRef(new Map<string, number | null>());
   // In-flight stream buffers, keyed by assistant message id. Text lives here
   // while streaming and renders from here; the disk is written on a throttle
   // plus once at the end — never per token. The stored copy always trails
@@ -94,6 +111,12 @@ export function App() {
   const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
   const streamingAny = Object.keys(streamingByConv).length > 0;
   const configured = isConfigured(settings);
+  const attachments: Attachment[] = useMemo(
+    () => (activeId ? store.getAttachments(activeId) : []),
+    // conversations refreshes on every store notification (index is small).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversations, activeId],
+  );
 
   // An empty assistant message with no stream behind it is a response that
   // never arrived (failed before, app reloaded since). It must never render
@@ -118,14 +141,116 @@ export function App() {
     return null;
   }, [failedById, active, streaming]);
 
+  async function ensureCtx(): Promise<number | null> {
+    const endpoint = settings.endpoint;
+    const cached = nctxCache.current.get(endpoint);
+    if (cached !== undefined) {
+      setCtxInfo({ endpoint, nctx: cached });
+      return cached;
+    }
+    setAttachStatus("Checking context size…");
+    const nctx = await fetchContextSize(serverBase(endpoint));
+    nctxCache.current.set(endpoint, nctx);
+    setCtxInfo({ endpoint, nctx });
+    setAttachStatus(null);
+    return nctx;
+  }
+
+  // Refresh the panel's context line when it opens over pinned files.
+  useEffect(() => {
+    if (!panelOpen || !activeId) return;
+    if (store.getAttachments(activeId).every((a) => !a.active)) return;
+    if (ctxInfo && ctxInfo.endpoint === settings.endpoint) return;
+    void ensureCtx();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelOpen, activeId, settings.endpoint, conversations]);
+
+  async function attachFiles(files: FileList | File[]): Promise<void> {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    setRefusal(null);
+    let convId = activeId;
+    if (!convId) {
+      const fresh: Conversation = {
+        id: uid(),
+        title: list[0].name.slice(0, 46),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [],
+      };
+      store.put(fresh);
+      convId = fresh.id;
+      setActiveId(convId);
+    }
+    const target = convId;
+    setAttachStatus(
+      list.length === 1 ? `Reading ${list[0].name}…` : `Reading ${list.length} files…`,
+    );
+    try {
+      const extracted: Attachment[] = [];
+      for (const file of list) {
+        extracted.push(await extractAttachment(file));
+      }
+      const nctx = await ensureCtx();
+      const history = store.get(target)?.messages ?? [];
+      const trial = buildPinnedContext(history, extracted, nctx);
+      if (trial.status === "refused") {
+        setRefusal({
+          names: extracted.map((a) => a.name).join(", "),
+          docTokens: trial.docTokens,
+          historyTokens: trial.historyTokens,
+          need: trial.need,
+          have: trial.have,
+        });
+        setAttachStatus(null);
+        setLiveMessage("Attachment refused: it does not fit the context.");
+        return;
+      }
+      for (const attachment of extracted) store.putAttachment(target, attachment);
+      setAttachStatus(null);
+      setPanelOpen(true);
+      setLiveMessage(
+        extracted.length === 1
+          ? `${extracted[0].name} attached.`
+          : `${extracted.length} files attached.`,
+      );
+    } catch (error) {
+      if (error instanceof AttachmentError) {
+        setAttachStatus(error.message);
+      } else {
+        setAttachStatus("That file could not be read.");
+      }
+      setLiveMessage("Attachment failed.");
+    }
+  }
+
   const runAssistant = useCallback(
     async (conversationId: string, assistantId: string, currentSettings: ChatSettings) => {
       const conv = store.get(conversationId);
       if (!conv) return;
-      const history = conv.messages
+      const turns = conv.messages
         .filter((m) => m.id !== assistantId && !(m.role === "assistant" && m.content === ""))
-        .filter((m) => m.content.length > 0 || m.role === "user")
-        .map((m) => ({ role: m.role, content: m.content }));
+        .filter((m) => m.content.length > 0 || m.role === "user");
+      const docs = store.getAttachments(conversationId).filter((a) => a.active);
+      // Send-time never fetches: the cached size (or unknown) decides, so a
+      // request never waits on /props. Unknown means unpruned, never refused.
+      const known = nctxCache.current.get(currentSettings.endpoint) ?? null;
+      const ctx = buildPinnedContext(turns, docs, known);
+      if (ctx.status === "refused") {
+        // History outgrew the context after attaching: keep the empty
+        // placeholder so the error has a place to live, and say the numbers.
+        setFailedById((prev) => ({
+          ...prev,
+          [assistantId]: {
+            messageId: assistantId,
+            kind: "oversize",
+            detail: `≈${ctx.docTokens.toLocaleString()} file + ≈${ctx.historyTokens.toLocaleString()} history tokens need ≈${ctx.need.toLocaleString()} of ≈${ctx.have.toLocaleString()} context tokens.`,
+          },
+        }));
+        setLiveMessage("The message no longer fits the context.");
+        return;
+      }
+      const history = ctx.wire;
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);
       setStreamingByConv((prev) => ({ ...prev, [conversationId]: assistantId }));
@@ -376,6 +501,17 @@ export function App() {
           <h1>{title}</h1>
         </div>
         <div className="topbar-actions">
+          {surface === "chat" && active ? (
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={() => setPanelOpen((o) => !o)}
+              aria-expanded={panelOpen}
+              aria-label="Toggle attachments panel"
+            >
+              Files
+            </button>
+          ) : null}
           <button
             type="button"
             className="topbar-btn"
@@ -413,7 +549,37 @@ export function App() {
                 onRename={(id, newTitle) => store.rename(id, newTitle)}
                 onDelete={removeConversation}
               />
-              <div className="main-col">
+              <div
+                className="main-col"
+                onDragOver={(event) => {
+                  if (event.dataTransfer?.types.includes("Files")) {
+                    event.preventDefault();
+                    setDragging(true);
+                  }
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
+                }}
+              >
+                {dragging ? (
+                  <div className="drop-overlay" aria-hidden="true">
+                    <span>Drop files to attach them to this conversation</span>
+                  </div>
+                ) : null}
+                {refusal ? (
+                  <div className="refusal-banner" role="alert">
+                    <span>
+                      <strong>{refusal.names} {refusal.names.includes(",") ? "don't" : "doesn't"} fit.</strong>
+                      {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} tokens need ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
+                    </span>
+                    <button type="button" onClick={() => setRefusal(null)}>
+                      Dismiss
+                    </button>
+                  </div>
+                ) : null}
                 {empty ? (
                   <EmptyState
                     needsSetup={!configured}
@@ -429,8 +595,25 @@ export function App() {
                     onOpenSettings={() => setSurface("settings")}
                   />
                 )}
-                <Composer streaming={streaming} onSend={send} onStop={stop} />
+                {attachStatus ? (
+                  <p className="attach-status" role="status">
+                    {attachStatus}
+                  </p>
+                ) : null}
+                <Composer streaming={streaming} onSend={send} onStop={stop} onAttach={(files) => void attachFiles(files)} />
               </div>
+              <Panel
+                open={panelOpen && surface === "chat" && active !== null}
+                attachments={attachments}
+                contextTokens={ctxInfo && ctxInfo.endpoint === settings.endpoint ? ctxInfo.nctx : null}
+                onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
+                onReattach={(id) => {
+                  if (!activeId) return;
+                  const found = store.getAttachments(activeId).find((a) => a.id === id);
+                  if (found) store.putAttachment(activeId, { ...found, active: true });
+                }}
+                onClose={() => setPanelOpen(false)}
+              />
             </div>
           ) : surface === "settings" ? (
             <SettingsForm
@@ -438,6 +621,8 @@ export function App() {
               onSave={(next) => {
                 setSettings(next);
                 saveSettings(next);
+                nctxCache.current.clear();
+                setCtxInfo(null);
               }}
             />
           ) : (

@@ -14,6 +14,7 @@ export type ChatErrorKind =
   | "bad-response"
   | "truncated"
   | "timeout"
+  | "oversize"
   | "aborted";
 
 export class ChatRequestError extends Error {
@@ -48,6 +49,41 @@ export interface StreamOptions {
 
 /** No new words for this long means the server is gone, not slow. */
 export const IDLE_TIMEOUT_MS = 60_000;
+
+/**
+ * The server root behind any endpoint shape: full chat URLs and /v1 bases
+ * collapse back to the host root, where companion routes (like /props)
+ * live. Unknown paths pass through untouched.
+ */
+export function serverBase(endpoint: string): string {
+  const base = endpoint.trim().replace(/\/+$/, "");
+  return base
+    .replace(/\/v1\/chat\/completions$/, "")
+    .replace(/\/chat\/completions$/, "")
+    .replace(/\/v1$/, "");
+}
+
+/**
+ * Ask the server for its real context size (llama.cpp serves /props with
+ * n_ctx). Anything missing, non-numeric or unreachable means UNKNOWN —
+ * never an invented limit.
+ */
+export async function fetchContextSize(base: string, timeoutMs = 8000): Promise<number | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${base}/props`, { signal: controller.signal });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { n_ctx?: unknown };
+    return typeof data.n_ctx === "number" && Number.isFinite(data.n_ctx) && data.n_ctx > 0
+      ? Math.floor(data.n_ctx)
+      : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Accepts a base URL (with or without /v1), or a full /chat/completions URL.

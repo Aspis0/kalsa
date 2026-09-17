@@ -80,6 +80,17 @@
   background: var(--border);
 }
 
+.composer-attach {
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+}
+
+.composer-attach:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
 .composer-hint {
   margin: 0.35rem 0 0;
   color: var(--silence);
