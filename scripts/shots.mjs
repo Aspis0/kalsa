@@ -371,7 +371,29 @@ async function main() {
     await page.close();
   }
 
-  // 24 — three conversations: do few points look lost on a wide arc?
+  // 27 — reload after a failure: the empty tail must offer retry, not blank
+  if (want("missing")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const tail = conv("Interrupted thread", [
+      msg("user", "Are you still there?"),
+      { ...msg("assistant", ""), createdAt: Date.now() },
+    ]);
+    await seed(page, { settings: okSettings("x"), convos: [tail], theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await shot(page, "shots/26-missing.png");
+    // And retry must actually work from that state.
+    await page.getByRole("button", { name: "Try again" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+      null,
+      { timeout: 20000 },
+    );
+    console.log("missing-retry: STREAMED OK");
+    await page.close();
+  }
   if (want("few")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {

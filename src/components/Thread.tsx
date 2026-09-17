@@ -48,6 +48,14 @@ function Thinking() {
   );
 }
 
+function stamp(when: number): string {
+  try {
+    return new Date(when).toLocaleString();
+  } catch {
+    return "";
+  }
+}
+
 function AssistantRow({
   message,
   streaming,
@@ -63,7 +71,7 @@ function AssistantRow({
 }) {
   const showThinking = streaming && message.content.length === 0 && !failed;
   return (
-    <div className="row row-assistant">
+    <div className="row row-assistant" title={stamp(message.createdAt)}>
       <div className="assistant-body">
         {showThinking ? (
           <>
@@ -131,7 +139,7 @@ export function Thread({ messages, streaming, failed, onRetry, onOpenSettings }:
         <div className="thread-column">
           {messages.map((message) =>
             message.role === "user" ? (
-              <div className="row row-user" key={message.id}>
+              <div className="row row-user" key={message.id} title={stamp(message.createdAt)}>
                 <div className="user-bubble">{message.content}</div>
               </div>
             ) : (

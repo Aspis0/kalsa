@@ -40,6 +40,20 @@ export function App() {
   const streaming = streamingId !== null;
   const configured = isConfigured(settings);
 
+  // An empty assistant message with no stream behind it is a response that
+  // never arrived (failed before, app reloaded since). It must never render
+  // as a blank row: surface it as retryable, whatever the original cause —
+  // retrying re-runs the request, so a stale cause would only mislead.
+  const effectiveFailed: FailedState | null = useMemo(() => {
+    if (failed) return failed;
+    if (!active || streaming) return null;
+    const last = active.messages.at(-1);
+    if (last && last.role === "assistant" && last.content === "" && !last.stopped) {
+      return { messageId: last.id, kind: "network" };
+    }
+    return null;
+  }, [failed, active, streaming]);
+
   useEffect(() => {
     setConfirmDelete(false);
     setFailed((f) => (f && active?.messages.some((m) => m.id === f.messageId) ? f : null));
@@ -150,8 +164,8 @@ export function App() {
   }
 
   function retry(): void {
-    if (!active || !failed || streaming) return;
-    const assistantId = failed.messageId;
+    if (!active || !effectiveFailed || streaming) return;
+    const assistantId = effectiveFailed.messageId;
     const latest = store.get(active.id);
     if (!latest) return;
     store.put({
@@ -242,7 +256,7 @@ export function App() {
           <Thread
             messages={active.messages}
             streaming={streamingId !== null && active.messages.some((m) => m.id === streamingId)}
-            failed={failed}
+            failed={effectiveFailed}
             onRetry={retry}
             onOpenSettings={() => setSettingsOpen(true)}
           />

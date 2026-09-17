@@ -166,6 +166,18 @@ Voti: pochi 5 · attiva 5 · stretta-aperta 5 (dopo fix).
 Voti: a11y 5 · tauri-readiness 4 (frontend pronto, bundle da fare) ·
 regressione verde.
 
+## Giro 9 — coda vuota dopo reload + timestamp invisibili (2026-09-18)
+
+- Bug vero, trovato leggendo: risposta fallita + reload = riga assistente
+  vuota senza retry (lo stato d'errore è effimero, il messaggio resta).
+  **Fix**: `effectiveFailed` derivato in App — coda assistente vuota senza
+  stream = riprovabile, causa originale ignorata (il retry riesegue tutto,
+  una causa vecchia mentirebbe). 26-missing + click "Try again" -> stream
+  vero ("STREAMED OK" dal driver).
+- Timestamp dei messaggi in `title` (hover nativo, zero UI, zero bottoni).
+- Buttato: l'idea di persistere il `kind` d'errore — una riga in più sullo
+  store per un dato che il retry rende inutile.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
