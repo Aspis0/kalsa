@@ -43,6 +43,11 @@ import {
   recordToolSuccess,
 } from "../agent/toolSourceLedger";
 import { getStrings, type Locale } from "../i18n";
+import {
+  type StaticPrefixIdentity,
+  restoreStaticPrefixSnapshot,
+  saveStaticPrefixSnapshot,
+} from "./staticPrefixSnapshot";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
@@ -843,6 +848,25 @@ function staticPrefixModelIdentity(): string | null {
   });
 }
 
+/** Snapshot identity for the active engine, or null when unknown. */
+function staticPrefixSnapshotIdentity(
+  prefixHash: string,
+): StaticPrefixIdentity | null {
+  if (!activeModelId || !activeModelFileId || !activeEngineBuild) return null;
+  return {
+    modelId: activeModelId,
+    modelFileId: activeModelFileId,
+    engineBuild: activeEngineBuild,
+    nCtx: activeEngineCtx,
+    cacheTypeK: activeCacheTypeK ?? "",
+    cacheTypeV: activeCacheTypeV ?? "",
+    prefixHash,
+    ...(activeMtpNMax !== undefined ? { mtpNMax: activeMtpNMax } : {}),
+    ...(activeSpecType !== undefined ? { specType: activeSpecType } : {}),
+    ...(activeEngineKnob !== undefined ? { engineKnob: activeEngineKnob } : {}),
+  };
+}
+
 async function hydrateStaticPrefixTokens(): Promise<void> {
   if (staticPrefixTokensHydrated) return;
   if (staticPrefixTokensHydration) return staticPrefixTokensHydration;
@@ -1026,9 +1050,125 @@ export async function queueStaticPrefixPrewarm(
         logPrewarm({ op: "skip", reason: "kv_holds_chat" });
         return;
       }
-      // The prewarm prompt is about to own the native context: any recorded
-      // chat boundary fact / reconcile attempt is stale from here on.
+      // The native KV is about to be replaced — by a snapshot restore or by
+      // the completion below — so any recorded chat boundary fact is stale.
       invalidateChatKvAlignment();
+      // Persisted snapshot for this exact identity? loadSession replaces the
+      // 40 s prefill with a single-digit-ms read. Same FIFO and same
+      // kv-holds-chat guard as the completion: a loadSession must never race
+      // a completion. Trust comes from tokens_loaded, never from a flag.
+      const snapshotIdentity = staticPrefixSnapshotIdentity(prefix.hash);
+      const snapshotBytesPerToken = snapshotIdentity
+        ? sessionBytesPerTokenForModel(
+            await loadSessionDiskCalibration(),
+            snapshotIdentity.modelId,
+            registrySessionBytesPerToken(snapshotIdentity.modelId),
+          )
+        : null;
+      if (snapshotIdentity) {
+        const restored = await restoreStaticPrefixSnapshot(
+          engine,
+          snapshotIdentity,
+        );
+        if (restored.ok) {
+          if (gen !== prewarmGeneration) {
+            logPrewarm({ op: "skip", reason: "stale" });
+            return;
+          }
+          if (disposing || context !== engine) {
+            logPrewarm({
+              op: "skip",
+              reason: context !== engine ? "no_context" : "disposing",
+            });
+            return;
+          }
+          if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
+            logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+            return;
+          }
+          prewarmPrefixHash = prefix.hash;
+          // tokens_loaded is the native's own count of exactly this prefix —
+          // the same measurement the prefill path records, now without the
+          // 40 s of prefill. restored.ok already guarantees it is a positive
+          // finite number (staticPrefixSnapshot rejects tokens_loaded: 0).
+          const modelIdentity = staticPrefixModelIdentity();
+          const measurement =
+            modelIdentity != null
+              ? makeStaticPrefixMeasurement(
+                  restored.tokensLoaded,
+                  activeEngineCtx,
+                  Date.now(),
+                )
+              : null;
+          if (measurement != null && modelIdentity != null) {
+            try {
+              await persistStaticPrefixTokens(
+                staticPrefixMeasurementKey(
+                  modelIdentity,
+                  staticPrefixIdentity(
+                    locale,
+                    prefix.messages[0]?.content ?? "",
+                    prefix.tools,
+                  ),
+                ),
+                measurement,
+              );
+            } catch {
+              // The in-memory measurement remains usable for this context.
+            }
+          }
+          try {
+            console.log(
+              `KALSA_PREFIX_MEASURED ${JSON.stringify({
+                tokens: restored.tokensLoaded,
+                restored: true,
+              })}`,
+            );
+          } catch {
+            // telemetry must never throw
+          }
+          logPrewarm({
+            op: "restore",
+            ok: true,
+            tokens: restored.tokensLoaded,
+            hash: prefix.hash,
+          });
+          return;
+        }
+        if (restored.reason === "load_error") {
+          // Native load threw mid-restore: bring the context to a known
+          // state before the completion below prefills over it.
+          await dropHoldAfterOptionalNativeClear(engine);
+        }
+        logPrewarm({
+          op: "restore",
+          ok: false,
+          reason: restored.reason,
+          ...(restored.deleted ? { deleted: true } : {}),
+          hash: prefix.hash,
+        });
+        // Falling through means paying the full prefill, so re-check what the
+        // awaits above could have changed. Without this a dispose landing
+        // during the restore starts an 1832-token prefill on a context the
+        // module has already discarded, racing the 60 s dispose safety net.
+        if (gen !== prewarmGeneration) {
+          logPrewarm({ op: "skip", reason: "stale" });
+          return;
+        }
+        if (disposing || context !== engine) {
+          logPrewarm({
+            op: "skip",
+            reason: context !== engine ? "no_context" : "disposing",
+          });
+          return;
+        }
+        if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
+          logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+          return;
+        }
+      }
+      // Chat alignment was already invalidated above (the KV is replaced by
+      // restore or prefill either way).
       const result = await trackCompletion(
         engine.completion({
           messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
@@ -1130,6 +1270,55 @@ export async function queueStaticPrefixPrewarm(
         result.timings?.prompt_ms ?? -1,
       );
       logPrewarm({ op: "done", promptMs, promptN, hash: prefix.hash });
+      // Snapshot the KV this prefill just computed so the next unload → turn
+      // cycle restores instead of recomputing. Inside the FIFO (a
+      // saveSession must not race a completion); the prewarm's caller-return
+      // is unaffected — it never awaits this job.
+      if (
+        snapshotIdentity &&
+        prefixTokens > 0 &&
+        // persistStaticPrefixTokens awaited above: a dispose during it would
+        // otherwise send a native saveSession to a discarded context.
+        gen === prewarmGeneration &&
+        !disposing &&
+        context === engine
+      ) {
+        const saved = await saveStaticPrefixSnapshot({
+          ctx: engine,
+          identity: snapshotIdentity,
+          prefixTokens,
+          bytesPerToken: snapshotBytesPerToken ?? null,
+        });
+        logPrewarm({
+          op: "snapshot_save",
+          ok: saved.ok,
+          ...(saved.ok ? { tokens: saved.tokensLoaded } : {}),
+          ...(!saved.ok ? { reason: saved.reason } : {}),
+          hash: prefix.hash,
+        });
+        // A 1832-token write is far above SESSION_CALIBRATION_MIN_TOKENS, so
+        // it measures this model's real bytes/token. Throwing it away leaves a
+        // model with no catalog kvBytesPerToken on the 64 KiB dense ceiling —
+        // 301 MB demanded for a 12.6 MB file — and since a rate is only
+        // learned from a write that SUCCEEDED, that device never corrects it.
+        if (saved.ok && saved.fileBytes != null) {
+          try {
+            const diskCalibration = await loadSessionDiskCalibration();
+            const next = recordSessionDiskSample(diskCalibration, {
+              ok: true,
+              modelId: snapshotIdentity.modelId,
+              fileBytes: saved.fileBytes,
+              usedTokens: prefixTokens,
+              knownBytesPerToken: registrySessionBytesPerToken(
+                snapshotIdentity.modelId,
+              ),
+            });
+            if (next !== diskCalibration) await saveSessionDiskCalibration(next);
+          } catch {
+            // Calibration is best-effort; the snapshot remains valid.
+          }
+        }
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
       const reason = /n_predict/i.test(msg)

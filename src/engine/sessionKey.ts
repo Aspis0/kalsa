@@ -9,6 +9,36 @@
 const SEP = "__";
 
 /**
+ * Reserved "conversation" for the prewarmed static-prefix KV snapshot.
+ *
+ * It lives here, in the leaf that owns stem encoding, so the session pool can
+ * recognise it without importing staticPrefixSnapshot.ts (which imports the
+ * pool — the cycle is the reason this constant is not defined next to its
+ * user). Real ids are `conv-<ms>-<rand>` (ConversationsStore.nextConversationId),
+ * so no chat can collide with it.
+ *
+ * Deliberately free of underscores: sanitizeSessionSegment maps every other
+ * character to `_XXXX`, and a `_` inside a segment blurs the `__` boundary
+ * parseSessionStem splits on.
+ */
+export const STATIC_PREFIX_CONVERSATION_ID = "kalsa-static-prefix";
+
+/**
+ * True when this stem is the static-prefix snapshot rather than a chat.
+ *
+ * The pool budget is expressed in CONVERSATIONS (sessionBudget.ts), and the
+ * snapshot is not one — it is infrastructure shared by every chat. Charging
+ * it to the user's budget makes the two evict each other: at the picker's
+ * minimum of 1 conversation the budget is 42.6 MB and the snapshot is 12.6 MB
+ * of it, so a long chat plus the snapshot is over budget and each save
+ * deletes the other's file. Its size is bounded instead by keeping exactly
+ * one snapshot file on disk.
+ */
+export function isStaticPrefixStem(stem: string): boolean {
+  return parseSessionStem(`${stem}.kvs`)?.conversationId === STATIC_PREFIX_CONVERSATION_ID;
+}
+
+/**
  * Path-safe and injective: `[A-Za-z0-9-]` stay, everything else is `_` + 4 hex
  * code units. `a/b` and `a_b` therefore cannot share a stem.
  */
