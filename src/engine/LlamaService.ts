@@ -2828,6 +2828,15 @@ export function markKvNonReproducible(
 function markChatKvCleared(): void {
   dropChatKvHold(true);
   invalidateChatKvAlignment();
+  // clearCache does not spare the static prefix: it is the same native cache.
+  // Leaving prewarmPrefixHash set would be a JS flag asserting a warmth the
+  // clear just destroyed — the exact class of desync this repo has hit three
+  // times — and it makes queueStaticPrefixPrewarm short-circuit
+  // (shouldSkipStaticPrefixPrewarm), so nothing would ever re-warm after a
+  // window slide. Not resetPrewarmState(): that bumps prewarmGeneration,
+  // which would cancel the prewarm we want to run next.
+  prewarmPrefixHash = null;
+  prewarmQueuedKey = null;
 }
 
 /**

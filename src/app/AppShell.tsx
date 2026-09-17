@@ -5913,6 +5913,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
             }
 
+            // A slide's clearCache does not spare the static prefix — it is the
+            // same native cache — so without this the send below re-prefills
+            // ~1832 tokens of system prompt and tool schemas it had already
+            // paid for. queueStaticPrefixPrewarm restores them from the
+            // on-disk snapshot in single-digit ms; with no snapshot yet it
+            // prefills them and writes one, so the next slide is cheap.
+            //
+            // Awaited on purpose: the promise resolves once the job is ENQUEUED
+            // (queueStaticPrefixPrewarm never awaits its own withEngineJob
+            // body), which is exactly the ordering guarantee we need — the
+            // restore must sit in front of this send's completion in the FIFO,
+            // or the completion arrives first and the prewarm is skipped for
+            // holding chat KV.
+            if (nativeClearedForAssemble) {
+              await queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
+            }
+
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
             // (anchored — append-only growth between rebuilds, preserves KV prefix).
             // boundaryForAssemble is anchored-only: off/ciswire assemble from
