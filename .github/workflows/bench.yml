@@ -138,6 +138,7 @@ jobs:
           node scripts/memoryEstimateHarness.mjs
           node scripts/sessionMetaHarness.mjs
           node scripts/sessionSaveGateHarness.mjs
+          node scripts/prefixPrewarmHarness.mjs
           node scripts/voiceStateHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
           node scripts/benchGradeHarness.mjs

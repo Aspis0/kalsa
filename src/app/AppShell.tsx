@@ -2289,6 +2289,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
   const agentOptionsRef = useRef(agentOptions);
   agentOptionsRef.current = agentOptions;
+  // The AppState effect below mounts with [] deps, so it would capture the
+  // mount-time locale and prewarm a prefix the next send never hashes to.
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   // Prefix identity (locale + tool schemas). Skip the mount run so remount /
   // AppState does not redo prewarm. Real setting flips mark stale and may
@@ -3264,7 +3268,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               if (!model) return;
               // Foreground does not mark lost (RSS collapse is mmap eviction,
               // not death). Chip kind recomputes from existing jsReady.
-              if (isEngineReady() && getActiveModelId() === model.id) return;
+              if (isEngineReady() && getActiveModelId() === model.id) {
+                // A slide that lands while we are backgrounded loses its
+                // prefix re-warm: queueStaticPrefixPrewarm returns early on
+                // AppState !== "active". None of its other callers fires on a
+                // foreground transition — they are ensureEngineForModel (which
+                // this branch returns before reaching), the send path's
+                // post-slide re-warm, the filler retry and the prefix-input
+                // wipe — so the prefix stays cold until the next slide or
+                // engine cycle. This is the re-kick its own contract promises.
+                // Its guards already make this a no-op when the prefix is warm
+                // or the KV holds a chat. Awaited inside this try so a rejected
+                // enqueue cannot escape as an unhandled rejection; nothing
+                // below depends on it.
+                await queueStaticPrefixPrewarm(
+                  localeRef.current,
+                  agentOptionsRef.current.tools,
+                );
+                return;
+              }
               const available = await getAvailableMemoryBytesUncached();
               if (thermalHardGateRef.current) return;
               // Gate on the load mode initEngine will really use: the model's

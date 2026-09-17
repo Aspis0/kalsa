@@ -4,7 +4,7 @@
  * Compile-from-disk. Exit 1 on fail.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -314,6 +314,88 @@ async function main() {
     planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: false }) ===
       (shouldWipeKvOnPrefixInputChange(false) ? "wipe_and_queue" : "skip_kv_holds"),
     "planner uses wipe helper — no duplicated boolean (empty KV)",
+  );
+
+  // ── Foreground re-kick contract (source assertions) ──────────────────────
+  // queueStaticPrefixPrewarm refuses to run while the app is backgrounded, and
+  // the only thing that made that safe was a foreground re-kick from AppShell
+  // — which for one release did not exist. None of its other callers fires on
+  // a foreground transition, so a slide that landed while backgrounded left
+  // the prefix cold until the next slide or engine cycle.
+  //
+  // AppShell's AppState handler cannot be reached without rendering the shell,
+  // so this pins the contract to a call site. Text presence alone was not
+  // enough — `void` instead of `await`, an `if (false)` wrapper, a block
+  // comment and a guard inserted ahead of the call all left it dead with the
+  // gate green — so the rule here is stricter: comments are stripped and the
+  // awaited call must be the FIRST statement of the branch. A guard added
+  // ahead of it fails loudly on purpose: that changes WHEN the prefix is
+  // re-warmed, which is the whole contract. What none of this can prove is
+  // that the prefix ends up warm; that is a device run,
+  // scripts/device-restore-protocol.sh (PREFIX_PREWARM restore_ok).
+  const appShellSrc = readFileSync(
+    path.join(projectRoot, "src/app/AppShell.tsx"),
+    "utf8",
+  );
+  const llamaSrc = readFileSync(
+    path.join(projectRoot, "src/engine/LlamaService.ts"),
+    "utf8",
+  );
+
+  // Pin the refusal, not just its condition: dropping the `return;` while
+  // keeping the `if` would let the prewarm run backgrounded, gate still green.
+  const bgGuardAt = llamaSrc.indexOf('if (AppState.currentState !== "active") {');
+  assert(bgGuardAt >= 0, "the prewarm still guards on a backgrounded AppState");
+  const bgGuardEnd = llamaSrc.indexOf("\n  }", bgGuardAt);
+  assert(bgGuardEnd > bgGuardAt, "the backgrounded guard block closes where expected");
+  const bgGuard = llamaSrc.slice(bgGuardAt, bgGuardEnd);
+  assert(
+    bgGuard.includes('reason: "background"') && /\n\s*return;/.test(bgGuard),
+    "the backgrounded prewarm still RETURNS — the reason the re-kick exists",
+  );
+
+  // The engine-ready line is NOT unique (ensureEngineForModel has the same
+  // one), so bound the search by the foreground handler instead of trusting
+  // the first hit: an anchor that drifts outside it must fail naming that,
+  // not send the reader to the wrong function.
+  const activeAt = appShellSrc.indexOf('if (state === "active")');
+  assert(activeAt >= 0, 'AppShell has an AppState "active" branch');
+  const handlerEnd = appShellSrc.indexOf("getAvailableMemoryBytesUncached()", activeAt);
+  assert(handlerEnd > activeAt, "foreground handler end marker found");
+  const branchAt = appShellSrc.indexOf(
+    "if (isEngineReady() && getActiveModelId() === model.id) {",
+    activeAt,
+  );
+  assert(
+    branchAt > activeAt && branchAt < handlerEnd,
+    "the engine-ready short-circuit is still inside the foreground handler",
+  );
+  const branch = appShellSrc
+    .slice(branchAt, handlerEnd)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "");
+  const statements = branch
+    .slice(branch.indexOf("{") + 1)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  assert(
+    /^await queueStaticPrefixPrewarm\(/.test(statements[0] ?? ""),
+    `the awaited prewarm must be the FIRST statement of the foreground branch — found: ${statements[0] ?? "<empty branch>"}`,
+  );
+  assert(
+    statements.some((line) => line === "return;"),
+    "the foreground branch still short-circuits with a return",
+  );
+  // The AppState effect mounts with [] deps: a captured `locale` would prewarm
+  // the mount-time prefix and every later send would hash-miss it.
+  assert(
+    statements.some((line) => line.includes("localeRef.current")),
+    "the re-kick reads the live locale, not the one captured at mount",
+  );
+  assert(
+    appShellSrc.includes("localeRef.current = locale;"),
+    "AppShell keeps localeRef fresh on every render",
   );
 
   console.log("prefixPrewarmHarness OK");
