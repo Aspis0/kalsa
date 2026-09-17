@@ -895,6 +895,28 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   **Why a re-run did not happen the same night:** the battery finished at 80% and the fresh-start
   floor is 85%. Charging the phone would both need the owner and invalidate the measurement.
 
+  **Where the fix goes, for whoever picks this up.** The gate is
+  `campaign_completion_signal_lost` (`scripts/campaign/oneTurn.sh:90`), added 2026-09-16 after a
+  run burned 96 minutes force-stopping healthy engines — the intent is right. Its premise is not:
+  *"when it stops arriving the run can only repeat the same 30-45 min wait"*. Tonight the signal
+  did arrive, 63 s after the check.
+
+  The sequence that breaks it: thermal pause → `campaign_thermal_cooldown` returns →
+  `restore: app still running (thermal path)` → `turn N user+assistant already landed — skip
+  retry send` → the turn is declared over while the engine is STILL generating → the completion
+  probe reads a slice that cannot contain a result yet → abort.
+
+  So the bug is not in the probe, it is that the recovery path closes a turn the engine has not
+  finished. Two candidate fixes, both needing a real thermal pause to validate:
+  1. after the "already landed" recovery, resume WAITING for the turn instead of closing it;
+  2. before aborting, consult `campaign_progress_fingerprint` (`turn.sh`, already written for
+     exactly this: assistant bubble count, last assistant text length, native engine lines) and
+     treat "still producing" as alive.
+
+  Whatever the fix, the abort message should stop asserting a cause it cannot know. "The app has
+  stopped emitting it" was false, and it is the sentence that would have sent the next reader
+  looking for a dead engine instead of a throttled one.
+
 - **The catalogue offers models a device cannot run.** Owner, 16/09 night: *"un qwen 3.5 4b sul
   jelly non dovrebbe essere nemmeno proposto, perche' ci mette 30 minuti per un prefill."*
   Measured that night on the Jelly with CI APK `4553062`: `KALSA_PREWARM done promptMs=214122
