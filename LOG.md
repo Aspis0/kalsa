@@ -123,6 +123,17 @@ osservabile l'attesa — senza, i 45ms dello slow la nascondevano.
 Voti: attesa 5 · 401-scuro 5 · copia 5 · incollone 5 · reduced 5.
 Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.
 
+## Giro 6 — flussi veri: recovery dopo 401, cambio chat in streaming (2026-09-18)
+
+- 21: 401 -> "Open settings" -> endpoint corretto -> Save -> "Try again"
+  -> risposta in codice completa. Il giro dell'errore si chiude.
+- 22: cambio conversazione mentre l'altra genera — thread sostituito,
+  stop globale ancora armato, nessuno stato corrotto. Il flusso in
+  background continua sullo store e ritrova la sua chat al ritorno.
+- Buttato: niente.
+
+Voti: recovery 5 · switch 5.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.

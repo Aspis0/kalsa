@@ -371,7 +371,52 @@ async function main() {
     await page.close();
   }
 
-  // 22 — recover: 401 -> fix address in settings -> try again -> streams
+  // 24 — three conversations: do few points look lost on a wide arc?
+  if (want("few")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: twentyConvos().slice(0, 3),
+      theme: "light",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await shot(page, "shots/23-few.png");
+    await page.close();
+  }
+
+  // 25 — active conversation marked on the arc (the accent-on-arc judgment)
+  if (want("activenav")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: twentyConvos().slice(0, 8),
+      theme: "light",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).nth(2).click();
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await shot(page, "shots/24-active-nav.png");
+    await page.close();
+  }
+
+  // 26 — narrow window with the crescent open: nothing clipped?
+  if (want("narrownav")) {
+    const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: twentyConvos().slice(0, 8),
+      theme: "light",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await shot(page, "shots/25-narrow-nav.png");
+    await page.close();
+  }
   if (want("recover")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {
