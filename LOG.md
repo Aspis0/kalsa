@@ -189,6 +189,12 @@ regressione verde.
   singolare/plurale): ora `/Show.*conversation/`. Quarta istanza della
   stessa lezione sui selettori — da qui in poi solo regex/exact.
 
+## Giro 11 — mezzaluna scura aperta (2026-09-18)
+
+Mai fotografata prima. 28-dark-nav: punti leggibili, attiva in accento
+schiarito con glifo scuro, label chiare, glow verde-notte coerente.
+Nessun fix — il tema scuro resta curato quanto il chiaro.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.

@@ -371,7 +371,22 @@ async function main() {
     await page.close();
   }
 
-  // 28 — closed handle with conversations: a breath of accent, still a dash
+  // 29 — dark crescent, open: arc, points and labels in the night family
+  if (want("darknav")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: twentyConvos().slice(0, 8),
+      theme: "dark",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).nth(2).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
+    await shot(page, "shots/28-dark-nav.png");
+    await page.close();
+  }
   if (want("sliver")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
