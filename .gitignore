@@ -4,5 +4,7 @@
 src-tauri/gen/schemas
 
 # llama-server logs at -lv 5 print the prompts themselves. They are evidence for a
-# measurement, never something this repo may carry.
-dev/results/**/server*.log
+# measurement, never something this repo may carry. The file name is not a guarantee:
+# the model-switch runs wrote prompts into switched-*.log, which a server*.log rule
+# never saw. So every log here is out, and committing one is an explicit `git add -f`.
+dev/results/**/*.log
