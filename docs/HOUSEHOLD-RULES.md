@@ -200,3 +200,60 @@ free.
 
 That number is being measured now. Until it exists, the policy above is written as pure
 rotation — the fair default — and the only thing allowed to change it is a measurement.
+
+---
+
+## 6. The small model that reads the room
+
+The owner's idea, offered as a dream: a tiny model reading the room continuously, writing very
+small but sensible summaries, and handing those to the big model's prefill.
+
+It is not unrealizable. But the reason it is worth building is not the reason it looks
+attractive, and getting that backwards would buy us a second model for nothing.
+
+**It does not save prefill time.** Prefilling the chatter with the big model is paid once and
+the cache keeps it — at the ~1 600 tokens/s measured here on Trinity, a hundred messages is
+about a second, and never again. A small model has to prefill those same messages too (cheaper
+per token, but not free) and then *generate* the summary, which is decoding: the slow
+direction. For any room that fits inside the context window, the summariser costs more than it
+saves.
+
+**It saves the window, which is the one thing we cannot buy.** That is the real prize. A family
+room running all day does not fit in any context this machine can afford, and §5.1 already
+concedes that the morning will fall off the end. A compressor turns "the AI remembers since
+14:30" into "the AI remembers today", at a cost of a few hundred tokens instead of tens of
+thousands. The dream is right; it is a memory feature, not a speed feature.
+
+**The risk is silent, and that is what decides the shape.** A summary is lossy and a small model
+is weak. Forgetting is *visible* — the room can say how far back it remembers. A wrong summary
+is invisible: the big model answers confidently from it and nobody in the house can tell. So
+three constraints come before any implementation:
+
+- the raw messages are never destroyed; the summary is an addition to the record, not a
+  replacement for it;
+- the recent part of the conversation is never summarised — only what is already falling out of
+  the window;
+- a summary sitting in the context can always be opened back to the real messages it came from.
+
+**The cheaper first version is the big model summarising itself.** When the window is about to
+overflow, the big model is already loaded and already holding that history. Asking it for a
+200-token summary of the oldest part costs a single short generation: no second model, no extra
+RAM, no GPU contention, and the quality is the 12B's rather than a 0.5B's. The tiny continuous
+summariser is the *optimisation after that one*, and it earns its place only if
+self-summarisation turns out to interrupt the household noticeably.
+
+**If we do want a second model, upstream already hosts it.** The b10950 router runs a child
+server per model, so a summariser alongside the big model needs no invention — but see §2: its
+`models_max` counts models and does not weigh them, so admission stays with our catalog. And a
+second model contends for the same GPU, so the summariser has to run while the machine is
+already awake — right after an answer, not continuously. "Continuously" in a house means waking
+a laptop all day.
+
+**Nothing small enough is pinned yet.** The smallest entries in the catalog today are Gemma 4
+E2B at 3.22 GB and Qwen3.5-4B at 2.81 GB. A summariser worth having is in the hundreds of
+megabytes, and would be a new pin.
+
+**The number that decides all of it** is unmeasured: how many seconds the big model needs to
+write a 200-token summary of roughly 4k tokens of room history. It cannot be taken right now —
+the GPU is busy with the multi-device runs, and a second server would corrupt those numbers.
+It is the first thing to measure once they land.
