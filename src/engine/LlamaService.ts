@@ -261,6 +261,7 @@ import {
   planPrefixInputChange,
   serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
+  isSystemOnlyTemplateFailure,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
@@ -385,6 +386,17 @@ let bakeUnprefixedHealed = false;
  * Null after dispose / settings-stale / disk restore until prewarm or a turn.
  */
 let prewarmPrefixHash: string | null = null;
+/**
+ * Models whose chat template refused a system-only prewarm prompt, learned
+ * from the refusal itself rather than guessed from a catalog flag.
+ *
+ * Membership costs the model its prefix reuse on every hybrid turn (the filler
+ * turn sits past the point where the next prompt diverges), so it is never
+ * assumed — only recorded after a template has actually said no. Process-local
+ * on purpose: a template travels with the model file, and a model switch
+ * rebuilds the engine anyway.
+ */
+const staticPrefixFillerModels = new Set<string>();
 /** Hash currently queued or running — one prewarm per prefix identity. */
 let prewarmQueuedKey: string | null = null;
 /** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
@@ -1006,6 +1018,9 @@ export async function queueStaticPrefixPrewarm(
     return;
   }
   const gen = prewarmGeneration;
+  // Read at queue time and captured by the job, so the catch below can tell
+  // "the template already refused once" from "this is the first attempt".
+  const needsFiller = staticPrefixFillerModels.has(activeModelId ?? "");
   prewarmQueuedKey = prefix.hash;
   logPrewarm({
     op: "start",
@@ -1024,14 +1039,23 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       const engine = context;
-      // Qwen jinja cannot format a system-only chat (empty prompt, or
-      // "Unable to generate parser"). A one-char user makes the same
-      // template path as message 1; prefix-match still covers the ~1.3k
-      // system+tool tokens and diverges at the real user line.
-      const prewarmMessages = [
-        ...prefix.messages,
-        { role: "user" as const, content: "." },
-      ];
+      // The prewarm prompt is the static prefix and NOTHING else, so the cache
+      // it leaves ends exactly where the next real prompt diverges. That is
+      // the whole game on a hybrid: n_common == embd.size() means
+      // llama_memory_seq_rm never enters its partial-rollback branch
+      // (llama-memory-recurrent.cpp:194, `0 < p0 && p0 <= cell.pos`), which is
+      // bounded by n_rs_seq — 0 without a draft model, i.e. entering it means
+      // failing, and a failed seq_rm clears the cache and re-prefills
+      // everything (rn-completion.cpp:620-640).
+      //
+      // This used to append a one-char user turn unconditionally, for Qwen
+      // templates that cannot render a system-only chat. Those few tokens sat
+      // past the divergence point and cost the entire prefix on every hybrid
+      // model. Now the filler is added only after a template actually refuses,
+      // and remembered for this process.
+      const prewarmMessages = needsFiller
+        ? [...prefix.messages, { role: "user" as const, content: "." }]
+        : [...prefix.messages];
       await refreshGovernorBeforeCompletion(engine);
       // Dispose can null context / bump generation during the governor await.
       if (gen !== prewarmGeneration) {
@@ -1321,6 +1345,18 @@ export async function queueStaticPrefixPrewarm(
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
+      // A template that cannot render a system-only chat: remember it and let
+      // the next prewarm append the filler turn. Not retried inline — this
+      // job already holds the FIFO, and the next queue is cheap.
+      if (!needsFiller && isSystemOnlyTemplateFailure(msg) && activeModelId) {
+        staticPrefixFillerModels.add(activeModelId);
+        logPrewarm({
+          op: "skip",
+          reason: "system_only_template",
+          err: msg.slice(0, 160),
+        });
+        return;
+      }
       const reason = /n_predict/i.test(msg)
         ? "n_predict_rejected"
         : /Prompt is required/i.test(msg)

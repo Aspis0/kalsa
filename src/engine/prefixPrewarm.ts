@@ -315,6 +315,37 @@ export function estimateStaticPrefixTokens(
   return wideChars + narrowTokens + schemaTokens + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS;
 }
 
+/**
+ * True when a completion failed because the chat template could not render a
+ * system-only conversation.
+ *
+ * The prewarm prompt is the static prefix and nothing else, so on a hybrid
+ * model the cache it leaves ends exactly where the next real prompt diverges:
+ * n_common == embd.size(), and llama_memory_seq_rm's partial-rollback branch
+ * (llama-memory-recurrent.cpp:194, `0 < p0 && p0 <= cell.pos`) is never
+ * entered — which matters because that branch is bounded by n_rs_seq, which
+ * is 0 without a draft model, so entering it means FAILING. One extra turn in
+ * the cache is enough to move p0 back behind the frontier and lose the whole
+ * prefix to a full re-prefill.
+ *
+ * Some templates cannot render that prompt (Qwen's jinja: "Prompt is
+ * required", "Unable to generate parser"). Those, and only those, get a
+ * one-character filler turn appended — paying the re-prefill rather than
+ * skipping the prewarm entirely. LFM2.5's template renders it fine: with a
+ * lone system message it emits `<|im_start|>system\n…<|im_end|>\n` and its
+ * message loop runs zero times (verified against the shipped
+ * LFM2.5-2.6B-Q4_K_M.gguf `tokenizer.chat_template`, not the reference
+ * .jinja).
+ */
+export function isSystemOnlyTemplateFailure(message: unknown): boolean {
+  if (typeof message !== "string" || message.length === 0) return false;
+  return (
+    /Prompt is required/i.test(message) ||
+    /Unable to generate parser/i.test(message) ||
+    /system[- ]only/i.test(message)
+  );
+}
+
 /** System-only chat. Never user / assistant / tool roles. */
 export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessage[] {
   return [{ role: "system", content: typeof systemText === "string" ? systemText : "" }];
