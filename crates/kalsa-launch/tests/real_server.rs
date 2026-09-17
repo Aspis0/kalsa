@@ -71,8 +71,12 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         model_path: PathBuf::from(&model),
         port: PORT,
         context_tokens: 512,
-        // The smoke test does not exercise conversations: no cache roof.
-        cache_ram_mib: 0,
+        // The roof is rendered even though this smoke test does not exercise
+        // conversations: a zero would disable the function outright and the
+        // binary would accept it in silence, so no value but a real one —
+        // the same MiB scale the production plan ships — proves the unit is
+        // what llama-server expects.
+        cache_ram_mib: 6144,
         threads: Some(4),
         offload: Offload::All,
         idle_unload_seconds: 300,
