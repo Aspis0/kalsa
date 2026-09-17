@@ -231,7 +231,16 @@ Conflict rule for `apk.yml`: keep BOTH — main's `assert-overlay-includes.sh` s
 stop: `f0e4e2b` pinned two literals in it (`if (AppState.currentState !== "active") {` with
 `reason: "background"` and a `return;`, ~line 997) through `scripts/prefixPrewarmHarness.mjs`,
 wired into `apk.yml`, `bench.yml` and `e2e-emulator.yml` — kalsa-0c owns that pin and re-aims it
-on request; never weaken it. Then:
+on request; never weaken it. The branch forked at `5de99f3`, BEFORE that wiring, so none of the
+three workflow files on the branch has the `node scripts/prefixPrewarmHarness.mjs` line yet; a
+plain merge keeps it, a "take ours"/regenerated file drops it. After the merge, on the merged tree:
+```
+for w in apk bench e2e-emulator; do printf "%-14s " $w; grep -c prefixPrewarmHarness .github/workflows/$w.yml; done   # expect 1 1 1
+```
+The failure modes are not symmetric (kalsa-0c, 2026-09-17): dropped from `apk.yml` →
+`matrixParityHarness` fails loudly; dropped from `bench.yml` → parity still passes, SILENT;
+dropped from `e2e-emulator.yml` → the harness stops running on main and nothing catches it.
+Then:
 ```
 npm ci > /tmp/npm-ci.log 2>&1; echo $?; grep -c 'patch-package' /tmp/npm-ci.log   # 0
 cat node_modules/llama.rn/cpp/KALSALLAMA_SHA
