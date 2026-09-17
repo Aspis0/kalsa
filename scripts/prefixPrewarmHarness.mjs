@@ -89,6 +89,7 @@ async function main() {
     shouldWipeKvOnPrefixInputChange,
     shouldApplyQueuedPrefixWipe,
     planPrefixInputChange,
+    prewarmStopReason,
   } = prewarmMod;
 
   assert(flagsMod.EAGER_PREFIX_PREWARM === true, "EAGER_PREFIX_PREWARM must default true");
@@ -396,6 +397,87 @@ async function main() {
   assert(
     appShellSrc.includes("localeRef.current = locale;"),
     "AppShell keeps localeRef fresh on every render",
+  );
+
+  // ── The prewarm job's stop policy ────────────────────────────────────────
+  // Behaviour first: pinning the guard's text let a maintainer flip every
+  // `return true` to `return false`, invert the chat-KV polarity, or comment
+  // the check out, all with the gate green. The policy is pure now, so those
+  // are real test failures rather than missing needles.
+  const stop = (over) =>
+    prewarmStopReason({
+      genStale: false,
+      disposing: false,
+      contextChanged: false,
+      kvHoldsChat: false,
+      ...over,
+    });
+  assert(stop({}) === null, "nothing wrong → the job carries on");
+  assert(stop({ genStale: true }) === "stale", "a bumped generation stops the job");
+  assert(stop({ disposing: true }) === "disposing", "a dispose stops the job");
+  assert(
+    stop({ contextChanged: true }) === "no_context",
+    "a swapped context stops the job",
+  );
+  assert(
+    stop({ kvHoldsChat: true }) === "kv_holds_chat",
+    "live chat KV stops the job — the chat is worth more than the prefix",
+  );
+  // Precedence, exactly as the three inline copies logged it.
+  assert(
+    stop({ genStale: true, disposing: true, contextChanged: true, kvHoldsChat: true }) ===
+      "stale",
+    "a stale generation outranks every other reason",
+  );
+  assert(
+    stop({ disposing: true, contextChanged: true }) === "no_context",
+    "context identity is the more specific fact when a dispose is also in flight",
+  );
+  assert(
+    stop({ contextChanged: true, kvHoldsChat: true }) === "no_context",
+    "context change outranks the chat hold",
+  );
+  assert(
+    stop({ kvHoldsChat: true }) ===
+      (shouldSkipPrewarmWhenKvHoldsChat(true) ? "kv_holds_chat" : null),
+    "the stop policy uses the kv-holds helper — no duplicated boolean",
+  );
+
+  // Source side: the adapter must feed it the live module state, and EVERY
+  // call site must survive. Three of the four used to be deletable silently.
+  const adapterAt = llamaSrc.indexOf("const prewarmMustStop = (): boolean => {");
+  assert(adapterAt >= 0, "the prewarm job still funnels its stops through one adapter");
+  const adapterEnd = llamaSrc.indexOf("\n      };", adapterAt);
+  assert(adapterEnd > adapterAt, "the adapter closes where expected");
+  const adapter = llamaSrc.slice(adapterAt, adapterEnd);
+  for (const needle of [
+    "genStale: gen !== prewarmGeneration",
+    "disposing,",
+    "contextChanged: context !== engine",
+    "kvHoldsChat: kvHoldsChatSession",
+    "if (reason === null) return false;",
+  ]) {
+    assert(adapter.includes(needle), `the adapter still passes/uses ${needle}`);
+  }
+  const callSites = (llamaSrc.match(/if \(prewarmMustStop\(\)\) return;/g) || []).length;
+  assert(
+    callSites === 4,
+    `every act that touches the native KV is still guarded — expected 4 call sites, found ${callSites}`,
+  );
+  // The restore replaces the native KV; its guard must come BEFORE it, which
+  // is the whole of finding F4. Nearest preceding statement, comments stripped.
+  const restoreAt = llamaSrc.indexOf("const restored = await restoreStaticPrefixSnapshot(");
+  assert(restoreAt >= 0, "the snapshot restore is still called from the prewarm job");
+  const beforeRestore = llamaSrc
+    .slice(adapterEnd, restoreAt)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  assert(
+    beforeRestore[beforeRestore.length - 1] === "if (prewarmMustStop()) return;",
+    `the statement before the snapshot restore must be the stop guard — found: ${beforeRestore[beforeRestore.length - 1] ?? "<nothing>"}`,
   );
 
   console.log("prefixPrewarmHarness OK");

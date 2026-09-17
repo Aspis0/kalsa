@@ -420,6 +420,39 @@ export function shouldSkipPrewarmWhenKvHoldsChat(
   return kvHoldsChatSession === true;
 }
 
+export type PrewarmStopReason =
+  | "stale"
+  | "no_context"
+  | "disposing"
+  | "kv_holds_chat";
+
+/**
+ * Why a running prewarm job must stop, or null to carry on. Every await in the
+ * job body can invalidate all four inputs, so this is evaluated before each act
+ * that touches the native KV — never only after it. It lived inline in three
+ * hand-made copies, and the snapshot restore was added with its copy on the way
+ * OUT: a dispose landing during the restore was noticed only once a 12.6 MB
+ * loadSession had already been issued against a discarded context.
+ *
+ * Precedence is load-bearing and matches what the inline copies logged: a stale
+ * generation outranks everything, and when the context changed the reason is
+ * "no_context" even if a dispose is also in flight — the context identity is the
+ * more specific fact.
+ */
+export function prewarmStopReason(input: {
+  genStale: boolean;
+  disposing: boolean;
+  contextChanged: boolean;
+  kvHoldsChat: boolean;
+}): PrewarmStopReason | null {
+  if (input.genStale) return "stale";
+  if (input.disposing || input.contextChanged) {
+    return input.contextChanged ? "no_context" : "disposing";
+  }
+  if (shouldSkipPrewarmWhenKvHoldsChat(input.kvHoldsChat)) return "kv_holds_chat";
+  return null;
+}
+
 /**
  * Locale/web/device/calendar flips must not clearCache while live chat KV
  * is held. S23 20t t4: notifyStaticPrefixInputs wiped mid-chat then

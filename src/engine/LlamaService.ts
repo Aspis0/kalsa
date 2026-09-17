@@ -263,6 +263,7 @@ import {
   shouldApplyQueuedPrefixWipe,
   isSystemOnlyTemplateFailure,
   shouldSkipPrewarmWhenKvHoldsChat,
+  prewarmStopReason,
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
   staticPrefixIdentity,
@@ -1042,6 +1043,23 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       const engine = context;
+      // Three complete hand-made copies of these checks used to sit inline
+      // (plus a partial at the job top, which has no engine to compare yet),
+      // and the snapshot restore was added with its copy on the way OUT. The
+      // policy is prewarmStopReason — pure, so the precedence is covered by
+      // unit tests instead of by reading four call sites. This is only the
+      // adapter: read the live module state, log, stop.
+      const prewarmMustStop = (): boolean => {
+        const reason = prewarmStopReason({
+          genStale: gen !== prewarmGeneration,
+          disposing,
+          contextChanged: context !== engine,
+          kvHoldsChat: kvHoldsChatSession,
+        });
+        if (reason === null) return false;
+        logPrewarm({ op: "skip", reason });
+        return true;
+      };
       // The prewarm prompt is the static prefix and NOTHING else, so the cache
       // it leaves ends exactly where the next real prompt diverges. That is
       // the whole game on a hybrid: n_common == embd.size() means
@@ -1060,23 +1078,10 @@ export async function queueStaticPrefixPrewarm(
         ? [...prefix.messages, { role: "user" as const, content: "." }]
         : [...prefix.messages];
       await refreshGovernorBeforeCompletion(engine);
-      // Dispose can null context / bump generation during the governor await.
-      if (gen !== prewarmGeneration) {
-        logPrewarm({ op: "skip", reason: "stale" });
-        return;
-      }
-      if (disposing || context !== engine) {
-        logPrewarm({
-          op: "skip",
-          reason: context !== engine ? "no_context" : "disposing",
-        });
-        return;
-      }
-      // Queue-time skip can race restore / a completed turn setting the hold.
-      if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
-        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
-        return;
-      }
+      // Dispose can null context / bump generation during the governor await,
+      // and the queue-time skip can race a restore or a turn that completed
+      // and took the chat hold.
+      if (prewarmMustStop()) return;
       // The native KV is about to be replaced — by a snapshot restore or by
       // the completion below — so any recorded chat boundary fact is stale.
       invalidateChatKvAlignment();
@@ -1093,26 +1098,28 @@ export async function queueStaticPrefixPrewarm(
           )
         : null;
       if (snapshotIdentity) {
+        // The restore REPLACES the native KV, so the checks belong before it,
+        // not only on the way out. loadSessionDiskCalibration above is an
+        // unbounded disk read: a dispose landing inside it was noticed only
+        // after a 12.6 MB loadSession had already been issued against a
+        // context the module had discarded, stretching the dispose path into
+        // its 60 s safety net.
+        //
+        // This NARROWS that window, it does not close it: restoreStaticPrefixSnapshot
+        // still awaits a stat, a possible .bak promotion (which moves the same
+        // 12.6 MB file), a .tmp delete and an AsyncStorage meta read before it
+        // reaches loadSession, and it re-checks nothing of its own. Closing it
+        // structurally means evaluating this predicate inside that function,
+        // immediately before the native call. The residual stays bounded:
+        // dispose nulls the context and then waits on the job chain, so the
+        // cost is dispose latency, never a use-after-free.
+        if (prewarmMustStop()) return;
         const restored = await restoreStaticPrefixSnapshot(
           engine,
           snapshotIdentity,
         );
         if (restored.ok) {
-          if (gen !== prewarmGeneration) {
-            logPrewarm({ op: "skip", reason: "stale" });
-            return;
-          }
-          if (disposing || context !== engine) {
-            logPrewarm({
-              op: "skip",
-              reason: context !== engine ? "no_context" : "disposing",
-            });
-            return;
-          }
-          if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
-            logPrewarm({ op: "skip", reason: "kv_holds_chat" });
-            return;
-          }
+          if (prewarmMustStop()) return;
           prewarmPrefixHash = prefix.hash;
           // tokens_loaded is the native's own count of exactly this prefix —
           // the same measurement the prefill path records, now without the
@@ -1178,21 +1185,7 @@ export async function queueStaticPrefixPrewarm(
         // awaits above could have changed. Without this a dispose landing
         // during the restore starts an 1832-token prefill on a context the
         // module has already discarded, racing the 60 s dispose safety net.
-        if (gen !== prewarmGeneration) {
-          logPrewarm({ op: "skip", reason: "stale" });
-          return;
-        }
-        if (disposing || context !== engine) {
-          logPrewarm({
-            op: "skip",
-            reason: context !== engine ? "no_context" : "disposing",
-          });
-          return;
-        }
-        if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
-          logPrewarm({ op: "skip", reason: "kv_holds_chat" });
-          return;
-        }
+        if (prewarmMustStop()) return;
       }
       // Chat alignment was already invalidated above (the KV is replaced by
       // restore or prefill either way).
