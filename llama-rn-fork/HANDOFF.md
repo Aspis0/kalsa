@@ -171,10 +171,18 @@ The build takes ~45 min. Do not poll; do other work (e.g. prepare §4's docs dif
    (LFM), one chat turn; expect the usual tok/s band and no native crash in
    `adb logcat | grep -E 'KALSA|rnllama|GGML_ASSERT|SIGSEGV'`. Then, **only if a model with
    `mtp.defaultEnabled === true` is in the catalog and on the phone** (find it with
-   `git grep -n 'defaultEnabled' src/`), one turn with it; expect at most one line per
-   generation containing `draft memory refuses rollbacks` (grep the exact text from commit A in
-   `cpp/rn-*.cpp`), a completed answer, no `GGML_ASSERT`. LFM has no MTP head, so the rewire's
-   MTP paths cannot be exercised on it — say so in ALIVE rather than implying they were.
+   `git grep -n 'defaultEnabled' src/`), one turn with it; what to expect depends on the
+   target's memory type (grep the exact log texts from commits A and C in `cpp/rn-*.cpp`):
+   - dense target (draft KV shared with the target): at pin `134a35cf2` kalsallama fences
+     decode from a shared cache (`llama-kv-cache.cpp:757`, WIP tag `TAG_KV_CACHE_SHARE_CELLS`),
+     so MTP cannot draft at all; expect ONE error line at init ("cannot decode from a KV cache
+     shared with the target … running plain"), then a normal plain answer, no per-token
+     `SPC_ERR`/`LLAMA_LOG_ERROR` lines, no `GGML_ASSERT`;
+   - hybrid target (Qwen3-Next class, `other == nullptr`): MTP runs; expect draft tokens and
+     no "refuses rollbacks" line (that line is reachable only if the cache's sharing changes
+     after init).
+   A completed answer either way. LFM has no MTP head, so the rewire's MTP paths cannot be
+   exercised on it — say so in ALIVE rather than implying they were.
    ⛔ ASK if no MTP model is available: the orchestrator decides whether the evidence stays
    compile-only.
 
