@@ -199,6 +199,25 @@ four, and the interesting question the measurement raises (what happens to the f
 whom the engine refuses outright with HTTP 400) cannot even be asked. Note the direction of
 the gap: the documents are ahead of the code here, not behind it.
 
+**Decided 2026-09-17, and it reorders the work.** The desktop chat will reach the model
+*through the door*, like the phones, rather than talking to `127.0.0.1` directly — one place
+that knows who is speaking, instead of two counters that must agree. Which means the PC is a
+device of the household, so pairing must hold several devices first: the decisions are one
+job, in that order. And **installing Kalsa desktop registers the PC as the first device
+automatically** — no QR for the machine the server runs on, so the house is never empty and
+"four seats, one of them yours" is true from first launch.
+
+Two things to get right while doing it, both easy to get silently wrong:
+
+- **Where the PC's own credential lives.** On disk, on the same machine. That adds no local
+  risk — whoever reaches the computer already reaches the model. But with the internet road
+  on, it is a remote access key: restrictive permissions, and never in a log, an error
+  string, or a backup. `dd4a12d` made that a test for prompts; this is the same rule for a
+  new file.
+- **What label the PC gets.** The hostname is what the owner recognises, and on a Mac it
+  usually contains their own name. Labels now cross into the page (`c7a4e88`). Fine inside
+  one house, but it should be chosen knowingly; "This computer" is the neutral answer.
+
 This is the same gap §1 left open — *the door knows who, but it does not tell anyone yet* —
 arriving from the other side. It stops being an improvement to the queue and becomes the
 substance of the first screen: anything built before it shows seats it is guessing at, which
