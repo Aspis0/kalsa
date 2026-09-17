@@ -9,9 +9,22 @@ import { MODEL_REGISTRY, type KvCacheProfile, type ModelInfo } from "./ModelRegi
 export const DEFAULT_N_CTX = 8192;
 export const HIGH_RAM_N_CTX = 16384;
 /**
- * Floor for the bench n_ctx override. llama.rn clamps n_ctx to 2048
- * (LlamaService.ts:702); values below this are meaningless and the parser
- * rejects them rather than passing them through to a silent clamp.
+ * Floor for the bench n_ctx override, and it is enforced HERE: `parseBenchNCtx`
+ * rejects anything lower, so a sub-floor value never becomes an override at
+ * all. 2048 is picked to agree with the memory-budget floor in
+ * `deviceTuning.ts` (`CTX_FLOOR`, :226 and :536-537) — not because any vendor
+ * imposes it.
+ *
+ * Corrected 2026-09-17, and it took two tries, so both wrong versions are
+ * recorded to stop a third. (1) The original claimed "llama.rn clamps n_ctx to
+ * 2048 (LlamaService.ts:702)": that line is a type-alias terminator, and the
+ * vendored llama.rn has no such clamp — its default is `n_ctx = 0`, meaning
+ * the context the model was trained with (`cpp/common/common.h:451`).
+ * (2) The first replacement claimed `deviceTuning` "raises anything lower
+ * before the engine sees it": also false, because `LlamaService.ts:1909-1910`
+ * adopts the tuned value only when it is SMALLER than engineCtx, so a
+ * sub-floor engineCtx passes straight through — which is precisely why
+ * LlamaService logs `KALSA_CTX_FLOOR` right after that assignment.
  */
 export const BENCH_NCTX_FLOOR = 2048;
 
@@ -19,7 +32,7 @@ export const BENCH_NCTX_FLOOR = 2048;
  * Defensive parser for the bench-only n_ctx override pref.
  * - null / undefined / empty / whitespace → null (no override — catalog wins)
  * - non-numeric / NaN / non-integer → null (no override)
- * - below BENCH_NCTX_FLOOR (2048) → null (no override; llama.rn floor)
+ * - below BENCH_NCTX_FLOOR (2048) → null (no override; OUR floor, see above)
  * - valid integer >= 2048 → the number
  *
  * "no override" means resolveContextProfile falls through to catalog n_ctx.
@@ -143,7 +156,15 @@ export function resolveContextProfile(input: {
   hybrid?: boolean;
   /** Catalog KV — preferred source for cache_type_k/v. */
   kvCache?: KvCacheProfile;
-  /** Settings / test override — wins over catalog and RAM gate. */
+  /**
+   * Bench / test override. Wins over catalog, and the RAM gate below is never
+   * evaluated for it (the branch assigns and falls through; it does not
+   * return early). In the app the only producer is the `kalsa.bench.nctx` key
+   * read through getBenchNCtx (`AppShell.tsx:2808`, `:3920`, `:4473`) — no
+   * Settings screen writes it. Outside the app `scripts/benchNCtxHarness.mjs`
+   * passes it directly. Rule this input out before attributing an observed
+   * n_ctx to the RAM gate.
+   */
   explicitNCtx?: number;
   /** Catalog engineCtx — authoritative default for the selected model. */
   catalogCtx?: number;

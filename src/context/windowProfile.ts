@@ -8,7 +8,21 @@
  * regardless of how much context the engine actually loaded. That produced a
  * decision that could not take effect: widening the window to 40 was gated on
  * `n_ctx >= 16384`, and the S23 misses the RAM threshold for that context by
- * 82 MB, so on every 8 GB phone the wider window was inert.
+ * 82 MB, so on the S23 the wider window was inert.
+ *
+ * NOT "on every 8 GB phone" — and that difference is the whole point. The
+ * gate is TOTAL RAM (`CTX_UPGRADE_MIN_TOTAL_BYTES` in contextProfile.ts,
+ * 7.5 GB, compared with `>=`) and the Jelly Star reports MORE of it than the
+ * S23. Both figures are recorded in `results/moe-stream-2026-08-22/README.md`:
+ * S23 MemTotal 7,243,748 kB = 7,417,597,952 B, which is 82.4 MB (78.6 MiB)
+ * BELOW the gate; Jelly 7,968,548 kB = 8,159,793,152 B, above it. expo-device
+ * reports exactly that quantity (`totalMem`). So on a hybrid whose catalog ctx
+ * is 8192 the Jelly resolves to 16384 and the S23 stays at 8192 — the device
+ * that clears the gate is the SLOWER of the two (same file, decode on one
+ * binary: Jelly 2.962 tok/s against S23 5.792), and it is the one left
+ * carrying the wider window and paying to prefill it. Confirmed on both
+ * handsets 2026-09-17 with `kalsa.bench.nctx` absent; the run artifacts live
+ * with the lab plan, so this comment rests on the committed pair above.
  *
  * The fix is not a bigger constant. The window's real currency is **context
  * tokens**, so it is sized as a share of the context the engine actually got.
