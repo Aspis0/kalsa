@@ -133,7 +133,7 @@ async function main() {
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1100);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await shot(page, "shots/02-streaming.png");
     await page.close();
   }
@@ -195,7 +195,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: twentyConvos(), theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await shot(page, "shots/07-crescent20.png");
     await page.getByRole("button", { name: "Show next conversations" }).click();
     await page.waitForTimeout(500);
@@ -209,7 +209,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: longConvo(), theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1500);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await shot(page, "shots/08-long.png");
     await page.close();
@@ -231,7 +231,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await shot(page, "shots/09-narrow.png");
     await page.close();
@@ -243,7 +243,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await shot(page, "shots/10-wide.png");
     await page.close();
@@ -255,7 +255,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "dark" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await shot(page, "shots/11-dark-thread.png");
     await page.close();
@@ -300,7 +300,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await page.getByRole("button", { name: "Copy" }).click();
     await shot(page, "shots/14-copied.png");
@@ -364,14 +364,26 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await page.getByRole("button", { name: "Delete" }).click();
     await shot(page, "shots/19-delete.png");
     await page.close();
   }
 
-  // 27 — reload after a failure: the empty tail must offer retry, not blank
+  // 28 — closed handle with conversations: a breath of accent, still a dash
+  if (want("sliver")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    // Nav closed again, thread behind: the handle is the subject.
+    await page.locator(".crescent-shell").screenshot({ path: "shots/27-sliver.png" });
+    console.log("saved shots/27-sliver.png");
+    await page.close();
+  }
   if (want("missing")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const tail = conv("Interrupted thread", [
@@ -381,7 +393,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: [tail], theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await shot(page, "shots/26-missing.png");
     // And retry must actually work from that state.
@@ -403,7 +415,7 @@ async function main() {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await shot(page, "shots/23-few.png");
     await page.close();
   }
@@ -418,9 +430,9 @@ async function main() {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).nth(2).click();
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await shot(page, "shots/24-active-nav.png");
     await page.close();
   }
@@ -435,7 +447,7 @@ async function main() {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await shot(page, "shots/25-narrow-nav.png");
     await page.close();
   }
@@ -473,13 +485,13 @@ async function main() {
     await seed(page, { settings: okSettings("slow-demo"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: /Open conversation/ }).first().click();
     await page.getByRole("button", { name: "New chat" }).click();
     await page.getByRole("textbox", { name: "Message" }).fill("Second topic, slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Show.*conversation/ }).click();
     await page.getByRole("button", { name: "Open conversation: Seeded thread" }).click();
     await shot(page, "shots/22-switch.png");
     await page.close();

@@ -40,6 +40,14 @@
   opacity: 1;
 }
 
+/* Conversations exist: the handle carries a breath of accent so a
+   first-time user can tell the dash means something. Still a dash —
+   opening stays a deliberate gesture. */
+.crescent-sliver-has-items::after {
+  background: var(--accent);
+  opacity: 0.55;
+}
+
 .crescent-nav {
   position: absolute;
   top: 17px;

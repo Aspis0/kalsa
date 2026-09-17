@@ -45,6 +45,7 @@ export function CrescentNav({
     [keys, offset],
   );
   const byId = useMemo(() => new Map(conversations.map((c) => [c.id, c])), [conversations]);
+  const hasItems = conversations.length > 0;
 
   useLayoutEffect(() => {
     openRef.current = open;
@@ -130,8 +131,14 @@ export function CrescentNav({
       <button
         type="button"
         ref={triggerRef}
-        className="crescent-sliver"
-        aria-label={open ? "Hide conversations" : "Show conversations"}
+        className={`crescent-sliver${hasItems ? " crescent-sliver-has-items" : ""}`}
+        aria-label={
+          open
+            ? "Hide conversations"
+            : hasItems
+              ? `Show ${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`
+              : "Show conversations"
+        }
         aria-expanded={open}
         aria-controls="crescent-conversation-nav"
         onClick={() => (open ? close() : openNav())}

@@ -178,6 +178,17 @@ regressione verde.
 - Buttato: l'idea di persistere il `kind` d'errore — una riga in più sullo
   store per un dato che il retry rende inutile.
 
+## Giro 10 — maniglia della mezzaluna trovabile (2026-09-18)
+
+- Problema: da chiusa, la mezzaluna è un trattino grigio con 0 come con 20
+  conversazioni — per la persona non tecnica è invisibile.
+  **Fix**: con conversazioni esistenti il trattino prende un filo d'accento
+  (0.55) + `aria-label` con conteggio ("Show 12 conversations"). Resta un
+  trattino: aprire resta un gesto deliberato. 27-sliver.
+- Il cambio ha rotto il driver due volte (label esatta -> regex, poi
+  singolare/plurale): ora `/Show.*conversation/`. Quarta istanza della
+  stessa lezione sui selettori — da qui in poi solo regex/exact.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
