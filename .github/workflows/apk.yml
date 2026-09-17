@@ -48,6 +48,13 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
+      # The overlay copies the fork through an allow-list in
+      # scripts/sync-kalsallama.sh, so an upstream file a source starts
+      # including is simply absent and the NDK fails ~5 min into the build.
+      # This catches it right after assembly, in seconds.
+      - name: Assert the assembled engine's includes all resolve
+        run: bash scripts/assert-overlay-includes.sh
+
       # Same logic-gate as bench.yml: every *Harness.mjs run in bench.yml's
       # typecheck step is run here too. Parity is not a promise — it is enforced
       # structurally by scripts/matrixParityHarness.mjs (which fails naming any

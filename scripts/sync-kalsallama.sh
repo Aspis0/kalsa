@@ -352,10 +352,13 @@ copy_llama_api() {
     llama-kv-cells.h \
     llama-kv-cache.h llama-kv-cache.cpp \
     llama-kv-cache-dsa.h llama-kv-cache-dsa.cpp \
+    llama-kv-cache-dsa-iswa.h llama-kv-cache-dsa-iswa.cpp \
+    llama-kv-cache-msa.h llama-kv-cache-msa.cpp \
     llama-kv-cache-dsv4.h llama-kv-cache-dsv4.cpp \
     llama-kv-cache-iswa.h llama-kv-cache-iswa.cpp \
     llama-memory-hybrid.h llama-memory-hybrid.cpp \
     llama-memory-hybrid-iswa.h llama-memory-hybrid-iswa.cpp \
+    llama-memory-hybrid-idx.h llama-memory-hybrid-idx.cpp \
     llama-memory-recurrent.h llama-memory-recurrent.cpp \
     llama-adapter.h llama-adapter.cpp \
     llama-arch.h llama-arch.cpp \
@@ -394,6 +397,7 @@ copy_common() {
     ngram-cache.h ngram-cache.cpp \
     ngram-map.h ngram-map.cpp \
     ngram-mod.h ngram-mod.cpp \
+    json.h json.cpp \
     json-schema-to-grammar.h json-schema-to-grammar.cpp \
     chat.h chat.cpp \
     chat-auto-parser.h \
@@ -421,9 +425,9 @@ copy_mtmd() {
   copy_tree_if_exists "$LLAMA/tools/mtmd/debug" "$DST/tools/mtmd/debug"
   local name
   for name in \
-    mtmd.h mtmd.cpp \
+    mtmd.h mtmd.cpp mtmd-internal.h \
     clip.h clip.cpp clip-impl.h clip-model.h clip-graph.h \
-    mtmd-helper.cpp mtmd-helper.h \
+    mtmd-helper.cpp mtmd-helper.h mtmd-helper-common.h \
     mtmd-audio.h mtmd-audio.cpp \
     mtmd-image.h mtmd-image.cpp
   do
@@ -436,6 +440,9 @@ copy_vendored_third_party() {
   copy_tree_if_exists "$LLAMA/common/jinja" "$DST/common/jinja"
   rm -rf "$DST/nlohmann"
   copy_tree_if_exists "$LLAMA/vendor/nlohmann" "$DST/nlohmann"
+  # mtmd-helper.cpp includes "hash/hash.h" unconditionally.
+  rm -rf "$DST/hash"
+  copy_tree_if_exists "$LLAMA/vendor/hash" "$DST/hash"
   rm -rf "$DST/tools/mtmd/miniaudio" "$DST/tools/mtmd/stb"
   copy_tree_if_exists "$LLAMA/vendor/miniaudio" "$DST/tools/mtmd/miniaudio"
   copy_tree_if_exists "$LLAMA/vendor/stb" "$DST/tools/mtmd/stb"
