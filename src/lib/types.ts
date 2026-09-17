@@ -9,6 +9,18 @@ export interface ChatMessage {
   stopped?: boolean;
 }
 
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Capped excerpt of recent text for list display. */
+  preview: string;
+  /** Capped searchable text (title + recent messages). */
+  search: string;
+  hasMessages: boolean;
+}
+
 export interface Conversation {
   id: string;
   title: string;

@@ -4,7 +4,7 @@ import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme } from "
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
-import type { ChatSettings, Conversation } from "./lib/types";
+import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
 import { CrescentNav } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
@@ -17,7 +17,8 @@ import "./App.css";
 const store = createStore();
 
 export function App() {
-  const [conversations, setConversations] = useState<Conversation[]>(() => store.list());
+  const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
+  const [writeError, setWriteError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -29,13 +30,22 @@ export function App() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => store.subscribe(() => setConversations(store.list())), []);
+  useEffect(
+    () =>
+      store.subscribe(() => {
+        setConversations(store.list());
+        setWriteError(store.getWriteError());
+      }),
+    [],
+  );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   const active = useMemo(
-    () => conversations.find((c) => c.id === activeId) ?? null,
+    () => (activeId ? (store.get(activeId) ?? null) : null),
+    // conversations refreshes on every store notification (index is small).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [conversations, activeId],
   );
   const streaming = streamingId !== null;
@@ -251,6 +261,14 @@ export function App() {
       </header>
 
       <main className="stage">
+        {writeError ? (
+          <div className="storage-banner" role="alert">
+            <span>{writeError}</span>
+            <button type="button" onClick={() => store.clearWriteError()}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         <ErrorBoundary>
           {empty ? (
           <EmptyState needsSetup={!configured} onOpenSettings={() => setSettingsOpen(true)} />

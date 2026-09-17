@@ -89,6 +89,30 @@
   transition: opacity 0.3s ease;
 }
 
+.storage-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 1rem 0.5rem;
+  padding: 0.6rem 0.9rem;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
+.storage-banner button {
+  flex: none;
+  padding: 0.25rem 0.75rem;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
 /* The open crescent is an overlay, like devboule-v2's: the stage dims
    beneath it so the arc reads as a menu, never as broken overlap. */
 .shell:has(.crescent-nav-open) .stage,

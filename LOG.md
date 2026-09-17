@@ -265,6 +265,24 @@ Bloccato, da decidere da Marco (non da me):
   pubblica lo raggiunge senza hook di test, che mi rifiuto di spedire.
   Rivisto a codice, coperto da validazione prima.
 
+## Giro 16 — store v2: indice + payload, migrazione, quota, due finestre (2026-09-18)
+
+- C: `crescent-chat.index.v2` (id/titolo/date/preview/search 500capped/
+  hasMessages) + `crescent-chat.msgs.<id>.v2` per conversazione. Lista e
+  ricerca non toccano mai un payload. Deviazione documentata nel commento:
+  `list()` rende `ConversationMeta[]`, non `Conversation[]` — l'alternativa
+  (payload pieni in lista) annullerebbe lo split. Nomi e regola del seam
+  invariati; `rename`/`search` arrivano con la sidebar al giro 18.
+- Migrazione v1->v2: una volta sola (flag), verifica rilettura, rimuove la
+  vecchia chiave solo dopo. Mai persa, mai ripetuta (7 assert).
+- B9: `storage` listener — seconda finestra vede senza reload (assert).
+- B7: errori di scrittura in un canale (`getWriteError`) + banner che lo
+  dice chiaro, sessione coerente in memoria (31-quota.png). Il test quota
+  riempie fino al bordo PROVATO: top-up a granularità 256B dopo il break a
+  1MB (la quota ha slack: un conteggio fisso in MB è flaky, misurato).
+- `verify.mjs`: 16 assert verdi (migrate 7, roundtrip 2, multiwindow 2,
+  quota 3, corrupt 3). Lo storage si rilegge dopo ogni scrittura (D).
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.

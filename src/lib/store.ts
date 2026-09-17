@@ -1,15 +1,28 @@
-import type { ChatMessage, Conversation } from "./types";
+import type { ChatMessage, Conversation, ConversationMeta } from "./types";
 
 /**
  * The ONLY module that knows where conversations live. The rest of the app
  * talks to a ConversationStore; a future backend replaces createStore()
  * without touching any component.
+ *
+ * Shape (v2): an INDEX of capped metadata (one small key, read for every
+ * list/search) plus one key PER CONVERSATION for its messages. The list and
+ * the search never touch a message payload.
+ *
+ * Deliberate deviation, documented: list() returns ConversationMeta[], not
+ * Conversation[] — returning full payloads from list() would nullify the
+ * split above. Method names and the single-seam rule are unchanged.
  */
 export interface ConversationStore {
-  list(): Conversation[];
+  /** Index only. Never parses a message payload. */
+  list(): ConversationMeta[];
+  /** Full conversation; messages validated on read. */
   get(id: string): Conversation | undefined;
   put(conversation: Conversation): void;
   remove(id: string): void;
+  /** Last persist failure, if any (quota). Null after a successful write. */
+  getWriteError(): string | null;
+  clearWriteError(): void;
   subscribe(listener: () => void): () => void;
 }
 
@@ -20,7 +33,16 @@ export function uid(): string {
   return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
 }
 
-const STORAGE_KEY = "crescent-chat.conversations.v1";
+const PREFIX = "crescent-chat.";
+const INDEX_KEY = "crescent-chat.index.v2";
+const MIGRATED_KEY = "crescent-chat.migrated.v2";
+const OLD_KEY = "crescent-chat.conversations.v1";
+const PREVIEW_CHARS = 140;
+const SEARCH_CHARS = 500;
+
+function msgKey(id: string): string {
+  return `crescent-chat.msgs.${id}.v2`;
+}
 
 function isValidMessage(value: unknown): value is ChatMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -44,35 +66,44 @@ function cleanMessage(value: unknown): ChatMessage | null {
   };
 }
 
-function cleanConversation(value: unknown): Conversation | null {
+function cleanMeta(value: unknown): ConversationMeta | null {
   if (typeof value !== "object" || value === null) return null;
-  const c = value as Record<string, unknown>;
-  if (typeof c.id !== "string" || c.id.length === 0) return null;
-  if (!Array.isArray(c.messages)) return null;
+  const m = value as Record<string, unknown>;
+  if (typeof m.id !== "string" || m.id.length === 0) return null;
+  if (typeof m.title !== "string") return null;
   return {
-    id: c.id,
-    title: typeof c.title === "string" && c.title ? c.title : "Untitled conversation",
-    createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
-    updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
-    messages: c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null),
+    id: m.id,
+    title: m.title,
+    createdAt: typeof m.createdAt === "number" ? m.createdAt : 0,
+    updatedAt: typeof m.updatedAt === "number" ? m.updatedAt : 0,
+    preview: typeof m.preview === "string" ? m.preview : "",
+    search: typeof m.search === "string" ? m.search : "",
+    hasMessages: m.hasMessages === true,
   };
 }
 
-function readAll(): Conversation[] {
-  return readRaw()
-    .map(cleanConversation)
-    .filter((c): c is Conversation => c !== null);
+function describe(messages: ChatMessage[]): Pick<ConversationMeta, "preview" | "search" | "hasMessages"> {
+  const texts = messages.map((m) => m.content.trim()).filter((t) => t.length > 0);
+  const preview = (texts.at(-1) ?? "").slice(0, PREVIEW_CHARS);
+  const recent = texts.slice(-2).join("\n");
+  return { preview, hasMessages: texts.length > 0, search: recent.slice(-SEARCH_CHARS) };
 }
 
-function readRaw(): unknown[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function metaFor(conversation: Conversation): ConversationMeta {
+  const clean = conversation.messages
+    .map(cleanMessage)
+    .filter((m): m is ChatMessage => m !== null);
+  const described = describe(clean);
+  const searchBase = `${conversation.title}\n${described.search}`.slice(-SEARCH_CHARS);
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    preview: described.preview,
+    search: searchBase,
+    hasMessages: described.hasMessages,
+  };
 }
 
 export function titleFor(firstText: string): string {
@@ -82,40 +113,174 @@ export function titleFor(firstText: string): string {
 }
 
 export function createStore(): ConversationStore {
-  let cache: Conversation[] | null = null;
+  let index: ConversationMeta[] | null = null;
+  let writeError: string | null = null;
   const listeners = new Set<() => void>();
+  const payloadCache = new Map<string, ChatMessage[]>();
 
-  function all(): Conversation[] {
-    if (cache === null) {
-      cache = readAll().sort((a, b) => b.updatedAt - a.updatedAt);
-    }
-    return cache;
+  function notify(): void {
+    listeners.forEach((l) => l());
   }
 
-  function persist(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(all()));
-    } catch {
-      // Storage full or unavailable: the session keeps working in memory.
+  function readIndex(): ConversationMeta[] {
+    if (index === null) {
+      migrateOnce();
+      index = loadIndex();
     }
-    listeners.forEach((l) => l());
+    return index;
+  }
+
+  function loadIndex(): ConversationMeta[] {
+    try {
+      const raw = localStorage.getItem(INDEX_KEY);
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map(cleanMeta)
+        .filter((m): m is ConversationMeta => m !== null)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch {
+      return [];
+    }
+  }
+
+  function readPayload(id: string): ChatMessage[] {
+    const cached = payloadCache.get(id);
+    if (cached) return cached;
+    try {
+      const raw = localStorage.getItem(msgKey(id));
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const clean = parsed.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+      payloadCache.set(id, clean);
+      return clean;
+    } catch {
+      return [];
+    }
+  }
+
+  /** One-shot v1 -> v2 migration. Never repeats (flag), never loses data:
+      the old key is removed only after the new index reads back whole. */
+  function migrateOnce(): void {
+    try {
+      if (localStorage.getItem(MIGRATED_KEY) === "1") return;
+      const raw = localStorage.getItem(OLD_KEY);
+      if (!raw) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const metas: ConversationMeta[] = [];
+      for (const item of parsed) {
+        if (typeof item !== "object" || item === null) continue;
+        const c = item as Record<string, unknown>;
+        if (typeof c.id !== "string" || c.id.length === 0 || !Array.isArray(c.messages)) continue;
+        const messages = c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+        const meta = metaFor({
+          id: c.id,
+          title: typeof c.title === "string" && c.title ? c.title : "Untitled conversation",
+          createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
+          updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
+          messages,
+        });
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        payloadCache.set(meta.id, messages);
+        metas.push(meta);
+      }
+      metas.sort((a, b) => b.updatedAt - a.updatedAt);
+      localStorage.setItem(INDEX_KEY, JSON.stringify(metas));
+      const check: unknown = JSON.parse(localStorage.getItem(INDEX_KEY) ?? "[]");
+      if (!Array.isArray(check) || check.length !== metas.length) return;
+      localStorage.removeItem(OLD_KEY);
+      localStorage.setItem(MIGRATED_KEY, "1");
+    } catch {
+      // Anything failed: flag unset, old key kept, retried on next load.
+    }
+  }
+
+  function writeThrough(mutator: () => void): boolean {
+    try {
+      mutator();
+      writeError = null;
+      return true;
+    } catch {
+      writeError =
+        "Browser storage is full — new messages are kept for this session only and will be lost on reload.";
+      return false;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // A second window wrote: drop every cache so the next read sees it.
+    window.addEventListener("storage", (event) => {
+      if (event.key !== null && !event.key.startsWith(PREFIX)) return;
+      index = null;
+      payloadCache.clear();
+      notify();
+    });
   }
 
   return {
     list() {
-      return [...all()];
+      return [...readIndex()];
     },
     get(id) {
-      return all().find((c) => c.id === id);
+      const meta = readIndex().find((m) => m.id === id);
+      if (!meta) return undefined;
+      return {
+        id: meta.id,
+        title: meta.title,
+        createdAt: meta.createdAt,
+        updatedAt: meta.updatedAt,
+        messages: [...readPayload(id)],
+      };
     },
     put(conversation) {
-      const rest = all().filter((c) => c.id !== conversation.id);
-      cache = [conversation, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
-      persist();
+      const messages = conversation.messages
+        .map(cleanMessage)
+        .filter((m): m is ChatMessage => m !== null);
+      const meta = metaFor({ ...conversation, messages });
+      const ok = writeThrough(() => {
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        const next = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+        payloadCache.set(meta.id, messages);
+      });
+      if (!ok) {
+        // Keep the session coherent in memory even though the disk refused.
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        index = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        payloadCache.set(meta.id, messages);
+      }
+      notify();
     },
     remove(id) {
-      cache = all().filter((c) => c.id !== id);
-      persist();
+      const ok = writeThrough(() => {
+        localStorage.removeItem(msgKey(id));
+        const next = readIndex().filter((m) => m.id !== id);
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().filter((m) => m.id !== id);
+      }
+      payloadCache.delete(id);
+      notify();
+    },
+    getWriteError() {
+      return writeError;
+    },
+    clearWriteError() {
+      writeError = null;
+      notify();
     },
     subscribe(listener) {
       listeners.add(listener);

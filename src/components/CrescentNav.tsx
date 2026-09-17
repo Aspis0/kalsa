@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
-import type { Conversation } from "../lib/types";
+import type { ConversationMeta } from "../lib/types";
 import {
   CRESCENT_SHELL_WIDTH,
   CRESCENT_VISIBLE_COUNT,
@@ -13,7 +13,7 @@ import "./CrescentNav.css";
 const CONVERSATION_LABEL_MAX_WIDTH = 78;
 
 interface CrescentNavProps {
-  conversations: Conversation[];
+  conversations: ConversationMeta[];
   activeId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
