@@ -2561,6 +2561,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-files"
+version = "0.0.1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "kalsa-iroh"
 version = "0.0.1"
 dependencies = [
