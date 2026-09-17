@@ -222,6 +222,22 @@ Voti: movimento 5 (con misura) · lunga 5 (con numeri).
   possibili, il rendering batte il ragionamento — screenshot ogni volta.
   Terza istanza di "verifica con gli occhi, non con la testa".
 
+## Giro 14 — chiusura: tutti gli stati coperti, cosa resta a Marco (2026-09-18)
+
+Verificati su disco i 13 file dei 12 stati del brief (+16 extra). Build
+verde, tree pulito, 13 commit locali, nessun push.
+
+Voti finali — leggibilità 5 · gerarchia 5 · spaziatura 5 · movimento 5 ·
+stato d'errore 5 · coerenza token 5 (numeri AA in testa al LOG).
+
+Bloccato, da decidere da Marco (non da me):
+1. Endpoint reale: indirizzo, token e modello veri per una prova fuori dal
+   mock — io ho girato tutto contro `scripts/mock-server.mjs`.
+2. Bundle Tauri: `tauri init` + prima `cargo build` + firma Apple per
+   distribuire (serve account/identità di firma). Il frontend è pronto
+   (base relativa, niente API Node, icone presenti).
+3. Push: mai fatto senza approvazione esplicita (regola standing).
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
