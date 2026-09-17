@@ -255,6 +255,7 @@ import {
   shouldUseToolCalling,
 } from "../bench/benchConfig";
 import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { bridgeEngineCallbacks } from "./engineCallbackBridge";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
 import { makeCreateMiniappExecutor } from "../agent/createMiniappTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
@@ -6019,19 +6020,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
             await streamAssistantTurn(
               engineMessages,
-              {
-                onDelta: (delta, full) => {
+              bridgeEngineCallbacks(callbacks, {
+                onDeltaFull: (full) => {
                   assistantFull = full;
-                  callbacks.onDelta?.(delta, full);
                 },
-                onModelEmittedText: (text) => {
-                  callbacks.onModelEmittedText?.(text);
-                },
-                onStatus: (status) => callbacks.onStatus?.(status),
-                onSources: (sources) =>
-                  callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
-                onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
-                onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
+                mapSource: (sources) => mapSearchSourcesToChat(sources, locale),
                 onDone: () => {
                   // Emit turn telemetry before extraction is armed. Extraction
                   // fields are explicitly not applicable here; the settled line
@@ -6076,7 +6069,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   }
                   finish();
                 },
-              },
+              }),
               signal,
               {
                 ...agentOptions,

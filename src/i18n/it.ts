@@ -450,6 +450,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thinking: "Sto pensando…",
     thinkingStatus: "Sto pensando",
     writingStatus: "Sto scrivendo",
+    reasoningLabel: "Ragionamento",
     interrupted: "Generazione interrotta.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",

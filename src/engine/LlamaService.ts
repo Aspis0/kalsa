@@ -90,7 +90,8 @@ import {
   stripToolCallTagsFinal,
   TOOL_CALL_OPEN,
 } from "./toolCallParser";
-import { createThinkStreamCleaner } from "./thinkStream";
+import { createThinkStreamCleaner, decideTemplateOpensThink } from "./thinkStream";
+import { visibleTurnText } from "./truncatedTurnText";
 import {
   historyThinkPlacementForModel,
   historyWindowReproducesKv,
@@ -712,6 +713,13 @@ export type EngineCallbacks = {
    * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
    */
   onModelEmittedText?: (text: string) => void;
+  /**
+   * Reasoning the model emitted inside its think block(s) this turn, for UI
+   * display in a collapsed block above the answer. Fired at the same points
+   * as onModelEmittedText. Display-only: prompt replay replays
+   * modelEmittedText (which already carries the raw think span), never this.
+   */
+  onThinkingText?: (text: string) => void;
   onDone: () => void;
   onError: (error: Error) => void;
 };
@@ -3511,6 +3519,62 @@ export type StreamTurnOptions = EngineTurnOptions & {
   ciswireFlags?: number;
 };
 
+/**
+ * Prompt-side think detection — the principled discriminator (this is what
+ * llama.cpp does): ask the native Jinja formatter whether the rendered
+ * generation prompt ends with an opened think block (`thinking_forced_open`,
+ * computed natively over the generation prompt). Templates like LFM2.5 open
+ * `<think>` in the prompt itself, so the completion contains only the CLOSING
+ * tag and its first `</think>` is a boundary: everything before it is
+ * reasoning, not answer.
+ *
+ * The flags mirror the completion params exactly — the rendering must match
+ * the one completion() performs internally, or the probe describes a prompt
+ * the model does not actually see. Failure of any kind (template cannot build
+ * a parser, non-jinja path, older native without the flag) → false: today's
+ * conservative behavior, never a text-based guess.
+ */
+async function probeTemplateOpensThink(
+  engine: LlamaContext,
+  messages: RNLlamaOAICompatibleMessage[],
+  fmt: {
+    enable_thinking?: boolean;
+    reasoning_format?: "none" | "auto" | "deepseek";
+    chat_template_kwargs?: {
+      enable_thinking?: boolean;
+      preserve_thinking?: boolean;
+    };
+    tools?: EngineTool[];
+    tool_choice?: string;
+  },
+): Promise<boolean> {
+  try {
+    // Same uncovered-await bound as every other aux native call: this runs
+    // with the stall watchdog stopped and no prefill deadline armed, so a
+    // wedged JSI call must reject instead of holding the engine FIFO (and
+    // dispose's hung-path timeout) hostage.
+    const formatted = await withNativeCallTimeout(
+      engine.getFormattedChat(messages, null, {
+        jinja: true,
+        enable_thinking: fmt.enable_thinking,
+        reasoning_format: fmt.reasoning_format,
+        chat_template_kwargs: fmt.chat_template_kwargs,
+        ...(fmt.tools ? { tools: fmt.tools } : {}),
+        ...(fmt.tool_choice ? { tool_choice: fmt.tool_choice } : {}),
+      }),
+      ENGINE_AUX_CALL_TIMEOUT_MS,
+      "getFormattedChat(think-probe)",
+    );
+    if (formatted.type !== "jinja") return false;
+    // Pure, unit-tested decision; no text-based fallback — a native without
+    // the flag means today's conservative behavior, never a prompt-tail guess
+    // whose failure mode is deleting an entire answer.
+    return decideTemplateOpensThink(formatted);
+  } catch {
+    return false;
+  }
+}
+
 export async function streamAssistantTurn(
   messages: EngineMessage[],
   callbacks: EngineCallbacks,
@@ -3604,6 +3668,23 @@ export async function streamAssistantTurn(
       aborted = true;
       stopStallWatchdog();
       finishOnce(() => {
+        // Interrupted mid-round: the live cleaner still holds that round's
+        // (partial) reasoning — join it with the already-flushed rounds.
+        const partialThinking = joinThinking(
+          thinkingAccum,
+          thinkCleaner.thinkingText(),
+        );
+        callbacks.onThinkingText?.(partialThinking);
+        // Truncated mid-think → no visible delta ever fired, so the UI would
+        // delete the placeholder wholesale. Close with the same marker as the
+        // clean-finish path so the turn keeps its bubble and its thinking.
+        const abortMarker = visibleTurnText({
+          finalText: "",
+          streamedVisibleLength: streamedText.length,
+          thinking: partialThinking,
+          interruptedMarker: strings.chat.interrupted,
+        });
+        if (abortMarker) callbacks.onDelta(abortMarker, abortMarker);
         if (rawEmittedAccum) {
           callbacks.onModelEmittedText?.(rawEmittedAccum);
         }
@@ -3969,6 +4050,18 @@ export async function streamAssistantTurn(
     // each round start). Used by emitFinalText so the final full-replacement
     // onDelta does not wipe round-1 prose from the bubble / history.
     let streamedTextAtRoundStart = "";
+    // Reasoning spans from COMPLETED rounds (UI display only — prompt replay
+    // replays modelEmittedText). Flushed at round transitions; the live
+    // round's span joins at the emit points after its finalize reconciles.
+    let thinkingAccum = "";
+    // Flips once per round, on the first VISIBLE content token (think-block
+    // stripping yields no visible deltas, so thinking keeps the thinking
+    // label). Back to false with each fresh round below.
+    let roundWritingEmitted = false;
+    const joinThinking = (acc: string, next: string): string => {
+      if (next.trim().length === 0) return acc;
+      return acc.length > 0 ? `${acc}\n\n${next}` : next;
+    };
 
     // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
     // conservative (holds after mid-text <think>); finalize does full-round
@@ -4001,8 +4094,24 @@ export async function streamAssistantTurn(
       // whitespace only (blank lines atop the bubble + late DB rewrite). Only
       // when there is no prior-round prefix.
       if (!streamedTextAtRoundStart) finalText = finalText.trimStart();
+      const turnThinking = joinThinking(
+        thinkingAccum,
+        thinkCleaner.thinkingText(),
+      );
+      // A round truncated inside its think block produced reasoning but zero
+      // visible text — close with the localized marker, never an empty bubble.
+      finalText = visibleTurnText({
+        finalText,
+        streamedVisibleLength: streamedText.length,
+        thinking: turnThinking,
+        interruptedMarker: strings.chat.interrupted,
+      });
       // Keep what the model produced for next-turn prompt replay (KV prefix).
       // UI still receives cleaned text only via onDelta.
+      // Thinking fires after finalize (above) reconciled this round's buffer
+      // with the full-round parse; the final round never went through the
+      // round-transition flush, so join it here exactly once.
+      callbacks.onThinkingText?.(turnThinking);
       if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted);
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       // clean_completion: reducer sets reproducible only if !turnInjected
@@ -4248,8 +4357,11 @@ export async function streamAssistantTurn(
         stopStallWatchdog();
         // Snapshot prior-round cleaned prose before this round's stream starts.
         streamedTextAtRoundStart = streamedText;
-        // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
-        thinkCleaner = createThinkStreamCleaner();
+        // Flush the OUTGOING round's reasoning span before swapping cleaners.
+        thinkingAccum = joinThinking(thinkingAccum, thinkCleaner.thinkingText());
+        // Fresh tool_call-tag state for this round's stream (each round is a
+        // new completion); the think cleaner is created below, once the
+        // prompt-side probe has resolved.
         toolCallStrip = createToolCallDeltaStripper();
         // Last round (or forceTextOnly): text-only so the model synthesizes from
         // gathered tool results instead of exiting the loop with no completion.
@@ -4267,6 +4379,37 @@ export async function streamAssistantTurn(
         governorThermoSource = (
           await refreshGovernorBeforeCompletion(engine, thermoLogState)
         ).thermo_source;
+        // Prompt-side fact for THIS round's exact prompt. The flags mirror the
+        // completion call below (tool_choice included — it changes rendering);
+        // the rendered prompt is the ground truth on whether the template
+        // opened the think block (LFM2.5 turn 1 does).
+        const templateOpensThink = await probeTemplateOpensThink(
+          engine,
+          currentMessages as RNLlamaOAICompatibleMessage[],
+          {
+            enable_thinking: thinkingFields.enable_thinking,
+            reasoning_format: thinkingFields.reasoning_format,
+            chat_template_kwargs: thinkingFields.chat_template_kwargs,
+            ...(hasTools && toolCallingEnabled
+              ? {
+                  tools: options!.tools as EngineTool[],
+                  tool_choice: toolChoice,
+                }
+              : {}),
+          },
+        );
+        thinkCleaner = createThinkStreamCleaner({ templateOpensThink });
+        roundWritingEmitted = false;
+        // The probe is a new suspension point between the round-top guard and
+        // completion(): an abort landing during it must still stop the turn
+        // before the (long) completion starts.
+        if (bailIfStopped()) return;
+        if (round > 0) {
+          // Re-arm the thinking label: the previous round's visible text set
+          // the chip to writing, and this round's prefill + reasoning are not
+          // writing.
+          callbacks.onStatus?.({ label: statusLabel });
+        }
         noteCompletionPromptEnv();
         armPrefillDeadline();
         const result = await trackCompletion(
@@ -4322,6 +4465,13 @@ export async function streamAssistantTurn(
               if (raw) rawEmittedAccum += raw;
               const delta = cleanStreamDelta(raw);
               if (delta) {
+                // First VISIBLE content token of the round: thinking is over,
+                // writing begins. Think-block stripping yields no delta, so
+                // the label stays on thinking for the whole reasoning span.
+                if (!roundWritingEmitted) {
+                  roundWritingEmitted = true;
+                  callbacks.onStatus?.({ label: strings.chat.writingStatus });
+                }
                 streamedText += delta;
                 callbacks.onDelta(delta, streamedText);
               }
@@ -4658,9 +4808,26 @@ export async function streamAssistantTurn(
         };
         if (!bailIfStopped()) {
           exhaustedTel.fallbackFired = true;
-          // Fresh cleaners for the fallback round (same as each loop round).
-          thinkCleaner = createThinkStreamCleaner();
+          // Flush the outgoing round's reasoning span, then fresh cleaners for
+          // the fallback round (same as each loop round).
+          thinkingAccum = joinThinking(thinkingAccum, thinkCleaner.thinkingText());
+          const fallbackOpensThink = await probeTemplateOpensThink(
+            engine,
+            currentMessages as RNLlamaOAICompatibleMessage[],
+            {
+              enable_thinking: thinkingFields.enable_thinking,
+              reasoning_format: thinkingFields.reasoning_format,
+              chat_template_kwargs: thinkingFields.chat_template_kwargs,
+            },
+          );
+          thinkCleaner = createThinkStreamCleaner({
+            templateOpensThink: fallbackOpensThink,
+          });
           toolCallStrip = createToolCallDeltaStripper();
+          roundWritingEmitted = false;
+          // Same suspension-point guard as the main loop: an abort landing
+          // during the probe must not be followed by a full completion.
+          if (bailIfStopped()) return;
           const fallbackStreamedTextAtStart = streamedText;
           try {
             const fallbackThermo = await refreshGovernorBeforeCompletion(
@@ -4702,6 +4869,11 @@ export async function streamAssistantTurn(
                   if (raw) rawEmittedAccum += raw;
                   const delta = cleanStreamDelta(raw);
                   if (delta) {
+                    // Same first-visible-token flip as the main loop.
+                    if (!roundWritingEmitted) {
+                      roundWritingEmitted = true;
+                      callbacks.onStatus?.({ label: strings.chat.writingStatus });
+                    }
                     streamedText += delta;
                     callbacks.onDelta(delta, streamedText);
                   }
@@ -4749,10 +4921,16 @@ export async function streamAssistantTurn(
             let fallbackText = stripToolCallTagsFinal(
               thinkCleaner.finalize(fallbackEmitted),
             ).trim();
+            if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+            // Symmetric with emitFinalText: thinking fires unconditionally
+            // after the round's finalize reconciled the buffer — a pure-
+            // reasoning fallback must not throw its reasoning away.
+            callbacks.onThinkingText?.(
+              joinThinking(thinkingAccum, thinkCleaner.thinkingText()),
+            );
             if (fallbackText) {
               exhaustedTel.fallbackOk = true;
               toolFallbackOk = true;
-              if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
               // Attach raw only when cleaned text survived (canned path keeps none).
               const attachEmitted = modelEmittedTextForVisibleReply(
                 fallbackText,

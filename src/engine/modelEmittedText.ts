@@ -147,6 +147,34 @@ export function normalizeModelEmittedTextForSave(
 }
 
 /**
+ * Model reasoning (think-block span) persisted purely for UI display — the
+ * collapsed block above the answer. Assistant-only, like the modelEmittedText
+ * twins above. NEVER used for prompt assembly: the raw think span already
+ * rides inside modelEmittedText for KV replay, and re-adding it here would
+ * double-wrap history.
+ */
+export function readThinkingText(
+  role: string,
+  value: unknown,
+): string | undefined {
+  if (role !== "assistant") return undefined;
+  if (typeof value !== "string") return undefined;
+  if (value.trim().length === 0) return undefined;
+  return value;
+}
+
+/** Assistant-only; whitespace-only → absent (matches readThinkingText). */
+export function normalizeThinkingTextForSave(
+  role: string,
+  value: unknown,
+): string | undefined {
+  if (role !== "assistant") return undefined;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
  * Fallback round: attach raw emission only when cleaned visible text survived.
  * Markup-only rounds show a canned message — never store the raw scraps.
  */

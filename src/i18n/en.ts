@@ -454,6 +454,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thinking: "Thinking…",
     thinkingStatus: "Thinking",
     writingStatus: "Writing",
+    reasoningLabel: "Reasoning",
     interrupted: "Generation was interrupted.",
     searching: "Searching the web…",
     fetching: "Fetching page…",

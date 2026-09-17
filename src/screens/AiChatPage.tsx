@@ -100,7 +100,9 @@ import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import {
   normalizeModelEmittedTextForSave,
+  normalizeThinkingTextForSave,
   readModelEmittedText,
+  readThinkingText,
 } from "../engine/modelEmittedText";
 import { toPersistableHistoryMessages } from "../engine/historyPersistable";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
@@ -118,6 +120,7 @@ import { spacing, radius } from "../theme/tokens";
 import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { CHAT_MENU_HIT, CHAT_NAV_ROW } from "../theme/components/chatNavLayout";
 import { StreamCaret } from "../chat/StreamCaret";
+import { ReasoningBlock } from "./ReasoningBlock";
 import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
 import {
@@ -233,6 +236,12 @@ type Message = {
    * (cleaned); prompt assembly replays this when present so the KV prefix matches.
    */
   modelEmittedText?: string;
+  /**
+   * Reasoning the model emitted inside its think block (assistant only).
+   * UI-only: rendered in a collapsed block above the answer. Prompt replay
+   * never uses this — modelEmittedText already carries the raw think span.
+   */
+  thinkingText?: string;
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
@@ -266,6 +275,8 @@ type StreamCallbacks = {
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
   /** Unmodified model output for this assistant turn (prompt replay / KV). */
   onModelEmittedText?: (text: string) => void;
+  /** Model reasoning (think span) for the collapsed block above the answer. */
+  onThinkingText?: (text: string) => void;
   /** Optional failure signal from stream backends that resolve instead of reject. */
   onFailed?: (reasonKey: string) => void;
 };
@@ -636,6 +647,11 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     const emitted = readModelEmittedText(record.role, record.modelEmittedText);
     if (emitted !== undefined) {
       message.modelEmittedText = emitted.slice(0, MAX_TEXT);
+    }
+    // Model reasoning (assistant only) for the collapsed block above the answer.
+    const thinking = readThinkingText(record.role, record.thinkingText);
+    if (thinking !== undefined) {
+      message.thinkingText = thinking.slice(0, MAX_TEXT);
     }
     // Transient UI only — never restore live status strips after kill/reload
     // (orphan "Writing / Reading document…" after a finished turn — Jelly MED-5).
@@ -2331,7 +2347,10 @@ export function AiChatPage({
               role: "assistant",
               text: "",
               streaming: true,
-              statusLabel: t("chat.writingStatus"),
+              // Prefill + the think block come before any visible token; the
+              // engine flips the label to writingStatus on the first VISIBLE
+              // content token (LlamaService round loop).
+              statusLabel: t("chat.thinkingStatus"),
               statusHistory: [],
               createdAt: now,
             },
@@ -2352,6 +2371,8 @@ export function AiChatPage({
       let anyTextStreamed = false;
       // Unmodified model output for this turn (prompt replay). UI still streams cleaned text.
       let modelEmittedText: string | undefined;
+      // Model reasoning for this turn (collapsed block above the answer).
+      let thinkingText: string | undefined;
       // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
       // Coalescer overwrites with the latest full text and flushes on a 33 ms cadence.
       // Capture myGen/runId into the flush: a deferred trailing timer must not
@@ -2360,9 +2381,12 @@ export function AiChatPage({
         if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
           return;
         }
+        // Keep statusLabel: the engine owns the thinking→writing transition
+        // (first VISIBLE token) and clearing here would flicker the chip off
+        // while text streams. Turn end / error / abort clear it explicitly.
         updateMessage(
           assistantId,
-          { text: fullText, statusLabel: undefined },
+          { text: fullText },
           myGen,
           runId,
         );
@@ -2390,6 +2414,14 @@ export function AiChatPage({
                 }
                 if (typeof text === "string" && text.length > 0) {
                   modelEmittedText = text;
+                }
+              },
+              onThinkingText: (text) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                if (typeof text === "string" && text.trim().length > 0) {
+                  thinkingText = text;
                 }
               },
               // Feature 1: append to history AND set current label
@@ -2632,12 +2664,17 @@ export function AiChatPage({
                   "assistant",
                   modelEmittedText,
                 );
+                const thinkingSave = normalizeThinkingTextForSave(
+                  "assistant",
+                  thinkingText,
+                );
                 const base: Message = {
                   ...message,
                   streaming: false,
                   statusLabel: undefined,
                   interrupted: wasInterrupted ? true : undefined,
                   ...(emittedSave !== undefined ? { modelEmittedText: emittedSave } : {}),
+                  ...(thinkingSave !== undefined ? { thinkingText: thinkingSave } : {}),
                 };
                 if (base.miniapp) return base;
                 const extracted = parseMiniappFromText(base.text || "");
@@ -5221,6 +5258,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             colors={colors}
             t={t}
           />
+        ) : null}
+
+        {m.role === "assistant" && m.thinkingText ? (
+          <ReasoningBlock text={m.thinkingText} colors={colors} t={t} />
         ) : null}
 
         {m.text.trim() || showCursor ? (

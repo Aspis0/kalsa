@@ -2,7 +2,10 @@
  * Persistable projection for chat history hashing and AsyncStorage.
  * Save and load must stringify the same shape or restore deletes a good .kvs.
  */
-import { normalizeModelEmittedTextForSave } from "./modelEmittedText";
+import {
+  normalizeModelEmittedTextForSave,
+  normalizeThinkingTextForSave,
+} from "./modelEmittedText";
 
 function mapPersistableAttachments(raw: unknown): unknown {
   if (!Array.isArray(raw)) return undefined;
@@ -60,6 +63,12 @@ export function toPersistableHistoryMessages(
     );
     if (emitted !== undefined) next.modelEmittedText = emitted;
     else delete next.modelEmittedText;
+    const thinking = normalizeThinkingTextForSave(
+      typeof rec.role === "string" ? rec.role : "",
+      rec.thinkingText,
+    );
+    if (thinking !== undefined) next.thinkingText = thinking;
+    else delete next.thinkingText;
     out.push(next);
   }
   return out;
