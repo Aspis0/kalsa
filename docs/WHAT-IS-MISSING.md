@@ -211,10 +211,28 @@ Constraints this must respect, all already measured:
 - `id_slot` out of range is **not** refused, it wraps (`server-context.cpp:1521`). If
   the door assigns slots it must never emit an out-of-range one, because the server
   will silently put two people in the same slot.
-- Slot count is not free: slots divide the context per person, and `--parallel 1` was
-  worth **21x** on prompt-cache reuse because unified KV erases inactive slots. The
-  number of slots is item 2 of the morning list, and it now has a third constraint
-  besides memory and context: how long the queue gets.
+- Slot count is not a trade-off any more, it is settled: **one slot per person, or
+  thrash.** Measured at four phones, warm reuse and median TTFT move together, and one
+  slot plus our own queue loses on both at once -- it is the slowest shape *and* the one
+  where reuse is not merely worse but zero, twelve of twelve requests reprefilled:
+
+  | four phones | warm reuse | median TTFT | total KV |
+  |---|---:|---:|---:|
+  | one slot + our queue | 0.00 | 4.99 s | 174.8 MiB |
+  | two slots, fewer than users | 0.12 | 3.47 s | 230.6 MiB |
+  | auto (unified KV) | 0.73 | 2.54 s | 308.7 MiB |
+  | four slots, one each | 0.97 | 0.64 s | 342.1 MiB |
+
+  Oversubscription does not degrade reuse, it collapses it: two slots for four people
+  score 0.12, barely better than having one. The **21x** figure was real but answered a
+  different question -- it compared `--parallel 1` against *auto* slots with unified KV.
+  Explicit `--parallel N` is a third configuration nobody had run, and it beats both.
+- The binding constraint is the context floor, not the queue. Slots divide the context
+  and a request over its slot's share is **refused with HTTP 400, not truncated**: at
+  `-c 16384` with four slots, a 3 878-token conversation runs warm and a 4 225-token one
+  never starts. The SWA half of the KV replicates per slot (42 layers: 55.78 MiB at one
+  slot, 223.12 MiB at four) while the 14 dense layers divide. So 16k on this Mac *is*
+  four people, and the door's job is to refuse the fifth -- admission, not queueing.
 - A profile is a human label on a device credential, so it costs almost nothing once
   per-device credentials exist. But "busy with X" is itself a disclosure: it may show a
   **name**, never the prompt, never the content, and the active label needs a timeout

@@ -25,7 +25,8 @@ becomes device 1. Nothing logs, nothing errors. If we ever let a device choose i
 id — or if our own mapping drifts by one — two people share a slot and the server will not
 tell us. Whatever routing we build has to make the id ours and dense, and has to assert it.
 
-**Prefix-cache cross-talk.** The prompt cache is worth 21x and we want it. It matches on the
+**Prefix-cache cross-talk.** The prompt cache is worth having -- warm reuse reaches **0.97**
+when each person has a slot of their own. It matches on the
 longest common prefix of tokens, so in principle it can only reuse tokens that are genuinely
 identical. That is a claim about upstream's implementation, and claims about implementations
 get tested here: device A sends a prompt carrying a unique marker, device B sends a prompt
@@ -79,9 +80,11 @@ reinvented later, and because one thing about it is counter-intuitive.
 **It is the cheapest multi-device mode we have, not the most expensive.** Separate private
 conversations are what costs: N contexts, N caches, and a unified KV that evicts the idle
 ones. A room is one conversation, one context, one cache, appended to by several people — so
-the prompt-cache reuse that is worth 21x applies to it in full, permanently warm, no matter
-how many people are in the room. Four people in one room are cheaper than two people in two
-private chats.
+the prompt-cache reuse applies to it in full, permanently warm, no matter how many people
+are in the room. Four people in one room are cheaper than two people in two private chats --
+and measured 2026-09-17 a room escapes both costs a private chat pays: the SWA half of the
+KV replicates per slot (55.78 MiB at one slot, 223.12 MiB at four) and each slot's context
+floor of `n_ctx / N` refuses an oversized conversation outright with HTTP 400.
 
 **A room must be a different object from a private chat, not a flag on one.** A flag gets
 flipped — by a bug, by a mis-tap, by a future refactor — and rule 1 dies quietly. A separate

@@ -195,7 +195,9 @@ buffer. Raising the context mostly scales those 14 layers: ~64k costs about half
 
 So on a PC the document simply goes **into the context**, and the prompt cache keeps it
 warm — the 10 seconds are paid once and every following question about that document
-starts instantly (the cache is worth 21x with `--parallel 1`, measured 2026-09-16).
+starts instantly (one desktop user gets a slot to themselves, and warm reuse there is
+**0.97**, measured 2026-09-17; the older 21x figure compared `--parallel 1` against auto
+slots and is not a reason to run one slot where several people are asking).
 Retrieval exists to avoid a prefill the phone cannot afford. The PC can afford it.
 
 What survives from §2–§3, then, is only the **extraction**:
