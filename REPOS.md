@@ -1,6 +1,7 @@
 # REPOS — which repository holds what
 
-Five repositories carry Kalsa. Three are live, two are archived read-only on GitHub.
+Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/llama.rn` came back —
+and one is archived read-only on GitHub.
 This file exists because the constellation is not obvious and guessing has cost real time:
 on 15/09 a directory named after one repo grew inside another and the two living documents
 quietly became four.
@@ -14,6 +15,7 @@ Written 2026-09-16. Every number below was read from the repositories, not remem
 | **`Aspis0/kalsa`** (public) | the React Native app — this repository | 4.033 | 15,76 MiB |
 | **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.570 | 525 MiB |
 | **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.869 | 530 MiB |
+| **`Aspis0/llama.rn`** (public) | the React Native binding fork — read its section before assuming it is dead | — | — |
 
 ### `kalsa` — the app
 
@@ -70,13 +72,37 @@ They are read-only on GitHub, still cloneable, and nothing is lost. Un-archiving
   `third_party/llama.cpp` submodule already points at `kalsallama`: the consolidation was started
   and never finished. Its `main` now *is* the old `kalsa/kernel-s2-layer-fuse` tip, so building
   from `main` gives the `--moe-fused-*` flags the campaign harness passes.
-- **`Aspis0/llama.rn`** — an old fork of the React Native binding. Dead: `package.json` uses
-  `llama.rn` 0.12.8 from npm, and the only reference to the fork is in an archived audit from
-  August.
+(`Aspis0/llama.rn` was listed here as dead. It is not — see its section above.)
+
+### `llama.rn` — the binding fork (live again, 17/09)
+
+Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa` (the live one),
+`kalsa-step1`, `main`. Its `cpp/` is `kalsallama` at the pin plus the Kalsa patch set, so the
+binding and the engine stop being assembled from three sources at build time.
+
+**As of this edit the app does NOT build from it yet.** `package.json` still takes `llama.rn`
+0.12.8 from npm and `postinstall` still runs `scripts/sync-kalsallama.sh overlay` +
+`patch-package`. The switch is Step 3 of the migration and lands on `main` only after a
+dispatched CI run is green on the app's `llama-rn-fork` branch. Until then `patches/`,
+`vendor/`, `native/kalsallama.pin` and `scripts/sync-kalsallama.sh` are held.
 
 ## Two conventions that make this navigable
 
-**One branch per repository.** The exception is `remote-brain` in the app repo. Every branch that
+**One branch per repository — no longer true for the app.** `Aspis0/kalsa` carries six:
+`main`, `remote-brain`, `brain`, `chat`, `llama-rn-fork`, `baseline-67c73d26c`.
+
+⚠️ **Three local clones point at `Aspis0/kalsa`, and all three call their local branch `main`.**
+That is the trap this file exists for:
+
+| folder | tracks | what it is |
+|---|---|---|
+| `~/Projects/kalsa` | `origin/main` | the app |
+| `~/Projects/crescent-chat` | `origin/chat` | a separate line of work |
+| `~/Projects/kalsa-brain` | `origin/brain` | Kalsa Brain (PC↔phone) |
+
+`git push origin main` typed in the wrong one of those three pushes that clone's work onto the
+app's `main`. Push with the upstream name (`git push`), or check
+`git rev-parse --abbrev-ref --symbolic-full-name @{u}` first. Every branch that
 was deleted on 2026-09-16 survives as a tag `archive/<branch-name>` on its tip, pushed and
 verified *before* the delete, so any of them comes back with
 `git push origin <sha>:refs/heads/<name>`. Counts: `kalsa` 19, `kalsallama` 21,
