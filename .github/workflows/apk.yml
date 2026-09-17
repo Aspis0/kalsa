@@ -108,13 +108,13 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
           df -h /
 
-      # llama.rn ships PREBUILT jniLibs, but the plugin
-      # (plugins/withLlamaFromSource.js) DEFAULTS to a source build of its
-      # cpp/, so the patched cpp/ is compiled and patches/ take effect.
-      # KALSA_LLAMA_FROM_SOURCE=0 is not supported: the fork ships no prebuilt
-      # jniLibs, so setting it hard-fails the build.
+      # The llama.rn fork carries the engine sources in its cpp/ and the
+      # plugin (plugins/withLlamaFromSource.js) always compiles them from
+      # source; there is no patch step. KALSA_LLAMA_FROM_SOURCE=0 is not
+      # supported: the fork ships no prebuilt jniLibs, so setting it
+      # hard-fails the build.
       # The env is set here only for explicitness — it changes nothing in CI.
-      # The real guarantee the patches are in the binary is the
+      # The real guarantee the fork's engine is in the binary is the
       # assert-native-patch.sh step below, not this env.
       - name: Prebuild (CNG)
         env:

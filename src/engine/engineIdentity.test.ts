@@ -318,6 +318,12 @@ describe("engine build id generator", () => {
     addPkgFile(pkg, "ios/llama-rn.podspec", "s.name = 'llama.rn'\n");
     addPkgFile(pkg, "src/index.ts", "export const ready = true;\n");
     addPkgFile(pkg, "lib/bridge.js", "module.exports = { ready: true };\n");
+    addPkgFile(pkg, "bin/arm64-v8a/libggml-htp.so", "elf\n");
+    addPkgFile(
+      pkg,
+      "third_party/OpenCL-Headers/CL/cl.h",
+      "#define CL_VERSION_TARGET 300\n",
+    );
     addPkgFile(root, "native/GovernorBatteryModule.kt", "class GovernorBatteryModule\n");
     addPkgFile(
       root,
@@ -391,7 +397,7 @@ describe("engine build id generator", () => {
     }
   });
 
-  test("build output and nested node_modules are excluded; bridge sources are digested", () => {
+  test("build output, pack-ignored, and package-top node_modules paths are excluded; build inputs are digested", () => {
     const { computeEngineBuildId } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
@@ -399,26 +405,53 @@ describe("engine build id generator", () => {
       const pkg = path.join(tmp, "node_modules", "llama.rn");
       const baseline = computeEngineBuildId(tmp);
 
-      // Generated or third-party content: the id must not move.
+      // Generated, pack-ignored, or install-artifact content: the id must
+      // not move.
       for (const rel of [
         "android/build/junk.txt",
         "android/.cxx/junk.txt",
         "ios/build/junk.txt",
         "ios/rnllama.xcframework/junk.a",
         "node_modules/gyp/junk.py",
+        "src/__tests__/junk.ts",
+        "cpp/.hidden",
       ]) {
         addPkgFile(pkg, rel, "noise\n");
         expect(computeEngineBuildId(tmp)).toBe(baseline);
       }
 
-      // Compiled engine content: the id must move every time.
+      // Content the engine build reads: the id must move every time.
       let previous = baseline;
-      for (const rel of ["android/src/New.java", "src/extra.ts", "lib/extra.js"]) {
+      for (const rel of [
+        "android/src/New.java",
+        "src/extra.ts",
+        "lib/extra.js",
+        "bin/arm64-v8a/another.so",
+        "third_party/OpenCL-Headers/CL/cl_platform.h",
+        "cpp/node_modules/x.js",
+      ]) {
         addPkgFile(pkg, rel, "real\n");
         const next = computeEngineBuildId(tmp);
         expect(next).not.toBe(previous);
         previous = next;
       }
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("fails closed when an allow-listed engine subtree is missing", () => {
+    const { computeEngineBuildId } = engineBuildIdModule;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
+    try {
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      fs.rmSync(path.join(tmp, "node_modules", "llama.rn", "lib"), {
+        recursive: true,
+        force: true,
+      });
+      expect(() => computeEngineBuildId(tmp)).toThrow(
+        /missing lib in node_modules\/llama\.rn/,
+      );
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
