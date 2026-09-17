@@ -860,8 +860,21 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
-  silently truncated answer (native sets `truncated=true`, no JS consumer reads it) and the
-  `loadPrompt` path still raises `context_full` before `n_common` is computed.
+  truncated answer. **No longer silent** (`9643db1`): native `truncated` rides every
+  `KALSA_TELEMETRY` line, a distinct `KALSA_ANSWER_TRUNCATED` marker is emitted, and
+  `scripts/campaign/verdict.mjs` fails a run on one occurrence — and refuses to score
+  truncation at all on a build predating the flag instead of reading absence as PASS. Nothing
+  yet *acts* on it; it is visibility, not control flow.
+- **`loadPrompt` raising `context_full` before `n_common` is DECIDED, not open** (`4553062`).
+  It is the backstop at `>= n_ctx` behind the JS slide at `n_ctx - WINDOW_RESERVE_TOKENS`
+  (`LlamaService.ts:1518`) — strictly more permissive, so it only fires when the slide already
+  failed. A copy in `node_modules` had deleted it and drifted for two days; that is a
+  regression, not a fix, and it was rejected. `kvShiftRefuse.test.ts:22` asserts the guard
+  stays in the patch, and `scripts/assert-vendor-pristine.sh` now fails if the vendored tree
+  stops matching npm + the committed patch. The same commit closed two logcat leaks that
+  reached release builds: upstream llama.rn dumped every prompt token id at INFO on each
+  prompt load, and `KALSA_KVDIVERGE` emitted token ids outside
+  `RNLLAMA_ANDROID_ENABLE_LOGGING` — `rnllama::log` has no level or build-type gate.
 - S23 handback: app stopped, unplugged, **52%**, **34.4 C** last and **36.8 C** peak. The 2.4 GB
   models under `/data/local/tmp/llamabench` plus `/data/local/tmp/ngramspec` remain intentionally.
 - T20C still needs S23 charge to **>=85%**, unplugged, then a rerun. Metro PID `2445` is DEAD; the
