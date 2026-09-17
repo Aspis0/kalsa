@@ -3,6 +3,7 @@ import {
   boundMemoryFacts,
   estimateMemoryTokens,
   MEMORY_SUB_BUDGET_TOKENS,
+  PROMPT_FACT_CHARS,
 } from "./dnaBounding";
 
 function fact(text: string, createdAt: number, id = text): MemoryFact {
@@ -24,7 +25,6 @@ function expectWithinBudget(
 const DAY1 = Date.UTC(2026, 0, 1);
 const DAY2 = Date.UTC(2026, 0, 2);
 const DAY3 = Date.UTC(2026, 0, 3);
-const PROMPT_FACT_CHARS = 120;
 
 describe("boundMemoryFacts", () => {
   test("empty store → empty block, zero counts, default budget", () => {

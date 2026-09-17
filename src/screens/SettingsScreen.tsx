@@ -39,7 +39,6 @@ import {
   type ModelInfo,
 } from "../engine/ModelRegistry";
 import { isEmbedderHung } from "../engine/EmbeddingService";
-import { MAX_PROMPT_FACT_CHARS, MAX_PROMPT_FACTS } from "../engine/memoryPrompt";
 import {
   getDeviceTotalMemoryBytes,
   getRamTier,
@@ -67,6 +66,7 @@ import { useProcessHealth } from "../hooks/useProcessHealth";
 import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
+import { PROMPT_FACT_CHARS } from "../memory/dnaBounding";
 import {
   CISWIRE_TOOLHELP_KEY,
   COMPACTION_CHOICE_KEY,
@@ -1101,9 +1101,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const memoryAtCapacity = memoryFacts.length >= MemoryStore.MAX_FACTS;
   const hasTruncatedReplyFacts =
     memoryEnabled &&
-    memoryFacts
-      .slice(-MAX_PROMPT_FACTS)
-      .some((fact) => fact.text.length > MAX_PROMPT_FACT_CHARS);
+    memoryFacts.some((fact) => fact.text.length > PROMPT_FACT_CHARS);
 
   return (
     <View
@@ -1438,10 +1436,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               max: MemoryStore.MAX_FACTS,
             })}
             {memoryEnabled
-              ? ` — ${t("memory.capReplyHint", {
-                  perReply: MAX_PROMPT_FACTS,
-                  chars: MAX_PROMPT_FACT_CHARS,
-                })}`
+              ? ` — ${t("memory.capReplyHint", { chars: PROMPT_FACT_CHARS })}`
               : null}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1450,7 +1445,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
           {hasTruncatedReplyFacts ? (
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
-              {t("memory.truncNote", { chars: MAX_PROMPT_FACT_CHARS })}
+              {t("memory.truncNote", { chars: PROMPT_FACT_CHARS })}
             </Text>
           ) : null}
 

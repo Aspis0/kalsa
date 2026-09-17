@@ -918,7 +918,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     enabled: "Ricorda informazioni su di me",
     capHint: "{count} / {max} fatti salvati",
     capReplyHint:
-      "Fino a {perReply} usati per risposta ({chars} caratteri ciascuno)",
+      "Usati nelle risposte ({chars} caratteri ciascuno); se non entrano tutti vengono esclusi i più vecchi",
     truncNote:
       "I fatti superiori a {chars} caratteri vengono accorciati nelle risposte.",
     disabledNote:

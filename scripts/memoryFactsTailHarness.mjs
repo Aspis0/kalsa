@@ -5,7 +5,7 @@
  * untrusted-data framing. No llama.rn / React.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -515,6 +515,67 @@ async function main() {
     );
     assert(realMatches(applied) === 1, "whitespace rematch hits");
     assert(applied.messages[0].content === "P\nhello", "prefixed reapplied");
+  });
+
+  // Structural gates over the shipped source. The behavior tests above prove
+  // what the tail path does; these pin the wiring that keeps it true. Same
+  // technique as scripts/prefixPrewarmHarness.mjs: comments stripped and
+  // whitespace normalized, so reformatting is free — rewiring the facts back
+  // into the system prompt is not.
+  const shapeOf = (text) =>
+    text
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^[ \t]*\/\/.*$/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  test("MEMORY_FACTS_ON_USER_TAIL is true in ttftFlags.ts", () => {
+    const src = shapeOf(
+      readFileSync(path.join(projectRoot, "src/engine/ttftFlags.ts"), "utf8"),
+    );
+    const flag = src.match(/export const MEMORY_FACTS_ON_USER_TAIL = (true|false);/);
+    assert(flag, "MEMORY_FACTS_ON_USER_TAIL declaration not found in ttftFlags.ts");
+    assert(
+      flag[1] === "true",
+      "MEMORY_FACTS_ON_USER_TAIL must stay true: false restores facts-in-system-prompt, where every new fact invalidates the whole prefix",
+    );
+  });
+
+  test("LlamaService.buildSystemPrompt keeps the facts block behind the legacy-only flag guard", () => {
+    const llamaSrc = readFileSync(
+      path.join(projectRoot, "src/engine/LlamaService.ts"),
+      "utf8",
+    );
+    const from = "export function buildSystemPrompt(";
+    const to = "return prompt;\n}";
+    const a = llamaSrc.indexOf(from);
+    assert(a >= 0, "buildSystemPrompt not found in LlamaService.ts");
+    const b = llamaSrc.indexOf(to, a);
+    assert(b > a, "buildSystemPrompt end (return prompt;) not found");
+    const fnShape = shapeOf(llamaSrc.slice(a, b + to.length));
+    assert(
+      fnShape ===
+        "export function buildSystemPrompt( locale: Locale, withTools: boolean, " +
+          "facts?: readonly MemoryFact[], ): string { const strings = getStrings(locale); " +
+          "let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt; " +
+          "if (!MEMORY_FACTS_ON_USER_TAIL) { const factBlock = buildMemoryFactsBlock(locale, facts); " +
+          "if (factBlock) prompt += `\\n\\n${factBlock}`; } return prompt; }",
+      `buildSystemPrompt changed shape: buildMemoryFactsBlock may appear only ` +
+        `inside if (!MEMORY_FACTS_ON_USER_TAIL) — found: ${fnShape}`,
+    );
+  });
+
+  test("the dead namesake system-prompt builder stays deleted", () => {
+    // buildSystemPrompt lived twice: the namesake appended memory facts to the
+    // system prompt — the exact behavior the tail flag exists to prevent — and
+    // its only importer was its own test. The name is written out in full on
+    // purpose: anyone searching for the deleted module lands on this pin, the
+    // one place that says why it is gone.
+    const deadNamesake = path.join(projectRoot, "src/engine/memoryPrompt.ts");
+    assert(
+      !existsSync(deadNamesake),
+      "the dead namesake (facts-in-system-prompt builder) is back on disk — delete it again",
+    );
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

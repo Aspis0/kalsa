@@ -19,8 +19,8 @@ export const MEMORY_SUB_BUDGET_TOKENS = 1200;
 /** Kalsa chars/4 estimate — not CisWire's CJK-aware estimator. */
 const CHARS_PER_TOKEN = 4;
 
-/** Same cap the last-user tail used before bounding. */
-const PROMPT_FACT_CHARS = 120;
+/** Same cap the last-user tail used before bounding (Settings reuses it). */
+export const PROMPT_FACT_CHARS = 120;
 
 export type DnaBoundHealth = {
   deferredCount: number;
