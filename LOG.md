@@ -207,6 +207,21 @@ Gli still non mostrano il moto: campionato via JS invece che a occhio.
 
 Voti: movimento 5 (con misura) · lunga 5 (con numeri).
 
+## Giro 13 — prod perf + icone Tauri (2026-09-18)
+
+- 200 messaggi in build prod (`vite preview`): mount+apertura 1703ms vs
+  1942 in dev — il costo è DOM/markdown, non React dev. Accettato: costo
+  una tantum all'apertura di un caso estremo, scroll poi a 0ms.
+  Niente virtual-list (confermato due volte, numeri alla mano).
+- Icone `src-tauri/icons/` generate via screenshot Playwright di un SVG
+  inline (stessa marca del CSS: cerchio quasi pieno + flat in basso a
+  sx, ruotato −12°, su squircle `#F4F8F3`). 32/128/256px esatti.
+- Buttato due volte: l'arco SVG con flag sbagliati disegnava prima un
+  Pac-Man (endpoint fuori cerchio -> auto-scale), poi il cerchio specchio
+  (centro sbagliato). Lezione: con `A r r 0 large sweep` e due centri
+  possibili, il rendering batte il ragionamento — screenshot ogni volta.
+  Terza istanza di "verifica con gli occhi, non con la testa".
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
