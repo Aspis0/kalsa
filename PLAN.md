@@ -870,6 +870,53 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   waiting threshold". Needs a per-token cost per (device, model) pair and a declared ceiling; until
   then, do not offer >2-3B on the Jelly.
 
+- **n_ctx is decided by two memory numbers and zero speed numbers, and memory ranks the slow
+  phone above the fast one.** Owner, 17/09, describing the product he wants: *"quando si installa
+  Kalsa, c'e' un mini test che decide la velocita', RAM, gpu, npu e poi prende un modello adatto e
+  lo ottimizza tramite Governor/kernel."* Measuring toward that surfaced a live defect.
+
+  `resolveContextProfile` upgrades a hybrid's `n_ctx` to `HIGH_RAM_N_CTX` (16384) when
+  `totalMemory >= CTX_UPGRADE_MIN_TOTAL_BYTES` (7.5 GB). A downgrade path does exist — hostile
+  audit found it after the first write-up claimed there was none — the memory budget in
+  `deviceTuning.ts` (`CTX_FLOOR` 2048) wired at `LlamaService.ts:1909`. It keys on MemAvailable,
+  engages only on `does_not_fit`, and **can never return a value equal to the requested ctx**, so
+  an observed `n_ctx` equal to catalog proves it stayed out of that load.
+
+  Measured 2026-09-17, same model `lfm2.5-2.6b`, same APK `9bd5d0d`, 37 s apart, with
+  `kalsa.bench.nctx` verified ABSENT on BOTH phones — that key feeds `explicitNCtx`, which wins
+  over the RAM branch, and it was the only competing explanation:
+
+  | device | SoC | MemTotal | vs 7.5 GB gate | n_ctx | verbatim window |
+  |---|---|---|---|---|---|
+  | Galaxy S23 | Snapdragon 8 Gen 2 | 7,243,748 kB = 7,417,597,952 B | 82.4 MB BELOW | **8192** | 6144 |
+  | Jelly Star | Helio G99 | 7,968,548 kB = 8,159,793,152 B | above | **16384** | 14336 |
+
+  The 82.4 MB was already recorded at `windowProfile.ts`, but with the false generalisation *"on
+  every 8 GB phone the wider window was inert"* — the Jelly is an 8 GB phone and it clears the
+  gate. Corrected in app commit `a43e74a`, together with two more comments that pointed away from
+  the real behaviour (a llama.rn n_ctx clamp that does not exist, and `explicitNCtx` described as
+  a Settings override no Settings screen writes).
+
+  **Prefill, same device, two models** (`timings.prompt_ms / prompt_n`, reset per completion at
+  `rn-completion.cpp:743`), near-identical prompt sizes:
+  - LFM2.5-2.6B QAD-Q4_0 — `promptMs=65274.597 promptN=2153` → **30.3 ms/token**
+  - Qwen3.5-4B Q4_K_M — `promptMs=214122 promptN=2196` → **97.5 ms/token**
+
+  3.2x apart. Do NOT read a cross-device prefill ratio out of tonight's figures: there is no
+  in-app head-to-head on `lfm2.5-2.6b`. The committed cross-device number is decode on one binary,
+  Jelly 2.962 vs S23 5.792 tok/s (`results/moe-stream-2026-08-22/README.md:25-26`).
+
+  **Why the mini test is already half-built.** Memory bandwidth is measured AND persisted
+  (`deviceThroughputStore.ts`, `kalsa.device.bandwidth.v1`, merged on write) and reaches
+  `modelGateVerdict`. Prefill speed is measured into an EMA and thrown away — `prefillSpeed.ts` is
+  "In-memory only", read by `documentChatStrategy` alone. So no decision, install-time or
+  catalogue-time, reads the measured prefill EMA; `speedAdvisory` decorates the gate verdict with
+  no consumer able to allow or deny; admission blocks on tier, RAM and disk only.
+
+  Open decision for the owner: the shape of a persisted per-(device, model) prefill cost and the
+  declared waiting ceiling. Deliberately NOT built unilaterally — storing a number nothing reads is
+  the API-nobody-constructs rule, and which axis may deny a model is a product call.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
