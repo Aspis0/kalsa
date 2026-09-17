@@ -190,16 +190,53 @@ Nobody may stop someone else's turn — a shared room where a sibling can cut yo
 is a worse room than one where you wait. The PC itself is the exception: the machine's owner
 can always stop the machine.
 
-### 5.6 The one number that is still missing
+### 5.6 The number was taken, and it changed the design
 
-Strict rotation is the fair policy, but every switch from one conversation to another throws
-away the prompt cache and pays a full re-prefill. If that costs six seconds, then serving two
-prompts from the same conversation before yielding is worth real time and the policy should say
-so with a number. If it costs three tenths of a second, fairness wins outright and rotation is
-free.
+Measured on b10950, Trinity, 16384 total context, four server shapes under 2 and 4
+overlapping simulated phones. The numbers below are recomputed from the raw per-request JSON,
+not copied from the report that produced it.
 
-That number is being measured now. Until it exists, the policy above is written as pure
-rotation — the fair default — and the only thing allowed to change it is a measurement.
+Warm-turn cache reuse (turns after the first, which is cold by definition) and median
+time-to-first-token, **four phones**:
+
+| shape | reuse | median TTFT | total KV |
+|---|---|---|---|
+| `--parallel 1` (one slot, our queue) | **0.00** | 4.99 s | 174.78 MiB |
+| `--parallel 2` (fewer slots than people) | 0.12 | 3.47 s | 230.56 MiB |
+| auto (`kv_unified`) | 0.73 | 2.54 s | 308.66 MiB |
+| `--parallel 4` (a slot per person) | **0.97** | **0.64 s** | 342.12 MiB |
+
+**The trade-off this section was written to resolve does not exist.** One slot was supposed to
+buy warm caches at the price of waiting. At four phones it buys neither: *every single request*
+re-prefilled from zero — not degraded reuse, zero — and it was also the slowest. Waiting and a
+cold cache arrive together.
+
+**The rule is not "more slots is better", it is "a slot per person, or thrash."** Two slots
+with four people scored 0.12, nearly as bad as one. Reuse does not degrade gracefully as people
+exceed slots; it collapses.
+
+**The price of a slot is not only context — sliding-window memory replicates.** From the real
+cache lines: the 14 full-attention layers *divide* (16384 cells → 4096 at four slots, a
+constant 119.00 MiB), while the 42 sliding-window layers are rebuilt per sequence — 55.78 MiB
+at one slot, 111.56 at two, 223.12 at four, exactly ×2 and ×4. Four slots cost +167 MiB over
+one. No per-token constant can express that, which is the affine finding again from a second
+direction.
+
+**The floor is 4096 tokens per person.** A conversation reaching 3 878 tokens ran warm (3 827
+of them cached). The next size up returned **HTTP 400 on every request including the first** —
+the person cannot even start, and the refusal is a hard one rather than a silent truncation.
+So on this machine, 16384 total context divided by a 4096 floor is **four people, and the
+fifth must be refused at the door** rather than quietly given a broken conversation.
+
+**What this does to the turn rules above.** For private conversations, §5.3's rotation is no
+longer the interesting question: give each person a slot and nobody waits behind anybody. The
+queue still has to exist — for the fifth person, and for the moment a slot is full — but it
+stops being the normal path.
+
+For the room, this is the second time the shared context turns out to be the cheap one: one
+conversation in one slot never switches, so it never pays a re-prefill at all. Everything
+measured here is the cost of people *not* sharing.
+
 
 ---
 
