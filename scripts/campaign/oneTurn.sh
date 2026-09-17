@@ -80,18 +80,57 @@ campaign_finish_turn() {
   log "turn $CAMPAIGN_TURN_I collected charging=$charging"
 }
 
+# Total completion signals the app has emitted since this run started reading
+# logcat. Counted on the CONTINUOUS capture, which no recovery path re-cuts.
+campaign_telemetry_total() {
+  local file="${CAMPAIGN_LOGCAT_FILE:-}"
+  [ -n "$file" ] && [ -f "$file" ] || { printf '%s\n' 0; return 0; }
+  LC_ALL=C grep -cF "KALSA_TELEMETRY " "$file" 2>/dev/null || printf '%s\n' 0
+}
+
 # Run-level gate (defect 2, 2026-09-16): the completion signal is emitted once
 # per finished turn. When it stops arriving the run can only repeat the same
 # 30-45 min wait, and the 2026-09-16 T20C run burned 96 minutes force-stopping
 # healthy engines before a human killed it. Turn 1 is tolerated (a cold launch
-# can lose its marker); from turn 2 on, the missing marker stops the run.
+# can lose its marker); from turn 2 on, a signal that has genuinely stopped
+# arriving stops the run.
 # Called by the T20C runner only: supervisor.sh drives a different campaign on
 # a different phone and must not inherit this policy.
+#
+# MEASURED ON THE RUN LOG, NOT THE PER-TURN SLICE (2026-09-17). The slice is
+# re-cut by recovery paths, and `already-landed-skip-send` returns without
+# campaign_finish_turn, so the file left on disk can start AFTER the very marker
+# it is asked to find. That is how the 2026-09-17 run aborted at turn 3: the app
+# logged KALSA_TELEMETRY at 00:22:11 and the slice it was judged on began at
+# 00:22:20. The app was not dead, it had throttled to 2.19 tok/s from 10.69 and
+# emitted the next marker 63 s after the harness gave up.
+#
+# The drop branch is a guard, not a live path, and the first draft of this
+# comment got its reason WRONG: a logcat restart does NOT truncate —
+# campaign_logcat_start reopens the same file with `>>` (logcat.sh). The only
+# truncation is `: > "$CAMPAIGN_LOGCAT_FILE"` in campaign_logcat_clear_arm,
+# which runs at arm start, before turn 1. So today the count cannot fall.
+# The guard stays because the asymmetry is brutal: four lines here against a
+# false abort that costs a whole run (96 minutes on 2026-09-16), and a count
+# read as "stuck" after a truncation is exactly the false positive this
+# function was rewritten to remove.
 campaign_completion_signal_lost() {
-  local i="${1:?}" slice="${2:?}"
-  [ "$i" -ge 2 ] || return 1
-  campaign_slice_has_telemetry "$slice" && return 1
-  log "ABORT after turn $i: completion signal 'KALSA_TELEMETRY ' is not in $slice — the app has stopped emitting it; stopping the run instead of repeating the ${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}ms wait per turn"
+  local i="${1:?}" slice="${2:?}" seen
+  seen=$(campaign_telemetry_total)
+  case "$seen" in ''|*[!0-9]*) seen=0 ;; esac
+
+  if [ "$seen" -lt "${CAMPAIGN_TELEMETRY_SEEN:-0}" ]; then
+    log "turn $i: completion-signal count dropped ${CAMPAIGN_TELEMETRY_SEEN:-0} -> $seen (logcat restarted) — re-baselining, not an abort"
+    CAMPAIGN_TELEMETRY_SEEN="$seen"
+    return 1
+  fi
+  if [ "$seen" -gt "${CAMPAIGN_TELEMETRY_SEEN:-0}" ] || campaign_slice_has_telemetry "$slice"; then
+    CAMPAIGN_TELEMETRY_SEEN="$seen"
+    return 1
+  fi
+
+  [ "$i" -ge 2 ] || { CAMPAIGN_TELEMETRY_SEEN="$seen"; return 1; }
+  log "ABORT after turn $i: completion signal 'KALSA_TELEMETRY ' did not advance in $CAMPAIGN_LOGCAT_FILE during this turn (total stuck at $seen) — the app has stopped emitting it; stopping the run instead of repeating the ${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}ms wait per turn"
   return 0
 }
 

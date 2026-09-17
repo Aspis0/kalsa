@@ -415,6 +415,60 @@ else
   bad "verdict scored truncation vacuously on an uninstrumented run"
 fi
 
+
+# ── (e) a send the ENGINE accepted is not re-sent because the DB lags ───────
+# 2026-09-17, S23 turn 3: the app logged KALSA_THINKING 0.3 s after the send but
+# had not written the user message to RKStorage. campaign_user_landed read the
+# DB, saw nothing for 45 s, and re-shared — the engine threw away 92 s of work
+# and restarted the same question as a new turn. The run then died waiting for a
+# completion marker that arrived 63 s after the harness gave up.
+run_db_lag_send() {
+  local out="$WORK/dblag"
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset db-lag
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    campaign_send_turn "Domanda di prova per il fake" && printf 'ok' > "$out/rc.txt" || printf 'fail' > "$out/rc.txt"
+    campaign_logcat_stop
+    wait >/dev/null 2>&1 || true
+  )
+  local rc shares taps
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf 'missing')
+  shares=$(grep -c 'android.intent.action.VIEW' "$FAKE_DEV/fake/invocations.log" 2>/dev/null || printf 0)
+  taps=$(grep -c 'input tap' "$FAKE_DEV/fake/invocations.log" 2>/dev/null || printf 0)
+  if [ "$rc" = "ok" ]; then
+    ok "db-lag: send accepted on engine evidence (DB never got the user message)"
+  else
+    bad "db-lag: send reported $rc — the harness still needs the DB copy"
+  fi
+  if [ "$shares" -eq 1 ]; then
+    ok "db-lag: exactly one share intent — no duplicate turn over live work"
+  else
+    bad "db-lag: $shares share intents — the harness re-sent over work in flight"
+  fi
+  # Hostile audit, 2026-09-17: the first version of this case passed with the
+  # tap deleted from campaign_send_turn, because the fake emitted the engine
+  # marker at share time. The fake now fires it from `input tap` on a non-empty
+  # composer; this asserts the tap the marker is supposed to be evidence OF.
+  if [ "$taps" -eq 1 ]; then
+    ok "db-lag: the turn started from one Send tap, not from the share alone"
+  else
+    bad "db-lag: $taps send taps — the engine evidence is not evidence of a send"
+  fi
+}
+
+printf '\n== (e) a send the engine accepted is not re-sent ==\n'
+run_db_lag_send
+
 printf '%s\n' '{"arm":"T20C","i":3,"intent":"chat-3","assistant":""}' >> "$VRUN/T20C/c1-V1.jsonl"
 node "$HERE/verdict.mjs" "$VRUN" --turns 3 > /dev/null 2>&1
 if [ $? -eq 1 ]; then

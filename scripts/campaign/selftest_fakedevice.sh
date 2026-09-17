@@ -4,12 +4,14 @@
 # talks to a device. Put this file on PATH as `adb`.
 #
 # State files (all under $FAKE_DEV/fake):
-#   mode         marker-turn1 | never | fail-send | vanish | hot
+#   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
 #   pid_dead_once  set at a turn boundary; the NEXT pidof reports the app dead
 #   stream.txt   logcat stream the fake `logcat` tails
 #   ui.xml       uiautomator dump served by `adb shell cat /data/local/tmp/ui.xml`
+#   composer     text the share put in the EditText ("" when the share missed)
+#   pending_turn turn armed by a share, fired as KALSA_THINKING by `input tap`
 #   telemetry.line  the KALSA_TELEMETRY line appended on turn 1 (marker-turn1)
 set -uo pipefail
 
@@ -80,8 +82,12 @@ msgs.append({"role": "user", "text": text})
 msgs.append({"role": "assistant", "text": "Risposta %d %s" % (turn, "x" * (40 * turn))})
 json.dump(msgs, open(path, "w", encoding="utf-8"))
 PY
-  msgs=$(cat "$F/messages.json")
-  python3 - "$DEV/databases/RKStorage" "$msgs" <<'PY'
+  # db-lag: the engine accepted the turn and started it, but the app has not
+  # persisted the user message yet. Real case, S23 2026-09-17: the harness read
+  # the DB, saw nothing, and re-shared over work already in flight.
+  if [ "$mode" != "db-lag" ]; then
+    msgs=$(cat "$F/messages.json")
+    python3 - "$DEV/databases/RKStorage" "$msgs" <<'PY'
 import sqlite3, sys
 conn = sqlite3.connect(sys.argv[1])
 conn.execute(
@@ -90,9 +96,16 @@ conn.execute(
 )
 conn.commit()
 PY
+  fi
   # native engine lines: campaign_wait_engine proves the engine came back
   _append "09-16 12:00:0$turn.100  4242  4243 I llama   : llama_model_loader: loaded meta data"
   _append "09-16 12:00:0$turn.200  4242  4243 I ReactNativeJS: KALSA_NATIVE_VARIANT {\"androidLib\":\"fake\",\"nGpuLayers\":0}"
+  # The engine announces the turn it just started — but only once the SEND is
+  # tapped, and only if the composer actually holds the text. Emitting it here,
+  # at share time, would let the db-lag case pass with the tap deleted from
+  # turn.sh (hostile audit, 2026-09-17). Arm it; `input tap` fires it.
+  printf '%s' "$turn" > "$F/pending_turn"
+  printf '%s' "$ui_text" > "$F/composer"
   if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then
     _append "$(cat "$F/telemetry.line")"
   fi
@@ -152,6 +165,15 @@ case "${1:-}" in
       "settings get secure default_input_method") printf '%s\n' null ;;
       "settings put "*|"settings delete "*) : ;;
       "ime "*) : ;;
+      "input tap "*)
+        # The send button. A turn starts only when there is something to send:
+        # an empty composer (mode `hot`) makes this tap a no-op, exactly as it
+        # is on the device.
+        if [ -s "$F/composer" ] && [ -s "$F/pending_turn" ]; then
+          t=$(cat "$F/pending_turn"); : > "$F/pending_turn"
+          _append "09-16 12:00:0$t.300  4242  4243 I ReactNativeJS: KALSA_THINKING {\"turnId\":\"$t\",\"budget\":512}"
+        fi
+        ;;
       "input "*) : ;;
       "am force-stop"*) : > "$F/pid" ;;
       "am start -n "*)

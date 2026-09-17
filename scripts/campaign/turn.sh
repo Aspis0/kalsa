@@ -59,6 +59,33 @@ sys.exit(0 if users and needle[:48] in users[-1] else 1)
 ' "$dest" "$needle"
 }
 
+# Did the ENGINE start a turn after this offset?
+#
+# campaign_user_landed proves the send by reading the user message back out of
+# the device DB, and the app does not necessarily persist it while it is busy
+# generating. On a throttled phone that proof can be minutes late, so the 45 s
+# wait below expired and the turn was re-shared — discarding work the engine had
+# already begun. 2026-09-17, S23 turn 3: the app logged
+# `KALSA_THINKING {"turnId":"4"}` 0.3 s after the send, the harness re-sent 92 s
+# later, the engine restarted the same question as turn 5, and the run died
+# waiting for a marker that arrived 63 s after it gave up.
+#
+# A new KALSA_THINKING after our own offset IS the send landing: the app cannot
+# start a turn it did not receive. Cheaper and earlier than the DB round trip.
+#
+# Could a LATE marker from the previous send confirm this one? Measured over the
+# seven T20C runs in out/: worst send->marker latency 28.4 s
+# (t20c-fixprotocol-20260915), tightest send->send gap 26.2 s
+# (t20c-rerun2-20260914). The two never met in one run, and the offset is
+# re-taken before every share, but the margin is thin — if that latency ever
+# passes 45 s the retry below can adopt the previous turn's marker.
+campaign_engine_turn_started() {
+  local offset="${1:?}" probe
+  probe="$OUT/.engine-start-probe.txt"
+  campaign_logcat_slice "$offset" "$probe" || return 1
+  LC_ALL=C grep -qF "KALSA_THINKING " "$probe"
+}
+
 campaign_last_assistant_interrupted() {
   local dest="${1:?}"
   python3 -c '
@@ -138,6 +165,19 @@ campaign_send_turn() {
     device_tap_send || { log "Invia miss try=$try"; continue; }
     t=0
     while [ "$t" -lt 45 ]; do
+      # ORDER MATTERS: ask the engine BEFORE the thermostat. A throttled phone
+      # is exactly the one that starts a turn and cannot persist it in time, and
+      # the thermal branch below returns 1, which sends the caller down
+      # oneTurn.sh's cooldown path — campaign_thermal_cooldown force-stops the
+      # app (recovery.sh), destroying a turn already in flight. Reading the
+      # marker first costs one logcat slice and loses no safety: on `return 0`
+      # the caller enters campaign_wait_turn, whose health poll starts with
+      # last_health=0 and therefore evaluates campaign_thermal_should_pause on
+      # its FIRST iteration, ~5 s later, with the full recovery machinery.
+      if campaign_engine_turn_started "$eng_off"; then
+        log "engine started the turn try=$try t=${t}s — send landed (DB copy may lag)"
+        return 0
+      fi
       if campaign_thermal_should_pause; then
         CAMPAIGN_TURN_STATUS="thermal"
         return 1
