@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use kalsa_catalog::{Parameters, PhoneModel};
 
 use super::{
-    clear_delivery, forget, load, load_with_delivery, persist, persist_with_delivery, replace,
-    temp_path, Delivery, StoreError,
+    add_device, clear_delivery, forget, forget_device, load, load_devices, load_with_delivery,
+    persist, persist_with_delivery, replace, temp_path, Delivery, StoreError,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -29,6 +29,238 @@ fn sample_phone() -> PhoneModel {
 
 fn sample_handshake() -> Handshake {
     Handshake::new(sample_phone(), Credential::generate().unwrap())
+}
+
+fn sample_handshake_with_credential(hex: &str) -> Handshake {
+    Handshake::new(
+        sample_phone(),
+        Credential::from_hex(hex).expect("the test credential is 64 hex characters"),
+    )
+}
+
+/// The single-device file every installed copy wrote before the store held
+/// a set, with a real credential and a real phone declaration in it.
+fn write_v1_file(path: &std::path::Path, credential_hex: &str) {
+    let json = format!(
+        r#"{{"v":1,"credential_hex":"{credential_hex}","phone":{{"weights_bytes":2200000000,"parameters":{{"total":7600000000,"active":2400000000}},"measured_tokens_per_second":9.5,"battery_powered":true}}}}"#
+    );
+    fs::write(path, json).unwrap();
+}
+
+#[test]
+fn a_v1_file_loads_intact_and_is_not_rewritten_by_reading() {
+    let dir = scratch("v1");
+    let path = dir.join("credential.json");
+    let credential = "ab".repeat(32);
+    write_v1_file(&path, &credential);
+    let bytes_before = fs::read(&path).unwrap();
+
+    // The single-device readers answer the migrated record exactly as they
+    // always answered the file.
+    let loaded = load(&path).unwrap();
+    assert_eq!(loaded.credential_hex(), credential);
+    assert_eq!(loaded.phone.weights_bytes, 2_200_000_000);
+    assert_eq!(loaded.phone.parameters.unwrap().total().count(), 7_600_000_000);
+
+    // The set view: one device, with the id and label the app has always
+    // given the phone.
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices[0].id, 0);
+    assert_eq!(devices[0].label, "Paired phone");
+    assert_eq!(devices[0].handshake.credential_hex(), credential);
+
+    // Migration is on read, never a rewrite: the poll reads this file every
+    // second and must leave the v1 bytes for the next legitimate write.
+    assert_eq!(fs::read(&path).unwrap(), bytes_before);
+
+    // The next write publishes the set, and the old record is in it.
+    let second = sample_handshake();
+    let added = add_device(&path, "Second phone", &second).unwrap();
+    assert_eq!(added.id, 1);
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2);
+    assert_eq!(devices[0].handshake.credential_hex(), credential);
+    assert_eq!(devices[1].label, "Second phone");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn several_devices_are_held_and_read_back_with_their_ids() {
+    let dir = scratch("multi");
+    let path = dir.join("credential.json");
+    let first = sample_handshake();
+    let second = sample_handshake();
+    let third = sample_handshake();
+    let credentials = [
+        first.credential_hex(),
+        second.credential_hex(),
+        third.credential_hex(),
+    ];
+
+    let a = add_device(&path, "Anna's phone", &first).unwrap();
+    let b = add_device(&path, "Paolo's phone", &second).unwrap();
+    let c = add_device(&path, "Third phone", &third).unwrap();
+    assert_eq!((a.id, b.id, c.id), (0, 1, 2), "ids are minted, one above the rest");
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 3);
+    for (device, credential) in devices.iter().zip(credentials) {
+        assert_eq!(device.handshake.credential_hex(), credential);
+    }
+    assert_eq!(devices[1].label, "Paolo's phone");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forgetting_one_device_leaves_the_others_and_ids_are_never_reused() {
+    let dir = scratch("forget-one");
+    let path = dir.join("credential.json");
+    let first = sample_handshake();
+    let second = sample_handshake();
+    let third = sample_handshake();
+    let kept_credentials = [first.credential_hex(), third.credential_hex()];
+    add_device(&path, "First", &first).unwrap();
+    add_device(&path, "Second", &second).unwrap();
+    add_device(&path, "Third", &third).unwrap();
+
+    forget_device(&path, 1).unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "only the forgotten device left");
+    assert_eq!(devices[0].id, 0);
+    assert_eq!(devices[1].id, 2);
+    for (device, credential) in devices.iter().zip(kept_credentials) {
+        assert_eq!(device.handshake.credential_hex(), credential);
+    }
+
+    // Forgetting an id that is already absent is success, and changes
+    // nothing.
+    forget_device(&path, 1).unwrap();
+    assert_eq!(load_devices(&path).unwrap().len(), 2);
+
+    // The next device mints a fresh id: never the forgotten one's.
+    let added = add_device(&path, "Fourth", &sample_handshake()).unwrap();
+    assert_eq!(added.id, 3, "the forgotten id was not handed out again");
+
+    // Forgetting the last devices empties the store, which is no file.
+    forget_device(&path, 0).unwrap();
+    forget_device(&path, 2).unwrap();
+    forget_device(&path, 3).unwrap();
+    assert!(!path.exists());
+    assert!(load_devices(&path).unwrap().is_empty());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn a_written_set_is_still_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = scratch("set-mode");
+    let path = dir.join("credential.json");
+    add_device(&path, "First", &sample_handshake()).unwrap();
+    // The second write replaces the file through a fresh temp: the mode
+    // must be the temp's, not whatever the rename happens to keep.
+    add_device(&path, "Second", &sample_handshake()).unwrap();
+
+    let mode = fs::metadata(&path).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_store_sitting_on_the_last_id_refuses_to_add_instead_of_duplicating() {
+    let dir = scratch("ids-exhausted");
+    let path = dir.join("credential.json");
+    let credential = "ef".repeat(32);
+    // One record holding the highest id there is: the next add has no id
+    // left, and a silent saturation would mint a duplicate that makes the
+    // whole set unreadable.
+    fs::write(
+        &path,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":4294967295,"label":"Last","credential_hex":"{credential}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        add_device(&path, "One too many", &sample_handshake()),
+        Err(StoreError::StoreFull)
+    ));
+
+    // The refusal wrote nothing: the set is exactly as it was, readable.
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices[0].id, u32::MAX);
+    assert_eq!(devices[0].label, "Last");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forget_takes_the_crashed_write_temp_down_with_the_store() {
+    let dir = scratch("forget-temp");
+    let path = dir.join("credential.json");
+    // A persist that died between writing the temp and renaming it leaves
+    // the credential on disk twice.
+    fs::write(&path, "a complete store").unwrap();
+    fs::write(temp_path(&path), "ab".repeat(32)).unwrap();
+
+    forget(&path).unwrap();
+    assert!(!path.exists());
+    assert!(
+        !temp_path(&path).exists(),
+        "the second copy of the secret survived the forget"
+    );
+
+    // A temp that exists but cannot be removed is a failure to discard,
+    // not a success to shrug at.
+    fs::write(&path, "a complete store").unwrap();
+    fs::create_dir(temp_path(&path)).unwrap();
+    assert!(forget(&path).is_err());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn forgetting_a_device_from_a_store_that_is_not_there_succeeds() {
+    let dir = scratch("forget-absent");
+    let path = dir.join("credential.json");
+    assert!(forget_device(&path, 0).is_ok());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn an_emptied_out_set_ends_up_as_no_file() {
+    let dir = scratch("empty-v2");
+    let path = dir.join("credential.json");
+    fs::write(&path, r#"{"v":2,"devices":[]}"#).unwrap();
+    forget_device(&path, 7).unwrap();
+    assert!(
+        !path.exists(),
+        "a store holding no devices is no file at all"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_same_credential_is_refused_not_stored_twice() {
+    let dir = scratch("duplicate");
+    let path = dir.join("credential.json");
+    let credential = "cd".repeat(32);
+    add_device(&path, "First", &sample_handshake_with_credential(&credential)).unwrap();
+
+    // A different handshake around the SAME credential is not a new device:
+    // it is the one thing this layer can see and refuse — and the refusal is
+    // its own, not the one the desk reads as "offer the owner a replacement".
+    let replay = sample_handshake_with_credential(&credential);
+    assert!(matches!(
+        add_device(&path, "Replay", &replay),
+        Err(StoreError::CredentialAlreadyStored)
+    ));
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1, "the refusal stored nothing");
+    assert_eq!(devices[0].label, "First");
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]

@@ -14,6 +14,9 @@ use crate::error::EntropyError;
 
 pub(crate) const CREDENTIAL_BYTES: usize = 32;
 
+/// The long-lived credential. `Clone` is fine — copying a secret shows
+/// nothing; the thing that must never exist here is a `Debug` that would.
+#[derive(Clone)]
 pub(crate) struct Credential {
     bytes: [u8; CREDENTIAL_BYTES],
 }
@@ -50,6 +53,10 @@ impl fmt::Debug for Credential {
     }
 }
 
+/// The handshake result: a paired phone and its credential. `Clone` because
+/// the store hands back what it was given; the credential hides inside, and
+/// no formatting of a `Handshake` ever prints it.
+#[derive(Clone)]
 pub struct Handshake {
     /// The phone, as it declared itself. Optional fields stay optional: the
     /// rest of the app branches on what the phone actually said.

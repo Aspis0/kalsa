@@ -30,6 +30,44 @@
 //! numbers mean keeps living in the catalog; nothing is interpreted here.
 //! The shell itself is shared with the wire (`messages::PhoneFields`) —
 //! same fields on disk and in the completion message, one conversion.
+//!
+//! The store holds SEVERAL devices, one record each, and the format is
+//! versioned. Version 2 is the set; version 1 — the single-device file
+//! every installed copy has today — is read and lifted into a one-device
+//! set on load. Migration happens on READ, never by rewriting: a load has
+//! no business publishing (the shell polls this file once a second), and
+//! the v1 bytes stay exactly where they are until the next legitimate
+//! write publishes the set as v2.
+//!
+//! What an older build does with a v2 file is measured, not guessed. The
+//! old build deserializes its whole single-device record BEFORE it ever
+//! reaches its version check, and a set file has no top-level
+//! `credential_hex` — so its answer is serde's, `StoreError::Serde`
+//! ("missing field `credential_hex`"), never its `Corrupt` version
+//! refusal. Either way the outcome is the one that matters: the old build
+//! refuses, deletes nothing, and pairing comes back when the newer build
+//! runs again. A failed load never destroys the file.
+//!
+//! The write paths also read first — they must, to add to the set without
+//! disturbing ids and labels — so an unreadable store refuses the write
+//! instead of overwriting bytes nobody could understand. This narrows
+//! what `replace` accepts: where an older build would happily publish a
+//! new credential over any file at all, this one requires the file it is
+//! replacing to be legible. The refusal is recoverable by design:
+//! [`forget`] still reads nothing, so an owner can always clear a store
+//! no reader can open, and the next pairing starts from empty.
+//!
+//! All of this assumes a single writing process, and the assumption is
+//! stated rather than hidden: every write is read-modify-write now, so a
+//! second writer cannot merely tear a publication — it can LOSE a device,
+//! by publishing a set that never saw the other writer's record. This
+//! crate locks nothing; ensuring one writer is the application's job.
+//!
+//! Device ids come from the store, are minted once, and are never reused:
+//! the next id is one above every id in the set, so a forgotten device's id
+//! is never handed to a different device later. The label is assigned
+//! locally by whoever adds the device — the pairing protocol deliberately
+//! carries no name — and the store only holds what it is given.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -42,7 +80,13 @@ use crate::error::StoreError;
 use crate::handshake::{Credential, Handshake};
 use crate::messages::{PairingSeal, PhoneFields};
 
-const STORE_VERSION: u8 = 1;
+/// The version this build writes.
+const STORE_VERSION: u8 = 2;
+/// The version every installed copy wrote before the store held a set.
+const V1_VERSION: u8 = 1;
+/// The label a device gets when its caller does not name one: the name the
+/// app has always shown for the phone it was paired with.
+const DEFAULT_LABEL: &str = "Paired phone";
 
 /// A sealed completion kept beside the credential until the phone confirms it
 /// received the response. It is private-by-construction: callers can create
@@ -98,6 +142,28 @@ impl Delivery {
 }
 
 // No Debug on purpose: the credential travels through these structs in hex.
+
+/// The version-2 shell: one file, several devices.
+#[derive(Serialize, Deserialize)]
+struct StoredV2 {
+    v: u8,
+    devices: Vec<StoredDeviceRecord>,
+}
+
+/// One device's record inside the v2 file.
+#[derive(Clone, Serialize, Deserialize)]
+struct StoredDeviceRecord {
+    id: u32,
+    label: String,
+    credential_hex: String,
+    phone: PhoneFields,
+    #[serde(default)]
+    delivery: Option<Delivery>,
+}
+
+/// The version-1 shell, kept for reading: every installed copy has one of
+/// these files, and it must keep loading for as long as anyone runs this
+/// app. Never written again.
 #[derive(Serialize, Deserialize)]
 struct StoredHandshake {
     v: u8,
@@ -107,16 +173,23 @@ struct StoredHandshake {
     delivery: Option<Delivery>,
 }
 
-/// Write the handshake result as a new file. The parent directory must exist;
-/// where the app keeps its data is the shell's business, not the store's.
+/// One paired device, as the store hands it back: its stable id, the label
+/// the owner sees, and the handshake it paired with.
+pub struct StoredDevice {
+    pub id: u32,
+    pub label: String,
+    pub handshake: Handshake,
+}
+
+/// Write the handshake result as the store's first device. The parent
+/// directory must exist; where the app keeps its data is the shell's
+/// business, not the store's.
 ///
-/// If a credential is already stored the answer is
+/// If the store already holds devices the answer is
 /// [`StoreError::AlreadyPaired`] — a refusal the shell can act on, not an
-/// io error to squint at. The way forward is [`forget`], then `persist`
-/// again. The existence check and the publication are two steps on a
-/// single-process machine; the shell runs pairing in one loop, and this
-/// store does not pretend to arbitrate between processes. A deliberate
-/// replacement uses [`replace`] instead of this refusal.
+/// io error to squint at. The desk parks the completed phone behind it for
+/// the owner's decision; the owner-approved path is [`replace`], and adding
+/// a device without displacing anyone is [`add_device`].
 pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     persist_record(handshake, path, None)
 }
@@ -136,11 +209,17 @@ fn persist_record(
     path: &Path,
     delivery: Option<Delivery>,
 ) -> Result<(), StoreError> {
-    if path.exists() {
+    // The single-device entry keeps its exact refusal, and it is not the
+    // duplicate check: the desk parks a newly completed phone behind this
+    // error for the owner to approve, so an existing store never gains a
+    // device through here. The multi-device entry is [`add_device`], which
+    // the desk will adopt together with its own decision flow.
+    let mut records = read_records_or_empty(path)?;
+    if !records.is_empty() {
         return Err(StoreError::AlreadyPaired);
     }
-    write_temp(handshake, path, delivery)?;
-    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
+    records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery));
+    write_records(&records, path)
 }
 
 /// Atomically publish a replacement. The old credential remains at `path`
@@ -164,21 +243,103 @@ fn replace_record(
     path: &Path,
     delivery: Option<Delivery>,
 ) -> Result<(), StoreError> {
-    write_temp(handshake, path, delivery)?;
-    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
+    let mut records = read_records_or_empty(path)?;
+    match records.first_mut() {
+        // The single-device API has always meant "the" device, which is the
+        // first record; its id and label survive the replacement, because
+        // the seat does. How a many-device desk scopes a replacement is
+        // that job's decision, not this function's.
+        Some(record) => {
+            record.credential_hex = handshake.credential_hex();
+            record.phone = PhoneFields::of(handshake.phone);
+            record.delivery = delivery;
+        }
+        None => records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery)),
+    }
+    write_records(&records, path)
 }
 
-fn write_temp(
+fn record_from(
     handshake: &Handshake,
-    path: &Path,
+    id: u32,
+    label: String,
     delivery: Option<Delivery>,
-) -> Result<(), StoreError> {
-    let stored = StoredHandshake {
-        v: STORE_VERSION,
+) -> StoredDeviceRecord {
+    StoredDeviceRecord {
+        id,
+        label,
         credential_hex: handshake.credential_hex(),
         phone: PhoneFields::of(handshake.phone),
         delivery,
+    }
+}
+
+/// Adds a device to the store and answers with the record as stored,
+/// including the fresh id the store minted for it. Ids are one above every
+/// id in the set, so they are stable across restarts and never reused: a
+/// forgotten device's id is never handed to a different device later.
+///
+/// On duplicates, the honest answer is narrow. Every pairing ceremony mints
+/// a fresh credential, so "the same phone asking twice" and "a new phone"
+/// are indistinguishable here — nothing at this layer can refuse the same
+/// device, and that decision belongs to the layer that runs the ceremony.
+/// What the store can see, it refuses: the same credential stored twice is
+/// [`StoreError::CredentialAlreadyStored`], a caller mistake or a replay,
+/// never a new pairing.
+pub fn add_device(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+) -> Result<StoredDevice, StoreError> {
+    let credential_hex = handshake.credential_hex();
+    let mut records = read_records_or_empty(path)?;
+    if records
+        .iter()
+        .any(|record| record.credential_hex == credential_hex)
+    {
+        return Err(StoreError::CredentialAlreadyStored);
+    }
+    let id = match records.iter().map(|record| record.id).max() {
+        None => 0,
+        // A silent saturation at u32::MAX would mint a DUPLICATE id, and the
+        // reader refuses a set whose devices share one — one saturation
+        // would cost every pairing the user has. Refusing this one add is
+        // the cheap direction.
+        Some(highest) => highest.checked_add(1).ok_or(StoreError::StoreFull)?,
     };
+    records.push(record_from(
+        handshake,
+        id,
+        label.to_owned(),
+        None,
+    ));
+    write_records(&records, path)?;
+    Ok(StoredDevice {
+        id,
+        label: label.to_owned(),
+        handshake: handshake.clone(),
+    })
+}
+
+/// The store forgets one device and keeps the others. An id that is already
+/// absent is success — including when the store itself is not there, the
+/// same postcondition [`forget`] rests on.
+pub fn forget_device(path: &Path, id: u32) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let before = records.len();
+    records.retain(|record| record.id != id);
+    // Emptiness is checked before "nothing changed": a set holding no
+    // devices must end up as no file, whatever it looked like going in.
+    if records.is_empty() {
+        return forget(path);
+    }
+    if records.len() == before {
+        return Ok(());
+    }
+    write_records(&records, path)
+}
+
+fn write_temp(stored: &impl Serialize, path: &Path) -> Result<(), StoreError> {
     let temp = temp_path(path);
     let mut file = open_temp(&temp).map_err(StoreError::Io)?;
     // On Windows this changes the temp's DACL while it is still empty. No
@@ -187,7 +348,7 @@ fn write_temp(
         let _ = fs::remove_file(&temp);
         e
     })?;
-    let written = serde_json::to_writer(&mut file, &stored)
+    let written = serde_json::to_writer(&mut file, stored)
         .map_err(StoreError::Serde)
         .and_then(|()| file.sync_all().map_err(StoreError::Io));
     if let Err(e) = written {
@@ -195,6 +356,20 @@ fn write_temp(
         return Err(e);
     }
     Ok(())
+}
+
+/// Publishes the whole set. An empty set is never written: the store's
+/// empty state is no file at all.
+fn write_records(records: &[StoredDeviceRecord], path: &Path) -> Result<(), StoreError> {
+    if records.is_empty() {
+        return forget(path);
+    }
+    let stored = StoredV2 {
+        v: STORE_VERSION,
+        devices: records.to_vec(),
+    };
+    write_temp(&stored, path)?;
+    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
 }
 
 fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
@@ -343,8 +518,23 @@ fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
 /// nothing, so it clears a credential whose file has gone corrupt just as
 /// it clears a healthy one; the decision to forget is the owner's, and the
 /// store does not demand the file be legible to accept it.
+///
+/// The credential lives in TWO places after a crashed write: the store and
+/// its sibling temp. Both go, because this is the one operation whose
+/// entire promise is that the secret is gone. A file that was never there
+/// is success; a file that exists and cannot be removed is a failure to
+/// discard, and saying `Ok` there would be this function lying about the
+/// only thing it promises.
 pub fn forget(path: &Path) -> Result<(), StoreError> {
-    match fs::remove_file(path) {
+    let store = discard(path);
+    let temp = discard(&temp_path(path));
+    store.and(temp)
+}
+
+/// Removes one file. Already gone is success; present but unremovable is
+/// an error.
+fn discard(file: &Path) -> Result<(), StoreError> {
+    match fs::remove_file(file) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(StoreError::Io(e)),
@@ -356,27 +546,134 @@ pub fn load(path: &Path) -> Result<Handshake, StoreError> {
     load_with_delivery(path).map(|(handshake, _)| handshake)
 }
 
-/// Read the handshake and any response that still needs delivery.
+/// Read the handshake and any response that still needs delivery. The
+/// single-device view of the set: the first record — the one every
+/// installed copy has today.
+///
+/// Only the FIRST record is realized. A later record that cannot be
+/// realized (a phone field that refuses, an invalid delivery) makes
+/// [`load_devices`] fail the whole set while this reader still answers.
+/// The asymmetry is deliberate, and is stated here because two readers of
+/// one file disagreeing otherwise looks like a bug: the desk's view must
+/// keep working no matter what record follows its device in the file, and
+/// the set view must not promise a set it cannot fully deliver.
 pub fn load_with_delivery(path: &Path) -> Result<(Handshake, Option<Delivery>), StoreError> {
-    let bytes = fs::read(path).map_err(StoreError::Io)?;
-    let stored: StoredHandshake = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
-    if stored.v != STORE_VERSION {
-        return Err(StoreError::Corrupt("unsupported stored version"));
+    match read_records_or_empty(path)?.into_iter().next() {
+        Some(record) => realize(record).map(|(device, delivery)| (device.handshake, delivery)),
+        None => Err(empty_store()),
     }
-    let credential = Credential::from_hex(&stored.credential_hex)
+}
+
+/// Every paired device, oldest first — a migrated v1 file reads back as its
+/// one device. An absent file is an empty set, not an error: that is the
+/// same "unpaired" the single-device readers report as not-found.
+///
+/// Every record is realized: one bad record fails the whole set, unlike
+/// [`load_with_delivery`], which answers from the first record alone and
+/// says nothing about the rest. Same file, two contracts, on purpose —
+/// see that function's comment before "fixing" either side.
+pub fn load_devices(path: &Path) -> Result<Vec<StoredDevice>, StoreError> {
+    read_records_or_empty(path)?
+        .into_iter()
+        .map(|record| realize(record).map(|(device, _)| device))
+        .collect()
+}
+
+/// An empty set, in the words the existing single-device callers already
+/// understand: not-found is what the shell and the desk match on to mean
+/// "this computer is not paired".
+fn empty_store() -> StoreError {
+    StoreError::Io(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "no device is stored",
+    ))
+}
+
+/// Turns a stored record back into what the app works with, refusing every
+/// way a record can be wrong with the one error, as the single-device load
+/// always did.
+fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>), StoreError> {
+    let credential = Credential::from_hex(&record.credential_hex)
         .ok_or(StoreError::Corrupt("credential is not 64 hex characters"))?;
-    let phone = stored
+    let phone = record
         .phone
         .into_phone()
         .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?;
-    if stored
+    if record
         .delivery
         .as_ref()
         .is_some_and(|delivery| !delivery.is_valid())
     {
         return Err(StoreError::Corrupt("stored delivery is invalid"));
     }
-    Ok((Handshake::new(phone, credential), stored.delivery))
+    Ok((
+        StoredDevice {
+            id: record.id,
+            label: record.label,
+            handshake: Handshake::new(phone, credential),
+        },
+        record.delivery,
+    ))
+}
+
+/// The records on disk, in either format the store has ever written, with
+/// the v1 file lifted into a one-device set. The bytes are never rewritten
+/// here — see the module comment on migration.
+fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
+    let bytes = fs::read(path).map_err(StoreError::Io)?;
+    let probe: VersionProbe = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+    let records = match probe.v {
+        STORE_VERSION => {
+            let stored: StoredV2 = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+            stored.devices
+        }
+        V1_VERSION => {
+            let stored: StoredHandshake = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+            // The lift: the one device keeps the id and the label the app
+            // has been giving it all along, and any delivery still waiting
+            // for the phone's retry travels with it.
+            vec![StoredDeviceRecord {
+                id: 0,
+                label: DEFAULT_LABEL.to_owned(),
+                credential_hex: stored.credential_hex,
+                phone: stored.phone,
+                delivery: stored.delivery,
+            }]
+        }
+        _ => return Err(StoreError::Corrupt("unsupported stored version")),
+    };
+    // A set that cannot tell two of its devices apart is corrupt, for the
+    // same reason the door refuses such a set of credentials.
+    for (index, record) in records.iter().enumerate() {
+        for other in &records[..index] {
+            if record.id == other.id {
+                return Err(StoreError::Corrupt("two devices share an id"));
+            }
+            if record.credential_hex == other.credential_hex {
+                return Err(StoreError::Corrupt("two devices share a credential"));
+            }
+        }
+    }
+    Ok(records)
+}
+
+/// The write-side view of the same read: no file yet means an empty set a
+/// first device can be added to.
+fn read_records_or_empty(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
+    match read_records(path) {
+        Ok(records) => Ok(records),
+        Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(Vec::new())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// The one field the version probe needs; parsing anything bigger before
+/// the version is known would attribute a v1 file's shape errors to v2.
+#[derive(Deserialize)]
+struct VersionProbe {
+    v: u8,
 }
 
 /// Remove only the retained response while preserving the paired handshake.

@@ -88,6 +88,20 @@ pub enum StoreError {
     /// is never implicit; the owner-only replacement path publishes a new
     /// complete file atomically instead.
     AlreadyPaired,
+    /// The credential about to be added is ALREADY in the set — a replayed
+    /// handshake or a caller mistake, never a new pairing. Deliberately not
+    /// `AlreadyPaired`: that variant means "the store refused to grow through
+    /// the single-device path", which a caller turns into an owner-facing
+    /// offer to replace the existing phone. Offering a replacement because a
+    /// replayed credential arrived would ask the owner to throw a phone away,
+    /// so this refusal says what happened instead.
+    CredentialAlreadyStored,
+    /// The store's ids are exhausted, so no new device can be added. It
+    /// takes one pairing per existing id — 2^32 of them — to reach this,
+    /// but the alternative was a silently saturated duplicate id, and the
+    /// reader refuses a set whose devices share one: one saturation would
+    /// cost every pairing the user has, so the refusal is explicit.
+    StoreFull,
     /// The store's own JSON failed to encode or parse.
     Serde(serde_json::Error),
     /// The file violates its own structure: an unknown version, a credential
@@ -104,6 +118,13 @@ impl fmt::Display for StoreError {
                 "credential store: this computer is already paired with a phone; \
                  forget it before pairing another",
             ),
+            Self::CredentialAlreadyStored => f.write_str(
+                "credential store: this credential is already stored here",
+            ),
+            Self::StoreFull => f.write_str(
+                "credential store: every device id is in use, \
+                 so no further device can be paired",
+            ),
             Self::Serde(e) => write!(f, "credential store: {e}"),
             Self::Corrupt(tag) => write!(f, "credential store is corrupt: {tag}"),
         }
@@ -115,7 +136,10 @@ impl Error for StoreError {
         match self {
             Self::Io(e) => Some(e),
             Self::Serde(e) => Some(e),
-            Self::AlreadyPaired | Self::Corrupt(_) => None,
+            Self::AlreadyPaired
+            | Self::CredentialAlreadyStored
+            | Self::StoreFull
+            | Self::Corrupt(_) => None,
         }
     }
 }

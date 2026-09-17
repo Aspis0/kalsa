@@ -79,7 +79,7 @@ const DELIVERY_TOKEN_BYTES: usize = 16;
 /// zero or negative speed, a battery flag that is wrong — these pass, and
 /// whoever consumes them (the catalog, the UI) treats them as claims from
 /// the device, not measurements by this crate.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PhoneFields {
     weights_bytes: u64,
     parameters: Option<StoredParameters>,
@@ -89,7 +89,7 @@ pub struct PhoneFields {
 
 // No Debug on purpose: nothing here needs one, and a derived Debug on a
 // struct that sits next to a MAC invites logging the pair.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct StoredParameters {
     total: u64,
     active: u64,
