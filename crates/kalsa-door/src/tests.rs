@@ -1,13 +1,13 @@
 use std::io::{self, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::registry::Registry;
-use super::{proxy, Door, DoorError, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
+use super::{proxy, Door, DoorError, ActiveDevices, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
@@ -135,7 +135,7 @@ fn every_authentication_failure_has_the_same_refusal() {
     let wrong = format!("Bearer {}", wrong_credential(&token));
     let refusal = request(address, Some(&wrong));
     assert!(refusal.starts_with(b"HTTP/1.1 401"));
-    assert!(!door.has_active_connection());
+    assert!(door.active_devices().is_empty());
     assert_eq!(
         request(address, None),
         refusal,
@@ -166,9 +166,126 @@ fn an_unauthenticated_socket_is_not_an_active_phone() {
         .unwrap();
     let client = TcpStream::connect(address).unwrap();
     thread::sleep(Duration::from_millis(25));
-    assert!(!door.has_active_connection());
+    assert!(door.active_devices().is_empty());
     drop(client);
     door.shutdown();
+}
+
+#[test]
+fn the_active_set_answers_who_is_busy_and_for_how_long() {
+    let active = ActiveDevices::new();
+    assert!(active.snapshot().is_empty(), "nobody has asked yet");
+
+    // Six ids, filled in DESCENDING order. A hash map's order over two keys
+    // is close to a coin flip; over six, only the sort itself can put
+    // smallest id first, which is the thing this test is for.
+    let first_of_two = active.enter(DeviceId::new(2));
+    let others = [
+        active.enter(DeviceId::new(7)),
+        active.enter(DeviceId::new(6)),
+        active.enter(DeviceId::new(5)),
+        active.enter(DeviceId::new(4)),
+        active.enter(DeviceId::new(3)),
+    ];
+    // The same device on a second connection: still one busy device.
+    let second_connection = active.enter(DeviceId::new(2));
+    assert_eq!(
+        active.snapshot(),
+        vec![
+            DeviceId::new(2),
+            DeviceId::new(3),
+            DeviceId::new(4),
+            DeviceId::new(5),
+            DeviceId::new(6),
+            DeviceId::new(7),
+        ],
+        "smallest id first, however the set was filled"
+    );
+
+    // One connection ending does not unbusy a device with another alive.
+    drop(first_of_two);
+    assert_eq!(active.snapshot().len(), 6, "device 2 still holds a connection");
+    drop(second_connection);
+    assert_eq!(active.snapshot(), vec![
+        DeviceId::new(3),
+        DeviceId::new(4),
+        DeviceId::new(5),
+        DeviceId::new(6),
+        DeviceId::new(7),
+    ]);
+    for guard in others {
+        drop(guard);
+    }
+    assert!(active.snapshot().is_empty(), "no connection, no occupant");
+}
+
+#[test]
+fn an_authenticated_connection_is_active_as_its_device() {
+    // The upstream accepts and then holds the connection silent, so the
+    // door stays inside the request while this test looks.
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    let upstream_port = upstream.local_addr().unwrap().port();
+    let upstream_stop = Arc::new(AtomicBool::new(false));
+    let upstream_thread = {
+        let stop = Arc::clone(&upstream_stop);
+        thread::spawn(move || {
+            upstream.set_nonblocking(true).unwrap();
+            while !stop.load(Ordering::SeqCst) {
+                match upstream.accept() {
+                    Ok((stream, _)) => {
+                        thread::sleep(Duration::from_millis(400));
+                        drop(stream);
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let token = credential();
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    let mut client = TcpStream::connect(address).unwrap();
+    client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    write!(
+        client,
+        "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: Bearer {token}\r\nContent-Length: 0\r\n\
+         Connection: close\r\n\r\n"
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while door.active_devices() != vec![DeviceId::new(0)] {
+        assert!(
+            Instant::now() < deadline,
+            "the connected device never showed as active: {:?}",
+            door.active_devices()
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(!door.active_devices().is_empty());
+
+    drop(client);
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !door.active_devices().is_empty() {
+        assert!(
+            Instant::now() < deadline,
+            "the device stayed active after its connection left: {:?}",
+            door.active_devices()
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    door.shutdown();
+    upstream_stop.store(true, Ordering::SeqCst);
+    upstream_thread.join().unwrap();
 }
 
 #[test]
@@ -187,7 +304,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
     let server = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
-        let active = AtomicUsize::new(0);
+        let active = ActiveDevices::new();
         let registry = Registry::new();
         let devices = door_devices(&[&"0".repeat(64)]);
         let accepted = Instant::now()
@@ -457,7 +574,7 @@ fn a_connection_past_its_lifetime_is_cut() {
     let server = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
-        let active = AtomicUsize::new(0);
+        let active = ActiveDevices::new();
         let devices = door_devices(&[&"0".repeat(64)]);
         let accepted = Instant::now()
             .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))

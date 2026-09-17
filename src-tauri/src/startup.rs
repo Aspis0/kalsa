@@ -91,6 +91,10 @@ pub(crate) enum Progress {
 pub(crate) struct LaunchInfo {
     pub(crate) args: ServerArgs,
     pub(crate) maximum_context_tokens: Option<u64>,
+    /// The catalog's own name for what launched — the one model identity the
+    /// user is shown. `None` on the development path: the developer pinned a
+    /// file and owns its bytes, and no catalog choice was made to name.
+    pub(crate) display_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -386,6 +390,7 @@ fn planned_config_with_overrides(
         info: LaunchInfo {
             args,
             maximum_context_tokens: Some(maximum),
+            display_name: Some(row.display_name.to_owned()),
         },
     })
 }
@@ -444,6 +449,7 @@ fn dev_config_with_overrides(
         info: LaunchInfo {
             args,
             maximum_context_tokens: Some(DEV_CONTEXT_TOKENS),
+            display_name: None,
         },
     })
 }
@@ -1124,6 +1130,54 @@ mod tests {
         .expect("the model is fundable");
         let joined = config.server.argv.join(" ");
         assert!(joined.contains("--n-gpu-layers all"), "{joined}");
+    }
+
+    #[test]
+    fn the_launch_record_names_the_catalogs_choice_and_the_dev_path_does_not() {
+        // The name the screen renders is the row's own, carried from the
+        // catalog through the launch record — never re-derived from a
+        // filename, which stays a Rust-side fact.
+        let row = rows()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let config = planned_config(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect("the model is fundable");
+        assert_eq!(
+            config.info.display_name.as_deref(),
+            Some("IBM Granite 4 Tiny"),
+            "the catalog's own name travels with the launch"
+        );
+
+        // The development override launches without a catalog choice: the
+        // name is absent rather than invented.
+        let machine = Machine {
+            measurement: measured(0.0, Backend::Cpu),
+            ram_bytes: 0,
+        };
+        let root = scratch("dev-name");
+        let dev = run(
+            Some(PathBuf::from("/server/llama-server")),
+            machine,
+            None,
+            Some(PathBuf::from("/dev/model.gguf")),
+            PathBuf::from("/state/dev.state"),
+            &root,
+            &mut |_| {},
+        )
+        .expect("the override is the answer");
+        assert_eq!(dev.info.display_name, None);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

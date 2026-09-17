@@ -60,11 +60,12 @@ mod tests;
 
 pub use devices::{DeviceEntry, DeviceId, Devices};
 
+use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::time::Duration;
 use std::net::{SocketAddr, TcpListener};
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
@@ -134,11 +135,65 @@ pub struct Door {
     response_observer: Option<ResponseObserverFactory>,
 }
 
+/// The devices with a connection currently being served. Presence, not
+/// history: a device is counted once per connection, exactly while the door
+/// is inside its request. Ids only — a credential never comes near this,
+/// and there is deliberately no `Debug`.
+pub(crate) struct ActiveDevices {
+    counts: Mutex<HashMap<DeviceId, usize>>,
+}
+
+impl ActiveDevices {
+    pub(crate) fn new() -> Self {
+        Self {
+            counts: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Marks the device active until the returned guard drops — on the
+    /// request's every ending path, an unwind included.
+    pub(crate) fn enter(&self, device: DeviceId) -> ActiveGuard<'_> {
+        *self.lock().entry(device).or_insert(0) += 1;
+        ActiveGuard { devices: self, device }
+    }
+
+    /// The active devices, smallest id first: a list the reader can render
+    /// without being handed whatever order a hash map keeps.
+    pub(crate) fn snapshot(&self) -> Vec<DeviceId> {
+        let mut ids: Vec<DeviceId> = self.lock().keys().copied().collect();
+        ids.sort();
+        ids
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<DeviceId, usize>> {
+        self.counts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+pub(crate) struct ActiveGuard<'a> {
+    devices: &'a ActiveDevices,
+    device: DeviceId,
+}
+
+impl Drop for ActiveGuard<'_> {
+    fn drop(&mut self) {
+        let mut counts = self.devices.lock();
+        if let Some(count) = counts.get_mut(&self.device) {
+            *count -= 1;
+            if *count == 0 {
+                counts.remove(&self.device);
+            }
+        }
+    }
+}
+
 /// The running door. Dropping it stops and joins its bounded thread set.
 pub struct RunningDoor {
     stop: Arc<AtomicBool>,
     address: SocketAddr,
-    active_connections: Arc<AtomicUsize>,
+    active: Arc<ActiveDevices>,
     threads: Mutex<Vec<JoinHandle<()>>>,
 }
 
@@ -198,12 +253,11 @@ impl RunningDoor {
         self.address
     }
 
-    /// Whether a client is currently being served by the door. This is a
-    /// transport fact, not a guess based on whether a credential exists.
-    pub fn has_active_connection(&self) -> bool {
-        self.active_connections
-            .load(std::sync::atomic::Ordering::SeqCst)
-            > 0
+    /// Which devices currently have a connection being served, smallest id
+    /// first. This is a transport fact, not a guess based on whether a
+    /// credential exists; who the devices are is the app's translation.
+    pub fn active_devices(&self) -> Vec<DeviceId> {
+        self.active.snapshot()
     }
 
     /// Stop accepting and wait for the bounded thread set to leave.

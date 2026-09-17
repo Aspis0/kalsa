@@ -28,10 +28,21 @@ struct MetricState {
     sentinel: Option<Sentinel>,
 }
 
+/// One currently-busy device, as the page may see it: the owner's label for
+/// it and its id. A credential, a prompt, a path, any content — none of
+/// that is here, because none of it may cross this boundary.
+#[derive(Clone, Serialize)]
+pub(crate) struct ActiveDeviceDto {
+    pub(crate) id: u32,
+    pub(crate) label: String,
+}
+
 #[derive(Clone, Serialize)]
 pub(crate) struct RuntimeMetricsDto {
     pub(crate) decode_tokens_per_second: Option<f64>,
-    pub(crate) phone_connected: Option<bool>,
+    /// Who is busy right now, as the door sees it. `None` when there is no
+    /// door to ask; an empty list is the honest "nobody is using it".
+    pub(crate) active_devices: Option<Vec<ActiveDeviceDto>>,
     pub(crate) throttled: Option<bool>,
 }
 
@@ -102,7 +113,10 @@ impl RuntimeMetrics {
         }
     }
 
-    pub(crate) fn snapshot(&self, phone_connected: Option<bool>) -> RuntimeMetricsDto {
+    pub(crate) fn snapshot(
+        &self,
+        active_devices: Option<Vec<ActiveDeviceDto>>,
+    ) -> RuntimeMetricsDto {
         self.apply_releases();
         let (decode, throttled) = self
             .state
@@ -119,7 +133,7 @@ impl RuntimeMetrics {
             .unwrap_or((None, None));
         RuntimeMetricsDto {
             decode_tokens_per_second: decode,
-            phone_connected,
+            active_devices,
             throttled,
         }
     }

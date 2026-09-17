@@ -26,12 +26,17 @@ use crate::{DoorError, TOKEN_BYTES};
 
 /// The device a credential belongs to. Opaque, small, not a secret: the app
 /// mints the ids, the app keeps them stable, and the owner may see them.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId(u32);
 
 impl DeviceId {
     pub fn new(value: u32) -> Self {
         Self(value)
+    }
+
+    /// The id as the number the owner is shown.
+    pub fn value(self) -> u32 {
+        self.0
     }
 }
 
@@ -119,6 +124,16 @@ impl Devices {
         }
         (any == 1).then_some(DeviceId(matched))
     }
+
+    /// The owner's label for a device the set holds. The label is the one
+    /// thing about a device that may be shown beyond this crate; the
+    /// credential never is.
+    pub fn label(&self, id: DeviceId) -> Option<&str> {
+        self.entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map(|entry| entry.label.as_str())
+    }
 }
 
 /// The one credential format: exactly 64 ASCII hex characters, kept as
@@ -156,6 +171,23 @@ mod tests {
         assert_eq!(devices.authenticate(&first), Some(DeviceId::new(4)));
         assert_eq!(devices.authenticate(&second), Some(DeviceId::new(9)));
         assert_eq!(devices.authenticate(&nobody), None);
+    }
+
+    #[test]
+    fn the_set_tells_back_the_owners_label_for_a_device_it_holds() {
+        let devices = Devices::new(vec![DeviceEntry::new(
+            DeviceId::new(3),
+            "Paired phone",
+            "a".repeat(64),
+        )
+        .unwrap()])
+        .expect("one device");
+        assert_eq!(devices.label(DeviceId::new(3)), Some("Paired phone"));
+        assert_eq!(
+            devices.label(DeviceId::new(4)),
+            None,
+            "a device the set does not hold has no label here"
+        );
     }
 
     #[test]

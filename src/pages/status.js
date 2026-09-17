@@ -104,7 +104,7 @@ export function mountStatus(
     const data = state?.metrics ?? {};
     metrics.hidden = false;
     setMetric(rate, rateText(data.decode_tokens_per_second));
-    setMetric(phone, phoneText(data.phone_connected), data.phone_connected === true);
+    setMetric(phone, phoneText((data.active_devices?.length ?? 0) > 0), (data.active_devices?.length ?? 0) > 0);
     note.hidden = data.throttled !== true;
     note.textContent = data.throttled === true
       ? "This computer is running slower on purpose, to protect itself. Answers take longer than usual."
@@ -148,7 +148,7 @@ export function mountStatus(
         break;
       case "running":
         renderMetrics(state);
-        set("On", state.metrics?.phone_connected === true
+        set("On", (state.metrics?.active_devices?.length ?? 0) > 0
           ? "Your phone is using this computer right now."
           : "This computer is ready for your phone.", "Turn off", true);
         break;

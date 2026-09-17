@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::devices::{DeviceId, Devices};
@@ -10,10 +10,7 @@ use crate::token::parse_resume;
 use crate::request;
 use crate::response;
 use crate::stream;
-use crate::{
-    BUSY_RESPONSE, CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE,
-    UPSTREAM_FAILURE_RESPONSE,
-};
+use crate::{ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -27,7 +24,7 @@ pub(super) fn handle(
     devices: &Devices,
     registry: &Registry,
     stop: &AtomicBool,
-    active: &AtomicUsize,
+    active: &ActiveDevices,
     observer: Option<&Observed>,
 ) {
     let deadline = accepted + CONNECTION_LIFETIME;
@@ -71,7 +68,9 @@ pub(super) fn handle(
             return;
         }
     };
-    let _active = ActiveConnection::new(active);
+    // Presence for the running door: this device, exactly while the door is
+    // inside this request. Only an authenticated device is ever counted.
+    let _active = active.enter(device);
     if let Some(last_event_id) = head.last_event_id.as_deref() {
         // Resuming never reaches the upstream: the answer this request asks
         // for already exists in the door or it does not. The retried body is
@@ -200,23 +199,6 @@ fn discard_request_body(
         left -= read;
     }
     Ok(())
-}
-
-struct ActiveConnection<'a> {
-    active: &'a AtomicUsize,
-}
-
-impl<'a> ActiveConnection<'a> {
-    fn new(active: &'a AtomicUsize) -> Self {
-        active.fetch_add(1, Ordering::SeqCst);
-        Self { active }
-    }
-}
-
-impl Drop for ActiveConnection<'_> {
-    fn drop(&mut self) {
-        self.active.fetch_sub(1, Ordering::SeqCst);
-    }
 }
 
 /// Which device the bearer credential belongs to, if any. The format check

@@ -142,6 +142,22 @@ impl Brain {
         }
     }
 
+    /// The Model page's read, from the launch record: the catalog's own name
+    /// while a catalog-chosen launch stands. A development override
+    /// configures a model the catalog never chose, so `chosen` is true with
+    /// no name to show.
+    fn model_dto(&self) -> ModelDto {
+        let display_name = self
+            .launch
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().and_then(|info| info.display_name.clone()));
+        ModelDto {
+            chosen: model_chosen(display_name.as_deref(), std::env::var(MODEL_ENV).is_ok()),
+            display_name,
+        }
+    }
+
     fn door_port(&self) -> Option<u16> {
         self.door
             .lock()
@@ -149,12 +165,28 @@ impl Brain {
             .and_then(|stored| stored.as_ref().map(|active| active.address.port()))
     }
 
-    fn door_connected(&self) -> Option<bool> {
-        self.door.lock().ok().map(|stored| {
-            stored
-                .as_ref()
-                .is_some_and(|active| active.door.has_active_connection())
-        })
+    /// Which devices are being served right now, as the page may see them:
+    /// the owner's label and the id, nothing else. No prompt, no path, no
+    /// content ever crosses here — the door reports ids, and the only
+    /// translation this does is the label the pairing store already gave.
+    fn active_devices(&self) -> Option<Vec<metrics::ActiveDeviceDto>> {
+        let stored = self.door.lock().ok()?;
+        let active = stored.as_ref()?;
+        Some(
+            active
+                .door
+                .active_devices()
+                .into_iter()
+                .map(|id| metrics::ActiveDeviceDto {
+                    id: id.value(),
+                    label: active
+                        .devices
+                        .label(id)
+                        .map(str::to_owned)
+                        .unwrap_or_else(|| format!("device {}", id.value())),
+                })
+                .collect(),
+        )
     }
 
     fn start_door_if_paired(
@@ -420,10 +452,10 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                         .to_string(),
                 };
             }
-            let phone_connected = brain.door_connected();
+            let active_devices = brain.active_devices();
             StateDto::Running {
                 port,
-                metrics: brain.metrics.snapshot(phone_connected),
+                metrics: brain.metrics.snapshot(active_devices),
             }
         }
         ServerState::Starting => {
@@ -483,20 +515,30 @@ fn persisted_internet_road(state_file: &Path) -> bool {
     options::load(state_file).internet_road
 }
 
-/// Whether a model is configured at all — the development override is the
-/// fact today; the catalog's own choice arrives with the Model page's next
-/// step. Which model and why are `kalsa-catalog`'s answer; a filename never
+/// Whether the Model page may say a model is configured. Two different
+/// facts make it true: a catalog-chosen launch carries its name, and the
+/// development override chooses a model without the catalog — so the flag
+/// cannot hang off the name alone. A pure decision, so the dev half is
+/// testable without setting process-wide environment variables inside a
+/// parallel test binary.
+fn model_chosen(display_name: Option<&str>, override_env_set: bool) -> bool {
+    display_name.is_some() || override_env_set
+}
+
+/// Whether a model is configured, and which one when the catalog chose it.
+/// `display_name` is the catalog's own human name, built to be shown; the
+/// development override configures a model with no catalog choice, so the
+/// name is optional and `chosen` stands on its own. A filename never
 /// crosses this boundary, because the user has no use for one.
 #[derive(Serialize)]
 struct ModelDto {
     chosen: bool,
+    display_name: Option<String>,
 }
 
 #[tauri::command]
-fn brain_model() -> ModelDto {
-    ModelDto {
-        chosen: std::env::var(MODEL_ENV).is_ok(),
-    }
+fn brain_model(brain: State<Brain>) -> ModelDto {
+    brain.model_dto()
 }
 
 /// Whether a measurement of this machine exists in this run.
@@ -781,6 +823,41 @@ mod tests {
     }
 
     #[test]
+    fn the_model_page_reads_the_name_from_the_launch_record() {
+        let brain = Brain::new();
+        assert_eq!(
+            brain.model_dto().display_name,
+            None,
+            "nothing launched, no name invented"
+        );
+        brain.record_launch(
+            startup::LaunchInfo {
+                args: launch_args("/models/chosen.gguf", startup::PORT),
+                maximum_context_tokens: Some(8192),
+                display_name: Some("IBM Granite 4 Tiny".to_string()),
+            },
+            StartOutcome::Accepted,
+        );
+        let dto = brain.model_dto();
+        assert_eq!(
+            dto.display_name.as_deref(),
+            Some("IBM Granite 4 Tiny"),
+            "the catalog's own name, not a filename"
+        );
+        assert!(dto.chosen, "a catalog-chosen launch is chosen");
+    }
+
+    #[test]
+    fn a_development_override_counts_as_chosen_without_a_catalog_name() {
+        // The dev override configures a model the catalog never chose and
+        // the launch record cannot name: the page must still say "chosen",
+        // which is the override's whole purpose.
+        assert!(model_chosen(Some("IBM Granite 4 Tiny"), false));
+        assert!(model_chosen(None, true));
+        assert!(!model_chosen(None, false), "neither fact, no model");
+    }
+
+    #[test]
     fn a_listener_bind_error_aborts_pairing_startup() {
         let result = pairing_desk_with(PathBuf::from("pairing-startup-test.json"), |_| {
             Err(io::Error::other("loopback unavailable"))
@@ -804,6 +881,7 @@ mod tests {
             *launch = Some(startup::LaunchInfo {
                 args,
                 maximum_context_tokens: Some(8192),
+                display_name: None,
             });
         }
         brain.clear_launch_for_state(&ServerState::Starting);
@@ -821,10 +899,12 @@ mod tests {
         let running = startup::LaunchInfo {
             args: launch_args("/models/running.gguf", 8137),
             maximum_context_tokens: Some(8192),
+            display_name: None,
         };
         let rejected = startup::LaunchInfo {
             args: launch_args("/models/rejected.gguf", 8138),
             maximum_context_tokens: Some(4096),
+            display_name: None,
         };
         brain.record_launch(running, StartOutcome::Accepted);
         brain.record_launch(rejected, StartOutcome::Refused);

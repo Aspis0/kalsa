@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::devices::Devices;
 use crate::registry::Registry;
-use crate::{proxy, Door, DoorError, RunningDoor, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
+use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
 struct Work {
     stream: TcpStream,
@@ -36,7 +36,7 @@ impl Drop for SlotLease {
 pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let stop = Arc::new(AtomicBool::new(false));
     let connections = Arc::new(AtomicUsize::new(0));
-    let active = Arc::new(AtomicUsize::new(0));
+    let active = Arc::new(ActiveDevices::new());
     let registry = Arc::new(Registry::new());
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
@@ -108,7 +108,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     Ok(RunningDoor {
         stop,
         address,
-        active_connections: active,
+        active,
         threads: Mutex::new(threads),
     })
 }
@@ -177,7 +177,7 @@ fn accept_loop(
 
 fn worker(
     stop: Arc<AtomicBool>,
-    active: Arc<AtomicUsize>,
+    active: Arc<ActiveDevices>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     registry: Arc<Registry>,
     devices: Arc<Devices>,
