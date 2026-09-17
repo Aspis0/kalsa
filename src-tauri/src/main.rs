@@ -755,17 +755,14 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
 
 /// The owner says the new phone is theirs. The stored credential is replaced;
 /// the old phone stops working, which is what replacing means.
+/// The owner says a device is no longer part of the house. The others keep
+/// their credentials and their ids.
 #[tauri::command]
-fn brain_pairing_replace(brain: State<Brain>, desk: State<Desk>) {
-    brain.stop_door();
-    desk.desk.decide(true, SystemTime::now());
-}
-
-/// The owner says the new phone is not theirs. Nothing is written and the
-/// asking phone is dropped.
-#[tauri::command]
-fn brain_pairing_keep(desk: State<Desk>) {
-    desk.desk.decide(false, SystemTime::now());
+fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String> {
+    desk.desk.forget_device(id).map_err(|_| {
+        "This device could not be forgotten. Fixing permissions and trying again may help."
+            .to_string()
+    })
 }
 
 /// The owner explicitly discards an unreadable pairing file. This is the only
@@ -794,8 +791,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_stop,
             brain_pairing,
             brain_pairing_retry,
-            brain_pairing_replace,
-            brain_pairing_keep,
+            brain_pairing_forget_device,
             brain_pairing_forget
         ])
         .setup(|app| {

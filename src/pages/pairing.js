@@ -11,11 +11,11 @@
 //
 //   {
 //     kind: "pairing",
-//     state: "idle" | "waiting" | "claiming" | "paired" | "replace" | "failed",
+//     state: "idle" | "waiting" | "claiming" | "paired" | "failed",
 //     qr_svg: string | null,   // the square, when one is on screen
 //     refreshed: "expired" | "wrong-code" | null,  // why this square is fresh
-//     phone: string | null,    // the phone this computer works with
-//     new_phone: string | null,// the phone asking to take over (replace)
+//     phone: string | null,    // the latest paired phone's own description
+//     devices: [ { id, label, phone } ] | [],  // every paired device
 //     delivery_pending: boolean, // saved here, response still needs delivery
 //     door_port: number | null, // the local door's actual port, when running
 //     failure: "could-not-save" | "could-not-read" | "service-unavailable" | null,
@@ -33,13 +33,36 @@ const tauriBackend = {
   retry() {
     return invoke("brain_pairing_retry");
   },
-  decide(replace) {
-    return invoke(replace ? "brain_pairing_replace" : "brain_pairing_keep");
+  forgetDevice(id) {
+    return invoke("brain_pairing_forget_device", { id });
   },
   forget() {
     return invoke("brain_pairing_forget");
   },
 };
+
+// The paired sentence must be true for whatever the house holds: one
+// device is named — naming it IS naming the house — while several are
+// counted, because naming one of many reads as if the others were not real.
+function pairedSentence(dto) {
+  const devices = Array.isArray(dto.devices) ? dto.devices : [];
+  const pending = dto.delivery_pending === true;
+  if (devices.length === 0) {
+    // No list: the one-phone read, exactly as the page has always said it.
+    return pending
+      ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
+      : `This computer now works with ${dto.phone ?? "your phone"}.`;
+  }
+  if (devices.length === 1) {
+    const name = devices[0].phone ?? devices[0].label ?? dto.phone ?? "your phone";
+    return pending
+      ? `This computer saved the connection for ${name}; the phone still needs to receive it.`
+      : `This computer now works with ${name}.`;
+  }
+  return pending
+    ? `This computer now works with ${devices.length} paired devices; the newest is still waiting to receive its connection.`
+    : `This computer now works with ${devices.length} paired devices.`;
+}
 
 // The approved ways to say the square is the way in, that it was replaced,
 // and who may use it. dev/smoke.mjs keeps its own copy of these on the
@@ -48,8 +71,8 @@ const tauriBackend = {
 const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
 const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
-const REPLACE_PRIMARY = "Use the new phone";
 const REPAIR_PRIMARY = "Pair another phone";
+const FORGET_PRIMARY = "Forget";
 const CANCEL_PRIMARY = "Cancel";
 const FRESH_LINES = {
   expired: "The previous square expired — this one is fresh.",
@@ -72,6 +95,7 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
     <p class="quiet" data-el="note" hidden></p>
     <button type="button" class="primary" data-el="action" hidden></button>
     <button type="button" class="secondary" data-el="alt" hidden></button>
+    <div data-el="devices" hidden></div>
   `;
   const el = (name) => root.querySelector(`[data-el="${name}"]`);
   const headline = el("headline");
@@ -81,6 +105,7 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
   const noteEl = el("note");
   const action = el("action");
   const altEl = el("alt");
+  const devicesEl = el("devices");
 
   let onAction = () => {};
   let onAlt = () => {};
@@ -112,8 +137,32 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
     if (alt !== null) altEl.textContent = alt;
   }
 
+  // The house, one row per paired device, each with its own way out. Text
+  // only, through textContent — a label is data, never markup.
+  function renderDevices(devices) {
+    const list = Array.isArray(devices) ? devices : [];
+    devicesEl.hidden = list.length === 0;
+    devicesEl.innerHTML = "";
+    for (const device of list) {
+      const row = document.createElement("div");
+      const name = document.createElement("span");
+      name.textContent = device.label ?? `device ${device.id}`;
+      const detail = document.createElement("span");
+      detail.textContent = device.phone ?? "";
+      const forget = document.createElement("button");
+      forget.type = "button";
+      forget.textContent = FORGET_PRIMARY;
+      forget.addEventListener("click", () => {
+        backend.forgetDevice(device.id).catch(() => {});
+      });
+      row.append(name, detail, forget);
+      devicesEl.append(row);
+    }
+  }
+
   function render(dto) {
     onAlt = () => {};
+    renderDevices(null);
     // The read failed: say so and offer the way back in.
     if (!dto) {
       onAction = () => refresh();
@@ -160,31 +209,11 @@ export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } =
         onAction = () => {
           backend.retry().catch(() => {});
         };
+        renderDevices(dto.devices);
         apply({
           head: "Paired",
-          text: dto.delivery_pending
-            ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
-            : `This computer now works with ${dto.phone ?? "your phone"}.`,
+          text: pairedSentence(dto),
           button: REPAIR_PRIMARY,
-          note: doorNote(dto.door_port),
-        });
-        break;
-      case "replace":
-        // persist refuses to overwrite: replacing is the owner's explicit
-        // choice, never a side effect.
-        onAction = () => {
-          backend.decide(true).catch(() => {});
-        };
-        onAlt = () => {
-          backend.decide(false).catch(() => {});
-        };
-        apply({
-          head: "Already paired",
-          text: `This computer already works with ${dto.phone ?? "your phone"}. If ${
-            dto.new_phone ?? "the new phone"
-          } is yours, you can switch — the old connection ends when the new one is saved.`,
-          button: REPLACE_PRIMARY,
-          alt: "Keep this phone",
           note: doorNote(dto.door_port),
         });
         break;

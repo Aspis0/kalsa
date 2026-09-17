@@ -367,7 +367,7 @@ function pairingBackend(dto) {
   return {
     async read() { return dto; },
     async retry() {},
-    async decide() {},
+    async forgetDevice() {},
     async forget() {},
   };
 }
@@ -379,7 +379,7 @@ function pairingDto(state, extra = {}) {
     qr_svg: null,
     refreshed: null,
     phone: null,
-    new_phone: null,
+    devices: [],
     delivery_pending: false,
     door_port: null,
     failure: null,
@@ -419,26 +419,51 @@ card("Pairing", "a phone is connecting", (panel) =>
   mountPairing(panel, { backend: pairingBackend(pairingDto("claiming")) }).refresh(),
 );
 
+const ONE_DEVICE = [
+  { id: 0, label: "Paired phone", phone: "phone with 2 GB of model weights" },
+];
+
 card("Pairing", "paired; another phone can be paired", (panel) =>
   mountPairing(panel, {
-    backend: pairingBackend(pairingDto("paired", { phone: "Pixel 9a (stub)", door_port: 8131 })),
+    backend: pairingBackend(
+      pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131 }),
+    ),
   }).refresh(),
 );
 
 card("Pairing", "saved here; the phone still needs the response", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(
-      pairingDto("paired", { phone: "Pixel 9a (stub)", delivery_pending: true, door_port: 8131 }),
+      pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, delivery_pending: true, door_port: 8131 }),
     ),
   }).refresh(),
 );
 
-card("Pairing", "already paired; a new phone asks", (panel) =>
+card("Pairing", "paired; the house holds several devices", (panel) =>
   mountPairing(panel, {
     backend: pairingBackend(
-      pairingDto("replace", {
+      pairingDto("paired", {
         phone: "Pixel 9a (stub)",
-        new_phone: "New phone (stub)",
+        devices: [
+          { id: 0, label: "Paired phone", phone: "phone with 2 GB of model weights" },
+          { id: 1, label: "Paired phone 2", phone: "phone with 3 GB of model weights" },
+        ],
+        door_port: 8131,
+      }),
+    ),
+  }).refresh(),
+);
+
+card("Pairing", "paired; the newest of several still waits for its response", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(
+      pairingDto("paired", {
+        phone: "Pixel 9a (stub)",
+        devices: [
+          { id: 0, label: "Paired phone", phone: "phone with 2 GB of model weights" },
+          { id: 1, label: "Paired phone 2", phone: "phone with 3 GB of model weights" },
+        ],
+        delivery_pending: true,
         door_port: 8131,
       }),
     ),

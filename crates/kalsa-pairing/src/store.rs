@@ -291,6 +291,29 @@ pub fn add_device(
     label: &str,
     handshake: &Handshake,
 ) -> Result<StoredDevice, StoreError> {
+    add_device_record(path, label, handshake, None)
+}
+
+/// [`add_device`], retaining a sealed response for the phone's retry — the
+/// same durability [`persist_with_delivery`] gives the first device: the
+/// record carries the delivery, so a crash between saving the device and
+/// handing it its seal is answered by the retry path instead of a fresh
+/// square.
+pub fn add_device_with_delivery(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Delivery,
+) -> Result<StoredDevice, StoreError> {
+    add_device_record(path, label, handshake, Some(delivery))
+}
+
+fn add_device_record(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Option<Delivery>,
+) -> Result<StoredDevice, StoreError> {
     let credential_hex = handshake.credential_hex();
     let mut records = read_records_or_empty(path)?;
     if records
@@ -307,12 +330,7 @@ pub fn add_device(
         // the cheap direction.
         Some(highest) => highest.checked_add(1).ok_or(StoreError::StoreFull)?,
     };
-    records.push(record_from(
-        handshake,
-        id,
-        label.to_owned(),
-        None,
-    ));
+    records.push(record_from(handshake, id, label.to_owned(), delivery));
     write_records(&records, path)?;
     Ok(StoredDevice {
         id,

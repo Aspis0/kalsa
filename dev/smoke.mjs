@@ -225,6 +225,12 @@ for (const card of root.children) {
   const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
   const qrEl = findVisible(panel, (el) => el.attrs["data-el"] === "qr");
   const freshEl = findVisible(panel, (el) => el.attrs["data-el"] === "fresh");
+  // The rendered device list, by the labels the owner reads. Hidden when
+  // the house is not being shown.
+  const devicesEl = findVisible(panel, (el) => el.attrs["data-el"] === "devices");
+  const deviceNames = devicesEl
+    ? devicesEl.children.filter((row) => !row.hidden).map((row) => row.children[0].textContent)
+    : [];
   const lines = visibleLines(panel);
   results.push({
     heading,
@@ -238,6 +244,7 @@ for (const card of root.children) {
     // was announced, and that state is still working.
     working: progressEl !== null,
     qr: qrEl !== null,
+    deviceNames,
     fresh: freshEl ? freshEl.textContent : null,
   });
 }
@@ -466,7 +473,6 @@ if (!results.some((r) => r.heading.includes("a progress event arrives") && r.wor
 const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
 const AWARENESS =
   "Anyone who can see this square can connect a phone — show it only to yours.";
-const REPLACE_PRIMARY = "Use the new phone";
 const REPAIR_PRIMARY = "Pair another phone";
 const CANCEL_PRIMARY = "Cancel";
 const FRESH_PHRASINGS = [
@@ -486,12 +492,6 @@ for (const { heading, sentence, all, qr, fresh, buttons } of results) {
   if (fresh !== null && !FRESH_PHRASINGS.includes(fresh)) {
     problems.push(`a fresh-square note must be an approved phrasing: ${heading}`);
   }
-  if (sentence.includes("already works with")) {
-    const named = buttons.filter((text) => text.trim() !== "");
-    if (named.length < 2 || !named.includes(REPLACE_PRIMARY)) {
-      problems.push(`a replace must offer both choices: ${heading}`);
-    }
-  }
   if (sentence.includes("now works with") && !buttons.includes(REPAIR_PRIMARY)) {
     problems.push(`a paired phone must offer a deliberate way to pair another: ${heading}`);
   }
@@ -501,6 +501,17 @@ for (const { heading, sentence, all, qr, fresh, buttons } of results) {
   if (heading.includes("saved here; the phone still needs the response") &&
       !sentence.includes("the phone still needs to receive it")) {
     problems.push(`a pending delivery must say that the phone still needs the response: ${heading}`);
+  }
+  // A house with several devices is the state — not one of its members.
+  // When the list shows two or more, the paired sentence must speak of the
+  // house ("N paired devices"), never name a single device as though the
+  // others were not real.
+  for (const { heading, sentence, deviceNames } of results) {
+    if (deviceNames.length >= 2 && !sentence.includes("paired devices")) {
+      problems.push(
+        `a several-device house must be described as a house, not by one of its devices: ${heading}`,
+      );
+    }
   }
   if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) {
     problems.push(`a claimed square must offer cancellation: ${heading}`);

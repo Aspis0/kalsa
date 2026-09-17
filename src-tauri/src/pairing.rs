@@ -13,10 +13,13 @@
 //!   binds on `127.0.0.1`. The phone arrives through a tunnel, exactly as it
 //!   does for the inference server; nothing is opened on the LAN, not even
 //!   for the length of a window.
-//! * **Replacing a phone is the owner's act.** A completed ceremony whose
-//!   credential cannot be stored because one is already stored does not
-//!   overwrite it and does not throw it away: it waits, in `Replace`, until
-//!   the owner says which phone is theirs.
+//! * **A completed ceremony is the authorisation.** Nobody reaches the
+//!   ceremony without scanning a code this computer displayed, so the owner
+//!   showing the square IS the decision: completing the ceremony adds a
+//!   device to the house. The one refusal that is not an addition is a
+//!   credential the store already holds — a replay — and that one never
+//!   asks the owner anything; it consumes the ceremony and reports that
+//!   the connection could not be saved.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,7 +27,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use kalsa_catalog::PhoneModel;
-use kalsa_pairing::{Handshake, Pairing, PairingSeal, PhoneDeclaration, StoreError};
+use kalsa_pairing::{Pairing, PairingSeal, PhoneDeclaration, StoreError};
 use serde::Serialize;
 
 /// How long a square is good for. Long enough to pick the phone up and point
@@ -62,25 +65,19 @@ enum State {
     },
     /// This computer works with a phone, and the credential is on disk.
     ///
-    /// No name travels with it. The phone's declaration carries capability —
-    /// weights, parameters, a measured rate — and nothing a person would
-    /// call a name, because the MAC binds what is declared and nobody has
-    /// declared one yet. The page already says "your phone" when it is given
-    /// nothing, which is true; a name made up here would not be.
+    /// No name travels with the protocol. The phone's declaration carries
+    /// capability — weights, parameters, a measured rate — and nothing a
+    /// person would call a name, because the MAC binds what is declared and
+    /// nobody has declared one yet. The page already says "your phone" when
+    /// it is given nothing, which is true; a name made up here would not be.
     Paired {
         phone: PhoneModel,
         /// Retained so a lost HTTP response can be retried idempotently.
         pending: Option<PendingDelivery>,
     },
-    /// A phone completed the ceremony, but a credential is already stored.
-    /// The new handshake waits here for the owner's decision; it is never
-    /// written without one.
-    Replace {
-        phone: PhoneModel,
-        incoming: Box<Handshake>,
-        pending: PendingDelivery,
-    },
-    /// The ceremony finished and the credential could not be written.
+    /// The ceremony finished and the credential could not be written. A
+    /// replayed credential lands here too, on purpose: it must never become
+    /// an owner-facing question about a phone it is not.
     CouldNotSave,
     /// The path exists but cannot be read or is corrupt. It must never look
     /// like an unpaired machine, because that could make the catalog choose
@@ -140,10 +137,21 @@ pub(crate) struct PairingDto {
     qr_svg: Option<String>,
     refreshed: Option<&'static str>,
     phone: Option<String>,
-    new_phone: Option<String>,
+    /// The whole house: every stored device, its id, its label and its
+    /// capability sentence. `forget_device(id)` removes one.
+    devices: Vec<PairedDeviceDto>,
     delivery_pending: bool,
     failure: Option<&'static str>,
     door_port: Option<u16>,
+}
+
+/// One stored device, as the page may see it: the store's id and label, and
+/// the capability sentence the page has always shown for a phone.
+#[derive(Serialize)]
+pub(crate) struct PairedDeviceDto {
+    id: u32,
+    label: String,
+    phone: String,
 }
 
 impl PairingDto {
@@ -243,7 +251,7 @@ impl Desk {
         now: SystemTime,
     ) -> PairingDto {
         if self.listener_failed.load(Ordering::SeqCst) {
-            return dto(&State::ServiceUnavailable);
+            return dto(&State::ServiceUnavailable, self.stored_devices());
         }
         if serving {
             self.serving.store(true, Ordering::SeqCst);
@@ -263,7 +271,6 @@ impl Desk {
         }
         match &*state {
             State::Paired { .. }
-            | State::Replace { .. }
             | State::CouldNotSave
             | State::StoreUnavailable
             | State::ServiceUnavailable => {}
@@ -271,7 +278,37 @@ impl Desk {
             State::Idle => *state = Self::fresh(reachable, node, now, None, None),
             State::Live { .. } => {}
         }
-        dto(&state)
+        let devices = self.stored_devices();
+        dto(&state, devices)
+    }
+
+    /// The house, as the page may read it: every stored device's id, label
+    /// and capability sentence. Empty when the store cannot be read — the
+    /// failed state says that in its own words.
+    fn stored_devices(&self) -> Vec<PairedDeviceDto> {
+        kalsa_pairing::store::load_devices(&self.file)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|device| PairedDeviceDto {
+                id: device.id,
+                label: device.label,
+                phone: phone_label(device.handshake.phone),
+            })
+            .collect()
+    }
+
+    /// The owner removes ONE device from the house. The others keep their
+    /// credentials and their ids; the last one leaving empties the store,
+    /// and the desk with it.
+    pub(crate) fn forget_device(&self, id: u32) -> Result<(), StoreError> {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        kalsa_pairing::store::forget_device(&self.file, id)?;
+        if kalsa_pairing::store::load_devices(&self.file)
+            .is_ok_and(|devices| devices.is_empty())
+        {
+            *state = State::Idle;
+        }
+        Ok(())
     }
 
     /// The owner asked for another square. Anything in flight is abandoned:
@@ -288,7 +325,7 @@ impl Desk {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if matches!(
             *state,
-            State::Replace { .. } | State::StoreUnavailable | State::ServiceUnavailable
+            State::StoreUnavailable | State::ServiceUnavailable
         ) {
             return;
         }
@@ -299,60 +336,6 @@ impl Desk {
         };
         let refreshed = matches!(*state, State::Live { .. }).then_some(Refreshed::WrongCode);
         *state = Self::fresh(reachable, node, now, refreshed, previous);
-    }
-
-    /// The owner's decision on a phone that asked to take over. `replace`
-    /// writes the waiting credential over the stored one; keeping does not
-    /// write anything and the new phone is simply dropped.
-    pub(crate) fn decide(&self, replace: bool, now: SystemTime) {
-        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let previous = std::mem::replace(&mut *state, State::CouldNotSave);
-        let State::Replace {
-            phone,
-            incoming,
-            pending,
-        } = previous
-        else {
-            *state = previous;
-            return;
-        };
-        if !replace {
-            *state = State::Paired {
-                phone,
-                pending: None,
-            };
-            return;
-        }
-        if now >= pending.expires_at {
-            *state = State::Paired {
-                phone,
-                pending: None,
-            };
-            return;
-        }
-        // Replacement is one atomic publication. The old file remains until
-        // the new, verified file is ready, so a failed write cannot lose both
-        // phones. The waiting phone got a refusal before this owner decision;
-        // after a successful choice it retries its declaration and receives
-        // the retained seal below. Keeping the old phone drops that seal.
-        let Some(delivery) = pending.as_store_delivery() else {
-            *state = State::Paired {
-                phone,
-                pending: None,
-            };
-            return;
-        };
-        *state = match kalsa_pairing::store::replace_with_delivery(&incoming, &self.file, delivery)
-        {
-            Ok(()) => State::Paired {
-                phone: incoming.phone,
-                pending: Some(pending),
-            },
-            Err(_) => State::Paired {
-                phone,
-                pending: None,
-            },
-        };
     }
 
     /// A phone presents the code from the square. Nothing is returned but
@@ -372,9 +355,10 @@ impl Desk {
         )
     }
 
-    /// A phone presents its proof. On success the credential is written here
-    /// and the seal goes back to the phone; a credential that is already
-    /// stored parks the result in `Replace` for the owner to decide.
+    /// A phone presents its proof. The scanned square was the
+    /// authorisation, so a completed ceremony ADDS a device to the house —
+    /// it never asks an owner which phone to evict — and the seal goes back
+    /// to the phone that earned it.
     pub(crate) fn complete(
         &self,
         declaration: PhoneDeclaration,
@@ -397,13 +381,9 @@ impl Desk {
                 .delivery_token_matches(&delivery.delivery_token)
                 .then(|| delivery.seal.clone());
         }
-        let State::Live {
-            pairing, previous, ..
-        } = &mut *state
-        else {
+        let State::Live { pairing, .. } = &mut *state else {
             return None;
         };
-        let previous_phone = *previous;
         let delivery_token = declaration.delivery_token().to_string();
         let expires_at = pairing.expires_at()?;
         let (handshake, seal) = pairing.complete(declaration, now).ok()?;
@@ -412,32 +392,47 @@ impl Desk {
             seal: seal.clone(),
             expires_at,
         };
-        let Some(delivery) = pending.as_store_delivery() else {
-            *state = State::CouldNotSave;
-            return None;
+        // The label is assigned HERE, locally — the pairing protocol
+        // deliberately carries no name. It is numbered after the id the
+        // store will mint, by the same never-reuse rule the store mints ids
+        // with (one above every id in the set, under the single-writer
+        // assumption both sides already make): a minted number is never
+        // handed out twice, so no two devices can carry the same label,
+        // however many devices leave.
+        let stored = kalsa_pairing::store::load_devices(&self.file).unwrap_or_default();
+        let next_id = stored
+            .iter()
+            .map(|device| device.id)
+            .max()
+            .map_or(0, |highest| highest.saturating_add(1));
+        let label = if next_id == 0 {
+            "Paired phone".to_string()
+        } else {
+            // Saturating, like the display it is: at the very top of the id
+            // range the store's own refusal is what fires, not this text.
+            format!("Paired phone {}", next_id.saturating_add(1))
         };
-        match kalsa_pairing::store::persist_with_delivery(&handshake, &self.file, delivery) {
-            Ok(()) => {
+        // The delivery rides the add: the store keeps the sealed response,
+        // so a crash before the phone's retry is answered by the retry path
+        // for EVERY device, the way it always was for the first.
+        let delivery = pending.as_store_delivery().ok_or(State::CouldNotSave).ok()?;
+        match kalsa_pairing::store::add_device_with_delivery(
+            &self.file,
+            &label,
+            &handshake,
+            delivery,
+        ) {
+            Ok(_) => {
                 *state = State::Paired {
                     phone: handshake.phone,
                     pending: Some(pending),
                 };
                 Some(seal)
             }
-            Err(StoreError::AlreadyPaired) => {
-                let Some(phone) = previous_phone else {
-                    *state = State::CouldNotSave;
-                    return None;
-                };
-                *state = State::Replace {
-                    phone,
-                    incoming: Box::new(handshake),
-                    pending,
-                };
-                // The owner must decide before this phone can be told that it
-                // succeeded; transport turns this None into the uniform 403.
-                None
-            }
+            // Every refusal consumes the ceremony without an owner-facing
+            // question. A replayed credential in particular —
+            // `CredentialAlreadyStored` — is exactly what the store's split
+            // variants exist to keep apart from a replacement decision.
             Err(_) => {
                 *state = State::CouldNotSave;
                 None
@@ -513,14 +508,14 @@ impl Desk {
 
 /// The desk as the page reads it. `claiming` is a live ceremony a phone has
 /// already claimed: the square is gone from the screen because it is spent.
-fn dto(state: &State) -> PairingDto {
+fn dto(state: &State, devices: Vec<PairedDeviceDto>) -> PairingDto {
     let empty = PairingDto {
         kind: "pairing",
         state: "idle",
         qr_svg: None,
         refreshed: None,
         phone: None,
-        new_phone: None,
+        devices: Vec::new(),
         delivery_pending: false,
         failure: None,
         door_port: None,
@@ -547,15 +542,8 @@ fn dto(state: &State) -> PairingDto {
         State::Paired { phone, pending } => PairingDto {
             state: "paired",
             phone: Some(phone_label(*phone)),
+            devices,
             delivery_pending: pending.is_some(),
-            ..empty
-        },
-        State::Replace {
-            phone, incoming, ..
-        } => PairingDto {
-            state: "replace",
-            phone: Some(phone_label(*phone)),
-            new_phone: Some(phone_label(incoming.phone)),
             ..empty
         },
         State::CouldNotSave => PairingDto {
@@ -721,6 +709,104 @@ mod tests {
         assert!(
             file.exists(),
             "a readable pairing is never forgotten implicitly"
+        );
+    }
+
+    /// One ceremony per scanned square, and every ceremony ADDS: the second
+    /// device joins the house and the first keeps its credential and its id.
+    #[test]
+    fn a_second_completed_ceremony_adds_a_device_and_the_first_survives() {
+        let file = scratch("adds");
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let first = declaration_for(&desk, a_phone(), now);
+        assert!(desk.complete(first, now).is_some(), "the first pairing seals");
+
+        // The owner asks for another square ("Pair another phone"): the new
+        // ceremony is a new authorisation, so it adds a second device.
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        let second = declaration_for(&desk, a_phone(), now);
+        assert!(desk.complete(second, now).is_some(), "the second pairing seals too");
+
+        let devices = kalsa_pairing::store::load_devices(&file).unwrap();
+        assert_eq!(devices.len(), 2, "both devices are in the house");
+        assert_eq!(devices[0].id, 0);
+        assert_eq!(devices[0].label, "Paired phone");
+        assert_eq!(devices[1].id, 1);
+        assert_eq!(devices[1].label, "Paired phone 2");
+        assert_ne!(
+            devices[0].handshake.credential_hex(),
+            devices[1].handshake.credential_hex()
+        );
+    }
+
+    /// Forgetting one device leaves the others paired and reachable, and
+    /// forgetting the last one empties the desk into Idle.
+    #[test]
+    fn forgetting_one_device_leaves_the_others_reachable() {
+        let file = scratch("forget-one-desk");
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
+
+        desk.forget_device(0).unwrap();
+        let devices = kalsa_pairing::store::load_devices(&file).unwrap();
+        assert_eq!(devices.len(), 1, "only the forgotten device left");
+        assert_eq!(devices[0].id, 1, "the survivor keeps its own id");
+
+        // The next pairing numbers its label after the id the store mints —
+        // never reused — so no device can arrive bearing a name another
+        // device already carries, however many devices leave.
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
+        let labels: Vec<String> =
+            kalsa_pairing::store::load_devices(&file).unwrap().into_iter().map(|d| d.label).collect();
+        assert_eq!(
+            labels,
+            vec!["Paired phone 2".to_string(), "Paired phone 3".to_string()],
+            "labels are distinct, like the ids they follow"
+        );
+
+        desk.forget_device(1).unwrap();
+        desk.forget_device(2).unwrap();
+        assert!(!file.exists(), "the last device leaving empties the store");
+        assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
+    }
+
+    /// An add that cannot happen — the ids are exhausted here — consumes
+    /// the ceremony and reports could-not-save. It can never become an
+    /// owner-facing question: the replace state no longer exists.
+    #[test]
+    fn a_failed_add_is_refused_without_becoming_a_prompt() {
+        let file = scratch("add-refused");
+        let credential = "ef".repeat(32);
+        std::fs::write(
+            &file,
+            format!(
+                r#"{{"v":2,"devices":[{{"id":4294967295,"label":"Last","credential_hex":"{credential}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+            ),
+        )
+        .unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        let declaration = declaration_for(&desk, a_phone(), now);
+        assert!(desk.complete(declaration, now).is_none(), "no id, no seal");
+
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert_eq!(dto["state"], "failed");
+        assert_eq!(dto["failure"], "could-not-save");
+        assert_eq!(
+            kalsa_pairing::store::load_devices(&file).unwrap().len(),
+            1,
+            "the refused add stored nothing"
         );
     }
 
@@ -899,56 +985,27 @@ mod tests {
     }
 
     #[test]
-    fn replacement_waits_for_the_owner_and_retries_delivery_after_publish() {
-        let desk = Desk::new(scratch("replace-flow"));
+    fn a_retried_declaration_after_a_completed_ceremony_receives_the_same_seal() {
+        let file = scratch("replay");
+        let desk = Desk::new(file.clone());
         let now = SystemTime::now();
         desk.read(true, "http://127.0.0.1:1", None, now);
-        let first = declaration_for(&desk, a_phone(), now);
-        assert!(desk.complete(first, now).is_some());
-
-        desk.retry(true, "http://127.0.0.1:1", None, now);
-        let second_phone = PhoneModel {
-            weights_bytes: 3_000_000_000,
-            ..a_phone()
-        };
-        let second = declaration_for(&desk, second_phone, now);
-        assert!(desk.complete(second, now).is_none());
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
-        assert_eq!(dto["state"], "replace");
-        assert_eq!(dto["phone"], "phone with 2 GB of model weights");
-        assert_eq!(dto["new_phone"], "phone with 3 GB of model weights");
-        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
-
-        // Keeping the old phone is a real refusal, not a delayed success.
-        desk.decide(false, now);
-        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
-
-        desk.retry(true, "http://127.0.0.1:1", None, now);
-        let third_phone = PhoneModel {
-            weights_bytes: 4_000_000_000,
-            ..a_phone()
-        };
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
-        let third = PhoneDeclaration::sign(&code, &nonce, &reachable, None, third_phone).unwrap();
-        let retry_declaration = third
-            .sign_again(
-                &code,
-                &nonce,
-                &reachable,
-                None,
-                PhoneModel {
-                    weights_bytes: 4_000_000_000,
-                    ..a_phone()
-                },
-            )
+        let first = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
+        let retry_declaration = first
+            .sign_again(&code, &nonce, &reachable, None, a_phone())
             .unwrap();
-        // The third completion is parked too; retrying that exact declaration
-        // after the owner's approval receives the saved seal.
-        assert!(desk.complete(third, now).is_none());
-        desk.decide(true, now);
-        assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 4_000_000_000);
+        assert!(desk.complete(first, now).is_some());
+
+        // The same declaration again — a lost HTTP reply — is answered from
+        // the retained delivery, idempotently, and stores nothing twice.
         assert!(desk.complete(retry_declaration, now).is_some());
+        assert_eq!(
+            kalsa_pairing::store::load_devices(&file).unwrap().len(),
+            1,
+            "the retry added no device"
+        );
     }
 
     #[test]
