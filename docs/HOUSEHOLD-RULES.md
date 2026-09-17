@@ -91,3 +91,86 @@ everyone in it can see.
 
 Each turn in a room carries its author, because the model has to know who is speaking to give
 a sane answer, and because the people do too.
+
+---
+
+## 5. The room's turns
+
+A room with four people in it and one AI needs rules before it needs code, because two of the
+questions it raises have answers that are not reversible later.
+
+### 5.1 Who is a message for — the people, or the AI?
+
+The gesture is still open (a mention, a second send button, a long-press: to be decided). What
+is *not* open is the default, because it is not a matter of taste:
+
+**The AI must not listen to everything.** If it reads the whole room, every word the family
+says to each other is tokenized, prefilled, and parked in a cache — paid for in compute and in
+heat, for messages nobody wanted an answer to. Chatter that never reaches the model also never
+reaches a log, a metric, or a crash buffer. Silence is the cheapest privacy we can offer, and
+here it is also the cheapest arithmetic.
+
+So the AI answers when it is addressed, and only then.
+
+That leaves the one hard case, and it is worth naming now: *"@kalsa yes, do that"* means
+nothing without the three messages above it. The answer is not to make the AI guess — it is to
+make the boundary **visible**. The room draws which messages will cross into the model, and
+the sender can pull more of the conversation in deliberately. What the AI knows is shown, not
+inferred. That rule also happens to be the only honest way to run rule 3 inside a shared room.
+
+### 5.2 One turn at a time — and this is not about speed
+
+In a room the history is shared, so two answers generated at once are two answers built on
+different pasts: whether B's context contains A's question and A's reply depends on scheduling.
+The same room, the same messages, a different transcript each time. That is not a slow room,
+it is a room that stops being reproducible.
+
+**In a room, exactly one AI turn runs at a time.** Always, regardless of how many slots the
+machine could afford. In private chats, concurrency really is only a resource trade-off — that
+one is decided by measurement. This one is not.
+
+### 5.3 The order: rotation between people, not a queue of messages
+
+First-in-first-out by message hands the machine to whoever has the fastest thumb. Three
+messages from one person and the others wait three turns.
+
+So the queue is per *person*, and **each person may have at most one prompt pending in a
+room.** The queue can therefore never be deeper than the number of people present, which also
+makes it bounded by construction rather than by a limit somebody has to remember to set. A
+second prompt from someone who already has one waiting is **refused with an honest message**,
+not silently accepted — the same rule the door's queue has to obey everywhere.
+
+When two arrive in the same instant, the tie-break is **whoever was served least recently.**
+Not the device id — that is a permanent rank, and the person who registered first would win
+every tie for the rest of the machine's life. Not the phone's clock either: household phones
+disagree by seconds and the value arrives from the client. The stamp is the door's own
+monotonic clock, taken on arrival.
+
+One machine means one order. Rotation counts a person, not a conversation, so opening a private
+chat as well as being in the room does not buy anyone a second place in the line.
+
+### 5.4 Visible, like a turn order in a game
+
+Whose turn is running, who is next, how many are waiting — shown to everyone in the room. The
+owner's instinct was right: people wait far better when they can see the queue than when the
+machine simply feels slow.
+
+Names only. "Answering papà, Marco is next" is allowed; one word about what papà asked is not.
+
+### 5.5 Stopping
+
+You may withdraw your own pending prompt, and you may stop an answer being generated for you.
+Nobody may stop someone else's turn — a shared room where a sibling can cut you off mid-answer
+is a worse room than one where you wait. The PC itself is the exception: the machine's owner
+can always stop the machine.
+
+### 5.6 The one number that is still missing
+
+Strict rotation is the fair policy, but every switch from one conversation to another throws
+away the prompt cache and pays a full re-prefill. If that costs six seconds, then serving two
+prompts from the same conversation before yielding is worth real time and the policy should say
+so with a number. If it costs three tenths of a second, fairness wins outright and rotation is
+free.
+
+That number is being measured now. Until it exists, the policy above is written as pure
+rotation — the fair default — and the only thing allowed to change it is a measurement.
