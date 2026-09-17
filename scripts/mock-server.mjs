@@ -101,6 +101,8 @@ const LONG_MD = [
   "stops when it has said what it came to say, like this.",
 ].join("\n");
 
+const JSON_MD = "Non-streaming reply: some servers ignore stream:true and answer plain JSON. This text arrived that way.";
+
 function scenarioFor(model) {
   if (model.includes("code")) return { text: CODE_MD, delay: 12 };
   if (model.includes("heavy")) return { text: HEAVY_MD, delay: 8 };
@@ -139,13 +141,54 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: { message: "Invalid API key", type: "invalid_request_error" } }));
     return;
   }
+  if (req.url === "/forbidden/v1/chat/completions") {
+    req.resume();
+    res.writeHead(403, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ error: { message: "Forbidden", type: "invalid_request_error" } }));
+    return;
+  }
   if (req.url === "/ok/v1/chat/completions") {
-    let body = "";
-    req.on("data", (c) => (body += c));
+    // Hard cases first: split frames, cuts, wrong shapes. Each exercises a
+    // client branch the happy path never touches.
+    let bodyPeek = "";
+    req.on("data", (c) => (bodyPeek += c));
     req.on("end", () => {
       let model = "";
       try {
-        model = JSON.parse(body).model ?? "";
+        model = JSON.parse(bodyPeek).model ?? "";
+      } catch { /* default scenario */ }
+      model = String(model);
+      // Order matters: "emptycut-demo" contains "cut-demo".
+      if (model.includes("emptycut-demo")) {
+        res.writeHead(200, { "Content-Type": "text/event-stream", ...CORS });
+        res.end();
+        return;
+      }
+      if (model.includes("split-demo")) return streamSplit(res);
+      if (model.includes("cut-demo")) return streamCut(res);
+      if (model.includes("json-demo")) {
+        res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+        res.end(JSON.stringify({ choices: [{ message: { content: JSON_MD } }] }));
+        return;
+      }
+      if (model.includes("html-demo")) {
+        res.writeHead(200, { "Content-Type": "text/html", ...CORS });
+        res.end("<html><body>Please log in</body></html>");
+        return;
+      }
+      if (model.includes("silent-demo")) {
+        res.writeHead(200, { "Content-Type": "text/event-stream", ...CORS });
+        // Never write: the client's idle timer must give up first.
+        return;
+      }
+      streamNormal(res, bodyPeek);
+    });
+    return;
+  }
+function streamNormal(res, bodyText) {
+      let model = "";
+      try {
+        model = JSON.parse(bodyText).model ?? "";
       } catch { /* default scenario */ }
       const { text, delay, firstDelay } = scenarioFor(String(model));
       res.writeHead(200, {
@@ -185,9 +228,60 @@ const server = http.createServer((req, res) => {
         finished = true;
         clearInterval(timer);
       });
-    });
-    return;
-  }
+}
+
+// Every data line torn across two writes; the last line is unterminated and
+// no [DONE] follows. The client must reassemble the frames, drain the tail,
+// keep the text, and still report the cut.
+function streamSplit(res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  const lines = [
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "Split " } }] })}\n\n`,
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "frames " } }] })}\n\n`,
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "reassembled." } }] })}`,
+  ];
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i >= lines.length) {
+      clearInterval(timer);
+      res.end();
+      return;
+    }
+    const line = lines[i];
+    const cut = Math.floor(line.length / 2);
+    res.write(line.slice(0, cut));
+    setTimeout(() => res.write(line.slice(cut)), 5);
+    i++;
+  }, 20);
+  res.on("close", () => clearInterval(timer));
+}
+
+// Tokens, then the socket dies with no [DONE]: the client must say so.
+function streamCut(res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  const parts = chunk(LONG_MD).slice(0, 12);
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i < parts.length) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: parts[i] } }] })}\n\n`);
+      i++;
+    } else {
+      clearInterval(timer);
+      res.destroy();
+    }
+  }, 15);
+  res.on("close", () => clearInterval(timer));
+}
   req.resume();
   res.writeHead(404, CORS).end();
 });

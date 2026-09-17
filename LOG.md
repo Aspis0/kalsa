@@ -283,6 +283,31 @@ Bloccato, da decidere da Marco (non da me):
 - `verify.mjs`: 16 assert verdi (migrate 7, roundtrip 2, multiwindow 2,
   quota 3, corrupt 3). Lo storage si rilegge dopo ogni scrittura (D).
 
+## Giro 17 — chat.ts onesto: URL, non-SSE, tagli, timeout, B6 (2026-09-18)
+
+- B4: `completionsUrl` non raddoppia più `/v1` (/v1 finale -> +chat only) e
+  ogni errore mostra `Called:` con l'URL davvero chiamato (4 assert badurl).
+- B3: content-type guardato; 200 non-SSE letto come completion JSON prima
+  di arrendersi; 200 vuoto e 200-HTML diventano bad-response, mai bolla
+  vuota con diagnosi sbagliata (json/html/emptycut assert + 32-html.png).
+- B5: fine senza `[DONE]` = truncated (testo parziale tenuto) o bad-response
+  (zero token); mai più "complete". Read spezzato a metà stream = truncated
+  (cut assert). Live region distinta per truncated.
+- 403 con copia sua (non più "401", assert forbidden403).
+- Minori: drain dell'ultimo frame senza `\n`; idle timeout 60s con controller
+  collegato (silent assert, 65s veri); 200 vuoto = bad-response non http;
+  copy dice "Copied" solo se riuscito ("Copy failed" altrimenti) + cleanup
+  timer; tema che segue il sistema finché non scegli (themeChoiceMade).
+- B6: streaming per conversazione (`streamingByConv` + mappa controller).
+  Stop e delete abortiscono solo la visibile; invio in B non tocca A.
+  twostream assert: A 555->1056 dopo lo stop di B, B "Stopped early".
+- Buttato per strada e ripreso: il mio primo `poke()` leakava timer (falsi
+  timeout) — handle tracciato; il dispatch mock `cut-demo` mangiava
+  `emptycut-demo` (sottostringa, ordine) — emptycut prima; il mio split-test
+  era oltre-spec (due eventi su una riga: nessun parser può) — riscritto
+  legittimo (frame spezzati + coda senza newline + niente DONE).
+- 05-denied.png rigenerato con la riga Called: promosso a vista.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.

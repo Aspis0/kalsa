@@ -8,6 +8,8 @@ import "./Thread.css";
 export interface FailedState {
   messageId: string;
   kind: ChatErrorKind;
+  status?: number;
+  url?: string;
 }
 
 interface ThreadProps {
@@ -18,22 +20,42 @@ interface ThreadProps {
   onOpenSettings: () => void;
 }
 
-function errorCopy(kind: ChatErrorKind): { title: string; body: string } {
+function errorCopy(kind: ChatErrorKind, status?: number): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
-      return {
-        title: "The server did not accept the key.",
-        body: "It answered 401 — the token is missing, wrong, or expired. Check it in Settings and try again.",
-      };
+      return status === 403
+        ? {
+            title: "The server refused the key.",
+            body: "It answered 403 — the key works but is not allowed here. Check it in Settings and try again.",
+          }
+        : {
+            title: "The server did not accept the key.",
+            body: "It answered 401 — the token is missing, wrong, or expired. Check it in Settings and try again.",
+          };
     case "network":
       return {
         title: "The server could not be reached.",
         body: "Check the address in Settings and that the server is running, then try again.",
       };
+    case "bad-response":
+      return {
+        title: "The server answered, but not as a chat stream.",
+        body: "The reply was not event-stream data — this address may serve a web page or a different API. Check it in Settings and try again.",
+      };
+    case "truncated":
+      return {
+        title: "The answer stopped halfway.",
+        body: "The connection closed before the end — what arrived is above. Try again for the full answer.",
+      };
+    case "timeout":
+      return {
+        title: "The server took too long to answer.",
+        body: "A full minute with no new words, so the request was dropped. Try again.",
+      };
     default:
       return {
         title: "The server answered with an error.",
-        body: "Nothing was lost — your message is above. Wait a moment and try again.",
+        body: `It answered ${status ?? "with an error"}. Wait a moment and try again.`,
       };
   }
 }
@@ -86,8 +108,9 @@ function AssistantRow({
         ) : null}
         {failed && failed.messageId === message.id ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(failed.kind).title}</p>
-            <p className="error-body">{errorCopy(failed.kind).body}</p>
+            <p className="error-title">{errorCopy(failed.kind, failed.status).title}</p>
+            <p className="error-body">{errorCopy(failed.kind, failed.status).body}</p>
+            {failed.url ? <p className="error-url">Called: {failed.url}</p> : null}
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={onRetry}>
                 Try again

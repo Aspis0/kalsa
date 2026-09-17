@@ -39,6 +39,16 @@ const okSettings = (model) => ({
   model,
 });
 
+async function sendAndWait(page, text, marker, timeout = 25000) {
+  await page.getByRole("textbox", { name: "Message" }).fill(text);
+  await page.getByRole("textbox", { name: "Message" }).press("Enter");
+  await page.waitForFunction(
+    (m) => document.querySelector(".thread")?.textContent?.includes(m),
+    marker,
+    { timeout },
+  );
+}
+
 const tests = {
   // v1 -> v2 migration: nothing lost, never repeats, old key removed.
   async migrate() {
@@ -191,7 +201,180 @@ const tests = {
     await page.screenshot({ path: "shots/31-quota.png" });
     await browser.close();
   },
-  // Corrupt messages are dropped, valid ones render, never a white screen.
+  // The composed URL is shown and correct for every endpoint shape.
+  async badurl() {
+    const cases = [
+      ["http://127.0.0.1:18081/denied", "http://127.0.0.1:18081/denied/v1/chat/completions"],
+      ["http://127.0.0.1:18081/denied/", "http://127.0.0.1:18081/denied/v1/chat/completions"],
+      [
+        "http://127.0.0.1:18081/denied/v1/chat/completions",
+        "http://127.0.0.1:18081/denied/v1/chat/completions",
+      ],
+    ];
+    for (const [endpoint, called] of cases) {
+      const browser = await chromium.launch({ args: ["--no-sandbox"] });
+      const page = await browser.newPage();
+      await seed(page, { settings: { endpoint, token: "t", model: "x" } });
+      await page.goto(APP);
+      await page.waitForTimeout(1200);
+      await sendAndWait(page, "Hello?", "did not accept the key");
+      const shown = await page.locator(".error-url").textContent();
+      check(`badurl: ${endpoint}`, (shown ?? "").includes(called), shown?.trim());
+      await browser.close();
+    }
+    // .../v1 base composes without doubling and actually streams.
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/ok/v1", token: "t", model: "x" },
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello?", "line is open");
+    check("badurl: /v1 base streams (no doubling)", true);
+    await browser.close();
+  },
+
+  async forbidden403() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/forbidden", token: "t", model: "x" },
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello?", "refused the key");
+    const body = await page.locator(".thread").textContent();
+    check("forbidden: names 403, not 401", (body ?? "").includes("403"));
+    await browser.close();
+  },
+
+  async split() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("split-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Split it.", "stopped halfway");
+    const body = await page.locator(".thread").textContent();
+    check("split: frames reassembled", (body ?? "").includes("Split frames reassembled."));
+    check("split: missing DONE reported", (body ?? "").includes("stopped halfway"));
+    await browser.close();
+  },
+
+  async cut() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("cut-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Talk then die.", "stopped halfway");
+    const body = await page.locator(".thread").textContent();
+    check("cut: partial text kept", (body ?? "").includes("Working through this"));
+    await page.screenshot({ path: "shots/33-cut.png" });
+    await browser.close();
+  },
+
+  async emptycut() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("emptycut-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Say nothing.", "not as a chat stream");
+    check("emptycut: honest diagnosis", true);
+    await browser.close();
+  },
+
+  async json() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("json-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Plain JSON?", "Non-streaming reply");
+    check("json: non-streaming body surfaces", true);
+    check("json: no error shown", (await page.locator(".error-block").count()) === 0);
+    await browser.close();
+  },
+
+  async html() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("html-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "A page?", "not as a chat stream");
+    const shown = await page.locator(".error-url").textContent();
+    check("html: shows called URL", (shown ?? "").includes("/ok/v1/chat/completions"));
+    await page.screenshot({ path: "shots/32-html.png" });
+    await browser.close();
+  },
+
+  async networkurl() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18999", token: "t", model: "x" },
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Nobody home?", "could not be reached");
+    const shown = await page.locator(".error-url").textContent();
+    check("network: shows called URL", (shown ?? "").includes("127.0.0.1:18999/v1/chat/completions"));
+    await page.screenshot({ path: "shots/34-network.png" });
+    await browser.close();
+  },
+
+  // B6: streams are per-conversation. Stopping B must not touch A.
+  async twostream() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("slow-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    const say = async (text) => {
+      await page.getByRole("textbox", { name: "Message" }).fill(text);
+      await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    };
+    const open = async (title) => {
+      await page.getByRole("button", { name: /Show.*conversation/ }).click();
+      await page.getByRole("button", { name: `Open conversation: ${title}` }).click();
+      await page.waitForTimeout(300);
+    };
+    await say("First topic");
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "New chat" }).click();
+    await say("Second topic");
+    await page.waitForTimeout(1500);
+    // Both threads hold partial text: two live streams, no interference.
+    await open("First topic");
+    const lenA1 = ((await page.locator(".thread").textContent()) ?? "").length;
+    await open("Second topic");
+    const lenB1 = ((await page.locator(".thread").textContent()) ?? "").length;
+    check("twostream: both streams alive", lenA1 > 100 && lenB1 > 100, `${lenA1}/${lenB1} chars`);
+    // Stop B from B: A must keep growing, B keeps its partial text.
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(500);
+    await open("First topic");
+    await page.waitForTimeout(1500);
+    const lenA2 = ((await page.locator(".thread").textContent()) ?? "").length;
+    check("twostream: A survives B stop", lenA2 > lenA1, `${lenA1} -> ${lenA2} chars`);
+    await open("Second topic");
+    const bodyB = (await page.locator(".thread").textContent()) ?? "";
+    check("twostream: B stopped honestly", bodyB.includes("Stopped early"));
+    await browser.close();
+  },
+  async silent() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("silent-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Are you there?", "took too long", 80000);
+    check("silent: idle timeout fires", true);
+    await browser.close();
+  },
   async corrupt() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();

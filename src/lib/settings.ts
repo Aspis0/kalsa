@@ -3,6 +3,14 @@ import type { ChatSettings } from "./types";
 const SETTINGS_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
 
+export function themeChoiceMade(): boolean {
+  try {
+    return localStorage.getItem(THEME_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
 export type Theme = "light" | "dark";
 
 export function loadSettings(): ChatSettings {

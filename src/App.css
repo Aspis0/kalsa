@@ -114,9 +114,11 @@
 }
 
 /* The open crescent is an overlay, like devboule-v2's: the stage dims
-   beneath it so the arc reads as a menu, never as broken overlap. */
-.shell:has(.crescent-nav-open) .stage,
-.shell:has(.crescent-nav-open) .topbar {
+   beneath it so the arc reads as a menu, never as broken overlap.
+   Exception: while ANY answer streams, no dim anywhere — an arriving
+   response must stay fully legible behind the open nav. */
+.shell:has(.crescent-nav-open):not(.is-streaming) .stage,
+.shell:has(.crescent-nav-open):not(.is-streaming) .topbar {
   opacity: 0.35;
 }
 

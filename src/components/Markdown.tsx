@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -9,21 +9,41 @@ function languageOf(className?: string): string {
 
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
+  const [failedCopy, setFailedCopy] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  function later(fn: () => void): void {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(fn, 1600);
+  }
 
   async function copy(): Promise<void> {
+    let ok = false;
     try {
       await navigator.clipboard.writeText(code);
+      ok = true;
     } catch {
-      // Clipboard API unavailable (permissions): fall back to selection.
-      const area = document.createElement("textarea");
-      area.value = code;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand("copy");
-      area.remove();
+      try {
+        // Clipboard API unavailable (permissions): fall back to selection.
+        const area = document.createElement("textarea");
+        area.value = code;
+        document.body.appendChild(area);
+        area.select();
+        ok = document.execCommand("copy");
+        area.remove();
+      } catch {
+        ok = false;
+      }
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    if (ok) {
+      setCopied(true);
+      later(() => setCopied(false));
+    } else {
+      setFailedCopy(true);
+      later(() => setFailedCopy(false));
+    }
   }
 
   return (
@@ -31,7 +51,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       <div className="codeblock-head">
         <span className="codeblock-lang">{language || "code"}</span>
         <button type="button" className="codeblock-copy" onClick={() => void copy()}>
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copied" : failedCopy ? "Copy failed" : "Copy"}
         </button>
       </div>
       <pre className="codeblock-pre" tabIndex={0}>

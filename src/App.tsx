@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createStore, titleFor, uid } from "./lib/store";
-import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme } from "./lib/settings";
+import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
@@ -24,11 +24,13 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
-  const [streamingId, setStreamingId] = useState<string | null>(null);
-  const [failed, setFailed] = useState<FailedState | null>(null);
+  // One entry per generating conversation (conversation id -> assistant id).
+  // Streams are independent: answering in A never blocks sending in B.
+  const [streamingByConv, setStreamingByConv] = useState<Record<string, string>>({});
+  const [failedById, setFailedById] = useState<Record<string, FailedState>>({});
+  const controllers = useRef(new Map<string, AbortController>());
   const [liveMessage, setLiveMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(
     () =>
@@ -42,13 +44,23 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // No explicit choice yet: follow the operating system while it changes.
+  useEffect(() => {
+    if (themeChoiceMade()) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => setTheme(mq.matches ? "dark" : "light");
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const active = useMemo(
     () => (activeId ? (store.get(activeId) ?? null) : null),
     // conversations refreshes on every store notification (index is small).
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conversations, activeId],
   );
-  const streaming = streamingId !== null;
+  const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
+  const streamingAny = Object.keys(streamingByConv).length > 0;
   const configured = isConfigured(settings);
 
   // An empty assistant message with no stream behind it is a response that
@@ -56,19 +68,20 @@ export function App() {
   // as a blank row: surface it as retryable, whatever the original cause —
   // retrying re-runs the request, so a stale cause would only mislead.
   const effectiveFailed: FailedState | null = useMemo(() => {
-    if (failed) return failed;
-    if (!active || streaming) return null;
+    if (!active) return null;
+    const direct = active.messages.map((m) => failedById[m.id]).find((f) => f !== undefined);
+    if (direct) return direct;
+    if (streaming) return null;
     const last = active.messages.at(-1);
     if (last && last.role === "assistant" && last.content === "" && !last.stopped) {
       return { messageId: last.id, kind: "network" };
     }
     return null;
-  }, [failed, active, streaming]);
+  }, [failedById, active, streaming]);
 
   useEffect(() => {
     setConfirmDelete(false);
-    setFailed((f) => (f && active?.messages.some((m) => m.id === f.messageId) ? f : null));
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   const runAssistant = useCallback(
     async (conversationId: string, assistantId: string, currentSettings: ChatSettings) => {
@@ -79,9 +92,14 @@ export function App() {
         .filter((m) => m.content.length > 0 || m.role === "user")
         .map((m) => ({ role: m.role, content: m.content }));
       const controller = new AbortController();
-      abortRef.current = controller;
-      setStreamingId(assistantId);
-      setFailed(null);
+      controllers.current.set(assistantId, controller);
+      setStreamingByConv((prev) => ({ ...prev, [conversationId]: assistantId }));
+      setFailedById((prev) => {
+        if (!(assistantId in prev)) return prev;
+        const next = { ...prev };
+        delete next[assistantId];
+        return next;
+      });
       setLiveMessage("Responding. Waiting for the first word.");
       let firstToken = true;
       try {
@@ -126,19 +144,37 @@ export function App() {
         } else {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
-          setFailed({ messageId: assistantId, kind });
-          setLiveMessage("The response failed. Error details shown in the conversation.");
+          const state: FailedState = {
+            messageId: assistantId,
+            kind,
+            ...(error instanceof ChatRequestError && error.status !== undefined
+              ? { status: error.status }
+              : {}),
+            ...(error instanceof ChatRequestError && error.url ? { url: error.url } : {}),
+          };
+          setFailedById((prev) => ({ ...prev, [assistantId]: state }));
+          setLiveMessage(
+            kind === "truncated"
+              ? "The answer stopped halfway. Details shown in the conversation."
+              : "The response failed. Error details shown in the conversation.",
+          );
         }
       } finally {
-        abortRef.current = null;
-        setStreamingId(null);
+        controllers.current.delete(assistantId);
+        setStreamingByConv((prev) => {
+          if (prev[conversationId] !== assistantId) return prev;
+          const next = { ...prev };
+          delete next[conversationId];
+          return next;
+        });
       }
     },
     [],
   );
 
   function send(text: string): boolean {
-    if (streaming) return false;
+    // A stream in ANOTHER conversation never blocks this one; the composer
+    // shows Stop (not Send) while its own conversation is generating.
     if (!configured) {
       setSettingsOpen(true);
       return false;
@@ -171,11 +207,14 @@ export function App() {
   }
 
   function stop(): void {
-    abortRef.current?.abort();
+    // Only the visible conversation's stream: a sibling keeps generating.
+    const assistantId = activeId ? streamingByConv[activeId] : undefined;
+    if (assistantId) controllers.current.get(assistantId)?.abort();
   }
 
   function retry(): void {
-    if (!active || !effectiveFailed || streaming) return;
+    if (!active || !effectiveFailed) return;
+    if (streamingByConv[active.id] !== undefined) return;
     const assistantId = effectiveFailed.messageId;
     const latest = store.get(active.id);
     if (!latest) return;
@@ -202,7 +241,8 @@ export function App() {
       setConfirmDelete(true);
       return;
     }
-    abortRef.current?.abort();
+    const assistantId = streamingByConv[active.id];
+    if (assistantId) controllers.current.get(assistantId)?.abort();
     store.remove(active.id);
     setActiveId(null);
     setConfirmDelete(false);
@@ -212,7 +252,7 @@ export function App() {
 
   return (
     <div
-      className="shell"
+      className={`shell${streamingAny ? " is-streaming" : ""}`}
       onKeyDown={(event) => {
         // Escape closes the crescent from anywhere (the nav is a sibling of
         // the composer, so its own key handler cannot hear this).
@@ -275,7 +315,7 @@ export function App() {
         ) : (
           <Thread
             messages={active.messages}
-            streaming={streamingId !== null && active.messages.some((m) => m.id === streamingId)}
+            streaming={streaming}
             failed={effectiveFailed}
             onRetry={retry}
             onOpenSettings={() => setSettingsOpen(true)}
