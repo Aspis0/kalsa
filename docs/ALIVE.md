@@ -5749,3 +5749,54 @@ di estrazione memoria tagliato avvelena i fatti, quindi vale vederlo). Verificat
 `tsc` 0 con log vuoto, jest 10/10. Integrazione con l'harness controllata a parte: nessuna collisione
 di marker, e `telemetryParse.mjs` e' permissivo (`applySchema` aggiunge default, non valida), quindi
 il campo nuovo nel JSON di `KALSA_TELEMETRY` non rompe la raccolta.
+
+### 16/09 notte — l'audit ostile ha trovato tre cose, e una era mia
+
+**F1, mia.** Il brief che ho scritto a GLM diceva che `truncated` significa "il prompt non entrava e
+il motore l'ha tagliato". E' falso, e l'ho verificato solo dopo: `truncatePrompt()`
+(`rn-completion.cpp:378`, che setta il flag a `:396`) **non ha chiamanti** — `grep -rn truncatePrompt
+node_modules/llama.rn/cpp` restituisce solo la definizione e la dichiarazione nell'header. L'unico
+setter vivo e' `:1103`, dentro il ramo `embd.size() >= n_ctx` di `nextToken()`, sotto
+`KALSA_KVSHIFT refused embd=`: e' il **ceiling in generazione con la K-shift rifiutata**, non un
+prompt che non entra. Il PLAN lo diceva giusto da sempre ("silently truncated **answer**"); ho
+ereditato il senso sbagliato dal nome del campo. Il marker si chiama `KALSA_ANSWER_TRUNCATED`:
+un lettore che greppa "PROMPT" andrebbe a cercare nell'assemblaggio del prompt un evento che accade
+5000 token dentro la risposta.
+
+**F2, la piu' grave: il motore installato non e' quello che la patch committata produce.** Divergenza
+nei due sensi, verificata con grep in entrambi gli alberi. La patch ha `KALSA_KVSHIFT refused
+prompt=`; l'albero installato no (solo `refused embd=` a `:1096`). L'albero installato ha un fix che
+la patch non ha — `// Prefix match FIRST. JS start=0 can send > n_ctx while sharing the live KV
+prefix; throwing context_full here never computed n_common` (`:478`) — che e' **esattamente** l'item
+`loadPrompt` che il PLAN elenca come aperto. `grep -rn "Prefix match FIRST" patches/ src/` da' rc=1:
+quel fix non e' tracciato da nessuna parte e vive solo in `node_modules/` su questo Mac. Le mtime
+concordano: patch 14/09 08:57, file installato 14/09 09:25.
+
+Conseguenza da dire chiara: **un APK di CI e un APK locale eseguono motori diversi sullo stesso
+input**. In CI (`npm ci` + patch-package) un prompt troppo lungo setta `context_full` e mai
+`truncated`; qui non c'e' guardia e la generazione finisce nel ramo del ceiling. `KALSA_NATIVE_VARIANT`
+non distingue le due revisioni. Copia preservata in
+`scratchpad/vendor-divergence-2026-09-16/` PRIMA che qualcosa tocchi quell'albero, perche' la
+procedura ufficiale di riapplicazione (`rm -rf node_modules/llama.rn && npm install`) lo cancella.
+Nota: `patch-package --dry-run` **non e' prova** — fallisce per costruzione su un albero gia'
+patchato, ed esce 0 mentre stampa "finished with 1 error(s)".
+
+**F4, pre-esistente e di sicurezza: un nome di tool inventato dal modello finisce in un log che
+committiamo.** Catena verificata anello per anello: il nome viene dal modello
+(`LlamaService.ts:4376`), un tool sconosciuto produce un outcome con il solo `text` e **nessun**
+`error` (`AppShell.tsx:2281-2283`), quindi `isSuccessfulToolOutcome` lo considera un successo,
+quindi `onToolSuccess(name)` (`:4451`), quindi `r.tool` (`:1253`), e `formatTelemetryLine` fa
+**spread** del record. Un documento con prompt injection che fa emettere al modello una tool call
+dal nome arbitrario scrive quel testo dentro i logcat che raccogliamo come evidenza e diamo in pasto
+agli agenti — mentre il docblock sopra dichiara "NEVER user text". La difesa esisteva gia' due file
+piu' in la' e non aveva chiamanti fuori dal proprio modulo (`toolCallTelemetry.ts clampToolNames`,
+commento: "an arbitrary model-invented string never reaches the log"). Esposta come
+`clampToolName` e applicata dove il campo viene serializzato.
+
+**Cosa l'audit ha invece REFUTATO**, e vale registrarlo: la nuova riga non e' una fuga di privacy
+(cinque chiavi, tutte contatori nativi); il flusso di controllo non cambia; e non c'e' rischio di
+inondazione del log perche' `truncated` e' azzerato da `rewind()` a ogni completion
+(`rn-completion.cpp:90`), quindi non puo' restare acceso tra i turni.
+
+Restano due P3 non affrontati: i test coprono il formatter ma non il ramo di emissione in
+`LlamaService`, e `result.truncated ?? false` collassa "assente" e "falso".
