@@ -1619,6 +1619,12 @@ non viene toccata).**
   nel log. Qui si decide con un numero se `lib/` committato regge.
 - Audit ostile (Reviewer, modello diverso dal writer) sugli script e sul manifest.
 
+**Stato Step 1 (17/09, tardo pomeriggio): CHIUSO.** Prova sorgente: `kalsa-step1@4b823e95` vs
+`baseline-3ce0992.manifest` 745/745 file, differisce solo il nome del marker. Prova binaria: run
+`35263920678` (app `f39c757`) vs run `35254554590` (`3ce0992`): 38/38 `.so` sha256 identici
+(`llama-rn-fork/fork-f39c757.so.sha256` == `baseline-3ce0992.so.sha256`); la pipeline NDK e'
+riproducibile (controllo `35258973938`). Il fork al pin vecchio E' il motore spedito.
+
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 
