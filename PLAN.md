@@ -1388,3 +1388,74 @@ infinito. Generare sui core piccoli invece di fermarsi salva il turno *e* raffre
 risposta** (752 caratteri di chain-of-thought in inglese). Il template apre il blocco da solo, il
 modello emette solo `</think>`, e `thinkStream.ts` non ha una regola per una chiusura orfana in
 testa: cancella il tag e tiene il pensiero. In riparazione.
+
+### 17/09 sera — letti i commit vecchi: la macchina esiste gia', e siamo noi a cancellarla
+
+L'owner ha rifiutato la chiusura della questione (*"ma perche ti arrendi? dai leggiti tutti i
+commit cosi sai gia cosa non fare"*). Aveva ragione. Tre fatti, tutti verificati nel sorgente
+spedito o nel log del run. Citazioni complete in `docs/ALIVE.md` §17/09 later.
+
+**1. I checkpoint di stato ci sono gia' nel nostro fork, e sono accesi.**
+`node_modules/llama.rn/cpp/rn-completion.cpp` tiene snapshot RAM dello stato ibrido
+(`LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY`), abilitati **di default** sui modelli ricorrenti/ibridi —
+`rn-llama.h:132` budget 160 MiB, `:133` 8 snapshot, `rn-completion.cpp:150`
+`state_cache_enabled = is_recurrent || is_hybrid`. LFM2 e' ibrido, e il JS non configura niente:
+i default sono cio' che spediamo. Quando `seq_rm` fallisce sulla meta' ricorrente,
+`recoverStateCheckpoint` (`:325`) ripristina lo snapshot piu' lungo che e' prefisso del prompt,
+poi **verifica** `pos_max + 1 == k` e riprova piu' corto se non torna. E `evictStateCheckpoints`
+(`:158`) pinna apposta lo snapshot a posizione piu' bassa — *"the first message boundary
+(system-prompt end) a brand-new session shares"*.
+E' esattamente la tecnica che la ricerca di prior art del 17/09 non ha trovato in nessun
+progetto. La spediamo noi.
+
+**2. Funziona su LFM2 sull'S23 — misurato.** `logcat.txt:4357`:
+`KALSA_KVPREFIX embd=3993 text_tokens=4257 n_common=3189`. La cache viva aveva **804 token in
+piu'** del prefisso condiviso e 3189 sono stati riusati, senza nessuna riga `KALSA_KVDIAG` di
+fallimento in tutto il run. Tre volte (`:1927`, `:2183`, `:4357`).
+*Limite dichiarato:* il logcat catturava RNLlama **solo a livello W**, quindi non distingue
+"`seq_rm` e' riuscito" da "un checkpoint e' stato ripristinato" (il successo logga a INFO).
+Entrambe le letture confermano il riuso parziale, ma non sono la stessa prova. Si chiude con una
+riga di log a livello W sul percorso di successo.
+
+**3. Lo slide li distrugge — ecco i 207 s.** `rn-llama.cpp:1150`: `clearCache()` chiama
+`completion->clearStateCheckpoints()`. E `discardChatKvForWindowSlideLocked`
+(`src/engine/LlamaService.ts:1528`) chiama `clearCache()`. Quindi lo slide cancella proprio lo
+snapshot del system prompt che il fork nativo pinna **per questo caso**. Nel log, 0,1 s dopo:
+`KALSA_KVPREFIX embd=0 text_tokens=4954 n_common=0`.
+Il system prompt e' identico byte a byte attraverso uno slide, quindi il prefisso recuperabile e'
+**1832 token: 4954 → 3122, −37%**, esatto, nessuna approssimazione.
+Il docblock a `LlamaService.ts:1520` giustifica il clear con *"la meta' ricorrente non puo'
+evincere un prefisso"* — vero, ed e' il problema che `recoverStateCheckpoint` risolve. Ci
+difendiamo da una cosa che il nativo gia' gestisce.
+**Cio' che NON afferma:** che lo slide diventi gratis. Buttare un prefisso invalida tutte le K/V
+successive in qualunque transformer; oltre il nuovo inizio il riuso esatto e' impossibile e lo e'
+sempre stato. Solo il prefisso di sistema e' recuperabile.
+
+**4. Piu' grosso dello slide: la pausa termica scarica il modello.**
+`src/app/foregroundIdleDispose.ts:4` — `FOREGROUND_IDLE_DISPOSE_MS = 180_000`, mentre i
+raffreddamenti termici durano **300–360 s**. Quindi ogni pausa garantisce uno scarico:
+`model.unload {"reason":"idle","idleMs":343158}` e `{"idleMs":331491}`. Ognuno seguito da
+ricarica del modello e prefill del sistema da capo: prewarm a **71,9 s / 40,4 s / 40,3 s** per gli
+stessi 1832 token — **152 s di prewarm in 30 minuti di run**. Il raffreddamento produce il calcolo
+che riscalda il telefono. E' codice dell'app, non dell'harness.
+(Nota di contorno: 71,9 s contro 40,3 s per lavoro **identico** = 1,78x di throttling termico.)
+
+**Conclusione aggiornata.** La decisione del 14/09 (soffitto gestito in JS, clear allo slide)
+resta corretta *per la ragione che `seq_rm` nativo non puo' fare rollback sulla meta' ricorrente*.
+Non e' corretto che non si possa riusare niente: il nostro fork riusa via snapshot RAM, sul
+telefono, oggi. L'aperto non e' piu' "LFM2 sopravvive a uno shift" ma **"perche' lo slide prende
+una strada che scarta l'unico snapshot che il nativo pinna apposta"**.
+
+**Aperti nuovi, in ordine di valore:**
+
+1. **Non cancellare i checkpoint allo slide.** Serve un percorso di clear che azzeri la KV viva
+   **senza** `clearStateCheckpoints()`. Guadagno atteso −37% sul re-prefill post-slide.
+   Attenzione: tocca `rn-llama.cpp`, quindi si fa nel fork e si bumpa il pin — **mai a mano nel
+   vendor**.
+2. **`FOREGROUND_IDLE_DISPOSE_MS` contro la durata delle pause termiche.** 180 s e' sotto il
+   raffreddamento piu' corto che usiamo. O sale sopra la pausa massima, o la pausa termica
+   sospende il timer di idle. Decisione dell'owner: e' un parametro di prodotto (RAM contro
+   calore), non una costante da cambiare di iniziativa.
+3. **Una riga di log a livello W sul percorso di riuso riuscito**, per distinguere `seq_rm` da
+   restore senza alzare la verbosita' di tutto (che stamperebbe i prompt — vedi il vincolo
+   "cosa chiede un utente non esce mai").

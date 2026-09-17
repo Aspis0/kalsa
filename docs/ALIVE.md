@@ -5939,3 +5939,101 @@ both stream and finalize it deletes the tag and keeps the reasoning. Under repai
   approximation, unverified here.
 - **The decisive number: `n_common` on the turn after a shift.** High ⇒ the on-device discard is
   avoidable. Zero ⇒ the original decision was right and the question closes.
+
+---
+
+## 17/09/2026, later — reading the old commits: the machine already exists, and we wipe it
+
+The owner pushed back on closing the question (*"ma perche ti arrendi? dai leggiti tutti i
+commit cosi sai gia cosa non fare"*). He was right. Reading the shipped fork instead of
+re-arguing produced three facts, all verified in source or in the run log.
+
+### 1. Our fork already implements the "shadow state swapped at the slide"
+
+`node_modules/llama.rn/cpp/rn-completion.cpp` carries a RAM **state checkpoint cache** —
+`state_checkpoints`, snapshots taken with
+`llama_state_seq_get_size_ext(..., LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY)`.
+
+- It is **enabled by default** on this model: `rn-llama.h:132` `state_cache_budget_bytes =
+  160 MiB`, `:133` `state_cache_max_checkpoints = 8`; `rn-completion.cpp:150` sets
+  `state_cache_enabled = llama_model_is_recurrent(model) || llama_model_is_hybrid(model)`.
+  LFM2 is hybrid. JS configures none of this, so the defaults are what ships.
+- When `seq_rm` fails on the recurrent half, `loadPrompt` recovers instead of giving up
+  (`rn-completion.cpp:593`): *"Recurrent/hybrid/SWA: seq_rm fails beyond the rollback window;
+  restore the longest matching snapshot and reprocess only the diverged tail."*
+- `recoverStateCheckpoint` (`:325`) restores, then `seq_rm(kv, 0, k, -1)` and **verifies**
+  `pos_max + 1 == k`, retrying with a shorter snapshot on failure. It is not a hopeful write.
+- `evictStateCheckpoints` (`:158`) deliberately pins the lowest-position snapshot:
+  *"always keep the smallest-position snapshot: that is the first message boundary
+  (system-prompt end) a brand-new session shares."*
+
+This is exactly the technique the 17/09 prior-art search found nobody shipping. We ship it.
+
+### 2. It works on LFM2 on the S23 — measured, not derived
+
+`out/t20c-sendfix-20260917/logcat.txt:4357`
+
+    loadPrompt:501 KALSA_KVPREFIX embd=3993 text_tokens=4257 n_common=3189
+
+The live cache held **804 tokens more** than the shared prefix and 3189 were reused, with no
+`KALSA_KVDIAG` failure line anywhere in the run. Partial reuse across a hybrid trim happened,
+three times (`:1927` 2288→2108, `:2183` 2229→2108, `:4357` 3993→3189).
+
+**Caveat, stated:** the run's logcat captured RNLlama at **W level only** (15 lines total), so
+this cannot distinguish "`seq_rm` succeeded" from "a checkpoint was restored" — the success
+path logs at INFO. Both readings support partial reuse; they are not the same proof. Fixing it
+is one `rnllama::log("WARNING", ...)` on the success path.
+
+### 3. The window slide destroys those checkpoints — this is the 207 s
+
+`rn-llama.cpp:1150`, inside `clearCache()`:
+
+    completion->clearStateCheckpoints();
+
+`discardChatKvForWindowSlideLocked` (`src/engine/LlamaService.ts:1528`) calls `clearCache()`.
+So the slide deletes the pinned system-prefix snapshot that the native fork keeps *for this
+exact case*. The log shows the consequence 0.1 s later:
+
+    10:31:12.533  KALSA_WINDOW_SLIDE {"nCtx":8192,"ceiling":4312,"systemTokens":1832,
+                  "prevStart":0,"newStart":4,"promptTokensBefore":4327,"kvCleared":true}
+    10:31:12.642  KALSA_KVPREFIX embd=0 text_tokens=4954 n_common=0
+
+`n_common=0`, 4954 tokens, 207 s. The system prompt is byte-identical across a slide, so the
+recoverable prefix is **1832 tokens**: 4954 → 3122, **−37 %**, exact, no approximation.
+
+The docblock at `LlamaService.ts:1520` justifies the clear with *"the recurrent half cannot
+evict a prefix"*. That is true and it is the problem `recoverStateCheckpoint` was written to
+solve. We are defending against something the native side already handles.
+
+**What this does NOT claim:** that the slide becomes free. Dropping a prefix invalidates every
+later K/V for any transformer (K/V at position p depend on all earlier tokens through the
+layers) — exact reuse past the new start is impossible and always was. Only the *system prefix*
+is recoverable.
+
+### 4. Bigger than the slide: the thermal pause unloads the model
+
+`src/app/foregroundIdleDispose.ts:4` — `FOREGROUND_IDLE_DISPOSE_MS = 180_000`.
+Harness thermal cooldowns run **300–360 s**. Every cooldown therefore guarantees an unload:
+
+    10:36:55  'model.unload', '{"reason":"idle","idleMs":343158}'
+    10:42:59  'model.unload', '{"reason":"idle","idleMs":331491}'
+
+Each is followed by a full model reload and a fresh system prefill:
+
+    10:17:24  KALSA_PREWARM done  promptMs=71960  promptN=1832
+    10:38:13  KALSA_PREWARM done  promptMs=40386  promptN=1832
+    10:45:34  KALSA_PREWARM done  promptMs=40267  promptN=1832
+
+**152 s of prewarm in a 30-minute run, for the same 1832 tokens, three times.** The cooldown
+produces the compute that reheats the phone. That is a feedback loop, it is in shipped app
+code (not the harness), and it was not visible until the run log was read line by line.
+
+Note also the spread: 71.9 s vs 40.3 s for **identical** work — 1.78x, thermal throttling.
+
+### What changed in the conclusion
+
+The 14/09 decision (handle the ceiling in JS, clear at the slide) was correct *for the reason
+the native `seq_rm` cannot roll back the recurrent half*. It is not correct that nothing can be
+reused: our own fork reuses via RAM snapshots, on device, today. The open item is no longer
+"can LFM2 survive a shift" — it is **"why does the slide take a path that discards the one
+snapshot the native fork pins for it"**.
