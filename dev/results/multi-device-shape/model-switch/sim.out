@@ -1,0 +1,3 @@
+trinity-to-gemma: load=5.1s first-token-after-switch=19.1s (ttft Nones, cached=0, next request ttft Nones)
+gemma-to-trinity: load=1.0s first-token-after-switch=2.8s (ttft 0.96s, cached=0, next request ttft 0.06s)
+model-switch measurement written

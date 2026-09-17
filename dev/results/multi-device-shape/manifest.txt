@@ -1,0 +1,74 @@
+host: Apple M1 Max
+binary: b10950 (version: 0.4.0-dev (build 10950, commit ad6c66839))
+model: Trinity-Nano-Preview-Q4_K_M.gguf
+--- run A-2p (parallel: --parallel 1, phones: 2, doc_words: 1500, port: 18311)
+server_up_exit=0
+sim_exit=0
+sim: [A-2p] phones=2 wall=6.96s ttft_avg=1670ms ttft_max=2455ms max_deferred=1 ok=True
+server_stop_exit=0
+memory_lines=14
+run A-2p exit=0
+--- run A-4p (parallel: --parallel 1, phones: 4, doc_words: 1500, port: 18312)
+server_up_exit=0
+sim_exit=0
+sim: [A-4p] phones=4 wall=17.79s ttft_avg=4614ms ttft_max=6197ms max_deferred=3 ok=True
+server_stop_exit=0
+memory_lines=14
+run A-4p exit=0
+--- run B2-2p (parallel: --parallel 2, phones: 2, doc_words: 1500, port: 18313)
+server_up_exit=0
+sim_exit=0
+sim: [B2-2p] phones=2 wall=4.92s ttft_avg=928ms ttft_max=2222ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run B2-2p exit=0
+--- run B2-4p (parallel: --parallel 2, phones: 4, doc_words: 1500, port: 18314)
+server_up_exit=0
+sim_exit=0
+sim: [B2-4p] phones=4 wall=15.22s ttft_avg=3173ms ttft_max=4878ms max_deferred=2 ok=True
+server_stop_exit=0
+memory_lines=14
+run B2-4p exit=0
+--- run B4-2p (parallel: --parallel 4, phones: 2, doc_words: 1500, port: 18315)
+server_up_exit=0
+sim_exit=0
+sim: [B4-2p] phones=2 wall=4.89s ttft_avg=924ms ttft_max=2224ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run B4-2p exit=0
+--- run B4-4p (parallel: --parallel 4, phones: 4, doc_words: 1500, port: 18316)
+server_up_exit=0
+sim_exit=0
+sim: [B4-4p] phones=4 wall=9.71s ttft_avg=1810ms ttft_max=4519ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run B4-4p exit=0
+--- run U-2p (parallel: auto, phones: 2, doc_words: 1500, port: 18317)
+server_up_exit=0
+sim_exit=0
+sim: [U-2p] phones=2 wall=5.46s ttft_avg=896ms ttft_max=2174ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run U-2p exit=0
+--- run U-4p (parallel: auto, phones: 4, doc_words: 1500, port: 18318)
+server_up_exit=0
+sim_exit=0
+sim: [U-4p] phones=4 wall=10.25s ttft_avg=2334ms ttft_max=4357ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run U-4p exit=0
+--- run CLIFF-B4 (parallel: --parallel 4, phones: 2, doc_words: 3000, port: 18319)
+server_up_exit=0
+sim_exit=0
+sim: [CLIFF-B4] phones=2 wall=7.28s ttft_avg=1644ms ttft_max=4424ms max_deferred=0 ok=True
+server_stop_exit=0
+memory_lines=14
+run CLIFF-B4 exit=0
+--- run CLIFF-A (parallel: --parallel 1, phones: 2, doc_words: 3000, port: 18320)
+server_up_exit=0
+sim_exit=0
+sim: [CLIFF-A] phones=2 wall=14.96s ttft_avg=4034ms ttft_max=4683ms max_deferred=1 ok=True
+server_stop_exit=0
+memory_lines=14
+run CLIFF-A exit=0
+ALL DONE fail=0

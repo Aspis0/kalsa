@@ -1,0 +1,89 @@
+{
+ "label": "U-2p",
+ "port": 18317,
+ "phones": 2,
+ "turns": 3,
+ "doc_words": 1500,
+ "n_predict": 72,
+ "wall_s": 5.46,
+ "metrics": {
+  "max_processing": 2,
+  "max_deferred": 0,
+  "samples": 33,
+  "deferred_samples": 0
+ },
+ "requests": [
+  {
+   "ttft_ms": 2174,
+   "total_ms": 2417,
+   "prompt_tokens": 1925,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 13,
+   "error": null,
+   "prompt_per_second": 898.0,
+   "phone": 0,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 244,
+   "total_ms": 675,
+   "prompt_tokens": 1965,
+   "cached_tokens": 1920,
+   "cache_n": 1920,
+   "completion_tokens": 13,
+   "error": null,
+   "prompt_per_second": 207.5,
+   "phone": 0,
+   "turn": 1
+  },
+  {
+   "ttft_ms": 318,
+   "total_ms": 574,
+   "prompt_tokens": 2004,
+   "cached_tokens": 1960,
+   "cache_n": 1960,
+   "completion_tokens": 17,
+   "error": null,
+   "prompt_per_second": 144.9,
+   "phone": 0,
+   "turn": 2
+  },
+  {
+   "ttft_ms": 2133,
+   "total_ms": 2717,
+   "prompt_tokens": 1930,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 34,
+   "error": null,
+   "prompt_per_second": 917.7,
+   "phone": 1,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 287,
+   "total_ms": 1044,
+   "prompt_tokens": 1988,
+   "cached_tokens": 1925,
+   "cache_n": 1925,
+   "completion_tokens": 32,
+   "error": null,
+   "prompt_per_second": 235.9,
+   "phone": 1,
+   "turn": 1
+  },
+  {
+   "ttft_ms": 218,
+   "total_ms": 768,
+   "prompt_tokens": 2044,
+   "cached_tokens": 1983,
+   "cache_n": 1983,
+   "completion_tokens": 38,
+   "error": null,
+   "prompt_per_second": 297.2,
+   "phone": 1,
+   "turn": 2
+  }
+ ]
+}

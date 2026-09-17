@@ -1,0 +1,7 @@
+  [ok] preamble really is long: 579 shared of 596 tokens
+  [ok] A's completion carries A's own pin (cache_n=0)
+  [ok] green bound holds before injection: 81 <= 579
+  [FAIL] fault injection: reuse 81 asserted <= 81 - 1 (must FAIL)
+cross-talk (np=2, red=True): RED-CONFIRMED
+  [FAIL] deliberately wrong: pin-absence asserted on A's own completion
+marker-detector red: RED-CONFIRMED
