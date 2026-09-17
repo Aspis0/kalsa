@@ -125,7 +125,7 @@ fn offload(input: &LaunchInput) -> Offload {
 mod tests {
     use super::*;
     use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB};
-    use kalsa_catalog::CATALOG;
+    use kalsa_catalog::rows;
     use kalsa_probe::Backend;
 
     /// The row most of these tests ride on: small enough to be fundable on
@@ -139,8 +139,7 @@ mod tests {
     /// when the row's shape changes, and the tests exercise something the
     /// product actually ships.
     fn shipped_row(name: &str) -> &'static ModelEntry {
-        CATALOG
-            .iter()
+        rows()
             .find(|entry| entry.display_name == name)
             .unwrap_or_else(|| {
                 panic!("{name} left the catalog: re-point these tests at a shipped row")
@@ -154,7 +153,6 @@ mod tests {
         ModelEntry {
             repo: "test/broken",
             display_name: "Broken Row",
-            source: None,
             last_modified: "2026-01-01",
             licence: kalsa_catalog::Licence::Open("apache-2.0"),
             parameters: kalsa_catalog::Parameters::dense(8_000_000_000),
@@ -349,25 +347,25 @@ mod tests {
         assert!(line.contains("--ubatch-size 128"), "{line}");
     }
 
-    #[test]
-    fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
-        // Apertus 70B is the row the 96 KiB assumption under-counted; its
-        // measured cache is 163_840 bytes per token at the q8_0 this crate
-        // pins. On 64 GiB (48 GiB usable), 43_722_767_073 bytes of weights
-        // and 512 MiB of buffers leave 7_279_969_567 bytes of cache: 44_433
-        // whole tokens, with 66_847 bytes spare — less than one token. A
-        // usable server context, not a floor-division artefact.
+#[test]
+fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
+    // Apertus 70B is the row the 96 KiB assumption under-counted; its
+    // measured cache is 163_840 bytes per token at the q8_0 this crate
+    // pins. On 64 GiB (48 GiB usable), 43_721_600_512 bytes of weights
+    // (the pinned file's exact size) and 512 MiB of buffers leave
+    // 7_281_136_128 bytes of cache: 44_440 whole tokens. A usable server
+    // context, not a floor-division artefact.
         let model = shipped_row(APERTUS);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 44_433);
+        assert_eq!(launched.args.context_tokens, 44_440);
         assert!(fits(model, launched.args.context_tokens, &budget));
         assert!(
             !fits(model, launched.args.context_tokens + 1, &budget),
             "one more token would not be paid for"
         );
-        assert_eq!(launched.memory.kv_cache_bytes, 44_433 * 163_840);
+        assert_eq!(launched.memory.kv_cache_bytes, 44_440 * 163_840);
         assert!(
             !launched.memory.kv_per_token_assumed,
             "this row carries a measurement, not the assumption"

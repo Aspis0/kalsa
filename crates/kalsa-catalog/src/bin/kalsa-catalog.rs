@@ -108,13 +108,9 @@ fn main() {
                 selection.justification,
                 selection.licence.id()
             );
-            match &selection.download {
-                Some(plan) => {
-                    println!("fetch:   {}", plan.url);
-                    println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
-                }
-                None => println!("fetch:   none — no GGUF identified for this row"),
-            }
+            let plan = &selection.download;
+            println!("fetch:   {}", plan.url);
+            println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
             println!("why:    {}", selection.plain_reason);
             println!("detail: {}", selection.details);
         }

@@ -9,7 +9,7 @@ use kalsa_probe::{decode_tokens_per_second, prefill_tokens_per_second, DECODE_EF
 
 use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
 use crate::footprint::{footprint_bytes, Footprint, MemoryBudget};
-use crate::manifest::{self, ModelEntry, UsableEntry};
+use crate::manifest::{self, GgufSource, ModelEntry, UsableEntry};
 
 /// A predicted figure, with its shape carried in the type. The shape is
 /// decided where the prediction is made, which is why the formatter has no
@@ -71,6 +71,10 @@ impl Prediction {
 
 pub(crate) struct Candidate<'a> {
     pub(crate) entry: &'a ModelEntry,
+    /// The pinned file behind the row. A candidate exists only for a row
+    /// that has one — that is what `UsableEntry` means — so a prediction
+    /// can always become a download plan.
+    pub(crate) source: &'a GgufSource,
     pub(crate) footprint: Footprint,
     /// Decode throughput as a range, never as a point.
     pub(crate) decode: Prediction,
@@ -88,6 +92,7 @@ impl Candidate<'_> {
 }
 
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
+    let source = entry.source();
     let entry = entry.entry();
     let footprint = footprint_bytes(entry, input.context_tokens);
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
@@ -139,6 +144,7 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     };
     Candidate {
         entry,
+        source,
         footprint,
         decode,
         // Prefill is an estimate, and says so: the compute probe counts the
@@ -198,7 +204,6 @@ mod tests {
         ModelEntry {
             repo: "test/row",
             display_name: "Test Row",
-            source: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
             parameters: if active == total {

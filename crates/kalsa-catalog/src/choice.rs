@@ -238,11 +238,10 @@ pub struct Refusal {
     pub explanation: String,
 }
 
-/// What the shell fetches for a downloadable pick: the exact file at the
-/// pinned commit, the size every byte must add up to, and the digest the
-/// download is verified against before anything runs. Built only from a
-/// complete `GgufSource` — there is no way to construct one from a row that
-/// has no identified source.
+/// What the shell fetches for a pick: the exact file at the pinned commit,
+/// the size every byte must add up to, and the digest the download is
+/// verified against before anything runs. Built only from a complete
+/// `GgufSource`, and a selection cannot be built without one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DownloadPlan {
     /// The address the file is fetched from.
@@ -280,11 +279,12 @@ pub struct Selection {
     /// Why this is being offered: capability, expected-but-unmeasured, or
     /// relief.
     pub justification: Justification,
-    /// What the shell fetches, when the chosen row has an identified GGUF:
-    /// the exact file at the pinned commit, with its size and digest. None
-    /// says no source has been identified for this row — visibly unfetchable,
-    /// never half-guessed.
-    pub download: Option<DownloadPlan>,
+    /// What the shell fetches: the exact file at the pinned commit, the
+    /// size every byte must add up to, and the digest the download is
+    /// verified against before anything runs. Not an `Option`: a selection
+    /// exists only for a row that carries its file's address, so there is
+    /// no such state as a pick that cannot be fetched.
+    pub download: DownloadPlan,
     /// One or two sentences for the user: what the offer means for them. No
     /// jargon and no numbers; the shell can show it as-is.
     pub plain_reason: String,
@@ -564,11 +564,11 @@ fn selection(
         prefill: chosen.prefill,
         licence: chosen.entry.licence,
         dense_equivalent: chosen.entry.dense_equivalent,
-        download: chosen.entry.source.map(|source| DownloadPlan {
-            url: source.url(),
-            bytes: source.bytes,
-            sha256: source.sha256,
-        }),
+        download: DownloadPlan {
+            url: chosen.source.url(),
+            bytes: chosen.source.bytes,
+            sha256: chosen.source.sha256,
+        },
         justification,
         plain_reason: plain_reason(justification),
         details: details(chosen, input, phone, budget, justification),

@@ -140,13 +140,12 @@ pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::CATALOG;
+    use crate::manifest::rows;
 
     fn dense_row(weights_bytes: u64) -> ModelEntry {
         ModelEntry {
             repo: "test/dense",
             display_name: "Test Dense",
-            source: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
             parameters: crate::parameters::Parameters::dense(8_000_000_000),
@@ -196,8 +195,7 @@ mod tests {
 
     #[test]
     fn the_biggest_row_does_not_fit_the_smallest_tier() {
-        let biggest = CATALOG
-            .iter()
+        let biggest = rows()
             .max_by_key(|entry| entry.weights_bytes)
             .expect("catalog is not empty");
         assert!(!fits(biggest, 8192, &memory_budget(Backend::Cpu, 16 * GIB)));
@@ -210,8 +208,7 @@ mod tests {
         // (80 layers × 8 KV heads × 256 elements, one byte at q8_0), so its
         // footprint at a realistic context is sized from the measurement, not
         // from the constant that under-counts it by 1.7×.
-        let apertus = CATALOG
-            .iter()
+        let apertus = rows()
             .find(|entry| entry.repo.starts_with("swiss-ai/"))
             .expect("apertus is in the catalog");
         assert_eq!(apertus.kv_bytes_per_token, Some(163_840));

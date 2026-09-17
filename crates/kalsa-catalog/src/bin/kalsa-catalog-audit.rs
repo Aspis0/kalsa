@@ -13,7 +13,8 @@ mod audit_config;
 
 use kalsa_catalog::{
     audit::{inspect, RowAssessment},
-    choose, memory_budget, ChoiceInput, Decision, PhoneModel, Prediction, Standing, CATALOG, GIB,
+    choose, memory_budget, ChoiceInput, Decision, DownloadPlan, PhoneModel, Prediction, Standing,
+    CATALOG, GIB,
 };
 
 use audit_config::Config;
@@ -41,23 +42,22 @@ fn main() {
 }
 
 fn print_catalog_facts() {
-    let without_source: Vec<_> = CATALOG
-        .iter()
-        .filter(|entry| entry.source.is_none())
-        .collect();
-    let usable_without_source = without_source
-        .iter()
-        .filter(|entry| entry.is_usable())
-        .count();
     println!(
-        "catalog: {} rows; {} without an identified GGUF ({} usable, {} excluded)",
-        CATALOG.len(),
-        without_source.len(),
-        usable_without_source,
-        without_source.len() - usable_without_source
+        "download table (the chooser's only menu): {} rows, each with a pinned, \
+         digest-verified file",
+        kalsa_catalog::DOWNLOADABLE.len()
     );
-    println!("no GGUF identified:");
-    for entry in without_source {
+    for row in kalsa_catalog::DOWNLOADABLE {
+        println!(
+            "  = {} | {} | {} bytes | sha256 {}",
+            row.model.repo, row.model.quant, row.source.bytes, row.source.sha256
+        );
+    }
+    println!(
+        "research record (never offerable — no identified file): {} rows",
+        CATALOG.len()
+    );
+    for entry in CATALOG {
         println!("  - {} | {}", entry.repo, entry.quant);
     }
 }
@@ -83,11 +83,13 @@ fn print_tier(tier: u64, base: ChoiceInput) {
                 gibs(selection.footprint.total_bytes())
             );
             println!("  decode: {}", prediction(&selection.decode));
-            if selection.download.is_none() {
-                println!("  download: NO GGUF IDENTIFIED (choice selected an unfetchable row)");
-            } else {
-                println!("  download: identified and pinned GGUF");
-            }
+            let DownloadPlan {
+                url,
+                bytes,
+                sha256,
+            } = &selection.download;
+            println!("  download: {url}");
+            println!("            {bytes} bytes, sha256 {sha256}");
             Some(selection.repo)
         }
         Decision::Refuse(refusal) => {
@@ -122,15 +124,15 @@ fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> String
         if row.too_slow {
             reasons.push("too slow: predicted range is below 3.0 tok/s".to_string());
         }
-        if row.entry.source.is_none() {
-            reasons.push("no GGUF identified".to_string());
-        }
         if reasons.is_empty() {
             reasons.push("not selected by the chooser's preference".to_string());
         }
     }
-    if row.entry.source.is_none() && !reasons.iter().any(|reason| reason == "no GGUF identified") {
-        reasons.push("no GGUF identified".to_string());
+    let is_research_row = !kalsa_catalog::DOWNLOADABLE
+        .iter()
+        .any(|download| download.model.repo == row.entry.repo);
+    if is_research_row {
+        reasons.push("research row: no identified file, never offerable".to_string());
     }
     reasons.join("; ")
 }

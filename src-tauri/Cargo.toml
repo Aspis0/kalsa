@@ -15,6 +15,9 @@ kalsa-catalog = { path = "../crates/kalsa-catalog" }
 kalsa-door = { path = "../crates/kalsa-door" }
 kalsa-launch = { path = "../crates/kalsa-launch" }
 kalsa-download = { path = "../crates/kalsa-download" }
+# The cheap first pass over stores that name blobs by digest, ahead of
+# kalsa-download's generic scan (startup.rs, acquire_model).
+kalsa-reuse = { path = "../crates/kalsa-reuse" }
 kalsa-iroh = { path = "../crates/kalsa-iroh" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }
 kalsa-probe = { path = "../crates/kalsa-probe" }

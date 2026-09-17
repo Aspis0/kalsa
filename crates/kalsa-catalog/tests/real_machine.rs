@@ -206,9 +206,7 @@ fn the_catalog_prediction_meets_the_measured_decode() {
                 "a lower-bound bandwidth must predict a floor: {:?}",
                 selection.decode
             );
-            let plan = selection
-                .download
-                .expect("Trinity has an identified, pinned source");
+            let plan = &selection.download;
             assert!(plan.url.contains("Trinity-Nano-Preview-Q4_K_M.gguf"));
             let predicted = selection.decode.floor();
             eprintln!(
