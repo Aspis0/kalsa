@@ -1,0 +1,76 @@
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(var(--ink-rgb), 0.35);
+}
+
+.settings-dialog {
+  width: min(30rem, 100%);
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(var(--ink-rgb), 0.2);
+}
+
+.settings-dialog h2 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.settings-lede {
+  margin: 0 0 1.25rem;
+  color: var(--silence);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.settings-field {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.settings-field span {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.settings-field input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+}
+
+.settings-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.settings-error {
+  margin: 0 0 0.9rem;
+  color: var(--danger);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}

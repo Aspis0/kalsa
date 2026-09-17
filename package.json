@@ -1,0 +1,27 @@
+{
+  "name": "crescent-chat",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A calm desktop chat client for one person. OpenAI-compatible endpoint, local storage, no telemetry.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "shots": "node scripts/shots.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.3"
+  }
+}
