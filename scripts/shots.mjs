@@ -334,7 +334,99 @@ async function main() {
     await shot(page, "shots/16-reduced.png");
     await page.close();
   }
-  // 4 — code answer complete, nav closed: color interplay frame
+  // 18 — settings dialog, first impression
+  if (want("settings")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {});
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await shot(page, "shots/17-settings.png");
+    await page.close();
+  }
+
+  // 19 — settings validation speaks plain language, not regex
+  if (want("settingserror")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {});
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByPlaceholder("https://my-server:8000").fill("not a url");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await shot(page, "shots/18-settings-error.png");
+    await page.close();
+  }
+
+  // 20 — delete asks once, in place, without a modal
+  if (want("deleteconfirm")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await page.getByRole("button", { name: "Delete" }).click();
+    await shot(page, "shots/19-delete.png");
+    await page.close();
+  }
+
+  // 22 — recover: 401 -> fix address in settings -> try again -> streams
+  if (want("recover")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "code-demo" },
+      theme: "light",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("did not accept the key"),
+      null,
+      { timeout: 20000 },
+    );
+    await page.getByRole("button", { name: "Open settings" }).click();
+    await page.getByPlaceholder("https://my-server:8000").fill("http://127.0.0.1:18081/ok");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Try again" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/21-recover.png");
+    await page.close();
+  }
+
+  // 23 — switch conversations mid-stream: thread swaps, stream survives
+  if (want("switch")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("slow-demo"), convos: SEEDED_THREAD, theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await page.getByRole("button", { name: "New chat" }).click();
+    await page.getByRole("textbox", { name: "Message" }).fill("Second topic, slowly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations" }).click();
+    await page.getByRole("button", { name: "Open conversation: Seeded thread" }).click();
+    await shot(page, "shots/22-switch.png");
+    await page.close();
+  }
+  if (want("focus")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("hello");
+    await page.getByRole("textbox", { name: "Message" }).press("Tab");
+    await shot(page, "shots/20-focus.png");
+    await page.close();
+  }
   if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("code-demo"), theme: "light" });

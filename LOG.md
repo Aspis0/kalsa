@@ -122,3 +122,13 @@ osservabile l'attesa — senza, i 45ms dello slow la nascondevano.
 
 Voti: attesa 5 · 401-scuro 5 · copia 5 · incollone 5 · reduced 5.
 Tutti i 12 stati + extra stanno a 4-5: dal prossimo giro si alza il metro.
+
+## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
+
+- 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
+- 18: URL sbagliato -> errore in chiaro, niente gergo da regex.
+- 19: delete in due passi sul posto, niente modale.
+- 20: Tab fino a Invia — anello di focus visibile sul bottone verde.
+- Buttato: niente. Nota driver: `getByRole(name: "Settings")` matcha per
+  sottostringa anche "Open settings" — ora `exact: true` (terza istanza
+  della stessa lezione: nei selettori Playwright, sempre exact o regex).
