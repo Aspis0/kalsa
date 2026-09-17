@@ -138,7 +138,57 @@ async function main() {
     await page.close();
   }
 
-  // 4 — code answer complete, nav closed: color interplay frame
+  // 5 — heavy markdown showcase (lists, table, quote, link, headings)
+  if (want("heavy")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("heavy-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Show me everything.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("in one answer"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/04-heavy.png");
+    await page.close();
+  }
+
+  // 6 — 401: wrong token. Human sentence + path to settings, no trace.
+  if (want("denied")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "x" },
+      theme: "light",
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Hello?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("did not accept the key"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/05-denied.png");
+    await page.close();
+  }
+
+  // 7 — stopped midway: partial text kept, honest note, stop button gone.
+  if (want("stopped")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Tell me slowly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2000);
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(800);
+    await shot(page, "shots/06-stopped.png");
+    await page.close();
+  }
   if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("code-demo"), theme: "light" });

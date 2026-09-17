@@ -66,3 +66,21 @@ movimento ancora da giudicare) · stato d'errore 4 (rete visto e buono;
 Comandi rete sempre limitati: `curl --max-time` + `| head`, mai client che
 aspettano `end` su SSE. In node, autodistruzione con `setTimeout` come prima
 riga. Il tool-bash non uccide i foreground appesi.
+
+## Giro 2 — 401, stop, markdown pesante (2026-09-17)
+
+Nessuna modifica all'app: i tre stati erano già a posto e gli screenshot
+lo confermano (04-heavy, 05-denied, 06-stopped).
+
+- 04: titoli Georgia, liste annidate, tabella con header muto, citazione con
+  filetto, link in accento sottolineato, `inline code` a chip. L'accento
+  accanto al mono non stride — secondo sì al giudizio verde del giro 1.
+- 05: 401 in italiano tecnico-umano, niente trace, due azioni
+  (Riprova / Apri impostazioni). Titolo conversazione derivato dal primo
+  messaggio anche a fallimento — tenuto, è corretto.
+- 06: stop dopo ~2s, testo parziale troncato a metà parola, nota onesta
+  "Stopped early", composer tornato a invio. Specifica rispettata.
+- Nota per più avanti: dopo uno stop non c'è "riprendi da qui", solo
+  riscrivere. Accettato per ora, non è fra i 12 stati.
+
+Voti: heavy 5/5/5 · 401 (stato d'errore) 5 · stop 5. Lo stato d'errore sale a 5.
