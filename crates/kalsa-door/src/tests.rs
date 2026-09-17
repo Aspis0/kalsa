@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::registry::Registry;
-use super::{proxy, Door, DoorError, ActiveDevices, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
+use super::{proxy, Door, DoorError, ActiveDevices, DeviceSet, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
@@ -288,6 +288,173 @@ fn an_authenticated_connection_is_active_as_its_device() {
     upstream_thread.join().unwrap();
 }
 
+/// An upstream that answers every request with a slow body — 48 bytes
+/// written in six 8-byte steps, 40ms apart — so a test can look at the door
+/// while an answer is genuinely in flight. Returns the port, a stop flag
+/// and the thread; the flag is stored and the thread joined on test end.
+/// Stopped and joined however the test ends: an assertion failing
+/// mid-answer must not leave a 2ms accept loop spinning behind it.
+struct SlowUpstream {
+    stop: Arc<AtomicBool>,
+    handle: Option<thread::JoinHandle<()>>,
+}
+
+impl Drop for SlowUpstream {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+fn slow_answer_upstream() -> (u16, SlowUpstream) {
+    let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = upstream.local_addr().unwrap().port();
+    let stop = Arc::new(AtomicBool::new(false));
+    let thread_stop = Arc::clone(&stop);
+    let handle = thread::spawn(move || {
+        upstream.set_nonblocking(true).unwrap();
+        while !thread_stop.load(Ordering::SeqCst) {
+            match upstream.accept() {
+                Ok((stream, _)) => {
+                    let mut stream = stream;
+                    stream.set_nonblocking(false).unwrap();
+                    let mut head = Vec::new();
+                    let mut byte = [0u8; 1];
+                    loop {
+                        if stream.read(&mut byte).unwrap_or(0) == 0
+                            || (head.push(byte[0]), head.ends_with(b"\r\n\r\n")).1
+                        {
+                            break;
+                        }
+                    }
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 48\r\nConnection: close\r\n\r\n",
+                    );
+                    for _ in 0..6 {
+                        thread::sleep(Duration::from_millis(40));
+                        // `#` never appears in an HTTP head, so counting the
+                        // marker counts body bytes, nothing else.
+                        let _ = stream.write_all(b"########");
+                    }
+                }
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(2));
+                }
+                Err(_) => return,
+            }
+        }
+    });
+    (
+        port,
+        SlowUpstream {
+            stop,
+            handle: Some(handle),
+        },
+    )
+}
+
+#[test]
+fn an_added_device_disturbs_nobody_and_starts_authenticating() {
+    // The house model: one device is mid-answer when another pairs. The
+    // answer runs to its last byte and the listener never rebinds; the new
+    // device authenticates from its first request after the swap.
+    // The guard owns the upstream: dropping it at scope end stops and joins.
+    let (upstream_port, _upstream) = slow_answer_upstream();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let first = credential();
+    let second = credential();
+    let door = Door::new(listener, upstream_port, door_devices(&[&first]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    let mut client = TcpStream::connect(address).unwrap();
+    client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    write!(
+        client,
+        "POST /answer HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: Bearer {first}\r\nContent-Length: 0\r\n\
+         Connection: close\r\n\r\n"
+    )
+    .unwrap();
+    thread::sleep(Duration::from_millis(50)); // mid-answer
+
+    door.set_devices(door_devices(&[&first, &second]));
+
+    let mut answer = Vec::new();
+    client.read_to_end(&mut answer).unwrap();
+    assert_eq!(
+        answer.iter().filter(|&&byte| byte == b'#').count(),
+        48,
+        "the in-flight answer was disturbed by an add"
+    );
+
+    let newcomer = request(address, Some(&format!("Bearer {second}")));
+    assert!(
+        newcomer.starts_with(b"HTTP/1.1 200 OK"),
+        "the added device could not authenticate: {}",
+        String::from_utf8_lossy(&newcomer)
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_removed_device_is_cut_mid_answer_and_refused_after() {
+    // The decision under test: revocation is immediate and mid-flight. The
+    // forgotten device's in-flight answer is cut at the next relay check —
+    // the owner's forget outranks the tail of an answer the device streamed
+    // for before it was revoked — and every later request is refused.
+    // The guard owns the upstream: dropping it at scope end stops and joins.
+    let (upstream_port, _upstream) = slow_answer_upstream();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let revoked = credential();
+    let keeper = credential();
+    let door = Door::new(listener, upstream_port, door_devices(&[&revoked, &keeper]))
+        .unwrap()
+        .start()
+        .unwrap();
+
+    let mut client = TcpStream::connect(address).unwrap();
+    client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    write!(
+        client,
+        "POST /answer HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: Bearer {revoked}\r\nContent-Length: 0\r\n\
+         Connection: close\r\n\r\n"
+    )
+    .unwrap();
+    thread::sleep(Duration::from_millis(50)); // mid-answer
+
+    // Device 0 leaves, device 1 keeps its id: a removal removes the id,
+    // it does not renumber the set.
+    door.set_devices(Devices::new(vec![DeviceEntry::new(
+        DeviceId::new(1),
+        "Keeper",
+        keeper.clone(),
+    )
+    .unwrap()])
+    .unwrap());
+
+    let mut answer = Vec::new();
+    client.read_to_end(&mut answer).unwrap();
+    let delivered = answer.iter().filter(|&&byte| byte == b'#').count();
+    assert!(
+        delivered < 48,
+        "a revoked device kept streaming: {delivered} of 48 bytes"
+    );
+
+    // And the credential is dead for everything that follows.
+    let again = request(address, Some(&format!("Bearer {revoked}")));
+    assert!(again.starts_with(b"HTTP/1.1 401"));
+    let kept = request(address, Some(&format!("Bearer {keeper}")));
+    assert!(kept.starts_with(b"HTTP/1.1 200 OK"));
+    door.shutdown();
+}
+
 #[test]
 fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
     // The accepted stamp here is long stale — the shape of a connection
@@ -306,7 +473,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
         let stop = AtomicBool::new(false);
         let active = ActiveDevices::new();
         let registry = Registry::new();
-        let devices = door_devices(&[&"0".repeat(64)]);
+        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]));
         let accepted = Instant::now()
             .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(5))
             .unwrap();
@@ -575,7 +742,7 @@ fn a_connection_past_its_lifetime_is_cut() {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
         let active = ActiveDevices::new();
-        let devices = door_devices(&[&"0".repeat(64)]);
+        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]));
         let accepted = Instant::now()
             .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))
             .unwrap();

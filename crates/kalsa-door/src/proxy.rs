@@ -10,18 +10,35 @@ use crate::token::parse_resume;
 use crate::request;
 use crate::response;
 use crate::stream;
-use crate::{ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
+use crate::{ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
 pub(super) type Observed = dyn Fn(&[u8]) + Send + Sync;
+
+/// The conditions under which an in-flight exchange stops: the door is
+/// shutting down, or the device it serves was revoked while the answer was
+/// streaming. Checked between relay steps. The revocation half takes a
+/// short read lock to look at an `Arc` — no lock is ever held for I/O, so
+/// one streamed answer cannot serialize the house.
+pub(super) struct Cancel<'a> {
+    stop: &'a AtomicBool,
+    devices: &'a DeviceSet,
+    device: DeviceId,
+}
+
+impl Cancel<'_> {
+    pub(super) fn stopped(&self) -> bool {
+        self.stop.load(Ordering::SeqCst) || !self.devices.holds(self.device)
+    }
+}
 
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
     head_patience: Duration,
     upstream_port: u16,
-    devices: &Devices,
+    devices: &DeviceSet,
     registry: &Registry,
     stop: &AtomicBool,
     active: &ActiveDevices,
@@ -57,7 +74,11 @@ pub(super) fn handle(
             }
         }
     };
-    let device = match authenticated(head.authorization.as_deref(), devices) {
+    // Authentication reads the CURRENT set, as a short-lived Arc: the lock
+    // is gone by the time the credential scan runs, and the scan sees
+    // either the whole old set or the whole new one.
+    let current = devices.current();
+    let device = match authenticated(head.authorization.as_deref(), &current) {
         Some(device) => device,
         None => {
             // The refusal must be readable: an unread body would reset the
@@ -71,6 +92,11 @@ pub(super) fn handle(
     // Presence for the running door: this device, exactly while the door is
     // inside this request. Only an authenticated device is ever counted.
     let _active = active.enter(device);
+    let cancel = Cancel {
+        stop,
+        devices,
+        device,
+    };
     if let Some(last_event_id) = head.last_event_id.as_deref() {
         // Resuming never reaches the upstream: the answer this request asks
         // for already exists in the door or it does not. The retried body is
@@ -80,7 +106,7 @@ pub(super) fn handle(
         if discard_request_body(&mut client, head.body_length, deadline).is_err() {
             return;
         }
-        resume(&mut client, registry, last_event_id, device, observer, deadline, stop);
+        resume(&mut client, registry, last_event_id, device, observer, deadline, &cancel);
         return;
     }
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
@@ -98,13 +124,18 @@ pub(super) fn handle(
     if write_with_deadline(&mut upstream, &head.forwarded, deadline).is_err() {
         return;
     }
-    if relay_exact(&mut client, &mut upstream, head.body_length, deadline, stop).is_err() {
+    if relay_exact(&mut client, &mut upstream, head.body_length, deadline, &cancel).is_err() {
         return;
     }
     let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
         Ok(head) => head,
         Err(_) => return,
     };
+    // The response head is the last byte a revoked device may receive:
+    // everything after it is behind a relay check, so this write is too.
+    if cancel.stopped() {
+        return;
+    }
     if !upstream_head.event_stream {
         // Everything the door does not take custody of moves through as it
         // always has: the upstream's own bytes, untouched.
@@ -114,7 +145,7 @@ pub(super) fn handle(
         if let Some(observer) = observer {
             observer(&upstream_head.raw);
         }
-        let _ = relay_response(&mut upstream, &mut client, deadline, stop, observer);
+        let _ = relay_response(&mut upstream, &mut client, deadline, &cancel, observer);
         return;
     }
     let job = match registry.start(device, response::client_head(&upstream_head.raw)) {
@@ -135,7 +166,7 @@ pub(super) fn handle(
         client,
         upstream_head.chunked,
         deadline,
-        stop,
+        &cancel,
         observer,
     );
 }
@@ -150,7 +181,7 @@ fn resume(
     device: DeviceId,
     observer: Option<&Observed>,
     deadline: Instant,
-    stop: &AtomicBool,
+    cancel: &Cancel,
 ) {
     let words = match parse_resume(last_event_id) {
         Some(resume) => match registry.find(&resume.token) {
@@ -158,7 +189,7 @@ fn resume(
                 ResumeDecision::Serve => {
                     // The client saw `seen`; the next byte of the answer it
                     // is owed is the event after it.
-                    stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, stop);
+                    stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, cancel);
                     return;
                 }
                 ResumeDecision::Refused(words) => words,
@@ -222,12 +253,12 @@ fn relay_exact(
     to: &mut TcpStream,
     length: usize,
     deadline: Instant,
-    stop: &AtomicBool,
+    cancel: &Cancel,
 ) -> io::Result<()> {
     let mut left = length;
     let mut buffer = [0u8; 16 * 1024];
     while left > 0 {
-        if stop.load(Ordering::SeqCst) {
+        if cancel.stopped() {
             return Err(io::Error::new(io::ErrorKind::Interrupted, "door stopped"));
         }
         set_read_deadline(from, deadline)?;
@@ -250,12 +281,12 @@ fn relay_response(
     from: &mut TcpStream,
     to: &mut TcpStream,
     deadline: Instant,
-    stop: &AtomicBool,
+    cancel: &Cancel,
     observer: Option<&Observed>,
 ) -> io::Result<()> {
     let mut buffer = [0u8; 16 * 1024];
     loop {
-        if stop.load(Ordering::SeqCst) {
+        if cancel.stopped() {
             return Ok(());
         }
         set_read_deadline(from, deadline)?;

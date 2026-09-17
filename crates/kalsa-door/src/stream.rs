@@ -11,12 +11,11 @@
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::jobs::{Appended, Failure, Job, Status, Take};
-use crate::proxy::set_write_deadline;
+use crate::proxy::{set_write_deadline, Cancel};
 use crate::chunk::Dechunker;
 use crate::sse::{self, EventSplitter};
 
@@ -30,9 +29,15 @@ pub(super) fn produce_and_serve(
     mut client: TcpStream,
     chunked: bool,
     deadline: Instant,
-    stop: &AtomicBool,
+    cancel: &Cancel,
     observer: Option<&Observed>,
 ) {
+    // The response head is the last byte a revoked device may receive: the
+    // first content check is below, so this one guards the head itself.
+    if cancel.stopped() {
+        job.close(Status::Failed(Failure::Shutdown));
+        return;
+    }
     let mut attached = write_bytes(&mut client, job.head(), observer, deadline);
     let mut dechunker = Dechunker::new();
     let mut splitter = EventSplitter::new();
@@ -41,7 +46,11 @@ pub(super) fn produce_and_serve(
     let mut body = Vec::new();
     let mut raw_events: Vec<Vec<u8>> = Vec::new();
     loop {
-        if stop.load(Ordering::SeqCst) {
+        if cancel.stopped() {
+            // The door closed, or the device was revoked mid-answer. The
+            // job fails with the shutdown words: the only device that could
+            // ever resume it cannot authenticate anymore, so the sentence
+            // is honest and unheard at the same time.
             job.close(Status::Failed(Failure::Shutdown));
             break;
         }
@@ -133,15 +142,18 @@ pub(super) fn serve_resume(
     from: usize,
     observer: Option<&Observed>,
     deadline: Instant,
-    stop: &AtomicBool,
+    cancel: &Cancel,
 ) {
+    if cancel.stopped() {
+        return;
+    }
     if !write_bytes(client, job.head(), observer, deadline) {
         return;
     }
     let mut cursor = from;
     let mut out = Vec::new();
     loop {
-        if stop.load(Ordering::SeqCst) {
+        if cancel.stopped() {
             return;
         }
         match job.take(&mut cursor, deadline.min(Instant::now() + TAIL_SLICE), &mut out) {

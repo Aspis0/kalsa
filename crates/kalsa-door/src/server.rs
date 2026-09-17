@@ -5,9 +5,8 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::devices::Devices;
 use crate::registry::Registry;
-use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
+use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, DeviceSet, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
 struct Work {
     stream: TcpStream,
@@ -38,6 +37,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let connections = Arc::new(AtomicUsize::new(0));
     let active = Arc::new(ActiveDevices::new());
     let registry = Arc::new(Registry::new());
+    let device_set = Arc::clone(&door.devices);
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
     let mut threads = Vec::with_capacity(WORKERS + 2);
@@ -108,6 +108,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     Ok(RunningDoor {
         stop,
         address,
+        devices: device_set,
         active,
         threads: Mutex::new(threads),
     })
@@ -180,7 +181,7 @@ fn worker(
     active: Arc<ActiveDevices>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     registry: Arc<Registry>,
-    devices: Arc<Devices>,
+    devices: Arc<DeviceSet>,
     upstream_port: u16,
     head_patience: Duration,
     observer: Option<crate::ResponseObserverFactory>,

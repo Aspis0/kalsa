@@ -66,7 +66,7 @@ use std::io;
 use std::time::Duration;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
 
 const TOKEN_BYTES: usize = 64;
@@ -130,9 +130,49 @@ pub struct Door {
     listener: TcpListener,
     address: SocketAddr,
     upstream_port: u16,
-    devices: Arc<Devices>,
+    devices: Arc<DeviceSet>,
     head_patience: Duration,
     response_observer: Option<ResponseObserverFactory>,
+}
+
+/// The paired devices behind a door, swappable while it runs. Every
+/// authentication and every mid-stream revocation check takes the current
+/// set as a short-lived `Arc` — a lock is never held across a proxied
+/// response, which would serialize the whole house behind one streamed
+/// answer.
+pub(crate) struct DeviceSet {
+    current: RwLock<Arc<Devices>>,
+}
+
+impl DeviceSet {
+    pub(crate) fn new(devices: Devices) -> Self {
+        Self {
+            current: RwLock::new(Arc::new(devices)),
+        }
+    }
+
+    /// Replaces the set in place. Nothing is stopped and nothing is rebound:
+    /// the next authentication sees the new set, and a device it no longer
+    /// holds is cut at its next relay check.
+    pub(crate) fn swap(&self, devices: Devices) {
+        *self
+            .current
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(devices);
+    }
+
+    fn current(&self) -> Arc<Devices> {
+        self.current
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    /// Whether the set still holds this device — the revocation check an
+    /// in-flight exchange makes between relay steps.
+    fn holds(&self, device: DeviceId) -> bool {
+        self.current().contains(device)
+    }
 }
 
 /// The devices with a connection currently being served. Presence, not
@@ -193,6 +233,7 @@ impl Drop for ActiveGuard<'_> {
 pub struct RunningDoor {
     stop: Arc<AtomicBool>,
     address: SocketAddr,
+    devices: Arc<DeviceSet>,
     active: Arc<ActiveDevices>,
     threads: Mutex<Vec<JoinHandle<()>>>,
 }
@@ -200,7 +241,8 @@ pub struct RunningDoor {
 impl Door {
     /// Validate the caller's bound listener and retain the set of paired
     /// devices. The set already validated itself when it was built; the
-    /// door does not know where it came from and never changes it.
+    /// door does not know where it came from, and the running door's set
+    /// changes only through [`RunningDoor::set_devices`].
     pub fn new(listener: TcpListener, upstream_port: u16, devices: Devices) -> Result<Self, DoorError> {
         let address = listener.local_addr().map_err(DoorError::Listener)?;
         if !address.ip().is_loopback() {
@@ -213,7 +255,7 @@ impl Door {
             listener,
             address,
             upstream_port,
-            devices: Arc::new(devices),
+            devices: Arc::new(DeviceSet::new(devices)),
             head_patience: HEAD_PATIENCE,
             response_observer: None,
         })
@@ -258,6 +300,22 @@ impl RunningDoor {
     /// credential exists; who the devices are is the app's translation.
     pub fn active_devices(&self) -> Vec<DeviceId> {
         self.active.snapshot()
+    }
+
+    /// Replaces the credential set without stopping anything: the listener
+    /// stays bound, the workers keep serving, the road never notices.
+    ///
+    /// The two sides of the swap are not symmetric, on purpose. Adding a
+    /// device disturbs nobody — the next request from it authenticates, and
+    /// every exchange already in flight keeps its bytes. Removing a device
+    /// revokes it: every later request is refused outright, and an exchange
+    /// of the revoked device that is mid-flight right now is CUT at the
+    /// next relay check. The owner's forget outranks the tail of an answer
+    /// the device streamed for before it was revoked; the alternative —
+    /// letting a revoked credential pull the rest of its answer — is the
+    /// one outcome revocation cannot mean.
+    pub fn set_devices(&self, devices: Devices) {
+        self.devices.swap(devices);
     }
 
     /// Stop accepting and wait for the bounded thread set to leave.

@@ -160,12 +160,22 @@ impl Desk {
     pub(crate) fn new(file: PathBuf) -> Self {
         let state = match kalsa_pairing::store::load_with_delivery(&file) {
             Ok((handshake, delivery)) => {
-                let pending = delivery
-                    .and_then(PendingDelivery::from_store)
-                    .filter(|pending| SystemTime::now() < pending.expires_at);
-                State::Paired {
-                    phone: handshake.phone,
-                    pending,
+                // Record 0 alone loading is not the store being readable:
+                // the door answers to the whole SET, and this desk's verdict
+                // must be the door's. A set with an un-realizable record
+                // stops the door on every poll, so the panel says the store
+                // is unavailable — the one state whose escape hatch is open
+                // — instead of promising a pairing the door refuses.
+                if kalsa_pairing::store::load_devices(&file).is_err() {
+                    State::StoreUnavailable
+                } else {
+                    let pending = delivery
+                        .and_then(PendingDelivery::from_store)
+                        .filter(|pending| SystemTime::now() < pending.expires_at);
+                    State::Paired {
+                        phone: handshake.phone,
+                        pending,
+                    }
                 }
             }
             Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -455,9 +465,17 @@ impl Desk {
 
     /// The owner explicitly discards an unreadable store so pairing can
     /// recover. It never silently forgets a readable pairing.
+    ///
+    /// The gate keys on the door's verdict — the SET reader — not on this
+    /// desk's single-record view. A set whose later records cannot be
+    /// realized stops the door on every poll while record 0 alone still
+    /// loads; that is exactly the state this button exists to clear, and
+    /// gating on anything else would leave the store unrecoverable from
+    /// inside the app. A fully readable store is still refused: forgetting
+    /// a healthy pairing is never implicit.
     pub(crate) fn forget(&self) -> Result<(), StoreError> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if !matches!(*state, State::StoreUnavailable) {
+        if kalsa_pairing::store::load_devices(&self.file).is_ok() {
             return Ok(());
         }
         kalsa_pairing::store::forget(&self.file)?;
@@ -648,6 +666,62 @@ mod tests {
         let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
         assert_eq!(dto["phone"], "phone with 2 GB of model weights");
         assert_eq!(dto["delivery_pending"], true);
+    }
+
+    /// A set the door refuses (record 1 declares parameters that cannot
+    /// exist) must be recoverable from inside the app: the desk agrees with
+    /// the door's reader — StoreUnavailable, not a healthy pairing — and
+    /// the escape hatch actually opens.
+    #[test]
+    fn a_store_the_door_cannot_fully_read_is_recoverable_from_the_desk() {
+        let file = scratch("half-broken");
+        let fine = "ab".repeat(32);
+        let other = "cd".repeat(32);
+        let impossible = r#"{"total":8,"active":9}"#;
+        std::fs::write(
+            &file,
+            format!(
+                r#"{{"v":2,"devices":[
+                    {{"id":0,"label":"Fine","credential_hex":"{fine}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}},
+                    {{"id":1,"label":"Broken","credential_hex":"{other}","phone":{{"weights_bytes":1,"parameters":{impossible},"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+            ),
+        )
+        .unwrap();
+
+        // The single-record view would call this a healthy pairing; the
+        // desk must take the door's verdict instead.
+        let desk = Desk::new(file.clone());
+        assert!(matches!(
+            *desk.state.lock().unwrap(),
+            State::StoreUnavailable
+        ));
+
+        // The old gate refused here, because record 0 loads — the store
+        // was unrecoverable from inside the app.
+        desk.forget().expect("the escape hatch opens for a set the door refuses");
+        assert!(!file.exists(), "the store is gone");
+        assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
+    }
+
+    /// And the protection keeps its other edge: a store the door accepts is
+    /// never forgotten implicitly.
+    #[test]
+    fn forget_still_refuses_a_readable_store() {
+        let file = scratch("forget-healthy");
+        let fine = "ab".repeat(32);
+        std::fs::write(
+            &file,
+            format!(
+                r#"{{"v":2,"devices":[{{"id":0,"label":"Fine","credential_hex":"{fine}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+            ),
+        )
+        .unwrap();
+        let desk = Desk::new(file.clone());
+        desk.forget().unwrap();
+        assert!(
+            file.exists(),
+            "a readable pairing is never forgotten implicitly"
+        );
     }
 
     /// A proof keyed on anything but this square mints nothing, and burns the

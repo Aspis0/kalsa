@@ -134,6 +134,12 @@ impl Devices {
             .find(|entry| entry.id == id)
             .map(|entry| entry.label.as_str())
     }
+
+    /// Whether the set still holds this device — the check a streaming
+    /// exchange makes between relay steps, so a revoked device is cut.
+    pub(crate) fn contains(&self, id: DeviceId) -> bool {
+        self.entries.iter().any(|entry| entry.id == id)
+    }
 }
 
 /// The one credential format: exactly 64 ASCII hex characters, kept as

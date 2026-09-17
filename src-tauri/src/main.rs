@@ -183,7 +183,10 @@ impl Brain {
                         .devices
                         .label(id)
                         .map(str::to_owned)
-                        .unwrap_or_else(|| format!("device {}", id.value())),
+                        // A device draining its last exchange after a removal:
+                        // its label left with the set, so the honest name is
+                        // the fact, not a placeholder that reads like a bug.
+                        .unwrap_or_else(|| "Removed device".to_string()),
                 })
                 .collect(),
         )
@@ -195,24 +198,22 @@ impl Brain {
         file: &Path,
         internet_road: bool,
     ) -> Result<(), String> {
-        let devices = match kalsa_pairing::store::load(file) {
-            Ok(handshake) => {
-                // The store holds exactly one pairing today, so the id is
-                // stable because there is nothing else it could point at,
-                // and the label is the app's until the store learns to hold
-                // more. Validation of the stored credential happens here,
-                // per entry, by the door's own type.
-                kalsa_door::DeviceEntry::new(
-                    kalsa_door::DeviceId::new(0),
-                    "Paired phone",
-                    handshake.credential_hex(),
-                )
-                .and_then(|entry| kalsa_door::Devices::new(vec![entry]))
-                .map_err(|_| "The authenticated door could not read its credential.".to_string())?
-            }
-            Err(kalsa_pairing::StoreError::Io(error))
-                if error.kind() == io::ErrorKind::NotFound =>
-            {
+        // Every stored device travels to the door under its own id and its
+        // own label, the identity the store minted when the device paired.
+        // An empty set is "not paired" — the same answer the absent file
+        // used to get, without an io error to squint at.
+        //
+        // One un-realizable record refuses the WHOLE set, on purpose: this
+        // store never writes one (the pairing ceremony validates the same
+        // fields the reader validates), so the trigger is a file this app
+        // did not write — a hand edit or another build. Serving the part
+        // that parses while the file disagrees with itself would make the
+        // door's answer depend on record order; the refusal is honest and,
+        // because the desk's escape hatch keys on this same reader, it is
+        // recoverable from inside the app.
+        let stored_devices = match kalsa_pairing::store::load_devices(file) {
+            Ok(devices) if !devices.is_empty() => devices,
+            Ok(_) => {
                 self.stop_door();
                 return Ok(());
             }
@@ -221,63 +222,89 @@ impl Brain {
                 return Err("The authenticated door could not read its credential.".to_string());
             }
         };
+        let entries = stored_devices
+            .into_iter()
+            .map(|device| {
+                kalsa_door::DeviceEntry::new(
+                    kalsa_door::DeviceId::new(device.id),
+                    device.label,
+                    device.handshake.credential_hex(),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "The authenticated door could not read its credential.".to_string())?;
+        let devices =
+            kalsa_door::Devices::new(entries).map_err(|_| {
+                "The authenticated door could not read its credential.".to_string()
+            })?;
         let mut stored = self
             .door
             .lock()
             .map_err(|_| "The authenticated door could not start.".to_string())?;
-        if stored
-            .as_ref()
-            .is_some_and(|active| active.devices == devices)
-        {
-            // The door is already the right one — and the switch still
-            // governs the road. This poll reads the same file the panel
-            // reads; without the reconcile, a switch flipped outside the
-            // panel would leave the machine announced while the owner is
-            // told the road is off. The address comes from the lock this
-            // function already holds.
-            let address = stored.as_ref().map(|active| active.address);
-            self.reconcile_road(internet_road, address, file, false);
-            return Ok(());
-        }
-        if let Some(old) = stored.take() {
-            // The road is re-pointed before the old door dies: between the
-            // two, an Open road would name an address nothing serves.
-            self.road.close();
-            old.door.shutdown();
-        }
-        let listener =
-            door::bind(file).map_err(|_| "The authenticated door could not bind.".to_string())?;
-        let metrics = Arc::clone(&self.metrics);
-        let door = kalsa_door::Door::new(listener, upstream_port, devices.clone())
-            .map_err(|_| "The authenticated door could not start.".to_string())?
-            .with_response_observer(move || {
-                let metrics = Arc::clone(&metrics);
-                let scanner = Mutex::new(metrics::TimingScanner::new());
-                move |bytes| {
-                    let rate = scanner
-                        .lock()
-                        .ok()
-                        .and_then(|mut scanner| scanner.feed(bytes));
-                    if let Some(rate) = rate {
-                        metrics.observe_decode(rate);
-                    }
+        match stored.as_mut() {
+            Some(active) if active.devices == devices => {
+                // The door is already the right one — and the switch still
+                // governs the road. This poll reads the same file the panel
+                // reads; without the reconcile, a switch flipped outside the
+                // panel would leave the machine announced while the owner is
+                // told the road is off. The address comes from the lock this
+                // function already holds.
+                let address = active.address;
+                self.reconcile_road(internet_road, Some(address), file, false);
+            }
+            Some(active) => {
+                // The set changed; the door did not need to. The new
+                // credentials go in place: the listener never rebinds, so
+                // pairing a device disturbs no conversation already in
+                // flight, and a forgotten device is revoked by the door
+                // itself, mid-exchange. The road points at the same bound
+                // address — nothing it names stops being served — and the
+                // switch still governs it, as on the fast path.
+                active.door.set_devices(devices.clone());
+                active.devices = devices;
+                let address = active.address;
+                self.reconcile_road(internet_road, Some(address), file, false);
+            }
+            None => {
+                // No door is running: the one case that truly needs a new
+                // listener. (The old take-then-rebuild arm is gone with the
+                // behavior that needed it — a set change never lands here.)
+                let listener = door::bind(file).map_err(|_| {
+                    "The authenticated door could not bind.".to_string()
+                })?;
+                let metrics = Arc::clone(&self.metrics);
+                let door = kalsa_door::Door::new(listener, upstream_port, devices.clone())
+                    .map_err(|_| "The authenticated door could not start.".to_string())?
+                    .with_response_observer(move || {
+                        let metrics = Arc::clone(&metrics);
+                        let scanner = Mutex::new(metrics::TimingScanner::new());
+                        move |bytes| {
+                            let rate = scanner
+                                .lock()
+                                .ok()
+                                .and_then(|mut scanner| scanner.feed(bytes));
+                            if let Some(rate) = rate {
+                                metrics.observe_decode(rate);
+                            }
+                        }
+                    });
+                let running = door
+                    .start()
+                    .map_err(|_| "The authenticated door could not start.".to_string())?;
+                let address = running.address();
+                *stored = Some(ActiveDoor {
+                    devices,
+                    address,
+                    door: running,
+                });
+                // The road opens only while the owner's switch has it on, and
+                // toward the address the running door itself reported — never
+                // a port reconstructed from elsewhere. A road that cannot open
+                // says so in the panel and leaves the door standing.
+                if internet_road {
+                    road::open(&self.road, address, road::key_path(file));
                 }
-            });
-        let running = door
-            .start()
-            .map_err(|_| "The authenticated door could not start.".to_string())?;
-        let address = running.address();
-        *stored = Some(ActiveDoor {
-            devices,
-            address,
-            door: running,
-        });
-        // The road opens only while the owner's switch has it on, and
-        // toward the address the running door itself reported — never a
-        // port reconstructed from elsewhere. A road that cannot open says
-        // so in the panel and leaves the door standing.
-        if internet_road {
-            road::open(&self.road, address, road::key_path(file));
+            }
         }
         Ok(())
     }
@@ -447,8 +474,13 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             {
                 brain.stop_door();
                 desk.desk.stop_serving();
+                // This fails on every poll until the store is cleared, so
+                // the sentence must point at the escape hatch, not at a
+                // retry that cannot work.
                 return StateDto::Failed {
-                    reason: "The authenticated door could not start. Trying again usually works."
+                    reason: "The credential store could not be read, so this computer is not \
+                             reachable by any phone. Forgetting the stored pairing on the Pairing \
+                             page and pairing again will fix it."
                         .to_string(),
                 };
             }
@@ -979,6 +1011,30 @@ mod tests {
 
     impl TestUpstream {
         fn start() -> (Self, u16) {
+            Self::serve(|mut stream| {
+                let _ = std::io::Write::write_all(&mut stream, &UPSTREAM_RESPONSE);
+            })
+        }
+
+        /// Answers with the same head but a body that arrives in six
+        /// 8-byte steps, 40 ms apart: long enough that a test can change
+        /// the device set while an answer is genuinely in flight.
+        fn slow_start() -> (Self, u16) {
+            Self::serve(|mut stream| {
+                let _ = std::io::Write::write_all(
+                    &mut stream,
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 48\r\nConnection: close\r\n\r\n",
+                );
+                for _ in 0..6 {
+                    std::thread::sleep(Duration::from_millis(40));
+                    // `#` never appears in an HTTP head, so the client can
+                    // count body bytes by counting the marker.
+                    let _ = std::io::Write::write_all(&mut stream, b"########");
+                }
+            })
+        }
+
+        fn serve(answer: impl Fn(std::net::TcpStream) + Send + 'static) -> (Self, u16) {
             let upstream =
                 std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
             let port = upstream.local_addr().unwrap().port();
@@ -1003,7 +1059,7 @@ mod tests {
                                         break;
                                     }
                                 }
-                                let _ = std::io::Write::write_all(&mut stream, &UPSTREAM_RESPONSE);
+                                answer(stream);
                             }
                             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                                 std::thread::sleep(Duration::from_millis(2));
@@ -1261,6 +1317,94 @@ mod tests {
         brain.stop_door();
         drop(upstream);
         let _ = std::fs::remove_file(&client_key);
+    }
+
+    /// A plain HTTP exchange with the door on `port`, using the same
+    /// bearer-credential shape the phone uses.
+    fn door_response(port: u16, credential: &str) -> Vec<u8> {
+        use std::io::{Read, Write};
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        write!(
+            stream,
+            "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+             Authorization: Bearer {credential}\r\nContent-Length: 0\r\n\
+             Connection: close\r\n\r\n"
+        )
+        .unwrap();
+        let mut response = Vec::new();
+        stream.read_to_end(&mut response).unwrap();
+        response
+    }
+
+    #[test]
+    fn a_set_change_takes_the_new_devices_in_place() {
+        // The whole point of the swap: pairing a second device must not
+        // kill the door. The proof is an answer IN FLIGHT across the
+        // device-set change — a rebuilt door would cut it mid-body, the
+        // swap must carry it to its last byte — and then both credentials
+        // working through the same listener.
+        let (_dir, file) = scratch_pairing("set-swap");
+        let (upstream, port) = TestUpstream::slow_start();
+        let brain = Brain::new();
+        brain.start_door_if_paired(port, &file, false).unwrap();
+        let original = kalsa_pairing::store::load(&file).unwrap().credential_hex();
+        let newcomer = "cd".repeat(32);
+
+        // A device is mid-answer when the household grows.
+        let mut stream =
+            std::net::TcpStream::connect(("127.0.0.1", brain.door_port().unwrap())).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        std::io::Write::write_all(
+            &mut stream,
+            format!(
+                "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+                 Authorization: Bearer {original}\r\nContent-Length: 0\r\n\
+                 Connection: close\r\n\r\n"
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+        std::thread::sleep(Duration::from_millis(80));
+
+        // The same file, now a set of two, written the way the store
+        // writes them.
+        std::fs::write(
+            &file,
+            format!(
+                r#"{{"v":2,"devices":[
+                    {{"id":0,"label":"Paired phone","credential_hex":"{original}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}},
+                    {{"id":1,"label":"Second phone","credential_hex":"{newcomer}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+            ),
+        )
+        .unwrap();
+        brain.start_door_if_paired(port, &file, false).unwrap();
+
+        // The in-flight answer survives the swap, to its last byte.
+        let mut answer = Vec::new();
+        std::io::Read::read_to_end(&mut stream, &mut answer).unwrap();
+        assert_eq!(
+            answer.iter().filter(|&&byte| byte == b'#').count(),
+            48,
+            "the in-flight answer was cut by a set change: the door was rebuilt"
+        );
+
+        // And both credentials open the same listener afterwards.
+        let door_port = brain.door_port().unwrap();
+        let newcomer_response = door_response(door_port, &newcomer);
+        assert!(
+            newcomer_response.starts_with(b"HTTP/1.1 200 OK"),
+            "the added device's credential does not open the door: {}",
+            String::from_utf8_lossy(&newcomer_response)
+        );
+        let original_response = door_response(door_port, &original);
+        assert!(
+            original_response.starts_with(b"HTTP/1.1 200 OK"),
+            "the first device was disturbed by the add: {}",
+            String::from_utf8_lossy(&original_response)
+        );
+        brain.stop_door();
+        drop(upstream);
     }
 
     #[test]
