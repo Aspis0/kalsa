@@ -5928,6 +5928,9 @@ full speed (does not cool). A third exists and is unmeasured: **keep generating 
 cores during the pause.** 5x slower costs nothing when the alternative is a full stop, and it is
 the only option that saves the turn *and* sheds heat.
 
+⚠️ **Correction, owner 17/09:** a half-attempt at this already exists. Do not call it untouched
+and do not propose it again before finding that attempt and reading why it stopped.
+
 ### Found in the same run: the first turn of every conversation shows its reasoning
 
 Assistant turn 1 begins *"The user wants me to respond in Italian about a 7-day trip to
@@ -6041,3 +6044,73 @@ the native `seq_rm` cannot roll back the recurrent half*. It is not correct that
 reused: our own fork reuses via RAM snapshots, on device, today. The open item is no longer
 "can LFM2 survive a shift" — it is **"why does the slide take a path that discards the one
 snapshot the native fork pins for it"**.
+
+---
+
+## 17/09/2026 afternoon — four landings on the KV, and the CI build is the gate
+
+Full reasoning and the owner's decisions: `PLAN.md` §17/09 pomeriggio. Numbers and citations here.
+
+### The session file, decomposed exactly
+
+Read from a real `.kvs` on the S23 (`run-as` + `dd` + `od` on the header): magic `ggsn`,
+version 9, token count `0x1954` = **6484**, file **43,622,476 bytes**.
+
+    43,622,476  =  6484 x 6672  +  361,228          exact to the byte
+
+- 6656 B/token of quantized KV rows — `llama-kv-cache.cpp:2159` writes
+  `lm_ggml_row_size(k->type, n_embd_k_gqa)` and `io.write_tensor` copies raw bytes. **It does not
+  dequantize.** Matches `src/engine/ModelRegistry.ts:241` `kvBytesPerToken: 6656` exactly.
+- +12 B/cell of KV metadata (`pos`, `n_seq_id`, one `seq_id` — `llama-kv-cache.cpp:2129-2141`)
+  and +4 B for the token-list entry.
+- 361,228 fixed: the recurrent state, which the engine reports as
+  `llama_memory_recurrent: size = 0.34 MiB (1 cells, 30 layers, 1 seqs 0 rs_seq)` and which does
+  **not** grow with the conversation, plus ~4.7 KB of layer headers.
+
+This retires the 29.2 KB/token figure published this morning, and with it the +239 MB for
+n_ctx 16384 (the real KV line is `52.00 MiB (8192 cells, 8 layers), K q8_0 34.00, V q4_0 18.00`,
+so doubling is ~+52 MiB).
+
+### What was actually broken, in order of how much it cost
+
+1. **The disk gate had poisoned itself.** `fileBytes / usedTokens` kept as a running maximum; a
+   ~13-token write taught it 29,910 B/token and it could never unlearn. 292 MB demanded for a
+   44 MB file. A refused save is a lost KV, which is then re-prefilled. Fixed in `4f0370e`.
+2. **Checkpoint recovery was never on the cold path.** `recoverStateCheckpoint` runs only when
+   `llama_memory_seq_rm` FAILS. On a cleared cache `n_past` is 0, so `seq_rm(kv, 0, 0, -1)` is
+   `rm_all` and **succeeds** — so a cold cache always went to a full prefill, snapshot in hand or
+   not. This is why "stop clearing the checkpoints" would have bought nothing by itself.
+   Fixed in `c029807`, together with `clearCache` keeping the pinned system-prefix snapshot.
+3. **The app was building the 7 September engine.** Last real pin bump `c4c5280` (09-07); `7f9fcc4`
+   (09-16) moved only the branch label. Bumped to `134a35cf2` in `c4d23be` — 871 commits.
+4. **The first turn served its reasoning as the answer.** Fixed in `753a8ef`, prompt-side
+   detection via the native `thinking_forced_open`.
+
+### Upstream, with status
+
+- **PR #19408, merged 2026-02-08** — restores a checkpoint, trims, replays the divergent suffix on
+  recurrent/hybrid. The technique is upstream and merged; we are not alone.
+- **Issue #25913, open** — slot save/restore preserves the main state but **not** the checkpoint
+  list, so a restored hybrid slot loses partial-reuse. Independently confirms what reading
+  `preservePrefix` implied: after a restore from disk there are no RAM checkpoints.
+- **PR #26004, open, not merged** — persisting checkpoints to slot files. The owner's disk idea is
+  proposed upstream and accepted nowhere.
+- `llm_arch_supports_rs_rollback` now lists LFM2/LFM2MOE, but `n_rs_seq` widens the recurrent
+  state to `(1 + n_rs_seq)` rows: the 4269-token rollback a slide needs would cost **1.45 GB**
+  against a 52 MiB cache. Closed by arithmetic, not opinion.
+
+### The 36 files nobody owns
+
+The kalsallama overlay excludes `rn-*`, `jsi/`, `ggml-ext.h`, `anyascii.*` — **36 files**, which
+belong to llama.rn, not llama.cpp. The patch modifies **15**. The other **21 are frozen at
+llama.rn 0.12.8 with no update path at all**: `jsi/ThreadPool.cpp`, `jsi/JSITaskManager.cpp`,
+`jsi/JSIRequestManager.h`, `jsi/JSIContext.cpp`, `rn-tts.cpp`, `rn-common.hpp` and 15 more. An
+upstream fix to the JSI threading layer can never reach us.
+
+### Not verified
+
+No Android build ran on this machine. `assert-native-patch.sh` exits 0 but inspects a **previously
+built** `.so`, so it is not evidence for today's code. CI compiles the new native code against the
+just-bumped fork headers for the first time — two new things at once. No device measurement: the
+expected win (−1832 tokens of re-prefill per slide, −40 s per model reload) is **computed, not
+measured**.

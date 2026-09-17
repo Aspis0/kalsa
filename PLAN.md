@@ -1371,7 +1371,10 @@ davvero illimitato — che LFM2 non e'.
 **Governor: un leva refutata, una intatta.** Il pilota del 16/09 ha chiuso il core placement in
 esercizio normale (decode sugli A55 = 5,0–5,3x, +402% contro una regola che tollera +25%). Quella
 refutazione **non** copre il caso di oggi: durante una pausa termica il budget di latenza e'
-infinito. Generare sui core piccoli invece di fermarsi salva il turno *e* raffredda. Mai misurato.
+infinito. Generare sui core piccoli invece di fermarsi salva il turno *e* raffredda.
+⚠️ **Correzione dell'owner (17/09): un mezzo tentativo su questo e' gia' stato fatto.** Non e'
+"mai misurato" come avevo scritto. Prima di riproporlo, trovare quel tentativo e leggere cosa
+faceva e perche' si e' fermato.
 
 **Da decidere dall'owner (nessuna di queste e' stata toccata):**
 
@@ -1463,3 +1466,84 @@ una strada che scarta l'unico snapshot che il nativo pinna apposta"**.
 3. **Una riga di log a livello W sul percorso di riuso riuscito**, per distinguere `seq_rm` da
    restore senza alzare la verbosita' di tutto (che stamperebbe i prompt — vedi il vincolo
    "cosa chiede un utente non esce mai").
+
+### 17/09 pomeriggio — la giornata sulla KV: quattro cose atterrate, la CI e' il gate
+
+Owner: *"hai tutto il giorno per risolvere il problema"*, obiettivo una KV funzionante, in
+autonomia con delega e audit. Scelta presa e motivata: **KV e non Governor**, perche' le leve del
+Governor sono gia' refutate dalle nostre misure (core placement +402%, decode NPU, Adreno f16)
+mentre il prefill e' il **53%** del tempo di calcolo e dentro ci sono sprechi identificati e
+misurabili. La KV *e'* lavoro termico.
+
+**1. `4f0370e` — il gate del disco chiedeva 4,5x il vero e non poteva disimpararlo.**
+Un `.kvs` costa `pendenza x token + termine fisso`, ma `recordSessionDiskSample` imparava
+`fileBytes / usedTokens` tenendo il **massimo**. Letto l'header di un file vero sull'S23 (magic
+`ggsn`, versione 9, `0x1954` = 6484 token) contro i suoi 43.622.476 byte:
+
+    43.622.476  =  6484 x 6672  +  361.228        ← esatto al byte
+
+6656 di righe KV quantizzate + 12 di metadata per cella + 4 di lista token; il fisso e' lo stato
+ricorrente (0,34 MiB per 1 cella su 30 layer, non cresce). Lo store aveva imparato **29.910**:
+una scrittura da ~13 token, resa permanente dal massimo monotono. Chiedeva 292 MB liberi per un
+file da 44 e rifiutava salvataggi che ci stavano — e un salvataggio rifiutato **e' una KV persa**.
+Il fallback non misurato era 64 KiB/token (soffitto di un denso 4B): 639 MB richiesti, e siccome
+si impara **solo da un salvataggio riuscito**, un fallback troppo grande e' permanente, non
+prudente. Ora ripiega su `kvBytesPerToken` del catalogo. Margine 1,5 → 2,5: la scrittura fa il
+`.tmp` mentre il vecchio file c'e' ancora, quindi il picco e' **old + tmp**; l'1,5 sembrava bastare
+solo perche' moltiplicava una stima gonfiata.
+*Audit bocciato due volte prima di passare, e aveva ragione: la prima versione toglieva la rete
+sul margine, e i miei test non coprivano il difetto vero (rimettendo il bug nello **store**
+passavano tutti e 10). Ora tre mutazioni, tutte prese.*
+
+**2. `c4d23be` — pin bumpato a `134a35cf2`.** L'ultimo bump vero era il **7 settembre**; il 16/09
+era stata spostata solo l'etichetta del ramo. Tutto cio' che e' stato misurato oggi girava sul
+motore del 7 settembre. Dei 25 file della patch solo **due** sono di proprieta' dell'overlay e
+potevano scontrarsi (`cpp/common/common.cpp`, `common.h`): cambiati fra i pin, hunk provate in
+dry-run, **exit 0**.
+
+**3. `c029807` — il riuso della KV a cache fredda.** Il difetto vero non era solo che
+`clearCache` cancella gli snapshot: il recupero dai checkpoint era raggiungibile **solo quando
+`seq_rm` falliva**. A cache vuota `seq_rm(kv,0,0,-1)` e' un `rm_all` che **riesce**, quindi gli
+snapshot non erano mai sul percorso. Ora (a) `loadPrompt` li consulta anche a freddo, limitato dal
+prompt e non da `n_common`, e (b) `clearCache` conserva lo snapshot a posizione piu' bassa — quello
+che `evictStateCheckpoints` gia' pinna come fine del system prompt. **Il JS non lo sa e non deve
+saperlo.** Aggiunto `KALSA_KVREUSE` a livello **W** (solo conteggi): e' la riga che mancava per
+distinguere `seq_rm` riuscito da restore.
+
+**4. `753a8ef` — il ragionamento non e' piu' la risposta.** Rilevamento lato prompt
+(`thinking_forced_open` dal formatter nativo), non euristica sul testo. Audit ostile di un modello
+diverso: **dieci difetti nella prima stesura**, il piu' grave che `onThinkingText` non era
+collegato — tutta la meta' di visualizzazione era codice morto, e ne' `tsc` (opzionale su
+entrambi i lati) ne' i test unitari potevano vederlo. Ora il ponte ha
+`satisfies Record<keyof EngineCallbacks, true>`: il prossimo callback dimenticato e' un errore di
+compilazione (provato per mutazione, TS1360).
+
+**Prior art (Websearch, con numeri):** PR **#19408 merged 8/02/2026** fa il nostro stesso
+meccanismo a monte — ripristina un checkpoint, taglia, rigioca la coda. Issue **#25913 aperta**
+dice che save/restore degli slot **non** preserva la lista dei checkpoint, che e' esattamente
+quello che avevo dedotto leggendo `preservePrefix`. PR **#26004 aperta, non merged**: persistere i
+checkpoint su file. **L'idea del disco dell'owner e' proposta a monte e non accettata da nessuno.**
+
+**Seconda strada chiusa da un conto:** LFM2 e' ora nell'allowlist `llm_arch_supports_rs_rollback`
+del fork, ma `n_rs_seq` widena lo stato a `(1 + n_rs_seq)` righe: i 4269 token di rollback che
+serve uno slide costerebbero **1,45 GB** per una cache da 52 MB. Resta buono per rigenerare
+l'ultimo turno, non per lo slide.
+
+**Inventario chiesto dall'owner — i file in terra di nessuno.** Fuori dall'overlay ci sono **36**
+file (sono di llama.rn, non di llama.cpp). La patch ne modifica **15**. Gli altri **21 sono
+congelati a llama.rn 0.12.8 senza nessuna strada di aggiornamento**: l'overlay li salta, la patch
+non li nomina, e aggiornarli richiederebbe rifare i 187 KB di patch. Dentro c'e' **tutto lo strato
+di threading JSI** (`ThreadPool.cpp`, `JSITaskManager.cpp`, `JSIRequestManager.h`): se a monte
+sistemano una race li', non la prendiamo mai.
+
+**NON verificato, e va detto:** nessuna build Android su questa macchina.
+`assert-native-patch.sh` ispeziona un `.so` **precedente** e non vale come prova. La CI compila per
+la prima volta il codice nativo nuovo contro gli header del fork appena bumpato — **due cose nuove
+insieme**, ed e' li' che si rompe se si rompe. Nessuna misura sul telefono: il guadagno atteso
+(−1832 token di riprefill per slide, −40 s per ricarica del modello) resta **calcolato, non
+misurato**.
+
+**Deciso dall'owner oggi:** i 3 minuti di idle restano 3 minuti; forkare llama.rn e portare i 36
+file in un repo solo (piano in corso — nota architetturale: quei file hanno un upstream **diverso**
+da kalsallama, quindi il repo unico ha bisogno di **due remote e due flussi di merge**, non di un
+rsync che i conflitti li vince invece di mostrarli).
