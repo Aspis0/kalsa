@@ -69,6 +69,29 @@ rp_state() {
   log "state: level=$(device_battery_level) temp_deci=$(device_battery_temp_deci) thermal=$(device_thermal_status)"
 }
 
+# Owner stop rules for an unplugged S23, enforced between cycles instead of
+# only logged: battery >= 44.0 C or thermal status >= 3 ends the run. A run
+# that cooks the phone is not evidence, and rp_state alone never stopped one.
+RP_TEMP_STOP_DECI="${RP_TEMP_STOP_DECI:-440}"
+RP_THERMAL_STOP="${RP_THERMAL_STOP:-3}"
+
+rp_should_stop() {
+  local temp thermal
+  temp=$(device_battery_temp_deci)
+  thermal=$(device_thermal_status)
+  case "$temp" in ''|*[!0-9-]*) temp=0 ;; esac
+  case "$thermal" in ''|*[!0-9-]*) thermal=0 ;; esac
+  if [ "$temp" -ge "$RP_TEMP_STOP_DECI" ]; then
+    log "STOP: battery ${temp} deci-C >= ${RP_TEMP_STOP_DECI} (owner rule)"
+    return 0
+  fi
+  if [ "$thermal" -ge "$RP_THERMAL_STOP" ]; then
+    log "STOP: thermal status ${thermal} >= ${RP_THERMAL_STOP} (owner rule)"
+    return 0
+  fi
+  return 1
+}
+
 rp_main() {
   local attached picked i prev
   mkdir -p "$OUT"
@@ -88,6 +111,10 @@ rp_main() {
   trap 'kill '"$logcat_pid"' 2>/dev/null || true; device_termux_wakelock_restore; _device_session_restore' EXIT
 
   for i in $(seq 1 "$CYCLES"); do
+    if rp_should_stop; then
+      log "ending run before cycle $i — device is over an owner stop threshold"
+      break
+    fi
     log "=== cycle $i/$CYCLES ==="
     echo "KALSA_RP_MARK cycle=$i" >> "$OUT/logcat.txt"
     adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1
@@ -108,9 +135,39 @@ rp_main() {
 
   sleep 5
   kill "$logcat_pid" 2>/dev/null || true
-  grep -E "KALSA_RP_MARK|KALSA_KVDIAG|KALSA_KVRESUME|KALSA_PREWARM|KALSA_SESSION|KALSA_TELEMETRY|restored state checkpoint|no usable state checkpoint|reusing [0-9]+/" \
+  # KALSA_KVPREFIX is the verdict: `n_common == embd` means the live cache was
+  # reused whole, which on a hybrid is the only outcome that avoids a full
+  # re-prefill (llama-memory-recurrent.cpp:194 / rn-completion.cpp:620-640).
+  grep -E "KALSA_RP_MARK|KALSA_KVPREFIX|KALSA_KVREUSE|KALSA_KVDIAG|KALSA_KVRESUME|KALSA_PREWARM|KALSA_SESSION|KALSA_WINDOW_SLIDE|KALSA_TELEMETRY|restored state checkpoint|no usable state checkpoint|reusing [0-9]+/" \
     "$OUT/logcat.txt" > "$OUT/evidence.txt" || true
   log "evidence: $OUT/evidence.txt ($(wc -l < "$OUT/evidence.txt" | tr -d ' ') lines)"
+
+  # State the verdict instead of leaving it in 2000 lines of logcat.
+  node -e '
+const fs = require("fs");
+const read = (p) => { try { return fs.readFileSync(p, "utf8"); } catch (_) { return ""; } };
+const ev = read(process.argv[1]);
+const n = (re) => (ev.match(re) || []).length;
+console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
+  " restore_miss=" + n(/"op":"restore","ok":false/g) +
+  " prefill_done=" + n(/"op":"done"/g) +
+  " snapshot_saved=" + n(/"op":"snapshot_save","ok":true/g) +
+  " system_only_template=" + n(/"reason":"system_only_template"/g));
+const rows = [...ev.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
+  .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
+  .filter((r) => r.embd > 0);
+if (!rows.length) { console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache"); }
+else {
+  const whole = rows.filter((r) => r.common === r.embd).length;
+  const lost = rows.filter((r) => r.common === 0).length;
+  const best = rows.reduce((a, b) => (b.common > a.common ? b : a));
+  console.log("KV_PREFIX: rows=" + rows.length + " whole_cache_reused=" + whole +
+    " total_loss=" + lost + " best n_common=" + best.common + " embd=" + best.embd +
+    " text_tokens=" + best.text);
+}
+console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
+  " no_usable_checkpoint=" + n(/KALSA_KVDIAG /g));
+' "$OUT/evidence.txt" | tee "$OUT/VERDICT.txt"
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
