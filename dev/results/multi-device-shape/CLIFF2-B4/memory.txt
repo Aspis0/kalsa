@@ -1,0 +1,10 @@
+0.01.466.907 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 4096, kv_unified = 'false'
+0.00.531.972 I llama_kv_cache: size =  119.00 MiB (  4096 cells,  14 layers,  4/4 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB
+0.00.532.357 I llama_kv_cache: size =  223.12 MiB (  2560 cells,  42 layers,  4/4 seqs), K (q8_0):  111.56 MiB, V (q8_0):  111.56 MiB
+0.00.571.739 I sched_reserve:       MTL0 compute buffer size =    50.24 MiB
+0.00.571.741 I sched_reserve:        CPU compute buffer size =    10.68 MiB
+0.00.571.741 I sched_reserve:        CPU compute buffer size =    10.68 MiB
+0.01.342.093 I llama_kv_cache: size =  119.00 MiB (  4096 cells,  14 layers,  4/4 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB
+0.01.364.372 I llama_kv_cache: size =  223.12 MiB (  2560 cells,  42 layers,  4/4 seqs), K (q8_0):  111.56 MiB, V (q8_0):  111.56 MiB
+0.01.392.537 I sched_reserve:       MTL0 compute buffer size =    50.24 MiB
+0.01.392.541 I sched_reserve:        CPU compute buffer size =    10.68 MiB

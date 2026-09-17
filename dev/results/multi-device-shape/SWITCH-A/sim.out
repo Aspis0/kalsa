@@ -1,0 +1,18 @@
+words=1500 A0-cold: cached=0 prompt_n=1867 prompt_ms=939.772 total=1033ms
+words=1500 A1-warm: cached=1862 prompt_n=5 prompt_ms=49.594 total=142ms
+words=1500 B0-switch-away: cached=0 prompt_n=1851 prompt_ms=922.285 total=1160ms
+words=1500 A2-switch-back: cached=1862 prompt_n=5 prompt_ms=47.519 total=151ms
+words=1500 A3-warm-confirm: cached=1862 prompt_n=5 prompt_ms=47.437 total=143ms
+words=6100 A0-cold: cached=1350 prompt_n=6148 prompt_ms=3639.88 total=3889ms
+words=6100 A1-warm: cached=7497 prompt_n=1 prompt_ms=20.875 total=269ms
+words=6100 B0-switch-away: cached=0 prompt_n=7485 prompt_ms=4246.267 total=4512ms
+words=6100 A2-switch-back: cached=0 prompt_n=7498 prompt_ms=4256.504 total=4511ms
+words=6100 A3-warm-confirm: cached=7497 prompt_n=1 prompt_ms=19.444 total=267ms
+words=12000 A0-cold: cached=7484 prompt_n=7219 prompt_ms=5199.083 total=5478ms
+words=12000 A1-warm: cached=14702 prompt_n=1 prompt_ms=28.59 total=305ms
+words=12000 B0-switch-away: cached=0 prompt_n=14664 prompt_ms=9300.845 total=9605ms
+words=12000 A2-switch-back: cached=0 prompt_n=14703 prompt_ms=9333.075 total=9620ms
+words=12000 A3-warm-confirm: cached=14702 prompt_n=1 prompt_ms=21.641 total=297ms
+size~1867tok: switch re-prefill -2.075000000000003ms (server-side)
+size~7498tok: switch re-prefill 4235.629ms (server-side)
+size~14703tok: switch re-prefill 9304.485ms (server-side)
