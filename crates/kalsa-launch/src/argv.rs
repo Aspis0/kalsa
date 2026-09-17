@@ -115,3 +115,60 @@ impl ServerArgs {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    /// Flags that make `llama-server` print what people asked it.
+    ///
+    /// At raised verbosity the server logs the prompt one token at a time,
+    /// as text — `server-context.cpp:3138`:
+    ///
+    /// ```text
+    /// SLT_DBG(slot, "prompt token %3d: %6d '%s'\n", i, input_tokens[i], …)
+    /// ```
+    ///
+    /// Our stderr pipe keeps the last lines to explain an unexpected exit
+    /// (`kalsa-supervisor`), so raising verbosity would put fragments of
+    /// somebody's question into a buffer meant for crash diagnostics, and
+    /// from there into whatever shows the crash.
+    const LOUD: [&str; 6] = ["-v", "--verbose", "--verbosity", "--log-verbose", "-lv", "--verbose-prompt"];
+
+    fn some_args() -> ServerArgs {
+        ServerArgs {
+            model_path: PathBuf::from("/models/whatever.gguf"),
+            port: 8131,
+            context_tokens: 8192,
+            cache_ram_mib: 4096,
+            threads: Some(4),
+            offload: crate::args::Offload::All,
+            idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
+        }
+    }
+
+    /// What a person asks is the one thing that must never leave the
+    /// machine's memory, not even into a log file on their own disk. This
+    /// holds today by absence; the test is here so it keeps holding on the
+    /// day someone adds a debug switch.
+    #[test]
+    fn the_argv_never_asks_the_server_to_log_prompts() {
+        let argv = some_args().argv();
+        for flag in LOUD {
+            assert!(
+                !argv.iter().any(|arg| arg == flag),
+                "{flag} makes llama-server log prompt tokens as text: {argv:?}"
+            );
+        }
+    }
+
+    /// The guard above is worthless if `argv()` returns nothing, so this
+    /// test pins that it really does render the flags we expect to see.
+    #[test]
+    fn the_argv_is_not_empty_when_it_claims_to_be_quiet() {
+        let argv = some_args().argv();
+        assert!(argv.iter().any(|arg| arg == "--model"), "{argv:?}");
+        assert!(argv.iter().any(|arg| arg == "--ctx-size"), "{argv:?}");
+    }
+}
