@@ -195,6 +195,18 @@ Mai fotografata prima. 28-dark-nav: punti leggibili, attiva in accento
 schiarito con glifo scuro, label chiare, glow verde-notte coerente.
 Nessun fix — il tema scuro resta curato quanto il chiaro.
 
+## Giro 12 — movimento campionato, 200 messaggi misurati (2026-09-18)
+
+Gli still non mostrano il moto: campionato via JS invece che a occhio.
+- Apertura mezzaluna: opacity 0.10→0.71→0.95→1, y −31→−6.5→−1.4→0px a
+  60/150/250/500ms. Glide reale su proprietà da compositor (stessa easing
+  di devboule). I tre PNG 29-motion-* da soli non lo provavano — i numeri sì.
+- Thread 200 messaggi (dev mode, quindi pessimistico): mount+apertura
+  1942ms, salto cima↔fondo 0ms, 200 righe rese. `content-visibility` basta:
+  niente virtual-list, niente dipendenze. Da ricontrollare in build prod.
+
+Voti: movimento 5 (con misura) · lunga 5 (con numeri).
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
