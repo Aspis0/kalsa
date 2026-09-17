@@ -154,9 +154,20 @@ gh run watch $RUN --repo Aspis0/kalsa --exit-status > /tmp/ci-update.log 2>&1; e
 ```
 The build takes ~45 min. Do not poll; do other work (e.g. prepare §4's docs diff).
 
+**Nothing fires automatically on `llama-rn-fork`** (verified 2026-09-17 with kalsa-0c: `ci.yml`
+pushes only on `feat/**`, `e2e-emulator.yml` on `main`/two legacy branches, everything else is
+dispatch-only). "Green on the branch" means green on runs YOU dispatched. So dispatch both gates:
+```
+gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a
+gh workflow run e2e-emulator.yml --repo Aspis0/kalsa --ref llama-rn-fork    # defaults = what a push to main runs (~35-40 min, ~40 logic harnesses + one real inference turn)
+```
+and run `npx tsc --noEmit` and the jest file locally with real exit codes (they run in no
+workflow on this branch).
+
 **Prove.**
-1. `gh run view $RUN --json conclusion` = `success`; the steps "Assert the native patch is in
-   the binary" and "Build APK (arm64-v8a)" green.
+1. `gh run view $RUN --json conclusion` = `success` for BOTH runs; in `apk.yml` the steps "Assert
+   the native patch is in the binary" and "Build APK (arm64-v8a)" green; in `e2e-emulator.yml`
+   the harness step and the inference turn green.
 2. Hashes (recipe verified today):
    ```
    mkdir -p /tmp/apk-$RUN && cd /tmp/apk-$RUN && gh run download $RUN --repo Aspis0/kalsa
@@ -215,7 +226,12 @@ git merge --no-ff origin/main > /tmp/merge-main.log 2>&1; echo $?
 git diff --name-only --diff-filter=U        # expected: at most .github/workflows/apk.yml
 ```
 Conflict rule for `apk.yml`: keep BOTH — main's `assert-overlay-includes.sh` step after
-`npm ci` (it reads the installed tree, still valid) and the branch's env/comment edits. Then:
+`npm ci` (it reads the installed tree, still valid) and the branch's env/comment edits.
+`src/engine/LlamaService.ts` is NOT touched by the switch; if the merge ever conflicts there,
+stop: `f0e4e2b` pinned two literals in it (`if (AppState.currentState !== "active") {` with
+`reason: "background"` and a `return;`, ~line 997) through `scripts/prefixPrewarmHarness.mjs`,
+wired into `apk.yml`, `bench.yml` and `e2e-emulator.yml` — kalsa-0c owns that pin and re-aims it
+on request; never weaken it. Then:
 ```
 npm ci > /tmp/npm-ci.log 2>&1; echo $?; grep -c 'patch-package' /tmp/npm-ci.log   # 0
 cat node_modules/llama.rn/cpp/KALSALLAMA_SHA
@@ -224,6 +240,7 @@ npx tsc --noEmit > /tmp/tsc.log 2>&1; echo $?
 npx jest src/engine/engineIdentity.test.ts > /tmp/jest.log 2>&1; echo $?
 git commit … ; git push origin llama-rn-fork
 gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a   # must be green again
+gh workflow run e2e-emulator.yml --repo Aspis0/kalsa --ref llama-rn-fork           # the gate main will run: green BEFORE asking Marco's go
 ```
 Then, in a scratch clone (never in the shared `/Users/marco/Projects/kalsa` checkout):
 ```
