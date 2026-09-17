@@ -133,6 +133,13 @@ That fits this app exactly, and it fits the merge decided in §4: the surfaces a
 Server, Devices, Advanced, Settings — six, the same six the wizard pages already are. Paging
 disappears entirely.
 
+> **Superseded 2026-09-17 by `docs/THE-BRAIN-IS-THE-HOME.md`.** Listing Chat among the
+> surfaces makes the conversation a peer of the settings page — six items in an arc are
+> still six tabs. The brain is the home the app opens on, the chat is what happens inside
+> it after you type in the brain's own writing bar, and the crescent carries the brain's
+> five surfaces plus the way back. The rest of this section — that the crescent is
+> navigation over a small fixed set, never a conversation list — stands.
+
 Conversations move to what a list of documents needs: a vertical list grouped by recency, a
 `⌘K` search, rename and delete. `docs/PRIOR-ART-CHAT-UIS.md` §2.6 already records where that
 keyboard map comes from.
