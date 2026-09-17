@@ -1,0 +1,62 @@
+/**
+ * State the verdict of a device restore run instead of leaving it in 2000
+ * lines of logcat. Reads the evidence file grepped out of logcat by
+ * device-restore-protocol.sh; prints one line per question.
+ *
+ * Its own file so it can be run against fixtures — it used to be a `node -e`
+ * string inside the shell script, which meant the only way to find out whether
+ * a counter was right was to run a phone.
+ *
+ * Usage: node scripts/restoreVerdict.mjs <evidence.txt>
+ */
+import { readFileSync } from "node:fs";
+const read = (p) => { try { return readFileSync(p, "utf8"); } catch { return ""; } };
+const ev = read(process.argv[2]);
+const n = (re) => (ev.match(re) || []).length;
+console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
+  " restore_miss=" + n(/"op":"restore","ok":false/g) +
+  " prefill_done=" + n(/"op":"done"/g) +
+  " snapshot_saved=" + n(/"op":"snapshot_save","ok":true/g) +
+  " system_only_template=" + n(/"reason":"system_only_template"/g));
+// A prewarm that never ran reads exactly like one that ran and failed, unless
+// the stops are counted: a dispose, a live chat KV, a backgrounded app and an
+// exhausted retry budget all produce zero restore lines and zero prefills.
+// Without this, restore_ok=0 gets read as "the diagnosis is wrong".
+const stops = ["stale", "no_context", "disposing", "kv_holds_chat",
+  "background", "given_up", "not_ready", "in_flight"];
+console.log("PREWARM_STOPS: " + stops.map((r) =>
+  r + "=" + n(new RegExp("\"op\":\"skip\",\"reason\":\"" + r + "\"", "g"))).join(" ") +
+  " restore_aborted=" + n(/"op":"restore","ok":false,"reason":"aborted"/g));
+const rows = [...ev.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
+  .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
+  .filter((r) => r.embd > 0);
+if (!rows.length) { console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache"); }
+else {
+  const whole = rows.filter((r) => r.common === r.embd).length;
+  const lost = rows.filter((r) => r.common === 0).length;
+  // A cycle that reused 900 of 1832 is neither a whole reuse nor a total loss,
+  // and counting only the two extremes let a run where most cycles reused a
+  // quarter of the cache satisfy "whole_cache_reused >= 1 && total_loss == 0".
+  // On a hybrid a partial match IS the failure: seq_rm cannot roll back, so
+  // the engine clears and re-prefills everything.
+  const partial = rows.filter((r) => r.common > 0 && r.common < r.embd).length;
+  const best = rows.reduce((a, b) => (b.common > a.common ? b : a));
+  const smallest = rows.reduce((a, b) => (b.embd < a.embd ? b : a));
+  console.log("KV_PREFIX: rows=" + rows.length + " whole_cache_reused=" + whole +
+    " partial_reuse=" + partial +
+    " total_loss=" + lost + " best n_common=" + best.common + " embd=" + best.embd +
+    " text_tokens=" + best.text + " min_embd=" + smallest.embd);
+  // The criterion, stated by the script so it cannot be misread off four
+  // counters: every cycle reused its whole cache, and a prewarm actually ran.
+  // Written before the data, deliberately more severe than "at least one good
+  // cycle" — a run is not a pass because one of its cycles was.
+  const ran = n(/"op":"restore","ok":true/g) + n(/"op":"done"/g);
+  const fails = [];
+  if (whole < 1) fails.push("no cycle reused the whole cache");
+  if (partial > 0) fails.push("partial reuse x" + partial);
+  if (lost > 0) fails.push("total loss x" + lost);
+  if (ran < 1) fails.push("no prewarm restore or prefill happened");
+  console.log("KV_PREFIX_CRITERION: " + (fails.length ? "FAIL (" + fails.join("; ") + ")" : "PASS"));
+}
+console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
+  " no_usable_checkpoint=" + n(/KALSA_KVDIAG /g));

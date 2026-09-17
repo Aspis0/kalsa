@@ -143,31 +143,7 @@ rp_main() {
   log "evidence: $OUT/evidence.txt ($(wc -l < "$OUT/evidence.txt" | tr -d ' ') lines)"
 
   # State the verdict instead of leaving it in 2000 lines of logcat.
-  node -e '
-const fs = require("fs");
-const read = (p) => { try { return fs.readFileSync(p, "utf8"); } catch (_) { return ""; } };
-const ev = read(process.argv[1]);
-const n = (re) => (ev.match(re) || []).length;
-console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
-  " restore_miss=" + n(/"op":"restore","ok":false/g) +
-  " prefill_done=" + n(/"op":"done"/g) +
-  " snapshot_saved=" + n(/"op":"snapshot_save","ok":true/g) +
-  " system_only_template=" + n(/"reason":"system_only_template"/g));
-const rows = [...ev.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
-  .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
-  .filter((r) => r.embd > 0);
-if (!rows.length) { console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache"); }
-else {
-  const whole = rows.filter((r) => r.common === r.embd).length;
-  const lost = rows.filter((r) => r.common === 0).length;
-  const best = rows.reduce((a, b) => (b.common > a.common ? b : a));
-  console.log("KV_PREFIX: rows=" + rows.length + " whole_cache_reused=" + whole +
-    " total_loss=" + lost + " best n_common=" + best.common + " embd=" + best.embd +
-    " text_tokens=" + best.text);
-}
-console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
-  " no_usable_checkpoint=" + n(/KALSA_KVDIAG /g));
-' "$OUT/evidence.txt" | tee "$OUT/VERDICT.txt"
+  node "$_RP_DIR/restoreVerdict.mjs" "$OUT/evidence.txt" | tee "$OUT/VERDICT.txt"
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

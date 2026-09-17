@@ -4,7 +4,7 @@
  * Compile-from-disk. Exit 1 on fail.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -90,6 +90,9 @@ async function main() {
     shouldApplyQueuedPrefixWipe,
     planPrefixInputChange,
     prewarmStopReason,
+    prewarmFailureIsPersistent,
+    prewarmGivenUp,
+    STATIC_PREFIX_PREWARM_MAX_FAILURES,
   } = prewarmMod;
 
   assert(flagsMod.EAGER_PREFIX_PREWARM === true, "EAGER_PREFIX_PREWARM must default true");
@@ -502,6 +505,241 @@ async function main() {
       'if (mustStop()) return { ok: false, stem, reason: "aborted" };',
     `the statement before the native loadSession must be the abort check — found: ${beforeLoad[beforeLoad.length - 1] ?? "<nothing>"}`,
   );
+
+  // ── Retry budget for a prewarm that keeps failing ────────────────────────
+  // The foreground re-kick made this concrete: without a budget, a model whose
+  // template or engine path refuses this render pays a full ~1832-token
+  // prefill on every single return to the app.
+  assert(STATIC_PREFIX_PREWARM_MAX_FAILURES === 2, "two attempts, then stop");
+  assert(
+    prewarmFailureIsPersistent("failed") === true,
+    "an engine that refuses the render will refuse it again",
+  );
+  assert(
+    prewarmFailureIsPersistent("generated") === true,
+    "a template that generates under n_predict:0 will do it again",
+  );
+  assert(
+    prewarmFailureIsPersistent("skip") === false,
+    "an interrupted completion says nothing about the model — retry it",
+  );
+  assert(
+    prewarmFailureIsPersistent("success") === false,
+    "success is not a failure",
+  );
+  assert(prewarmGivenUp(0) === false, "first attempt is allowed");
+  assert(prewarmGivenUp(1) === false, "second attempt is allowed");
+  assert(prewarmGivenUp(2) === true, "third attempt is not");
+  assert(prewarmGivenUp(3) === true, "and neither is any after it");
+  assert(
+    prewarmGivenUp(STATIC_PREFIX_PREWARM_MAX_FAILURES) === true,
+    "the cap is the cap — no off-by-one between the constant and the predicate",
+  );
+
+  // The budget has exactly one writer, in the job's finally. Two writers is
+  // how a new failure exit ends up forgetting to record itself — the defect
+  // this budget exists to prevent, one level up.
+  // Substring pins were not a contract here either: the guard kept its log and
+  // lost its `return;`, the increment became `+ 0`, the finally's branch was
+  // wrapped in `if (false)`, and the success flags were deleted — all with the
+  // gate green and the budget completely ineffective. These two regions are
+  // load-bearing, so they are pinned by SHAPE. Whitespace is normalised and
+  // comments stripped, so reformatting is fine; changing what the code does is
+  // not, and if you meant it, update the expectation here and say why.
+  const shapeOf = (text) =>
+    text
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^[ \t]*\/\/.*$/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const regionBetween = (from, to) => {
+    const a = llamaSrc.indexOf(from);
+    assert(a >= 0, `region start not found: ${from}`);
+    const b = llamaSrc.indexOf(to, a);
+    assert(b > a, `region end not found after ${from}`);
+    return shapeOf(llamaSrc.slice(a, b + to.length));
+  };
+
+  const queueGuard = regionBetween(
+    "if (prewarmGivenUp(staticPrefixPrewarmFailures.get(",
+    "return;\n  }",
+  );
+  assert(
+    queueGuard ===
+      'if (prewarmGivenUp(staticPrefixPrewarmFailures.get(prewarmBudgetKey(prefix.hash)) ?? 0)) ' +
+        '{ logPrewarm({ op: "skip", reason: "given_up", hash: prefix.hash }); return; }',
+    `the queue guard must log AND return, keyed on this prefix — found: ${queueGuard}`,
+  );
+
+  const budgetUpdate = regionBetween(
+    "const budgetKey = prewarmBudgetKey(prefix.hash);",
+    "+ 1,\n        );\n      }",
+  );
+  assert(
+    budgetUpdate ===
+      "const budgetKey = prewarmBudgetKey(prefix.hash); if (succeeded) { " +
+        "staticPrefixPrewarmFailures.delete(budgetKey); } else if (persistentFailure) { " +
+        "staticPrefixPrewarmFailures.set( budgetKey, " +
+        "(staticPrefixPrewarmFailures.get(budgetKey) ?? 0) + 1, ); }",
+    `the budget update must clear on success and increment by one otherwise — found: ${budgetUpdate}`,
+  );
+
+  const budgetWrites = (llamaSrc.match(/staticPrefixPrewarmFailures\.(set|delete|clear)\(/g) || []).length;
+  assert(
+    budgetWrites === 3,
+    `the retry budget has exactly three writers — the job's finally (set + delete) and resetPrewarmState (clear) — found ${budgetWrites}`,
+  );
+  assert(
+    llamaSrc.includes("persistentFailure = prewarmFailureIsPersistent(resultClass);"),
+    "the completion path decides persistence with the pure classifier",
+  );
+  const successFlags = (llamaSrc.match(/^\s*succeeded = true;$/gm) || []).length;
+  assert(
+    successFlags === 2,
+    `both success paths — snapshot restore and prefill — must clear the budget; found ${successFlags} of 2`,
+  );
+  const resetAt = llamaSrc.indexOf("function resetPrewarmState(): void {");
+  assert(resetAt >= 0, "resetPrewarmState still exists");
+  const resetEnd = llamaSrc.indexOf("\n}", resetAt);
+  assert(
+    llamaSrc.slice(resetAt, resetEnd).includes("staticPrefixPrewarmFailures.clear()"),
+    "an engine cycle forgets the budget — a native failure can be transient",
+  );
+  // The failure that a dispose caused is not the model's fault: stopCompletion
+  // rejects the completion promise, and that rejection reaches the catch
+  // looking exactly like a native error.
+  const catchAt = llamaSrc.indexOf("      persistentFailure =\n        prewarmStopReason({");
+  assert(
+    catchAt >= 0,
+    "the catch decides persistence via the stop policy, not unconditionally",
+  );
+  assert(
+    llamaSrc.slice(catchAt, catchAt + 400).includes("contextChanged: context !== jobEngine"),
+    "the catch compares against the context THIS job was started for",
+  );
+
+  // ── The device run's verdict, against fixtures ───────────────────────────
+  // It used to be a `node -e` string inside device-restore-protocol.sh, so the
+  // only way to find out whether a counter was right was to run a phone.
+  const verdict = (name, evidence) => {
+    const file = path.join(outDir, `evidence-${name}.txt`);
+    writeFileSync(file, evidence, "utf8");
+    const r = spawnSync("node", [path.join(projectRoot, "scripts/restoreVerdict.mjs"), file], {
+      cwd: projectRoot,
+      encoding: "utf8",
+    });
+    assert(r.status === 0, `restoreVerdict.mjs exited ${r.status} on ${name}: ${r.stderr}`);
+    return r.stdout;
+  };
+
+  // The §4 pass shape: the whole prefix was reused and nothing was lost.
+  const pass = verdict(
+    "pass",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(/restore_ok=1 /.test(pass), "a successful restore is counted");
+  assert(
+    /whole_cache_reused=1 partial_reuse=0 total_loss=0 /.test(pass),
+    "n_common === embd is the whole cache reused, and no loss",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: PASS/.test(pass),
+    "the §4 pass shape is reported as a pass",
+  );
+
+  // whole_cache_reused >= 1 IS the pass criterion, so a partial reuse must
+  // never count as a whole one — a looser verdict turns a failed device run
+  // into a green one. Nor is a partial reuse a total loss.
+  const partial = verdict(
+    "partial",
+    [
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=900",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=2 whole_cache_reused=0 partial_reuse=1 total_loss=1 /.test(partial),
+    "900 of 1832 reused is neither the whole cache nor a total loss",
+  );
+  assert(
+    /best n_common=900 /.test(partial),
+    "the best row is reported so a partial reuse is still legible",
+  );
+  assert(
+    partial.includes(
+      "KV_PREFIX_CRITERION: FAIL (no cycle reused the whole cache; partial reuse x1; " +
+        "total loss x1; no prewarm restore or prefill happened)",
+    ),
+    "the criterion names EVERY reason it failed, not just the first",
+  );
+
+  // The counter-example that mattered: one whole cycle can otherwise carry a
+  // run where most cycles reused a quarter of the cache. A run is not a pass
+  // because ONE of its cycles was.
+  const mixed = verdict(
+    "mixed",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=900",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=400",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /whole_cache_reused=1 partial_reuse=2 total_loss=0/.test(mixed),
+    "one whole cycle and two partials are reported as what they are",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(partial reuse x2\)/.test(mixed),
+    "one good cycle out of three is a FAIL — the criterion must not be looser than stated",
+  );
+
+  // ...and a run where the numbers look perfect but no prewarm ever ran is not
+  // a measurement of anything.
+  const noPrewarm = verdict(
+    "no-prewarm",
+    ["KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832", ""].join("\n"),
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(no prewarm restore or prefill happened\)/.test(noPrewarm),
+    "whole reuse with no prewarm in the log proves nothing about the prewarm",
+  );
+
+  // The case the stop counters exist for: zero restores because the job kept
+  // being stopped, which must NOT read as "the diagnosis is wrong".
+  const blocked = verdict(
+    "blocked",
+    [
+      'KALSA_PREWARM {"op":"skip","reason":"background"}',
+      'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
+      'KALSA_PREWARM {"op":"skip","reason":"given_up","hash":"h"}',
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"aborted","hash":"h"}',
+      "",
+    ].join("\n"),
+  );
+  assert(/restore_ok=0 /.test(blocked), "no restore succeeded in the blocked run");
+  assert(
+    /background=1 /.test(blocked) &&
+      /kv_holds_chat=1 /.test(blocked) &&
+      /given_up=1 /.test(blocked) &&
+      /restore_aborted=1/.test(blocked),
+    "every reason the job stopped is visible in PREWARM_STOPS",
+  );
+
+  // A run that produced nothing must say so, not divide by zero.
+  const noEvidence = verdict("empty", "");
+  assert(
+    /KV_PREFIX: no KALSA_KVPREFIX line with a live cache/.test(noEvidence),
+    "an empty evidence file states that, and does not crash",
+  );
+  assert(/restore_ok=0 /.test(noEvidence), "empty evidence counts zero restores");
 
   console.log("prefixPrewarmHarness OK");
 }

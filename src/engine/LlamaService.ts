@@ -264,6 +264,8 @@ import {
   isSystemOnlyTemplateFailure,
   shouldSkipPrewarmWhenKvHoldsChat,
   prewarmStopReason,
+  prewarmFailureIsPersistent,
+  prewarmGivenUp,
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
   staticPrefixIdentity,
@@ -387,6 +389,16 @@ let bakeUnprefixedHealed = false;
  * Null after dispose / settings-stale / disk restore until prewarm or a turn.
  */
 let prewarmPrefixHash: string | null = null;
+/**
+ * Failed prewarm attempts per (model, prefix hash). Every trigger — a slide, a
+ * settings flip, a return to the foreground — would otherwise pay a full
+ * static-prefix prefill for a render this build will never accept.
+ */
+const staticPrefixPrewarmFailures = new Map<string, number>();
+
+function prewarmBudgetKey(prefixHash: string): string {
+  return `${activeModelId ?? ""}:${prefixHash}`;
+}
 /**
  * Models whose chat template refused a system-only prewarm prompt, learned
  * from the refusal itself rather than guessed from a catalog flag.
@@ -829,6 +841,11 @@ function resetPrewarmState(): void {
   prewarmGeneration += 1;
   prewarmPrefixHash = null;
   prewarmQueuedKey = null;
+  // The budget is per engine instance, not per process: a native failure can
+  // be transient (memory pressure), and the reload that follows is exactly
+  // when it is worth trying again. Without this, two unlucky attempts cost the
+  // prefix for the whole session.
+  staticPrefixPrewarmFailures.clear();
 }
 
 function resolvePrewarmPrefix(
@@ -1018,6 +1035,10 @@ export async function queueStaticPrefixPrewarm(
   ) {
     return;
   }
+  if (prewarmGivenUp(staticPrefixPrewarmFailures.get(prewarmBudgetKey(prefix.hash)) ?? 0)) {
+    logPrewarm({ op: "skip", reason: "given_up", hash: prefix.hash });
+    return;
+  }
   const gen = prewarmGeneration;
   // Read at queue time and captured by the job, so the catch below can tell
   // "the template already refused once" from "this is the first attempt".
@@ -1033,6 +1054,14 @@ export async function queueStaticPrefixPrewarm(
     // Set when this attempt learns the template needs a filler turn, so the
     // finally can re-queue once the dedupe key is released.
     let retryWithFiller = false;
+    // The finally is the only writer of the retry budget: one place decides,
+    // so a new failure exit cannot forget to record itself.
+    let succeeded = false;
+    let persistentFailure = false;
+    // The context this job was started for. `engine` itself is declared inside
+    // the try, after the guards, so the catch cannot see it — and the catch is
+    // exactly where we need to ask whether the context was swapped under us.
+    let jobEngine: typeof context = null;
     try {
       if (gen !== prewarmGeneration) {
         logPrewarm({ op: "skip", reason: "stale" });
@@ -1043,6 +1072,7 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       const engine = context;
+      jobEngine = engine;
       // Three complete hand-made copies of these checks used to sit inline
       // (plus a partial at the job top, which has no engine to compare yet),
       // and the snapshot restore was added with its copy on the way OUT. The
@@ -1122,6 +1152,7 @@ export async function queueStaticPrefixPrewarm(
         if (restored.ok) {
           if (prewarmMustStop()) return;
           prewarmPrefixHash = prefix.hash;
+          succeeded = true;
           // tokens_loaded is the native's own count of exactly this prefix —
           // the same measurement the prefill path records, now without the
           // 40 s of prefill. restored.ok already guarantees it is a positive
@@ -1221,6 +1252,7 @@ export async function queueStaticPrefixPrewarm(
       const promptN =
         typeof result?.timings?.prompt_n === "number" ? result.timings.prompt_n : 0;
       const resultClass = classifyPrewarmResult(nativeResult);
+      persistentFailure = prewarmFailureIsPersistent(resultClass);
       if (resultClass === "skip") {
         logPrewarm({ op: "skip", reason: "interrupted", promptMs, promptN });
         return;
@@ -1243,6 +1275,7 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       prewarmPrefixHash = prefix.hash;
+      succeeded = true;
       // The prefill just run IS the static-prefix measure: tokens_cached /
       // tokens_evaluated are the native's own count of the exact render the
       // send's KV prefix matches (comparable to KALSA_KVPREFIX text_tokens).
@@ -1367,6 +1400,22 @@ export async function queueStaticPrefixPrewarm(
         reason,
         err: msg.slice(0, 160),
       });
+      // A dispose racing this job calls stopCompletion, and this repo already
+      // documents twice that stopCompletion REJECTS the completion promise
+      // (see the translate and title paths). That rejection lands right here
+      // looking like a native failure, and classifyPrewarmResult's
+      // `interrupted` escape only helps when the native resolves. So anything
+      // the stop policy can explain — a bumped generation, a dispose, a
+      // swapped context, a chat that took the KV — is about this attempt, not
+      // about the model, and must not spend the retry budget. Read without
+      // logging: the reasons are already logged by whoever caused them.
+      persistentFailure =
+        prewarmStopReason({
+          genStale: gen !== prewarmGeneration,
+          disposing,
+          contextChanged: context !== jobEngine,
+          kvHoldsChat: kvHoldsChatSession,
+        }) === null;
       if (reason === "n_predict_rejected") {
         try {
           console.log(
@@ -1378,6 +1427,15 @@ export async function queueStaticPrefixPrewarm(
       }
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
+      const budgetKey = prewarmBudgetKey(prefix.hash);
+      if (succeeded) {
+        staticPrefixPrewarmFailures.delete(budgetKey);
+      } else if (persistentFailure) {
+        staticPrefixPrewarmFailures.set(
+          budgetKey,
+          (staticPrefixPrewarmFailures.get(budgetKey) ?? 0) + 1,
+        );
+      }
       // After the dedupe key is released, never before — the retry would
       // otherwise be rejected by `prewarmQueuedKey === prefix.hash`. Bounded
       // to one attempt: the re-queue reads needsFiller as true, so it cannot

@@ -439,6 +439,36 @@ export type PrewarmStopReason =
  * "no_context" even if a dispose is also in flight — the context identity is the
  * more specific fact.
  */
+/**
+ * A prewarm that keeps failing must not burn a full static-prefix prefill on
+ * every trigger. The foreground re-kick made that concrete: a model whose
+ * template or engine path refuses this render would pay ~1832 tokens of
+ * prefill on every single return to the app, for a prefix that will never
+ * land. Two attempts, then this process stops trying for that (model, prefix)
+ * pair; a later success clears the count.
+ */
+export const STATIC_PREFIX_PREWARM_MAX_FAILURES = 2;
+
+/**
+ * Does this outcome say something durable about the model, or only about this
+ * attempt? An interrupted completion says nothing — the next trigger should
+ * retry. A template that renders nothing usable, or an engine that refuses the
+ * render, will say the same thing next time.
+ *
+ * The template refusal Qwen raises is NOT routed here: it has its own bounded
+ * retry (the filler turn), and that retry is free because the refusal happens
+ * at render time, before any compute.
+ */
+export function prewarmFailureIsPersistent(
+  resultClass: PrewarmResultClass,
+): boolean {
+  return resultClass === "failed" || resultClass === "generated";
+}
+
+export function prewarmGivenUp(failures: number): boolean {
+  return failures >= STATIC_PREFIX_PREWARM_MAX_FAILURES;
+}
+
 export function prewarmStopReason(input: {
   genStale: boolean;
   disposing: boolean;
