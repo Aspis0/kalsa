@@ -2,3 +2,7 @@
 **/target
 .DS_Store
 src-tauri/gen/schemas
+
+# llama-server logs at -lv 5 print the prompts themselves. They are evidence for a
+# measurement, never something this repo may carry.
+dev/results/**/server*.log
