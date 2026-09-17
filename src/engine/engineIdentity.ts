@@ -2,10 +2,9 @@
  * Engine build identity for KV session persistence.
  *
  * The saved KV must be invalidated when the compiled engine changes: a new
- * kalsallama pin, new llama.rn bridge patches, changed native sources, or a
- * source-vs-prebuilt variant. A bare `kalsa-native-patches` marker is a
- * boolean literal, so it cannot tell two engine builds apart (audit of
- * e2e09f5, 2026-09-10).
+ * llama.rn fork commit, a changed engine tree, or changed native sources. A
+ * bare `kalsa-native-patches` marker is a boolean literal, so it cannot tell
+ * two engine builds apart (audit of e2e09f5, 2026-09-10).
  *
  * The real identity is computed at prebuild from the committed build inputs
  * (scripts/engine-build-id.js) and embedded in the shipped APK's app.config
@@ -38,8 +37,8 @@ export function engineBuildFingerprint(
     .split(/\s+/)
     .find((token) => token.includes(ENGINE_PATCH_MARKER));
   if (!marker) {
-    // Binary was not compiled from the patched source (prebuilt jniLibs):
-    // the generated build id would not describe what is actually running.
+    // Binary was not compiled from this source tree: the generated build id
+    // would not describe what is actually running.
     return null;
   }
   return `${engineBuildId.trim()}:${marker.slice(0, 96)}`;

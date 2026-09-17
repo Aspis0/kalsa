@@ -119,8 +119,8 @@ const config = {
         },
       },
     ],
-    // Compiles llama.rn cpp/ by default so patches/llama.rn+*.patch take effect.
-    // Opt out with KALSA_LLAMA_FROM_SOURCE=0 (prebuilt jniLibs). See plugin header.
+    // The llama.rn fork ships no prebuilt jniLibs, so the engine is always
+    // compiled from source; KALSA_LLAMA_FROM_SOURCE=0 throws. See plugin header.
     "./plugins/withLlamaFromSource",
     [
       "expo-calendar",
@@ -135,9 +135,9 @@ const config = {
 
 module.exports = () => {
   const next = JSON.parse(JSON.stringify(config));
-  // Engine identity from the real build inputs (fork pin, bridge/native
-  // patches, native tree, source-vs-prebuilt variant), embedded in the shipped
-  // APK's app.config `extra` and read at runtime via expo-constants. Throws on
+  // Engine identity from the real build inputs (llama.rn fork commit,
+  // installed engine tree, native tree), embedded in the shipped APK's
+  // app.config `extra` and read at runtime via expo-constants. Throws on
   // an unreadable input so prebuild fails loudly instead of shipping an
   // engine that cannot be identified (KV identity audit, 2026-09-10).
   next.extra = { ...next.extra, engineBuildId: computeEngineBuildId(__dirname) };

@@ -1,36 +1,36 @@
 #!/usr/bin/env node
 /**
- * Deterministic engine build id from the inputs the native build actually
- * compiles.
+ * Deterministic engine build id from the inputs the compiled engine actually
+ * depends on, shaped `kalsa-eng-v2:<64 hex>`.
  *
  * WHY THIS EXISTS: the saved KV sidecar must be invalidated when the compiled
- * engine changes — a new llama.rn fork commit, a new kalsallama (llama.cpp
- * fork) base, changed native sources, or a source-vs-prebuilt variant. A
- * runtime marker alone ("kalsa-native-patches") is a boolean literal and
- * cannot tell two engine builds apart, so it is not an identity (audit of
- * e2e09f5, 2026-09-10).
+ * engine changes. A runtime marker alone ("kalsa-native-patches") is a boolean
+ * literal and cannot tell two engine builds apart (audit of e2e09f5,
+ * 2026-09-10).
  *
- * The engine tree now ships as one piece: llama.rn is a git dependency on the
- * fork, and the installed cpp/ IS the engine tree (no overlay, no
- * patch-package). The fork commit pins that whole tree, so the id hashes:
- *   - the llama.rn git commit (the 40-hex sha after the last '#' of
- *     package-lock.json's node_modules/llama.rn resolved URL) — it pins the
- *     entire engine tree, bridge and native sources alike
- *   - node_modules/llama.rn/cpp/KALSALLAMA_SHA — proves the installed tree is
- *     the kalsallama fork and names the llama.cpp commit it carries; a tree
- *     without that file is upstream llama.rn, not our fork, and must fail the
- *     build instead of borrowing an id
- *   - the native/ source tree compiled on top of it (bmoe streamer,
+ * llama.rn is a git dependency on the fork and its installed cpp/ IS the
+ * engine tree (no overlay, no patch-package). The id binds CONTENT, not just
+ * pointers to it:
+ *   - llamaRnCommit: the fork commit from package-lock.json (fail-closed
+ *     provenance of the dependency)
+ *   - kalsallamaSha: cpp/KALSALLAMA_SHA (fail-closed proof the installed tree
+ *     is the kalsallama fork, not upstream llama.rn)
+ *   - engineTree: digest of node_modules/llama.rn/{cpp,android,bin,ios} minus
+ *     in-place build output — the actual compiled content, so a drifted or
+ *     re-resolved tree changes the id even when every pointer matches
+ *   - native: digest of the native/ sources compiled on top (bmoe streamer,
  *     GovernorBatteryModule)
- *   - plugins/withLlamaFromSource.js (the source-build machinery)
- *   - the llama.rn package version (the bridge version string) and the build
- *     variant: source (default) vs prebuilt jniLibs opt-out
+ *   - sourceBuildPlugin: plugins/withLlamaFromSource.js
+ *   - llamaRnVersion: the bridge version string
+ *
+ * There is no variant: the fork ships no prebuilt jniLibs, the engine is
+ * always compiled from source.
  *
  * The result is embedded at prebuild into the shipped APK's app.config `extra`
  * (see app.config.js) and consumed at runtime by src/engine/engineIdentity.ts.
- * It is a pure function of the inputs: same inputs -> same id, any input
- * change -> different id. It never fabricates a value: unreadable inputs throw
- * so prebuild fails loudly instead of shipping an unidentifiable engine.
+ * Same inputs -> same id, any input change -> different id. It never
+ * fabricates a value: unreadable or malformed inputs throw so prebuild fails
+ * loudly instead of shipping an unidentifiable engine.
  */
 "use strict";
 
@@ -46,6 +46,19 @@ const IGNORED_BASENAMES = new Set([
   "Thumbs.db",
   "desktop.ini",
 ]);
+
+// In-place build output generated inside the installed package: not an input.
+function isBuildOutput(rel) {
+  return (
+    rel === "android/.cxx" ||
+    rel.startsWith("android/.cxx/") ||
+    rel === "android/build" ||
+    rel.startsWith("android/build/") ||
+    rel === "ios/build" ||
+    rel.startsWith("ios/build/") ||
+    rel.split("/").includes("node_modules")
+  );
+}
 
 function sha256Hex(data) {
   return crypto.createHash("sha256").update(data).digest("hex");
@@ -67,42 +80,69 @@ function readJsonOrThrow(file) {
   }
 }
 
-/** Recursive file list, POSIX-relative, sorted. Ignores filesystem noise. */
-function listFilesRecursive(dir, base = dir) {
+/**
+ * Recursive file list, POSIX-relative, sorted. Ignores filesystem noise,
+ * skips paths the caller excludes, and refuses symlinks: a link could make
+ * the digest depend on state outside the tree it names.
+ */
+function listFilesRecursive(dir, base = dir, exclude = null) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (error) {
+    throw new Error(`engine-build-id: cannot list ${dir}: ${error.message}`);
+  }
   const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of entries) {
     if (IGNORED_BASENAMES.has(entry.name)) continue;
     const abs = path.join(dir, entry.name);
+    const rel = path.relative(base, abs).split(path.sep).join("/");
+    if (exclude && exclude(rel)) continue;
+    if (entry.isSymbolicLink()) {
+      throw new Error(`engine-build-id: symlink in input tree: ${abs}`);
+    }
     if (entry.isDirectory()) {
-      out.push(...listFilesRecursive(abs, base));
+      out.push(...listFilesRecursive(abs, base, exclude));
     } else if (entry.isFile()) {
-      out.push(path.relative(base, abs).split(path.sep).join("/"));
+      out.push(rel);
     }
   }
   return out.sort();
 }
 
-function digestTree(dir) {
-  return listFilesRecursive(dir).map(
+function digestTree(dir, exclude = null) {
+  return listFilesRecursive(dir, dir, exclude).map(
     (rel) => `${rel}:${sha256Hex(readFileOrThrow(path.join(dir, rel)))}`,
   );
 }
 
+// Both npm serializations of the github.com git dependency. The ssh form is
+// npm's normal lockfile form and needs no SSH key: pacote clones over https
+// first and only falls back to ssh.
+const LLAMA_RN_GIT_URL =
+  /^git\+(?:ssh|https):\/\/(?:git@)?github\.com\/Aspis0\/llama\.rn(?:\.git)?$/;
+
 /**
  * The 40-hex llama.rn fork commit: the sha after the last '#' of the lockfile
- * resolved URL for node_modules/llama.rn. Nothing about the URL before the
- * '#' is assumed; without a trailing '#<40-hex>' the engine tree is not
- * pinned and the build fails closed.
+ * resolved URL for node_modules/llama.rn. A wrong host/owner/repo or a
+ * missing/short sha fails closed.
  */
 function llamaRnCommit(root) {
   const lock = readJsonOrThrow(path.join(root, "package-lock.json"));
   const entry = lock.packages && lock.packages["node_modules/llama.rn"];
   const resolved =
     entry && typeof entry.resolved === "string" ? entry.resolved : "";
-  const commit = resolved.slice(resolved.lastIndexOf("#") + 1);
+  const hash = resolved.lastIndexOf("#");
+  const url = hash === -1 ? resolved : resolved.slice(0, hash);
+  const commit = resolved.slice(hash + 1);
+  if (!LLAMA_RN_GIT_URL.test(url)) {
+    throw new Error(
+      `engine-build-id: package-lock.json packages["node_modules/llama.rn"].resolved must be a github.com git URL for Aspis0/llama.rn (got ${JSON.stringify(resolved)})`,
+    );
+  }
   if (!/^[0-9a-f]{40}$/.test(commit)) {
     throw new Error(
-      `engine-build-id: package-lock.json packages["node_modules/llama.rn"].resolved must be a git URL ending in '#<40-char sha>' (got ${JSON.stringify(resolved)})`,
+      `engine-build-id: package-lock.json packages["node_modules/llama.rn"].resolved must end in '#<40-char sha>' (got ${JSON.stringify(resolved)})`,
     );
   }
   return commit;
@@ -145,35 +185,83 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
     throw new Error("engine-build-id: node_modules/llama.rn version is missing");
   }
 
-  const variant =
-    process.env.KALSA_LLAMA_FROM_SOURCE === "0" ? "prebuilt" : "source";
-
+  const packageDir = path.join(root, "node_modules", "llama.rn");
   return {
     llamaRnCommit: llamaRnCommit(root),
     kalsallamaSha: kalsallamaSha(root),
+    engineTree: ["cpp", "android", "bin", "ios"].flatMap((sub) =>
+      digestTree(path.join(packageDir, sub), isBuildOutput),
+    ),
     native: digestTree(path.join(root, "native")),
     sourceBuildPlugin: sha256Hex(
       readFileOrThrow(path.join(root, "plugins", "withLlamaFromSource.js")),
     ),
-    variant,
     llamaRnVersion,
   };
 }
 
-/** Hash normalized inputs into a stable engine build id. */
+function requireSha40(value, field) {
+  if (typeof value !== "string" || !/^[0-9a-f]{40}$/.test(value)) {
+    throw new Error(
+      `engine-build-id: input ${field} must be a 40-hex sha (got ${JSON.stringify(value)})`,
+    );
+  }
+  return value;
+}
+
+function requireSha256(value, field) {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error(
+      `engine-build-id: input ${field} must be a 64-hex digest (got ${JSON.stringify(value)})`,
+    );
+  }
+  return value;
+}
+
+function requireNonEmptyString(value, field) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(
+      `engine-build-id: input ${field} must be a non-empty string (got ${JSON.stringify(value)})`,
+    );
+  }
+  return value;
+}
+
+function requireDigestLines(value, field) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(
+      `engine-build-id: input ${field} must be a non-empty array of strings (got ${JSON.stringify(value)})`,
+    );
+  }
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry.length === 0) {
+      throw new Error(
+        `engine-build-id: input ${field} entries must be non-empty strings (got ${JSON.stringify(entry)})`,
+      );
+    }
+    if (entry.includes("\n")) {
+      throw new Error(
+        `engine-build-id: input ${field} entries must not contain newlines (got ${JSON.stringify(entry)})`,
+      );
+    }
+  }
+  return value;
+}
+
+/** Validate inputs and hash them into a stable engine build id. */
 function engineBuildIdFromInputs(inputs) {
   if (!inputs || typeof inputs !== "object") {
     throw new Error("engine-build-id: inputs required");
   }
   const canonical = [
-    `llama-rn:${inputs.llamaRnCommit}`,
-    `kalsallama:${inputs.kalsallamaSha}`,
-    `variant:${inputs.variant}`,
-    `llama-rn-version:${inputs.llamaRnVersion}`,
-    `source-plugin:${inputs.sourceBuildPlugin}`,
-    ...(inputs.native || []).map((n) => `native:${n}`),
+    `llama-rn:${requireSha40(inputs.llamaRnCommit, "llamaRnCommit")}`,
+    `kalsallama:${requireSha40(inputs.kalsallamaSha, "kalsallamaSha")}`,
+    `llama-rn-version:${requireNonEmptyString(inputs.llamaRnVersion, "llamaRnVersion")}`,
+    `source-plugin:${requireSha256(inputs.sourceBuildPlugin, "sourceBuildPlugin")}`,
+    ...requireDigestLines(inputs.native, "native").map((n) => `native:${n}`),
+    ...requireDigestLines(inputs.engineTree, "engineTree").map((n) => `engine:${n}`),
   ].join("\n");
-  return `${ENGINE_BUILD_ID_PREFIX}:${inputs.variant}:${sha256Hex(canonical)}`;
+  return `${ENGINE_BUILD_ID_PREFIX}:${sha256Hex(canonical)}`;
 }
 
 /** Convenience: collect from disk and hash. */
