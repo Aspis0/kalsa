@@ -32,31 +32,37 @@ the brain first — utility, not a statement about what the product is.
 
 ## 3. The shape
 
-> **The transition in this section was built, measured, and rejected — 2026-09-17.**
+> **Revised 2026-09-17, after building it.** A prototype implemented this section and was
+> thrown away. What the owner kept and what he cut are different things, and the difference
+> is the point.
 >
-> A prototype implemented it: the bar flying to the top right to become the first message,
-> the seats gathering into a five-point crescent, the whole thing reversible. It ran on the
-> View Transitions path, not a fallback: **672 ms measured against a 640 ms setting, 5022 ms
-> against 5000 ms**, thirty-five animations all honouring the duration. The mechanism works.
+> **Kept — and it is the core of the whole design: the writing bar becomes your first
+> message.** Press enter and the bar itself travels to the top right and turns into what you
+> just said; the rest of the brain screen becomes the thread. Not a navigation, not a panel
+> opening: the thing you typed into *is* the thing you said. That move is right and it is
+> what this section is about.
 >
-> The owner rejected it on sight, and the reason is not taste. **There is no crescent in this
-> app.** The navigation is a flat row of three tab buttons — Status, Model, Pairing
-> (`src/index.html:18-25`) — with transparent backgrounds and muted text until the pointer
-> lands on them (`src/styles.css:124`). It sits at the top and is close to invisible at rest.
+> **Cut — the seats gathering into a crescent.** The prototype choreographed four seats
+> threading into a five-point arc, and that was wrong for a reason worth writing down:
+> **there is no crescent in this app.** The navigation is a flat row of three tab buttons —
+> Status, Model, Pairing (`src/index.html:18-25`) — transparent and muted until the pointer
+> lands on them (`src/styles.css:124`), sitting at the top and close to invisible at rest.
 > The crescent is a form borrowed from `devboule-v2` and described in
-> `DESKTOP-CHAT-DECISION.md`; nothing here has ever drawn one.
+> `DESKTOP-CHAT-DECISION.md`; nothing here has ever drawn one. So the prototype animated a
+> destination that does not exist, toward a bar the owner barely sees. **The chat does not
+> need to show a crescent at all.** Whatever carries the way back is a separate decision,
+> made when that navigation is actually built — not smuggled in as the subject of an
+> animation.
 >
-> So the prototype animated four seats gathering into an arc that was never built, and its
-> destination is a bar the owner barely sees. An animation cannot be designed before the
-> navigation it lands in exists — that ordering was the mistake, and it cost one prototype.
-> The rest of this section, and §4 through §6, still stand: they describe where things live,
-> not how they move.
+> The mechanism was never in doubt. It ran on the View Transitions path, not a fallback:
+> **672 ms measured against a 640 ms setting, 5022 ms against 5000 ms**, thirty-five
+> animations all honouring the duration, reversible in both directions.
 >
-> **The duration argument is therefore unsettled, not decided.** What this section claims
-> below — that the transition should last as long as the first token actually takes, up to
-> 4.99 s when cold — was never tested against a real navigation, and the prototype's own
-> reading argued the opposite: cap the morph short and spend a long wait *inside* the thread,
-> where waiting is legible, rather than as a room rearranging in slow motion.
+> **The duration is open again.** What this section claims below — that the transition lasts
+> as long as the first token actually takes, up to 4.99 s cold — was never judged against a
+> real screen. The prototype read the opposite: cap the morph short and spend a long wait
+> *inside* the thread, where waiting is legible, rather than as a room rearranging in slow
+> motion. Unsettled, and it needs eyes on the real thing, not an argument.
 
 
 **Open the app and the brain is there, alone.** Which model is loaded, whether it is warm,
@@ -77,13 +83,14 @@ long enough to narrate the warm-up when it is cold (4.99 s). The transition is n
 decoration laid over a wait — it *is* the wait, made watchable. Nobody can copy it without
 having measured those numbers first.
 
-**In the chat the crescent carries the brain's surfaces** — Models, Server, Devices,
-Advanced, Settings, and the way home. Five, not six, because Chat is not a surface: it is
-the room the crescent hangs in.
+**In the chat, the way back is the only thing that must be there.** ~~The crescent carries
+the brain's surfaces — Models, Server, Devices, Advanced, Settings, and the way home.~~
+Struck 2026-09-17: see the revision note at the top of this section. The chat does not have
+to display a menu of surfaces at all, and deciding what carries them is a job for whenever
+the navigation is really built. What the thread genuinely owes the reader is a way home.
 
-**Going back is symmetric.** The same animation reversed, plus `Esc` next to the crescent
-entry. If leaving is a transformation and returning is a menu click, the illusion collapses
-on second use.
+**Going back is symmetric.** The same animation reversed, plus `Esc`. If leaving is a
+transformation and returning is a menu click, the illusion collapses on second use.
 
 ## 4. The part that decides whether this survives contact
 
@@ -99,10 +106,11 @@ even while you are talking.
 
 ## 5. One rule to keep the structure honest
 
-Surfaces live in **one** place. The brain is the legible overview; the crescent is the
-shortcut for when you are deep in a conversation. Same destinations, two ways to reach
-them, no duplicated content. The moment Models exists both as a crescent entry and as a
-panel inside the brain, there are two answers to every question about it.
+Surfaces live in **one** place. The brain is the legible overview; whatever shortcut the
+thread eventually gets is a second way to the same destinations, never a second copy of
+them. The moment Models exists both as a shortcut entry and as a panel inside the brain,
+there are two answers to every question about it. (This rule was written assuming a
+crescent; it does not depend on one, and it outlives it.)
 
 ## 6. The prerequisite, and it is not cosmetic
 
@@ -117,11 +125,14 @@ which is worse than showing none.
 
 ## 7. Not decided
 
-- Whether the first-run walk *builds* the crescent as the brain comes alive (measure,
-  decide, fetch the engine, choose the model) and leaves it behind as a permanent trace.
-  Cheap, since that screen already exists; unverified as a feeling.
-- Whether five points sit well on an arc whose visible count was six in `devboule-v2`
-  (`CRESCENT_VISIBLE_COUNT = 6` is called a design constant there, per §6 of
-  `DESKTOP-CHAT-DECISION.md`). This needs to be looked at, not reasoned about.
+- **What this app's navigation actually is.** The two bullets that used to sit here asked
+  whether the first-run walk should build the crescent, and whether five points sit well on
+  an arc drawn with six in `devboule-v2`. Both assumed a crescent exists here. It does not
+  (§3), and that assumption is what wasted a prototype. The real open question is the plain
+  one underneath: today the way between surfaces is three tab buttons that are invisible
+  until hovered, and nothing has decided what replaces them. Until that is decided, no
+  animation into it can be designed.
+- **How long the transition lasts.** Reopened — see §3. Measured as a mechanism, never
+  judged as a feeling on a real screen.
 - What the brain shows when nobody is talking and everything is idle. An empty room is the
   common case and it must not look like a failure.
