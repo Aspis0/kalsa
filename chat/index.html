@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- No remote loads, ever: images self-only (the app renders none),
+         connections only to the configured endpoint; inline scripts allowed
+         because Vite dev needs them (real XSS defense is markdown escaping
+         plus never rendering remote images). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self' http: https: ws: wss:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crescent Chat</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

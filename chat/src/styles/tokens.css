@@ -1,0 +1,51 @@
+/* Design tokens. Structure adopted from devboule-v2 (meaningful custom
+   properties: --ink, --ink-soft, --surface, --surface-muted, --border,
+   --accent) — colors are the crescent-chat green palette, not devboule's.
+   Accent states are lightness steps in the SAME oklch hue (see
+   scripts/palette.mjs). Type is system-only (offline rule). */
+
+:root {
+  --page: #f4f8f3;
+  --surface: #ffffff;
+  --surface-muted: #e8eae7;
+  --border: #d8e0d7;
+  --border-strong: #c2cdc1;
+  --ink: #17201c;
+  --ink-soft: #2c3630;
+  --silence: #58615b;
+  --accent: #1f5f4e;
+  --accent-hover: #125545;
+  --accent-pressed: #024b3b;
+  --accent-ink: #ffffff;
+  --selection: #cfe3d6;
+  --danger: #8a3b32;
+  --ink-rgb: 23, 32, 28;
+  --surface-muted-rgb: 232, 234, 231;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 72ch;
+  --radius: 14px;
+  --focus-ring: 2px solid var(--accent);
+}
+
+[data-theme="dark"] {
+  --page: #111613;
+  --surface: #1a211c;
+  --surface-muted: #232c26;
+  --border: #2e3833;
+  --border-strong: #414e46;
+  --ink: #e9f0ea;
+  --ink-soft: #c2cfc5;
+  --silence: #97a59c;
+  --accent: #75b3a0;
+  --accent-hover: #86c2ab;
+  --accent-pressed: #679e8c;
+  --accent-ink: #111613;
+  --selection: #2b4238;
+  --danger: #d89c92;
+  --ink-rgb: 233, 240, 234;
+  --surface-muted-rgb: 35, 44, 38;
+}

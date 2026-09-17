@@ -1,0 +1,405 @@
+import type { ChatMessage, Conversation, ConversationMeta } from "./types";
+import type { Attachment, AttachmentKind } from "./attachments";
+
+/**
+ * The ONLY module that knows where conversations live. The rest of the app
+ * talks to a ConversationStore; a future backend replaces createStore()
+ * without touching any component.
+ *
+ * Shape (v2): an INDEX of capped metadata (one small key, read for every
+ * list/search) plus one key PER CONVERSATION for its messages. The list and
+ * the search never touch a message payload.
+ *
+ * Deliberate deviation, documented: list() returns ConversationMeta[], not
+ * Conversation[] — returning full payloads from list() would nullify the
+ * split above. Method names and the single-seam rule are unchanged.
+ */
+export interface ConversationStore {
+  /** Index only. Never parses a message payload. */
+  list(): ConversationMeta[];
+  /** Full conversation; messages validated on read. */
+  get(id: string): Conversation | undefined;
+  put(conversation: Conversation): void;
+  remove(id: string): void;
+  /** Retitle without touching the message payload (index-only). */
+  rename(id: string, title: string): void;
+  /** Attachments of one conversation (active and history). Small; no cache. */
+  getAttachments(convId: string): Attachment[];
+  /** Insert or replace one attachment; history beyond 20 falls off. */
+  putAttachment(convId: string, attachment: Attachment): void;
+  /** Detach into history (kept, re-attachable) — never deletes the text. */
+  removeAttachment(convId: string, attachmentId: string): void;
+  /** Last persist failure, if any (quota). Null after a successful write. */
+  getWriteError(): string | null;
+  clearWriteError(): void;
+  subscribe(listener: () => void): () => void;
+}
+
+export function uid(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
+}
+
+const PREFIX = "crescent-chat.";
+const INDEX_KEY = "crescent-chat.index.v2";
+const MIGRATED_KEY = "crescent-chat.migrated.v2";
+const OLD_KEY = "crescent-chat.conversations.v1";
+
+function attachKey(convId: string): string {
+  return `crescent-chat.attach.${convId}.v2`;
+}
+
+const ATTACH_KINDS: AttachmentKind[] = ["txt", "md", "pdf", "docx", "pptx"];
+
+function cleanAttachment(value: unknown): Attachment | null {
+  if (typeof value !== "object" || value === null) return null;
+  const a = value as Record<string, unknown>;
+  if (typeof a.id !== "string" || !a.id) return null;
+  if (typeof a.name !== "string" || !a.name) return null;
+  if (typeof a.text !== "string") return null;
+  if (!ATTACH_KINDS.includes(a.kind as AttachmentKind)) return null;
+  if (typeof a.chars !== "number" || typeof a.tokens !== "number") return null;
+  if (typeof a.attachedAt !== "number" || typeof a.active !== "boolean") return null;
+  if (a.pages !== undefined && typeof a.pages !== "number") return null;
+  return {
+    id: a.id,
+    name: a.name,
+    kind: a.kind as AttachmentKind,
+    ...(typeof a.pages === "number" ? { pages: a.pages } : {}),
+    chars: a.chars,
+    tokens: a.tokens,
+    text: a.text,
+    attachedAt: a.attachedAt,
+    active: a.active,
+  };
+}
+const PREVIEW_CHARS = 140;
+const SEARCH_CHARS = 500;
+
+function msgKey(id: string): string {
+  return `crescent-chat.msgs.${id}.v2`;
+}
+
+function isValidMessage(value: unknown): value is ChatMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const m = value as Record<string, unknown>;
+  return (
+    typeof m.id === "string" &&
+    m.id.length > 0 &&
+    (m.role === "user" || m.role === "assistant") &&
+    typeof m.content === "string"
+  );
+}
+
+function cleanMessage(value: unknown): ChatMessage | null {
+  if (!isValidMessage(value)) return null;
+  return {
+    id: value.id,
+    role: value.role,
+    content: value.content,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    ...(typeof value.stopped === "boolean" ? { stopped: value.stopped } : {}),
+    ...(typeof value.reasoning === "string" && value.reasoning
+      ? { reasoning: value.reasoning }
+      : {}),
+    ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
+  };
+}
+
+function cleanMeta(value: unknown): ConversationMeta | null {
+  if (typeof value !== "object" || value === null) return null;
+  const m = value as Record<string, unknown>;
+  if (typeof m.id !== "string" || m.id.length === 0) return null;
+  if (typeof m.title !== "string") return null;
+  return {
+    id: m.id,
+    title: m.title,
+    createdAt: typeof m.createdAt === "number" ? m.createdAt : 0,
+    updatedAt: typeof m.updatedAt === "number" ? m.updatedAt : 0,
+    preview: typeof m.preview === "string" ? m.preview : "",
+    search: typeof m.search === "string" ? m.search : "",
+    hasMessages: m.hasMessages === true,
+  };
+}
+
+function plainPreview(text: string): string {
+  const noFences = text.replace(/```[\s\S]*?```/g, (block) => {
+    const inner = block
+      .replace(/```\w*\n?|\n?```$/g, "")
+      .trim()
+      .split("\n");
+    return inner[0] ?? "";
+  });
+  return noFences
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function describe(messages: ChatMessage[]): Pick<ConversationMeta, "preview" | "search" | "hasMessages"> {
+  const texts = messages.map((m) => m.content.trim()).filter((t) => t.length > 0);
+  const preview = plainPreview(texts.at(-1) ?? "").slice(0, PREVIEW_CHARS);
+  const recent = texts.slice(-2).join("\n");
+  return { preview, hasMessages: texts.length > 0, search: recent.slice(-SEARCH_CHARS) };
+}
+
+function metaFor(conversation: Conversation): ConversationMeta {
+  const clean = conversation.messages
+    .map(cleanMessage)
+    .filter((m): m is ChatMessage => m !== null);
+  const described = describe(clean);
+  const searchBase = `${conversation.title}\n${described.search}`.slice(-SEARCH_CHARS);
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    preview: described.preview,
+    search: searchBase,
+    hasMessages: described.hasMessages,
+  };
+}
+
+export function titleFor(firstText: string): string {
+  const oneLine = firstText.replace(/\s+/g, " ").trim();
+  if (!oneLine) return "New conversation";
+  return oneLine.length > 46 ? `${oneLine.slice(0, 46).trimEnd()}…` : oneLine;
+}
+
+export function createStore(): ConversationStore {
+  let index: ConversationMeta[] | null = null;
+  let writeError: string | null = null;
+  const listeners = new Set<() => void>();
+  const payloadCache = new Map<string, ChatMessage[]>();
+
+  function notify(): void {
+    listeners.forEach((l) => l());
+  }
+
+  function readIndex(): ConversationMeta[] {
+    if (index === null) {
+      migrateOnce();
+      index = loadIndex();
+    }
+    return index;
+  }
+
+  function loadIndex(): ConversationMeta[] {
+    try {
+      const raw = localStorage.getItem(INDEX_KEY);
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map(cleanMeta)
+        .filter((m): m is ConversationMeta => m !== null)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch {
+      return [];
+    }
+  }
+
+  function readPayload(id: string): ChatMessage[] {
+    const cached = payloadCache.get(id);
+    if (cached) return cached;
+    try {
+      const raw = localStorage.getItem(msgKey(id));
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const clean = parsed.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+      payloadCache.set(id, clean);
+      return clean;
+    } catch {
+      return [];
+    }
+  }
+
+  /** One-shot v1 -> v2 migration. Never repeats (flag), never loses data:
+      the old key is removed only after the new index reads back whole. */
+  function migrateOnce(): void {
+    try {
+      if (localStorage.getItem(MIGRATED_KEY) === "1") return;
+      const raw = localStorage.getItem(OLD_KEY);
+      if (!raw) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const metas: ConversationMeta[] = [];
+      for (const item of parsed) {
+        if (typeof item !== "object" || item === null) continue;
+        const c = item as Record<string, unknown>;
+        if (typeof c.id !== "string" || c.id.length === 0 || !Array.isArray(c.messages)) continue;
+        const messages = c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+        const meta = metaFor({
+          id: c.id,
+          title: typeof c.title === "string" && c.title ? c.title : "Untitled conversation",
+          createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
+          updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
+          messages,
+        });
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        payloadCache.set(meta.id, messages);
+        metas.push(meta);
+      }
+      metas.sort((a, b) => b.updatedAt - a.updatedAt);
+      localStorage.setItem(INDEX_KEY, JSON.stringify(metas));
+      const check: unknown = JSON.parse(localStorage.getItem(INDEX_KEY) ?? "[]");
+      if (!Array.isArray(check) || check.length !== metas.length) return;
+      localStorage.removeItem(OLD_KEY);
+      localStorage.setItem(MIGRATED_KEY, "1");
+    } catch {
+      // Anything failed: flag unset, old key kept, retried on next load.
+    }
+  }
+
+  function writeThrough(mutator: () => void): boolean {
+    try {
+      mutator();
+      writeError = null;
+      return true;
+    } catch {
+      writeError =
+        "Browser storage is full — new messages are kept for this session only and will be lost on reload.";
+      return false;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // A second window wrote: drop every cache so the next read sees it.
+    window.addEventListener("storage", (event) => {
+      if (event.key !== null && !event.key.startsWith(PREFIX)) return;
+      index = null;
+      payloadCache.clear();
+      notify();
+    });
+  }
+
+  return {
+    list() {
+      return [...readIndex()];
+    },
+    get(id) {
+      const meta = readIndex().find((m) => m.id === id);
+      if (!meta) return undefined;
+      return {
+        id: meta.id,
+        title: meta.title,
+        createdAt: meta.createdAt,
+        updatedAt: meta.updatedAt,
+        messages: [...readPayload(id)],
+      };
+    },
+    put(conversation) {
+      const messages = conversation.messages
+        .map(cleanMessage)
+        .filter((m): m is ChatMessage => m !== null);
+      const meta = metaFor({ ...conversation, messages });
+      const ok = writeThrough(() => {
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        const next = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+        payloadCache.set(meta.id, messages);
+      });
+      if (!ok) {
+        // Keep the session coherent in memory even though the disk refused.
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        index = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        payloadCache.set(meta.id, messages);
+      }
+      notify();
+    },
+    remove(id) {
+      const ok = writeThrough(() => {
+        localStorage.removeItem(msgKey(id));
+        localStorage.removeItem(attachKey(id));
+        const next = readIndex().filter((m) => m.id !== id);
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().filter((m) => m.id !== id);
+      }
+      payloadCache.delete(id);
+      notify();
+    },
+    rename(id, title) {
+      // Index-only: the search field is always "title\nbody", so the body
+      // half survives the retitle without loading the payload.
+      const ok = writeThrough(() => {
+        const next = readIndex().map((m) =>
+          m.id === id
+            ? { ...m, title, updatedAt: Date.now(), search: `${title}\n${m.search.split("\n").slice(1).join("\n")}` }
+            : m,
+        );
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().map((m) => (m.id === id ? { ...m, title } : m));
+      }
+      notify();
+    },
+    getAttachments(convId) {
+      try {
+        const raw = localStorage.getItem(attachKey(convId));
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map(cleanAttachment)
+          .filter((a): a is Attachment => a !== null)
+          .sort((a, b) => b.attachedAt - a.attachedAt);
+      } catch {
+        return [];
+      }
+    },
+    putAttachment(convId, attachment) {
+      const clean = cleanAttachment(attachment);
+      if (!clean) return;
+      const rest = this.getAttachments(convId).filter((a) => a.id !== clean.id);
+      const next = [clean, ...rest];
+      const active = next.filter((a) => a.active);
+      const history = next.filter((a) => !a.active).slice(0, 20);
+      const capped = [...active, ...history].sort((a, b) => b.attachedAt - a.attachedAt);
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(capped));
+      });
+      notify();
+    },
+    removeAttachment(convId, attachmentId) {
+      const next = this.getAttachments(convId).map((a) =>
+        a.id === attachmentId ? { ...a, active: false } : a,
+      );
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(next));
+      });
+      notify();
+    },
+    getWriteError() {
+      return writeError;
+    },    clearWriteError() {
+      writeError = null;
+      notify();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
