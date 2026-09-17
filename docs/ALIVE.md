@@ -5800,3 +5800,142 @@ inondazione del log perche' `truncated` e' azzerato da `rewind()` a ogni complet
 
 Restano due P3 non affrontati: i test coprono il formatter ma non il ramo di emissione in
 `LlamaService`, e `result.truncated ?? false` collassa "assente" e "falso".
+
+## 2026-09-17 — T20C's week-long defect closed; the LFM2 recurrent claim retracted; 20 turns do not fit an S23
+
+Full write-up with every line quote lives in the app repo,
+`docs/KV-WINDOW-AND-THERMAL-2026-09-17.md` (app commit `de53b6b`). This is the state.
+
+### T20C: the re-send defect is fixed and proven, and it was not what killed the run
+
+App `d934eb0`. The harness proved a send had landed by reading the user message back out of
+RKStorage; a phone busy generating does not persist it in time, so the 45 s window expired and
+the turn was re-shared **over work already in flight**. Measured on the 2026-09-17 S23 run
+(`out/t20c-newengine-20260917`): app started `turnId 4` at 00:22:49, harness re-shared at
+00:23:52, app restarted the same question as `turnId 5`, and the run aborted at 00:36:31 while
+`turnId 5` finished at 00:37:34. `turnId 4` produced no telemetry — 92 s of prefill discarded.
+The pid never changed across that window, which rules out the thermal path (cooldown
+force-stops).
+
+The fix accepts the engine's own `KALSA_THINKING` as proof of landing: 0.3 s after the send
+instead of minutes. **Result: 6 turn sends, 6 `KALSA_SEND` lines, zero duplicates**, with
+send-to-send gaps of 2m24s…7m45s, every one past the old 45 s window.
+
+Selftest `scripts/campaign/selftest_defects.sh`: 28 checks, 0 failures. Non-vacuity proven with
+a clean-sandbox control (the sandbox baselines at 14 pass / 10 fail because it has no
+`campaigns/t20c.json`): each of three mutations — engine check removed, Send tap removed,
+composer left empty — adds **exactly** the three db-lag failures and no others.
+
+### Why the run died anyway: the thermal budget, not the harness
+
+| | |
+|---|---|
+| start | 34.6 °C, 89 %, thermal status 0 |
+| 6 turns / 38 min later | **44.0 °C** (the owner's hard stop) |
+| 25 min idle, app stopped | 34.0 °C, status 0 |
+
+An out-of-band guard force-stopped the app at 10:51:21 on exactly 44.0 °C. The run ended
+`T20C_EXIT=1`, `THERMAL GIVEUP`, at turn 6 of 20.
+
+**Design defect exposed:** `campaign_thermal_cooldown` in `run-t20c.sh` deliberately does not
+force-stop, so an in-flight turn survives — right at turn 3, where the turn finished during the
+pause and the phone shed 0.7 °C in 300 s. But an app that is still generating cannot cool. At
+turn 6 the phone **gained 1.9 °C during its cooldown** (42.1 → 44.0). A pause that does not stop
+the work is not a pause.
+
+**Twenty turns on an unplugged S23 are not thermally possible with this model.** That is a
+property of the device and the model, not a harness bug, and it puts the acceptance test itself
+in question. The owner's framing (17/09): a real user does 50 turns — so this is a product
+defect, not a laboratory one.
+
+### Where the heat goes — now printed by the verdict, never gated
+
+App `b9f51c8` adds `scripts/campaign/verdictSpend.mjs`. On this run:
+
+```
+prefill vs decode: 733s prefill (153s of it prewarm) / 651s decode (prefill 53%)
+decode tok/s round 0, first -> last: 10.17 -> 6.48 (-36%)
+re-prefill after a KALSA_WINDOW_SLIDE that cleared the KV: 4954 tok in 207s
+```
+
+Window budget at `n_ctx=8192`, read from the slide marker itself: system prompt **1832** (22 %),
+generation reserve **2048** (25 %), conversation **4312** (53 %). The reserve is 4x the 512
+answer budget; the longest think block measured was ~490 tokens. KV costs **29.2 KB/token** on
+this phone (182.5 MB at 6101 tokens), so 8192 → 16384 is **+239 MB** against 2.2 GB reported
+available.
+
+A hostile audit found three defects in the first version of that reporter, all invisible because
+nothing asserted its output: `-1` is the app's missing-counter sentinel and **is finite**, so
+`Number.isFinite` was not a guard; two slides with no turn between them billed the same
+telemetry twice; and the prewarm's 153 s of prefill was dropped entirely because React Native
+renders a multi-arg `console.log` quoted and `JSON.parse` threw on a well-formed line. All three
+are now asserted in selftest section (f).
+
+### RETRACTED: "LFM2's recurrent half cannot evict a prefix"
+
+This is the reason recorded in `8a2579c` and `4004117` for discarding the whole KV on every
+slide, and it is why we pay the 207 s. **It is true of Mamba and RWKV. It is not true of LFM2.**
+We had been applying another family's property to our own model for three weeks.
+
+From the engine we ship:
+- `llama-hparams.cpp:189-191` — per-layer recurrent state is `n_embd * (n_shortconv_l_cache - 1)`.
+  With `l_cache = 3` that is **2 activations**, not a running summary.
+- `models/lfm2.cpp:169,196` — `d_conv = 2`, and the state is literally prepended to the new
+  tokens (`concat(conv, bx, 0)`). A 2-deep FIFO.
+- `models/lfm2.cpp:10` — `is_recr_impl[il] = n_head_kv(il) == 0`; the shipped model reports
+  `head_count_kv = [0,0,8,0,0,8,...]`, i.e. **8 attention layers out of 30**, 22 short convolutions.
+- `llama-memory-recurrent.cpp:304-331` — `seq_add` on the recurrent side only bumps `cell.pos`;
+  its own comment: *"for Mamba-like or RWKV models, only the pos needs to be shifted"*. The state
+  is position-free.
+
+Derived (from the code, **not measured**): the conv stack's receptive field is bounded by roughly
+2 tokens/layer × 22 layers ≈ **44 tokens**, not 8192.
+
+**What actually broke** in `4004117` (`n_ctx=8192, n_common=7379` → K-shift →
+`tokensCached=4304` → next send `n_common=0`): llama.cpp's context shift keeps `n_keep` at the
+front and discards the **middle** (`n_discard = n_left/2`, hence 4304 ≈ 8192/2), while our JS
+sends the whole conversation next turn — so the surviving cache is no longer a prefix of
+anything. Native and JS disagreeing about which tokens survive, not a mathematical impossibility.
+The two policies already have the same shape (llama.cpp keeps `n_keep`; JS keeps `systemTokens`
+and advances `prevStart:0 → newStart:4`); nobody ever told one how much the other dropped.
+
+⚠️ Any fix must have **one owner of the truth** — this is the JS/native KV desync trap this
+project has hit three times.
+
+### Prior art: nobody has solved it, and our case is easier than theirs
+
+Searched (state rollover, state handoff, shadow state, parallel state warm-up, sliding-window
+Mamba/RWKV/Jamba/Zamba, recurrent-state checkpointing): **no paper or merged implementation**
+maintains a second live recurrent state from a future boundary and swaps at the slide. Closest:
+*Sparse Prefix Caching for Hybrid and Recurrent LLM Serving* (arXiv 2605.05219) and **Marconi**
+(MLSys'25) — checkpoints for cross-request prefix reuse. Closest implementations: vLLM internal
+checkpoints (issue 52959) and recompute backfill (issue 53041), **both open RFCs**. llama.cpp,
+vLLM, SGLang, TensorRT-LLM ship none of it. All of that literature is about models whose state
+genuinely is unbounded — which LFM2 is not.
+
+### Governor: one lever refuted, one untouched
+
+`docs/CORE-PLACEMENT-PILOT-2026-09-16.md` closed core placement for **normal operation**: decode
+on the A55 cores costs 5.0–5.3x (+402 % against a rule tolerating +25 %).
+
+That refutation does not reach the case we hit today. **During a thermal pause the latency budget
+is infinite** — we are stopped anyway. Today's only options are force-stop (loses the turn) or
+full speed (does not cool). A third exists and is unmeasured: **keep generating on the little
+cores during the pause.** 5x slower costs nothing when the alternative is a full stop, and it is
+the only option that saves the turn *and* sheds heat.
+
+### Found in the same run: the first turn of every conversation shows its reasoning
+
+Assistant turn 1 begins *"The user wants me to respond in Italian about a 7-day trip to
+Portugal…"* — 752 characters of raw chain-of-thought served as the answer. Turn 1 carries
+`</think>` with **no** `<think>` (the template opens the block), turns 2 and 3 carry both and are
+clean. `src/engine/thinkStream.ts` has no rule for a closing tag preceding any opening tag: in
+both stream and finalize it deletes the tag and keeps the reasoning. Under repair.
+
+### Still unproven, and being measured
+
+- The ~44-token receptive field (derived, not measured).
+- Whether a shift that keeps the conv state yields coherent output — the StreamingLLM
+  approximation, unverified here.
+- **The decisive number: `n_common` on the turn after a shift.** High ⇒ the on-device discard is
+  avoidable. Zero ⇒ the original decision was right and the question closes.

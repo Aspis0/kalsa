@@ -1308,3 +1308,83 @@ Repo hygiene:
 - **q4_K non e' MAI stato misurato**, ne' in fedelta' ne' in costo, pur essendo la quantizzazione
   spedita in fascia alta. Non e' in nessuna lista di aperti: aggiunto qui perche' e' un buco reale.
 - **Il governor non e' mai stato acceso su un telefono.** Ora l'interruttore esiste; l'evidenza no.
+
+### 17/09 — T20C sbloccato, la penalita' termica finalmente misurata, e una decisione di tre settimane ritrattata
+
+Diario completo con tutte le citazioni: `docs/ALIVE.md` §2026-09-17, e nel repo dell'app
+`docs/KV-WINDOW-AND-THERMAL-2026-09-17.md` (commit `de53b6b`).
+
+**Atterrato e provato sul telefono:**
+
+1. `d934eb0` — **il difetto che fermava T20C da una settimana e' chiuso.** L'harness provava
+   l'invio leggendo il messaggio dal DB del telefono; un'app occupata a generare non ce lo scrive
+   in tempo, quindi la finestra da 45 s scadeva e il turno veniva **rinviato sopra lavoro in
+   volo**. Ora la prova e' il `KALSA_THINKING` del motore, che arriva 0,3 s dopo l'invio.
+   Risultato sul run del 17/09: **6 invii per 6 turni, zero duplicati**, con distanze fra invii da
+   2m24s a 7m45s — tutte oltre la vecchia finestra. Selftest 28/0, non vacuita' provata con
+   controllo pulito (tre mutazioni, ognuna aggiunge esattamente i tre fallimenti attesi).
+2. `b9f51c8` — il verdetto T20C **prezza** lo slide invece di limitarsi a provarlo corretto.
+   Riportato, mai gatato: la soglia e' una riga di prodotto.
+
+**Aperto 4 (penalita' termica) e' CHIUSO, con i numeri:**
+
+S23 staccato, chat semplice, nessun allegato: **34,6 °C → 44,0 °C in 38 minuti e 6 turni**.
+Decode da 10,17 a 6,48 tok/s (**−36%**). Prefill = **53%** del tempo di calcolo (733 s contro
+651 s di decode, di cui 153 s di prewarm). Da fermo il telefono recupera 10 °C in 25 minuti.
+Questo e' il numero che giustifica il governor per fase, ed e' peggio di quanto si pensasse.
+
+**Conseguenza da decidere:** **venti turni su un S23 a batteria non sono fisicamente possibili
+con questo modello.** Il run e' morto al turno 6 con `THERMAL GIVEUP`. Non e' un bug
+dell'harness: e' il test di accettazione che non sta nel budget termico del dispositivo. E la
+lettura dell'owner (17/09) e' che un utente vero fa **50 turni**, quindi e' un difetto di
+prodotto, non di laboratorio.
+
+**Difetto di progetto scoperto nello stesso run:** la pausa termica lascia l'app viva apposta per
+non buttare il turno in volo — giusto, e al turno 3 ha funzionato (il turno e' finito durante la
+pausa e il telefono ha perso 0,7 °C in 300 s). Ma un'app che genera non si raffredda: al turno 6
+ha **guadagnato 1,9 °C durante il raffreddamento** (42,1 → 44,0). Una pausa che non ferma il
+lavoro non e' una pausa.
+
+**RITRATTATA: "la meta' ricorrente di LFM2 non puo' evincere un prefisso".**
+
+E' la ragione scritta in `8a2579c` e `4004117` per buttare tutta la KV a ogni slide, ed e' il
+motivo per cui paghiamo 207 s. **Vale per Mamba e RWKV. Non vale per LFM2.** Per tre settimane
+abbiamo applicato al nostro modello una proprieta' di un'altra famiglia.
+Dal motore che spediamo: lo stato per layer e' `n_embd * (l_cache - 1)` con `l_cache=3`, cioe'
+**2 attivazioni** (`llama-hparams.cpp:189-191`), anteposte ai nuovi token
+(`models/lfm2.cpp:196`); **8 layer di attenzione su 30**, gli altri 22 sono convoluzioni corte
+(`models/lfm2.cpp:10`); e `seq_add` sulla ricorrente sposta solo `cell.pos` perche' lo stato e'
+position-free (`llama-memory-recurrent.cpp:304-331`).
+Cio' che si e' rotto davvero: il context shift di llama.cpp butta il **mezzo** (`n_discard =
+n_left/2`, ecco il `tokensCached=4304`), mentre il nostro JS manda tutta la conversazione il turno
+dopo — quindi la cache superstite non e' piu' prefisso di niente. **Nativo e JS in disaccordo su
+quali token sopravvivono**, non impossibilita' matematica.
+⚠️ Qualunque correzione deve avere **un solo proprietario della verita'**: e' la trappola di
+desync JS/nativo gia' incontrata tre volte.
+
+**Prior art cercato (17/09):** nessuno mantiene un secondo stato ricorrente vivo da un confine
+futuro per scambiarlo allo slide. I piu' vicini sono checkpoint di stato per riuso fra richieste
+(Marconi, MLSys'25) e due RFC vLLM **aperte** (52959, 53041). llama.cpp, vLLM, SGLang e
+TensorRT-LLM non spediscono la tecnica. Tutta quella letteratura riguarda modelli con stato
+davvero illimitato — che LFM2 non e'.
+
+**Governor: un leva refutata, una intatta.** Il pilota del 16/09 ha chiuso il core placement in
+esercizio normale (decode sugli A55 = 5,0–5,3x, +402% contro una regola che tollera +25%). Quella
+refutazione **non** copre il caso di oggi: durante una pausa termica il budget di latenza e'
+infinito. Generare sui core piccoli invece di fermarsi salva il turno *e* raffredda. Mai misurato.
+
+**Da decidere dall'owner (nessuna di queste e' stata toccata):**
+
+- La soglia di ammissione del catalogo (rinviata dall'owner il 17/09).
+- **La soglia termica: la regola dell'owner dice thermal status >= 3, l'harness e' configurato a
+  `CAMPAIGN_THERMAL_PAUSE=5` e in pratica scatta sulla batteria > 42 °C.** Le due non coincidono.
+- `WINDOW_RESERVE_TOKENS` = 2048 contro un budget di risposta di 512 (il blocco di pensiero piu'
+  lungo misurato era ~490 token). Alzare il soffitto conversazionale da 4312 costa **zero RAM**.
+- `n_ctx` 8192 → 16384: **+239 MB** (KV misurata a 29,2 KB/token), con l'app che riportava 2,2 GB
+  liberi. L'S23 e' escluso dall'upgrade da un gate sulla RAM **totale** che manca per 82 MB.
+- **Se un test di accettazione da 20 turni a batteria sia il test giusto**, dato il budget termico.
+
+**Aperto nuovo, di prodotto:** il **primo turno di ogni conversazione mostra il ragionamento come
+risposta** (752 caratteri di chain-of-thought in inglese). Il template apre il blocco da solo, il
+modello emette solo `</think>`, e `thinkStream.ts` non ha una regola per una chiusura orfana in
+testa: cancella il tag e tiene il pensiero. In riparazione.
