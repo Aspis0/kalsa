@@ -214,3 +214,46 @@ it on a spare port and ran the mutation:
 Those are the same two numbers the auditor measured independently. The check has teeth.
 
 Scratch tree removed, live tree untouched.
+
+## 9. Final state, verified by running it
+
+Twenty-one commits, clean tree, 3401 lines across 27 files, 33 screenshots — all reproducible
+(28 from `scripts/shots.mjs`, 5 from `scripts/verify.mjs`; no orphans, which was worth checking
+because the earlier `29-motion-*` PNGs had none).
+
+Every suite run by me, not reported to me:
+
+| | result |
+|---|---|
+| `npm run build` | exit 0 |
+| `node scripts/verify.mjs` | exit 0, 55 assertions |
+| `node scripts/contrast-dom.mjs` | exit 0, 56 computed pairs |
+
+And two mutations, because a check nobody has watched fail is not a check:
+
+- `color: var(--accent-ink)` → `var(--white)` on `CrescentNav.css:141` → **exit 1**, `2.23 FAIL`
+  light, `2.08 FAIL` dark.
+- `img: BlockedImage` commented out in `Markdown.tsx:120` → **exit 1**, `FAIL zero img
+  elements`, `FAIL notice shown`.
+
+Both restored; `git status` clean afterwards.
+
+**The end-to-end that was still missing.** Everything above still ran against a mock. So I
+started the real llama-server (b10950, Trinity, 127.0.0.1:8139), served the app, seeded nothing
+but the endpoint, typed a question in the real UI and pressed Enter:
+
+- first rendered paragraph at **200 ms**, 126 characters of real generated prose at 404 ms;
+- **zero external requests** — every request went either to the app's own assets or to
+  127.0.0.1:8139. Measured by listening on Playwright's `request` event, not asserted by the
+  app about itself.
+
+The crescent now carries six labelled surfaces (Chat, Models, Server, Devices, Advanced,
+Settings) with no paging arrows, and conversations live in a sidebar with a `⌘K` search,
+recency groups, a preview line and inline rename. The contrast suite covers the new sidebar
+elements by name (`sidebar new`, `sidebar search`, `sidebar title`, `sidebar preview`,
+`sidebar group`, `blocked image`), so the pale-looking "+ New chat" in a dimmed screenshot is a
+measured pair, not a guess — undimmed it is the deep accent with white text.
+
+**What is still true from §5**: there is no Rust crate, so this is a very well-verified web
+page, not yet a signed desktop binary. Naming, signing and one-window-or-two remain the owner's
+calls. Nothing has been pushed.
