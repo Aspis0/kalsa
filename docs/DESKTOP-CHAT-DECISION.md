@@ -139,3 +139,58 @@ keyboard map comes from.
 
 On the scrim, the owner is also right that it is deliberate — it is the same veil the Settings
 dialog uses. The defect narrows to one case: it must not dim an answer that is still streaming.
+
+## 7. The independent audit
+
+Run on a different model from the one that wrote the code. It read the sources, re-derived the
+colour arithmetic independently, executed the real `chat.ts` against seventeen synthetic
+streams, rendered the real `Markdown.tsx` through `react-dom/server`, and measured the CSS in a
+real Chromium. Fourteen findings, plus a list of things it checked and cleared.
+
+**Re-verified by me on disk, not relayed on trust:**
+
+- **`var(--white)` is not defined.** `src/components/CrescentNav.css:141` and `:195` both set
+  `color: var(--white)` over `background: var(--accent)`. `grep` finds the token nowhere else in
+  the repo — it is never declared. An undefined custom property makes the declaration invalid at
+  computed-value time, so `color` inherits: the active point's glyph renders at **2.23:1** in
+  light and **2.08:1** in dark. It is visible in `shots/24-active-nav.png`, and `LOG.md:195` had
+  already promoted it to a design choice ("glifo scuro").
+  The colour is not the serious part. `scripts/palette.mjs` certifies 22/22 PASS against
+  **literal pairs** the app does not render on those elements; the arithmetic is correct (all
+  twenty-two numbers reproduce under an independent implementation) but the list of pairs never
+  touches the CSS. This is the same defect class as
+  `tests-that-rebuild-their-subject`: a check whose contract is with itself.
+- **Model markdown can call arbitrary hosts.** `src/components/Markdown.tsx:64` passes only
+  `pre`/`code`/`a` overrides — no `allowedElements`, no `img`. `![x](https://host/p.gif?c=…)`
+  becomes a real `<img>`, i.e. a network request carrying IP, time and `Referer`, and an exit
+  channel for conversation text placed in the query. `README.md:9` promises the opposite:
+  *"the only network call the app ever makes is the user-configured endpoint"*. `index.html` has
+  no meta CSP, so in `dev`/`preview` the request goes out. (Raw HTML and `javascript:` URLs are
+  already neutralised by react-markdown v9 — that side is clean.)
+- **`completionsUrl` doubles `/v1`.** Executed, not read:
+  `https://api.openai.com/v1` → `https://api.openai.com/v1/v1/chat/completions`; same for
+  `http://localhost:11434/v1` and `https://openrouter.ai/api/v1`. That is the base URL every
+  provider publishes, and the error shown (`Thread.tsx:33`) carries neither the status nor the
+  URL, so the user cannot see what happened.
+- **Sending in one conversation stops another's stream, and the same file knows better.**
+  `src/App.tsx:258` computes a conversation-scoped streaming flag for the Thread; six lines
+  later `src/App.tsx:264` hands the Composer the **global** one. So: generate in A, open B,
+  type, press Enter → `Composer.tsx:37` calls `onStop()`, A's answer is truncated and marked
+  stopped, and B's text is neither sent nor cleared.
+
+**Relayed, consistent with code I read but not independently reproduced:** a 200 response that
+is not SSE is dropped in silence and reported as "unreachable"; a stream that ends without
+`[DONE]` is announced as "Response complete."; a storage-quota failure is swallowed while the
+listeners still fire, so the UI shows messages that are not on disk; unvalidated message
+elements plus no error boundary anywhere turn corrupted storage into a blank window with no way
+back to Settings; two windows overwrite each other's conversations.
+
+**Checked and cleared, with evidence:** no secrets in the 33 committed PNGs (chunk-level parse
+plus OCR of all of them, and a sweep of every blob in git history); no third-party network in
+the sources or the bundle; the SSE frame reassembly is correct across split chunks, CRLF, two
+events in one chunk, malformed JSON mid-stream and multibyte UTF-8 split across reads; the token
+appears only in the `Authorization` header — there is not a single `console.` call in `src/`;
+`tsc --noEmit` exits 0.
+
+All of it is now in front of the agent that wrote the code, together with the crescent
+correction, as one brief.
