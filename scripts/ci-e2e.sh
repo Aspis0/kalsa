@@ -221,6 +221,10 @@ sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';" > 
 # NOT tokens reused — warm/cold uses native loadPrompt n_past from reuse_t2.txt.
 log "capturing KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry.txt" || true
+# Static-prefix prewarm: did it restore the on-disk snapshot, prefill, or skip —
+# and did this model's template refuse a system-only prompt? Nothing else in CI
+# records that, and logcat.txt only keeps the last 80 lines.
+adb logcat -d | grep -F "KALSA_PREWARM" | sed 's/.*KALSA_PREWARM /KALSA_PREWARM /' > "$OUT/prewarm.txt" || true
 
 node -e '
 const fs = require("fs");
@@ -385,6 +389,12 @@ sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';" >
 log "capturing KALSA_SESSION + post-restart KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_SESSION" | sed 's/.*KALSA_SESSION /KALSA_SESSION /' > "$OUT/session_telemetry.txt" || true
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry_restart.txt" || true
+adb logcat -d | grep -F "KALSA_PREWARM" | sed 's/.*KALSA_PREWARM /KALSA_PREWARM /' > "$OUT/prewarm_restart.txt" || true
+# The engine's own view of prefix reuse, one line per completion: n_common
+# against the live cache length. n_common == embd is the whole point of
+# 57bad0c on a hybrid — on a dense model it is only a regression check.
+adb logcat -d | grep -F "KALSA_KVPREFIX" | sed 's/.*KALSA_KVPREFIX /KALSA_KVPREFIX /' > "$OUT/kvprefix.txt" || true
+adb logcat -d | grep -F "KALSA_KVREUSE" | sed 's/.*KALSA_KVREUSE /KALSA_KVREUSE /' > "$OUT/kvreuse.txt" || true
 
 node -e '
 const fs = require("fs");
@@ -473,6 +483,42 @@ elif grep -qF "SESSION_RESTORE: HIT" "$OUT/RESULT.txt"; then
 else
   log "SESSION_RESTORE: COLD/MISS (logged, not failing job — data first)"
 fi
+
+# One readable line each for the prewarm and the engine's own prefix match, so
+# the outcome is stated in RESULT.txt instead of buried in the artifacts.
+node -e '
+const fs = require("fs");
+const read = (p) => { try { return fs.readFileSync(p, "utf8"); } catch (_) { return ""; } };
+const prewarm = read(process.argv[1]) + read(process.argv[2]);
+const count = (re) => (prewarm.match(re) || []).length;
+const ops = {
+  restore_ok: count(/"op":"restore","ok":true/g),
+  restore_miss: count(/"op":"restore","ok":false/g),
+  prefill_done: count(/"op":"done"/g),
+  snapshot_saved: count(/"op":"snapshot_save","ok":true/g),
+  system_only_template: count(/"reason":"system_only_template"/g),
+};
+console.log("PREFIX_PREWARM: " + Object.entries(ops).map(([k, v]) => k + "=" + v).join(" "));
+
+// KALSA_KVPREFIX embd=N text_tokens=N n_common=N — n_common == embd means the
+// live cache was reused whole, which is what a hybrid needs (seq_rm never
+// enters its n_rs_seq-bounded branch). Report the best match seen.
+const kv = read(process.argv[3]);
+const rows = [...kv.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
+  .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
+  .filter((r) => r.embd > 0);
+if (!rows.length) {
+  console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache");
+} else {
+  const best = rows.reduce((a, b) => (b.common > a.common ? b : a));
+  const whole = rows.some((r) => r.common === r.embd);
+  console.log(
+    "KV_PREFIX: best n_common=" + best.common + " embd=" + best.embd +
+    " text_tokens=" + best.text + " whole_cache_reused=" + (whole ? "YES" : "NO") +
+    " rows=" + rows.length,
+  );
+}
+' "$OUT/prewarm.txt" "$OUT/prewarm_restart.txt" "$OUT/kvprefix.txt" | tee -a "$OUT/RESULT.txt"
 
 cat "$OUT/RESULT.txt"
 
