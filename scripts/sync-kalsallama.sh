@@ -249,12 +249,20 @@ fix_jinja_and_ext_includes() {
     sed_i 's|#include "unicode.h"|#include "unicode-stream.h"|g' "$uf"
   done
   shopt -u nullglob
-  local f
-  for f in "$DST/common/fit.h" "$DST/common/fit.cpp" "$DST/common/speculative.cpp"; do
-    if [ -f "$f" ]; then
-      sed_i 's|#include "../src/llama-ext.h"|#include "../llama-ext.h"|g' "$f"
-    fi
+  # llama-ext.h lives at cpp/llama-ext.h after flattening, but the fork's
+  # sources include it as "../src/llama-ext.h" from common/. This used to
+  # rewrite a hardcoded three-file list (fit.h, fit.cpp, speculative.cpp), so
+  # when pin 134a35cf2 added the include to common/common.cpp the flattened
+  # tree pointed at a cpp/src/ that does not exist and the NDK failed at
+  # common.cpp:10. Same allow-list fragility as copy_common — rewrite the whole
+  # tree instead, like the unicode rewrite above.
+  shopt -s nullglob
+  for uf in "$DST"/common/*.cpp "$DST"/common/*.h \
+            "$DST"/common/jinja/*.cpp "$DST"/common/jinja/*.h
+  do
+    sed_i 's|#include "../src/llama-ext.h"|#include "../llama-ext.h"|g' "$uf"
   done
+  shopt -u nullglob
 }
 
 copy_ggml_headers() {
