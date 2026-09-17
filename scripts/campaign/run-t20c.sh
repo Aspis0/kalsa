@@ -12,6 +12,11 @@ if [ "${ANDROID_SERIAL:-}" != "$SERIAL" ]; then
   echo "refuse: ANDROID_SERIAL must be exactly $SERIAL (got '${ANDROID_SERIAL:-}')" >&2
   exit 2
 fi
+# The fake harness has no installed phone APK; every real run must bind one.
+if [ -z "${CAMPAIGN_APK_PATH:-}" ] && [ -z "${FAKE_DEV:-}" ]; then
+  echo "refuse: CAMPAIGN_APK_PATH must point to the APK installed on the phone" >&2
+  exit 2
+fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"

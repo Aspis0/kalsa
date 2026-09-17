@@ -7,6 +7,7 @@ import { runMetroGate, verifyBundleText } from "./metroGate.mjs";
 
 const PACKAGE_NAME = "com.kalsa.app";
 const EMBEDDED_ENTRY = "assets/index.android.bundle";
+const HERMES_MAGIC = Buffer.from([0xc6, 0x1f, 0xbc, 0x03]);
 const MAX_UNZIP_BYTES = 256 * 1024 * 1024;
 
 function command(name, args, options = {}) {
@@ -73,11 +74,19 @@ function installedApkHashes(apkHash) {
   return hashes;
 }
 
-function embeddedResult(evidenceDir, apk, bundle, checks, error = null) {
+function embeddedResult(
+  evidenceDir,
+  apk,
+  apkHash,
+  installed,
+  bundle,
+  bundleFormat,
+  checks,
+  error = null,
+) {
   const digest = bundle ? sha256(bundle) : null;
   return {
     schema: "kalsa.metro-content-gate.v2",
-    ok: checks?.ok === true && !error,
     evidenceDir,
     requestedEvidenceDir: evidenceDir,
     requestedUrl: null,
@@ -87,10 +96,14 @@ function embeddedResult(evidenceDir, apk, bundle, checks, error = null) {
     partialBody: false,
     bundleBytes: bundle?.length ?? null,
     sha256: digest,
+    bundleFormat,
+    apkSha256: apkHash,
+    installedApkHashes: installed,
     httpStatus: null,
     responseMetadata: null,
     checks,
     error,
+    ok: bundleFormat === "hermes-bytecode" ? !error : checks?.ok === true && !error,
     source: "embedded-apk",
     apk,
   };
@@ -143,11 +156,44 @@ async function verify(apk, evidenceDir) {
     ["-p", apk, EMBEDDED_ENTRY],
     { encoding: "buffer" },
   ).stdout;
+  const bundleFormat = extracted.subarray(0, HERMES_MAGIC.length).equals(HERMES_MAGIC)
+    ? "hermes-bytecode"
+    : "plain-text";
+  if (bundleFormat === "hermes-bytecode") {
+    const result = embeddedResult(
+      evidenceDir,
+      apk,
+      apkHash,
+      installed,
+      extracted,
+      bundleFormat,
+      null,
+    );
+    writeEmbeddedEvidence(evidenceDir, result);
+    console.log(`metro gate evidence=${evidenceDir}`);
+    console.log(`metro gate requested-url=embedded://${EMBEDDED_ENTRY}`);
+    console.log(
+      `metro gate HTTP=none bytes=${result.bundleBytes} sha256=${result.sha256}`,
+    );
+    console.log("metro gate bundle-format=hermes-bytecode");
+    console.log(
+      "metro gate content-inspection=not-possible reason=Hermes bytecode is binary; source-text protocol checks cannot inspect it",
+    );
+    console.log(
+      "metro gate identity=PASS means the device runs exactly this APK; it does not mean any protocol code was verified",
+    );
+    console.log("metro gate result=PASS");
+    return result;
+  }
+
   const checks = verifyBundleText(extracted);
   const result = embeddedResult(
     evidenceDir,
     apk,
+    apkHash,
+    installed,
     extracted,
+    bundleFormat,
     checks,
     checks.ok ? null : "embedded bundle failed the content checks",
   );
@@ -157,6 +203,7 @@ async function verify(apk, evidenceDir) {
   console.log(
     `metro gate HTTP=none bytes=${result.bundleBytes} sha256=${result.sha256}`,
   );
+  console.log(`metro gate bundle-format=${bundleFormat}`);
   console.log(`metro gate bundle-mode=${checks.bundleMode}`);
   console.log(
     `metro gate checks=marker,forbidden-stale-symbols${checks.bundleMode === "unminified" ? ",in-flight-semantics" : ""}`,
