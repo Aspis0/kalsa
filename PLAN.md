@@ -1547,3 +1547,122 @@ misurato**.
 file in un repo solo (piano in corso — nota architetturale: quei file hanno un upstream **diverso**
 da kalsallama, quindi il repo unico ha bisogno di **due remote e due flussi di merge**, non di un
 rsync che i conflitti li vince invece di mostrarli).
+
+## 17/09 sera — fork di llama.rn: una copia sola del motore (piano, orchestratore)
+
+**Obiettivo.** `Aspis0/llama.rn` (branch `kalsa`, base tag `v0.12.8`) il cui `cpp/` E' kalsallama
+appiattito + i 36 file `rn-*`/`jsi/` come sorgente tracciato. L'app dipende da
+`github:Aspis0/llama.rn#<sha>`. Spariscono: overlay rsync, `patches/`, `patch-package`,
+`vendor/kalsallama-cpp/`, `native/kalsallama.pin` (il pin si sposta nel fork).
+
+**Terreno riverificato il 17/09 (con le correzioni al brief):**
+- patch = **198.098 byte** (non 187 KB), 25 file, 4 nuovi (`rn-governor*`): confermato.
+- 36 file esclusi dall'overlay, 15 patchati, 21 congelati: confermato file per file.
+- `v0.12.8..v0.12.9` tocca 7 dei 36 (`rn-completion.cpp`, `rn-slot-manager.{cpp,h}`, `rn-slot.cpp`,
+  `jsi/JSICompletion.h`, `jsi/JSIRequestManager.h`, `jsi/RNLlamaJSI.cpp`), 2 congelati: confermato.
+- `vendor/kalsallama-cpp` = **715** file tracciati (non 623).
+- `scripts/assert-vendor-pristine.sh` **non e' chiamato da nessun workflow**: e' un gate locale.
+- La patch tocca anche `cpp/common/common.{cpp,h}` che sono overlay-owned (marker
+  `kalsa-native-patches` + struct `kalsa_moe`): l'hunk si applica DOPO l'overlay, sul file kalsallama.
+- `native/bmoe/` (streamer MoE) e' compilato dal CMakeLists patchato via path relativo
+  `${RNLLAMA_LIB_DIR}/../../../native/bmoe` (opzionale, `if(EXISTS)`). Resta cosi' nello step 1.
+- `Aspis0/llama.rn` **esiste gia'**: fork pubblico, archiviato il 16/09 23:04, `main` = commit
+  upstream `baf1f3d` (era 0.13.0-rc.1), nessun commit nostro. Va de-archiviato (Marco).
+- Upstream NON traccia `lib/` (`.gitignore:71`); il tarball npm si'. Con una git-dep, pacote lancia
+  `npm install`+`npm pack` nel clone se `package.json` ha `postinstall`/`prepack`/`prepare`:
+  llama.rn li ha entrambi → nel fork si rimuovono e `lib/` si committa.
+- `apk.yml` (il gate binario) e' solo `workflow_dispatch`; ultima build `9bd5d0d4d`, che differisce
+  da `4cf44d8` in 360 file di `vendor/` → serve una baseline nuova a `4cf44d8`.
+- Android: `plugins/withLlamaFromSource.js` mette `rnllamaBuildFromSource=true` → `jniLibs.srcDirs=[]`,
+  niente precompilati. iOS: `llama-rn.podspec:33-46` compila `cpp/` solo con
+  `RNLLAMA_BUILD_FROM_SOURCE=1`, altrimenti linka `ios/rnllama.xcframework` che il fork non ha.
+
+**Criterio dello step 1: equivalenza, non "compila".** Due prove, in ordine:
+1. *Sorgente*: manifest `sha256\tpath` di `node_modules/llama.rn` (tutto tranne build dir,
+   jniLibs, xcframework, marker `.llama-rn.sha256`, `package.json`) dopo `npm ci` col fork ==
+   manifest della strada vecchia (tarball npm + overlay + patch, ricostruita in scratch da HEAD).
+   Differenze ammesse SOLO da whitelist esplicita (file nuovi del fork: `kalsallama.pin`,
+   `cpp/KALSALLAMA_SHA`, `scripts/*`). Comando: `diff baseline.manifest fork.manifest`.
+2. *Binario*: `apk.yml` su `main@4cf44d8` (baseline) e sul commit di switch, stessi input;
+   `sha256` di `lib/arm64-v8a/librnllama*.so` estratti dai due APK. Se non bit-identici:
+   `llvm-nm --defined-only` + size delle sezioni, e si scrive cosa differisce.
+
+### Sequenza (un passo, una prova, un audit)
+
+**Step 0 — baseline, nessuna modifica all'app.**
+- Ricostruisci in `/tmp` la strada vecchia da HEAD: tarball `llama.rn@0.12.8` + rsync vendor con
+  gli stessi exclude + `patch-package --error-on-fail`. Manifest → `llama-rn-fork/baseline-4cf44d8.manifest` (repo lab).
+- Sanity: lo stesso manifest su `node_modules/llama.rn` reale (sola lettura) deve coincidere.
+- `gh workflow run apk.yml --ref main -f abi=arm64-v8a` (stessi input della build di switch) →
+  scarica l'APK, `sha256` dei `.so` → `llama-rn-fork/baseline-4cf44d8.so.sha256`.
+- Prova: i due file esistono e il manifest ha ≥ 700 righe `cpp/`.
+
+**Step 1 — costruire il fork in locale (`/Users/marco/Projects/llama.rn-kalsa`, clone nuovo; l'app
+non viene toccata).**
+- `git clone Aspis0/llama.rn`; `git remote add upstream mybigday/llama.rn`; `git fetch upstream --tags`;
+  `git checkout -b kalsa v0.12.8`. Prova: `diff -r` tra il tarball npm e il checkout sui path del
+  tarball → vuoto tranne `lib/` (non tracciato) e `package.json`.
+- Commit A `build: track lib/ and drop install-time scripts`: `lib/` dal tarball, un-ignore
+  `lib/` in `.gitignore`, rimuovi `postinstall` e `prepack`. Versione resta `0.12.8`.
+- Commit B `engine: cpp/ is kalsallama 134a35cf2, flattened`: rsync di `vendor/kalsallama-cpp/`
+  su `cpp/` con gli stessi 5 exclude; `VENDOR_SHA` → `cpp/KALSALLAMA_SHA`; `kalsallama.pin` alla
+  radice; `scripts/sync-kalsallama.sh` adattato (flatten in tmp → rsync in `cpp/` → applica
+  `scripts/kalsa-patches/*.patch`; niente NM_CPP, niente overlay).
+- Commit C `kalsa: native patch set (governor, slot manager, JSI, MoE params)`:
+  `git apply -p3 patches/llama.rn+0.12.8.patch`; gli hunk su `common.{cpp,h}` vengono ANCHE
+  estratti in `scripts/kalsa-patches/` cosi' un re-flatten non li perde.
+- Prova 1 (sorgente): manifest del fork vs baseline → solo whitelist.
+- Prova 2 (rigenerazione): `scripts/sync-kalsallama.sh pin 134a35cf2` nel fork → `git status`
+  pulito. Se sporca, il flusso di aggiornamento non e' deterministico e non si va avanti.
+- Prova 3 (install): in uno scratch, `npm install git+file:///…/llama.rn-kalsa#<sha>` con
+  `time`; manifest di `node_modules/llama.rn` == manifest fork; nessun `npm install` di devDeps
+  nel log. Qui si decide con un numero se `lib/` committato regge.
+- Audit ostile (Reviewer, modello diverso dal writer) sugli script e sul manifest.
+
+**Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
+`kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
+
+**Step 3 — switch dell'app, UN commit (avvisare Marco prima: cambia `postinstall`, e da qui in poi
+`patches/` non ha piu' effetto).**
+- `package.json`: `"llama.rn": "github:Aspis0/llama.rn#<sha40>"`, `postinstall` rimosso.
+- `scripts/engine-build-id.js`: input = sha risolto della git-dep (da `package-lock.json`
+  `packages["node_modules/llama.rn"].resolved`) + `native/` + plugin + variant; via `patches`,
+  `pin`, `overlay`. Test aggiornato. Tutti i sidecar KV vengono invalidati una volta: voluto.
+- NON si tocca: `patches/`, `vendor/`, `native/kalsallama.pin`, `scripts/sync-kalsallama.sh`
+  (strada vecchia in piedi ma non cablata; e' il rollback).
+- Prova: `npm ci` locale → manifest == baseline (whitelist); `npx tsc --noEmit`;
+  `npx jest src/engine/engineIdentity.test.ts`; `apk.yml` sul branch → `assert-native-patch.sh`
+  verde → `.so` sha256 vs baseline.
+- Rollback: `git revert <switch>` + `npm ci`. Un comando.
+
+**Step 4 — pulizia, dopo CI verde:** rimuovi `patches/`, `vendor/kalsallama-cpp/`,
+`native/kalsallama.pin`, `scripts/sync-kalsallama.sh`, `scripts/assert-vendor-pristine.sh`,
+devDep `patch-package`; aggiungi `scripts/assert-engine-provenance.sh` (lockfile sha → tarball
+GitHub del fork → `npm pack` → manifest == installato: stesso ruolo del gate vecchio, stesso
+uso manuale). Docs: REPOS.md, ARCHITECTURE.md, commenti di plugin e CMake. Prova: CI verde,
+`git grep -l 'patch-package\|sync-kalsallama' -- ':!archived' ':!docs'` vuoto.
+
+**Step 5 — merge `v0.12.9` nel fork, sessione separata, MAI insieme a 3/4.** `git merge v0.12.9`
+su `kalsa`: sui file motore (cpp/ meno i 36) si prende `--ours` e si rilancia il sync (deve dare
+`git status` pulito); i 7 file rn/jsi si leggono riga per riga (rischio reale: API di llama.cpp
+piu' nuove di kalsallama b10952); `src/` cambia → `npm run build` e ricommit di `lib/`. Prova:
+CI verde con lo sha bumpato, `assert-native-patch` verde, una verifica su telefono.
+
+### Cosa perdiamo, e con cosa lo sostituiamo
+| Oggi gratis | Dopo | Sostituto |
+|---|---|---|
+| `patch-package` grida se a monte cambia sotto di noi | niente cambia sotto di noi: il fork e' pinnato a sha; il rischio e' un merge che risolve male in silenzio | lettura riga per riga dei 36 file al merge + CI + telefono (step 5 e' l'esercizio) |
+| `assert-vendor-pristine.sh` (installato == npm+patch) | non ha piu' senso | `assert-engine-provenance.sh` (installato == fork@sha) + nel fork `sync … pin` deve lasciare `git status` pulito |
+| `patch-package` esce 0 con "1 error(s)" → CI verde con motore non patchato | **sparisce** (guadagno vero) | — |
+| overlay che "vince" i conflitti in silenzio | **sparisce**: un merge git li mostra | — |
+| integrity sha512 del tarball nel lockfile, `npm ci` offline dalla cache | git-dep: sha40 come identita', serve GitHub raggiungibile, clone a ogni `npm ci` (tempo misurato allo step 1) | — |
+| opt-out `KALSA_LLAMA_FROM_SOURCE=0` (jniLibs precompilati) | il fork non pubblica binari | perso; se serve, release del fork con tarball jniLibs (non ora) |
+| iOS: xcframework upstream | il fork non lo ha | `RNLLAMA_BUILD_FROM_SOURCE=1` o build nostra — **decisione di Marco prima di iOS** |
+| `KALSALLAMA_SRC` per pin non ancora pushati | resta, nello script del fork | — |
+| engine-build-id stabile | cambia una volta (input diversi) | i sidecar KV si rigenerano una volta |
+| il motore appiattito e' pubblico in `Aspis0/kalsa` | resta pubblico, in `Aspis0/llama.rn` | nessuna esposizione nuova; kalsallama grezzo resta privato |
+
+**Coordinamento con la sessione KV:** finche' lo step 3 non e' committato, ogni sua modifica a
+`patches/`/`vendor/`/pin va ri-derivata nel fork (commit B/C sono script, si rilanciano e il
+manifest dice se torna). Dopo lo step 3 le modifiche native vanno nel fork (rn-*/jsi) o in
+kalsallama (motore) + bump dello sha.

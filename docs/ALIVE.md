@@ -6114,3 +6114,46 @@ built** `.so`, so it is not evidence for today's code. CI compiles the new nativ
 just-bumped fork headers for the first time — two new things at once. No device measurement: the
 expected win (−1832 tokens of re-prefill per slide, −40 s per model reload) is **computed, not
 measured**.
+
+## 17/09/2026 evening — llama.rn fork: step 0 and step 1 done locally, nothing pushed
+
+Plan: `PLAN.md` §17/09 sera. Brief numbers corrected while re-verifying: the patch is
+**198,098 bytes** (not 187 KB), `vendor/kalsallama-cpp` is **715** tracked files (not 623), and
+`scripts/assert-vendor-pristine.sh` is called by **no workflow** — it was always a local gate.
+
+**Step 0 — baseline.** `llama-rn-fork/manifest.sh` (lab repo) hashes every file of a llama.rn tree
+that feeds the build. The old road rebuilt in scratch from HEAD's committed inputs (npm tarball,
+integrity == lockfile, + overlay + `patch-package --error-on-fail`) gives
+`llama-rn-fork/baseline-4cf44d8.manifest`: **837 files, 750 under cpp/**. The real
+`node_modules/llama.rn` on this Mac matches it with **zero** differences.
+
+**Step 1 — the fork, in `/Users/marco/Projects/llama.rn-kalsa`, branch `kalsa` from `v0.12.8`.**
+`Aspis0/llama.rn` already existed (public, archived 16/09, `main` = upstream `baf1f3d`, nothing of
+ours); cloned, upstream added. Three commits:
+- `130cc023` tracks what npm shipped but git did not: `lib/` (38), `bin/arm64-v8a/*.so` (5 — CMake
+  links `libOpenCL.so` as the OpenCL stub, Gradle packages `libggml-htp-*.so`), the OpenCL headers
+  (18, was a submodule), `install/native-artifacts.json`; drops `postinstall`+`prepack` and all
+  three submodules (`third_party/llama.cpp` would be cloned on every `npm ci`).
+- `81a32498` `cpp/` = `vendor/kalsallama-cpp` rsync'd with the same five excludes; `cpp/KALSALLAMA_SHA`,
+  `kalsallama.pin`. 747 files under cpp/ = 714 vendor + sha + 32 rn/jsi files present at the tag.
+- `987799a1` the 25 patched files copied as content from the patch-package output. `git apply -p3`
+  refused the patch: three hunks (`src/types.ts:287`, `lib/typescript/types.d.ts:255`,
+  `cpp/jsi/RNLlamaJSI.cpp:1117`) have one-line context at an off-by-one offset — the hand-recomposed
+  patch of `4553062`; patch-package searches by content and tolerates it, git does not.
+
+**Proofs.** Fork tree vs baseline manifest: **0 missing, 0 changed**; extras are repo-only files
+`files` does not ship, plus `cpp/KALSALLAMA_SHA` and `kalsallama.pin`. Scratch install
+`npm install git+file://…#987799a1`: **18.9 s**, no devDependency install, no `bob build`; installed
+tree == baseline + `cpp/KALSALLAMA_SHA` only; `package.json` differs only in `scripts`; lockfile
+records `resolved: git+file://…#<sha40>`, `integrity: null`.
+
+**Binary baseline: not yet.** `apk.yml` on `main@4cf44d8` (run 35248340495) failed at
+"Typecheck + logic harnesses" — `contextProfile.ts(137): TS2591 Cannot find name 'require'` —
+before the native build. The KV session then committed `5de99f3 fix(session): unbreak the
+harnesses`; if native inputs are identical between the two commits the baseline is re-dispatched
+on `5de99f3`.
+
+**In flight.** Coder (GLM-5.3-Flash) writes the fork's `scripts/sync-kalsallama.sh` +
+`scripts/kalsa-patches/` + `verify`; the determinism proof is `pin <sha>` leaving `git status`
+empty. Reviewer (DeepSeek v4.1) audits after. App-side switch prepared in worktree
+`/Users/marco/Projects/kalsa-fork-switch` (branch `llama-rn-fork`), the KV session's checkout untouched.
