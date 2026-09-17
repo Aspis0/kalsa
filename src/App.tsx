@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createStore, titleFor, uid } from "./lib/store";
+import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, streamChatCompletion } from "./lib/chat";
@@ -38,6 +39,14 @@ export function App() {
   const [streamingByConv, setStreamingByConv] = useState<Record<string, string>>({});
   const [failedById, setFailedById] = useState<Record<string, FailedState>>({});
   const controllers = useRef(new Map<string, AbortController>());
+  // In-flight stream buffers, keyed by assistant message id. Text lives here
+  // while streaming and renders from here; the disk is written on a throttle
+  // plus once at the end — never per token. The stored copy always trails
+  // the buffer, so the buffer is authoritative until the run finishes.
+  const bufs = useRef(
+    new Map<string, { convId: string; content: string; reasoning: string; tail: string; timer: ReturnType<typeof setTimeout> | undefined }>(),
+  );
+  const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string }>>({});
   const [liveMessage, setLiveMessage] = useState("");
 
   useEffect(
@@ -61,12 +70,27 @@ export function App() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  const active = useMemo(
-    () => (activeId ? (store.get(activeId) ?? null) : null),
+  const active = useMemo(() => {
+    const conv = activeId ? (store.get(activeId) ?? null) : null;
+    if (!conv) return null;
+    let changed = false;
+    const messages = conv.messages.map((m) => {
+      const l = live[m.id];
+      if (!l || l.convId !== conv.id) return m;
+      changed = true;
+      return { ...m, content: l.content, reasoning: l.reasoning };
+    });
+    return changed ? { ...conv, messages } : conv;
     // conversations refreshes on every store notification (index is small).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversations, activeId],
-  );
+  }, [conversations, activeId, live]);
+
+  const tails = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [id, entry] of Object.entries(live)) out[id] = entry.tail;
+    return out;
+  }, [live]);
+
   const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
   const streamingAny = Object.keys(streamingByConv).length > 0;
   const configured = isConfigured(settings);
@@ -115,6 +139,60 @@ export function App() {
       let firstToken = true;
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
+
+      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number }): void {
+        const b = bufs.current.get(assistantId);
+        const latest = store.get(conversationId);
+        if (!latest) return;
+        store.put({
+          ...latest,
+          updatedAt: Date.now(),
+          messages: latest.messages.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  content: b ? b.content : m.content,
+                  reasoning: b ? b.reasoning : m.reasoning,
+                  ...extra,
+                }
+              : m,
+          ),
+        });
+      }
+
+      function schedulePersist(): void {
+        const b = bufs.current.get(assistantId);
+        if (!b || b.timer !== undefined) return;
+        b.timer = setTimeout(() => {
+          b.timer = undefined;
+          persistLive();
+        }, 500);
+      }
+
+      function dropLive(): void {
+        const b = bufs.current.get(assistantId);
+        if (b?.timer !== undefined) clearTimeout(b.timer);
+        bufs.current.delete(assistantId);
+        setLiveState((prev) => {
+          if (!(assistantId in prev)) return prev;
+          const next = { ...prev };
+          delete next[assistantId];
+          return next;
+        });
+      }
+
+      function ingest(kind: "content" | "reasoning", text: string): void {
+        let b = bufs.current.get(assistantId);
+        if (!b) {
+          b = { convId: conversationId, content: "", reasoning: "", tail: "", timer: undefined };
+          bufs.current.set(assistantId, b);
+        }
+        b[kind] += text;
+        if (kind === "reasoning") b.tail = appendTail(b.tail, text);
+        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail };
+        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
+        schedulePersist();
+      }
       try {
         await streamChatCompletion({
           endpoint: currentSettings.endpoint,
@@ -127,15 +205,7 @@ export function App() {
               thoughtStartedAt = performance.now();
               setLiveMessage("Thinking.");
             }
-            const latest = store.get(conversationId);
-            if (!latest) return;
-            store.put({
-              ...latest,
-              updatedAt: Date.now(),
-              messages: latest.messages.map((m) =>
-                m.id === assistantId ? { ...m, reasoning: (m.reasoning ?? "") + text } : m,
-              ),
-            });
+            ingest("reasoning", text);
           },
           onToken: (token) => {
             if (firstToken) {
@@ -143,51 +213,23 @@ export function App() {
               answerStartedAt = performance.now();
               setLiveMessage("Responding.");
             }
-            const latest = store.get(conversationId);
-            if (!latest) return;
-            store.put({
-              ...latest,
-              updatedAt: Date.now(),
-              messages: latest.messages.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + token } : m,
-              ),
-            });
+            ingest("content", token);
           },
         });
-        const done = store.get(conversationId);
-        if (done) {
-          const finished = done.messages.find((m) => m.id === assistantId);
-          const hasThought = (finished?.reasoning ?? "") !== "";
-          const hasAnswer = (finished?.content ?? "") !== "";
-          const ms =
-            thoughtStartedAt !== null
-              ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
-              : undefined;
-          store.put({
-            ...done,
-            updatedAt: Date.now(),
-            messages: done.messages.map((m) =>
-              m.id === assistantId && ms !== undefined ? { ...m, reasoningMs: ms } : m,
-            ),
-          });
-          setLiveMessage(
-            !hasAnswer && hasThought ? "Thinking complete, no answer arrived." : "Response complete.",
-          );
-        } else {
-          setLiveMessage("Response complete.");
-        }
+        const b = bufs.current.get(assistantId);
+        const hasThought = (b?.reasoning ?? "") !== "";
+        const hasAnswer = (b?.content ?? "") !== "";
+        const ms =
+          thoughtStartedAt !== null
+            ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
+            : undefined;
+        persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
+        setLiveMessage(
+          !hasAnswer && hasThought ? "Thinking complete, no answer arrived." : "Response complete.",
+        );
       } catch (error) {
         if (error instanceof ChatRequestError && error.kind === "aborted") {
-          const latest = store.get(conversationId);
-          if (latest) {
-            store.put({
-              ...latest,
-              updatedAt: Date.now(),
-              messages: latest.messages.map((m) =>
-                m.id === assistantId ? { ...m, stopped: true } : m,
-              ),
-            });
-          }
+          persistLive({ stopped: true });
           setLiveMessage("Response stopped. Partial text kept.");
         } else {
           const kind: ChatErrorKind =
@@ -200,6 +242,7 @@ export function App() {
               : {}),
             ...(error instanceof ChatRequestError && error.url ? { url: error.url } : {}),
           };
+          persistLive();
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
           setLiveMessage(
             kind === "truncated"
@@ -208,6 +251,7 @@ export function App() {
           );
         }
       } finally {
+        dropLive();
         controllers.current.delete(assistantId);
         setStreamingByConv((prev) => {
           if (prev[conversationId] !== assistantId) return prev;
@@ -380,6 +424,7 @@ export function App() {
                     messages={active.messages}
                     streaming={streaming}
                     failed={effectiveFailed}
+                    tails={tails}
                     onRetry={retry}
                     onOpenSettings={() => setSurface("settings")}
                   />

@@ -17,6 +17,7 @@ interface ThreadProps {
   messages: ChatMessage[];
   streaming: boolean;
   failed: FailedState | null;
+  tails: Record<string, string>;
   onRetry: (messageId: string) => void;
   onOpenSettings: () => void;
 }
@@ -83,12 +84,14 @@ function AssistantRow({
   message,
   streaming,
   failed,
+  tail,
   onRetry,
   onOpenSettings,
 }: {
   message: ChatMessage;
   streaming: boolean;
   failed: FailedState | null;
+  tail?: string;
   onRetry: (messageId: string) => void;
   onOpenSettings: () => void;
 }) {
@@ -109,6 +112,7 @@ function AssistantRow({
             reasoningMs={message.reasoningMs}
             working={streaming && message.content === ""}
             answered={message.content !== ""}
+            tail={tail}
           />
         ) : null}
         {showThinking ? (
@@ -150,7 +154,7 @@ function AssistantRow({
   );
 }
 
-export function Thread({ messages, streaming, failed, onRetry, onOpenSettings }: ThreadProps) {
+export function Thread({ messages, streaming, failed, tails, onRetry, onOpenSettings }: ThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
 
@@ -195,6 +199,7 @@ export function Thread({ messages, streaming, failed, onRetry, onOpenSettings }:
                 message={message}
                 streaming={streaming}
                 failed={failed}
+                tail={tails[message.id]}
                 onRetry={onRetry}
                 onOpenSettings={onOpenSettings}
               />

@@ -361,34 +361,57 @@ Le preview sono cambiate dopo lo strip markdown: rigenerate e riverificate.
   (vLLM) escono su `onReasoning`, mai concatenati a `content`. Scelta
   deterministica se arrivano entrambi: vince `reasoning_content` (è il nome
   che llama.cpp e DeepSeek usano; vLLM stesso lo chiama "il vecchio nome").
-  Annidati un livello (`reasoning.content`/`.text`); il resto scartato —
-  perderlo batte mescolarlo. Niente euristiche sul testo: il non delimitato
-  resta irrecuperabile per scelta (un `<think>` in un code block è identico
-  al vero), si risolve scegliendo il modello.
-- Responses API di OpenAI (item tipizzati, eventi response.reasoning_text)
-  ESCLUSA apposta: altro protocollo, non Chat Completions. Se un giorno serve,
-  è un client a parte, non un ramo in più qui.
-- Cronologia al server solo `content`: il pensiero non torna indietro.
-- Persistenza nel payload (`reasoning`, `reasoningMs` misurato primo pensiero
-  -> prima risposta); puliti al retry; indice intatto; vecchi messaggi senza
-  nuvoletta.
-- Nuvoletta: sopra la risposta, scia di bollicine verso la prima riga,
-  chiusa sempre, riepilogo misurato, ticker dell'ultima riga mentre pensa,
-  respiro, bordo blob + sbuffi in CSS puro, tetto 320px con scroll, reduced
-  motion = comparsa e basta, `aria-expanded` + region, niente aria-live sul
-  ticker (solo inizio/fine annunciati).
-- Bollicine con senso: salita sfalsata mentre pensa, discesa una tantum
-  all'avvio della risposta, ferme a riposo. Solo transform/opacity.
-  Battito sul ritmo vero dei token (finestra 2s, scrittura var max ~3/s,
-  mai per-token). Stillness assert: 0 animazioni a riposo nel thread.
-- Mock: think/thinkonly/both/splitthink/longthink/slowthink + vllm col
-  secondo nome (un client a un nome solo resta verde e muto — ora c'è
-  l'assert che lo inchioda). 9 test nuovi, 75 assert totali verdi.
-- Shot visti uno a uno: 50-thinking, 51-settled, 52-rest, 53-open,
-  54-dark, 55-plain. Tutti promossi.
+  Annidati un livello; il resto scartato — perderlo batte mescolarlo.
+  Niente euristiche sul testo; cronologia solo `content`.
+- Responses API di OpenAI ESCLUSA apposta: altro protocollo, non Chat
+  Completions. Se un giorno serve, è un client a parte.
+- Persistenza nel payload (`reasoning`, `reasoningMs` misurato); indice
+  intatto; vecchi messaggi senza nuvoletta; puliti al retry.
+- Nuvoletta: sopra la risposta, scia verso la prima riga, chiusa sempre,
+  riepilogo misurato, ticker, respiro, blob+sbuffi CSS puri, tetto 320px,
+  reduced motion statico, `aria-expanded`, niente live sul ticker.
+- Bollicine con senso: salita sfalsata, discesa una tantum, ferme a riposo.
+  Solo transform/opacity. Battito sul ritmo vero (max ~3 scritture/s).
+- Mock think/thinkonly/both/splitthink/longthink/slowthink + vllm.
+- Shot visti uno a uno: 50, 51, 52, 53, 54-dark, 55-plain. Promossi.
 - Contrasto pensiero: face/body 6.41/6.40, toggle 7.49/6.82 (×2 temi).
-- Buttato: il fade del ticker (remount a ogni riga + turnover veloce =
-  testo fantasma perpetuo; il respiro basta); il mio split-test oltre-spec
-  del giro 17 resta la lezione madre (due eventi su una riga); un fail
-  "duration" era HMR non ancora applicata + marker sul primo paint invece
-  che sullo stato assestato (aspetta il riepilogo, non il token).
+- Buttato: fade del ticker (testo fantasma); HMR che brucia il primo test;
+  marker sul primo paint invece dello stato assestato.
+
+## Giro 23 — audit: precedenza vuota, non-stream, throttle, ticker, stillness (2026-09-18)
+
+- #1: pick sulla prima stringa NON vuota (`reasoning_content`, poi nest,
+  poi `reasoning`, poi nest). Fixture emptywins (rc "" + r pieno) e
+  bothfull (precedenza inchiodata). Mutazione (`??`-style: vince ""):
+  exit 1, emptywins rosso ×2, bothfull verde (giusto: non tocca quel caso).
+- #2: `extractMessageReasoning` legge il message-shape (il ramo non-stream
+  prima chiamava l'estrattore delta su un JSON senza delta: sempre null,
+  ramo morto). thinking-only non-stream = nuvoletta + detto, mai
+  "irraggiungibile"; 200 vuoto = bad-response. Fixture jsonthink.
+  Mutazione (message unread): exit 1, timeout su "gave no answer" — e
+  mostra la diagnosi sbagliata originale (irraggiungibile su un 200).
+- #3: buffer in memoria per run, render da lì, persist trailing 500ms +
+  flush su fine/errore/stop. x-model: 4 setItem contro ~18. Assert doppia:
+  conteggio ≤10 E payload identico. Mutazione (persist a ogni token):
+  exit 1, 18 scritture, risultato identico (il throttle cambia il quando,
+  mai il cosa — ed è per questo che l'assert doppio serve).
+- #4: `src/lib/tail.ts`, coda incrementale O(chunk) con marker di break;
+  equivalenza provata contro full scan su chunking ostili (1 char alla
+  volta incluso); 2ms vs 695ms su 6000 append. Mutazione (rescan storico
+  per chiamata): exit 1 sul rapporto (930 vs 685), equivalenza verde —
+  i due assert misurano cose diverse, apposta.
+- #5: stillness su tutto il documento (0 running) + 0 timer vivi contati
+  via patch in init (nessun rAF nel codice). Limite scritto: getAnimations
+  non vede setInterval/rAF — i timer li contiamo, i rAF non esistono per
+  costruzione. Mutazione (pallino sidebar sempre acceso): exit 1, 1 running
+  document-wide; la vecchia scope-thread segnava 0 — la prova che
+  l'allargamento serviva.
+- Conseguenza strutturale del throttle: lo storage rincorre la memoria —
+  i test leggono il disco solo a stato assestato (riepilogo/riga Called/
+  Stop sparito), mai al primo paint. Tre test resi verdi così (erano race,
+  non bug).
+- Buttato: fade ticker (già al 22); probe stillness su sidebar vuota (0/0,
+  errore mio di setup, il test vero l'ha preso); allarme trail fantasma
+  (getBoundingClientRect è post-transform: i 9px c'erano); top-up quota
+  ragionato male due volte prima della versione a granularità.
+- Certificazione: shots 34/34, verify 87 PASS, contrast TUTTE PASS.

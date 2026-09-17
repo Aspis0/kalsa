@@ -3,6 +3,7 @@
 // Run: dev server on 5173 (+ mock on 18081 for stream tests),
 // then `node scripts/verify.mjs [test ...]`.
 import { chromium } from "@playwright/test";
+import { appendTail } from "../src/lib/tail.ts";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -123,6 +124,12 @@ const tests = {
       null,
       { timeout: 20000 },
     );
+    // Storage trails memory by design now: wait for the stream to end
+    // (Stop gone) before reading the disk.
+    await page.waitForFunction(() => document.querySelector(".composer-stop") === null, null, {
+      timeout: 20000,
+    });
+    await page.waitForTimeout(400);
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const id = index[0]?.id;
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${id}.v2`)) ?? "[]");
@@ -623,6 +630,11 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both at once.", "eight sheep left.");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -639,6 +651,11 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Torn thinking.", "Answered.");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -654,10 +671,15 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think hard.", "8 sheep left");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
-    check("longthink: thousands kept", (answer?.reasoning ?? "").length > 3000, `${answer?.reasoning?.length} chars`);
+    check("longthink: thousands kept", (answer?.reasoning ?? "").length > 6050, `${answer?.reasoning?.length} chars`);
     await page.getByRole("button", { name: /Show thinking/ }).click();
     await page.waitForTimeout(400);
     const box = await page.locator(".thought-body").boundingBox();
@@ -705,25 +727,189 @@ const tests = {
     await browser.close();
   },
 
-  // At rest, nothing moves: zero running animations in a settled thread.
+  // Empty string must not shadow the populated name.
+  async emptywins() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("emptywins-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Both names, one empty.", "Answered.");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("emptywins: populated name wins", (answer?.reasoning ?? "").includes("Real thinking here."));
+    check("emptywins: cloud shown", (await page.locator(".thought").count()) === 1);
+    await browser.close();
+  },
+
+  // Both non-empty: the documented precedence (reasoning_content) holds.
+  async bothfull() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("bothfull-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Both names full.", "Answered.");
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("bothfull: reasoning_content wins", (answer?.reasoning ?? "").includes("Content-side wins."));
+    check("bothfull: loser dropped", !(answer?.reasoning ?? "").includes("Loser"));
+    await browser.close();
+  },
+
+  // Non-streaming thinking-only reply: cloud + said aloud, never "unreachable".
+  async jsonthink() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("jsonthink-demo") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "JSON thinking.", "gave no answer");
+    check("jsonthink: cloud present", (await page.locator(".thought").count()) === 1);
+    check("jsonthink: not an error", (await page.locator(".error-block").count()) === 0);
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check("jsonthink: reasoning stored", (answer?.reasoning ?? "").includes("JSON thinking here."));
+    await browser.close();
+  },
+
+  // Disk writes stay flat while tokens fly: memory renders, throttle persists.
+  async persistthrottle() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await page.addInitScript(() => {
+      window.__setItems = 0;
+      const orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        window.__setItems++;
+        return orig.call(this, k, v);
+      };
+    });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      window.__setItems = 0;
+    });
+    await sendAndWait(page, "Count the writes.", "line is open");
+    await page.waitForFunction(() => document.querySelector(".composer-stop") === null, null, {
+      timeout: 20000,
+    });
+    await page.waitForTimeout(800);
+    const writes = await page.evaluate(() => window.__setItems);
+    // ~7 deltas: create (2) + final (2), plus any trailing flush. The old
+    // per-token code needed 2 per delta (~18 here).
+    check("persistthrottle: writes stay flat", writes <= 10, `${writes} setItem calls`);
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
+    const answer = msgs.find((m) => m.role === "assistant");
+    check(
+      "persistthrottle: on-disk result identical",
+      answer?.content === "Hello! The line is open and streaming works.",
+    );
+    await browser.close();
+  },
+
+  // Ticker tail: equivalent to a full scan, at a fraction of the cost.
+  async tailperf() {
+    const naive = (text) => {
+      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+      return (lines.at(-1) ?? "").slice(-140);
+    };
+    const samples = [
+      "one line, no newline",
+      "first\nsecond\nthird\n",
+      "trailing\n\n\n",
+      `x${"y".repeat(500)}\nshort`,
+      "uni \u{1F914} code\nnext \u00e9lan",
+      "",
+      "\n\n\n",
+      "a\n\n  \nlast after blanks",
+    ];
+    const chunkings = [[7], [1], [3, 11, 5], [64]];
+    let equivalent = true;
+    for (const text of samples) {
+      for (const sizes of chunkings) {
+        let tail = "";
+        let i = 0;
+        let k = 0;
+        while (i < text.length) {
+          const size = sizes[k % sizes.length];
+          tail = appendTail(tail, text.slice(i, i + size));
+          i += size;
+          k++;
+        }
+        // Display strips trailing whitespace, exactly like the component.
+        if (tail.replace(/\s+$/, "") !== naive(text)) equivalent = false;
+      }
+    }
+    check("tailperf: incremental equals full scan", equivalent);
+    const workload = 6000;
+    const pieces = Array.from({ length: workload }, (_, i) => `piece-${i}-xxxxxxxxxx\n`);
+    const t0 = Date.now();
+    let tail = "";
+    for (const piece of pieces) tail = appendTail(tail, piece);
+    const incrementalMs = Date.now() - t0;
+    let full = "";
+    const t1 = Date.now();
+    for (const piece of pieces) {
+      full += piece;
+      naive(full);
+    }
+    const naiveMs = Date.now() - t1;
+    check(
+      "tailperf: incremental far cheaper than quadratic",
+      incrementalMs * 5 < Math.max(naiveMs, 1),
+      `${incrementalMs}ms vs ${naiveMs}ms`,
+    );
+  },
+  // animations anywhere once every stream settled. getAnimations() cannot
+  // see setInterval/rAF — the app holds no rAF loops, and live timers are
+  // counted separately below; both limits are stated, not implied.
   async stillness() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await page.addInitScript(() => {
+      window.__liveTimers = new Set();
+      const origSet = window.setTimeout.bind(window);
+      const origClear = window.clearTimeout.bind(window);
+      window.setTimeout = ((fn, ms, ...rest) => {
+        const id = origSet((...args) => {
+          window.__liveTimers.delete(id);
+          fn(...args);
+        }, ms, ...rest);
+        window.__liveTimers.add(id);
+        return id;
+      });
+      window.clearTimeout = ((id) => {
+        window.__liveTimers.delete(id);
+        origClear(id);
+      });
+    });
     await seed(page, { settings: okSettings("think-demo") });
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Count the sheep.", "8 sheep left");
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(4000);
     const running = await page.evaluate(() =>
-      document
-        .getAnimations()
-        .filter((a) => a.playState === "running")
-        .filter((a) => {
-          const t = a.effect?.target;
-          return t instanceof Element && t.closest(".thread") !== null;
-        }).length,
+      document.getAnimations().filter((a) => a.playState === "running").length,
     );
-    check("stillness: zero running animations at rest", running === 0, `${running} running`);
+    check("stillness: zero running animations document-wide", running === 0, `${running} running`);
+    const timers = await page.evaluate(() => window.__liveTimers.size);
+    check("stillness: zero live timers at rest", timers === 0, `${timers} pending`);
     await browser.close();
   },
   async silent() {

@@ -216,6 +216,15 @@ const server = http.createServer((req, res) => {
       if (model.includes("thinkonly-demo")) return streamThink(res, THINK_A, 25, null);
       if (model.includes("vllm-demo")) return streamThink(res, THINK_A, 25, "reasoning");
       if (model.includes("both-demo")) return streamBoth(res);
+      if (model.includes("emptywins-demo")) return streamDualReasoning(res, "", "Real thinking here. ");
+      if (model.includes("bothfull-demo")) return streamDualReasoning(res, "Content-side wins. ", "Loser text. ");
+      if (model.includes("jsonthink-demo")) {
+        res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+        res.end(
+          JSON.stringify({ choices: [{ message: { content: "", reasoning_content: "JSON thinking here." } }] }),
+        );
+        return;
+      }
       if (model.includes("think-demo")) return streamThink(res, THINK_A, 25, "content");
       streamNormal(res, bodyPeek);
     });
@@ -275,6 +284,34 @@ function streamBoth(res) {
       res.write(
         `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: pairs[i][0], content: pairs[i][1] } }] })}\n\n`,
       );
+      i++;
+    } else {
+      clearInterval(timer);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }
+  }, 25);
+  res.on("close", () => clearInterval(timer));
+}
+
+// Both reasoning names populated: empty string must not win, and when both
+// are non-empty the documented precedence (reasoning_content) must hold.
+function streamDualReasoning(res, rcText, rText) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i < 2) {
+      res.write(
+        `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: rcText, reasoning: rText } }] })}\n\n`,
+      );
+      i++;
+    } else if (i === 2) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "Answered." } }] })}\n\n`);
       i++;
     } else {
       clearInterval(timer);

@@ -60,26 +60,54 @@ export function completionsUrl(endpoint: string): string {
   return `${base}/v1/chat/completions`;
 }
 
+function firstPresent(values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value !== "") return value;
+  }
+  return null;
+}
+
+function nestedReasoning(value: unknown): unknown[] {
+  if (value && typeof value === "object") {
+    const nested = value as Record<string, unknown>;
+    return [nested.content, nested.text];
+  }
+  return [];
+}
+
+/**
+ * Deterministic pick across the two field names (llama.cpp/DeepSeek send
+ * reasoning_content, vLLM sends reasoning): reasoning_content wins, then its
+ * one-level nestings, then reasoning and its nestings. Empty strings never
+ * win — a server emitting every key with an empty default must not silence
+ * the populated one. Unknown shapes are dropped, never merged into content.
+ */
+function pickReasoning(scope: Record<string, unknown>): string | null {
+  const direct = [scope.reasoning_content, ...nestedReasoning(scope.reasoning_content)];
+  const found = firstPresent(direct);
+  if (found !== null) return found;
+  return firstPresent([scope.reasoning, ...nestedReasoning(scope.reasoning)]);
+}
+
 function extractReasoning(payload: string): string | null {
   try {
     const delta = (JSON.parse(payload) as { choices?: Array<{ delta?: unknown }> }).choices?.[0]
       ?.delta;
     if (!delta || typeof delta !== "object") return null;
-    const d = delta as Record<string, unknown>;
-    // The common field first, then the known dialect, then one nesting level.
-    // Anything else is dropped on purpose: an unknown text field must never
-    // leak into the answer — losing it beats mixing it.
-    const direct = d.reasoning_content ?? d.reasoning;
-    if (typeof direct === "string") return direct;
-    if (direct && typeof direct === "object") {
-      const nested = direct as Record<string, unknown>;
-      if (typeof nested.content === "string") return nested.content;
-      if (typeof nested.text === "string") return nested.text;
-    }
-    return null;
+    return pickReasoning(delta as Record<string, unknown>);
   } catch {
     return null;
   }
+}
+
+/** Same pick, but over a non-streaming message shape (no delta there). */
+function extractMessageReasoning(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null) return null;
+  const choices = (payload as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return null;
+  const message = (choices[0] as { message?: unknown } | undefined)?.message;
+  if (!message || typeof message !== "object") return null;
+  return pickReasoning(message as Record<string, unknown>);
 }
 
 // NOTE: only delta.content ever becomes answer text. Unknown fields are
@@ -174,7 +202,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     try {
       const raw: unknown = await response.json();
       const text = extractMessage(raw);
-      const thought = extractReasoning(JSON.stringify(raw));
+      const thought = extractMessageReasoning(raw);
       finish();
       if (text === null && thought === null) throw new Error("not a completion");
       if (thought) onReasoning(thought);

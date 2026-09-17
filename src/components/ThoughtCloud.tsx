@@ -9,6 +9,8 @@ interface ThoughtCloudProps {
   working: boolean;
   /** Answer text has started arriving. */
   answered: boolean;
+  /** Latest reasoning line, tracked incrementally upstream (O(chunk)). */
+  tail?: string;
 }
 
 function lastLine(reasoning: string): string {
@@ -34,7 +36,7 @@ function summary(reasoningMs?: number): string {
  * here, written to a CSS variable at most ~3 times a second, never per
  * token). Transform and opacity only, always.
  */
-export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answered }: ThoughtCloudProps) {
+export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answered, tail }: ThoughtCloudProps) {
   const [open, setOpen] = useState(false);
   const [settling, setSettling] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -42,7 +44,7 @@ export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answe
   const arrivals = useRef<number[]>([]);
   const lastTempoWrite = useRef(0);
   const bodyId = `thought-${messageId}`;
-  const ticker = lastLine(reasoning);
+  const ticker = (tail ?? lastLine(reasoning)).replace(/\s+$/, "").slice(-140) || "Thinking…";
 
   const rising = working && !answered;
 
@@ -85,7 +87,7 @@ export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answe
         onClick={() => setOpen((o) => !o)}
       >
         <span className="thought-face">
-          {working ? ticker || "Thinking…" : summary(reasoningMs)}
+          {working ? ticker : summary(reasoningMs)}
         </span>
         <span className="thought-toggle">{open ? "Hide ▲" : "Show thinking ▼"}</span>
       </button>
