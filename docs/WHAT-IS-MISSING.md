@@ -184,6 +184,21 @@ unload, paired devices. Two fields are missing, and they are the two the screen 
   of the four are busy and which one is yours, and §1's per-device credential (`02a2139`) is
   what makes "whose" answerable at all.
 
+And a third thing blocks the screen harder than either, discovered while mapping the first
+two: **pairing is not a storage limit, it is a product model.** `PairingDto` is singular —
+`phone: Option<String>`, *"the phone this computer works with"* — and its second field is
+`new_phone`, *"the phone asking to take over"*. The commands are `brain_pairing_replace` and
+`brain_pairing_keep`, and the button reads *"Use the new phone"*. So a second phone today is
+not a second member of the house: it is a conflict, and the app asks which of the two to
+keep. `main.rs` builds exactly one `DeviceEntry` with the fixed label `"Paired phone"`,
+commented *"the label is the app's until the store learns to hold more"*.
+
+The engine has four seats — measured, `MULTI-DEVICE-SHAPE.md` — and the pairing is still a
+monogamy. Until that changes, the home screen can honestly draw **one** occupied seat, not
+four, and the interesting question the measurement raises (what happens to the fifth person,
+whom the engine refuses outright with HTTP 400) cannot even be asked. Note the direction of
+the gap: the documents are ahead of the code here, not behind it.
+
 This is the same gap §1 left open — *the door knows who, but it does not tell anyone yet* —
 arriving from the other side. It stops being an improvement to the queue and becomes the
 substance of the first screen: anything built before it shows seats it is guessing at, which
