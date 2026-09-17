@@ -112,3 +112,30 @@ follows from where the model already lives; it is not a new requirement.
   blocks it; it costs money and an account.
 - **Whether the wizard and the chat are one window.** Cheapest is one window with the chat as
   the home surface and setup behind Settings. Not obviously right.
+
+## 6. Correction: the crescent is not a conversation list
+
+Owner, on reading the screenshots: *"mettere le chat nella mezzaluna è follia, ci si mette anni
+a scrollare tutto. La mezzaluna deve avere un'altra funzione."* He is right, and the mistake is
+mine — my brief told the agent to make it a conversation switcher.
+
+The arithmetic alone settles it: six points visible, paged with arrows. Twenty conversations is
+four pages of arrow-clicking; two hundred is forty. A list of documents grows without limit and
+needs search, recency and grouping — none of which a fixed arc can offer.
+
+And it was never that. In `devboule-v2`, `src/app/Shell.tsx:196` reads
+`<div className="crescent-shell" role="navigation" aria-label="Devboule surfaces">` and
+`Shell.tsx:74` lays out `SURFACE_KEYS`. The crescent is **top-level navigation over a fixed,
+small set of surfaces**. `CRESCENT_VISIBLE_COUNT = 6` is a design constant, not a paging
+compromise.
+
+That fits this app exactly, and it fits the merge decided in §4: the surfaces are Chat, Models,
+Server, Devices, Advanced, Settings — six, the same six the wizard pages already are. Paging
+disappears entirely.
+
+Conversations move to what a list of documents needs: a vertical list grouped by recency, a
+`⌘K` search, rename and delete. `docs/PRIOR-ART-CHAT-UIS.md` §2.6 already records where that
+keyboard map comes from.
+
+On the scrim, the owner is also right that it is deliberate — it is the same veil the Settings
+dialog uses. The defect narrows to one case: it must not dim an answer that is still streaming.
