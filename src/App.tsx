@@ -7,7 +7,7 @@ import { ChatRequestError, fetchContextSize, serverBase, streamChatCompletion } 
 import type { ChatErrorKind } from "./lib/chat";
 import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
-import { AttachmentError, buildPinnedContext, extractAttachment } from "./lib/attachments";
+import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
 import { CrescentNav } from "./components/CrescentNav";
@@ -117,6 +117,7 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conversations, activeId],
   );
+  const convoTokens = useMemo(() => historyTokens(active?.messages ?? []), [active]);
 
   // An empty assistant message with no stream behind it is a response that
   // never arrived (failed before, app reloaded since). It must never render
@@ -244,7 +245,7 @@ export function App() {
           [assistantId]: {
             messageId: assistantId,
             kind: "oversize",
-            detail: `≈${ctx.docTokens.toLocaleString()} file + ≈${ctx.historyTokens.toLocaleString()} history tokens need ≈${ctx.need.toLocaleString()} of ≈${ctx.have.toLocaleString()} context tokens.`,
+            detail: `≈${ctx.docTokens.toLocaleString()} file + ≈${ctx.historyTokens.toLocaleString()} history + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${ctx.need.toLocaleString()} of ≈${ctx.have.toLocaleString()} context tokens.`,
           },
         }));
         setLiveMessage("The message no longer fits the context.");
@@ -573,7 +574,7 @@ export function App() {
                   <div className="refusal-banner" role="alert">
                     <span>
                       <strong>{refusal.names} {refusal.names.includes(",") ? "don't" : "doesn't"} fit.</strong>
-                      {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} tokens need ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
+                      {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
                     </span>
                     <button type="button" onClick={() => setRefusal(null)}>
                       Dismiss
@@ -606,6 +607,7 @@ export function App() {
                 open={panelOpen && surface === "chat" && active !== null}
                 attachments={attachments}
                 contextTokens={ctxInfo && ctxInfo.endpoint === settings.endpoint ? ctxInfo.nctx : null}
+                historyTokens={convoTokens}
                 onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
                 onReattach={(id) => {
                   if (!activeId) return;

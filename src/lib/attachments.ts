@@ -43,6 +43,15 @@ export function estTokens(text: string): number {
   return Math.max(1, Math.ceil(text.length / 4));
 }
 
+export function messageTokens(message: ChatMessage): number {
+  return estTokens(message.content) + estTokens(message.reasoning ?? "");
+}
+
+/** Same formula the pinning uses: one place where history is weighed. */
+export function historyTokens(messages: ChatMessage[]): number {
+  return messages.reduce((sum, m) => sum + messageTokens(m), 0);
+}
+
 export function kindFor(name: string): AttachmentKind | null {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "txt") return "txt";
@@ -246,24 +255,23 @@ export function buildPinnedContext(
 ): PinnedContext {
   const actives = docs.filter((d) => d.active);
   const docTokens = actives.reduce((sum, d) => sum + d.tokens, 0);
-  const weighs = (m: ChatMessage) => estTokens(m.content) + estTokens(m.reasoning ?? "");
-  let historyTokens = messages.reduce((sum, m) => sum + weighs(m), 0);
   const turns = [...messages];
+  let histTokens = historyTokens(turns);
   let dropped = 0;
   if (nctx !== null) {
-    while (docTokens + historyTokens + CONTEXT_RESERVE_TOKENS > nctx && turns.length > 1) {
+    while (docTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx && turns.length > 1) {
       const shed = turns.shift();
       if (shed) {
-        historyTokens -= weighs(shed);
+        histTokens -= messageTokens(shed);
         dropped++;
       }
     }
-    const need = docTokens + historyTokens + CONTEXT_RESERVE_TOKENS;
+    const need = docTokens + histTokens + CONTEXT_RESERVE_TOKENS;
     if (need > nctx) {
-      return { status: "refused", need, have: nctx, docTokens, historyTokens };
+      return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }
   }
   const wire = turns.map((m): WireMessage => ({ role: m.role, content: m.content }));
   if (actives.length > 0) wire.unshift(docBlockFor(actives));
-  return { status: "ok", wire, dropped, docTokens, historyTokens };
+  return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

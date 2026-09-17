@@ -124,6 +124,8 @@ const CHECKS = [
   ["thought face", ".thought-face", null, "think"],
   ["thought toggle", ".thought-toggle", null, "think"],
   ["thought body", ".thought-body", null, "thinkopen"],
+  ["budget terms", ".budget-terms", null, "panel"],
+  ["budget unknown", ".budget-unknown", null, "panelunknown"],
 ];
 
 async function setupPage(browser, theme, mode) {
@@ -138,12 +140,26 @@ async function setupPage(browser, theme, mode) {
         "crescent-chat.settings.v1",
         JSON.stringify({ endpoint: "http://127.0.0.1:18081/ok", token: "t", model: "x" }),
       );
+      localStorage.setItem(
+        "crescent-chat.attach.seed-1.v2",
+        JSON.stringify([
+          { id: "att1", name: "notes.txt", kind: "txt", chars: 400, tokens: 100, text: "Seeded notes.", attachedAt: 1, active: true },
+        ]),
+      );
     },
     { convos: SEEDED, theme },
   );
   await page.goto(APP);
   await page.waitForTimeout(1200);
-  if (mode === "thread" || mode === "failed" || mode === "img" || mode === "think" || mode === "thinkopen") {
+  if (
+    mode === "thread" ||
+    mode === "failed" ||
+    mode === "img" ||
+    mode === "think" ||
+    mode === "thinkopen" ||
+    mode === "panel" ||
+    mode === "panelunknown"
+  ) {
     const target =
       mode === "thread"
         ? "Seeded thread"
@@ -151,7 +167,11 @@ async function setupPage(browser, theme, mode) {
           ? "Interrupted thread"
           : mode === "img"
             ? "Tracker model"
-            : "Thinking model";
+            : mode === "panelunknown"
+              ? "Interrupted thread"
+              : mode === "panel"
+                ? "Seeded thread"
+                : "Thinking model";
     await page
       .locator(".sidebar")
       .getByRole("button", { name: new RegExp(target, "i") })
@@ -161,6 +181,10 @@ async function setupPage(browser, theme, mode) {
     if (mode === "thinkopen") {
       await page.getByRole("button", { name: /Show thinking/ }).click();
       await page.waitForTimeout(400);
+    }
+    if (mode === "panel" || mode === "panelunknown") {
+      await page.getByRole("button", { name: "Toggle attachments panel" }).click();
+      await page.waitForTimeout(800);
     }
   } else if (mode === "nav") {
     await page

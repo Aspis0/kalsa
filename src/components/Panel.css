@@ -54,6 +54,58 @@
   line-height: 1.5;
 }
 
+.budget {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.budget-bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.budget-bar span {
+  display: block;
+  height: 100%;
+}
+
+.budget-docs {
+  background: var(--accent);
+}
+
+.budget-history {
+  background: var(--border-strong);
+}
+
+.budget-reserve {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--border-strong),
+    var(--border-strong) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+.budget-terms,
+.budget-unknown {
+  margin: 0;
+  color: var(--silence);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.budget-over {
+  color: var(--danger);
+}
+
 .panel-empty {
   margin: 0.5rem 0;
   color: var(--silence);

@@ -554,6 +554,46 @@ async function main() {
     await page.close();
   }
 
+  if (want("meterroom")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 5; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Meter Q${i} ${"m".repeat(96)}`, createdAt: i });
+    }
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
+      convos: [{ id: "m1", title: "Metered", createdAt: 1, updatedAt: 1, messages }],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Metered");
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(193)}`) },
+    ]);
+    await must(page, ".budget-bar", "meter with room");
+    await shot(page, "shots/63-meter.png");
+    await page.close();
+  }
+
+  if (want("meterfull")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
+      convos: [
+        conv("Almost full", [msg("user", "A short hello."), msg("assistant", "Hi back.")]),
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Almost full");
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "bigish.txt", mimeType: "text/plain", buffer: Buffer.from(`FULL ${"f".repeat(1395)}`) },
+    ]);
+    await must(page, ".budget-bar", "nearly full meter");
+    await shot(page, "shots/64-meter-full.png");
+    await page.close();
+  }
+
   if (want("surfaces")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });

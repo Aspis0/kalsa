@@ -1,10 +1,12 @@
 import type { Attachment } from "../lib/attachments";
+import { BudgetMeter } from "./BudgetMeter";
 import "./Panel.css";
 
 interface PanelProps {
   open: boolean;
   attachments: Attachment[];
   contextTokens: number | null;
+  historyTokens: number;
   onRemove: (id: string) => void;
   onReattach: (id: string) => void;
   onClose: () => void;
@@ -25,6 +27,7 @@ export function Panel({
   open,
   attachments,
   contextTokens,
+  historyTokens,
   onRemove,
   onReattach,
   onClose,
@@ -44,11 +47,7 @@ export function Panel({
           </button>
         </div>
 
-        <p className="panel-context">
-          {contextTokens === null
-            ? "Context size unknown — files attach unchecked."
-            : `Context ≈${contextTokens.toLocaleString()} tokens · files ≈${fileTokens.toLocaleString()}`}
-        </p>
+        <BudgetMeter contextTokens={contextTokens} docTokens={fileTokens} historyTokens={historyTokens} />
 
         {active.length === 0 ? (
           <p className="panel-empty">

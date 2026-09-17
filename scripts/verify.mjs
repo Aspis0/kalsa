@@ -44,11 +44,29 @@ const okSettings = (model) => ({
 async function sendAndWait(page, text, marker, timeout = 25000) {
   await page.getByRole("textbox", { name: "Message" }).fill(text);
   await page.getByRole("textbox", { name: "Message" }).press("Enter");
-  await page.waitForFunction(
-    (m) => document.querySelector(".thread")?.textContent?.includes(m),
-    marker,
-    { timeout },
-  );
+  // A wait that stands in for an assertion must FAIL as one, never as a
+  // raw TimeoutError (round-24 rule).
+  try {
+    await page.waitForFunction(
+      (m) => document.querySelector(".thread")?.textContent?.includes(m),
+      marker,
+      { timeout },
+    );
+  } catch {
+    check(`arrived: ${marker}`, false, "wait timed out");
+  }
+}
+
+async function waitSummary(page, label) {
+  try {
+    await page.waitForFunction(
+      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
+      null,
+      { timeout: 20000 },
+    );
+  } catch {
+    check(label, false, "summary never settled");
+  }
 }
 
 async function openSidebar(page, titlePart) {
@@ -207,15 +225,7 @@ const tests = {
     await seed(page, { settings: okSettings("x") });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("textbox", { name: "Message" }).fill("Persist me.");
-    await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.waitForFunction(
-      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
-      null,
-      { timeout: 20000 },
-    );
-    // Storage trails memory by design now: wait for the stream to end
-    // (Stop gone) before reading the disk.
+    await sendAndWait(page, "Persist me.", "line is open");
     await page.waitForFunction(() => document.querySelector(".composer-stop") === null, null, {
       timeout: 20000,
     });
@@ -252,10 +262,14 @@ const tests = {
       { timeout: 20000 },
     );
     // p2's sidebar updates with no interaction and no reload.
-    await p2.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
-      timeout: 10000,
-    });
-    check("multiwindow: p2 sees the new row", true);
+    try {
+      await p2.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+        timeout: 10000,
+      });
+      check("multiwindow: p2 sees the new row", true);
+    } catch {
+      check("multiwindow: p2 sees the new row", false, "row never arrived");
+    }
     await browser.close();
   },
 
@@ -293,17 +307,11 @@ const tests = {
     });
     const topups = await page.evaluate(() => window.__topups ?? -1);
     check("quota: disk provably near-full", topups >= 0 && topups < 8192, `${topups} pads fit`);
-    await page.getByRole("textbox", { name: "Message" }).fill("Nowhere to write.");
-    await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.waitForFunction(
-      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
-      null,
-      { timeout: 20000 },
-    );
+    await sendAndWait(page, "Nowhere to write.", "line is open");
     // The stream itself works (memory); the banner must admit disk refused.
     const banner = page.locator(".storage-banner");
     check("quota: banner shown", (await banner.count()) === 1);
-    check("quota: banner names storage", ((await banner.textContent()) ?? "").includes("storage is full"));
+    check("quota: banner names storage", ((await banner.count()) === 1 && await banner.textContent())?.includes("storage is full") ?? false);
     await page.screenshot({ path: "shots/31-quota.png" });
     await browser.close();
   },
@@ -582,11 +590,17 @@ const tests = {
     check("search1000: rows render without payloads", (await page.locator(".sidebar-row").count()) > 10);
     const t0 = Date.now();
     await page.getByLabel("Search conversations").fill("taxes reckoning");
-    await page.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
-      timeout: 10000,
-    });
+    let narrowed = false;
+    try {
+      await page.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+        timeout: 10000,
+      });
+      narrowed = true;
+    } catch {
+      check("search1000: narrows to one", false, "never narrowed");
+    }
     const ms = Date.now() - t0;
-    check("search1000: narrows to one", true, `${ms}ms`);
+    if (narrowed) check("search1000: narrows to one", true, `${ms}ms`);
     check("search1000: still no payload keys", await page.evaluate(() => {
       for (let i = 0; i < localStorage.length; i++) {
         if ((localStorage.key(i) ?? "").startsWith("crescent-chat.msgs.")) return false;
@@ -671,11 +685,7 @@ const tests = {
     await sendAndWait(page, "Count the sheep.", "8 sheep left");
     // The duration persists after [DONE], one tick behind the last token:
     // wait for the settled summary, not the first paint of the answer.
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "think: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -720,11 +730,7 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both at once.", "eight sheep left.");
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "both: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -741,11 +747,7 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Torn thinking.", "Answered.");
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "splitthink: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -761,11 +763,7 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think hard.", "8 sheep left");
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "longthink: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -825,11 +823,7 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both names, one empty.", "Answered.");
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "emptywins: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -846,11 +840,7 @@ const tests = {
     await page.goto(APP);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both names full.", "Answered.");
-    await page.waitForFunction(
-      () => document.querySelector(".thought-face")?.textContent?.includes("Thought for"),
-      null,
-      { timeout: 20000 },
-    );
+    await waitSummary(page, "bothfull: summary settled");
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
     const answer = msgs.find((m) => m.role === "assistant");
@@ -1126,7 +1116,7 @@ const tests = {
     await page.waitForTimeout(1500);
     const banner = page.locator(".refusal-banner");
     check("refusefit: refusal shown", (await banner.count()) === 1);
-    const text = (await banner.textContent()) ?? "";
+    const text = ((await banner.count()) === 1 ? await banner.textContent() : null) ?? "";
     // 1194 chars -> 299 tokens; 299 + 0 + 512 reserve = 811 > 256.
     check("refusefit: real numbers", text.includes("256") && text.includes("811"), text.slice(0, 120));
     check("refusefit: never attached", (await page.locator(".panel-row").count()) === 0);
@@ -1146,10 +1136,13 @@ const tests = {
     ]);
     await page.waitForTimeout(1500);
     check("unknownctx: attached anyway", ((await page.locator(".panel-list").textContent()) ?? "").includes("note.txt"));
+    const unknownCount = await page.locator(".budget-unknown").count();
     check(
       "unknownctx: unknown said aloud",
-      ((await page.locator(".panel-context").textContent()) ?? "").includes("unknown"),
+      unknownCount === 1 &&
+        ((await page.locator(".budget-unknown").textContent()) ?? "").includes("unknown"),
     );
+    check("unknownctx: no scale", (await page.locator(".budget-bar").count()) === 0);
     check("unknownctx: no refusal", (await page.locator(".refusal-banner").count()) === 0);
     await browser.close();
   },
@@ -1241,16 +1234,72 @@ const tests = {
     check("oversizesend: attached first", ((await page.locator(".panel-list").textContent()) ?? "").includes("anchor.txt"));
     await page.getByRole("textbox", { name: "Message" }).fill(`Tip it over the edge now, please, and do not hold anything back at all. ${"m".repeat(28)}`);
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.waitForFunction(
-      () => document.querySelector(".thread")?.textContent?.includes("exceeds the context"),
-      null,
-      { timeout: 20000 },
-    );
-    const detail = (await page.locator(".error-detail").textContent()) ?? "";
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("exceeds the context"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("oversizesend: refused aloud", false, "wait timed out");
+    }
+    const detailCount = await page.locator(".error-detail").count();
+    const detail = detailCount === 1 ? (await page.locator(".error-detail").textContent()) ?? "" : "";
     check("oversizesend: numbers shown", detail.includes("1,024"), detail.slice(0, 100));
     await browser.close();
   },
 
+  // The meter's terms sum to its total — the assert that would have
+  // caught the missing reserve in the refusal text.
+  async metersum() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 5; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Meter Q${i} ${"m".repeat(96)}`, createdAt: i });
+    }
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
+      convos: [{ id: "m1", title: "Metered", createdAt: 1, updatedAt: 1, messages }],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Metered");
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(193)}`) },
+    ]);
+    await page.waitForTimeout(1500);
+    const n = async (term) => {
+      // Absence-tolerant: a dropped term must FAIL the sum check below,
+      // not explode here as a raw TimeoutError (round-24 rule).
+      try {
+        return parseInt(
+          (await page.locator(`[data-term="${term}"]`).getAttribute("data-n", { timeout: 5000 })) ?? "NaN",
+          10,
+        );
+      } catch {
+        return NaN;
+      }
+    };
+    const [docs, hist, reserve, left, total] = await Promise.all([
+      n("docs"),
+      n("history"),
+      n("reserve"),
+      n("left"),
+      n("total"),
+    ]);
+    check("metersum: terms sum to total", docs + hist + reserve + left === total, `${docs}+${hist}+${reserve}+${left}=${total}`);
+    check("metersum: reserve named", reserve === 512);
+    check("metersum: total is the server size", total === 1024);
+    const widths = await page.locator(".budget-bar span").evaluateAll((els) =>
+      els.map((el) => parseFloat(el.style.width)),
+    );
+    const widthSum = widths.reduce((a, b) => a + b, 0);
+    // The bar covers the used share; the rest is empty track by design.
+    const usedShare = ((total - left) / total) * 100;
+    check("metersum: bar matches used share", Math.abs(widthSum - usedShare) < 0.6, `${widthSum.toFixed(1)}% vs ${usedShare.toFixed(1)}%`);
+    await browser.close();
+  },
   // At rest, nothing moves document-wide (sidebar included): zero running
   // animations anywhere once every stream settled. getAnimations() cannot
   // see setInterval/rAF — the app holds no rAF loops, and live timers are
