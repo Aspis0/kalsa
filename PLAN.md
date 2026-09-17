@@ -1070,6 +1070,49 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   Practical reading for the catalogue gate: the cold path is not a one-off tax that a warm cache
   pays off. On this pairing the device can be stuck paying it every turn.
 
+- **The prefill watchdog prices the wrong prompt, and the same undercount was already fixed once
+  next door.** Decisive test on the Jelly, 2026-09-17: a BRAND NEW conversation, six-word
+  question, so nothing about a long history is involved.
+
+  ```
+  00:48:45.662 KALSA_KVPREFIX embd=0 text_tokens=2666 n_common=0
+  00:51:45.640 KALSA_STALL {"reason":"prefill","tokens":0,"tokPerSec":null}
+  ```
+
+  Exactly **180.000 s** apart — `MIN_PREFILL_DEADLINE_MS`, the floor. With no EMA the formula is
+  `min(900s, max(180s, ceil(tokens/10)*1000))`, so a correctly-priced 2666-token prompt would have
+  been given **267 s**. The floor won, which means the estimate came in under 1800 tokens against
+  a real 2666.
+
+  Why it undercounts, read on disk: `LlamaService.ts:3661` estimates with
+  `JSON.stringify(currentMessages).length / 4` and nothing else. The tool schemas are NOT in
+  `currentMessages` — they ride on the completion — and the file says so itself at `:4208-4211`:
+  *"Tool schemas travel OUTSIDE the messages … but inside the prompt: price them, or the round
+  guard undercounts by ~500 tokens on the default 7-tool set (audit FAIL 2026-09-14)"*. That audit
+  fixed the tool-round ceiling at `:4226` by adding `toolsPromptChars`. **The prefill deadline never
+  got the same fix.** On top of that, chars/4 under-reads the system prompt: the prewarm measured
+  the static prefix at 2153 tokens from `systemChars=3969`, which chars/4 would price at 992.
+
+  So on a cold process the first turn is watched against a floor that assumes a prompt several
+  times smaller than the one being fed. It fires while the engine is working normally.
+
+  **And the product answer this test was run to get is a no.** The question was whether
+  `lfm2.5-2.6b` on the Jelly is merely bad at long conversations. It is not: a fresh chat with a
+  six-word question never produced a first token. On this hardware the floor is structural — the
+  system prompt and tools alone are ~2148 of the 2666 tokens, so **no conversation on this device
+  starts cheap**, and at the 30.3 ms/token best case that is ~81 s before the model can begin
+  thinking. The catalogue should not offer this pairing.
+
+  **Two operational numbers from the same run, for planning the next one.**
+  - *Cooling.* Battery peaked at 43.3 °C and was back to 34.4 °C with thermal status 0 after
+    **13 minutes** idle (trace in `results/t20c-thermal-2026-09-17/`). So heat is not what gates a
+    re-run; it clears itself in a quarter of an hour.
+  - *Battery is what gates it, and the margin is ~3 points.* The run went 91% → 80% in 20 minutes
+    for two completed turns plus a partial — about **3.7 points per turn**. Twenty turns is
+    therefore ~74 points. Starting at the 85% floor that lands at ~11%, against a stop floor of 8.
+    A full unplugged T20C fits only if nothing goes wrong; every thermal pause and every retry
+    eats the margin. Any plan that assumes "unplug it and run 20 turns" should carry that number.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
