@@ -54,6 +54,33 @@ function resolveBuilt() {
   process.exit(1);
 }
 
+/**
+ * MemoryFact is an object ({ id, text, createdAt }), not a string. This harness
+ * passed bare strings and every call died inside boundMemoryFacts on
+ * `fact.text.replace` — 11 red assertions that said nothing about the code.
+ */
+/**
+ * `matched` now carries ONE entry per previous user turn: the real bake, or an
+ * identity tail ({bare === prefixed}) meaning "this turn has no bake, it is
+ * itself". Counting the array therefore counts turns, not matches — and these
+ * tests mean matches. What actually matters is whether the assembled text was
+ * touched, which identity tails never do (applyBakedUserTails skips them).
+ */
+function realMatches(result) {
+  return result.matched.filter((tail) => tail.bare !== tail.prefixed).length;
+}
+
+const DAY_MS = 86_400_000;
+/** Facts one day apart, oldest first — the order MemoryStore.list returns. */
+function mkFacts(...texts) {
+  const base = Date.UTC(2026, 0, 1);
+  return texts.map((text, i) => ({
+    id: `f${i + 1}`,
+    text,
+    createdAt: base + i * DAY_MS,
+  }));
+}
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
@@ -64,10 +91,6 @@ async function main() {
   const modPath = resolveBuilt();
   console.log("Loading", modPath);
   const {
-    MAX_PROMPT_FACTS,
-    MAX_PROMPT_FACT_CHARS,
-    sanitizeFactForPrompt,
-    selectPromptFacts,
     buildMemoryFactsBlock,
     applyMemoryFactsToLastUser,
     applyBakedUserTails,
@@ -105,39 +128,53 @@ async function main() {
     }
   }
 
-  test("sanitize strips controls, collapses space, caps length", () => {
-    const raw = `name\nis\tAlex${"\u0000"}!${"x".repeat(200)}`;
-    const out = sanitizeFactForPrompt(raw);
-    assert(!/[\u0000-\u001f]/.test(out), "no controls");
-    assert(!out.includes("\n"), "no newline");
-    assert(out.length <= MAX_PROMPT_FACT_CHARS, "capped");
-    assert(out.startsWith("name is Alex"), `prefix: ${out.slice(0, 20)}`);
+  // sanitizeFactForPrompt and selectPromptFacts do not exist any more: facts are
+  // sanitised and bounded by boundMemoryFacts, reached through this entry point.
+  // The old tests called two names that resolved to undefined and had been red,
+  // in a harness no workflow ran, for as long as nobody looked.
+  test("a fact cannot smuggle control characters or newlines into the block", () => {
+    const raw = `name\nis\tAlex${"\u0000"}!`;
+    const block = buildMemoryFactsBlock("en", mkFacts(raw));
+    const bullets = block.split("\n").filter((line) => line.startsWith("- "));
+    assert(bullets.length === 1, `one bullet, got ${bullets.length}`);
+    assert(!/[\u0000-\u0008\u000b-\u001f]/.test(block), "no control characters survive");
+    assert(bullets[0].includes("name is Alex"), `collapsed: ${bullets[0]}`);
   });
 
-  test("selectPromptFacts keeps last MAX_PROMPT_FACTS and drops empties", () => {
-    const many = Array.from({ length: MAX_PROMPT_FACTS + 5 }, (_, i) => `fact ${i}`);
-    const selected = selectPromptFacts(["", "   ", ...many, "\n"]);
-    assert(selected.length === MAX_PROMPT_FACTS, `len ${selected.length}`);
-    assert(selected[0] === "fact 5", selected[0]);
-    assert(selected[selected.length - 1] === `fact ${MAX_PROMPT_FACTS + 4}`);
+  test("the block is bounded by a token budget, and the newest days win", () => {
+    // Every turn pays for this block, so it cannot grow with the user's memory.
+    // The bound ranks by date descending, so what survives is recent — a fact
+    // added today must not be the one deferred.
+    const texts = Array.from({ length: 60 }, (_, i) => `fact-${i + 1} ${"w".repeat(120)}`);
+    const block = buildMemoryFactsBlock("en", mkFacts(...texts));
+    const bullets = block.split("\n").filter((line) => line.startsWith("- "));
+    assert(bullets.length < 60, `bounded, got ${bullets.length} of 60`);
+    assert(
+      bullets[bullets.length - 1].includes("notes deferred"),
+      `the deferral is stated, not silent: ${bullets[bullets.length - 1]}`,
+    );
+    assert(block.includes("fact-60 "), "the newest fact survives the bound");
+    assert(!block.includes("fact-1 "), "the oldest is the one deferred");
   });
 
   test("buildMemoryFactsBlock empty when no usable facts", () => {
     assert(buildMemoryFactsBlock("en", []) === "", "[]");
     assert(buildMemoryFactsBlock("en", null) === "", "null");
-    assert(buildMemoryFactsBlock("en", ["  ", "\n"]) === "", "whitespace");
+    assert(buildMemoryFactsBlock("en", mkFacts("  ", "\n")) === "", "whitespace");
   });
 
   test("buildMemoryFactsBlock keeps untrusted framing + fact lines", () => {
-    const block = buildMemoryFactsBlock("en", ["I like tea", "My name is Alex"]);
+    const block = buildMemoryFactsBlock("en", mkFacts("I like tea", "My name is Alex"));
     assert(block.includes("untrusted"), "framing");
-    assert(block.includes("- I like tea"), "fact 1");
-    assert(block.includes("- My name is Alex"), "fact 2");
+    // Rendered as "- [YYYY-MM-DD] text": the date is part of the contract, the
+    // model is told when it learned each fact.
+    assert(/^- \[\d{4}-\d{2}-\d{2}\] I like tea$/m.test(block), "fact 1 with its date");
+    assert(/^- \[\d{4}-\d{2}-\d{2}\] My name is Alex$/m.test(block), "fact 2 with its date");
     assert(!block.includes("I like tea\nMy name"), "not raw-joined");
   });
 
   test("applyMemoryFactsToLastUser prefixes last user only (format B)", () => {
-    const block = buildMemoryFactsBlock("en", ["I like tea"]);
+    const block = buildMemoryFactsBlock("en", mkFacts("I like tea"));
     const msgs = [
       { role: "system", content: "You are Kalsa." },
       { role: "user", content: "hi" },
@@ -182,7 +219,7 @@ async function main() {
   });
 
   test("bake: stable facts keep previous user prefixed (prefix-match suffix)", () => {
-    const facts = buildMemoryFactsBlock("en", ["I like tea"]);
+    const facts = buildMemoryFactsBlock("en", mkFacts("I like tea"));
     const turn1 = applyMemoryFactsToLastUser(
       [
         { role: "system", content: "sys" },
@@ -210,8 +247,8 @@ async function main() {
   });
 
   test("bake: changing facts keep OLD prefix on prior user", () => {
-    const facts1 = buildMemoryFactsBlock("en", ["I like tea"]);
-    const facts2 = buildMemoryFactsBlock("en", ["I like coffee"]);
+    const facts1 = buildMemoryFactsBlock("en", mkFacts("I like tea"));
+    const facts2 = buildMemoryFactsBlock("en", mkFacts("I like coffee"));
     const turn1 = applyMemoryFactsToLastUser([{ role: "user", content: "hi" }], facts1);
     const baked = commitBakedLastUser([], "hi", lastUserContent(turn1));
     const applied = applyBakedUserTails(
@@ -254,7 +291,7 @@ async function main() {
     assert(String(applied.messages[0].content).startsWith("F"), "u2 prefixed");
     assert(String(applied.messages[2].content).startsWith("F"), "u3 prefixed");
     assert(applied.messages[4].content === "u4", "u4 bare");
-    assert(applied.matched.length === 2, `matched ${applied.matched.length}`);
+    assert(realMatches(applied) === 2, `real matches ${realMatches(applied)} of ${applied.matched.length} turns`);
   });
 
   test("bake: edit mismatch stops; earlier prefix still applied", () => {
@@ -274,7 +311,7 @@ async function main() {
     );
     assert(applied.messages[0].content === "P1\nu1", "u1 kept");
     assert(applied.messages[2].content === "u2-edited", "edited not forced");
-    assert(applied.matched.length === 1, `matched ${applied.matched.length}`);
+    assert(realMatches(applied) === 1, `real matches ${realMatches(applied)} of ${applied.matched.length} turns`);
   });
 
   test("bake: chat-switch mismatch is a no-op", () => {
@@ -285,7 +322,7 @@ async function main() {
     ];
     const applied = applyBakedUserTails(msgs, [{ bare: "u1", prefixed: "P\nu1" }]);
     assert(applied.messages === msgs, "same ref");
-    assert(applied.matched.length === 0, "no match");
+    assert(realMatches(applied) === 0, "no match");
   });
 
   test("bake: regen last turn (drop last user, resend) keeps earlier tails", () => {
@@ -312,7 +349,7 @@ async function main() {
     assert(String(applied.messages[0].content).startsWith("F"), "u1 prefixed");
     assert(String(applied.messages[2].content).startsWith("F"), "u2 prefixed");
     assert(applied.messages[4].content === "u3", "u3 bare resend");
-    assert(applied.matched.length === 2, `matched ${applied.matched.length}`);
+    assert(realMatches(applied) === 2, `real matches ${realMatches(applied)} of ${applied.matched.length} turns`);
     const next = commitBakedLastUser(applied.matched, "u3", "F\n\nu3");
     assert(next.length === 3, `commit ${next.length}`);
     assert(next[0].bare === "u1" && next[1].bare === "u2" && next[2].bare === "u3", "no wipe");
@@ -333,7 +370,7 @@ async function main() {
     );
     assert(applied.messages[0].content === "P1\nu1", "u1 kept");
     assert(applied.messages[2].content === "u2-edited", "edited last stays bare");
-    assert(applied.matched.length === 1, `matched ${applied.matched.length}`);
+    assert(realMatches(applied) === 1, `real matches ${realMatches(applied)} of ${applied.matched.length} turns`);
     const next = commitBakedLastUser(applied.matched, "u2-edited", "P3\nu2-edited");
     assert(next.length === 2, `commit ${next.length}`);
     assert(next[0].bare === "u1" && next[1].bare === "u2-edited", "u1 not wiped");
@@ -375,7 +412,7 @@ async function main() {
       ],
       [{ bare: modelText, prefixed }],
     );
-    assert(miss.matched.length === 0, "modelText bare would miss persist history");
+    assert(realMatches(miss) === 0, "modelText bare would miss persist history");
   });
 
   test("bake: multimodal last user persists text only (no image_url)", () => {
@@ -452,7 +489,7 @@ async function main() {
       ],
       baked,
     );
-    assert(applied.matched.length === 1, "persona rematch hits");
+    assert(realMatches(applied) === 1, "persona rematch hits");
     assert(applied.messages[0].content === prefixed, "prefixed reapplied");
     const miss = applyBakedUserTails(
       [
@@ -462,7 +499,7 @@ async function main() {
       ],
       baked,
     );
-    assert(miss.matched.length === 0, "bare persist does not match persona'd key");
+    assert(realMatches(miss) === 0, "bare persist does not match persona'd key");
   });
 
   test("bake: rematch ignores trailing/leading whitespace", () => {
@@ -476,7 +513,7 @@ async function main() {
       ],
       baked,
     );
-    assert(applied.matched.length === 1, "whitespace rematch hits");
+    assert(realMatches(applied) === 1, "whitespace rematch hits");
     assert(applied.messages[0].content === "P\nhello", "prefixed reapplied");
   });
 
