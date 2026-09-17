@@ -1,4 +1,4 @@
-import type { Conversation } from "./types";
+import type { ChatMessage, Conversation } from "./types";
 
 /**
  * The ONLY module that knows where conversations live. The rest of the app
@@ -22,19 +22,54 @@ export function uid(): string {
 
 const STORAGE_KEY = "crescent-chat.conversations.v1";
 
+function isValidMessage(value: unknown): value is ChatMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const m = value as Record<string, unknown>;
+  return (
+    typeof m.id === "string" &&
+    m.id.length > 0 &&
+    (m.role === "user" || m.role === "assistant") &&
+    typeof m.content === "string"
+  );
+}
+
+function cleanMessage(value: unknown): ChatMessage | null {
+  if (!isValidMessage(value)) return null;
+  return {
+    id: value.id,
+    role: value.role,
+    content: value.content,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    ...(typeof value.stopped === "boolean" ? { stopped: value.stopped } : {}),
+  };
+}
+
+function cleanConversation(value: unknown): Conversation | null {
+  if (typeof value !== "object" || value === null) return null;
+  const c = value as Record<string, unknown>;
+  if (typeof c.id !== "string" || c.id.length === 0) return null;
+  if (!Array.isArray(c.messages)) return null;
+  return {
+    id: c.id,
+    title: typeof c.title === "string" && c.title ? c.title : "Untitled conversation",
+    createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
+    updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
+    messages: c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null),
+  };
+}
+
 function readAll(): Conversation[] {
+  return readRaw()
+    .map(cleanConversation)
+    .filter((c): c is Conversation => c !== null);
+}
+
+function readRaw(): unknown[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (c): c is Conversation =>
-        typeof c === "object" &&
-        c !== null &&
-        typeof (c as Conversation).id === "string" &&
-        Array.isArray((c as Conversation).messages),
-    );
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

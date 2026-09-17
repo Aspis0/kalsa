@@ -6,6 +6,7 @@ import { ChatRequestError, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
 import type { ChatSettings, Conversation } from "./lib/types";
 import { CrescentNav } from "./components/CrescentNav";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
@@ -250,7 +251,8 @@ export function App() {
       </header>
 
       <main className="stage">
-        {empty ? (
+        <ErrorBoundary>
+          {empty ? (
           <EmptyState needsSetup={!configured} onOpenSettings={() => setSettingsOpen(true)} />
         ) : (
           <Thread
@@ -261,7 +263,8 @@ export function App() {
             onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
-        <Composer streaming={streaming} onSend={send} onStop={stop} />
+          <Composer streaming={streaming} onSend={send} onStop={stop} />
+        </ErrorBoundary>
       </main>
 
       <p className="visually-hidden" role="status">

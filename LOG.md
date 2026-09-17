@@ -238,6 +238,33 @@ Bloccato, da decidere da Marco (non da me):
    (base relativa, niente API Node, icone presenti).
 3. Push: mai fatto senza approvazione esplicita (regola standing).
 
+---
+
+# Audit ostile — giri di riparazione
+
+## Giro 15 — B1 token fantasma + contrasto dal DOM + B8 (2026-09-18)
+
+- B1: i due `var(--white)` (token mai definito) diventano `var(--accent-ink`)
+  — la coppia per cui era nato. L'audit aveva ragione su tutta la riga, e
+  aveva ragione anche sul LOG: il giro 7 promuoveva a "scelta di design"
+  quello che era un token mancante ("glifo scuro"). Correggo qui, non
+  cancello: resta scritto sopra, sbagliato, e qui la smentita.
+- Verifica rifatta come chiede l'audit: `scripts/contrast-dom.mjs` legge
+  `getComputedStyle` su pagina vera (chiaro+scuro), foreground dall'elemento
+  e fondo dal primo antenato opaco. 22 coppie × 2 temi = 44/44 PASS, inclusi
+  punto attivo (7.49 chiaro, 7.59 scuro), bolla utente, manda, link, code,
+  errori, composer, settings, empty, nav. `palette.mjs` resta come derivazione
+  oklch, ma non è più citato come verifica.
+- B8: validazione per messaggio in lettura (id/ruolo/contenuto richiesti,
+  resto con default; conversazioni senza id scartate) + `ErrorBoundary` con
+  fallback statico e due vie d'uscita (reload / cancella dati e riparti).
+- `scripts/verify.mjs`: asserzioni funzionali (exit 1 al primo fallimento).
+  Primo test `corrupt`: `[null, content:42, valido, coda vuota]` -> il valido
+  si vede, niente boundary, niente finestra bianca (30-corrupt-data.png).
+- Nota onesta: il fallback del boundary non ha screenshot — nessuna via
+  pubblica lo raggiunge senza hook di test, che mi rifiuto di spedire.
+  Rivisto a codice, coperto da validazione prima.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
