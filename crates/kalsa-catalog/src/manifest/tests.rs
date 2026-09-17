@@ -176,6 +176,7 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
             "katya228/Apertus-v1.5-70B-text-GGUF",
+            "bartowski/gemma-4-12B-it-GGUF",
         ]
     );
 }
@@ -265,6 +266,7 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("Qwen/Qwen3-Next-80B-A3B-Instruct", 48_410_988_384),
             ("swiss-ai/Apertus-v1.5-70B", 43_721_600_512),
+            ("google/gemma-4-12B-it", 7_662_533_088),
         ]
     );
 }

@@ -311,21 +311,9 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         stale: None,
     },
-    ModelEntry {
-        repo: "google/gemma-4-12B-it",
-        display_name: "Google Gemma 4 12B",
-        last_modified: "2026-07-20",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::dense(11_950_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(7, 14),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        stale: None,
-    },
+    // Google Gemma 4 12B moved to DOWNLOADABLE (2026-09-17): its pinned file
+    // was identified, verified against the response headers, downloaded and
+    // hashed. See the download table.
     ModelEntry {
         repo: "google/gemma-4-26B-A4B-it",
         display_name: "Google Gemma 4 26B",
@@ -708,6 +696,48 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "apertus-70b-Q4_K_M.gguf",
             bytes: 43_721_600_512,
             sha256: "8507a6c4ef21a41848db84cdc8cd687b10a90fb9e7edbe94d08e05b228265de2",
+        },
+    },
+    // Google Gemma 4 12B (2026-09-17): the table's only dense-parameter row
+    // (dense FFN, n_expert 0 — but hybrid attention: 8 full layers of 48,
+    // the rest sliding-window; measured, see docs/COMPUTE-BUFFERS-DENSE.md
+    // §6). Pinned from the response headers at this commit — x-linked-size
+    // 7662533088, x-linked-etag the sha256 below — licence apache-2.0 read
+    // from the repo's own README, repo not gated. Downloaded and hashed
+    // 2026-09-17: the digest matched.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "google/gemma-4-12B-it",
+            display_name: "Google Gemma 4 12B",
+            last_modified: "2026-07-27T06:14:10.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::dense(11_950_000_000),
+            quant: "Q4_K_M",
+            weights_bytes: 7_662_533_088,
+            mmproj_bytes: None,
+            // Measured 2026-09-17 on the machine this catalog is developed
+            // on: the cache is iswa and NOT flat per token — 34+255 MiB at
+            // context 4096, 136+255 MiB at 16384 (q8_0) — so no single
+            // per-token figure is honest; see the doc above. At the
+            // contexts the chooser funds (>= 4096) the 96 KiB assumption
+            // over-counts, which is the safe direction.
+            kv_bytes_per_token: None,
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: Some(MeasuredDecode {
+                tokens_per_second: 20.44,
+                backend: Backend::Metal,
+                measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
+                              on GPU, context 512), 2026-09-17",
+            }),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "bartowski/gemma-4-12B-it-GGUF",
+            commit: "2ae7d41be21ca62de00a2d320ee9cec50daa3aa6",
+            file: "gemma-4-12B-it-Q4_K_M.gguf",
+            bytes: 7_662_533_088,
+            sha256: "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509",
         },
     },
 ];

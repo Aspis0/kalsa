@@ -334,3 +334,101 @@ concludes, and keep our own policy as the one that decides.
 What is still owed, unchanged: the 512 MiB compute figure on a genuinely dense row. The
 fit's 393 MiB for Trinity is not comparable to our server-verified 53.43 MiB, because
 the standalone tool reserves for many more outputs than our path ever asks for.
+
+## 6. The dense row, at last — and it is not flat either
+
+This section pays the debt §5 names. 2026-09-17, the same M1 Max, the shipped b10950
+binary; every number below is a real log line from `/tmp/cbdense/gemma/`.
+
+**The pin.** The research record's only dense row of the right class is Google Gemma
+4 12B (`CATALOG`, apache-2.0 since the 2026-07-20 research pass). Google's own repo
+ships safetensors only; the GGUF used is the community standard quantisation:
+`bartowski/gemma-4-12B-it-GGUF` at commit
+`2ae7d41be21ca62de00a2d320ee9cec50daa3aa6`, file `gemma-4-12B-it-Q4_K_M.gguf`, pinned
+from the response headers of the resolve URL (not the model card):
+
+```
+x-linked-size: 7662533088
+x-linked-etag: "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509"
+```
+
+Licence from the repo's own README front matter — `license: apache-2.0` (its
+`license_link` points at Google's gemma_4_license page), `gated: False` in the API.
+Downloaded to `runtime/models/`: curl exit 0, exactly 7 662 533 088 bytes, and
+`shasum -a 256` = the etag above. The digest matched before anything touched the file.
+
+**The shape check fails — again.** Dense in parameters (`n_expert = 0`, all 11.91 B
+active — the loader and llama-bench agree), but the attention is hybrid sliding-window:
+
+```
+llama_model_loader: - kv  16:   gemma4.block_count u32 = 48
+llama_model_loader: - kv  21:   gemma4.attention.head_count_kv arr[i32,48] = [8, 8, 8, 8, 8, 1, 8, 8, 8, 8, 8, 1, ...
+llama_model_loader: - kv  25:   gemma4.attention.key_length u32 = 512
+llama_model_loader: - kv  32:   gemma4.attention.key_length_swa u32 = 256
+print_info: n_embd = 3840 · n_layer = 48 · n_head = 16 · n_expert = 0
+llama_kv_cache_iswa: creating non-SWA KV cache, size = 16384 cells
+llama_kv_cache: size =  136.00 MiB ( 16384 cells,   8 layers,  1/1 seqs), K (q8_0):   68.00 MiB, V (q8_0):   68.00 MiB
+llama_kv_cache_iswa: creating     SWA KV cache, size = 1536 cells
+llama_kv_cache: size =  255.00 MiB ( 1536 cells,  40 layers,  1/1 seqs), K (q8_0):  127.50 MiB, V (q8_0):  127.50 MiB
+```
+
+Eight full-attention layers of 48 (one per `[8, 8, 8, 8, 8, 1]` group), forty SWA
+layers. **Third architecture in a row that is not the flat thing the forfait was
+written for.** A truly flat dense GGUF (every layer full-window) is still missing from
+disk and from the table; what this row measures is the shipped class: dense-parameter,
+hybrid-attention.
+
+**The measurement.** `llama-cli -ngl 999 -fa on -ctk q8_0 -ctv q8_0 -b 2048`, the
+app-path context shape (`n_outputs_max = 1`), six runs, all exit 0:
+
+| ubatch | context | MTL0 compute | CPU compute (printed twice — see below) | total (printed lines) | with both CPU lines |
+|---:|---:|---:|---|---:|---:|
+| 512 | 4096 | 127.80 MiB | 21.80 MiB | 149.6 MiB | 171.4 MiB |
+| 512 | 16384 | 139.80 MiB | 33.80 MiB | 173.6 MiB | 207.4 MiB |
+| 1024 | 4096 | 255.32 MiB | 43.32 MiB | 298.6 MiB | 342.0 MiB |
+| 1024 | 16384 | 279.32 MiB | 67.32 MiB | 346.6 MiB | 414.0 MiB |
+| 2048 | 4096 | 513.35 MiB | 89.36 MiB | 602.7 MiB | 692.1 MiB |
+| 2048 | 16384 | 561.35 MiB | 137.36 MiB | 698.7 MiB | 836.1 MiB |
+
+Quoted raw, ubatch 512 / context 16384:
+
+```
+sched_reserve:       MTL0 compute buffer size =   139.80 MiB
+sched_reserve:        CPU compute buffer size =    33.80 MiB
+sched_reserve:        CPU compute buffer size =    33.80 MiB
+```
+
+A discovery the earlier logs hid by truncation: **the binary builds two identical
+contexts** — llama-cli and llama-server alike (two `constructing llama_context` blocks
+in the same process, this build) — so each reserve appears twice. Whether both stay
+resident is not settled from the logs; a live-process probe (server booted at
+ubatch 512 vs 2048, killed after, RSS 7.65 GiB vs 7.95 GiB) shows the ubatch step
+costing ~310 MiB of resident memory — directionally the reserve, but RSS under-tracks
+untouched Metal pages, so the `sched_reserve` lines remain the citation convention.
+Verdicts below hold under every counting.
+
+**The answers.**
+
+1. **512 MiB holds at ubatch 512.** Margin: 338.4 MiB at 16k context (2.95×) by the
+   printed-line convention, 304.6 MiB (2.47×) counting both CPU lines.
+2. **The margin moves with context** — 362.4 MiB at 4096 → 338.4 MiB at 16384, i.e.
+   the compute reserve grows ~2 KiB per token of context even with flash attention
+   on. Affine, not constant — §5's finding confirmed on the new row.
+3. **The largest ubatch under the forfait is 1024** (346.6–414.0 MiB at 16k, margin
+   ≥ 98 MiB). **2048 breaches at both contexts** — 602.7 MiB at 4096 already, and its
+   MTL0 line alone (561.35) exceeds the forfait. The ~10 % prefill gain of ubatch
+   2048 is not affordable under today's budget on this class of model. Side cost:
+   raising ubatch also raises the SWA cache's cell count — the log shows 1536 / 2048 /
+   3072 cells for ubatch 512 / 1024 / 2048 (cells = n_swa 1024 + ubatch), so the KV
+   grows 255 → 510 MiB too.
+4. **Per-token KV is not flat here either**: 70.6 KiB/token average at 4096, 23.9 at
+   16384 (q8_0) — the SWA part saturates, only 8 layers keep growing. The row
+   therefore carries `kv_bytes_per_token: None` like Trinity: no single figure is
+   honest. At the contexts the chooser funds (≥ 4096) the 96 KiB assumption
+   over-counts, the safe direction.
+
+The row moved to `DOWNLOADABLE` with the pin, the measured decode (20.44 tok/s, tg128,
+Metal, q8_0 KV, flash-attention, context 512 — pp512 231.06, llama-bench, 2 reps), and
+the cache caveat in a comment; the two table-content tests were extended with it, and
+the filtered invariant tests pass (5 across two runs). Through the real `plan()`:
+`Google Gemma 4 12B  64 GiB | ctx  375343 | roof  6144 MiB`.
