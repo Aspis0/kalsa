@@ -378,6 +378,21 @@ const tests = {
     await browser.close();
   },
 
+  // ⌘K / Ctrl+K focuses search from anywhere (explicit brief requirement).
+  async cmdk() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).click();
+    await page.keyboard.press("Control+k");
+    await page.waitForTimeout(300);
+    const focused = await page.evaluate(() => document.activeElement?.id ?? "");
+    check("cmdk: search focused", focused === "conversation-search", focused);
+    await browser.close();
+  },
+
   // Rename: index-only, payload untouched on disk.
   async rename() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });

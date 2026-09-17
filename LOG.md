@@ -240,7 +240,16 @@ Bloccato, da decidere da Marco (non da me):
 
 ---
 
-# Audit ostile — giri di riparazione (seconda parte)
+# Audit ostile — giri di riparazione (terza parte)
+
+## Giro 19 — igiene post-ristrutturazione (2026-09-18)
+
+- Cancellati dal tree gli shot del prodotto ritirato (arco-conversazioni,
+  dialog settings, delete in topbar): restano nella storia git, non in
+  galleria. Grep riferimenti morti: pulito (resta solo l'assert che vieta
+  le frecce di paginazione — voluto).
+- Visti uno a uno anche 41-search (20->1, ⌘K+× convivono) e 42-rename
+  (input inline con bordo accento). Nessun fix.
 
 ## Giro 18 — correzione di prodotto: superfici sull'arco, sidebar (2026-09-18)
 
