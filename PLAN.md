@@ -955,6 +955,29 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   slow device"; there is one now, and a 15 s bound would sit ~33x above it. The comment in
   `snapshotNativeSession` can be closed out and the bound applied.
 
+- **The slow-device failure is a COLD-START failure, and the recovery already works.** Jelly,
+  2026-09-17, `lfm2.5-2.6b`, one 28-message conversation, three consecutive facts from one run:
+  1. First open with no `.kvs` on disk (`{"op":"load","ok":false,"reason":"no_file"}`): the turn
+     must prefill the whole history from scratch, blows through the 885 s watchdog and the user
+     is told the device is short of memory or too hot.
+  2. The aborted turn still writes the KV: `{"op":"save","ms":454,"tokens":8292}`.
+  3. Next launch: `{"op":"load","ms":141,"ok":true,"tokensOnDisk":8292,"tokens":8292}`.
+
+  The same 8292 tokens cost **over fifteen minutes cold and 141 ms warm**. So the defect window is
+  narrow and nameable: the FIRST turn of a long conversation on a device whose prefill is slow,
+  before any session file exists. It is not a permanent property of the pairing, which is exactly
+  why "it fits in RAM" never catches it and why a catalogue gate has to price the cold path.
+
+  Both halves of the unbounded pair now have their missing slow-device sample — save 454 ms and
+  load 141 ms at 8292 tokens, against the S23's 1022 ms worst save and 135 ms worst load. A 15 s
+  aux bound sits 33x above the measured save and 106x above the load.
+
+  Note for whoever applies that bound: `withNativeCallTimeout` is the JS timer, and Android
+  suspends it while the activity is paused. `snapshotNativeSession` runs inside the foreground
+  memory-extract job, so the JS bound is real there; the MAIN chat save is explicitly the
+  background-transition path (`LlamaService.ts:4819` — "eligible for saveSession on background"),
+  where a JS-timer bound would be a guard that cannot fire. Do not wrap the two the same way.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
