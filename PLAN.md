@@ -1103,6 +1103,29 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   starts cheap**, and at the 30.3 ms/token best case that is ~81 s before the model can begin
   thinking. The catalogue should not offer this pairing.
 
+  **Correction to the paragraph above, and it turns into the night's one actionable conclusion.**
+  Saying the prefill deadline "never got the same fix" is unfair to it. `LlamaService.ts:3657-3659`
+  states the problem and its mitigation explicitly: *"Use the native promptN lower bound when
+  available: it includes chat template/tool-schema tokens that chars/4 cannot see."* The deadline
+  takes `max(charsPerTokenEstimate, lastPromptTokens)`, and `lastPromptTokens` is the native count
+  — tools and template included. The design is sound.
+
+  The hole is narrower and worse: `getLastPromptTokens` lives in `prefillSpeed.ts`, the module that
+  is **in-memory only**. On a cold process it returns null, so the blind chars/4 estimate governs —
+  exactly on the first turn after a launch, which is the turn most likely to face a full prefill.
+  That is what fired tonight.
+
+  **So persisting the prefill measurement is not "storing a number nothing reads".** It has a
+  consumer already, and that consumer's blindness at cold start produced a false abort and a
+  misleading error on a real device tonight. One change closes two things:
+  1. the catalogue gets a per-(device, model) prefill cost it can admit or refuse on — the owner's
+     install-time mini test;
+  2. the prefill watchdog stops guessing on the first turn after every launch.
+
+  The earlier note in this plan recommending against building it unilaterally still stands on the
+  POLICY question — which axis may deny a model, and what waiting ceiling — but not on the storage
+  itself, which has a caller waiting for it.
+
   **Two operational numbers from the same run, for planning the next one.**
   - *Cooling.* Battery peaked at 43.3 °C and was back to 34.4 °C with thermal status 0 after
     **13 minutes** idle (trace in `results/t20c-thermal-2026-09-17/`). So heat is not what gates a
