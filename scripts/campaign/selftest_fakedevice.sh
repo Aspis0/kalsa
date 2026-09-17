@@ -16,6 +16,7 @@ set -uo pipefail
 DEV="${FAKE_DEV:?FAKE_DEV must point at the fake device root}"
 F="$DEV/fake"
 PKG="${PKG:-com.kalsa.app}"
+CAMPAIGN_STARTUP_MARKER="${CAMPAIGN_STARTUP_MARKER:?CAMPAIGN_STARTUP_MARKER must be derived by the harness}"
 mkdir -p "$F" "$DEV/databases" "$DEV/data/local/tmp"
 printf '%s\n' "$*" >> "$F/invocations.log"
 
@@ -155,7 +156,7 @@ case "${1:-}" in
       "am force-stop"*) : > "$F/pid" ;;
       "am start -n "*)
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
-        _append "09-16 12:00:00.000  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419"
+        _append "09-16 12:00:00.000  $(cat "$F/pid")  4243 I ReactNativeJS: $CAMPAIGN_STARTUP_MARKER"
         ;;
       "am start -a android.intent.action.VIEW"*) _share_intent "$s" ;;
       "cmd statusbar collapse"|"wm dismiss-keyguard") : ;;

@@ -17,6 +17,14 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
+# Reuse logcat's derived marker so fake-device fixtures cannot drift.
+source "$HERE/logcat.sh"
+export CAMPAIGN_STARTUP_MARKER
+CAMPAIGN_METRO_IN_FLIGHT_NEEDLE="$(sed -n '/POST_FIX_IN_FLIGHT_NEEDLE/{n;s/^[[:space:]]*"\([^"\\]*\)";[[:space:]]*$/\1/p;}' "$REPO/scripts/campaign/metroGate.mjs")"
+if [ -z "$CAMPAIGN_METRO_IN_FLIGHT_NEEDLE" ]; then
+  printf 'selftest_defects: gate in-flight needle is missing\n' >&2
+  exit 1
+fi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kalsa-defects.XXXXXX")"
 
 # The one KALSA_TELEMETRY line the app emitted in 32,683 logcat lines on
@@ -226,8 +234,10 @@ run_campaign_case() {
   rm -rf "$out" "$served"
   mkdir -p "$out" "$served/.expo"
   {
-    printf '%s\n' "KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419"
-    printf '%s\n' "if (args.inFlight) return false;"
+    printf '%s\n' "$CAMPAIGN_STARTUP_MARKER"
+    printf '%s\n' 'function shouldRunForegroundIdleDispose(args) {'
+    printf '%s\n' "$CAMPAIGN_METRO_IN_FLIGHT_NEEDLE"
+    printf '%s\n' '}'
   } > "$served/.expo/.virtual-metro-entry.bundle"
   port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
   python3 -m http.server "$port" --directory "$served" >/dev/null 2>&1 &
@@ -238,6 +248,7 @@ run_campaign_case() {
     FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
     ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
     CAMPAIGN_METRO_BUNDLE_URL="$url" \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
     bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
   local rc=$?
   kill "$http_pid" >/dev/null 2>&1 || true

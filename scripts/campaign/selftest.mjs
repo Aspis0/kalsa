@@ -334,21 +334,20 @@ const gateSource = readFileSync(path.join(here, "metroGate.mjs"), "utf8");
 const markerLiteral = provenanceSource.match(
   /FOREGROUND_IDLE_PROTOCOL_MARKER\s*=\s*"([^"]+)"/,
 )?.[1];
-const logcatMarkerLiteral = logcatSource.match(
-  /CAMPAIGN_STARTUP_MARKER="([^"]+)"/,
-)?.[1];
-const gateMarkerLiteral = gateSource.match(
-  /FOREGROUND_IDLE_PROTOCOL_MARKER\s*=\s*\n?\s*"([^"]+)"/,
-)?.[1];
+const logcatDerivesMarker =
+  logcatSource.includes("src/app/foregroundIdleProvenance.ts") &&
+  logcatSource.includes("FOREGROUND_IDLE_PROTOCOL_MARKER");
+const gateDerivesMarker =
+  gateSource.includes("src/app/foregroundIdleProvenance.ts") &&
+  gateSource.includes("readProtocolMarker");
 check(
-  markerLiteral === FOREGROUND_IDLE_PROTOCOL_MARKER &&
-    logcatMarkerLiteral === markerLiteral &&
-    gateMarkerLiteral === markerLiteral,
-  "startup marker copies are identical across source, logcat, and gate",
+  markerLiteral === FOREGROUND_IDLE_PROTOCOL_MARKER && logcatDerivesMarker && gateDerivesMarker,
+  "startup marker source is shared by logcat and gate",
 );
 check(
-  appSource.includes("if (__DEV__) {\n  console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);"),
-  "App startup marker is __DEV__ guarded and retained through its import",
+  appSource.includes("\nconsole.info(FOREGROUND_IDLE_PROTOCOL_MARKER);") &&
+    !appSource.includes("if (__DEV__) {\n  console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);"),
+  "App startup marker is emitted unguarded, so a release APK can be identified",
 );
 check(!/192[.]168[.]1[.]50/.test(gateSource), "gate has no hidden Metro host assumption");
 
@@ -773,14 +772,14 @@ CAMPAIGN_STARTUP_MARKER_TIMEOUT_S=1
 fixture_logcat=$(mktemp)
 trap 'rm -f "$fixture_logcat"' EXIT
 CAMPAIGN_LOGCAT_FILE="$fixture_logcat"
-printf '%s\\n' '09-16 00:00:00.000 111 222 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419' > "$fixture_logcat"
+printf '%s\\n' '09-16 00:00:00.000 111 222 I ReactNativeJS: ${FOREGROUND_IDLE_PROTOCOL_MARKER}' > "$fixture_logcat"
 offset=$(campaign_logcat_offset)
-printf '%s\\n' '09-16 00:00:01.000 999 222 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419' >> "$fixture_logcat"
+printf '%s\\n' '09-16 00:00:01.000 999 222 I ReactNativeJS: ${FOREGROUND_IDLE_PROTOCOL_MARKER}' >> "$fixture_logcat"
 if campaign_logcat_require_startup_marker "$offset" 123; then
   exit 10
 fi
 offset=$(campaign_logcat_offset)
-printf '%s\\n' '09-16 00:00:02.000 123 222 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419' >> "$fixture_logcat"
+printf '%s\\n' '09-16 00:00:02.000 123 222 I ReactNativeJS: ${FOREGROUND_IDLE_PROTOCOL_MARKER}' >> "$fixture_logcat"
 campaign_logcat_require_startup_marker "$offset" 123
 `,
 ]);

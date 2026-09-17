@@ -36,9 +36,14 @@ import { getDevModelsEnabled } from "./src/bench/benchConfig";
 import { configureModelRegistry } from "./src/engine/ModelRegistry";
 import { LocaleProvider, useLocale } from "./src/i18n";
 
-if (__DEV__) {
-  console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
-}
+// Emitted in every build, deliberately. This is the provenance of the JS
+// bundle, and a release APK is exactly where nothing else can tell you which
+// one you are running: the campaign harness waits for this line from the
+// launched PID before it trusts anything (scripts/campaign/logcat.sh). Under
+// __DEV__ it certified only the builds that never ship. It is a constant
+// string with no user content -- the opposite of the logcat leaks closed in
+// 4553062, which removed the user's words while keeping the counters.
+console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
 
 type ThemeContextValue = {
   colors: ThemeColors;

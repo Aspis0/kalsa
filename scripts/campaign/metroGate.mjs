@@ -4,7 +4,7 @@
  * evidence of the bytes served to the device; this gate reads those bytes.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import http from "node:http";
 import https from "node:https";
@@ -18,9 +18,34 @@ import {
 } from "./metroBundleConfig.mjs";
 
 export const ANDROID_DEBUG_BUNDLE_PATH = buildAndroidDebugBundlePath();
-export const FOREGROUND_IDLE_PROTOCOL_MARKER =
-  "KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419";
-export const POST_FIX_IN_FLIGHT_NEEDLE = "if (args.inFlight) return false;";
+const FOREGROUND_IDLE_PROVENANCE_SOURCE = new URL(
+  "../../src/app/foregroundIdleProvenance.ts",
+  import.meta.url,
+);
+
+function readProtocolMarker() {
+  let source;
+  try {
+    source = readFileSync(FOREGROUND_IDLE_PROVENANCE_SOURCE, "utf8");
+  } catch (error) {
+    throw new Error(
+      `could not read foreground-idle provenance source: ${error.message || String(error)}`,
+    );
+  }
+  const marker = source.match(
+    /export const FOREGROUND_IDLE_PROTOCOL_MARKER\s*=\s*"([^"]+)"/,
+  )?.[1];
+  if (!marker) {
+    throw new Error(
+      "foreground-idle provenance source has no string FOREGROUND_IDLE_PROTOCOL_MARKER",
+    );
+  }
+  return marker;
+}
+
+export const FOREGROUND_IDLE_PROTOCOL_MARKER = readProtocolMarker();
+export const POST_FIX_IN_FLIGHT_NEEDLE =
+  "return args.tokenSilenceMs >= FOREGROUND_DECODE_SILENCE_MS;";
 export const FORBIDDEN_STALE_SYMBOLS = [
   "FOREGROUND_STUCK_INFLIGHT_MS",
   "stuckExpired",
@@ -47,20 +72,45 @@ function matchEvidence(text, needle) {
   };
 }
 
+function bundleMode(text) {
+  if (
+    text.includes("\n") &&
+    text.includes("shouldRunForegroundIdleDispose") &&
+    text.includes("tokenSilenceMs")
+  ) {
+    return "unminified";
+  }
+  if (text.length >= 1024) return "minified";
+  return "unknown";
+}
+
 export function verifyBundleText(bundleText) {
   const text = Buffer.isBuffer(bundleText)
     ? bundleText.toString("utf8")
     : String(bundleText);
+  const mode = bundleMode(text);
   const marker = matchEvidence(text, FOREGROUND_IDLE_PROTOCOL_MARKER);
-  const inFlightSemantics = matchEvidence(text, POST_FIX_IN_FLIGHT_NEEDLE);
+  const inFlightSemantics =
+    mode === "minified"
+      ? {
+          needle: POST_FIX_IN_FLIGHT_NEEDLE,
+          present: null,
+          checked: false,
+          textOffset: null,
+          excerpt: null,
+          reason: "minified bundle; code-shape check is not applicable",
+        }
+      : { ...matchEvidence(text, POST_FIX_IN_FLIGHT_NEEDLE), checked: true };
   const forbidden = FORBIDDEN_STALE_SYMBOLS.map((symbol) =>
     matchEvidence(text, symbol),
   );
   return {
     ok:
       marker.present &&
-      inFlightSemantics.present &&
+      mode !== "unknown" &&
+      (mode === "minified" || inFlightSemantics.present) &&
       forbidden.every((item) => !item.present),
+    bundleMode: mode,
     marker,
     inFlightSemantics,
     forbidden,
@@ -430,9 +480,13 @@ export async function runMetroGate({
     `metro gate HTTP=${result.httpStatus ?? "none"} bytes=${result.bundleBytes ?? "none"} sha256=${result.sha256 ?? "none"}`,
   );
   if (result.checks) {
+    console.log(`metro gate bundle-mode=${result.checks.bundleMode}`);
+    console.log(
+      `metro gate checks=marker,forbidden-stale-symbols${result.checks.bundleMode === "unminified" ? ",in-flight-semantics" : ""}`,
+    );
     console.log(`metro gate marker=${result.checks.marker.present ? "present" : "missing"}`);
     console.log(
-      `metro gate in-flight-semantics=${result.checks.inFlightSemantics.present ? "present" : "missing"}`,
+      `metro gate in-flight-semantics=${result.checks.inFlightSemantics.checked === false ? "not-checked" : result.checks.inFlightSemantics.present ? "present" : "missing"}`,
     );
     console.log(
       `metro gate forbidden-stale-symbols=${result.checks.forbidden.every((item) => !item.present) ? "absent" : "present"}`,

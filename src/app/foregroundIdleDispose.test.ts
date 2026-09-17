@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import {
   deriveTokenSilenceMs,
   FOREGROUND_DECODE_SILENCE_MS,
@@ -7,7 +9,21 @@ import {
 import { GENERATION_STALL_GAP_MS } from "../engine/stallWatchdog";
 import { createThinkStreamCleaner } from "../engine/thinkStream";
 
+const disposeSource = fs.readFileSync(path.join(__dirname, "foregroundIdleDispose.ts"), "utf8");
+const gateSource = fs.readFileSync(
+  path.join(__dirname, "../../scripts/campaign/metroGate.mjs"),
+  "utf8",
+);
+const gateNeedle = gateSource.match(
+  /POST_FIX_IN_FLIGHT_NEEDLE\s*=\s*"([^"]+)"/,
+)?.[1];
+
 describe("shouldRunForegroundIdleDispose", () => {
+  test("gate needle stays present in the predicate source", () => {
+    if (!gateNeedle) throw new Error("metro gate needle is missing");
+    expect(disposeSource).toContain(gateNeedle);
+  });
+
   test("quiet idle at 180s disposes; in-flight at 180s does not", () => {
     expect(
       shouldRunForegroundIdleDispose({

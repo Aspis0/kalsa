@@ -7,7 +7,17 @@ set -uo pipefail
 
 CAMPAIGN_LOGCAT_PID=""
 CAMPAIGN_LOGCAT_FILE=""
-CAMPAIGN_STARTUP_MARKER="KALSA_FOREGROUND_IDLE_PROTOCOL revision=c37b419"
+# Derive this because the app and the logcat harness must recognize one marker.
+_CAMPAIGN_PROVENANCE_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/app/foregroundIdleProvenance.ts"
+if [ ! -r "$_CAMPAIGN_PROVENANCE_SOURCE" ]; then
+  printf 'logcat: cannot read provenance source: %s\n' "$_CAMPAIGN_PROVENANCE_SOURCE" >&2
+  exit 1
+fi
+CAMPAIGN_STARTUP_MARKER="$(sed -n '/export const FOREGROUND_IDLE_PROTOCOL_MARKER/{n;s/^[[:space:]]*"\([^"\\]*\)";[[:space:]]*$/\1/p;}' "$_CAMPAIGN_PROVENANCE_SOURCE")"
+if [ -z "$CAMPAIGN_STARTUP_MARKER" ]; then
+  printf 'logcat: provenance source has no startup marker constant: %s\n' "$_CAMPAIGN_PROVENANCE_SOURCE" >&2
+  exit 1
+fi
 CAMPAIGN_STARTUP_MARKER_TIMEOUT_S="${CAMPAIGN_STARTUP_MARKER_TIMEOUT_S:-240}"
 
 # Broader than -s ReactNativeJS (that filter drops AndroidRuntime/native).
