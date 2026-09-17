@@ -331,15 +331,25 @@ export function estimateStaticPrefixTokens(
  * Some templates cannot render that prompt (Qwen's jinja: "Prompt is
  * required", "Unable to generate parser"). Those, and only those, get a
  * one-character filler turn appended — paying the re-prefill rather than
- * skipping the prewarm entirely. LFM2.5's template renders it fine: with a
- * lone system message it emits `<|im_start|>system\n…<|im_end|>\n` and its
- * message loop runs zero times (verified against the shipped
- * LFM2.5-2.6B-Q4_K_M.gguf `tokenizer.chat_template`, not the reference
- * .jinja).
+ * skipping the prewarm entirely. Both shipped templates were read out of their own
+ * GGUF metadata rather than the reference .jinja files:
+ *
+ * - LFM2.5-2.6B renders it fine — a lone system message emits
+ *   `<|im_start|>system\n…<|im_end|>\n` and both message loops run zero
+ *   times, so no filler is ever added and the prefix is reused whole.
+ * - Qwen3.5-4B refuses: its reverse scan sets `multi_step_tool` false only on
+ *   a user role, then `raise_exception('No user query found in messages.')`.
+ *   That model gets the filler, and pays the re-prefill it implies.
  */
 export function isSystemOnlyTemplateFailure(message: unknown): boolean {
   if (typeof message !== "string" || message.length === 0) return false;
   return (
+    // Read out of the shipped GGUFs' own tokenizer.chat_template, not guessed:
+    // Qwen3.5-4B's template runs `raise_exception('No user query found in
+    // messages.')` when its reverse scan finds no user role (it also refuses
+    // an empty `messages`), and minja surfaces that string verbatim.
+    /No user query found/i.test(message) ||
+    /No messages provided/i.test(message) ||
     /Prompt is required/i.test(message) ||
     /Unable to generate parser/i.test(message) ||
     /system[- ]only/i.test(message)

@@ -349,6 +349,20 @@ describe("isSystemOnlyTemplateFailure", () => {
   // rn-completion.cpp clears the cache and re-prefills the whole window.
   // So the filler turn is only ever added to a model that has REFUSED.
   test("recognises the templates that cannot render a system-only chat", () => {
+    // Verbatim from Qwen3.5-4B's own tokenizer.chat_template, read out of the
+    // shipped GGUF: `raise_exception('No user query found in messages.')`
+    // fires because its reverse scan clears multi_step_tool only on a user
+    // role. Missing this string is not cosmetic — the model would never be
+    // added to the filler set, so its prewarm would fail on every attempt.
+    expect(
+      isSystemOnlyTemplateFailure("No user query found in messages."),
+    ).toBe(true);
+    expect(
+      isSystemOnlyTemplateFailure(
+        "Error: minja: No user query found in messages.",
+      ),
+    ).toBe(true);
+    expect(isSystemOnlyTemplateFailure("No messages provided.")).toBe(true);
     expect(isSystemOnlyTemplateFailure("Prompt is required")).toBe(true);
     expect(isSystemOnlyTemplateFailure("Unable to generate parser")).toBe(true);
     expect(
