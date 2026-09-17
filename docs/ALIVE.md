@@ -6157,3 +6157,108 @@ on `5de99f3`.
 `scripts/kalsa-patches/` + `verify`; the determinism proof is `pin <sha>` leaving `git status`
 empty. Reviewer (DeepSeek v4.1) audits after. App-side switch prepared in worktree
 `/Users/marco/Projects/kalsa-fork-switch` (branch `llama-rn-fork`), the KV session's checkout untouched.
+
+### 17/09 evening, later — main does not compile, the fork reproduces it, the switch audit
+
+- **Baseline binary: none yet, and not for the fork's fault.** `apk.yml` on `main@5de99f3`
+  (run 35249081461) fails in "Build APK": `cpp/common/peg-parser.h:3: fatal error: 'json.h' file
+  not found`, seven `cpp/common/*` files include it. kalsallama `134a35cf2` introduced
+  `common/json.{h,cpp}` (upstream moved the nlohmann include there); the sync script's
+  `copy_common` allowlist never named them, so the flattened vendor lacks them. The previous pin
+  did not need them. Reproduced in scratch: adding `json.h json.cpp` to the allowlist yields
+  exactly +2 files. The KV session already has that line (and more: `llama-kv-cache-msa`,
+  `llama-memory-hybrid-idx`, `mtmd-internal.h`, `mtmd-helper-common.h`, `vendor/hash`) in its
+  uncommitted working copy and was regenerating `vendor/` at 17:2x — not touched from here.
+  The fork carries the same defect by construction (it is equivalent to main); it gets the same
+  allowlist lines and files in a commit of its own once main's fix lands, and the baseline is
+  re-measured against that commit.
+- **Fork commit `eb9a6da7`** (Coder, GLM-5.3-Flash): `scripts/sync-kalsallama.sh` (677 lines,
+  flatten functions verbatim from the app's HEAD script; new: `install_cpp_tree`,
+  `apply_kalsa_patches`, `regen_cpp`, `cmd_verify`), `scripts/kalsa-patches/common.{cpp,h}.patch`
+  (3-line context, generated from the flattened pin), `KALSA_FORK.md`. Proofs re-run by the parent:
+  `verify` exit 0; agent's proof a: `pin 134a35cf2` leaves `git status --porcelain -- cpp` empty;
+  mutations (appended line, removed `common.h.patch`) both make `verify` exit 1. Not pushed yet.
+- **Audit of the app switch `0fc723b`** (Reviewer, DeepSeek v4.1): 12 findings, 10 refutations.
+  Acted on: F1/F2 URL (`git+file://` → `git+https://github.com/Aspis0/llama.rn.git#sha`; the
+  `github:` shorthand would write `git+ssh://` and runners have no key), F3 the id hashed pointers
+  only — a stale `node_modules` after a fork bump would keep the new id on the old engine — now
+  hashes the installed `cpp/ android/ bin/ ios/`; F4 `KALSA_LLAMA_FROM_SOURCE=0` produced an
+  APK with no engine (CMake STATUS + return) — becomes a thrown error, `variant` removed from the
+  id; F5–F7, F10, F11 tests/validation/symlinks. Deferred to the cleanup commit: F8 (docs and
+  workflow comments still narrate the patch pipeline), F9 (`native/kalsallama.pin` hashed but
+  read by nothing). F12 (toolchain not in the id) is pre-existing and stays out of scope.
+- `Aspis0/llama.rn` unarchived (owner's go), branch `kalsa` pushed at `987799a1`. Owner: the app
+  will ship on iOS too → step 6 in PLAN (from source, like Android; `ggml-metal.metal` is not in
+  the vendor, so the Metal embed is an open question there).
+
+### 17/09 evening — the KV session: why the prefix reuse never paid off on LFM2
+
+Four commits on `Aspis0/kalsa@main`: `5de99f3`, `ad7ff7d`, `235444f`, `f62272b`, `57bad0c`.
+
+- **CI had been red since `4f0370e` and I missed it by running jest, not the `.mjs`
+  harnesses CI runs.** Two breakages, the second hidden behind the first. (1)
+  `registrySessionBytesPerToken` imported `MODEL_REGISTRY` into `sessionDiskCalibration.ts`,
+  which the session harnesses compile standalone with `--ignoreConfig`; that pulls in
+  `ModelRegistry → contextProfile`, whose guarded `require("expo-device")` fails as `TS2591`.
+  (2) Three harness cases still asserted the pre-`4f0370e` semantics, including
+  `"smaller sample must keep the maximum"` — the exact behaviour that commit replaced.
+  Fixed in `5de99f3`: the arithmetic is a leaf again, the catalog lookup moved to
+  `sessionDiskFallback.ts`, and the rate is a REQUIRED argument so a call site cannot drop
+  the low-outlier floor by omission.
+- **The overlay allow-list never learned about nine upstream files** (`ad7ff7d`) — the same
+  `json.h` failure the fork session found independently, plus `llama-kv-cache-dsa-iswa`,
+  `llama-kv-cache-msa`, `llama-memory-hybrid-idx`, `mtmd-internal.h`,
+  `mtmd-helper-common.h`, `vendor/hash`. All includes unconditional; both CMakeLists glob
+  `common/*.cpp` and `tools/mtmd/*.cpp`, so the sources are all the build needed.
+  New gate `scripts/assert-overlay-includes.sh` resolves every local `#include` in the
+  assembled engine and fails naming the file and its includers, wired into `apk.yml` and
+  `e2e-emulator.yml` right after `npm ci` — seconds instead of five minutes into the NDK.
+  Non-vacuous: moving `cpp/common/json.h` aside makes it exit 1.
+- **The static-prefix disk snapshot** (`235444f`), audited hostilely by DeepSeek v4.1:
+  11 findings. Two mattered. It was charged to the session pool budget, which is denominated
+  in CONVERSATIONS (`5200 × 8192` = 42.6 MB each, picker minimum 1), so a 12.6 MB shared file
+  and a long chat evicted each other in a loop; it is now excluded from both sides and bounded
+  by keeping exactly one snapshot file on disk. And the 1832-token write is a qualifying
+  calibration sample that was being thrown away, leaving a model with no catalog
+  `kvBytesPerToken` demanding 301 MB free for a 12.6 MB file. Test vacuity was worse than the
+  code: the save mock re-added `file://`, so deleting the production strip passed all 8 tests
+  while every device save would fail. Eleven mutations now all die; before, four survived.
+
+**The finding that reframes the whole campaign.** `llama-memory-recurrent.cpp:194` enters its
+partial-rollback branch only when `0 < p0 && p0 <= cell.pos`, and that branch is bounded by
+`n_rs_seq` — 0 with no draft model, so entering it means FAILING. The prewarm appended
+`{role:"user","."}` unconditionally (a Qwen template workaround), which puts four tokens past
+the point where the next real prompt diverges: `n_common < embd.size()`, `p0 <= cell.pos`,
+`seq_rm` fails, and `rn-completion.cpp:620-640` falls through to `llama_memory_clear` +
+`n_past = 0` — a full re-prefill. Without the filler `n_common == embd.size()`, `p0 > cell.pos`,
+the branch is never entered and the prefix survives.
+
+That also explains why the disk snapshot alone could not pay off. `loadSession` does register a
+checkpoint (`jsi/JSISession.h:148`, "Kalsa patch #2") but at `embd.size()`, and its own comment
+says what for: *"lets findStateCheckpoint adopt it when n_common equals this length (next prompt
+extends this history)"*. A restored static prefix is not extended, it is diverged into — at the
+filler — so `findStateCheckpoint` looked below `n_common`, found nothing, and the restore was
+discarded by the very next completion. Fixed in `57bad0c`: the filler is added only to a model
+whose template has actually refused, learned from the refusal. Verified on the shipped
+`LFM2.5-2.6B-Q4_K_M.gguf`'s own `tokenizer.chat_template` (not the reference `.jinja`) — with a
+lone system message it emits `<|im_start|>system\n…<|im_end|>\n` and both message loops run zero
+times.
+
+**Two routes closed, so nobody re-walks them.** Saving only the prefix by trimming
+(`saveSession(path, {tokenSize})`) is refused by construction: `jsi/JSISession.h:198-206` throws
+`kv_inconsistent` unless `save_pos_max + 1 == save_size`. And making `loadSession` also register
+a checkpoint at the prefix boundary is vetoed by patch #2's own comment — *"capture dumps the
+current recurrent tail, so a shorter label on a 2441-token KV is a lie"*.
+
+**The governor and session persistence are mutually exclusive today.** `jsi/JSISession.h:48-50`
+and `:173-175` throw on both save and load while the governor is on, and the reason is real:
+`llama_governor_init(model_prefill, model_decode, params_prefill, params_decode)` owns two
+contexts with two KV caches, `clear_cache` empties both separately, and the handover copies
+between them (`llama-governor.cpp:105`, `llama_kv_commit_with_stats`). So `active_ctx()` is
+whichever side ran last — a save would serialize a non-deterministic one of the two. Nothing
+regresses today (governor off by default, off for the high tier), but the two halves of the
+thermal plan cannot both be on.
+
+**Still unproven: all of it, on a phone.** No device run yet. The check that counts is one
+`KALSA_PREWARM op:"restore" ok:true` per slide instead of a 40 s prefill, and a
+`KALSA_KVREUSE`/`KALSA_KVPREFIX` line showing `n_common == embd.size()` on the send behind it.
