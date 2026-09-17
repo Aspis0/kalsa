@@ -5927,7 +5927,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // or the completion arrives first and the prewarm is skipped for
             // holding chat KV.
             if (nativeClearedForAssemble) {
-              await queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
+              try {
+                await queueStaticPrefixPrewarm(
+                  locale,
+                  agentOptionsRef.current.tools,
+                );
+              } catch {
+                // The prewarm is an optimisation on top of this send, never a
+                // precondition for it: the completion below prefills the same
+                // tokens either way. Its own job body already catches, but the
+                // queueing half runs on this stack, and an awaited rejection
+                // here would fail the user's turn.
+              }
             }
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
