@@ -1287,6 +1287,62 @@ function nativeGovernorThermo(snapshot: GovernorThermoSnapshot) {
   return profile;
 }
 
+/**
+ * Timeout for one auxiliary native engine call (governor thermo/stats, KV
+ * clear, session save/load). These run in windows no engine watchdog covers:
+ * the stall timer is stopped between completions and the prefill deadline is
+ * not armed yet, so a call that never settles on a dead JSI handle would wedge
+ * the turn — and the engine FIFO behind it — silently. Strictly looser than
+ * healthy work: the contact probe already grants 8s to a full tokenize round
+ * trip (ENGINE_CONTACT_PROBE_TIMEOUT_MS); a bound tight enough to fire on
+ * healthy work killed real generations once (PLAN.md open item).
+ */
+const ENGINE_AUX_CALL_TIMEOUT_MS = 15_000;
+
+/**
+ * Tool executions are JS-only awaits between completions with no watchdog.
+ * Every wired tool self-bounds (document_chat at 190s DOCUMENT_CHAT_TIMEOUT_MS,
+ * web_fetch at 8s/20s network, web_search at 15s per request), so 300s is
+ * strictly more permissive than the slowest primary and cannot fire on
+ * healthy work.
+ */
+const TOOL_EXEC_TIMEOUT_MS = 300_000;
+
+/**
+ * Race one uncovered await against a timeout that REJECTS, so each caller's
+ * existing failure path owns the fallback. The real promise is never
+ * cancelled: its late settlement is swallowed (same contract as the raced
+ * stopCompletion in disposeEngineLocked) and the timer is always cleared.
+ *
+ * KNOWN LIMIT: this is the plain JS timer, which Android suspends while the
+ * activity is paused, so the bound covers the foreground only. That is the
+ * opposite of the generation watchdogs, which were deliberately moved to the
+ * native timer for exactly this reason. Moving these too needs a device to
+ * validate the timer's lifecycle against dispose, so it stays a follow-up
+ * rather than an unverified change.
+ */
+async function withNativeCallTimeout<T>(
+  p: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const raced = Promise.race([
+    p,
+    new Promise<never>((resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`${label} did not settle within ${timeoutMs}ms`));
+      }, timeoutMs);
+    }),
+  ]);
+  // The race stops listening once the timeout wins; swallow the loser's late
+  // rejection so RN never logs an unhandled rejection for it.
+  p.catch(() => undefined);
+  return raced.finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 async function refreshGovernorBeforeCompletion(
   engine: LlamaContext,
   thermoLogState: { invalidLogged: boolean } = { invalidLogged: false },
@@ -1295,7 +1351,11 @@ async function refreshGovernorBeforeCompletion(
   // Storage/native polling is asynchronous; never call a stale native handle.
   if (activeGovernorActive && engine === context) {
     try {
-      const ok = await engine.setGovernorThermo(nativeGovernorThermo(snapshot));
+      const ok = await withNativeCallTimeout(
+        engine.setGovernorThermo(nativeGovernorThermo(snapshot)),
+        ENGINE_AUX_CALL_TIMEOUT_MS,
+        "setGovernorThermo",
+      );
       if (!ok && !thermoLogState.invalidLogged) {
         thermoLogState.invalidLogged = true;
         console.log(
@@ -1326,7 +1386,11 @@ async function emitGovernorTelemetry(
 ): Promise<void> {
   if (!activeGovernorAttempted) return;
   try {
-    const stats = await engine.getGovernorStats();
+    const stats = await withNativeCallTimeout(
+      engine.getGovernorStats(),
+      ENGINE_AUX_CALL_TIMEOUT_MS,
+      "getGovernorStats",
+    );
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
         engine_prefill: stats.engine_prefill,
@@ -1345,8 +1409,13 @@ async function emitGovernorTelemetry(
         fallback_reason: activeGovernorFallbackReason,
       })}`,
     );
-  } catch {
-    // Governor telemetry must never break a completed turn.
+  } catch (error) {
+    // Governor telemetry must never break a completed turn; make the fallback
+    // visible — a hang here closes the turn with no KALSA_GOVERNOR line.
+    console.warn(
+      "[emitGovernorTelemetry] governor stats unavailable:",
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 
@@ -1473,7 +1542,11 @@ async function discardChatKvForWindowSlideLocked(
     if (!context || disposing) {
       ramOk = true;
     } else {
-      await context.clearCache();
+      await withNativeCallTimeout(
+        context.clearCache(),
+        ENGINE_AUX_CALL_TIMEOUT_MS,
+        "clearCache(window-slide)",
+      );
       ramOk = true;
     }
   } catch {
@@ -2593,9 +2666,17 @@ async function tryClearNativeChatKv(
 ): Promise<boolean> {
   if (!engine || disposing || engine !== context) return false;
   try {
-    await engine.clearCache();
+    await withNativeCallTimeout(
+      engine.clearCache(),
+      ENGINE_AUX_CALL_TIMEOUT_MS,
+      "clearCache",
+    );
     return true;
-  } catch {
+  } catch (error) {
+    console.warn(
+      "[tryClearNativeChatKv] clearCache unavailable:",
+      error instanceof Error ? error.message : error,
+    );
     return false;
   }
 }
@@ -4047,11 +4128,15 @@ export async function streamAssistantTurn(
         callbacks.onStatus?.({ label: strings.chat.readingDocument });
         let autoToolContent: string;
         try {
-          const outcome = await options.executeTool(
-            "document_chat",
-            { query: autoQuery, docId: autoDocId },
-            signal,
-            lastUserMessageText,
+          const outcome = await withNativeCallTimeout(
+            options.executeTool(
+              "document_chat",
+              { query: autoQuery, docId: autoDocId },
+              signal,
+              lastUserMessageText,
+            ),
+            TOOL_EXEC_TIMEOUT_MS,
+            "executeTool(document_chat)",
           );
           recordToolSuccess(
             toolExecState,
@@ -4428,11 +4513,15 @@ export async function streamAssistantTurn(
           try {
             // kalsa.bench.toolgate=0 blanks lastUserMessage so the echo-of-context
             // rule cannot fire (webSearchTool's only use of this argument).
-            const outcome = await options.executeTool(
-              name,
-              args,
-              signal,
-              toolGateEnabled ? lastUserMessageText : "",
+            const outcome = await withNativeCallTimeout(
+              options.executeTool(
+                name,
+                args,
+                signal,
+                toolGateEnabled ? lastUserMessageText : "",
+              ),
+              TOOL_EXEC_TIMEOUT_MS,
+              `executeTool(${name})`,
             );
             toolTel.executed += 1;
             // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),
@@ -4843,6 +4932,12 @@ async function snapshotNativeSession(
     } catch {
       // overwrite
     }
+    // NOT bounded, deliberately. The aux timeout covers calls whose healthy
+    // duration is argued from what they do: a config push, a counter read, a
+    // RAM free. A session write is disk I/O of megabytes on hardware we have
+    // never timed — every measurement in ALIVE records save by TOKEN COUNT and
+    // none by duration. A bound nobody can justify is the defect that killed
+    // healthy generations once. Measure a save on the Jelly first, then bound.
     await engine.saveSession(nativeSessionPath(destPath));
     return true;
   } catch {
@@ -4877,6 +4972,7 @@ async function restoreNativeSession(
     return false;
   }
   try {
+    // Unbounded for the same reason as the save above: disk I/O, never timed.
     const result = await engine.loadSession(srcPath);
     tokensLoaded = result?.tokens_loaded;
     const ok = sessionLoadHasTokens(result);
