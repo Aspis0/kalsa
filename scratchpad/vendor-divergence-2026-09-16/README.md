@@ -135,3 +135,45 @@ an input. That is an owner decision, not a cleanup.
 `npx patch-package --dry-run` is **not** evidence here: it fails on an
 already-patched tree by construction, and it exits 0 while printing
 "finished with 1 error(s)".
+
+## RESOLVED 2026-09-16, 22:50
+
+App commit `4553062`. The divergence is gone: `assert-vendor-pristine.sh` exits
+0 and the installed tree is exactly `llama.rn@0.12.8` + the committed patch.
+
+What was folded in, and what was not:
+
+- **Taken from the divergent copy:** both privacy fixes. Upstream's per-token
+  prompt dump became a counts line, and the `KALSA_KVDIVERGE` token ids moved
+  inside `RNLLAMA_ANDROID_ENABLE_LOGGING`.
+- **Rejected:** the deletion of the `context_full` guard. It is a backstop at
+  `>= n_ctx` behind a JS window slide at `n_ctx - WINDOW_RESERVE_TOKENS`
+  (`LlamaService.ts:1518`), so it only fires when the slide already failed.
+  Removing it converts a loud error into a silently truncated answer.
+  `kvShiftRefuse.test.ts:22` already asserted it was in the patch.
+- **Rejected as unexplained:** the divergent copy also dropped `this=%p` from
+  `KALSA_KVPREFIX` and rewrote the `n_common` comment. Object identity is
+  diagnostics, not user content, and the comment justified the deletion above.
+  Both restored to the committed patch's version — the fix changes only what it
+  has to.
+
+**Method, since regenerating against the live tree is forbidden:** the two file
+sections were recomputed with `diff -U3` against the pristine npm tarball and
+spliced into the existing patch, leaving its other 23 sections byte-identical.
+Running `patch-package llama.rn` to regenerate in the scratch project was tried
+first and produced a **28.9 MB** patch: the clean install it diffs against runs
+llama.rn's own postinstall and downloads the prebuilt binaries, which the
+scratch tree lacks, so ~300 binary deletions were recorded. That is the concrete
+reason regeneration is untrustworthy here.
+
+**Verification, in order:** old patch and new patch applied to two separate
+pristine copies differ in exactly `rn-completion.cpp` and `rn-completion.h`;
+both outputs byte-identical to the intended files; `assert-vendor-pristine.sh`
+exit 0; `clang++ -fsyntax-only` clean with the `#ifdef` both on and off — the
+release shape had likely never been compiled; 18/18 in `kvShiftRefuse.test.ts`
+and `engineIdentity.test.ts`. **Not built for Android here.**
+
+One trap worth keeping: the first splice left a trailing newline on a generated
+section, so a blank line preceded the next `diff --git`. patch-package read it
+as a context line, the hunk counts stopped adding up, and it refused the whole
+file with a parse error. Strip trailing newlines from any spliced section.
