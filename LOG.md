@@ -148,6 +148,24 @@ Voti: recovery 5 · switch 5.
 
 Voti: pochi 5 · attiva 5 · stretta-aperta 5 (dopo fix).
 
+## Giro 8 — a11y funzionale, Tauri, regressione totale (2026-09-18)
+
+- Live region verificata via driver, non solo a codice: durante l'attesa
+  dice "Responding. Waiting for the first word.", ai token "Responding.",
+  a fine "Response complete.".
+- Tauri: CLI 2.0.0 provata funzionante (`npx @tauri-apps/cli --version`, via
+  background+poll con kill esplicito). Lo scaffold Rust completo
+  (`tauri init`: icone, Cargo project) NON fatto di proposito: il frontend
+  rispetta già tutti i vincoli (base relativa, niente API Node, solo
+  fetch) e `@tauri-apps/api` resterebbe una dipendenza inutilizzata.
+  Quando Marco vorrà il bundle, `tauri init` + build è il passo.
+- Regressione: tutti i 27 screenshot rigenerati dopo `overflow-x: clip` —
+  dialog fixed intatto, nessuno scostamento altrove (verificati a vista
+  settings + streaming, gli altri per assenza di errori driver).
+
+Voti: a11y 5 · tauri-readiness 4 (frontend pronto, bundle da fare) ·
+regressione verde.
+
 ## Giro 5 — angoli mai fotografati: settings, validazione, delete, focus (2026-09-17)
 
 - 17: dialog impostazioni calmo, una frase, tre campi, tutto resta locale.
