@@ -1157,6 +1157,41 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   POLICY question — which axis may deny a model, and what waiting ceiling — but not on the storage
   itself, which has a caller waiting for it.
 
+  **Attempted the fix, audited it, reverted it. The numbers are why.** Built and then withdrew a
+  change that persisted the last native prompt-token count per model (`AsyncStorage`, merge-by-max,
+  rehydrated at startup) so `getLastPromptTokens` would be non-null on a cold process. It
+  typechecked, 11 focused tests passed, and it was still wrong on two counts:
+
+  1. **It does not fix the incident it was built for.** On a cold process there is no EMA, so the
+     deadline uses the no-EMA branch with an assumed floor of `NO_EMA_PREFILL_TOK_PER_SEC = 10`.
+     A persisted 2666 gives `ceil(2666/10)*1000` = **267 s**, up from the 180 s floor. But this
+     repo's own documented hot figure is 9.4 tok/s at 47 °C (`prefillDeadline.ts:12`), and
+     2666 tokens at 9.4 tok/s needs **284 s**. Same false abort, 87 s later. Fixing the prompt-size
+     half while deliberately not persisting the rate half leaves an optimistic floor in charge.
+
+  2. **It would blind the only hang detector before the first token, permanently.** Merge-by-max was
+     my instruction and it was the wrong call. `prefillDeadline.ts:39` — the branch taken once an
+     EMA exists — is `Math.max(minMs, 5 * estimatedSeconds * 1000)` with **no cap**; the 900 s cap
+     at `:31-33` guards only the no-EMA branch. So one long prompt permanently raises the estimate:
+     using this repo's own 7602-token example (`prefillDeadline.ts:7`), a later 600-token question
+     gets `max(~150, 7602) = 7602`, and at 9.4 tok/s that is `5 × 809 × 1000` ≈ **67 minutes** of
+     deadline for a prefill that needs ~64 s. And `stallWatchdog` returns early while
+     `tokenAt.length === 0`, so before the first token the prefill deadline is the ONLY detector.
+     A hung engine would go unabated for over an hour, on every later turn, across restarts, with
+     no in-app way to clear the stored value.
+
+  So the change traded a false-abort bug for a hang-detection blind spot and did not close the
+  original bug either. Reverted; tree clean; nothing pushed to the app repo.
+
+  **What a correct fix has to do**, for whoever takes it:
+  - price the ACTUAL prompt rather than a historical proxy — `LlamaService.ts:4226` already does
+    exactly this for the tool-round ceiling with `JSON.stringify(currentMessages).length +
+    toolsPromptChars`, while `armPrefillDeadline` still uses chars/4 alone;
+  - fix the chars→tokens ratio, which is the real gap: `systemChars=3969` measured as **2153
+    tokens** on this build, i.e. ~1.84 chars/token, not the 4 the estimate assumes;
+  - if any historical value is persisted, bound it (decay, per-conversation scope, or a hard cap on
+    the EMA branch) so it cannot silently disable the pre-first-token detector.
+
   **Two operational numbers from the same run, for planning the next one.**
   - *Cooling.* Battery peaked at 43.3 °C and was back to 34.4 °C with thermal status 0 after
     **13 minutes** idle (trace in `results/t20c-thermal-2026-09-17/`). So heat is not what gates a
