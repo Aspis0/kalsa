@@ -4932,12 +4932,20 @@ async function snapshotNativeSession(
     } catch {
       // overwrite
     }
-    // NOT bounded, deliberately. The aux timeout covers calls whose healthy
-    // duration is argued from what they do: a config push, a counter read, a
-    // RAM free. A session write is disk I/O of megabytes on hardware we have
-    // never timed — every measurement in ALIVE records save by TOKEN COUNT and
-    // none by duration. A bound nobody can justify is the defect that killed
-    // healthy generations once. Measure a save on the Jelly first, then bound.
+    // NOT bounded yet, and the reason is narrower than it first looked. The
+    // duration IS measured: every KALSA_SESSION save payload carries `ms`.
+    // Across the captured runs, 196 successful saves — 77 of them S23 — give a
+    // median of 47 ms and a worst case of 1022 ms at 6636 tokens; loads are
+    // 41 ms median, 135 ms worst. So a 15 s aux bound would sit ~15x above the
+    // slowest save ever recorded, which is the margin this codebase requires of
+    // a backstop.
+    //
+    // What is missing is the SLOW device: not one of those samples is from the
+    // Jelly, and a session write is disk I/O, where a Jelly is furthest from an
+    // S23. Bounding on S23 numbers alone would set the ceiling from the fast
+    // half of the lab. One Jelly save closes this — read `ms` off any
+    // KALSA_SESSION save line — and then the bound goes in with both devices
+    // behind it.
     await engine.saveSession(nativeSessionPath(destPath));
     return true;
   } catch {
