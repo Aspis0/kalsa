@@ -32,6 +32,33 @@ the brain first — utility, not a statement about what the product is.
 
 ## 3. The shape
 
+> **The transition in this section was built, measured, and rejected — 2026-09-17.**
+>
+> A prototype implemented it: the bar flying to the top right to become the first message,
+> the seats gathering into a five-point crescent, the whole thing reversible. It ran on the
+> View Transitions path, not a fallback: **672 ms measured against a 640 ms setting, 5022 ms
+> against 5000 ms**, thirty-five animations all honouring the duration. The mechanism works.
+>
+> The owner rejected it on sight, and the reason is not taste. **There is no crescent in this
+> app.** The navigation is a flat row of three tab buttons — Status, Model, Pairing
+> (`src/index.html:18-25`) — with transparent backgrounds and muted text until the pointer
+> lands on them (`src/styles.css:124`). It sits at the top and is close to invisible at rest.
+> The crescent is a form borrowed from `devboule-v2` and described in
+> `DESKTOP-CHAT-DECISION.md`; nothing here has ever drawn one.
+>
+> So the prototype animated four seats gathering into an arc that was never built, and its
+> destination is a bar the owner barely sees. An animation cannot be designed before the
+> navigation it lands in exists — that ordering was the mistake, and it cost one prototype.
+> The rest of this section, and §4 through §6, still stand: they describe where things live,
+> not how they move.
+>
+> **The duration argument is therefore unsettled, not decided.** What this section claims
+> below — that the transition should last as long as the first token actually takes, up to
+> 4.99 s when cold — was never tested against a real navigation, and the prototype's own
+> reading argued the opposite: cap the morph short and spend a long wait *inside* the thread,
+> where waiting is legible, rather than as a room rearranging in slow motion.
+
+
 **Open the app and the brain is there, alone.** Which model is loaded, whether it is warm,
 how many of the four seats are taken and by whom. Presence, not a dashboard of readouts.
 
