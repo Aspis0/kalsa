@@ -857,6 +857,19 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
 
 ## Still open
 
+- **The catalogue offers models a device cannot run.** Owner, 16/09 night: *"un qwen 3.5 4b sul
+  jelly non dovrebbe essere nemmeno proposto, perche' ci mette 30 minuti per un prefill."*
+  Measured that night on the Jelly with CI APK `4553062`: `KALSA_PREWARM done promptMs=214122
+  promptN=2196` → **97 ms/token of prefill**, so a 4000-token conversation is over six minutes
+  before the first token; the real turn stayed open past 30 minutes, four threads dropping from
+  90% to 40% as free RAM sat at 85 MB and swap grew, and the device went 32 °C → 39 °C while
+  plugged in. `engine.eagerInit` had loaded it by itself at startup. The memory pressure is NOT
+  the defect — opening a chat is expected to evict other apps — and `model.fit` writing
+  `"verdict":"tight"` and loading anyway is downstream of it. **The gate belongs in the catalogue**:
+  admission is not "it fits in RAM" but "prefill of a realistic conversation stays under a human
+  waiting threshold". Needs a per-token cost per (device, model) pair and a declared ceiling; until
+  then, do not offer >2-3B on the Jelly.
+
 - The eight JS fixes each ran 20 turns on the S23 and each surfaced the next hole; none
   reached a clean run. The blocker was never a missing device run, it was the n_ctx ceiling.
 - `4004117` (K-shift refuse) does not fix the ceiling either: it turns corruption into a
