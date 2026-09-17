@@ -278,3 +278,59 @@ llama-server -m TRINITY … --port 8197 (≈20 s, killed) → exit 0, stopped & 
 
 No server left running; ports 8199/65015/11434 untouched; the ollama process
 was not started, stopped, or contacted; no downloads.
+
+## 5. The scalar is the wrong shape — checked against this morning's own numbers
+
+Added after re-verifying the report. `common/fit.h:24` reads, verbatim:
+
+```c
+// fits mparams and cparams to free device memory (assumes system memory is unlimited)
+```
+
+and our two constants are where the report says they are:
+
+```rust
+// crates/kalsa-catalog/src/footprint.rs:39
+pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
+// crates/kalsa-catalog/src/footprint.rs:51
+pub const ASSUMED_KV_BYTES_PER_TOKEN: u64 = 96 * KIB;
+```
+
+The 96 KiB is derived honestly for a **flat** model — "eight KV heads of 128 dimensions,
+one byte each, forty-eight layers". Two tensors × 8 × 128 × 48 = 98 304 bytes. The
+arithmetic is right; the shape it assumes is what fails.
+
+Put this morning's server-verified figure next to the fit's, both for Trinity:
+
+| context | KV total | bytes/token |
+|---|---|---|
+| 16 384 (measured here at 09:40, `llama-cli -v`) | 174.78 MiB | 11 186 (10.9 KiB) |
+| 131 072 (the fit) | 1007 MiB | 8 062 (7.9 KiB) |
+
+Those two are not two measurements of one constant — they are two points on a line with
+an intercept. The 14 global layers scale with context (119.00 MiB at 16k → ×8 → 952 MiB
+at 128k); the 42 sliding-window layers hold 2560 cells and **never grow** (55.78 MiB at
+both). 952 + 55.78 = 1007.8, which is the fit's number to within rounding. So:
+
+```
+KV(n) ≈ 55.78 MiB + n × 7.26 KiB      for this model
+```
+
+**Per-token KV cost is not a constant for this architecture — it falls as the context
+grows.** `ModelEntry::kv_bytes_per_token`, a scalar, cannot express that: pick the 16k
+figure and you over-charge every long context; pick the 128k figure and you under-charge
+every short one. And the assumed 96 KiB over-charges this row by **8.8× at 16k and 12.2×
+at 128k** — the error is not even a fixed multiple.
+
+Three architectures in two days have each broken the flat assumption differently:
+Trinity is sliding-window (14 full layers of 56), Qwen 3.5 is hybrid linear attention
+(8 KV layers of 32, plus a vision tower), and the catalog's own comment already concedes
+one row the constant under-counts. The fix is therefore not a better constant and not a
+fitted formula from two models: it is to read `block_count`, the per-layer
+`head_count_kv` array, `full_attention_interval`, `key_length` and `value_length` out of
+the GGUF — every one of which the loader already prints — or to ask the binary, as §4
+concludes, and keep our own policy as the one that decides.
+
+What is still owed, unchanged: the 512 MiB compute figure on a genuinely dense row. The
+fit's 393 MiB for Trinity is not comparable to our server-verified 53.43 MiB, because
+the standalone tool reserves for many more outputs than our path ever asks for.
