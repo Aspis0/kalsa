@@ -1,0 +1,14 @@
+--- /tmp/vptest/proj/node_modules/llama.rn/cpp/rn-completion.h	2026-09-16 21:53:16
++++ /Users/marco/Projects/kalsa/node_modules/llama.rn/cpp/rn-completion.h	2026-09-13 15:50:23
+@@ -178,8 +178,9 @@
+     void captureStateCheckpoint(const std::vector<llama_token> &seq, size_t n);
+     int  findStateCheckpoint(const std::vector<llama_token> &target, size_t max_len) const;
+     bool restoreStateCheckpoint(size_t index);    // restore snapshot into seq 0
+-    // Restore the longest snapshot prefixing `target` (length <= max_reuse,
+-    // < total_tokens) and truncate the live prefix to it. Sets n_past_out.
++    // Restore the longest snapshot prefixing `target` (length <= max_reuse)
++    // and truncate the live prefix to it. Fails (and drops that snapshot) if
++    // seq_rm does not leave pos_max+1 == k. Sets n_past_out.
+     bool recoverStateCheckpoint(const std::vector<llama_token> &target, size_t max_reuse,
+                                 size_t total_tokens, llama_pos &n_past_out);
+     void evictStateCheckpoints();                 // enforce count / byte bounds

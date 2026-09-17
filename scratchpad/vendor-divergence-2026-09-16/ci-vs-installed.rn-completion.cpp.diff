@@ -1,0 +1,107 @@
+--- /tmp/vptest/proj/node_modules/llama.rn/cpp/rn-completion.cpp	2026-09-16 21:53:16
++++ /Users/marco/Projects/kalsa/node_modules/llama.rn/cpp/rn-completion.cpp	2026-09-14 09:25:06
+@@ -460,31 +460,13 @@
+         text_tokens = ::common_tokenize(parent_ctx->active_ctx(), parent_ctx->params.prompt, add_bos || is_enc_dec, true);
+         num_prompt_tokens = text_tokens.size();
+ 
+-        // LOG tokens
+-        std::stringstream ss;
+-        ss << "\n" << __func__ << ": prompt_tokens = ";
+-        for (auto& token : text_tokens) {
+-            ss << token << " ";
+-        }
+-        LOG_INFO("%s\n", ss.str().c_str());
++        LOG_INFO("%s: prompt_n=%zu n_ctx=%d embd=%zu",
++            __func__, num_prompt_tokens, parent_ctx->n_ctx, embd.size());
+ 
+         if (parent_ctx->params.n_keep < 0) {
+             parent_ctx->params.n_keep = (int)num_prompt_tokens;
+         }
+         parent_ctx->params.n_keep = std::min(parent_ctx->n_ctx - 4, parent_ctx->params.n_keep);
+-
+-        // Handle truncation if needed
+-        if (num_prompt_tokens >= (size_t)parent_ctx->n_ctx) {
+-            // truncatePrompt keeps n_keep then a later block — not a prefix
+-            // JS will resend. Same-chat live KV must stay. No K-shift.
+-            if (parent_ctx->params.ctx_shift) {
+-                rnllama::log("WARNING", __func__, __LINE__,
+-                    "KALSA_KVSHIFT refused prompt=%zu n_ctx=%d keep_prefix=1",
+-                    num_prompt_tokens, parent_ctx->n_ctx);
+-            }
+-            context_full = true;
+-            return;
+-        }
+ 
+         // NOTE: Do NOT feed prompt tokens into the sampler.
+         // The penalty sampler should only track generated tokens.
+@@ -493,26 +475,28 @@
+         // / frequency_penalty, preventing EOS and producing
+         // extremely verbose output on Qwen-family models.
+ 
+-        // n_common = shared prefix with the live cache; it bounds how far a
+-        // checkpoint may be trusted.
++        // Prefix match FIRST. JS start=0 can send > n_ctx while sharing the
++        // live KV prefix; throwing context_full here never computed n_common.
+         size_t n_common = is_enc_dec ? 0 : find_common_prefix_length(embd, text_tokens);
+         // Kalsa diag: always print prefix-compare inputs. Silence of KVDIAG0
+         // (gated on n_common==0 && !embd.empty()) left open whether embd was
+         // empty or comparison ran on a different completion object than restore.
+         rnllama::log("WARNING", __func__, __LINE__,
+-            "KALSA_KVPREFIX embd=%zu text_tokens=%zu n_common=%zu mtp_draft_mem_shared=%d is_enc_dec=%d this=%p",
++            "KALSA_KVPREFIX embd=%zu text_tokens=%zu n_common=%zu mtp_draft_mem_shared=%d is_enc_dec=%d",
+             embd.size(), text_tokens.size(), n_common,
+-            (int) mtp_draft_mem_shared, (int) is_enc_dec, (const void *) this);
++            (int) mtp_draft_mem_shared, (int) is_enc_dec);
+         // Real divergence only: shared prefix is a proper subset of both sides.
+-        // Window = 8 tokens before n_common (shared context) + 12 from n_common
+-        // on each side. IDs + detokenized text (tokens_to_str) so tags like
+-        // <think> are visible; IDs alone cannot name them.
++        // Counts always; token ids + detokenized text are debug-only (release leak).
+         if (n_common < embd.size() && n_common < text_tokens.size()) {
+             const size_t pre = 8;
+             const size_t post = 12;
+             const size_t shared_lo = n_common > pre ? n_common - pre : 0;
+             const size_t embd_hi = std::min(n_common + post, embd.size());
+             const size_t text_hi = std::min(n_common + post, text_tokens.size());
++            rnllama::log("WARNING", __func__, __LINE__,
++                "KALSA_KVDIVERGE n_common=%zu shared_lo=%zu embd_hi=%zu text_hi=%zu",
++                n_common, shared_lo, embd_hi, text_hi);
++#ifdef RNLLAMA_ANDROID_ENABLE_LOGGING
+             std::string shared_ids, embd_ids, text_ids;
+             for (size_t i = shared_lo; i < n_common; i++) {
+                 shared_ids += std::to_string(embd[i]) + " ";
+@@ -523,15 +507,6 @@
+             for (size_t i = n_common; i < text_hi; i++) {
+                 text_ids += std::to_string(text_tokens[i]) + " ";
+             }
+-            // Kalsa patch: the detokenized snippets are the user's own words, and
+-            // WARNING-level logcat is collected by Android bug reports. They are
+-            // compiled in for debug builds only — RNLLAMA_ANDROID_ENABLE_LOGGING is
+-            // set by CMake when CMAKE_BUILD_TYPE is Debug (rnllama/CMakeLists.txt).
+-            // NDEBUG cannot serve here: that target sets it unconditionally.
+-            // Token ids stay in both builds: they locate the divergence, which is
+-            // the whole point of the diagnostic. The words never were.
+-            std::string divergence_txt;
+-#ifdef RNLLAMA_ANDROID_ENABLE_LOGGING
+             auto clip200 = [](std::string s) {
+                 if (s.size() > 200) s.resize(200);
+                 return s;
+@@ -545,15 +520,11 @@
+             const std::string text_txt = text_hi > n_common
+                 ? clip200(tokens_to_str(parent_ctx->active_ctx(), text_tokens.cbegin() + n_common, text_tokens.cbegin() + text_hi))
+                 : std::string();
+-            divergence_txt = " shared_txt=[" + shared_txt + "] embd_txt=[" + embd_txt
+-                + "] text_txt=[" + text_txt + "]";
+-#endif
+             rnllama::log("WARNING", __func__, __LINE__,
+-                "KALSA_KVDIVERGE n_common=%zu shared_lo=%zu embd_hi=%zu text_hi=%zu "
+-                "shared_ids=[%s] embd_ids=[%s] text_ids=[%s]%s",
+-                n_common, shared_lo, embd_hi, text_hi,
++                "KALSA_KVDIVERGE ids shared=[%s] embd=[%s] text=[%s] shared_txt=[%s] embd_txt=[%s] text_txt=[%s]",
+                 shared_ids.c_str(), embd_ids.c_str(), text_ids.c_str(),
+-                divergence_txt.c_str());
++                shared_txt.c_str(), embd_txt.c_str(), text_txt.c_str());
++#endif
+         }
+         // A mem-shared MTP draft leaves stale speculative cells in the target's
+         // SHARED KV window that upstream never cleans (TAG_KV_CACHE_SHARE_CELLS,
