@@ -75,9 +75,19 @@ export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaust
  */
 export function clampToolNames(names: string[]): string[] {
   if (!Array.isArray(names)) return [];
-  return names.map((name) =>
-    KNOWN_TOOL_NAMES.has(name) ? name : UNKNOWN_TOOL_PLACEHOLDER,
-  );
+  return names.map(clampToolName);
+}
+
+/**
+ * Single-name form of the same clamp, for lines that carry one tool. The tool
+ * name on a completion comes from the model (`call.function?.name`), so a
+ * prompt-injected document can make it arbitrary text; every log that prints it
+ * must clamp, not just this file's own line.
+ */
+export function clampToolName(name: unknown): string {
+  return typeof name === "string" && KNOWN_TOOL_NAMES.has(name)
+    ? name
+    : UNKNOWN_TOOL_PLACEHOLDER;
 }
 
 /**

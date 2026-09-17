@@ -23,6 +23,8 @@
  * counters, timings, and tool-name / strategy labels only.
  */
 
+import { clampToolName } from "./toolCallTelemetry";
+
 /**
  * Retrieval strategy labels emitted by document_chat (and related tools).
  * Keep in sync with DocumentChatToolResult.strategy in documentChatTool.ts.
@@ -207,12 +209,20 @@ export function roundTelemetryFromResult(
  * Machine-parseable single line for adb logcat / CI.
  * Prefix is stable; payload is counters+timings (+ optional tool metadata) only
  * — NEVER user text or document paths.
+ *
+ * `tool` is the one field here that originates OUTSIDE our code: it is the
+ * model's `call.function?.name`, and an unknown name still counts as a
+ * successful outcome, so without the clamp a prompt-injected document could
+ * write arbitrary text into a log we commit as campaign evidence. The payload
+ * is spread, so a new free-text field would leak the same way — keep this line
+ * to counters, timings and clamped enums.
  */
 export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
   const { ciswireFlags, promptN, ...telemetry } = r;
   return `KALSA_TELEMETRY ${JSON.stringify({
     turnId,
     ...telemetry,
+    ...(telemetry.tool != null ? { tool: clampToolName(telemetry.tool) } : {}),
     prompt_n: promptN,
     ...(ciswireFlags ? { ciswireFlags } : {}),
   })}`;
