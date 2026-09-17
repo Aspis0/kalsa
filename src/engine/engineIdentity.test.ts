@@ -1,13 +1,15 @@
 /**
  * Engine build identity: the saved KV must be invalidated by a real change of
- * the compiled engine (fork pin, bridge/native patches, native tree, source vs
- * prebuilt), and must never fall back to a static fabricated value.
+ * the compiled engine (llama.rn fork commit, kalsallama base, native tree,
+ * source vs prebuilt), and must never fall back to a static fabricated value.
  *
  * These tests encode the e2e09f5 audit finding: the old implementation returned
  * the constant "kalsa-native-patches:app:1" for every engine build because it
  * ignored the build inputs entirely.
  */
 
+import fs from "fs";
+import os from "os";
 import path from "path";
 
 import {
@@ -56,7 +58,7 @@ describe("engineBuildFingerprint", () => {
     );
   });
 
-  test("changes when the engine build id changes (pin/patch/variant)", () => {
+  test("changes when the engine build id changes (commit/base/variant)", () => {
     const a = engineBuildFingerprint(SYSTEM_INFO, BUILD_ID);
     const b = engineBuildFingerprint(
       SYSTEM_INFO,
@@ -120,40 +122,42 @@ describe("readEngineBuildId", () => {
 
 describe("engine build id generator", () => {
   const baseInputs = {
-    pin: "67c73d26cb4ce53d8f04b199b523bf05d18fbd61",
+    llamaRnCommit: "987799a1ccb6af4976d44e7825393346de0db49f",
+    kalsallamaSha: "134a35cf201f3a9c4b25eb32768198b8cb3f3c5d",
     variant: "source",
     llamaRnVersion: "0.12.8",
-    overlayScript: "overlay-sha",
     sourceBuildPlugin: "plugin-sha",
-    patches: ["llama.rn+0.12.8.patch:patch-sha"],
     native: ["bmoe/rn/bmoe_stream.cpp:native-sha"],
   };
 
-  test("is deterministic for the same inputs", () => {
+  test("same inputs give the same id", () => {
     const { engineBuildIdFromInputs } = engineBuildIdModule;
     expect(engineBuildIdFromInputs(baseInputs)).toBe(
       engineBuildIdFromInputs(baseInputs),
     );
   });
 
-  test("changes when the fork pin changes", () => {
-    const { engineBuildIdFromInputs } = engineBuildIdModule;
-    expect(
-      engineBuildIdFromInputs({ ...baseInputs, pin: "a".repeat(40) }),
-    ).not.toBe(engineBuildIdFromInputs(baseInputs));
-  });
-
-  test("changes when a native patch changes", () => {
+  test("changes when the llama.rn git sha changes", () => {
     const { engineBuildIdFromInputs } = engineBuildIdModule;
     expect(
       engineBuildIdFromInputs({
         ...baseInputs,
-        patches: ["llama.rn+0.12.8.patch:different-patch-sha"],
+        llamaRnCommit: "a".repeat(40),
       }),
     ).not.toBe(engineBuildIdFromInputs(baseInputs));
   });
 
-  test("changes when the native source tree changes", () => {
+  test("changes when KALSALLAMA_SHA changes", () => {
+    const { engineBuildIdFromInputs } = engineBuildIdModule;
+    expect(
+      engineBuildIdFromInputs({
+        ...baseInputs,
+        kalsallamaSha: "b".repeat(40),
+      }),
+    ).not.toBe(engineBuildIdFromInputs(baseInputs));
+  });
+
+  test("changes when the native tree changes", () => {
     const { engineBuildIdFromInputs } = engineBuildIdModule;
     expect(
       engineBuildIdFromInputs({
@@ -171,11 +175,26 @@ describe("engine build id generator", () => {
   });
 
   test("collects the real committed inputs and is stable across calls", () => {
-    const { computeEngineBuildId, collectEngineBuildInputs, ENGINE_BUILD_ID_PREFIX } =
-      engineBuildIdModule;
+    const {
+      computeEngineBuildId,
+      collectEngineBuildInputs,
+      ENGINE_BUILD_ID_PREFIX,
+    } = engineBuildIdModule;
+    const lock = JSON.parse(
+      fs.readFileSync(path.join(PROJECT_ROOT, "package-lock.json"), "utf8"),
+    ) as { packages: Record<string, { resolved?: string }> };
+    const resolved = lock.packages["node_modules/llama.rn"].resolved ?? "";
+    const lockSha = resolved.slice(resolved.lastIndexOf("#") + 1);
+    const kalsallamaSha = fs
+      .readFileSync(
+        path.join(PROJECT_ROOT, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA"),
+        "utf8",
+      )
+      .trim();
+
     const inputs = collectEngineBuildInputs(PROJECT_ROOT);
-    expect(inputs.pin).toMatch(/^[0-9a-f]{40}$/);
-    expect(Array.isArray(inputs.patches) && inputs.patches.length > 0).toBe(true);
+    expect(inputs.llamaRnCommit).toBe(lockSha);
+    expect(inputs.kalsallamaSha).toBe(kalsallamaSha);
     expect(Array.isArray(inputs.native) && inputs.native.length > 0).toBe(true);
 
     const first = computeEngineBuildId(PROJECT_ROOT);
@@ -183,5 +202,34 @@ describe("engine build id generator", () => {
     expect(first).toBe(second);
     expect(first.startsWith(`${ENGINE_BUILD_ID_PREFIX}:`)).toBe(true);
     expect(first).toContain(":source:");
+  });
+
+  test("throws when the lockfile has no llama.rn #sha", () => {
+    const { collectEngineBuildInputs } = engineBuildIdModule;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
+    try {
+      fs.mkdirSync(path.join(tmp, "node_modules", "llama.rn"), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(tmp, "package-lock.json"),
+        JSON.stringify({
+          packages: {
+            "node_modules/llama.rn": {
+              resolved: "https://registry.npmjs.org/llama.rn/-/llama.rn-0.12.8.tgz",
+            },
+          },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(tmp, "node_modules", "llama.rn", "package.json"),
+        JSON.stringify({ name: "llama.rn", version: "0.12.8" }),
+      );
+      expect(() => collectEngineBuildInputs(tmp)).toThrow(
+        /package-lock\.json packages\["node_modules\/llama\.rn"\]\.resolved/,
+      );
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });

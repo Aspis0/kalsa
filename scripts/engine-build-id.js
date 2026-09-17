@@ -4,21 +4,27 @@
  * compiles.
  *
  * WHY THIS EXISTS: the saved KV sidecar must be invalidated when the compiled
- * engine changes — a new kalsallama pin, new llama.rn bridge patches, changed
- * native sources, or a source-vs-prebuilt variant. A runtime marker alone
- * ("kalsa-native-patches") is a boolean literal and cannot tell two engine
- * builds apart, so it is not an identity (audit of e2e09f5, 2026-09-10).
+ * engine changes — a new llama.rn fork commit, a new kalsallama (llama.cpp
+ * fork) base, changed native sources, or a source-vs-prebuilt variant. A
+ * runtime marker alone ("kalsa-native-patches") is a boolean literal and
+ * cannot tell two engine builds apart, so it is not an identity (audit of
+ * e2e09f5, 2026-09-10).
  *
- * This module hashes the real, committed build inputs:
- *   - native/kalsallama.pin commit (the fork pin; vendor/kalsallama-cpp is the
- *     flattened tree for that commit, cross-checked by sync-kalsallama.sh)
- *   - every patches/*.patch (the llama.rn bridge/native patch set)
- *   - the native/ source tree compiled through those patches (bmoe streamer,
+ * The engine tree now ships as one piece: llama.rn is a git dependency on the
+ * fork, and the installed cpp/ IS the engine tree (no overlay, no
+ * patch-package). The fork commit pins that whole tree, so the id hashes:
+ *   - the llama.rn git commit (the 40-hex sha after the last '#' of
+ *     package-lock.json's node_modules/llama.rn resolved URL) — it pins the
+ *     entire engine tree, bridge and native sources alike
+ *   - node_modules/llama.rn/cpp/KALSALLAMA_SHA — proves the installed tree is
+ *     the kalsallama fork and names the llama.cpp commit it carries; a tree
+ *     without that file is upstream llama.rn, not our fork, and must fail the
+ *     build instead of borrowing an id
+ *   - the native/ source tree compiled on top of it (bmoe streamer,
  *     GovernorBatteryModule)
- *   - scripts/sync-kalsallama.sh and plugins/withLlamaFromSource.js (the
- *     overlay/source-build machinery)
- *   - the llama.rn package version (the base tree the patches apply to)
- *   - the build variant: source (default) vs prebuilt jniLibs opt-out
+ *   - plugins/withLlamaFromSource.js (the source-build machinery)
+ *   - the llama.rn package version (the bridge version string) and the build
+ *     variant: source (default) vs prebuilt jniLibs opt-out
  *
  * The result is embedded at prebuild into the shipped APK's app.config `extra`
  * (see app.config.js) and consumed at runtime by src/engine/engineIdentity.ts.
@@ -32,7 +38,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const ENGINE_BUILD_ID_PREFIX = "kalsa-eng-v1";
+const ENGINE_BUILD_ID_PREFIX = "kalsa-eng-v2";
 
 // Filesystem noise that is not a build input and must not change the id.
 const IGNORED_BASENAMES = new Set([
@@ -83,32 +89,53 @@ function digestTree(dir) {
 }
 
 /**
+ * The 40-hex llama.rn fork commit: the sha after the last '#' of the lockfile
+ * resolved URL for node_modules/llama.rn. Nothing about the URL before the
+ * '#' is assumed; without a trailing '#<40-hex>' the engine tree is not
+ * pinned and the build fails closed.
+ */
+function llamaRnCommit(root) {
+  const lock = readJsonOrThrow(path.join(root, "package-lock.json"));
+  const entry = lock.packages && lock.packages["node_modules/llama.rn"];
+  const resolved =
+    entry && typeof entry.resolved === "string" ? entry.resolved : "";
+  const commit = resolved.slice(resolved.lastIndexOf("#") + 1);
+  if (!/^[0-9a-f]{40}$/.test(commit)) {
+    throw new Error(
+      `engine-build-id: package-lock.json packages["node_modules/llama.rn"].resolved must be a git URL ending in '#<40-char sha>' (got ${JSON.stringify(resolved)})`,
+    );
+  }
+  return commit;
+}
+
+/**
+ * The 40-hex kalsallama commit stamped into the installed engine tree. A tree
+ * without it is upstream llama.rn, not our fork, and must not be identified.
+ */
+function kalsallamaSha(root) {
+  const file = path.join(root, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA");
+  let raw;
+  try {
+    raw = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    throw new Error(
+      `engine-build-id: cannot read node_modules/llama.rn/cpp/KALSALLAMA_SHA: ${error.message} (a tree without it is upstream llama.rn, not the kalsallama fork)`,
+    );
+  }
+  const sha = raw.trim();
+  if (!/^[0-9a-f]{40}$/.test(sha)) {
+    throw new Error(
+      `engine-build-id: node_modules/llama.rn/cpp/KALSALLAMA_SHA must be a 40-char sha (got ${JSON.stringify(raw)})`,
+    );
+  }
+  return sha;
+}
+
+/**
  * Read the committed build inputs from a repository checkout.
  * Throws when a required input is missing so the build fails closed.
  */
 function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
-  const pin = readJsonOrThrow(path.join(root, "native", "kalsallama.pin"));
-  const commit = typeof pin.commit === "string" ? pin.commit.trim() : "";
-  if (!/^[0-9a-f]{40}$/.test(commit)) {
-    throw new Error(
-      `engine-build-id: native/kalsallama.pin commit must be a 40-char sha (got ${JSON.stringify(pin.commit)})`,
-    );
-  }
-
-  const patchesDir = path.join(root, "patches");
-  const patches = fs
-    .readdirSync(patchesDir)
-    .filter((name) => name.endsWith(".patch"))
-    .sort()
-    .map((name) => `${name}:${sha256Hex(readFileOrThrow(path.join(patchesDir, name)))}`);
-  if (patches.length === 0) {
-    throw new Error("engine-build-id: no patches/*.patch found");
-  }
-
-  const native = digestTree(path.join(root, "native")).filter(
-    (entry) => !entry.startsWith("kalsallama.pin:"),
-  );
-
   const llamaRnPkg = readJsonOrThrow(
     path.join(root, "node_modules", "llama.rn", "package.json"),
   );
@@ -118,24 +145,18 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
     throw new Error("engine-build-id: node_modules/llama.rn version is missing");
   }
 
-  const overlayScript = sha256Hex(
-    readFileOrThrow(path.join(root, "scripts", "sync-kalsallama.sh")),
-  );
-  const sourceBuildPlugin = sha256Hex(
-    readFileOrThrow(path.join(root, "plugins", "withLlamaFromSource.js")),
-  );
-
   const variant =
     process.env.KALSA_LLAMA_FROM_SOURCE === "0" ? "prebuilt" : "source";
 
   return {
-    pin: commit,
+    llamaRnCommit: llamaRnCommit(root),
+    kalsallamaSha: kalsallamaSha(root),
+    native: digestTree(path.join(root, "native")),
+    sourceBuildPlugin: sha256Hex(
+      readFileOrThrow(path.join(root, "plugins", "withLlamaFromSource.js")),
+    ),
     variant,
     llamaRnVersion,
-    overlayScript,
-    sourceBuildPlugin,
-    patches,
-    native,
   };
 }
 
@@ -145,12 +166,11 @@ function engineBuildIdFromInputs(inputs) {
     throw new Error("engine-build-id: inputs required");
   }
   const canonical = [
-    `pin:${inputs.pin}`,
+    `llama-rn:${inputs.llamaRnCommit}`,
+    `kalsallama:${inputs.kalsallamaSha}`,
     `variant:${inputs.variant}`,
-    `llama.rn:${inputs.llamaRnVersion}`,
-    `overlay:${inputs.overlayScript}`,
+    `llama-rn-version:${inputs.llamaRnVersion}`,
     `source-plugin:${inputs.sourceBuildPlugin}`,
-    ...(inputs.patches || []).map((p) => `patch:${p}`),
     ...(inputs.native || []).map((n) => `native:${n}`),
   ].join("\n");
   return `${ENGINE_BUILD_ID_PREFIX}:${inputs.variant}:${sha256Hex(canonical)}`;
