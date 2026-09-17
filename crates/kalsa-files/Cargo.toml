@@ -1,0 +1,10 @@
+[package]
+name = "kalsa-files"
+description = "The few folders a person keeps documents in, listed for the picker — and the boundary that keeps the page from reading anything else"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The listing crosses into the page as JSON; nothing here is read back.
+serde = { version = "1", features = ["derive"] }
