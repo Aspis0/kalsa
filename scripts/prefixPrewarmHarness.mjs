@@ -763,6 +763,285 @@ async function main() {
     "an empty evidence file says so in the verdict itself",
   );
 
+  // ── FG_REKICK: the foreground re-kick, against fixtures ──────────────────
+  // The protocol's fg bounce (rp_fg_bounce) marks every return-to-foreground
+  // with an `fg_kick` marker; the verdict classifies the prewarm lines that
+  // follow each marker. One fixture per classification, so a phone run is
+  // never the first time the counter arithmetic executes.
+
+  // served: the re-kick actually ran a prewarm.
+  const fgServed = verdict(
+    "fg-served",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=1 warm=0 held=0 too_early=0 silent=0/.test(fgServed),
+    "a restore after the kick is served",
+  );
+  assert(/FG_REKICK_CRITERION: PASS/.test(fgServed), "a served kick passes");
+
+  // held: a live chat's KV is worth more than the static prefix, so this is
+  // not a defect and must not fail the run.
+  const fgHeld = verdict(
+    "fg-held",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=1 too_early=0 silent=0/.test(fgHeld),
+    "kv_holds_chat after the kick is held",
+  );
+  assert(/FG_REKICK_CRITERION: PASS/.test(fgHeld), "a held kick passes");
+
+  // THE fixture: a marker followed by no prewarm line at all. This is the
+  // shape the closed bug would have had — a re-kick that never fired — and
+  // the criterion must fail by naming the silence.
+  const fgSilent = verdict(
+    "fg-silent",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      "KALSA_TELEMETRY promptMs=1234",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=0 silent=1/.test(fgSilent),
+    "a kick with no prewarm line is silent",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick produced no prewarm line x1\)/.test(fgSilent),
+    "the criterion names the silence",
+  );
+
+  // too_early: the re-kick queued while the app was still backgrounded — it
+  // fired before the very transition it exists to serve.
+  const fgTooEarly = verdict(
+    "fg-too-early",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"background"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=1 silent=0/.test(fgTooEarly),
+    "a background skip after the kick is too_early",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick queued while the app was still backgrounded x1\)/.test(
+      fgTooEarly,
+    ),
+    "the criterion names the too-early kick",
+  );
+
+  // One good kick does not save a run where another went mute — same rule as
+  // KV_PREFIX_CRITERION: a run is not a pass because one of its kicks was.
+  const fgMixed = verdict(
+    "fg-mixed",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_RP_MARK fg_kick cycle=2",
+      "KALSA_KVDIAG n_past=0",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=2 served=1 warm=0 held=0 too_early=0 silent=1/.test(fgMixed),
+    "one served kick and one mute kick are counted separately",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick produced no prewarm line x1\)/.test(fgMixed),
+    "one good kick does not save a silent one",
+  );
+
+  // warm: the shape of the COMMON case — a background round-trip that
+  // invalidated nothing. The re-kick reaches the queue gate, finds the hash
+  // already warm, and logs it. Calling this FAIL was the criterion's defect
+  // before the gate learned to log; it is a WEAK pass (the gate said warm —
+  // whether the native KV is reusable is KV_PREFIX_CRITERION's question).
+  const fgWarm = verdict(
+    "fg-warm",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"already_warm","hash":"h"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=1 held=0 too_early=0 silent=0/.test(fgWarm),
+    "already_warm counts in warm — the common case is not a failure",
+  );
+  assert(/FG_REKICK_CRITERION: PASS/.test(fgWarm), "a warm kick passes");
+
+  // in_flight counts as warm too: a prewarm already queued is the prefix
+  // being handled, not a missing re-kick.
+  const fgInFlight = verdict(
+    "fg-in-flight",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"in_flight","hash":"h"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=1 held=0 too_early=0 silent=0/.test(fgInFlight),
+    "in_flight counts in warm",
+  );
+  assert(/FG_REKICK_CRITERION: PASS/.test(fgInFlight), "an in-flight kick passes");
+
+  // No markers at all (old evidence, or FG_BOUNCE=0): the path was not
+  // exercised. The verdict says so in one line, prints NO criterion, and
+  // leaves KV_PREFIX_CRITERION and the exit code alone — a run that did not
+  // try the foreground is not a failed run, and the pass shape must survive
+  // this section untouched.
+  const fgNone = verdict(
+    "fg-none",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: not exercised/.test(fgNone),
+    "evidence without fg_kick markers says the path was not exercised",
+  );
+  assert(
+    !fgNone.includes("FG_REKICK_CRITERION"),
+    "an unexercised path prints no FG_REKICK criterion",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: PASS/.test(fgNone),
+    "the unexercised FG section leaves KV_PREFIX_CRITERION alone",
+  );
+
+  // The closed window: rp_fg_bounce emits `fg_settled` as its last line, so
+  // the kick's evidence ends before the send produces prewarm lines of its
+  // own. The {"op":"done"} after the settle marker simulates the send — it
+  // must NOT save the kick. This fixture demonstrates the fix: without the
+  // closing marker the window ran to the next cycle's marker and this shape
+  // read served=1 and PASS off a mute kick.
+  const fgClosedWindow = verdict(
+    "fg-closed-window",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      "KALSA_TELEMETRY promptMs=99",
+      "KALSA_RP_MARK fg_settled cycle=1",
+      'KALSA_PREWARM {"op":"done"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=0 silent=1/.test(fgClosedWindow),
+    "the send's done after fg_settled stays out of the kick window",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick produced no prewarm line x1\)/.test(fgClosedWindow),
+    "a settled mute kick still fails — the send's done does not save it",
+  );
+
+  // A served kick inside a closed window: the restore lands before the settle
+  // marker, the kv_holds_chat skip after it belongs to the send and enters no
+  // classification at all.
+  const fgServedSettled = verdict(
+    "fg-served-settled",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=1 warm=0 held=0 too_early=0 silent=0/.test(fgServedSettled),
+    "the restore inside the window is served",
+  );
+  assert(
+    /FG_REKICK_CRITERION: PASS/.test(fgServedSettled),
+    "a served kick inside a closed window passes",
+  );
+
+  // The warm gate must stay observable: a silent return and a re-kick that
+  // never fired produce identical evidence, and only the second is a defect.
+  // The gate logs which of the two it hit (in_flight outranks already_warm —
+  // a queued prewarm also means "the prefix is being handled") before it
+  // returns. Pinned by SHAPE, not substring: comments stripped, whitespace
+  // normalised, whole region compared — reformatting is fine, un-logging it
+  // is not.
+  const warmGate = regionBetween(
+    'logPrewarm({ op: "skip", reason: "kv_holds_chat" });',
+    "const budgetKey = prewarmBudgetKey(prefix.hash);",
+  );
+  const warmGateExpected = [
+    'logPrewarm({ op: "skip", reason: "kv_holds_chat" });',
+    "return; }",
+    "if ( shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||",
+    "prewarmQueuedKey === prefix.hash ) {",
+    "logPrewarm({",
+    'op: "skip",',
+    'reason: prewarmQueuedKey === prefix.hash ? "in_flight" : "already_warm",',
+    "hash: prefix.hash,",
+    "});",
+    "return; }",
+    "const budgetKey = prewarmBudgetKey(prefix.hash);",
+  ].join(" ");
+  assert(
+    warmGate === warmGateExpected,
+    `the already-warm gate must log (in_flight vs already_warm) before it returns — found: ${warmGate}`,
+  );
+
+  // The protocol must still parse, and the bounce must sit INSIDE the cycles
+  // loop, between rp_wait_ready and device_share_send, under the FG_BOUNCE
+  // gate: before Ready there is no fronted app to bounce, and after the send
+  // the KV holds a chat so the re-kick could only ever log kv_holds_chat.
+  // Region-isolated, comments stripped, whitespace normalised, positions
+  // compared — not a substring wish.
+  const protocolPath = path.join(projectRoot, "scripts/device-restore-protocol.sh");
+  const bashParse = spawnSync("bash", ["-n", protocolPath], { encoding: "utf8" });
+  assert(
+    bashParse.status === 0,
+    `device-restore-protocol.sh must still parse — ${bashParse.stderr}`,
+  );
+  const protocolSrc = readFileSync(protocolPath, "utf8");
+  const loopAt = protocolSrc.indexOf('for i in $(seq 1 "$CYCLES"); do');
+  assert(loopAt >= 0, "the protocol still has its cycles loop");
+  const loopDoneAt = protocolSrc.indexOf("\n  done", loopAt);
+  assert(loopDoneAt > loopAt, "the cycles loop closes where expected");
+  const loop = shapeOf(protocolSrc.slice(loopAt, loopDoneAt));
+  const readyAt = loop.indexOf("rp_wait_ready");
+  const bounceAt = loop.indexOf('if [ "$FG_BOUNCE" = "1" ]; then rp_fg_bounce "$i"; fi');
+  const sendAt = loop.indexOf("device_share_send");
+  assert(
+    readyAt >= 0 && bounceAt > readyAt && sendAt > bounceAt,
+    `the FG_BOUNCE-gated fg bounce must sit between rp_wait_ready and ` +
+      `device_share_send inside the cycles loop — ready=${readyAt} bounce=${bounceAt} send=${sendAt}`,
+  );
+  // Inside the bounce, the settle marker must be the LAST line the function
+  // emits: fg_kick → fg_settled is the evidence window the FG_REKICK
+  // fixtures above pin on the verdict side. Emitted later, the send's own
+  // prewarm lines would leak into the kick's classification.
+  const bounceFnAt = protocolSrc.indexOf("rp_fg_bounce() {");
+  assert(bounceFnAt >= 0, "rp_fg_bounce still exists");
+  const bounceFnEnd = protocolSrc.indexOf("\n}", bounceFnAt);
+  assert(bounceFnEnd > bounceFnAt, "rp_fg_bounce closes where expected");
+  const bounceFn = shapeOf(protocolSrc.slice(bounceFnAt, bounceFnEnd));
+  assert(
+    bounceFn.endsWith(
+      'adb shell log -p i -t KALSA_RP_MARK "fg_settled cycle=$i" </dev/null >/dev/null 2>&1',
+    ),
+    `the fg_settled marker must be the LAST thing rp_fg_bounce emits — ends with: …${bounceFn.slice(-100)}`,
+  );
+
   console.log("prefixPrewarmHarness OK");
 }
 

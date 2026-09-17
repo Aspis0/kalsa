@@ -1033,6 +1033,17 @@ export async function queueStaticPrefixPrewarm(
     shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
     prewarmQueuedKey === prefix.hash
   ) {
+    // This log exists because a silent return and a re-kick that never fired
+    // produce identical evidence: the second is a defect, the first is the
+    // common, correct case (a background round-trip that invalidated
+    // nothing). What `already_warm` does NOT mean: prewarmPrefixHash is a JS
+    // flag, not a read of the native KV, so this line is no proof of reuse.
+    // Real reuse stays judged by KALSA_KVPREFIX / n_common, independent of it.
+    logPrewarm({
+      op: "skip",
+      reason: prewarmQueuedKey === prefix.hash ? "in_flight" : "already_warm",
+      hash: prefix.hash,
+    });
     return;
   }
   // Bound once, here: dispose nulls activeModelId before the job's finally

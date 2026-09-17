@@ -69,3 +69,59 @@ else {
 }
 console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
   " no_usable_checkpoint=" + n(/KALSA_KVDIAG /g));
+
+// ── Foreground re-kick ────────────────────────────────────────────────────
+// The protocol's fg bounce (rp_fg_bounce) opens each kick window with an
+// `fg_kick` marker and CLOSES it with `fg_settled`, emitted as the bounce's
+// last line: each kick is classified by the prewarm lines from `fg_kick` up
+// to the next KALSA_RP_MARK (or EOF) — in practice fg_settled, which seals
+// the window before the send starts producing prewarm lines of its own. The
+// closing marker is not decoration: without it the window would run to the
+// next cycle's marker and a mute kick would read as served off the send's
+// `{"op":"done"}`. The shell script and this section are one contract, not
+// two independent files. One line per question, the criterion stated by the
+// script so it cannot be misread off six counters.
+const kickWindows = [];
+const evLines = ev.split("\n");
+for (let i = 0; i < evLines.length; i++) {
+  if (!/KALSA_RP_MARK.*fg_kick/.test(evLines[i])) continue;
+  let j = i + 1;
+  while (j < evLines.length && !evLines[j].includes("KALSA_RP_MARK")) j++;
+  kickWindows.push(evLines.slice(i + 1, j).join("\n"));
+}
+if (kickWindows.length === 0) {
+  // A run that never tried the foreground (old evidence, or FG_BOUNCE=0) is
+  // not a failed run — it is a run that did not measure this question.
+  // Printing FAIL here would make the verdict useless, printing nothing
+  // would look like the section vanished; so one line, no criterion, and the
+  // exit code stays out of it.
+  console.log("FG_REKICK: not exercised — no fg_kick markers in this evidence");
+} else {
+  // One class per kick, priority order: served wins over warm over held over
+  // too_early; a kick with no recognised prewarm line is silent — exactly the
+  // hole this section exists to find. An unrecognised op/reason also lands in
+  // silent: it must fail loudly, not pass on something new. `warm` is a WEAK
+  // pass: it says the re-kick reached the queue gate and found the prefix
+  // already warm (or a prewarm already in flight) — it does NOT say the
+  // native KV is reusable. That question stays with KV_PREFIX_CRITERION,
+  // which reads KALSA_KVPREFIX / n_common.
+  const classify = (w) =>
+    /"op":"(start|restore|done)"/.test(w) ? "served" :
+    /"op":"skip","reason":"(already_warm|in_flight)"/.test(w) ? "warm" :
+    w.includes('"op":"skip","reason":"kv_holds_chat"') ? "held" :
+    w.includes('"op":"skip","reason":"background"') ? "too_early" : "silent";
+  const count = { served: 0, warm: 0, held: 0, too_early: 0, silent: 0 };
+  for (const w of kickWindows) count[classify(w)] += 1;
+  console.log("FG_REKICK: kicks=" + kickWindows.length +
+    " served=" + count.served + " warm=" + count.warm + " held=" + count.held +
+    " too_early=" + count.too_early + " silent=" + count.silent);
+  const fgFails = [];
+  if (count.too_early > 0) {
+    fgFails.push("re-kick queued while the app was still backgrounded x" + count.too_early);
+  }
+  if (count.silent > 0) {
+    fgFails.push("re-kick produced no prewarm line x" + count.silent);
+  }
+  console.log("FG_REKICK_CRITERION: " +
+    (fgFails.length ? "FAIL (" + fgFails.join("; ") + ")" : "PASS"));
+}
