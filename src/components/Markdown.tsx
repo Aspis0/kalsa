@@ -7,6 +7,37 @@ function languageOf(className?: string): string {
   return match ? match[1] : "";
 }
 
+function hostOf(src?: string): string {
+  if (!src) return "unknown address";
+  if (/^data:/i.test(src)) return "embedded data";
+  try {
+    return new URL(src).host || "unknown address";
+  } catch {
+    return "invalid address";
+  }
+}
+
+function safeHref(src?: string): string | undefined {
+  if (src && /^https?:\/\//i.test(src)) return src;
+  return undefined;
+}
+
+// Remote images are never loaded: no request, no IP, no Referer, no query
+// smuggling the conversation out. The address stays openable by hand.
+function BlockedImage({ alt, src }: { alt?: string; src?: string }) {
+  const href = safeHref(src);
+  return (
+    <span className="blocked-image">
+      Image blocked{alt ? `: ${alt}` : ""} ({hostOf(src)}). Images from the network are
+      never loaded.{href ? (
+        <>
+          {" "}<a href={href} target="_blank" rel="noreferrer">Open address</a>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
   const [failedCopy, setFailedCopy] = useState(false);
@@ -86,6 +117,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
         components={{
           pre: Pre,
           code: Code,
+          img: BlockedImage,
           a: ({ children, href }) => (
             <a href={href} target="_blank" rel="noreferrer">
               {children}

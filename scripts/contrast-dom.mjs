@@ -57,6 +57,21 @@ const SEEDED = [
       { id: "m4", role: "assistant", content: "", createdAt: 0 },
     ],
   },
+  {
+    id: "seed-3",
+    title: "Tracker model",
+    createdAt: 2,
+    updatedAt: 2,
+    messages: [
+      { id: "m5", role: "user", content: "Show me a picture.", createdAt: 2 },
+      {
+        id: "m6",
+        role: "assistant",
+        content: "Here:\n\n![tracker](https://tracker.example/pixel.gif)\n",
+        createdAt: 3,
+      },
+    ],
+  },
 ];
 
 // [label, fgSelector, bgSelector-or-null(walk from fg), setup]
@@ -83,6 +98,12 @@ const CHECKS = [
   ["settings input", ".settings-field input", ".settings-field input", "settings"],
   ["active nav point", ".nav-point-active .nav-point-circle", ".nav-point-active .nav-point-circle", "nav"],
   ["nav label", ".nav-point-label", null, "nav"],
+  ["sidebar search", ".sidebar-search input", ".sidebar-search input", "thread"],
+  ["sidebar title", ".sidebar-title", null, "thread"],
+  ["sidebar preview", ".sidebar-preview", null, "thread"],
+  ["sidebar group", ".sidebar-group", null, "thread"],
+  ["sidebar new", ".sidebar-new", ".sidebar-new", "thread"],
+  ["blocked image", ".blocked-image", null, "img"],
 ];
 
 async function setupPage(browser, theme, mode) {
@@ -102,19 +123,27 @@ async function setupPage(browser, theme, mode) {
   );
   await page.goto(APP);
   await page.waitForTimeout(1200);
-  if (mode === "thread" || mode === "failed") {
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    const target = mode === "thread" ? "Seeded thread" : "Interrupted thread";
-    await page.getByRole("button", { name: `Open conversation: ${target}` }).click();
+  if (mode === "thread" || mode === "failed" || mode === "img") {
+    const target =
+      mode === "thread" ? "Seeded thread" : mode === "failed" ? "Interrupted thread" : "Tracker model";
+    await page
+      .locator(".sidebar")
+      .getByRole("button", { name: new RegExp(target, "i") })
+      .first()
+      .click();
     await page.waitForTimeout(400);
   } else if (mode === "nav") {
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: "Open conversation: Seeded thread" }).click();
+    await page
+      .locator(".sidebar")
+      .getByRole("button", { name: /Seeded thread/i })
+      .first()
+      .click();
     await page.waitForTimeout(300);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
+    await page.getByRole("button", { name: /Show sections/ }).click();
     await page.waitForTimeout(500);
   } else if (mode === "settings") {
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.getByRole("button", { name: "Open Settings" }).click();
     await page.waitForTimeout(400);
   }
   return page;

@@ -5,24 +5,33 @@ import type { Theme } from "./lib/settings";
 import { ChatRequestError, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
 import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
+import type { SurfaceKey } from "./app/surfaces";
+import { SURFACES } from "./app/surfaces";
 import { CrescentNav } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
-import { Settings } from "./components/Settings";
+import { Sidebar } from "./components/Sidebar";
+import { SettingsForm } from "./components/SettingsForm";
+import { PLACEHOLDER_LINES, SurfacePlaceholder } from "./components/SurfacePlaceholder";
 import { EmptyState } from "./components/EmptyState";
 import "./App.css";
 
 const store = createStore();
 
+function surfaceLabel(surface: SurfaceKey): string {
+  return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
+}
+
 export function App() {
+  const [surface, setSurface] = useState<SurfaceKey>("chat");
   const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
   const [writeError, setWriteError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
   // One entry per generating conversation (conversation id -> assistant id).
   // Streams are independent: answering in A never blocks sending in B.
@@ -30,7 +39,6 @@ export function App() {
   const [failedById, setFailedById] = useState<Record<string, FailedState>>({});
   const controllers = useRef(new Map<string, AbortController>());
   const [liveMessage, setLiveMessage] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(
     () =>
@@ -79,16 +87,12 @@ export function App() {
     return null;
   }, [failedById, active, streaming]);
 
-  useEffect(() => {
-    setConfirmDelete(false);
-  }, [activeId]);
-
   const runAssistant = useCallback(
     async (conversationId: string, assistantId: string, currentSettings: ChatSettings) => {
       const conv = store.get(conversationId);
       if (!conv) return;
       const history = conv.messages
-        .filter((m) => m.id !== assistantId && !(m.role === "assistant" && m.content === "" && m.id !== assistantId))
+        .filter((m) => m.id !== assistantId && !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user")
         .map((m) => ({ role: m.role, content: m.content }));
       const controller = new AbortController();
@@ -176,7 +180,7 @@ export function App() {
     // A stream in ANOTHER conversation never blocks this one; the composer
     // shows Stop (not Send) while its own conversation is generating.
     if (!configured) {
-      setSettingsOpen(true);
+      setSurface("settings");
       return false;
     }
     let conv = active;
@@ -235,57 +239,54 @@ export function App() {
     });
   }
 
-  function removeActive(): void {
-    if (!active) return;
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
-    const assistantId = streamingByConv[active.id];
+  function removeConversation(id: string): void {
+    const assistantId = streamingByConv[id];
     if (assistantId) controllers.current.get(assistantId)?.abort();
-    store.remove(active.id);
-    setActiveId(null);
-    setConfirmDelete(false);
+    store.remove(id);
+    if (activeId === id) setActiveId(null);
+  }
+
+  function selectConversation(id: string): void {
+    setActiveId(id);
+    setSurface("chat");
+    setDrawerOpen(false);
   }
 
   const empty = !active || active.messages.length === 0;
+  const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface);
 
   return (
     <div
       className={`shell${streamingAny ? " is-streaming" : ""}`}
       onKeyDown={(event) => {
-        // Escape closes the crescent from anywhere (the nav is a sibling of
-        // the composer, so its own key handler cannot hear this).
-        if (event.key === "Escape" && navOpen) setNavOpen(false);
+        if (event.key === "Escape") {
+          if (navOpen) setNavOpen(false);
+          else if (drawerOpen) setDrawerOpen(false);
+        }
       }}
     >
       <CrescentNav
-        conversations={conversations}
-        activeId={activeId}
+        activeSurface={surface}
         open={navOpen}
         onOpenChange={setNavOpen}
-        onSelect={setActiveId}
-        onNew={() => setActiveId(null)}
+        onSelect={setSurface}
       />
 
       <header className="topbar">
         <div className="topbar-title">
+          <button
+            type="button"
+            className="topbar-btn topbar-drawer-toggle"
+            onClick={() => setDrawerOpen((o) => !o)}
+            aria-expanded={drawerOpen}
+            aria-label="Show conversations"
+          >
+            Conversations
+          </button>
           <span className="topbar-mark" aria-hidden="true" />
-          <h1>{active ? active.title : "Crescent Chat"}</h1>
+          <h1>{title}</h1>
         </div>
         <div className="topbar-actions">
-          {active ? (
-            <button
-              type="button"
-              className={`topbar-btn${confirmDelete ? " topbar-btn-danger" : ""}`}
-              onClick={removeActive}
-            >
-              {confirmDelete ? "Confirm delete" : "Delete"}
-            </button>
-          ) : null}
-          <button type="button" className="topbar-btn" onClick={() => setActiveId(null)}>
-            New chat
-          </button>
           <button
             type="button"
             className="topbar-btn"
@@ -293,9 +294,6 @@ export function App() {
             aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
           >
             {theme === "light" ? "Dark" : "Light"}
-          </button>
-          <button type="button" className="topbar-btn" onClick={() => setSettingsOpen(true)}>
-            Settings
           </button>
         </div>
       </header>
@@ -310,36 +308,57 @@ export function App() {
           </div>
         ) : null}
         <ErrorBoundary>
-          {empty ? (
-          <EmptyState needsSetup={!configured} onOpenSettings={() => setSettingsOpen(true)} />
-        ) : (
-          <Thread
-            messages={active.messages}
-            streaming={streaming}
-            failed={effectiveFailed}
-            onRetry={retry}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-        )}
-          <Composer streaming={streaming} onSend={send} onStop={stop} />
+          {surface === "chat" ? (
+            <div className="chat-layout">
+              <Sidebar
+                conversations={conversations}
+                activeId={activeId}
+                streamingIds={Object.keys(streamingByConv)}
+                drawerOpen={drawerOpen}
+                onCloseDrawer={() => setDrawerOpen(false)}
+                onSelect={selectConversation}
+                onNew={() => {
+                  setActiveId(null);
+                  setDrawerOpen(false);
+                }}
+                onRename={(id, newTitle) => store.rename(id, newTitle)}
+                onDelete={removeConversation}
+              />
+              <div className="main-col">
+                {empty ? (
+                  <EmptyState
+                    needsSetup={!configured}
+                    onOpenSettings={() => setSurface("settings")}
+                  />
+                ) : (
+                  <Thread
+                    messages={active.messages}
+                    streaming={streaming}
+                    failed={effectiveFailed}
+                    onRetry={retry}
+                    onOpenSettings={() => setSurface("settings")}
+                  />
+                )}
+                <Composer streaming={streaming} onSend={send} onStop={stop} />
+              </div>
+            </div>
+          ) : surface === "settings" ? (
+            <SettingsForm
+              initial={settings}
+              onSave={(next) => {
+                setSettings(next);
+                saveSettings(next);
+              }}
+            />
+          ) : (
+            <SurfacePlaceholder title={surfaceLabel(surface)} line={PLACEHOLDER_LINES[surfaceLabel(surface)] ?? ""} />
+          )}
         </ErrorBoundary>
       </main>
 
       <p className="visually-hidden" role="status">
         {liveMessage}
       </p>
-
-      {settingsOpen ? (
-        <Settings
-          initial={settings}
-          onSave={(next) => {
-            setSettings(next);
-            saveSettings(next);
-            setSettingsOpen(false);
-          }}
-          onClose={() => setSettingsOpen(false)}
-        />
-      ) : null}
     </div>
   );
 }

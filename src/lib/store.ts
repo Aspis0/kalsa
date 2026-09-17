@@ -20,6 +20,8 @@ export interface ConversationStore {
   get(id: string): Conversation | undefined;
   put(conversation: Conversation): void;
   remove(id: string): void;
+  /** Retitle without touching the message payload (index-only). */
+  rename(id: string, title: string): void;
   /** Last persist failure, if any (quota). Null after a successful write. */
   getWriteError(): string | null;
   clearWriteError(): void;
@@ -82,9 +84,27 @@ function cleanMeta(value: unknown): ConversationMeta | null {
   };
 }
 
+function plainPreview(text: string): string {
+  const noFences = text.replace(/```[\s\S]*?```/g, (block) => {
+    const inner = block
+      .replace(/```\w*\n?|\n?```$/g, "")
+      .trim()
+      .split("\n");
+    return inner[0] ?? "";
+  });
+  return noFences
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function describe(messages: ChatMessage[]): Pick<ConversationMeta, "preview" | "search" | "hasMessages"> {
   const texts = messages.map((m) => m.content.trim()).filter((t) => t.length > 0);
-  const preview = (texts.at(-1) ?? "").slice(0, PREVIEW_CHARS);
+  const preview = plainPreview(texts.at(-1) ?? "").slice(0, PREVIEW_CHARS);
   const recent = texts.slice(-2).join("\n");
   return { preview, hasMessages: texts.length > 0, search: recent.slice(-SEARCH_CHARS) };
 }
@@ -273,6 +293,23 @@ export function createStore(): ConversationStore {
         index = readIndex().filter((m) => m.id !== id);
       }
       payloadCache.delete(id);
+      notify();
+    },
+    rename(id, title) {
+      // Index-only: the search field is always "title\nbody", so the body
+      // half survives the retitle without loading the payload.
+      const ok = writeThrough(() => {
+        const next = readIndex().map((m) =>
+          m.id === id
+            ? { ...m, title, updatedAt: Date.now(), search: `${title}\n${m.search.split("\n").slice(1).join("\n")}` }
+            : m,
+        );
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().map((m) => (m.id === id ? { ...m, title } : m));
+      }
       notify();
     },
     getWriteError() {

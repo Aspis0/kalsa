@@ -240,7 +240,35 @@ Bloccato, da decidere da Marco (non da me):
 
 ---
 
-# Audit ostile — giri di riparazione
+# Audit ostile — giri di riparazione (seconda parte)
+
+## Giro 18 — correzione di prodotto: superfici sull'arco, sidebar (2026-09-18)
+
+- A: la mezzaluna porta sei superfici fisse (Chat Models Server Devices
+  Advanced Settings) — paginazione cancellata del tutto (niente frecce,
+  offset, label larghe: tornata la costante 100 di devboule). Le altre
+  quattro sono segnaposto onesti (titolo + una riga, zero controlli finti);
+  Settings è la form vera spostata dal dialog (dialog cancellato).
+- Conversazioni in sidebar: gruppi Oggi/Ieri/Settimana/Prima, ricerca ⌘K,
+  rename inline, delete in due passi, pallino live sulla riga che genera.
+  Drawer sotto 900px con backdrop ed Esc. Preview senza sintassi markdown.
+- A3 (velo): deciso — dim solo quando NESSUNO streamma (`:not(.is-streaming)`);
+  con risposta in arrivo l'arco galleggia senza velo, leggibilità intatta.
+- B2: `img` remoto mai renderizzato (notice + apri-indirizzo https only),
+  `javascript:` già neutro in v9 (assert), zero richieste esterne misurate,
+  CSP meta in index.html (script inline permessi: li vuole Vite dev).
+- store.rename index-only (search = "titolo\ncorpo", il corpo sopravvive
+  senza payload). Sidebar filtra l'indice in memoria: 1000 voci -> una in
+  36ms, zero chiavi payload su disco (assert).
+- D: `shot()` non ingoia più niente (via il catch); `must()` fail-loud;
+  storage riletto dopo le scritture; deletecrescent20/few/activenav/narrownav/
+  sliver/darknav cancellati col prodotto che li conteneva — buttati, e va
+  bene così.
+- Nuovi shot visti uno a uno: 40-sidebar, 44-drawer, 43-settings-surface,
+  45-imgblocked, 46-surfaces, 47-groups. Tutti promossi; unico fix nato
+  dalla vista: preview con URL markdown grezzi -> strip in `describe()`.
+- Suite intere verdi dopo la riscrittura: shots 28/28, verify 44 assert,
+  contrast-dom 56 coppie (incluse 6 nuove sidebar/blocked).
 
 ## Giro 15 — B1 token fantasma + contrasto dal DOM + B8 (2026-09-18)
 

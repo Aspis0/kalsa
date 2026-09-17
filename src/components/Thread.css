@@ -162,6 +162,17 @@
   overflow-wrap: anywhere;
 }
 
+.blocked-image {
+  display: block;
+  margin: 0 0 0.9em;
+  padding: 0.6rem 0.8rem;
+  color: var(--silence);
+  border: 1px dashed var(--border-strong);
+  border-radius: 9px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
 /* --- code blocks --- */
 
 .codeblock {

