@@ -68,9 +68,29 @@ chat with no attachments.
 | **conversation** | **4312** | **53 %** |
 
 The reserve is 4x the answer budget (512). The longest think block measured
-today was ~490 tokens, so think + answer stayed under ~1000. KV costs
-**29.2 KB/token** on this phone (182.5 MB at 6101 tokens), so 8192 → 16384
-would be **+239 MB** against the 2.2 GB the app reported available.
+today was ~490 tokens, so think + answer stayed under ~1000.
+
+⚠️ **Corrected 2026-09-17, later.** This section first said KV costs 29.2 KB/token
+and that 8192 → 16384 would be +239 MB. **Both are wrong.** 29.2 KB/token came
+from `KALSA_SESSION {"op":"save","estimatedBytes":...}`, which is a calibration
+of the `.kvs` FILE on disk — the wrong quantity for a RAM question. The engine
+reports its own cache size at every load:
+
+```
+llama_kv_cache: size = 52.00 MiB ( 8192 cells, 8 layers, 1/1 seqs),
+                K (q8_0): 34.00 MiB, V (q4_0): 18.00 MiB
+```
+
+**52 MiB for the whole 8192 context = 6656 bytes/token**, and the cache is
+already quantized (K q8_0, V q4_0). `src/engine/ModelRegistry.ts:241` carries
+exactly `kvBytesPerToken: 6656`, so the registry and the engine agree; only my
+arithmetic did not. On that basis 8192 → 16384 costs **about +52 MiB** on the
+KV line, not +239 MB — pending a check that nothing else scales with n_ctx.
+
+Open, and worth knowing: the `.kvs` file measures ~29910 bytes/token, **4.5x the
+in-RAM cache**. Whatever `llama_state_seq_save_file` writes, it is not the
+quantized cache verbatim. That ratio is what a system-prefix snapshot would
+actually cost on disk, so it needs measuring before the file is designed.
 
 Both numbers are product decisions. Neither has been changed.
 
@@ -183,9 +203,11 @@ when the comparison is a full stop, and it is the only option that saves the tur
   harness is configured at `CAMPAIGN_THERMAL_PAUSE=5` and trips on battery > 42 °C
   instead. The two do not say the same thing.
 - `WINDOW_RESERVE_TOKENS` 2048 against a 512 answer budget (§3).
-- `n_ctx` 8192 vs 16384: +239 MB, and the S23 is excluded from the upgrade by a
-  gate on **total** RAM it misses by 82 MB while reporting 2.2 GB **available**
-  (`src/context/windowProfile.ts`).
+- `n_ctx` 8192 vs 16384: **~+52 MiB** (see the correction in §3, not the +239 MB
+  first published here), and the S23 is excluded from the upgrade by a gate on
+  **total** RAM it misses by 82 MB while reporting 2.2 GB **available**
+  (`src/context/windowProfile.ts`). At +52 MiB that gate is the only thing
+  standing in the way.
 - Whether a 20-turn acceptance run on battery is the right acceptance test at
   all, given §2.
 
