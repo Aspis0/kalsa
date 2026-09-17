@@ -10,6 +10,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { SESSION_FIXED_BYTES } from "./sessionDiskCalibration";
 import {
   MEMORY_FACTS_ON_USER_TAIL,
   SESSION_DISK_GATE_USED_TOKENS,
@@ -561,8 +562,21 @@ function positiveSessionBytesPerToken(value: unknown): number {
     : SESSION_BYTES_PER_TOKEN;
 }
 
-/** Free space must exceed this × estimated bytes (write + FS overhead). */
-export const SESSION_DISK_MARGIN = 1.5;
+/**
+ * Free space must exceed this x estimated bytes.
+ *
+ * The write is not in place: saveEngineSession writes the whole new file to
+ * `.tmp` while the previous `.kvs` is still on disk, moves the old one aside,
+ * and only then renames. Peak footprint is therefore old + tmp, i.e. ~2x the
+ * file for any conversation that already had a save — plus filesystem
+ * overhead.
+ *
+ * This was 1.5 and appeared to work only because the estimate it multiplied
+ * was ~4.5x too large (see sessionDiskCalibration). Correcting the estimate
+ * removed that accidental slack, so the real requirement has to be stated
+ * here instead of hidden in an error.
+ */
+export const SESSION_DISK_MARGIN = 2.5;
 
 /** Minimum free bytes even for a tiny session. */
 export const SESSION_DISK_FLOOR_BYTES = 4 * 1024 * 1024;
@@ -624,14 +638,25 @@ export function resolveSessionDiskTokens(input: SessionDiskGateInput): number | 
   return null;
 }
 
-/** Estimate with a measured rate when available; otherwise use the unmeasured dense default. */
+/**
+ * Estimate with a measured rate when available; otherwise use the unmeasured
+ * dense default.
+ *
+ * A session file costs `rate x tokens + a fixed term` — the recurrent state
+ * and per-layer headers do not grow with the conversation (439 KB measured on
+ * LFM2.5-2.6B, S23 2026-09-17). Carrying that term here is what lets
+ * recordSessionDiskSample stop charging it to the token count, which is how
+ * one 19-token write used to teach a rate 4.5x the truth.
+ */
 export function estimateSessionBytes(
   usedTokens: number,
   bytesPerToken = SESSION_BYTES_PER_TOKEN,
 ): number {
   const n = finiteInt(usedTokens);
+  const tokens = n != null && n > 0 ? n : 0;
+  if (tokens === 0) return 0;
   const rate = positiveSessionBytesPerToken(bytesPerToken);
-  return (n != null && n > 0 ? n : 0) * rate;
+  return tokens * rate + SESSION_FIXED_BYTES;
 }
 
 /** Bytes of free space required to attempt a session write. */
