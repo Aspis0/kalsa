@@ -5860,8 +5860,12 @@ re-prefill after a KALSA_WINDOW_SLIDE that cleared the KV: 4954 tok in 207s
 
 Window budget at `n_ctx=8192`, read from the slide marker itself: system prompt **1832** (22 %),
 generation reserve **2048** (25 %), conversation **4312** (53 %). The reserve is 4x the 512
-answer budget; the longest think block measured was ~490 tokens. KV costs **29.2 KB/token** on
-this phone (182.5 MB at 6101 tokens), so 8192 → 16384 is **+239 MB** against 2.2 GB reported
+answer budget; the longest think block measured was ~490 tokens. ⚠️ **Corrected later the same
+day:** KV does NOT cost 29.2 KB/token and 8192 → 16384 is NOT +239 MB. That figure came from
+`KALSA_SESSION estimatedBytes`, a calibration of the `.kvs` FILE, used to answer a RAM question.
+The engine reports `llama_kv_cache: size = 52.00 MiB (8192 cells, 8 layers), K (q8_0): 34.00
+MiB, V (q4_0): 18.00 MiB` — **6656 bytes/token, already quantized**, matching
+`src/engine/ModelRegistry.ts:241` exactly. 8192 → 16384 is **~+52 MiB** against 2.2 GB reported
 available.
 
 A hostile audit found three defects in the first version of that reporter, all invisible because

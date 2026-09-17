@@ -1380,7 +1380,11 @@ infinito. Generare sui core piccoli invece di fermarsi salva il turno *e* raffre
   `CAMPAIGN_THERMAL_PAUSE=5` e in pratica scatta sulla batteria > 42 °C.** Le due non coincidono.
 - `WINDOW_RESERVE_TOKENS` = 2048 contro un budget di risposta di 512 (il blocco di pensiero piu'
   lungo misurato era ~490 token). Alzare il soffitto conversazionale da 4312 costa **zero RAM**.
-- `n_ctx` 8192 → 16384: **+239 MB** (KV misurata a 29,2 KB/token), con l'app che riportava 2,2 GB
+- `n_ctx` 8192 → 16384: **~+52 MiB** (KV a **6656 byte/token**, gia' quantizzata K q8_0 / V q4_0;
+  il motore stampa `llama_kv_cache: size = 52.00 MiB (8192 cells, 8 layers)` a ogni load, e
+  `ModelRegistry.ts:241` dice lo stesso). ⚠️ La prima stesura diceva **+239 MB** a 29,2 KB/token:
+  sbagliata, veniva da `estimatedBytes` del salvataggio sessione, che misura il **file .kvs** e
+  non la RAM. Con l'app che riportava 2,2 GB
   liberi. L'S23 e' escluso dall'upgrade da un gate sulla RAM **totale** che manca per 82 MB.
 - **Se un test di accettazione da 20 turni a batteria sia il test giusto**, dato il budget termico.
 
