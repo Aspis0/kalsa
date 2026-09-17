@@ -1117,6 +1117,7 @@ export async function queueStaticPrefixPrewarm(
         const restored = await restoreStaticPrefixSnapshot(
           engine,
           snapshotIdentity,
+          prewarmMustStop,
         );
         if (restored.ok) {
           if (prewarmMustStop()) return;

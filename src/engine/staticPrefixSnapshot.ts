@@ -113,6 +113,14 @@ export type StaticPrefixSnapshotOutcome =
 export async function restoreStaticPrefixSnapshot(
   ctx: StaticPrefixSnapshotRestoreCtx,
   identity: StaticPrefixIdentity,
+  /**
+   * Re-asked immediately before the native load. Everything this function
+   * awaits first — a stat, a .bak promotion that moves the same 12.6 MB file,
+   * a .tmp delete, a meta read — can outlive the context it was called for,
+   * and loadSession is the point of no return: it replaces the native KV.
+   * Guarding only at the call site narrows that window; this closes it.
+   */
+  mustStop: () => boolean,
 ): Promise<StaticPrefixSnapshotOutcome> {
   const stem = staticPrefixStem(identity.modelId, identity.prefixHash);
   if (!stem) return { ok: false, stem: null, reason: "no_session_key" };
@@ -153,6 +161,7 @@ export async function restoreStaticPrefixSnapshot(
     }
     // llama.rn 0.12.8: loadSession takes the URI form (it strips file://
     // itself); saveSession does not — that asymmetry is handled at save.
+    if (mustStop()) return { ok: false, stem, reason: "aborted" };
     const result = await ctx.loadSession(sessionFilePath(stem));
     const tokensLoaded =
       typeof (result as { tokens_loaded?: unknown })?.tokens_loaded === "number"

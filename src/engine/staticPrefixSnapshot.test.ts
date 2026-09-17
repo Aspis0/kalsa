@@ -104,6 +104,9 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+/** The caller-side abort predicate, asked again right before the native load. */
+const NEVER_STOP = () => false;
+
 describe("restoreStaticPrefixSnapshot", () => {
   test("happy path: loads the file, returns the native token count", async () => {
     const stem = putSnapshotFile(IDENTITY);
@@ -114,7 +117,7 @@ describe("restoreStaticPrefixSnapshot", () => {
         prompt: "",
       })),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({
       ok: true,
       stem,
@@ -124,13 +127,46 @@ describe("restoreStaticPrefixSnapshot", () => {
     expect(ctx.loadSession).toHaveBeenCalledWith(sessionFilePath(stem));
   });
 
+  test("a stop asked for during the awaits prevents the native load", async () => {
+    // The point of the predicate: everything above loadSession — stat, .bak
+    // promotion, .tmp delete, meta read — can outlive the context, and the
+    // native load is the point of no return. A guard only at the call site
+    // narrows that window; this closes it.
+    const stem = putSnapshotFile(IDENTITY);
+    await putSnapshotMeta(IDENTITY);
+    const ctx = {
+      loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
+    };
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, () => true);
+    expect(outcome).toEqual({ ok: false, stem, reason: "aborted" });
+    expect(ctx.loadSession).not.toHaveBeenCalled();
+  });
+
+  test("the stop is asked AFTER the meta check, not instead of it", async () => {
+    // A mismatched snapshot must still be deleted even when the job is
+    // stopping: the artifact is wrong regardless of who is asking.
+    const stem = putSnapshotFile(IDENTITY);
+    await putSnapshotMeta({ ...IDENTITY, engineBuild: "build-old" });
+    const ctx = {
+      loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
+    };
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, () => true);
+    expect(outcome).toEqual({
+      ok: false,
+      stem,
+      reason: "meta_mismatch:engineBuild",
+      deleted: true,
+    });
+    expect(ctx.loadSession).not.toHaveBeenCalled();
+  });
+
   test("stale engine build is refused AND deleted", async () => {
     const stem = putSnapshotFile(IDENTITY);
     await putSnapshotMeta({ ...IDENTITY, engineBuild: "build-old" });
     const ctx = {
       loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({
       ok: false,
       stem,
@@ -152,7 +188,7 @@ describe("restoreStaticPrefixSnapshot", () => {
     const ctx = {
       loadSession: jest.fn(async () => ({ tokens_loaded: 0, prompt: "" })),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({
       ok: false,
       stem,
@@ -166,7 +202,7 @@ describe("restoreStaticPrefixSnapshot", () => {
     const ctx = {
       loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({
       ok: false,
       stem: stemFor(IDENTITY.prefixHash),
@@ -183,7 +219,7 @@ describe("restoreStaticPrefixSnapshot", () => {
         throw new Error("native boom");
       }),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({
       ok: false,
       stem: stemFor(IDENTITY.prefixHash),
@@ -208,7 +244,7 @@ describe("restoreStaticPrefixSnapshot", () => {
       const ctx = {
         loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
       };
-      const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+      const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
       expect(outcome).toEqual({
         ok: false,
         stem,
@@ -230,7 +266,7 @@ describe("restoreStaticPrefixSnapshot", () => {
     const ctx = {
       loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
     };
-    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    const outcome = await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(outcome).toEqual({ ok: true, stem, tokensLoaded: PREFIX_TOKENS });
     expect(mockStore.files.has(sessionFilePath(stem))).toBe(true);
   });
@@ -245,7 +281,7 @@ describe("restoreStaticPrefixSnapshot", () => {
     const ctx = {
       loadSession: jest.fn(async () => ({ tokens_loaded: PREFIX_TOKENS })),
     };
-    await restoreStaticPrefixSnapshot(ctx, IDENTITY);
+    await restoreStaticPrefixSnapshot(ctx, IDENTITY, NEVER_STOP);
     expect(mockStore.files.has(`${sessionFilePath(stem)}.tmp`)).toBe(false);
   });
 });

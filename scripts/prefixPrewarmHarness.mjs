@@ -480,6 +480,29 @@ async function main() {
     `the statement before the snapshot restore must be the stop guard — found: ${beforeRestore[beforeRestore.length - 1] ?? "<nothing>"}`,
   );
 
+  // ...and the restore asks again immediately before the native load, because
+  // everything it awaits first (stat, .bak promotion of the same 12.6 MB file,
+  // .tmp delete, meta read) can outlive the context the job was called for.
+  // jest covers the behaviour, but jest does not run on a push to main.
+  const snapshotSrc = readFileSync(
+    path.join(projectRoot, "src/engine/staticPrefixSnapshot.ts"),
+    "utf8",
+  );
+  const loadAt = snapshotSrc.indexOf("const result = await ctx.loadSession(");
+  assert(loadAt >= 0, "the snapshot restore still issues a native loadSession");
+  const beforeLoad = snapshotSrc
+    .slice(0, loadAt)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  assert(
+    beforeLoad[beforeLoad.length - 1] ===
+      'if (mustStop()) return { ok: false, stem, reason: "aborted" };',
+    `the statement before the native loadSession must be the abort check — found: ${beforeLoad[beforeLoad.length - 1] ?? "<nothing>"}`,
+  );
+
   console.log("prefixPrewarmHarness OK");
 }
 
