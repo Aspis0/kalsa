@@ -101,22 +101,48 @@ questions it raises have answers that are not reversible later.
 
 ### 5.1 Who is a message for — the people, or the AI?
 
-The gesture is still open (a mention, a second send button, a long-press: to be decided). What
-is *not* open is the default, because it is not a matter of taste:
+*Revised the same day, by the owner, and the revision is right.*
 
-**The AI must not listen to everything.** If it reads the whole room, every word the family
-says to each other is tokenized, prefilled, and parked in a cache — paid for in compute and in
-heat, for messages nobody wanted an answer to. Chatter that never reaches the model also never
-reaches a log, a metric, or a crash buffer. Silence is the cheapest privacy we can offer, and
-here it is also the cheapest arithmetic.
+The first version of this rule said the AI must not listen to the room at all, for two reasons:
+cost, and the log surface that listening creates. The second reason is simply wrong here. The
+model runs on the family's own PC. Nothing leaves. There is no service at the other end, so
+"the AI heard it" and "the family said it in their own house" are the same sentence. Privacy is
+not the argument for keeping the room out of the model — and using it as one would have cost us
+a genuinely better product for nothing.
 
-So the AI answers when it is addressed, and only then.
+The cost is real, though, and the owner named the exact failure mode: prefilling everything
+over and over is a perpetual mess. So the rule becomes:
 
-That leaves the one hard case, and it is worth naming now: *"@kalsa yes, do that"* means
-nothing without the three messages above it. The answer is not to make the AI guess — it is to
-make the boundary **visible**. The room draws which messages will cross into the model, and
-the sender can pull more of the conversation in deliberately. What the AI knows is shown, not
-inferred. That rule also happens to be the only honest way to run rule 3 inside a shared room.
+**The AI hears the whole room, and pays late.**
+
+Nothing is sent to the model while people are talking. At the instant somebody addresses it,
+the room hands over everything said since the last time it was addressed — one batch, one
+prefill. The prompt cache does the rest: the shared history is already resident, so the only
+tokens that cost anything are the ones added since. Measured on this Mac, a full 16k-token
+prefill takes 10.3 s, about 1 600 tokens/s; a hundred messages of chatter is roughly 2 000
+tokens, so a little over a second, paid once and never again.
+
+**Hearing and speaking are two different rules.** The AI hears everything and speaks only when
+addressed — otherwise a family room becomes a room with someone interrupting in it.
+
+Two consequences fall out, and they are the interesting part.
+
+**The GPU must not wake for chatter.** Prefilling eagerly, message by message, would spin the
+machine up dozens of times an hour for sentences nobody wanted answered. Paying at the question
+keeps the room silent in the electrical sense too, which is the whole point of a mini-server
+that lives in someone's house.
+
+**The room's context is the one worth defending.** The perpetual mess is real, but listening is
+not what causes it — *alternating* is. While the room stays resident, each question costs only
+the new messages. The moment a private chat evicts the room from the cache, the next question
+in the room re-prefills the entire day. That is exactly the switch cost of §5.6, and it points
+at a policy: in a household that lives in the room, the room is what should stay warm.
+
+What survives from the first version is the **window**, and that part has to be visible. A
+family chat running all day fits in no context we can afford. So the honest surface is not
+"what the AI is allowed to see" any more — it is *how far back the AI still remembers*. When a
+morning falls off the end, the room should say so, instead of letting people wonder why it
+forgot.
 
 ### 5.2 One turn at a time — and this is not about speed
 
