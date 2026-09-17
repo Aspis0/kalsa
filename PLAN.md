@@ -1103,6 +1103,37 @@ monotone slides `0 -> 4 -> 10 -> 15 -> (17) -> 20 -> 28 -> 36`, zero `window_rec
   starts cheap**, and at the 30.3 ms/token best case that is ~81 s before the model can begin
   thinking. The catalogue should not offer this pairing.
 
+  **RETRACTION, measured 40 minutes later on the same phone.** The sentence above — "the catalogue
+  should not offer this pairing" — was wrong, and the test that produced it was confounded. Run
+  again on a cooled Jelly (36 °C), fresh chat, six-word question, the turn SUCCEEDED and answered:
+
+  ```
+  prewarm  {"op":"done","promptMs":95096.382,"promptN":2153}          → 44.2 ms/token
+  turn     KALSA_TELEMETRY promptMs=42395.5 prompt_n=518
+                           predictedMs=37582.6 tokensPredicted=165    → 4.39 tok/s decode
+  ```
+
+  80 s from send to answer (42.4 s prefilling 518 new tokens + 37.6 s decoding 165), after a 95 s
+  prewarm. Slow, but a real answer on the shipped recommended model.
+
+  **What actually differed between the two runs is the prewarm.** In the failing one it had SKIPPED
+  (`{"op":"skip","reason":"kv_holds_chat"}`), so the turn itself had to prefill the whole 2666-token
+  prompt cold, against the blind 180 s floor. In the passing one the prewarm ran first and paid for
+  2153 of those tokens, leaving the turn only 518 (`n_common=2150`). Same device, same model, same
+  question — opposite outcome, decided by whether a background prewarm happened to run.
+
+  So the corrected reading is three separate statements, not one verdict:
+  1. short fresh chat on the Jelly: **usable but slow** — roughly 1.5 min per answer warm, ~3 min
+     including a prewarm;
+  2. long conversation on the Jelly: not usable — 8292 tokens cold exceeded every deadline tried;
+  3. the watchdog falsely aborts a healthy turn whenever the prewarm skipped AND the process is
+     cold, which is a bug with a known fix, not a property of the pairing.
+
+  Also note ms/token is NOT monotonic in prompt size: 44.2 at 2153 tokens, 81.8 at 518. Fixed
+  per-call overhead dominates small prefills, so any per-token cost model needs both ends of the
+  range, not a single slope. That weakens the earlier "it is a curve over length" wording: the
+  honest claim is that one number cannot represent it, not that it rises with length.
+
   **Correction to the paragraph above, and it turns into the night's one actionable conclusion.**
   Saying the prefill deadline "never got the same fix" is unfair to it. `LlamaService.ts:3657-3659`
   states the problem and its mitigation explicitly: *"Use the native promptN lower bound when
