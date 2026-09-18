@@ -763,10 +763,18 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
       // every boot re-saved the trimmed value, so the bytes eroded one
       // boot at a time.
       const modelEmittedText = readModelEmittedText(role, rawEmitted);
+      // Provenance travels WITH the string: absent (or corrupt) stays absent
+      // and the renderer falls back to its syntactic predicate.
+      const rawSource = (m as { emissionSource?: unknown }).emissionSource;
+      const emissionSource =
+        rawSource === "parsed" || rawSource === "raw" ? rawSource : undefined;
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
-      if (modelEmittedText !== undefined) rec.modelEmittedText = modelEmittedText;
+      if (modelEmittedText !== undefined) {
+        rec.modelEmittedText = modelEmittedText;
+        if (emissionSource !== undefined) rec.emissionSource = emissionSource;
+      }
       out.push(rec);
     }
   }
@@ -6048,6 +6056,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 m.modelEmittedText.length > 0
               ) {
                 msg.modelEmittedText = m.modelEmittedText;
+                if (m.emissionSource !== undefined) {
+                  msg.emissionSource = m.emissionSource;
+                }
               }
               return msg;
             });

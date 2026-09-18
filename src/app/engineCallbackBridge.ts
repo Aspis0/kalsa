@@ -8,11 +8,12 @@
  * is a compile error, and the test pins the built object's shape.
  */
 import type { EngineCallbacks } from "../engine/LlamaService";
+import type { EmissionSource } from "../engine/modelEmittedText";
 
 /** UI-side callback surface the bridge forwards (structural; fed `any`). */
 export type BridgedUiCallbacks = {
   onDelta?: (delta: string, full: string) => void;
-  onModelEmittedText?: (text: string) => void;
+  onModelEmittedText?: (text: string, source: EmissionSource) => void;
   onThinkingText?: (text: string) => void;
   onStatus?: (status: { label: string }) => void;
   onSources?: (sources: any[]) => void;
@@ -55,7 +56,7 @@ export function bridgeEngineCallbacks(
       hooks.onDeltaFull?.(full);
       ui.onDelta?.(delta, full);
     },
-    onModelEmittedText: (text) => ui.onModelEmittedText?.(text),
+    onModelEmittedText: (text, source) => ui.onModelEmittedText?.(text, source),
     onThinkingText: (text) => ui.onThinkingText?.(text),
     onStatus: (status) => ui.onStatus?.(status),
     onSources: (sources) =>
