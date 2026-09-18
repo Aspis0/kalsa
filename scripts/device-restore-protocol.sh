@@ -379,9 +379,18 @@ rp_validate_bounce_flags() {
     ''|*[!0-9]*|0)
       die "FG_BOUNCE_SECONDS must be a positive integer, got '$FG_BOUNCE_SECONDS'" ;;
   esac
+  # Digits-only is not enough, two ways. An all-digit monster passes the old
+  # case and wraps the bash 3.2 64-bit arithmetic (t0 + budget) into a
+  # deadline the clock can never reach — the wait HANGS instead of returning
+  # 1 (the old pass-counter failed closed on the same input). And a leading
+  # zero reads as OCTAL: 0120 is an 80 s budget that prints as 120. The bound
+  # closes both; a bound is chosen over a wider integer because no
+  # instrument needs a 27-hour settle budget and every wider type just moves
+  # the wrap somewhere worse.
   case "$FG_SETTLE_TIMEOUT_SECONDS" in
-    ''|*[!0-9]*|0)
-      die "FG_SETTLE_TIMEOUT_SECONDS must be a positive integer, got '$FG_SETTLE_TIMEOUT_SECONDS'" ;;
+    [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]) ;;
+    *)
+      die "FG_SETTLE_TIMEOUT_SECONDS must be 1-99999 seconds, digits only, no leading zeros, got '$FG_SETTLE_TIMEOUT_SECONDS'" ;;
   esac
 }
 
