@@ -6778,3 +6778,22 @@ assistente, quel test deve fallire.
 `emitted.slice(0, MAX_TEXT)` e sembra una troncatura che spezzerebbe l'identita' byte a byte. Ma
 `MAX_TEXT = 100_000` **caratteri** (`:615`), cioe' ~25k token: ben oltre qualunque finestra che
 questo modello puo' tenere. Irraggiungibile ai nostri contesti, non e' un difetto vivo.
+
+**18/09 mezzogiorno — tre build, tre commit diversi, gli stessi 38 `.so`.** Confronto chiuso:
+
+| run | ramo / sha | cosa contiene |
+|---|---|---|
+| `35321529286` | `llama-rn-fork` `5e3da14` | il fork, prima dello switch su main |
+| `35354420026` | `main` `bc6bd22` | dopo lo switch, piu' il fix KV della sessione KV |
+| `35354214821` | `llama-rn-fork` `38b5cf0` | dopo il cleanup (742 file cancellati) |
+
+`diff` dei manifest sha256: **0 differenze fra tutte e tre**, 38 librerie ciascuna,
+`librnllama.so` = `b2d64b7a56dc6d7d9e76c3657bdc0458ba0b88765e9ee2c787bba26089a74354` ovunque.
+Tre cose insieme: il merge su main non ha toccato il motore, il cleanup non ha toccato il motore, e
+la pipeline NDK e' riproducibile su tre run separate a distanza di ore. Gli input di motore
+(`native/`, `package.json`, lock, `plugins/`, `android/`) erano gia' stati verificati identici fra
+`5e3da14` e ogni testa di main, quindi il confronto misurava esattamente quello che doveva.
+
+**Cosa manca ancora su main**: l'inferenza vera. Due e2e di fila cancellate da push concorrenti
+(`35351292439` sul commit dello switch, tagliata al passo 14; `35354417704` su `bc6bd22`);
+`35354742403` su `5fb1bfa` e' la terza.
