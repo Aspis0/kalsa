@@ -7584,3 +7584,39 @@ Tre cose che vale la pena tenere da questa mezz'ora, e nessuna e' "avevo ragione
 3. **L'ha trovata chi stava per rebasare, non chi aveva scritto il codice.** kalsa-2d ha fatto girare
    la suite *prima* del rebase invece che dopo il push. Senza quel giro, il primo a scoprirlo sarebbe
    stato il loro push, e sarebbe sembrato colpa del bump.
+
+### "Refusal, not deletion" era falsa in entrambe le meta' — e la cancellazione ha un colpevole scritto
+
+Dati di kalsa-2d sull'S23 col motore `63b92e83`, corretti da loro stessi su un punto: la `.kvs` di
+sessione viene **rifiutata** (`op:load ok:false reason:meta_mismatch:engineBuild`) **e poi rimossa**
+(la Qwen da 81.706.274 B non c'e' piu' dopo il load delle 17:58, store da 8 a 7 file); lo snapshot
+del prefisso statico viene **cancellato esplicitamente** (`KALSA_PREWARM op:restore ok:false
+deleted:true`). *The transcript lives in a separate store (`databases/RKStorage`) and none of those
+removals touch it: it grew 376.832 → 385.024 B, which is exactly the turns this run added.*
+
+**Non e' un effetto che nessuno ha scritto: sono due percorsi deliberati, e nessuno dei due e'
+innescato dal mismatch.** Cercati per riga invece che dedotti.
+
+1. **La Qwen la cancella l'eviction del pool, DOPO un salvataggio riuscito.**
+   `LlamaService.ts:3354-3356`: `touchSessionUse(stem)` → `readSessionPoolBudgetBytes()` →
+   `evictSessionPool(stem, budgetBytes)`. E `pickEvictionStems` (`sessionPool.ts:66-71`) ordina
+   **foreign-model per primo** (`isForeign`: modello del file ≠ modello di `keepStem`). Quindi la
+   sequenza vera e': mismatch → prefill a freddo → il turno finisce → **si salva** → il budget
+   sfora → la vittima e' il file di **un altro modello**, la Qwen, che non c'entra nulla col cambio
+   di motore. Non e' il rifiuto a cancellare: e' il salvataggio successivo.
+2. **Lo snapshot del prefisso lo cancella il suo stesso restore fallito**, non l'eviction:
+   `staticPrefixSnapshot.ts:146`, `:154`, `:171` chiamano `deleteSessionArtifacts(stem)` sui rami di
+   fallimento. Anzi, l'eviction **non puo'** essere la causa: `pickEvictionStems` esclude lo snapshot
+   sia dal budget sia dalle vittime (`sessionPool.ts:56-62`), con la ragione scritta — altrimenti a
+   ogni salvataggio snapshot e chat si cancellerebbero a vicenda.
+3. Escluso il terzo candidato invece di lasciarlo aperto: `discardStaleConversationSessions`
+   (`sessionPool.ts:166-180`) e' scoped a `modelId` **e** `conversationId`, quindi caricando LFM non
+   puo' toccare un file Qwen.
+
+**Perche' la distinzione conta per l'utente.** "Il cambio di motore cancella la cache" suggerirebbe
+di proteggere il percorso del mismatch. Il percorso vero e' il **budget del pool**: un utente con due
+modelli perde la cache del modello che non sta usando ogni volta che l'altro salva e il budget sfora.
+E' un comportamento voluto (LRU con preferenza per il modello estraneo), ma nessuno ha mai deciso che
+80 MB di prefill altrui siano il primo sacrificabile **in presenza di un cambio di motore che stava
+gia' costando un prefill a freddo**: le due cose insieme fanno pagare due volte lo stesso giro.
+Voce aperta, non un difetto: la decisione di budget e' dell'owner.
