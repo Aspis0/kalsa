@@ -127,34 +127,62 @@ function main() {
         expected: { content: "<think>a<think>b</think>c" },
       },
       {
-        name: "leading-think shape",
+        name: "form B: leading-think shape is not duplicated",
         message: {
           role: "assistant",
           content: "<think>REASONING</think>ANSWER",
           modelEmittedText: "<think>REASONING</think>ANSWER",
         },
         options: undefined,
-        expected: { content: "<think><think>REASONING</think>ANSWER" },
+        expected: { content: "<think>REASONING</think>ANSWER" },
       },
       {
-        name: "no-tags shape",
+        name: "form A interrupted: reasoning-only shape gets the prefix",
         message: {
           role: "assistant",
-          content: "RAW",
-          modelEmittedText: "RAW",
+          content: "",
+          modelEmittedText: "unfinished reasoning",
         },
         options: undefined,
-        expected: { content: "<think>RAW" },
+        expected: { content: "<think>unfinished reasoning" },
       },
       {
-        name: "truncated shape",
+        name: "form B: truncated leading-think shape is not duplicated",
         message: {
           role: "assistant",
           content: "<think>UNFINISHED",
           modelEmittedText: "<think>UNFINISHED",
         },
         options: undefined,
-        expected: { content: "<think><think>UNFINISHED" },
+        expected: { content: "<think>UNFINISHED" },
+      },
+      {
+        name: "form A: whitespace before think still gets the prefix",
+        message: {
+          role: "assistant",
+          content: "ANSWER",
+          modelEmittedText: "\n<think>REASONING</think>ANSWER",
+        },
+        options: undefined,
+        expected: { content: "<think>\n<think>REASONING</think>ANSWER" },
+      },
+      {
+        name: "form B: absent emission uses content as source",
+        message: {
+          role: "assistant",
+          content: "<think>FALLBACK",
+        },
+        options: undefined,
+        expected: { content: "<think>FALLBACK" },
+      },
+      {
+        name: "form A: absent emission prefixes plain content",
+        message: {
+          role: "assistant",
+          content: "plain content",
+        },
+        options: undefined,
+        expected: { content: "<think>plain content" },
       },
       {
         name: "content_span branch",
@@ -207,13 +235,58 @@ function main() {
     );
     console.log("PASS save normalizer and leading-newline replay");
 
+    const formA = "RAW";
+    const formB = "<think>RAW";
+    const whitespaceBeforeThink = "\n<think>RAW";
     assert.equal(
       historyReplayCharLength(
-        { role: "assistant", text: "ui", modelEmittedText: "RAW" },
+        { role: "assistant", text: "ui", modelEmittedText: formA },
         { historyThink: "reasoning_content" },
       ),
-      3 + 7,
-      "LFM budget includes the seven-character seeded prefix",
+      formA.length + 7,
+      "form A budget includes the seeded prefix",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: "ui", modelEmittedText: formB },
+        { historyThink: "reasoning_content" },
+      ),
+      formB.length,
+      "form B budget does not charge an absent prefix",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: "ui", modelEmittedText: whitespaceBeforeThink },
+        { historyThink: "reasoning_content" },
+      ),
+      whitespaceBeforeThink.length + 7,
+      "strict whitespace-before-tag budget includes the seeded prefix",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", content: "<think>FALLBACK" },
+        { historyThink: "reasoning_content" },
+      ),
+      "<think>FALLBACK".length,
+      "absent emission budget measures content source",
+    );
+    const fallbackText = "plain text";
+    const differentContent = "<think>different content";
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText },
+        { historyThink: "reasoning_content" },
+      ),
+      fallbackText.length + 7,
+      "reachable absent emission budget measures text source",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText, content: differentContent },
+        { historyThink: "reasoning_content" },
+      ),
+      fallbackText.length + 7,
+      "text wins over different content in the reachable budget shape",
     );
     assert.equal(
       historyReplayCharLength(
