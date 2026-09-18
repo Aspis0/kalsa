@@ -6816,3 +6816,26 @@ con `librnllama.so = b2d64b7a…` in tutti e tre. Se uno solo di quei file fosse
 "una variabile sola" scritto nei miei commit e in questa pagina sarebbe stato falso e nessuno se ne
 sarebbe accorto. Registrato perche' e' il tipo di controllo che rende difendibile un differenziale:
 le misure girano sullo **stesso motore compilato**, e non perche' lo dico io.
+
+**18/09 mezzogiorno — accendere la CI sul ramo del fork si e' ripagata al primo giro.** Il ramo
+`kalsa` di `Aspis0/llama.rn` non aveva mai avuto una CI: `ci.yml` partiva solo su `main`, e ogni
+commit di Kalsa va su `kalsa`. Acceso (`a694adfc`, i quattro job pesanti restano di `main` con
+`if: github.ref != 'refs/heads/kalsa'`), la **prima run in assoluto** (`35360547883`) ha trovato due
+difetti veri, entrambi vecchi:
+1. `src/types.ts:228` usava `GovernorThermoProfile` quattro righe prima di definirlo
+   (`no-use-before-define`). Codice nostro, del governor. Nessuno lo aveva visto perche' TypeScript
+   solleva le dichiarazioni di tipo: lo vede solo un linter, e nessun linter era mai girato li'.
+2. **Un difetto del motore**: `cpp/llama-kv-cache-iswa.cpp:97` fa `throw std::runtime_error(...)` e
+   il file include `<algorithm>` e `<cassert>` ma **non `<stdexcept>`**. GCC del runner lo rifiuta;
+   clang — quello di macOS e quello dell'NDK — lo accetta perche' la sua libc++ tira dentro l'header
+   di suo. Nessun gate nostro poteva vederlo: compiliamo tutto con clang. La riga e' in kalsallama
+   (`src/llama-kv-cache-iswa.cpp:97`) ed e' il nostro codice di condivisione celle KV.
+   **L'app non e' toccata** (build NDK). Il passo C++ resta rosso di proposito finche' la riga non
+   viaggia col bump di pin dello Step 5: gatarlo nasconderebbe un difetto che un compilatore vero
+   ha trovato.
+
+E il clone-cache di `sync-kalsallama.sh` inquinava un **terzo** strumento: `eslint` ne leggeva 87
+file (693 problemi in locale contro 1 sulla CI). Ora `tmp/` e' escluso da tsconfig, jest ed eslint,
+e la suite del fork — rossa da quando e' entrato il governor, per due nomi mai dichiarati nel mock —
+e' verde: 9 suite, 32 test. **La lezione non e' "aggiungi un'esclusione": e' che tre strumenti
+diversi hanno misurato per giorni il clone di un altro repo, e nessuno dei tre lo diceva.**
