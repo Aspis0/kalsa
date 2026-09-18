@@ -5,9 +5,18 @@ name: APK (device build)
 # those APKs do not run on an arm64 device. This one exists to produce something
 # you can sideload.
 #
-# Release is signed with the committed debug keystore (see android/app/build.gradle):
-# sideloadable, not publishable. Uninstall a previous build first if it was signed
-# with a different key.
+# Release is signed with the debug keystore the prebuild template generates, not
+# with anything in this repo: android/ is untracked on purpose (.gitignore:42,
+# "native generated folders stay out until prebuild is intentional"), so there is
+# no committed keystore or build.gradle to point a reader at. Every build of this
+# pipeline therefore carries the same key, which is why `adb install -r` replaces
+# a previous build in place. Sideloadable, not publishable.
+#
+# NEVER uninstall to work around a signature error on a measurement phone:
+# uninstall deletes the app data, and that includes the KV store -- the .kvs files
+# a session-reuse measurement is about, and RKStorage with it. If `install -r`
+# ever fails, stop and say so. Which build gets sacrificed is a decision, not a
+# reflex.
 on:
   workflow_dispatch:
     inputs:
