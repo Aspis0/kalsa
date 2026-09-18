@@ -391,9 +391,22 @@ exit 1). The structural fix, if someone wants the full gate to run *before* anyt
 is to copy the current `rn-*`/`jsi` files into `$FLATTEN_TMP/cpp` ahead of the gate call — an edit
 to `sync-kalsallama.sh`, so ⛔ ASK first.
 
+**The mechanism has now been exercised for real (18/09, `kalsa@e8505ca2`).** `bump` from
+`70b4302bb` to kalsallama `237461a98` exited **0** with `285 TUs parse (0 rn, 0 jsi, 0 bmoe,
+45 core, 12 cpu, 2 opencl, 20 common, 6 jinja, 49 mtmd, 151 models)`, and the `verify` after it
+exited **0** with `307 TUs parse (7 rn, 6 jsi, 9 bmoe, …)` and
+`cpp/ == kalsallama@237461a98… + scripts/kalsa-patches`. Eleven files changed and ten of them are
+`cpp/` + `kalsallama.pin`, exactly as this section demands. Two things the OK line says out loud
+and the reader should not skip: the pass ran with **ndk 29.0.14206865, not this repo's pinned
+27.3.13750724** (that is this Mac's NDK; CI runs the pin), and the bump pass covered no binding TU
+at all — that is what the `verify` is for.
+
 That idempotence run is a valid first proof of the mechanism; do it now. The real exercise
 happens when kalsa-07 lands a kalsallama commit on `main`: `bump` again, `verify` 0, gate OK,
-commit `engine: kalsallama <sha7> (<one line of what changed>)`, push, app bump (§3 commands),
+commit `build(engine): kalsallama <sha7> — <one line of what changed>` (the fork runs
+commitlint on commit-msg: `engine` is **not** an allowed type, and `engine:` is rejected with
+`type must be one of [build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test]`;
+measured 18/09), push, app bump (§3 commands),
 CI, device. If `bump` changes any file outside `cpp/` + `kalsallama.pin`, stop: that is a
 script defect (⛔ ASK).
 
