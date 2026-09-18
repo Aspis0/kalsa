@@ -558,6 +558,40 @@ scaduto: serve il codice 2FA via email dell'owner.
 
 ## Aperti
 
+### DUE RAMI TENUTI FUORI dal pacchetto KV, con il verdetto dell'audit (18/09)
+
+Entrambi vivono nel worktree `/Users/marco/.paseo/worktrees/1vffp1wo/kv-residuals`, ribasati su
+`204298f`. Non sono abbandonati: sono **bocciati con motivazione** e aspettano un secondo giro.
+
+**`kv-hold-budget` = `a5389d2`** — *"the window budget charges the replay field it actually builds"*.
+L'argomento di partenza e' **giusto**: il cap per messaggio era una carica esatta solo finche'
+l'assemblaggio troncava lo stesso testo che il budget valorizzava, e il campo di replay non e'
+troncato di proposito (`compactor.ts`, *"Replay field must stay byte-identical to what fed the KV"*),
+quindi un'emissione lunga e' sotto-contata. **Ed e' sbagliata la mia obiezione**: temevo che passare
+`Number.POSITIVE_INFINITY` a cinque consumatori togliesse un limite, ma quei cinque **solo sommano**,
+non troncano — REFUTATA, niente e' diventato illimitato.
+**Perche' e' bocciato lo stesso:** quel cap faceva un **secondo lavoro non dichiarato**, da pavimento.
+`computeAnchoredBoundary` (`src/context/compactor.ts:544-559`) non ha alcun minimo di messaggi —
+`WINDOW_MIN_MESSAGES` protegge solo il cammino legacy (`windowProfile.ts:339`) — quindi `start` resta
+a `n` se gia' la prima iterazione sfora il target. Col cap servivano **due** messaggi quasi al tetto
+piu' una coda lunga; senza, **ne basta uno**. Riprodotto sui moduli compilati: un incollaggio da 9000
+caratteri porta il prompt da 5 messaggi di storia a **zero**, la KV viva viene scartata
+(`windowKvInvariant.ts:35`) e il modello risponde **senza contesto della conversazione**.
+**Cosa serve perche' rientri:** un pavimento esplicito su `computeAnchoredBoundary` (non un cap
+implicito), piu' l'aritmetica concreta del caso che vuole risolvere, piu' una prova su telefono.
+
+**`kv-hold-protocol` = `9a2cd9c`** — *"the device protocol waits out the boot prewarm before bouncing"*.
+Il difetto che ripara e' reale (il rimbalzo cadeva dentro il prewarm), ma l'attesa e' costruita su
+`tail -n +N file | grep -Eq ...` sotto `set -o pipefail`: `grep -q` esce al primo match, `tail` muore
+di SIGPIPE, la pipeline riporta **141** e l'`if` prende il ramo **falso pur avendo trovato la riga**.
+Riprodotto su questa macchina: match a piu' di ~32 KB dalla fine = perso; il logcat scrive 4-11 KB/s,
+quindi **ogni riga piu' vecchia di 2-5 secondi e' invisibile**.
+**La stessa forma e' in una riga PREESISTENTE (`scripts/device-restore-protocol.sh:289`)** e spiega i
+*"kick did not settle within 120s"* dei run 2 e 3 mentre il verdetto leggeva `held=2`. Avevo notato la
+contraddizione e l'avevo archiviata come "il protocollo indovina, il verdetto legge": conclusione
+giusta, **domanda mai posta**. L'harness non poteva vederlo perche' estrae la regex e la prova con
+`RegExp.test`, **mai la pipeline di shell** — una prova che salta il pezzo che si rompe.
+
 ### NDK — la build non dichiara la sua versione, quindi il gate non puo' condividerla (18/09)
 
 L'app non fissa `ndkVersion` da nessuna parte: `app.config.js` ha solo `minSdkVersion: 33` (riga
