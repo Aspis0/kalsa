@@ -7009,3 +7009,47 @@ byte-identici** a `main@bc6bd22` e a `cleanup@38b5cf0` (`llama-rn-fork/main-2042
 Commit: fork `Aspis0/llama.rn` `kalsa` = `91bdb5d0` (gate + correzioni dei due audit); app ramo
 `llama-rn-fork` = `3cabcf1`, run `35369583489` (apk arm64 debuggabile) e' quella da cui si cita la
 riga di CI prima di chiedere lo slot su main.
+
+## 18/09 sera — i residui KV: `kv-land` verificato dal padre, e un commento committato che diceva il falso
+
+Il ramo `kv-land` (da `main@204298f`, **mai pushato**) porta sei commit: `dd69913` il caricamento
+applica la regola del salvataggio (`readModelEmittedText`), `9a59ef3` + `31871c9` la provenienza
+dell'emissione (`emissionSource`, con la propagazione nel compactor che il primo tentativo aveva
+perso), `b8ad70d` il fixture del round-trip, `5c5aaa6` il difetto SIGPIPE nel protocollo,
+`5f20120` jest dentro la porta che protegge davvero main.
+
+**Le quattro porte le ho rimisurate io**, non lette nel report: `tsc`=0, `thinkHistoryHarness`
+(node20 v20.20.2)=0, `prefixPrewarmHarness` (node20)=0, `npx jest`=0 con **82 suite / 951 test /
+0 snapshot / 10,0 s**. Perimetro 14 file, niente in `package.json`, `patches/`, `vendor/`,
+`app.config.js`, `plugins/`, `engine-build*`, `kalsallama.pin`; fra i workflow solo
+`e2e-emulator.yml`. La suite entra nella CI **verde nello stesso commit che la introduce**: era
+1 rossa su 949 prima, ed era esattamente quella che stavamo riparando.
+
+**Il difetto trovato rileggendo le catture.** `5c5aaa6` ha committato un commento che afferma
+*"every kick in all three 09-18 runs settled in 0.1-0.2 s"*. Falso. Misurati tutti e sei i kick
+su `logcat.txt` (marker -> primo op terminale) e su `evidence.txt` (`fg_kick` -> `fg_settled`,
+cioe' cio' che il protocollo ha davvero fatto):
+
+```
+            marker -> op            fg_kick -> fg_settled     esito reale
+032436 c1   +84,6 s  "op":"done"    85,3 s                    CORRETTO (prewarm vero)
+032436 c2   +151,6 s "op":"skip"    134,1 s                   TIMEOUT VERO (oltre i 120 s)
+093512 c1   +0,1 s   "op":"skip"    0,2 s                     CORRETTO
+093512 c2   +0,2 s   "op":"skip"    129,5 s                   BUGIA
+110132 c1   +0,1 s   "op":"skip"    124,6 s                   BUGIA
+110132 c2   +0,2 s   "op":"skip"    130,3 s                   BUGIA
+```
+
+Tre classi, non una: **3 bugie, 1 timeout legittimo, 2 rilevamenti corretti**. E incrociando con
+la capacita' della pipe misurata sull'host (il flip 0 -> 141 sta **fra 8 e 16 KB** dopo il match),
+il meccanismo spiega **tutti e sei** gli esiti — i due che hanno funzionato sono esattamente quelli
+con meno di un secondo di logcat dopo la riga trovata. L'argomento diventa piu' forte, non piu'
+debole. La versione falsa cancellava anche un fatto: `032436 c1` era un `"op":"done"` a +84,6 s,
+cioe' un prewarm che ha davvero lavorato — leggendo il commento si concluderebbe il contrario di
+quanto prova `57bad0c`. Rimandato al writer come commit nuovo sopra (niente amend: la correzione
+fa parte della storia onesta, come `31871c9`), con l'ordine di **riderivare i dodici numeri da se'**
+invece di fidarsi dei miei.
+
+**Regola che ne esce, e vale oltre questo caso:** un commento che riassume una misura e' un'asserzione
+come le altre e va verificato sulla cattura, non sul ricordo di chi l'ha scritta. Qui il riassunto
+sbagliato era *piu' pulito* del vero ("tutti e sei uguali"), ed e' proprio per questo che passava.
