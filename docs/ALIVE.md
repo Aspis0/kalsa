@@ -7122,3 +7122,15 @@ Spesa dichiarata: un draft MTP su un target **denso con SWA** smette di condivid
 Nessun modello in catalogo ha quella forma e upstream li' non ha mai condiviso. Quel che manca e' la
 sola prova che conta davvero: Qwen3.5-4B sull'S23 con un draft che **propone** (`draftTokens > 0`,
 nessuna riga di fallback) — sarebbe la prima volta che quella strada viene esercitata su un telefono.
+
+**Previsione scritta PRIMA della misura, e cosa non decidera'.** `src/engine/ModelRegistry.ts:81-85`
+dice gia' che il plain decode ha **battuto** MTP — "3x on CI and 2x on the Xiaomi 14, +53% decode,
+acceptance 26-30%" — ed e' per questo che `defaultEnabled` e' false. Quindi l'esito piu' probabile
+sull'S23 e' "MTP finalmente propone, ed e' comunque piu' lento del plain": sarebbe la conferma della
+riga di catalogo, non un fallimento del fix. E qui la posizione di Marco (18/09): **il guadagno di
+MTP dipende da GPU/SoC**, e la classe Snapdragon 8 Elite puo' comportarsi diversamente dall'8 Gen 2
+dell'S23. Percio' la misura sull'S23 prova che la strada e' esercitata e da' l'accettazione e i
+tok/s **di quel dispositivo**: non e' il verdetto di catalogo. `defaultEnabled` resta false e la
+misura per-dispositivo (QDC ha unita' 8 Elite) diventa una voce aperta, non una decisione presa
+sull'S23. Se la seconda gamba (accettazione nella fascia) esce fuori fascia, e' un dato sull'S23,
+non una condanna di MTP.
