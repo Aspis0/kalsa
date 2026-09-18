@@ -111,6 +111,18 @@ async function seed(page, { settings = null, convos = [], theme = "light", v2 = 
   );
 }
 
+/** Open the app AT THE CHAT. The brain is the home page now, so every state
+    in this file lives one click past it — the writing bar's Chat button. This
+    harness used to `goto` and wait for the chat's empty state, which stopped
+    appearing the day the home surface changed, and it has been timing out
+    since. The click is conditional so it cannot break if the landing view
+    moves again. */
+async function openApp(page) {
+  await page.goto(APP);
+  const chat = page.locator(".brain-bar-chat");
+  if ((await chat.count()) > 0) await chat.first().click();
+}
+
 /** Fail-loud marker: the state must be on screen before any screenshot. */
 async function must(page, selector, label) {
   await page.locator(selector).first().waitFor({ timeout: 8000 });
@@ -143,7 +155,7 @@ async function main() {
   if (want("empty")) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await seed(page, {});
-    await page.goto(APP);
+    await openApp(page);
     await must(page, ".empty-title", "empty");
     await shot(page, "shots/01-empty.png");
     await page.close();
@@ -152,7 +164,7 @@ async function main() {
   if (want("empty-dark")) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await seed(page, { theme: "dark" });
-    await page.goto(APP);
+    await openApp(page);
     await must(page, ".empty-title", "empty-dark");
     await shot(page, "shots/01-empty-dark.png");
     await page.close();
@@ -161,12 +173,12 @@ async function main() {
   if (want("streaming")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1100);
-    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.getByRole("button", { name: /Show menu/ }).click();
     await must(page, ".crescent-nav-open", "streaming nav");
     await shot(page, "shots/02-streaming.png");
     await page.close();
@@ -175,7 +187,7 @@ async function main() {
   if (want("heavy")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("heavy-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Show me everything.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -194,7 +206,7 @@ async function main() {
       settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "x" },
       theme: "light",
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Hello?");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -210,7 +222,7 @@ async function main() {
   if (want("stopped")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Tell me slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -225,7 +237,7 @@ async function main() {
   if (want("code")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("code-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -241,7 +253,7 @@ async function main() {
   if (want("long")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: longConvo(), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1500);
     await openConvo(page, "very long conversation");
     await must(page, ".thread", "long thread");
@@ -252,7 +264,7 @@ async function main() {
   if (want("narrow")) {
     const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await shot(page, "shots/09-narrow.png");
@@ -262,7 +274,7 @@ async function main() {
   if (want("wide")) {
     const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await shot(page, "shots/10-wide.png");
@@ -272,7 +284,7 @@ async function main() {
   if (want("darkthread")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "dark" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await shot(page, "shots/11-dark-thread.png");
@@ -282,7 +294,7 @@ async function main() {
   if (want("thinking")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("patient-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Take your time.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -298,7 +310,7 @@ async function main() {
       settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "x" },
       theme: "dark",
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Hello?");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -314,7 +326,7 @@ async function main() {
   if (want("copyconfirm")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await page.getByRole("button", { name: "Copy" }).click();
@@ -326,7 +338,7 @@ async function main() {
   if (want("paste")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     const big = Array.from({ length: 5000 }, (_, i) => `pasted line ${i + 1}`).join("\n");
     await page.getByRole("textbox", { name: "Message" }).fill(big);
@@ -340,7 +352,7 @@ async function main() {
       reducedMotion: "reduce",
     });
     await seed(page, { settings: okSettings("slow-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Tell me slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -352,7 +364,7 @@ async function main() {
   if (want("focus")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("hello");
     await page.getByRole("textbox", { name: "Message" }).press("Tab");
@@ -366,7 +378,7 @@ async function main() {
       settings: { endpoint: "http://127.0.0.1:18081/denied", token: "wrong", model: "code-demo" },
       theme: "light",
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -378,8 +390,16 @@ async function main() {
     await page.locator(".error-block").getByRole("button", { name: "Open settings" }).click();
     await page.getByPlaceholder("https://my-server:8000").fill("http://127.0.0.1:18081/ok");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByRole("button", { name: /Show sections/ }).click();
-    await page.getByRole("button", { name: "Open Chat" }).click();
+    // Back to the conversation. The crescent no longer carries a Chat point --
+    // its four are Brain, New chat, History, Settings -- and it lives in the
+    // chat alone, so from a surface the way back is the header's own button.
+    // That lands on the brain when nothing pushed a hop, which is why the
+    // chat click below is second and conditional.
+    await page.getByRole("button", { name: /^Back to / }).first().click();
+    await page.waitForTimeout(400);
+    const backToChat = page.locator(".brain-bar-chat");
+    if ((await backToChat.count()) > 0) await backToChat.first().click();
+    await page.waitForTimeout(400);
     await page.getByRole("button", { name: "Try again" }).click();
     await page.waitForFunction(
       () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),
@@ -393,7 +413,7 @@ async function main() {
   if (want("switch")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo"), convos: SEEDED_THREAD, theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await page.getByRole("button", { name: "+ New chat" }).click();
@@ -413,7 +433,7 @@ async function main() {
       { ...msg("assistant", ""), createdAt: Date.now() },
     ]);
     await seed(page, { settings: okSettings("x"), convos: [tail], theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Interrupted thread");
     await must(page, ".error-block", "missing tail");
@@ -426,7 +446,7 @@ async function main() {
   if (want("sidebar")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 8) });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Todo");
     await must(page, ".sidebar-row-active", "active row");
@@ -437,7 +457,7 @@ async function main() {
   if (want("search")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: twentyConvos() });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByLabel("Search conversations").fill("taxes");
     await page.waitForTimeout(400);
@@ -449,7 +469,7 @@ async function main() {
   if (want("rename")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 3) });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.locator(".sidebar-row").first().hover();
     await page.getByRole("button", { name: "Rename" }).first().click();
@@ -461,9 +481,9 @@ async function main() {
   if (want("settingssurface")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, {});
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.getByRole("button", { name: /Show menu/ }).click();
     await page.locator(".crescent-shell").getByRole("button", { name: "Open Settings" }).click();
     await must(page, ".settings-page", "settings surface");
     await shot(page, "shots/43-settings-surface.png");
@@ -473,7 +493,7 @@ async function main() {
   if (want("drawer")) {
     const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 8) });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("button", { name: "Show conversations", exact: true }).click();
     await must(page, ".sidebar-open", "drawer");
@@ -484,7 +504,7 @@ async function main() {
   if (want("panelempty")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await page.getByRole("button", { name: "Toggle attachments panel" }).click();
@@ -496,7 +516,7 @@ async function main() {
   if (want("panelfile")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -521,7 +541,7 @@ async function main() {
         ]),
       ],
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Sneaky model");
     await must(page, ".blocked-image", "blocked notice");
@@ -547,7 +567,7 @@ async function main() {
         aged("Old notes", 10 * day, 4),
       ],
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await must(page, ".sidebar-group", "groups");
     await shot(page, "shots/47-groups.png");
@@ -564,7 +584,7 @@ async function main() {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
       convos: [{ id: "m1", title: "Metered", createdAt: 1, updatedAt: 1, messages }],
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Metered");
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -583,7 +603,7 @@ async function main() {
         conv("Almost full", [msg("user", "A short hello."), msg("assistant", "Hi back.")]),
       ],
     });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Almost full");
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -597,9 +617,9 @@ async function main() {
   if (want("surfaces")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show sections/ }).click();
+    await page.getByRole("button", { name: /Show menu/ }).click();
     await must(page, ".crescent-nav-open", "surfaces nav");
     await shot(page, "shots/46-surfaces.png");
     await page.close();
@@ -610,7 +630,7 @@ async function main() {
   if (want("cloudthinking")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slowthink-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Think slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -623,7 +643,7 @@ async function main() {
   if (want("settled")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -640,7 +660,7 @@ async function main() {
   if (want("rest")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -658,7 +678,7 @@ async function main() {
   if (want("cloudopen")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -678,7 +698,7 @@ async function main() {
   if (want("clouddark")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo"), theme: "dark" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Count the sheep.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -696,7 +716,7 @@ async function main() {
   if (want("cloudplain")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x"), theme: "light" });
-    await page.goto(APP);
+    await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Just answer.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
