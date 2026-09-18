@@ -106,6 +106,13 @@ import {
   type EmissionSource,
 } from "../engine/modelEmittedText";
 import { toPersistableHistoryMessages } from "../engine/historyPersistable";
+import {
+  assessLoadedHistory,
+  baselineImpliesStoredMessages,
+  copyToQuarantineUnlessPresent,
+  evaluateHistoryWrite,
+  type HistoryBaseline,
+} from "../chat/historyWriteGuard";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
 import {
   messagesKey,
@@ -589,6 +596,12 @@ function persistMessagesNow(
     getEpoch?: () => number;
     /** Per-conversation messages key. Missing → skip write. */
     storageKey?: string;
+    /** Load-time baseline for this key; missing → treat the store as empty. */
+    baseline?: HistoryBaseline;
+    /** Opt-in from a declared destructive user action (clear/edit/delete). */
+    optIn?: boolean;
+    /** Adopt the decision's next baseline when the write is allowed. */
+    onWriteAllowed?: (next: HistoryBaseline) => void;
   },
 ): boolean {
   if (!messagesSnapshot.length) return false;
@@ -612,6 +625,23 @@ function persistMessagesNow(
   ) {
     return false;
   }
+  const baseline = opts?.baseline ?? { kind: "known", count: 0 };
+  const decision = evaluateHistoryWrite({
+    baseline,
+    incomingCount: clean.length,
+    optIn: opts?.optIn === true,
+  });
+  if (!decision.allowed) {
+    // Refuse rather than shrink the store. Privacy: counts and booleans
+    // only — never keys, conversation ids or message text.
+    console.warn("[historyGuard] history write refused", {
+      incoming: clean.length,
+      baselineKnown: baseline.kind === "known" ? baseline.count : null,
+      optIn: opts?.optIn === true,
+    });
+    return false;
+  }
+  opts?.onWriteAllowed?.(decision.nextBaseline);
   AsyncStorage.setItem(storageKey, JSON.stringify(clean)).catch((err) => {
     // Same non-fatal surface as saveEngineSession / voice failures.
     console.warn("[persistMessages]", err);
@@ -961,6 +991,17 @@ export function AiChatPage({
   const persistKeyRef = useRef(
     conversationId ? messagesKey(conversationId) : "",
   );
+  /**
+   * Write-guard state for the active key: what the store held at load time
+   * (raw entry count, or unknown when unreadable), plus the opt-in armed by a
+   * declared destructive action (clear chat, edit/regen truncate) that the
+   * next flush consumes. Reset on every conversation switch.
+   */
+  const historyBaselineRef = useRef<HistoryBaseline>({
+    kind: "known",
+    count: 0,
+  });
+  const historyWriteOptInRef = useRef(false);
   const onConversationTouchedRef = useRef(onConversationTouched);
   onConversationTouchedRef.current = onConversationTouched;
 
@@ -988,7 +1029,19 @@ export function AiChatPage({
     ): boolean => {
       const key = persistKeyRef.current;
       if (!key) return false;
-      const wrote = persistMessagesNow(msgs, { ...opts, storageKey: key });
+      // The opt-in arms exactly one flush attempt. A refusal never consumes
+      // it: refusal requires optIn=false, so the flag is still false after.
+      const optIn = historyWriteOptInRef.current;
+      historyWriteOptInRef.current = false;
+      const wrote = persistMessagesNow(msgs, {
+        ...opts,
+        storageKey: key,
+        baseline: historyBaselineRef.current,
+        optIn,
+        onWriteAllowed: (next) => {
+          historyBaselineRef.current = next;
+        },
+      });
       if (wrote) notifyConversationTouched(msgs);
       return wrote;
     },
@@ -1005,6 +1058,8 @@ export function AiChatPage({
       key = "";
     }
     persistKeyRef.current = key;
+    historyBaselineRef.current = { kind: "known", count: 0 };
+    historyWriteOptInRef.current = false;
 
     setMessages([]);
     messagesRef.current = [];
@@ -1021,16 +1076,31 @@ export function AiChatPage({
     AsyncStorage.getItem(key)
       .then((raw) => {
         if (!mounted || persistEpochRef.current !== loadEpoch || !raw) return;
-        try {
-          const parsed = JSON.parse(raw);
-          // locale is already resolved (App gates on localeReady).
-          const valid = sanitizeHistoryMessages(parsed, locale);
-          if (valid.length) {
-            setMessages(valid);
-            messagesRef.current = valid;
-          }
-        } catch {
-          // storico corrotto: ignora e riparti pulito
+        // locale is already resolved (App gates on localeReady). The guard
+        // sets the baseline from the RAW entry count (never the sanitized
+        // count) and flags an unreadable raw for quarantine.
+        const assessment = assessLoadedHistory({
+          raw,
+          sanitize: (entries) => sanitizeHistoryMessages(entries, locale),
+        });
+        historyBaselineRef.current = assessment.baseline;
+        if (assessment.quarantineRaw) {
+          // Set the raw aside before any write can overwrite it; fire-and-
+          // forget so the screen never blocks on the copy. Log carries no
+          // keys, ids or text.
+          void copyToQuarantineUnlessPresent(AsyncStorage, key, raw)
+            .then((copied) => {
+              if (copied) {
+                console.warn("[historyGuard] unreadable history set aside");
+              }
+            })
+            .catch(() => {
+              console.warn("[historyGuard] quarantine copy failed");
+            });
+        }
+        if (assessment.messages.length) {
+          setMessages(assessment.messages);
+          messagesRef.current = assessment.messages;
         }
       })
       .catch(() => undefined)
@@ -1062,7 +1132,11 @@ export function AiChatPage({
     if (isActiveChatEmptyRef) {
       isActiveChatEmptyRef.current = () => {
         if (!historyLoadedRef.current) return false;
-        return messagesRef.current.length === 0;
+        if (messagesRef.current.length > 0) return false;
+        // Poisoned state: the screen shows 0 but the store holds an
+        // unreadable raw. Report NOT empty so "New chat" really starts a
+        // conversation instead of keeping the user in this one.
+        return !baselineImpliesStoredMessages(historyBaselineRef.current);
       };
     }
     if (bumpPersistEpochRef) {
@@ -1339,7 +1413,21 @@ export function AiChatPage({
               // load hash matches. Epoch check: drop if clearChat raced.
               const payload = JSON.stringify(clean);
               const storageKey = persistKeyRef.current;
-              if (persistEpochRef.current === epoch && storageKey) {
+              // The clean build drops live partials, so it can be shorter
+              // than what the store holds — same guard as persistMessagesNow.
+              const optIn = historyWriteOptInRef.current;
+              historyWriteOptInRef.current = false;
+              const decision = evaluateHistoryWrite({
+                baseline: historyBaselineRef.current,
+                incomingCount: clean.length,
+                optIn,
+              });
+              if (
+                persistEpochRef.current === epoch &&
+                storageKey &&
+                decision.allowed
+              ) {
+                historyBaselineRef.current = decision.nextBaseline;
                 AsyncStorage.setItem(storageKey, payload).catch((err) => {
                   console.warn("[persistMessages]", err);
                 });
@@ -1349,6 +1437,15 @@ export function AiChatPage({
                   computeHistoryHashFromMessages(clean),
                   clean.length,
                 );
+              } else if (!decision.allowed) {
+                // Skip saveEngineSession too: hashing clean while the larger
+                // raw stays stored would make boot mismatch and drop a good
+                // .kvs. Counts and booleans only in the log.
+                console.warn("[historyGuard] history write refused", {
+                  incoming: clean.length,
+                  background: true,
+                  optIn,
+                });
               }
             }
           }
@@ -3011,12 +3108,21 @@ export function AiChatPage({
   }, [messages, t]);
 
   const clearChat = useCallback(() => {
-    if (onNewConversation && historyLoadedRef.current && messagesRef.current.length === 0) {
+    if (
+      onNewConversation &&
+      historyLoadedRef.current &&
+      messagesRef.current.length === 0 &&
+      // Poisoned state (screen 0, unreadable raw stored) is NOT empty: fall
+      // through so "new chat" really starts a conversation.
+      !baselineImpliesStoredMessages(historyBaselineRef.current)
+    ) {
       return;
     }
     abortRef.current?.abort();
     // Flush the current conversation BEFORE bumping the persist epoch so
     // "new chat" cannot drop the last un-debounced write of the old thread.
+    // Clear is a declared destructive action: arm the flush's opt-in.
+    historyWriteOptInRef.current = true;
     persistActiveMessages(messagesRef.current, {
       allowStreamingPartial: true,
       epoch: persistEpochRef.current,
@@ -3170,6 +3276,9 @@ export function AiChatPage({
         if (regenGenerationRef.current === myGeneration) {
           messagesRef.current = base;
         }
+        // Truncating at the edited message is a declared destructive action:
+        // arm the next flush's opt-in so the guard allows the shrink.
+        historyWriteOptInRef.current = true;
         regenHandleSendPassRef.current = true;
         if (regenAbortRef.current?.signal.aborted) {
           if (regenGenerationRef.current !== myGeneration) {
