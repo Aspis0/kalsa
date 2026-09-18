@@ -11,6 +11,36 @@ Two documents only (owner, 2026-09-09): this plan and docs/ALIVE.md. Everything 
 One page. The campaign has produced roughly 30 tested techniques. The useful
 distinction is now simple: shipped, alive, dead, theory, measured speeds, queue.
 
+**18/09 — Step 5 closed on the Mac: the engine update mechanism works end to end.**
+`bump` now runs the **full** 307-TU include gate before writing anything: the sync borrows the
+llama.rn-owned `rn-*`/`jsi` sources into the throwaway tree, grades the pair, and
+`install_cpp_tree` cannot copy them back (fork `kalsa@485519fe`). App `main@2ed2a88` carries
+`llama.rn@e8505ca2` (kalsallama `237461a98`), engine id `kalsa-eng-v2:63b92e83…` — identical in
+the Mac computation and inside the APK.
+
+On the S23 the engine runs and MTP activates (`initMTP: mem-shared MTP draft`, no
+`cannot share KV cells`, no refusal WARN), but three things came out of the device that matter
+more than the check itself:
+
+- **Frequency ceilings follow load, not the declared thermal status.** Under decode the
+  platform clamps `scaling_max_freq` to 59% on the big cores; within 60-70 s of stopping the
+  app they are back to 100% of hardware max while Thermal Status is still 2 and AP still 47 °C.
+  A 2.6B model decoding at 4.19 tok/s on an 8 Gen 2 needs no other explanation, and none of it
+  is a Kalsa protection: the app cannot write `/sys/.../cpufreq`.
+- **Qwen3.5-4B is not eligible on a 7 GB phone** — two *foreground* `LOW_MEMORY` kills during
+  load (`dumpsys activity exit-info`, `importance=100`). Selection persists, so the app reboots
+  into the same kill: launch → load → die. The send path already refuses this
+  (`reasonKey:"model.tooLarge"`); the load path does not.
+- **An engine change removes session state silently.** A `.kvs` written by the old engine is
+  refused and then removed (81.7 MB), the static-prefix snapshot is deleted explicitly, and
+  `evictSessionPool` logs nothing at all — so the store went 8 → 5 files, ~108 MB, with no line
+  naming a victim. The transcript is a separate store and was not touched by any of it.
+
+Open and not attributed: after interrupting an MTP turn, the next decode fails with
+`inconsistent sequence positions`. Evidence kept; reproduce on the Mac before blaming the bump.
+The owner's screen-on/screen-off question is still open — the thermal watchdog stopped the run
+(AP 57.9 °C, battery 41.7 °C against a 43 °C kill) before a second decode completed.
+
 **19–20/08 — Adreno MoE OpenCL kernels restored.** Upstream disabled this family
 for now because of compiler miscompilations nobody had understood: A6X/A7X
 (S23/S24 class) now has working llama.cpp MoE kernels. Three Qualcomm compiler

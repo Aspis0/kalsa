@@ -943,6 +943,77 @@ After the bump to `llama.rn@e8505ca2` the id computed on this Mac is
 from the branch must carry that one — if it does not, the APK is not this tree and nothing measured
 on the phone can be attributed to the bump.
 
+### Added 2026-09-18 evening — STEP 5 CLOSED on the Mac, with the hashes and what the S23 did not give
+
+**The hashes that identify this step.** Fork `Aspis0/llama.rn@485519fe` on branch `kalsa`
+(the rn/jsi borrow: the full 307-TU gate now runs before anything is written). App
+`main@2ed2a88` = the rebased Step 5 tip, three commits on top of `87b36f88`: the engine bump
+`llama.rn@e8505ca2` (kalsallama pin `237461a98`), the apk.yml comment fix, the `*-out/`
+gitignore class. Engine build id in both the APK and the Mac computation:
+`kalsa-eng-v2:63b92e83ba6369602fd5c80118ca4a024a27de5f5e8fec9c3b12ed5c1ad4f665`.
+
+**Device check on the S23 (the Jelly was unreachable, owner away).** APK from run
+`35395637098`, sha256 `c4755ed4c759718c00b58f1bf32cb9edfb1b5d010dc46ab1b1ccbd98365f4b6b`,
+`apkanalyzer manifest debuggable` = true, installed with `install -r` (Success, 7.5 s, no
+signature error, `firstInstallTime` unchanged).
+
+- **Check 1 (LFM2.5-2.6B, new conversation): PASS.** Complete reply, no native errors,
+  `KALSA_TELEMETRY {tokensEvaluated:1848, tokensPredicted:139, promptMs:561.53,
+  predictedPerSecond:4.19}`. The low tok/s is not the bump: see the frequency ceilings below.
+- **Check 2 (Qwen3.5-4B `/bench speculative mtp`): MTP active, numbers not collected.**
+  `initMTP:943 state cache disabled for this turn: mem-shared MTP draft` proves the draft is
+  live, and there is no `cannot share KV cells` line and no refusal WARN — which is what the
+  bump was for. `draftTokens`/acceptance were never reached: the turn was interrupted by the
+  thermal watchdog. Take acceptance on the Mac with the same GGUF (it is a property of model
+  and prompt); take the speed on an unplugged, cold phone another day.
+- **Screen-on vs screen-off LFM turns: NOT RUN.** Watchdog tripped (AP 57.9 °C) and the
+  battery reached 41.7 °C — past the 40 °C WARN, 1.3 °C from the 43 °C KILL. The owner's
+  question "does screen-off park some cores" is **still open**: no decode completed after the
+  first one.
+
+**Why a 2.6B model decoded at 4.19 tok/s on a Snapdragon 8 Gen 2, measured.** The platform
+clamps `scaling_max_freq` under load, and every core runs at its clamped ceiling:
+
+| core | hw max | under decode | after the app stops |
+|---|---|---|---|
+| cpu0 | 2.016 GHz | 1.555 (77%) | 2.016 (100%) |
+| cpu3 | 2.803 GHz | 1.651 → 1.402 (59% → 50%) | 2.803 (100%) |
+| cpu7 | 3.360 GHz | 1.978 → 1.709 (59% → 51%) | 3.360 (100%) |
+
+**The cap follows load, not the declared thermal status: 100% of hw max within 60-70 s of app
+stop while status stayed 2 and AP stayed 47 °C.** It is not a Kalsa protection — the app has no
+write access to `/sys/.../cpufreq` — and it is not a fixed state of the phone. Thermal Status 2
+is the resting floor of a phone charging at 100%, not an alarm; the 2 s samples are in
+`/tmp/sample-lfmA.log` and the cool-down series in `/tmp/cooldown.log`.
+
+**Qwen3.5-4B is not eligible on the S23: not slower, not stably loadable** (7 GB device,
+catalog label 8 GB+, two foreground LOW_MEMORY kills during load):
+```
+#0  18:12:15.998  reason=3 (LOW_MEMORY)  importance=100  rss=1.4GB
+#1  18:11:24.347  reason=3 (LOW_MEMORY)  importance=100  rss=1.1GB
+#2  18:03:56.304  reason=10 (USER REQUESTED) subreason=21 (FORCE STOP)  rss=1.8GB
+```
+Model selection persists, so every launch reloaded Qwen and died again: launch → load → kill →
+launch. The way out was changing model in Settings *while* the load was sinking the process.
+The send path already refuses this case (`KALSA_SEND {"allow":false,
+"reasonKey":"model.tooLarge","availableMb":868}`); the load path does not. Two guards for one
+risk, one of them missing.
+
+**State the engine change removed, none of it logged.** On engine change a session `.kvs` is
+refused and then removed (81,706,274 B Qwen, 17:58); the static-prefix snapshot is deleted
+explicitly (`deleted:true`). The transcript lives in a separate store
+(`databases/RKStorage`) and none of those removals touch it: it grew 376,832 → 385,024 B,
+which is exactly the turns this run added. The store went 8 → 7 → 5 files, ~108 MB removed,
+**and `evictSessionPool` logs nothing** (`sessionPool.ts:148-159`, empty `catch`), so which
+mechanism removed which file cannot be decided from the logs at all.
+
+**Open, filed with evidence.** Three native errors after interrupting an MTP turn —
+`the tokens of sequence 0 in the input batch have inconsistent sequence positions` /
+`failed to initialize batch` / `llama_decode: failed to decode, ret = -1`, the first three
+native errors of the whole session. Full window in `/tmp/mtp-abort-s23.log`. Reproduce on the
+Mac before attributing: it needs speculative MTP plus an interrupt, and the previous engine
+never reached MTP on this device, so "it did not happen before" would be an empty sentence.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
