@@ -41,9 +41,9 @@ const jsonObjectAt = (line, start) => {
   }
   return null;
 };
-const parsePrewarmLine = (line) => {
-  const tag = line.match(/KALSA_PREWARM\s+(?=\{)/) ??
-    line.match(/'KALSA_PREWARM',\s*'(?=\{)/);
+const parseTaggedLine = (line, tagName) => {
+  const tag = line.match(new RegExp(`${tagName}\\s+(?=\\{)`)) ??
+    line.match(new RegExp(`'${tagName}',\\s*'(?=\\{)`));
   if (!tag) return null;
   const payload = jsonObjectAt(line, line.indexOf("{", tag.index));
   if (!payload) return null;
@@ -56,11 +56,18 @@ const parsePrewarmLine = (line) => {
     return null;
   }
 };
+const parsePrewarmLine = (line) => parseTaggedLine(line, "KALSA_PREWARM");
+const parseSessionLine = (line) => parseTaggedLine(line, "KALSA_SESSION");
 const prewarmEventsIn = (text) => text.split("\n")
   .map(parsePrewarmLine)
   .filter(Boolean);
 const prewarmEvents = prewarmEventsIn(ev);
 const prewarmCount = (predicate) => prewarmEvents.filter(predicate).length;
+const sessionLines = evLines.filter((line) => line.includes("KALSA_SESSION"));
+const sessionEventsIn = (text) => text.split("\n")
+  .map(parseSessionLine)
+  .filter(Boolean);
+const sessionEvents = sessionEventsIn(ev);
 const unparsedPrewarmLines = evLines.filter((line) =>
   line.includes("KALSA_PREWARM") && !parsePrewarmLine(line),
 ).length;
@@ -100,6 +107,34 @@ console.log("PREWARM_STOPS: " + stops.map((r) =>
 const prefixMisses = prewarmCount((p) => p.match === false && p.reason === "prefix_miss");
 const matchKvHolds = prewarmCount((p) => p.match === false && p.reason === "kv_holds_chat");
 console.log("PREFIX_MATCH: miss=" + prefixMisses + " kv_holds_chat=" + matchKvHolds);
+const reasonCounts = (events) => {
+  const counts = new Map();
+  for (const event of events) {
+    const reason = typeof event.reason === "string" ? event.reason : "missing_reason";
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  return [...counts].map(([reason, count]) => reason + " x" + count).join(", ") || "none";
+};
+if (sessionLines.length === 0) {
+  console.log("SESSION: no KALSA_SESSION lines");
+} else {
+  const loadsOk = sessionEvents.filter((p) => p.op === "load" && p.ok === true);
+  const loadsRefused = sessionEvents.filter((p) => p.op === "load" && p.ok === false);
+  const savesOk = sessionEvents.filter((p) => p.op === "save" && p.ok === true);
+  const savesRefused = sessionEvents.filter((p) => p.op === "save" && p.ok === false);
+  const bestLoad = loadsOk.reduce((best, load) =>
+    best === null || (typeof load.ms === "number" && load.ms > best.ms) ? load : best,
+    null,
+  );
+  console.log("SESSION: loads_ok=" + loadsOk.length +
+    " loads_refused=" + loadsRefused.length +
+    " load_refused_by_reason=" + reasonCounts(loadsRefused) +
+    " saves_ok=" + savesOk.length +
+    " saves_refused=" + savesRefused.length +
+    " save_refused_by_reason=" + reasonCounts(savesRefused) +
+    " best_load_ms=" + (bestLoad?.ms ?? "n/a") +
+    " best_load_tokens_on_disk=" + (bestLoad?.tokensOnDisk ?? "n/a"));
+}
 const cycleWindows = [];
 let currentCycle = { number: null, lines: [] };
 let sawCycleMarker = false;
@@ -133,12 +168,18 @@ for (const cycle of cycleWindows) {
       cycle: cycle.number,
     }))
     .filter((r) => r.embd > 0);
+  const cycleText = cycle.lines.join("\n");
   const mismatchFields = [
-    ...cycle.lines.join("\n").matchAll(
-      /"op":"restore","ok":false,"reason":"meta_mismatch:([^"]+)"/g,
-    ),
-  ].map((m) => m[1]);
-  const cold = cycleRows.some((r) => r.common === 0) && mismatchFields.length > 0;
+    ...prewarmEventsIn(cycleText)
+      .filter((p) => p.op === "restore" && p.ok === false &&
+        typeof p.reason === "string" && p.reason.startsWith("meta_mismatch:"))
+      .map((p) => p.reason.slice("meta_mismatch:".length)),
+    ...sessionEventsIn(cycleText)
+      .filter((p) => p.op === "load" && p.ok === false &&
+        typeof p.reason === "string" && p.reason.startsWith("meta_mismatch:"))
+      .map((p) => p.reason.slice("meta_mismatch:".length)),
+  ];
+  const cold = mismatchFields.length > 0;
   cycleStats.push({ ...cycle, rows: cycleRows, mismatchFields, cold });
   rows.push(...cycleRows.map((row) => ({ ...row, cold })));
 }
