@@ -611,6 +611,65 @@ che conta (AP/skin) e non sullo stato OS, che arriva tardi (18/09: i tetti seguo
 GPU cool-mode su S23 scollegato con T20C come strumento: temperatura, batteria, tok/s, KV riusata.
 NPU prefill: M2.
 
+**Cosa manca per M1, M2, M3 (stato 18/09 sera; fatto = misurato, non "c'e' il codice").**
+*M1, 9/10 (§13):* chiuso G1 (LFM), sessione+restore provati su S23 con force-stop (667 ms; 512 ms vs
+9089 a freddo), motore unico su fork, gate NDK e jest su main. Manca: **qualita'** (corpus 80 casi + 20
+riservati + rubrica: NON esiste, i corpus del lab sono di perplessita'; chi scrive le risposte attese =
+owner); **uso sostenuto** (3×30 turni/telefono: T20C morto a 2/20 il 17/09, fix harness in coda, poi
+S23 scollegato, Jelly, Xiaomi); **lifecycle** (16 cicli/telefono, 8 tipi: protocollo da costruire su
+device-restore-protocol); **prestazioni** (5 avvii + 10 turni caldi + confronti appaiati: non iniziato);
+**memoria/contesto** (4k/8k/16k, spazio ridotto, download interrotto: non iniziato; fit sul load arriva
+con boot-loop-breaker); **batteria/termica** (3 blocchi appaiati da 30 min scollegato: non iniziato);
+**inattivita'** (2 coppie di notti da 8 h/telefono: entro il 30/09, serve l'owner); **esperienza
+completa** (manuale, 30-60 min/giorno dell'owner); **blocchi noti** (perdita dati: persist-guard c45f044
+pronto; boot-loop: in ri-audit; incollaggio 9000 char che azzera la storia: anchored-floor, rientra in M1);
+**governor CPU+GPU** (i 4 punti sopra); **artefatti e dossier** (manifest per telefono, schede dei tre
+telefoni, JSONL con esclusioni, dossier M1, verbale); **configurazione finale** (candidato congelato 6/10,
+installazione pulita). Vincoli: S23 scollegato e freddo, Jelly sul bus, Xiaomi da riconfermare.
+*M2, 30/10:* tutto da fare; fatti che lo condizionano: Qwen3.5-4B non si carica stabilmente su 7 GB
+(lista telefoni ammessi + soglia catalogo = owner); visione (mmproj, proiettore differito, testo→immagine→
+testo) e' il valore aggiunto; MTP spento di default, guadagno per telefono da misurare, bug abort
+mem-shared da riprodurre sul Mac prima di accenderlo; governor+multimodale, costo KV/token di Qwen da
+misurare (oggi NoFit per assenza), **NPU prefill**; regressione mirata su LFM. MiniCPM5 opzione, gate 12/10.
+*M3, 20/11:* un solo MoE + ricetta CLI misurata (due candidati per i 16 GB in memoria); il bridge dello
+streamer in app rifiuta ancora `n_expert_used != 0` (niente parita' CLI/APK senza); fattibilita' RAM/
+storage; sessione e stato del MoE; decode/prefill distinti, qualita' del dropping; MoE su GPU con i due
+difetti Adreno noti, half-offload escluso, esperti su NPU mai misurati; stop/go 6/11.
+
+**Sistema energia/joule del governor: dove sta e in che stato (18/09).** (1) `native/GovernorBatteryModule.kt`:
+thermo, SoC, corrente istantanea + charge counter, campionamento su file; letto da `governorInputs.ts:191`
+e `deviceProfile.ts:507-520`; **NON nell'APK** (16/09: 0 occorrenze nei dex; plugin `withGovernorBattery`
+solo al prebuild, CI fa assemble diretto; a runtime `sensor_valid:false`; il test lo mocka). (2) Framework
+energia in app `docs/ENERGY-FRAMEWORK-STATUS.md`, `ENERGY-SCHEMA.md`, `ENERGY-PERPHASE-FINDINGS.md`,
+`S23-ENERGY-BLOCKER.md`, script `energySchema/energyAggregate/energyPhaseSplit.mjs`, `energy-sample.sh`,
+`device-energy-sweep.sh` (merge 16ba535): misura DONE sul Jelly, core placement CHIUSO NEGATIVO, asse
+motore CPU/GPU/NPU APERTO, **S23 bloccato dalla shell** (Samsung nega corrente/tensione a adb: sull'S23 i
+joule si leggono solo da dentro l'app), joule assoluti relativi alla sessione, strumento charge-counter
+RITIRATO (5,3× di dispersione a lavoro identico). (3) Predizione in app `src/engine/batteryEta.ts` +
+`useBatteryEta.ts` (finestra di % batteria → "circa X-Y ore", advisory). Mappa completa:
+`scratchpad/QDC-GPU-GOVERNOR-MAP-2026-09-16.md`. Evidenza cool-mode S23 (12-13/08): decode GPU 38,5 °C
+plateau vs CPU 42,3 in salita, CPU piu' efficiente per token (0,61 % vs 0,79 %/1k) con la GPU a 0,67×.
+Incidente motivante: S23 10 %→1 % in 15 min col caricatore debole, 29→38 °C, spento.
+
+**Assorbire i tag upstream: cosa e' chiudibile e cosa no (misurato 18/09 su kalsallama).** Sopra la base
+upstream (`64a155d24`): 149 commit nostri, 96 file; 44 file nuovi (nessun conflitto possibile), **52 file
+upstream modificati** (+7854/−611) — la superficie di conflitto, concentrata in `ggml-opencl.cpp` (+3116),
+`repack.cpp` (+876), `ggml-cpu.c` (+868), `cvt.cl` (+747), `test-backend-ops.cpp` (+640), `arm/repack.cpp`
+(+336), `llama-kv-cache.cpp` (+90/−19). Upstream e' gia' 237 commit avanti. **Chiudibile** (in gran parte
+fatto): la catena kalsallama → fork (`sync bump`) → app (hash in package.json) → APK CI, ricetta in HANDOFF;
+resta la dipendenza del sync dalla cartella app per lo streamer (opzione B la toglie). **Riducibile, non
+azzerabile**: spostare i kernel nostri in file propri con pochi hook nei file upstream (giorni, non ore);
+portare a monte cio' che e' upstreamabile (decisione owner, mai push su repo terzi). **Raccomandazione**:
+niente bump fino al congelamento del 6/10 (ogni bump = prefill a freddo per conversazione e misure
+invalidate); dopo M1, refactor degli hook + opzione B insieme.
+
+**KV cache: stato onesto al 18/09.** Risolta sul telefono per chiusura/riapertura/force-stop (riuso intero,
+667 ms e 512 ms vs ~9 s); i due difetti erano il filler del prewarm (ora 6 token esatti) e il `<think>`
+in due forme. Limiti: ogni bump del motore invalida lo store (prefill a freddo per conversazione, per
+contratto); al soffitto del contesto su LFM lo stato ricorrente non si evince → prefill pieno deliberato
+(decisione 14/09); incollaggio da 9000 char azzera la storia (anchored-floor); stop/modifica/rigenera/
+cambio chat non ancora misurati (16 cicli); riuso col motore 63b92e83 non riprovato sul telefono (termica).
+
 **Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
 e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
 
