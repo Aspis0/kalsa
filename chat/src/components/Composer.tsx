@@ -1,9 +1,13 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
 import "./Composer.css";
 
 interface ComposerProps {
   streaming: boolean;
+  // The unsent text lives above this component: going home and back
+  // unmounts the composer, and a draft must survive the round trip.
+  draft: string;
+  onDraftChange: (text: string) => void;
   onSend: (text: string) => boolean;
   onStop: () => void;
   onAttach: (files: FileList) => void;
@@ -11,10 +15,10 @@ interface ComposerProps {
 
 const MAX_HEIGHT = 200;
 
-export function Composer({ streaming, onSend, onStop, onAttach }: ComposerProps) {
-  const [text, setText] = useState("");
+export function Composer({ streaming, draft, onDraftChange, onSend, onStop, onAttach }: ComposerProps) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const text = draft;
   const canSend = text.trim().length > 0 && !streaming;
 
   // Grow with the text up to MAX_HEIGHT, then scroll. Height only ever
@@ -30,7 +34,7 @@ export function Composer({ streaming, onSend, onStop, onAttach }: ComposerProps)
   function send(): void {
     const value = text.trim();
     if (!value || streaming) return;
-    if (onSend(value)) setText("");
+    if (onSend(value)) onDraftChange("");
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
@@ -52,7 +56,7 @@ export function Composer({ streaming, onSend, onStop, onAttach }: ComposerProps)
           className="composer-input"
           rows={1}
           value={text}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Write a message…"
           aria-label="Message"

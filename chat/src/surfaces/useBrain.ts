@@ -81,8 +81,12 @@ export function useBrain() {
   // until a start actually succeeds.
   const [heldFailure, setHeldFailure] = useState<string | null>(null);
   const heldFailureRef = useRef<string | null>(null);
-  // A stop that failed says so for as long as it takes the next read to land.
+  // A stop that failed says so until the brain is honestly down or the
+  // owner acts again. Held in a ref like a start failure: the sentence is
+  // the one warning that the server is still running after a stop, and a
+  // poll landing a moment later must not erase it before it is read.
   const [stopFailure, setStopFailure] = useState(false);
+  const stopFailureRef = useRef(false);
   const [busy, setBusy] = useState(false);
   // The latest walk step, live. It is cleared — never shown stale — the
   // moment the read stops saying "stopped".
@@ -91,6 +95,11 @@ export function useBrain() {
   function holdFailure(value: string | null): void {
     heldFailureRef.current = value;
     setHeldFailure(value);
+  }
+
+  function holdStopFailure(value: boolean): void {
+    stopFailureRef.current = value;
+    setStopFailure(value);
   }
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -103,7 +112,10 @@ export function useBrain() {
       }
     }
     setState(next);
-    setStopFailure(false);
+    // A held stop failure survives the poll. Only the brain really going
+    // down — or becoming unreadable — takes it back; a new action clears
+    // it in act.
+    if (!next || (next.kind !== "running" && next.kind !== "starting")) holdStopFailure(false);
     // The walk lives only while the read still says stopped and no start
     // failure is held; otherwise the ordinary view takes the page back.
     if (!next || next.kind !== "stopped" || heldFailureRef.current) setLiveStep(null);
@@ -139,6 +151,8 @@ export function useBrain() {
       return;
     }
     setBusy(true);
+    // The owner acted again: whatever a previous stop said is superseded.
+    holdStopFailure(false);
     try {
       if (state.kind === "stopped" || state.kind === "failed") {
         await invoke("brain_start");
@@ -150,7 +164,9 @@ export function useBrain() {
       if (state.kind === "stopped" || state.kind === "failed") {
         holdFailure(String(error));
       } else {
-        setStopFailure(true);
+        // Held against the polls: the brain is (still) not down, and the
+        // sentence stays until that honestly changes.
+        holdStopFailure(true);
       }
     }
     setBusy(false);

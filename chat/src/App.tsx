@@ -81,6 +81,9 @@ export function App() {
   const [liveMessage, setLiveMessage] = useState("");
   // The message the brain's writing bar became, for the one open move.
   const [barMessageId, setBarMessageId] = useState<string | null>(null);
+  // The composer's unsent text. Going home unmounts the chat, and the
+  // draft must survive that round trip, so it lives here.
+  const [draft, setDraft] = useState("");
 
   useEffect(
     () =>
@@ -451,20 +454,17 @@ export function App() {
   }
 
   // Enter in the brain's bar: the chat opens with the text as the first
-  // message, and the bar itself becomes that message (§3). The same state
-  // change happens plainly on the fallback path — no transition API, or
-  // reduced motion requested.
+  // message, and the bar itself becomes that message (§3). Without the
+  // transition path — no API, reduced motion, or not configured, where
+  // Settings opens instead — the same state change happens plainly, and
+  // the name is never set, so nothing can leak past the move.
   function writeFromBrain(text: string): void {
-    const open = () => {
-      const userId = sendMessage(text);
-      if (userId) setBarMessageId(userId);
-    };
     if (
       !configured ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       !document.startViewTransition
     ) {
-      open();
+      sendMessage(text);
       return;
     }
     document.documentElement.style.setProperty("--brain-open-ms", `${BRAIN_OPEN_MS}ms`);
@@ -684,7 +684,14 @@ export function App() {
                       {attachStatus}
                     </p>
                   ) : null}
-                  <Composer streaming={streaming} onSend={send} onStop={stop} onAttach={(files) => void attachFiles(files)} />
+                  <Composer
+                    streaming={streaming}
+                    draft={draft}
+                    onDraftChange={setDraft}
+                    onSend={send}
+                    onStop={stop}
+                    onAttach={(files) => void attachFiles(files)}
+                  />
                 </div>
                 <Panel
                   open={panelOpen && surface === "chat" && active !== null}

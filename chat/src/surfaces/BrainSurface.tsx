@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { SURFACES } from "../app/surfaces";
@@ -7,11 +7,12 @@ import { brainWords, useBrain } from "./useBrain";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
-// True once this open of the app has tried to bring the brain up. Module
-// scope, not component state: the brain page unmounts whenever the user
-// opens a settings page, and a second automatic try on the way back would
-// override a deliberate turn-off made on the Server page.
-let triedBringingUp = false;
+// True once this open of the app has had its one automatic attempt to
+// bring the brain up. Module scope, not component state: the brain page
+// unmounts whenever the user opens a settings page, and a second automatic
+// try on the way back would override a deliberate turn-off made on the
+// Server page.
+let automaticStartUsed = false;
 
 interface BrainSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
@@ -30,10 +31,24 @@ interface BrainSurfaceProps {
 export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfaceProps) {
   const { state, liveStep, heldFailure, busy, act } = useBrain();
   const [text, setText] = useState("");
+  // Whether this mount carries the opening's one automatic attempt. Spent
+  // on first appearance — before any read lands — so nothing the owner does
+  // elsewhere inside the first moment (a turn-off on the Server page, say)
+  // can be undone by an attempt that fires when the read finally arrives.
+  const carriesAutomaticStart = useRef(false);
 
   useEffect(() => {
-    if (triedBringingUp || !state) return;
-    triedBringingUp = true;
+    if (!automaticStartUsed) {
+      automaticStartUsed = true;
+      // The ref survives StrictMode's double invocation; the module flag
+      // makes the second run leave the budget spent.
+      carriesAutomaticStart.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!carriesAutomaticStart.current || !state) return;
+    carriesAutomaticStart.current = false;
     if (state.kind === "stopped") void act();
   }, [state, act]);
 
