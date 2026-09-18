@@ -7433,3 +7433,32 @@ resta il gate finale; ma e' una differenza reale fra questo APK e uno buildato d
 ricalcolo locale dell'engine id in questo momento mentirebbe due volte (albero altrui + symlink). Il
 protocollo lo faccio girare dal worktree `kv-residuals` su `6db7263` — lo stesso albero che ha
 buildato l'APK — e l'id lo leggo solo da dentro l'APK.
+
+### Il rebase provato prima di servire, e una condizione di accettazione che non poteva passare
+
+Fatto in un worktree usa-e-getta mentre l'APK compilava, cosi' che dopo il telefono non ci siano
+sorprese: `git rebase 3cabcf1` su un ramo di prova da `6db7263` — **26 commit, exit 0, zero
+conflitti**, punta `7a06c25f4c7c0ac62e42d4292815fb887a9c73a5`.
+
+**La condizione concordata non poteva passare, e non per colpa del rebase.** Era: *`git diff --stat
+6db7263 <tip> -- . ':!.github'` deve essere vuoto*. Misurato: non lo e', da'
+`scripts/assert-overlay-includes.sh | 143 ++--- 20`. E' la modifica di **main stessa**, che il rebase
+eredita per costruzione — una condizione formulata cosi' puo' passare solo se main non ha toccato
+nulla fuori da `.github`, e main l'ha fatto. Il difetto era nella formulazione, non nell'albero.
+
+**La verifica che risponde davvero alla domanda** ("il telefono ha provato lo stesso codice che
+spingo?"): il corpo del diff `6db7263..7a06c25` su quel file e' **byte-identico** a quello di
+`204298f..3cabcf1` sullo stesso file (`diff` dei due corpi, exit 0, zero righe). Quindi fuori da
+`.github` il rebase **non ha introdotto nulla di suo**, e l'unica differenza rispetto all'APK e' un
+gate di CI che nell'APK non entra: `scripts/` e' escluso per costruzione dai sei input del digest
+(`engine-build-id.js:191-198`).
+
+**Step list riletta dal YAML PARSATO, non da grep** — `python3 yaml.safe_load` sulla punta rebasata,
+che e' il modo di rispettare "non fidarti di un rebase pulito" senza fidarsi nemmeno del proprio
+occhio: `Assert the assembled engine's includes all resolve` con `env={'KALSA_GATE_REQUIRE_NDK':
+'1'}` → `Jest (bounded…)` con `timeout-minutes=15` → `Typecheck + logic harnesses` senza bound →
+`Free disk space` che fa `rm -rf …/sdk/ndk`. Entrambi gli hunk vivi, ordine giusto, YAML valido.
+
+Resta da fare prima del push: jest **sulla punta rebasata** (il verde che ho vale per `6db7263`), e
+il commit in punta con la frase del contratto nel commento dello step — dentro `.github`, cosi' la
+verifica di equivalenza qui sopra resta vera.
