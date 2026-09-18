@@ -6921,3 +6921,31 @@ carichino, scrivi, e il transcript precedente e' sostituito. Lo porta la session
 difetto di prodotto. Conseguenza per noi: il `.kvs` da 34,9 MB sopravvive ma e' **orfano** (senza il
 suo transcript non combacera' mai piu'), quindi **la prossima misura KV su telefono riparte da una
 conversazione nuova**.
+
+**18/09 mezzogiorno (11:36 EDT) — lo Step 4 e' su `main`: nell'app la strada vecchia non esiste
+piu'.** Push `git push origin origin/llama-rn-fork:main` → **`5fb1bfa..204298f`, fast-forward**, via
+di Marco tramite kalsa-ee, un solo pusher. Spariti dall'albero: `patches/`, `vendor/kalsallama-cpp/`
+(715 file), `native/kalsallama.pin`, `scripts/sync-kalsallama.sh`, `scripts/assert-vendor-pristine.sh`
+e il devDep `patch-package`. Entrato: `scripts/assert-engine-provenance.sh` **come passo di CI**
+subito dopo `npm ci` in `e2e-emulator.yml` e in `apk.yml` (lockfile `resolved` → tarball codeload del
+fork → `npm pack` → manifest sha256 contro `node_modules/llama.rn`). Engine id
+`kalsa-eng-v2:d1a501c95b8b23c27a9e850b1663e54b40bc7f898271c67ee7039a4f9fcd9e1d`.
+
+**La condizione che mancava non era una CI verde: era un verdetto.** L'e2e su main risultava
+"completata" due volte senza aver mai eseguito il turno di inferenza — `cancel-in-progress` per ref
+le aveva uccise a meta' quando un altro push e' arrivato. Il push e' partito solo dopo che
+**`35354742403` su `5fb1bfa` e' finita success con il passo 14 `Run E2E on emulator` success**: il
+primo verdetto di inferenza vero che main aveva dallo switch. Regola: su main si guarda il passo, non
+la riga di run.
+
+Verificato da me su disco nei minuti prima del push: `npx tsc --noEmit` 0; `prefixPrewarmHarness`
+exit 0 ("prefixPrewarmHarness OK"); `scripts/restoreVerdict.mjs` tracciato; l'engine id ricalcolato
+dopo l'ultima modifica a `native/` (non quello citato a memoria: il commit ne portava uno vecchio e
+l'audit l'ha beccato); fork `Aspis0/llama.rn` `kalsa` = `9cb24abb` con CI `35362845665` lint+test
+success. Run lanciate subito dopo: `35363460393` (e2e su `204298f` — prima volta che il gate di
+provenienza gira da solo su main) e `35363462434` (apk `debuggable=true`, da cui esce il prossimo
+confronto dei `.so`). Rollback: `git revert -m 1 204298f` + `npm ci`.
+
+Per la sessione KV: l'engine id e' cambiato, quindi i sidecar si rigenerano **una volta sola**; il
+ramo `kv-residuals` si rebasa su `204298f`; i `.so` non cambiano (38/38 identici su tre commit),
+quindi la prossima misura e' sullo stesso motore compilato.

@@ -1716,17 +1716,22 @@ tarball npm e overlay che nel fork sono gia' risolti. Rollback: `git revert -m 1
 Diario: `docs/ALIVE.md`, voce "18/09 mattina, più tardi".
 
 
-**Stato Step 4 (18/09 mattina EDT): PRONTO SUL RAMO, non su main.** Commit `38b5cf0` su
+**Stato Step 4 (18/09, 11:36 EDT): CHIUSO, E' SU `main`.** Commit `38b5cf0` su
 `llama-rn-fork` (`1b86de3..38b5cf0`): via `patches/`, `vendor/kalsallama-cpp/`, `native/kalsallama.pin`,
 `scripts/sync-kalsallama.sh`, `assert-vendor-pristine.sh`, devDep `patch-package`; dentro
 `scripts/assert-engine-provenance.sh`, **cablato in CI** in `e2e-emulator.yml` e `apk.yml` (il
 playbook lo voleva manuale: il suo motivo — «il lock lega l'installazione» — e' falso, l'`integrity`
 di una git-dep non la verifica nessuno). Engine id `c3418f60…` → **`d1a501c9…`** (il digest di
 `native/`: pin cancellato + un commento riscritto; il compilato non cambia). Audit ostile: 12
-findings, 4 corretti, 2 refutati dall'auditor stesso. Il push su main aspetta il verdetto del terzo
-run della sessione KV **e** il via di Marco. Run: `35354214821` (apk sul ramo), `35353338257` (apk
-su main, `debuggable=true`), `35351292439` (e2e su main). Diario: `docs/ALIVE.md`, voce "18/09
-mattina, terza voce".
+findings, 4 corretti, 2 refutati dall'auditor stesso. Push su main col via di Marco (tramite
+kalsa-ee) **dopo** che l'e2e `35354742403` su `5fb1bfa` e' finita verde **compreso il passo 14 `Run
+E2E on emulator`** — il verdetto di inferenza che main non aveva piu' dallo switch, perche' due e2e
+di fila erano state cancellate da push concorrenti (`cancel-in-progress` per ref). Push
+`5fb1bfa..204298f`, fast-forward, un solo pusher. Run: `35354214821` (apk sul ramo), `35354420026`
+(apk su main `bc6bd22`, `debuggable=true`), `35363460393` (e2e su `204298f`, prima volta che il gate
+di provenienza gira da solo su main) e `35363462434` (apk su `204298f`, `debuggable=true`).
+Rollback: `git revert -m 1 204298f` + `npm ci`. Diario: `docs/ALIVE.md`, voce "18/09 mattina, terza
+voce" e "18/09 mezzogiorno".
 
 **Stato Step 5 — prova a vuoto (18/09 mattina EDT): FATTA, non integrata.** `git merge v0.12.9` sul
 ramo `kalsa-v0129` del fork = **45 conflitti**, di cui **5 hunk in 2 file** hanno richiesto una
