@@ -6443,3 +6443,20 @@ riporta `speculative=default`), ma il cambio modello dalla UI non è stato trova
 valeva il rischio su un telefono condiviso alle 3:30. Resta evidenza mancante solo per il ramo ibrido:
 il fallback su target denso rimane compile-only per costruzione (`LlamaService.ts:2098-2106` degrada
 `draft-mtp` a `none` senza `mtp` in catalogo, e nessuna voce di catalogo ha `defaultEnabled`).
+
+**Correzione, 18/09 mattina — l'S23 NON era salvo, e due affermazioni di un agente erano false.**
+La sessione KV ha girato il suo protocollo sull'APK `10194d9` e il logcat del telefono dice
+`attachThreadpoolsIfAvailable:542 Attached ggml threadpool (n_threads=5, n_threads_batch=5)`. Due
+conseguenze, entrambe contro quanto avevo riportato. (1) **5 e 5 sono UGUALI**: il JS non manda
+`n_threads_batch` quando prefill e decode coincidono (`engineParams.ts:135-148`), quindi
+`cpuparams_batch` arrivava a `-1` e su questo telefono, **senza il fix, ci sarebbe stato lo stesso
+SIGSEGV dell'emulatore**. L'affermazione "l'S23 sopravvive per fortuna perché prefill 8 ≠ decode 2"
+veniva da un commento su G99 riportato da un delegato e accettato da me: era falsa. Il 5/5 che si legge
+oggi è il valore DOPO `postprocess_cpu_params`, cioè il fix che lavora. (2) Mi era stato riferito che
+`attachThreadpoolsIfAvailable` **non ha chiamanti**: falso, `cpp/jsi/RNLlamaJSI.cpp:705` la chiama, e la
+riga di log del telefono è il suo `LOG_INFO` (`rn-llama.cpp:540-542`). Le due strade verso il threadpool
+non sono alternative ma **in ordine**: `common_init_from_params` → `common_threadpools::init` dentro
+`loadModel` viene prima (ed è lì che moriva l'emulatore), il bridge JSI arriva dopo su parametri già
+risolti. Residuo aperto, trovato dalla sessione KV e non verificato da me: `common.cpp:1813-1815` prende
+due puntatori da `lm_ggml_backend_reg_get_proc_address` e li chiama **senza controllarli**; è codice del
+motore, quindi costerebbe un commit su kalsallama e un pin nuovo.
