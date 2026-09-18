@@ -9,6 +9,10 @@
 //! What no invariant can do is tell "slow machine" from "busy machine" in
 //! absolute terms. That is why the answer is a verdict and a retry, not a table
 //! of what each CPU class should reach.
+//!
+//! One check is not about the machine at all: a probe compiled without
+//! optimisations times its own build, nineteen times under the truth, and every
+//! other check here would then convict the computer of it.
 
 /// Repetitions that disagree by more than this were measured under a load that
 /// changed during the run. A quiet machine lands at 1–4%.
@@ -46,6 +50,10 @@ pub struct Evidence {
     /// The ramp never flattened: the last step was still the fastest.
     pub still_rising: bool,
     pub cache_rate: Option<f64>,
+    /// Whether the probe itself was compiled with optimisations. It is not a
+    /// fact about the machine, which is why it is the one note that does not
+    /// blame one.
+    pub optimised: bool,
 }
 
 pub fn judge(evidence: &Evidence) -> Reliability {
@@ -78,6 +86,13 @@ pub fn judge(evidence: &Evidence) -> Reliability {
                 parallelism, evidence.tried_threads
             ));
         }
+    }
+    if !evidence.optimised {
+        notes.push(
+            "this probe was built without optimisations, so what it timed is the build and \
+             not the computer"
+                .to_string(),
+        );
     }
     if let Some(cache) = evidence.cache_rate {
         if cache > 0.0 && evidence.best_rate > cache * 1.05 {
@@ -136,6 +151,7 @@ mod tests {
             best_rate: 110.0e9,
             still_rising: false,
             cache_rate: Some(300.0e9),
+            optimised: true,
         }
     }
 
@@ -184,6 +200,23 @@ mod tests {
             .notes
             .iter()
             .any(|note| note.contains("cache reads")));
+    }
+
+    #[test]
+    fn an_unoptimised_probe_says_so_instead_of_blaming_the_machine() {
+        let mut input = evidence();
+        input.optimised = false;
+        let verdict = judge(&input);
+        assert!(!verdict.reliable);
+        assert!(verdict
+            .notes
+            .iter()
+            .any(|note| note.contains("without optimisations")));
+        assert!(
+            !verdict.notes.iter().any(|note| note.contains("busy")),
+            "the build is not the machine's fault: {:?}",
+            verdict.notes
+        );
     }
 
     #[test]

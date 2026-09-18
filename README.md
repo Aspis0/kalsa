@@ -21,7 +21,7 @@ crates/kalsa-probe/        what this machine can do, measured once: memory
                            bandwidth to a plateau, compute, and which backend
                            will really run. Every number carries the execution
                            path it describes, because one that does not is how
-                           a CPU-only figure under-predicted every Mac by 3-4x
+                           a CPU-only figure was read as the whole Mac
 crates/kalsa-catalog/      which model this machine should run, and why - pure,
                            no hardware, no I/O, no download
 crates/kalsa-download/     getting a model file here once, safely: resumable,
@@ -109,9 +109,10 @@ cargo run --release -p kalsa-probe -- --threads 1 --reps 10
 
 Two measurements, kept apart on purpose:
 
-* **bandwidth** — streaming reads of a block larger than any cache. Decode is
-  bandwidth-bound: one token reads every active weight byte once, so
-  `tokens/s ≈ efficiency × bandwidth / active_bytes`. The thread count is not
+* **bandwidth** — streaming reads of a block larger than any cache. Decode
+  streams every active weight byte once per token *and* pays a price the weights
+  do not explain, so the cost is two terms, not a rate:
+  `seconds/token = fixed + traffic_bytes / bandwidth`. The thread count is not
   assumed: **a ramp** measures 1, 2, 4 … threads and reports the first count that
   reaches the plateau. A datasheet number is fantasy on a single-channel laptop,
   which is why it is measured and not quoted.
@@ -133,28 +134,37 @@ out once.** The result carries both facts, as data:
   faster than the path measured, so the catalog can branch on it instead of
   parsing a sentence.
 
-On Apple Silicon this matters by 3–4x: the SoC's memory bandwidth (an M1 Max is
-specified at 400 GB/s) is reachable from the GPU and not from the CPU, and
-llama.cpp decodes through Metal there, so the CPU figure is a floor. On an old
+On Apple Silicon this matters, but not by a factor: the SoC's memory bandwidth
+(an M1 Max is specified at 400 GB/s) is reachable from the GPU and not from the
+CPU, and llama.cpp decodes through Metal there. Measured on five real models,
+the CPU's 110 GB/s is a floor under a *marginal* 197 GB/s through Metal — a
+floor under one of the two terms, which is not the same as a multiplier on the
+answer. On an old
 integrated GPU the CPU is the correct answer rather than a fallback, and on a
 discrete card the budget is VRAM, not system RAM — which is why one number could
 never have been enough.
 
 The probe refuses its own bad measurements: repetitions that disagree, a ramp
-that never flattens, a memory reading faster than the cache, or threads that did
-not get their cores all make the verdict `unreliable`, and the caller retries
+that never flattens, a memory reading faster than the cache, threads that did
+not get their cores, or the probe having been compiled without optimisations —
+that last one is the only check that does not blame the machine, and it exists
+because an unoptimised build reads 5.8 GB/s where the same Mac reads 110. Any of
+them makes the verdict `unreliable`, and the caller retries
 rather than reporting a low number as a fact about the machine. What no
 invariant can do is tell "slow machine" from "busy machine" in absolute terms,
 and that is why the answer is a verdict instead of a table of what each CPU class
 should reach.
 
-The remaining honesty: the formula ignores traffic the model really pays — the KV
-cache is re-read every token and grows with context (the largest omission for a
-MoE, whose active weights are small), attention costs more as context grows, and a
-router adds reads. `EFFICIENCY_BAND` (0.7–0.9) is a prior for that, not a
-constant. So the number pre-filters a catalog; it does not promise a figure.
-Nothing here has been validated against real inference yet: that needs a real
-model benchmarked on the machine.
+The remaining honesty: the two terms still do not see everything the model pays
+— the KV cache is re-read every token and grows with context (the caller that
+knows the context charges it in), and a mixture-of-experts router reads more than
+its active bytes, which the catalog carries as a measured correction. A machine
+that has only been streamed is therefore given a **band**, never a point: a
+pessimistic end that charges one machine's fixed price and 70% of the measured
+rate, and an optimistic end that charges nothing and streams at the full rate.
+This is no longer unvalidated — the shape was fitted and cross-validated against
+five real llama.cpp runs on one machine — but one machine is one machine, and a
+measured decode always replaces the prediction.
 
 ## The catalog: which model, before downloading anything
 
@@ -176,7 +186,7 @@ The rules are pure and tested without hardware:
   licence allows what this product needs. The refused rows stay in the catalog
   with their reason: `amd/Instella-MoE-16B-A3B-Think` is research-only, and the
   2025 rows are superseded.
-* **the PC must beat the phone.** A candidate needs at least 1.3× the phone
+* **the PC must beat the phone.** A candidate needs at least 1.4× the phone
   model's weight, and has to decode at 3 tokens per second or more at the *low*
   end of its predicted range. If nothing clears both bars, the answer is "this
   computer is not worth it", in words — there is no courtesy tier.

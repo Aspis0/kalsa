@@ -20,3 +20,12 @@ members = [
 version = "0.0.1"
 edition = "2021"
 license = "Apache-2.0"
+
+# The probe's inner loops *are* the measurement, so they are built with
+# optimisations in every profile. Unoptimised the same M1 Max reads 5.8 GB/s
+# where it really reads 110, and the probe's threads collect 2.4 cores where
+# they collect 7.0 — the reading describes the compiler, not the computer, and
+# the reliability checks then refuse it and blame the machine for being busy.
+# Measured 2026-09-18: `cargo run -p kalsa-probe` debug vs release.
+[profile.dev.package.kalsa-probe]
+opt-level = 3

@@ -2,13 +2,17 @@
 //!
 //! The problem this exists for: to know whether a model will be fast enough we
 //! would have to download gigabytes and try it, and if the answer is no we made
-//! the user wait to be told no. Decode is bandwidth-bound, and bandwidth is a
-//! property of the *machine*, so it can be measured once — a few seconds — and
-//! every catalog entry can be predicted from it.
+//! the user wait to be told no. A token costs a fixed price whatever the
+//! weights weigh, plus the time to stream the bytes it reads, and the
+//! streaming half is a property of the *machine*, so it can be measured once —
+//! a few seconds — and every catalog entry can be predicted from it. The
+//! machine has two properties, then, and only one is measured today: the fixed
+//! price travels as a prior from the one machine measured so far.
 //!
-//! What this is not: exact. See `predict` for the assumptions and the efficiency
-//! band, `Series` for why every number comes with its spread, and `confidence`
-//! for why a number measured on a busy machine is not offered as the machine's.
+//! What this is not: exact. See `predict` for the assumptions and the two ends
+//! of the decode band, `Series` for why every number comes with its spread,
+//! and `confidence` for why a number measured on a busy machine is not offered
+//! as the machine's.
 
 mod bandwidth;
 mod compute;
@@ -18,14 +22,19 @@ mod path;
 mod plateau;
 mod predict;
 mod series;
+mod soc;
 
 pub use bandwidth::{measure_at_threads, thread_ramp, SAMPLE_TARGET};
 pub use compute::measure_compute;
 pub use confidence::{Reliability, SPREAD_LIMIT};
 pub use path::{Backend, ExecutionPath};
 pub use plateau::{plateau, still_rising, PLATEAU_TOLERANCE};
-pub use predict::{decode_tokens_per_second, prefill_tokens_per_second, DECODE_EFFICIENCY_BAND};
+pub use predict::{
+    decode_band, decode_tokens_per_second, prefill_tokens_per_second, DecodeCost,
+    FIXED_SECONDS_PRIOR, SUSTAINED_BANDWIDTH_SHARE,
+};
 pub use series::Series;
+pub use soc::{published_bandwidth, DECODE_SHARE_OF_PUBLISHED};
 
 use std::time::{Duration, Instant};
 
@@ -44,6 +53,10 @@ pub const MAX_ATTEMPTS: u32 = 3;
 /// How long to wait between attempts, to give whatever else was running a chance
 /// to finish.
 pub const RETRY_PAUSE: Duration = Duration::from_secs(3);
+/// The optimisation level this crate was compiled at, carried in by the build
+/// script. Nothing else can see it at run time, and it changes the reading by a
+/// factor of nineteen, so it travels with the evidence.
+pub const OPT_LEVEL: &str = env!("KALSA_PROBE_OPT_LEVEL");
 
 #[derive(Clone, Debug)]
 pub struct ProbeConfig {
@@ -97,6 +110,10 @@ pub struct Measurement {
     pub measured_on: ExecutionPath,
     /// What this machine will run the model on, by detection only.
     pub will_run_on: Backend,
+    /// What decode should reach on the path the model will actually take, when
+    /// the chip is one [`soc`] knows. `None` on a machine whose GPU bandwidth
+    /// cannot be named — there the CPU figure is all there is, and it says so.
+    pub decode_bytes_per_second: Option<f64>,
 }
 
 impl Measurement {
@@ -106,7 +123,16 @@ impl Measurement {
     /// Data, deliberately: the catalog branches on this instead of parsing the
     /// sentence next to it.
     pub fn bandwidth_is_lower_bound(&self) -> bool {
-        self.will_run_on.is_faster_than_cpu_measurement()
+        self.will_run_on.is_faster_than_cpu_measurement() && self.decode_bytes_per_second.is_none()
+    }
+
+    /// The rate decode should be predicted from: the chip's own, where the chip
+    /// is known, and the CPU streaming figure otherwise. One accessor, so no
+    /// caller can predict from the slow path while another predicts from the
+    /// real one.
+    pub fn decode_bandwidth_bytes_per_second(&self) -> f64 {
+        self.decode_bytes_per_second
+            .unwrap_or(self.ceiling_bytes_per_second)
     }
 
     /// True, always: the compute probe is a portable f32 loop, while prefill in
@@ -190,6 +216,7 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
         best_rate: ceiling_rate,
         still_rising: still_rising(&ramp),
         cache_rate: Some(cache.max()).filter(|rate| *rate > 0.0),
+        optimised: OPT_LEVEL != "0",
     });
 
     Measurement {
@@ -202,6 +229,14 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
         reliability,
         measured_on: ExecutionPath::Cpu,
         will_run_on: detect::backend(),
+        // Only where the model will decode on the GPU: on a CPU-only machine
+        // the streaming figure already describes the path that will run, and
+        // replacing it with a chip's published number would swap a
+        // measurement for a datasheet.
+        decode_bytes_per_second: detect::backend()
+            .is_faster_than_cpu_measurement()
+            .then(soc::decode_bandwidth)
+            .flatten(),
     }
 }
 
@@ -241,10 +276,25 @@ mod tests {
         assert!(measurement.cache.max() > 0.0);
         assert_eq!(measurement.measured_on, ExecutionPath::Cpu);
         assert!(!measurement.measured_on.note().is_empty());
-        // Detection ran and is reachable as data, not only as prose.
+        // Detection ran and is reachable as data, not only as prose. A GPU
+        // machine is a floor only while its chip is unknown: once `soc` names
+        // the chip, the prediction is on the path that will run and the floor
+        // is no longer the honest word for it.
+        let gpu = measurement.will_run_on.is_faster_than_cpu_measurement();
         assert_eq!(
             measurement.bandwidth_is_lower_bound(),
-            measurement.will_run_on.is_faster_than_cpu_measurement()
+            gpu && measurement.decode_bytes_per_second.is_none()
+        );
+        assert_eq!(
+            measurement.decode_bandwidth_bytes_per_second(),
+            measurement
+                .decode_bytes_per_second
+                .unwrap_or(measurement.ceiling_bytes_per_second)
+        );
+        assert!(
+            measurement.decode_bytes_per_second.is_none() || gpu,
+            "a chip figure on a machine that decodes on the CPU would swap a \
+             measurement for a datasheet"
         );
         // The compute figure is a floor on every machine, by construction.
         assert!(measurement.compute_is_lower_bound());
@@ -255,8 +305,19 @@ mod tests {
 
     #[test]
     fn retrying_never_returns_more_than_it_promises() {
-        let measurement = measure_reliable(&tiny());
-        assert!(measurement.reliability.threads == 2);
+        let config = tiny();
+        let measurement = measure_reliable(&config);
+        // The plateau is a reading of this machine, not a constant: on a busy
+        // one a single thread lands within tolerance of two and the plateau
+        // is 1. What retrying may never do is report a ramp it did not walk.
+        // Asserting the exact count pinned the hardware instead of the code
+        // and failed two runs in four with nothing wrong.
+        assert!(
+            (1..=config.threads).contains(&measurement.reliability.threads),
+            "plateau {} threads, outside the ramp of {}",
+            measurement.reliability.threads,
+            config.threads
+        );
         assert!(measurement.is_reliable() || !measurement.reliability.notes.is_empty());
     }
 }

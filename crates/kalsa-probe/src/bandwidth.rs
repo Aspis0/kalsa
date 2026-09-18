@@ -11,21 +11,30 @@
 //! `ExecutionPath` for how the number says so, and `path.rs` for what a Metal
 //! backend would have to add.
 //!
-//! **By how much, measured rather than reasoned (2026-09-18, M1 Max, llama.cpp
-//! b10950 through Metal, `llama-bench`): 1.6x.** A dense 7.12 GiB Q4_K_M model
-//! decodes at 23.51 tok/s, which is 167 GiB/s of weights streamed — about
-//! 180 GB/s against the 110 GB/s ceiling above. An earlier version of this
-//! comment said 3–4x, reasoning from the SoC's 400 GB/s specification; a
-//! STREAM-style Metal kernel does reach roughly that, but decode does not,
-//! because dequantisation, attention and the KV cache spend the difference.
-//! The correction matters in the dangerous direction: 3–4x would have chosen
-//! models this machine cannot hold, and an over-large model fails *after* the
-//! download instead of before it.
+//! **How much it under-predicts is not one number, measured rather than reasoned
+//! (2026-09-18, M1 Max, llama.cpp b10950 through Metal, `llama-bench`, five dense
+//! Q4_K_M models from 0.45 to 7.12 GiB): decode has no single bandwidth.** The
+//! rate a model achieves climbs with its size and then wanders — 95.7, 145.4,
+//! 157.7, 189.1 and 171.3 GiB/s at 0.45, 1.04, 1.95, 4.36 and 7.12 GiB — because
+//! a cost per token that the weights do not explain (attention, the KV cache,
+//! launching the kernels) is paid whatever they weigh. Fitting
+//! `seconds_per_token = fixed + bytes / bandwidth` across the five gives
+//! **183.5 GiB/s marginal and 1.504 ms fixed**; held out one point at a time,
+//! that shape errs 13.3% on average where a single rate errs 25.7%.
 //!
-//! The same run is why no synthetic Metal probe lives here. A tiny model
-//! measures nothing — `stories260K` at 1.12 MiB decodes at 798 tok/s, which
-//! implies 0.87 GiB/s, off by more than 200x — because at that size the cost
-//! is per-token overhead and the weights never leave cache.
+//! So this CPU figure is a floor under the marginal term, not a factor away from
+//! the answer: 110 GB/s here against 197 GB/s marginal through Metal. An earlier
+//! version of this comment said 3-4x, reasoning from the SoC's 400 GB/s
+//! specification; the version after it said 1.6x, which was one model's implied
+//! rate mistaken for a constant. Both stated one number where the machine has two.
+//!
+//! The same runs are why no synthetic probe lives here, and why a small model is
+//! not a shortcut to the big one. `stories260K` at 1.12 MiB implies 0.87 GiB/s,
+//! off by more than 200x; even a real 0.45 GiB model implies 95.7 where the 4.36
+//! GiB one reaches 189.1, because at that size the fixed cost is 31.8% of every
+//! token. Quantisation moves the rate independently of size: the same gemma
+//! requantised to Q2_K (4.48 GiB) decodes at 26.4 tok/s where the fit says 38.6,
+//! spending the difference on dequantisation rather than on memory.
 //!
 //! The kernel is deliberately simple: an M1 Max measures the same with 128-bit
 //! NEON and with these 64-bit loads (112 vs 111 GB/s at the plateau), so the

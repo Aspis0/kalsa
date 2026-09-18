@@ -4,19 +4,31 @@
 //! measures the optimizer, not the machine.
 
 use kalsa_probe::{
-    decode_tokens_per_second, measure_reliable, prefill_tokens_per_second, ProbeConfig, Series,
-    DECODE_EFFICIENCY_BAND,
+    decode_band, decode_tokens_per_second, measure_reliable, prefill_tokens_per_second, ProbeConfig,
+    Series,
 };
 
 /// Illustrative catalog rows: (label, active bytes, active parameters). Byte
 /// counts assume ~0.6 bytes per weight (Q4_K_M plus overhead), the shape of the
 /// models this product actually offers. The real numbers come from the catalog.
+/// Illustrative rows: the label, the bytes a token really READS, and the active
+/// parameters prefill is priced from.
+///
+/// The middle column is traffic, not the active-byte share, and for a mixture
+/// those differ: a router reads about 2.06x its active bytes, measured across
+/// four decoded MoEs (`kalsa_catalog::candidate::MOE_TRAFFIC_CORRECTION`). The
+/// catalog applies that correction and this table used to not, so the two tools
+/// printed different speeds for the same model — the MoE rows below carry it
+/// pre-multiplied. The constant cannot be imported: the catalog depends on this
+/// crate, not the other way round.
 const ROWS: [(&str, u64, u64); 5] = [
     ("4B dense Q4", 2_400_000_000, 4_000_000_000),
     ("8B dense Q4", 4_800_000_000, 8_000_000_000),
-    ("30B-A3B MoE Q4", 1_800_000_000, 3_000_000_000),
+    // 1.8 GB active x 2.06
+    ("30B-A3B MoE Q4", 3_708_000_000, 3_000_000_000),
     ("70B dense Q4", 42_000_000_000, 70_000_000_000),
-    ("120B-A12B MoE Q4", 7_200_000_000, 12_000_000_000),
+    // 7.2 GB active x 2.06
+    ("120B-A12B MoE Q4", 14_832_000_000, 12_000_000_000),
 ];
 
 fn main() {
@@ -80,22 +92,34 @@ fn main() {
     println!("{}", measurement.measured_on.note());
     println!("{}", measurement.will_run_on.note());
 
-    let (low, high) = DECODE_EFFICIENCY_BAND;
-    let bandwidth = measurement.ceiling_bytes_per_second;
+    let ends = decode_band(measurement.decode_bandwidth_bytes_per_second());
     let compute = measurement.compute.max();
     println!();
-    println!("decode at efficiency {low}..{high} (1.0 in brackets); prefill is a FLOOR, no band");
+    match ends {
+        Some((pessimistic, optimistic)) => println!(
+            "decode band: pessimistic pays {:.3} ms/token and reads at {:.0} GB/s, optimistic pays nothing and reads at {:.0} GB/s; prefill is a FLOOR, no band",
+            pessimistic.fixed_seconds * 1e3,
+            pessimistic.bandwidth_bytes_per_second / 1e9,
+            optimistic.bandwidth_bytes_per_second / 1e9,
+        ),
+        None => println!(
+            "decode: the measured bandwidth gives no band to predict from; prefill is a FLOOR, no band"
+        ),
+    }
     println!(
         "{:<20} {:>18} {:>18}",
         "row (illustrative)", "decode tok/s", "prefill tok/s"
     );
-    for (label, active_bytes, active_params) in ROWS {
+    for (label, traffic_bytes, active_params) in ROWS {
         println!(
             "{label:<20} {:>18} {:>18}",
             span(
-                decode_tokens_per_second(bandwidth, active_bytes, low),
-                decode_tokens_per_second(bandwidth, active_bytes, high),
-                decode_tokens_per_second(bandwidth, active_bytes, 1.0),
+                ends.and_then(|(pessimistic, _)| {
+                    decode_tokens_per_second(&pessimistic, traffic_bytes)
+                }),
+                ends.and_then(|(_, optimistic)| {
+                    decode_tokens_per_second(&optimistic, traffic_bytes)
+                }),
             ),
             match prefill_tokens_per_second(compute, active_params) {
                 Some(floor) => format!("≥ {floor:.1}"),
@@ -118,12 +142,10 @@ fn report(label: &str, unit: &str, series: &Series, headline: f64) {
     );
 }
 
-fn span(low: Option<f64>, high: Option<f64>, upper: Option<f64>) -> String {
+/// Both ends of the band, or a dash when there is no band to show.
+fn span(low: Option<f64>, high: Option<f64>) -> String {
     let (Some(low), Some(high)) = (low, high) else {
         return "—".to_string();
     };
-    match upper {
-        Some(upper) => format!("{low:.1}–{high:.1} ({upper:.1})"),
-        None => format!("{low:.1}–{high:.1}"),
-    }
+    format!("{low:.1}–{high:.1}")
 }
