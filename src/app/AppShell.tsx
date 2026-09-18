@@ -157,7 +157,8 @@ import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/m
 import {
   gateModelLoad,
   refusalMessageKey,
-  type LoadGateVerdict,
+  smallerModelExists,
+  type LoadRefusal,
 } from "../engine/loadGate";
 import {
   clearLoadMarker,
@@ -3873,12 +3874,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * (download a smaller model) instead of sending the user hunting for memory.
    */
   const reportLoadRefusal = useCallback(
-    async (model: ModelInfo, verdict: LoadGateVerdict, source: string) => {
+    async (model: ModelInfo, verdict: LoadRefusal, source: string) => {
       let otherModelAvailable = false;
+      let smallerExists = false;
       if (verdict.refusedBy === "marker") {
         const downloadedIds: string[] = [];
+        const otherSizes: number[] = [];
         for (const candidate of MODEL_REGISTRY) {
           if (candidate.id === model.id) continue;
+          otherSizes.push(candidate.sizeBytes);
           try {
             if (await isModelBundleDownloaded(candidate)) {
               downloadedIds.push(candidate.id);
@@ -3888,6 +3892,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
         }
         otherModelAvailable = hasOtherDownloadedModel(downloadedIds, model.id);
+        smallerExists = smallerModelExists(otherSizes, model.sizeBytes);
       }
       // eslint-disable-next-line no-console
       console.log(
@@ -3895,6 +3900,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           phase: "fitGate",
           modelId: model.id,
           refusedBy: verdict.refusedBy,
+          reasonKey: verdict.reasonKey,
           disposedResident: verdict.disposedResident,
           source,
         })}`,
@@ -3902,7 +3908,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelState("error");
       modelStateRef.current = "error";
       setModelErrorKind("engine");
-      setModelError(t(refusalMessageKey(verdict.refusedBy ?? "fit", otherModelAvailable)));
+      setModelError(t(refusalMessageKey(verdict, otherModelAvailable, smallerExists)));
       setModelErrorDetail(null);
     },
     [t],
@@ -3913,11 +3919,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * a marker refusal is a HUMAN act: the tap clears this model's death marker
    * and retries once. The app never clears the marker or retries on its own,
    * so no launch ever hammers the killer again — and the way out is chosen by
-   * a person who has just read what happened.
+   * a person who has just read what happened. The clear is AWAITED: it is the
+   * user's one explicit act, and the ensure below must never read the marker
+   * before the removal lands — a lost race would make the tap a silent no-op.
    */
   const userReloadModel = useCallback((model: ModelInfo) => {
-    void clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
-    void ensureEngineForModelRef.current(model);
+    void (async () => {
+      await clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+      void ensureEngineForModelRef.current(model);
+    })();
   }, []);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
@@ -4021,60 +4031,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setCoResidencyContext({ chatModelIs2B: isChatModel2BClass(model.id) });
       }
 
-      // Boot-loop defence: the SAME fit evaluation the send path runs
-      // (decidePreSendFit, via gateModelLoad), here on the LOAD path — the
-      // send-only gate let a too-big model load, die to LMK in the foreground,
-      // and relaunch-loop. A resident model different from the target is
-      // disposed first (bounded) so the gate never refuses on memory held by
-      // the model it is about to replace; same model → no dispose.
-      const gateVerdict = await evaluateLoadGate(model);
-      if (!gateVerdict.allow) {
-        await reportLoadRefusal(model, gateVerdict, "ensure");
-        // Fallback once: last good load, else the default — never the model
-        // that just failed, never a marked one (a fallback passes the same
-        // marker check as the primary), never a second hop. Null → the
-        // refusal message above stands alone; nothing loads.
-        if (loadFallbackTargetRef.current !== model.id) {
-          const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
-          const fallbackId = await pickFallbackModel({
-            refusedId: model.id,
-            lastGoodId,
-            defaultId: getDefaultModel().id,
-            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
-          });
-          const fallbackIndex = fallbackId
-            ? MODEL_REGISTRY.findIndex((m) => m.id === fallbackId)
-            : -1;
-          if (fallbackIndex >= 0 && fallbackIndex !== modelIndexRef.current) {
-            loadFallbackTargetRef.current = fallbackId;
-            setModelState("checking");
-            // Keep stillCurrent() correct before re-render (same as selectModel):
-            // the direct ensure below awaits, and modelIndexRef lags the render.
-            modelIndexRef.current = fallbackIndex;
-            setModelIndex(fallbackIndex);
-            // Load the fallback directly: the [modelIndex] kick is one-shot per
-            // modelId@generation (claimEagerKick), so a fallback that already
-            // kicked this process would otherwise never load. A duplicate kick
-            // ensure is refused by the chat-gate backstop.
-            const fallbackModel = MODEL_REGISTRY[fallbackIndex];
-            void (async () => {
-              try {
-                if (await isModelBundleDownloaded(fallbackModel)) {
-                  void ensureEngineForModelRef.current(fallbackModel);
-                } else if (modelIndexRef.current === fallbackIndex) {
-                  setModelState("missing");
-                }
-              } catch {
-                // Bundle probe failure: keep the refusal message visible and
-                // let the model bar retry path take over.
-                setModelState("error");
-              }
-            })();
-          }
-        }
-        return false;
-      }
-
       // Clear previous error banner before retry so "Ready" never coexists with
       // a stale "Could not load the model" under the header / in Settings.
       // FIX B: bump + abort so in-flight embed cannot initLlama after we start
@@ -4131,6 +4087,71 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       acquiredChatGen = chatGen;
       chatGateGenRef.current = chatGen;
+
+      // Boot-loop defence gate — run AFTER acquisition, deliberately. The
+      // single-owner invariant does the work: a duplicate ensure is refused by
+      // tryAcquireChat before it can ever read the marker, so the marker keeps
+      // exactly one meaning — a load from a PREVIOUS process that never
+      // finished. Read before acquisition, a duplicate could see this
+      // process's own in-flight marker, report a false death, and re-route a
+      // load that was succeeding. The fit evaluation is the SAME one the send
+      // path runs (decidePreSendFit, via gateModelLoad), on the LOAD path; a
+      // resident model different from the target is disposed first (bounded)
+      // so the gate never refuses on memory held by the model it is about to
+      // replace; same model → no dispose.
+      const gateVerdict = await evaluateLoadGate(model);
+      if (!gateVerdict.allow) {
+        // Refusal releases THIS gen before reporting/falling back — the
+        // fallback's own ensure needs the free slot. acquiredChatGen is nulled
+        // so the catch below cannot release it twice.
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        acquiredChatGen = null;
+        await reportLoadRefusal(model, gateVerdict, "ensure");
+        // Fallback once: last good load, else the default — never the model
+        // that just failed, never a marked one (a fallback passes the same
+        // marker check as the primary), never a second hop. Null → the
+        // refusal message above stands alone; nothing loads.
+        if (loadFallbackTargetRef.current !== model.id) {
+          const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
+          const fallbackId = await pickFallbackModel({
+            refusedId: model.id,
+            lastGoodId,
+            defaultId: getDefaultModel().id,
+            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
+          });
+          const fallbackIndex = fallbackId
+            ? MODEL_REGISTRY.findIndex((m) => m.id === fallbackId)
+            : -1;
+          if (fallbackIndex >= 0 && fallbackIndex !== modelIndexRef.current) {
+            loadFallbackTargetRef.current = fallbackId;
+            setModelState("checking");
+            // Keep stillCurrent() correct before re-render (same as selectModel):
+            // the direct ensure below awaits, and modelIndexRef lags the render.
+            modelIndexRef.current = fallbackIndex;
+            setModelIndex(fallbackIndex);
+            // Load the fallback directly: the [modelIndex] kick is one-shot per
+            // modelId@generation (claimEagerKick), so a fallback that already
+            // kicked this process would otherwise never load. A duplicate kick
+            // ensure is refused by the chat-gate backstop.
+            const fallbackModel = MODEL_REGISTRY[fallbackIndex];
+            void (async () => {
+              try {
+                if (await isModelBundleDownloaded(fallbackModel)) {
+                  void ensureEngineForModelRef.current(fallbackModel);
+                } else if (modelIndexRef.current === fallbackIndex) {
+                  setModelState("missing");
+                }
+              } catch {
+                // Bundle probe failure: keep the refusal message visible and
+                // let the model bar retry path take over.
+                setModelState("error");
+              }
+            })();
+          }
+        }
+        return false;
+      }
 
       setModelState("loading");
       modelStateRef.current = "loading";

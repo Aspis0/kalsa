@@ -281,6 +281,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "L'ultimo caricamento di questo modello non è arrivato in fondo, quindi è stato messo da parte.",
     loadSetAsideDownloadSmaller:
       "Questo modello non ha finito di caricarsi. Scarica un modello più piccolo per continuare a usare l'app.",
+    loadSetAsideRetry:
+      "Questo modello è stato messo da parte dopo un caricamento non arrivato in fondo. Non c'è un modello più piccolo da scaricare: tocca il nome del modello qui sopra per riprovare.",
   },
   voice: {
     title: "Voce",

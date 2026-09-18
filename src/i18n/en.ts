@@ -286,6 +286,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "The last load of this model did not finish, so it was set aside.",
     loadSetAsideDownloadSmaller:
       "This model did not finish loading. Download a smaller model to keep using the app.",
+    loadSetAsideRetry:
+      "This model was set aside after a load that did not finish. There is no smaller model to download — tap the model name above to retry.",
   },
   voice: {
     title: "Voice",

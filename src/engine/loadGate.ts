@@ -12,36 +12,64 @@ import type { LoadPolicy } from "./loadPolicy";
 
 export type LoadRefusalKind = "marker" | "fit" | "disposeTimeout";
 
-export type LoadGateVerdict = {
-  allow: boolean;
-  /** Existing i18n key to surface on refusal; null when allowed. */
-  reasonKey: "model.tooLarge" | "model.tightNow" | "errors.engineDisposeTimeout" | null;
-  refusedBy: LoadRefusalKind | null;
-  /** True only when a different resident model WAS disposed (not attempted). */
-  disposedResident: boolean;
-};
+/**
+ * reasonKey carries ONLY the fit decider's own reason, pass-through. A marker
+ * refusal has no fit reason — the marker knows only that a load did not
+ * finish — so its reasonKey is null, never a borrowed claim.
+ */
+export type LoadGateVerdict =
+  | { allow: true; refusedBy: null; reasonKey: null; disposedResident: boolean }
+  | {
+      allow: false;
+      refusedBy: "fit";
+      reasonKey: "model.tooLarge" | "model.tightNow";
+      disposedResident: boolean;
+    }
+  | {
+      allow: false;
+      refusedBy: "marker" | "disposeTimeout";
+      reasonKey: null;
+      disposedResident: boolean;
+    };
+
+export type LoadRefusal = Extract<LoadGateVerdict, { allow: false }>;
 
 /**
- * Refusal → i18n key, selected by the cause the code actually knows. The
- * marker knows only that a load did not finish — dev reload, native error and
- * swipe-kill land there too — so it must not claim "too large", which is the
- * fit verdict's claim. When nothing else is on disk the marker message must
- * point at the real way out: downloading a smaller model.
+ * Refusal → i18n key, selected by the cause the code actually knows. The fit
+ * branch passes the decider's reason through untouched (tooLarge vs tightNow —
+ * two different truths). The marker branch never claims a memory verdict: it
+ * says the load was set aside, and points at what can actually be done —
+ * switch to another downloaded model, download a smaller one, or, when no
+ * smaller model exists at all, retry the load.
  */
 export function refusalMessageKey(
-  refusedBy: LoadRefusalKind,
+  verdict: LoadRefusal,
   otherModelDownloaded: boolean,
-): "model.tooLarge" | "model.loadSetAside" | "model.loadSetAsideDownloadSmaller" | "errors.engineDisposeTimeout" {
-  switch (refusedBy) {
+  smallerModelExists: boolean,
+): "model.tooLarge" | "model.tightNow" | "model.loadSetAside" | "model.loadSetAsideDownloadSmaller" | "model.loadSetAsideRetry" | "errors.engineDisposeTimeout" {
+  switch (verdict.refusedBy) {
     case "fit":
-      return "model.tooLarge";
+      return verdict.reasonKey;
     case "disposeTimeout":
       return "errors.engineDisposeTimeout";
     case "marker":
-      return otherModelDownloaded
-        ? "model.loadSetAside"
-        : "model.loadSetAsideDownloadSmaller";
+      if (otherModelDownloaded) return "model.loadSetAside";
+      return smallerModelExists
+        ? "model.loadSetAsideDownloadSmaller"
+        : "model.loadSetAsideRetry";
   }
+}
+
+/**
+ * True when the registry offers a strictly smaller bundle than the refused
+ * model — "download a smaller model" is advice nobody can follow when the
+ * refused model is already the smallest.
+ */
+export function smallerModelExists(
+  otherModelSizes: number[],
+  refusedSizeBytes: number,
+): boolean {
+  return otherModelSizes.some((size) => size < refusedSizeBytes);
 }
 
 export async function gateModelLoad(input: {
@@ -65,10 +93,11 @@ export async function gateModelLoad(input: {
   getAvailableBytes: () => Promise<number | null>;
 }): Promise<LoadGateVerdict> {
   // Death on a previous launch: refuse before touching the resident engine.
+  // No fit reason exists here — reasonKey stays null.
   if (input.markerPresent) {
     return {
       allow: false,
-      reasonKey: "model.tooLarge",
+      reasonKey: null,
       refusedBy: "marker",
       disposedResident: false,
     };
@@ -76,7 +105,7 @@ export async function gateModelLoad(input: {
   // Same model already resident: nothing to free, and size-vs-available would
   // double-count the resident bytes that lowered MemAvailable (P0).
   if (input.residentModelId === input.model.id) {
-    return { allow: true, reasonKey: null, refusedBy: null, disposedResident: false };
+    return { allow: true, refusedBy: null, reasonKey: null, disposedResident: false };
   }
   let disposedResident = false;
   if (input.residentModelId !== null) {
@@ -89,7 +118,7 @@ export async function gateModelLoad(input: {
       // context on top of it.
       return {
         allow: false,
-        reasonKey: "errors.engineDisposeTimeout",
+        reasonKey: null,
         refusedBy: "disposeTimeout",
         disposedResident,
       };
@@ -114,6 +143,13 @@ export async function gateModelLoad(input: {
     },
   );
   return decision.allow
-    ? { allow: true, reasonKey: null, refusedBy: null, disposedResident }
-    : { allow: false, reasonKey: decision.reasonKey, refusedBy: "fit", disposedResident };
+    ? { allow: true, refusedBy: null, reasonKey: null, disposedResident }
+    : {
+        allow: false,
+        // Pass-through: the decider produced this reason, the message must
+        // carry exactly it (tooLarge and tightNow are different truths).
+        reasonKey: decision.reasonKey,
+        refusedBy: "fit",
+        disposedResident,
+      };
 }
