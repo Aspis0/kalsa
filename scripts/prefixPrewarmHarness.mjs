@@ -2136,13 +2136,21 @@ async function main() {
   // a marker that lands mid-wait must eat the marker phase's budget, so a
   // second t0/deadline before the settle loop cannot quietly restart the
   // clock. Fixture: no marker at first (appended after the first pass), no
-  // terminal op ever — expiry is due within one pass of the ORIGINAL 3 s
-  // budget (~4 s at this stub's cadence); a reset second deadline needs a
-  // third pass (>= 6 s).
+  // terminal op ever — the wait must expire on the ORIGINAL budget.
+  //
+  // Deterministic by pass count, not wall time. Each pass costs 3 s and the
+  // budget is 4, so the settle phase's deadline check reads floor(t0+3)
+  // against t0+4 on its first pass — 3 >= 4-f fails for every sub-second
+  // fraction f, and floor(t0+6) >= t0+4 on its second pass succeeds for
+  // every f: the ±1 s `date +%s` flooring that once flaked this fixture at
+  // 2054 ms cannot move the expiry across a pass boundary. Shared deadline:
+  // one marker pass + one settle pass = 2 sleeps. A reset second deadline
+  // (t0' = t0+3, budget 4) needs a third pass: 3 < 4-f, then 6 >= 4-f —
+  // exactly 3 sleeps.
   const markerLate = runWaitShell({
     name: "marker-late",
-    budget: 3,
-    sleepSecs: 2,
+    budget: 4,
+    sleepSecs: 3,
     markerInBase: false,
     appendMarker: true,
   });
@@ -2150,19 +2158,14 @@ async function main() {
     markerLate.status === 1,
     `an expired wait exits 1 — got ${markerLate.status}`,
   );
-  // The discriminator is the PASS COUNT, not wall time: `deadline` is built
-  // from floored seconds, so the expiry can legally fire up to a second
-  // early (measured 2054 ms once against an expected ~4 s). A shared
-  // deadline spends ONE pass in the marker phase and ONE in the settle
-  // phase; a reset second deadline needs a THIRD pass.
   assert(
     markerLate.sleeps === 2,
     `a late marker must consume the SHARED deadline — expected 2 passes ` +
-      `(marker wait + one settle pass); got ${markerLate.sleeps} ` +
-      `(a reset second deadline needs a third pass)`,
+      `(one marker pass + one settle pass at 3 s each against a 4 s budget); ` +
+      `got ${markerLate.sleeps} (a reset second deadline needs a third pass)`,
   );
   assert(
-    markerLate.protocolLog.includes("did not settle within 3s"),
+    markerLate.protocolLog.includes("did not settle within 4s"),
     "the shared-deadline expiry names the real budget",
   );
   console.log(

@@ -89,8 +89,10 @@ jobs:
       - name: Typecheck + logic harnesses
         # Deliberately UNBOUNDED at step level (the 120-minute job timeout
         # still applies): this step runs typecheck plus ~47 harnesses, some
-        # self-timed at minutes, and a 15-minute bound here failed the e2e
-        # job on main before the emulator ever started.
+        # self-timed at minutes, so a 15-minute bound here would risk
+        # failing the e2e job before the emulator ever started. The number
+        # comes from ci.yml's job bound, which measures jest, not this
+        # step's harness mix — that mismatch is why jest got its own step.
         run: |
           npm run typecheck
           node scripts/retrieverHarness.mjs
