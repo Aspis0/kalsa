@@ -6839,3 +6839,47 @@ file (693 problemi in locale contro 1 sulla CI). Ora `tmp/` e' escluso da tsconf
 e la suite del fork — rossa da quando e' entrato il governor, per due nomi mai dichiarati nel mock —
 e' verde: 9 suite, 32 test. **La lezione non e' "aggiungi un'esclusione": e' che tre strumenti
 diversi hanno misurato per giorni il clone di un altro repo, e nessuno dei tre lo diceva.**
+
+**18/09 — TERZO RUN: il fix e' dimostrato, e la previsione ha tenuto su entrambi i rami.**
+APK `bc6bd22`, engine id `kalsa-eng-v2:c3418f60…` **letto dentro l'APK** (non ricalcolato
+dall'albero), installato 11:01:26, sidecar sopravvissuti identici all'installazione.
+```
+KV_PER_CYCLE: cycle=1 embd=4842 text=4863 n_common=2246 promptMs=121700.436 class=partial
+KV_PER_CYCLE: cycle=2 embd=5004 text=5027 n_common=5004 promptMs=667.376    class=whole
+KALSA_KVDIVERGE n_common=2246 shared_lo=2238 embd_hi=2258 text_hi=2258
+KV_PREFIX_CRITERION: FAIL (partial reuse x1)   <- ATTESO: conta il ciclo 1
+FG_REKICK_CRITERION: PASS
+SESSION: loads_ok=2 loads_refused=0 saves_ok=10 saves_refused=0 best_load_ms=104
+```
+
+**Ramo 2, il test vero: PASSA.** Ciclo 2 `whole` a **667 ms** contro i **172 secondi** del binario
+rotto (e i 725 ms del baseline). Verifica di persistenza: il `.kvs` della conversazione e' stato
+**riscritto** — 34.942.204 byte @ 11:11:02, prima 32.667.052 @ 09:45:38 — quindi quel `whole` viene
+da un salvataggio prodotto dal binario **corretto**, non da una cache sopravvissuta per caso.
+
+**Ramo 1: tutte e tre le firme depositate prima della misura.** `n_common=2246` strettamente fra
+1826 e 4276; **una sola** riga di divergenza; finestra **satura da entrambi i lati**
+(`embd_hi - n_common = 12`, `text_hi - n_common = 12`), cioe' **sostituzione e non troncamento**.
+E' la prova fisica che il `<think>` doppio stava dentro la cache scritta dal binario rotto, e che
+cade sul **primo** turno assistente della finestra e non sull'ultimo — la correzione che mi ero
+fatto da solo stamattina dopo aver sbagliato il primo conto. I 121 s del ciclo 1 sono il costo di
+ri-prefillare quella cache avvelenata: previsto, non una regressione.
+
+**Il quadro completo, tre APK, un motore solo** (38 `.so` byte-identici, verificato dalla sessione
+di migrazione — vedi la voce sopra):
+```
+                       ciclo 1                        ciclo 2
+10194d9  baseline      1829/1832 partial              5359/5359 whole   725 ms
+5e3da14  filler fix +  1826/1826 whole  <- 57bad0c    4276/4739 partial 172 s  <- 7b5b79b rotto
+         think rotto
+bc6bd22  predicato     2246/4842 partial (KV vecchia) 5004/5004 whole   667 ms <- FIX PROVATO
+```
+
+**Onesta' su cosa questo run NON prova.** `PREFIX_PREWARM: restore_ok=0 restore_miss=0
+prefill_done=0 snapshot_saved=0`, con `kv_holds_chat=8`: il prewarm del prefisso statico **non e'
+mai partito**, perche' la KV teneva gia' la chat. Quindi il fix del filler **non e' ri-esercitato
+qui** — resta provato dal run precedente (1832→1826, ciclo 1 da `partial` a `whole`). Tre run, due
+proprieta' diverse, e non sono sovrapponibili: chi legge solo quest'ultimo non ha visto il filler.
+
+Telefono: max 38,6 °C, batteria 100%, watchdog mai intervenuto.
+Dir: `device-restore-out/run-20260918-110132-fix3`.
