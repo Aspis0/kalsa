@@ -46,7 +46,7 @@
     "expo-sharing": "~57.0.8",
     "expo-speech": "~57.0.1",
     "fflate": "^0.8.3",
-    "llama.rn": "git+https://github.com/Aspis0/llama.rn.git#4126b7297b03440bbd7df339a23e69951d951513",
+    "llama.rn": "git+https://github.com/Aspis0/llama.rn.git#fada1ebed0082220f24a1901b12a762b96bc6725",
     "lucide-react-native": "^1.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
