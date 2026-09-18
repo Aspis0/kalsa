@@ -7134,3 +7134,37 @@ tok/s **di quel dispositivo**: non e' il verdetto di catalogo. `defaultEnabled` 
 misura per-dispositivo (QDC ha unita' 8 Elite) diventa una voce aperta, non una decisione presa
 sull'S23. Se la seconda gamba (accettazione nella fascia) esce fuori fascia, e' un dato sull'S23,
 non una condanna di MTP.
+
+### L'audit ostile sul pacchetto KV: il codice spedito regge, le guardie no (18/09)
+
+Audit su `kv-land@c594152`, metà congelata (codice prodotto + CI), pinnato a `git show <sha>:<path>`
+perche' un altro agente stava scrivendo su due file. Modello diverso dal writer (deepseek vs GLM).
+**Nessun difetto confermato nel percorso spedito.** I confermati stanno **nelle guardie**.
+
+**Chiuso il rischio piu' grosso, con prova.** `emissionSource` entra nell'hash della storia
+(`computeHistoryHashFromMessages` = `historyHash(JSON.stringify(toPersistableHistoryMessages(...)))`),
+quindi la domanda era: una conversazione gia' salvata cambia hash al primo avvio dopo l'aggiornamento?
+**No.** Un record scritto prima non ha il campo, `historyPersistable.ts:69-72` lo cancella, e l'audit
+ha compilato **le due proiezioni** (vecchia e nuova) dando in pasto lo stesso turno senza flag: JSON
+byte-identico. Nessuna chat esistente paga un prefill a freddo. Anche `"raw"` e' stato attaccato fino
+al C++ del binding pinnato: `rawEmittedAccum` ha due soli alimentatori, entrambi `data.token`, e il
+campo che concatena prompt+output (`rn-slot.cpp:711`, `prefill_text + generated_text`) e' un ALTRO.
+Quindi un `<think>` in testa a un'emissione grezza e' davvero un'eco del modello, e il doppio prefisso
+e' giusto.
+
+**I due confermati, verificati da me sul disco prima di ripeterli.**
+1. **La guardia dei writer e' cieca alla forma `delete`.** I quattro pattern di
+   `thinkHistoryHarness.mjs:120-124` richiedono tutti `=` o `:`, quindi `delete next.emissionSource;`
+   vale **zero** — e `historyPersistable.ts:75-76` contiene gia' due righe di quella forma. Togliere
+   una delle due lascia la guardia **verde**: il flag sopravvive alla sua stringa, il boot successivo
+   lo scarta e l'hash cambia. Cioe' la guardia e' cieca **esattamente alla regressione per cui
+   esiste**. In piu' la regione si cerca con `indexOf` sulla stringa matchata: con due write
+   identici il secondo viene controllato nel punto del primo.
+2. **Il gate jest che sto aggiungendo non puo' fallire su questo cambiamento.**
+   `git grep emissionSource -- 'src/**/*.test.ts'` sul tip non trova **niente**: tutta la semantica
+   del flag vive nell'harness `.mjs`. Un gate che non copre il commit che lo introduce e' una porta
+   aperta con il cartello "chiusa".
+
+**La lezione, che vale oltre questo caso:** quando un cambiamento aggiunge una guardia, la domanda da
+fare non e' "passa?" ma "**cosa NON puo' vedere?**". Qui la risposta era: la sola forma sintattica
+(`delete`) che il file toccato usa davvero.
