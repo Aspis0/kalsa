@@ -1181,6 +1181,29 @@ async function main() {
     "the criterion names a reason it was never taught",
   );
 
+  // End-to-end: the mute AppShell learned to break in the handler itself.
+  // When the thermal gate arms, the re-kick branch is never taken and the
+  // window used to be silent; now the handler logs thermal_gate before it
+  // returns, and the generic classifier names it. This fixture pins the
+  // verdict side of that contract.
+  const fgThermalGate = verdict(
+    "fg-thermal-gate",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"thermal_gate"}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=1 no_work=0 too_early=0 silent=0/.test(fgThermalGate),
+    "the handler's thermal_gate skip is stopped, not silent",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick stopped: thermal_gate x1\)/.test(fgThermalGate),
+    "the criterion names the handler's thermal_gate cause",
+  );
+
   // The warm gate must stay observable: a silent return and a re-kick that
   // never fired produce identical evidence, and only the second is a defect.
   // The gate logs which of the two it hit (in_flight outranks already_warm —
@@ -1250,6 +1273,59 @@ async function main() {
       'adb shell log -p i -t KALSA_RP_MARK "fg_settled cycle=$i" </dev/null >/dev/null 2>&1',
     ),
     `the fg_settled marker must be the LAST thing rp_fg_bounce emits — ends with: …${bounceFn.slice(-100)}`,
+  );
+
+  // ── The re-kick's mutes must speak ───────────────────────────────────────
+  // Every exit ahead of the re-kick, and the fall-through past it, used to be
+  // a bare `return`: a muted branch and a re-kick that never fired produce
+  // identical evidence, and the verdict's only honest word for that window
+  // was "silent" — which pointed at AppShell when the cause was the model
+  // lifecycle. The mutes now name their cause via logPrewarmSkip:
+  // thermal_gate / no_model ahead of the branch, not_ready / model_changed
+  // in the fall-through (evicted model vs user switch — opposite ends).
+  // Anchors checked against the whole file before trusting them: the branch
+  // condition occurs twice in AppShell and thermalHardGateRef 26 times, so
+  // the region is cut from the unique `state === "active"` branch to the
+  // unique init-path memory query, and the mutes must sit in handler order.
+  const fgHandlerAt = appShellSrc.indexOf('if (state === "active")');
+  assert(fgHandlerAt >= 0, 'AppShell still has the AppState "active" branch');
+  const fgHandlerEnd = appShellSrc.indexOf(
+    "getAvailableMemoryBytesUncached()",
+    fgHandlerAt,
+  );
+  assert(
+    fgHandlerEnd > fgHandlerAt,
+    "the foreground handler still reaches the init path's memory query",
+  );
+  const fgHandler = shapeOf(appShellSrc.slice(fgHandlerAt, fgHandlerEnd));
+  assert(
+    fgHandler.includes(
+      'if (thermalHardGateRef.current) { logPrewarmSkip("thermal_gate"); return; }',
+    ),
+    "the thermal gate must log thermal_gate before it returns",
+  );
+  assert(
+    fgHandler.includes('if (!model) { logPrewarmSkip("no_model"); return; }'),
+    "the no-model return must log no_model before it returns",
+  );
+  assert(
+    fgHandler.includes(
+      'if (!isEngineReady()) { logPrewarmSkip("not_ready"); } ' +
+        'else { logPrewarmSkip("model_changed"); }',
+    ),
+    "the fall-through must say which of not_ready / model_changed it is",
+  );
+  const thermalSkipAt = fgHandler.indexOf('logPrewarmSkip("thermal_gate")');
+  const noModelSkipAt = fgHandler.indexOf('logPrewarmSkip("no_model")');
+  const fgRekickAt = fgHandler.indexOf("await queueStaticPrefixPrewarm(");
+  const fallthroughSkipAt = fgHandler.indexOf('logPrewarmSkip("not_ready")');
+  assert(
+    thermalSkipAt >= 0 &&
+      thermalSkipAt < noModelSkipAt &&
+      noModelSkipAt < fgRekickAt &&
+      fgRekickAt < fallthroughSkipAt,
+    `the mutes must sit in handler order: gate < model < re-kick < fall-through — ` +
+      `${thermalSkipAt} < ${noModelSkipAt} < ${fgRekickAt} < ${fallthroughSkipAt}`,
   );
 
   console.log("prefixPrewarmHarness OK");

@@ -136,6 +136,7 @@ import {
   isEngineLostRecovery,
   isEngineReady,
   lastNativeTokenAtMs,
+  logPrewarmSkip,
   resolvedStaticPrefixTokens,
   nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
@@ -3263,9 +3264,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           bumpForegroundIdleRef.current();
           void (async () => {
             try {
-              if (thermalHardGateRef.current) return;
+              // A muted return and a re-kick that never fired produce the
+              // same evidence — an empty kick window — and only the second
+              // is a defect. Every exit ahead of the re-kick names its cause
+              // first, so the verdict's stopped/silent split points at the
+              // real subsystem instead of at this file.
+              if (thermalHardGateRef.current) {
+                logPrewarmSkip("thermal_gate");
+                return;
+              }
               const model = MODEL_REGISTRY[modelIndexRef.current];
-              if (!model) return;
+              if (!model) {
+                logPrewarmSkip("no_model");
+                return;
+              }
               // Foreground does not mark lost (RSS collapse is mmap eviction,
               // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) {
@@ -3286,6 +3298,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   agentOptionsRef.current.tools,
                 );
                 return;
+              }
+              // The re-kick branch above was skipped: say which diagnosis it
+              // is. Engine not ready is the model evicted while backgrounded
+              // (thermal pause / onTrimMemory); a ready engine on another
+              // model id is a user switch — same empty window, opposite ends
+              // of the app. No await sits between the branch condition and
+              // these reads, so the state is the one the branch decided on.
+              if (!isEngineReady()) {
+                logPrewarmSkip("not_ready");
+              } else {
+                logPrewarmSkip("model_changed");
               }
               const available = await getAvailableMemoryBytesUncached();
               if (thermalHardGateRef.current) return;

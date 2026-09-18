@@ -837,6 +837,16 @@ function logPrewarm(payload: Record<string, unknown>): void {
   }
 }
 
+/**
+ * The one narrow writer AppShell gets for the KALSA_PREWARM channel: a skip
+ * with a reason. logPrewarm itself stays private on purpose — a free-form
+ * payload invites call sites to emit shapes the verdict cannot classify, and
+ * a mute return reads exactly like a re-kick that never fired.
+ */
+export function logPrewarmSkip(reason: string): void {
+  logPrewarm({ op: "skip", reason });
+}
+
 function resetPrewarmState(): void {
   prewarmGeneration += 1;
   prewarmPrefixHash = null;
