@@ -482,6 +482,25 @@ other 41 paths are mechanical (regenerate) or deletions we already decided. Time
 > line-by-line read and the NDK gate must concentrate when Step 5 runs for real, not on the
 > conflict list.
 
+**The battery, run on the merged tree (18/09 midday) — and what it says about the battery itself.**
+- The include gate passes at FULL coverage on the merged tree: `[includes] OK: … 7 rn + 6 jsi …`,
+  307 TUs, exit 0. That is the load-bearing check and v0.12.9 clears it.
+- `tsc --noEmit`: **0 errors under `src/`**. The 1783 it prints come from `tmp/kalsallama-src` —
+  the clone cache `sync-kalsallama.sh` leaves inside the repo — plus `example/`, whose deps are not
+  installed. `tmp/` is gitignored (`.gitignore:110`) but is NOT excluded from `tsconfig.json`, so
+  **`npm run typecheck` in the fork is unusable as a gate on any machine where `pin` has run**.
+  Same for jest: 136 of the 146 test files it collects live under `tmp/kalsallama-src`.
+  Step 5's prescription ("npm run typecheck; npm test") therefore needs `tmp` and `example` excluded
+  first, or it measures the clone cache.
+- `src/__tests__/index.test.ts` fails — **and NOT because of the merge.** I checked instead of
+  assuming: restoring the pre-merge test file and `jest/mock.js` into the merged tree makes it fail
+  harder (11 of 11). The cause is `[RNLlama] Missing JSI bindings: llamaSetGovernorThermo,
+  llamaGetGovernorStats`: our `src/index.ts` requires them and `jest/mock.js` has never declared
+  them — in ANY version, ours, upstream's or the merge's (`grep -c` = 0 in all three). So the fork's
+  own suite has been red on `kalsa` since the governor bindings landed, and nothing said so because
+  the fork's `ci.yml` triggers only on `main`. Residual, with the fix: add the two names to
+  `jest/mock.js`'s binding list on `kalsa`, in its own commit.
+
 Also worth knowing: two engine files upstream had merged cleanly (`cpp/models/{deepseek2,glm-dsa}.cpp`)
 were overwritten by the regeneration. A clean merge into an engine file is not a decision, it is
 noise the pin erases. Still to do on that branch before it could ever be real: `npm ci`, build,
