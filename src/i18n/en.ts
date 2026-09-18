@@ -282,6 +282,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     tightNow: "Memory low — regenerate not supported, free",
     memoryUnknown: "Memory could not be determined — policy used unknown",
     fitsOK: "Model fits in available memory",
+    loadSetAside:
+      "The last load of this model did not finish, so it was set aside.",
+    loadSetAsideDownloadSmaller:
+      "This model did not finish loading. Download a smaller model to keep using the app.",
   },
   voice: {
     title: "Voice",

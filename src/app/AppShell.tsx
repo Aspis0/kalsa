@@ -154,15 +154,20 @@ import {
 import { runDeepResearch } from "../research/deepResearch";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
-import { gateModelLoad } from "../engine/loadGate";
+import {
+  gateModelLoad,
+  refusalMessageKey,
+  type LoadGateVerdict,
+} from "../engine/loadGate";
 import {
   clearLoadMarker,
+  guardedLoad,
+  hasOtherDownloadedModel,
   pickFallbackModel,
   pickStartModel,
   readLastGoodModelId,
   readLoadMarker,
   writeLastGoodModelId,
-  writeLoadMarker,
   type LoadMarkerStore,
 } from "../engine/loadMarker";
 import {
@@ -2891,25 +2896,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       try {
         const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
         if (!mounted || !saved) return;
-        // Concurrent reads: boot latency stays one storage round-trip.
-        const [savedMarked, lastGoodId] = await Promise.all([
-          readLoadMarker(loadMarkerStore, saved),
-          readLastGoodModelId(loadMarkerStore),
-        ]);
+        const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
         if (!mounted) return;
-        const startId = pickStartModel({
+        const startId = await pickStartModel({
           savedId: saved,
-          savedMarked,
           lastGoodId,
           defaultId: getDefaultModel().id,
+          isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
         });
+        if (!mounted) return;
+        // Every candidate is marked: start where the selection points and let
+        // the load gate refuse it with the message — no load, no silent flip.
+        if (startId === null) return;
         const startIndex = MODEL_REGISTRY.findIndex((model) => model.id === startId);
         if (startIndex < 0 || startIndex === modelIndexRef.current) return;
         if (startId !== saved) {
           loadFallbackTargetRef.current = startId;
           setModelState("error");
           setModelErrorKind("engine");
-          setModelError(t("model.tooLarge"));
+          setModelError(t("model.loadSetAside"));
           setModelErrorDetail(null);
         }
         // Keep stillCurrent() of any in-flight boot kick correct before re-render.
@@ -3819,6 +3824,102 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelIndex]);
 
+  /**
+   * Shared load-gate invocation — ONE function for every load site (boot
+   * kick, selectModel switch, retries, download path). Same evaluation as the
+   * send path's pre-send gate; the injected dispose is the bounded
+   * switch-path dispose.
+   */
+  const evaluateLoadGate = useCallback(async (model: ModelInfo) => {
+    return gateModelLoad({
+      model: {
+        id: model.id,
+        sizeBytes: model.sizeBytes,
+        engineCtx: model.engineCtx,
+        kvBytesPerToken: model.kvBytesPerToken,
+        mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
+        loadPolicy: model.loadPolicy,
+      },
+      markerPresent: await readLoadMarker(loadMarkerStore, model.id).catch(() => false),
+      residentModelId: isEngineReady() ? (getActiveModelId() ?? null) : null,
+      lostModelId: getEngineLostModelId(),
+      benchNoRepack: await getBenchNoRepack(),
+      disposeResident: async () => {
+        const result = await runNativeOpBounded(
+          () => disposeEngine(),
+          MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+        );
+        if (!result.ok) {
+          console.warn(
+            `[kalsa] load-gate dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); refusing load with the previous model still resident`,
+          );
+        }
+        return result.ok;
+      },
+      getAvailableBytes: async () => {
+        try {
+          return await getAvailableMemoryBytesUncached();
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, []);
+
+  /**
+   * Shared refusal reporting: breadcrumb + error state + message. The message
+   * claims only the cause the gate knows — a marker refusal never says "too
+   * large" — and when nothing else is on disk it points at the real way out
+   * (download a smaller model) instead of sending the user hunting for memory.
+   */
+  const reportLoadRefusal = useCallback(
+    async (model: ModelInfo, verdict: LoadGateVerdict, source: string) => {
+      let otherModelAvailable = false;
+      if (verdict.refusedBy === "marker") {
+        const downloadedIds: string[] = [];
+        for (const candidate of MODEL_REGISTRY) {
+          if (candidate.id === model.id) continue;
+          try {
+            if (await isModelBundleDownloaded(candidate)) {
+              downloadedIds.push(candidate.id);
+            }
+          } catch {
+            // Probe failure → candidate not counted.
+          }
+        }
+        otherModelAvailable = hasOtherDownloadedModel(downloadedIds, model.id);
+      }
+      // eslint-disable-next-line no-console
+      console.log(
+        `KALSA_LOAD ${JSON.stringify({
+          phase: "fitGate",
+          modelId: model.id,
+          refusedBy: verdict.refusedBy,
+          disposedResident: verdict.disposedResident,
+          source,
+        })}`,
+      );
+      setModelState("error");
+      modelStateRef.current = "error";
+      setModelErrorKind("engine");
+      setModelError(t(refusalMessageKey(verdict.refusedBy ?? "fit", otherModelAvailable)));
+      setModelErrorDetail(null);
+    },
+    [t],
+  );
+
+  /**
+   * Explicit user reload (model-bar chip / Settings retry). The recovery from
+   * a marker refusal is a HUMAN act: the tap clears this model's death marker
+   * and retries once. The app never clears the marker or retries on its own,
+   * so no launch ever hammers the killer again — and the way out is chosen by
+   * a person who has just read what happened.
+   */
+  const userReloadModel = useCallback((model: ModelInfo) => {
+    void clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+    void ensureEngineForModelRef.current(model);
+  }, []);
+
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     // C3 — refuse every model load while the OS is at platform CRITICAL.
     // The ref closes the event-to-render race; the query covers a transition
@@ -3926,63 +4027,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // and relaunch-loop. A resident model different from the target is
       // disposed first (bounded) so the gate never refuses on memory held by
       // the model it is about to replace; same model → no dispose.
-      const gateVerdict = await gateModelLoad({
-        model: {
-          id: model.id,
-          sizeBytes: model.sizeBytes,
-          engineCtx: model.engineCtx,
-          kvBytesPerToken: model.kvBytesPerToken,
-          mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
-          loadPolicy: model.loadPolicy,
-        },
-        markerPresent: await readLoadMarker(loadMarkerStore, model.id).catch(() => false),
-        residentModelId: isEngineReady() ? (getActiveModelId() ?? null) : null,
-        lostModelId: getEngineLostModelId(),
-        benchNoRepack: await getBenchNoRepack(),
-        disposeResident: async () => {
-          const result = await runNativeOpBounded(
-            () => disposeEngine(),
-            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-          );
-          if (!result.ok) {
-            console.warn(
-              `[kalsa] load-gate dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); refusing load with the previous model still resident`,
-            );
-          }
-          return result.ok;
-        },
-        getAvailableBytes: async () => {
-          try {
-            return await getAvailableMemoryBytesUncached();
-          } catch {
-            return null;
-          }
-        },
-      });
+      const gateVerdict = await evaluateLoadGate(model);
       if (!gateVerdict.allow) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `KALSA_LOAD ${JSON.stringify({
-            phase: "fitGate",
-            modelId: model.id,
-            refusedBy: gateVerdict.refusedBy,
-            disposedResident: gateVerdict.disposedResident,
-          })}`,
-        );
-        setModelState("error");
-        modelStateRef.current = "error";
-        setModelErrorKind("engine");
-        setModelError(t(gateVerdict.reasonKey ?? "model.tooLarge"));
-        setModelErrorDetail(null);
+        await reportLoadRefusal(model, gateVerdict, "ensure");
         // Fallback once: last good load, else the default — never the model
-        // that just failed, never a second hop. The fallback loads through
-        // this same gate; its own refusal lands on the message-only branch.
+        // that just failed, never a marked one (a fallback passes the same
+        // marker check as the primary), never a second hop. Null → the
+        // refusal message above stands alone; nothing loads.
         if (loadFallbackTargetRef.current !== model.id) {
           const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
-          const fallbackId = pickFallbackModel({
+          const fallbackId = await pickFallbackModel({
             refusedId: model.id,
             lastGoodId,
             defaultId: getDefaultModel().id,
+            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
           });
           const fallbackIndex = fallbackId
             ? MODEL_REGISTRY.findIndex((m) => m.id === fallbackId)
@@ -4181,31 +4239,32 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
-      // Death marker BEFORE the load: if the process dies mid-load, the next
-      // launch refuses this modelId and starts on the fallback instead of
-      // relaunch-looping. Cleared below only when this load succeeds. A
-      // storage failure never blocks the load (fail open).
-      await writeLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
-      const boundedInit = await runNativeOpBounded(
-        () =>
-          initEngine(modelLocalPath(model, model.file), model.id, {
-            mmprojPath,
-            nCtx: profile.nCtx,
-            cacheTypeK: profile.cacheTypeK,
-            cacheTypeV: profile.cacheTypeV,
-            kvUnified: model.kvUnified,
-            mtpNMax: model.mtp?.nMax,
-            mtpDefaultOn: model.mtp?.defaultEnabled === true,
-            speculativeOverride,
-            engineOverride,
-            sessionRestore: {
-              historyHash: sessionHistoryHash,
-              promptEnvHash: sessionPromptEnvHash,
-              conversationId: conversationsRef.current.activeId || undefined,
-            },
-            locale,
-          }),
-        EMBEDDER_RELEASE_TIMEOUT_MS,
+      // Death marker lifecycle (guardedLoad): written before the native init
+      // starts, cleared the moment this code observes ANY outcome. A marker
+      // that reaches the next launch means the process died mid-load and
+      // never reached its own error handler — every survived failure clears.
+      const boundedInit = await guardedLoad(loadMarkerStore, model.id, () =>
+        runNativeOpBounded(
+          () =>
+            initEngine(modelLocalPath(model, model.file), model.id, {
+              mmprojPath,
+              nCtx: profile.nCtx,
+              cacheTypeK: profile.cacheTypeK,
+              cacheTypeV: profile.cacheTypeV,
+              kvUnified: model.kvUnified,
+              mtpNMax: model.mtp?.nMax,
+              mtpDefaultOn: model.mtp?.defaultEnabled === true,
+              speculativeOverride,
+              engineOverride,
+              sessionRestore: {
+                historyHash: sessionHistoryHash,
+                promptEnvHash: sessionPromptEnvHash,
+                conversationId: conversationsRef.current.activeId || undefined,
+              },
+              locale,
+            }),
+          EMBEDDER_RELEASE_TIMEOUT_MS,
+        ),
       );
       if (!boundedInit.ok) {
         markEmbedderHung();
@@ -4248,10 +4307,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorKind(null);
       setMemoryBannerKey(null);
       setProcessUnloadedReason(null);
-      // Load succeeded: clear the death marker and record this model as the
-      // boot fallback (last good load). Storage failures never fail a
-      // successful load.
-      await clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+      // Load succeeded: this model becomes the boot fallback (last good load).
+      // The death marker is already gone — guardedLoad cleared it on settle.
       await writeLastGoodModelId(loadMarkerStore, model.id).catch(() => undefined);
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
@@ -4269,7 +4326,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
-  }, [agentOptions.tools, deviceBandwidth, locale, t, bumpEmbedJobGeneration]);
+  }, [agentOptions.tools, deviceBandwidth, evaluateLoadGate, locale, reportLoadRefusal, t, bumpEmbedJobGeneration]);
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
@@ -4306,7 +4363,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
       // Re-asserting a selection clears that model's death marker so the user
       // can retry a model whose load killed a previous launch.
-      void clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id);
+      void clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
@@ -4695,6 +4752,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // Probe failure → proceed with load.
       }
 
+      // Same gate as every other load — ONE evaluateLoadGate for all sites
+      // (boot kick, selectModel switch, retries, this download path). On
+      // refusal the file stays on disk and nothing initializes.
+      const dlGate = await evaluateLoadGate(model);
+      if (!dlGate.allow) {
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        await reportLoadRefusal(model, dlGate, "download");
+        setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
+        return;
+      }
+
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
       const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
@@ -4739,29 +4808,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Hoist uri so the runNativeOpBounded closure does not re-widen
       // DownloadOutcome (status === "aborted" already returned above).
       const modelUri = (outcome.model as { status: "done"; uri: string }).uri;
-      // Same death-marker contract as ensureEngineForModel: a download path
-      // load that kills the process must not relaunch-loop on the next start.
-      await writeLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
-      const boundedInitDl = await runNativeOpBounded(
-        () =>
-          initEngine(modelUri, model.id, {
-            mmprojPath,
-            nCtx: profile.nCtx,
-            cacheTypeK: profile.cacheTypeK,
-            cacheTypeV: profile.cacheTypeV,
-            kvUnified: model.kvUnified,
-            mtpNMax: model.mtp?.nMax,
-            mtpDefaultOn: model.mtp?.defaultEnabled === true,
-            speculativeOverride,
-            engineOverride,
-            sessionRestore: {
-              historyHash: sessionHistoryHash,
-              promptEnvHash: sessionPromptEnvHash,
-              conversationId: conversationsRef.current.activeId || undefined,
-            },
-            locale,
-          }),
-        EMBEDDER_RELEASE_TIMEOUT_MS,
+      // Same death-marker lifecycle as ensureEngineForModel (guardedLoad): a
+      // download-path load that kills the process leaves the marker behind;
+      // every outcome this code observes clears it.
+      const boundedInitDl = await guardedLoad(loadMarkerStore, model.id, () =>
+        runNativeOpBounded(
+          () =>
+            initEngine(modelUri, model.id, {
+              mmprojPath,
+              nCtx: profile.nCtx,
+              cacheTypeK: profile.cacheTypeK,
+              cacheTypeV: profile.cacheTypeV,
+              kvUnified: model.kvUnified,
+              mtpNMax: model.mtp?.nMax,
+              mtpDefaultOn: model.mtp?.defaultEnabled === true,
+              speculativeOverride,
+              engineOverride,
+              sessionRestore: {
+                historyHash: sessionHistoryHash,
+                promptEnvHash: sessionPromptEnvHash,
+                conversationId: conversationsRef.current.activeId || undefined,
+              },
+              locale,
+            }),
+          EMBEDDER_RELEASE_TIMEOUT_MS,
+        ),
       );
       if (!boundedInitDl.ok) {
         markEmbedderHung();
@@ -4799,9 +4870,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setMemoryBannerKey(null);
       setProcessUnloadedReason(null);
       setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
-      // Load succeeded: clear the death marker and record the boot fallback.
-      // Storage failures never fail a successful load.
-      await clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+      // Load succeeded: the download becomes the boot fallback. The death
+      // marker is already gone — guardedLoad cleared it on settle.
       await writeLastGoodModelId(loadMarkerStore, model.id).catch(() => undefined);
       showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
@@ -4841,9 +4911,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     bumpEmbedJobGeneration,
     deviceBandwidth,
     dismissDownloadProgressNotification,
+    evaluateLoadGate,
     locale,
     modelState,
     notifyDownload,
+    reportLoadRefusal,
     showDownloadProgressNotification,
     showNotice,
     t,
@@ -6549,7 +6621,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // Bar is disabled below when hung so this path is unreachable.
                   if (isEmbedderHung()) return;
                   if (modelErrorKind === "engine") {
-                    void ensureEngineForModel(currentModel);
+                    userReloadModel(currentModel);
                   } else {
                     confirmDownload(currentModel.id);
                   }
@@ -6557,7 +6629,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   const engineLoaded =
                     isEngineReady() && getActiveModelId() === currentModel.id;
                   if (!engineLoaded && !isEmbedderHung()) {
-                    void ensureEngineForModel(currentModel);
+                    userReloadModel(currentModel);
                   }
                 }
               }}
@@ -6794,7 +6866,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
             onRetryLoad: () => {
-              void ensureEngineForModel(currentModel);
+              userReloadModel(currentModel);
             },
           }}
           voice={{

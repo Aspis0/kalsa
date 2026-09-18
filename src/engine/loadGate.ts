@@ -10,14 +10,39 @@ import { decidePreSendFit } from "./deviceProfile";
 import { shouldRecoverLost } from "./engineLiveness";
 import type { LoadPolicy } from "./loadPolicy";
 
+export type LoadRefusalKind = "marker" | "fit" | "disposeTimeout";
+
 export type LoadGateVerdict = {
   allow: boolean;
   /** Existing i18n key to surface on refusal; null when allowed. */
   reasonKey: "model.tooLarge" | "model.tightNow" | "errors.engineDisposeTimeout" | null;
-  refusedBy: "marker" | "fit" | "disposeTimeout" | null;
-  /** A different resident model was present and disposal was attempted. */
+  refusedBy: LoadRefusalKind | null;
+  /** True only when a different resident model WAS disposed (not attempted). */
   disposedResident: boolean;
 };
+
+/**
+ * Refusal → i18n key, selected by the cause the code actually knows. The
+ * marker knows only that a load did not finish — dev reload, native error and
+ * swipe-kill land there too — so it must not claim "too large", which is the
+ * fit verdict's claim. When nothing else is on disk the marker message must
+ * point at the real way out: downloading a smaller model.
+ */
+export function refusalMessageKey(
+  refusedBy: LoadRefusalKind,
+  otherModelDownloaded: boolean,
+): "model.tooLarge" | "model.loadSetAside" | "model.loadSetAsideDownloadSmaller" | "errors.engineDisposeTimeout" {
+  switch (refusedBy) {
+    case "fit":
+      return "model.tooLarge";
+    case "disposeTimeout":
+      return "errors.engineDisposeTimeout";
+    case "marker":
+      return otherModelDownloaded
+        ? "model.loadSetAside"
+        : "model.loadSetAsideDownloadSmaller";
+  }
+}
 
 export async function gateModelLoad(input: {
   model: {
@@ -56,7 +81,9 @@ export async function gateModelLoad(input: {
   let disposedResident = false;
   if (input.residentModelId !== null) {
     const disposed = await input.disposeResident();
-    disposedResident = true;
+    // Telemetry reports what happened, not what was attempted: a timeout
+    // means runNativeOpBounded never enqueued, so nothing was disposed.
+    disposedResident = disposed;
     if (!disposed) {
       // Previous model still resident — refuse rather than stack a second
       // context on top of it.

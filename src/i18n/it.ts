@@ -277,6 +277,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     tightNow: "Memoria ridotta — la rigenerazione non è supportata, libera",
     memoryUnknown: "Memoria non determinata — policy usata unknown",
     fitsOK: "Il modello entra nella memoria disponibile",
+    loadSetAside:
+      "L'ultimo caricamento di questo modello non è arrivato in fondo, quindi è stato messo da parte.",
+    loadSetAsideDownloadSmaller:
+      "Questo modello non ha finito di caricarsi. Scarica un modello più piccolo per continuare a usare l'app.",
   },
   voice: {
     title: "Voce",

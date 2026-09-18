@@ -1,4 +1,4 @@
-import { gateModelLoad } from "./loadGate";
+import { gateModelLoad, refusalMessageKey } from "./loadGate";
 
 /** Qwen-class 4B: ~3.5 GB bundle, KV-heavy at catalog ctx. */
 const BIG = {
@@ -92,6 +92,8 @@ describe("gateModelLoad", () => {
     expect(verdict.allow).toBe(false);
     expect(verdict.reasonKey).toBe("errors.engineDisposeTimeout");
     expect(verdict.refusedBy).toBe("disposeTimeout");
+    // Telemetry honesty: the bounded op never enqueued, so nothing was disposed.
+    expect(verdict.disposedResident).toBe(false);
     expect(input.getAvailableBytes).not.toHaveBeenCalled();
   });
 
@@ -101,5 +103,28 @@ describe("gateModelLoad", () => {
     input.getAvailableBytes = jest.fn(async () => 868 * 1024 * 1024);
     const verdict = await gateModelLoad(input);
     expect(verdict.allow).toBe(true);
+  });
+});
+
+describe("refusalMessageKey (claim only the cause the code knows)", () => {
+  test("marker refusal with another model on disk → set-aside key", () => {
+    expect(refusalMessageKey("marker", true)).toBe("model.loadSetAside");
+  });
+
+  test("marker refusal with nothing else on disk → download-smaller key", () => {
+    expect(refusalMessageKey("marker", false)).toBe(
+      "model.loadSetAsideDownloadSmaller",
+    );
+  });
+
+  test("fit refusal keeps model.tooLarge — the case where it is true", () => {
+    expect(refusalMessageKey("fit", true)).toBe("model.tooLarge");
+    expect(refusalMessageKey("fit", false)).toBe("model.tooLarge");
+  });
+
+  test("dispose timeout keeps the dispose key", () => {
+    expect(refusalMessageKey("disposeTimeout", false)).toBe(
+      "errors.engineDisposeTimeout",
+    );
   });
 });

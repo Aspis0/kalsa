@@ -1,8 +1,8 @@
 /**
  * Boot-loop defence bookkeeping, two pieces of small persisted state:
- * - a per-model death marker, written before a load starts and cleared after
- *   that load succeeds. If the process dies mid-load, the next launch refuses
- *   that modelId and starts on the fallback instead of launch → load → kill.
+ * - a per-model death marker, written before a load starts. The ONLY marker
+ *   that reaches the next launch is one whose process died mid-load and never
+ *   ran its own error handler: guardedLoad clears it on every settled outcome.
  * - the id of the last model that loaded successfully, the fallback target.
  * Storage is injected so the module is testable without AsyncStorage.
  */
@@ -51,35 +51,70 @@ export async function readLastGoodModelId(
 }
 
 /**
- * Boot start model: the persisted selection unless it carries a death marker;
- * a marked selection falls back to the last good model (never the marked one),
- * else the registry default.
+ * Marker lifecycle for ONE load attempt: written before `load` runs, cleared
+ * the moment `load` settles — success or handled failure alike. If code is
+ * running after the load failed, the process survived and the marker must not
+ * outlive it; a storage failure never blocks the load (fail open).
  */
-export function pickStartModel(input: {
-  savedId: string;
-  savedMarked: boolean;
-  lastGoodId: string | null;
-  defaultId: string;
-}): string {
-  if (!input.savedMarked) return input.savedId;
-  if (input.lastGoodId && input.lastGoodId !== input.savedId) {
-    return input.lastGoodId;
+export async function guardedLoad<T>(
+  store: LoadMarkerStore,
+  modelId: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  await writeLoadMarker(store, modelId).catch(() => undefined);
+  try {
+    return await load();
+  } finally {
+    await clearLoadMarker(store, modelId).catch(() => undefined);
   }
-  return input.defaultId;
 }
 
 /**
- * Fallback after a refused load: the last good model if it is not the one
- * that just failed, else the default. Null when even the default is the
- * refusal — the caller must then show the message and load nothing.
+ * Boot start model. Candidates in order: the persisted selection, the last
+ * good model, the registry default. A candidate carrying a death marker is
+ * never picked — the fallback passes the same marker check as the primary —
+ * and null means every candidate is marked: load nothing at all.
  */
-export function pickFallbackModel(input: {
+export async function pickStartModel(input: {
+  savedId: string;
+  lastGoodId: string | null;
+  defaultId: string;
+  isMarked: (modelId: string) => Promise<boolean>;
+}): Promise<string | null> {
+  if (!(await input.isMarked(input.savedId))) return input.savedId;
+  for (const candidate of [input.lastGoodId, input.defaultId]) {
+    if (!candidate || candidate === input.savedId) continue;
+    if (!(await input.isMarked(candidate))) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Fallback after a refused load: the last good model, else the default —
+ * never the model that just failed, never one we know died (marked), and
+ * null when no candidate survives the marker check: no load at all.
+ */
+export async function pickFallbackModel(input: {
   refusedId: string;
   lastGoodId: string | null;
   defaultId: string;
-}): string | null {
-  if (input.lastGoodId && input.lastGoodId !== input.refusedId) {
-    return input.lastGoodId;
+  isMarked: (modelId: string) => Promise<boolean>;
+}): Promise<string | null> {
+  for (const candidate of [input.lastGoodId, input.defaultId]) {
+    if (!candidate || candidate === input.refusedId) continue;
+    if (!(await input.isMarked(candidate))) return candidate;
   }
-  return input.defaultId !== input.refusedId ? input.defaultId : null;
+  return null;
+}
+
+/**
+ * True when at least one model other than the refused one is on disk. It
+ * decides which refusal message is honest: pointing at a switchable model
+ * versus telling the user to download a smaller one.
+ */
+export function hasOtherDownloadedModel(
+  downloadedIds: string[],
+  refusedId: string,
+): boolean {
+  return downloadedIds.some((id) => id !== refusedId);
 }
