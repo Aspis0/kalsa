@@ -2185,6 +2185,57 @@ async function main() {
   );
   console.log("PASS the jest CI gate is bounded (timeout-minutes <= 20)");
 
+  // ── The settle budget's validator must close overflow and octal ──────────
+  // An all-digit monster passed the old digits-only case and wrapped the
+  // bash 3.2 64-bit arithmetic (t0 + budget) into a deadline the clock can
+  // never reach: the wait HANGS instead of returning 1 (the old pass-counter
+  // failed closed on the same input). A leading zero reads as octal — 0120
+  // is an 80 s budget that prints as 120. The pin RUNS the extracted
+  // validator: the shipped rule accepts the whole 1-99999 range and refuses
+  // the hostile inputs by name.
+  const validateFnAt = protocolSrc.indexOf("rp_validate_bounce_flags() {");
+  assert(validateFnAt >= 0, "rp_validate_bounce_flags still exists");
+  const validateFnEnd = protocolSrc.indexOf("\n}", validateFnAt);
+  const validateFn = protocolSrc.slice(validateFnAt, validateFnEnd + 2);
+  const validateFile = path.join(outDir, "validate-probe.sh");
+  writeFileSync(
+    validateFile,
+    [
+      "#!/usr/bin/env bash",
+      "set -uo pipefail",
+      'die() { echo "DIE: $*"; exit 1; }',
+      validateFn,
+      "rp_validate_bounce_flags",
+      "exit 0",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const runValidate = (settle) =>
+    spawnSync("bash", [validateFile], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        FG_BOUNCE: "1",
+        FG_BOUNCE_SECONDS: "20",
+        FG_SETTLE_TIMEOUT_SECONDS: settle,
+      },
+    });
+  assert(runValidate("120").status === 0, "the shipped budget must validate");
+  assert(
+    runValidate("1").status === 0 && runValidate("99999").status === 0,
+    "the whole accepted range 1-99999 must validate",
+  );
+  for (const hostile of ["99999999999999999999", "0120", "0", "", "abc", "-5"]) {
+    const r = runValidate(hostile);
+    assert(
+      r.status === 1 && /DIE:/.test(r.stdout),
+      `hostile settle budget must be refused by name: ${JSON.stringify(hostile)}`,
+    );
+  }
+  console.log("PASS the settle budget validator closes overflow and octal");
+
   console.log("prefixPrewarmHarness OK");
 }
 
