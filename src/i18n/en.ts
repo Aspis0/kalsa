@@ -945,7 +945,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     title: "Memory",
     enabled: "Remember information about me",
     capHint: "{count} / {max} facts saved",
-    capReplyHint: "Up to {perReply} used per reply ({chars} chars each)",
+    capReplyHint: "Used in replies ({chars} chars each); oldest dropped first if they do not all fit",
     truncNote: "Facts over {chars} chars are shortened in replies.",
     disabledNote:
       "With memory off, no new facts are saved or used from now on. Facts already included in past conversations remain part of those messages; you can still view and delete saved facts below.",
@@ -973,7 +973,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     extractPrompt:
       "You are a memory extractor. From the conversation below, extract short durable facts about the USER " +
       "(name, preferences, interests, job, language...). Return ONLY JSON: {\"add\": [\"...\"], \"remove\": [\"...\"]} " +
-      "where add = new facts (max 3, each ≤ 120 chars, in the user's language) and remove = exact facts to forget " +
+      "where add = new facts (max 3, each ≤ {chars} chars, in the user's language) and remove = exact facts to forget " +
       "(empty if none). Facts must be about the user, not about your answers. Never extract passwords, tokens, " +
       "or API keys; other personal details may be stored locally when the user clearly volunteered them. " +
       "If nothing to extract: {\"add\": [], \"remove\": []}.\n\n" +

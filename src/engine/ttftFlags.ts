@@ -17,8 +17,11 @@ import {
 /**
  * Memory facts ride the last user message (format B / user-prefix), not the
  * system prompt. A new fact then re-encodes only that tail — the stable
- * history prefix (and its KV) stays valid. Set false to restore facts-in-system
- * (a fact change invalidates the entire prefix).
+ * history prefix (and its KV) stays valid. Set false to restore facts-in-system:
+ * the facts return to the system prompt AND the static prefix prewarm switches
+ * itself off (queueStaticPrefixPrewarm skips with reason "facts_in_system").
+ * The prewarm runs at boot, when the conversation's facts do not exist yet —
+ * a facts-in-system prefix is something it can never warm.
  */
 export const MEMORY_FACTS_ON_USER_TAIL = true;
 

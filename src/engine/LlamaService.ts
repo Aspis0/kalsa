@@ -43,6 +43,11 @@ import {
   recordToolSuccess,
 } from "../agent/toolSourceLedger";
 import { getStrings, type Locale } from "../i18n";
+import {
+  type StaticPrefixIdentity,
+  restoreStaticPrefixSnapshot,
+  saveStaticPrefixSnapshot,
+} from "./staticPrefixSnapshot";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
@@ -256,7 +261,11 @@ import {
   planPrefixInputChange,
   serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
+  isSystemOnlyTemplateFailure,
   shouldSkipPrewarmWhenKvHoldsChat,
+  prewarmStopReason,
+  prewarmFailureIsPersistent,
+  prewarmGivenUp,
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
   staticPrefixIdentity,
@@ -270,6 +279,7 @@ import {
   MEMORY_FACTS_ON_USER_TAIL,
 } from "./ttftFlags";
 import type { MemoryFact } from "../memory/MemoryStore";
+import { PROMPT_FACT_CHARS } from "../memory/dnaBounding";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -380,6 +390,27 @@ let bakeUnprefixedHealed = false;
  * Null after dispose / settings-stale / disk restore until prewarm or a turn.
  */
 let prewarmPrefixHash: string | null = null;
+/**
+ * Failed prewarm attempts per (model, prefix hash). Every trigger — a slide, a
+ * settings flip, a return to the foreground — would otherwise pay a full
+ * static-prefix prefill for a render this build will never accept.
+ */
+const staticPrefixPrewarmFailures = new Map<string, number>();
+
+function prewarmBudgetKey(prefixHash: string): string {
+  return `${activeModelId ?? ""}:${prefixHash}`;
+}
+/**
+ * Models whose chat template refused a system-only prewarm prompt, learned
+ * from the refusal itself rather than guessed from a catalog flag.
+ *
+ * Membership costs the model its prefix reuse on every hybrid turn (the filler
+ * turn sits past the point where the next prompt diverges), so it is never
+ * assumed — only recorded after a template has actually said no. Process-local
+ * on purpose: a template travels with the model file, and a model switch
+ * rebuilds the engine anyway.
+ */
+const staticPrefixFillerModels = new Set<string>();
 /** Hash currently queued or running — one prewarm per prefix identity. */
 let prewarmQueuedKey: string | null = null;
 /** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
@@ -517,7 +548,7 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** Parser worst case is 3×120-char adds + 10 removes; 192 balances coverage vs Jelly's ~3.4 tok/s decode. */
+/** Parser worst case is 3 adds at the shared extraction cap (PROMPT_FACT_CHARS) + 10 removes; 192 balances coverage vs Jelly's ~3.4 tok/s decode. */
 const EXTRACT_MEMORY_N_PREDICT = 192;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
 const TRANSLATE_TIMEOUT_MS = 30_000;
@@ -807,10 +838,25 @@ function logPrewarm(payload: Record<string, unknown>): void {
   }
 }
 
+/**
+ * The one narrow writer AppShell gets for the KALSA_PREWARM channel: a skip
+ * with a reason. logPrewarm itself stays private on purpose — a free-form
+ * payload invites call sites to emit shapes the verdict cannot classify, and
+ * a mute return reads exactly like a re-kick that never fired.
+ */
+export function logPrewarmSkip(reason: string): void {
+  logPrewarm({ op: "skip", reason });
+}
+
 function resetPrewarmState(): void {
   prewarmGeneration += 1;
   prewarmPrefixHash = null;
   prewarmQueuedKey = null;
+  // The budget is per engine instance, not per process: a native failure can
+  // be transient (memory pressure), and the reload that follows is exactly
+  // when it is worth trying again. Without this, two unlucky attempts cost the
+  // prefix for the whole session.
+  staticPrefixPrewarmFailures.clear();
 }
 
 function resolvePrewarmPrefix(
@@ -841,6 +887,25 @@ function staticPrefixModelIdentity(): string | null {
     modelFileId: activeModelFileId ?? "",
     engineBuild: activeEngineBuild ?? "",
   });
+}
+
+/** Snapshot identity for the active engine, or null when unknown. */
+function staticPrefixSnapshotIdentity(
+  prefixHash: string,
+): StaticPrefixIdentity | null {
+  if (!activeModelId || !activeModelFileId || !activeEngineBuild) return null;
+  return {
+    modelId: activeModelId,
+    modelFileId: activeModelFileId,
+    engineBuild: activeEngineBuild,
+    nCtx: activeEngineCtx,
+    cacheTypeK: activeCacheTypeK ?? "",
+    cacheTypeV: activeCacheTypeV ?? "",
+    prefixHash,
+    ...(activeMtpNMax !== undefined ? { mtpNMax: activeMtpNMax } : {}),
+    ...(activeSpecType !== undefined ? { specType: activeSpecType } : {}),
+    ...(activeEngineKnob !== undefined ? { engineKnob: activeEngineKnob } : {}),
+  };
 }
 
 async function hydrateStaticPrefixTokens(): Promise<void> {
@@ -955,6 +1020,19 @@ export async function queueStaticPrefixPrewarm(
   toolChoiceMode?: ToolChoiceMode,
 ): Promise<void> {
   if (!EAGER_PREFIX_PREWARM) return;
+  // facts-in-system and the static prefix prewarm cannot coexist. The prewarm
+  // runs at boot, when the conversation's facts do not exist yet, so it can
+  // only ever warm a system prompt WITHOUT them — while with
+  // MEMORY_FACTS_ON_USER_TAIL === false every send hashes the prompt WITH
+  // them. The hashes would then never match: not "a fact change invalidates
+  // the prefix once" but "the prefix is never valid", a full wasted prefill
+  // on every engine cycle. Unlike the EAGER check above, this branch LOGS:
+  // a disabled feature has nothing to say, but a contradictory configuration
+  // must name itself in the evidence.
+  if (!MEMORY_FACTS_ON_USER_TAIL) {
+    logPrewarmSkip("facts_in_system");
+    return;
+  }
   // OEM process-restore can relaunch us in background; do not burn a 40s
   // prefill until the user is actually looking at the app. Foreground
   // AppState → active re-kicks from AppShell.
@@ -979,9 +1057,33 @@ export async function queueStaticPrefixPrewarm(
     shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
     prewarmQueuedKey === prefix.hash
   ) {
+    // This log exists because a silent return and a re-kick that never fired
+    // produce identical evidence: the second is a defect, the first is the
+    // common, correct case (a background round-trip that invalidated
+    // nothing). What `already_warm` does NOT mean: prewarmPrefixHash is a JS
+    // flag, not a read of the native KV, so this line is no proof of reuse.
+    // Real reuse stays judged by KALSA_KVPREFIX / n_common, independent of it.
+    logPrewarm({
+      op: "skip",
+      reason: prewarmQueuedKey === prefix.hash ? "in_flight" : "already_warm",
+      hash: prefix.hash,
+    });
+    return;
+  }
+  // Bound once, here: dispose nulls activeModelId before the job's finally
+  // runs, and initEngine sets it a few awaits after the context exists — so a
+  // key read live at either end can be written under ":<hash>" and never read
+  // again. The budget belongs to the model that was active when we decided to
+  // prewarm, which is this one.
+  const budgetKey = prewarmBudgetKey(prefix.hash);
+  if (prewarmGivenUp(staticPrefixPrewarmFailures.get(budgetKey) ?? 0)) {
+    logPrewarm({ op: "skip", reason: "given_up", hash: prefix.hash });
     return;
   }
   const gen = prewarmGeneration;
+  // Read at queue time and captured by the job, so the catch below can tell
+  // "the template already refused once" from "this is the first attempt".
+  const needsFiller = staticPrefixFillerModels.has(activeModelId ?? "");
   prewarmQueuedKey = prefix.hash;
   logPrewarm({
     op: "start",
@@ -990,6 +1092,17 @@ export async function queueStaticPrefixPrewarm(
     toolCount: prefix.toolCount,
   });
   void withEngineJob(async () => {
+    // Set when this attempt learns the template needs a filler turn, so the
+    // finally can re-queue once the dedupe key is released.
+    let retryWithFiller = false;
+    // The finally is the only writer of the retry budget: one place decides,
+    // so a new failure exit cannot forget to record itself.
+    let succeeded = false;
+    let persistentFailure = false;
+    // The context this job was started for. `engine` itself is declared inside
+    // the try, after the guards, so the catch cannot see it — and the catch is
+    // exactly where we need to ask whether the context was swapped under us.
+    let jobEngine: typeof context = null;
     try {
       if (gen !== prewarmGeneration) {
         logPrewarm({ op: "skip", reason: "stale" });
@@ -1000,35 +1113,155 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       const engine = context;
-      // Qwen jinja cannot format a system-only chat (empty prompt, or
-      // "Unable to generate parser"). A one-char user makes the same
-      // template path as message 1; prefix-match still covers the ~1.3k
-      // system+tool tokens and diverges at the real user line.
-      const prewarmMessages = [
-        ...prefix.messages,
-        { role: "user" as const, content: "." },
-      ];
-      await refreshGovernorBeforeCompletion(engine);
-      // Dispose can null context / bump generation during the governor await.
-      if (gen !== prewarmGeneration) {
-        logPrewarm({ op: "skip", reason: "stale" });
-        return;
-      }
-      if (disposing || context !== engine) {
-        logPrewarm({
-          op: "skip",
-          reason: context !== engine ? "no_context" : "disposing",
+      jobEngine = engine;
+      // Three complete hand-made copies of these checks used to sit inline
+      // (plus a partial at the job top, which has no engine to compare yet),
+      // and the snapshot restore was added with its copy on the way OUT. The
+      // policy is prewarmStopReason — pure, so the precedence is covered by
+      // unit tests instead of by reading four call sites. This is only the
+      // adapter: read the live module state, log, stop.
+      const prewarmMustStop = (): boolean => {
+        const reason = prewarmStopReason({
+          genStale: gen !== prewarmGeneration,
+          disposing,
+          contextChanged: context !== engine,
+          kvHoldsChat: kvHoldsChatSession,
         });
-        return;
-      }
-      // Queue-time skip can race restore / a completed turn setting the hold.
-      if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
-        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
-        return;
-      }
-      // The prewarm prompt is about to own the native context: any recorded
-      // chat boundary fact / reconcile attempt is stale from here on.
+        if (reason === null) return false;
+        logPrewarm({ op: "skip", reason });
+        return true;
+      };
+      // The prewarm prompt is the static prefix and NOTHING else, so the cache
+      // it leaves ends exactly where the next real prompt diverges. That is
+      // the whole game on a hybrid: n_common == embd.size() means
+      // llama_memory_seq_rm never enters its partial-rollback branch
+      // (llama-memory-recurrent.cpp:194, `0 < p0 && p0 <= cell.pos`), which is
+      // bounded by n_rs_seq — 0 without a draft model, i.e. entering it means
+      // failing, and a failed seq_rm clears the cache and re-prefills
+      // everything (rn-completion.cpp:620-640).
+      //
+      // This used to append a one-char user turn unconditionally, for Qwen
+      // templates that cannot render a system-only chat. Those few tokens sat
+      // past the divergence point and cost the entire prefix on every hybrid
+      // model. Now the filler is added only after a template actually refuses,
+      // and remembered for this process.
+      const prewarmMessages = needsFiller
+        ? [...prefix.messages, { role: "user" as const, content: "." }]
+        : [...prefix.messages];
+      await refreshGovernorBeforeCompletion(engine);
+      // Dispose can null context / bump generation during the governor await,
+      // and the queue-time skip can race a restore or a turn that completed
+      // and took the chat hold.
+      if (prewarmMustStop()) return;
+      // The native KV is about to be replaced — by a snapshot restore or by
+      // the completion below — so any recorded chat boundary fact is stale.
       invalidateChatKvAlignment();
+      // Persisted snapshot for this exact identity? loadSession replaces the
+      // 40 s prefill with a single-digit-ms read. Same FIFO and same
+      // kv-holds-chat guard as the completion: a loadSession must never race
+      // a completion. Trust comes from tokens_loaded, never from a flag.
+      const snapshotIdentity = staticPrefixSnapshotIdentity(prefix.hash);
+      const snapshotBytesPerToken = snapshotIdentity
+        ? sessionBytesPerTokenForModel(
+            await loadSessionDiskCalibration(),
+            snapshotIdentity.modelId,
+            registrySessionBytesPerToken(snapshotIdentity.modelId),
+          )
+        : null;
+      if (snapshotIdentity) {
+        // The restore REPLACES the native KV, so the checks belong before it,
+        // not only on the way out. loadSessionDiskCalibration above is an
+        // unbounded disk read: a dispose landing inside it was noticed only
+        // after a 12.6 MB loadSession had already been issued against a
+        // context the module had discarded, stretching the dispose path into
+        // its 60 s safety net.
+        //
+        // This NARROWS that window, it does not close it: restoreStaticPrefixSnapshot
+        // still awaits a stat, a possible .bak promotion (which moves the same
+        // 12.6 MB file), a .tmp delete and an AsyncStorage meta read before it
+        // reaches loadSession, and it re-checks nothing of its own. Closing it
+        // structurally means evaluating this predicate inside that function,
+        // immediately before the native call. The residual stays bounded:
+        // dispose nulls the context and then waits on the job chain, so the
+        // cost is dispose latency, never a use-after-free.
+        if (prewarmMustStop()) return;
+        const restored = await restoreStaticPrefixSnapshot(
+          engine,
+          snapshotIdentity,
+          prewarmMustStop,
+        );
+        if (restored.ok) {
+          if (prewarmMustStop()) return;
+          prewarmPrefixHash = prefix.hash;
+          succeeded = true;
+          // tokens_loaded is the native's own count of exactly this prefix —
+          // the same measurement the prefill path records, now without the
+          // 40 s of prefill. restored.ok already guarantees it is a positive
+          // finite number (staticPrefixSnapshot rejects tokens_loaded: 0).
+          const modelIdentity = staticPrefixModelIdentity();
+          const measurement =
+            modelIdentity != null
+              ? makeStaticPrefixMeasurement(
+                  restored.tokensLoaded,
+                  activeEngineCtx,
+                  Date.now(),
+                )
+              : null;
+          if (measurement != null && modelIdentity != null) {
+            try {
+              await persistStaticPrefixTokens(
+                staticPrefixMeasurementKey(
+                  modelIdentity,
+                  staticPrefixIdentity(
+                    locale,
+                    prefix.messages[0]?.content ?? "",
+                    prefix.tools,
+                  ),
+                ),
+                measurement,
+              );
+            } catch {
+              // The in-memory measurement remains usable for this context.
+            }
+          }
+          try {
+            console.log(
+              `KALSA_PREFIX_MEASURED ${JSON.stringify({
+                tokens: restored.tokensLoaded,
+                restored: true,
+              })}`,
+            );
+          } catch {
+            // telemetry must never throw
+          }
+          logPrewarm({
+            op: "restore",
+            ok: true,
+            tokens: restored.tokensLoaded,
+            hash: prefix.hash,
+          });
+          return;
+        }
+        if (restored.reason === "load_error") {
+          // Native load threw mid-restore: bring the context to a known
+          // state before the completion below prefills over it.
+          await dropHoldAfterOptionalNativeClear(engine);
+        }
+        logPrewarm({
+          op: "restore",
+          ok: false,
+          reason: restored.reason,
+          ...(restored.deleted ? { deleted: true } : {}),
+          hash: prefix.hash,
+        });
+        // Falling through means paying the full prefill, so re-check what the
+        // awaits above could have changed. Without this a dispose landing
+        // during the restore starts an 1832-token prefill on a context the
+        // module has already discarded, racing the 60 s dispose safety net.
+        if (prewarmMustStop()) return;
+      }
+      // Chat alignment was already invalidated above (the KV is replaced by
+      // restore or prefill either way).
       const result = await trackCompletion(
         engine.completion({
           messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
@@ -1060,6 +1293,7 @@ export async function queueStaticPrefixPrewarm(
       const promptN =
         typeof result?.timings?.prompt_n === "number" ? result.timings.prompt_n : 0;
       const resultClass = classifyPrewarmResult(nativeResult);
+      persistentFailure = prewarmFailureIsPersistent(resultClass);
       if (resultClass === "skip") {
         logPrewarm({ op: "skip", reason: "interrupted", promptMs, promptN });
         return;
@@ -1082,6 +1316,7 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       prewarmPrefixHash = prefix.hash;
+      succeeded = true;
       // The prefill just run IS the static-prefix measure: tokens_cached /
       // tokens_evaluated are the native's own count of the exact render the
       // send's KV prefix matches (comparable to KALSA_KVPREFIX text_tokens).
@@ -1130,8 +1365,72 @@ export async function queueStaticPrefixPrewarm(
         result.timings?.prompt_ms ?? -1,
       );
       logPrewarm({ op: "done", promptMs, promptN, hash: prefix.hash });
+      // Snapshot the KV this prefill just computed so the next unload → turn
+      // cycle restores instead of recomputing. Inside the FIFO (a
+      // saveSession must not race a completion); the prewarm's caller-return
+      // is unaffected — it never awaits this job.
+      if (
+        snapshotIdentity &&
+        prefixTokens > 0 &&
+        // persistStaticPrefixTokens awaited above: a dispose during it would
+        // otherwise send a native saveSession to a discarded context.
+        gen === prewarmGeneration &&
+        !disposing &&
+        context === engine
+      ) {
+        const saved = await saveStaticPrefixSnapshot({
+          ctx: engine,
+          identity: snapshotIdentity,
+          prefixTokens,
+          bytesPerToken: snapshotBytesPerToken ?? null,
+        });
+        logPrewarm({
+          op: "snapshot_save",
+          ok: saved.ok,
+          ...(saved.ok ? { tokens: saved.tokensLoaded } : {}),
+          ...(!saved.ok ? { reason: saved.reason } : {}),
+          hash: prefix.hash,
+        });
+        // A 1832-token write is far above SESSION_CALIBRATION_MIN_TOKENS, so
+        // it measures this model's real bytes/token. Throwing it away leaves a
+        // model with no catalog kvBytesPerToken on the 64 KiB dense ceiling —
+        // 301 MB demanded for a 12.6 MB file — and since a rate is only
+        // learned from a write that SUCCEEDED, that device never corrects it.
+        if (saved.ok && saved.fileBytes != null) {
+          try {
+            const diskCalibration = await loadSessionDiskCalibration();
+            const next = recordSessionDiskSample(diskCalibration, {
+              ok: true,
+              modelId: snapshotIdentity.modelId,
+              fileBytes: saved.fileBytes,
+              usedTokens: prefixTokens,
+              knownBytesPerToken: registrySessionBytesPerToken(
+                snapshotIdentity.modelId,
+              ),
+            });
+            if (next !== diskCalibration) await saveSessionDiskCalibration(next);
+          } catch {
+            // Calibration is best-effort; the snapshot remains valid.
+          }
+        }
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
+      // A template that cannot render a system-only chat (Qwen3.5: "No user
+      // query found in messages."). Remember it and re-queue: the refusal
+      // happens at template render, before any compute, so the retry is free —
+      // and without it this model's ONLY boot prewarm is lost, since nothing
+      // else re-queues until a model reload or a window slide.
+      if (!needsFiller && isSystemOnlyTemplateFailure(msg) && activeModelId) {
+        staticPrefixFillerModels.add(activeModelId);
+        retryWithFiller = true;
+        logPrewarm({
+          op: "skip",
+          reason: "system_only_template",
+          err: msg.slice(0, 160),
+        });
+        return;
+      }
       const reason = /n_predict/i.test(msg)
         ? "n_predict_rejected"
         : /Prompt is required/i.test(msg)
@@ -1142,6 +1441,22 @@ export async function queueStaticPrefixPrewarm(
         reason,
         err: msg.slice(0, 160),
       });
+      // A dispose racing this job calls stopCompletion, and this repo already
+      // documents twice that stopCompletion REJECTS the completion promise
+      // (see the translate and title paths). That rejection lands right here
+      // looking like a native failure, and classifyPrewarmResult's
+      // `interrupted` escape only helps when the native resolves. So anything
+      // the stop policy can explain — a bumped generation, a dispose, a
+      // swapped context, a chat that took the KV — is about this attempt, not
+      // about the model, and must not spend the retry budget. Read without
+      // logging: the reasons are already logged by whoever caused them.
+      persistentFailure =
+        prewarmStopReason({
+          genStale: gen !== prewarmGeneration,
+          disposing,
+          contextChanged: context !== jobEngine,
+          kvHoldsChat: kvHoldsChatSession,
+        }) === null;
       if (reason === "n_predict_rejected") {
         try {
           console.log(
@@ -1153,6 +1468,21 @@ export async function queueStaticPrefixPrewarm(
       }
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
+      if (succeeded) {
+        staticPrefixPrewarmFailures.delete(budgetKey);
+      } else if (persistentFailure) {
+        staticPrefixPrewarmFailures.set(
+          budgetKey,
+          (staticPrefixPrewarmFailures.get(budgetKey) ?? 0) + 1,
+        );
+      }
+      // After the dedupe key is released, never before — the retry would
+      // otherwise be rejected by `prewarmQueuedKey === prefix.hash`. Bounded
+      // to one attempt: the re-queue reads needsFiller as true, so it cannot
+      // reach the branch that set this flag.
+      if (retryWithFiller) {
+        void queueStaticPrefixPrewarm(locale, tools, resolvedToolChoiceMode);
+      }
     }
   });
 }
@@ -2639,6 +2969,15 @@ export function markKvNonReproducible(
 function markChatKvCleared(): void {
   dropChatKvHold(true);
   invalidateChatKvAlignment();
+  // clearCache does not spare the static prefix: it is the same native cache.
+  // Leaving prewarmPrefixHash set would be a JS flag asserting a warmth the
+  // clear just destroyed — the exact class of desync this repo has hit three
+  // times — and it makes queueStaticPrefixPrewarm short-circuit
+  // (shouldSkipStaticPrefixPrewarm), so nothing would ever re-warm after a
+  // window slide. Not resetPrewarmState(): that bumps prewarmGeneration,
+  // which would cancel the prewarm we want to run next.
+  prewarmPrefixHash = null;
+  prewarmQueuedKey = null;
 }
 
 /**
@@ -5219,9 +5558,21 @@ export async function extractMemory(
   }
 
   const strings = getStrings(locale);
-  const prompt = strings.memory.extractPrompt
-    .replace("{user}", userSlice)
-    .replace("{assistant}", assistantSlice);
+  // The prompt is built in ONE pass with a function replacer. Two properties
+  // that chained string-replace calls both break: (1) a replacement never
+  // acts on already-substituted text — user content containing "{assistant}"
+  // must not capture the model's answer — and (2) `$` patterns in the content
+  // ($&, $', $1...) stay literal, because a function replacer is not parsed.
+  // Unrecognized placeholders stay visible: a template error is not data.
+  const extractValues: Record<string, string> = {
+    "{user}": userSlice,
+    "{assistant}": assistantSlice,
+    "{chars}": String(PROMPT_FACT_CHARS),
+  };
+  const prompt = strings.memory.extractPrompt.replace(
+    /\{user\}|\{assistant\}|\{chars\}/g,
+    (placeholder) => extractValues[placeholder] ?? placeholder,
+  );
   const modelId = activeModelId;
   const timeoutMs = extractTimeoutMs({
     decodeTokPerSec: modelId ? getDecodeTokPerSec(modelId) : null,
@@ -5457,7 +5808,7 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[]; par
     const add = Array.isArray(obj.add)
       ? obj.add
           .filter((item): item is string => typeof item === "string")
-          .map((item) => item.replace(/\s+/g, " ").trim().slice(0, 120))
+          .map((item) => item.replace(/\s+/g, " ").trim().slice(0, PROMPT_FACT_CHARS))
           .filter((item) => item.length > 0)
           .slice(0, 3)
       : [];

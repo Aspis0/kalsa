@@ -19,8 +19,8 @@ export const MEMORY_SUB_BUDGET_TOKENS = 1200;
 /** Kalsa chars/4 estimate — not CisWire's CJK-aware estimator. */
 const CHARS_PER_TOKEN = 4;
 
-/** Same cap the last-user tail used before bounding. */
-const PROMPT_FACT_CHARS = 120;
+/** Same cap the last-user tail used before bounding (Settings reuses it). */
+export const PROMPT_FACT_CHARS = 120;
 
 export type DnaBoundHealth = {
   deferredCount: number;
@@ -35,7 +35,7 @@ export type DnaBoundResult = {
 };
 
 type RankedNote = {
-  date: string;
+  createdAt: number;
   block: string;
   text: string;
   index: number;
@@ -59,7 +59,9 @@ function sanitizeFactText(text: string): string {
 }
 
 function deferralMarker(n: number): string {
-  return `\n- […] ${n} older notes deferred — see Memory\n`;
+  return n === 1
+    ? `\n- […] 1 older note deferred — see Memory\n`
+    : `\n- […] ${n} older notes deferred — see Memory\n`;
 }
 
 function healthOf(
@@ -78,7 +80,7 @@ function toNotes(facts: readonly MemoryFact[]): RankedNote[] {
     if (!text) continue;
     const date = dateLabel(fact.createdAt);
     notes.push({
-      date,
+      createdAt: fact.createdAt,
       block: `- [${date}] ${text}`,
       text,
       index: i,
@@ -88,8 +90,10 @@ function toNotes(facts: readonly MemoryFact[]): RankedNote[] {
 }
 
 /**
- * Bound MemoryFact[] to a token sub-budget. Newest-date-first when notes
- * must be dropped; original order when everything fits (freeze-safe).
+ * Bound MemoryFact[] to a token sub-budget. When notes must be dropped the
+ * ranking is by createdAt — newest first, later insertion wins a tie, a
+ * non-finite timestamp ranks oldest; the day label is display only. Original
+ * order when everything fits (freeze-safe).
  */
 export function boundMemoryFacts(
   facts: readonly MemoryFact[],
@@ -114,9 +118,13 @@ export function boundMemoryFacts(
     };
   }
 
+  const rankOf = (n: RankedNote): number =>
+    Number.isFinite(n.createdAt) ? n.createdAt : Number.NEGATIVE_INFINITY;
   const ranked = [...notes].sort((a, b) => {
-    if (a.date !== b.date) return a.date > b.date ? -1 : 1;
-    return a.index - b.index;
+    const at = rankOf(a);
+    const bt = rankOf(b);
+    if (at !== bt) return at > bt ? -1 : 1;
+    return b.index - a.index;
   });
 
   const effective = budgetTokens - estimateMemoryTokens(deferralMarker(notes.length));

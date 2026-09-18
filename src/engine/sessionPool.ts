@@ -14,6 +14,7 @@ import {
 } from "./sessionBudget";
 import {
   isLegacySessionFileName,
+  isStaticPrefixStem,
   legacySessionStem,
   parseSessionStem,
   sanitizeSessionSegment,
@@ -52,8 +53,15 @@ export function pickEvictionStems(
   keepStem: string,
 ): string[] {
   const budget = Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
+  // The static-prefix snapshot is infrastructure, not a conversation: it is
+  // neither charged to the budget nor offered as a victim. Otherwise, at the
+  // picker's minimum of 1 conversation, a long chat plus the snapshot is over
+  // budget and each save deletes the other's file — save, evict, recompute a
+  // 40 s prefill, save. Its size is bounded by keeping exactly one snapshot
+  // file on disk (saveStaticPrefixSnapshot), not by this LRU.
+  const chatFiles = files.filter((f) => !isStaticPrefixStem(f.stem));
   let remaining = 0;
-  for (const f of files) remaining += Math.max(0, f.bytes);
+  for (const f of chatFiles) remaining += Math.max(0, f.bytes);
   if (remaining <= budget) return [];
   const keepModel = modelIdOfStem(keepStem);
   const isForeign = (stem: string): boolean => {
@@ -61,7 +69,7 @@ export function pickEvictionStems(
     const model = modelIdOfStem(stem);
     return model != null && model !== keepModel;
   };
-  const ordered = files
+  const ordered = chatFiles
     .filter((f) => f.stem !== keepStem)
     .slice()
     .sort((a, b) => {
@@ -110,6 +118,31 @@ export async function touchSessionUse(stem: string, at = Date.now()): Promise<vo
   } catch {
     // best-effort
   }
+}
+
+/**
+ * Keep exactly one static-prefix snapshot on disk: the one just written.
+ *
+ * This is the snapshot's whole size bound, since pickEvictionStems no longer
+ * charges it to the conversation budget. Any other snapshot is by definition
+ * a dead identity — a previous model, prompt, tool set or locale — and cannot
+ * be restored, only refused. Returns how many stems were dropped.
+ */
+export async function keepOnlyStaticPrefixSnapshot(
+  keepStem: string,
+): Promise<number> {
+  let dropped = 0;
+  try {
+    for (const name of await listSessionDirNames()) {
+      const stem = stemFromPooledName(name);
+      if (!stem || stem === keepStem || !isStaticPrefixStem(stem)) continue;
+      await dropStem(stem);
+      dropped += 1;
+    }
+  } catch {
+    // best-effort: a stale snapshot costs disk, never correctness
+  }
+  return dropped;
 }
 
 export async function evictSessionPool(

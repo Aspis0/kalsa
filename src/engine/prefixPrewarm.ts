@@ -315,6 +315,47 @@ export function estimateStaticPrefixTokens(
   return wideChars + narrowTokens + schemaTokens + STATIC_PREFIX_TEMPLATE_MARGIN_TOKENS;
 }
 
+/**
+ * True when a completion failed because the chat template could not render a
+ * system-only conversation.
+ *
+ * The prewarm prompt is the static prefix and nothing else, so on a hybrid
+ * model the cache it leaves ends exactly where the next real prompt diverges:
+ * n_common == embd.size(), and llama_memory_seq_rm's partial-rollback branch
+ * (llama-memory-recurrent.cpp:194, `0 < p0 && p0 <= cell.pos`) is never
+ * entered — which matters because that branch is bounded by n_rs_seq, which
+ * is 0 without a draft model, so entering it means FAILING. One extra turn in
+ * the cache is enough to move p0 back behind the frontier and lose the whole
+ * prefix to a full re-prefill.
+ *
+ * Some templates cannot render that prompt (Qwen's jinja: "Prompt is
+ * required", "Unable to generate parser"). Those, and only those, get a
+ * one-character filler turn appended — paying the re-prefill rather than
+ * skipping the prewarm entirely. Both shipped templates were read out of their own
+ * GGUF metadata rather than the reference .jinja files:
+ *
+ * - LFM2.5-2.6B renders it fine — a lone system message emits
+ *   `<|im_start|>system\n…<|im_end|>\n` and both message loops run zero
+ *   times, so no filler is ever added and the prefix is reused whole.
+ * - Qwen3.5-4B refuses: its reverse scan sets `multi_step_tool` false only on
+ *   a user role, then `raise_exception('No user query found in messages.')`.
+ *   That model gets the filler, and pays the re-prefill it implies.
+ */
+export function isSystemOnlyTemplateFailure(message: unknown): boolean {
+  if (typeof message !== "string" || message.length === 0) return false;
+  return (
+    // Read out of the shipped GGUFs' own tokenizer.chat_template, not guessed:
+    // Qwen3.5-4B's template runs `raise_exception('No user query found in
+    // messages.')` when its reverse scan finds no user role (it also refuses
+    // an empty `messages`), and minja surfaces that string verbatim.
+    /No user query found/i.test(message) ||
+    /No messages provided/i.test(message) ||
+    /Prompt is required/i.test(message) ||
+    /Unable to generate parser/i.test(message) ||
+    /system[- ]only/i.test(message)
+  );
+}
+
 /** System-only chat. Never user / assistant / tool roles. */
 export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessage[] {
   return [{ role: "system", content: typeof systemText === "string" ? systemText : "" }];
@@ -377,6 +418,69 @@ export function shouldSkipPrewarmWhenKvHoldsChat(
   kvHoldsChatSession: boolean,
 ): boolean {
   return kvHoldsChatSession === true;
+}
+
+export type PrewarmStopReason =
+  | "stale"
+  | "no_context"
+  | "disposing"
+  | "kv_holds_chat";
+
+/**
+ * Why a running prewarm job must stop, or null to carry on. Every await in the
+ * job body can invalidate all four inputs, so this is evaluated before each act
+ * that touches the native KV — never only after it. It lived inline in three
+ * hand-made copies, and the snapshot restore was added with its copy on the way
+ * OUT: a dispose landing during the restore was noticed only once a 12.6 MB
+ * loadSession had already been issued against a discarded context.
+ *
+ * Precedence is load-bearing and matches what the inline copies logged: a stale
+ * generation outranks everything, and when the context changed the reason is
+ * "no_context" even if a dispose is also in flight — the context identity is the
+ * more specific fact.
+ */
+/**
+ * A prewarm that keeps failing must not burn a full static-prefix prefill on
+ * every trigger. The foreground re-kick made that concrete: a model whose
+ * template or engine path refuses this render would pay ~1832 tokens of
+ * prefill on every single return to the app, for a prefix that will never
+ * land. Two attempts, then this process stops trying for that (model, prefix)
+ * pair; a later success clears the count.
+ */
+export const STATIC_PREFIX_PREWARM_MAX_FAILURES = 2;
+
+/**
+ * Does this outcome say something durable about the model, or only about this
+ * attempt? An interrupted completion says nothing — the next trigger should
+ * retry. A template that renders nothing usable, or an engine that refuses the
+ * render, will say the same thing next time.
+ *
+ * The template refusal Qwen raises is NOT routed here: it has its own bounded
+ * retry (the filler turn), and that retry is free because the refusal happens
+ * at render time, before any compute.
+ */
+export function prewarmFailureIsPersistent(
+  resultClass: PrewarmResultClass,
+): boolean {
+  return resultClass === "failed" || resultClass === "generated";
+}
+
+export function prewarmGivenUp(failures: number): boolean {
+  return failures >= STATIC_PREFIX_PREWARM_MAX_FAILURES;
+}
+
+export function prewarmStopReason(input: {
+  genStale: boolean;
+  disposing: boolean;
+  contextChanged: boolean;
+  kvHoldsChat: boolean;
+}): PrewarmStopReason | null {
+  if (input.genStale) return "stale";
+  if (input.disposing || input.contextChanged) {
+    return input.contextChanged ? "no_context" : "disposing";
+  }
+  if (shouldSkipPrewarmWhenKvHoldsChat(input.kvHoldsChat)) return "kv_holds_chat";
+  return null;
 }
 
 /**

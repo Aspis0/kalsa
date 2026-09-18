@@ -61,6 +61,13 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
+      # The overlay copies the fork through an allow-list in
+      # scripts/sync-kalsallama.sh, so an upstream file a source starts
+      # including is simply absent and the NDK fails ~5 min into the build.
+      # This catches it right after assembly, in seconds.
+      - name: Assert the assembled engine's includes all resolve
+        run: bash scripts/assert-overlay-includes.sh
+
       - name: Typecheck + logic harnesses
         run: |
           npm run typecheck
@@ -88,11 +95,35 @@ jobs:
           node scripts/memoryEstimateHarness.mjs
           node scripts/sessionMetaHarness.mjs
           node scripts/sessionSaveGateHarness.mjs
+          node scripts/prefixPrewarmHarness.mjs
+          node scripts/memoryFactsTailHarness.mjs
           node scripts/voiceStateHarness.mjs
           # ~140s from a cold build. It belongs here and not only in bench.yml,
           # which is workflow_dispatch-only: a mutation matrix that runs on no
           # push is the same decoration as no matrix at all.
           node scripts/webFetchPdfMutationMatrix.mjs
+          # Orphan harnesses: until 2026-09-17 these ran in no workflow — which
+          # is how embeddingServiceHarness and telemetryHarness rotted silently
+          # (both repaired in c1951a8).
+          node scripts/anti_oom_harness.mjs
+          node scripts/compactionParseHarness.mjs
+          node scripts/conversationsStoreHarness.mjs
+          node scripts/dailyUseHarness.mjs
+          node scripts/deviceProfileHarness.mjs
+          node scripts/documentLibraryHarness.mjs
+          node scripts/docxToTextHarness.mjs
+          node scripts/eagerKickHarness.mjs
+          node scripts/embeddingServiceHarness.mjs
+          node scripts/i18nParityHarness.mjs
+          node scripts/llamaContextGateHarness.mjs
+          node scripts/markdownHarness.mjs
+          node scripts/regen_harness.mjs
+          node scripts/researchPlanHarness.mjs
+          node scripts/semanticIndexHarness.mjs
+          node scripts/telemetryHarness.mjs
+          node scripts/telemetryWorkerHarness.mjs
+          node scripts/thinkHistoryHarness.mjs
+          node scripts/tuningLayerHarness.mjs
 
       - name: Free disk space
         run: |

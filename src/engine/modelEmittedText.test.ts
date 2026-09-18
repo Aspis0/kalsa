@@ -77,49 +77,104 @@ describe("promptContentForHistoryMessage", () => {
 });
 
 describe("llamaHistoryAssistantFields", () => {
-  test("splits a leading think span into reasoning_content, visible stays content", () => {
+  test("prefixes a leading think span without parsing or moving bytes", () => {
+    const raw = "<think>\n\n</think>\n\nLa memoria KV è una cache.";
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "La memoria KV è una cache.",
-      modelEmittedText: "<think>\n\n</think>\n\nLa memoria KV è una cache.",
+      modelEmittedText: raw,
     });
-    expect(fields.reasoning_content).toBe("\n\n");
-    expect(fields.content).toBe("\n\nLa memoria KV è una cache.");
-    expect(fields.content).not.toContain("<think>");
-    expect(fields.reasoning_content).not.toContain("<think>");
+    expect(fields).toEqual({ content: `<think>${raw}` });
   });
 
-  test("no think tags: content is the raw emission", () => {
+  test("prefixes an implicit-open think span emitted after a template-opened tag", () => {
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: "ANSWER",
+      modelEmittedText: "REASONING</think>ANSWER",
+    });
+    expect(fields).toEqual({ content: "<think>REASONING</think>ANSWER" });
+  });
+
+  test("raw empty emits the seeded think prefix", () => {
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "",
+      }),
+    ).toEqual({ content: "<think>" });
+  });
+
+  test("preserves a closing tag at position zero", () => {
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "</think>",
+        modelEmittedText: "</think>",
+      }),
+    ).toEqual({ content: "<think></think>" });
+  });
+
+  test("preserves a closing tag followed by the answer", () => {
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "</think>ANSWER",
+        modelEmittedText: "</think>ANSWER",
+      }),
+    ).toEqual({ content: "<think></think>ANSWER" });
+  });
+
+  test("no think tags: content is the seeded prefix plus raw emission", () => {
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "visible",
       modelEmittedText: "raw-emitted",
     });
-    expect(fields.reasoning_content).toBeUndefined();
-    expect(fields.content).toBe("raw-emitted");
+    expect(fields).toEqual({ content: "<think>raw-emitted" });
   });
 
-  test("does not double-wrap when visible already starts with think", () => {
-    const raw = "<think>abc</think>\nHi";
-    const fields = llamaHistoryAssistantFields({
-      role: "assistant",
-      content: raw,
-      modelEmittedText: raw,
-    });
-    expect(fields.reasoning_content).toBe("abc");
-    expect(fields.content).toBe("\nHi");
-    expect(fields.content).not.toContain("<think>");
-    expect(fields.reasoning_content).not.toContain("<think>");
+  test("preserves two closing tags and a later opening tag verbatim", () => {
+    const raw = "REASONING</think>ANSWER</think>MORE";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: raw,
+        modelEmittedText: raw,
+      }),
+    ).toEqual({ content: `<think>${raw}` });
   });
 
-  test("truncated think stays in content", () => {
+  test("preserves a later opening tag after the true close", () => {
+    const raw = "REASONING</think>ANSWER <think>more";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: raw,
+        modelEmittedText: raw,
+      }),
+    ).toEqual({ content: `<think>${raw}` });
+  });
+
+  test("preserves a quoted think tag in the answer", () => {
+    const raw = "a<think>b</think>c";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: raw,
+        modelEmittedText: raw,
+      }),
+    ).toEqual({ content: `<think>${raw}` });
+  });
+
+  test("truncated think stays verbatim after the seeded prefix", () => {
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "",
       modelEmittedText: "<think>unfinished",
     });
-    expect(fields.reasoning_content).toBeUndefined();
-    expect(fields.content).toBe("<think>unfinished");
+    expect(fields).toEqual({ content: "<think><think>unfinished" });
   });
 
   test("content_span keeps the raw think span so Qwen history prefixes KV", () => {
@@ -141,24 +196,57 @@ describe("llamaHistoryAssistantFields", () => {
     expect(fields.content).toBe("hi");
     expect(fields.reasoning_content).toBeUndefined();
   });
+
+  test("content_span keeps an empty think span", () => {
+    const raw = "<think></think>ANSWER";
+    expect(
+      llamaHistoryAssistantFields(
+        { role: "assistant", content: raw, modelEmittedText: raw },
+        { historyThink: "content_span" },
+      ),
+    ).toEqual({ content: raw, reasoning_content: "" });
+  });
 });
 
 describe("historyReplayCharLength", () => {
-  test("charges modelEmittedText for assistants, not the UI text", () => {
-    const think = "<think>\nplan\n</think>\n\nshort";
+  test("charges the exact LFM replay text, not the UI text", () => {
+    const raw = "REASONING</think>ANSWER";
     expect(
-      historyReplayCharLength({
-        role: "assistant",
-        text: "short",
-        modelEmittedText: think,
-      }),
-    ).toBe(think.length);
-    expect(historyReplayCharLength({ role: "user", text: "hi" })).toBe(2);
+      historyReplayCharLength(
+        { role: "assistant", text: "short", modelEmittedText: raw },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(raw.length + "<think>".length);
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: "short", modelEmittedText: raw },
+        { historyThink: "content_span" },
+      ),
+    ).toBe(raw.length);
+    expect(
+      historyReplayCharLength(
+        { role: "user", text: "hi" },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(2);
   });
 
-  test("Qwen (no preserveThinking) uses content_span; LFM splits", () => {
+  test("Qwen (no preserveThinking) uses content_span; LFM restores the seed", () => {
     expect(historyThinkPlacementForModel(undefined)).toBe("content_span");
     expect(historyThinkPlacementForModel(true)).toBe("reasoning_content");
+  });
+
+  test("normalizer preserves a leading newline before LFM replay", () => {
+    const raw = "\nREASONING</think>ANSWER";
+    const saved = normalizeModelEmittedTextForSave("assistant", raw);
+    expect(saved).toBe(raw);
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "ANSWER",
+        modelEmittedText: saved,
+      }),
+    ).toEqual({ content: `<think>${raw}` });
   });
 
   test("start=0 assemble + content_span keeps think so the prompt prefixes KV", () => {
@@ -232,7 +320,7 @@ describe("normalizeModelEmittedTextForSave", () => {
   test("whitespace-only emission normalises to absent at save", () => {
     expect(normalizeModelEmittedTextForSave("assistant", "   \n\t  ")).toBeUndefined();
     expect(normalizeModelEmittedTextForSave("assistant", "")).toBeUndefined();
-    expect(normalizeModelEmittedTextForSave("assistant", "  hello  ")).toBe("hello");
+    expect(normalizeModelEmittedTextForSave("assistant", "  hello  ")).toBe("  hello  ");
     expect(normalizeModelEmittedTextForSave("user", "  hello  ")).toBeUndefined();
   });
 });

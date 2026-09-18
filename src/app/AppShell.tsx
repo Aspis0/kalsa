@@ -136,6 +136,7 @@ import {
   isEngineLostRecovery,
   isEngineReady,
   lastNativeTokenAtMs,
+  logPrewarmSkip,
   resolvedStaticPrefixTokens,
   nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
@@ -284,7 +285,10 @@ import {
   shouldReconcileAssembleStart,
   windowHasDigest,
 } from "../engine/windowKvInvariant";
-import { historyReplayCharLength } from "../engine/modelEmittedText";
+import {
+  historyReplayCharLength,
+  historyThinkPlacementForModel,
+} from "../engine/modelEmittedText";
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
@@ -2289,6 +2293,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
   const agentOptionsRef = useRef(agentOptions);
   agentOptionsRef.current = agentOptions;
+  // The AppState effect below mounts with [] deps, so it would capture the
+  // mount-time locale and prewarm a prefix the next send never hashes to.
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   // Prefix identity (locale + tool schemas). Skip the mount run so remount /
   // AppState does not redo prewarm. Real setting flips mark stale and may
@@ -3259,12 +3267,52 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           bumpForegroundIdleRef.current();
           void (async () => {
             try {
-              if (thermalHardGateRef.current) return;
+              // A muted return and a re-kick that never fired produce the
+              // same evidence — an empty kick window — and only the second
+              // is a defect. Every exit ahead of the re-kick names its cause
+              // first, so the verdict's stopped/silent split points at the
+              // real subsystem instead of at this file.
+              if (thermalHardGateRef.current) {
+                logPrewarmSkip("thermal_gate");
+                return;
+              }
               const model = MODEL_REGISTRY[modelIndexRef.current];
-              if (!model) return;
+              if (!model) {
+                logPrewarmSkip("no_model");
+                return;
+              }
               // Foreground does not mark lost (RSS collapse is mmap eviction,
               // not death). Chip kind recomputes from existing jsReady.
-              if (isEngineReady() && getActiveModelId() === model.id) return;
+              if (isEngineReady() && getActiveModelId() === model.id) {
+                // A slide that lands while we are backgrounded loses its
+                // prefix re-warm: queueStaticPrefixPrewarm returns early on
+                // AppState !== "active". None of its other callers fires on a
+                // foreground transition — they are ensureEngineForModel (which
+                // this branch returns before reaching), the send path's
+                // post-slide re-warm, the filler retry and the prefix-input
+                // wipe — so the prefix stays cold until the next slide or
+                // engine cycle. This is the re-kick its own contract promises.
+                // Its guards already make this a no-op when the prefix is warm
+                // or the KV holds a chat. Awaited inside this try so a rejected
+                // enqueue cannot escape as an unhandled rejection; nothing
+                // below depends on it.
+                await queueStaticPrefixPrewarm(
+                  localeRef.current,
+                  agentOptionsRef.current.tools,
+                );
+                return;
+              }
+              // The re-kick branch above was skipped: say which diagnosis it
+              // is. Engine not ready is the model evicted while backgrounded
+              // (thermal pause / onTrimMemory); a ready engine on another
+              // model id is a user switch — same empty window, opposite ends
+              // of the app. No await sits between the branch condition and
+              // these reads, so the state is the one the branch decided on.
+              if (!isEngineReady()) {
+                logPrewarmSkip("not_ready");
+              } else {
+                logPrewarmSkip("model_changed");
+              }
               const available = await getAvailableMemoryBytesUncached();
               if (thermalHardGateRef.current) return;
               // Gate on the load mode initEngine will really use: the model's
@@ -5417,8 +5465,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const perMessageCap = baseMessageCap + userTailChars;
             const currentTurnChars =
               Math.min(promptText.length, baseMessageCap) + userTailChars;
+            const historyThink = historyThinkPlacementForModel(
+              currentModel.preserveThinking,
+            );
             const historyLengths = validatedHistory.map((m) =>
-              Math.min(historyReplayCharLength(m), baseMessageCap) +
+              Math.min(historyReplayCharLength(m, { historyThink }), baseMessageCap) +
                 (m.role === "user" ? userTailChars : 0),
             );
             let legacyWindowStart = legacyWindowMode
@@ -5910,6 +5961,34 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     summary: state.rollingSummary || undefined,
                   });
                 }
+              }
+            }
+
+            // A slide's clearCache does not spare the static prefix — it is the
+            // same native cache — so without this the send below re-prefills
+            // ~1832 tokens of system prompt and tool schemas it had already
+            // paid for. queueStaticPrefixPrewarm restores them from the
+            // on-disk snapshot in single-digit ms; with no snapshot yet it
+            // prefills them and writes one, so the next slide is cheap.
+            //
+            // Awaited on purpose: the promise resolves once the job is ENQUEUED
+            // (queueStaticPrefixPrewarm never awaits its own withEngineJob
+            // body), which is exactly the ordering guarantee we need — the
+            // restore must sit in front of this send's completion in the FIFO,
+            // or the completion arrives first and the prewarm is skipped for
+            // holding chat KV.
+            if (nativeClearedForAssemble) {
+              try {
+                await queueStaticPrefixPrewarm(
+                  locale,
+                  agentOptionsRef.current.tools,
+                );
+              } catch {
+                // The prewarm is an optimisation on top of this send, never a
+                // precondition for it: the completion below prefills the same
+                // tokens either way. Its own job body already catches, but the
+                // queueing half runs on this stack, and an awaited rejection
+                // here would fail the user's turn.
               }
             }
 

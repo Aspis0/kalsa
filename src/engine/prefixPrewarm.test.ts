@@ -7,6 +7,7 @@ import {
   djb2,
   estimateStaticPrefixTokens,
   isStaticPrefixMeasurementUsable,
+  isSystemOnlyTemplateFailure,
   makeStaticPrefixMeasurement,
   parseStaticPrefixMeasurements,
   serializeStaticPrefixMeasurements,
@@ -336,5 +337,48 @@ describe("persisted static-prefix measurements v2", () => {
     expect(parsed).toEqual([[wide, entry(9000, 5, 16384)]]);
     expect(staticPrefixTokensForActiveNCtx(parsed[0][1], 8192)).toBeNull();
     expect(staticPrefixTokensForActiveNCtx(parsed[0][1], 16384)).toBe(9000);
+  });
+});
+
+describe("isSystemOnlyTemplateFailure", () => {
+  // Why this predicate decides anything: the prewarm prompt must be the static
+  // prefix and NOTHING else, so the cache it leaves ends exactly where the next
+  // real prompt diverges. One extra turn past that point moves p0 back behind
+  // the frontier, llama_memory_seq_rm takes its partial-rollback branch
+  // (llama-memory-recurrent.cpp:194) bounded by n_rs_seq = 0, fails, and
+  // rn-completion.cpp clears the cache and re-prefills the whole window.
+  // So the filler turn is only ever added to a model that has REFUSED.
+  test("recognises the templates that cannot render a system-only chat", () => {
+    // Verbatim from Qwen3.5-4B's own tokenizer.chat_template, read out of the
+    // shipped GGUF: `raise_exception('No user query found in messages.')`
+    // fires because its reverse scan clears multi_step_tool only on a user
+    // role. Missing this string is not cosmetic — the model would never be
+    // added to the filler set, so its prewarm would fail on every attempt.
+    expect(
+      isSystemOnlyTemplateFailure("No user query found in messages."),
+    ).toBe(true);
+    expect(
+      isSystemOnlyTemplateFailure(
+        "Error: minja: No user query found in messages.",
+      ),
+    ).toBe(true);
+    expect(isSystemOnlyTemplateFailure("No messages provided.")).toBe(true);
+    expect(isSystemOnlyTemplateFailure("Prompt is required")).toBe(true);
+    expect(isSystemOnlyTemplateFailure("Unable to generate parser")).toBe(true);
+    expect(
+      isSystemOnlyTemplateFailure("jinja: unable to generate parser for tools"),
+    ).toBe(true);
+  });
+
+  test("does not claim unrelated native failures", () => {
+    // Misclassifying any of these would append the filler turn — and with it
+    // give up prefix reuse — on a model whose template was never the problem.
+    expect(isSystemOnlyTemplateFailure("n_predict must be > 0")).toBe(false);
+    expect(isSystemOnlyTemplateFailure("out of memory")).toBe(false);
+    expect(isSystemOnlyTemplateFailure("context shift is disabled")).toBe(false);
+    expect(isSystemOnlyTemplateFailure("")).toBe(false);
+    expect(isSystemOnlyTemplateFailure(undefined)).toBe(false);
+    expect(isSystemOnlyTemplateFailure(null)).toBe(false);
+    expect(isSystemOnlyTemplateFailure(42)).toBe(false);
   });
 });
