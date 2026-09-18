@@ -676,7 +676,7 @@ async function main() {
   );
   assert(/restore_ok=1 /.test(pass), "a successful restore is counted");
   assert(
-    /whole_cache_reused=1 partial_reuse=0 total_loss=0 /.test(pass),
+    /whole_cache_reused=1 partial_reuse=0 total_loss=0 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none /.test(pass),
     "n_common === embd is the whole cache reused, and no loss",
   );
   assert(
@@ -696,7 +696,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /rows=2 whole_cache_reused=0 partial_reuse=1 total_loss=1 /.test(partial),
+    /rows=2 whole_cache_reused=0 partial_reuse=1 total_loss=1 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none /.test(partial),
     "900 of 1832 reused is neither the whole cache nor a total loss",
   );
   assert(
@@ -725,7 +725,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /whole_cache_reused=1 partial_reuse=2 total_loss=0/.test(mixed),
+    /whole_cache_reused=1 partial_reuse=2 total_loss=0 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none/.test(mixed),
     "one whole cycle and two partials are reported as what they are",
   );
   assert(
@@ -837,6 +837,129 @@ async function main() {
   assert(
     /KV_PREFIX_CRITERION: FAIL \(no live-cache measurement in this run\)/.test(noKvPrefix),
     "a run that never measured reuse fails the criterion instead of silence",
+  );
+
+  // The announced engine identity change is a cold start on cycle 1 only:
+  // the old snapshot was read, rejected by its metadata, and regenerated.
+  const firstColdThenWarm = verdict(
+    "first-cold-then-warm",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "KALSA_RP_MARK cycle=2",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "KALSA_RP_MARK cycle=3",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=3 whole_cache_reused=2 partial_reuse=0 total_loss=0 cold_start=1 cold_start_field=engineBuild late_cold_start=0 late_cold_start_field=none /.test(firstColdThenWarm),
+    "cycle 1 metadata mismatch is a named cold start, not a total loss",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: PASS/.test(firstColdThenWarm),
+    "the announced engine identity change passes once later cycles are warm",
+  );
+
+  // A metadata mismatch after cycle 1 is an engine recreation during the run,
+  // not an announced cold start. Its zero remains a total loss and fails.
+  const lateColdStart = verdictFail(
+    "late-cold-start",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "KALSA_RP_MARK cycle=2",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "KALSA_RP_MARK cycle=3",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=3 whole_cache_reused=2 partial_reuse=0 total_loss=1 cold_start=0 cold_start_field=none late_cold_start=1 late_cold_start_field=engineBuild /.test(lateColdStart),
+    "a late metadata mismatch remains a total loss and names its field",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(total loss x1; identity changed during run: meta_mismatch:engineBuild at cycle 2\)/.test(lateColdStart),
+    "a late cold start explains the mid-run identity change",
+  );
+
+  // Rebuilding on every cycle means the engine identity never stabilizes.
+  const allColdStarts = verdictFail(
+    "all-cold-starts",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "KALSA_RP_MARK cycle=2",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "KALSA_RP_MARK cycle=3",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=3 whole_cache_reused=0 partial_reuse=0 total_loss=2 cold_start=1 cold_start_field=engineBuild late_cold_start=2 late_cold_start_field=engineBuild /.test(allColdStarts),
+    "all cold cycles remain visible separately from the losses they cause",
+  );
+  assert(
+    /all cycles were cold starts; identity never stabilized/.test(allColdStarts),
+    "rebuilding every cycle fails even though cycle 1 is an allowed cold start",
+  );
+
+  // A zero without a metadata-mismatch restore is not a demonstrated cold
+  // start. It remains a total loss and fails the reuse criterion.
+  const zeroWithoutRestoreMiss = verdictFail(
+    "zero-without-restore-miss",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=1 whole_cache_reused=0 partial_reuse=0 total_loss=1 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none /.test(zeroWithoutRestoreMiss),
+    "n_common=0 without a metadata mismatch is still a total loss",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(no cycle reused the whole cache; total loss x1\)/.test(zeroWithoutRestoreMiss),
+    "an unproven cold start fails the criterion",
+  );
+
+  // A missing file does not prove an identity change: it may mean the save
+  // path never produced a snapshot, so no_file must remain a total loss.
+  const noFileFirstCycle = verdictFail(
+    "no-file-first-cycle",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"no_file"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /rows=1 whole_cache_reused=0 partial_reuse=0 total_loss=1 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none /.test(noFileFirstCycle),
+    "no_file on cycle 1 is not a cold start",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(no cycle reused the whole cache; total loss x1\)/.test(noFileFirstCycle),
+    "a missing snapshot remains a measured failure",
   );
 
   // A run that produced nothing must say so, not divide by zero.

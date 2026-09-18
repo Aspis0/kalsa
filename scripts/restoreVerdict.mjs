@@ -53,9 +53,47 @@ console.log("PREWARM_STOPS: " + stops.map((r) =>
 const prefixMisses = n(/"match":false,"reason":"prefix_miss"/g);
 const matchKvHolds = n(/"match":false,"reason":"kv_holds_chat"/g);
 console.log("PREFIX_MATCH: miss=" + prefixMisses + " kv_holds_chat=" + matchKvHolds);
-const rows = [...ev.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
-  .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
-  .filter((r) => r.embd > 0);
+const evLines = ev.split("\n");
+const cycleWindows = [];
+let currentCycle = { number: null, lines: [] };
+let sawCycleMarker = false;
+for (const line of evLines) {
+  const marker = line.match(/KALSA_RP_MARK(?::)?\s+cycle=(\d+)\b/);
+  if (marker) {
+    sawCycleMarker = true;
+    if (currentCycle.lines.length > 0) cycleWindows.push(currentCycle);
+    currentCycle = { number: +marker[1], lines: [] };
+  } else {
+    currentCycle.lines.push(line);
+  }
+}
+if (currentCycle.lines.length > 0 || cycleWindows.length === 0) {
+  cycleWindows.push(currentCycle);
+}
+if (!sawCycleMarker) cycleWindows[0].number = 1;
+
+const rows = [];
+const cycleStats = [];
+for (const cycle of cycleWindows) {
+  const cycleRows = [...cycle.lines.join("\n").matchAll(
+    /embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g,
+  )]
+    .map((m) => ({
+      embd: +m[1],
+      text: +m[2],
+      common: +m[3],
+      cycle: cycle.number,
+    }))
+    .filter((r) => r.embd > 0);
+  const mismatchFields = [
+    ...cycle.lines.join("\n").matchAll(
+      /"op":"restore","ok":false,"reason":"meta_mismatch:([^"]+)"/g,
+    ),
+  ].map((m) => m[1]);
+  const cold = cycleRows.some((r) => r.common === 0) && mismatchFields.length > 0;
+  cycleStats.push({ ...cycle, rows: cycleRows, mismatchFields, cold });
+  rows.push(...cycleRows.map((row) => ({ ...row, cold })));
+}
 if (!rows.length) {
   console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache");
   // Evidence without a live cache never measured the reuse question, and a
@@ -72,23 +110,41 @@ if (!rows.length) {
 }
 else {
   const whole = rows.filter((r) => r.common === r.embd).length;
-  const lost = rows.filter((r) => r.common === 0).length;
   // A cycle that reused 900 of 1832 is neither a whole reuse nor a total loss,
   // and counting only the two extremes let a run where most cycles reused a
   // quarter of the cache satisfy "whole_cache_reused >= 1 && total_loss == 0".
   // On a hybrid a partial match IS the failure: seq_rm cannot roll back, so
   // the engine clears and re-prefills everything.
   const partial = rows.filter((r) => r.common > 0 && r.common < r.embd).length;
+  const measuredCycles = cycleStats.filter((cycle) => cycle.rows.length > 0);
+  const coldCycles = measuredCycles.filter((cycle) => cycle.cold);
+  const firstColdCycles = coldCycles.filter((cycle) => cycle.number === 1);
+  const lateColdCycles = coldCycles.filter((cycle) => cycle.number !== 1);
+  // A meta mismatch proves that a snapshot for another configuration was on
+  // disk. Only cycle 1 is the announced identity transition; a later one is a
+  // runtime engine recreation and its zero remains a total loss.
+  const lost = rows.filter((row) =>
+    row.common === 0 && !(row.cold && row.cycle === 1),
+  ).length;
+  const fields = (cycles) => [...new Set(cycles.flatMap((cycle) => cycle.mismatchFields))];
+  const coldFields = fields(firstColdCycles);
+  const lateColdFields = fields(lateColdCycles);
   const best = rows.reduce((a, b) => (b.common > a.common ? b : a));
   const smallest = rows.reduce((a, b) => (b.embd < a.embd ? b : a));
   console.log("KV_PREFIX: rows=" + rows.length + " whole_cache_reused=" + whole +
     " partial_reuse=" + partial +
-    " total_loss=" + lost + " best n_common=" + best.common + " embd=" + best.embd +
+    " total_loss=" + lost +
+    " cold_start=" + firstColdCycles.length +
+    " cold_start_field=" + (coldFields.join(",") || "none") +
+    " late_cold_start=" + lateColdCycles.length +
+    " late_cold_start_field=" + (lateColdFields.join(",") || "none") +
+    " best n_common=" + best.common + " embd=" + best.embd +
     " text_tokens=" + best.text + " min_embd=" + smallest.embd);
   // The criterion, stated by the script so it cannot be misread off four
-  // counters: every cycle reused its whole cache, a prewarm actually ran,
-  // and the send hashed the prefix that was warmed — a prefix_miss is a
-  // run-level failure even when the n_common counters look perfect.
+  // counters: every cycle reused its whole cache, except for one demonstrated
+  // cycle-1 cold start; a prewarm actually ran; and the send hashed the prefix
+  // that was warmed — a prefix_miss is a run-level failure even when the
+  // n_common counters look perfect.
   // Written before the data, deliberately more severe than "at least one good
   // cycle" — a run is not a pass because one of its cycles was.
   const ran = n(/"op":"restore","ok":true/g) + n(/"op":"done"/g);
@@ -96,6 +152,21 @@ else {
   if (whole < 1) fails.push("no cycle reused the whole cache");
   if (partial > 0) fails.push("partial reuse x" + partial);
   if (lost > 0) fails.push("total loss x" + lost);
+  if (lateColdCycles.length > 0) {
+    fails.push(
+      "identity changed during run: " +
+        lateColdCycles
+          .map((cycle) =>
+            cycle.mismatchFields
+              .map((field) => `meta_mismatch:${field} at cycle ${cycle.number}`)
+              .join(", "),
+          )
+          .join("; "),
+    );
+  }
+  if (measuredCycles.length > 0 && coldCycles.length === measuredCycles.length) {
+    fails.push("all cycles were cold starts; identity never stabilized");
+  }
   if (ran < 1) fails.push("no prewarm restore or prefill happened");
   if (prefixMisses > 0) fails.push("prefix hash miss on the send path x" + prefixMisses);
   if (fails.length > 0) anyCriterionFailed = true;
@@ -116,7 +187,6 @@ console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) 
 // two independent files. One line per question, the criterion stated by the
 // script so it cannot be misread off six counters.
 const kickWindows = [];
-const evLines = ev.split("\n");
 for (let i = 0; i < evLines.length; i++) {
   if (!/KALSA_RP_MARK.*fg_kick/.test(evLines[i])) continue;
   let j = i + 1;
