@@ -34,6 +34,13 @@ export function quarantineKeyFor(messagesKey: string): string {
 /** Slots (the first copy included) a single conversation may accumulate. */
 const QUARANTINE_CAP = 3;
 
+/**
+ * Slot suffixes are base36 FNV-1a hashes: at most 7 chars of [0-9a-z].
+ * Deliberately narrow — see the sweep in deleteConversationHistory for why
+ * a wider match could delete another conversation's live messages key.
+ */
+const SLOT_SUFFIX = /^[0-9a-z]{1,7}$/;
+
 /** FNV-1a over the raw, base36 — slot naming only, not an integrity check. */
 function shortHash(text: string): string {
   let hash = 0x811c9dc5;
@@ -147,15 +154,25 @@ export async function deleteConversationHistory(
     await removeItem(slot);
   }
   await removeItem(indexKey);
-  // The net: sweep every suffixed slot the index did not list. When it
-  // cannot run, the caller must be told the delete is incomplete.
+  // The net: sweep suffixed slots the index did not list. When it cannot
+  // run, the caller must be told the delete is incomplete.
   let swept = false;
   if (kv.getAllKeys) {
     try {
       const all = await kv.getAllKeys();
       const prefix = `${firstSlot}.`;
       for (const key of all) {
-        if (typeof key === "string" && key.startsWith(prefix) && key !== indexKey) {
+        if (typeof key !== "string" || !key.startsWith(prefix)) continue;
+        if (key === indexKey) continue;
+        // The suffix must be a slot hash — base36 FNV-1a, at most 7 chars
+        // of [0-9a-z]. This regex is deliberately narrow: conversation ids
+        // legally contain dots and dashes (sanitizeConversationId keeps
+        // [A-Za-z0-9._-]), so a bare prefix sweep could reach ANOTHER
+        // conversation's live messages key nested under this prefix and
+        // destroy history nobody asked to delete. Only a hash-shaped
+        // suffix is a slot of THIS conversation; do not widen it.
+        const suffix = key.slice(prefix.length);
+        if (SLOT_SUFFIX.test(suffix)) {
           await removeItem(key);
         }
       }

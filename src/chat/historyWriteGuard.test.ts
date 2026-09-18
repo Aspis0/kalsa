@@ -553,4 +553,42 @@ describe("historyWriteGuard", () => {
       await deleteConversationHistory({ getItem: async () => null }, KEY),
     ).toBe(false);
   });
+
+  test("Q1: the sweep never touches a nested conversation hiding under the slot prefix", async () => {
+    // A conversation id legally contains dots, so another conversation's
+    // keys can sit inside THIS conversation's slot prefix.
+    const nestedLive = `${QUARANTINE_KEY}.conv-1739-abc1`;
+    const nestedSlot = `${QUARANTINE_KEY}.conv-1739-abc1.quarantine`;
+    const nestedHashSlot = `${nestedSlot}.1a2b3c`;
+    const realUnlistedSlot = `${QUARANTINE_KEY}.abc123`;
+    const { map } = fakeKv({
+      [KEY]: raw17,
+      [QUARANTINE_KEY]: raw17,
+      [realUnlistedSlot]: "orphaned copy of THIS conversation",
+      [nestedLive]: "another conversation's live messages",
+      [nestedSlot]: "another conversation's first slot",
+      [nestedHashSlot]: "another conversation's hash slot",
+      [INDEX_KEY]: JSON.stringify([QUARANTINE_KEY]),
+    });
+    const done = await deleteConversationHistory(
+      {
+        getItem: async (key: string) => map.get(key) ?? null,
+        removeItem: async (key: string) => {
+          map.delete(key);
+        },
+        getAllKeys: async () => [...map.keys()],
+      },
+      KEY,
+    );
+    expect(done).toBe(true);
+    // THIS conversation: live key, first slot, its unlisted slot, index.
+    expect(map.has(KEY)).toBe(false);
+    expect(map.has(QUARANTINE_KEY)).toBe(false);
+    expect(map.has(realUnlistedSlot)).toBe(false);
+    expect(map.has(INDEX_KEY)).toBe(false);
+    // The nested conversation survives untouched.
+    expect(map.get(nestedLive)).toBe("another conversation's live messages");
+    expect(map.get(nestedSlot)).toBe("another conversation's first slot");
+    expect(map.get(nestedHashSlot)).toBe("another conversation's hash slot");
+  });
 });
