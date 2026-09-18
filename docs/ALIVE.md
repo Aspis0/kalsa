@@ -7332,3 +7332,39 @@ dall'albero.)
    byte come su `204298f`" resta provato **solo nel codice** — audit, il mio ricalcolo djb2 della
    costante `3986477111`, e il test che la congela. Su dispositivo non e' dimostrabile finche' il
    motore cambia sotto lo store. E il ramo `"raw"` resta non esercitato (serve uno Stop umano).
+
+### La storia su cui doveva girare la prova NON ESISTE PIU': misurata prima del run (18/09 sera)
+
+Controllo chiesto da kalsa-ee e fatto **prima** di installare qualsiasi cosa, sul telefono, estraendo
+solo numeri (nessun testo aperto):
+
+```
+conversazione KV, messaggi          2
+conversazione KV, caratteri      2496
+piu' lunga sul telefono         10960 caratteri
+```
+
+Aveva ~5000 token di storia. **Il difetto di perdita dati se l'e' portata via**, oggi, durante il
+turno MTP di un'altra sessione — lo stesso difetto gia' descritto in PLAN (`persistMessagesNow`
+scrive una lista piu' corta sopra una piu' lunga). Non e' piu' un rischio teorico in un documento:
+ha distrutto **l'artefatto che tre sessioni stavano trattando come prezioso**, sotto i nostri occhi,
+mentre discutevamo di come proteggerlo dall'eviction.
+
+**Non e' recuperabile.** Il backup di kalsa-2d (`/tmp/s23-kv-backup/RKStorage`) riporta gli stessi
+identici numeri — 2 messaggi, 2496 caratteri — quindi e' stato preso **dopo** la perdita. La copia
+piu' vecchia (`/tmp/kalsa-rk.5ueDsv/RKStorage`) **non esiste piu** sul disco. Da notare, perche' dice
+qualcosa sul difetto: la `.kvs` da 34.942.204 byte con 5004 token e' ancora li'. **La cache ha
+sopravvissuto alla trascrizione che descriveva.** Un utente si ritroverebbe 35 MB di contesto vivo
+per una conversazione di cui vede due messaggi.
+
+**Quarta revisione del disegno, sempre prima di misurare.** Cade la "storia mista alla scala reale":
+sul telefono non c'e' piu' nulla di lungo. Resta, e va detto per quello che e':
+1. ciclo 1 sulla conversazione esistente (2 record pre-aggiornamento, **non** 5000 token):
+   `meta_mismatch:engineBuild` previsto, prefill a freddo;
+2. ciclo 2 dopo force-stop: riuso **intero** — la catena salva/ricarica/riusa su una storia che
+   contiene comunque record senza `emissionSource` accanto ai nuovi che ce l'hanno, ma **piccola**;
+3. il protocollo stampa `kick settled after 0s`/`1s` e scrive `$OUT/protocol.log`;
+4. `ANDROID_SERIAL` esplicito; engine id atteso `d1a501c9…` letto con
+   `unzip -p base.apk assets/app.config`, stop se e' altro.
+**Cosa questo giro NON dimostra piu', scritto prima:** il riuso alla scala dove il difetto costava
+172 secondi. Quel numero resta provato dal run del 18/09 mattina su quel binario, non da questo.
