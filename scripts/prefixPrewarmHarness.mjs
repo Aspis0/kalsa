@@ -2048,7 +2048,9 @@ async function main() {
       waitFn,
       'FG_SETTLE_TIMEOUT_SECONDS="$BUDGET"',
       "rp_fg_wait_settled 1",
-      "exit $?",
+      'rc=$?',
+      'echo "SLEEPS=$SLEEPS"',
+      "exit $rc",
       "",
     ].join("\n");
     const scriptFile = path.join(dir, "wait-probe.sh");
@@ -2073,6 +2075,7 @@ async function main() {
     return {
       status: r.status,
       wallMs: Date.now() - startedAt,
+      sleeps: Number((r.stdout.match(/SLEEPS=(\d+)/) ?? [])[1]) || 0,
       protocolLog: readFileSync(path.join(dir, "protocol.log"), "utf8"),
     };
   }
@@ -2147,11 +2150,16 @@ async function main() {
     markerLate.status === 1,
     `an expired wait exits 1 — got ${markerLate.status}`,
   );
+  // The discriminator is the PASS COUNT, not wall time: `deadline` is built
+  // from floored seconds, so the expiry can legally fire up to a second
+  // early (measured 2054 ms once against an expected ~4 s). A shared
+  // deadline spends ONE pass in the marker phase and ONE in the settle
+  // phase; a reset second deadline needs a THIRD pass.
   assert(
-    markerLate.wallMs >= 3000 && markerLate.wallMs < 5500,
-    `a late marker must consume the SHARED deadline — expiry is due within ` +
-      `one pass of the 3 s budget (~4 s at this stub's cadence); got ` +
-      `${markerLate.wallMs} ms (a reset second deadline needs a third pass, >= 6 s)`,
+    markerLate.sleeps === 2,
+    `a late marker must consume the SHARED deadline — expected 2 passes ` +
+      `(marker wait + one settle pass); got ${markerLate.sleeps} ` +
+      `(a reset second deadline needs a third pass)`,
   );
   assert(
     markerLate.protocolLog.includes("did not settle within 3s"),
