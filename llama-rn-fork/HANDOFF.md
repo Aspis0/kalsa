@@ -26,7 +26,7 @@ path, a delegate's output is not evidence). Plus the migration-specific ones:
   `Aspis0/llama.rn` (any branch), app branches `llama-rn-fork` and `baseline-67c73d26c`
   (CI-only). **Pushing to app `main` needs his explicit go each time.** Never push to
   `mybigday/llama.rn`, never open upstream issues (`ggml-org`, `mybigday`).
-- **Builds happen in CI** (`apk.yml` on `Aspis0/kalsa`, `workflow_dispatch`, input `abi`).
+- **Builds happen in CI** (`apk.yml` on `Aspis0/kalsa`, `workflow_dispatch`, inputs `abi` and `debuggable`, the latter defaulting to `false`).
   Local builds only for syntax gates. **One device check per fix**, on the S23, debuggable
   APK. No benchmark campaigns.
 - **Docs at every step:** append to `kalsa-moe-experiments/docs/ALIVE.md` (diary, evidence,
@@ -150,7 +150,7 @@ npx jest src/engine/engineIdentity.test.ts > /tmp/jest.log 2>&1; echo $?; tail -
 git add package.json package-lock.json
 git commit -m "build: llama.rn at the fork's audited head (engine 134a35cf2, rn-* rewired for its memory and mtmd APIs): the first engine update"
 git push origin llama-rn-fork
-gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a
+gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a -f debuggable=true   # debuggable defaults to false: the S23 policy and run-as need true
 ```
 Then get the run id and watch it in the background (the tool timeout is 600 s; `gh run watch`
 must run detached, e.g. Bash `run_in_background`, log to a file, and be re-armed if lost):
@@ -164,7 +164,7 @@ The build takes ~45 min. Do not poll; do other work (e.g. prepare §4's docs dif
 pushes only on `feat/**`, `e2e-emulator.yml` on `main`/two legacy branches, everything else is
 dispatch-only). "Green on the branch" means green on runs YOU dispatched. So dispatch both gates:
 ```
-gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a
+gh workflow run apk.yml --repo Aspis0/kalsa --ref llama-rn-fork -f abi=arm64-v8a -f debuggable=true   # debuggable defaults to false: the S23 policy and run-as need true
 gh workflow run e2e-emulator.yml --repo Aspis0/kalsa --ref llama-rn-fork    # defaults = what a push to main runs (~35-40 min, ~40 logic harnesses + one real inference turn)
 ```
 and run `npx tsc --noEmit` and the jest file locally with real exit codes (they run in no
