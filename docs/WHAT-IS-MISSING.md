@@ -1,7 +1,12 @@
-# What is missing, 2026-09-17
+# What is missing, 2026-09-18
 
-*Updated the same evening. Two items closed, three added. Each closure names the
-commit that closed it, so the claim can be checked instead of believed.*
+*Updated 2026-09-18, after an afternoon spent entirely on the first screen. One item
+closed, six added, and §13's display half fixed while its measurement half stays open.
+Each closure names the commit that closed it, so the claim can be checked instead of
+believed.*
+
+**Read §14 first.** It is the shortest and it outranks everything below it: a screen
+that now names a model honestly has never been watched fetch one.
 
 Written after the morning's measurements, by reading the code rather than the notes.
 Ordered by what blocks the product, not by what is interesting.
@@ -171,7 +176,7 @@ None of it exists in code. What it needs first is §1 (done) and a queue that is
   with the multi-device measurement; that measurement is done (`d6daf16`, `85a7b75`), so
   nothing blocks it now except someone taking it.
 
-## 12. The brain's own screen cannot be drawn yet — two fields short
+## 12. The brain's own screen — the two missing fields are CLOSED, the pairing behind it is not
 
 `docs/THE-BRAIN-IS-THE-HOME.md` puts the brain on the home surface: which model is loaded,
 whether it is warm, how many of the four seats are taken and by whom. Almost everything that
@@ -201,6 +206,16 @@ monogamy. Until that changes, the home screen can honestly draw **one** occupied
 four, and the interesting question the measurement raises (what happens to the fifth person,
 whom the engine refuses outright with HTTP 400) cannot even be asked. Note the direction of
 the gap: the documents are ahead of the code here, not behind it.
+
+**Both fields closed, 2026-09-18.** The model's name ships in the brain's own state
+(`src-tauri/src/main.rs:470`, `model: Option<String>`, filled from
+`brain.model_dto().display_name`), and the seats are countable — `active_devices()`
+returns a list, not the old single `phone_connected` yes/no. The screen is drawn: it
+names the machine, what it would run, how fast, and at what conversation length, and it
+does it with no phone paired at all (`79e391c`, `e162187`, `dc0979c`, `b361eb6`).
+
+What is NOT closed is the rest of this section, and it is the larger half. The pairing
+is still a monogamy, so the screen can still honestly draw one seat and not four.
 
 **Decided 2026-09-17, and it reorders the work.** The desktop chat will reach the model
 *through the door*, like the phones, rather than talking to `127.0.0.1` directly — one place
@@ -254,11 +269,79 @@ buffers at **ubatch** 512 and contexts up to 16k, never at context 512. Whether 
 done at a context nobody uses, or done properly and described with the wrong word, cannot be
 settled by reading -- only by measuring again.
 
+**Half of this moved, 2026-09-18.** The card no longer invites the comparison blind: a
+measured rate keeps its figure but names its machine, its full provenance sits in the
+working under it, and every predicted speed is now priced at a context the row can
+actually hold — `min(8192, what the machine funds)`, itself capped at what the model was
+trained for (`dc0979c`). So the two numbers no longer sit in one column pretending to
+share conditions.
+
+The half that did not move is the one that needs a GPU: Gemma's *"context 512"* is still
+either a run nobody uses or a run described with the wrong word, and only measuring again
+settles it.
+
 Not urgent: the owner has said the catalog does not matter yet. It matters the moment a
 second machine reads these numbers, because that is the point at which a figure without its
 conditions becomes a promise the product cannot keep. `fa498bf` is the last time a number
 outlived its baseline here, and it had to be retired from three documents.
 
+
+## 14. The first screen is honest about a journey nobody has taken
+
+An afternoon went into what the screen *says*. Nothing went into whether what it says
+can be done. Two rows were added to the catalog — Gemma 4 E4B and Gemma 4 26B-A4B, the
+second a 14.4 GB QAT download — and both were verified the only way a desk can verify
+them: the pinned commit, the byte count and the sha256 answer 200 from the live API, and
+the architecture is present in llama.cpp b10950. **Neither has ever been downloaded or
+launched.** A first screen that offers a model the app cannot actually fetch is worse
+than one that offers nothing, because it is wrong at the moment the owner trusts it.
+
+This outranks every item above it that is not already closed. The walk exists, it is
+phone-free (`startup.rs:choose_model` calls `largest_that_runs_well` when `phone` is
+`None`), and it has not been run end to end against today's catalog.
+
+## 15. The measurement lives only in memory
+
+`src-tauri/src/main.rs:57` — `measurement: Mutex<Option<Measurement>>`. Nothing writes it
+down, so every launch re-measures a machine that has not changed, for about ten seconds,
+before the first screen can say anything. It also means the probe's own verdict — the
+notes about a busy or unoptimised machine — cannot be compared across runs, which is
+exactly what would have revealed the debug-build defect in a day instead of a week.
+
+What it needs is not a cache but a record: the figures, the build's optimisation level,
+the backend, and the date, so a stale one can be recognised rather than trusted.
+
+## 16. The second option plays by weaker rules than the first
+
+`crates/kalsa-catalog/src/choice.rs` — `quicker_alternative` filters on fit and floor and
+nothing else. No `capability_basis`, no `expected_but_unmeasured`, no `SAME_CLASS_BAND`,
+no phone. So the row it offers beside the pick can be one the chooser's own walk would
+refuse, and on a machine where that row is the largest that fits, the product refuses
+outright while the card offers it as a second option. Confirmed by audit, reproduced on a
+16 GiB Metal machine with a wall-powered phone.
+
+It ships because two honest options beat one, and the speed gate it does apply is real.
+What it owes is the justification the walk applies, or a stated reason why a second
+option is held to a lower bar than a first.
+
+## 17. Small things the audits confirmed and nobody has fixed
+
+Each was reproduced, none is load-bearing, all are cheap:
+
+- `chat/index.html` promises *"connections only to the configured endpoint"* over a
+  policy that is `connect-src 'self' http: https: ws: wss:` — any origin, any scheme.
+  Narrowing it needs to not break the endpoint the owner configures.
+- `chat/scripts/shots.mjs` waits for the chat's empty state as the landing view. Since
+  the brain became the home it never appears, so the harness times out. Broken before
+  2026-09-18's work and unrelated to it.
+- The contract test writes `chat/scripts/capability-contract.json` and asserts nothing:
+  drift shows up as a dirty tree, never as a red suite.
+- A `trained_context_tokens` of `Some(0)` would be reported as *"not enough memory"*,
+  blaming the machine for a header we parsed wrong.
+- `soc.rs` would answer `"Apple M4 Ultra"` with the bare M4's 120 GB/s — 6.8x short.
+  M4 is the one family with no Ultra row. No such chip has shipped.
+- Under StrictMode a second `brain_progress` listener is registered and never
+  unsubscribed. Dev builds only.
 
 ## Not missing, deliberately
 
