@@ -714,6 +714,49 @@ Sull'S23 con LFM il riuso intero e' misurato (667 ms); su Qwen non e' mai stato 
 Qwen 3.5 4B, confronto id-per-id (solo interi, in locale, niente artefatto) fra render del turno 1 + risposta
 e cache salvata, al confine 2081. Va **prima** di governor-kv-contract nella coda di kalsa-93: la KV e' M1.
 
+**CAUSA TROVATA (18/09 notte, misurata da kalsa-93 sul Mac, catena verificata su disco dal coordinatore):
+su Qwen 3.5 il replay della storia butta via il blocco di ragionamento, quindi la KV non puo' combaciare.**
+L'ipotesi "ri-tokenizzare non riproduce gli id" e' REFUTATA due volte: i 39 token campionati ri-tokenizzati
+col GGUF di catalogo danno 39/39 id identici; `<think>\n` = `[248068, 198]` e `<think>\nThe user` =
+`[248068, 198, 760, 1156]`, nessuna fusione al seam. Poi il template estratto dal GGUF
+(`tokenizer.chat_template`, 7816 caratteri) reso con minja vero (`llama-server --jinja`, `/apply-template`,
+modello di catalogo), confronto id per id: **il prefisso comune finisce esattamente dopo
+`<|im_start|>assistant\n`; id vivo 248068 (`<think>`), id del replay 34 (l'inizio della risposta).** Righe
+94-96 del template: `</think>` viene splittato fuori da `content` *a meno che* `message.reasoning_content`
+sia una stringa; riga 103, per un turno con `loop.index0 <= last_query_index`, emette solo
+`'<|im_start|>assistant\n' + content`. L'app passa `reasoning_content: ""` apposta per saltare lo split
+(`src/engine/modelEmittedText.ts:79-85` lo dichiara, `:118` lo emette, il test `:247` verifica l'oggetto JS).
+**Non ha mai funzionato**: `cpp/common/chat.cpp:232-233` `if (!reasoning_content.empty()) jmsg["reasoning_content"]
+= reasoning_content;` — vuoto = omesso. Percorso tracciato nel fork: `rn-llama.cpp:876/921`
+`common_chat_msgs_parse_oaicompat` → `:910/:927` `common_chat_templates_apply` → `chat.cpp:3819` →
+`apply_jinja:3607` → `:3624 render_message_to_json` → `:537/:544 to_json_oaicompat` → `:232`. Misurato con
+minja a quattro varianti: campo assente 341 caratteri; stringa vuota 341 (**identico ad assente**); uno
+spazio 1117 (span grezzo conservato); sentinella "ZQX" 1117 e la sentinella non compare nel prompt dei turni
+vecchi. Catena completa: vuoto scartato → il template splitta il think → il turno assistente vecchio e' reso
+senza think → la cache viva ha `<think>` dove il replay ha la risposta → `n_common` si ferma li' → `hybrid:
+true` (`ModelRegistry.ts:203`) quindi `seq_rm` senza ramo parziale → unico checkpoint = frontiera >
+`n_common` → `llama_memory_clear`, `n_past=0`. **Ogni turno dal secondo in poi, riavvio o no, su ogni modello
+con think in stile Qwen.** LFM non ha think: per questo il 18/09 sull'S23 il riuso intero era vero. Il
+docstring di `modelEmittedText.ts:79-85` cita gia' la misura S23 `9151f78 t6: embd=8009 text_tokens=4438
+n_common=0` — il difetto era noto e la "fix" e' stata committata come claim, mai misurata al render.
+**Il pezzo non misurato:** che l'app in esecuzione passi da `getFormattedChatWithJinja` (tracciato sul
+sorgente, non nel log del run).
+**Perche' non e' una patch di una riga (decisione dell'owner):** la stringa non vuota ripara i turni vecchi, ma
+per l'ULTIMO turno assistente (`loop.index0 > last_query_index`, il caso del prewarm dopo una risposta) la
+riga 101 rende `<think>\n` + reasoning_content + `\n</think>\n\n` + content: con lo span grezzo in content
+si ottiene un think doppio, e comunque lo stesso turno viene reso in due forme diverse (ultimo vs vecchio),
+quindi il prewarm di una storia che finisce con l'assistente non puo' combaciare col prompt del turno dopo.
+Le due strade: (A) **tenere il ragionamento nella storia** (il modello rivede i suoi `<think>` vecchi; costa
+contesto ~200-1000 token per turno; e' cio' che il template Qwen evita di proposito) e rendere l'ultimo turno
+nella stessa forma dei vecchi (fuori dal template, o template nostro); la KV riusa tutto. (B) **seguire il
+template** (think fuori dai turni vecchi) e accettare il prefill pieno a ogni turno sui modelli ibridi (47 s
+sull'emulatore per 2100 token), o solo dal primo think in poi su quelli attention-only. Raccomandazione del
+coordinatore: A, perche' la KV e' la leva del contesto e senza riuso il modello "che pensa" e' inusabile in
+una chat lunga; la fedelta' al template si misura dopo, sulla qualita' (80 casi). Terza via da verificare
+prima di scegliere: se il template di Qwen 3.5 rende i turni vecchi senza think, un modello *senza* think
+nei turni vecchi e' esattamente cio' su cui e' stato addestrato — quindi (A) va misurato in qualita', non
+dato per innocuo.
+
 **Due fughe di privacy, verificate su disco (18/09 notte), repo `Aspis0/kalsa` PUBLIC.** (1) Con i tool
 attivi **ogni token generato finisce in logcat in chiaro**: `cpp/llama-grammar.cpp:1439`
 `LLAMA_LOG_DEBUG("Grammar still awaiting trigger after token %d (`%s`)")` col pezzo detokenizzato, a ogni
