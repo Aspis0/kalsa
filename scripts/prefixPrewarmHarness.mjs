@@ -2259,8 +2259,14 @@ async function main() {
     path.join(projectRoot, ".github/workflows/e2e-emulator.yml"),
     "utf8",
   );
-  const jestStepAt = e2eYml.indexOf("Typecheck + logic harnesses");
-  assert(jestStepAt >= 0, "the Typecheck + logic harnesses step still exists");
+  // Jest is its OWN step, bounded at ci.yml's number. The first cut put the
+  // 15 minutes on the typecheck+harnesses step — which runs ~47 harnesses,
+  // one self-timed at ~140 s — and could fail the e2e job on main before
+  // the emulator ever started. The harness step stays deliberately
+  // unbounded at step level (the 120-minute job timeout still applies);
+  // this pin fails if the bound migrates back onto it.
+  const jestStepAt = e2eYml.indexOf("- name: Jest (bounded");
+  assert(jestStepAt >= 0, "the bounded Jest step still exists");
   const nextStepAt = e2eYml.indexOf("\n      - name:", jestStepAt + 10);
   const jestStep = e2eYml.slice(jestStepAt, nextStepAt < 0 ? undefined : nextStepAt);
   assert(jestStep.includes("npx jest"), "the bounded step is the one that runs jest");
@@ -2269,6 +2275,16 @@ async function main() {
     stepTimeout !== null && Number(stepTimeout[1]) > 0 && Number(stepTimeout[1]) <= 20,
     `the jest step must declare a step-level timeout-minutes consistent with ` +
       `ci.yml (found: ${stepTimeout ? stepTimeout[1] : "none"})`,
+  );
+  const harnessStepAt = e2eYml.indexOf("Typecheck + logic harnesses");
+  assert(harnessStepAt >= 0, "the Typecheck + logic harnesses step still exists");
+  const harnessNextAt = e2eYml.indexOf("\n      - name:", harnessStepAt + 10);
+  const harnessStep = e2eYml.slice(harnessStepAt, harnessNextAt < 0 ? undefined : harnessNextAt);
+  assert(
+    harnessStep.includes("npm run typecheck") &&
+      !harnessStep.includes("npx jest") &&
+      !harnessStep.includes("timeout-minutes"),
+    "the harness step stays unbounded at step level and jest-free",
   );
   console.log("PASS the jest CI gate is bounded (timeout-minutes <= 20)");
 
