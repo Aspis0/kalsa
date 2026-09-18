@@ -592,6 +592,17 @@ contraddizione e l'avevo archiviata come "il protocollo indovina, il verdetto le
 giusta, **domanda mai posta**. L'harness non poteva vederlo perche' estrae la regex e la prova con
 `RegExp.test`, **mai la pipeline di shell** — una prova che salta il pezzo che si rompe.
 
+**Corretto il 18/09 sera, sulle catture vere.** Due numeri qui sopra erano approssimati per difetto
+e uno era sbagliato. Il flip `0 -> 141` sta **fra 8 e 16 KB** dopo il match (capacita' della pipe su
+questo host), non a ~32 KB. E i sei kick dei tre run non sono tutti uguali: **3 bugie** (093512 c2,
+110132 c1 e c2: l'op c'era in 0,1-0,2 s e l'attesa ha bruciato tutti i 120 s), **1 timeout
+legittimo** (032436 c2: l'op e' arrivato solo a +151,6 s, quindi li' *"did not settle"* era vero) e
+**2 rilevamenti corretti** (032436 c1 a +84,6 s con `"op":"done"` — un prewarm che ha lavorato
+davvero — e 093512 c1 a +0,1 s). I due che hanno funzionato sono esattamente quelli con meno di un
+secondo di logcat accumulato dopo la riga trovata: il meccanismo spiega **tutti e sei** gli esiti.
+La riparazione e' su `kv-land` (`5c5aaa6`), e il commento che l'accompagnava affermava a sua volta
+il falso ("tutti e sei in 0,1-0,2 s") — vedi ALIVE 18/09 sera.
+
 ### NDK — la build non dichiara la sua versione, quindi il gate non puo' condividerla (18/09)
 
 L'app non fissa `ndkVersion` da nessuna parte: `app.config.js` ha solo `minSdkVersion: 33` (riga
