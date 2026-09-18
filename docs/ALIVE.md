@@ -6631,3 +6631,45 @@ previsto. Il verdetto va letto riga per riga, non dal solo exit code. Pass del r
 `whole` + `promptMs` ~725 ms + `FG_REKICK_CRITERION: PASS` + la firma del ramo 1. Verifica di
 persistenza: dopo il ciclo 2 il `.kvs` della conversazione deve avere mtime **nuovo**; se non ce
 l'ha, quel `whole` non prova niente sulla persistenza e va detto.
+
+**18/09 mattina, terza voce (10:10 EDT) — Step 4: il cleanup, e un audit che ha trovato sbagliato
+un numero mio.** Commit `38b5cf0` sul ramo `llama-rn-fork` (`1b86de3..38b5cf0`), **non su main**: il
+push aspetta il verdetto del terzo run di kalsa-93 e il via di Marco. Via `patches/`,
+`vendor/kalsallama-cpp/` (715 file), `native/kalsallama.pin`, `scripts/sync-kalsallama.sh`,
+`scripts/assert-vendor-pristine.sh` e il devDep `patch-package` (391 righe di lock, niente altro
+ne aveva bisogno). Dentro `scripts/assert-engine-provenance.sh`: sha dal lock → tarball da codeload
+→ `npm pack` → manifest sha256 contro `node_modules/llama.rn`. 865 file combaciano a `fada1ebe`, e
+aggiungendo una riga a `cpp/rn-llama.cpp` esce 1 nominando `./cpp/rn-llama.cpp` (file rimesso, sha
+identico).
+
+**L'errore mio, trovato dall'audit:** avevo scritto nel commit che l'engine id diventava
+`3cee141b`. Era la misura di un albero intermedio: dopo averla presa ho modificato ancora un
+commento sotto `native/` e non ho ricalcolato. Il valore vero è **`kalsa-eng-v2:d1a501c9…`**,
+stabile su due calcoli, e ricalcolando gli input del commit padre esce `c3418f60…`, cioè esattamente
+quello che main dichiara — quindi il metodo e l'installazione erano a posto, era stale solo il numero
+che avevo citato. La causa è anche più larga di come l'avevo raccontata: l'id digerisce **tutto**
+`native/`, quindi l'hanno spostato sia il pin cancellato sia il commento. Il motore compilato non
+cambia: il commento è sostituito riga per riga, l'NDK vede gli stessi numeri di riga.
+
+**Le prese dell'audit che valevano** (scrittore Opus, auditor DeepSeek — modelli diversi):
+- `assert-engine-provenance.sh`: sotto `set -e` un `grep` senza match uccideva lo script **prima**
+  della riga che dice quale file differisce; `find`/`xargs` falliti uscivano muti; e il pavimento di
+  non-vacuità era «>0 file», dove lo script che sostituisce pretendeva ≥100. Tutti e tre chiusi.
+- `assert-overlay-includes.sh` — il gate che gira su ogni push a main — poteva stampare OK su un
+  motore che aveva perso i suoi `rn-*.cpp`: **un glob non espanso è una stringa**, e
+  `[ -f "$f" ] || continue` la saltava in silenzio. Ora conta cosa ha analizzato. Provato spostando
+  i sette `rn-*.cpp`: exit 1, `[includes] FAIL: only 25 source(s) parsed, 0 of them rn-*.` (i sette
+  rimessi, hash identici). È la stessa famiglia del «verde senza aver guardato niente».
+- L'asserzione K-shift era diventata non ancorata sull'intero file; è di nuovo ancorata alla
+  chiamata che la patch toglieva, `llama_memory_seq_add(kv, …)`.
+- Due righe di `ARCHITECTURE.md` raccontavano una storia consolatoria: che il gate di provenienza
+  sostituisca il pin del motore (non lo fa — prova che l'installato è il fork, e **nell'app non c'è
+  più niente che dichiari quale kalsallama quel fork contiene**; ora almeno lo stampa) e che
+  l'`integrity` di una git-dep nel lock significhi qualcosa (non la verifica nessuno).
+
+**Conseguenza della seconda:** il gate di provenienza **è stato cablato in CI** (`e2e-emulator.yml`
+e `apk.yml`, subito dopo `npm ci`), contro quanto diceva il playbook. Il motivo per cui il playbook
+lo voleva manuale era che «il lock lega l'installazione» — ed è proprio la cosa che l'audit ha
+smontato: senza integrity verificata, e con npm che installa l'output di `npm pack` del fork e non
+il suo albero di commit, su main non c'era niente che legasse l'installato al commit pinnato.
+Run: `35354214821` (apk sul ramo, `debuggable=true`) è la prova che il passo gira davvero in CI.

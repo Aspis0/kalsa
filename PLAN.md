@@ -1673,6 +1673,18 @@ tarball npm e overlay che nel fork sono gia' risolti. Rollback: `git revert -m 1
 Diario: `docs/ALIVE.md`, voce "18/09 mattina, più tardi".
 
 
+**Stato Step 4 (18/09 mattina EDT): PRONTO SUL RAMO, non su main.** Commit `38b5cf0` su
+`llama-rn-fork` (`1b86de3..38b5cf0`): via `patches/`, `vendor/kalsallama-cpp/`, `native/kalsallama.pin`,
+`scripts/sync-kalsallama.sh`, `assert-vendor-pristine.sh`, devDep `patch-package`; dentro
+`scripts/assert-engine-provenance.sh`, **cablato in CI** in `e2e-emulator.yml` e `apk.yml` (il
+playbook lo voleva manuale: il suo motivo — «il lock lega l'installazione» — e' falso, l'`integrity`
+di una git-dep non la verifica nessuno). Engine id `c3418f60…` → **`d1a501c9…`** (il digest di
+`native/`: pin cancellato + un commento riscritto; il compilato non cambia). Audit ostile: 12
+findings, 4 corretti, 2 refutati dall'auditor stesso. Il push su main aspetta il verdetto del terzo
+run della sessione KV **e** il via di Marco. Run: `35354214821` (apk sul ramo), `35353338257` (apk
+su main, `debuggable=true`), `35351292439` (e2e su main). Diario: `docs/ALIVE.md`, voce "18/09
+mattina, terza voce".
+
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 

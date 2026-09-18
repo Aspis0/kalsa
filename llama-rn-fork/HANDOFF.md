@@ -309,9 +309,11 @@ change.
   fork's CMake via `${RNLLAMA_LIB_DIR}/../../../native/bmoe`, `if(EXISTS)`),
   `plugins/withLlamaFromSource.js` (throws on opt-out since the switch).
 
-**Add** `scripts/assert-engine-provenance.sh` (manual gate, same role as the old
-`assert-vendor-pristine.sh`; not wired into CI — the lock's integrity already binds the
-install): read `package-lock.json` → `packages["node_modules/llama.rn"].resolved`, accept
+**Add** `scripts/assert-engine-provenance.sh`, **wired into CI** in `e2e-emulator.yml` and
+`apk.yml` right after `npm ci` (this reverses the original "manual gate" instruction: its
+reasoning was that the lock's integrity binds the install, and a git dependency's `integrity`
+is verified by nobody — measured in this migration — while what npm installs is the fork's
+`npm pack` output, not its commit tree). It reads `package-lock.json` → `packages["node_modules/llama.rn"].resolved`, accept
 both `git+ssh://git@github.com/Aspis0/llama.rn.git#<sha40>` and the https form; fetch
 `https://codeload.github.com/Aspis0/llama.rn/tar.gz/<sha40>` into `/tmp`; `npm pack` that
 tree (the fork has no `prepack`/`postinstall`, so pack is inert) and extract; sha256 manifest
