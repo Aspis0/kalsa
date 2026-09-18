@@ -87,12 +87,14 @@ PY
 #   KALSA_GATE_SYNTAX_CXX=host           force the host fallback (debugging)
 #   KALSA_GATE_REQUIRE_NDK=1             a fallback is a failure, not a pass
 #                                        (CI sets it: the runners have an NDK)
-# The engine module declares the NDK its own build uses -- llama.rn's
-# android/gradle.properties RNLlama_ndkversion, read at android/build.gradle:133
-# as `ndkVersion` -- so the gate can parse with that exact toolchain instead of
-# whatever NDK happens to be installed. The app itself declares none (its
-# ndkVersion comes from AGP's default), which is why the engine's pin is the
-# number worth following.
+# llama.rn's android/gradle.properties RNLlama_ndkversion is the best declared
+# candidate for the toolchain that compiles cpp/, but it is a FALLBACK, not a
+# guarantee: android/build.gradle:130 takes `getExtOrDefault("ndkVersion")`, so
+# a root project that sets ext.ndkVersion wins -- and this app does, through
+# AGP/Expo (android/app/build.gradle:89 reads that ext, and a local build
+# resolved 27.1.12297006 while this property says 27.3.13750724). The gate
+# follows the property, prints the revision it really used, and the two numbers
+# get compared in one CI log before anything is pinned.
 NDK_API="${KALSA_GATE_ANDROID_API:-33}"
 NDK_VER="${KALSA_GATE_NDK_VERSION:-}"
 ENGINE_PIN=""
@@ -216,7 +218,9 @@ done
 parsed=$((c_common + c_mtmd + c_rn))
 # One floor per group, not one total: with a single total a whole group can
 # vanish and the OK line still claims to have covered it.
-if [ "$c_rn" -lt 5 ] || [ "$c_common" -lt 15 ] || [ "$c_mtmd" -lt 3 ]; then
+# Close to today's counts (7 rn, 20 common, 5 mtmd), not a token threshold: a
+# floor of 15 on common would let a quarter of the group vanish unnoticed.
+if [ "$c_rn" -lt 7 ] || [ "$c_common" -lt 18 ] || [ "$c_mtmd" -lt 5 ]; then
   echo "[includes] FAIL: parsed $c_common common, $c_mtmd mtmd, $c_rn rn-* sources."
   echo "[includes] The installed engine is missing sources this gate must cover."
   exit 1
