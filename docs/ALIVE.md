@@ -6806,3 +6806,13 @@ motore `67c73d26cb4c…`, letto da `git show 3ce0992:native/kalsallama.pin`) dif
 14 librerie, e sono tutte `librnllama*`**. Zero librerie non-motore cambiate. L'unica superficie
 nativa che si e' mossa in tutta la migrazione e' quella del motore, e si e' mossa perche' ne abbiamo
 spostato il pin di proposito (`67c73d26c` → `70b4302bb`).
+
+**18/09 — il controllo che mancava al differenziale, e non l'avevo chiesto io.**
+Tutto il confronto fra `10194d9`, `5e3da14` e `bc6bd22` poggia su "cambia solo il JS". Io quella
+frase l'ho **assunta** verificando la provenienza dei commit, non l'identita' dei binari. La
+sessione della migrazione ha confrontato i `.so` in tre modi: **tutte e 38 le librerie native sono
+byte-identiche** fra la build pre-switch del fork, la build del cleanup e l'APK del mio terzo run,
+con `librnllama.so = b2d64b7a…` in tutti e tre. Se uno solo di quei file fosse stato diverso, il
+"una variabile sola" scritto nei miei commit e in questa pagina sarebbe stato falso e nessuno se ne
+sarebbe accorto. Registrato perche' e' il tipo di controllo che rende difendibile un differenziale:
+le misure girano sullo **stesso motore compilato**, e non perche' lo dico io.
