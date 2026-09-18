@@ -352,6 +352,81 @@ describe("historyReplayCharLength", () => {
   });
 });
 
+describe("emissionSource (provenance of a stored emission)", () => {
+  // The four stored emission shapes, times the three provenances. This
+  // matrix is jest-visible (ci.yml runs on feat/**); the writer scan that
+  // guards the flag's WIRING lives in scripts/thinkHistoryHarness.mjs,
+  // which jest cannot replace.
+  const shapes: Array<[string, string]> = [
+    ["leading tag, closed", "<think>\n\n</think>answer"],
+    ["tag-less, closed", "REASONING</think>answer"],
+    ["echoed leading tag, unclosed", "<think>unfinished"],
+    ["mid-text tag", "a<think>b</think>c"],
+  ];
+  const SEED = "<think>";
+
+  test.each(shapes)("parsed: %s keeps the syntactic predicate", (_name, raw) => {
+    const expected = raw.startsWith(SEED) ? raw : SEED + raw;
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "answer",
+        modelEmittedText: raw,
+        emissionSource: "parsed",
+      }).content,
+    ).toBe(expected);
+  });
+
+  test.each(shapes)("raw: %s always gets the seed restored (even over an echo)", (_name, raw) => {
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "answer",
+        modelEmittedText: raw,
+        emissionSource: "raw",
+      }).content,
+    ).toBe(SEED + raw);
+  });
+
+  test.each(shapes)("unknown provenance: %s keeps the pre-flag behaviour", (_name, raw) => {
+    const expected = raw.startsWith(SEED) ? raw : SEED + raw;
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "answer",
+        modelEmittedText: raw,
+      }).content,
+    ).toBe(expected);
+  });
+
+  test.each(shapes)("budget charge: %s mirrors the render byte-for-byte", (_name, raw) => {
+    const charge = (emissionSource?: "parsed" | "raw") =>
+      historyReplayCharLength(
+        { role: "assistant", text: "ui", modelEmittedText: raw, emissionSource },
+        { historyThink: "reasoning_content" },
+      );
+    // raw always carries the restored seed in the replay, always charged.
+    expect(charge("raw")).toBe(raw.length + SEED.length);
+    // parsed / unknown charge the seed only when the string lacks it.
+    const syntactic = raw.startsWith(SEED) ? raw.length : raw.length + SEED.length;
+    expect(charge("parsed")).toBe(syntactic);
+    expect(charge(undefined)).toBe(syntactic);
+  });
+
+  test("raw + echoed tag: the KV legitimately holds TWO opens", () => {
+    // The one case the syntactic predicate rendered wrong: the model echoed
+    // the seeded tag, the KV holds seed + echo, and the replay must too.
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "<think>unfinished",
+        emissionSource: "raw",
+      }),
+    ).toEqual({ content: "<think><think>unfinished" });
+  });
+});
+
 describe("readModelEmittedText (persist/restore field)", () => {
   test("survives a persist-shaped round-trip for assistant messages", () => {
     const cleaned = "Salvato! 👋";

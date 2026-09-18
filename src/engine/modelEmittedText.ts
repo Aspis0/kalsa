@@ -44,6 +44,10 @@ export type LlamaHistoryAssistantFields = {
  * Absent = unknown provenance (stored before this field existed): the
  * renderer falls back to the syntactic predicate, which is exactly the
  * pre-flag behaviour, so there is no migration and no invalidation.
+ * Scope note: for "parsed" (and absent) the renderer STILL consults the
+ * string via the startsWith fallback — provenance narrows the guess, it
+ * does not replace the check, and the parser keeps the seed in content
+ * only for as long as reasoning_format stays "none".
  */
 export type EmissionSource = "parsed" | "raw";
 
@@ -59,6 +63,11 @@ function emissionAlreadySeeded(
   source: string,
   emissionSource?: EmissionSource,
 ): boolean {
+  // Latent per-template assumption: the unconditional restore for "raw"
+  // assumes the GGUF's generation prompt seeds the tag — true for every
+  // model shipped today (preserveThinking: true occurs once, on
+  // lfm2.5-2.6b) and wrong for a future preserveThinking model whose
+  // template does NOT seed, which would double-prefix here.
   return emissionSource === "raw" ? false : source.startsWith(THINK_OPEN);
 }
 
