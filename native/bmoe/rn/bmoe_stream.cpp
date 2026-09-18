@@ -196,11 +196,14 @@ bool MoeStream::arm(common_params & params, std::string & err) {
     // Repack is load-bearing, not a tuning knob: the streamer rebinds tensor->data to buffers
     // filled from the file's NATIVE byte layout, and repack would change that layout so the
     // file offsets would no longer describe what the matmul reads. The engine honours
-    // no_extra_bufts (→ use_extra_bufts = !no_extra_bufts), and asks for mmap through
-    // use_mmap: the kalsallama fork predates llama.rn's load_mode enum and still speaks
-    // the use_mmap/use_mlock pair (common/common.h:574,576).
+    // no_extra_bufts (→ use_extra_bufts = !no_extra_bufts), and takes mmap through the
+    // load_mode enum since pin 134a35cf2 replaced the use_mmap/use_mlock pair: the stream
+    // needs mmap on, so raise it while preserving whatever mlock the incoming mode carries.
     params.no_extra_bufts = true;
-    params.use_mmap = true;
+    params.load_mode = params.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+                               params.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK
+                           ? LLAMA_LOAD_MODE_MMAP_MLOCK
+                           : LLAMA_LOAD_MODE_MMAP;
 
     armed_ = true;
     return true;
