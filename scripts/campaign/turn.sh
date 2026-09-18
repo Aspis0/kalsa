@@ -20,6 +20,17 @@ campaign_charging_now() {
   fi
 }
 
+# NAMED LIMITATION (kv-land privacy package, deliberately NOT fixed there):
+# this function still writes the WHOLE conversation — user text and every
+# modelEmittedText — to $dest (in practice $OUT/.messages.json), a dotfile
+# in the kept output directory. c63a952 converted the device-share-send.sh
+# family to stdin-only; this campaign family was left leaking on purpose:
+# four consumers read the file back (campaign_collect_file at oneTurn.sh,
+# campaign_user_landed twice, campaign_progress_fingerprint and
+# campaign_last_assistant_interrupted here) and
+# campaign/selftest_fakedevice.sh models the file's shape, so converting
+# means refactoring a device campaign harness that was about to go to a
+# phone. Convert it as its own change, with the selftest updated.
 campaign_snapshot_messages() {
   local dest="${1:?}" key index_raw id
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
