@@ -253,9 +253,13 @@ rp_abort_cycle_if_watchdog() {
 # On timeout, return 1 and let rp_fg_bounce emit fg_settled anyway: the
 # verdict will honestly say no_work, and the log line says the wait expired,
 # which reads differently from "the kick never fired".
-# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
-# must confirm the marker-find and the tail-window polling against real
-# logcat interleaving and write latency.
+# Exercised against a real phone 2026-09-18 (S23, 2 cycles). Cycle 1: the
+# marker was found and the window closed on the real `{"op":"done"}` after
+# 35s, sealing a 109.5s prefill inside it — the fixed sleep this replaced
+# would have called that working prewarm no_work. Cycle 2: no terminal op
+# arrived, the 120s budget expired, fg_settled went out anyway and the
+# verdict said so instead of pretending the kick never fired. Both branches
+# are now measured.
 rp_fg_wait_settled() {
   local i="$1" waited=0 line_from=""
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
