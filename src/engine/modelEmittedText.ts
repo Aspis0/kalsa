@@ -1,10 +1,11 @@
 /**
  * Separate "what the model emitted" from "what the user reads".
  * Prompt assembly replays modelEmittedText when present; UI keeps cleaned text.
- * No template-specific tokens — just replay whatever was produced.
+ * History field shaping adds only the template token required to reproduce
+ * the seeded LFM think prefix.
  */
 
-import { THINK_CLOSE } from "./thinkStream";
+import { THINK_CLOSE, THINK_OPEN } from "./thinkStream";
 
 /** Named restore refusal: history cannot re-render the saved KV byte-for-byte. */
 export const HISTORY_NOT_REPRODUCIBLE = "history_not_reproducible";
@@ -33,8 +34,8 @@ export type LlamaHistoryAssistantFields = {
 /**
  * How history think is handed to llama.rn Jinja.
  *
- * - `reasoning_content`: LFM / `preserveThinking` templates re-emit `<think>`
- *   from that field. Stuffing the raw span into `content` double-wraps.
+ * - `reasoning_content`: LFM / `preserveThinking` history is replayed through
+ *   `content` with the seeded `<think>` prefix restored explicitly.
  * - `content_span`: Qwen 3.5 history (`loop.index0 <= last_query_index`)
  *   emits `content` only. If `reasoning_content` is absent it splits
  *   `</think>` out of content and drops the KV think tokens (S23 9151f78
@@ -43,7 +44,7 @@ export type LlamaHistoryAssistantFields = {
  */
 export type HistoryThinkPlacement = "reasoning_content" | "content_span";
 
-/** LFM re-emits from reasoning_content; Qwen 3.5 history must keep the span. */
+/** LFM restores the seeded prefix; Qwen 3.5 history must keep the span. */
 export function historyThinkPlacementForModel(
   preserveThinking: boolean | undefined,
 ): HistoryThinkPlacement {
@@ -51,9 +52,8 @@ export function historyThinkPlacementForModel(
 }
 
 /**
- * llama.rn Jinja re-emits `<think>` from `reasoning_content` on
- * preserveThinking templates. Qwen 3.5 history needs the raw span in
- * `content` instead (see HistoryThinkPlacement).
+ * LFM history needs the seeded `<think>` prefix in `content`; Qwen 3.5
+ * history needs the raw span in `content` instead (see HistoryThinkPlacement).
  */
 export function llamaHistoryAssistantFields(
   message: {
@@ -76,32 +76,41 @@ export function llamaHistoryAssistantFields(
     if (!split) return { content: source };
     return { content: source, reasoning_content: "" };
   }
-  const split = splitClosedLeadingThink(source);
-  if (!split) {
-    return { content: emitted ?? message.content };
-  }
-  // Jinja is `think + content` with no extra separator. After-close bytes
-  // (e.g. `\n\n` before the answer) must stay on content or KV prefix-match dies.
-  return { reasoning_content: split.inner, content: split.after };
+  // The LFM generation prompt has already seeded one `<think>` before this
+  // raw completion. Prefix every raw shape verbatim, including a raw value
+  // that already starts with `<think>`: the result is `<think><think>…`,
+  // which is byte-identical if the model emitted that second tag itself.
+  return { content: THINK_OPEN + source };
 }
 
 /** Char length the engine window must charge (replay text, not UI `text`). */
-export function historyReplayCharLength(message: {
-  role?: string;
-  text?: string;
-  content?: string;
-  modelEmittedText?: string;
-}): number {
+export function historyReplayCharLength(
+  message: {
+    role?: string;
+    text?: string;
+    content?: string;
+    modelEmittedText?: string;
+  },
+  opts: { historyThink: HistoryThinkPlacement },
+): number {
+  let length: number;
   if (
     message.role === "assistant" &&
     typeof message.modelEmittedText === "string" &&
     message.modelEmittedText.length > 0
   ) {
-    return message.modelEmittedText.length;
+    length = message.modelEmittedText.length;
+  } else if (typeof message.text === "string") {
+    length = message.text.length;
+  } else if (typeof message.content === "string") {
+    length = message.content.length;
+  } else {
+    length = 0;
   }
-  if (typeof message.text === "string") return message.text.length;
-  if (typeof message.content === "string") return message.content.length;
-  return 0;
+  if (message.role === "assistant" && opts.historyThink === "reasoning_content") {
+    return length + THINK_OPEN.length;
+  }
+  return length;
 }
 
 function splitClosedLeadingThink(
@@ -134,7 +143,8 @@ export function readModelEmittedText(
 
 /**
  * Normalise modelEmittedText at save time.
- * Whitespace-only → absent (matches readModelEmittedText).
+ * Whitespace-only → absent (matches readModelEmittedText); otherwise preserve
+ * the raw emission byte-for-byte, including leading/trailing whitespace.
  */
 export function normalizeModelEmittedTextForSave(
   role: string,
@@ -142,8 +152,8 @@ export function normalizeModelEmittedTextForSave(
 ): string | undefined {
   if (role !== "assistant") return undefined;
   if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  if (value.trim().length === 0) return undefined;
+  return value;
 }
 
 /**

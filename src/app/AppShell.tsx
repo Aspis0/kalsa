@@ -285,7 +285,10 @@ import {
   shouldReconcileAssembleStart,
   windowHasDigest,
 } from "../engine/windowKvInvariant";
-import { historyReplayCharLength } from "../engine/modelEmittedText";
+import {
+  historyReplayCharLength,
+  historyThinkPlacementForModel,
+} from "../engine/modelEmittedText";
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
@@ -5462,8 +5465,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const perMessageCap = baseMessageCap + userTailChars;
             const currentTurnChars =
               Math.min(promptText.length, baseMessageCap) + userTailChars;
+            const historyThink = historyThinkPlacementForModel(
+              currentModel.preserveThinking,
+            );
             const historyLengths = validatedHistory.map((m) =>
-              Math.min(historyReplayCharLength(m), baseMessageCap) +
+              Math.min(historyReplayCharLength(m, { historyThink }), baseMessageCap) +
                 (m.role === "user" ? userTailChars : 0),
             );
             let legacyWindowStart = legacyWindowMode

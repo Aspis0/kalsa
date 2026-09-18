@@ -181,6 +181,7 @@ jobs:
           node scripts/semanticIndexHarness.mjs
           node scripts/telemetryHarness.mjs
           node scripts/telemetryWorkerHarness.mjs
+          node scripts/thinkHistoryHarness.mjs
           node scripts/tuningLayerHarness.mjs
 
       # Preflight: HEAD every model URL the workflow can select, fail fast if

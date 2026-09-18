@@ -122,6 +122,7 @@ jobs:
           node scripts/semanticIndexHarness.mjs
           node scripts/telemetryHarness.mjs
           node scripts/telemetryWorkerHarness.mjs
+          node scripts/thinkHistoryHarness.mjs
           node scripts/tuningLayerHarness.mjs
 
       - name: Free disk space
