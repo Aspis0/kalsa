@@ -1,0 +1,111 @@
+/* The advanced launch controls, on the Advanced surface and inside Models.
+   Chat tokens and button classes only. */
+
+.advanced-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.advanced-eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.advanced-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.advanced-toggle {
+  margin-top: 0.6rem;
+}
+
+.advanced-body {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.advanced-note {
+  margin: 0 0 0.9rem;
+  color: var(--silence);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.advanced-field {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.advanced-field-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.advanced-field input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.advanced-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.advanced-field-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.advanced-field-check input {
+  width: auto;
+}
+
+.advanced-field-check .advanced-field-label {
+  margin-bottom: 0;
+}
+
+.advanced-help {
+  margin: 0 0 0.9rem;
+  color: var(--silence);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.advanced-values {
+  margin: 0.9rem 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  color: var(--silence);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.advanced-feedback {
+  margin: 0.6rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}

@@ -18,7 +18,10 @@ import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
 import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
-import { PLACEHOLDER_LINES, SurfacePlaceholder } from "./components/SurfacePlaceholder";
+import { ModelsSurface } from "./surfaces/ModelsSurface";
+import { ServerSurface } from "./surfaces/ServerSurface";
+import { DevicesSurface } from "./surfaces/DevicesSurface";
+import { AdvancedSurface } from "./surfaces/AdvancedSurface";
 import { EmptyState } from "./components/EmptyState";
 import "./App.css";
 
@@ -627,9 +630,15 @@ export function App() {
                 setCtxInfo(null);
               }}
             />
-          ) : (
-            <SurfacePlaceholder title={surfaceLabel(surface)} line={PLACEHOLDER_LINES[surfaceLabel(surface)] ?? ""} />
-          )}
+          ) : surface === "models" ? (
+            <ModelsSurface onNavigate={setSurface} />
+          ) : surface === "server" ? (
+            <ServerSurface />
+          ) : surface === "devices" ? (
+            <DevicesSurface onNavigate={setSurface} />
+          ) : surface === "advanced" ? (
+            <AdvancedSurface />
+          ) : null}
         </ErrorBoundary>
       </main>
 

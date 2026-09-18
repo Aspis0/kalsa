@@ -1,0 +1,158 @@
+/* Shared vocabulary for the four ported shell surfaces (Models, Server,
+   Devices, Advanced). Chat's own tokens and button classes only — the
+   vanilla stylesheets are not coming across. */
+
+.surface-page {
+  width: min(30rem, 100%);
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.surface-eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.surface-page h2 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.surface-verdict {
+  margin: 0.5rem 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.surface-headline {
+  margin: 0.9rem 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.surface-sentence {
+  margin: 0 0 1rem;
+  color: var(--silence);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.surface-quiet {
+  margin: 0.6rem 0 0;
+  color: var(--silence);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.surface-note {
+  margin: 0 0 1rem;
+  color: var(--danger);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.surface-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.surface-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.surface-metric {
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.surface-metric-label,
+.surface-metric-detail {
+  display: block;
+  color: var(--silence);
+  font-size: 0.72rem;
+}
+
+.surface-metric-value {
+  display: block;
+  margin: 0.15rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-metric-value.is-positive {
+  color: var(--accent);
+}
+
+.surface-walk-progress {
+  margin: 0 0 0.6rem;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-walk-bar {
+  height: 6px;
+  margin: 0 0 1.25rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--pct, 0%), var(--surface-muted) 0);
+}
+
+.surface-qr {
+  width: min(200px, 100%);
+  margin: 0.25rem 0 0.6rem;
+}
+
+.surface-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.surface-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.surface-device {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.surface-device-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.surface-device-detail {
+  flex: none;
+  color: var(--silence);
+  font-size: 0.78rem;
+}
