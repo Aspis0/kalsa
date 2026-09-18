@@ -111,6 +111,27 @@ jobs:
           # artifact this workflow produces, so they have nothing to assert on a
           # device-only APK build.
           node scripts/matrixParityHarness.mjs
+          # Orphan harnesses: until 2026-09-17 these ran in no workflow — which
+          # is how embeddingServiceHarness and telemetryHarness rotted silently
+          # (both repaired in c1951a8).
+          node scripts/anti_oom_harness.mjs
+          node scripts/compactionParseHarness.mjs
+          node scripts/conversationsStoreHarness.mjs
+          node scripts/dailyUseHarness.mjs
+          node scripts/deviceProfileHarness.mjs
+          node scripts/documentLibraryHarness.mjs
+          node scripts/docxToTextHarness.mjs
+          node scripts/eagerKickHarness.mjs
+          node scripts/embeddingServiceHarness.mjs
+          node scripts/i18nParityHarness.mjs
+          node scripts/llamaContextGateHarness.mjs
+          node scripts/markdownHarness.mjs
+          node scripts/regen_harness.mjs
+          node scripts/researchPlanHarness.mjs
+          node scripts/semanticIndexHarness.mjs
+          node scripts/telemetryHarness.mjs
+          node scripts/telemetryWorkerHarness.mjs
+          node scripts/tuningLayerHarness.mjs
 
       - name: Free disk space
         run: |
