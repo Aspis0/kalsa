@@ -7073,3 +7073,52 @@ run 3. Il baseline vecchio e' orfano (la sua `.kvs` e' stata riscritta), quindi 
    ramo `"parsed"`**. Il ramo `"raw"` nasce da un turno interrotto (Stop premuto dall'utente) e il
    protocollo non lo produce. Resta coperto dai soli test unitari finche' qualcuno non interrompe un
    turno a mano — e va detto cosi', non spacciato per provato.
+
+
+## 18/09 pomeriggio (13:20 EDT) — MTP non poteva proporre per una riga nostra, e il test che la proteggeva vive su un'altra
+
+La domanda aperta dello Step 5 era "come decide upstream quando passare `ctx_other`". Risposta: non
+decide. `v0.12.9:cpp/rn-llama.cpp:566` fa come noi, `cparams.ctx_other = ctx;` senza condizioni. Il
+filtro sta nel motore, e la prima versione della mia risposta era **sbagliata** sull'ultimo passo:
+avevo scritto "non c'e' nessuna riga upstream da importare". L'audit ostile l'ha refutata e ho
+riletto io ogni riga sui due alberi.
+
+La catena vera, con il proprietario di ogni passo:
+1. entrambi i binding passano il target senza condizioni (v0.12.9 `:566`, noi `:846`);
+2. upstream memorizza `ctx_other` solo per Gemma4Assistant ed Eagle3/DFlash senza `tok_embd`
+   (`llama-context.cpp:141-160`); **noi per ogni architettura** (`:152-154`), da kalsallama
+   `6f3881baf` del 28/08 che ha sollevato l'assegnazione fuori dal ramo GEMMA4;
+3. `llama-context.cpp:393` lo trasforma nel `mem_other` del costruttore della memoria;
+4. `mtp_on_hybrid_qwen` — **riga di upstream**, non nostra (`llama-model.cpp:2450`, upstream
+   `:2225`) — manda un contesto MTP su QWEN35 sulla strada densa, quindi il draft chiede un
+   `llama_kv_cache_iswa` mentre la memoria del target e' un `llama_memory_hybrid_iswa`;
+5. la nostra guardia `dynamic_cast` rifiuta (`llama-kv-cache-iswa.cpp:96-97`). La guardia e' giusta
+   e resta: upstream li' ha uno `static_cast` cieco, UB che non raggiunge mai solo perche' al passo
+   4 passa `nullptr`;
+6. il binding cattura e fa il turno in chiaro (`rn-completion.cpp:910-917`). Per l'utente MTP e'
+   spento in silenzio, non e' un errore.
+
+**Tre strade arrivano a `mem_other`, una sola era rotta.** `llama-model.cpp:2648` iswa generica (la
+strada MTP-su-ibrido), `:2669` densa, `:2606-2634` Gemma4Assistant che si calcola il suo `mem_other`
+e una `share` callback. Il test `tests/test-governor-v0-shared-cells.cpp` gira sul fixture
+`tinyllamas/stories15M-q4_0.gguf` (`tests/CMakeLists.txt:271,351`): arch LLAMA, **non** hybrid
+(`llama-arch.cpp:1064-1087`), `swa_type` NONE, quindi passa da **2669**. La correzione e' percio'
+**una riga**: `07e081f2b` mette `nullptr` a 2648 e lascia 2669 intatta.
+
+**La prova, tre gambe, in locale sul Mac.** (kalsallama non ha una CI che giri i suoi test: i
+workflow sono quelli di llama.cpp e triggerano su `master`, il nostro default e' `main` — voce
+aperta in HANDOFF §8.)
+- padre `3efb44d6c`: exit **0**, `shared_cells_size=256`, `next_slot=6`, tre recinzioni e guardie
+  negative PASS;
+- fix `07e081f2b`: exit **0**, righe identiche — il test non poggiava su 2648;
+- **mutazione** (`nullptr` anche a 2669, mai committata): exit **1**,
+  `shared-cells: owner/non-owner head continuity failed`.
+
+Senza la terza gamba il verde della seconda non avrebbe detto niente: e' quella che dimostra che il
+test *vede* `mem_other` su quella strada. Mutazione revertita, albero pulito, verificato a disco che
+la riga iswa e' `nullptr` e quella densa e' ancora `params.mem_other`.
+
+Spesa dichiarata: un draft MTP su un target **denso con SWA** smette di condividere le celle.
+Nessun modello in catalogo ha quella forma e upstream li' non ha mai condiviso. Quel che manca e' la
+sola prova che conta davvero: Qwen3.5-4B sull'S23 con un draft che **propone** (`draftTokens > 0`,
+nessuna riga di fallback) — sarebbe la prima volta che quella strada viene esercitata su un telefono.
