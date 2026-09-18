@@ -2064,14 +2064,13 @@ async function main() {
     settled.status === 0,
     `a settle after the op lands must exit 0 — got ${settled.status}`,
   );
+  // `date +%s` floors: a 2 s sleep that straddles a second boundary reads 3.
+  // The pass counter this pin exists to catch would print 1 — never 2 or 3.
   assert(
-    settled.protocolLog.includes("kick settled after 2s"),
-    `the settle line must report wall seconds (2), not the pass count (1) — ` +
-      `log said: ${JSON.stringify(settled.protocolLog)}`,
-  );
-  assert(
-    !settled.protocolLog.includes("settled after 1s"),
-    "a pass count leaked into the settle line — the seconds suffix lied again",
+    /kick settled after (2|3)s\n/.test(settled.protocolLog) &&
+      !settled.protocolLog.includes("settled after 1s"),
+    `the settle line must report wall seconds (2-3 at this stub's cadence), ` +
+      `not the pass count (1) — log said: ${JSON.stringify(settled.protocolLog)}`,
   );
   console.log("PASS settle wait is wall clock and its log persists (protocol.log)");
 
@@ -2162,6 +2161,29 @@ async function main() {
     queueHead === queueHeadExpected,
     `facts-in-system must be refused before any state-dependent work, and log — found: ${queueHead}`,
   );
+
+  // ── The jest gate must stay bounded ──────────────────────────────────────
+  // e2e-emulator.yml is the workflow pushes to main actually fire, and its
+  // jest step runs inside a 120-minute job: without a step-level bound, a
+  // hang costs two hours of runner and produces no e2e evidence. ci.yml
+  // bounds the same suite's job at 15 minutes — the step carries that
+  // number, and this pin fails if it is quietly removed.
+  const e2eYml = readFileSync(
+    path.join(projectRoot, ".github/workflows/e2e-emulator.yml"),
+    "utf8",
+  );
+  const jestStepAt = e2eYml.indexOf("Typecheck + logic harnesses");
+  assert(jestStepAt >= 0, "the Typecheck + logic harnesses step still exists");
+  const nextStepAt = e2eYml.indexOf("\n      - name:", jestStepAt + 10);
+  const jestStep = e2eYml.slice(jestStepAt, nextStepAt < 0 ? undefined : nextStepAt);
+  assert(jestStep.includes("npx jest"), "the bounded step is the one that runs jest");
+  const stepTimeout = jestStep.match(/timeout-minutes:\s*(\d+)/);
+  assert(
+    stepTimeout !== null && Number(stepTimeout[1]) > 0 && Number(stepTimeout[1]) <= 20,
+    `the jest step must declare a step-level timeout-minutes consistent with ` +
+      `ci.yml (found: ${stepTimeout ? stepTimeout[1] : "none"})`,
+  );
+  console.log("PASS the jest CI gate is bounded (timeout-minutes <= 20)");
 
   console.log("prefixPrewarmHarness OK");
 }

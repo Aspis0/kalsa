@@ -80,6 +80,10 @@ jobs:
         run: bash scripts/assert-overlay-includes.sh
 
       - name: Typecheck + logic harnesses
+        # ci.yml bounds the same suite's job at 15 minutes; an unbounded jest
+        # hang here would burn the 120-minute job budget and leave no e2e
+        # evidence at all.
+        timeout-minutes: 15
         run: |
           npm run typecheck
           # The full jest suite on the push that actually protects main:
