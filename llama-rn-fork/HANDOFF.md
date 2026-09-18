@@ -768,6 +768,23 @@ a binary without a Metal library.
   forces the fallback for debugging; `KALSA_GATE_REQUIRE_NDK=1` makes any fallback exit 1 naming what
   was missing, and the app's CI sets it on the gate step.
 
+### Added 2026-09-18 afternoon — kalsallama has NO test CI (open item for Marco)
+
+- **Nothing in CI ever builds or runs kalsallama's own tests.** Its `.github/workflows/` are
+  upstream llama.cpp's and they key on `master`; our default branch is `main`, so they never fire.
+  The only runs on the repo are `Build Actions Cache`, `Publish Docker image` and
+  `Close inactive issues` (checked with `gh run list -R Aspis0/kalsallama`). The fork's C++ step
+  (`ci.yml:55-61`) builds **llama.rn's** tests, not the governor ones. So
+  `tests/test-governor-v0-*` — the suite that pins the KV governor, shared cells and commit
+  behaviour — is only ever run by hand on this Mac.
+- Cost of fixing it is not zero: **kalsallama is private** (`gh repo view`), so its Actions minutes
+  come out of the Free plan, which ran out once in August. A workflow that builds the seven
+  governor targets on `ubuntu-latest` is the obvious shape, and it is **Marco's call**, not a thing
+  to add while passing.
+- Until then, any engine change touching memory/KV owes a **named local run** (target, exit code,
+  the assertion lines) plus the non-vacuity leg: the same test on the parent commit, and a mutation
+  that makes it fail. A green test alone does not show the test can see the line you changed.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
