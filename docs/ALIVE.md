@@ -6511,3 +6511,56 @@ rigenerano una volta (engine id v1 → v2). `patches/`, `vendor/`, `native/kalsa
 `scripts/sync-kalsallama.sh` restano sul disco come rollback (`git revert -m 1 16f6ce9` + `npm ci`,
 un comando) e li cancella lo Step 4. Avvisata la sessione KV: il suo APK dalla run `35321529286`
 resta valido perché è lo stesso albero.
+
+**18/09 mattina — il differenziale KV sul telefono: il filler è chiuso, e la MIA correzione del
+`<think>` è una regressione.**
+Due run del protocollo sull'S23, in carica, stessa conversazione, una variabile sola: il baseline
+è stato preso apposta su un binario che NON conteneva le correzioni.
+```
+baseline  APK 10194d9   cycle=1 embd=1832 text=4906 n_common=1829 promptMs=134461 class=partial
+                        cycle=2 embd=5359 text=5382 n_common=5359 promptMs=725    class=whole
+post-fix  APK 5e3da14   cycle=1 embd=1826 text=4276 n_common=1826 promptMs=101879 class=whole
+                        cycle=2 embd=4739 text=4763 n_common=4276 promptMs=172316 class=partial
+```
+**Successo, `57bad0c`.** Il prewarm passa da 1832 a **1826** token: sei esatti, il turno utente
+fittizio `<|im_start|>user\n` + `.` + `<|im_end|>\n`. Il ciclo 1 passa da `partial` a **`whole`**,
+zero righe di divergenza. E la riga del baseline lo conferma alla fonte:
+`KALSA_KVDIVERGE n_common=1829 shared_lo=1821 embd_hi=1832` — `embd_hi - n_common = 3`, cioè la
+cache finiva lì, non "finestra piena". `FG_REKICK_CRITERION` passa da FAIL a **PASS** grazie a
+`0ec90cc`, come previsto per iscritto prima della misura. `SESSION: loads_ok=2 loads_refused=0
+saves_ok=11 saves_refused=0 best_load_ms=128`: 36 MB di KV riletti da disco in 128 ms dopo un
+force-stop.
+
+**Fallimento, `7b5b79b`, ed è mio.** Il ciclo 2 va da `whole`/725 ms a `partial`/**172 secondi**.
+La divergenza cade a `n_common=4276`, che è esattamente la lunghezza del prompt del ciclo 1: il
+primo token generato, l'inizio del turno assistente. `KALSA_KVDIVERGE n_common=4276 shared_lo=4268
+embd_hi=4288 text_hi=4288` — finestra satura da entrambi i lati, quindi **sostituzione**, non
+troncamento. La catena, verificata sul nostro sorgente e non dedotta: il codice pre-fix per LFM
+(`git show 7b5b79b^:src/engine/modelEmittedText.ts`) faceva
+`const split = splitClosedLeadingThink(source); if (!split) return { content: emitted ?? message.content };
+return { reasoning_content: split.inner, content: split.after };`
+e il baseline ha combaciato INTERO attraverso un turno assistente (5359/5359). Il template dentro
+il GGUF semina `<|im_start|>assistant\n<think>` incondizionatamente (righe 123-125), quindi quel
+tag nella cache c'è; perché il render pre-fix combaciasse byte per byte deve essere passato dal
+ramo dello split, cioè **`modelEmittedText` COMINCIA con `<think>` su questo motore**. Il codice
+post-fix fa `return { content: THINK_OPEN + source }` → `<think><think>…`: un token di troppo,
+nello stesso punto esatto in cui prima ne mancava uno.
+
+Il commento che avevo scritto io nel codice dice testualmente *"including a raw value that already
+starts with `<think>`: the result is `<think><think>…`, which is byte-identical if the model emitted
+that second tag itself"*. Era un'assunzione, e il telefono dice che è falsa. La premessa del commit
+("il modello non emette mai quel tag") veniva da 6 record delle catture 14-17/09 dove
+`cache[1:] == prompt[:-1]` è esattamente vero: quelle forme esistono, ma esiste anche l'altra, e sul
+motore corrente è l'altra a comandare. La riparazione giusta non è "sempre prefissa" né "mai": è
+prefissare solo se non c'è già, con lo stesso predicato applicato al `+7` di
+`historyReplayCharLength`. **Non verificata**: serve un APK nuovo e un terzo run.
+
+**La lezione del disegno, che qui ha pagato.** Il baseline è stato preso deliberatamente su binario
+pre-fix, una variabile per volta. È solo per questo che la regressione è attribuibile a un commit
+invece di annegare in un run in cui era cambiato tutto insieme. Un differenziale a due punti vale
+più di dieci run tutti sullo stesso binario.
+
+Altri due numeri di questo run, non previsti. `KALSA_SESSION {"op":"window_slide","kvCleared":true}`:
+allo slide la KV viene cancellata per intero — il -37% già noto, visto in diretta.
+`KV_FALLBACK: checkpoint_recover=0 no_usable_checkpoint=1`: il recupero da checkpoint di stato RAM,
+che sul baseline aveva salvato 1827 token su 1832, qui non aveva niente da riusare.

@@ -1791,3 +1791,34 @@ perche' la allow-list dell'overlay non conosceva **nove** file del fork (`common
 3. **Audit ostile di `f62272b`** (GLM) ancora fuori — e' l'unico pezzo nel send path.
 4. Aperte e non mie: soglia del gate di catalogo, soglia termica, `WINDOW_RESERVE_TOKENS`,
    n_ctx 8192→16384 (**~+52 MiB**, non +239 MB).
+
+## 18/09 mattina — il punto 2 e' stato eseguito: due run, un differenziale, una regressione mia
+
+Il "run sull'S23" del punto 2 qui sopra **e' fatto, due volte**, e il criterio scritto li'
+(`KALSA_KVPREFIX` con `n_common == embd`) e' **soddisfatto sul primo turno e violato sul secondo**.
+I numeri e la catena di prova stanno in `docs/ALIVE.md`, voce "18/09 mattina". In sintesi:
+
+- `57bad0c` (turno fittizio tolto dal prewarm): **confermato sul telefono**. Prewarm 1832 → 1826
+  token, ciclo 1 da `partial` a `whole`, zero divergenze.
+- `0ec90cc` (il foreground dichiara perche' salta): **confermato**, `FG_REKICK_CRITERION` da FAIL a
+  PASS.
+- `7b5b79b` (il `<think>` seminato dal template): **regressione misurata**. Ciclo 2 da `whole`/725 ms
+  a `partial`/172 s, divergenza esattamente al primo token generato. Su questo motore
+  `modelEmittedText` comincia gia' con `<think>`, quindi prefissarlo sempre ne mette due.
+
+### Cosa resta, in ordine (aggiornato 18/09)
+
+1. **Riparare `7b5b79b`**: prefissare `<think>` solo quando la sorgente non comincia gia' con esso,
+   e applicare lo stesso predicato al `+7` di `historyReplayCharLength`. La copertura deve tenere
+   ENTRAMBE le forme: i 6 record 14-17/09 senza il tag e quella con il tag misurata oggi.
+2. **APK nuovo e terzo run** con lo stesso protocollo a due cicli. Criterio: ciclo 1 `whole` (non
+   deve regredire) **e** ciclo 2 `whole`. Un run che dimostra solo il ciclo 1 non chiude niente.
+3. **Il difetto di disegno del protocollo**: il rimbalzo foreground parte ~4 s dopo l'inizio del
+   prewarm perche' si aspetta "Ready" e non "prewarm finito". Sul baseline e' costato 109 s di
+   prefill invece di ~40. Va aspettato l'evento giusto.
+4. `AppShell.tsx:757-762` fa `rawEmitted.trim()` sulla storia: una newline iniziale andrebbe persa.
+   Latente oggi, stessa strada di 7b5b79b.
+5. `KALSA_SESSION window_slide kvCleared:true` — allo slide la KV si cancella per intero. Noto, ora
+   visto in diretta; e' il -37% gia' calcolato.
+6. Aperte e **non mie**: soglia del gate di catalogo, `WINDOW_RESERVE_TOKENS`, n_ctx 8192→16384,
+   e rendere KV-riproducibili i turni con tool call (cambio di disegno, decisione dell'owner).
