@@ -473,6 +473,45 @@ reconciled. This entry is what Marco reads to judge whether the migration paid o
   (build dirs excluded), `native/`, the plugin, the version. The old inputs (patch, pin,
   overlay) are gone; a KV sidecar keyed on the old id regenerates once.
 
+### Added 2026-09-18 by the executing session, during Step 2c (all verified on disk)
+
+- **The gate must compile the way CI compiles.** Host clang and the NDK's libc++ disagree:
+  `cpp/jsi/JSIParams.cpp`'s old `reasoning_budget_end.insert(..., begin(), end())` exits 0 on
+  macOS clang (newer libc++ direct-initializes the element, so `vector<int>(token_id)` is legal
+  and silently wrong) and 1 under the NDK. The syntax pass still runs on host clang, so this
+  class of drift reaches CI. Fix: run the syntax pass with the NDK cross-compiler
+  (`--target=aarch64-linux-android33`, discovered sysroot), host only as a loud PARTIAL fallback.
+  **Coverage must never drop below the current count** — an attempt on 2026-09-18 replaced the
+  306-TU gate with a 44-TU one and reported it as a success. Give this to the agent that wrote
+  the gate, in the GLM window, not to a fallback model at midnight.
+- **A missing SOURCE is invisible to every gate we have.** The include scan resolves the header,
+  the syntax pass parses what exists; only the linker notices. `iqp.cpp` (never copied by the
+  flatten: `copy_ggml_cpu` lists sources by name while headers are taken with a `for` over `*.h`)
+  and `cpp/hash/{hash.cpp,sha256/sha256.c}` (shipped, in no target) cost one CI round each. The
+  cheap general answer, run once per pin: the two mechanical diffs (what kalsallama ships in a
+  copied directory vs what `cpp/` holds; what `cpp/` holds vs what the two CMakeLists compile)
+  plus a whole-link symbol closure. Done for `4126b729`: the only unfilled symbol is
+  `__dso_handle`, and the 15 uncopied sources have zero referenced symbols.
+- **`ggml-feats.h` is the next `iqp.cpp`.** The flatten ships `cpp/ggml-cpu/arch/{arm,x86}/cpu-feats.cpp`
+  but not `ggml/src/ggml-feats.h`, so those two cannot compile as shipped. No target compiles
+  them today, so nothing is red — but the same asymmetry will bite at a pin that starts
+  compiling them.
+- **`rewind()` does not null the stale draft pointer.** `cpp/rn-completion.cpp:851-868`
+  (`resetSpeculative`) frees `spec`/`spec_ctx` but leaves `params.speculative.draft.ctx_dft`;
+  the nulling added by `628f4517` lives only in `fallBackToPlain` (`:884-885`). `nextTokenMTP`
+  (`:1176`) re-inits before any read, so it is latent, not live.
+- **`kalsallama@134a35cf2` could not build its OpenCL backend at all** (merge `3f3558b3b`,
+  4 September, two brace defects). Fixed as `70b4302bb`. The lesson is about the gate we do not
+  have, not about the fix: no CI job compiles the Adreno surface — `e2e-emulator.yml` builds
+  x86_64 with OpenCL off, and `apk.yml` is dispatch-only. Two weeks of a broken GPU backend were
+  invisible.
+- **`native/kalsallama.pin` in the app stays at `134a35cf2`** while the engine is `70b4302bb`.
+  Deliberate: it belongs to the KV session, it is inert on the fork road (only the engine id
+  digests it, as a constant), and Step 4 deletes it. Do not "fix" it in isolation.
+- **Phones are on charge overnight (18/09).** Every historical number (including "S23 unplugged
+  100%, 34.4 C", 16/09) was measured unplugged; timings taken while charging are not comparable
+  with that baseline. Say so next to any number rather than letting it be compared.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
