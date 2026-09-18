@@ -6587,3 +6587,20 @@ e' l'unica forma che tiene entrambe, e vale a prescindere da quale sia la causa 
 nessun testo di messaggio e' stato letto, stampato o salvato, nessuna chiave dello store e' finita
 in un file, e la copia locale e' stata cancellata subito dopo ciascuna delle due letture. La copia
 storica in `/tmp/kalsa-rk.5ueDsv` non e' stata toccata.
+
+**18/09, e la domanda aperta si chiude: a separare le due forme e' la CHIUSURA del blocco.**
+Correlate le emissioni con i flag del messaggio (sempre solo conteggi e flag, nessun contenuto):
+```
+forma B (col tag, 133) : 133/133 contengono </think>,  0 interrotti
+forma A (senza tag, 12):  10/12 NON contengono </think>, 3 interrotti
+```
+Il tag d'apertura c'e' quando il blocco di ragionamento si e' **chiuso**: llama.rn ricostruisce
+`<think>...</think>` dal risultato parsato, mentre su un turno interrotto o troncato resta
+l'accumulo grezzo senza tag. **Correlazione forte, non legge** — 2 casi su 12 la rompono e il
+meccanismo dentro llama.rn non l'ho letto, quindi il predicato nel codice resta puramente
+sintattico: guarda l'inizio della stringa e nient'altro.
+
+Il che sposta la forma A da curiosita' storica a **caso vivo**: e' il turno interrotto, cioe'
+l'utente che preme stop. E spiega perche' il vecchio `splitClosedLeadingThink` non poteva reggere:
+pretendeva tag iniziale **e** chiusura, quindi su un turno non chiuso cadeva sul dump grezzo. Le
+quattro forme (chiuso/non chiuso x con/senza tag) sono ora casi di prima classe nell'harness.
