@@ -1634,7 +1634,7 @@ Opus da `llama-rn-fork/HANDOFF.md` §3 (primo update del motore); l'orchestrator
 ai punti ⛔ ASK.
 
 
-**Stato Step 2c (17/09 notte EDT): primo update del motore FATTO, CI in corso.** Il bump al pin
+**Stato Step 2c (18/09 notte EDT): CHIUSO, CI verde su entrambi i gate + verifica su telefono.** Il bump al pin
 `134a35cf2` ha fatto rossa la CI (run `35279385544` arm64 e `35279390235` x86_64) su cinque drift
 di API che il rewire precedente non aveva raggiunto — quattro nei `cpp/jsi/*` del fork, uno in
 `native/bmoe/rn/bmoe_stream.cpp` dell'app — piu' tre input di build che l'appiattimento non
@@ -1647,6 +1647,18 @@ settimane** e nessuna CI poteva accorgersene (l'e2e gira x86_64 con OpenCL spent
 OpenCL: il file che ci ha rotto era quello che saltava), `verify` 0. App `llama-rn-fork@58f5db4`,
 engine id `kalsa-eng-v2:c38036ac…`; run `35295543901` (apk arm64) e `35295547728` (e2e) in corso.
 Diario e prove: `docs/ALIVE.md`, voce "17/09 night, later".
+
+**Chiusura Step 2c.** App `llama-rn-fork@10194d9` = fork `fada1ebe` = motore `kalsallama@70b4302bb`:
+`apk.yml` **35313494113** verde (APK arm64 debuggabile, marker nel binario) ed `e2e-emulator.yml`
+**35313495601** verde **compreso il turno di inferenza vero**. Oltre ai sei drift di API e ai tre input
+di build, sono emersi due sorgenti fuori dal link (`iqp.cpp` mai copiato, `hash/*` in nessun target) e
+un **SIGSEGV al caricamento del modello**: a questo pin `common_threadpools` e' nuovo e riceve i
+`cpuparams` grezzi, mentre `postprocess_cpu_params` — che risolve il `-1` — lo chiamava solo il livello
+CLI che il fork non spedisce. Regola generale scritta nel fork: *tutto cio' che la CLI faceva per il
+motore ora lo deve fare il wrapper*. Verifica su S23 (in carica): il modello carica, la KV si riusa
+(`n_common == embd` al secondo invio), risposta completa, nessun crash. Manca il solo turno MTP su
+Qwen3.5-4B; il fallback su target denso resta compile-only per costruzione. Diario: `docs/ALIVE.md`,
+voce "18/09 notte".
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 

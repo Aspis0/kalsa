@@ -6380,3 +6380,66 @@ and `LlamaService.ts:2098-2106` degrades `draft-mtp` to `none` on a model withou
 compile-only whatever the phone does.** Residual for HANDOFF §8: `rewind()` → `resetSpeculative()`
 (`cpp/rn-completion.cpp:851-868`) does not null `params.speculative.draft.ctx_dft`; `nextTokenMTP` re-inits
 before any read, so it is latent, not live.
+
+### 18/09 notte — Step 2c CHIUSO: CI verde su entrambi i gate e il motore nuovo gira sull'S23
+
+Seguito della voce precedente. Dopo i cinque drift di API e i tre input di build mancanti, la CI ha
+continuato a fare da setaccio uno strato per volta — e ogni strato era trovabile prima.
+
+**Strato 4, il link.** Con i `jsi` sistemati, `apk.yml` (`35301310178`) e l'e2e sono arrivati al
+linker e sono morti su 7 simboli: sei `lm_ggml_cpu_iqp_*`/`lm_ggml_compute_forward_mul_mat_iqp` e
+`hash_sha256_hex`. Due cause, **entrambe invisibili a qualunque gate abbiamo**: `iqp.cpp` non veniva
+copiato dall'appiattimento (`copy_ggml_cpu` elenca i sorgenti a mano mentre le intestazioni le prende
+con un `for` su `*.h` — la dichiarazione arriva sempre, la definizione solo se qualcuno se ne ricorda)
+e `cpp/hash/{hash.cpp,sha256/sha256.c}` erano spediti ma in nessun target. Fork `05612f2b` + `4126b729`.
+Per non scoprire il terzo caso con un altro giro da 45 minuti: due diff meccanici (cosa spedisce
+kalsallama nelle directory copiate contro cosa `cpp/` contiene; cosa `cpp/` contiene contro cosa i due
+CMakeLists compilano) più la **chiusura dei simboli sull'intero link**. Risultato: l'unico simbolo non
+risolto è `__dso_handle`, e i 15 sorgenti non copiati (livello CLI, `mtmd-cli`, `llama-quant`,
+`hbm.cpp`) hanno **zero** simboli richiesti. Nessun terzo `iqp.cpp` in attesa.
+
+**Strato 5, il crash — e qui la CI ha battuto il telefono.** `apk.yml` `35307242869` verde end to end,
+ma l'e2e `35307244455` è morto su `Run E2E on emulator` con il processo già defunto:
+`SIGSEGV fault addr 0x0` in `memset_generic` ← `common_threadpools::init+755` ←
+`common_init_from_params` ← `llama_rn_context::loadModel`, `rdx = 0xfffffffffffffde0` = **-544**.
+Catena completa: `common_cpu_params::n_threads` vale `-1` di default (`common.h:69`, uguale al pin
+vecchio), ma **`common_threadpools` è NUOVO a questo pin** (`git show 4b823e95:cpp/common/common.h |
+grep -c common_threadpools` → 0) e passa i valori grezzi a ggml: `ggml-cpu.c:4204` calcola
+`sizeof(lm_ggml_compute_state) * -1`, `lm_ggml_aligned_malloc` fallisce, `:4207` fa
+`memset(NULL, 0, (size_t)-544)`. A risolvere quel `-1` c'è `postprocess_cpu_params`
+(`common.cpp:290`), **chiamato da nessuno nell'albero**: upstream lo chiama da `common/arg.cpp:891-892`,
+il livello a riga di comando che il fork non spedisce apposta. **La regola generale, che vale più del
+difetto: tutto ciò che la CLI faceva per il motore ora lo deve fare il wrapper.** Fork `ffbd39e8`
+(le due chiamate in `loadModel`, prima di tutti e tre i `common_init_from_params` compresa la copia
+del governor), `652414cb` (stesso paio sul vocoder — non raggiungibile dall'app, che usa expo-speech,
+ma armato per altri consumatori del binding) e `fada1ebe`: uno **zero esplicito** sopravviveva a
+`postprocess_cpu_params`, che salva solo i negativi, e finiva su `workers[0]` di un pool a zero worker.
+Upstream normalizza lo zero con `hardware_concurrency()` (`arg.cpp:1522-1535`), che per standard può
+restituire 0 — proprio nell'angolo che rende il difetto raggiungibile, un dispositivo che dichiara 0
+core. Deviazione deliberata, scritta nel commento: **una CLI che sbaglia stampa un errore ed esce, un'app
+prende un SIGSEGV davanti all'utente**, quindi si usa la fonte 0-safe che `postprocess_cpu_params` già usa
+per il ramo negativo. Misurato con uno stub: `hardware_concurrency()==0` → prima `0/0` fatale, dopo `8/8`.
+
+**Verde.** App `llama-rn-fork@10194d9` (fork `fada1ebe`, motore `kalsallama@70b4302bb`, engine id
+`kalsa-eng-v2:c3418f60…`): `apk.yml` **35313494113** verde (build, `assert-native-patch`, flag
+debuggabile, artifact) e `e2e-emulator.yml` **35313495601** verde **compreso `Run E2E on emulator`**,
+cioè un turno di inferenza vero. Da notare: il passo `Typecheck + logic harnesses` (46 harness, poi 58
+con il cablaggio della sessione KV) è girato verde su questo ramo — su `main` è saltato da giorni perché
+il passo prima fallisce.
+
+**Verifica su telefono (S23, in carica, LFM2.5 2.6B, APK debuggabile installato con `install -r`,
+nessun wipe).** Il motore nuovo carica e risponde. Due invii della stessa domanda su una conversazione
+esistente da 4546 token: il primo `KALSA_KVPREFIX embd=1832 n_common=1829` + `KALSA_KVDIVERGE` +
+`KALSA_KVREUSE checkpoint n_past=1827`; il secondo **`embd=2853 n_common=2853`, riuso pieno**. Nessun
+`SIGSEGV`, nessun `GGML_ASSERT`, risposta completa e pertinente al contesto. Batteria 28,4 → 37,6 °C di
+picco, 36,1 a fine sessione: **numeri presi in carica, non confrontabili con la baseline a spina
+staccata** (cfr. "S23 staccato 100% 34,4 °C" del 16/09). Il primo turno si è chiuso con
+`nextToken:1281 Decoding Interrupted` per errore dell'operatore (uno swipe sull'app durante la
+generazione), non per un difetto.
+
+**Cosa resta scoperto.** Il turno MTP con Qwen3.5-4B non è stato fatto: l'override `/bench speculative
+mtp` è stato impostato e poi rimosso (verificato: la chiave `kalsa.bench.speculative` è assente e l'app
+riporta `speculative=default`), ma il cambio modello dalla UI non è stato trovato a colpo sicuro e non
+valeva il rischio su un telefono condiviso alle 3:30. Resta evidenza mancante solo per il ramo ibrido:
+il fallback su target denso rimane compile-only per costruzione (`LlamaService.ts:2098-2106` degrada
+`draft-mtp` a `none` senza `mtp` in catalogo, e nessuna voce di catalogo ha `defaultEnabled`).
