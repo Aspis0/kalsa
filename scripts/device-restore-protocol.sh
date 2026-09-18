@@ -90,10 +90,10 @@ rp_state() {
 # Owner stop rules for an unplugged S23, enforced between cycles and by the
 # watchdog: battery >= 44.0 C or thermal status >= 3 ends the run. A run that
 # cooks the phone is not evidence, and rp_state alone never stopped one.
-# The 25/08/2026 owner mandate says WARN at 40.0 C and KILL at 43.0 C, while
-# this script's existing owner stop default is 44.0 C. That discrepancy is
-# known and deliberately unresolved here; the owner must decide which stop
-# threshold governs. Do not silently change RP_TEMP_STOP_DECI in this patch.
+# Thermal stop: 44.0 C, settled by the owner on 2026-09-17. The 25/08/2026
+# mandate wrote KILL at 43.0 C; both numbers were put to the owner and 44.0 C
+# governs. WARN stays at 40.0 C as the mandate asks. RP_TEMP_STOP_DECI is an
+# owner decision — do not move it from inside a patch.
 RP_TEMP_STOP_DECI="${RP_TEMP_STOP_DECI:-440}"
 RP_THERMAL_STOP="${RP_THERMAL_STOP:-3}"
 
@@ -209,7 +209,7 @@ rp_watchdog_loop() {
 rp_watchdog_start() {
   rm -f "$RP_WATCHDOG_SENTINEL" "$RP_WATCHDOG_MAX_FILE" \
     "${RP_WATCHDOG_SENTINEL}.$$" "${RP_WATCHDOG_MAX_FILE}.$$"
-  log "thermal watchdog: armed interval=${RP_WATCHDOG_INTERVAL_SECONDS}s warn=40.0 C stop=${RP_TEMP_STOP_DECI} deci-C thermal=${RP_THERMAL_STOP}"
+  log "thermal watchdog: armed interval=${RP_WATCHDOG_INTERVAL_SECONDS}s warn=${RP_TEMP_WARN_DECI} deci-C stop=${RP_TEMP_STOP_DECI} deci-C thermal=${RP_THERMAL_STOP}"
   rp_watchdog_loop "$$" &
   RP_WATCHDOG_PID=$!
 }
