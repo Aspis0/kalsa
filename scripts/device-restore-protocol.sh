@@ -256,10 +256,14 @@ rp_abort_cycle_if_watchdog() {
 # Exercised against a real phone 2026-09-18 (S23, 2 cycles). Cycle 1: the
 # marker was found and the window closed on the real `{"op":"done"}` after
 # 35s, sealing a 109.5s prefill inside it — the fixed sleep this replaced
-# would have called that working prewarm no_work. Cycle 2: no terminal op
-# arrived, the 120s budget expired, fg_settled went out anyway and the
-# verdict said so instead of pretending the kick never fired. Both branches
-# are now measured.
+# would have called that working prewarm no_work. Cycle 2: the budget
+# expired and fg_settled went out anyway — CORRECTION (SIGPIPE, same day):
+# "no terminal op arrived" was the old tail|grep -q shape lying, not a
+# silence. Re-reading the captures with the corrected shape shows every
+# kick in all three 09-18 runs settled in 0.1-0.2 s (kv_holds_chat); which
+# kicks "settled" was decided purely by whether ~16 KB of logcat had
+# accumulated after the outcome line before the first poll — the pipe
+# capacity — not by anything the app did.
 rp_fg_wait_settled() {
   local i="$1" waited=0 line_from=""
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
@@ -275,7 +279,20 @@ rp_fg_wait_settled() {
   fi
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
     rp_watchdog_stop_requested && return 2
-    if tail -n +"$line_from" "$OUT/logcat.txt" 2>/dev/null | grep -Eq '"op":"(done|restore|skip)"'; then
+    # grep -q on the consuming side of a pipe is a false-negative factory
+    # under `set -uo pipefail`: grep exits at the first match, tail keeps
+    # writing, the pipe fills, tail dies with SIGPIPE and the pipeline
+    # returns 141 — the if takes the FALSE branch having found the line.
+    # Measured on this host: exit flips 0 -> 141 between 8 KB and 16 KB
+    # after the match (pipe capacity), and the real captures had 1.0-3.6 MB
+    # after theirs, so every 1 s poll of the 120 s budget returned 141 and
+    # three kicks that settled in 0.1-0.2 s were reported as "did not
+    # settle". awk reads the file directly: one process, no pipe, stops at
+    # the first matching line after the marker.
+    if awk -v start="$line_from" '
+      NR >= start && /"op":"(done|restore|skip)"/ { found = 1; exit }
+      END { if (found) exit 0; exit 1 }
+    ' "$OUT/logcat.txt" 2>/dev/null; then
       log "cycle $i: kick settled after ${waited}s"
       return 0
     fi
@@ -334,14 +351,24 @@ rp_validate_bounce_flags() {
 # -t KALSA_RP_MARK "probe=<nonce>"` was written and `adb logcat -d -s
 # KALSA_RP_MARK` read it back on the first try — quoting and buffering hold.
 rp_marker_probe() {
-  local nonce="probe=$$-$(date +%s)"
+  local nonce="probe=$$-$(date +%s)" probe_dump=""
   adb shell log -p i -t KALSA_RP_MARK "$nonce" </dev/null >/dev/null 2>&1
   sleep 2
-  if ! adb logcat -d -s KALSA_RP_MARK </dev/null 2>/dev/null | grep -q "$nonce"; then
-    log "marker probe FAILED: wrote '$nonce', never read it back"
-    return 1
-  fi
-  log "marker probe ok ($nonce)"
+  # Same shape rule as rp_fg_wait_settled: grep -q downstream of a pipe
+  # whose producer keeps writing (adb dumps the whole tagged buffer)
+  # returns 141 once the bytes after the match exceed the pipe capacity,
+  # and the probe would call a working marker channel broken. Read the
+  # dump to completion, then match in-process.
+  probe_dump=$(adb logcat -d -s KALSA_RP_MARK </dev/null 2>/dev/null || true)
+  case "$probe_dump" in
+    *"$nonce"*)
+      log "marker probe ok ($nonce)"
+      ;;
+    *)
+      log "marker probe FAILED: wrote '$nonce', never read it back"
+      return 1
+      ;;
+  esac
 }
 
 rp_main() {
