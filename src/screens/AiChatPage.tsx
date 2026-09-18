@@ -1115,7 +1115,10 @@ export function AiChatPage({
           // The raw existed but nothing readable came out of it: never let
           // the person believe an emptied chat means a lost conversation.
           try {
-            Alert.alert(t("chat.historyPartialTitle"), t("chat.historyUnreadableBody"));
+            Alert.alert(
+              t("chat.historyUnreadableTitle"),
+              t("chat.historyUnreadableBody"),
+            );
           } catch {
             // Alert unavailable (tests / headless).
           }
@@ -1130,12 +1133,11 @@ export function AiChatPage({
             // Alert unavailable (tests / headless).
           }
         }
-        if (
-          !settled.preservationFailed &&
-          (settled.unreadable || settled.droppedCount > 0)
-        ) {
+        if (!settled.preservationFailed && settled.lossy) {
           // Writes made while the gate was closed were refused; flush what
-          // the user typed in that window now that the gate is open.
+          // the user typed in that window now that the gate is open. Every
+          // lossy shape is covered here — count drops, duplicate-id drops,
+          // text-shrink — not just the ones with an alert.
           persistActiveMessages(messagesRef.current, {
             epoch: persistEpochRef.current,
             getEpoch: () => persistEpochRef.current,
@@ -2931,20 +2933,27 @@ export function AiChatPage({
                     const finalizedAtSave = finalized;
                     // Bounded fallback: a KV promise that never settles must
                     // not hang the turn (dispose + memory extract wait on it).
+                    // settleHold is the ONLY runner for the hold and for
+                    // runAfterSave, so a landing later than the fallback
+                    // cannot fire runAfterSave a second time.
                     let holdSettled = false;
-                    const settleHold = () => {
+                    const settleHold = (rejection?: { error: unknown }) => {
                       if (holdSettled) return;
                       holdSettled = true;
+                      if (rejection) {
+                        turnSaveHold.reject?.(rejection.error);
+                      } else {
+                        turnSaveHold.resolve?.();
+                      }
                       if (
                         sendRunIdRef.current === runId &&
                         stillThisRun(myGen)
                       ) {
                         runAfterSave?.();
                       }
-                      turnSaveHold.resolve?.();
                     };
                     const holdFallback = setTimeout(
-                      settleHold,
+                      () => settleHold(),
                       HISTORY_WRITE_FALLBACK_MS,
                     );
                     // .kvs keyed off the write LANDING: hashing a list the
@@ -2965,12 +2974,7 @@ export function AiChatPage({
                           );
                           settleHold();
                         } catch (err) {
-                          turnSaveHold.reject?.(err);
-                        } finally {
-                          // Post-await: generation may have moved during save.
-                          if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
-                            runAfterSave?.();
-                          }
+                          settleHold({ error: err });
                         }
                       })();
                     });
@@ -3013,7 +3017,9 @@ export function AiChatPage({
                 // Bounded fallback (same rule as the turn-end path): a KV
                 // promise that never settles must not hang the lifecycle.
                 // A late landing still installs the save below.
+                let fallbackFired = false;
                 const landedFallback = setTimeout(() => {
+                  fallbackFired = true;
                   if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                     runAfterSave?.();
                   }
@@ -3023,7 +3029,11 @@ export function AiChatPage({
                 void historyWrite.landed.then((landed) => {
                   clearTimeout(landedFallback);
                   if (!landed) {
-                    runAfterSave?.();
+                    if (!fallbackFired) {
+                      if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                        runAfterSave?.();
+                      }
+                    }
                     return;
                   }
                   const persistable = buildPersistableMessages(next);
@@ -3036,7 +3046,13 @@ export function AiChatPage({
                         persistable.length,
                       );
                     } finally {
-                      if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                      // The fallback already released the lifecycle: do not
+                      // fire runAfterSave a second time.
+                      if (
+                        !fallbackFired &&
+                        sendRunIdRef.current === runId &&
+                        stillThisRun(myGen)
+                      ) {
                         runAfterSave?.();
                       }
                     }

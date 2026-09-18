@@ -92,6 +92,9 @@ export function createWritePermissionPolicy(): WritePermissionPolicy {
 
     close() {
       gate = { open: false };
+      // A declaration is scoped to the visit that armed it: it must not
+      // authorize a shrink after a reload of the same conversation.
+      declaredDroppable = null;
     },
 
     armDeclaredShrink(listAfterShrink) {

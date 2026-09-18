@@ -119,15 +119,17 @@ export async function preserveRawHistory(
 
 /**
  * Delete a conversation's messages key together with every quarantine slot
- * of it, via the slot index. Slots go FIRST: a partial failure must never
- * leave a copy as the survivor. A missing index degrades to deleting the
- * first slot and the live key (pre-index data); a delete that depended on
- * key enumeration would be a delete that silently does not happen.
+ * of it. The index is the primary path; a best-effort getAllKeys sweep of
+ * the slot prefix is the net for slots the index does not know (pre-index
+ * data, a lost index read-modify-write). Slots go FIRST: a partial failure
+ * must never leave a copy as the survivor. Resolves false — never claims
+ * success — when the sweep cannot run, so the caller can warn.
  */
 export async function deleteConversationHistory(
   kv: {
     getItem(key: string): Promise<string | null>;
     removeItem?(key: string): Promise<void>;
+    getAllKeys?(): Promise<readonly string[]>;
   },
   messagesKey: string,
 ): Promise<boolean> {
@@ -145,6 +147,23 @@ export async function deleteConversationHistory(
     await removeItem(slot);
   }
   await removeItem(indexKey);
+  // The net: sweep every suffixed slot the index did not list. When it
+  // cannot run, the caller must be told the delete is incomplete.
+  let swept = false;
+  if (kv.getAllKeys) {
+    try {
+      const all = await kv.getAllKeys();
+      const prefix = `${firstSlot}.`;
+      for (const key of all) {
+        if (typeof key === "string" && key.startsWith(prefix) && key !== indexKey) {
+          await removeItem(key);
+        }
+      }
+      swept = true;
+    } catch {
+      swept = false;
+    }
+  }
   await removeItem(messagesKey);
-  return true;
+  return swept;
 }

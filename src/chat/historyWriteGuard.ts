@@ -61,6 +61,8 @@ export interface SettledHistoryLoad {
   preservationFailed: boolean;
   /** True: the raw parsed to nothing readable — the chat really is empty. */
   unreadable: boolean;
+  /** True for every lossy load, however the loss was detected. */
+  lossy: boolean;
   droppedCount: number;
 }
 
@@ -111,7 +113,6 @@ interface PendingPreservation {
   droppedCount: number;
   unreadable: boolean;
 }
-
 export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
   const policy: WritePermissionPolicy = createWritePermissionPolicy();
   /** Latest load wins gate application; copies complete regardless. */
@@ -154,7 +155,12 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
     async settleHistoryLoad() {
       const pending = pendingPreservation;
       if (pending == null || pending.seq !== loadSeq) {
-        return { preservationFailed: false, unreadable: false, droppedCount: 0 };
+        return {
+          preservationFailed: false,
+          unreadable: false,
+          lossy: false,
+          droppedCount: 0,
+        };
       }
       const preserved = await preserveRawHistory(
         kv,
@@ -163,7 +169,12 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
       );
       if (pending.seq !== loadSeq) {
         // A newer load owns the gate and the user messaging.
-        return { preservationFailed: false, unreadable: false, droppedCount: 0 };
+        return {
+          preservationFailed: false,
+          unreadable: false,
+          lossy: false,
+          droppedCount: 0,
+        };
       }
       if (preserved) {
         policy.open(pending.knownIds);
@@ -171,12 +182,14 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
         return {
           preservationFailed: false,
           unreadable: pending.unreadable,
+          lossy: true,
           droppedCount: pending.droppedCount,
         };
       }
       return {
         preservationFailed: true,
         unreadable: pending.unreadable,
+        lossy: true,
         droppedCount: pending.droppedCount,
       };
     },

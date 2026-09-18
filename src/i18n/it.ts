@@ -468,6 +468,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     historyPartialTitle: "Parte di questa chat non è stata ripristinata",
     historyPartialBody:
       "È stato possibile leggere solo una parte dello storico di questa conversazione ({count} messaggi non sono stati ripristinati). Una copia dell'originale è stata conservata su questo dispositivo.",
+    historyUnreadableTitle: "Impossibile leggere lo storico di questa chat",
     historyUnreadableBody:
       "Lo storico di questa conversazione non è leggibile. Una copia dell'originale è stata conservata su questo dispositivo e questa chat ora riparte vuota.",
     backendNotWired: "Backend non collegato.",

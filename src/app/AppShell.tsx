@@ -2444,11 +2444,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         void deleteConversationHistory(
           getDefaultConversationsStorage(),
           messagesKey(id),
-        ).catch(() => {
-          // A rejected removal must not become an unhandled rejection; the
-          // slots go first, so the raw at least never survives as a copy.
-          console.warn("[historyGuard] conversation delete incomplete");
-        });
+        )
+          .then((complete) => {
+            // The sweep could not run: some slot may survive the delete.
+            if (!complete) {
+              console.warn("[historyGuard] conversation delete incomplete");
+            }
+          })
+          .catch(() => {
+            // A rejected removal must not become an unhandled rejection; the
+            // slots go first, so the raw at least never survives as a copy.
+            console.warn("[historyGuard] conversation delete incomplete");
+          });
       } catch {
         // ignore illegal id
       }

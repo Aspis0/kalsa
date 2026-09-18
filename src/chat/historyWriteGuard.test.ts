@@ -117,9 +117,24 @@ describe("historyWriteGuard", () => {
   test("2-over-17: a write missing known ids without a declaration is refused", async () => {
     const { guard, settled } = await loadFaithful17();
     expect(settled.preservationFailed).toBe(false);
+    expect(settled.lossy).toBe(false);
     expect(guard.tryPersist(messages(["a", "b"]), async () => {}).issued).toBe(
       false,
     );
+  });
+
+  test("P2: a declaration does not survive a reload of the same conversation", async () => {
+    const { kv } = fakeKv({ [KEY]: raw17 });
+    const guard = createHistoryWriteGuard(kv);
+    guard.beginHistoryLoad(raw17, KEY, (e) => e);
+    await guard.settleHistoryLoad();
+    const shrunk = messages(["a", "b"]);
+    guard.armDeclaredShrink(shrunk);
+    // Full reload: a new begin closes the gate again — the declaration armed
+    // during the previous visit must not authorize a shrink now.
+    guard.beginHistoryLoad(raw17, KEY, (e) => e);
+    await guard.settleHistoryLoad();
+    expect(guard.tryPersist(shrunk, async () => {}).issued).toBe(false);
   });
 
   test("2-over-17 with a declared shrink is allowed and the declaration is spent", async () => {
@@ -285,6 +300,7 @@ describe("historyWriteGuard", () => {
     expect(settled.preservationFailed).toBe(false);
     expect(settled.droppedCount).toBe(0);
     expect(settled.unreadable).toBe(false);
+    expect(settled.lossy).toBe(true);
     expect(map.get(QUARANTINE_KEY)).toBe(raw17);
     // Preservation confirmed: writes resume against what is on screen.
     expect(
@@ -451,14 +467,47 @@ describe("historyWriteGuard", () => {
     expect(guard.storeKnownToHoldMessages()).toBe(true);
   });
 
-  test("B6: deleting a conversation removes the live key with every indexed slot", async () => {
+  test("B6: deleting removes the live key, indexed slots AND unlisted slots (sweep net)", async () => {
     const s2 = `${QUARANTINE_KEY}.aaa`;
+    const unlisted = `${QUARANTINE_KEY}.ccc`;
     const { map } = fakeKv({
       [KEY]: raw17,
       [QUARANTINE_KEY]: raw17,
       [s2]: rawHistory(5, "x"),
+      // A slot the index does not know: pre-index era or a lost update.
+      [unlisted]: "orphaned copy",
       [INDEX_KEY]: JSON.stringify([QUARANTINE_KEY, s2]),
       "kalsa.messages.other": "keep me",
+    });
+    const done = await deleteConversationHistory(
+      {
+        getItem: async (key: string) => map.get(key) ?? null,
+        removeItem: async (key: string) => {
+          map.delete(key);
+        },
+        getAllKeys: async () => [...map.keys()],
+      },
+      KEY,
+    );
+    expect(done).toBe(true);
+    expect(map.has(KEY)).toBe(false);
+    expect(map.has(QUARANTINE_KEY)).toBe(false);
+    expect(map.has(s2)).toBe(false);
+    // The net caught the slot the index did not list.
+    expect(map.has(unlisted)).toBe(false);
+    expect(map.has(INDEX_KEY)).toBe(false);
+    expect(map.get("kalsa.messages.other")).toBe("keep me");
+  });
+
+  test("B6: without getAllKeys the delete is honest about being incomplete", async () => {
+    const s2 = `${QUARANTINE_KEY}.aaa`;
+    const unlisted = `${QUARANTINE_KEY}.ccc`;
+    const { map } = fakeKv({
+      [KEY]: raw17,
+      [QUARANTINE_KEY]: raw17,
+      [s2]: rawHistory(5, "x"),
+      [unlisted]: "orphaned copy",
+      [INDEX_KEY]: JSON.stringify([QUARANTINE_KEY, s2]),
     });
     const done = await deleteConversationHistory(
       {
@@ -469,12 +518,14 @@ describe("historyWriteGuard", () => {
       },
       KEY,
     );
-    expect(done).toBe(true);
+    // Indexed slots and the live key still go; but the sweep could not run,
+    // so the caller is told the delete is incomplete.
+    expect(done).toBe(false);
     expect(map.has(KEY)).toBe(false);
     expect(map.has(QUARANTINE_KEY)).toBe(false);
-    expect(map.has(s2)).toBe(false);
     expect(map.has(INDEX_KEY)).toBe(false);
-    expect(map.get("kalsa.messages.other")).toBe("keep me");
+    expect(map.has(s2)).toBe(false);
+    expect(map.has(unlisted)).toBe(true);
   });
 
   test("B6: a pre-index conversation still loses the live key and the first slot; no delete capability reports false", async () => {
@@ -489,6 +540,7 @@ describe("historyWriteGuard", () => {
           removeItem: async (key: string) => {
             map.delete(key);
           },
+          getAllKeys: async () => [...map.keys()],
         },
         KEY,
       ),
@@ -497,6 +549,8 @@ describe("historyWriteGuard", () => {
     expect(map.has(QUARANTINE_KEY)).toBe(false);
     expect(map.has(INDEX_KEY)).toBe(false);
 
-    expect(await deleteConversationHistory({ getItem: async () => null }, KEY)).toBe(false);
+    expect(
+      await deleteConversationHistory({ getItem: async () => null }, KEY),
+    ).toBe(false);
   });
 });
