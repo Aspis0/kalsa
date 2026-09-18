@@ -152,7 +152,12 @@ describe("emissionSource upgrade invariant", () => {
   // upgrade, and if their bytes move, their saved hash no longer matches on
   // first boot and each one pays a cold prefill. The value below was frozen
   // by running commit 204298f's own toPersistableHistoryMessages +
-  // historyHash over this exact record.
+  // historyHash over this exact record. SCOPE: the fixture carries only
+  // id/role/text/createdAt/modelEmittedText — a pre-upgrade record can also
+  // carry interrupted, edited, thinkingText, sources, miniapp, attachments,
+  // images, downloads or ctas, so a change to mapPersistableAttachments, to
+  // the thinkingText policy, or to the transient-key deletion set can shift
+  // stored hashes with this test still green.
   const FROZEN_204298F_HASH = "3986477111";
   const flagFree = [
     { id: "u1", role: "user", text: "ciao", createdAt: 1 },
