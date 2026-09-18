@@ -214,7 +214,6 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     ramBadgeKey: "models.qwen4b.ramBadge",
     minRamTier: "high",
     recommendForTiers: ["high"],
-    default: true,
   },
   {
     id: "lfm2.5-2.6b",
@@ -246,6 +245,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     ramBadgeKey: "models.lfm25.ramBadge",
     minRamTier: "low",
     recommendForTiers: ["low", "mid"],
+    // Registry default: every boot-loop fallback lands here, and a fallback a
+    // 7 GB phone cannot hold is not a fallback. Exactly one flag —
+    // getDefaultModel() takes the first match, two would pick by order.
+    default: true,
   },
 ];
 

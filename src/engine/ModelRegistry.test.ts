@@ -17,7 +17,7 @@ describe("MODEL_REGISTRY catalog invariants", () => {
   });
 
   it("keeps the default model and size metadata declarative", () => {
-    expect(getDefaultModel().id).toBe("qwen3.5-4b");
+    expect(getDefaultModel().id).toBe("lfm2.5-2.6b");
     expect(
       MODEL_REGISTRY.every(
         (model) => model.listed === false || model.sizeClass !== undefined,
