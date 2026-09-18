@@ -75,13 +75,55 @@ PY
 # rn-slot.cpp and rn-mtmd.hpp -- which never come from the fork -- kept calling
 # the old ones. Every file resolved; the NDK still failed.
 #
-# So also PARSE the sources the Android build actually compiles. Host clang
-# cannot codegen for ARM, but -fsyntax-only does not need to: it resolves
-# declarations, which is exactly the drift class the file scan misses.
-if ! command -v clang++ >/dev/null 2>&1; then
-  echo "[includes] NOTE: no clang++ - skipping the syntax pass (file scan only)"
-  exit 0
+# So also PARSE the sources the Android build actually compiles -- with the
+# clang that build uses. -fsyntax-only does not codegen, but it does resolve
+# declarations against the NDK's own headers, and the host clang accepts
+# constructs the NDK rejects: cpp/jsi/JSIParams.cpp parsed on host and broke
+# the arm64 build on 2026-09-17. A host pass is weaker, not equivalent, so the
+# OK line names the compiler that ran. Env:
+#   ANDROID_NDK_HOME / ANDROID_NDK_ROOT  NDK location (else the homebrew path)
+#   KALSA_GATE_ANDROID_API               target API (default 33, the app's
+#                                        minSdkVersion in app.config.js)
+#   KALSA_GATE_SYNTAX_CXX=host           force the host fallback (debugging)
+#   KALSA_GATE_REQUIRE_NDK=1             a fallback is a failure, not a pass
+#                                        (CI sets it: the runners have an NDK)
+NDK_API="${KALSA_GATE_ANDROID_API:-33}"
+SYNTAX_CXX=""
+NDK_WHY="no NDK directory (ANDROID_NDK_HOME, ANDROID_NDK_ROOT, /opt/homebrew/share/android-ndk)"
+if [ "${KALSA_GATE_SYNTAX_CXX:-}" = "host" ]; then
+  NDK_WHY="KALSA_GATE_SYNTAX_CXX=host"
+else
+  for ndk_root in "${ANDROID_NDK_HOME:-}" "${ANDROID_NDK_ROOT:-}" \
+                  /opt/homebrew/share/android-ndk; do
+    [ -d "$ndk_root" ] || continue
+    for prebuilt in "$ndk_root"/toolchains/llvm/prebuilt/*; do
+      # An unexpanded glob is a string, not a directory.
+      [ -d "$prebuilt" ] || continue
+      if [ -x "$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++" ]; then
+        SYNTAX_CXX="$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++"
+        break 2
+      fi
+      NDK_WHY="$ndk_root has no aarch64-linux-android${NDK_API}-clang++"
+    done
+  done
 fi
+
+# A missing compiler used to print a NOTE and exit 0: a gate that parsed
+# nothing reported success, and the coverage floor below never ran.
+if [ -n "$SYNTAX_CXX" ]; then
+  CXX_TAG="ndk aarch64-linux-android${NDK_API}"
+elif [ "${KALSA_GATE_REQUIRE_NDK:-}" = "1" ]; then
+  echo "[includes] FAIL: KALSA_GATE_REQUIRE_NDK=1 and the NDK clang is unusable: $NDK_WHY" >&2
+  exit 1
+elif command -v clang++ >/dev/null 2>&1; then
+  SYNTAX_CXX="clang++"
+  CXX_TAG="host clang"
+else
+  echo "[includes] FAIL: no compiler for the syntax pass ($NDK_WHY, and no clang++ on PATH)." >&2
+  echo "[includes] The file scan alone cannot see an API that moved: it is not a pass." >&2
+  exit 1
+fi
+echo "[includes] syntax pass compiler: $SYNTAX_CXX"
 
 fails=0
 parsed=0
@@ -92,7 +134,7 @@ for f in "$CPP"/common/*.cpp "$CPP"/tools/mtmd/*.cpp "$CPP"/rn-*.cpp; do
   [ -f "$f" ] || continue
   parsed=$((parsed + 1))
   case "$(basename "$f")" in rn-*) rn_parsed=$((rn_parsed + 1)) ;; esac
-  if ! clang++ -std=c++17 -fsyntax-only \
+  if ! "$SYNTAX_CXX" -std=c++17 -fsyntax-only \
       -I "$CPP" -I "$CPP/common" -I "$CPP/common/jinja" \
       -I "$CPP/ggml-cpu" -I "$CPP/tools/mtmd" -I "$ROOT/native/bmoe/rn" \
       "$f" > /tmp/kalsa-syntax.log 2>&1; then
@@ -111,4 +153,7 @@ if [ "$fails" -gt 0 ]; then
   echo "[includes] An API the engine moved, or a header the flatten did not bring."
   exit 1
 fi
-echo "[includes] OK: every source the Android build compiles also parses"
+# Not "everything the build compiles": this parses common/, tools/mtmd/ and the
+# rn-owned sources -- the drift surface between the engine and the binding. The
+# rest of cpp/ is the fork's own gate (scripts/assert-cpp-includes.sh, 307 TUs).
+echo "[includes] OK [$CXX_TAG]: $parsed source(s) parse ($rn_parsed rn-*): common, mtmd, rn-*"

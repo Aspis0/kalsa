@@ -72,6 +72,11 @@ jobs:
       # starts including can be simply absent and the NDK fails ~5 min into
       # the build. This catches it right after install, in seconds.
       - name: Assert the assembled engine's includes all resolve
+        # The runner has an NDK, so the syntax pass must use it: the host clang
+        # accepts constructs the NDK rejects, and a silent fallback would be a
+        # green gate for a weaker check.
+        env:
+          KALSA_GATE_REQUIRE_NDK: "1"
         run: bash scripts/assert-overlay-includes.sh
 
       - name: Typecheck + logic harnesses
