@@ -31,9 +31,13 @@ source "$_RP_DIR/device-share-send.sh"
 # ci-lib's log ("[ci] " prefix) and stays byte-identical; lines emitted
 # before rp_main creates $OUT stay stdout-only (there are none today).
 RP_LOG_FILE=""
+RP_LOG_OK=0
 log() {
   echo "[ci] $*"
-  if [ -n "$RP_LOG_FILE" ]; then
+  # Gated on the once-checked RP_LOG_OK: an unwritable log warns ONCE at
+  # setup, never per line — the operator must not wade through a redirect
+  # error storm, and must not believe a protocol.log exists that never did.
+  if [ "$RP_LOG_OK" = 1 ]; then
     printf '%s\n' "[ci] $*" >> "$RP_LOG_FILE"
   fi
 }
@@ -302,6 +306,10 @@ rp_abort_cycle_if_watchdog() {
 # after the op line before the first poll — not by anything the app did,
 # and not by whether the app did work: 032436 c1's done proves it does.
 rp_fg_wait_settled() {
+  # Both probes below silence stderr on purpose: from here, a missing
+  # capture file and a never-written marker are the same fact, and the
+  # "marker never reached the capture" line is the diagnostic. Separating
+  # the two cases would cost a stat per poll and buys nothing at run time.
   # Wall clock, not a pass counter: ${waited} counted loop passes and each
   # pass costs the capture greps plus its 1 s sleep, so both the printed
   # "settled after Ns" and the budget under-counted (the 09-18 expiries
@@ -426,11 +434,18 @@ rp_marker_probe() {
 
 rp_main() {
   local attached picked i prev
-  mkdir -p "$OUT"
-  # The protocol's own log, one file per run (logcat.txt is re-truncated the
-  # same way by the capture redirect below).
+  # One loud setup check, not a per-line storm: if $OUT cannot be created or
+  # the log cannot be truncated, say so ONCE and keep protocol lines on
+  # stdout — never a die (a broken log must not kill a run), never a
+  # redirection error per logged line. The capture redirect below fails on
+  # its own and is its own diagnostic.
   RP_LOG_FILE="$OUT/protocol.log"
-  : > "$RP_LOG_FILE"
+  if mkdir -p "$OUT" 2>/dev/null && : > "$RP_LOG_FILE" 2>/dev/null; then
+    RP_LOG_OK=1
+  else
+    RP_LOG_OK=0
+    log "WARNING: cannot write $RP_LOG_FILE — protocol lines stay stdout-only this run"
+  fi
   attached=$(adb devices 2>/dev/null | awk '$2=="device" {print $1}')
   picked=$(device_pick_serial "${ANDROID_SERIAL:-}" "$attached") \
     || die "need ANDROID_SERIAL (attached: $(printf '%s' "$attached" | tr '\n' ' '))"
