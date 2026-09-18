@@ -632,6 +632,10 @@ e' anche rinunciare agli aggiornamenti automatici di AGP.
 
 ### PRODOTTO / PERDITA DATI — una conversazione puo' essere distrutta da un turno normale (18/09)
 
+**RIPARATO sul ramo `persist-guard` (`c45f044`), in attesa di merge su main.** Sei giri, un audit
+ostile per giro, 26 rilievi chiusi; gates sulla punta `TSC=0 I18N=0 JEST_ALL=0`, 993 test. Limite noto
+che resta: *la contabilita' e' best-effort, la cancellazione no*. Dettaglio in ALIVE `383d748f`.
+
 Trovato per incidente: una conversazione sull'S23 e' passata da ~17 messaggi a 2. Non affiancati,
 **sostituiti**. Contato sullo store: le altre 90 chiavi `kalsa.messages.*` sono intatte (312
 messaggi), quindi la perdita e' circoscritta a quella conversazione — ma la catena che l'ha
