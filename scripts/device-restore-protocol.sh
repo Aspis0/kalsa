@@ -257,13 +257,24 @@ rp_abort_cycle_if_watchdog() {
 # marker was found and the window closed on the real `{"op":"done"}` after
 # 35s, sealing a 109.5s prefill inside it — the fixed sleep this replaced
 # would have called that working prewarm no_work. Cycle 2: the budget
-# expired and fg_settled went out anyway — CORRECTION (SIGPIPE, same day):
-# "no terminal op arrived" was the old tail|grep -q shape lying, not a
-# silence. Re-reading the captures with the corrected shape shows every
-# kick in all three 09-18 runs settled in 0.1-0.2 s (kv_holds_chat); which
-# kicks "settled" was decided purely by whether ~16 KB of logcat had
-# accumulated after the outcome line before the first poll — the pipe
-# capacity — not by anything the app did.
+# expired and fg_settled went out anyway — CORRECTION (SIGPIPE, same day,
+# numbers re-derived from the three 09-18 captures): "no terminal op
+# arrived" was partly the old tail|grep -q shape lying, but not everywhere.
+# The six kicks fall into three classes:
+#   - 3 false negatives (093512 c2, 110132 c1, 110132 c2): the op was in
+#     the capture 0.1-0.2 s after the marker (kv_holds_chat), yet the wait
+#     burned its whole budget — every poll that saw the match died with 141.
+#   - 1 true timeout (032436 c2): the op only landed at +151.6 s, past
+#     expiry at +134.1 s. "did not settle" was correct there, and the awk
+#     shape below says the same thing — the fix does not paper over a
+#     genuine timeout.
+#   - 2 correct detections (032436 c1: `{"op":"done"}` at +84.6 s — a
+#     prewarm that really ran — settled at +85.3 s; 093512 c1 at +0.1 s,
+#     settled 0.2 s): the first poll reached the match while only
+#     sub-16 KB of logcat followed it, under the pipe capacity.
+# Whether the old shape settled was decided by how much logcat accumulated
+# after the op line before the first poll — not by anything the app did,
+# and not by whether the app did work: 032436 c1's done proves it does.
 rp_fg_wait_settled() {
   local i="$1" waited=0 line_from=""
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
@@ -284,11 +295,11 @@ rp_fg_wait_settled() {
     # writing, the pipe fills, tail dies with SIGPIPE and the pipeline
     # returns 141 — the if takes the FALSE branch having found the line.
     # Measured on this host: exit flips 0 -> 141 between 8 KB and 16 KB
-    # after the match (pipe capacity), and the real captures had 1.0-3.6 MB
-    # after theirs, so every 1 s poll of the 120 s budget returned 141 and
-    # three kicks that settled in 0.1-0.2 s were reported as "did not
-    # settle". awk reads the file directly: one process, no pipe, stops at
-    # the first matching line after the marker.
+    # after the match (pipe capacity). In the 09-18 captures this decided
+    # three kicks whose op line was already in the capture within 0.2 s of
+    # the marker: their polls saw the match and died with 141 for the rest
+    # of the budget. awk reads the file directly: one process, no pipe,
+    # stops at the first matching line after the marker.
     if awk -v start="$line_from" '
       NR >= start && /"op":"(done|restore|skip)"/ { found = 1; exit }
       END { if (found) exit 0; exit 1 }

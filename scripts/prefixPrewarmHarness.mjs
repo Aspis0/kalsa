@@ -1809,14 +1809,17 @@ async function main() {
   // writing, the pipe fills, tail dies with SIGPIPE and the pipeline returns
   // 141 — the if takes the FALSE branch having found the line. Measured on
   // this host: the exit flips 0 -> 141 between 8 KB and 16 KB after the
-  // match (the pipe capacity; 64 KB on Linux). The 2026-09-18 captures had
-  // 1.0-3.6 MB after their match lines, so four kicks that the app settled
-  // in 0.1-0.2 s were reported as "did not settle within 120s" while the
-  // verdict, reading the file directly, counted them held. The shipped
-  // shape (awk reading the file) is extracted from the script and RUN under
-  // bash against fixtures whose match sits past any pipe buffer — and the
-  // old shape is run on the SAME fixture and must still reproduce 141, so
-  // the fixture cannot quietly drift back inside the pipe capacity.
+  // match (the pipe capacity; 64 KB on Linux). Of the six kicks in the
+  // 2026-09-18 captures, three were victims of exactly this (op line in the
+  // capture within 0.2 s of the marker, wait burned the whole budget
+  // anyway), one was a genuine timeout the old shape got right, and two
+  // were detected correctly — the successes being the two kicks whose first
+  // poll reached the match with sub-capacity logcat behind it. The verdict,
+  // reading the file directly, counted the victims held regardless. The
+  // shipped shape (awk reading the file) is extracted from the script and
+  // RUN under bash against fixtures whose match sits past any pipe buffer —
+  // and the old shape is run on the SAME fixture and must still reproduce
+  // 141, so the fixture cannot quietly drift back inside the pipe capacity.
   assert(
     !protocolSrc.includes("| grep -q") && !protocolSrc.includes("| grep -Eq"),
     "no grep -q may remain on the consuming side of a pipe in the protocol",
