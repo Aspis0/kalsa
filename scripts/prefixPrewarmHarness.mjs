@@ -1236,6 +1236,31 @@ async function main() {
     "the criterion names the handler's thermal_gate cause",
   );
 
+  // The structural incompatibility: with MEMORY_FACTS_ON_USER_TAIL flipped to
+  // false, queueStaticPrefixPrewarm's guard skips with facts_in_system (the
+  // prewarm runs at boot and can never know the conversation's facts). The
+  // generic classifier must name it with NO verdict change — asserted by
+  // running restoreVerdict.mjs, not by construction.
+  const fgFactsInSystem = verdictFail(
+    "fg-facts-in-system",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"facts_in_system"}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=1 no_work=0 too_early=0 silent=0/.test(fgFactsInSystem),
+    "the facts_in_system skip is stopped, not silent",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick stopped: facts_in_system x1\)/.test(fgFactsInSystem),
+    "the criterion names the structural incompatibility",
+  );
+
   // The warm gate must stay observable: a silent return and a re-kick that
   // never fired produce identical evidence, and only the second is a defect.
   // The gate logs which of the two it hit (in_flight outranks already_warm —
@@ -1358,6 +1383,40 @@ async function main() {
       fgRekickAt < fallthroughSkipAt,
     `the mutes must sit in handler order: gate < model < re-kick < fall-through — ` +
       `${thermalSkipAt} < ${noModelSkipAt} < ${fgRekickAt} < ${fallthroughSkipAt}`,
+  );
+
+  // The facts-in-system incompatibility must be STRUCTURAL, not documentary:
+  // with MEMORY_FACTS_ON_USER_TAIL === false the prewarm can only ever warm a
+  // system prompt without facts (it runs at boot, before any conversation)
+  // while every send hashes one with them — the prefix would never match, a
+  // full wasted prefill per engine cycle. The guard sits FIRST, before any
+  // state-dependent work, and LOGS: a disabled feature has nothing to say,
+  // a contradictory configuration must name itself. Anchors counted in the
+  // file before trusting them: function name, EAGER gate, background guard
+  // and the skip are each unique. Whole shaped region equality — the head of
+  // the queue function is small, so the contract is exact, not a wish.
+  const queueFnAt = llamaSrc.indexOf(
+    "export async function queueStaticPrefixPrewarm(",
+  );
+  assert(queueFnAt >= 0, "queueStaticPrefixPrewarm still exists");
+  const queueBgGuard = 'if (AppState.currentState !== "active") {';
+  const queueBgAt = llamaSrc.indexOf(queueBgGuard, queueFnAt);
+  assert(
+    queueBgAt > queueFnAt,
+    "the background guard still opens the queue function's checks",
+  );
+  const queueHead = shapeOf(
+    llamaSrc.slice(queueFnAt, queueBgAt + queueBgGuard.length),
+  );
+  const queueHeadExpected =
+    "export async function queueStaticPrefixPrewarm( locale: Locale, " +
+    "tools?: EngineTool[], toolChoiceMode?: ToolChoiceMode, ): Promise<void> { " +
+    "if (!EAGER_PREFIX_PREWARM) return; " +
+    "if (!MEMORY_FACTS_ON_USER_TAIL) { logPrewarmSkip(\"facts_in_system\"); return; } " +
+    'if (AppState.currentState !== "active") {';
+  assert(
+    queueHead === queueHeadExpected,
+    `facts-in-system must be refused before any state-dependent work, and log — found: ${queueHead}`,
   );
 
   console.log("prefixPrewarmHarness OK");

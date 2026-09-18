@@ -1019,6 +1019,19 @@ export async function queueStaticPrefixPrewarm(
   toolChoiceMode?: ToolChoiceMode,
 ): Promise<void> {
   if (!EAGER_PREFIX_PREWARM) return;
+  // facts-in-system and the static prefix prewarm cannot coexist. The prewarm
+  // runs at boot, when the conversation's facts do not exist yet, so it can
+  // only ever warm a system prompt WITHOUT them — while with
+  // MEMORY_FACTS_ON_USER_TAIL === false every send hashes the prompt WITH
+  // them. The hashes would then never match: not "a fact change invalidates
+  // the prefix once" but "the prefix is never valid", a full wasted prefill
+  // on every engine cycle. Unlike the EAGER check above, this branch LOGS:
+  // a disabled feature has nothing to say, but a contradictory configuration
+  // must name itself in the evidence.
+  if (!MEMORY_FACTS_ON_USER_TAIL) {
+    logPrewarmSkip("facts_in_system");
+    return;
+  }
   // OEM process-restore can relaunch us in background; do not burn a 40s
   // prefill until the user is actually looking at the app. Foreground
   // AppState → active re-kicks from AppShell.
