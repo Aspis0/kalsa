@@ -6300,3 +6300,83 @@ thermal plan cannot both be on.
 - **Targeted re-audit of `57c530cc` (DeepSeek): ship.** Every attacked angle refuted with quotes: the probe's premise "seq_rm refuses ⇔ decode fenced" holds for every memory type reachable as a draft at this pin (kv-cache `:478 return true` after the fence; iswa/dsa/msa/dsv4 AND plain sub-caches; hybrid `shared_fence`; hybrid-idx no fence; recurrent `rm_all` false only for `seq_id >= cell count`, impossible for slots < n_parallel); lifetimes clean (`spec_batch` allocated after the probe; `common_speculative_free` before `spec_ctx.reset()`, the order the impl dtor needs for `llama_set_sampler`; shared slot branch never frees manager-owned objects); no cross-slot damage; state cache left ENABLED on a fenced engine is correct (no speculative cell is ever written on a plain turn). F2 verified with three mutations (bogus `.cl.h` → 1, real tree → 0, empty `kernels/` → 1 with 181 names, no traceback). One substantive finding, also found by me on the source: `common_speculative_init` sets `llama_set_embeddings_nextn(ctx_tgt, true)` (`speculative.cpp:1414`) BEFORE the probe and nothing on the engine side ever resets it, so after a fallback every plain decode keeps emitting the nextn output (small, null-safe, permanent). Nits: the slot helper's comment claimed `i_batch` stays valid (it is -1 at that point; the re-queue is what fixes it); a dangling `draft.ctx_dft` after the completion fallback (never dereferenced); on a fenced engine the completion path rebuilds and tears down a draft context every turn to rediscover a static fence (PLAUSIBLE-LOW, deferred: dense MTP at this pin is a non-goal); the fallback and the capability gate share one log flag (deferred). Commit D dispatched: reset the target's nextn flag in both helpers, null the stale draft pointers, fix the comment.
 - Commit D `628f4517`: both fallback helpers call `llama_set_embeddings_nextn(target, false, false)` (the engine never resets what `speculative.cpp:1414` arms), null the stale `draft.ctx_tgt/ctx_dft` (slot: only for a non-shared draft — the manager keeps its own params copy, `rn-slot-manager.cpp:86-88`), and the slot comment no longer claims `i_batch` stays valid. Read by me; clang 0 ×4, gate 0 (447 files), verify 0, tree clean.
 - **Fork `kalsa` pushed to Aspis0/llama.rn: `987799a1..628f4517` (9 commits).** `origin/kalsa == kalsa == 628f4517`. The fork part of the migration is closed: script hardened and honest, allow-list mirrored, ten API drifts rewired under the owner's policy (one error line, then plain; a target that cannot roll back ends the response with a readable error; never continue on a corrupt target), four hostile audits plus one targeted re-audit. Evidence is compile-only for the MTP paths; and at this pin a dense-target MTP draft cannot decode at all (kalsallama's `TAG_KV_CACHE_SHARE_CELLS` fence), so the app's first engine update (HANDOFF §3) is the first time this tree gets built and run. Handoff: `llama-rn-fork/HANDOFF.md`, start at §3.
+
+### 17/09 night, later — the first engine update: five API drifts, three missing build inputs, and an engine that had not compiled since 4 September
+
+Step 2c of `llama-rn-fork/HANDOFF.md`, executed by the Opus session that took the handoff. The
+question the step answers is the only one the migration exists for: **can the app absorb an
+engine update?** The answer is yes, and the bill was seven fork commits, one engine commit and
+two app commits — all of them findable before CI, none of them found by CI.
+
+**The bump, and what CI said.** App `llama-rn-fork@dbc568f` = fork `628f4517` (pin `134a35cf2`).
+`apk.yml` run `35279385544` (arm64) and `e2e-emulator.yml` run `35279390235` (x86_64) both died in
+`Build APK`, same ten errors, all in files the fork owns: `common_params` lost `use_mmap`/`use_mlock`
+(`cpp/jsi/JSIParams.cpp:358-359`), `json_schema_to_grammar` now takes `common_json`
+(`:593` — the same drift `bff76818` had already fixed in `rn-llama.cpp`), `common_chat_params::thinking_end_tag`
+became the vector `thinking_end_tags` (`cpp/common/chat.h:277`; three sites in `RNLlamaJSI.cpp`),
+and `common_params::vocoder` is gone (`RNLlamaJSI.cpp:1259`). The rewire of `bff76818` had reached
+`rn-*.cpp` and stopped there. Cause behind the cause: `scripts/assert-cpp-includes.sh` syntax-parsed
+only the `rn-*` TUs, so four compiled TUs were never read. Fixed in fork `619acfa9` (+ gate parses
+`jsi/`), and a **fifth site lived in the app**: `native/bmoe/rn/bmoe_stream.cpp:203` writes
+`params.use_mmap` on a `common_params` and is compiled into the engine
+(`android/src/main/rnllama/CMakeLists.txt:33-43,106`); ninja never reached it. App `92001b3` maps it
+onto `load_mode` preserving mlock, fork `66183760` puts the nine bmoe TUs in the gate.
+
+**Three build inputs the flatten never produced.** A hostile audit (DeepSeek, writer was GLM) then
+found what was waiting behind the jsi failure, all confirmed here on disk: `cpp/llama.cpp:4` and
+`cpp/ggml.c:12` include `llama-version.h` / `ggml-version.h`, generated by upstream's CMake and
+absent from the flattened tree (neither include exists at the old pin) — and the gate was *hiding*
+one of them, with `llama-version.h` in `KNOWN_ABSENT` plus a scratch-dir shim, so it reported OK on a
+tree CI cannot build. The OpenCL kernel list in the fork's CMake had **156 hand-written names against
+181 shipped kernels** (183 include lines, two kernels included twice), and `cl-program-cache.cpp` was
+excluded by a comment claiming the fork never references it while `ggml-opencl.cpp` calls it at
+`:651,1312,1322,13848`. Fork `00428779` (both headers now tracked, generated inside the regen path so
+`verify` still holds and iOS gets them too), `bb165e86` (the list is a `file(GLOB)` over the shipped
+`.cl` files, cl-program-cache compiled), `05cc44a3` (gate covers top-level `*.c`, `arch/*/quants.c`,
+`common/jinja/*.cpp`, `gguf.cpp`, and cross-checks the kernel list against the includes).
+
+**The real blocker was the engine's own.** `ggml-opencl.cpp` at pin `134a35cf2` does not compile, and
+not because of the flatten: in `kalsallama` itself, merge `3f3558b3b` ("upstream snapshot 2026-09-04")
+left a block open at `:5072` (the three-line tail `clReleaseProgram` / `GGML_LOG_CONT(".")` / `}` that
+every sibling kernel block has) and emitted a duplicated `if (ne11 * ne12 < 4) {` at `:23517-23518`
+that eats the closing brace of the `else if` ahead of it. **So the OpenCL backend has not been
+compilable since 4 September** — invisible because the e2e job builds x86_64 with OpenCL off and the
+arm64 build died earlier. Owner authorised the fix in the engine: `kalsallama@70b4302bb`, `+3/−1`,
+pushed to `main`. The audit then verified the resolution against both merge parents (upstream's
+standalone `if` vs our `} else if { kernel = _1row; }`: identical conditions, so deleting the inner
+one preserves the dispatch) and swept the merge's 28 hand-resolved files for the same class of damage:
+none.
+
+**The update mechanism, exercised for real.** `scripts/sync-kalsallama.sh bump` to `70b4302bb`:
+exit 0 in **155 seconds**, **6 files changed, every one inside `cpp/` + `kalsallama.pin`** (the marker,
+`common/build-info.cpp`, the OpenCL fix, the two version headers, the pin) — the stop condition
+("anything outside those paths is a script defect") never fired. Fork `08ba95e8`. Then `fc65ca60`:
+`ggml-opencl.cpp` and `cl-program-cache.cpp` join the syntax pass with the tree's own `embed_kernel.py`
+output, because the file that broke us was the file the gate skipped — non-vacuity: re-inserting the
+duplicated `if` makes the gate exit 1 naming it. And `a431ef93`: `llama_commit()` now reports the same
+pin-derived string as the headers (`70b4302`), instead of `git rev-parse --short` on whoever's clone ran
+the bump, with a loud refusal on a shallow clone for the build number.
+
+**State.** Fork `Aspis0/llama.rn@kalsa` = `a431ef93` (pushed, `628f4517..a431ef93`). Gate re-run here:
+exit 0, `20 common + 6 jinja + 49 mtmd + 151 models + 7 rn + 6 jsi + 45 core + 11 cpu + 2 opencl + 9 bmoe`
+= **306 TUs**, 483 files include-scanned, skips down to the two Hexagon host TUs and the NDK JNI wrapper.
+`verify` exit 0 against the new pin. App `llama-rn-fork@58f5db4`, engine id
+`kalsa-eng-v2:c38036ac51b7d076daa5141d0d80c5339a72a34659452afe4667487359a2279b` (was `cc415323…`, was
+`7a9bd08c…` at the old pin); installed tree carries the new pin, both version headers,
+`cl-program-cache.cpp`, and exactly one `if (ne11 * ne12 < 4)`. Runs dispatched: `apk.yml` **35295543901**,
+`e2e-emulator.yml` **35295547728**, both on `58f5db4`.
+
+**Two traps worth keeping.** `npm pkg set` cannot address a key containing a dot: `dependencies.llama.rn=…`
+nests a `"llama": {"rn": …}` object and `dependencies["llama.rn"]=…` writes the key as `"\"llama.rn\""`;
+both left the real dependency at the old sha. The bump is an in-place `sed` of the sha. And a green e2e
+proves nothing about the phone build: it compiles x86_64 with OpenCL off, so the whole Adreno surface —
+where the engine was broken — is outside its reach.
+
+**Device plan** (owner's call, option b via the orchestrator): LFM turn first for the engine update, then
+one Qwen3.5-4B turn with `/bench speculative mtp` (`src/bench/benchConfig.ts:583`) for the rewire, then
+`/bench speculative clear`. No catalog entry sets `mtp.defaultEnabled` (only reads at `AppShell.tsx:3976,4521`),
+and `LlamaService.ts:2098-2106` degrades `draft-mtp` to `none` on a model without catalog `mtp` — so
+**the dense-target fallback (probe refusal, `fall_back_to_plain`, nextn-off, latch, slot re-queue) stays
+compile-only whatever the phone does.** Residual for HANDOFF §8: `rewind()` → `resetSpeculative()`
+(`cpp/rn-completion.cpp:851-868`) does not null `params.speculative.draft.ctx_dft`; `nextTokenMTP` re-inits
+before any read, so it is latent, not live.

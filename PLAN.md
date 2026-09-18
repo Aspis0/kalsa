@@ -1633,6 +1633,20 @@ puo' decodificare (barriera `TAG_KV_CACHE_SHARE_CELLS` di kalsallama). Il resto 
 Opus da `llama-rn-fork/HANDOFF.md` §3 (primo update del motore); l'orchestratore interviene solo
 ai punti ⛔ ASK.
 
+
+**Stato Step 2c (17/09 notte EDT): primo update del motore FATTO, CI in corso.** Il bump al pin
+`134a35cf2` ha fatto rossa la CI (run `35279385544` arm64 e `35279390235` x86_64) su cinque drift
+di API che il rewire precedente non aveva raggiunto — quattro nei `cpp/jsi/*` del fork, uno in
+`native/bmoe/rn/bmoe_stream.cpp` dell'app — piu' tre input di build che l'appiattimento non
+produceva (`ggml-version.h`, `llama-version.h`, 25 kernel OpenCL su 181 e `cl-program-cache.cpp`).
+Il blocco vero era del motore: a `134a35cf2` `ggml-opencl.cpp` non compila per due graffe lasciate
+aperte dal merge `3f3558b3b` del 4 settembre — **il backend OpenCL non era piu' compilabile da due
+settimane** e nessuna CI poteva accorgersene (l'e2e gira x86_64 con OpenCL spento). Fix nel motore
+(`kalsallama@70b4302bb`, +3/-1, pushato), poi `sync-kalsallama.sh bump`: 155 s, 6 file, tutti dentro
+`cpp/` + `kalsallama.pin`. Fork `kalsa` = `a431ef93` (pushato), gate a 306 TU (ora include i due TU
+OpenCL: il file che ci ha rotto era quello che saltava), `verify` 0. App `llama-rn-fork@58f5db4`,
+engine id `kalsa-eng-v2:c38036ac…`; run `35295543901` (apk arm64) e `35295547728` (e2e) in corso.
+Diario e prove: `docs/ALIVE.md`, voce "17/09 night, later".
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 
