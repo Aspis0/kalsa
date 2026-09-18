@@ -364,12 +364,32 @@ cd /Users/marco/Projects/llama.rn-kalsa && unset KALSALLAMA_SRC     # bump refus
 KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn scripts/sync-kalsallama.sh bump > /tmp/bump.log 2>&1; echo $?
 git status --short | wc -l                                          # 0: idempotent at the same pin
 ```
-`KALSA_BMOE_DIR` is a **prerequisite, not decoration** (measured 18/09): without it the bump
-exits **1** — the include gate refuses half coverage and prints `[includes] FAIL: partial syntax
-pass (KALSA_BMOE_DIR not set (rn-*.cpp, jsi and bmoe TUs skipped))`. Nothing is damaged by that
-refusal: `scripts/sync-kalsallama.sh:747` runs the gate on `$FLATTEN_TMP/cpp`, *before* the tree is
-installed, so `kalsallama.pin` and `cpp/` stay exactly as they were — verified on disk after a
-real exit 1. Do not reach for `KALSA_ALLOW_PARTIAL_GATE=1`; set the variable.
+**CORRECTION (18/09, measured — an earlier version of this paragraph said the opposite and was
+wrong).** The command above, `KALSA_BMOE_DIR=... bump`, **fails**. `regen_cpp` runs the include
+gate on `$FLATTEN_TMP/cpp` (`scripts/sync-kalsallama.sh:747`) — the tree just flattened out of
+kalsallama — and `SYNC_EXCLUDES` (line 19) is `('rn-*' 'jsi' 'ggml-ext.h' 'anyascii.*')`: those
+files exist only in the installed `cpp/`, never in the temp tree. So both spellings exit 1, and
+both exits are on disk:
+
+- without `KALSA_BMOE_DIR` → partial mode → `[includes] FAIL: partial syntax pass (KALSA_BMOE_DIR
+  not set (rn-*.cpp, jsi and bmoe TUs skipped))`
+- with `KALSA_BMOE_DIR` → full mode → `[includes] FAIL: rn parsed 0 TUs, expected at least 7.` and
+  the same for jsi (6); 294 TUs total (9 bmoe, 45 core, 12 cpu, 2 opencl, 20 common, 6 jinja,
+  49 mtmd, 151 models)
+
+The shape the gate actually intends is **partial at the flatten, full at `verify`**: at line 747
+full coverage is impossible by construction, while `cmd_verify` runs the same gate on `$CPP_DIR`,
+which has the binding layer, and grades all 307. So the working pair is
+```
+KALSA_ALLOW_PARTIAL_GATE=1 bash scripts/sync-kalsallama.sh bump      # partial: no rn/jsi/bmoe in the temp tree
+KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn bash scripts/sync-kalsallama.sh verify
+```
+and the `verify` line is not optional — it is the only pass that ever sees `rn-*` and `jsi`.
+Nothing is damaged by either refusal: the gate runs before `install_cpp_tree` and `write_pin`, so a
+red bump leaves `kalsallama.pin` and `cpp/` exactly as they were (verified on disk after a real
+exit 1). The structural fix, if someone wants the full gate to run *before* anything is written,
+is to copy the current `rn-*`/`jsi` files into `$FLATTEN_TMP/cpp` ahead of the gate call — an edit
+to `sync-kalsallama.sh`, so ⛔ ASK first.
 
 That idempotence run is a valid first proof of the mechanism; do it now. The real exercise
 happens when kalsa-07 lands a kalsallama commit on `main`: `bump` again, `verify` 0, gate OK,
