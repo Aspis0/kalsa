@@ -167,7 +167,9 @@ else
 fi
 echo "[includes] syntax pass compiler: $SYNTAX_CXX"
 
-SYNTAX_LOG="$(mktemp -t kalsa-syntax)"
+# GNU mktemp rejects a -t template without X's, so the BSD spelling fails on
+# a Linux runner: give the template the X's both accept.
+SYNTAX_LOG="$(mktemp "${TMPDIR:-/tmp}/kalsa-syntax.XXXXXX")"
 trap 'rm -f "$SYNTAX_LOG"' EXIT
 
 fails=0
