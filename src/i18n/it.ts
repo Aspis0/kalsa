@@ -947,7 +947,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     extractPrompt:
       "Sei un estrattore di memoria. Dalla conversazione qui sotto, estrai fatti brevi e durevoli sull'UTENTE " +
       "(nome, preferenze, interessi, lavoro, lingua...). Restituisci SOLO JSON: {\"add\": [\"...\"], \"remove\": [\"...\"]} " +
-      "dove add = nuovi fatti (max 3, ciascuno ≤ 120 caratteri, nella lingua dell'utente) e remove = fatti esatti da dimenticare " +
+      "dove add = nuovi fatti (max 3, ciascuno ≤ {chars} caratteri, nella lingua dell'utente) e remove = fatti esatti da dimenticare " +
       "(vuoto se nessuno). I fatti devono riguardare l'utente, non le tue risposte. Non estrarre password, token, " +
       "o chiavi API; altri dettagli personali possono essere salvati localmente quando l'utente li ha forniti chiaramente. " +
       "Se non c'è nulla da estrarre: {\"add\": [], \"remove\": []}.\n\n" +

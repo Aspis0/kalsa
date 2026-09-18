@@ -22,6 +22,8 @@ function compile() {
       "tsc",
       "src/engine/memoryFactsTail.ts",
       "src/engine/personaTail.ts",
+      "src/i18n/en.ts",
+      "src/i18n/it.ts",
       "--outDir",
       outDir,
       "--module",
@@ -487,6 +489,34 @@ async function main() {
   assert(personaPath, "compiled personaTail.js");
   const { applyPersonaTail } = await import(pathToFileURL(personaPath).href);
 
+  // The compiled closure also carries the shared cap and the locale tables:
+  // the extraction-side pins read PROMPT_FACT_CHARS from dnaBounding and the
+  // extractPrompt strings from the compiled locales — no handwritten 120 in
+  // this contract.
+  function resolveOne(rels) {
+    for (const rel of rels) {
+      const c = path.join(outDir, rel);
+      if (existsSync(c)) return c;
+    }
+    return null;
+  }
+  const { PROMPT_FACT_CHARS } = await import(
+    pathToFileURL(
+      resolveOne(["dnaBounding.js", "memory/dnaBounding.js", "src/memory/dnaBounding.js"]),
+    ).href
+  );
+  const enLoc = (
+    await import(pathToFileURL(resolveOne(["en.js", "i18n/en.js", "src/i18n/en.js"])).href)
+  ).en;
+  const itLoc = (
+    await import(pathToFileURL(resolveOne(["it.js", "i18n/it.js", "src/i18n/it.js"])).href)
+  ).it;
+  assert(PROMPT_FACT_CHARS > 0, "PROMPT_FACT_CHARS exported by compiled dnaBounding");
+  assert(
+    enLoc?.memory?.extractPrompt && itLoc?.memory?.extractPrompt,
+    "compiled locale extractPrompts",
+  );
+
   test("bake: rematch key is persona'd history content", () => {
     const persist = "hello";
     const historyLanding = applyPersonaTail(persist, "Be terse.");
@@ -544,6 +574,17 @@ async function main() {
       .replace(/^[ \t]*\/\/.*$/gm, "")
       .replace(/\s+/g, " ")
       .trim();
+  const llamaSrc = readFileSync(
+    path.join(projectRoot, "src/engine/LlamaService.ts"),
+    "utf8",
+  );
+  const llamaRegion = (from, to) => {
+    const a = llamaSrc.indexOf(from);
+    assert(a >= 0, `region start not found: ${from}`);
+    const b = llamaSrc.indexOf(to, a);
+    assert(b > a, `region end not found after ${from}`);
+    return shapeOf(llamaSrc.slice(a, b + to.length));
+  };
 
   test("MEMORY_FACTS_ON_USER_TAIL is true in ttftFlags.ts", () => {
     const src = shapeOf(
@@ -558,17 +599,10 @@ async function main() {
   });
 
   test("LlamaService.buildSystemPrompt keeps the facts block behind the legacy-only flag guard", () => {
-    const llamaSrc = readFileSync(
-      path.join(projectRoot, "src/engine/LlamaService.ts"),
-      "utf8",
+    const fnShape = llamaRegion(
+      "export function buildSystemPrompt(",
+      "return prompt;\n}",
     );
-    const from = "export function buildSystemPrompt(";
-    const to = "return prompt;\n}";
-    const a = llamaSrc.indexOf(from);
-    assert(a >= 0, "buildSystemPrompt not found in LlamaService.ts");
-    const b = llamaSrc.indexOf(to, a);
-    assert(b > a, "buildSystemPrompt end (return prompt;) not found");
-    const fnShape = shapeOf(llamaSrc.slice(a, b + to.length));
     assert(
       fnShape ===
         "export function buildSystemPrompt( locale: Locale, withTools: boolean, " +
@@ -601,6 +635,54 @@ async function main() {
         `here would rejoin them to the system prompt and double-count them in ` +
         `the ceiling guard — found: ${lineShape}`,
     );
+  });
+
+  test("parseMemoryExtract clamps adds to the shared cap, exact shape", () => {
+    const shape = llamaRegion("const add = Array.isArray(obj.add)", ": [];");
+    assert(
+      shape ===
+        'const add = Array.isArray(obj.add) ? obj.add .filter((item): item is string => typeof item === "string") .map((item) => item.replace(/\\s+/g, " ").trim().slice(0, PROMPT_FACT_CHARS)) .filter((item) => item.length > 0) .slice(0, 3) : [];',
+      `the add clamp must sanitize to PROMPT_FACT_CHARS and cap at 3 — found: ${shape}`,
+    );
+  });
+
+  test("parseMemoryExtract carries no handwritten 120 anywhere", () => {
+    const region = llamaRegion(
+      "function parseMemoryExtract(",
+      "return { add, remove, parseOutcome: 1 };",
+    );
+    const hit = region.match(/.{0,30}\b120\b.{0,30}/);
+    assert(!hit, `handwritten 120 survived in parseMemoryExtract — found: ${hit?.[0]}`);
+  });
+
+  test("extract prompt chain interpolates {chars} from the shared cap", () => {
+    const shape = llamaRegion(
+      "const prompt = strings.memory.extractPrompt",
+      '.replace("{chars}", String(PROMPT_FACT_CHARS));',
+    );
+    assert(
+      shape ===
+        'const prompt = strings.memory.extractPrompt .replace("{user}", userSlice) .replace("{assistant}", assistantSlice) .replace("{chars}", String(PROMPT_FACT_CHARS));',
+      `the {chars} placeholder must be filled from PROMPT_FACT_CHARS — found: ${shape}`,
+    );
+  });
+
+  test("extract prompt interpolates the shared cap in both locales, no handwritten 120", () => {
+    const cases = [
+      ["en", enLoc, `≤ ${PROMPT_FACT_CHARS} chars`],
+      ["it", itLoc, `≤ ${PROMPT_FACT_CHARS} caratteri`],
+    ];
+    for (const [name, loc, want] of cases) {
+      const raw = loc.memory.extractPrompt;
+      assert(raw.includes("{chars}"), `${name}: extractPrompt must carry the {chars} placeholder`);
+      assert(!/\b120\b/.test(raw), `${name}: extractPrompt hardcodes 120`);
+      const prompt = raw
+        .replace("{user}", "U")
+        .replace("{assistant}", "A")
+        .replace("{chars}", String(PROMPT_FACT_CHARS));
+      assert(!prompt.includes("{chars}"), `${name}: {chars} left uninterpolated`);
+      assert(prompt.includes(want), `${name}: interpolated cap missing, want "${want}"`);
+    }
   });
 
   test("the dead namesake system-prompt builder stays deleted", () => {

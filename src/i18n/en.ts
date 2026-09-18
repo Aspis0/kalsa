@@ -973,7 +973,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     extractPrompt:
       "You are a memory extractor. From the conversation below, extract short durable facts about the USER " +
       "(name, preferences, interests, job, language...). Return ONLY JSON: {\"add\": [\"...\"], \"remove\": [\"...\"]} " +
-      "where add = new facts (max 3, each ≤ 120 chars, in the user's language) and remove = exact facts to forget " +
+      "where add = new facts (max 3, each ≤ {chars} chars, in the user's language) and remove = exact facts to forget " +
       "(empty if none). Facts must be about the user, not about your answers. Never extract passwords, tokens, " +
       "or API keys; other personal details may be stored locally when the user clearly volunteered them. " +
       "If nothing to extract: {\"add\": [], \"remove\": []}.\n\n" +

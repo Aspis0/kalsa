@@ -279,6 +279,7 @@ import {
   MEMORY_FACTS_ON_USER_TAIL,
 } from "./ttftFlags";
 import type { MemoryFact } from "../memory/MemoryStore";
+import { PROMPT_FACT_CHARS } from "../memory/dnaBounding";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -547,7 +548,7 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** Parser worst case is 3×120-char adds + 10 removes; 192 balances coverage vs Jelly's ~3.4 tok/s decode. */
+/** Parser worst case is 3 adds at the shared extraction cap (PROMPT_FACT_CHARS) + 10 removes; 192 balances coverage vs Jelly's ~3.4 tok/s decode. */
 const EXTRACT_MEMORY_N_PREDICT = 192;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
 const TRANSLATE_TIMEOUT_MS = 30_000;
@@ -5559,7 +5560,8 @@ export async function extractMemory(
   const strings = getStrings(locale);
   const prompt = strings.memory.extractPrompt
     .replace("{user}", userSlice)
-    .replace("{assistant}", assistantSlice);
+    .replace("{assistant}", assistantSlice)
+    .replace("{chars}", String(PROMPT_FACT_CHARS));
   const modelId = activeModelId;
   const timeoutMs = extractTimeoutMs({
     decodeTokPerSec: modelId ? getDecodeTokPerSec(modelId) : null,
@@ -5795,7 +5797,7 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[]; par
     const add = Array.isArray(obj.add)
       ? obj.add
           .filter((item): item is string => typeof item === "string")
-          .map((item) => item.replace(/\s+/g, " ").trim().slice(0, 120))
+          .map((item) => item.replace(/\s+/g, " ").trim().slice(0, PROMPT_FACT_CHARS))
           .filter((item) => item.length > 0)
           .slice(0, 3)
       : [];
