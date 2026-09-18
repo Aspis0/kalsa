@@ -80,6 +80,9 @@ jobs:
         run: bash scripts/assert-overlay-includes.sh
 
       - name: Jest (bounded — the suite that guards main)
+        # ci.yml fires only on feat/** branches, and this workflow is the only
+        # one a push to main triggers: before this step, a push to main ran the
+        # unit suite NOWHERE. From here on a red jest makes main's e2e red.
         # ci.yml bounds the same suite's job at 15 minutes; this step takes
         # that number. A hang here must not burn the 120-minute job budget
         # and leave no e2e evidence at all.

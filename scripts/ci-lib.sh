@@ -503,6 +503,16 @@ die() {
   # file keeps what diagnoses (which screen, which labels) but a chat open
   # on screen must not land whole on disk.
   ui_texts | cut -c 1-120 > "$OUT/fatal_state.txt" 2>/dev/null
+  # OVERSTATED, and measured: c63a952's message said "the conversation never
+  # touches disk". It does. `shot fatal` is a full screencap, so a chat open
+  # on screen lands on disk whole, truncation of the text nodes or not — seen
+  # in device-restore-out/run-20260918-161000-kvland (fatal.png, 292633 B) and
+  # in ten older fatal*/fatal_state* pairs since 14/09 written by every harness
+  # that sources this file, not just the restore protocol. Bounded, and the
+  # bound is worth stating: every one of those OUT dirs is gitignored, so this
+  # is "the conversation touched disk", never "the conversation left the
+  # machine". The fix (gate or redact the capture on measurement runs) is in
+  # the separate protocol package with the `die`-in-a-subshell defect.
   shot fatal
   capture_death_evidence
   exit 1
