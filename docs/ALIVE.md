@@ -6752,3 +6752,29 @@ ed e' scritto nello stesso istante della stringa. Ma il disallineamento resta po
 preciso — **l'edit**: se il testo viene modificato, il flag diventa una bugia. Quindi il disegno non
 e' completo senza: **qualunque mutazione della stringa azzera il flag**, e un messaggio `edited`
 torna a provenienza ignota. Senza quella regola questo e' il quarto episodio della stessa storia.
+
+**Addendum al disegno 2c — l'elenco dei writer, che e' la parte che rende la regola verificabile.**
+La regola "azzera il flag su ogni mutazione" e' inutile se non si sa chi mutua. Enumerati:
+```
+AiChatPage.tsx:2416/2665/2676  cattura (il produttore)          -> IMPOSTA il flag
+AiChatPage.tsx:649             idratazione dallo store          -> propaga
+AppShell.tsx:758-767           validazione storia (col trim!)   -> propaga  [residuo 2a]
+AppShell.tsx:6045-6048         copia nel messaggio del motore   -> propaga
+compactor.ts:844-847           assemblaggio, NON troncato       -> propaga
+historyPersistable.ts:62-64    normalizzazione a persistenza    -> propaga
+```
+Un writer che dimentica il flag deve far fallire l'harness **per nome**: e' l'unica difesa contro il
+prossimo che aggiunge il settimo.
+
+**E la risposta alla domanda "esiste un edit del testo assistente": NO, oggi non esiste.** Il flag
+`edited: true` viene applicato al messaggio **utente** (`AiChatPage.tsx:2189-2192`, dentro un
+oggetto con `role: "user"`), e modificare un messaggio **ri-invia** producendo un turno assistente
+**nuovo** invece di riscrivere quello vecchio (commento a `:3124`: *"handleSend will re-append the
+(edited) user text + new assistant"*). Quindi la regola non e' una feature da implementare: e' un
+**invariante da difendere con un test** — se un domani comparisse un edit in-place del testo
+assistente, quel test deve fallire.
+
+**Falso allarme che ho verificato invece di riportarlo:** `AiChatPage.tsx:649` fa
+`emitted.slice(0, MAX_TEXT)` e sembra una troncatura che spezzerebbe l'identita' byte a byte. Ma
+`MAX_TEXT = 100_000` **caratteri** (`:615`), cioe' ~25k token: ben oltre qualunque finestra che
+questo modello puo' tenere. Irraggiungibile ai nostri contesti, non e' un difetto vivo.
