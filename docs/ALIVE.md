@@ -6460,3 +6460,22 @@ non sono alternative ma **in ordine**: `common_init_from_params` → `common_thr
 risolti. Residuo aperto, trovato dalla sessione KV e non verificato da me: `common.cpp:1813-1815` prende
 due puntatori da `lm_ggml_backend_reg_get_proc_address` e li chiama **senza controllarli**; è codice del
 motore, quindi costerebbe un commit su kalsallama e un pin nuovo.
+
+**18/09 mattina — lo strumento locale non è lo strumento della CI: tre volte in una notte.**
+Il merge di `origin/main` nel branch dello switch è passato a **zero conflitti** (38 commit, 59 file;
+`prefixPrewarmHarness` 1/1/1, `restoreVerdict.mjs` tracciato, dipendenza e engine id invariati, `tsc` 0),
+ma le due run sul ramo mergiato (`35319439599` apk, `35319441238` e2e) sono rosse sul passo
+`Typecheck + logic harnesses`, dopo `118 passed, 0 failed`:
+`ERR_UNKNOWN_FILE_EXTENSION: Unknown file extension ".ts" for src/documents/docxToText.ts`.
+`scripts/docxToTextHarness.mjs:45-53` importa due sorgenti `.ts`; i workflow fissano `node-version: 20`
+(`e2e-emulator.yml:52-54`) mentre questa macchina ha Node 26, e da Node 22.6 i tipi TS vengono strippati
+all'import. L'harness era stato dichiarato verde eseguendolo **sulla macchina di sviluppo**.
+
+È la stessa forma, per la terza volta nella stessa notte: (1) `clang` di macOS esce 0 su
+`JSIParams.cpp` mentre l'NDK lo rifiuta, perché la libc++ nuova inizializza per costruzione diretta;
+(2) il gate del fork sintattizzava con il compilatore di sistema invece di quello della CI; (3) un
+harness gira solo sotto il Node locale. **La lezione non è "aggiungi un loader": se una verifica gira
+solo sulla macchina di chi l'ha scritta, non è cablata — è solo verde lì.** L'antidoto per il caso Node
+è economico e va ricordato: `npx -y node@20 scripts/<harness>.mjs` riproduce lo strumento della CI in
+locale (verificato dalla sessione KV, stessa riga d'errore); per il C++ l'equivalente è compilare con
+il cross-compilatore dell'NDK invece che con il clang di sistema.
