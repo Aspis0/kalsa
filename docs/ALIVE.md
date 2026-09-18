@@ -7213,3 +7213,37 @@ ritirato: correggeva il sito iSWA, ma Qwen3.5 non ha SWA e passa dal sito denso)
 usa draft, quindi quella riga li' non dovrebbe proprio comparire. **Precisazione mia, non loro:** e'
 riportato, non verificato da me, e vale solo per il caso descritto — se quella riga esce su un run
 **LFM**, non e' coperta da questa nota ed e' una condizione di stop come le altre.
+
+### Il secondo audit ha trovato il difetto che non avevo chiesto (18/09)
+
+Avevo mandato l'audit del protocollo con una domanda in cima: **il mio** ordine di persistere
+`$OUT/protocol.log` mette su disco qualcosa che non deve uscire? Risposta: **il mio sospetto era
+sbagliato e il difetto c'era lo stesso, altrove.**
+
+- **Refutato il mio sospetto.** L'unica `log` che interpola contenuto e' `device-share-send.sh:153`
+  (`share-send attempt N/3: $msg`), e `$msg` viene dall'array `MESSAGES` cablato nel protocollo
+  (`:62-69`): sei frasi sulle capitali europee, gia' pubbliche nel repo. Nessun testo di un utente.
+- **Confermato un buco preesistente e piu' grosso.** `device-share-send.sh:109` scrive l'**intero
+  JSON della conversazione** (testo dell'utente + ogni `modelEmittedText`) in
+  `$OUT/.share_hist.json`, **due volte per ogni invio**, e non lo rimuove mai. Sul disco ce ne sono
+  tre, 46/51/55 KB, uno per run del 18/09. Verificato: **mai entrati in git** (`git ls-files` = 0,
+  `.gitignore:103` copre la cartella) e non aperti. La cancellazione e' decisione dell'owner, non
+  mia — stessa regola della copia di RKStorage in `/tmp`. Da sapere per la riparazione: il file lo
+  legge anche `device-prefill-threads.sh:82`, quindi e' un'interfaccia fra due harness e non si puo'
+  spostare su `mktemp` senza toccare anche quello. Nominato anche `ci-lib.sh:502-503`: `die()`
+  scrive tutto il testo a schermo in `$OUT/fatal_state.txt` (ce n'e' uno nel run delle 11:01).
+
+**La lezione:** ho fatto la domanda giusta ("cosa finisce su disco?") puntando il dito nel posto
+sbagliato. Il buco stava in un **dotfile** scritto da mesi, che nessun `ls` dei miei aveva mostrato
+e nessun audit aveva mai guardato perche' nessuno gli aveva chiesto di guardare li'. Una domanda
+larga a un auditor ostile vale piu' del sospetto preciso di chi l'ha scritta.
+
+**E un difetto di correttezza introdotto dalla riparazione dell'orologio, che BLOCCA il giro sul
+telefono.** `FG_SETTLE_TIMEOUT_SECONDS` passa il validatore su qualunque stringa di sole cifre, e
+`deadline=$((t0 + ...))` ora **va in overflow** su un valore enorme: la scadenza diventa irraggiungibile
+e l'attesa **si appende** invece di tornare 1. Il vecchio contatore falliva CHIUSO sullo stesso input.
+Seconda meta': `0120` e' ottale in aritmetica bash, cioe' un budget di 80 s che si legge 120. In piu'
+il pin nuovo **flappa all'8%** (24 esecuzioni: `after 2s` 22 volte, `after 3s` 2) perche' asserisce una
+differenza di floor esatta, e due lacune lasciano verde sia un matcher che riconosce solo `skip` sia
+una seconda scadenza. Il telefono non si tocca finche' l'appendimento non e' chiuso: uno strumento che
+puo' appendersi invece di fallire chiuso non si punta su un S23.
