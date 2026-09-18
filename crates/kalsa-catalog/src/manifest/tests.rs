@@ -59,7 +59,7 @@ fn the_apertus_row_is_offerable_only_through_its_measured_cache() {
 }
 
 #[test]
-fn trinitys_measured_decode_names_its_machine() {
+fn every_measured_decode_names_its_machine_and_date() {
     // Measured tonight on the M1 Max, on the path the row will decode
     // on: the figure and the machine travel together, and the backend
     // gate means a different machine is never told this one's speed.
@@ -83,10 +83,32 @@ fn trinitys_measured_decode_names_its_machine() {
         "{}",
         measured.measured_on
     );
-    // Every other row is unmeasured, and none of them pretends otherwise.
-    assert!(rows()
-        .filter(|entry| entry.repo != trinity.model.repo)
-        .all(|entry| entry.measured_decode.is_none()));
+    assert!(rows().all(|entry| {
+        entry.measured_decode.is_none_or(|measured| {
+            let (machine, _) = measured
+                .measured_on
+                .split_once(" (")
+                .expect("a measurement names its machine");
+            let date = measured
+                .measured_on
+                .rsplit_once(", ")
+                .map(|(_, date)| date)
+                .expect("a measurement names its date");
+            let mut date_parts = date.split('-');
+            let year = date_parts.next().unwrap_or_default();
+            let month = date_parts.next().unwrap_or_default();
+            let day = date_parts.next().unwrap_or_default();
+            !machine.trim().is_empty()
+                && year.len() == 4
+                && year.starts_with("20")
+                && year.bytes().all(|byte| byte.is_ascii_digit())
+                && month.len() == 2
+                && month.bytes().all(|byte| byte.is_ascii_digit())
+                && day.len() == 2
+                && day.bytes().all(|byte| byte.is_ascii_digit())
+                && date_parts.next().is_none()
+        })
+    }));
 }
 
 #[test]
@@ -135,6 +157,7 @@ fn every_row_has_a_name_a_person_can_say() {
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
             ("Qwen/Qwen3-Next-80B-A3B-Instruct", "Alibaba Qwen 3 Next 80B"),
             ("swiss-ai/Apertus-v1.5-70B", "Swiss AI Apertus 1.5"),
+            ("google/gemma-4-12B-it", "Google Gemma 4 12B"),
         ]
     );
 }

@@ -285,9 +285,9 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
 #[test]
 fn a_model_that_would_spill_is_never_offered() {
     // The card holds 9 GiB; the RAM alone would hold rows three times
-    // bigger. Only what fits the card entirely is a candidate, and among
-    // those the same-class fastest decoder wins: Granite reads 1B per
-    // token, less than anything else on the tier.
+    // bigger. Only what fits the card entirely is a candidate, and the
+    // biggest class that fits wins: Gemma is the dense 12B row, even though
+    // it decodes more slowly than the MoE it displaced.
     let machine = pc(32, Some(12));
     match choose(&machine) {
         Decision::Pick(selection) => {
@@ -295,7 +295,7 @@ fn a_model_that_would_spill_is_never_offered() {
                 selection.repo, "Qwen/Qwen3.6-35B-A3B",
                 "the 35B row does not fit the card and must not be offered"
             );
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
             assert!(
                 selection.footprint.total_bytes() <= selection.budget.usable_bytes,
                 "the pick fits the chosen budget entirely"
@@ -635,13 +635,12 @@ fn the_plain_reason_speaks_the_readers_language() {
 
 #[test]
 fn sixteen_gigabytes_offers_the_biggest_downloadable_class_not_the_biggest_name() {
-    // The research table has a 12B dense row that fits this tier and would
-    // once have won on size alone; nobody can fetch it, so it is not in the
-    // menu. The winner comes from the download table: the biggest rows are
-    // the two verified MoEs, same class, and the one that reads fewer bytes
-    // per token decodes faster.
+    // Gemma is now downloadable and in the menu, but its bigger name does
+    // not make it win on size alone. The winner is the biggest fitting class
+    // under the chooser's other constraints: the verified Ling MoE.
     assert_eq!(chosen(&input(16, true)), "inclusionAI/Ling-mini-2.0");
-    assert!(kalsa_catalog::usable().all(|entry| entry.entry().repo != "google/gemma-4-12B-it"));
+    assert!(kalsa_catalog::usable()
+        .any(|entry| entry.entry().repo == "google/gemma-4-12B-it"));
 }
 
 #[test]
