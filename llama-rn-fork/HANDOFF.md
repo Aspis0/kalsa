@@ -467,6 +467,26 @@ exactly there. `package.json` merged to `"version": "0.12.9"` with no `postinsta
 other 41 paths are mechanical (regenerate) or deletions we already decided. Time to this inventory:
 ~20 minutes, no build.
 
+**RESOLVED the same morning — fork commit `3eb8ac2f` on `kalsa-v0129`** (dry run: not merged into
+`kalsa`, not pushed, app dep untouched). Two sentences are the whole result of the migration:
+
+> **After the regeneration none of the 40 engine files differs from the pre-merge tree.** That is
+> the proof that no upstream engine code leaked into `cpp/`: `--ours` on the conflicts, then
+> `sync-kalsallama.sh pin 70b4302bb…` (exit 0), then an empty diff.
+
+> **After resolution both binding files are byte-identical to our pre-merge versions.** At v0.12.9
+> upstream changed nothing in `rn-completion.cpp` / `rn-slot.cpp` except the five `common_memory`
+> conversions we reject. So **v0.12.9's binding delta lives entirely in the seven files that merged
+> textually** (`jsi/JSICompletion.h`, `jsi/JSIRequestManager.h`, `jsi/RNLlamaJSI.cpp`,
+> `rn-slot-manager.{cpp,h}`, `src/version.ts`, `src/__tests__/index.test.ts`) — that is where the
+> line-by-line read and the NDK gate must concentrate when Step 5 runs for real, not on the
+> conflict list.
+
+Also worth knowing: two engine files upstream had merged cleanly (`cpp/models/{deepseek2,glm-dsa}.cpp`)
+were overwritten by the regeneration. A clean merge into an engine file is not a decision, it is
+noise the pin erases. Still to do on that branch before it could ever be real: `npm ci`, build,
+typecheck, tests, and a hostile audit of the merge commit.
+
 ---
 
 ## 7. Step 6 — iOS from source (after Step 4; never with Step 5)

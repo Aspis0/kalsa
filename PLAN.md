@@ -1685,6 +1685,18 @@ run della sessione KV **e** il via di Marco. Run: `35354214821` (apk sul ramo), 
 su main, `debuggable=true`), `35351292439` (e2e su main). Diario: `docs/ALIVE.md`, voce "18/09
 mattina, terza voce".
 
+**Stato Step 5 — prova a vuoto (18/09 mattina EDT): FATTA, non integrata.** `git merge v0.12.9` sul
+ramo `kalsa-v0129` del fork = **45 conflitti**, di cui **5 hunk in 2 file** hanno richiesto una
+persona; gli altri 41 percorsi sono meccanici o cancellazioni gia' decise. Risolto in
+`3eb8ac2f`: **dopo la rigenerazione nessuno dei 40 file di motore differisce dall'albero
+pre-merge** (e' la prova che nessun codice di motore upstream e' entrato in `cpp/`), e **i due file
+di binding sono byte-identici alle nostre versioni pre-merge** — quindi il delta di binding di
+v0.12.9 sta tutto nei sette file che si sono fusi testualmente, ed e' li' che vanno letti riga per
+riga. I 5 hunk erano un solo drift: upstream passa a `common_memory`, che nel nostro motore
+(`cpp/common/common.h:1018`) documenta `// aborts execution on failure` — un'app non puo' abortire,
+quindi si tiene `rn_seq_rm`. Mancano: `npm ci`/build/typecheck/test e l'audit ostile. Il ramo NON e'
+integrato in `kalsa` e la dipendenza dell'app non e' toccata.
+
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 
