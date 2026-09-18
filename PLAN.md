@@ -1780,6 +1780,8 @@ di fila erano state cancellate da push concorrenti (`cancel-in-progress` per ref
 `5fb1bfa..204298f`, fast-forward, un solo pusher. Run: `35354214821` (apk sul ramo), `35354420026`
 (apk su main `bc6bd22`, `debuggable=true`), `35363460393` (e2e su `204298f`, prima volta che il gate
 di provenienza gira da solo su main) e `35363462434` (apk su `204298f`, `debuggable=true`).
+**Entrambe chiuse verdi** (13:00 EDT): l'e2e ha superato il passo `Run E2E on emulator`, quindi
+main ha di nuovo un verdetto di inferenza sul codice del fork, e non resta nulla di aperto.
 Rollback: `git revert -m 1 204298f` + `npm ci`. Diario: `docs/ALIVE.md`, voce "18/09 mattina, terza
 voce" e "18/09 mezzogiorno".
 

@@ -6944,7 +6944,9 @@ dopo l'ultima modifica a `native/` (non quello citato a memoria: il commit ne po
 l'audit l'ha beccato); fork `Aspis0/llama.rn` `kalsa` = `9cb24abb` con CI `35362845665` lint+test
 success. Run lanciate subito dopo: `35363460393` (e2e su `204298f` — prima volta che il gate di
 provenienza gira da solo su main) e `35363462434` (apk `debuggable=true`, da cui esce il prossimo
-confronto dei `.so`). Rollback: `git revert -m 1 204298f` + `npm ci`.
+confronto dei `.so`). Rollback: `git revert -m 1 204298f` + `npm ci`. **Aggiornamento delle 13:00
+EDT: tutte e due verdi**, e l'e2e ha superato il passo `Run E2E on emulator` — main ha di nuovo un
+verdetto di inferenza sul codice del fork, e lo Step 4 non ha piu' niente di aperto.
 
 Per la sessione KV: l'engine id e' cambiato, quindi i sidecar si rigenerano **una volta sola**; il
 ramo `kv-residuals` si rebasa su `204298f`; i `.so` non cambiano (38/38 identici su tre commit),
