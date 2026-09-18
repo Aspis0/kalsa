@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
@@ -11,6 +12,7 @@ import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAtt
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
 import { CrescentNav } from "./components/CrescentNav";
+import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { Thread } from "./components/Thread";
@@ -18,6 +20,7 @@ import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
 import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
+import { BrainSurface } from "./surfaces/BrainSurface";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
@@ -26,6 +29,11 @@ import { EmptyState } from "./components/EmptyState";
 import "./App.css";
 
 const store = createStore();
+
+// The brain→chat move: the writing bar becomes the first message (§3 of
+// THE-BRAIN-IS-THE-HOME.md). Deliberately short — the duration is open and
+// will be judged on a real screen, so it lives here, in one place.
+const BRAIN_OPEN_MS = 240;
 
 interface Refusal {
   names: string;
@@ -36,11 +44,14 @@ interface Refusal {
 }
 
 function surfaceLabel(surface: SurfaceKey): string {
+  if (surface === "brain") return "Brain";
   return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
 }
 
 export function App() {
-  const [surface, setSurface] = useState<SurfaceKey>("chat");
+  // The brain is the home: the app opens on it, and the chat is reached by
+  // writing in its bar — never by selecting a tab (THE-BRAIN-IS-THE-HOME.md).
+  const [surface, setSurface] = useState<SurfaceKey>("brain");
   const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
   const [writeError, setWriteError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -68,6 +79,8 @@ export function App() {
   );
   const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string }>>({});
   const [liveMessage, setLiveMessage] = useState("");
+  // The message the brain's writing bar became, for the one open move.
+  const [barMessageId, setBarMessageId] = useState<string | null>(null);
 
   useEffect(
     () =>
@@ -393,12 +406,14 @@ export function App() {
     [],
   );
 
-  function send(text: string): boolean {
+  // Creates the turn and starts the stream. Returns the user message's id,
+  // or null when the app is not configured (Settings opens instead).
+  function sendMessage(text: string): string | null {
     // A stream in ANOTHER conversation never blocks this one; the composer
     // shows Stop (not Send) while its own conversation is generating.
     if (!configured) {
       setSurface("settings");
-      return false;
+      return null;
     }
     let conv = active;
     if (!conv) {
@@ -411,20 +426,60 @@ export function App() {
       };
     }
     const assistantId = uid();
+    const userId = uid();
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text) : conv.title,
       updatedAt: Date.now(),
       messages: [
         ...conv.messages,
-        { id: uid(), role: "user", content: text, createdAt: Date.now() },
+        { id: userId, role: "user", content: text, createdAt: Date.now() },
         { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
       ],
     };
     store.put(updated);
     setActiveId(updated.id);
+    // Writing from the brain's bar lands here too: the chat opens with the
+    // text already in the thread.
+    setSurface("chat");
     void runAssistant(updated.id, assistantId, settings);
-    return true;
+    return userId;
+  }
+
+  function send(text: string): boolean {
+    return sendMessage(text) !== null;
+  }
+
+  // Enter in the brain's bar: the chat opens with the text as the first
+  // message, and the bar itself becomes that message (§3). The same state
+  // change happens plainly on the fallback path — no transition API, or
+  // reduced motion requested.
+  function writeFromBrain(text: string): void {
+    const open = () => {
+      const userId = sendMessage(text);
+      if (userId) setBarMessageId(userId);
+    };
+    if (
+      !configured ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      !document.startViewTransition
+    ) {
+      open();
+      return;
+    }
+    document.documentElement.style.setProperty("--brain-open-ms", `${BRAIN_OPEN_MS}ms`);
+    let openedId: string | null = null;
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        openedId = sendMessage(text);
+        if (openedId) setBarMessageId(openedId);
+      });
+    });
+    // The name rides only for the move; and only its own message is
+    // unnamed, so a transition started right after is untouched.
+    void transition.finished.finally(() => {
+      if (openedId !== null) setBarMessageId((current) => (current === openedId ? null : current));
+    });
   }
 
   function stop(): void {
@@ -464,6 +519,11 @@ export function App() {
     if (activeId === id) setActiveId(null);
   }
 
+  function newConversation(): void {
+    setActiveId(null);
+    setDrawerOpen(false);
+  }
+
   function selectConversation(id: string): void {
     setActiveId(id);
     setSurface("chat");
@@ -473,6 +533,16 @@ export function App() {
   const empty = !active || active.messages.length === 0;
   const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface);
 
+  // The crescent lives in the chat alone, and it carries the chat's own
+  // things plus the way home — never the settings surfaces, which live on
+  // the brain page (THE-BRAIN-IS-THE-HOME.md §5).
+  const chatEntries: CrescentEntry[] = [
+    { key: "brain", label: "Brain", onSelect: () => setSurface("brain") },
+    { key: "new", label: "New chat", onSelect: newConversation },
+    { key: "history", label: "History", onSelect: () => setDrawerOpen(true) },
+    { key: "settings", label: "Settings", onSelect: () => setSurface("settings") },
+  ];
+
   return (
     <div
       className={`shell${streamingAny ? " is-streaming" : ""}`}
@@ -480,16 +550,10 @@ export function App() {
         if (event.key === "Escape") {
           if (navOpen) setNavOpen(false);
           else if (drawerOpen) setDrawerOpen(false);
+          else if (surface === "chat") setSurface("brain");
         }
       }}
     >
-      <CrescentNav
-        activeSurface={surface}
-        open={navOpen}
-        onOpenChange={setNavOpen}
-        onSelect={setSurface}
-      />
-
       <header className="topbar">
         <div className="topbar-title">
           <button
@@ -505,6 +569,16 @@ export function App() {
           <h1>{title}</h1>
         </div>
         <div className="topbar-actions">
+          {surface !== "brain" && surface !== "chat" ? (
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={() => setSurface("brain")}
+              aria-label="Back to the brain"
+            >
+              Brain
+            </button>
+          ) : null}
           {surface === "chat" && active ? (
             <button
               type="button"
@@ -537,89 +611,96 @@ export function App() {
           </div>
         ) : null}
         <ErrorBoundary>
-          {surface === "chat" ? (
-            <div className="chat-layout">
-              <Sidebar
-                conversations={conversations}
-                activeId={activeId}
-                streamingIds={Object.keys(streamingByConv)}
-                drawerOpen={drawerOpen}
-                onCloseDrawer={() => setDrawerOpen(false)}
-                onSelect={selectConversation}
-                onNew={() => {
-                  setActiveId(null);
-                  setDrawerOpen(false);
-                }}
-                onRename={(id, newTitle) => store.rename(id, newTitle)}
-                onDelete={removeConversation}
-              />
-              <div
-                className="main-col"
-                onDragOver={(event) => {
-                  if (event.dataTransfer?.types.includes("Files")) {
+          {surface === "brain" ? (
+            <BrainSurface
+              onNavigate={setSurface}
+              onWrite={writeFromBrain}
+              onOpenChat={() => setSurface("chat")}
+            />
+          ) : surface === "chat" ? (
+            <>
+              <CrescentNav entries={chatEntries} open={navOpen} onOpenChange={setNavOpen} />
+              <div className="chat-layout">
+                <Sidebar
+                  conversations={conversations}
+                  activeId={activeId}
+                  streamingIds={Object.keys(streamingByConv)}
+                  drawerOpen={drawerOpen}
+                  onCloseDrawer={() => setDrawerOpen(false)}
+                  onSelect={selectConversation}
+                  onNew={newConversation}
+                  onRename={(id, newTitle) => store.rename(id, newTitle)}
+                  onDelete={removeConversation}
+                />
+                <div
+                  className="main-col"
+                  onDragOver={(event) => {
+                    if (event.dataTransfer?.types.includes("Files")) {
+                      event.preventDefault();
+                      setDragging(true);
+                    }
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(event) => {
                     event.preventDefault();
-                    setDragging(true);
-                  }
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setDragging(false);
-                  if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
-                }}
-              >
-                {dragging ? (
-                  <div className="drop-overlay" aria-hidden="true">
-                    <span>Drop files to attach them to this conversation</span>
-                  </div>
-                ) : null}
-                {refusal ? (
-                  <div className="refusal-banner" role="alert">
-                    <span>
-                      <strong>{refusal.names} {refusal.names.includes(",") ? "don't" : "doesn't"} fit.</strong>
-                      {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
-                    </span>
-                    <button type="button" onClick={() => setRefusal(null)}>
-                      Dismiss
-                    </button>
-                  </div>
-                ) : null}
-                {empty ? (
-                  <EmptyState
-                    needsSetup={!configured}
-                    onOpenSettings={() => setSurface("settings")}
-                  />
-                ) : (
-                  <Thread
-                    messages={active.messages}
-                    streaming={streaming}
-                    failed={effectiveFailed}
-                    tails={tails}
-                    onRetry={retry}
-                    onOpenSettings={() => setSurface("settings")}
-                  />
-                )}
-                {attachStatus ? (
-                  <p className="attach-status" role="status">
-                    {attachStatus}
-                  </p>
-                ) : null}
-                <Composer streaming={streaming} onSend={send} onStop={stop} onAttach={(files) => void attachFiles(files)} />
+                    setDragging(false);
+                    if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
+                  }}
+                >
+                  {dragging ? (
+                    <div className="drop-overlay" aria-hidden="true">
+                      <span>Drop files to attach them to this conversation</span>
+                    </div>
+                  ) : null}
+                  {refusal ? (
+                    <div className="refusal-banner" role="alert">
+                      <span>
+                        <strong>{refusal.names} {refusal.names.includes(",") ? "don't" : "doesn't"} fit.</strong>
+                        {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
+                      </span>
+                      <button type="button" onClick={() => setRefusal(null)}>
+                        Dismiss
+                      </button>
+                    </div>
+                  ) : null}
+                  {empty ? (
+                    <EmptyState
+                      needsSetup={!configured}
+                      onOpenSettings={() => setSurface("settings")}
+                    />
+                  ) : (
+                    <Thread
+                      messages={active.messages}
+                      streaming={streaming}
+                      failed={effectiveFailed}
+                      tails={tails}
+                      onRetry={retry}
+                      onOpenSettings={() => setSurface("settings")}
+                      originMessageId={barMessageId}
+                    />
+                  )}
+                  {attachStatus ? (
+                    <p className="attach-status" role="status">
+                      {attachStatus}
+                    </p>
+                  ) : null}
+                  <Composer streaming={streaming} onSend={send} onStop={stop} onAttach={(files) => void attachFiles(files)} />
+                </div>
+                <Panel
+                  open={panelOpen && surface === "chat" && active !== null}
+                  attachments={attachments}
+                  contextTokens={ctxInfo && ctxInfo.endpoint === settings.endpoint ? ctxInfo.nctx : null}
+                  historyTokens={convoTokens}
+                  onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
+                  onReattach={(id) => {
+                    if (!activeId) return;
+                    const found = store.getAttachments(activeId).find((a) => a.id === id);
+                    if (found) store.putAttachment(activeId, { ...found, active: true });
+                  }}
+                  onClose={() => setPanelOpen(false)}
+                />
               </div>
-              <Panel
-                open={panelOpen && surface === "chat" && active !== null}
-                attachments={attachments}
-                contextTokens={ctxInfo && ctxInfo.endpoint === settings.endpoint ? ctxInfo.nctx : null}
-                historyTokens={convoTokens}
-                onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
-                onReattach={(id) => {
-                  if (!activeId) return;
-                  const found = store.getAttachments(activeId).find((a) => a.id === id);
-                  if (found) store.putAttachment(activeId, { ...found, active: true });
-                }}
-                onClose={() => setPanelOpen(false)}
-              />
-            </div>
+            </>
           ) : surface === "settings" ? (
             <SettingsForm
               initial={settings}

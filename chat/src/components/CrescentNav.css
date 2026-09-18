@@ -133,12 +133,6 @@
   transform: scale(1.16);
 }
 
-.nav-point-active .nav-point-circle {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
 .nav-point-label {
   position: absolute;
   top: 34px;
