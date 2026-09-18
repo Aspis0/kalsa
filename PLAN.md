@@ -1659,6 +1659,20 @@ motore ora lo deve fare il wrapper*. Verifica su S23 (in carica): il modello car
 (`n_common == embd` al secondo invio), risposta completa, nessun crash. Manca il solo turno MTP su
 Qwen3.5-4B; il fallback su target denso resta compile-only per costruzione. Diario: `docs/ALIVE.md`,
 voce "18/09 notte".
+
+**Stato Step 3 (18/09 pomeriggio EDT): LO SWITCH E' SU `main`.** Via di Marco tramite kalsa-ee.
+Terzo merge di `origin/main@185d254` nel ramo (`1b86de3`, zero conflitti, controlli post-merge verdi),
+poi merge del ramo su main in un clone di scratch: zero conflitti, 10 file, `npm ci` **exit 0 con zero
+attivita' di `patch-package`**, pin installato `70b4302bb`, engine id invariato
+`kalsa-eng-v2:c3418f60…` (il merge non tocca il motore), `tsc` 0 → commit **`16f6ce9`**, push
+`185d254..16f6ce9`. Run su main: `e2e-emulator` **35351292439** (automatica) e `apk.yml`
+**35351315182** (dispatchata, arm64); il confronto probante e' lo sha256 dei `.so` contro la build del
+ramo `35321529286`. Nota emersa col push: l'e2e su main era gia' rossa da 28 run (ultimo verde
+`35182142880`, `a43e74a`, 17/09 04:30Z), sempre su `assert-overlay-includes.sh`, per drift di API fra
+tarball npm e overlay che nel fork sono gia' risolti. Rollback: `git revert -m 1 16f6ce9` + `npm ci`.
+Diario: `docs/ALIVE.md`, voce "18/09 pomeriggio".
+
+
 **Step 2 — push (serve il via di Marco):** de-archiviare `Aspis0/llama.rn`, push del branch
 `kalsa`. Prova: `gh api repos/Aspis0/llama.rn/branches/kalsa`.
 

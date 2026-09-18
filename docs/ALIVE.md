@@ -6479,3 +6479,35 @@ solo sulla macchina di chi l'ha scritta, non è cablata — è solo verde lì.**
 è economico e va ricordato: `npx -y node@20 scripts/<harness>.mjs` riproduce lo strumento della CI in
 locale (verificato dalla sessione KV, stessa riga d'errore); per il C++ l'equivalente è compilare con
 il cross-compilatore dell'NDK invece che con il clang di sistema.
+
+**18/09 pomeriggio — Step 3: lo switch è su `main` (`185d254..16f6ce9`).**
+Il via è arrivato da Marco tramite la sessione kalsa-ee. Sequenza eseguita e verificata a mano:
+
+1. *Terzo merge di `origin/main` (`185d254`) nel ramo* → zero conflitti, commit `1b86de3`.
+   Controlli post-merge: `prefixPrewarmHarness` 1/1/1, `restoreVerdict.mjs` tracciato,
+   `package.json` e lock invariati, engine id invariato `kalsa-eng-v2:c3418f60…`, `tsc` 0.
+2. *Merge su main in un clone di scratch* (`/tmp/kalsa-switch`, mai nel checkout condiviso):
+   `git merge --no-ff origin/llama-rn-fork` → zero conflitti, 10 file; `npm ci` **exit 0 con zero
+   attività di `patch-package`** (nessun `postinstall` in `package.json`), pin installato
+   `70b4302bb`, engine id identico a quello del ramo — cioè il merge non ha toccato il motore —,
+   `tsc` 0. Commit `16f6ce9`, push `185d254..16f6ce9`.
+3. Run su main: `e2e-emulator` **35351292439** partita da sola sul push, `apk.yml` **35351315182**
+   dispatchata a mano (arm64). Il confronto che conta è lo sha256 dei `.so` contro la build del ramo
+   (`35321529286`): identici = il merge non ha cambiato il binario.
+
+**Quello che il push ha messo in luce: l'e2e su `main` era già rossa da ieri, e per il mondo vecchio.**
+Ultimo verde `35182142880` (`a43e74a`, 17/09 04:30Z); da lì **28 run rosse**. Le cinque che ho aperto
+(`35253329060`… `35322161084`) falliscono tutte allo stesso passo, `scripts/assert-overlay-includes.sh`,
+e gli errori sono esattamente la giunzione tarball npm + overlay: `common_context_seq_rm` non
+dichiarato (`rn-slot.cpp:429-430,530`, `rn-completion.cpp:1016`), le due firme
+`mtmd_helper_bitmap_init_from_{buf,file}` (`rn-mtmd.hpp:207,250`), la conversione ambigua in
+`common/json.h:148`. Sono gli stessi drift di API che nel fork sono già risolti: il gate su `main`
+stava misurando un albero assemblato da due sorgenti che avevano smesso di combaciare. Non l'ho
+causato io, e non l'ho ancora visto passare — lo dirà `35351292439`, che esegue lo stesso passo sul
+nuovo albero.
+
+Da `16f6ce9`: `patches/` non ha più effetto, `npm ci` non esegue l'overlay, i sidecar KV si
+rigenerano una volta (engine id v1 → v2). `patches/`, `vendor/`, `native/kalsallama.pin` e
+`scripts/sync-kalsallama.sh` restano sul disco come rollback (`git revert -m 1 16f6ce9` + `npm ci`,
+un comando) e li cancella lo Step 4. Avvisata la sessione KV: il suo APK dalla run `35321529286`
+resta valido perché è lo stesso albero.
