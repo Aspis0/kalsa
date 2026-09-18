@@ -664,6 +664,91 @@ async function main() {
     return r.stdout;
   };
 
+  // Golden real evidence from the S23 run. Every line was checked to carry a
+  // KALSA_* tag; this build emits no KVDIVERGE ids/shared_txt conversation.
+  const realEvidenceGolden = [
+    `09-18 03:24:40.810 I/KALSA_RP_MARK(30795): cycle=1`,
+    `09-18 03:24:47.767 I/ReactNativeJS(30901): KALSA_SESSION {"op":"init","no_extra_bufts":0}`,
+    `09-18 03:24:53.771 I/ReactNativeJS(30901): KALSA_SESSION {"op":"load","ms":59,"ok":false,"tokensOnDisk":0,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","reason":"meta_mismatch:stale_kv_completed_turn"}`,
+    `09-18 03:24:53.772 I/ReactNativeJS(30901): 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'`,
+    `09-18 03:24:53.814 I/ReactNativeJS(30901): 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`,
+    `09-18 03:24:53.834 W/RNLlama (30901): loadPrompt:521 KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000075034dd200`,
+    `09-18 03:24:58.184 I/KALSA_RP_MARK(31085): fg_bounce_home cycle=1`,
+    `09-18 03:25:18.747 I/KALSA_RP_MARK(31150): fg_kick cycle=1`,
+    `09-18 03:26:43.354 I/ReactNativeJS(30901): 'KALSA_PREWARM', '{"op":"done","promptMs":109512.008,"promptN":1832,"hash":"3586270056"}'`,
+    `09-18 03:26:43.355 I/ReactNativeJS(30901): KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}`,
+    `09-18 03:26:43.355 I/ReactNativeJS(30901): KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}`,
+    `09-18 03:26:44.066 I/KALSA_RP_MARK(31331): fg_settled cycle=1`,
+    `09-18 03:26:48.930 I/ReactNativeJS(30901): KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}`,
+    `09-18 03:26:49.012 I/ReactNativeJS(30901): KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}`,
+    `09-18 03:27:02.395 W/RNLlama (30901): loadPrompt:521 KALSA_KVPREFIX embd=1832 text_tokens=4906 n_common=1829 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000075034dd200`,
+    `09-18 03:27:02.395 W/RNLlama (30901): loadPrompt:539 KALSA_KVDIVERGE n_common=1829 shared_lo=1821 embd_hi=1832 text_hi=1841`,
+    `09-18 03:27:02.395 W/RNLlama (30901): loadPrompt:627 KALSA_KVREUSE checkpoint n_past=1827 prompt=4906 n_common=1829`,
+    `09-18 03:30:47.788 I/ReactNativeJS(30901): KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":5359,"tokensEvaluated":4906,"tokensPredicted":452,"draftTokens":0,"draftAccepted":0,"promptMs":134461.601,"predictedMs":90840.56599999999,"predictedPerSecond":4.975750591426302,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":3079,"ciswireFlags":1}`,
+    `09-18 03:30:47.983 I/ReactNativeJS(30901): KALSA_SESSION {"op":"save","ms":156,"ok":true,"estimatedBytes":36116476,"usedTokens":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","tokens":5359,"hash":"3666333890","messageCount":21}`,
+    `09-18 03:30:55.326 I/KALSA_RP_MARK(32395): cycle=2`,
+    `09-18 03:31:02.245 I/ReactNativeJS(32497): KALSA_SESSION {"op":"init","no_extra_bufts":0}`,
+    `09-18 03:31:08.635 W/RNLlama (32497): loadSession:108 KALSA_KVRESUME n_tokens=5359 pos_max=5358 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1`,
+    `09-18 03:31:08.640 I/ReactNativeJS(32497): KALSA_SESSION {"op":"load","ms":129,"ok":true,"tokensOnDisk":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","tokens":5359}`,
+    `09-18 03:31:08.640 I/ReactNativeJS(32497): 'KALSA_KVDIAG', '{"n_past":5359,"tokens_on_disk":5359,"ok":true}'`,
+    `09-18 03:31:08.662 I/ReactNativeJS(32497): 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'`,
+    `09-18 03:31:12.557 I/KALSA_RP_MARK(32675): fg_bounce_home cycle=2`,
+    `09-18 03:31:12.956 I/ReactNativeJS(32497): KALSA_SESSION {"op":"save","ms":223,"ok":true,"estimatedBytes":36116476,"usedTokens":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","tokens":5359,"hash":"3666333890","messageCount":21}`,
+    `09-18 03:31:33.148 I/KALSA_RP_MARK(  388): fg_kick cycle=2`,
+    `09-18 03:31:33.307 I/ReactNativeJS(32497): KALSA_SESSION {"op":"save","ms":1,"ok":true,"estimatedBytes":36116476,"usedTokens":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","reason":"unchanged"}`,
+    `09-18 03:33:47.275 I/KALSA_RP_MARK( 1029): fg_settled cycle=2`,
+    `09-18 03:33:52.221 I/ReactNativeJS(32497): KALSA_SESSION {"op":"save","ms":3,"ok":true,"estimatedBytes":36116476,"usedTokens":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","reason":"unchanged"}`,
+    `09-18 03:33:52.316 I/ReactNativeJS(32497): KALSA_SESSION {"op":"save","ms":2,"ok":true,"estimatedBytes":36116476,"usedTokens":5359,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","reason":"unchanged"}`,
+    `09-18 03:34:04.719 I/ReactNativeJS(32497): 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'`,
+    `09-18 03:34:04.727 I/ReactNativeJS(32497): KALSA_SESSION {"op":"window_align","from":13,"to":6}`,
+    `09-18 03:34:04.786 I/ReactNativeJS(32497): 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'`,
+    `09-18 03:34:04.828 W/RNLlama (32497): loadPrompt:521 KALSA_KVPREFIX embd=5359 text_tokens=5382 n_common=5359 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007512d3cd00`,
+    `09-18 03:35:27.976 I/ReactNativeJS(32497): KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":5697,"tokensEvaluated":5382,"tokensPredicted":314,"draftTokens":0,"draftAccepted":0,"promptMs":725.3720000000001,"predictedMs":82325.947,"predictedPerSecond":3.8141073554853855,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":23,"ciswireFlags":1}`,
+    `09-18 03:35:28.160 I/ReactNativeJS(32497): KALSA_SESSION {"op":"save","ms":128,"ok":true,"estimatedBytes":38371612,"usedTokens":5697,"stem":"lfm2_002e5-2_002e6b__conv-1789654555609-r55ou8p1__71419929","tokens":5697,"hash":"2526768741","messageCount":23}`,
+  ].join("\n");
+  const realEvidence = verdictRaw("real-evidence-golden", realEvidenceGolden);
+  assert(realEvidence.status === 1, `real evidence must exit 1 — got ${realEvidence.status}`);
+  const expectedRealEvidence = [
+    `PREFIX_PREWARM: restore_ok=0 restore_miss=0 prefill_done=1 snapshot_saved=0 system_only_template=0`,
+    `PREWARM_PARSE: unparsed=0 PASS`,
+    `PREWARM_STOPS: stale=0 no_context=0 disposing=0 kv_holds_chat=2 background=0 given_up=0 not_ready=0 in_flight=0 already_warm=0 restore_aborted=0`,
+    `PREFIX_MATCH: miss=0 kv_holds_chat=1`,
+    `KV_PREFIX: rows=2 whole_cache_reused=1 partial_reuse=1 total_loss=0 cold_start=0 cold_start_field=none late_cold_start=0 late_cold_start_field=none best n_common=5359 embd=5359 text_tokens=5382 min_embd=1832`,
+    `KV_PER_CYCLE: cycle=1 embd=1832 text=4906 n_common=1829 promptMs=134461.601 class=partial`,
+    `KV_PER_CYCLE: cycle=2 embd=5359 text=5382 n_common=5359 promptMs=725.3720000000001 class=whole`,
+    `KV_PREFIX_CRITERION: FAIL (partial reuse x1)`,
+    `KV_DIVERGE: rows=1 cache_ended_inside_window=1 cache_ended_after=3 x1`,
+    `KV_DIVERGE_END: cache_ended_after=3 n_common=1829 embd_hi=1832`,
+    `KV_FALLBACK: checkpoint_recover=1 no_usable_checkpoint=0`,
+    `FG_REKICK: kicks=2 served=1 warm=0 held=0 stopped=0 no_work=0 too_early=0 silent=1`,
+    `FG_REKICK_CRITERION: FAIL (re-kick produced no prewarm line x1)`,
+  ].join("\n") + "\n";
+  assert(realEvidence.stdout === expectedRealEvidence, "real evidence golden output changed");
+
+  // A live row before and after foreground markers must stay in one cycle.
+  // The loose KALSA_RP_MARK.*cycle= matcher would split this into two rows.
+  const markerGuard = verdictRaw(
+    "cycle-marker-guard",
+    [
+      "I/KALSA_RP_MARK(100): cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=900",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
+      "KALSA_TELEMETRY promptMs=10",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(markerGuard.status === 1, "cycle marker guard must be a measured FAIL");
+  const markerGuardRows = markerGuard.stdout.match(/^KV_PER_CYCLE:.*$/gm) ?? [];
+  assert(
+    markerGuardRows.length === 1 &&
+      markerGuardRows[0] ===
+        "KV_PER_CYCLE: cycle=1 embd=1832 text=1832 n_common=1832 promptMs=n/a class=whole",
+    "foreground markers do not open extra cycle windows",
+  );
+
   // The §4 pass shape: the whole prefix was reused and nothing was lost.
   const pass = verdict(
     "pass",
@@ -972,10 +1057,10 @@ async function main() {
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
-      "KALSA_RP_MARK cycle=2",
+      "I/KALSA_RP_MARK(100): cycle=2",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
-      "KALSA_RP_MARK cycle=3",
+      "I/KALSA_RP_MARK(100): cycle=3",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -995,14 +1080,14 @@ async function main() {
   const lateColdStart = verdictFail(
     "late-cold-start",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
-      "KALSA_RP_MARK cycle=2",
+      "I/KALSA_RP_MARK(100): cycle=2",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
-      "KALSA_RP_MARK cycle=3",
+      "I/KALSA_RP_MARK(100): cycle=3",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -1021,15 +1106,15 @@ async function main() {
   const allColdStarts = verdictFail(
     "all-cold-starts",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
-      "KALSA_RP_MARK cycle=2",
+      "I/KALSA_RP_MARK(100): cycle=2",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
-      "KALSA_RP_MARK cycle=3",
+      "I/KALSA_RP_MARK(100): cycle=3",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
@@ -1050,7 +1135,7 @@ async function main() {
   const zeroWithoutRestoreMiss = verdictFail(
     "zero-without-restore-miss",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
       "",
@@ -1070,7 +1155,7 @@ async function main() {
   const noFileFirstCycle = verdictFail(
     "no-file-first-cycle",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"no_file"}',
       'KALSA_PREWARM {"op":"done"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=0",
@@ -1092,12 +1177,12 @@ async function main() {
   const telemetryCorrelation = verdict(
     "telemetry-correlation",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
       'KALSA_PREWARM {"op":"done"}',
       'KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":0,"tokensEvaluated":2000,"tokensPredicted":229,"promptMs":41200,"predictedMs":25351.476}',
       "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=0",
-      "KALSA_RP_MARK cycle=2",
+      "I/KALSA_RP_MARK(100): cycle=2",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       'KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2892,"tokensEvaluated":2000,"tokensPredicted":229,"promptMs":310,"predictedMs":1200}',
       "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=1832",
@@ -1122,7 +1207,7 @@ async function main() {
   const telemetryMissing = verdict(
     "telemetry-missing",
     [
-      "KALSA_RP_MARK cycle=1",
+      "I/KALSA_RP_MARK(100): cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=1832",
       "",
@@ -1165,7 +1250,7 @@ async function main() {
   const fgServed = verdict(
     "fg-served",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       // The exit contract: a pass exits 0 only when EVERY printed criterion
       // passed, and KV_PREFIX_CRITERION is always printed. A real run has
@@ -1188,7 +1273,7 @@ async function main() {
       // The mount-time restore, outside the kick window: the KV criterion
       // needs a prewarm that ran, as a real run's evidence always has.
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -1206,7 +1291,7 @@ async function main() {
   const fgSilent = verdictFail(
     "fg-silent",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       "KALSA_TELEMETRY promptMs=1234",
       "",
     ].join("\n"),
@@ -1225,7 +1310,7 @@ async function main() {
   const fgTooEarly = verdictFail(
     "fg-too-early",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"background"}',
       "",
     ].join("\n"),
@@ -1246,9 +1331,9 @@ async function main() {
   const fgMixed = verdictFail(
     "fg-mixed",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"done"}',
-      "KALSA_RP_MARK fg_kick cycle=2",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=2",
       "KALSA_KVDIAG n_past=0",
       "",
     ].join("\n"),
@@ -1271,7 +1356,7 @@ async function main() {
     "fg-warm",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"already_warm","hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -1289,7 +1374,7 @@ async function main() {
     "fg-in-flight",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"in_flight","hash":"h"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -1337,9 +1422,9 @@ async function main() {
   const fgClosedWindow = verdictFail(
     "fg-closed-window",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       "KALSA_TELEMETRY promptMs=99",
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       'KALSA_PREWARM {"op":"done"}',
       "",
     ].join("\n"),
@@ -1359,9 +1444,9 @@ async function main() {
   const fgServedSettled = verdict(
     "fg-served-settled",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
@@ -1385,9 +1470,9 @@ async function main() {
   const fgNotReady = verdictFail(
     "fg-not-ready",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"not_ready"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "",
     ].join("\n"),
   );
@@ -1406,12 +1491,12 @@ async function main() {
   const fgStoppedTwo = verdictFail(
     "fg-stopped-two",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"not_ready"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
-      "KALSA_RP_MARK fg_kick cycle=2",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=2",
       'KALSA_PREWARM {"op":"skip","reason":"given_up","hash":"h"}',
-      "KALSA_RP_MARK fg_settled cycle=2",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=2",
       "",
     ].join("\n"),
   );
@@ -1430,9 +1515,9 @@ async function main() {
   const fgAbort = verdictFail(
     "fg-abort",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":false,"reason":"aborted","hash":"h"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "",
     ].join("\n"),
   );
@@ -1451,9 +1536,9 @@ async function main() {
   const fgStartOnly = verdictFail(
     "fg-start-only",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"start","hash":"h","systemChars":100,"toolCount":2}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "",
     ].join("\n"),
   );
@@ -1473,10 +1558,10 @@ async function main() {
   const fgStartDone = verdict(
     "fg-start-done",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"start","hash":"h","systemChars":100,"toolCount":2}',
       'KALSA_PREWARM {"op":"done","promptMs":12,"promptN":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
@@ -1499,9 +1584,9 @@ async function main() {
   const fgSettledEarly = verdictFail(
     "fg-settled-early",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"start","hash":"h","systemChars":100,"toolCount":2}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       'KALSA_PREWARM {"op":"done","promptMs":40000,"promptN":1832,"hash":"h"}',
       "",
     ].join("\n"),
@@ -1523,9 +1608,9 @@ async function main() {
   const fgUnknownReason = verdictFail(
     "fg-unknown-reason",
     [
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"eval-failed"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "",
     ].join("\n"),
   );
@@ -1547,9 +1632,9 @@ async function main() {
     "fg-thermal-gate",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"thermal_gate"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
@@ -1572,9 +1657,9 @@ async function main() {
     "fg-facts-in-system",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
-      "KALSA_RP_MARK fg_kick cycle=1",
+      "I/KALSA_RP_MARK(100): fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"facts_in_system"}',
-      "KALSA_RP_MARK fg_settled cycle=1",
+      "I/KALSA_RP_MARK(100): fg_settled cycle=1",
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),

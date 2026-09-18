@@ -104,7 +104,9 @@ const cycleWindows = [];
 let currentCycle = { number: null, lines: [] };
 let sawCycleMarker = false;
 for (const line of evLines) {
-  const marker = line.match(/KALSA_RP_MARK(?::)?\s+cycle=(\d+)\b/);
+  const marker = line.match(
+    /KALSA_RP_MARK(?![^\n]*\bfg_(?:bounce_home|kick|settled)\b)[^\n]*?cycle=(\d+)\b/,
+  );
   if (marker) {
     sawCycleMarker = true;
     if (currentCycle.lines.length > 0) cycleWindows.push(currentCycle);
