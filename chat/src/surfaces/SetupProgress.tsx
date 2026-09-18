@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import type { CSSProperties } from "react";
 
-// The first run, rendered: the walk's progress, live — a port of
-// src/pages/setup.js. The backend contract is the Progress event
+// The first run, rendered: the walk's progress, live — a port of the former
+// vanilla setup page, removed when the chat became the frontend. The backend
+// contract is the Progress event
 // `brain_progress`, serialised in src-tauri/src/startup.rs with the tag
 // "kind": { kind: "measuring" | "deciding" | "choosing" } and the byte
 // phases { kind: "runtime_bytes" | "model_bytes", done, total }. This view
-// replaces the Status body while the walk runs; the walk's failures arrive
-// as brain_start rejections and are spoken by the Status surface. The words
+// replaces the Server surface body while the walk runs; the walk's failures
+// arrive as brain_start rejections and are spoken by the Server surface. The words
 // are this page's.
 
 export interface ProgressStep {

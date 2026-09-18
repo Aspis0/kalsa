@@ -2,7 +2,7 @@ import { AdvancedPanel, type AdvancedDto } from "../components/AdvancedPanel";
 import { invoke } from "../lib/tauri";
 import "./surfaces.css";
 
-// The Advanced surface: the same panel the Model page owns, standing alone,
+// The Advanced surface: the same panel the Models surface owns, standing alone,
 // sending all three launch controls back to the start command.
 export function AdvancedSurface() {
   return (

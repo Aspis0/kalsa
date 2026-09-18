@@ -18,7 +18,7 @@ interface ModelsSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
 
-// The Model page explains that selection is automatic and owns the advanced
+// The Models surface explains that selection is automatic and owns the advanced
 // launch controls. The chooser remains in Rust; this page only reads its
 // answer and sends explicit edits back to the start command.
 export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {

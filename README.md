@@ -5,8 +5,8 @@ The user installs one thing and answers no questions: the app measures the
 machine, decides what it can usefully run, fetches it, and serves it to the
 phone.
 
-Three screens — Status, Model, Pairing — over a set of small crates that each
-decide one thing and can be tested without hardware.
+The React chat in `chat/` is the desktop frontend, over a set of small crates
+that each decide one thing and can be tested without hardware.
 
 The plan behind it is the product spec; this README is only how to build and
 test what exists today.
@@ -30,9 +30,7 @@ crates/kalsa-download/     getting a model file here once, safely: resumable,
 crates/kalsa-runtime/      which server build this machine needs, and proving it
                            runs before any weights are fetched
 src-tauri/                 the app shell: commands + config, no logic
-src/                       the three screens (static HTML/CSS/JS, no build step)
-  data/placeholders.js     every invented value, in one place, rendered as an
-                           unknown state - never as a number
+chat/                      the Vite + React + TypeScript desktop frontend
 NOTICE                     what came from Jan (MIT) and what did not
 ```
 

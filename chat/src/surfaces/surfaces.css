@@ -1,6 +1,5 @@
 /* Shared vocabulary for the four ported shell surfaces (Models, Server,
-   Devices, Advanced). Chat's own tokens and button classes only — the
-   vanilla stylesheets are not coming across. */
+   Devices, Advanced). Chat's own tokens and button classes only. */
 
 .surface-page {
   width: min(30rem, 100%);

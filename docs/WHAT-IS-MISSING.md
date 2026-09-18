@@ -91,27 +91,14 @@ resume, no reconnect policy, and no decision about whether the server keeps gene
 into a cache while the phone is gone. The SSE ids are already in place
 (`kalsa-door` numbers every event) — the mechanism exists, the policy does not.
 
-## 6. The desktop chat and the desktop app are still two programs
+## 6. The desktop chat and the desktop app are one program — CLOSED
 
-`src/pages/` holds the wizard — setup, model, status, advanced, pairing — and the chat
-was a separate Vite app in another checkout. The decision to make one the frontend of
-the other is written down: `DESKTOP-CHAT-DECISION.md` §4 keeps the chat, makes it
-kalsa-brain's frontend, and refuses to merge it as a second app.
+The chat is now the kalsa-brain frontend. The four wizard panels became the four
+surfaces in `chat/src/surfaces/`, and `src-tauri/tauri.conf.json` serves the generated
+`chat/dist/` output. Its build commands run `npm run dev` and `npm run build` in `chat/`.
 
-**Started by `154f929`** — not closed. The chat is in this repo under `chat/`, imported
-with its history intact (25 commits, 97 files), and it builds here: `tsc --noEmit &&
-vite build`, exit 0. The Rust workspace did not absorb it — 13 packages before, 13 after.
-
-What remains is the switch, and it is deliberately two moves. First the wizard's four
-panels become the four surfaces `chat/src/app/surfaces.ts` already declares and
-`chat/src/App.tsx:631` still draws as placeholders: models, server, devices, advanced.
-Only then does `src-tauri/tauri.conf.json` stop pointing `frontendDist` at `../src`.
-
-That second move carries a debt worth naming now: the vanilla frontend does not leave
-alone. `dev/states.js` and `dev/smoke.mjs` render those pages across 39 states and fail
-the build when the copy breaks a rule — that harness is what caught a singular sentence
-standing over a list of two devices. It dies with the pages it renders unless it is
-ported with them.
+The old vanilla frontend and its two harnesses are removed. `dev/states-react.mjs` and
+`dev/smoke-react.mjs` now render the 39 review states and enforce the copy rules.
 
 ## 7. Attachments: the browser half is being built, the native half is not
 

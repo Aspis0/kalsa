@@ -29,7 +29,7 @@ function phoneText(connected: boolean): string {
   return connected ? "Connected" : "Not connected";
 }
 
-// The Status surface: one glance tells the owner whether the local server is
+// The Server surface: one glance tells the owner whether the local server is
 // helping the phone, and the cards below show only facts the process produced.
 // While the first walk runs, its progress (the `brain_progress` events)
 // replaces the body.
@@ -43,7 +43,7 @@ export function ServerSurface() {
   const [stopFailure, setStopFailure] = useState(false);
   const [busy, setBusy] = useState(false);
   // The latest walk step, live. It is cleared — never shown stale — the
-  // moment the read stops saying "stopped" (status.js:122).
+  // moment the read stops saying "stopped".
   const [liveStep, setLiveStep] = useState<ProgressStep | null>(null);
 
   function holdFailure(value: string | null): void {
@@ -74,7 +74,7 @@ export function ServerSurface() {
   }, [refresh]);
 
   // The subscription is async: if the surface unmounts before the bus
-  // answers, the unsubscribe still runs (status.js:197).
+  // answers, the unsubscribe still runs.
   useEffect(() => {
     let off: (() => void) | null = null;
     let live = true;

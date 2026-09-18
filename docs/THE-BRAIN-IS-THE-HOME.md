@@ -13,7 +13,8 @@ does not.
 
 ## 2. Why the brain comes first, and why that is not ceremony
 
-The brain is first in time — without it there is nothing to talk to, and `setup.js` already
+The brain is first in time — without it there is nothing to talk to, and
+`chat/src/surfaces/SetupProgress.tsx` already
 narrates that first walk, *"Getting this computer ready. This happens once."*
 
 But the argument that actually settles it is smaller and harder: **the brain's state is
@@ -54,7 +55,7 @@ the brain first — utility, not a statement about what the product is.
 > Second — and this is the owner's actual objection — **the crescent that does exist is
 > nearly invisible.** It lives in `crescent-chat`, inherited from `devboule-v2`, and its
 > resting state is a transparent button 18 px tall whose only mark is a 3 px line at 0.8
-> opacity that changes colour on hover or focus (`src/components/CrescentNav.css:11-40`).
+> opacity that changes colour on hover or focus (`chat/src/components/CrescentNav.css:11-40`).
 > It sits at the top of the page. Animating four seats into a destination the reader cannot
 > see until they happen to point at it spends the whole budget of the gesture on something
 > invisible.

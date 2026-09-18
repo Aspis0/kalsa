@@ -5,7 +5,8 @@ endpoint (`POST /v1/chat/completions`, `stream: true`), stores everything
 locally, phones home to nobody.
 
 - **Stack**: Vite + React + TypeScript. No Node APIs in the frontend, so the
-  `dist/` bundle drops into Tauri v2 (`src-tauri/tauri.conf.json` included).
+  `dist/` bundle drops into the parent app's Tauri v2 configuration
+  (`../src-tauri/tauri.conf.json`).
 - **Offline rule**: the only network call the app ever makes is the
   user-configured endpoint. System fonts only, no CDN, no telemetry.
   Model images are never loaded (a blocked-image notice is shown instead),

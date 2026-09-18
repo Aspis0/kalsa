@@ -4,6 +4,12 @@ Written 2026-09-17, night, after an overnight build by an open-source-only agent
 review. Everything below was checked on disk or run; nothing is repeated from the agent's
 report on trust.
 
+The decision is now implemented: `chat/` is kalsa-brain's frontend, the root
+`src-tauri/` is the only Tauri app, and the former imported `chat/src-tauri/`
+directory is gone. In the historical measurements below, unqualified `src/`
+paths refer to the chat checkout before it was moved into this repository; the
+current paths are under `chat/src/`.
+
 ## 1. What actually exists
 
 `/Users/marco/Projects/crescent-chat` — 14 commits, clean tree, `npm run build` green.
@@ -17,10 +23,10 @@ The palette is the one asked for: `--accent: #1f5f4e` on `--page: #f4f8f3`, dark
 same hue with a lightened accent `#75b3a0`, error red desaturated to `#8a3b32` and used as text
 and border only, never as a fill.
 
-**`src-tauri/` has no Rust crate** — only `tauri.conf.json`, a capabilities file and three
-icons. There is no `Cargo.toml`, no `main.rs`. The app has never run as a desktop binary; every
-screenshot is a browser. The agent said so itself, which is to its credit, but it means "desktop
-app" is still a claim about a web page.
+**The imported chat's former `src-tauri/` had no Rust crate** — only `tauri.conf.json`, a
+capabilities file and three icons. There was no `Cargo.toml`, no `main.rs`. The app had never run
+as a desktop binary; every screenshot was a browser. That directory is now removed, and the root
+app's Rust crate owns the single Tauri configuration.
 
 ## 2. What I verified that no report claimed
 
@@ -110,8 +116,8 @@ follows from where the model already lives; it is not a new requirement.
   is a product call.
 - **Signing and the bundle.** `tauri init` plus an Apple signing identity. Nothing technical
   blocks it; it costs money and an account.
-- **Whether the wizard and the chat are one window.** Cheapest is one window with the chat as
-  the home surface and setup behind Settings. Not obviously right.
+- **Whether the wizard and the chat are one window.** Settled by the switch: one window, with
+  the chat frontend and the former wizard surfaces behind its navigation.
 
 ## 6. Correction: the crescent is not a conversation list
 

@@ -23,7 +23,7 @@ export function available(): boolean {
 
 // Rejects when the command itself fails; callers turn the error into a
 // sentence on the page. Callers check available() first — outside the
-// webview the access below throws, exactly like the vanilla door.
+// webview the access below throws, exactly like the unavailable door.
 export function invoke<T = unknown>(
   command: string,
   args: Record<string, unknown> = {},

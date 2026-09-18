@@ -6,7 +6,7 @@ import "./surfaces.css";
 const POLL_MS = 2000;
 
 // The approved ways to say the square is the way in, that it was replaced,
-// and who may use it. dev/smoke.mjs keeps its own copy of these on the
+// and who may use it. dev/smoke-react.mjs keeps its own copy of these on the
 // review side and enforces them — rewording here means updating there on
 // purpose, or failing the check.
 const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
@@ -66,7 +66,7 @@ interface DevicesSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
 
-// The Pairing surface: the phone scans, nobody types. The square on screen is
+// The Devices surface: the phone scans, nobody types. The square on screen is
 // the ceremony's payload as SVG from kalsa-pairing's qr_svg(payload) —
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.

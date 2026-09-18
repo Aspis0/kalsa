@@ -210,7 +210,7 @@ Voti: movimento 5 (con misura) · lunga 5 (con numeri).
   1942 in dev — il costo è DOM/markdown, non React dev. Accettato: costo
   una tantum all'apertura di un caso estremo, scroll poi a 0ms.
   Niente virtual-list (confermato due volte, numeri alla mano).
-- Icone `src-tauri/icons/` generate via screenshot Playwright di un SVG
+- Icone dell'app Tauri (`../src-tauri/icons/`) generate via screenshot Playwright di un SVG
   inline (stessa marca del CSS: cerchio quasi pieno + flat in basso a
   sx, ruotato −12°, su squircle `#F4F8F3`). 32/128/256px esatti.
 - Buttato due volte: l'arco SVG con flag sbagliati disegnava prima un

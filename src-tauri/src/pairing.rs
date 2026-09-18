@@ -127,9 +127,8 @@ pub(crate) struct Desk {
     listener_failed: AtomicBool,
 }
 
-/// What the Pairing page reads, polled. The field names and the vocabulary
-/// are the page's contract (`src/pages/pairing.js`), not this module's to
-/// rename.
+/// What the Devices surface reads, polled. The field names and vocabulary are
+/// the frontend contract, not this module's to rename.
 #[derive(Serialize)]
 pub(crate) struct PairingDto {
     kind: &'static str,
