@@ -1803,6 +1803,123 @@ async function main() {
     "the fixed post-relaunch sleep must stay gone — it closed the window on a timer and failed slow, working prefills",
   );
 
+  // ── The settle wait must survive SIGPIPE: exercise the SHELL, not the ────
+  // regex. `tail -n +N file | grep -Eq` under `set -uo pipefail` is a
+  // false-negative factory: grep -q exits at the first match, tail keeps
+  // writing, the pipe fills, tail dies with SIGPIPE and the pipeline returns
+  // 141 — the if takes the FALSE branch having found the line. Measured on
+  // this host: the exit flips 0 -> 141 between 8 KB and 16 KB after the
+  // match (the pipe capacity; 64 KB on Linux). The 2026-09-18 captures had
+  // 1.0-3.6 MB after their match lines, so four kicks that the app settled
+  // in 0.1-0.2 s were reported as "did not settle within 120s" while the
+  // verdict, reading the file directly, counted them held. The shipped
+  // shape (awk reading the file) is extracted from the script and RUN under
+  // bash against fixtures whose match sits past any pipe buffer — and the
+  // old shape is run on the SAME fixture and must still reproduce 141, so
+  // the fixture cannot quietly drift back inside the pipe capacity.
+  assert(
+    !protocolSrc.includes("| grep -q") && !protocolSrc.includes("| grep -Eq"),
+    "no grep -q may remain on the consuming side of a pipe in the protocol",
+  );
+  const settleFnAt = protocolSrc.indexOf("rp_fg_wait_settled() {");
+  assert(settleFnAt >= 0, "rp_fg_wait_settled still exists");
+  const settleFnEnd = protocolSrc.indexOf("\n}", settleFnAt);
+  const settleFn = protocolSrc.slice(settleFnAt, settleFnEnd);
+  assert(
+    settleFn.includes("if awk -v start="),
+    "the settle wait must match the capture in-process (awk), not through a pipe",
+  );
+  const snippetStart = settleFn.indexOf("if awk -v start=");
+  const snippetEnd = settleFn.indexOf("; then", snippetStart);
+  assert(snippetEnd > snippetStart, "the awk settle snippet terminates where expected");
+  const settleSnippet = settleFn.slice(snippetStart + 3, snippetEnd); // the condition
+  const ereFromSnippet = (settleSnippet.match(/\/([^/]+)\/ \{ found/) ?? [])[1];
+  assert(
+    typeof ereFromSnippet === "string",
+    "the ERE must be extractable from the shipped awk snippet",
+  );
+
+  const fixtureUnit =
+    "I/ReactNativeJS(1): filler line after the match, 64 bytes aaaaaaaaaaaaaaaaaaaa\n";
+  const noiseLines = Array.from(
+    { length: 40 },
+    (_, i) => `I/ReactNativeJS(1): noise padding line ${String(i).padStart(6, "0")}\n`,
+  ).join("");
+  const matchLine =
+    'I/ReactNativeJS(30901): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'\n';
+  function writePipeFixture(name, padBytesAfterMatch) {
+    // The shipped snippet reads "$OUT/logcat.txt", so each fixture mirrors
+    // the real capture layout: <dir>/logcat.txt.
+    const dir = path.join(outDir, `pipe-${name}`);
+    mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "logcat.txt");
+    writeFileSync(
+      file,
+      noiseLines +
+        matchLine +
+        fixtureUnit.repeat(Math.ceil(padBytesAfterMatch / fixtureUnit.length)),
+      "utf8",
+    );
+    return file;
+  }
+  function runShell(shape, file) {
+    const script = [
+      "#!/usr/bin/env bash",
+      "set -uo pipefail",
+      'line_from="$1" shape="$2" file="$3"',
+      'export OUT="$(dirname "$file")"',
+      'if [ "$shape" = new ]; then',
+      `  if ${settleSnippet}; then exit 0; fi`,
+      "  exit 1",
+      "fi",
+      `if tail -n +"$line_from" "$file" 2>/dev/null | grep -Eq '${ereFromSnippet}'; then`,
+      "  exit 0",
+      "else",
+      // The false-negative proof is this branch AND its status: the match
+      // exists, the then-branch did not run, and the condition died with
+      // tail's SIGPIPE. An if with no else would report 0 here — the exact
+      // way this shape hides its own failure.
+      "  exit $?",
+      "fi",
+      "",
+    ].join("\n");
+    const scriptFile = path.join(outDir, "pipe-probe.sh");
+    writeFileSync(scriptFile, script, "utf8");
+    return spawnSync("bash", [scriptFile, "1", shape, file], {
+      cwd: projectRoot,
+      encoding: "utf8",
+    }).status;
+  }
+
+  // 1 MB after the match: far past any default pipe capacity (16-64 KB).
+  const farFile = writePipeFixture("far", 1024 * 1024);
+  const newFar = runShell("new", farFile);
+  const oldFar = runShell("old", farFile);
+  assert(
+    newFar === 0,
+    `the shipped settle shape must find a match 1 MB from EOF — got ${newFar}`,
+  );
+  assert(
+    oldFar === 141,
+    `the fixture no longer reproduces the SIGPIPE shape (old shape exited ${oldFar}, ` +
+      `expected 141): the padding is inside this machine's pipe capacity — ` +
+      `grow the fixture before trusting the gate`,
+  );
+  // Match at EOF: the benign case both shapes must keep passing...
+  const nearFile = writePipeFixture("near", 0);
+  assert(
+    runShell("new", nearFile) === 0 && runShell("old", nearFile) === 0,
+    "a match close to EOF settles under both shapes",
+  );
+  // ...and no match at all still fails: the corrected branch is not a tautology.
+  const noneFile = path.join(outDir, "pipe-none.txt");
+  writeFileSync(noneFile, noiseLines, "utf8");
+  assert(
+    runShell("new", noneFile) === 1,
+    "the shipped settle shape must still fail when the region holds no terminal op",
+  );
+  console.log("PASS settle wait survives SIGPIPE (shell-exercised: new=0, old=141 at 1 MB)");
+
   // ── The re-kick's mutes must speak ───────────────────────────────────────
   // Every exit ahead of the re-kick, and the fall-through past it, used to be
   // a bare `return`: a muted branch and a re-kick that never fired produce
