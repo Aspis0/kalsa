@@ -7,9 +7,25 @@
 //! from the CPU at all: measured here, every CPU configuration — one process or
 //! four, 1 to 16 threads, scalar or 128-bit NEON loads — tops out near 110 GB/s,
 //! while the GPU can use the rest. llama.cpp runs decode on the GPU through
-//! Metal on macOS, so a CPU-only figure under-predicts a Mac by roughly 3–4x;
-//! see `ExecutionPath` for how the number says so, and `path.rs` for what a
-//! Metal backend would have to add.
+//! Metal on macOS, so a CPU-only figure under-predicts a Mac; see
+//! `ExecutionPath` for how the number says so, and `path.rs` for what a Metal
+//! backend would have to add.
+//!
+//! **By how much, measured rather than reasoned (2026-09-18, M1 Max, llama.cpp
+//! b10950 through Metal, `llama-bench`): 1.6x.** A dense 7.12 GiB Q4_K_M model
+//! decodes at 23.51 tok/s, which is 167 GiB/s of weights streamed — about
+//! 180 GB/s against the 110 GB/s ceiling above. An earlier version of this
+//! comment said 3–4x, reasoning from the SoC's 400 GB/s specification; a
+//! STREAM-style Metal kernel does reach roughly that, but decode does not,
+//! because dequantisation, attention and the KV cache spend the difference.
+//! The correction matters in the dangerous direction: 3–4x would have chosen
+//! models this machine cannot hold, and an over-large model fails *after* the
+//! download instead of before it.
+//!
+//! The same run is why no synthetic Metal probe lives here. A tiny model
+//! measures nothing — `stories260K` at 1.12 MiB decodes at 798 tok/s, which
+//! implies 0.87 GiB/s, off by more than 200x — because at that size the cost
+//! is per-token overhead and the weights never leave cache.
 //!
 //! The kernel is deliberately simple: an M1 Max measures the same with 128-bit
 //! NEON and with these 64-bit loads (112 vs 111 GB/s at the plateau), so the
