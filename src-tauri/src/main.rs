@@ -777,19 +777,16 @@ fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), St
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // First statement, before anything that can read or write the
-    // credential store: the store assumes a single writing process, and
-    // this is where that becomes true. A second instance knocks on the
-    // guard (which brings the running window forward) and starts nothing.
-    // Shared with the setup hook, because the hook can outlive this frame:
-    // the guard must live as long as the app, not as long as the hook.
-    let guard = std::sync::Arc::new(match instance::claim() {
-        Ok(guard) => guard,
-        Err(instance::AlreadyRunning) => {
-            eprintln!("Kalsa Brain is already running — its window is coming forward.");
-            return Ok(());
-        }
-    });
+    // First statement: claim the knock port. This is convenience, not
+    // authority — the binder cannot tell the running app from a stranger
+    // on the port, so losing the bind costs this launch nothing; it knocks
+    // (which brings the running window forward) and goes on. The authority
+    // is the directory lock in the setup hook, the first place the data
+    // directory is knowable, taken before anything can read or write the
+    // store. Shared with the setup hook, because the hook can outlive this
+    // frame: the guard must live as long as the app, not as long as the
+    // hook.
+    let guard = std::sync::Arc::new(instance::claim());
     let app = tauri::Builder::default()
         .manage(Brain::new())
         .invoke_handler(tauri::generate_handler![
@@ -815,10 +812,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let file = app.path().app_data_dir()?.join(PAIRING_FILE);
             if let Some(parent) = file.parent() {
                 std::fs::create_dir_all(parent)?;
+                // The authority, before anything can read or write the
+                // store: one exclusive lock on this account's own data
+                // directory, held for the app's whole life by the state
+                // manager. A refusal is the ordinary second launch, not a
+                // setup error — tauri runs this hook on the event loop's
+                // Ready and panics on its Err — so the refusal is handled
+                // here: say why, close the window tauri has already built
+                // by the time this hook runs, and let the empty window
+                // list end the app by the ordinary exit path.
+                let lock = match instance::acquire_dir_lock(parent) {
+                    Ok(lock) => lock,
+                    Err(instance::LockFailure::AlreadyRunning) => {
+                        eprintln!(
+                            "Kalsa Brain is already running — its window is coming forward."
+                        );
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.close();
+                        }
+                        return Ok(());
+                    }
+                    Err(instance::LockFailure::Io(error)) => return Err(error.into()),
+                };
+                app.manage(lock);
             }
-            // A loopback bind failure is a startup failure, not an empty
-            // pairing state: `?` aborts setup and the outer error mapper
-            // reports it instead of drawing a QR that cannot work.
+            // A pairing-side loopback bind failure is a startup failure,
+            // not an empty pairing state: `?` aborts the hook, and tauri
+            // turns that into a loud panic on the event loop rather than a
+            // QR that cannot work.
             app.manage(pairing_desk(file)?);
             // A knock means a second instance was launched: bring this
             // window forward, so the owner sees the app they already have.
