@@ -77,17 +77,17 @@ describe("promptContentForHistoryMessage", () => {
 });
 
 describe("llamaHistoryAssistantFields", () => {
-  test("prefixes a leading think span without parsing or moving bytes", () => {
+  test("form B completed: does not duplicate a leading think span", () => {
     const raw = "<think>\n\n</think>\n\nLa memoria KV è una cache.";
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "La memoria KV è una cache.",
       modelEmittedText: raw,
     });
-    expect(fields).toEqual({ content: `<think>${raw}` });
+    expect(fields).toEqual({ content: raw });
   });
 
-  test("prefixes an implicit-open think span emitted after a template-opened tag", () => {
+  test("form A completed: prefixes reasoning before the close", () => {
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "ANSWER",
@@ -104,6 +104,27 @@ describe("llamaHistoryAssistantFields", () => {
         modelEmittedText: "",
       }),
     ).toEqual({ content: "<think>" });
+  });
+
+  test("strictly prefixes whitespace before a leading think span", () => {
+    const raw = "\n<think>REASONING</think>ANSWER";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "ANSWER",
+        modelEmittedText: raw,
+      }),
+    ).toEqual({ content: `<think>${raw}` });
+  });
+
+  test("uses content as the source when modelEmittedText is absent", () => {
+    const content = "<think>FALLBACK";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content,
+      }),
+    ).toEqual({ content });
   });
 
   test("preserves a closing tag at position zero", () => {
@@ -168,13 +189,23 @@ describe("llamaHistoryAssistantFields", () => {
     ).toEqual({ content: `<think>${raw}` });
   });
 
-  test("truncated think stays verbatim after the seeded prefix", () => {
+  test("form B interrupted: does not duplicate an unclosed leading think span", () => {
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
       content: "",
       modelEmittedText: "<think>unfinished",
     });
-    expect(fields).toEqual({ content: "<think><think>unfinished" });
+    expect(fields).toEqual({ content: "<think>unfinished" });
+  });
+
+  test("form A interrupted: prefixes reasoning with no close or leading tag", () => {
+    const raw = "unfinished reasoning";
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: "",
+      modelEmittedText: raw,
+    });
+    expect(fields).toEqual({ content: `<think>${raw}` });
   });
 
   test("content_span keeps the raw think span so Qwen history prefixes KV", () => {
@@ -209,20 +240,41 @@ describe("llamaHistoryAssistantFields", () => {
 });
 
 describe("historyReplayCharLength", () => {
-  test("charges the exact LFM replay text, not the UI text", () => {
-    const raw = "REASONING</think>ANSWER";
+  test("charges the prefix only when the selected replay text lacks it", () => {
+    const rawWithoutTag = "REASONING</think>ANSWER";
+    const rawWithTag = "<think>REASONING</think>ANSWER";
+    const whitespaceBeforeTag = "\n<think>REASONING</think>ANSWER";
+    const fallbackContent = "<think>FALLBACK";
     expect(
       historyReplayCharLength(
-        { role: "assistant", text: "short", modelEmittedText: raw },
+        { role: "assistant", text: "short", modelEmittedText: rawWithoutTag },
         { historyThink: "reasoning_content" },
       ),
-    ).toBe(raw.length + "<think>".length);
+    ).toBe(rawWithoutTag.length + "<think>".length);
     expect(
       historyReplayCharLength(
-        { role: "assistant", text: "short", modelEmittedText: raw },
+        { role: "assistant", text: "short", modelEmittedText: rawWithTag },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(rawWithTag.length);
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: "short", modelEmittedText: whitespaceBeforeTag },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(whitespaceBeforeTag.length + "<think>".length);
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", content: fallbackContent },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(fallbackContent.length);
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: "short", modelEmittedText: rawWithoutTag },
         { historyThink: "content_span" },
       ),
-    ).toBe(raw.length);
+    ).toBe(rawWithoutTag.length);
     expect(
       historyReplayCharLength(
         { role: "user", text: "hi" },

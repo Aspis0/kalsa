@@ -76,11 +76,17 @@ export function llamaHistoryAssistantFields(
     if (!split) return { content: source };
     return { content: source, reasoning_content: "" };
   }
-  // The LFM generation prompt has already seeded one `<think>` before this
-  // raw completion. Prefix every raw shape verbatim, including a raw value
-  // that already starts with `<think>`: the result is `<think><think>…`,
-  // which is byte-identical if the model emitted that second tag itself.
-  return { content: THINK_OPEN + source };
+  // The GGUF generation prompt seeds one `<think>` unconditionally (lines
+  // 123–125), so the KV already holds exactly one opening tag. Stored
+  // emissions are live in both shapes: some carry that tag and some do not;
+  // the tag-less shape is associated with interrupted/never-closed turns,
+  // such as a user pressing Stop. The observed counts are 133 with / 12
+  // without / 0 with whitespace before it, so this is deliberately a strict
+  // startsWith check, not a trim-tolerant match. A closed `</think>` block is
+  // strongly correlated with the tag being present, but that is only a
+  // correlation: this predicate is purely syntactic and must not depend on
+  // whether a close appears.
+  return { content: source.startsWith(THINK_OPEN) ? source : THINK_OPEN + source };
 }
 
 /** Char length the engine window must charge (replay text, not UI `text`). */
@@ -93,24 +99,26 @@ export function historyReplayCharLength(
   },
   opts: { historyThink: HistoryThinkPlacement },
 ): number {
-  let length: number;
+  let replayText: string;
   if (
     message.role === "assistant" &&
     typeof message.modelEmittedText === "string" &&
     message.modelEmittedText.length > 0
   ) {
-    length = message.modelEmittedText.length;
+    replayText = message.modelEmittedText;
   } else if (typeof message.text === "string") {
-    length = message.text.length;
+    replayText = message.text;
   } else if (typeof message.content === "string") {
-    length = message.content.length;
+    replayText = message.content;
   } else {
-    length = 0;
+    replayText = "";
   }
   if (message.role === "assistant" && opts.historyThink === "reasoning_content") {
-    return length + THINK_OPEN.length;
+    return replayText.startsWith(THINK_OPEN)
+      ? replayText.length
+      : replayText.length + THINK_OPEN.length;
   }
-  return length;
+  return replayText.length;
 }
 
 function splitClosedLeadingThink(
