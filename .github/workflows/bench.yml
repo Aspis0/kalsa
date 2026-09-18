@@ -101,14 +101,11 @@ jobs:
           java-version: 17
 
       - name: Install JS deps
-        # DO NOT set RNLLAMA_SKIP_POSTINSTALL here. It was tried (to remove a
-        # GitHub-releases download that 503'd twice in run 31639595328) on the
-        # reasoning that a from-source build never uses the prebuilt jniLibs.
-        # Run 31650534307 disproved it: assert-native-patch.sh reported
-        # "kalsa-native-patches MISSING ... llama.rn used its prebuilt jniLibs",
-        # i.e. the APK was built WITHOUT the patches — the exact silent failure
-        # that assert exists to catch. If the download flakes again, cache the
-        # artifacts or retry; do not skip them.
+        # The engine is a git dependency on the fork, and the fork carries no
+        # postinstall: there is no prebuilt-jniLibs download left to skip or to
+        # flake. Kept as history because it cost two runs — skipping it on the
+        # npm package built an APK WITHOUT the patches and assert-native-patch.sh
+        # was what caught it (run 31650534307).
         run: npm ci
 
       - name: Typecheck + logic harnesses

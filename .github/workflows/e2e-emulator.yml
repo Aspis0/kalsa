@@ -61,10 +61,16 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
-      # The overlay copies the fork through an allow-list in
-      # scripts/sync-kalsallama.sh, so an upstream file a source starts
-      # including is simply absent and the NDK fails ~5 min into the build.
-      # This catches it right after assembly, in seconds.
+      # A git dependency has no lockfile integrity anyone verifies, and what
+      # npm installs is the fork's `npm pack` output, not its commit tree. This
+      # refetches the pinned commit, packs it, and compares file by file.
+      - name: Assert the installed engine is the pinned fork commit
+        run: bash scripts/assert-engine-provenance.sh
+
+      # The fork's cpp/ is kalsallama flattened through an allow-list (the
+      # fork's own scripts/sync-kalsallama.sh), so an upstream file a source
+      # starts including can be simply absent and the NDK fails ~5 min into
+      # the build. This catches it right after install, in seconds.
       - name: Assert the assembled engine's includes all resolve
         run: bash scripts/assert-overlay-includes.sh
 
@@ -131,8 +137,9 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
-        # llama.rn ships PREBUILT jniLibs: without this env the patched cpp/ is
-        # never compiled and patches/llama.rn+*.patch is a silent no-op.
+        # The fork ships no prebuilt jniLibs and plugins/withLlamaFromSource.js
+        # always compiles cpp/ from source; the env is explicitness only, and
+        # KALSA_LLAMA_FROM_SOURCE=0 hard-fails the build.
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install

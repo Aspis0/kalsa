@@ -11,7 +11,10 @@
  * — the native sources, JS bridge, and bin/ binaries the Android build reads,
  * minus build output, the prebuilt xcframework, the package-top node_modules
  * artifact (deeper node_modules components are digested), and npm's
- * pack-ignored components, so a checkout and an npm install hash the same;
+ * pack-ignored components. The subject is always the INSTALLED tree: the
+ * exclusions cover the divergences we know of, not every one npm applies
+ * (it also strips *.orig, *.rej and nested lockfiles), so a git checkout of
+ * the fork is not guaranteed to hash the same;
  * plus the native/ sources compiled on top, the source-build plugin, and the
  * bridge version. No variant: the fork has no prebuilt jniLibs. Embedded at
  * prebuild into app.config `extra` (app.config.js), read by
@@ -55,15 +58,14 @@ function isEngineTreeExcluded(rel) {
   return rel.split("/").some((c) => c.startsWith(".") || NPM_PACK_IGNORED.has(c));
 }
 
-/** An absent allow-listed subtree is a broken install: digesting a subset
- * would silently mint a different id. */
-function requireEngineTreeDirs(packageDir) {
+/** Every allow-listed subtree must contribute at least one digested file.
+ * Checking the directory exists is not enough: an empty one — or one whose
+ * whole content is excluded — digests a subset of the engine and mints a
+ * different id in silence. */
+function requireEveryEngineTreeDir(engineTree) {
   for (const dir of ENGINE_TREE_DIRS) {
-    const abs = path.join(packageDir, dir);
-    // existsSync + statSync: prebuild-time check, no TOCTOU concern.
-    const present = fs.existsSync(abs) && fs.statSync(abs).isDirectory();
-    if (!present) {
-      throw new Error(`engine-build-id: missing ${dir} in node_modules/llama.rn`);
+    if (!engineTree.some((line) => line.startsWith(`${dir}/`))) {
+      throw new Error(`engine-build-id: no digested file under ${dir} in node_modules/llama.rn`);
     }
   }
 }
@@ -182,13 +184,14 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
   const packageDir = path.join(root, "node_modules", "llama.rn");
   const commit = llamaRnCommit(root);
   const kalsallama = kalsallamaSha(root);
+  // Walked from packageDir so exclusions see package-relative paths.
+  const engineTree = digestTree(packageDir, isEngineTreeExcluded);
   // Only after the tree is proven to be the fork does completeness matter.
-  requireEngineTreeDirs(packageDir);
+  requireEveryEngineTreeDir(engineTree);
   return {
     llamaRnCommit: commit,
     kalsallamaSha: kalsallama,
-    // Walked from packageDir so exclusions see package-relative paths.
-    engineTree: digestTree(packageDir, isEngineTreeExcluded),
+    engineTree,
     native: digestTree(path.join(root, "native")),
     sourceBuildPlugin: sha256Hex(readFileOrThrow(path.join(root, "plugins", "withLlamaFromSource.js"))),
     llamaRnVersion,

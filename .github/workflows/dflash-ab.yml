@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       include_dflash:
-        description: "Run the DFlash arm too. Pure draft-dflash is now enabled by patches/llama.rn+0.12.8.patch (draft loader + spec init gates extended to DFLASH) — first run after the patch is the empirical gate: draftTokens>0, no hang, MTP arm unchanged. Default runs BASELINE vs MTP only."
+        description: "Run the DFlash arm too. Pure draft-dflash is enabled in the engine fork (draft loader + spec init gates extended to DFLASH) — first run after the patch is the empirical gate: draftTokens>0, no hang, MTP arm unchanged. Default runs BASELINE vs MTP only."
         type: boolean
         default: false
 
@@ -77,8 +77,9 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
-        # llama.rn ships PREBUILT jniLibs: without this env the patched cpp/ is
-        # never compiled and patches/llama.rn+*.patch is a silent no-op.
+        # The fork ships no prebuilt jniLibs and plugins/withLlamaFromSource.js
+        # always compiles cpp/ from source; the env is explicitness only, and
+        # KALSA_LLAMA_FROM_SOURCE=0 hard-fails the build.
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install

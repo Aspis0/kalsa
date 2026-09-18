@@ -2439,8 +2439,9 @@ export function initEngine(
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
       // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash".
-      // The 0.12.8 binding's MTP-only gates (draft loader, spec init) are
-      // extended to draft-dflash by patches/llama.rn+0.12.8.patch — before it,
+      // The 0.12.8 binding's MTP-only gates are extended to draft-dflash in the
+      // engine fork: draft loader in cpp/rn-llama.cpp, spec init in
+      // cpp/rn-completion.cpp (Aspis0/llama.rn) — before that,
       // a pure draft-dflash config silently never loaded the draft
       // (run 31270817640: draftTokens=0) and the dual-types workaround hung
       // the native turn (run 31274549105). Empirical gate: dflash-ab with

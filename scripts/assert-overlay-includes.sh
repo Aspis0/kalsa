@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Every local #include in the assembled engine must resolve to a file on disk.
 #
-# The overlay copies the fork's sources through an explicit ALLOW-LIST
-# (scripts/sync-kalsallama.sh, copy_src / copy_common). When upstream adds a
-# file and an existing source starts including it, the list does not learn:
-# the header is simply absent and the NDK fails ~5 minutes into the APK build,
-# far from the commit that caused it. That is how
+# The engine is installed from the fork Aspis0/llama.rn, whose cpp/ is built by
+# flattening kalsallama through an explicit ALLOW-LIST (the fork's
+# scripts/sync-kalsallama.sh, copy_src / copy_common). When upstream adds a file
+# and an existing source starts including it, the list does not learn: the
+# header is simply absent and the NDK fails ~5 minutes into the APK build, far
+# from the commit that caused it. That is how
 #   common/peg-parser.h:3:10: fatal error: 'json.h' file not found
 # reached CI on 2026-09-17 — json.h/json.cpp, plus llama-kv-cache-dsa-iswa,
 # llama-kv-cache-msa and llama-memory-hybrid-idx, all existed in the fork and
@@ -60,8 +61,9 @@ if missing:
     print(f"[includes] FAIL: {len(missing)} unresolved include(s) in the assembled engine")
     for inc, users in sorted(missing.items()):
         print(f"  {inc}  <- {', '.join(sorted(users)[:4])}")
-    print("[includes] add the file to copy_src/copy_common in scripts/sync-kalsallama.sh,")
-    print("[includes] then: scripts/sync-kalsallama.sh pin <sha> && rm -rf node_modules/llama.rn && npm install")
+    print("[includes] in the fork: add the file to copy_src/copy_common in")
+    print("[includes] scripts/sync-kalsallama.sh, re-run `sync-kalsallama.sh pin <sha>`, push,")
+    print("[includes] then move the app to the new fork sha and `npm install`.")
     raise SystemExit(1)
 
 print(f"[includes] OK: every local include in {len(files)} assembled files resolves")
@@ -82,8 +84,14 @@ if ! command -v clang++ >/dev/null 2>&1; then
 fi
 
 fails=0
+parsed=0
+rn_parsed=0
 for f in "$CPP"/common/*.cpp "$CPP"/tools/mtmd/*.cpp "$CPP"/rn-*.cpp; do
+  # An unmatched glob is a string, not a file: skipping it silently is how this
+  # gate would print OK on an engine that lost the sources it is here to check.
   [ -f "$f" ] || continue
+  parsed=$((parsed + 1))
+  case "$(basename "$f")" in rn-*) rn_parsed=$((rn_parsed + 1)) ;; esac
   if ! clang++ -std=c++17 -fsyntax-only \
       -I "$CPP" -I "$CPP/common" -I "$CPP/common/jinja" \
       -I "$CPP/ggml-cpu" -I "$CPP/tools/mtmd" -I "$ROOT/native/bmoe/rn" \
@@ -93,9 +101,14 @@ for f in "$CPP"/common/*.cpp "$CPP"/tools/mtmd/*.cpp "$CPP"/rn-*.cpp; do
     fails=$((fails + 1))
   fi
 done
+if [ "$rn_parsed" -eq 0 ] || [ "$parsed" -lt 20 ]; then
+  echo "[includes] FAIL: only $parsed source(s) parsed, $rn_parsed of them rn-*."
+  echo "[includes] The installed engine is missing sources this gate must cover."
+  exit 1
+fi
 if [ "$fails" -gt 0 ]; then
   echo "[includes] $fails source(s) do not parse against the assembled tree."
-  echo "[includes] An API the fork moved, or a header the overlay did not bring."
+  echo "[includes] An API the engine moved, or a header the flatten did not bring."
   exit 1
 fi
 echo "[includes] OK: every source the Android build compiles also parses"

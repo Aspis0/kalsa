@@ -62,7 +62,7 @@
 #define gguf_get_val_u64         lm_gguf_get_val_u64
 #define gguf_init_from_file      lm_gguf_init_from_file
 
-// The `--overlap` wait point. Not upstream: added to llama.rn's CPU backend by
-// patches/llama.rn+0.12.8.patch, under the lm_ prefix like everything around it.
+// The `--overlap` wait point. Not upstream: it lives in the engine fork's CPU
+// backend (Aspis0/llama.rn, cpp/ggml-cpu/ggml-cpu.c), lm_ prefix like the rest.
 #define ggml_cpu_expert_ready_hook_t   lm_ggml_cpu_expert_ready_hook_t
 #define ggml_cpu_set_expert_ready_hook lm_ggml_cpu_set_expert_ready_hook

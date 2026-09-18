@@ -22,10 +22,12 @@ Written 2026-09-16. Every number below was read from the repositories, not remem
 Branches: `main` and `remote-brain`. `remote-brain` is the other session's line of work on
 Kalsa Brain (PC↔phone) and is the one branch that is deliberately kept apart.
 
-The app does not vendor the engine, it **pins** it: `native/kalsallama.pin` names the repo, a
-branch label and a commit, and `scripts/sync-kalsallama.sh:587` refuses to build unless
-`VENDOR_SHA == PIN_COMMIT`. The pin is the commit, not the branch head — moving `kalsallama`'s
-`main` does not change what the app builds. Only editing that file does.
+The app does not vendor the engine and no longer assembles it: it takes `llama.rn` from the
+fork `Aspis0/llama.rn` as a git dependency pinned by commit in `package.json` /
+`package-lock.json`, and the fork's `cpp/` is `kalsallama` flattened. The pin is a commit, not a
+branch head — moving `kalsallama`'s `main`, or the fork's, does not change what the app builds.
+Only editing the sha in `package.json` and the lockfile does, and
+`scripts/assert-engine-provenance.sh` proves the installed tree is that commit.
 
 ### `kalsallama` — the engine
 
@@ -80,11 +82,11 @@ Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa` (the live one
 `kalsa-step1`, `main`. Its `cpp/` is `kalsallama` at the pin plus the Kalsa patch set, so the
 binding and the engine stop being assembled from three sources at build time.
 
-**As of this edit the app does NOT build from it yet.** `package.json` still takes `llama.rn`
-0.12.8 from npm and `postinstall` still runs `scripts/sync-kalsallama.sh overlay` +
-`patch-package`. The switch is Step 3 of the migration and lands on `main` only after a
-dispatched CI run is green on the app's `llama-rn-fork` branch. Until then `patches/`,
-`vendor/`, `native/kalsallama.pin` and `scripts/sync-kalsallama.sh` are held.
+**The app builds from it since `16f6ce9` on `main` (2026-09-18).** `patches/`, `vendor/`,
+`native/kalsallama.pin`, `scripts/sync-kalsallama.sh` and the `patch-package` devDependency were
+deleted in the cleanup that followed; the fork's own `scripts/sync-kalsallama.sh` is where the
+engine is re-flattened now. An engine update is: `bump` in the fork, push, then the new sha in
+the app's `package.json` and lockfile.
 
 ## Two conventions that make this navigable
 

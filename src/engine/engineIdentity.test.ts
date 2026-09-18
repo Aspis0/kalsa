@@ -450,7 +450,25 @@ describe("engine build id generator", () => {
         force: true,
       });
       expect(() => computeEngineBuildId(tmp)).toThrow(
-        /missing lib in node_modules\/llama\.rn/,
+        /no digested file under lib in node_modules\/llama\.rn/,
+      );
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("fails closed when an allow-listed subtree is present but empty", () => {
+    const { computeEngineBuildId } = engineBuildIdModule;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
+    try {
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      // An empty directory still exists: only the digest can tell it apart from
+      // a complete one, and a subset of the engine must never mint an id.
+      const lib = path.join(tmp, "node_modules", "llama.rn", "lib");
+      fs.rmSync(lib, { recursive: true, force: true });
+      fs.mkdirSync(lib, { recursive: true });
+      expect(() => computeEngineBuildId(tmp)).toThrow(
+        /no digested file under lib in node_modules\/llama\.rn/,
       );
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
