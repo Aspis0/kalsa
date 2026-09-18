@@ -7247,3 +7247,11 @@ il pin nuovo **flappa all'8%** (24 esecuzioni: `after 2s` 22 volte, `after 3s` 2
 differenza di floor esatta, e due lacune lasciano verde sia un matcher che riconosce solo `skip` sia
 una seconda scadenza. Il telefono non si tocca finche' l'appendimento non e' chiuso: uno strumento che
 puo' appendersi invece di fallire chiuso non si punta su un S23.
+
+**Condizione del telefono, verificata prima e non durante.** S23 `SM-S911U` raggiungibile, 100%,
+28,9 °C, sotto alimentazione. Ma compare **due volte** in `adb devices` — stesso telefono su due
+trasporti (`192.168.1.152:43089` e `adb-R3CW406P8CV-…_adb-tls-connect._tcp`), nessun USB. Quindi
+qualunque `adb` senza `-s` e' ambiguo. Il protocollo **fallisce chiuso** su questo caso
+(`device_pick_serial` torna 1 con piu' di una riga e `rp_main` muore con `need ANDROID_SERIAL`),
+che e' il comportamento giusto: il run va lanciato con `ANDROID_SERIAL` impostato esplicitamente
+sulla voce mDNS, che e' legata al seriale del dispositivo, non all'IP che cambia alla riconnessione.
