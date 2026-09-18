@@ -1841,6 +1841,31 @@ async function main() {
     typeof ereFromSnippet === "string",
     "the ERE must be extractable from the shipped awk snippet",
   );
+  // All three terminal alternatives are load-bearing: 032436 c1 settled on a
+  // real {"op":"done"} 84.6 s into its prefill, and restores arrive as
+  // {"op":"restore","ok":true}. A matcher narrowed to skip would keep every
+  // fixture below green while real done/restore lines turn false-negative —
+  // the exact class the awk shape exists to kill.
+  const matcherOn = (line) => new RegExp(ereFromSnippet).test(line);
+  assert(
+    matcherOn('I/ReactNativeJS(30901): \'KALSA_PREWARM\', \'{"op":"done","promptMs":109512.008,"promptN":1832,"hash":"3586270056"}\''),
+    "the matcher must settle on a real done line (032436 c1)",
+  );
+  assert(
+    matcherOn('I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"restore","ok":true,"tokens":1832,"hash":"h"}\''),
+    "the matcher must settle on a restore ok:true line",
+  );
+  assert(
+    matcherOn('I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\''),
+    "the matcher must settle on a skip line",
+  );
+  assert(
+    !matcherOn('I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"start","hash":"h"}\''),
+    "start must not settle the wait",
+  );
+  // restore counts EITHER way by design ("a restore has a verdict" — the
+  // function's own comment): {"op":"restore","ok":false} settles this wait
+  // deliberately; only start is a non-terminal line.
 
   const fixtureUnit =
     "I/ReactNativeJS(1): filler line after the match, 64 bytes aaaaaaaaaaaaaaaaaaaa\n";
@@ -1850,7 +1875,7 @@ async function main() {
   ).join("");
   const matchLine =
     'I/ReactNativeJS(30901): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'\n';
-  function writePipeFixture(name, padBytesAfterMatch) {
+  function writePipeFixture(name, padBytesAfterMatch, matchLineOverride) {
     // The shipped snippet reads "$OUT/logcat.txt", so each fixture mirrors
     // the real capture layout: <dir>/logcat.txt.
     const dir = path.join(outDir, `pipe-${name}`);
@@ -1859,7 +1884,7 @@ async function main() {
     writeFileSync(
       file,
       noiseLines +
-        matchLine +
+        (matchLineOverride ?? matchLine) +
         fixtureUnit.repeat(Math.ceil(padBytesAfterMatch / fixtureUnit.length)),
       "utf8",
     );
@@ -1913,6 +1938,17 @@ async function main() {
   assert(
     runShell("new", nearFile) === 0 && runShell("old", nearFile) === 0,
     "a match close to EOF settles under both shapes",
+  );
+  // The done alternative through the SHELL, not just the regex: 032436 c1's
+  // real done line, 1 MB from EOF, must settle the shipped shape.
+  const farDoneFile = writePipeFixture(
+    "far-done",
+    1024 * 1024,
+    'I/ReactNativeJS(30901): \'KALSA_PREWARM\', \'{"op":"done","promptMs":109512.008,"promptN":1832,"hash":"3586270056"}\'\n',
+  );
+  assert(
+    runShell("new", farDoneFile) === 0,
+    "the shipped settle shape must find a real done line 1 MB from EOF",
   );
   // ...and no match at all still fails: the corrected branch is not a tautology.
   const noneFile = path.join(outDir, "pipe-none.txt");
@@ -1976,18 +2012,22 @@ async function main() {
   function runWaitShell(opts) {
     const dir = path.join(outDir, `settle-${opts.name}`);
     mkdirSync(dir, { recursive: true });
-    // Marker only — no terminal op unless the append supplies one.
+    // Marker only — no terminal op unless the append supplies one. The
+    // marker can also start ABSENT and be appended mid-wait, which is how
+    // the shared-deadline pin makes the marker phase spend real budget.
     writeFileSync(
       path.join(dir, "logcat.txt"),
-      noiseLines + "I/KALSA_RP_MARK(1): fg_kick cycle=1\n",
+      noiseLines + (opts.markerInBase === false ? "" : "I/KALSA_RP_MARK(1): fg_kick cycle=1\n"),
       "utf8",
     );
     let appendFile = "";
-    if (opts.appendMatch) {
-      appendFile = path.join(dir, "op-line.txt");
+    if (opts.appendMatch || opts.appendMarker) {
+      appendFile = path.join(dir, opts.appendMarker ? "marker-line.txt" : "op-line.txt");
       writeFileSync(
         appendFile,
-        'I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'\n',
+        opts.appendMarker
+          ? "I/KALSA_RP_MARK(1): fg_kick cycle=1\n"
+          : 'I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'\n',
         "utf8",
       );
     }
@@ -2042,10 +2082,14 @@ async function main() {
     timeout.status === 1,
     `an expired settle wait must exit 1 — got ${timeout.status}`,
   );
+  // The pass-counter shape's FLOOR is two 3 s passes (~6000 ms), but a sleep
+  // that returns a few ms early can slide it just under any bound set at
+  // 6000 — measured 6022 ms. The bound sits at 5000: comfortably above the
+  // correct single pass (~3 s) and below any two-pass shape's floor.
   assert(
-    timeout.wallMs >= 2000 && timeout.wallMs < 6000,
+    timeout.wallMs >= 2000 && timeout.wallMs < 5000,
     `the budget must expire on wall clock, not after N passes — took ${timeout.wallMs} ms ` +
-      `(a two-pass counter needs >= 6000 ms at 3 s per pass)`,
+      `(a two-pass counter needs ~6000 ms at 3 s per pass)`,
   );
   assert(
     timeout.protocolLog.includes("did not settle within 2s"),
@@ -2064,15 +2108,55 @@ async function main() {
     settled.status === 0,
     `a settle after the op lands must exit 0 — got ${settled.status}`,
   );
-  // `date +%s` floors: a 2 s sleep that straddles a second boundary reads 3.
-  // The pass counter this pin exists to catch would print 1 — never 2 or 3.
-  assert(
-    /kick settled after (2|3)s\n/.test(settled.protocolLog) &&
-      !settled.protocolLog.includes("settled after 1s"),
-    `the settle line must report wall seconds (2-3 at this stub's cadence), ` +
-      `not the pass count (1) — log said: ${JSON.stringify(settled.protocolLog)}`,
+  // The printed value is floor(now) - floor(t0): a CORRECT implementation
+  // reads one second high whenever the sleep straddles a boundary (measured
+  // 2 of 24 runs on an idle host), so the assertion is a FLOOR — at least
+  // the 2 s the stub costs — never an equality. A pass counter would print
+  // 1, and 1 is the one value this pin refuses.
+  const settledSeconds = Number(
+    (settled.protocolLog.match(/kick settled after (\d+)s/) ?? [])[1],
   );
-  console.log("PASS settle wait is wall clock and its log persists (protocol.log)");
+  assert(
+    Number.isInteger(settledSeconds) && settledSeconds >= 2,
+    `the settle line must report at least the stub's wall seconds (2) — ` +
+      `log said: ${JSON.stringify(settled.protocolLog)}`,
+  );
+  assert(
+    settledSeconds !== 1,
+    "a pass count leaked into the settle line — the seconds suffix lied again",
+  );
+
+  // The deadline is SHARED between the marker phase and the settle phase:
+  // a marker that lands mid-wait must eat the marker phase's budget, so a
+  // second t0/deadline before the settle loop cannot quietly restart the
+  // clock. Fixture: no marker at first (appended after the first pass), no
+  // terminal op ever — expiry is due within one pass of the ORIGINAL 3 s
+  // budget (~4 s at this stub's cadence); a reset second deadline needs a
+  // third pass (>= 6 s).
+  const markerLate = runWaitShell({
+    name: "marker-late",
+    budget: 3,
+    sleepSecs: 2,
+    markerInBase: false,
+    appendMarker: true,
+  });
+  assert(
+    markerLate.status === 1,
+    `an expired wait exits 1 — got ${markerLate.status}`,
+  );
+  assert(
+    markerLate.wallMs >= 3000 && markerLate.wallMs < 5500,
+    `a late marker must consume the SHARED deadline — expiry is due within ` +
+      `one pass of the 3 s budget (~4 s at this stub's cadence); got ` +
+      `${markerLate.wallMs} ms (a reset second deadline needs a third pass, >= 6 s)`,
+  );
+  assert(
+    markerLate.protocolLog.includes("did not settle within 3s"),
+    "the shared-deadline expiry names the real budget",
+  );
+  console.log(
+    "PASS settle wait is wall clock (shared deadline, floor-timed) and its log persists",
+  );
 
 
   // ── The re-kick's mutes must speak ───────────────────────────────────────
