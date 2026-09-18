@@ -239,6 +239,40 @@ arriving from the other side. It stops being an improvement to the queue and bec
 substance of the first screen: anything built before it shows seats it is guessing at, which
 is worse than showing none.
 
+## 13. A measured decode overrides the prediction, and one of the two was not measured where the app lives
+
+`crates/kalsa-catalog/src/candidate.rs:121` gives a measured rate priority over every
+prediction when the backend matches:
+
+```rust
+    Some(measured) if measured.backend == input.backend => Prediction::Measured {
+```
+
+So on any Metal machine -- the development Mac included -- the figure in the row is not an
+estimate the reader can discount. It is stated as fact, and it carries the machine string
+with it, which is the whole point of `MeasuredDecode`: *"a rate is a fact about one machine,
+never a property of the model"* (`manifest.rs:64-68`).
+
+Two rows carry one today, and their conditions do not match:
+
+    Trinity   62.7  tok/s   ... context 4096, 2026-09-14
+    Gemma     20.44 tok/s   ... context 512,  2026-09-17
+
+Decode slows as the cache grows, and the chooser funds at least 4096 (`manifest.rs:722`).
+Trinity was measured where the app runs. Gemma's 512 is a best case the owner will never
+see, stated as a fact, in the same column, inviting a comparison neither number supports.
+
+There is also a chance the label is simply wrong: `31cc0d8`'s message measures compute
+buffers at **ubatch** 512 and contexts up to 16k, never at context 512. Whether the run was
+done at a context nobody uses, or done properly and described with the wrong word, cannot be
+settled by reading -- only by measuring again.
+
+Not urgent: the owner has said the catalog does not matter yet. It matters the moment a
+second machine reads these numbers, because that is the point at which a figure without its
+conditions becomes a promise the product cannot keep. `fa498bf` is the last time a number
+outlived its baseline here, and it had to be retired from three documents.
+
+
 ## Not missing, deliberately
 
 Retrieval and embeddings on the PC (measured: full context is cheaper than a
