@@ -6797,3 +6797,12 @@ la pipeline NDK e' riproducibile su tre run separate a distanza di ore. Gli inpu
 **Cosa manca ancora su main**: l'inferenza vera. Due e2e di fila cancellate da push concorrenti
 (`35351292439` sul commit dello switch, tagliata al passo 14; `35354417704` su `bc6bd22`);
 `35354742403` su `5fb1bfa` e' la terza.
+
+Le prove sono anche file, non solo prosa: `llama-rn-fork/main-bc6bd22.so.sha256` e
+`llama-rn-fork/cleanup-38b5cf0.so.sha256` (38 righe ciascuno, stessa forma dei baseline gia' in
+cartella), cosi' la frase si ri-verifica con un `diff`. Accanto ai file vecchi salta fuori il dato
+piu' pulito di tutta la migrazione: rispetto all'APK **pre-migrazione** (`baseline-3ce0992`, pin del
+motore `67c73d26cb4c…`, letto da `git show 3ce0992:native/kalsallama.pin`) differiscono **esattamente
+14 librerie, e sono tutte `librnllama*`**. Zero librerie non-motore cambiate. L'unica superficie
+nativa che si e' mossa in tutta la migrazione e' quella del motore, e si e' mossa perche' ne abbiamo
+spostato il pin di proposito (`67c73d26c` → `70b4302bb`).
