@@ -7168,3 +7168,12 @@ e' giusto.
 **La lezione, che vale oltre questo caso:** quando un cambiamento aggiunge una guardia, la domanda da
 fare non e' "passa?" ma "**cosa NON puo' vedere?**". Qui la risposta era: la sola forma sintattica
 (`delete`) che il file toccato usa davvero.
+
+**Cosa NON conta come segnale, deciso prima del run.** Registrare in anticipo anche i non-segnali,
+non solo i segnali: altrimenti a run fatto qualunque riga strana diventa negoziabile. Da kalsa-2d,
+18/09: `cannot share KV cells with an incompatible memory type` da `llama_init_from_model` e' un bug
+noto con fallback a plain, legato a **Qwen3.5-4B con draft MTP** (il fix `07e081f2b` e' stato
+ritirato: correggeva il sito iSWA, ma Qwen3.5 non ha SWA e passa dal sito denso). Il giro su LFM non
+usa draft, quindi quella riga li' non dovrebbe proprio comparire. **Precisazione mia, non loro:** e'
+riportato, non verificato da me, e vale solo per il caso descritto — se quella riga esce su un run
+**LFM**, non e' coperta da questa nota ed e' una condizione di stop come le altre.
