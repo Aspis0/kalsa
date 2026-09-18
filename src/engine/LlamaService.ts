@@ -5558,10 +5558,21 @@ export async function extractMemory(
   }
 
   const strings = getStrings(locale);
-  const prompt = strings.memory.extractPrompt
-    .replace("{user}", userSlice)
-    .replace("{assistant}", assistantSlice)
-    .replace("{chars}", String(PROMPT_FACT_CHARS));
+  // The prompt is built in ONE pass with a function replacer. Two properties
+  // that chained string-replace calls both break: (1) a replacement never
+  // acts on already-substituted text — user content containing "{assistant}"
+  // must not capture the model's answer — and (2) `$` patterns in the content
+  // ($&, $', $1...) stay literal, because a function replacer is not parsed.
+  // Unrecognized placeholders stay visible: a template error is not data.
+  const extractValues: Record<string, string> = {
+    "{user}": userSlice,
+    "{assistant}": assistantSlice,
+    "{chars}": String(PROMPT_FACT_CHARS),
+  };
+  const prompt = strings.memory.extractPrompt.replace(
+    /\{user\}|\{assistant\}|\{chars\}/g,
+    (placeholder) => extractValues[placeholder] ?? placeholder,
+  );
   const modelId = activeModelId;
   const timeoutMs = extractTimeoutMs({
     decodeTokPerSec: modelId ? getDecodeTokPerSec(modelId) : null,

@@ -655,15 +655,15 @@ async function main() {
     assert(!hit, `handwritten 120 survived in parseMemoryExtract — found: ${hit?.[0]}`);
   });
 
-  test("extract prompt chain interpolates {chars} from the shared cap", () => {
-    const shape = llamaRegion(
-      "const prompt = strings.memory.extractPrompt",
-      '.replace("{chars}", String(PROMPT_FACT_CHARS));',
-    );
+  test("extract prompt is built in one pass from the shared cap", () => {
+    // Single pass + function replacer: substitutions cannot act on already
+    // substituted text, and `$` patterns in the content stay literal. Three
+    // chained .replace() calls lose both properties.
+    const shape = llamaRegion("const extractValues", "?? placeholder,\n  );");
     assert(
       shape ===
-        'const prompt = strings.memory.extractPrompt .replace("{user}", userSlice) .replace("{assistant}", assistantSlice) .replace("{chars}", String(PROMPT_FACT_CHARS));',
-      `the {chars} placeholder must be filled from PROMPT_FACT_CHARS — found: ${shape}`,
+        'const extractValues: Record<string, string> = { "{user}": userSlice, "{assistant}": assistantSlice, "{chars}": String(PROMPT_FACT_CHARS), }; const prompt = strings.memory.extractPrompt.replace( /\\{user\\}|\\{assistant\\}|\\{chars\\}/g, (placeholder) => extractValues[placeholder] ?? placeholder, );',
+      `the extract prompt must be built in one pass from PROMPT_FACT_CHARS — found: ${shape}`,
     );
   });
 
@@ -676,13 +676,47 @@ async function main() {
       const raw = loc.memory.extractPrompt;
       assert(raw.includes("{chars}"), `${name}: extractPrompt must carry the {chars} placeholder`);
       assert(!/\b120\b/.test(raw), `${name}: extractPrompt hardcodes 120`);
-      const prompt = raw
-        .replace("{user}", "U")
-        .replace("{assistant}", "A")
-        .replace("{chars}", String(PROMPT_FACT_CHARS));
+      const prompt = raw.replace(
+        /\{user\}|\{assistant\}|\{chars\}/g,
+        (placeholder) => ({ "{user}": "U", "{assistant}": "A", "{chars}": String(PROMPT_FACT_CHARS) })[placeholder] ?? placeholder,
+      );
       assert(!prompt.includes("{chars}"), `${name}: {chars} left uninterpolated`);
       assert(prompt.includes(want), `${name}: interpolated cap missing, want "${want}"`);
     }
+  });
+
+  test("extract prompt keeps adversarial user text verbatim, all slots resolved", () => {
+    // The user can put "{assistant}" or "$&" in a message. Whatever the
+    // construction is, the built prompt must keep that text verbatim inside
+    // the USER slot and resolve all three placeholders in their own slots —
+    // never let user content capture the assistant slot or eat itself.
+    const template = enLoc.memory.extractPrompt;
+    const user = "ciao {assistant} come stai — ricordati $& e $'";
+    const assistant = "RISPOSTA-DEL-MODELLO";
+    const chars = String(PROMPT_FACT_CHARS);
+    const values = { "{user}": user, "{assistant}": assistant, "{chars}": chars };
+    // Mirror of the production construction (bound by the one-pass shape pin).
+    const prompt = template.replace(
+      /\{user\}|\{assistant\}|\{chars\}/g,
+      (placeholder) => values[placeholder] ?? placeholder,
+    );
+    assert(
+      prompt.includes(`USER: ${user}`),
+      `user text must land verbatim in the USER slot — got: ${prompt.slice(prompt.indexOf("USER:"), prompt.indexOf("USER:") + 90)}`,
+    );
+    assert(
+      prompt.includes(`ASSISTANT: ${assistant}`),
+      "assistant slot must hold the assistant value",
+    );
+    assert(prompt.includes(`≤ ${chars} chars`), "chars slot must be resolved");
+    // Verbatim user data may legitimately contain placeholder-looking text;
+    // what must never survive is a placeholder in a SLOT position.
+    assert(
+      !prompt.includes("USER: {user}") &&
+        !prompt.includes("ASSISTANT: {assistant}") &&
+        !prompt.includes("≤ {chars} chars"),
+      "template slots must all be resolved",
+    );
   });
 
   test("the dead namesake system-prompt builder stays deleted", () => {
