@@ -20,8 +20,8 @@ interface CrescentNavProps {
 /**
  * Navigation between the app's surfaces on an arc of circle, ported from
  * devboule-v2's Shell. Six points, six surfaces: no paging by design.
- * Pointer movement can only CLOSE it; opening is a deliberate gesture
- * (click / Enter / ArrowDown on the sliver).
+ * Hovering the sliver opens it; leaving the shell, or moving well below
+ * it, closes. The keyboard keeps a deliberate way in (Enter / ArrowDown).
  */
 export function CrescentNav({ activeSurface, open, onOpenChange, onSelect }: CrescentNavProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -66,6 +66,7 @@ export function CrescentNav({ activeSurface, open, onOpenChange, onSelect }: Cre
         aria-expanded={open}
         aria-controls="crescent-surface-nav"
         onClick={() => (open ? close() : openNav())}
+        onPointerEnter={() => !open && openNav()}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" && !open) {
             event.preventDefault();
@@ -118,15 +119,6 @@ export function CrescentNav({ activeSurface, open, onOpenChange, onSelect }: Cre
           );
         })}
       </div>
-
-      <svg
-        className={`crescent-hint${open ? " crescent-hint-hidden" : ""}`}
-        viewBox={`0 0 ${CRESCENT_SHELL_WIDTH} 40`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <path d="M 340 14 A 410 410 0 0 0 600 14" />
-      </svg>
     </div>
   );
 }
