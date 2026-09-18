@@ -4,8 +4,9 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis, ChoiceInput,
-    Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB,
+    capability_basis, choose, footprint_bytes, largest_that_runs_well, quicker_alternative,
+    usable_bytes, Backend, CapabilityBasis, ChoiceInput, Decision, Justification, Parameters,
+    PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB, QUICK_SPEED_ADVANTAGE,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -128,7 +129,7 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             );
             assert!(!selection.details.contains("Q4"), "{}", selection.details);
             assert!(
-                selection.details.contains("≈ 50.0"),
+                selection.details.contains("at least 50.0"),
                 "{}",
                 selection.details
             );
@@ -170,25 +171,25 @@ fn every_pick_carries_its_pinned_plan() {
 }
 
 #[test]
-fn sixteen_gigabytes_picks_a_downloadable_moe_whose_plan_matches_its_row() {
+fn sixteen_gigabytes_picks_a_downloadable_row_whose_plan_matches_its_row() {
     // The old winner here was a research-table row — a model the app could
-    // name but never fetch. The menu is now the download table, and the
-    // tier's winner is a MoE whose file, size and digest were verified
-    // against the pinned commit.
+    // name but never fetch — and the MoE it later picked is owner-rejected
+    // now. The tier's winner is the biggest downloadable row, and the pick
+    // carries the file, size and digest verified against the pinned commit.
     match choose(&input(16, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
             assert_eq!(
                 selection.justification,
-                Justification::ExpectedButUnmeasured
+                Justification::Capability(CapabilityBasis::Parameters)
             );
             let plan = &selection.download;
-            assert!(plan.url.ends_with("/Ling-mini-2.0.Q4_K_M.gguf"), "{}", plan.url);
-            assert!(plan.url.contains("/resolve/76f2da561c6519b8f70ceb868e6be78526c69b79/"));
-            assert_eq!(plan.bytes, 9_911_575_904);
+            assert!(plan.url.ends_with("/gemma-4-12B-it-Q4_K_M.gguf"), "{}", plan.url);
+            assert!(plan.url.contains("/resolve/2ae7d41be21ca62de00a2d320ee9cec50daa3aa6/"));
+            assert_eq!(plan.bytes, 7_662_533_088);
             assert_eq!(
                 plan.sha256,
-                "bbb4ef25c6aa7842a93fa999cc6638ba5a8330fb0bd46dc5d7bd85a0db80d74f"
+                "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509"
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -354,7 +355,7 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
     };
     match choose(&mac) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "Qwen/Qwen3-Next-80B-A3B-Instruct");
+            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
             assert!(matches!(selection.decode, Prediction::Floor(_)));
             assert!(
                 selection
@@ -568,7 +569,7 @@ fn a_phone_without_parameter_counts_is_never_offered_capability() {
     };
     match choose(&input_with_phone_model(16, model)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "inclusionAI/Ling-mini-2.0");
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
             assert_eq!(selection.justification, Justification::Relief);
         }
         other => panic!("expected a relief pick, got {other:?}"),
@@ -610,7 +611,10 @@ fn the_plain_reason_speaks_the_readers_language() {
         }
     }
     // And each justification's honest bit is in the plain words, not buried
-    // in the details.
+    // in the details. 8 GiB is relief; 16 GiB is now a dense Capability pick
+    // on the Parameters basis, whose honest bit is the admission that
+    // "bigger" was not measured as "better"; 32 and 64 are MoE picks that
+    // stay on the expected-but-unmeasured sentence.
     let reasons: Vec<(u64, String)> = [8, 16, 32, 64]
         .into_iter()
         .map(|ram| match choose(&input(ram, true)) {
@@ -628,17 +632,18 @@ fn the_plain_reason_speaks_the_readers_language() {
     };
     say(8, "about as good as what your phone");
     say(8, "keeps the heat and the battery drain off your phone");
-    say(16, "we have not checked it on this computer yet");
-    say(32, "we have not checked it on this computer yet");
-    say(64, "we have not checked it on this computer yet");
+    say(16, "We have not measured whether it is better");
+    say(32, "We have not checked it on this computer.");
+    say(64, "We have not checked it on this computer.");
 }
 
 #[test]
-fn sixteen_gigabytes_offers_the_biggest_downloadable_class_not_the_biggest_name() {
-    // Gemma is now downloadable and in the menu, but its bigger name does
-    // not make it win on size alone. The winner is the biggest fitting class
-    // under the chooser's other constraints: the verified Ling MoE.
-    assert_eq!(chosen(&input(16, true)), "inclusionAI/Ling-mini-2.0");
+fn sixteen_gigabytes_takes_the_biggest_downloadable_row_that_fits() {
+    // The MoEs this tier used to pick are owner-rejected (`stale`), so the
+    // biggest fitting downloadable row is now the dense Gemma 12B. What the
+    // tier must never do is hand the tier back to a research-only row —
+    // pinned by the research test below.
+    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
     assert!(kalsa_catalog::usable()
         .any(|entry| entry.entry().repo == "google/gemma-4-12B-it"));
 }
@@ -663,9 +668,23 @@ fn thirty_two_gigabytes_takes_the_twenty_gigabyte_moe_and_its_pinned_plan() {
             assert!(selection.download.url.contains(
                 "unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6cbd595906af30beda3187c2663a1118c/"
             ));
+            // The floor is the corrected model's pessimistic end on this
+            // machine, and the arithmetic is worth spelling out: 3/35 of
+            // 22_134_528_992 bytes is 1_897_245_342 of active bytes; x2.06
+            // (the measured MoE correction) is 3_908_325_404; plus the
+            // 8192-token cache at the 96 KiB assumption is 4_713_631_772
+            // bytes of traffic. At this test's 85 GB/s CPU-path measurement
+            // the floor takes the 0.7 sustained share of it:
+            // 1/(0.001504 + 4_713_631_772/59_500_000_000) = 12.39 tok/s.
+            // The old `> 20` threshold scored 21.3 — by a hair — only
+            // because active-bytes-only traffic under-counted, which is
+            // exactly what the owner's measurements falsified: this row
+            // decoded at ~45 tok/s on a 197 GB/s machine, so at 85 GB/s the
+            // calibrated point is 17.6 and the floor is 12.4. Still more
+            // than three times the usability line.
             assert!(
-                selection.decode.floor() > 20.0,
-                "3B active on 85 GB/s should be well above 20 tok/s, got {}",
+                selection.decode.floor() > 10.0,
+                "the tier must offer a usable pick, got {}",
                 selection.decode.floor()
             );
         }
@@ -674,14 +693,14 @@ fn thirty_two_gigabytes_takes_the_twenty_gigabyte_moe_and_its_pinned_plan() {
 }
 
 #[test]
-fn sixty_four_gigabytes_takes_the_eighty_billion_moe_and_its_pinned_plan() {
-    // The 80B MoE fits the 48 GiB budget with 1.7 GiB to spare, is the
-    // biggest fitting row, and no other row is in its class: a 64 GiB
-    // machine finally uses its memory. The plan is the file at the pinned
-    // commit of the vendor's own GGUF repo, with the digest the download
-    // is held to.
+fn sixty_four_gigabytes_takes_the_biggest_downloadable_moe_and_its_pinned_plan() {
+    // The 80B MoE this tier used to take is owner-rejected (`stale`), so the
+    // biggest fitting downloadable row is the 20.6 GiB Qwen3.6-35B-A3B MoE,
+    // and nothing bigger fits the 48 GiB budget. The plan is the file at the
+    // pinned commit of the vendor's own GGUF repo, with the digest the
+    // download is held to.
     let input = input(64, true);
-    assert_eq!(chosen(&input), "Qwen/Qwen3-Next-80B-A3B-Instruct");
+    assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
             assert_eq!(
@@ -692,13 +711,13 @@ fn sixty_four_gigabytes_takes_the_eighty_billion_moe_and_its_pinned_plan() {
                 selection.footprint.total_bytes() <= selection.budget.usable_bytes,
                 "the pick fits the 48 GiB budget entirely"
             );
-            assert!(selection.download.bytes == 48_410_988_384);
+            assert!(selection.download.bytes == 22_134_528_992);
             assert!(selection.download.url.contains(
-                "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF/resolve/4c8630cf7af926a9c5095cb4bbbbc65d36e20f77/"
+                "unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6cbd595906af30beda3187c2663a1118c/"
             ));
             assert_eq!(
                 selection.download.sha256,
-                "d103b2733ec1012a52d01edda66b7e5c24ae50508c9f99f5297ea459ef3c061a"
+                "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61"
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -728,9 +747,33 @@ fn a_machine_too_small_says_so_without_inventing_a_candidate() {
 
 #[test]
 fn without_the_phone_there_is_no_decision_to_make() {
+    // `choose` answers "is this computer an upgrade?" — with no phone that
+    // has no answer, and refusing is correct. What this must no longer
+    // imply is that nothing can run: the next test pins the phone-free
+    // question on the same machine.
     let (reason, explanation) = refusal(&input(32, false));
     assert_eq!(reason, RefusalReason::PhoneUnknown);
     assert!(explanation.contains("Pair the phone"), "{explanation}");
+}
+
+#[test]
+fn without_the_phone_the_largest_runnable_row_still_answers() {
+    // The product's ruling: the phone decides whether the computer is an
+    // upgrade; it never gates what the computer can run. The same machine
+    // the test above refused, asked the phone-free question, gets the
+    // largest row that fits and clears the speed floor — with the pinned
+    // file a start needs.
+    let no_phone = input(32, false);
+    let row = largest_that_runs_well(&no_phone).expect("a 32 GiB machine runs something");
+    let budget = usable_bytes(32 * GIB);
+    assert!(
+        row.footprint.total_bytes() <= budget,
+        "the pick fits the budget it was sized against"
+    );
+    assert!(
+        row.download.bytes > 0 && !row.download.url.is_empty() && row.download.sha256.len() == 64,
+        "the pinned file — address, size, digest — travels with the pick"
+    );
 }
 
 #[test]
@@ -747,13 +790,38 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
         "the refused row does fit, which is what makes this test meaningful"
     );
     assert!(
-        instella.weights_bytes > 9 * GIB,
-        "and it is bigger than the chosen row"
+        instella.weights_bytes > 8 * GIB,
+        "and it is bigger than the chosen row (Gemma, 7.1 GiB)"
     );
-    assert_eq!(chosen(&input(16, true)), "inclusionAI/Ling-mini-2.0");
+    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
     assert!(kalsa_catalog::excluded().any(|(entry, reason)| {
         entry.repo == instella.repo && reason.contains("research only")
     }));
+}
+
+#[test]
+fn a_row_whose_cache_is_still_assumed_admits_it() {
+    // The 96 KiB constant is a guess, and the working must say so wherever it
+    // is still doing the arithmetic. Qwen3.6's was read from its file, so the
+    // row that carries the admission is a smaller one.
+    match choose(&input(16, true)) {
+        Decision::Pick(selection) => {
+            let row = kalsa_catalog::usable()
+                .find(|usable| usable.entry().repo == selection.repo)
+                .expect("the pick is on the menu");
+            assert!(
+                row.entry().kv_bytes_per_token.is_none(),
+                "{} no longer assumes its cache; point this test at one that does",
+                selection.repo
+            );
+            assert!(
+                selection.details.contains("has not been measured yet"),
+                "the assumed cache size must be admitted: {}",
+                selection.details
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
 }
 
 #[test]
@@ -770,18 +838,23 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
                 "phone number missing: {why}"
             );
             assert!(why.contains("mixture of experts"), "{why}");
+            // This row's per-token cache was read from its own GGUF header
+            // (manifest.rs), so there is no assumption left to admit — and
+            // admitting one that is not being made would be its own lie. The
+            // admission is asserted where it is still true, below.
             assert!(
-                why.contains("not been measured"),
-                "the assumed cache size must be admitted: {why}"
+                !why.contains("has not been measured yet"),
+                "a measured cache must not claim to be assumed: {why}"
             );
-            // Prefill is an estimate and prints as one: the probe omits
-            // attention and routing, so it is not a floor at long context.
-            assert!(why.contains("≈ "), "{why}");
-            assert!(!why.contains("≥ "), "prefill is not a floor: {why}");
+            // Prefill is a floor — the compute probe is a portable loop, and
+            // on the one machine that checked it sat 13x below reality — so
+            // it prints as an at-least, never as an expectation.
+            assert!(why.contains("at least"), "{why}");
+            assert!(!why.contains("≈ "), "prefill is not an estimate: {why}");
             assert_eq!(
                 selection.plain_reason,
                 "This should be better than what your \
-phone runs; we have not checked it on this computer yet, and we will."
+phone runs. We have not checked it on this computer."
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -801,4 +874,112 @@ fn a_machine_the_probe_could_not_measure_is_not_guessed_at() {
     let mut half_measured = input(32, true);
     half_measured.compute_flops_per_second = 0.0;
     assert_eq!(refusal(&half_measured).0, RefusalReason::MachineNotMeasured);
+}
+
+// ── the second option ──────────────────────────────────────────────────────
+// What the home page offers beside its pick: the fastest row worth having,
+// out of the machine's own numbers, so the pair moves when the machine does.
+
+#[test]
+fn the_second_option_is_clearly_faster_and_smaller_than_the_first() {
+    let machine = input(64, false);
+    let first = largest_that_runs_well(&machine).expect("a 64 GiB machine runs something");
+    assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
+    let quick =
+        quicker_alternative(&machine, &first.decode).expect("something beats a 35B MoE on speed");
+    assert!(
+        quick.entry.weights_bytes < first.entry.weights_bytes,
+        "the quick option is the smaller of the two"
+    );
+    assert!(
+        quick.decode.floor() >= first.decode.floor() * QUICK_SPEED_ADVANTAGE,
+        "{} at {:.1} is not clearly faster than {} at {:.1}",
+        quick.entry.repo,
+        quick.decode.floor(),
+        first.entry.repo,
+        first.decode.floor(),
+    );
+}
+
+#[test]
+fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
+    // "Fast" alone would hand the owner the tiniest thing on the menu. The
+    // rule is the most model that still clears the speed bar, so no row
+    // bigger than the pick may also clear it.
+    let machine = input(64, false);
+    let first = largest_that_runs_well(&machine).expect("a pick");
+    let quick = quicker_alternative(&machine, &first.decode).expect("a second option");
+    let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
+    for usable in kalsa_catalog::usable() {
+        let row = usable.entry();
+        if row.weights_bytes > quick.entry.weights_bytes {
+            assert!(
+                kalsa_catalog::decode_prediction(usable, &machine).floor() < wanted,
+                "{} is bigger than the quick pick and also fast enough",
+                row.repo
+            );
+        }
+    }
+}
+
+#[test]
+fn a_machine_with_one_honest_answer_is_not_given_two() {
+    // 8 GiB: everything that fits is in one speed class, so a second option
+    // would be the same model wearing a different name. None is the answer.
+    let machine = input(8, false);
+    let first = largest_that_runs_well(&machine).expect("an 8 GiB machine runs something");
+    if let Some(quick) = quicker_alternative(&machine, &first.decode) {
+        panic!(
+            "offered {} beside {} on a machine with one speed class",
+            quick.entry.repo, first.entry.repo
+        );
+    }
+}
+
+#[test]
+fn an_unmeasured_machine_is_offered_no_second_option_either() {
+    // The refusal that gates the first pick gates this one too: a machine
+    // with no numbers cannot be told which of two models is faster on it.
+    let machine = ChoiceInput {
+        bandwidth_bytes_per_second: 0.0,
+        ..input(64, false)
+    };
+    assert!(quicker_alternative(&machine, &Prediction::Range { low: 1.0, high: 2.0 }).is_none());
+}
+
+#[test]
+fn a_mixture_that_fits_beats_the_dense_row_it_displaces() {
+    // The two axes, on one machine: total weights decide what fits, active
+    // weights decide the speed. Where both fit, a mixture is the bigger model
+    // AND the faster one, and the chooser must land on it. Gemma 4 26B-A4B
+    // against the dense Gemma 4 12B it replaces above 20 GiB is that case
+    // exactly — twice the total parameters, and a token reads less.
+    let machine = ChoiceInput {
+        backend: Backend::Metal,
+        ram_bytes: 24 * GIB,
+        bandwidth_bytes_per_second: 183.0e9,
+        bandwidth_is_lower_bound: false,
+        compute_flops_per_second: 135.0e9,
+        context_tokens: 8192,
+        phone: None,
+    };
+    let chosen = largest_that_runs_well(&machine).expect("a 24 GiB Mac runs something");
+    assert_eq!(chosen.entry.repo, "google/gemma-4-26B-A4B-it");
+
+    let dense = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "google/gemma-4-12B-it")
+        .expect("the dense row it displaces is on the menu");
+    let dense_speed = kalsa_catalog::decode_prediction(dense, &machine);
+    assert!(
+        chosen.entry.parameters.total().count() > dense.entry().parameters.total().count(),
+        "the mixture is meant to be the bigger model"
+    );
+    // Its pessimistic end, against the dense row's figure: even the bottom of
+    // the band wins, so the comparison does not rest on the optimistic one.
+    assert!(
+        chosen.decode.floor() > dense_speed.ceiling(),
+        "the mixture is not faster: {:.1} against {:.1}",
+        chosen.decode.floor(),
+        dense_speed.ceiling()
+    );
 }

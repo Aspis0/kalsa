@@ -32,8 +32,10 @@
 //!   looked at and can never be offered; a tier where nothing downloadable
 //!   fits is refused honestly instead of being handed a name nobody can
 //!   fetch (`manifest`, `choice`);
-//! * **measuring replaces all of it** — the bake-off in `scripts/quality/`,
-//!   run on the user's own machine on the actual pair. Below ~10B total a MoE
+//! * **measuring replaces all of it** — a bake-off run on the user's own
+//!   machine on the actual pair. No such script exists in this repo yet, so
+//!   every rule here is a proxy standing in for it, and says so where it is
+//!   written down. Below ~10B total a MoE
 //!   can be worse than a same-total dense model (Jelassi et al., ICLR 2025),
 //!   so no cross-shape inference is drawn there; no citable rule converts a
 //!   MoE to a dense size, and none is invented here.
@@ -53,12 +55,12 @@ pub mod licence;
 pub mod manifest;
 pub mod parameters;
 
-pub use candidate::Prediction;
+pub use candidate::{decode_prediction, Prediction};
 pub use choice::DownloadPlan;
 pub use choice::{
-    capability_basis, choose, CapabilityBasis, ChoiceInput, Decision, Justification, PhoneModel,
-    Refusal, RefusalReason, Selection, IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS,
-    SAME_CLASS_BAND,
+    capability_basis, choose, largest_that_runs_well, quicker_alternative, CapabilityBasis,
+    ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
+    IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };
 pub use footprint::{
     fits, footprint_bytes, memory_budget, usable_bytes, Footprint, MemoryBudget, GIB,

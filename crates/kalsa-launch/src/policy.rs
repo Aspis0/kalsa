@@ -64,6 +64,15 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     Some(LaunchPlan { args, memory })
 }
 
+/// The context this budget funds for this row — the same arithmetic `plan`
+/// sizes the server with, roof carved out first — or `None` when it cannot
+/// fund even one token. The narrow question a caller asks before any plan
+/// exists (a preview has no downloaded file to point at and no port), answered
+/// from the one copy of the arithmetic rather than a recomputation beside it.
+pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
+    context_and_prompt_cache_roof(model, usable_bytes).map(|(tokens, _roof)| tokens)
+}
+
 /// THE BUDGET ARITHMETIC, AMENDED — this function now splits what is left
 /// after the fixed footprint into the live context and the prompt cache
 /// that keeps yesterday's chat warm. Before the amendment the context spent
@@ -112,7 +121,18 @@ fn context_and_prompt_cache_roof(model: &ModelEntry, usable_bytes: u64) -> Optio
         .saturating_add(COMPUTE_BUFFER_BYTES);
     let leftover = usable_bytes.checked_sub(fixed)?;
     let prompt_cache_roof = prompt_cache_roof_bytes(leftover);
-    let tokens = (leftover - prompt_cache_roof) / per_token;
+    let funded = (leftover - prompt_cache_roof) / per_token;
+    // The memory is not the only limit, and it is not the binding one on a
+    // large machine: a model attends over the positions it was trained for,
+    // and past them it answers worse, not better. A 48 GiB budget funds
+    // 547,503 tokens for a row whose header says 262,144 (measured
+    // 2026-09-18), so the smaller of the two is the answer. A row with no
+    // header read — the research rows — keeps the memory figure, because a
+    // guessed limit is worse than none.
+    let tokens = match model.trained_context_tokens {
+        Some(trained) => funded.min(trained),
+        None => funded,
+    };
     (tokens > 0).then_some((tokens, prompt_cache_roof))
 }
 
@@ -209,6 +229,8 @@ mod tests {
             kv_bytes_per_token: Some(0),
             kv_assumption_undercounts: false,
             measured_decode: None,
+            // The fixture's limit is the memory's, so the trained cap never binds.
+            trained_context_tokens: None,
             dense_equivalent: None,
             stale: None,
         }
@@ -529,5 +551,41 @@ mod tests {
         assert!(line.contains("--sleep-idle-seconds 300"), "{line}");
         assert!(line.contains("--no-webui"), "{line}");
         assert!(!line.contains("0.0.0.0"), "{line}");
+    }
+
+    /// A machine with memory to spare, so only the trained cap can bind.
+    const ROOMY_BYTES: u64 = 64 * GIB;
+
+    #[test]
+    fn the_context_stops_where_the_model_was_trained() {
+        let mut model = *shipped_row(GRANITE);
+        model.trained_context_tokens = Some(8_192);
+        assert_eq!(
+            funded_context(&model, ROOMY_BYTES),
+            Some(8_192),
+            "the memory funded a window past what the model was trained for"
+        );
+    }
+
+    #[test]
+    fn a_small_machine_is_still_limited_by_its_memory() {
+        // The cap is a ceiling, not a floor: where the memory funds less than
+        // the model was trained for, the memory still decides.
+        let mut model = *shipped_row(GRANITE);
+        model.trained_context_tokens = Some(1_000_000);
+        let funded = funded_context(&model, ROOMY_BYTES).expect("a window");
+        assert!(
+            funded < 1_000_000,
+            "the trained figure became a promise the memory cannot keep: {funded}"
+        );
+    }
+
+    #[test]
+    fn a_row_with_no_header_read_keeps_the_memory_figure() {
+        let mut model = *shipped_row(GRANITE);
+        model.trained_context_tokens = None;
+        let uncapped = funded_context(&model, ROOMY_BYTES).expect("a window");
+        model.trained_context_tokens = Some(u64::MAX);
+        assert_eq!(uncapped, funded_context(&model, ROOMY_BYTES).expect("a window"));
     }
 }

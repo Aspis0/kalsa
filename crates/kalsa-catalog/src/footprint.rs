@@ -161,6 +161,8 @@ mod tests {
             kv_assumption_undercounts: false,
             dense_equivalent: None,
             measured_decode: None,
+            // The fixture's limit is the memory's, so the trained cap never binds.
+            trained_context_tokens: None,
             stale: None,
         }
     }

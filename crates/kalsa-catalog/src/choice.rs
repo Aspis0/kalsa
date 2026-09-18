@@ -17,7 +17,7 @@ use kalsa_probe::Backend;
 use crate::candidate::{candidate, Candidate, Prediction};
 use crate::footprint::{memory_budget, Footprint, MemoryBudget};
 use crate::licence::Licence;
-use crate::manifest::{self, DenseEquivalent};
+use crate::manifest::{self, DenseEquivalent, ModelEntry};
 use crate::parameters::Parameters;
 use crate::rationale::{details, gib_text, plain_reason, render};
 
@@ -66,8 +66,8 @@ pub struct ChoiceInput {
 }
 
 /// The PC must beat the phone, not match it. The bar is a proxy, and says so:
-/// what would replace it is the bake-off in `scripts/quality/`, measured on
-/// the user's machine, which the plan names as the arbiter. A constant that
+/// what would replace it is a bake-off on the user's own machine, which the
+/// plan names as the arbiter and which nothing in this repo builds yet. A constant that
 /// pretends to be a measurement is worse than one that admits it is a
 /// placeholder — the byte version of this bar pretended, and it conflated
 /// quantisation with size and size with shape. It now applies to parameters
@@ -110,9 +110,9 @@ pub const SAME_CLASS_BAND: f64 = 0.85;
 /// model from the same lab — carried on the row as [`DenseEquivalent`] and
 /// compared against the phone's dense size. Anything else is not capability.
 ///
-/// What replaces even this: the bake-off in `scripts/quality/`, run on the
-/// user's own machine on the actual pair. Measuring is required, and no
-/// citable rule settles it.
+/// What replaces even this: a bake-off run on the user's own machine on the
+/// actual pair. It is unwritten, so this rule is what there is. Measuring is
+/// required, and no citable rule settles it.
 pub fn capability_basis(
     candidate: Parameters,
     dense_equivalent: Option<DenseEquivalent>,
@@ -208,9 +208,9 @@ pub enum Justification {
     /// cleared, above the size regime where the literature warns the
     /// comparison reverses — but nothing citable settles a MoE against a
     /// dense model of the same total, so this is expected, never claimed.
-    /// The bake-off in `scripts/quality/`, run on the user's machine on the
-    /// actual pair, is what confirms it; measuring is required and no citable
-    /// rule settles it.
+    /// A bake-off on the user's machine on the actual pair is what would
+    /// confirm it, and nothing here runs one; measuring is required and no
+    /// citable rule settles it.
     ExpectedButUnmeasured,
 }
 
@@ -311,79 +311,19 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         });
     };
 
-    if !measured(input.bandwidth_bytes_per_second) || !measured(input.compute_flops_per_second) {
-        return Decision::Refuse(Refusal {
-            reason: RefusalReason::MachineNotMeasured,
-            explanation: "This computer has not been measured yet: run the probe first, \
-                          otherwise any speed we quote would be a guess."
-                .to_string(),
-        });
-    }
-
-    // A card whose memory could not be read: a model that will decode on it
-    // must fit it entirely, and the size is unknown. The RAM budget would
-    // offer a twenty-gigabyte model into a six-gigabyte card, so the machine
-    // is refused rather than guessed at — reading the card, or pinning the
-    // run to the CPU, unblocks it.
-    if matches!(input.backend, Backend::DiscreteGpu { vram_bytes: None }) {
-        return Decision::Refuse(Refusal {
-            reason: RefusalReason::MachineNotMeasured,
-            explanation: "This computer has a graphics card whose memory could not be \
-                          read, and a model that will decode on it must fit it entirely. \
-                          We will not guess the size: read the card's memory, or run the \
-                          model on the CPU only, and ask again."
-                .to_string(),
-        });
-    }
-
-    let budget = memory_budget(input.backend, input.ram_bytes);
-    let candidates: Vec<Candidate> = manifest::usable()
-        .map(|entry| candidate(entry, input))
-        .collect();
-
-    // A candidate fits the chosen budget entirely or it is not a candidate for
-    // this path. Measured upstream: 18.49 tok/s fully on the GPU, 12.19 on the
-    // CPU, 5.68 split across both — the split is 2.15× slower than not using
-    // the GPU at all, so "nearly fits, offload most of it" is a loss dressed
-    // up as a win, and the fallback is the largest model that fits, never a
-    // spill.
-    let fitting: Vec<&Candidate> = candidates
-        .iter()
-        .filter(|candidate| candidate.footprint.total_bytes() <= budget.usable_bytes)
-        .collect();
-    if fitting.is_empty() {
-        return Decision::Refuse(nothing_fits(budget, &candidates));
-    }
-
-    // No justification is worth asking for a crawl — but only a range may
-    // say "crawl": a floor below reading speed is unknown, not slow, and on
-    // the faster path the model will run on it may not be slow at all. So a
-    // range below the line never reaches the walk, and a floor always does,
-    // with its offer saying the real figure will be measured.
-    let mut remaining: Vec<&Candidate> = fitting
-        .iter()
-        .copied()
-        .filter(|candidate| !provably_too_slow(&candidate.decode))
-        .collect();
-    if remaining.is_empty() {
-        // Every model that fits is too slow. fitting is not empty — the
-        // nothing-fits refusal above has already returned — so the span
-        // exists; the None arm keeps the match total by giving the same
-        // answer that refusal would give.
-        let span = span_of(fitting.iter().map(|candidate| &candidate.decode));
-        return match span {
-            Some(span) => Decision::Refuse(Refusal {
-                reason: RefusalReason::NothingFastEnough,
-                explanation: format!(
-                    "This computer is not worth using: the models that fit would decode \
-                     at about {} tokens per second, which is slower than reading.",
-                    render(&span)
-                ),
-            }),
-            None => Decision::Refuse(nothing_fits(budget, &candidates)),
-        };
-    }
-
+    let Runnable {
+        budget,
+        too_slow,
+        remaining,
+    } = match runnable_on(input) {
+        Ok(answer) => answer,
+        Err(refusal) => return Decision::Refuse(refusal),
+    };
+    // The walk prunes as it goes, so it borrows its own copy of the
+    // survivors; `remaining` stays whole for the nothing-admitted analysis
+    // below, where every fitting row still counts.
+    let mut walk: Vec<&Candidate> = remaining.iter().collect();
+    let battery_powered = phone.battery_powered == Some(true);
     // The existing preference, walked until a candidate admits an honest
     // justification: the biggest that fits, then — among models of the same
     // class — the one the numbers say decodes fastest. The biggest may admit
@@ -391,14 +331,13 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     // expected strength, and a device that does not run on battery admits no
     // relief), and when it cannot, the walk falls through to what remains
     // rather than mislabelling the offer or hiding it.
-    let battery_powered = phone.battery_powered == Some(true);
-    while !remaining.is_empty() {
-        let leader = *remaining
+    while !walk.is_empty() {
+        let leader = *walk
             .iter()
             .max_by_key(|candidate| candidate.entry.weights_bytes)
             .expect("remaining is not empty");
         let band_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
-        let chosen = *remaining
+        let chosen = *walk
             .iter()
             .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
             .max_by(|a, b| {
@@ -420,16 +359,19 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         {
             Justification::Relief
         } else {
-            remaining.retain(|candidate| !std::ptr::eq(*candidate, chosen));
+            walk.retain(|candidate| !std::ptr::eq(*candidate, chosen));
             continue;
         };
         return Decision::Pick(selection(chosen, input, &phone, budget, justification));
     }
 
     // Nothing that fits admitted a justification. Say which axis failed.
-    let comparable: Vec<&Candidate> = fitting
+    // "What fits" is the too-slow rows and the survivors together: a row the
+    // speed floor removed still counts when the question is whether anything
+    // comparable even fits.
+    let comparable: Vec<&Candidate> = too_slow
         .iter()
-        .copied()
+        .chain(remaining.iter())
         .filter(|candidate| {
             candidate.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
         })
@@ -489,6 +431,196 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     Decision::Refuse(Refusal {
         reason,
         explanation,
+    })
+}
+
+/// What the phone-free question answers with: the largest row this machine
+/// runs well, with what a page needs in order to show it. Deliberately
+/// smaller than a `Selection`: a selection carries a justification, and with
+/// no phone there is nothing to justify against — no comparison was made, so
+/// none may be implied.
+pub struct RunnableRow {
+    /// The row itself: repo, display name, quant, weights — and the
+    /// per-token cache figure the context arithmetic runs on.
+    pub entry: &'static ModelEntry,
+    /// What the row occupies on this machine.
+    pub footprint: Footprint,
+    /// Decode throughput as a band, never a point — the same prediction
+    /// `choose` would carry for the row.
+    pub decode: Prediction,
+    /// The budget this was sized against.
+    pub budget: MemoryBudget,
+    /// The row's pinned file — address, size, digest — exactly as a
+    /// `Selection` carries one. The usable-entry gate already guarantees
+    /// the row has one; a phone-free pick must be startable, not merely
+    /// displayable.
+    pub download: DownloadPlan,
+}
+
+/// The largest catalog row this machine can actually run: it fits the budget
+/// and even its pessimistic speed clears the usability floor. No phone is
+/// involved, because "what can this computer run" does not need one — the
+/// phone decides whether the computer is an *upgrade*, which is [`choose`].
+/// `Err` exactly when `choose` would refuse without ever reaching the
+/// comparison: the machine was not measured, nothing fits, or everything
+/// that fits is provably too slow — the refusal's own words travel, because
+/// the caller that cannot start still owes the owner a reason.
+pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusal> {
+    let answer = runnable_on(input)?;
+    let chosen = answer
+        .remaining
+        .iter()
+        .max_by_key(|candidate| candidate.entry.weights_bytes)
+        .expect("runnable_on answers remaining only when it is not empty");
+    Ok(row(chosen, answer.budget))
+}
+
+/// How much faster the quick option must decode before it is worth offering
+/// at all. Below this the two rows feel the same on the machine that will run
+/// them, and the page would be asking the owner to choose between a model and
+/// itself.
+pub const QUICK_SPEED_ADVANTAGE: f64 = 2.0;
+
+/// The second option: the most model this machine runs at least
+/// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being offered.
+/// `None` when nothing does — one honest option beats two that feel the same.
+///
+/// It takes the speed of the row on the page rather than recomputing which
+/// row that is, because the page reaches its first pick by two different
+/// roads (the phone comparison, or the biggest that runs well) and "faster"
+/// has to mean faster than whatever the owner is actually looking at.
+///
+/// `than` is compared at its **pessimistic** end, the only end that is a
+/// promise: measuring against ceilings would let an optimistic guess about a
+/// small row outrank a floor under a big one.
+pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<RunnableRow> {
+    let answer = runnable_on(input).ok()?;
+    let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
+    let quick = answer
+        .remaining
+        .iter()
+        .filter(|candidate| candidate.decode.floor() >= wanted)
+        // The most model that still clears the bar, never merely the
+        // smallest: a toy is not an option.
+        .max_by_key(|candidate| candidate.entry.weights_bytes)?;
+    Some(row(quick, answer.budget))
+}
+
+/// A candidate as a page needs it. The usable-entry gate already guarantees
+/// the pinned file, so the plan is built here rather than being optional.
+fn row(candidate: &Candidate<'static>, budget: MemoryBudget) -> RunnableRow {
+    RunnableRow {
+        entry: candidate.entry,
+        footprint: candidate.footprint,
+        decode: candidate.decode,
+        budget,
+        download: DownloadPlan {
+            url: candidate.source.url(),
+            bytes: candidate.source.bytes,
+            sha256: candidate.source.sha256,
+        },
+    }
+}
+
+/// The machine's verdict before any phone is asked anything. The two filters
+/// the product's rules are made of — fits entirely, not provably too slow —
+/// are applied here, once, so the phone question and the phone-free one
+/// cannot grow different rules about what runs.
+struct Runnable {
+    budget: MemoryBudget,
+    /// Rows that fit the budget but are provably too slow: never offerable,
+    /// yet they count when the answer is "nothing fits" or "too slow to
+    /// use", and they are what the span in those refusals spans.
+    too_slow: Vec<Candidate<'static>>,
+    /// Rows that fit and are not provably too slow: everything either
+    /// question can actually offer.
+    remaining: Vec<Candidate<'static>>,
+}
+
+/// The machine's half of any answer, phone or no phone. The `Err` arms are
+/// exactly the refusals that need no phone to state.
+fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
+    if !measured(input.bandwidth_bytes_per_second) || !measured(input.compute_flops_per_second) {
+        return Err(Refusal {
+            reason: RefusalReason::MachineNotMeasured,
+            explanation: "This computer has not been measured yet: run the probe first, \
+                          otherwise any speed we quote would be a guess."
+                .to_string(),
+        });
+    }
+
+    // A card whose memory could not be read: a model that will decode on it
+    // must fit it entirely, and the size is unknown. The RAM budget would
+    // offer a twenty-gigabyte model into a six-gigabyte card, so the machine
+    // is refused rather than guessed at — reading the card, or pinning the
+    // run to the CPU, unblocks it.
+    if matches!(input.backend, Backend::DiscreteGpu { vram_bytes: None }) {
+        return Err(Refusal {
+            reason: RefusalReason::MachineNotMeasured,
+            explanation: "This computer has a graphics card whose memory could not be \
+                          read, and a model that will decode on it must fit it entirely. \
+                          We will not guess the size: read the card's memory, or run the \
+                          model on the CPU only, and ask again."
+                .to_string(),
+        });
+    }
+
+    let budget = memory_budget(input.backend, input.ram_bytes);
+    let candidates: Vec<Candidate> = manifest::usable()
+        .map(|entry| candidate(entry, input))
+        .collect();
+
+    // A candidate fits the chosen budget entirely or it is not a candidate for
+    // this path. Measured upstream: 18.49 tok/s fully on the GPU, 12.19 on the
+    // CPU, 5.68 split across both — the split is 2.15× slower than not using
+    // the GPU at all, so "nearly fits, offload most of it" is a loss dressed
+    // up as a win, and the fallback is the largest model that fits, never a
+    // spill.
+    let fits = |candidate: &Candidate| candidate.footprint.total_bytes() <= budget.usable_bytes;
+    if candidates.iter().all(|candidate| !fits(candidate)) {
+        return Err(nothing_fits(budget, &candidates));
+    }
+
+    // No justification is worth asking for a crawl — but only a range may
+    // say "crawl": a floor below reading speed is unknown, not slow, and on
+    // the faster path the model will run on it may not be slow at all. So a
+    // range below the line never reaches either answer, and a floor always
+    // does, with its offer saying the real figure will be measured.
+    let mut too_slow = Vec::new();
+    let mut remaining = Vec::new();
+    for candidate in candidates {
+        if !fits(&candidate) {
+            continue;
+        }
+        if provably_too_slow(&candidate.decode) {
+            too_slow.push(candidate);
+            continue;
+        }
+        remaining.push(candidate);
+    }
+    if remaining.is_empty() {
+        // Every model that fits is too slow. The fitting set is not empty —
+        // the nothing-fits refusal above has already returned — so the span
+        // exists; the None arm keeps the match total by giving the same
+        // answer that refusal would give, and the smallest fitting row is
+        // the smallest row overall whenever anything fits.
+        let span = span_of(too_slow.iter().map(|candidate| &candidate.decode));
+        return match span {
+            Some(span) => Err(Refusal {
+                reason: RefusalReason::NothingFastEnough,
+                explanation: format!(
+                    "This computer is not worth using: the models that fit would decode \
+                     at about {} tokens per second, which is slower than reading.",
+                    render(&span)
+                ),
+            }),
+            None => Err(nothing_fits(budget, &too_slow)),
+        };
+    }
+    Ok(Runnable {
+        budget,
+        too_slow,
+        remaining,
     })
 }
 
@@ -657,6 +789,50 @@ mod tests {
             low: 3.1,
             high: 4.0
         }));
+    }
+
+    #[test]
+    fn a_machine_without_a_phone_still_gets_its_largest_runnable_row() {
+        // "What can this computer run?" is answerable with no phone at all;
+        // only "is it an upgrade?" has to wait for one, and the same input
+        // through `choose` still says exactly that.
+        let no_phone = ChoiceInput {
+            backend: Backend::Cpu,
+            ram_bytes: 16 * crate::footprint::GIB,
+            bandwidth_bytes_per_second: 80.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            // The chooser prices the cache at one token; this question uses
+            // the same input, so the same rows are candidates.
+            context_tokens: 1,
+            phone: None,
+        };
+        let row = largest_that_runs_well(&no_phone).expect("something runs on 16 GiB");
+        assert!(row.budget.usable_bytes > 0);
+        assert!(
+            row.footprint.total_bytes() <= row.budget.usable_bytes,
+            "the answer fits the budget it was sized against"
+        );
+        assert!(matches!(
+            choose(&no_phone),
+            Decision::Refuse(Refusal {
+                reason: RefusalReason::PhoneUnknown,
+                ..
+            })
+        ));
+        let paired = ChoiceInput {
+            phone: Some(PhoneModel {
+                weights_bytes: 2_200_000_000,
+                parameters: Some(Parameters::dense(4_000_000_000)),
+                measured_tokens_per_second: None,
+                battery_powered: Some(true),
+            }),
+            ..no_phone
+        };
+        assert!(
+            matches!(choose(&paired), Decision::Pick(_)),
+            "the phone question still walks the same filters and answers"
+        );
     }
 
     #[test]

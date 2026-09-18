@@ -15,13 +15,28 @@ use crate::footprint::{MemoryBudget, GIB};
 /// everything technical lives in [`details`].
 pub(crate) fn plain_reason(justification: Justification) -> String {
     match justification {
-        Justification::Capability(_) => {
+        Justification::Capability(CapabilityBasis::PublishedDenseEquivalent { .. }) => {
+            // The publisher's own comparison travels with the row, source
+            // and all: a confident sentence is earned here.
             "This is a clear step up from what your phone runs: a bigger, stronger model."
                 .to_string()
         }
+        // This basis is a parameter ratio over what the phone itself
+        // reported: bigger is known, better was never measured, and the
+        // sentence says exactly that. No promise to measure — nothing in
+        // the app runs the bake-off that could keep one.
+        Justification::Capability(CapabilityBasis::Parameters) => {
+            "This is a bigger model than your phone runs. We have not measured whether \
+             it is better."
+                .to_string()
+        }
+        // Same restraint as the arm above, for the same reason: "and we will"
+        // stood here promising the bake-off, and no script in this repo runs
+        // one. A sentence may say what is not known; it may not commit the
+        // product to work nothing schedules.
         Justification::ExpectedButUnmeasured => {
-            "This should be better than what your phone runs; we have not checked it on \
-             this computer yet, and we will."
+            "This should be better than what your phone runs. We have not checked it on \
+             this computer."
                 .to_string()
         }
         Justification::Relief => {
@@ -67,14 +82,34 @@ pub(crate) fn details(
             tokens_per_second,
             machine
         ),
-        _ => format!(
-            "{} ({} of weights): about {} tokens per second, and {} for prompt \
-             processing.",
-            chosen.entry.display_name,
-            gib_text(chosen.entry.weights_bytes),
-            render(&chosen.decode),
-            render(&chosen.prefill)
-        ),
+        _ => {
+            // Prefill is always the compute floor: it reaches the screen as
+            // an "at least", never as the ≈ of an estimate.
+            let prefill = match chosen.prefill {
+                Prediction::Estimate(value) => format!("at least {value:.1}"),
+                ref other => render(other),
+            };
+            // The caller may be pricing the cache at a single token so that
+            // no context anyone chose excludes a row. That figure is the
+            // best case with an empty conversation, and it has to say so:
+            // the page's own headline is priced at a real exchange and is
+            // lower, and two speeds for one model that do not say which is
+            // which read as one of them being wrong.
+            let cache = if input.context_tokens <= 1 {
+                " with an empty conversation"
+            } else {
+                ""
+            };
+            format!(
+                "{} ({} of weights): about {} tokens per second{}, and {} for prompt \
+                 processing.",
+                chosen.entry.display_name,
+                gib_text(chosen.entry.weights_bytes),
+                render(&chosen.decode),
+                cache,
+                prefill
+            )
+        }
     }];
 
     if chosen.entry.parameters.is_mixture() {
@@ -171,8 +206,9 @@ pub(crate) fn details(
     if chosen.footprint.kv_is_assumed(chosen.entry) {
         parts.push(format!(
             "Memory is an estimate: the cache per token for this model has not been measured \
-             yet, so {} per token was assumed for a {} context.",
+             yet, so {} per token was assumed, and a {}-token context costs {}.",
             size_text(chosen.footprint.kv_bytes / input.context_tokens.max(1)),
+            input.context_tokens,
             size_text(chosen.footprint.kv_bytes)
         ));
     }
@@ -269,5 +305,39 @@ mod tests {
             }),
             "0.0–0.0"
         );
+    }
+
+    #[test]
+    fn the_two_capability_bases_do_not_share_a_sentence() {
+        // One basis is the publisher's own comparison; the other is a
+        // parameter ratio. Two backings behind one word like "clear" is how
+        // a placeholder starts reading as a measurement.
+        let published = plain_reason(Justification::Capability(
+            CapabilityBasis::PublishedDenseEquivalent {
+                parameters: 3_800_000_000,
+                note: "near Phi-3 mini",
+                source: "model card",
+            },
+        ));
+        let counted = plain_reason(Justification::Capability(CapabilityBasis::Parameters));
+        assert_ne!(published, counted, "one sentence, two backings");
+        assert_ne!(
+            counted,
+            plain_reason(Justification::ExpectedButUnmeasured),
+            "a different state must not wear the same words either"
+        );
+        // What is known on the counted basis is bigger — the phone reported
+        // its parameters — and that word must be there. The not-known part
+        // must be admitted in words, not implied away. The banned list is
+        // claim words only: "measured" now reads the honest way, in "we
+        // have not measured", and banning the token would ban the admission.
+        assert!(counted.contains("bigger"), "{counted}");
+        assert!(counted.contains("not measured"), "{counted}");
+        for overclaim in ["clear", "stronger"] {
+            assert!(
+                !counted.to_ascii_lowercase().contains(overclaim),
+                "the counted basis claims `{overclaim}`: {counted}"
+            );
+        }
     }
 }

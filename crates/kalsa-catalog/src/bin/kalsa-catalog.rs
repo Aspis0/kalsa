@@ -12,8 +12,8 @@
 //! nothing is claimed as capability.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision,
-    Parameters, PhoneModel, GIB,
+    capability_basis, choose, footprint_bytes, largest_that_runs_well, memory_budget, Backend,
+    ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB,
 };
 
 fn main() {
@@ -65,11 +65,11 @@ fn main() {
 
     println!();
     println!(
-        "{:<42} {:>10} {:>7} {:>8} {:>10}",
+        "{:<42} {:>10} {:>7} {:>8} {:>22}",
         "row", "weights", "fits", "capable", "decode"
     );
-    for entry in kalsa_catalog::usable() {
-        let entry = entry.entry();
+    for usable in kalsa_catalog::usable() {
+        let entry = usable.entry();
         let footprint = footprint_bytes(entry, input.context_tokens);
         let fits = footprint.total_bytes() <= budget.usable_bytes;
         let capable = input
@@ -79,43 +79,73 @@ fn main() {
                 capability_basis(entry.parameters, entry.dense_equivalent, phone.parameters)
             })
             .is_some();
-        // Speed comes from the ACTIVE weights; the footprint from the total.
-        let active_bytes = entry.weights_bytes as f64 * entry.parameters.active().count() as f64
-            / entry.parameters.total().count().max(1) as f64;
-        let decode = 0.7 * input.bandwidth_bytes_per_second / active_bytes.max(1.0);
+        let repo = entry.repo;
+        let weights = gibs(entry.weights_bytes);
+        // The library's own prediction for this row — the chooser's
+        // construction, cache and all, not a recomputation beside it.
+        let decode = kalsa_catalog::decode_prediction(usable, &input);
         println!(
-            "{:<42} {:>10} {:>7} {:>8} {:>10}",
-            entry.repo,
-            gibs(entry.weights_bytes),
+            "{:<42} {:>10} {:>7} {:>8} {:>22}",
+            repo,
+            weights,
             yes_no(fits),
             yes_no(capable),
-            format!("{decode:.1} tok/s")
+            decode_text(&decode)
         );
     }
 
     println!();
-    match choose(&input) {
-        Decision::Pick(selection) => {
-            println!("chosen: {} ({})", selection.display_name, selection.repo);
-            println!(
-                "        {} of weights, {} in memory at {} context",
-                gibs(selection.weights_bytes),
-                gibs(selection.footprint.total_bytes()),
-                selection.context_tokens
-            );
-            println!(
-                "        offered for {:?}, licence {}",
-                selection.justification,
-                selection.licence.id()
-            );
-            let plan = &selection.download;
-            println!("fetch:   {}", plan.url);
-            println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
-            println!("why:    {}", selection.plain_reason);
-            println!("detail: {}", selection.details);
+    // Two routes, mirroring the app: a paired phone gets the upgrade
+    // comparison (`choose`); no phone gets the phone-free question
+    // (`largest_that_runs_well`) — the phone decides whether this computer
+    // is an upgrade, never whether it can run. The route is named so the
+    // reader knows which question was answered.
+    if input.phone.is_none() {
+        println!("route:  phone-free (the largest row this machine runs well)");
+        match largest_that_runs_well(&input) {
+            Ok(row) => {
+                println!("starts: {} ({})", row.entry.display_name, row.entry.repo);
+                println!(
+                    "        {} of weights, {} in memory at the {}-token pricing context",
+                    gibs(row.entry.weights_bytes),
+                    gibs(row.footprint.total_bytes()),
+                    input.context_tokens
+                );
+                println!("fetch:   {}", row.download.url);
+                println!(
+                    "         {} bytes, sha256 {}",
+                    row.download.bytes, row.download.sha256
+                );
+            }
+            Err(refusal) => {
+                println!("refused ({:?}): {}", refusal.reason, refusal.explanation);
+            }
         }
-        Decision::Refuse(refusal) => {
-            println!("refused ({:?}): {}", refusal.reason, refusal.explanation);
+    } else {
+        println!("route:  paired (the upgrade comparison against the phone)");
+        match choose(&input) {
+            Decision::Pick(selection) => {
+                println!("chosen: {} ({})", selection.display_name, selection.repo);
+                println!(
+                    "        {} of weights, {} in memory at the {}-token pricing context",
+                    gibs(selection.weights_bytes),
+                    gibs(selection.footprint.total_bytes()),
+                    selection.context_tokens
+                );
+                println!(
+                    "        offered for {:?}, licence {}",
+                    selection.justification,
+                    selection.licence.id()
+                );
+                let plan = &selection.download;
+                println!("fetch:   {}", plan.url);
+                println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
+                println!("why:    {}", selection.plain_reason);
+                println!("detail: {}", selection.details);
+            }
+            Decision::Refuse(refusal) => {
+                println!("refused ({:?}): {}", refusal.reason, refusal.explanation);
+            }
         }
     }
 }
@@ -144,6 +174,10 @@ fn configured() -> Result<ChoiceInput, String> {
                     vram_bytes: Some(number(&mut args, &flag, 1.0)? as u64 * GIB),
                 };
             }
+            // Apple Silicon: unified memory, decodes through Metal. The
+            // bandwidth was measured on the CPU path beneath it, so pair
+            // this with --lower-bound to model the machine honestly.
+            "--metal" => input.backend = Backend::Metal,
             "--gpu-unread" => {
                 input.backend = Backend::DiscreteGpu { vram_bytes: None };
             }
@@ -184,12 +218,12 @@ fn configured() -> Result<ChoiceInput, String> {
             "--wall-powered" => set_battery(&mut input, Some(false)),
             "--no-phone" => input.phone = None,
             other => {
-                return Err(format!(
-                    "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] \
+            return Err(format!(
+                "unknown flag {other}\nusage: kalsa-catalog [--ram GiB] [--vram GiB] [--metal] \
                      [--gpu-unread] [--bandwidth GB/s] [--gflops GFLOP/s] [--ctx tokens] \
                      [--phone-gb GiB] [--phone-params billions] [--phone-tok-s N] \
                      [--lower-bound] [--battery-powered] [--wall-powered] [--no-phone]"
-                ))
+            ))
             }
         }
     }
@@ -222,6 +256,23 @@ fn yes_no(value: bool) -> &'static str {
         "yes"
     } else {
         "no"
+    }
+}
+
+/// The prediction's own shape, rendered: a range with both ends, a floor
+/// always marked as a floor, a measurement naming its machine. Decode never
+/// produces `Estimate` — that is prefill's shape — and it renders as the
+/// at-least it is.
+fn decode_text(prediction: &Prediction) -> String {
+    match *prediction {
+        Prediction::Range { low, high } => format!("{low:.1}–{high:.1} tok/s"),
+        Prediction::Floor(value) | Prediction::Estimate(value) => {
+            format!("≥ {value:.1} tok/s (floor)")
+        }
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!("{tokens_per_second:.1} tok/s on {machine}"),
     }
 }
 

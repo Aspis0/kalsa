@@ -157,6 +157,15 @@ pub struct ModelEntry {
     /// a prediction. None on every row not yet measured: those keep the
     /// probe-side prediction, and none of them pretends otherwise.
     pub measured_decode: Option<MeasuredDecode>,
+    /// The longest context the publisher trained this model for, read from
+    /// its own GGUF header (`<arch>.context_length`). The budget arithmetic is
+    /// memory-only and will happily fund a window several times this — 547,503
+    /// tokens for a row trained at 262,144, measured 2026-09-18 — and a model
+    /// asked to attend past what it was trained on does not answer better for
+    /// the memory, it answers worse. `None` on a research row: with no file
+    /// there is no header to read, and guessing a limit is how a wrong one
+    /// gets shipped.
+    pub trained_context_tokens: Option<u64>,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
 }
@@ -256,7 +265,10 @@ pub const CATALOG: &[ModelEntry] = &[
         display_name: "Google Gemma 4 E2B",
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(5_100_000_000, 2_300_000_000),
+        // Dense, despite Google reporting 2.3B "effective" against 5.1B
+        // physical: the effective count is Gemma's per-layer embeddings, not
+        // a router. See the E4B row in the download table.
+        parameters: Parameters::dense(5_100_000_000),
         quant: "Q4_K_M",
         weights_bytes: gigabytes(3, 22),
         mmproj_bytes: None,
@@ -264,23 +276,11 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: None,
     },
-    ModelEntry {
-        repo: "google/gemma-4-E4B-it",
-        display_name: "Google Gemma 4 E4B",
-        last_modified: "2026-07-20",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(8_000_000_000, 4_500_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(5, 3),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        stale: None,
-    },
+    // Google Gemma 4 E4B moved to DOWNLOADABLE (2026-09-18): its pinned file
+    // was identified and verified. See the download table.
     ModelEntry {
         repo: "Qwen/Qwen3.5-4B",
         display_name: "Alibaba Qwen 3.5",
@@ -294,6 +294,7 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: None,
     },
     ModelEntry {
@@ -309,26 +310,14 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: None,
     },
     // Google Gemma 4 12B moved to DOWNLOADABLE (2026-09-17): its pinned file
     // was identified, verified against the response headers, downloaded and
     // hashed. See the download table.
-    ModelEntry {
-        repo: "google/gemma-4-26B-A4B-it",
-        display_name: "Google Gemma 4 26B",
-        last_modified: "2026-07-20",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(25_200_000_000, 3_800_000_000),
-        quant: "Q4_0",
-        weights_bytes: gigabytes(13, 61),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        stale: None,
-    },
+    // Google Gemma 4 26B moved to DOWNLOADABLE (2026-09-18): its pinned file
+    // was identified and verified. See the download table.
     // Qwen3.6-35B-A3B moved to DOWNLOADABLE (2026-09-16): its pinned file
     // was identified and verified. See the download table.
     ModelEntry {
@@ -344,6 +333,7 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: None,
     },
     // Apertus-v1.5-70B moved to DOWNLOADABLE (2026-09-16): its pinned file
@@ -353,7 +343,7 @@ pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
         display_name: "AMD Instella",
-        last_modified: "2026-08-01",
+        last_modified: "2026-09-02",
         licence: Licence::Blocked {
             id: "researchrail",
             reason: "research only: a paid fine-tune of this base would not be licit",
@@ -366,12 +356,13 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: None,
     },
     ModelEntry {
         repo: "openai/gpt-oss-20b",
         display_name: "OpenAI GPT-OSS",
-        last_modified: "2025-08-05",
+        last_modified: "2025-08-26",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(21_000_000_000, 3_600_000_000),
         quant: "Q4_K_M",
@@ -381,12 +372,13 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
     ModelEntry {
         repo: "Qwen/Qwen3-30B-A3B",
         display_name: "Alibaba Qwen 3",
-        last_modified: "2025-04-28",
+        last_modified: "2025-07-26",
         licence: Licence::Open("apache-2.0"),
         parameters: Parameters::mixture(30_500_000_000, 3_300_000_000),
         quant: "Q4_K_M",
@@ -396,6 +388,7 @@ pub const CATALOG: &[ModelEntry] = &[
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
+        trained_context_tokens: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
 ];
@@ -445,6 +438,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
+            trained_context_tokens: Some(128_000),
             stale: None,
         },
         source: GgufSource {
@@ -477,6 +471,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             }),
             kv_assumption_undercounts: false,
             measured_decode: None,
+            trained_context_tokens: Some(4_096),
             stale: None,
         },
         source: GgufSource {
@@ -509,6 +504,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             }),
             kv_assumption_undercounts: false,
             measured_decode: None,
+            trained_context_tokens: Some(1_048_576),
             stale: None,
         },
         source: GgufSource {
@@ -546,6 +542,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
                 measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
                               on GPU, context 4096), 2026-09-14",
             }),
+            trained_context_tokens: Some(131_072),
             stale: None,
         },
         source: GgufSource {
@@ -579,7 +576,12 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
-            stale: None,
+            trained_context_tokens: Some(32_768),
+            stale: Some(
+                "thin for its tier: at ~9.9 GB on disk it competes with Google Gemma 4 12B, \
+                       which is smaller, and with Qwen3.6-35B-A3B one tier up. Kept for \
+                       the record, off the menu since 2026-09-18.",
+            ),
         },
         source: GgufSource {
             repo: "mradermacher/Ling-mini-2.0-GGUF",
@@ -603,7 +605,11 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
-            stale: None,
+            trained_context_tokens: Some(4_096),
+            stale: Some(
+                "thin for its tier: ~10.5 GB on disk buys less than Google Gemma 4 12B at \
+                       7.7 GB. Kept for the record, off the menu since 2026-09-18.",
+            ),
         },
         source: GgufSource {
             repo: "mmnga/Moonlight-16B-A3B-Instruct-gguf",
@@ -611,6 +617,105 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "Moonlight-16B-A3B-Instruct-Q4_K_M.gguf",
             bytes: 10_537_205_632,
             sha256: "42f6e4d55765811b5710dcb1b30e79b8315735f956363da4965e0471d5b7e2b7",
+        },
+    },
+    // ── Google Gemma 4 26B-A4B, verified 2026-09-18 ────────────────────────
+    // Google's own quantisation-aware training build, not a post-training
+    // quantisation of it: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, apache-2.0
+    // and `gated: false` from the repo's API record. `general.architecture`
+    // read from the pinned file's own header is `gemma4`, found in
+    // llama-arch.cpp at b10950 — quoting that file, `{ LLM_ARCH_GEMMA4,
+    // "gemma4" }` line 59. `curl -sIL` on the resolve URL returned
+    // x-linked-size 14439363584 and x-linked-etag 3eca3b8f…eca51d, the two
+    // numbers below.
+    //
+    // THE ROW THIS TABLE WAS MISSING. Against Gemma 4 12B, which it replaces
+    // above 24 GiB: twice the total parameters, and a token reads 4.54 GB
+    // against the dense row's 7.66, so it is the bigger model AND the faster
+    // one. That is the whole point of the two axes — total weights decide
+    // what fits, active weights decide the speed — and the table could not
+    // show it until this file was pinned.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "google/gemma-4-26B-A4B-it",
+            display_name: "Google Gemma 4 26B",
+            last_modified: "2026-07-20T16:42:12.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::mixture(25_200_000_000, 3_800_000_000),
+            quant: "Q4_0",
+            weights_bytes: 14_439_363_584,
+            // The vision projector ships beside it (1.11 GiB) and is not
+            // fetched: nothing here sends the model an image.
+            mmproj_bytes: None,
+            // Hybrid attention, so no single per-token figure is honest —
+            // the same shape as Gemma 4 12B. From this file's own header:
+            // `block_count 30`, `sliding_window_pattern` five windowed layers
+            // then one full, repeated, `head_count_kv [8,…,2,…]`,
+            // `key/value_length 512` full and 256 windowed, `sliding_window
+            // 1024`. So the cache is 5 x 2 x (512+512) = 10 KiB per token that
+            // grows, plus 25 x 8 x 512 x 1024 = 100 MiB that never does. The
+            // shared 96 KiB constant therefore over-counts the growing term by
+            // about ten times. It does NOT cover the fixed 100 MiB: 96 KiB x n
+            // passes 100 MiB + 10 KiB x n only at n = 1191, and the chooser
+            // prices at a single token, so below that the assumption is short.
+            // The flag stays false because the shortfall is capped at that
+            // 100 MiB while the budget's margin is never below 3 GiB
+            // (`footprint::MARGIN_FLOOR_BYTES`), thirty times the gap. Said
+            // out loud: "it over-counts, so it is safe" was true of the
+            // growing half and silent about the other one.
+            kv_bytes_per_token: None,
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(262_144),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+            commit: "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+            file: "gemma-4-26B_q4_0-it.gguf",
+            bytes: 14_439_363_584,
+            sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+        },
+    },
+    // ── Google Gemma 4 E4B, verified 2026-09-18 ────────────────────────────
+    // In this order: `general.architecture` was read from the pinned file's
+    // own GGUF header by range-requesting its first kilobytes — `gemma4` —
+    // and found in llama-arch.cpp at b10950, quoting that file:
+    // `{ LLM_ARCH_GEMMA4, "gemma4" }` line 59. `curl -sIL` on the resolve URL
+    // then returned x-linked-size 4977171584 and x-linked-etag
+    // 85a896a0…1fab87, which are the two numbers below. Licence apache-2.0
+    // and `gated: false` from both repos' own API records.
+    //
+    // Dense, not a mixture, even though Google reports 4.5B "effective"
+    // against 8B physical: the effective count is Gemma's per-layer
+    // embeddings, not a router, so neither the MoE traffic correction nor the
+    // "only N of M parameters are read per token" sentence may be applied to
+    // it. Modelling it dense charges every byte once, which is the safe
+    // direction and the one no unpublished routing claim is needed for.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "google/gemma-4-E4B-it",
+            display_name: "Google Gemma 4 E4B",
+            last_modified: "2026-07-20T16:42:03.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::dense(8_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes: 4_977_171_584,
+            mmproj_bytes: None,
+            kv_bytes_per_token: None,
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(131_072),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "unsloth/gemma-4-E4B-it-GGUF",
+            commit: "bfc15c382204943c3a8fff0c750b94ae2364d7a3",
+            file: "gemma-4-E4B-it-Q4_K_M.gguf",
+            bytes: 4_977_171_584,
+            sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
         },
     },
     // ── verified on 2026-09-16, filling the upper tiers ─────────────────────
@@ -629,10 +734,20 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             quant: "Q4_K_M",
             weights_bytes: 22_134_528_992,
             mmproj_bytes: None,
-            kv_bytes_per_token: None,
+            // Measured 2026-09-18 from THIS pinned file's GGUF header, by
+            // range-requesting its first 64 KiB: `qwen35moe.block_count 40`,
+            // `attention.head_count_kv 2`, `attention.key_length 256`,
+            // `attention.value_length 256` — 40 x 2 x (256 + 256) = 40,960
+            // elements per token, one byte each at the q8_0 cache the
+            // launcher pins. The shared 96 KiB constant over-counts this row
+            // by 2.4x, which at a long context is most of its predicted
+            // traffic: the owner measures 25-30 tok/s at 150k context where
+            // the constant predicts 10.4.
+            kv_bytes_per_token: Some(40_960),
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
+            trained_context_tokens: Some(262_144),
             stale: None,
         },
         source: GgufSource {
@@ -657,7 +772,12 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
-            stale: None,
+            trained_context_tokens: Some(262_144),
+            stale: Some(
+                "2025 base. Qwen3.6-35B-A3B, in this same table, is less than half the \
+                       bytes for the same 3B active and is the better model on this \
+                       project's own comparison, so the 48 GB buys nothing.",
+            ),
         },
         source: GgufSource {
             repo: "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
@@ -671,7 +791,13 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
         model: ModelEntry {
             repo: "swiss-ai/Apertus-v1.5-70B",
             display_name: "Swiss AI Apertus 1.5",
-            last_modified: "2026-07-24T08:50:27.000Z",
+            last_modified: "2026-09-17T21:37:50.000Z",
+            // The API reports `apache-2.0` and `gated: "auto"`; the card
+            // itself answers 401 without a token, so the `+AUP` here could
+            // not be re-checked on 2026-09-18 and is kept as the researcher
+            // recorded it. The base repo being gated costs nothing — the
+            // pinned GGUF comes from an ungated mirror — but a future row
+            // that fetched from the base would stall on it.
             licence: Licence::Open("apache-2.0+AUP"),
             parameters: Parameters::dense(70_000_000_000),
             quant: "Q4_K_M",
@@ -688,7 +814,13 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             dense_equivalent: None,
             kv_assumption_undercounts: true,
             measured_decode: None,
-            stale: None,
+            trained_context_tokens: Some(262_144),
+            stale: Some(
+                "dense 70B: every token reads all 43.7 GB, which even on the fastest \
+                       machine that could hold it is about 3 to 4 tokens a second — not a \
+                       usable speed. The MoE rows reach the same memory for a tenth of \
+                       the traffic.",
+            ),
         },
         source: GgufSource {
             repo: "katya228/Apertus-v1.5-70B-text-GGUF",
@@ -709,7 +841,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
         model: ModelEntry {
             repo: "google/gemma-4-12B-it",
             display_name: "Google Gemma 4 12B",
-            last_modified: "2026-07-27T06:14:10.000Z",
+            last_modified: "2026-07-20T16:42:08.000Z",
             licence: Licence::Open("apache-2.0"),
             parameters: Parameters::dense(11_950_000_000),
             quant: "Q4_K_M",
@@ -718,9 +850,15 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // Measured 2026-09-17 on the machine this catalog is developed
             // on: the cache is iswa and NOT flat per token — 34+255 MiB at
             // context 4096, 136+255 MiB at 16384 (q8_0) — so no single
-            // per-token figure is honest; see the doc above. At the
-            // contexts the chooser funds (>= 4096) the 96 KiB assumption
-            // over-counts, which is the safe direction.
+            // per-token figure is honest; see the doc above. 255 MiB of
+            // that is fixed and the rest grows, so 96 KiB per token
+            // over-counts the growing half from the first token and covers
+            // the fixed half only past a context of about 2985. The chooser
+            // prices at ONE token, so there the assumption is short — by at
+            // most 255 MiB, against a margin never below 3 GiB
+            // (`footprint::MARGIN_FLOOR_BYTES`). That is why the flag is
+            // false. "At the contexts the chooser funds (>= 4096)" was the
+            // wrong reason: the chooser funds none of them.
             kv_bytes_per_token: None,
             dense_equivalent: None,
             kv_assumption_undercounts: false,
@@ -730,6 +868,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
                 measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
                               on GPU, context 512), 2026-09-17",
             }),
+            trained_context_tokens: Some(131_072),
             stale: None,
         },
         source: GgufSource {

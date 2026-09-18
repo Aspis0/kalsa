@@ -45,12 +45,18 @@ fn the_apertus_row_is_offerable_only_through_its_measured_cache() {
         .find(|row| row.model.repo.starts_with("swiss-ai/"))
         .expect("apertus is in the download table");
     assert_eq!(apertus.model.kv_bytes_per_token, Some(163_840));
-    assert!(apertus.model.is_usable());
     assert!(
         apertus.model.kv_assumption_undercounts,
         "the record stays: the shared constant under-counts this row"
     );
-    let mut unmeasured = apertus.model;
+    // The row is now off the menu for its speed as well (see its `stale`
+    // reason), so usability alone no longer isolates the cache gate. What
+    // this test holds is the gate itself: with the measurement it opens,
+    // without it it shuts.
+    let mut measured = apertus.model;
+    measured.stale = None;
+    assert!(measured.is_usable());
+    let mut unmeasured = measured;
     unmeasured.kv_bytes_per_token = None;
     assert!(
         !unmeasured.is_usable(),
@@ -114,13 +120,29 @@ fn every_measured_decode_names_its_machine_and_date() {
 #[test]
 fn refused_rows_keep_their_reason() {
     let refused: Vec<_> = excluded().collect();
-    assert_eq!(refused.len(), 3, "three rows were evaluated and refused");
+    assert_eq!(refused.len(), 7, "seven rows were evaluated and refused");
     assert!(refused.iter().any(|(entry, reason)| {
         entry.repo.starts_with("amd/") && reason.contains("research only")
     }));
     assert!(refused
         .iter()
         .any(|(entry, reason)| entry.repo.contains("gpt-oss") && reason.contains("2025")));
+    // The four taken off the menu on 2026-09-18 keep their file and their
+    // numbers; what they lose is the chooser. Each says why in its own
+    // terms, because "superseded" without a reason is not a reason.
+    for (repo, word) in [
+        ("inclusionAI/Ling-mini-2.0", "thin for its tier"),
+        ("moonshotai/Moonlight-16B-A3B-Instruct", "thin for its tier"),
+        ("Qwen/Qwen3-Next-80B-A3B-Instruct", "2025 base"),
+        ("swiss-ai/Apertus-v1.5-70B", "3 to 4 tokens a second"),
+    ] {
+        assert!(
+            refused
+                .iter()
+                .any(|(entry, reason)| entry.repo == repo && reason.contains(word)),
+            "{repo} is not refused with its reason"
+        );
+    }
 }
 
 #[test]
@@ -154,6 +176,8 @@ fn every_row_has_a_name_a_person_can_say() {
             ("arcee-ai/Trinity-Nano-Preview", "Arcee Trinity Nano"),
             ("inclusionAI/Ling-mini-2.0", "InclusionAI Ling Mini 2.0"),
             ("moonshotai/Moonlight-16B-A3B-Instruct", "Moonshot Moonlight 16B"),
+            ("google/gemma-4-26B-A4B-it", "Google Gemma 4 26B"),
+            ("google/gemma-4-E4B-it", "Google Gemma 4 E4B"),
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
             ("Qwen/Qwen3-Next-80B-A3B-Instruct", "Alibaba Qwen 3 Next 80B"),
             ("swiss-ai/Apertus-v1.5-70B", "Swiss AI Apertus 1.5"),
@@ -196,6 +220,8 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "arcee-ai/Trinity-Nano-Preview-GGUF",
             "mradermacher/Ling-mini-2.0-GGUF",
             "mmnga/Moonlight-16B-A3B-Instruct-gguf",
+            "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+            "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
             "katya228/Apertus-v1.5-70B-text-GGUF",
@@ -286,6 +312,8 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
             ("inclusionAI/Ling-mini-2.0", 9_911_575_904),
             ("moonshotai/Moonlight-16B-A3B-Instruct", 10_537_205_632),
+            ("google/gemma-4-26B-A4B-it", 14_439_363_584),
+            ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("Qwen/Qwen3-Next-80B-A3B-Instruct", 48_410_988_384),
             ("swiss-ai/Apertus-v1.5-70B", 43_721_600_512),
@@ -366,4 +394,27 @@ fn the_mixture_rows_are_the_ones_with_a_gap() {
     assert!(mixtures.contains(&"moonshotai/Moonlight-16B-A3B-Instruct"));
     assert!(!mixtures.contains(&"google/gemma-4-12B-it"));
     assert!(!mixtures.contains(&"swiss-ai/Apertus-v1.5-70B"));
+}
+
+#[test]
+fn every_download_row_carries_the_context_its_header_declares() {
+    // A row whose file was fetched has a header, and the header says what the
+    // publisher trained it for. Without that figure the budget funds a window
+    // out of memory alone — 547,503 tokens for a model trained at 262,144 —
+    // and the model answers worse for it. A research row has no file and so no
+    // header: None is the honest value there, never a guess.
+    for row in DOWNLOADABLE {
+        let tokens = row
+            .model
+            .trained_context_tokens
+            .unwrap_or_else(|| panic!("{}: read context_length from its GGUF", row.model.repo));
+        assert!(tokens >= 4_096, "{}: {tokens} is not a context", row.model.repo);
+    }
+    for entry in CATALOG {
+        assert!(
+            entry.trained_context_tokens.is_none(),
+            "{}: a research row has no header to have read",
+            entry.repo
+        );
+    }
 }

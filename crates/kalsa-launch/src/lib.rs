@@ -45,4 +45,4 @@ pub use args::{
     LaunchPlan, MemoryAssumption, Offload, ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS,
     MAX_IDLE_UNLOAD_SECONDS, MIN_IDLE_UNLOAD_SECONDS,
 };
-pub use policy::{plan, LaunchInput};
+pub use policy::{funded_context, plan, LaunchInput};
