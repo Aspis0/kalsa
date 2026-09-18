@@ -9,14 +9,28 @@
 //! foreign body onto our prefix.
 
 use std::io;
+use std::time::Duration;
 
 use crate::DownloadError;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+// Thirty seconds allows several TCP retransmission backoffs; it detects
+// silence too long for ordinary recovery, not a slow connection.
+pub(crate) const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Asks for the suffix at `resume_from` and checks the answer against the
 /// header we sent. Returns the response and the offset its body starts at.
 pub fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), DownloadError> {
+    connect_with_read_timeout(url, resume_from, DEFAULT_READ_TIMEOUT)
+}
+
+pub(crate) fn connect_with_read_timeout(
+    url: &str,
+    resume_from: u64,
+    read_timeout: Duration,
+) -> Result<(ureq::Response, u64), DownloadError> {
     if resume_from > 0 {
-        let response = send(url, Some(resume_from))?;
+        let response = send(url, Some(resume_from), read_timeout)?;
         match response.status() {
             // Range ignored: the body is the whole file.
             200 => return Ok((response, 0)),
@@ -32,7 +46,7 @@ pub fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), Dow
             code => return Err(http_error(code)),
         }
     }
-    let response = send(url, None)?;
+    let response = send(url, None, read_timeout)?;
     let start = match response.status() {
         200 => 0,
         // A 206 to a request with no Range is a broken server; its body may
@@ -47,8 +61,16 @@ pub fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), Dow
     Ok((response, start))
 }
 
-fn send(url: &str, range: Option<u64>) -> Result<ureq::Response, DownloadError> {
-    let mut request = ureq::get(url);
+fn send(
+    url: &str,
+    range: Option<u64>,
+    read_timeout: Duration,
+) -> Result<ureq::Response, DownloadError> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(CONNECT_TIMEOUT)
+        .timeout_read(read_timeout)
+        .build();
+    let mut request = agent.get(url);
     if let Some(at) = range {
         // No If-Range alongside this, on purpose: we persist no ETag from the
         // first request, so any validator here would be fabricated — and a

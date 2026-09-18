@@ -11,6 +11,8 @@ use std::sync::{Arc, Mutex};
 const LIE_SKIP: u64 = 64 * 1024;
 /// How many bytes past the promised end the overrun body keeps going.
 const OVERRUN: usize = 64 * 1024;
+/// How many bytes the stalled origin sends before becoming silent.
+pub const STALL_BYTES: usize = 4;
 
 /// The ways the fixture can behave. The misbehaving modes exist because the
 /// failures that matter only show up when the server lies.
@@ -24,6 +26,9 @@ pub enum RangeMode {
     Lie,
     /// Declares — and sends — more bytes than the caller was promised.
     Overrun,
+    /// Sends a response head and a short prefix, then stays connected and
+    /// silent until the client gives up.
+    Stall,
 }
 
 pub struct Server {
@@ -58,6 +63,14 @@ fn answer(
     seen: &Mutex<Vec<Option<u64>>>,
 ) -> std::io::Result<()> {
     let len = content.len() as u64;
+    if matches!(mode, RangeMode::Stall) {
+        let _ = read_range(&mut stream, seen)?;
+        let head =
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: keep-alive\r\n\r\n");
+        stream.write_all(head.as_bytes())?;
+        stream.write_all(&content[..STALL_BYTES])?;
+        std::thread::park();
+    }
     if matches!(mode, RangeMode::Overrun) {
         // The overrun is declared in the header, so a client that reads it
         // can refuse before a single body byte; the body keeps its promise

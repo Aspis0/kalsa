@@ -9,6 +9,7 @@
 //! that point changes nothing.
 
 use std::io::{self, Read, Write};
+use std::time::Duration;
 
 use crate::part::PartFile;
 use crate::range;
@@ -27,6 +28,22 @@ pub fn fetch(
     expected_size: u64,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<(), DownloadError> {
+    fetch_with_read_timeout(
+        url,
+        part,
+        expected_size,
+        progress,
+        range::DEFAULT_READ_TIMEOUT,
+    )
+}
+
+fn fetch_with_read_timeout(
+    url: &str,
+    part: &mut PartFile,
+    expected_size: u64,
+    progress: &mut dyn FnMut(Progress),
+    read_timeout: Duration,
+) -> Result<(), DownloadError> {
     let mut resume_from = part.len()?;
     // Longer than the promise cannot be a prefix of it: not resumable.
     if resume_from > expected_size {
@@ -37,7 +54,7 @@ pub fn fetch(
     if resume_from == expected_size {
         return Ok(());
     }
-    let (response, start) = range::connect(url, resume_from)?;
+    let (response, start) = range::connect_with_read_timeout(url, resume_from, read_timeout)?;
     if start == 0 {
         part.restart()?;
     } else {
@@ -118,6 +135,7 @@ mod tests {
     use crate::httptest::{self, RangeMode};
     use std::fs;
     use std::path::PathBuf;
+    use std::time::Duration;
 
     const SPLIT: u64 = 1024 * 1024;
 
@@ -192,6 +210,58 @@ mod tests {
         assert!(
             matches!(&err, DownloadError::Io(e) if e.kind() == io::ErrorKind::InvalidData),
             "{err:?}"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_quiet_server_times_out_and_keeps_bytes_for_the_next_attempt() {
+        let dir = scratch("fetch-stall");
+        let data = payload(3 * SPLIT as usize);
+        let stalled = httptest::serve(data.clone(), RangeMode::Stall);
+        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
+        let url = stalled.url.clone();
+        let expected_size = data.len() as u64;
+        let (returned, done) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let result = fetch_with_read_timeout(
+                &url,
+                &mut part,
+                expected_size,
+                &mut |_| {},
+                Duration::from_secs(1),
+            );
+            returned.send((result, part)).expect("fetch worker");
+        });
+        let (result, part) = done
+            .recv_timeout(Duration::from_secs(8))
+            .expect("a stalled fetch must return before the hard deadline");
+        assert!(
+            matches!(&result, Err(DownloadError::Io(e)) if e.kind() == io::ErrorKind::TimedOut),
+            "a read timeout must be the existing resumable I/O failure: {result:?}"
+        );
+        assert_eq!(
+            part.len().expect("partial length"),
+            httptest::STALL_BYTES as u64
+        );
+        assert_eq!(
+            fs::read(dir.join("model.gguf.part")).expect("partial file"),
+            data[..httptest::STALL_BYTES],
+            "bytes received before the stall must survive it"
+        );
+        drop(part);
+
+        let resumed = httptest::serve(data.clone(), RangeMode::Honor);
+        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("reclaim");
+        fetch(&resumed.url, &mut part, data.len() as u64, &mut |_| {}).expect("resume");
+        assert_eq!(
+            *resumed.requests.lock().expect("requests"),
+            vec![Some(httptest::STALL_BYTES as u64)],
+            "the next attempt must resume after the surviving prefix"
+        );
+        assert_eq!(
+            fs::read(dir.join("model.gguf.part")).expect("resumed file"),
+            data
         );
         let _ = fs::remove_dir_all(&dir);
     }
