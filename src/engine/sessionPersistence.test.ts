@@ -146,6 +146,15 @@ describe("sessionHistoryPrefixAccepts", () => {
 
 describe("history hash persistable projection", () => {
   test("raw boot extras hash as persistable of the same turn", () => {
+    // ONE turn, ONE byte sequence: the padded emission rides on both sides
+    // deliberately. The raw boot form and the persistable form of a turn must
+    // hash identically because the projection strips only the transient boot
+    // fields — never because trimming reconciles them. This fixture once
+    // carried "  hey  " on one side and "hey" on the other, pinning the
+    // reconciliation-by-trimming that 7b5b79b removed at save and the
+    // load-path fix removed too; bytes are preserved, so the bytes must be
+    // the same bytes.
+    const emitted = "  hey  ";
     const persistable = [
       { id: "u1", role: "user", text: "ciao", createdAt: 1 },
       {
@@ -153,7 +162,7 @@ describe("history hash persistable projection", () => {
         role: "assistant",
         text: "hey",
         createdAt: 2,
-        modelEmittedText: "hey",
+        modelEmittedText: emitted,
       },
     ];
     const rawBoot = [
@@ -161,7 +170,7 @@ describe("history hash persistable projection", () => {
       {
         ...persistable[1],
         statusHistory: ["x"],
-        modelEmittedText: "  hey  ",
+        modelEmittedText: emitted,
       },
     ];
     expect(computeHistoryHashFromMessages(rawBoot)).toBe(
