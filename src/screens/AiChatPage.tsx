@@ -658,6 +658,10 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     // Model-emitted text (assistant only) for prompt replay / KV prefix match.
     const emitted = readModelEmittedText(record.role, record.modelEmittedText);
     if (emitted !== undefined) {
+      // Latent erosion: this slice cuts the emission while emissionSource
+      // rides along unchanged, and the next save makes the cut permanent —
+      // the same class the load-path fix removed for trim, left here for
+      // length (no reachable input reaches it at today's n_ctx).
       message.modelEmittedText = emitted.slice(0, MAX_TEXT);
       // Propagate the provenance flag; a persisted value outside the union
       // (corrupt payload) falls back to unknown → syntactic predicate.
