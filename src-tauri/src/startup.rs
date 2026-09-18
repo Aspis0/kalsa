@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_catalog::{
-    memory_budget, rows, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel, Selection,
+    memory_budget, rows, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
 };
 use kalsa_download::{default_roots, download};
 // The cheap first pass over stores that name blobs by digest; find_local
@@ -51,7 +51,7 @@ const STOP_GRACE: Duration = Duration::from_secs(2);
 /// is `kalsa_launch::plan`'s, derived for the chosen row from the same
 /// budget and re-checked against it; a row that cannot fund even one token
 /// is refused there, with words.
-const CHOOSER_CONTEXT_TOKENS: u64 = 1;
+pub(crate) const CHOOSER_CONTEXT_TOKENS: u64 = 1;
 /// The context a development run starts with. The developer pinned the model
 /// and owns its bytes, so this is a convenience, not a budgeted decision —
 /// the product path never uses it.
@@ -142,8 +142,8 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let (selection, row) = choose_model(backend, &machine, phone)?;
-            let path = place_model(&selection.download, root, progress)?;
+            let (plan, row) = choose_model(backend, &machine, phone)?;
+            let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
                 backend, exe, path, row, &machine, state_file, overrides,
             );
@@ -152,26 +152,41 @@ pub(crate) fn run(
     dev_config_with_overrides(exe, model, state_file, &machine, overrides)
 }
 
-/// The catalog's answer for this machine. Pure: nothing here touches the
-/// network or the disk. The chosen row travels with the selection: the
-/// launch decision derives the context from the row's per-token cache
-/// figure, which the selection alone does not carry.
+/// The model step's answer: what to fetch, and the row it belongs to. With a
+/// phone paired, the catalog's full comparison runs (`choose`); with none,
+/// the phone-free question does (`largest_that_runs_well`) — the phone
+/// decides whether this computer is an upgrade, never whether the brain can
+/// run. Each branch carries the row its plan was built from, so the file
+/// that is fetched is always the row that was judged.
 fn choose_model(
     winner: ServerBackend,
     machine: &Machine,
     phone: Option<PhoneModel>,
-) -> Result<(Selection, &'static ModelEntry), StartupFailure> {
-    let selection = match kalsa_catalog::choose(&choice_input(winner, machine, phone)) {
-        Decision::Pick(selection) => selection,
-        Decision::Refuse(refusal) => return Err(refusal.into()),
-    };
-    let row = chosen_row(
-        selection.repo,
-        selection.display_name,
-        selection.quant,
-        selection.weights_bytes,
-    )?;
-    Ok((selection, row))
+) -> Result<(DownloadPlan, &'static ModelEntry), StartupFailure> {
+    let input = choice_input(winner, machine, phone);
+    match phone {
+        // No `PhoneUnknown` can reach the walk from either arm: this one
+        // runs `choose` only when a phone is in the input it is given, and
+        // the phone-free question never asks for one.
+        None => {
+            let run = kalsa_catalog::largest_that_runs_well(&input)
+                .map_err(StartupFailure::from)?;
+            Ok((run.download, run.entry))
+        }
+        Some(_) => {
+            let selection = match kalsa_catalog::choose(&input) {
+                Decision::Pick(selection) => selection,
+                Decision::Refuse(refusal) => return Err(refusal.into()),
+            };
+            let row = chosen_row(
+                selection.repo,
+                selection.display_name,
+                selection.quant,
+                selection.weights_bytes,
+            )?;
+            Ok((selection.download, row))
+        }
+    }
 }
 
 /// The row a selection names. `repo` alone is not a key — two rows can share
@@ -235,7 +250,7 @@ fn choice_input(
     ChoiceInput {
         backend: budget_backend(winner, machine.measurement.will_run_on),
         ram_bytes: machine.ram_bytes,
-        bandwidth_bytes_per_second: machine.measurement.ceiling_bytes_per_second,
+        bandwidth_bytes_per_second: machine.measurement.decode_bandwidth_bytes_per_second(),
         compute_flops_per_second: machine.measurement.compute.max(),
         // The measurement's own word on itself: a CPU-path bandwidth under a
         // GPU decode is a floor, which may keep a candidate but must never
@@ -567,6 +582,9 @@ mod tests {
         Measurement {
             ramp: vec![(2, bandwidth)],
             ceiling_bytes_per_second: bandwidth,
+            // No chip figure in a fixture: the test machine is whatever
+            // `ceiling` says, so the floor rule stays the backend's own.
+            decode_bytes_per_second: None,
             ceiling: Series::new(vec![bandwidth]),
             plateau_threads: 2,
             cache: Series::new(vec![200.0e9]),
@@ -745,10 +763,34 @@ mod tests {
     }
 
     #[test]
-    fn an_unpaired_machine_is_asked_to_pair_before_anything_else() {
-        let err = choose_model(ServerBackend::Cpu, &machine(Backend::Cpu), None)
-            .expect_err("nothing can be compared to a phone that never said");
-        assert!(matches!(err, StartupFailure::PairPhoneFirst), "{err:?}");
+    fn an_unpaired_machine_still_gets_a_model_and_starts() {
+        // The ruling the product made: the phone decides whether this
+        // computer is an upgrade, never whether the brain can run. With no
+        // phone at all, the model step answers with the largest row the
+        // machine runs well, and the plan carries that row's pinned file.
+        let machine = machine(Backend::Cpu);
+        let (plan, row) = choose_model(ServerBackend::Cpu, &machine, None)
+            .expect("a standalone brain is a legitimate configuration");
+        assert!(
+            rows().any(|entry| entry.repo == row.repo && entry.display_name == row.display_name),
+            "the row is a real catalog row, not an invention"
+        );
+        assert!(plan.bytes > 0, "the pinned file travels with the pick");
+        assert!(!plan.url.is_empty());
+        assert!(
+            plan.sha256.len() == 64,
+            "the digest the download is held to: {}",
+            plan.sha256
+        );
+        // And the pick is honest about fitting the machine it was chosen
+        // for, priced at the same one-token context the chooser uses.
+        let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
+        let footprint =
+            kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS);
+        assert!(
+            footprint.total_bytes() <= budget.usable_bytes,
+            "the pick fits the budget it was sized against"
+        );
     }
 
     // The loopback body and its digest, both constants: the plan's digest
@@ -976,16 +1018,19 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let (selection, row) =
+        let (plan, row) =
             choose_model(ServerBackend::Cpu, &machine, Some(phone)).expect("the tier is not empty");
         let trinity = rows().find(|entry| entry.display_name == "Arcee Trinity Nano")
             .expect("the comparison row left the catalog");
         assert!(
-            selection.weights_bytes > trinity.weights_bytes,
+            row.weights_bytes > trinity.weights_bytes,
             "the tier went to {} when bigger funded rows exist",
-            selection.display_name
+            row.display_name
         );
-        assert_eq!(row.repo, selection.repo);
+        // The plan and the row travel together by construction now — the
+        // model step answers with the file its own row pins — so the plan
+        // still names a real, pinned file.
+        assert!(plan.bytes > 0 && !plan.url.is_empty(), "{:?}", plan.url);
     }
 
     #[test]

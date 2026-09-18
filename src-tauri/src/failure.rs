@@ -29,7 +29,6 @@ pub(crate) enum StartupFailure {
     ServerFetchFailed,
     // — choosing the model (kalsa-catalog) —
     MachineNotMeasured,
-    PairPhoneFirst,
     NothingFits,
     NothingBetter,
     NothingFastEnough,
@@ -90,11 +89,6 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::MachineNotMeasured => {
             "This computer has not been measured yet. Measuring it first, \
              then turning on, usually works."
-                .into()
-        }
-        StartupFailure::PairPhoneFirst => {
-            "Pair the phone first: turning on is only worth it if this computer runs \
-             your phone's models better than the phone does."
                 .into()
         }
         StartupFailure::NothingFits => {
@@ -227,7 +221,17 @@ impl From<DownloadError> for StartupFailure {
 impl From<kalsa_catalog::Refusal> for StartupFailure {
     fn from(refusal: kalsa_catalog::Refusal) -> Self {
         match refusal.reason {
-            RefusalReason::PhoneUnknown => Self::PairPhoneFirst,
+            // Structurally unreachable from the walk: `choose` runs only
+            // when a phone is in the input it is given, and the phone-free
+            // question never produces this reason. The arm exists because
+            // the conversion is total over the catalog's enum, and what it
+            // maps to matters for the day the structure changes: it used to
+            // answer `NothingBetter`, which tells the owner that nothing
+            // beats their phone — a confident claim about a machine nobody
+            // compared, and the one sentence this case must not say. An
+            // impossible answer from the catalogue is a fault in us, so it
+            // reads as one.
+            RefusalReason::PhoneUnknown => Self::ChosenModelUnresolved,
             RefusalReason::MachineNotMeasured => Self::MachineNotMeasured,
             RefusalReason::NothingFits => Self::NothingFits,
             RefusalReason::NothingBetter => Self::NothingBetter,
@@ -264,7 +268,6 @@ mod tests {
             StartupFailure::NoBackendWorked,
             StartupFailure::ServerFetchFailed,
             StartupFailure::MachineNotMeasured,
-            StartupFailure::PairPhoneFirst,
             StartupFailure::MeasurementUnreliable(vec![
                 "the repetitions disagreed by 35%: something else was using this machine \
                  while it was measured"

@@ -62,16 +62,41 @@ mod tests {
     #[test]
     fn reuses_the_recorded_port_and_reports_the_bound_port() {
         let pairing_file = scratch("reuse");
-        let first = bind(&pairing_file).unwrap();
-        let first_port = first.local_addr().unwrap().port();
-        assert_eq!(
-            fs::read_to_string(port_file(&pairing_file)).unwrap().trim(),
-            first_port.to_string()
-        );
-        drop(first);
+        // The recorded port is one this test found free and let go, never
+        // DEFAULT_PORT: on a developer's machine 8131 belongs to the running
+        // app, and a test that asks for it contends with the product it is
+        // testing. That is what failed here — first bind 8131, second bind
+        // 51990, nothing wrong with the code.
+        //
+        // The gap between letting a port go and asking for it back is still
+        // a gap, so a lost race retries on another port rather than being
+        // reported as a defect. Three tries: a machine that loses all three
+        // has something else wrong with it.
+        let mut bound = None;
+        for _ in 0..3 {
+            let scout = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+            let wanted = scout.local_addr().unwrap().port();
+            drop(scout);
+            fs::write(port_file(&pairing_file), format!("{wanted}\n")).unwrap();
 
-        let second = bind(&pairing_file).unwrap();
-        assert_eq!(second.local_addr().unwrap().port(), first_port);
+            let listener = bind(&pairing_file).unwrap();
+            let got = listener.local_addr().unwrap().port();
+            // Whether or not the preference was honoured, the file follows
+            // the listener: a stale file is what sends the phone to a door
+            // nothing is listening at.
+            assert_eq!(
+                fs::read_to_string(port_file(&pairing_file)).unwrap().trim(),
+                got.to_string()
+            );
+            if got == wanted {
+                bound = Some(got);
+                break;
+            }
+        }
+        assert!(
+            bound.is_some(),
+            "three recorded ports were taken between being released and asked for"
+        );
     }
 
     #[test]

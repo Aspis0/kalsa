@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod capability;
 mod door;
 mod failure;
 mod instance;
@@ -221,9 +222,15 @@ impl Brain {
                 self.stop_door();
                 return Ok(());
             }
+            // A store this app cannot read stands the door down — it does
+            // not fail the brain, which may be running and answering the
+            // local chat with no phone anywhere in the path. The problem
+            // stays visible where pairing lives: the Devices page reads the
+            // same store every poll and shows StoreUnavailable, with the
+            // escape hatch that keys on this same reader.
             Err(_) => {
                 self.stop_door();
-                return Err("The authenticated door could not read its credential.".to_string());
+                return Ok(());
             }
         };
         let entries = stored_devices
@@ -478,21 +485,19 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             let internet_road = state_file(&app)
                 .map(|path| persisted_internet_road(&path))
                 .unwrap_or(false);
+            // The door is the phone path, not the brain: if it cannot stand
+            // up — a credential store this app cannot read, a listener that
+            // would not bind — the brain is still running and says so. The
+            // door's problem is reported where the door lives: the Devices
+            // page reads the same store every poll and carries the escape
+            // hatch. The square comes down either way: advertising a door
+            // that cannot complete a request lies to the phone that scans.
             if brain
                 .start_door_if_paired(port, &desk.pairing_file, internet_road)
                 .is_err()
             {
                 brain.stop_door();
                 desk.desk.stop_serving();
-                // This fails on every poll until the store is cleared, so
-                // the sentence must point at the escape hatch, not at a
-                // retry that cannot work.
-                return StateDto::Failed {
-                    reason: "The credential store could not be read, so this computer is not \
-                             reachable by any phone. Forgetting the stored pairing on the Pairing \
-                             page and pairing again will fix it."
-                        .to_string(),
-                };
             }
             let active_devices = brain.active_devices();
             StateDto::Running {
@@ -595,6 +600,26 @@ fn brain_measured(brain: State<Brain>) -> bool {
         .unwrap_or(false)
 }
 
+/// What this computer can do and what it would run, computed from the kept
+/// measurement. Answers `Unmeasured` rather than measuring: measuring takes
+/// seconds and belongs to `brain_measure`.
+#[tauri::command]
+fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::CapabilityDto {
+    let measurement = brain
+        .measurement
+        .lock()
+        .ok()
+        .and_then(|stored| stored.clone());
+    let Some(measurement) = measurement else {
+        return capability::CapabilityDto::Unmeasured;
+    };
+    // An unreadable phone store is not the same fact as an unpaired phone,
+    // but the catalog's answer to "no phone" — pair first — is the sentence
+    // the owner can act on either way, and it is already written for them.
+    let phone = phone(&app).ok().flatten();
+    capability::dto(&measurement, startup::ram_bytes(), phone)
+}
+
 /// Measures this computer — the probe takes seconds, so it runs off the main
 /// thread and the window stays responsive. True when the probe believes its
 /// own numbers; a rejected measurement is reported, never kept.
@@ -670,7 +695,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                 )
             }
         };
-        startup::run(
+        let verdict = startup::run(
             server_override,
             machine,
             phone,
@@ -679,8 +704,10 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             &runtime_root,
             &mut progress,
         )
-        .map(|config| (config, measured))
-        .map_err(|failure| failure::words(&failure))
+        .map_err(|failure| failure::words(&failure));
+        // The measurement rides the refusal too: a walk that failed still
+        // measured a real machine.
+        (verdict, measured)
     })
     .await;
 
@@ -688,22 +715,41 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     brain.turning_on.store(false, Ordering::SeqCst);
 
     match outcome {
-        Ok(Ok((prepared, measured))) => {
-            if let Some(measured) = measured {
-                if let Ok(mut stored) = brain.measurement.lock() {
-                    *stored = Some(measured);
-                }
-            }
-            // The supervisor reports starting, running and its own failures
-            // through brain_state; its sentences live in failure too. The
-            // record follows the verdict, not the wish: only a start the
-            // supervisor took may replace what the panel describes.
+        Ok(walked) => settle_walk(&brain, walked),
+        // The blocking task itself died and nothing came back: nothing to
+        // keep, and the standing sentence for it.
+        Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
+    }
+}
+
+/// What the blocking walk hands back: the verdict for the screen, and the
+/// measurement it may have made on the way. The measurement rides both arms,
+/// because a walk that failed — a phone not paired, nothing that fits, a
+/// download lost — still measured a real machine, and measuring is seconds of
+/// the owner's time that must not be spent twice for the same refusal.
+type Walk = (Result<startup::PreparedStart, String>, Option<Measurement>);
+
+/// Settles the walk: keeps the machine's fact, then answers the walk's. A
+/// measurement is a fact about the machine; the verdict is a fact about the
+/// catalog, the network or the disk — and the first survives the second. Only
+/// a reading the probe itself believes is kept: `brain_measure`'s rule,
+/// unchanged here. On the verdict side the supervisor reports starting,
+/// running and its own failures through brain_state; the record follows the
+/// verdict, not the wish: only a start the supervisor took may replace what
+/// the panel describes.
+fn settle_walk(brain: &Brain, walked: Walk) -> Result<(), String> {
+    if let Some(measured) = walked.1.filter(|m| m.is_reliable()) {
+        if let Ok(mut stored) = brain.measurement.lock() {
+            *stored = Some(measured);
+        }
+    }
+    match walked.0 {
+        Ok(prepared) => {
             let outcome = brain.supervisor.start(prepared.server).outcome();
             brain.record_launch(prepared.info, outcome);
             Ok(())
         }
-        Ok(Err(sentence)) => Err(sentence),
-        Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
+        Err(sentence) => Err(sentence),
     }
 }
 
@@ -806,6 +852,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_set_advanced,
             brain_model,
             brain_measured,
+            brain_capability,
             brain_measure,
             brain_start,
             brain_stop,
@@ -899,7 +946,93 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kalsa_probe::{ExecutionPath, Reliability, Series};
     use std::time::Duration;
+
+    /// A reliable measurement by hand: `bandwidth` on the CPU path, the shape
+    /// the probe returns when it believes itself.
+    fn measured(bandwidth: f64) -> Measurement {
+        Measurement {
+            ramp: vec![(2, bandwidth)],
+            ceiling_bytes_per_second: bandwidth,
+            // No chip figure in a fixture: the test machine is whatever
+            // `ceiling` says, so the floor rule stays the backend's own.
+            decode_bytes_per_second: None,
+            ceiling: Series::new(vec![bandwidth]),
+            plateau_threads: 2,
+            cache: Series::new(vec![200.0e9]),
+            compute: Series::new(vec![100.0e9]),
+            reliability: Reliability {
+                reliable: true,
+                effective_parallelism: None,
+                threads: 2,
+                spread: 0.0,
+                cache_ratio: None,
+                notes: Vec::new(),
+            },
+            measured_on: ExecutionPath::Cpu,
+            will_run_on: kalsa_probe::Backend::Cpu,
+        }
+    }
+
+    #[test]
+    fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
+        // The walk measures the machine (seconds of real work), the catalog
+        // then refuses — here, nothing fits — and the refusal answers the
+        // screen. But the machine WAS measured, and what was measured must
+        // survive the refusal, or every retry measures again and throws it
+        // away again.
+        let brain = Brain::new();
+        let verdict = settle_walk(
+            &brain,
+            (
+                Err("No model that fits this computer is available yet. \
+                     An app update may add one."
+                    .into()),
+                Some(measured(80.0e9)),
+            ),
+        );
+        assert!(verdict.is_err(), "the walk's refusal still answers");
+        assert!(
+            brain.measurement.lock().expect("lock").is_some(),
+            "the measurement survived the walk's failure"
+        );
+        // The discipline is not weakened by carrying the measurement further:
+        // a reading the probe itself does not believe is still refused, and
+        // an unreliable one never replaces the reliable one already kept.
+        let mut unbelieved = measured(80.0e9);
+        unbelieved.reliability.reliable = false;
+        settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)));
+        let stored = brain.measurement.lock().expect("lock");
+        assert!(
+            stored.as_ref().is_some_and(|kept| kept.is_reliable()),
+            "what is kept is the reliable reading, nothing else"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
+        // A store this app cannot read stands the DOOR down; the brain —
+        // running, answering the local chat — does not report itself failed
+        // for it. The problem stays visible where pairing lives, on the
+        // Devices page, which reads the same store every poll.
+        let brain = Brain::new();
+        let unreadable = std::env::temp_dir().join(format!(
+            "kalsa-brain-unreadable-store-{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&unreadable, b"\x00\x01 neither json nor ours").expect("write");
+        let outcome = brain.start_door_if_paired(8130, &unreadable, false);
+        let _ = std::fs::remove_file(&unreadable);
+        assert!(
+            outcome.is_ok(),
+            "the brain's state must not fail for the door's store: {outcome:?}"
+        );
+        assert!(
+            brain.door_port().is_none(),
+            "the door stood down rather than serving what it cannot read"
+        );
+    }
 
     #[test]
     fn a_second_press_while_a_walk_is_running_starts_nothing() {
