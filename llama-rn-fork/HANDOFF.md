@@ -364,6 +364,13 @@ cd /Users/marco/Projects/llama.rn-kalsa && unset KALSALLAMA_SRC     # bump refus
 KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn scripts/sync-kalsallama.sh bump > /tmp/bump.log 2>&1; echo $?
 git status --short | wc -l                                          # 0: idempotent at the same pin
 ```
+`KALSA_BMOE_DIR` is a **prerequisite, not decoration** (measured 18/09): without it the bump
+exits **1** — the include gate refuses half coverage and prints `[includes] FAIL: partial syntax
+pass (KALSA_BMOE_DIR not set (rn-*.cpp, jsi and bmoe TUs skipped))`. Nothing is damaged by that
+refusal: `scripts/sync-kalsallama.sh:747` runs the gate on `$FLATTEN_TMP/cpp`, *before* the tree is
+installed, so `kalsallama.pin` and `cpp/` stay exactly as they were — verified on disk after a
+real exit 1. Do not reach for `KALSA_ALLOW_PARTIAL_GATE=1`; set the variable.
+
 That idempotence run is a valid first proof of the mechanism; do it now. The real exercise
 happens when kalsa-07 lands a kalsallama commit on `main`: `bump` again, `verify` 0, gate OK,
 commit `engine: kalsallama <sha7> (<one line of what changed>)`, push, app bump (§3 commands),
@@ -827,6 +834,33 @@ above it named **two** reasons. The Step 5 pin bump clears only the first. Verif
   (`[includes] FAIL: partial syntax pass`); the gate runs on `$FLATTEN_TMP/cpp` at line 747,
   *before* anything is installed, so a refusal leaves `kalsallama.pin` and `cpp/` untouched. Run it
   as `KALSA_BMOE_DIR=<app>/native/bmoe/rn bash scripts/sync-kalsallama.sh bump`.
+
+### Added 2026-09-18 afternoon — what the v0.12.9 merge actually changed in the binding
+
+Read line by line (`git diff 3eb8ac2f^1 3eb8ac2f`), four files outside `cpp/` and two inside it.
+
+- **Cancellation became worker-owned — `cpp/rn-slot-manager.{h,cpp}`, the only real behaviour
+  change.** `cancel_request` no longer erases from `active_requests` nor forces
+  `SLOT_STATE_DONE`; under `slots_mutex` it only raises `is_interrupted` and returns the new
+  `llama_rn_cancel_result` tri-state `ACTIVE | QUEUED | NOT_FOUND`, and `update_slots`
+  terminalizes (two new sweeps, plus `release_completed_slots()` on the early-return path).
+  `next_request_id` is now `std::atomic<int32_t>` (`<atomic>` is included, checked) and
+  `reserve_request_id()` lets a caller hold an id before queueing. **Single caller:
+  `cpp/jsi/RNLlamaJSI.cpp:1621`** — it does *not* hold `slots_mutex` (so the new lock cannot
+  deadlock) and on `QUEUED` it resolves the JS promise itself, because the worker will never see
+  that request. All of this is the **parallel/slot** path; the app's `completion` does not go
+  through it, so the merge is behaviour-neutral for kalsa today.
+- **`src/version.ts` now declares `BUILD_NUMBER 10256` / `BUILD_COMMIT 6c8dcaa`** — that is
+  *upstream llama.rn's* llama.cpp pin, not the engine in our binary (kalsallama). `sync-kalsallama.sh`
+  rewrites the C `build-info` templates (lines 575-576, 625-628) and never touches this file, so
+  after every bump it is a **false assertion**. It is exported as `BuildInfo` from `src/index.ts:1374`
+  and nothing in the app imports it (grep on `kalsa/src` is empty), so no user sees the lie — but
+  either the sync should regenerate it or it should be deleted. Open item.
+- `scripts/patches/common.cpp.patch` moved its context to v0.12.9 and shows
+  `mparams.load_mtp = std::find(params.speculative.types...)` as an **upstream llama.rn line**, not
+  one of ours — the same line the app reaches through `speculative: { type: "draft-mtp" }`.
+- `jest/mock.js` kept our governor bindings through the merge (lines 199-207, `llamaSetGovernorThermo`,
+  `llamaGetGovernorStats`, …); `src/__tests__/index.test.ts` gained upstream's cancellation tests.
 
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
