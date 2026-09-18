@@ -4,6 +4,8 @@
 
 import {
   DEFAULT_SESSION_POOL_CONVERSATIONS,
+  EVICTION_FREE_FLOOR_BYTES,
+  evictionGoesGlobal,
   KV_BYTES_PER_CONVERSATION,
   parseSessionPoolConversations,
   sessionPoolBudgetBytes,
@@ -33,5 +35,24 @@ describe("parseSessionPoolConversations", () => {
     expect(parseSessionPoolConversations("")).toBe(7);
     expect(parseSessionPoolConversations("2")).toBe(7);
     expect(parseSessionPoolConversations("nope")).toBe(7);
+  });
+});
+
+describe("eviction free-space floor", () => {
+  test("floor is 6 conversations ≈ 256 MB", () => {
+    expect(EVICTION_FREE_FLOOR_BYTES).toBe(6 * KV_BYTES_PER_CONVERSATION);
+    // 6 × 5200 × 8192 = 255_590_400.
+    expect(EVICTION_FREE_FLOOR_BYTES).toBe(255_590_400);
+  });
+
+  test("at or above the floor is per-model; below is global", () => {
+    expect(evictionGoesGlobal(EVICTION_FREE_FLOOR_BYTES)).toBe(false);
+    expect(evictionGoesGlobal(EVICTION_FREE_FLOOR_BYTES - 1)).toBe(true);
+  });
+
+  test("an unreadable reading is treated as full disk, never as plenty", () => {
+    expect(evictionGoesGlobal(null)).toBe(true);
+    expect(evictionGoesGlobal(Number.NaN)).toBe(true);
+    expect(evictionGoesGlobal(-1)).toBe(true);
   });
 });

@@ -1,13 +1,16 @@
 /**
- * UFS KV session pool: LRU eviction + stale prompt-env discard.
- * Budget is disk, not RAM (§7.25 / §7.20).
+ * UFS KV session pool: per-model LRU eviction + stale prompt-env discard.
+ * Budget is disk, not RAM (§7.25 / §7.20). Every eviction run emits one
+ * KALSA_SESSION line; stems (conversation ids) never reach it.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { getFreeDiskBytes } from "./deviceProfile";
 import {
   DEFAULT_SESSION_POOL_CONVERSATIONS,
+  evictionGoesGlobal,
   parseSessionPoolConversations,
   SESSION_POOL_STORAGE_KEY,
   sessionPoolBudgetBytes,
@@ -46,11 +49,46 @@ function modelIdOfStem(stem: string): string | null {
   return parseSessionStem(`${stem}.kvs`)?.modelId ?? null;
 }
 
-/** Foreign-model first, then oldest lastUsedAt. Never the keep stem. */
+const byLru = (a: PoolFile, b: PoolFile): number =>
+  a.lastUsedAt - b.lastUsedAt || a.stem.localeCompare(b.stem);
+
+function chatTotalBytes(files: PoolFile[]): number {
+  let total = 0;
+  for (const f of files) total += Math.max(0, f.bytes);
+  return total;
+}
+
+/** Walk a pre-ordered victim list until `remaining` fits in `budget`. */
+function drainToBudget(
+  ordered: PoolFile[],
+  remaining: number,
+  budget: number,
+): string[] {
+  const evict: string[] = [];
+  for (const f of ordered) {
+    if (remaining <= budget) break;
+    evict.push(f.stem);
+    remaining -= Math.max(0, f.bytes);
+  }
+  return evict;
+}
+
+/**
+ * Eviction victims for a save of `keepStem`.
+ *
+ * At or above EVICTION_FREE_FLOOR_BYTES free space the budget is PER MODEL:
+ * only conversations of the keep model are charged and offered as victims, so
+ * a save for model A never deletes model B's warm KV cache — that eviction is
+ * what made every model switch pay a full cold prefill again. Below the floor
+ * (or on an unreadable reading — evictionGoesGlobal) the save wins and the
+ * old global policy applies: foreign-model files first, then oldest
+ * lastUsedAt. Never the keep stem.
+ */
 export function pickEvictionStems(
   files: PoolFile[],
   budgetBytes: number,
   keepStem: string,
+  freeBytes: number | null,
 ): string[] {
   const budget = Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
   // The static-prefix snapshot is infrastructure, not a conversation: it is
@@ -60,10 +98,24 @@ export function pickEvictionStems(
   // 40 s prefill, save. Its size is bounded by keeping exactly one snapshot
   // file on disk (saveStaticPrefixSnapshot), not by this LRU.
   const chatFiles = files.filter((f) => !isStaticPrefixStem(f.stem));
-  let remaining = 0;
-  for (const f of chatFiles) remaining += Math.max(0, f.bytes);
-  if (remaining <= budget) return [];
   const keepModel = modelIdOfStem(keepStem);
+  if (!evictionGoesGlobal(freeBytes)) {
+    // Per-model regime: only a file that provably belongs to the saved model
+    // may be evicted. An unparseable keep stem (a legacy `${modelId}.kvs`)
+    // therefore evicts nothing here; legacy files are handled by
+    // deleteLegacyModelSession and deleteSessionsForModelConversation.
+    if (keepModel == null) return [];
+    const own = chatFiles.filter((f) => modelIdOfStem(f.stem) === keepModel);
+    const total = chatTotalBytes(own);
+    if (total <= budget) return [];
+    return drainToBudget(
+      own.filter((f) => f.stem !== keepStem).slice().sort(byLru),
+      total,
+      budget,
+    );
+  }
+  const total = chatTotalBytes(chatFiles);
+  if (total <= budget) return [];
   const isForeign = (stem: string): boolean => {
     if (keepModel == null) return false;
     const model = modelIdOfStem(stem);
@@ -76,15 +128,9 @@ export function pickEvictionStems(
       const aForeign = isForeign(a.stem);
       const bForeign = isForeign(b.stem);
       if (aForeign !== bForeign) return aForeign ? -1 : 1;
-      return a.lastUsedAt - b.lastUsedAt || a.stem.localeCompare(b.stem);
+      return byLru(a, b);
     });
-  const evict: string[] = [];
-  for (const f of ordered) {
-    if (remaining <= budget) break;
-    evict.push(f.stem);
-    remaining -= Math.max(0, f.bytes);
-  }
-  return evict;
+  return drainToBudget(ordered, total, budget);
 }
 
 /** Same model+conversation, different prompt-env hash — must not be reused. */
@@ -145,18 +191,86 @@ export async function keepOnlyStaticPrefixSnapshot(
   return dropped;
 }
 
+/** One KALSA_SESSION line for the pool's destructive path. Must never throw. */
+function emitEvictLine(payload: Record<string, unknown>): void {
+  try {
+    console.log(`KALSA_SESSION ${JSON.stringify(payload)}`);
+  } catch {
+    // telemetry must never throw
+  }
+}
+
+/** Error TYPE only: an error message can contain paths, paths contain stems. */
+function errorTypeOf(err: unknown): string {
+  const name = (err as { name?: unknown } | null | undefined)?.name;
+  return typeof name === "string" && name.length > 0 ? name : "unknown";
+}
+
+/** The total the regime charges against budgetBytes (snapshot excluded). */
+function chargedTotalBytes(
+  files: PoolFile[],
+  keepModel: string | null,
+  global: boolean,
+): number {
+  // Per-model with an unparseable keep stem charges nothing: no file can be
+  // proven to belong to the save.
+  if (!global && keepModel == null) return 0;
+  let total = 0;
+  for (const f of files) {
+    if (isStaticPrefixStem(f.stem)) continue;
+    if (!global && modelIdOfStem(f.stem) !== keepModel) continue;
+    total += Math.max(0, f.bytes);
+  }
+  return total;
+}
+
+/**
+ * LRU eviction for one save + stale-sidecar sweep.
+ *
+ * Emits exactly one KALSA_SESSION line (op "evict") per run — victims, bytes,
+ * keep/victim modelIds, the budget/total figures that decided it — and never
+ * a stem: stems contain conversation ids, and conversation identifiers must
+ * not reach a log. When the run throws mid-way, the same line comes out
+ * ok:false with reason and the error type only. The silent `catch {}` this
+ * replaces is why an 80 MB deletion once left no trace at all.
+ */
 export async function evictSessionPool(
   keepStem: string,
   budgetBytes: number,
 ): Promise<void> {
+  const line: Record<string, unknown> = { op: "evict", ok: false };
   try {
-    await sweepStaleSidecars(keepStem);
+    line.sidecars = await sweepStaleSidecars(keepStem);
     const files = await listPoolFiles();
-    const stems = pickEvictionStems(files, budgetBytes, keepStem);
-    for (const stem of stems) await dropStem(stem);
-  } catch {
-    // best-effort
+    const freeBytes = await getFreeDiskBytes();
+    const keepModel = modelIdOfStem(keepStem);
+    const global = evictionGoesGlobal(freeBytes);
+    const stems = pickEvictionStems(files, budgetBytes, keepStem, freeBytes);
+    const bytesByStem = new Map(
+      files.map((f) => [f.stem, Math.max(0, f.bytes)]),
+    );
+    let evictedBytes = 0;
+    const victimModels = new Set<string>();
+    for (const stem of stems) {
+      evictedBytes += bytesByStem.get(stem) ?? 0;
+      const victimModel = modelIdOfStem(stem);
+      if (victimModel != null) victimModels.add(victimModel);
+      await dropStem(stem);
+    }
+    line.ok = true;
+    line.policy = global ? "global" : "per-model";
+    line.keepModel = keepModel;
+    line.budgetBytes = budgetBytes;
+    line.totalBytes = chargedTotalBytes(files, keepModel, global);
+    line.freeBytes = freeBytes;
+    line.victims = stems.length;
+    line.bytes = evictedBytes;
+    line.victimModels = [...victimModels].sort();
+  } catch (err) {
+    line.reason = "evict_failed";
+    line.errorType = errorTypeOf(err);
   }
+  emitEvictLine(line);
 }
 
 /**
@@ -279,12 +393,14 @@ function stemFromPooledName(name: string): string | null {
 /**
  * Crash leftovers: delete foreign `.tmp` (never keepStem — may be an in-flight
  * write). Promote `.bak` with no `.kvs` (F3); drop `.bak` when `.kvs` exists.
+ * Returns how many sidecars were deleted (counted into the evict marker line).
  */
-async function sweepStaleSidecars(keepStem: string): Promise<void> {
+async function sweepStaleSidecars(keepStem: string): Promise<number> {
   const dir = sessionsDirectory();
-  if (!dir) return;
+  if (!dir) return 0;
   const names = await listSessionDirNames();
   const set = new Set(names);
+  let deleted = 0;
   for (const name of names) {
     const stem = stemFromPooledName(name);
     if (!stem) continue;
@@ -292,6 +408,7 @@ async function sweepStaleSidecars(keepStem: string): Promise<void> {
       if (stem === keepStem) continue;
       try {
         await FileSystem.deleteAsync(`${dir}${name}`, { idempotent: true });
+        deleted += 1;
       } catch {
         // ignore
       }
@@ -301,6 +418,7 @@ async function sweepStaleSidecars(keepStem: string): Promise<void> {
     if (set.has(`${stem}.kvs`)) {
       try {
         await FileSystem.deleteAsync(`${dir}${name}`, { idempotent: true });
+        deleted += 1;
       } catch {
         // ignore
       }
@@ -308,6 +426,7 @@ async function sweepStaleSidecars(keepStem: string): Promise<void> {
       await promoteSessionBak(stem);
     }
   }
+  return deleted;
 }
 
 async function listPoolFiles(): Promise<PoolFile[]> {

@@ -48,3 +48,36 @@ export function sessionPoolBudgetBytes(conversations: number): number {
     : DEFAULT_SESSION_POOL_CONVERSATIONS;
   return n * KV_BYTES_PER_CONVERSATION;
 }
+
+/**
+ * Free-space floor below which per-model eviction loses to "the save must
+ * succeed" and the pool evicts globally again (foreign models become victims).
+ *
+ * In units of the one measured constant: 2 conversations cover the pool's own
+ * worst-case in-flight write — sessionPersistence writes a full `.kvs.tmp`
+ * beside the old `.kvs` before promoting, a peak of ~2x one file — and 4
+ * conversations are headroom for everything else a nearly-full phone must
+ * still write (the OS, plus this app's non-KV stores and logs). At 6 ×
+ * KV_BYTES_PER_CONVERSATION = 255_590_400 B the floor sits far above the
+ * pool's own write footprint.
+ */
+export const EVICTION_FREE_FLOOR_BYTES = 6 * KV_BYTES_PER_CONVERSATION;
+
+/**
+ * Which eviction regime a free-space reading selects: true → the old global
+ * policy applies (foreign models first), false → a save may only evict its
+ * own model's conversations.
+ *
+ * A null (or non-finite / negative) reading selects global. The floor exists
+ * so a full disk cannot fail the save, and an unreadable disk is
+ * indistinguishable from a full disk from the save's point of view: guessing
+ * "full" wrong costs one cold prefill for another conversation, guessing
+ * "plenty" wrong on a truly full disk costs a failed save. The guess is never
+ * silent — the KALSA_SESSION evict line records freeBytes and the policy it
+ * selected.
+ */
+export function evictionGoesGlobal(freeBytes: number | null): boolean {
+  if (freeBytes == null) return true;
+  if (!Number.isFinite(freeBytes) || freeBytes < 0) return true;
+  return freeBytes < EVICTION_FREE_FLOOR_BYTES;
+}
