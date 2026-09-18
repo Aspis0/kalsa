@@ -398,6 +398,24 @@ describe("normalizeModelEmittedTextForSave", () => {
     expect(normalizeModelEmittedTextForSave("assistant", "  hello  ")).toBe("  hello  ");
     expect(normalizeModelEmittedTextForSave("user", "  hello  ")).toBeUndefined();
   });
+
+  test("save and load are one policy: a leading newline survives both", () => {
+    // The abort path stores the raw token accumulation, which can begin with
+    // "\n". Save preserves it; the load path (AppShell validateHistoryMessages)
+    // once trimmed it, so the replay lost the newline the KV holds and the
+    // turn diverged at its first token.
+    const raw = "\nREASONING</think>ANSWER";
+    const saved = normalizeModelEmittedTextForSave("assistant", raw);
+    expect(saved).toBe(raw);
+    expect(readModelEmittedText("assistant", saved)).toBe(raw);
+  });
+
+  test("load refuses whitespace-only exactly like save — no third rule", () => {
+    for (const value of ["", "   ", "\n\t "]) {
+      expect(readModelEmittedText("assistant", value)).toBeUndefined();
+      expect(normalizeModelEmittedTextForSave("assistant", value)).toBeUndefined();
+    }
+  });
 });
 
 describe("modelEmittedTextForVisibleReply (fallback / canned)", () => {

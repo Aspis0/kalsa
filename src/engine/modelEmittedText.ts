@@ -151,17 +151,17 @@ export function readModelEmittedText(
 
 /**
  * Normalise modelEmittedText at save time.
- * Whitespace-only → absent (matches readModelEmittedText); otherwise preserve
- * the raw emission byte-for-byte, including leading/trailing whitespace.
+ * Delegates to readModelEmittedText on purpose: save and load are two moments
+ * of ONE policy — whitespace-only → absent, otherwise preserve the raw
+ * emission byte-for-byte, including leading/trailing whitespace. A third
+ * predicate here is how load and save drift apart (the AppShell load path
+ * trimmed while this preserved).
  */
 export function normalizeModelEmittedTextForSave(
   role: string,
   value: unknown,
 ): string | undefined {
-  if (role !== "assistant") return undefined;
-  if (typeof value !== "string") return undefined;
-  if (value.trim().length === 0) return undefined;
-  return value;
+  return readModelEmittedText(role, value);
 }
 
 /**

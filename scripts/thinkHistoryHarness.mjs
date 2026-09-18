@@ -6,7 +6,7 @@
 import { strict as assert } from "node:assert";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,6 +44,48 @@ function compile() {
   }
 }
 
+/** Comments stripped, whitespace normalised — region pins by SHAPE. */
+function shapeOf(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The AppShell LOAD path must apply the same rule as the save path. It once
+ * trimmed on load while the save path preserved bytes, so an emission that
+ * began with a newline (the abort path stores the raw accumulation) came back
+ * trimmed and the replay diverged at its first token. Any reappearance of the
+ * inline trim must fail here by name.
+ */
+function assertAppShellLoadPreservesBytes() {
+  const appShellPath = path.join(projectRoot, "src/app/AppShell.tsx");
+  const src = readFileSync(appShellPath, "utf8");
+  const fnAt = src.indexOf("function validateHistoryMessages(");
+  if (fnAt < 0) throw new Error("AppShell: validateHistoryMessages disappeared");
+  const fnEnd = src.indexOf("\n}", fnAt);
+  if (fnEnd < 0) throw new Error("AppShell: validateHistoryMessages never closes");
+  const fn = src.slice(fnAt, fnEnd);
+  if (!fn.includes("readModelEmittedText(role, rawEmitted)")) {
+    throw new Error(
+      "AppShell validateHistoryMessages must restore modelEmittedText via " +
+        "readModelEmittedText(role, rawEmitted) — the save path's own policy. " +
+        "The load path drifted from the save path again.",
+    );
+  }
+  if (/rawEmitted\.trim\(\)/.test(shapeOf(fn))) {
+    throw new Error(
+      "AppShell validateHistoryMessages TRIMS the emission on load again " +
+        "(rawEmitted.trim()) — load destroys what save preserves; the KV " +
+        "replay diverges at the first token of any emission with edge " +
+        "whitespace.",
+    );
+  }
+  console.log("PASS AppShell load path preserves emission bytes");
+}
+
 function resolveBuiltModule() {
   const candidates = [
     path.join(outDir, "modelEmittedText.js"),
@@ -64,6 +106,7 @@ function main() {
       historyReplayCharLength,
       llamaHistoryAssistantFields,
       normalizeModelEmittedTextForSave,
+      readModelEmittedText,
     } = require(resolveBuiltModule());
     const cases = [
       {
@@ -234,6 +277,28 @@ function main() {
       "normalized leading-newline replay",
     );
     console.log("PASS save normalizer and leading-newline replay");
+
+    // Save and load are ONE policy: whitespace-only → absent, everything else
+    // byte-for-byte. The load twin (readModelEmittedText) is the same function
+    // AppShell's history validation must call.
+    assert.equal(
+      readModelEmittedText("assistant", "\nREASONING</think>ANSWER"),
+      "\nREASONING</think>ANSWER",
+      "load preserves a leading newline byte-for-byte",
+    );
+    assert.equal(
+      readModelEmittedText("assistant", "   \n\t  "),
+      undefined,
+      "load treats whitespace-only as absent, like save",
+    );
+    assert.equal(
+      normalizeModelEmittedTextForSave("assistant", "  hello  "),
+      readModelEmittedText("assistant", "  hello  "),
+      "save and load agree byte-for-byte on a padded emission",
+    );
+    console.log("PASS load twin of the save normalizer");
+
+    assertAppShellLoadPreservesBytes();
 
     const formA = "RAW";
     const formB = "<think>RAW";

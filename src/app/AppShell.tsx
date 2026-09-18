@@ -288,6 +288,7 @@ import {
 import {
   historyReplayCharLength,
   historyThinkPlacementForModel,
+  readModelEmittedText,
 } from "../engine/modelEmittedText";
 import {
   advanceAnchoredBoundary,
@@ -755,12 +756,11 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
       const edited =
         (m as { edited?: unknown }).edited === true ? true : undefined;
       const rawEmitted = (m as { modelEmittedText?: unknown }).modelEmittedText;
-      const modelEmittedText =
-        role === "assistant" &&
-        typeof rawEmitted === "string" &&
-        rawEmitted.trim().length > 0
-          ? rawEmitted.trim()
-          : undefined;
+      // Load applies the save path's own rule (readModelEmittedText):
+      // whitespace-only means absent, everything else is preserved
+      // byte-for-byte. Trimming here destroyed leading whitespace the KV
+      // holds, so the replay diverged at the emission's first token.
+      const modelEmittedText = readModelEmittedText(role, rawEmitted);
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
