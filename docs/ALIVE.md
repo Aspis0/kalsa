@@ -7533,3 +7533,14 @@ restano provati dal run del mattino, non da questo.
    disk"* — **e' falso come scritto**: il dump JSON l'ho tolto e i testi li ho troncati, ma un PNG
    della conversazione finisce su disco lo stesso, e ci e' finito su una condizione transitoria che
    non era nemmeno un fallimento. Un messaggio di commit e' un'asserzione come un commento.
+
+**Il raggio del difetto 3, misurato da kalsa-2d e non da me, e va detto insieme all'accusa.** Non e'
+di oggi e non e' solo del mio protocollo: **dieci** coppie `fatal*.png` / `fatal_state*` dal 14/09,
+scritte da ogni harness che sorgente `ci-lib.sh` (`out/t20c-*`, `out/bench`,
+`device-share-send-out/`, `device-restore-out/`). Ma `git check-ignore -v` da' `out/`
+(`.gitignore:96`), `device-share-send-out/` (`:102`) e `device-restore-out/` (`:103`) **tutte
+ignorate**, e i workflow caricano artefatti da dir dove il testo e' quello sintetico dell'harness.
+Quindi la frase esatta e': **"la conversazione ha toccato il disco" si', "la conversazione e' uscita
+dalla macchina" no.** La seconda e' quella che conterebbe davvero, ed e' falsa — dirlo non attenua il
+difetto, lo dimensiona. Crepa accanto, segnalata da kalsa-2d e non mia: `device-decode-lineup-out/`
+**non** e' ignorata, e la classe `*-out/` andrebbe ignorata per costruzione.
