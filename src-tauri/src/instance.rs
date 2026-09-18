@@ -52,8 +52,6 @@ use std::time::Duration;
 /// Fixed, beside the door's preferred port, and derived from nothing that
 /// is bound later in startup.
 const GUARD_PORT: u16 = 8132;
-/// How often the knock watcher re-checks its stop flag between knocks.
-const WATCH_POLL: Duration = Duration::from_millis(100);
 /// How long a knock may take to connect before it is abandoned. The only
 /// case this fires in is a holder whose accept queue is full — a squatter,
 /// or a watcher dead at its post — and no launch should hang on that
@@ -224,16 +222,15 @@ impl Guard {
         let handle = std::thread::Builder::new()
             .name("kalsa-instance-guard".into())
             .spawn(move || {
-                let _ = listener.set_nonblocking(true);
                 while !stop.load(Ordering::SeqCst) {
                     match listener.accept() {
                         // A connect from loopback is the whole message.
                         Ok((stream, _)) => {
                             drop(stream);
+                            if stop.load(Ordering::SeqCst) {
+                                return;
+                            }
                             on_knock();
-                        }
-                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                            std::thread::sleep(WATCH_POLL);
                         }
                         Err(_) => return,
                     }
@@ -250,6 +247,11 @@ impl Guard {
 impl Drop for Guard {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
+        if let Some(listener) = self.listener.as_ref() {
+            if let Ok(address) = listener.local_addr() {
+                let _ = TcpStream::connect_timeout(&address, KNOCK_TIMEOUT);
+            }
+        }
         if let Some(handle) = self
             .watcher
             .lock()
