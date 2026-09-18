@@ -7620,3 +7620,27 @@ E' un comportamento voluto (LRU con preferenza per il modello estraneo), ma ness
 80 MB di prefill altrui siano il primo sacrificabile **in presenza di un cambio di motore che stava
 gia' costando un prefill a freddo**: le due cose insieme fanno pagare due volte lo stesso giro.
 Voce aperta, non un difetto: la decisione di budget e' dell'owner.
+
+### Correzione alla voce precedente: quella catena NON e' osservabile, e non lo sara' mai com'e' scritta
+
+Il coordinatore ha chiesto la riga di log con vittima e `keepStem` prima di accettare "eviction del
+pool" come fatto invece che come lettura del codice. Giusto chiederla. **La riga non esiste e non puo'
+esistere:** `grep -cE "console\.|KALSA_|log\(" src/engine/sessionPool.ts` da' **0**. Il file che
+decide quali `.kvs` cancellare non stampa nulla, e `evictSessionPool` (`sessionPool.ts:152-159`)
+avvolge tutto in `try { … } catch { /* best-effort */ }`, quindi anche un fallimento e' muto.
+
+L'unica traccia vicina e' `LlamaService.ts:3358-3359`: `if (!(await sessionFileExists(stem))) {
+log(false, { reason: "evicted" }); }` — e dice solo *"il file che ho appena salvato e' stato
+sfrattato"*, cioe' il caso `keepStem`. **Della vittima non si sa niente, per costruzione.**
+
+Quindi la forma onesta della voce precedente e': la cancellazione della Qwen e' **dedotta dal
+codice** (`LlamaService.ts:3354-3356` → `pickEvictionStems` foreign-first, `sessionPool.ts:66-71`),
+**non osservata**. Il mio run delle 16:10 non aiuta: le uniche quattro righe con "evict" nel suo
+logcat sono `BufferPoolAccessor2.0` di Android, niente a che vedere. Nessuna eviction di sessione e'
+scattata nel mio giro.
+
+**La conseguenza vale piu' dell'episodio.** Una cancellazione di 80 MB di cache decisa da una LRU con
+preferenza per il modello estraneo e' l'unica operazione distruttiva del motore che **non lascia
+traccia**. Tutto il resto — load, save, refuse, mismatch, prewarm — ha il suo marcatore. Un marcatore
+con conteggi e `modelId` (**mai lo stem**: contiene l'id della conversazione) renderebbe questa
+discussione una lettura invece che una deduzione. Voce aperta, piccola e concreta.
