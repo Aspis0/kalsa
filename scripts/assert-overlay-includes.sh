@@ -87,31 +87,73 @@ PY
 #   KALSA_GATE_SYNTAX_CXX=host           force the host fallback (debugging)
 #   KALSA_GATE_REQUIRE_NDK=1             a fallback is a failure, not a pass
 #                                        (CI sets it: the runners have an NDK)
+# The engine module declares the NDK its own build uses -- llama.rn's
+# android/gradle.properties RNLlama_ndkversion, read at android/build.gradle:133
+# as `ndkVersion` -- so the gate can parse with that exact toolchain instead of
+# whatever NDK happens to be installed. The app itself declares none (its
+# ndkVersion comes from AGP's default), which is why the engine's pin is the
+# number worth following.
 NDK_API="${KALSA_GATE_ANDROID_API:-33}"
+NDK_VER="${KALSA_GATE_NDK_VERSION:-}"
+ENGINE_PIN=""
+if [ -f "$ROOT/node_modules/llama.rn/android/gradle.properties" ]; then
+  ENGINE_PIN="$(sed -n 's/^RNLlama_ndkversion=//p' \
+    "$ROOT/node_modules/llama.rn/android/gradle.properties" | tr -d '[:space:]')"
+fi
+[ -n "$NDK_VER" ] || NDK_VER="$ENGINE_PIN"
 SYNTAX_CXX=""
-NDK_WHY="no NDK directory (ANDROID_NDK_HOME, ANDROID_NDK_ROOT, /opt/homebrew/share/android-ndk)"
+NDK_ROOT_USED=""
+NDK_WHY="no NDK directory (\$ANDROID_HOME/ndk, \$ANDROID_SDK_ROOT/ndk, ANDROID_NDK_HOME, ANDROID_NDK_ROOT, /opt/homebrew/share/android-ndk)"
+
+ndk_try() {  # ndk_try <ndk root> -- sets SYNTAX_CXX when the wrapper is there
+  [ -n "${1:-}" ] || return 1
+  if [ ! -d "$1" ]; then
+    return 1
+  fi
+  local prebuilt found=0
+  for prebuilt in "$1"/toolchains/llvm/prebuilt/*; do
+    # An unexpanded glob is a string, not a directory.
+    [ -d "$prebuilt" ] || continue
+    found=1
+    if [ -x "$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++" ]; then
+      SYNTAX_CXX="$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++"
+      NDK_ROOT_USED="$1"
+      return 0
+    fi
+    if [ -e "$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++" ]; then
+      NDK_WHY="$1 has aarch64-linux-android${NDK_API}-clang++ but it is not executable"
+      return 1
+    fi
+  done
+  if [ "$found" -eq 0 ]; then
+    NDK_WHY="$1 has no toolchains/llvm/prebuilt/*"
+  else
+    NDK_WHY="$1 has no aarch64-linux-android${NDK_API}-clang++ (API $NDK_API)"
+  fi
+  return 1
+}
+
 if [ "${KALSA_GATE_SYNTAX_CXX:-}" = "host" ]; then
   NDK_WHY="KALSA_GATE_SYNTAX_CXX=host"
 else
-  for ndk_root in "${ANDROID_NDK_HOME:-}" "${ANDROID_NDK_ROOT:-}" \
-                  /opt/homebrew/share/android-ndk; do
-    [ -d "$ndk_root" ] || continue
-    for prebuilt in "$ndk_root"/toolchains/llvm/prebuilt/*; do
-      # An unexpanded glob is a string, not a directory.
-      [ -d "$prebuilt" ] || continue
-      if [ -x "$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++" ]; then
-        SYNTAX_CXX="$prebuilt/bin/aarch64-linux-android${NDK_API}-clang++"
-        break 2
-      fi
-      NDK_WHY="$ndk_root has no aarch64-linux-android${NDK_API}-clang++"
-    done
-  done
+  if [ -n "$NDK_VER" ]; then
+    ndk_try "${ANDROID_HOME:-}/ndk/$NDK_VER" || ndk_try "${ANDROID_SDK_ROOT:-}/ndk/$NDK_VER" || true
+    [ -n "$SYNTAX_CXX" ] || NDK_WHY="NDK $NDK_VER (the engine's pin) is not installed under \$ANDROID_HOME/ndk or \$ANDROID_SDK_ROOT/ndk"
+  fi
+  if [ -z "$SYNTAX_CXX" ] && [ "${KALSA_GATE_REQUIRE_NDK:-}" != "1" ]; then
+    ndk_try "${ANDROID_NDK_HOME:-}" || ndk_try "${ANDROID_NDK_ROOT:-}" \
+      || ndk_try /opt/homebrew/share/android-ndk || true
+  fi
 fi
 
 # A missing compiler used to print a NOTE and exit 0: a gate that parsed
 # nothing reported success, and the coverage floor below never ran.
 if [ -n "$SYNTAX_CXX" ]; then
-  CXX_TAG="ndk aarch64-linux-android${NDK_API}"
+  ndk_rev="$(sed -n 's/^Pkg.Revision *= *//p' "$NDK_ROOT_USED/source.properties" 2>/dev/null | tr -d '[:space:]')"
+  CXX_TAG="ndk ${ndk_rev:-unknown} api $NDK_API"
+  if [ -n "$ENGINE_PIN" ] && [ "$ndk_rev" != "$ENGINE_PIN" ]; then
+    CXX_TAG="$CXX_TAG, NOT the engine's pin $ENGINE_PIN"
+  fi
 elif [ "${KALSA_GATE_REQUIRE_NDK:-}" = "1" ]; then
   echo "[includes] FAIL: KALSA_GATE_REQUIRE_NDK=1 and the NDK clang is unusable: $NDK_WHY" >&2
   exit 1
@@ -125,26 +167,55 @@ else
 fi
 echo "[includes] syntax pass compiler: $SYNTAX_CXX"
 
+SYNTAX_LOG="$(mktemp -t kalsa-syntax)"
+trap 'rm -f "$SYNTAX_LOG"' EXIT
+
 fails=0
-parsed=0
-rn_parsed=0
-for f in "$CPP"/common/*.cpp "$CPP"/tools/mtmd/*.cpp "$CPP"/rn-*.cpp; do
-  # An unmatched glob is a string, not a file: skipping it silently is how this
-  # gate would print OK on an engine that lost the sources it is here to check.
-  [ -f "$f" ] || continue
-  parsed=$((parsed + 1))
-  case "$(basename "$f")" in rn-*) rn_parsed=$((rn_parsed + 1)) ;; esac
+c_common=0
+c_mtmd=0
+c_rn=0
+parse_one() {  # parse_one <file> [extra compiler arg...]
+  local f="$1"; shift
   if ! "$SYNTAX_CXX" -std=c++17 -fsyntax-only \
       -I "$CPP" -I "$CPP/common" -I "$CPP/common/jinja" \
       -I "$CPP/ggml-cpu" -I "$CPP/tools/mtmd" -I "$ROOT/native/bmoe/rn" \
-      "$f" > /tmp/kalsa-syntax.log 2>&1; then
+      ${@+"$@"} \
+      "$f" > "$SYNTAX_LOG" 2>&1; then
     echo "[includes] SYNTAX FAIL: $(basename "$f")"
-    grep -E "error:" /tmp/kalsa-syntax.log | head -3 | sed 's/^/    /'
+    # `| head` sends SIGPIPE and a grep that matches nothing exits 1: under
+    # `set -e` either one would kill the script before it printed why.
+    (grep -E "error:" "$SYNTAX_LOG" || tail -3 "$SYNTAX_LOG") 2>/dev/null \
+      | sed -n '1,3p' | sed 's/^/    /' || true
     fails=$((fails + 1))
   fi
+}
+
+for f in "$CPP"/common/*.cpp "$CPP"/tools/mtmd/*.cpp; do
+  # An unmatched glob is a string, not a file: skipping it silently is how this
+  # gate would print OK on an engine that lost the sources it is here to check.
+  [ -f "$f" ] || continue
+  case "$f" in
+    "$CPP"/common/*) c_common=$((c_common + 1)) ;;
+    *) c_mtmd=$((c_mtmd + 1)) ;;
+  esac
+  parse_one "$f"
 done
-if [ "$rn_parsed" -eq 0 ] || [ "$parsed" -lt 20 ]; then
-  echo "[includes] FAIL: only $parsed source(s) parsed, $rn_parsed of them rn-*."
+# The rn-owned sources are compiled with the backends the app turns on
+# (app.config.js `enableOpenCLAndHexagon: true` -> ENABLE_OPENCL in the fork's
+# CMakeLists), and rn-slot.cpp guards three blocks on LM_GGML_USE_OPENCL. Parsed
+# without the define, those blocks are invisible to this gate and the drift in
+# them surfaces only in the APK build.
+for f in "$CPP"/rn-*.cpp; do
+  [ -f "$f" ] || continue
+  c_rn=$((c_rn + 1))
+  parse_one "$f" -DLM_GGML_USE_OPENCL
+done
+
+parsed=$((c_common + c_mtmd + c_rn))
+# One floor per group, not one total: with a single total a whole group can
+# vanish and the OK line still claims to have covered it.
+if [ "$c_rn" -lt 5 ] || [ "$c_common" -lt 15 ] || [ "$c_mtmd" -lt 3 ]; then
+  echo "[includes] FAIL: parsed $c_common common, $c_mtmd mtmd, $c_rn rn-* sources."
   echo "[includes] The installed engine is missing sources this gate must cover."
   exit 1
 fi
@@ -155,5 +226,6 @@ if [ "$fails" -gt 0 ]; then
 fi
 # Not "everything the build compiles": this parses common/, tools/mtmd/ and the
 # rn-owned sources -- the drift surface between the engine and the binding. The
-# rest of cpp/ is the fork's own gate (scripts/assert-cpp-includes.sh, 307 TUs).
-echo "[includes] OK [$CXX_TAG]: $parsed source(s) parse ($rn_parsed rn-*): common, mtmd, rn-*"
+# rest of cpp/ is covered by the fork's own gate (scripts/assert-cpp-includes.sh
+# in Aspis0/llama.rn, 307 TUs), which runs there, not here.
+echo "[includes] OK [$CXX_TAG]: $parsed source(s) parse ($c_common common, $c_mtmd mtmd, $c_rn rn-* with -DLM_GGML_USE_OPENCL)"
