@@ -6702,3 +6702,26 @@ seconda variabile in una misura gia' avviata: `AppShell.tsx:758-762` taglia gli 
 dell'emissione **in caricamento** mentre il salvataggio li preserva (*save preserves, load
 destroys*); e il budget tronca a `baseMessageCap` mentre `compactor.ts:840-842` lascia
 `modelEmittedText` **non troncato** di proposito, quindi un'emissione lunga resta sotto-contata.
+
+**18/09 mattina — la prova che il cleanup non tocca il binario, e una falsa differenza che mi ero
+fabbricato da solo.** Run `35354214821` (ref `llama-rn-fork`, sha `38b5cf0`, `debuggable=true`):
+**success su tutti i passi**, e i **38 `.so` sono identici byte per byte** a quelli della build
+precedente al cleanup (`35321529286`, sha `5e3da14`). Cancellare 742 file, un devDep e due script non
+ha cambiato un solo input di build. Il gate nuovo gira davvero in CI:
+
+```
+[provenance] lockfile pins Aspis0/llama.rn@fada1ebed008
+[provenance] OK: 865 files match Aspis0/llama.rn@fada1ebed008
+[provenance] engine inside it: kalsallama@70b4302bb8f7
+```
+
+**La falsa differenza.** Il primo confronto diceva 17 librerie diverse. Non lo erano: avevo costruito
+la baseline con `find … | while read … | tee file | head -20`, e l'uscita di `head` chiude la pipe —
+il ciclo muore a 21 righe su 38 e le 17 "differenze" erano la coda mancante del mio file. Ri-calcolati
+entrambi per intero: 38 contro 38, `diff` esce 0. **Una pipeline che finisce in `head` può troncare
+ciò che alimenta, non solo ciò che stampa** — ed è la stessa famiglia del glob non espanso trovato
+un'ora prima: lo strumento riporta successo su un lavoro fatto a metà.
+
+**Cosa NON abbiamo ancora**: l'inferenza vera su main. L'e2e `35351292439` sul commit dello switch è
+stata cancellata al passo 14 dal push della sessione KV (17 passi verdi prima, incluso il marker nel
+binario); il verdetto arriva dalla loro run `35354417704` su `bc6bd22`, che è main piu' commit JS.
