@@ -557,6 +557,49 @@ scaduto: serve il codice 2FA via email dell'owner.
 - mimo: solo audit mono-documento (recon larghi → Luna/deepseek); delta numerici a deepseek.
 
 ## Aperti
+
+### PRODOTTO / PERDITA DATI — una conversazione puo' essere distrutta da un turno normale (18/09)
+
+Trovato per incidente: una conversazione sull'S23 e' passata da ~17 messaggi a 2. Non affiancati,
+**sostituiti**. Contato sullo store: le altre 90 chiavi `kalsa.messages.*` sono intatte (312
+messaggi), quindi la perdita e' circoscritta a quella conversazione — ma la catena che l'ha
+prodotta non ha niente di specifico a quel caso.
+
+**Tre righe verificate nel sorgente, e insieme fanno il danno:**
+1. `src/screens/AiChatPage.tsx` (effetto di idratazione) — se la storia salvata non si legge o non
+   supera `sanitizeHistoryMessages`, la lista resta **vuota** e `historyLoaded` diventa comunque
+   `true`. Il commento lo dichiara: *"storico corrotto: ignora e riparti pulito"*. Scelta
+   ragionevole per **mostrare** qualcosa; e' la premessa del disastro per **scrivere**.
+2. `src/app/AppShell.tsx:2360-2363` — se la chat attiva risulta vuota, **"Nuova chat" non crea
+   niente**: chiude il pannello e basta. La vista mostra il saluto e l'utente crede di essere in
+   una chat nuova mentre e' ancora in quella di prima. (La guardia contro la corsa con
+   l'idratazione **esiste** ed e' corretta: `isActiveChatEmptyRef` torna `false` finche' la storia
+   non e' caricata. Non e' li' il difetto.)
+3. `src/screens/AiChatPage.tsx` — `persistMessagesNow` rifiuta di scrivere una lista **vuota**
+   (`if (!messagesSnapshot.length) return false;`) ma **non ha nessuna guardia** contro lo scrivere
+   una lista **piu' corta** sopra una piu' lunga gia' salvata. Due messaggi sovrascrivono
+   diciassette senza che niente se ne accorga.
+
+**La conseguenza generale, che e' il punto:** qualunque percorso che produca una storia in memoria
+vuota per una conversazione **esistente** porta alla distruzione permanente del transcript salvato
+al turno successivo. La guardia che c'e' protegge l'unico caso che non puo' fare danno (non c'e'
+niente da scrivere); il caso che fa danno (2 sopra 17) non e' protetto.
+
+**Cosa NON e' accertato:** cosa abbia svuotato quella specifica storia. Il blob originale non
+esiste piu', quindi non posso dire se fosse corrotto, se `sanitizeHistoryMessages` l'abbia scartato
+o se sia stato un terzo percorso. **Conosco l'amplificatore, non l'innesco** — ed e' l'amplificatore
+che trasforma un difetto di visualizzazione in una perdita definitiva.
+
+**Perche' e' prioritario rispetto al lavoro sulla KV:** i difetti KV costano secondi di attesa;
+questo costa conversazioni, su un'app che le tiene **solo** sul telefono e senza copia altrove. La
+sequenza d'innesco non e' da laboratorio: apri l'app, tocchi "Nuova chat", scrivi.
+
+**Direzione di riparazione (non implementata, decisione dell'owner):** una storia salvata che
+esiste ma non si legge non deve essere trattata come "nessuna storia". Le due mosse minime sono
+(a) non permettere una scrittura che **accorcia** un transcript salvato senza un passaggio
+esplicito, e (b) se il grezzo esiste ma non produce messaggi validi, metterlo da parte invece di
+sovrascriverlo.
+
 - **Fine tune MiniCPM5: decisione aperta, gate 12/10 (dopo M1).** Raccomandazione 10/09: nessun branch prima di M1. Si riapre il 12/10 con due input: licenza LFM2.5 e dossier M1 sugli errori reali di LFM. **Licenza (testo letto 10/09, non è una decisione):** LFM Open License v1.0 (https://huggingface.co/LiquidAI/LFM2.5-2.6B/raw/main/LICENSE) §5 — Commercial Use is licensed unless the Legal Entity's annual revenue is ≥ USD 10 million; above that threshold Commercial Use is not licensed. MiniCPM5 (Apache 2.0) remains the fallback if the threshold is a problem. Fino al 12/10 nessuna cella su MiniCPM5. GPU/governor NON sono "dopo M1": stanno in G3 (28-29/09); solo la NPU resta a decisione a tempo.
 
 - **S23 battery reproduction — PARTIAL, model mismatch.** The 9/09 MiniCPM5 Q4_K_M incident remains the pathology baseline: 52% → 28% in 65 minutes, 0.06 tok/s and mlock/swap pressure. The 10/09 3ca6145 run used shipped LFM instead: 89% → 86% across five instrumented attempts, 11.03–13.10 tok/s, no stall/deadline/unload/interruption. C02's final retry false-settled to raw `The`; C03-C06 are the four valid answers, and the earlier C02 `4.35` is excluded. All five turns logged `memoryEnabled:0` / `skipped_no_snapshot`, so memory extraction was not exercised. This does not demonstrate that the MiniCPM5 pathology was fixed; no new MiniCPM5 reproduction is planned under the closed G1.
