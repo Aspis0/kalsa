@@ -113,10 +113,14 @@ function assertAppShellLoadPreservesBytes() {
  * Write and removal shapes for a field, each tagged with the pairing it
  * requires. Writes: dot (incl. compound `+=` `??=` `||=`), bracket key, and
  * the two object-literal key forms (colon — bare, after a spread, spaced,
- * quoted — and brace-adjacent shorthand). Removals: `delete x.f` and
- * `delete x["f"]`. Comparisons (`==` `===` `>=`), reads, call arguments and
- * type fields (`f?:`) match none of these.
- */
+   * quoted — and brace-adjacent shorthand). Removals: `delete x.f` and
+   * `delete x["f"]`, where the receiver may itself carry brackets
+   * (`delete msgs[i].f`) — the same shapes the write side accepts.
+   * Comparisons (`==` `===` `>=`), reads, call arguments and type fields
+   * (`f?:`) match none of these, and reflective writes
+   * (Object.defineProperty / Reflect.set / computed keys) are DECLARED
+   * invisible — none exist in src today.
+   */
 function writeShapesFor(field) {
   const f = String(field);
   const alt = `(?:"${f}"|'${f}'|${f})`;
@@ -125,8 +129,8 @@ function writeShapesFor(field) {
     { kind: "write", re: new RegExp(`\\[\\s*["']${f}["']\\s*\\]\\s*(?:(?:\\+|\\?\\?|\\|\\|)?=(?![=>]))`, "g") },
     { kind: "write", re: new RegExp(`(?:\\{|,)\\s*${alt}\\s*:`, "g") },
     { kind: "write", re: new RegExp(`\\{\\s*${alt}\\s*(?=[,}\\n\\r])`, "g") },
-    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.]+\\.${f}\\b`, "g") },
-    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.]+\\[\\s*["']${f}["']\\s*\\]`, "g") },
+    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.\\[\\]]+\\.${f}\\b`, "g") },
+    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.\\[\\]]+\\[\\s*["']${f}["']\\s*\\]`, "g") },
   ];
 }
 
@@ -182,6 +186,7 @@ function assertEmissionSourceWriters() {
     ["space before the colon", "{ modelEmittedText : x };"],
     ["quoted key", '{ "modelEmittedText": x };'],
     ["bare shorthand", "({ modelEmittedText });"],
+    ["dot removal on a bracket-indexed receiver", "delete msgs[i].modelEmittedText;"],
     ["dot removal", "delete msg.modelEmittedText;"],
     ["bracket removal", 'delete msg["modelEmittedText"];'],
     ["compound += write", "msg.modelEmittedText += x;"],
