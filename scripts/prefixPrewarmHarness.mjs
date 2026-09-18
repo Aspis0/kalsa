@@ -4,7 +4,7 @@
  * Compile-from-disk. Exit 1 on fail.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -2168,6 +2168,68 @@ async function main() {
   console.log(
     "PASS settle wait is wall clock (shared deadline, floor-timed) and its log persists",
   );
+
+  // ── The warn-once log gate must actually gate ────────────────────────────
+  // The setup block decides RP_LOG_OK once and the log helper appends only
+  // when it is 1. Reverting the helper's gate to `if [ -n "$RP_LOG_FILE" ]`
+  // is invisible to a driver that models a successful setup, so this pin
+  // models a BROKEN one: OUT unwritable (a read-only parent, restored
+  // afterwards) must yield exactly one WARNING line, ZERO stderr from the
+  // log calls that follow, and no protocol.log. Needs a non-root runner —
+  // root ignores the mode bits and the unwritable precondition is false.
+  const setupStart = protocolSrc.indexOf('RP_LOG_FILE="$OUT/protocol.log"');
+  assert(setupStart >= 0, "the protocol's log setup block still exists");
+  const setupEnd = protocolSrc.indexOf("\n  fi\n", setupStart);
+  const setupBlock = protocolSrc.slice(setupStart, setupEnd + "\n  fi\n".length);
+  assert(
+    setupBlock.includes("mkdir -p") &&
+      setupBlock.includes("RP_LOG_OK=1") &&
+      setupBlock.includes("RP_LOG_OK=0"),
+    "the setup block still decides RP_LOG_OK once, from mkdir plus truncation",
+  );
+  const gateParent = path.join(outDir, "loggate-ro");
+  mkdirSync(gateParent, { recursive: true });
+  chmodSync(gateParent, 0o555);
+  try {
+    const unwritable = path.join(gateParent, "run");
+    const probe = [
+      "#!/usr/bin/env bash",
+      "set -uo pipefail",
+      logFn,
+      setupBlock,
+      'log "cycle 1: kick settled after 2s"',
+      'log "cycle 1: kick did not settle within 2s — fg_settled goes out anyway"',
+      "exit 0",
+      "",
+    ].join("\n");
+    const probeFile = path.join(outDir, "loggate-probe.sh");
+    writeFileSync(probeFile, probe, "utf8");
+    const r = spawnSync("bash", [probeFile], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      timeout: 30000,
+      env: { ...process.env, OUT: unwritable },
+    });
+    const warnings = (r.stdout.match(/WARNING: cannot write/g) ?? []).length;
+    assert(
+      warnings === 1,
+      `an unwritable log must warn exactly once — got ${warnings} warning(s) ` +
+        `(a runner running as root cannot honour the read-only precondition)`,
+    );
+    assert(
+      r.stderr === "",
+      `with the gate working, the log calls after setup must write ZERO stderr ` +
+        `— got: ${JSON.stringify(r.stderr.slice(0, 200))}`,
+    );
+    assert(
+      !existsSync(path.join(unwritable, "protocol.log")),
+      "no protocol.log may appear when the log path is unwritable",
+    );
+    assert(r.status === 0, `the probe must not die over a broken log — got ${r.status}`);
+  } finally {
+    chmodSync(gateParent, 0o755);
+  }
+  console.log("PASS the log gate warns once and stays silent after (unwritable OUT)");
 
 
   // ── The re-kick's mutes must speak ───────────────────────────────────────
