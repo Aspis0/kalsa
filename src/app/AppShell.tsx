@@ -129,6 +129,7 @@ import {
   getActiveEngineNCtx,
   getActiveModelId,
   getAttemptedAssembleStart,
+  getEngineLostModelId,
   getLoadedAssembleBoundary,
   initEngine,
   invalidateConversationSessions,
@@ -153,6 +154,17 @@ import {
 import { runDeepResearch } from "../research/deepResearch";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { gateModelLoad } from "../engine/loadGate";
+import {
+  clearLoadMarker,
+  pickFallbackModel,
+  pickStartModel,
+  readLastGoodModelId,
+  readLoadMarker,
+  writeLastGoodModelId,
+  writeLoadMarker,
+  type LoadMarkerStore,
+} from "../engine/loadMarker";
 import {
   backgroundDiscardLifecycleRef,
   deferModelSwitchIfSendClaimed,
@@ -376,6 +388,8 @@ type ActiveOverlay =
   | null;
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
+/** Injected store for load markers + last-good bookkeeping (boot-loop defence). */
+const loadMarkerStore: LoadMarkerStore = AsyncStorage;
 const NOTES_CONTEXT_MAX_CHARS = 24_000;
 /**
  * Keep a quick app switch or Files share from forcing a prewarm. Forty-five
@@ -2863,18 +2877,48 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Ref speculare per il race tra check iniziale e load della preferenza.
   const modelIndexRef = useRef(modelIndex);
   modelIndexRef.current = modelIndex;
+  /** Fallback target already chosen by the load gate — one hop, never a loop. */
+  const loadFallbackTargetRef = useRef<string | null>(null);
 
   // Riconoscimento modello all'avvio: ripristina l'ultimo modello usato
   // (come la selezione persistita), NON sempre il default.
+  // Boot-loop defence: a persisted selection carrying a death marker (its load
+  // killed the process on a previous launch) never starts; pickStartModel
+  // starts on the last good model, else the registry default.
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(MODEL_STORAGE_KEY)
-      .then((saved) => {
+    void (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
         if (!mounted || !saved) return;
-        const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
-        if (savedIndex >= 0) setModelIndex(savedIndex);
-      })
-      .catch(() => undefined);
+        // Concurrent reads: boot latency stays one storage round-trip.
+        const [savedMarked, lastGoodId] = await Promise.all([
+          readLoadMarker(loadMarkerStore, saved),
+          readLastGoodModelId(loadMarkerStore),
+        ]);
+        if (!mounted) return;
+        const startId = pickStartModel({
+          savedId: saved,
+          savedMarked,
+          lastGoodId,
+          defaultId: getDefaultModel().id,
+        });
+        const startIndex = MODEL_REGISTRY.findIndex((model) => model.id === startId);
+        if (startIndex < 0 || startIndex === modelIndexRef.current) return;
+        if (startId !== saved) {
+          loadFallbackTargetRef.current = startId;
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("model.tooLarge"));
+          setModelErrorDetail(null);
+        }
+        // Keep stillCurrent() of any in-flight boot kick correct before re-render.
+        modelIndexRef.current = startIndex;
+        setModelIndex(startIndex);
+      } catch {
+        // Preference read failure → keep the default boot model.
+      }
+    })();
     // M1: detect orphaned model folders left by a catalog prune (no UI delete
     // path). Detect-ONLY: never deletes at boot. A one-time "Delete / Keep"
     // notice surfaces in Settings. Fire-and-forget — never blocks UI.
@@ -2882,6 +2926,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Boot history hash is captured after the conversation index loads
@@ -3875,6 +3920,103 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setCoResidencyContext({ chatModelIs2B: isChatModel2BClass(model.id) });
       }
 
+      // Boot-loop defence: the SAME fit evaluation the send path runs
+      // (decidePreSendFit, via gateModelLoad), here on the LOAD path — the
+      // send-only gate let a too-big model load, die to LMK in the foreground,
+      // and relaunch-loop. A resident model different from the target is
+      // disposed first (bounded) so the gate never refuses on memory held by
+      // the model it is about to replace; same model → no dispose.
+      const gateVerdict = await gateModelLoad({
+        model: {
+          id: model.id,
+          sizeBytes: model.sizeBytes,
+          engineCtx: model.engineCtx,
+          kvBytesPerToken: model.kvBytesPerToken,
+          mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
+          loadPolicy: model.loadPolicy,
+        },
+        markerPresent: await readLoadMarker(loadMarkerStore, model.id).catch(() => false),
+        residentModelId: isEngineReady() ? (getActiveModelId() ?? null) : null,
+        lostModelId: getEngineLostModelId(),
+        benchNoRepack: await getBenchNoRepack(),
+        disposeResident: async () => {
+          const result = await runNativeOpBounded(
+            () => disposeEngine(),
+            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+          );
+          if (!result.ok) {
+            console.warn(
+              `[kalsa] load-gate dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); refusing load with the previous model still resident`,
+            );
+          }
+          return result.ok;
+        },
+        getAvailableBytes: async () => {
+          try {
+            return await getAvailableMemoryBytesUncached();
+          } catch {
+            return null;
+          }
+        },
+      });
+      if (!gateVerdict.allow) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `KALSA_LOAD ${JSON.stringify({
+            phase: "fitGate",
+            modelId: model.id,
+            refusedBy: gateVerdict.refusedBy,
+            disposedResident: gateVerdict.disposedResident,
+          })}`,
+        );
+        setModelState("error");
+        modelStateRef.current = "error";
+        setModelErrorKind("engine");
+        setModelError(t(gateVerdict.reasonKey ?? "model.tooLarge"));
+        setModelErrorDetail(null);
+        // Fallback once: last good load, else the default — never the model
+        // that just failed, never a second hop. The fallback loads through
+        // this same gate; its own refusal lands on the message-only branch.
+        if (loadFallbackTargetRef.current !== model.id) {
+          const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
+          const fallbackId = pickFallbackModel({
+            refusedId: model.id,
+            lastGoodId,
+            defaultId: getDefaultModel().id,
+          });
+          const fallbackIndex = fallbackId
+            ? MODEL_REGISTRY.findIndex((m) => m.id === fallbackId)
+            : -1;
+          if (fallbackIndex >= 0 && fallbackIndex !== modelIndexRef.current) {
+            loadFallbackTargetRef.current = fallbackId;
+            setModelState("checking");
+            // Keep stillCurrent() correct before re-render (same as selectModel):
+            // the direct ensure below awaits, and modelIndexRef lags the render.
+            modelIndexRef.current = fallbackIndex;
+            setModelIndex(fallbackIndex);
+            // Load the fallback directly: the [modelIndex] kick is one-shot per
+            // modelId@generation (claimEagerKick), so a fallback that already
+            // kicked this process would otherwise never load. A duplicate kick
+            // ensure is refused by the chat-gate backstop.
+            const fallbackModel = MODEL_REGISTRY[fallbackIndex];
+            void (async () => {
+              try {
+                if (await isModelBundleDownloaded(fallbackModel)) {
+                  void ensureEngineForModelRef.current(fallbackModel);
+                } else if (modelIndexRef.current === fallbackIndex) {
+                  setModelState("missing");
+                }
+              } catch {
+                // Bundle probe failure: keep the refusal message visible and
+                // let the model bar retry path take over.
+                setModelState("error");
+              }
+            })();
+          }
+        }
+        return false;
+      }
+
       // Clear previous error banner before retry so "Ready" never coexists with
       // a stale "Could not load the model" under the header / in Settings.
       // FIX B: bump + abort so in-flight embed cannot initLlama after we start
@@ -4039,6 +4181,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
+      // Death marker BEFORE the load: if the process dies mid-load, the next
+      // launch refuses this modelId and starts on the fallback instead of
+      // relaunch-looping. Cleared below only when this load succeeds. A
+      // storage failure never blocks the load (fail open).
+      await writeLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
       const boundedInit = await runNativeOpBounded(
         () =>
           initEngine(modelLocalPath(model, model.file), model.id, {
@@ -4101,6 +4248,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorKind(null);
       setMemoryBannerKey(null);
       setProcessUnloadedReason(null);
+      // Load succeeded: clear the death marker and record this model as the
+      // boot fallback (last good load). Storage failures never fail a
+      // successful load.
+      await clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+      await writeLastGoodModelId(loadMarkerStore, model.id).catch(() => undefined);
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
     } catch (error) {
@@ -4152,6 +4304,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorKind(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+      // Re-asserting a selection clears that model's death marker so the user
+      // can retry a model whose load killed a previous launch.
+      void clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id);
 
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
@@ -4584,6 +4739,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Hoist uri so the runNativeOpBounded closure does not re-widen
       // DownloadOutcome (status === "aborted" already returned above).
       const modelUri = (outcome.model as { status: "done"; uri: string }).uri;
+      // Same death-marker contract as ensureEngineForModel: a download path
+      // load that kills the process must not relaunch-loop on the next start.
+      await writeLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
       const boundedInitDl = await runNativeOpBounded(
         () =>
           initEngine(modelUri, model.id, {
@@ -4641,6 +4799,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setMemoryBannerKey(null);
       setProcessUnloadedReason(null);
       setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
+      // Load succeeded: clear the death marker and record the boot fallback.
+      // Storage failures never fail a successful load.
+      await clearLoadMarker(loadMarkerStore, model.id).catch(() => undefined);
+      await writeLastGoodModelId(loadMarkerStore, model.id).catch(() => undefined);
       showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
         t("notify.channelName"),
