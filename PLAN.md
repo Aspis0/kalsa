@@ -558,6 +558,22 @@ scaduto: serve il codice 2FA via email dell'owner.
 
 ## Aperti
 
+### NDK — la build non dichiara la sua versione, quindi il gate non puo' condividerla (18/09)
+
+L'app non fissa `ndkVersion` da nessuna parte: `app.config.js` ha solo `minSdkVersion: 33` (riga
+118), `android/app/build.gradle:89` dice `ndkVersion rootProject.ext.ndkVersion` e nessun file
+imposta quell'ext (`android/build.gradle` applica solo `expo-root-project`; in
+`node_modules/expo-modules-core/android/build.gradle:89-90` l'ext si usa solo
+`if (rootProject.hasProperty("ndkVersion"))`). La versione che la build ha davvero usato si legge
+soltanto in un artefatto: `android/app/build/intermediates/cxx/.../build_model.json` →
+`-DANDROID_NDK=…/ndk/27.1.12297006`. Quindi **e' il default di AGP e si muove con AGP**, e su un
+runner AGP se lo installa da solo invece di usare quello preinstallato. Conseguenza: il gate degli
+include compila con un NDK che e' vicino ma non dimostrabilmente lo stesso della build. Chiuderlo
+vuol dire dichiarare la versione una volta sola (expo-build-properties `android.ndkVersion`) e
+passarla al gate con `KALSA_GATE_NDK_VERSION`. **Decisione di Marco, non ora**: fissare una versione
+e' anche rinunciare agli aggiornamenti automatici di AGP.
+
+
 ### PRODOTTO / PERDITA DATI — una conversazione puo' essere distrutta da un turno normale (18/09)
 
 Trovato per incidente: una conversazione sull'S23 e' passata da ~17 messaggi a 2. Non affiancati,

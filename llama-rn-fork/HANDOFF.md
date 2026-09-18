@@ -697,6 +697,25 @@ a binary without a Metal library.
   100%, 34.4 C", 16/09) was measured unplugged; timings taken while charging are not comparable
   with that baseline. Say so next to any number rather than letting it be compared.
 
+### Added 2026-09-18 midday — where the include gates actually run
+
+- **The fork's `scripts/assert-cpp-includes.sh` is NOT in the fork's CI.** `.github/workflows/ci.yml`
+  runs lint, typecheck, ts unit tests and the C++ unit tests (gated off `kalsa`); the include gate is
+  never invoked. It is a **local / `sync-kalsallama.sh verify`** gate. Putting it in the fork's CI is
+  a **follow-up, not done**: the runner would need an NDK, and `KALSA_BMOE_DIR` points into the app
+  repo, so a fork-CI run would be PARTIAL (no rn-*, no jsi, no bmoe) unless the app's bmoe headers
+  are fetched there. Do not claim "the gate runs in CI" of the fork.
+- **The gate that does run on every push is the app's** `scripts/assert-overlay-includes.sh`
+  (`apk.yml`, `e2e-emulator.yml`, right after `npm ci`). Until 2026-09-18 its syntax pass used the
+  **host** clang++ and, with no clang++ on PATH, printed a NOTE and **exited 0** — a gate that parsed
+  nothing reporting success, with the coverage floor (`parsed` / `rn_parsed`) sitting below that early
+  exit where it could never run.
+- Both scripts now resolve the NDK clang the same way (`ANDROID_NDK_HOME` / `ANDROID_NDK_ROOT`, else
+  `/opt/homebrew/share/android-ndk`; `toolchains/llvm/prebuilt/*/bin/aarch64-linux-android<API>-clang++`,
+  API default **33** = the app's `minSdkVersion`, `app.config.js:118`). `KALSA_GATE_SYNTAX_CXX=host`
+  forces the fallback for debugging; `KALSA_GATE_REQUIRE_NDK=1` makes any fallback exit 1 naming what
+  was missing, and the app's CI sets it on the gate step.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
