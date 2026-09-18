@@ -6604,3 +6604,30 @@ Il che sposta la forma A da curiosita' storica a **caso vivo**: e' il turno inte
 l'utente che preme stop. E spiega perche' il vecchio `splitClosedLeadingThink` non poteva reggere:
 pretendeva tag iniziale **e** chiusura, quindi su un turno non chiuso cadeva sul dump grezzo. Le
 quattro forme (chiuso/non chiuso x con/senza tag) sono ora casi di prima classe nell'harness.
+
+**18/09 — previsione del TERZO run, scritta PRIMA di lanciarlo.**
+Lo stato di partenza non e' pulito e la scelta e' deliberata: i due sidecar sull'S23 sono stati
+scritti dall'APK **rotto** `5e3da14` (static-prefix 12.544.300 byte @ 09:37:04, conversazione
+32.667.052 byte @ 09:45:38). Nel run post-fix il prompt e' stato costruito interamente dal binario
+rotto in **entrambi** i cicli, quindi il `<think>` doppio e' finito in cache su **ogni** turno
+assistente della finestra, non solo sull'ultimo. Potevo cancellare il sidecar e rendere il criterio
+piu' facile; non l'ho fatto, perche' quella cache avvelenata e' l'unica prova fisica che la
+diagnosi era giusta.
+
+**Ramo 1 — ciclo 1 `partial` ATTESO**, e conta come conferma solo se mostra tutte e tre queste cose:
+`n_common` strettamente fra 1826 e 4276; **una sola** riga `KALSA_KVDIVERGE`; finestra **satura da
+entrambi i lati** (`embd_hi - n_common = 12` e `text_hi - n_common = 12`), cioe' sostituzione e non
+troncamento. Un `embd_hi - n_common < 12` direbbe "la cache e' finita li'", che e' un'altra storia.
+L'indice esatto **non e' predicibile** senza tokenizzare il prompt renderizzato col vocabolario del
+GGUF: la finestra e' cresciuta di due turni e scorre, quindi i confini di ieri non si riusano.
+Se esce diverso da cosi', non e' una conferma: e' un difetto ignoto e ci si ferma a guardarlo.
+
+**Ramo 2 — ciclo 2 `whole` RICHIESTO.** E' il test vero, e non e' toccato dal veleno: quella KV la
+scrive il binario **corretto**, quindi salva → force-stop → rilegge → deve combaciare intera, con
+`promptMs` nell'ordine dei 725 ms del baseline. Se il ciclo 2 non e' `whole`, il fix non funziona.
+
+**`KV_PREFIX_CRITERION` uscira' FAIL, ed e' atteso**: conta il `partial` del ciclo 1, che qui e'
+previsto. Il verdetto va letto riga per riga, non dal solo exit code. Pass del run = ciclo 2
+`whole` + `promptMs` ~725 ms + `FG_REKICK_CRITERION: PASS` + la firma del ramo 1. Verifica di
+persistenza: dopo il ciclo 2 il `.kvs` della conversazione deve avere mtime **nuovo**; se non ce
+l'ha, quel `whole` non prova niente sulla persistenza e va detto.
