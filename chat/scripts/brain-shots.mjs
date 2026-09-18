@@ -194,6 +194,7 @@ const STATES = [
     capability: { kind: "measured", machine: UNREADABLE_CARD, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
     presence: "This computer is not running anything right now.",
+    walkStep: true,
   },
   {
     name: "cpu",
@@ -433,7 +434,20 @@ async function main() {
                 ? Promise.reject(new Error("refused"))
                 : Promise.resolve(answers[command] ?? null),
           },
-          event: { listen: () => Promise.resolve(() => {}) },
+          // The real bus hands the listener an ENVELOPE -- { event, id,
+          // payload } -- not the payload. A stub that delivers nothing let
+          // the whole walk display rot unnoticed: the brain's only listener
+          // stored the envelope, every step arrived with `kind` undefined,
+          // and a twenty-gigabyte download rendered as "Getting this
+          // computer ready" with no bytes. This stub keeps the handlers so a
+          // test can deliver one the same shape Tauri does.
+          event: {
+            listen: (name, handler) => {
+              window.__kbListeners = window.__kbListeners || {};
+              (window.__kbListeners[name] = window.__kbListeners[name] || []).push(handler);
+              return Promise.resolve(() => {});
+            },
+          },
         };
       },
       {
@@ -537,6 +551,23 @@ async function main() {
         `page ${small.scrollHeight}x${small.scrollWidth} tall/wide, scrollTop ${small.scrollTop}`,
     );
     await shot(page, fixture.file.replace(/\.png$/, "-small.png"));
+    // A walk step delivered through the real envelope shape. The phase's own
+    // sentence and its bytes must reach the page; the neutral fallback
+    // ("Getting this computer ready") means the payload did not survive.
+    if (fixture.walkStep === true) {
+      await page.setViewportSize(WINDOW);
+      await page.evaluate(() => {
+        for (const handler of window.__kbListeners?.brain_progress ?? []) {
+          handler({ event: "brain_progress", id: 7, payload: { kind: "model_bytes", done: 1_100_000_000, total: 22_134_528_992 } });
+        }
+      });
+      await mustText(page, "of 22.1 GB", `${fixture.name} download bytes`);
+      const neutral = await page.locator("body").innerText();
+      if (neutral.includes("Getting this computer ready")) {
+        failures.push(`${fixture.name}: the walk fell back to the neutral sentence, so the payload did not arrive`);
+      }
+    }
+
     // A turn-off the backend refuses. The hook has produced `stopFailure`
     // since it was written and only the Server page read it, so the owner
     // pressed Turn off HERE, nothing happened, and here said nothing about

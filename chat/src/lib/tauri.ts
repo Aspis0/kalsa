@@ -34,7 +34,21 @@ export function invoke<T = unknown>(
 // Subscribes to a backend event and resolves to the unlisten function.
 // Outside the webview there is no bus: the caller gets one that does
 // nothing, so every surface's cleanup is uniform.
+//
+// The handler is given the PAYLOAD, which is what its type says and what
+// every caller wants. Tauri hands the listener an envelope --
+// `{ event, id, payload }` -- and passing that straight through made the
+// declared type a lie: the brain's only listener stored the envelope, so
+// every walk step arrived with `kind` undefined and the first screen fell
+// back to "Getting this computer ready" for the whole walk, download
+// included. Unwrapped here, once, rather than in each caller.
 export function listen(event: string, handler: (payload: unknown) => void): Promise<() => void> {
   if (!available()) return Promise.resolve(() => {});
-  return window.__TAURI__!.event!.listen(event, handler);
+  return window.__TAURI__!.event!.listen(event, (envelope: unknown) => {
+    const carried =
+      envelope && typeof envelope === "object" && "payload" in envelope
+        ? (envelope as { payload: unknown }).payload
+        : envelope;
+    handler(carried);
+  });
 }

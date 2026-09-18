@@ -946,6 +946,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_window_is_allowed_to_hear_the_walk() {
+        // Tauri v2 grants nothing by default. With no capability file the
+        // event bus is simply dead: `listen` returns a promise that never
+        // settles, there is no error anywhere, and the page sits through the
+        // whole walk -- measuring, then a download that reached 22.13 GB --
+        // saying "Getting ready" and nothing else. It cost an evening to
+        // find because the only symptom is silence.
+        //
+        // No frontend test can see this: the harness stubs the bus, so it
+        // passes whether or not the real one is reachable. This is the only
+        // place the grant can be checked.
+        const CAPABILITY: &str = include_str!("../capabilities/default.json");
+        assert!(
+            CAPABILITY.contains("core:event:default"),
+            "the window cannot hear brain_progress: {CAPABILITY}"
+        );
+        assert!(
+            CAPABILITY.contains("\"main\""),
+            "the grant names no window, so it reaches none: {CAPABILITY}"
+        );
+    }
     use kalsa_probe::{ExecutionPath, Reliability, Series};
     use std::time::Duration;
 
