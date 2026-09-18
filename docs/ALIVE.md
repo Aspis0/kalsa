@@ -7483,3 +7483,53 @@ stesso, due calcoli dell'id fra loro): un albero diverso cambia l'id e non tocca
 **Rischio residuo nominato prima di correre:** se il bump e' a meta' di un `npm install`,
 `requireEveryEngineTreeDir` puo' lanciare e dare un rosso **spurio** proprio li'. Si tratta come
 flake e si rilancia — dicendolo, invece di incassare un verde al secondo tentativo.
+
+### Quarto run sull'S23, con il mio APK: la catena KV regge sul motore nuovo (18/09, 16:10-16:14)
+
+APK `kv-land` del run 35386223059 (sha `6db7263`), engine id letto **dentro** l'APK —
+`kalsa-eng-v2:d1a501c95b8b23c2…`, il `d1a501c9…` atteso, due letture concordi (parse JSON e grep sul
+testo grezzo). `adb install -r`, **mai uninstall**: `firstInstallTime` invariato e 8 `.kvs` ancora al
+loro posto dopo l'aggiornamento — controllo fatto **prima** di misurare, non dopo. Run 3m54s,
+exit 0, max 35.1 °C.
+
+```
+SESSION: loads_ok=1 loads_refused=1 load_refused_by_reason=meta_mismatch:engineBuild x1
+         best_load_ms=75 best_load_tokens_on_disk=2309
+KV_PREFIX: rows=2 whole_cache_reused=2 partial_reuse=0 total_loss=0 cold_start=1
+           cold_start_field=engineBuild
+KV_PER_CYCLE: cycle=1 embd=1826 text=2199 n_common=1826 promptMs=9089.667 class=whole
+KV_PER_CYCLE: cycle=2 embd=2309 text=2332 n_common=2309 promptMs=512.601 class=whole
+KV_PREFIX_CRITERION: PASS   KV_DIVERGE: no KALSA_KVDIVERGE rows   FG_REKICK_CRITERION: PASS
+```
+
+**Le due previsioni depositate reggono.** Ciclo 1 `meta_mismatch:engineBuild`: arrivato alla lettera
+— lo store scritto da `c3418f60` rifiutato dal motore `d1a501c9`, `cold_start_field=engineBuild`.
+Ciclo 2 dopo force-stop: riuso **intero**, `n_common == embd == 2309`, **512.6 ms**, con **75 ms**
+per rileggere 2309 token da disco. `kick settled after 0s` e `after 1s`, come previsto.
+
+**Dove la mia previsione era piu' lasca della realta'.** Avevo scritto "prefill a freddo sulla storia
+vecchia" per il ciclo 1. In senso stretto e' falso: il prewarm del prefisso statico ha comunque dato
+1826 dei 2199 token (`PREFIX_PREWARM: restore_ok=0 restore_miss=1 prefill_done=1 snapshot_saved=1`),
+quindi il ciclo 1 e' `class=whole` a 9.09 s. Meglio del previsto, e la previsione era imprecisa: lo
+scrivo perche' una previsione che si aggiusta dopo non e' una previsione.
+
+**Cosa NON dimostra, gia' scritto prima di misurare:** la scala. 2309 token, non 5004. I 172 secondi
+restano provati dal run del mattino, non da questo.
+
+**Tre difetti trovati dal run, tutti nella mia area, nessuno nel percorso spedito.**
+1. **`die` dentro una command substitution non e' fatale.** `ci-lib.sh:945` chiama `die` in
+   `device_active_conversation_id`, che gira in `$(...)`: l'exit uccide solo la subshell. E' successo
+   davvero: un `device DB pull invalid or failed (attempt 1/3)` transitorio ha fatto scattare
+   `FATAL: cannot resolve active conversation id`, il protocollo ha riprovato, ha funzionato, e il
+   run e' finito PASS. Chi trovasse i file `fatal.*` penserebbe a un run fallito.
+2. **Quel FATAL non e' mai arrivato su stdout.** `grep -c FATAL` sullo stdout del run: **0**; su
+   `protocol.log`: **1**. Esiste solo grazie all'override aggiunto in `6e59843` — la command
+   substitution si mangia lo stdout della funzione. Senza quel fix non resterebbe **nessuna** traccia
+   che un FATAL e' scattato.
+3. **Privacy: la cattura fatal scrive uno screenshot della chat.** `ci-lib.sh:38` e'
+   `shot() { adb exec-out screencap -p > "$OUT/$1.png"; }`; in questo run ha prodotto `fatal.png`
+   (292.633 byte) piu' `fatal_state.txt` (23 righe di testi UI troncati a 120 char, una porta il
+   testo del prompt). Quindi il messaggio del commit `c63a952` — *"the conversation never touches
+   disk"* — **e' falso come scritto**: il dump JSON l'ho tolto e i testi li ho troncati, ma un PNG
+   della conversazione finisce su disco lo stesso, e ci e' finito su una condizione transitoria che
+   non era nemmeno un fallimento. Un messaggio di commit e' un'asserzione come un commento.
