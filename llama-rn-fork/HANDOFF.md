@@ -516,6 +516,20 @@ other 41 paths are mechanical (regenerate) or deletions we already decided. Time
   authors` (read locally); llama.rn's is MIT / `Copyright (c) 2023 Jhen-Jie Hong` (recon, with URLs
   at both tags). Nothing blocks adapting either recipe; per-file upstream headers stay as they are.
 
+**Until Step 6 happens, read a green `verify` correctly**: the sync reports success on iOS embed
+work it never does. `verify` passing says nothing about iOS.
+
+**Two options, and the choice is Marco's at Step 6** (PLAN: "decisione di Marco prima di iOS").
+- **A — tracked per-kind `.s`** (recommended below): self-contained, so it sits inside the
+  engine-build-id digest and the provenance manifest and cannot drift unseen. Cost: one more thing
+  `sync-kalsallama.sh` must regenerate at every pin, and a large diff on every bump.
+- **B — generate at build time from `ios/CMakeLists.txt`**, reusing kalsallama's own
+  `ggml-metal/CMakeLists.txt` recipe. Zero tracked artifacts and it follows the pin automatically.
+  Cost: the iOS build depends on that recipe staying compatible across pins, and the provenance
+  manifest cannot see a file that does not exist until build time.
+Whichever wins, the two `[ -f "$metal_source" ] || return 0` in `sync-kalsallama.sh` must stop being
+silent: at Step 6 an absent monolith is a *state*, not a reason to return success.
+
 **What the sync must do differently.** Generate **one `.s` per kind** with `lm_`-prefixed kind
 symbols, and prefer the `od`/`.byte` form over `.incbin`: a `.byte` blob is self-contained, so the
 tracked artifact is the `.s` alone and no companion `.metal` has to survive packing — which also
