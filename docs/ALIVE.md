@@ -7255,3 +7255,39 @@ qualunque `adb` senza `-s` e' ambiguo. Il protocollo **fallisce chiuso** su ques
 (`device_pick_serial` torna 1 con piu' di una riga e `rp_main` muore con `need ANDROID_SERIAL`),
 che e' il comportamento giusto: il run va lanciato con `ANDROID_SERIAL` impostato esplicitamente
 sulla voce mDNS, che e' legata al seriale del dispositivo, non all'IP che cambia alla riconnessione.
+
+### Cambio di disegno del giro sul telefono, deciso PRIMA di misurare (18/09 sera)
+
+La previsione depositata (`e92b310e`) diceva "conversazione **nuova**", perche' la vecchia e' orfana:
+la sua `.kvs` e' stata riscritta e la sua storia contiene emissioni prodotte da tre binari diversi.
+**Cambio idea, e lo scrivo prima del run, non dopo.** Sulla conversazione ESISTENTE il giro misura
+una cosa che su una nuova non potrebbe misurare affatto.
+
+Il pacchetto poggia su un invariante che finora e' provato **solo nel codice**: un record salvato
+**prima** dell'aggiornamento deve proiettarsi byte per byte come si proiettava su `204298f`, altrimenti
+il suo hash cambia, la `.kvs` salvata non combacia piu' e **ogni conversazione esistente paga un
+prefill a freddo al primo avvio**. L'audit l'ha stabilito compilando le due proiezioni; io ho
+ricalcolato la costante `3986477111` dalla specifica djb2; il test la congela. Nessuna di queste tre
+prove ha mai toccato uno store vero.
+
+**La conversazione esistente e' esattamente quello store vero**: storia scritta da binari precedenti,
+zero flag `emissionSource`, `.kvs` da 34.942.204 byte scritta alle 11:11 con 5004 token. Se
+l'invariante regge, il ciclo 1 riusa **intero** senza nemmeno un prefill; se non regge, esce
+`meta_mismatch:historyHash` e il pacchetto **non si pusha**. Una conversazione nuova non ha record
+pre-aggiornamento, quindi di quell'invariante non direbbe **niente**.
+
+**Previsione rivista, criteri di falsificazione invariati nello spirito:**
+1. ciclo 1 su storia preesistente: `load ok:true`, `n_common == embd`, **nessun**
+   `meta_mismatch:historyHash`. Questa e' la prova su dispositivo dell'invariante di aggiornamento.
+2. ciclo 2 dopo force-stop: `whole`, prompt sotto il secondo.
+3. il protocollo stampa `kick settled after 0s` o `1s`, e `$OUT/protocol.log` esiste.
+4. il run si accorcia di ~4 minuti rispetto ai due precedenti.
+5. il ramo `"raw"` di `emissionSource` resta **non esercitato** (serve uno Stop umano): invariato dal
+   caveat originale, e non lo spaccio per provato.
+
+**Cosa NON prova questo disegno, detto prima:** una conversazione nuova avrebbe esercitato la
+scrittura del flag su una storia pulita dal primo turno. Qui i turni nuovi lo scrivono comunque, ma
+sopra una storia mista. Il protocollo inoltre **non sa creare una chat nuova** (nessun helper
+`Nuova chat` esiste negli script, verificato con grep), quindi la conversazione nuova avrebbe
+richiesto di scrivere tooling UI alla vigilia del run — piu' codice non provato proprio dove serve
+fiducia. La previsione `e92b310e` resta agli atti com'era scritta: non la riscrivo, la supero.
