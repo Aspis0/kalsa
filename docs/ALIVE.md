@@ -7092,13 +7092,19 @@ La catena vera, con il proprietario di ogni passo:
 4. `mtp_on_hybrid_qwen` — **riga di upstream**, non nostra (`llama-model.cpp:2450`, upstream
    `:2225`) — manda un contesto MTP su QWEN35 sulla strada densa, quindi il draft chiede un
    `llama_kv_cache_iswa` mentre la memoria del target e' un `llama_memory_hybrid_iswa`;
-5. la nostra guardia `dynamic_cast` rifiuta (`llama-kv-cache-iswa.cpp:96-97`). La guardia e' giusta
-   e resta: upstream li' ha uno `static_cast` cieco, UB che non raggiunge mai solo perche' al passo
-   4 passa `nullptr`;
+5. la nostra guardia `dynamic_cast` rifiuta. **Correzione del pomeriggio: non e'
+   `llama-kv-cache-iswa.cpp:97` ("iSWA cells") ma `llama-kv-cache.cpp:93` ("KV cells")**, perche'
+   QWEN35 non ha SWA (`src/models/qwen35.cpp`, zero occorrenze di "swa") e il draft chiede la cache
+   densa. Il discriminante ce l'avevamo gia' in casa: il logcat qui sopra dice "cannot share **KV**
+   cells". La guardia resta giusta: upstream li' ha uno `static_cast` cieco, UB che non raggiunge
+   mai solo perche' al passo 4 passa `nullptr`;
 6. il binding cattura e fa il turno in chiaro (`rn-completion.cpp:910-917`). Per l'utente MTP e'
    spento in silenzio, non e' un errore.
 
-**Tre strade arrivano a `mem_other`, una sola era rotta.** `llama-model.cpp:2648` iswa generica (la
+**Tre strade arrivano a `mem_other`, una sola era rotta** (e per mezza giornata ho creduto fosse
+quella sbagliata: il primo tentativo, `07e081f2b`, correggeva la riga iswa `:2648` che il draft di
+Qwen3.5 non tocca mai — inerte sul bug e per giunta toglieva la condivisione ai draft DFlash, che
+quella riga la usano davvero. Trovato dall'audit ostile, confermato dal log del telefono). `llama-model.cpp:2648` iswa generica (la
 strada MTP-su-ibrido), `:2669` densa, `:2606-2634` Gemma4Assistant che si calcola il suo `mem_other`
 e una `share` callback. Il test `tests/test-governor-v0-shared-cells.cpp` gira sul fixture
 `tinyllamas/stories15M-q4_0.gguf` (`tests/CMakeLists.txt:271,351`): arch LLAMA, **non** hybrid
@@ -7122,6 +7128,36 @@ Spesa dichiarata: un draft MTP su un target **denso con SWA** smette di condivid
 Nessun modello in catalogo ha quella forma e upstream li' non ha mai condiviso. Quel che manca e' la
 sola prova che conta davvero: Qwen3.5-4B sull'S23 con un draft che **propone** (`draftTokens > 0`,
 nessuna riga di fallback) — sarebbe la prima volta che quella strada viene esercitata su un telefono.
+
+**Il fix vero, e la sonda che lo prova** (`34a16f3d8`, ramo `mtp-ctx-other` di kalsallama). Due
+pezzi: `mem_share = (mtp_on_hybrid_qwen || mtp_on_hybrid_nemotron) ? nullptr : params.mem_other`
+passato ai due costruttori generici — il predicato **e' la condizione di routing di upstream**, non
+una condizione nuova, quindi ogni altro chiamante continua a condividere; e
+`llama_model::has_mtp_weights()` con una guardia in `llama-context.cpp`, perche' `load_mtp` di
+default e' falso e i costruttori del grafo asseriscono sui puntatori nextn: senza quella, correggere
+il primo difetto trasforma un fallback silenzioso in un **abort del processo**.
+
+Ho scritto `tests/test-governor-v0-mtp-hybrid.cpp` (registrata con `SKIP_RETURN_CODE 77`: sul
+fixture stories15M dice "SKIPPED", non passa a vuoto) e **il bug del telefono e' diventato
+riproducibile sul Mac in due secondi**, sul file esatto del catalogo — sha256
+`3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630`, identico all'`x-linked-etag`
+di HuggingFace e ai byte del file locale. Le gambe, con exit code reali:
+
+| gamba | exit | cosa dice |
+|---|---|---|
+| motore padre, pesi MTP caricati | **1** | `cannot share KV cells...` — la riga del telefono |
+| col fix, pesi caricati | **0** | `mtp_hybrid_draft_ctx=PASS` |
+| col fix, senza pesi MTP | **134** | SIGABRT, `qwen35.cpp:498` |
+| col fix e la guardia, senza pesi | **1** | rifiuto pulito, il chiamante cade in plain |
+| shared-cells col predicato | **0** | sei righe PASS |
+| shared-cells, predicato invertito | **1** | la mutazione che rende non vacuo il verde sopra |
+
+**Una seconda correzione, mia.** Avevo scritto che "nessuno accende `load_mtp`" e che accenderlo
+fosse una decisione di prodotto da chiedere a Marco. Falso: `LlamaService.ts:2449-2464` mette
+`speculative: { type: "draft-mtp" }` nei parametri di CARICAMENTO e `cpp/common/common.cpp:1730` lo
+traduce in `mparams.load_mtp`. L'errore nasce da un `grep | head -5` che tagliava via proprio quella
+riga — la trappola che ho in memoria da settembre ("Read it all"), ripetuta pari pari. Quindi sul
+telefono i pesi c'erano e il rifiuto sulla KV era l'unico muro.
 
 **Previsione scritta PRIMA della misura, e cosa non decidera'.** `src/engine/ModelRegistry.ts:81-85`
 dice gia' che il plain decode ha **battuto** MTP — "3x on CI and 2x on the Xiaomi 14, +53% decode,

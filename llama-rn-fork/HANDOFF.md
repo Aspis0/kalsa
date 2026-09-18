@@ -667,9 +667,11 @@ a binary without a Metal library.
   digests it, as a constant), and Step 4 deletes it. Do not "fix" it in isolation.
 - **MTP cannot propose on the only catalog model that has an MTP head, by construction** (device,
   18/09): `cpp/rn-llama.cpp:846` sets `cparams.ctx_other = ctx` unconditionally when building the
-  draft context, and for a target with hybrid/iSWA memory `llama-kv-cache-iswa.cpp:97` refuses to
-  share cells — `llama_init_from_model` fails and `rn-llama.cpp` `fallBackToPlain:876` runs the turn
-  plain. Verified on the S23 with Qwen3.5-4B (run log in ALIVE, 18/09 midday). **Evidence status:
+  draft context, and the target's `llama_memory_hybrid` is refused by the draft's plain KV cache —
+  `llama-kv-cache.cpp:93`, **"cannot share KV cells"**, which is the line the logcat actually
+  carries (ALIVE, 18/09 midday). It is NOT `llama-kv-cache-iswa.cpp:97` ("iSWA cells"): that
+  attribution was wrong here for a day, and the log message is the discriminator. Then
+  `llama_init_from_model` fails and `rn-llama.cpp` `fallBackToPlain:876` runs the turn plain. Verified on the S23 with Qwen3.5-4B (run log in ALIVE, 18/09 midday). **Evidence status:
   the fallback path is exercised on a device; the proposal path has never been exercised on a
   phone.**
   **Answered 2026-09-18 (read on disk on both trees, then hostile-audited and CORRECTED — the
@@ -692,12 +694,28 @@ a binary without a Metal library.
   4. On that dense path **upstream passes `nullptr`** as `mem_other`
      (`v0.12.9:cpp/llama-model.cpp:2379` and `:2400`); **we pass `params.mem_other`**
      (`cpp/llama-model.cpp:2648` and `:2669`), also from `6f3881baf`.
-  5. The target's memory is a `llama_memory_hybrid_iswa`, so our
-     `dynamic_cast<llama_kv_cache_iswa *>(mem_other)` fails and **our own** throw fires at
-     `cpp/llama-kv-cache-iswa.cpp:96-97`. Upstream has a blind `static_cast` at that spot
-     (`v0.12.9:cpp/llama-kv-cache-iswa.cpp:87`) — undefined behaviour it never reaches, precisely
-     because steps 1 and 4 keep `mem_other` null. Our `dynamic_cast` + throw is a real improvement
-     on upstream; it is not the defect.
+  5. QWEN35 has **no SWA** (`src/models/qwen35.cpp` has zero `swa` references), so the draft asks
+     for the plain `llama_kv_cache` at `llama-model.cpp:2669`, not the iswa one at `:2648`. The
+     target's memory is a `llama_memory_hybrid`, the `dynamic_cast<llama_kv_cache *>` fails, and
+     **our own** throw fires at `cpp/llama-kv-cache.cpp:93`. Upstream has a blind `static_cast`
+     there — undefined behaviour it never reaches, precisely because steps 1 and 4 keep
+     `mem_other` null. Our `dynamic_cast` + throw is a real improvement on upstream; it is not the
+     defect.
+  **FIXED 2026-09-18 afternoon in kalsallama `34a16f3d8`** (branch `mtp-ctx-other`, rides the Step
+  5 bump). The dense branch computes `mem_share = (mtp_on_hybrid_qwen || mtp_on_hybrid_nemotron)
+  ? nullptr : params.mem_other` and passes it to both generic constructors: the predicate is
+  upstream's own routing condition, so every other caller keeps sharing. Plus
+  `llama_model::has_mtp_weights()` and a guard in `llama-context.cpp`, because `load_mtp` defaults
+  to false and the graph builders assert on the nextn pointers — without it, fixing the first
+  defect turns a silent fallback into a **process abort**. Reproduced and proved on the Mac against
+  the exact catalog file (sha256 `3874209241c9…8630` = HF `x-linked-etag`): parent exit 1 with the
+  phone's own message, fix exit 0 `mtp_hybrid_draft_ctx=PASS`, and without the weights exit 134
+  before the guard and exit 1 after. Reproduction kept as
+  `tests/test-governor-v0-mtp-hybrid.cpp` (`SKIP_RETURN_CODE 77` on the stories15M fixture).
+  **`load_mtp` is already set by the app** when MTP is armed (`LlamaService.ts:2449-2464` puts
+  `speculative:{type:"draft-mtp"}` in the LOAD params → `cpp/common/common.cpp:1730`), so the
+  weights were there on the phone and the KV refusal was the whole wall. An earlier claim here that
+  "nothing sets load_mtp" came from a `grep | head -5` that cut the line off.
   6. The binding catches it and runs the turn plain (`cpp/rn-completion.cpp:910-917`,
      `cpp/rn-slot.cpp:466-473`). **User-visible effect: MTP is silently disabled on that model**,
      not a crash.
