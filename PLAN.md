@@ -2029,3 +2029,37 @@ dell'emulatore un rosso costa 15 minuti, non 120.
 adesso blocca anche l'evidenza e2e. Il bound e' li' per quello, ma il rischio esiste e si accetta
 sapendolo. Per questo la punta **rebasata** va rimisurata con jest prima del push: il verde che ho
 (82 suite / 971 test, Node 20, exit 0) vale per `6db7263`, che non contiene `3cabcf1`.
+
+## Aperti: il pacchetto protocollo A/B/C (trovati dal run del 18/09 sera, fuori da kv-land)
+
+Tre difetti nella libreria di misura, nessuno nel percorso spedito. Vanno in un pacchetto separato
+**dopo** kv-land: sono strumento, non prodotto, e kv-land e' gia' stato rivisto tre volte.
+
+**A. `die` dentro una command substitution non ferma niente.** `scripts/ci-lib.sh:499-509` fa
+`log FATAL` → `ui_texts > fatal_state.txt` → `shot fatal` → `capture_death_evidence` → `exit 1`. Ma
+`die` viene chiamata da `device_active_conversation_id` (`ci-lib.sh:945`), che gira dentro `$(...)`:
+l'`exit 1` uccide **solo la subshell**, il chiamante riceve stringa vuota e riprova. Visto dal vero:
+un `device DB pull invalid or failed (attempt 1/3)` transitorio ha fatto scattare la cattura fatale
+completa e il run e' comunque finito **PASS**. *Direzione:* i chiamanti testano il return e muoiono
+nel processo padre; `die` non puo' essere l'unico meccanismo di arresto quando gira in cattura.
+
+**B. Il FATAL non arriva su stdout.** Stesso run: `grep -c FATAL` sullo stdout **0**, su
+`protocol.log` **1**. La command substitution si mangia lo stdout della funzione, quindi l'unica
+traccia esiste grazie all'override di `RP_LOG_FILE` aggiunto in `6e59843`. *Direzione:* i messaggi
+fatali vanno su **stderr**, che non viene catturato dalla sostituzione, oltre che sul file.
+
+**C. `shot fatal` scrive uno screenshot dello schermo, chat compresa.** `ci-lib.sh:38` e'
+`shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }`, chiamata a `:503` subito dopo
+`ui_texts > "$OUT/fatal_state.txt"` a `:502`. Quindi il messaggio di `c63a952` — *"the conversation
+never touches disk"* — e' **falso come scritto**. **Non e' di oggi e non e' solo del mio
+protocollo:** kalsa-2d ha contato **dieci** coppie `fatal*.png` / `fatal_state*` dal 14/09, scritte
+da ogni harness che sorgente questo file (`out/t20c-*`, `out/bench`, `device-share-send-out/`,
+`device-restore-out/`). **Il raggio pero' e' limitato, e va detto:** `git check-ignore -v` da'
+`out/` (`.gitignore:96`), `device-share-send-out/` (`:102`), `device-restore-out/` (`:103`) — tutte
+ignorate. Quindi *"la conversazione ha toccato il disco"* si', *"la conversazione e' uscita dalla
+macchina"* **no**, e la seconda e' la frase che conterebbe. *Direzione:* cattura gated o redatta sui
+run di misura. **Crepa accanto, del coordinatore:** `device-decode-lineup-out/` **non** e' ignorata —
+la classe `*-out/` andrebbe ignorata per costruzione, non una dir alla volta.
+
+Il commento correttivo al punto d'uso e' gia' in punta a kv-land (comment-only, verificato: zero
+righe di diff non-commento). Gli `out/` di questo run restano, decisione di Marco sulle chat di test.
