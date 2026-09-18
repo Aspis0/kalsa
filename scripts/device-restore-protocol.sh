@@ -115,6 +115,40 @@ rp_fg_bounce() {
   adb shell log -p i -t KALSA_RP_MARK "fg_settled cycle=$i" </dev/null >/dev/null 2>&1
 }
 
+# FG_BOUNCE accepts only 0 or 1: "true"/"yes" read as on but would switch the
+# measurement off in silence, and a silent off is worse than a hard error.
+# FG_BOUNCE_SECONDS must be a positive integer: `sleep abc` fails in ~0s and
+# the re-kick never gets its window — a typo must not become a false FAIL.
+rp_validate_bounce_flags() {
+  case "$FG_BOUNCE" in
+    0|1) ;;
+    *) die "FG_BOUNCE must be 0 or 1, got '$FG_BOUNCE'" ;;
+  esac
+  case "$FG_BOUNCE_SECONDS" in
+    ''|*[!0-9]*|0)
+      die "FG_BOUNCE_SECONDS must be a positive integer, got '$FG_BOUNCE_SECONDS'" ;;
+  esac
+}
+
+# The fg bounce's whole evidence chain hangs on `adb shell log` reaching
+# logcat: if the marker never lands (toybox stripped, adb hiccup), every kick
+# window is empty and the verdict prints "not exercised" — a green-looking
+# run that measured nothing, indistinguishable from FG_BOUNCE=0. Probe once
+# before the first cycle, not per cycle: the failure mode is "the command is
+# missing / cannot write", which does not change mid-run.
+# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
+# must confirm the readback really sees the marker (quoting, buffering).
+rp_marker_probe() {
+  local nonce="probe=$$-$(date +%s)"
+  adb shell log -p i -t KALSA_RP_MARK "$nonce" </dev/null >/dev/null 2>&1
+  sleep 2
+  if ! adb logcat -d -s KALSA_RP_MARK </dev/null 2>/dev/null | grep -q "$nonce"; then
+    log "marker probe FAILED: wrote '$nonce', never read it back"
+    return 1
+  fi
+  log "marker probe ok ($nonce)"
+}
+
 rp_main() {
   local attached picked i prev
   mkdir -p "$OUT"
@@ -124,6 +158,11 @@ rp_main() {
   export ANDROID_SERIAL="$picked"
   BENCH_TARGET=device
   log "serial=$ANDROID_SERIAL cycles=$CYCLES"
+
+  rp_validate_bounce_flags
+  if [ "$FG_BOUNCE" = "1" ]; then
+    rp_marker_probe || die "KALSA_RP_MARK markers do not reach logcat: without them every kick window is empty, FG_REKICK prints 'not exercised', and the run only looks green"
+  fi
 
   device_keepawake_begin
   rp_state

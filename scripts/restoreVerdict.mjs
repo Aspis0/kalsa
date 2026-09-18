@@ -22,6 +22,11 @@ if (ev.trim() === "") {
   process.exit(2);
 }
 const n = (re) => (ev.match(re) || []).length;
+// Criteria PRINT — the text is the product — and since the exit contract they
+// also decide the status: 0 only when every printed criterion passed, 1 when
+// a printed criterion FAILED (the run measured and says broken), 2 stays the
+// empty evidence above (not a measurement at all). 1 and 2 must never blur.
+let anyCriterionFailed = false;
 console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
   " restore_miss=" + n(/"op":"restore","ok":false/g) +
   " prefill_done=" + n(/"op":"done"/g) +
@@ -55,11 +60,14 @@ if (!rows.length) {
   console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache");
   // Evidence without a live cache never measured the reuse question, and a
   // missing criterion read like a pass-by-silence: three sections, no
-  // verdict. Same philosophy as the empty-evidence exit above — but here the
-  // criteria PRINT and the exit code stays out of it; the only non-zero exit
-  // remains the empty evidence. Unlike FG_REKICK there is no legitimate
-  // protocol mode that skips the KV diag, so silence cannot mean "not
-  // exercised" here — it means "no measurement".
+  // verdict. Same philosophy as the empty-evidence exit — a run that did not
+  // measure is not a run that passed — but it stays a PRINTED criterion
+  // (exit 1 through the contract below), distinct from exit 2: "no
+  // measurement in this run" is not the same fact as "no evidence at all".
+  // Unlike FG_REKICK there is no legitimate protocol mode that skips the KV
+  // diag, so silence cannot mean "not exercised" here — it means "no
+  // measurement".
+  anyCriterionFailed = true;
   console.log("KV_PREFIX_CRITERION: FAIL (no live-cache measurement in this run)");
 }
 else {
@@ -90,6 +98,7 @@ else {
   if (lost > 0) fails.push("total loss x" + lost);
   if (ran < 1) fails.push("no prewarm restore or prefill happened");
   if (prefixMisses > 0) fails.push("prefix hash miss on the send path x" + prefixMisses);
+  if (fails.length > 0) anyCriterionFailed = true;
   console.log("KV_PREFIX_CRITERION: " + (fails.length ? "FAIL (" + fails.join("; ") + ")" : "PASS"));
 }
 console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
@@ -193,6 +202,11 @@ if (kickWindows.length === 0) {
   if (count.silent > 0) {
     fgFails.push("re-kick produced no prewarm line x" + count.silent);
   }
+  if (fgFails.length > 0) anyCriterionFailed = true;
   console.log("FG_REKICK_CRITERION: " +
     (fgFails.length ? "FAIL (" + fgFails.join("; ") + ")" : "PASS"));
 }
+// The verdict's own status, per the contract at the top: 0 = every printed
+// criterion passed, 1 = a printed criterion failed, 2 = no evidence. The
+// protocol runs this under `set -o pipefail`, so a 1 propagates to the run.
+process.exit(anyCriterionFailed ? 1 : 0);

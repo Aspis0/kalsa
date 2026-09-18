@@ -649,6 +649,20 @@ async function main() {
     assert(r.status === 0, `restoreVerdict.mjs exited ${r.status} on ${name}: ${r.stderr}`);
     return r.stdout;
   };
+  // FAIL fixtures go through verdictFail: the exit contract is that a FAIL
+  // criterion prints AND exits 1, so every one of them asserts the status
+  // explicitly — verdict() above stays strict on 0, which is what keeps
+  // proving that the PASS fixtures really exit 0. Exit 1 (measured, broken)
+  // and exit 2 (empty evidence, not a measurement) are different codes and
+  // the fixtures below pin both.
+  const verdictFail = (name, evidence) => {
+    const r = verdictRaw(name, evidence);
+    assert(
+      r.status === 1,
+      `${name}: a FAIL criterion must exit 1 — got ${r.status}: ${r.stderr}`,
+    );
+    return r.stdout;
+  };
 
   // The §4 pass shape: the whole prefix was reused and nothing was lost.
   const pass = verdict(
@@ -673,7 +687,7 @@ async function main() {
   // whole_cache_reused >= 1 IS the pass criterion, so a partial reuse must
   // never count as a whole one — a looser verdict turns a failed device run
   // into a green one. Nor is a partial reuse a total loss.
-  const partial = verdict(
+  const partial = verdictFail(
     "partial",
     [
       "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=900",
@@ -700,7 +714,7 @@ async function main() {
   // The counter-example that mattered: one whole cycle can otherwise carry a
   // run where most cycles reused a quarter of the cache. A run is not a pass
   // because ONE of its cycles was.
-  const mixed = verdict(
+  const mixed = verdictFail(
     "mixed",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
@@ -721,7 +735,7 @@ async function main() {
 
   // ...and a run where the numbers look perfect but no prewarm ever ran is not
   // a measurement of anything.
-  const noPrewarm = verdict(
+  const noPrewarm = verdictFail(
     "no-prewarm",
     ["KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832", ""].join("\n"),
   );
@@ -732,7 +746,7 @@ async function main() {
 
   // The case the stop counters exist for: zero restores because the job kept
   // being stopped, which must NOT read as "the diagnosis is wrong".
-  const blocked = verdict(
+  const blocked = verdictFail(
     "blocked",
     [
       'KALSA_PREWARM {"op":"skip","reason":"background"}',
@@ -763,7 +777,7 @@ async function main() {
   // send hashed a DIFFERENT prefix. The match:false payload has no "op"
   // field, so nothing else in the verdict ever counted it — before
   // PREFIX_MATCH and the criterion reason existed, this evidence PASSED.
-  const prefixMiss = verdict(
+  const prefixMiss = verdictFail(
     "prefix-miss",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h1"}',
@@ -808,7 +822,7 @@ async function main() {
   // question was never measured, so the criterion must SAY so instead of
   // staying silent. The exit code stays 0 — criteria print; only the empty
   // evidence exits non-zero.
-  const noKvPrefix = verdict(
+  const noKvPrefix = verdictFail(
     "no-kvprefix",
     [
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
@@ -828,6 +842,8 @@ async function main() {
   // A run that produced nothing must say so, not divide by zero.
   // An empty evidence file means the capture failed. It must not print the same
   // zeros as a real run where nothing was reused — that reads like a finding.
+  // Exit 2, deliberately distinct from a criterion FAIL's exit 1: "not a
+  // measurement" and "a measurement that failed" are different facts.
   const noEvidence = verdictRaw("empty", "");
   assert(
     noEvidence.status === 2,
@@ -851,6 +867,10 @@ async function main() {
     [
       "KALSA_RP_MARK fg_kick cycle=1",
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      // The exit contract: a pass exits 0 only when EVERY printed criterion
+      // passed, and KV_PREFIX_CRITERION is always printed. A real run has
+      // this row after the send, so the pass shape carries one too.
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -865,8 +885,12 @@ async function main() {
   const fgHeld = verdict(
     "fg-held",
     [
+      // The mount-time restore, outside the kick window: the KV criterion
+      // needs a prewarm that ran, as a real run's evidence always has.
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -879,7 +903,7 @@ async function main() {
   // THE fixture: a marker followed by no prewarm line at all. This is the
   // shape the closed bug would have had — a re-kick that never fired — and
   // the criterion must fail by naming the silence.
-  const fgSilent = verdict(
+  const fgSilent = verdictFail(
     "fg-silent",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -898,7 +922,7 @@ async function main() {
 
   // too_early: the re-kick queued while the app was still backgrounded — it
   // fired before the very transition it exists to serve.
-  const fgTooEarly = verdict(
+  const fgTooEarly = verdictFail(
     "fg-too-early",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -919,7 +943,7 @@ async function main() {
 
   // One good kick does not save a run where another went mute — same rule as
   // KV_PREFIX_CRITERION: a run is not a pass because one of its kicks was.
-  const fgMixed = verdict(
+  const fgMixed = verdictFail(
     "fg-mixed",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -946,8 +970,10 @@ async function main() {
   const fgWarm = verdict(
     "fg-warm",
     [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"already_warm","hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -962,8 +988,10 @@ async function main() {
   const fgInFlight = verdict(
     "fg-in-flight",
     [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"in_flight","hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -1006,7 +1034,7 @@ async function main() {
   // must NOT save the kick. This fixture demonstrates the fix: without the
   // closing marker the window ran to the next cycle's marker and this shape
   // read served=1 and PASS off a mute kick.
-  const fgClosedWindow = verdict(
+  const fgClosedWindow = verdictFail(
     "fg-closed-window",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1035,6 +1063,7 @@ async function main() {
       'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_settled cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"kv_holds_chat"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -1053,7 +1082,7 @@ async function main() {
   // isEngineReady() is false at the kick. Counting this as "no prewarm line"
   // was a false motive — it sent the diagnosis hunting in AppShell instead
   // of the model lifecycle. FAIL, but naming the reason.
-  const fgNotReady = verdict(
+  const fgNotReady = verdictFail(
     "fg-not-ready",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1074,7 +1103,7 @@ async function main() {
   // Two kicks, two different stop reasons: the criterion must name BOTH with
   // their counts, not just the first — the same property KV_PREFIX_CRITERION
   // already respects for its own failure reasons.
-  const fgStoppedTwo = verdict(
+  const fgStoppedTwo = verdictFail(
     "fg-stopped-two",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1098,7 +1127,7 @@ async function main() {
   // An aborted restore inside the window used to read served=1 PASS — the
   // auditor's false PASS: the app logs restore ok:false and exits through
   // prewarmMustStop() BEFORE any prefill, so no prefix got warmed.
-  const fgAbort = verdict(
+  const fgAbort = verdictFail(
     "fg-abort",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1119,7 +1148,7 @@ async function main() {
   // `start` logs at QUEUE time, before the job has run one step: a kick that
   // queues and then dies proves nothing. Alone in the window it is no_work,
   // FAIL — never the served=1 PASS it used to be.
-  const fgStartOnly = verdict(
+  const fgStartOnly = verdictFail(
     "fg-start-only",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1146,6 +1175,7 @@ async function main() {
       'KALSA_PREWARM {"op":"start","hash":"h","systemChars":100,"toolCount":2}',
       'KALSA_PREWARM {"op":"done","promptMs":12,"promptN":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_settled cycle=1",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
@@ -1163,7 +1193,7 @@ async function main() {
   // the verdict could track; a new one must fail saying its name, not be
   // swallowed as "no prewarm line" — the line is right there, and that
   // swallow was the auditor's false FAIL.
-  const fgUnknownReason = verdict(
+  const fgUnknownReason = verdictFail(
     "fg-unknown-reason",
     [
       "KALSA_RP_MARK fg_kick cycle=1",
@@ -1186,12 +1216,14 @@ async function main() {
   // window used to be silent; now the handler logs thermal_gate before it
   // returns, and the generic classifier names it. This fixture pins the
   // verdict side of that contract.
-  const fgThermalGate = verdict(
+  const fgThermalGate = verdictFail(
     "fg-thermal-gate",
     [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
       "KALSA_RP_MARK fg_kick cycle=1",
       'KALSA_PREWARM {"op":"skip","reason":"thermal_gate"}',
       "KALSA_RP_MARK fg_settled cycle=1",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
       "",
     ].join("\n"),
   );
