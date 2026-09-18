@@ -416,6 +416,57 @@ keeps its previous sha until you bump it.
 **Record.** Conflict count, the files, the time, what upstream changed in rn-* and how it was
 reconciled. This entry is what Marco reads to judge whether the migration paid off.
 
+### INVENTORY of the dry run (18/09, branch `kalsa-v0129` off `kalsa@fada1ebe`, pin `70b4302bb`)
+
+`git merge --no-commit --no-ff v0.12.9` → exit 1, **45 conflicted paths**: 42 content (UU) and 3
+delete/modify (DU). Nothing is hand-merged yet; the branch is not pushed and `kalsa` is untouched.
+
+**A. Engine files — 40 UU + 1 DU, resolve `--ours`, then regenerate.** Everything under `cpp/`
+except the two binding files below: `common/` (8), `llama-*` + `llama.cpp` + `llama.h` (14),
+`models/` (5), `tools/mtmd/` (7), `ggml-metal/` (4), `ggml-backend.cpp`, `ggml-cpu/ggml-cpu.cpp`,
+`ggml-opencl/ggml-opencl.cpp`. These are upstream's vendored llama.cpp against ours: they are
+regenerated from the pin, so `--ours` then `sync-kalsallama.sh pin 70b4302bb…` and a clean
+`git status` is the whole proof. (The playbook line above suggests `--theirs`; prefer `--ours`, so
+a skipped regeneration leaves our engine rather than upstream's.)
+The DU is **`cpp/ggml-metal/ggml-metal.metal`**: deleted on our side because at this pin the shader
+is split into `cpp/ggml-metal/kernels/*.metal` (23 files), still modified by upstream at v0.12.9.
+Keep it deleted — and see §7: this is the same fact that breaks the iOS embed.
+
+**B. Binding files — 2 UU, 5 hunks, and they are all ONE drift.** `cpp/rn-completion.cpp` (2 hunks,
+at the two MTP rollback sites) and `cpp/rn-slot.cpp` (3 hunks). Upstream v0.12.9 replaced the raw
+removal calls with the `common_memory` helper:
+```
+common_memory memory;
+memory.init(parent_ctx->ctx, spec_ctx.get());
+memory.seq_rm(seq_id, spec_n_past, -1);
+```
+while ours call `rn_seq_rm(...)` and branch on the result (`draft_rollback_fenced`, and a throw at
+the target-side site). **Take OURS, and the reason is not taste:** that helper exists in our engine
+too (`cpp/common/common.h:1018`), and its own comment at :1023 says `// aborts execution on
+failure`. Upstream can abort; kalsa cannot — it is the same rule the threadpool SIGSEGV taught, one
+layer up. Our `rn_seq_rm` (`cpp/rn-llama.h:33`) returns `llama_memory_seq_rm(llama_get_memory(ctx),
+…)` as a bool, and the fenced path downgrades to "proposals stay verified by the target" instead of
+killing the app. No API is missing on our side: the drift is upstream choosing a fatal wrapper.
+
+**C. Deleted-in-ours infrastructure — 2 DU, keep deleted.** `scripts/bootstrap.sh` (upstream's
+llama.cpp import; our `sync-kalsallama.sh` is its replacement — but read what v0.12.9 does to it
+for the Metal embed before deleting, see §7) and `third_party/llama.cpp` (submodule we dropped).
+`third_party/OpenCL-Headers` also collided (upstream submodule vs our real files); git parked
+upstream's as `third_party/OpenCL-Headers~v0.12.9` — delete that, keep ours.
+
+**D. Clean merges that still need reading (15 M).** `cpp/jsi/JSICompletion.h`,
+`cpp/jsi/JSIRequestManager.h`, `cpp/jsi/RNLlamaJSI.cpp`, `cpp/rn-slot-manager.{cpp,h}`,
+`cpp/models/{deepseek2,glm-dsa}.cpp`, `src/version.ts`, `src/__tests__/index.test.ts`, `jest/mock.js`,
+`tests/parallel_decoding_test.cpp`, `scripts/patches/common.cpp.patch`, `example/ios/Podfile.lock`,
+`package.json`, `package-lock.json`. **A textual clean merge is not a compiling merge**: five of the
+nine binding-side files upstream touched landed without a conflict, and the API drift class lives
+exactly there. `package.json` merged to `"version": "0.12.9"` with no `postinstall`/`prepack`/
+`prepare` — our removals survived, verified by grep.
+
+**The number Marco reads:** 45 conflicts, of which **only 5 hunks in 2 files need a human**; the
+other 41 paths are mechanical (regenerate) or deletions we already decided. Time to this inventory:
+~20 minutes, no build.
+
 ---
 
 ## 7. Step 6 — iOS from source (after Step 4; never with Step 5)
