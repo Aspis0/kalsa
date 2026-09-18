@@ -37,6 +37,10 @@ log() {
   # Gated on the once-checked RP_LOG_OK: an unwritable log warns ONCE at
   # setup, never per line — the operator must not wade through a redirect
   # error storm, and must not believe a protocol.log exists that never did.
+  # KNOWN LIMITATION: the gate covers SETUP only — if the log disappears
+  # AFTER setup (rm -rf $OUT mid-run, disk full), every logged line writes
+  # one stderr error (three calls, three lines in the auditor's
+  # reproduction).
   if [ "$RP_LOG_OK" = 1 ]; then
     printf '%s\n' "[ci] $*" >> "$RP_LOG_FILE"
   fi
