@@ -29,6 +29,10 @@ const GB = 1024 ** 3;
 
 // The five surfaces of the home page (chat/src/app/surfaces.ts), pinned here
 // because they must all survive any change of density: same words, same keys.
+// The words a refused turn-off says, pinned so they cannot drift apart from
+// the Server page's copy of the same fact.
+const STOP_REFUSED = "The assistant did not turn off. Closing this window will stop it.";
+
 const SETTINGS = ["Models", "Server", "Devices", "Advanced", "Settings"];
 
 // A rate is stubbed in the same binary gigabytes the card divides by, so the
@@ -180,6 +184,8 @@ const STATES = [
     },
     marker: "62.7 tokens/s",
     presence: "This computer is ready for you.",
+    refuse: ["brain_stop"],
+    stopRefused: true,
   },
   {
     name: "refusal",
@@ -418,16 +424,22 @@ async function main() {
     // correct page.
     const page = await browser.newPage({ viewport: WINDOW, locale: "en-US" });
     await page.addInitScript(
-      ({ answers, seeded }) => {
+      ({ answers, seeded, refuse }) => {
         if (seeded) localStorage.setItem("crescent-chat.conversations.v1", JSON.stringify(seeded));
         window.__TAURI__ = {
-          core: { invoke: (command) => Promise.resolve(answers[command] ?? null) },
+          core: {
+            invoke: (command) =>
+              refuse.includes(command)
+                ? Promise.reject(new Error("refused"))
+                : Promise.resolve(answers[command] ?? null),
+          },
           event: { listen: () => Promise.resolve(() => {}) },
         };
       },
       {
         answers: { brain_state: fixture.state, brain_capability: fixture.capability },
         seeded: fixture.name === "pick" ? SEEDED : null,
+        refuse: fixture.refuse ?? [],
       },
     );
     await page.goto(APP);
@@ -525,6 +537,15 @@ async function main() {
         `page ${small.scrollHeight}x${small.scrollWidth} tall/wide, scrollTop ${small.scrollTop}`,
     );
     await shot(page, fixture.file.replace(/\.png$/, "-small.png"));
+    // A turn-off the backend refuses. The hook has produced `stopFailure`
+    // since it was written and only the Server page read it, so the owner
+    // pressed Turn off HERE, nothing happened, and here said nothing about
+    // it. Driven last on the brain page, after the shots.
+    if (fixture.stopRefused === true) {
+      await page.setViewportSize(WINDOW);
+      await page.click(".brain-presence .btn-primary");
+      await mustText(page, STOP_REFUSED, `${fixture.name} refused turn-off`);
+    }
     // Last, because it leaves the brain page: the morph's two widths, back at
     // the window size the app opens in.
     await page.setViewportSize(WINDOW);

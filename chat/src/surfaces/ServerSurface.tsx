@@ -1,8 +1,6 @@
-import { brainWords, useBrain } from "./useBrain";
+import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
 import { SetupProgress } from "./SetupProgress";
 import "./surfaces.css";
-
-const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
 
 function rateText(rate: number | undefined): string {
   return typeof rate === "number" && Number.isFinite(rate) && rate > 0

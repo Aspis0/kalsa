@@ -6,7 +6,7 @@ import { MachineCard } from "./MachineCard";
 import type { Capability } from "./MachineCard";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
-import { brainWords, useBrain } from "./useBrain";
+import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
@@ -32,7 +32,7 @@ interface BrainSurfaceProps {
 // waits behind a tab. The walk's failures are not retried by themselves —
 // they are spoken, and they wait for Try again.
 export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfaceProps) {
-  const { state, liveStep, heldFailure, busy, act } = useBrain();
+  const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
   const [text, setText] = useState("");
   // Whether this mount carries the opening's one automatic attempt. Spent
   // on first appearance — before any read lands — so nothing the owner does
@@ -113,7 +113,11 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
         <>
           <div className="brain-presence">
             <p className="surface-verdict">{words.headline}</p>
-            <p className="surface-sentence">{words.sentence}</p>
+            {/* A refused turn-off takes the sentence, on the page the button
+                was pressed on. The hook produced it all along and only the
+                Server page read it, so the owner pressed Turn off here,
+                nothing happened, and here said nothing about it. */}
+            <p className="surface-sentence">{stopFailure ? STOP_FAILURE : words.sentence}</p>
             <div className="surface-actions">
               <button
                 type="button"

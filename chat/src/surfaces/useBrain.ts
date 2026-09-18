@@ -7,6 +7,11 @@ const POLL_MS = 1000;
 const COULD_NOT_TELL =
   "This page could not tell whether the assistant is running. Trying again usually works.";
 
+/** What a refused turn-off says. Shared, because the home page is where the
+    owner presses Turn off and the Server page is where they go looking when
+    it did not work; two sentences for one fact is how they come to disagree. */
+export const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
+
 /** What `brain_state` answers: the server's own account of itself. */
 export interface BrainState {
   kind: "stopped" | "starting" | "running" | "failed";
