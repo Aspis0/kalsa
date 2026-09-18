@@ -22,16 +22,62 @@ if (ev.trim() === "") {
   process.exit(2);
 }
 const n = (re) => (ev.match(re) || []).length;
+const evLines = ev.split("\n");
+const jsonObjectAt = (line, start) => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < line.length; i++) {
+    const ch = line[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) return line.slice(start, i + 1);
+  }
+  return null;
+};
+const parsePrewarmLine = (line) => {
+  const tag = line.match(/KALSA_PREWARM\s+(?=\{)/) ??
+    line.match(/'KALSA_PREWARM',\s*'(?=\{)/);
+  if (!tag) return null;
+  const payload = jsonObjectAt(line, line.indexOf("{", tag.index));
+  if (!payload) return null;
+  // React Native's console polyfill (node_modules/@react-native/js-polyfills/
+  // console.js:175-186) leaves apostrophes escaped as \' after JSON.stringify;
+  // JSON has no legal \' escape, so undo that wrapper escape before parsing.
+  try {
+    return JSON.parse(payload.replace(/\\'/g, "'"));
+  } catch {
+    return null;
+  }
+};
+const prewarmEventsIn = (text) => text.split("\n")
+  .map(parsePrewarmLine)
+  .filter(Boolean);
+const prewarmEvents = prewarmEventsIn(ev);
+const prewarmCount = (predicate) => prewarmEvents.filter(predicate).length;
+const unparsedPrewarmLines = evLines.filter((line) =>
+  line.includes("KALSA_PREWARM") && !parsePrewarmLine(line),
+).length;
 // Criteria PRINT — the text is the product — and since the exit contract they
 // also decide the status: 0 only when every printed criterion passed, 1 when
 // a printed criterion FAILED (the run measured and says broken), 2 stays the
 // empty evidence above (not a measurement at all). 1 and 2 must never blur.
 let anyCriterionFailed = false;
-console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
-  " restore_miss=" + n(/"op":"restore","ok":false/g) +
-  " prefill_done=" + n(/"op":"done"/g) +
-  " snapshot_saved=" + n(/"op":"snapshot_save","ok":true/g) +
-  " system_only_template=" + n(/"reason":"system_only_template"/g));
+console.log("PREFIX_PREWARM: restore_ok=" +
+  prewarmCount((p) => p.op === "restore" && p.ok === true) +
+  " restore_miss=" + prewarmCount((p) => p.op === "restore" && p.ok === false) +
+  " prefill_done=" + prewarmCount((p) => p.op === "done") +
+  " snapshot_saved=" + prewarmCount((p) => p.op === "snapshot_save" && p.ok === true) +
+  " system_only_template=" + prewarmCount((p) => p.reason === "system_only_template"));
+console.log("PREWARM_PARSE: unparsed=" + unparsedPrewarmLines +
+  (unparsedPrewarmLines > 0 ? " FAIL" : " PASS"));
+if (unparsedPrewarmLines > 0) anyCriterionFailed = true;
 // A prewarm that never ran reads exactly like one that ran and failed, unless
 // the stops are counted: a dispose, a live chat KV, a backgrounded app and an
 // exhausted retry budget all produce zero restore lines and zero prefills.
@@ -42,18 +88,18 @@ const stops = ["stale", "no_context", "disposing", "kv_holds_chat",
 // to log (nothing invalidated the prefix while backgrounded); counted here
 // for symmetry with in_flight, not because the job stopped.
 console.log("PREWARM_STOPS: " + stops.map((r) =>
-  r + "=" + n(new RegExp("\"op\":\"skip\",\"reason\":\"" + r + "\"", "g"))).join(" ") +
-  " restore_aborted=" + n(/"op":"restore","ok":false,"reason":"aborted"/g));
+  r + "=" + prewarmCount((p) => p.op === "skip" && p.reason === r)).join(" ") +
+  " restore_aborted=" + prewarmCount((p) =>
+    p.op === "restore" && p.ok === false && p.reason === "aborted"));
 // The send path logs a hash comparison WITHOUT an "op" field, which is why
 // PREWARM_STOPS above never saw it. prefix_miss is THE failure shape of the
 // whole feature: the prewarm reported restore/done while having warmed a
 // prefix the send did not hash — the entire prefill wasted, with every other
 // counter looking perfect. kv_holds_chat on match:false is NOT a defect: the
 // KV held a chat, so the static prefix was deliberately not what was cached.
-const prefixMisses = n(/"match":false,"reason":"prefix_miss"/g);
-const matchKvHolds = n(/"match":false,"reason":"kv_holds_chat"/g);
+const prefixMisses = prewarmCount((p) => p.match === false && p.reason === "prefix_miss");
+const matchKvHolds = prewarmCount((p) => p.match === false && p.reason === "kv_holds_chat");
 console.log("PREFIX_MATCH: miss=" + prefixMisses + " kv_holds_chat=" + matchKvHolds);
-const evLines = ev.split("\n");
 const cycleWindows = [];
 let currentCycle = { number: null, lines: [] };
 let sawCycleMarker = false;
@@ -186,7 +232,8 @@ else {
   // n_common counters look perfect.
   // Written before the data, deliberately more severe than "at least one good
   // cycle" — a run is not a pass because one of its cycles was.
-  const ran = n(/"op":"restore","ok":true/g) + n(/"op":"done"/g);
+  const ran = prewarmCount((p) => p.op === "restore" && p.ok === true) +
+    prewarmCount((p) => p.op === "done");
   const fails = [];
   if (whole < 1) fails.push("no cycle reused the whole cache");
   if (partial > 0) fails.push("partial reuse x" + partial);
@@ -210,6 +257,58 @@ else {
   if (prefixMisses > 0) fails.push("prefix hash miss on the send path x" + prefixMisses);
   if (fails.length > 0) anyCriterionFailed = true;
   console.log("KV_PREFIX_CRITERION: " + (fails.length ? "FAIL (" + fails.join("; ") + ")" : "PASS"));
+}
+// KV_DIVERGE is instrumentation, not another criterion. KV_PREFIX_CRITERION
+// already fails on partial reuse, and a context-window slide deliberately
+// dropping history is a legitimate partial-reuse case, so another criterion
+// here would create false FAILs. The native dump is a fixed diagnostic window:
+// lo_back = n_common - shared_lo is 8 in all 38 measured rows, and
+// text_fwd = text_hi - n_common is 12 in all 38, so neither is a count of
+// sequence tokens. embd_fwd = embd_hi - n_common is 12 in 31 rows, 3 in 6,
+// and 5 in 1. A value below 12 means the live cache ended inside the window;
+// the exact cache tail is in KALSA_KVPREFIX's embd - n_common, not here.
+const kvDiverges = [];
+let lastKvDiverge = null;
+for (const line of evLines) {
+  const row = line.match(
+    /KALSA_KVDIVERGE\s+n_common=(\d+)\s+shared_lo=\d+\s+embd_hi=(\d+)\s+text_hi=\d+/,
+  );
+  if (row) {
+    lastKvDiverge = {
+      common: +row[1],
+      embdHi: +row[2],
+      embdIds: null,
+    };
+    kvDiverges.push(lastKvDiverge);
+  }
+  const ids = line.match(/KALSA_KVDIVERGE\s+ids\b.*?(embd=\[[^\]]*(?:\]|$))/);
+  if (ids && lastKvDiverge) lastKvDiverge.embdIds = ids[1];
+}
+if (kvDiverges.length === 0) {
+  console.log("KV_DIVERGE: no KALSA_KVDIVERGE rows");
+} else {
+  const ended = kvDiverges.filter((row) => row.embdHi - row.common < 12);
+  const endedCounts = new Map();
+  for (const row of ended) {
+    const after = row.embdHi - row.common;
+    endedCounts.set(after, (endedCounts.get(after) ?? 0) + 1);
+  }
+  const endedSummary = [...endedCounts]
+    .sort(([a], [b]) => a - b)
+    .map(([after, count]) => after + " x" + count)
+    .join(", ");
+  console.log("KV_DIVERGE: rows=" + kvDiverges.length +
+    " cache_ended_inside_window=" + ended.length +
+    (endedSummary ? " cache_ended_after=" + endedSummary : ""));
+  if (ended.length === 0) {
+    console.log("KV_DIVERGE: all rows saturated the 12-token window; rows carry no end-of-cache evidence");
+  } else {
+    for (const row of ended) {
+      console.log("KV_DIVERGE_END: cache_ended_after=" + (row.embdHi - row.common) +
+        " n_common=" + row.common + " embd_hi=" + row.embdHi +
+        (row.embdIds ? " " + row.embdIds : ""));
+    }
+  }
 }
 console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
   " no_usable_checkpoint=" + n(/KALSA_KVDIAG /g));
@@ -261,18 +360,29 @@ if (kickWindows.length === 0) {
   // NOT say the native KV is reusable. That question stays with
   // KV_PREFIX_CRITERION, which reads KALSA_KVPREFIX / n_common.
   const classify = (w) => {
-    if (/"op":"done"/.test(w) || /"op":"restore","ok":true/.test(w)) return { cls: "served" };
-    if (/"op":"skip","reason":"(already_warm|in_flight)"/.test(w)) return { cls: "warm" };
-    if (w.includes('"op":"skip","reason":"kv_holds_chat"')) return { cls: "held" };
-    const skipReason = w.match(/"op":"skip","reason":"([^"]*)"/);
-    if (skipReason) {
-      if (skipReason[1] === "background") return { cls: "too_early" };
-      return { cls: "stopped", reason: skipReason[1] };
+    const events = prewarmEventsIn(w);
+    if (events.some((p) => p.op === "done") ||
+      events.some((p) => p.op === "restore" && p.ok === true)) {
+      return { cls: "served" };
     }
-    if (/"op":"restore","ok":false/.test(w)) {
+    if (events.some((p) => p.op === "skip" &&
+      (p.reason === "already_warm" || p.reason === "in_flight"))) {
+      return { cls: "warm" };
+    }
+    if (events.some((p) => p.op === "skip" && p.reason === "kv_holds_chat")) {
+      return { cls: "held" };
+    }
+    const skipReason = events.find((p) => p.op === "skip")?.reason;
+    if (skipReason) {
+      if (skipReason === "background") return { cls: "too_early" };
+      return { cls: "stopped", reason: skipReason };
+    }
+    if (events.some((p) => p.op === "restore" && p.ok === false)) {
       return { cls: "no_work", form: "restore did not complete" };
     }
-    if (/"op":"start"/.test(w)) return { cls: "no_work", form: "queued but no outcome" };
+    if (events.some((p) => p.op === "start")) {
+      return { cls: "no_work", form: "queued but no outcome" };
+    }
     // A KALSA_PREWARM line of an op this verdict does not know: fail naming
     // that, never as "no prewarm line" — the line is right there.
     if (w.includes("KALSA_PREWARM")) {

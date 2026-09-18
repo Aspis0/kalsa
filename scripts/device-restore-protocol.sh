@@ -171,9 +171,13 @@ rp_watchdog_cleanup() {
   rp_watchdog_report_max
 }
 
-# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
-# must confirm the dumpsys cadence, sentinel visibility and cleanup behavior
-# under real adb/logcat scheduling before this watchdog is trusted in a run.
+# Exercised against a real phone 2026-09-18 (Jelly Star, 192.168.1.82:5555, on
+# charge, idle): device_battery_temp_deci returned 260 = 26.0 C and thermal 0.
+# Both directions were driven with that live reading — stop=440 kept going and
+# wrote max=260, stop=200 fired, wrote the sentinel (temp_deci=260 thermal=0
+# max_temp_deci=260) and rp_watchdog_stop_requested saw it. dumpsys cadence,
+# sentinel visibility and cleanup all behaved. Still unproven: the loop under a
+# real prefill's CPU load, and a temperature that actually climbs.
 rp_watchdog_loop() {
   local parent_pid="$1" max_temp="" temp
   while kill -0 "$parent_pid" 2>/dev/null; do
@@ -322,8 +326,9 @@ rp_validate_bounce_flags() {
 # run that measured nothing, indistinguishable from FG_BOUNCE=0. Probe once
 # before the first cycle, not per cycle: the failure mode is "the command is
 # missing / cannot write", which does not change mid-run.
-# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
-# must confirm the readback really sees the marker (quoting, buffering).
+# Exercised against a real phone 2026-09-18 (Jelly Star): `adb shell log -p i
+# -t KALSA_RP_MARK "probe=<nonce>"` was written and `adb logcat -d -s
+# KALSA_RP_MARK` read it back on the first try — quoting and buffering hold.
 rp_marker_probe() {
   local nonce="probe=$$-$(date +%s)"
   adb shell log -p i -t KALSA_RP_MARK "$nonce" </dev/null >/dev/null 2>&1
@@ -403,7 +408,7 @@ rp_main() {
   # KALSA_KVPREFIX is the verdict: `n_common == embd` means the live cache was
   # reused whole, which on a hybrid is the only outcome that avoids a full
   # re-prefill (llama-memory-recurrent.cpp:194 / rn-completion.cpp:620-640).
-  grep -E "KALSA_RP_MARK|KALSA_KVPREFIX|KALSA_KVREUSE|KALSA_KVDIAG|KALSA_KVRESUME|KALSA_PREWARM|KALSA_SESSION|KALSA_WINDOW_SLIDE|KALSA_TELEMETRY|restored state checkpoint|no usable state checkpoint|reusing [0-9]+/" \
+  grep -E "KALSA_RP_MARK|KALSA_KVPREFIX|KALSA_KVREUSE|KALSA_KVDIAG|KALSA_KVRESUME|KALSA_KVDIVERGE|KALSA_PREWARM|KALSA_SESSION|KALSA_WINDOW_SLIDE|KALSA_TELEMETRY|restored state checkpoint|no usable state checkpoint|reusing [0-9]+/" \
     "$OUT/logcat.txt" > "$OUT/evidence.txt" || true
   log "evidence: $OUT/evidence.txt ($(wc -l < "$OUT/evidence.txt" | tr -d ' ') lines)"
 

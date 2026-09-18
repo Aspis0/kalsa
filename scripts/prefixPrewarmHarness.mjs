@@ -684,6 +684,130 @@ async function main() {
     "the §4 pass shape is reported as a pass",
   );
 
+  // React Native console.log emits KALSA_PREWARM as two quoted arguments,
+  // unlike the bare wire shape used by the older fixtures. Keep this fixture
+  // free of bare prewarm lines so the quoted parser contract is load-bearing.
+  const realWireShape = verdict(
+    "real-wire-shape",
+    [
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"op":"restore","ok":true,"tokens":1832,"hash":"h"}\'',
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"op":"done","promptMs":12,"promptN":1832,"hash":"h"}\'',
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /PREFIX_PREWARM: restore_ok=1 restore_miss=0 prefill_done=1 /.test(realWireShape),
+    "the real quoted prewarm restore and done shape is parsed",
+  );
+  assert(
+    /kv_holds_chat=1 /.test(realWireShape),
+    "the real quoted prewarm skip reason is parsed",
+  );
+  assert(
+    /KV_PREFIX: rows=2 whole_cache_reused=2 partial_reuse=0 total_loss=0 /.test(realWireShape) &&
+      /KV_PREFIX_CRITERION: PASS/.test(realWireShape),
+    "the real KVPREFIX pair has the same pass semantics as the bare shape",
+  );
+
+  // A third React Native console.log argument must not hide a prefix miss.
+  const trailingPrewarmArgument = verdictFail(
+    "trailing-prewarm-argument",
+    [
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"op":"restore","ok":true,"tokens":1832,"hash":"h"}\'',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"match":false,"reason":"prefix_miss","prewarm":"h1","send":"h2"}\', \'note\'',
+    ].join("\n"),
+  );
+  assert(
+    /PREFIX_MATCH: miss=1 kv_holds_chat=0/.test(trailingPrewarmArgument) &&
+      /KV_PREFIX_CRITERION: FAIL \(prefix hash miss on the send path x1\)/.test(
+        trailingPrewarmArgument,
+      ),
+    "a trailing console.log argument cannot hide a prefix miss",
+  );
+
+  // The React Native console polyfill leaves an apostrophe escaped inside the
+  // quoted JSON argument. The verdict must undo that wrapper escaping first.
+  const apostrophePrewarm = verdict(
+    "apostrophe-prewarm",
+    [
+      'I ReactNativeJS: \'KALSA_PREWARM\', \'{"op":"restore","ok":true,"tokens":1832,"hash":"h"}\'',
+      `I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","err":"engine can\\'t load"}'`,
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+    ].join("\n"),
+  );
+  assert(
+    /PREFIX_PREWARM: restore_ok=1 restore_miss=0 prefill_done=1 /.test(apostrophePrewarm) &&
+      /PREWARM_PARSE: unparsed=0 PASS/.test(apostrophePrewarm),
+    "an apostrophe escaped by the React Native polyfill is parsed and counted",
+  );
+
+  // A tagged line that is not parseable is evidence that the verdict did not
+  // fully measure the run, so it must be named and fail the exit contract.
+  const unparsedPrewarm = verdictFail(
+    "unparsed-prewarm",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_PREWARM {not-json",
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+    ].join("\n"),
+  );
+  assert(
+    /PREWARM_PARSE: unparsed=1 FAIL/.test(unparsedPrewarm),
+    "an unparsed KALSA_PREWARM line is named and counted",
+  );
+
+  // KALSA_KVDIVERGE's bounds are a fixed 12-token diagnostic window. The
+  // first row saturates it, the second ends inside it and has a multi-line
+  // ids record, and the third ends inside it without an ids record.
+  const kvDiverge = verdict(
+    "kv-diverge",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:519 KALSA_KVDIVERGE n_common=100 shared_lo=92 embd_hi=112 text_hi=112",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:523 KALSA_KVDIVERGE ids shared=[1 2 ] embd=[90 91 ] text=[3 4 ] shared_txt=[first",
+      "09-17 10:00:00.000 1 2 W RNLlama : continuation of shared_txt",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:501 KALSA_KVDIVERGE n_common=10 shared_lo=2 embd_hi=13 text_hi=22",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:523 KALSA_KVDIVERGE ids shared=[5 6 ] embd=[22 124900 207 ] text=[7 8 ] shared_txt=[second",
+      "09-17 10:00:00.000 1 2 W RNLlama : continuation of shared_txt",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:484 KALSA_KVDIVERGE n_common=5 shared_lo=0 embd_hi=10 text_hi=17",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /KV_DIVERGE: rows=3 cache_ended_inside_window=2 cache_ended_after=3 x1, 5 x1/.test(kvDiverge),
+    "saturated and ended-inside KVDIVERGE rows are distinguished",
+  );
+  assert(
+    /KV_DIVERGE_END: cache_ended_after=3 n_common=10 embd_hi=13 embd=\[22 124900 207 \]/.test(kvDiverge),
+    "the ended row keeps its matching embd ids verbatim",
+  );
+  assert(
+    /KV_DIVERGE_END: cache_ended_after=5 n_common=5 embd_hi=10\n/.test(kvDiverge),
+    "an ended row without ids remains legible",
+  );
+  assert(!kvDiverge.includes("text_hi="), "KV_DIVERGE does not report the fixed text bound");
+
+  const kvDivergeSaturated = verdict(
+    "kv-diverge-saturated",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      "09-17 10:00:00.000 1 2 W RNLlama : loadPrompt:519 KALSA_KVDIVERGE n_common=100 shared_lo=92 embd_hi=112 text_hi=112",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /KV_DIVERGE: rows=1 cache_ended_inside_window=0\nKV_DIVERGE: all rows saturated the 12-token window; rows carry no end-of-cache evidence/.test(
+      kvDivergeSaturated,
+    ),
+    "a fully saturated KVDIVERGE run says it has no end-of-cache evidence",
+  );
+
   // whole_cache_reused >= 1 IS the pass criterion, so a partial reuse must
   // never count as a whole one — a looser verdict turns a failed device run
   // into a green one. Nor is a partial reuse a total loss.
@@ -1506,6 +1630,25 @@ async function main() {
     `device-restore-protocol.sh must still parse — ${bashParse.stderr}`,
   );
   const protocolSrc = readFileSync(protocolPath, "utf8");
+  // The evidence filter is the verdict's input contract. Derive both tag
+  // lists from source so adding a reader without adding its filter is a named
+  // harness failure instead of a silent real-device blind spot.
+  const verdictSrc = readFileSync(
+    path.join(projectRoot, "scripts/restoreVerdict.mjs"),
+    "utf8",
+  );
+  const verdictTags = [...new Set(verdictSrc.match(/\bKALSA_[A-Z0-9_]+\b/g) ?? [])];
+  const evidenceFilterLine = protocolSrc.split("\n").find((line) =>
+    line.includes('grep -E "KALSA_RP_MARK|'),
+  );
+  assert(evidenceFilterLine, "the protocol evidence filter line is present");
+  const filterTags = [...new Set(evidenceFilterLine.match(/\bKALSA_[A-Z0-9_]+\b/g) ?? [])];
+  for (const tag of verdictTags) {
+    assert(
+      filterTags.includes(tag),
+      `evidence filter drops verdict tag: ${tag}`,
+    );
+  }
   const loopAt = protocolSrc.indexOf('for i in $(seq 1 "$CYCLES"); do');
   assert(loopAt >= 0, "the protocol still has its cycles loop");
   const loopDoneAt = protocolSrc.indexOf("\n  done", loopAt);
