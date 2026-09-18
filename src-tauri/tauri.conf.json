@@ -5,7 +5,6 @@
   "identifier": "ai.kalsa.brain",
   "build": {
     "frontendDist": "../chat/dist",
-    "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm --prefix ../chat run dev",
     "beforeBuildCommand": "npm --prefix ../chat run build"
   },
