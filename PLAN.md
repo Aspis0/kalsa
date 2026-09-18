@@ -661,6 +661,24 @@ esiste ma non si legge non deve essere trattata come "nessuna storia". Le due mo
 esplicito, e (b) se il grezzo esiste ma non produce messaggi validi, metterlo da parte invece di
 sovrascriverlo.
 
+**Decisione dell'owner 18/09 sulle trascrizioni finite su disco (accanto a questa voce perche' e' la
+stessa materia: conversazioni che vivono solo sul telefono).** Il secondo audit del protocollo ha
+trovato che `scripts/device-share-send.sh:109` scrive l'**intera conversazione** (testo dell'utente e
+ogni `modelEmittedText`) in `$OUT/.share_hist.json`, due volte per invio, senza mai rimuoverla: tre
+file sul Mac, 46/51/55 KB, uno per run del 18/09, piu' un `fatal_state.txt` (tutto il testo a schermo)
+nel run delle 11:01. Mai entrati in git (`git ls-files` = 0, `.gitignore:103`).
+- **I file esistenti RESTANO.** Sono chat di test e possono servire come evidenza — per esempio la
+  trascrizione del run `110132-fix3` **prima** della sovrascrittura del turno. Non si cancellano.
+- **La persistenza si chiude comunque**, ed e' un'altra cosa: la conversazione non deve toccare il
+  disco, ne' qui ne' in `device-prefill-threads.sh:82`. La query va in pipe su stdin e il python
+  estrae **solo** cio' che serve (conteggio assistant / ultimo testo), stessa forma nei due harness;
+  `fatal_state.txt` tiene gli id dei nodi o i primi N caratteri, non tutto lo schermo. Un `mktemp`
+  cancellato alla fine **non basta**: un `die` a meta' strada lo lascia li'.
+- **Limite dichiarato, non riparato:** il `python3` di `device_history_assistant_count` stampa `0` su
+  qualunque eccezione, quindi un errore di lettura del DB e' indistinguibile da "nessuna risposta" —
+  ed e' la causa dei `no reply within 600s`. Non si tocca prima del giro sul telefono, perche'
+  cambiare cosa ritorna quella funzione altera il flusso di `rp_wait_reply`.
+
 - **Fine tune MiniCPM5: decisione aperta, gate 12/10 (dopo M1).** Raccomandazione 10/09: nessun branch prima di M1. Si riapre il 12/10 con due input: licenza LFM2.5 e dossier M1 sugli errori reali di LFM. **Licenza (testo letto 10/09, non è una decisione):** LFM Open License v1.0 (https://huggingface.co/LiquidAI/LFM2.5-2.6B/raw/main/LICENSE) §5 — Commercial Use is licensed unless the Legal Entity's annual revenue is ≥ USD 10 million; above that threshold Commercial Use is not licensed. MiniCPM5 (Apache 2.0) remains the fallback if the threshold is a problem. Fino al 12/10 nessuna cella su MiniCPM5. GPU/governor NON sono "dopo M1": stanno in G3 (28-29/09); solo la NPU resta a decisione a tempo.
 
 - **S23 battery reproduction — PARTIAL, model mismatch.** The 9/09 MiniCPM5 Q4_K_M incident remains the pathology baseline: 52% → 28% in 65 minutes, 0.06 tok/s and mlock/swap pressure. The 10/09 3ca6145 run used shipped LFM instead: 89% → 86% across five instrumented attempts, 11.03–13.10 tok/s, no stall/deadline/unload/interruption. C02's final retry false-settled to raw `The`; C03-C06 are the four valid answers, and the earlier C02 `4.35` is excluded. All five turns logged `memoryEnabled:0` / `skipped_no_snapshot`, so memory extraction was not exercised. This does not demonstrate that the MiniCPM5 pathology was fixed; no new MiniCPM5 reproduction is planned under the closed G1.
