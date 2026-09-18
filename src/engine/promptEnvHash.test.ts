@@ -19,11 +19,10 @@ jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "/tmp/",
 }));
 
-import { getStrings } from "../i18n";
 import { computePromptEnvHash } from "./sessionPersistence";
 
 describe("computePromptEnvHash", () => {
-  test("4: facts stay outside the hash in tail mode; other inputs differ", () => {
+  test("facts stay outside the hash in tail mode; locale, hasTools, and the tool set differ", () => {
     const a = computePromptEnvHash("en", ["User likes espresso"], true);
     const b = computePromptEnvHash("en", ["User likes espresso"], true);
     expect(a).toBe(b);
@@ -70,8 +69,5 @@ describe("computePromptEnvHash", () => {
     expect(computePromptEnvHash("en", [], true, [], "none")).not.toBe(
       computePromptEnvHash("en", [], true, [], "user-note"),
     );
-
-    // Sanity: the static system prompt itself switches on hasTools (hash tracks that).
-    expect(getStrings("en").systemPromptWithSearch).not.toBe(getStrings("en").systemPrompt);
   });
 });

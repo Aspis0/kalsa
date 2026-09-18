@@ -54,7 +54,7 @@ describe("boundMemoryFacts", () => {
     expectWithinBudget(r, MEMORY_SUB_BUDGET_TOKENS);
   });
 
-  test("over-budget ranks newest-date-first; same-date keeps original index", () => {
+  test("over-budget ranks newest-day first; same-instant ties keep the latest insertion", () => {
     const a = fact(longText("old"), DAY1, "a");
     const b = fact(longText("bbb"), DAY2, "b");
     const c = fact(longText("ccc"), DAY2, "c");
@@ -74,9 +74,29 @@ describe("boundMemoryFacts", () => {
     const day2 = noteLines.filter((line) => line.startsWith("- [2026-01-02]"));
     expect(day2.length).toBeGreaterThan(0);
     if (day2.length === 2) {
-      expect(day2[0]).toContain("bbb-");
-      expect(day2[1]).toContain("ccc-");
+      // Same createdAt: the later insertion (ccc) is the newer fact.
+      expect(day2[0]).toContain("ccc-");
+      expect(day2[1]).toContain("bbb-");
     }
+  });
+
+  test("same-day overflow defers the earliest inserted facts, not the latest", () => {
+    // All facts share one UTC day, minutes apart: the day label cannot rank
+    // them, so the tie-break decides who is dropped. The deferred set must be
+    // the earliest insertions — a fact added minutes ago must never be the
+    // one thrown away while older same-day notes stay.
+    const base = Date.UTC(2026, 5, 1, 12, 0, 0);
+    const facts = Array.from({ length: 40 }, (_, i) =>
+      fact(`fact-${i + 1} ${"w".repeat(120)}`.slice(0, 120), base + i * 600_000),
+    );
+    const r = boundMemoryFacts(facts);
+    expect(r.health.deferredCount).toBeGreaterThan(0);
+    expect(r.health.injectedCount + r.health.deferredCount).toBe(40);
+    expectWithinBudget(r, MEMORY_SUB_BUDGET_TOKENS);
+    const nums = r.keptTexts.map((t) => Number(t.slice(5, t.indexOf(" "))));
+    expect(Math.max(...nums)).toBe(40);
+    expect(Math.min(...nums)).toBe(r.health.deferredCount + 1);
+    expect(nums.length).toBe(40 - r.health.deferredCount);
   });
 
   test("freeze: same input twice is byte-identical", () => {
@@ -116,7 +136,7 @@ describe("boundMemoryFacts", () => {
     expect(r.health.injectedCount + r.health.deferredCount).toBe(2);
     expectWithinBudget(r, exact - 1);
     expect(r.bounded).toMatch(
-      /- \[…\] \d+ older notes deferred — see Memory/,
+      /- \[…\] \d+ older notes? deferred — see Memory/,
     );
     const injected = r.bounded.split("\n").filter((line) =>
       line.startsWith("- [20"),
@@ -141,8 +161,11 @@ describe("boundMemoryFacts", () => {
     const r = boundMemoryFacts(facts, budget);
     expect(r.health.deferredCount).toBeGreaterThan(0);
     expectWithinBudget(r, budget);
+    const deferred = r.health.deferredCount;
     expect(r.bounded).toContain(
-      `- […] ${r.health.deferredCount} older notes deferred — see Memory`,
+      deferred === 1
+        ? `- […] 1 older note deferred — see Memory`
+        : `- […] ${deferred} older notes deferred — see Memory`,
     );
     expect(r.bounded).toContain(`- [2026-01-03] ${newest}`);
   });

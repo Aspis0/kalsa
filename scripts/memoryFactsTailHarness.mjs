@@ -141,6 +141,19 @@ async function main() {
     assert(bullets[0].includes("name is Alex"), `collapsed: ${bullets[0]}`);
   });
 
+  test("a 200-char fact lands in the injected block at exactly the 120-char cap", () => {
+    // truncNote promises "facts over {chars} chars are shortened in replies";
+    // this is that promise, tested through the real entry point.
+    const block = buildMemoryFactsBlock("en", mkFacts("A".repeat(200)));
+    const bullet = block
+      .split("\n")
+      .find((line) => /^- \[\d{4}-\d{2}-\d{2}\] /.test(line));
+    assert(bullet, "one fact bullet expected");
+    const text = bullet.slice("- [YYYY-MM-DD] ".length);
+    assert(text.length === 120, `fact must be capped at 120, got ${text.length}`);
+    assert(text === "A".repeat(120), `cap must be a clean slice, got: ${text}`);
+  });
+
   test("the block is bounded by a token budget, and the newest days win", () => {
     // Every turn pays for this block, so it cannot grow with the user's memory.
     // The bound ranks by date descending, so what survives is recent — a fact
@@ -519,9 +532,12 @@ async function main() {
 
   // Structural gates over the shipped source. The behavior tests above prove
   // what the tail path does; these pin the wiring that keeps it true. Same
-  // technique as scripts/prefixPrewarmHarness.mjs: comments stripped and
-  // whitespace normalized, so reformatting is free — rewiring the facts back
-  // into the system prompt is not.
+  // technique as scripts/prefixPrewarmHarness.mjs: inside a pinned region
+  // comments are stripped and whitespace is normalized, so reformatting there
+  // is free — rewiring the facts back into the system prompt is not. The
+  // region anchors are a different matter: indexOf matches literal text on
+  // the raw source, so reformatting an anchor line can false-positive the
+  // pin. If a reformat moves an anchor, update it and say why.
   const shapeOf = (text) =>
     text
       .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -562,6 +578,28 @@ async function main() {
           "if (factBlock) prompt += `\\n\\n${factBlock}`; } return prompt; }",
       `buildSystemPrompt changed shape: buildMemoryFactsBlock may appear only ` +
         `inside if (!MEMORY_FACTS_ON_USER_TAIL) — found: ${fnShape}`,
+    );
+  });
+
+  test("AppShell's systemText is exactly one buildSystemPrompt call, nothing appended", () => {
+    const shellSrc = readFileSync(
+      path.join(projectRoot, "src/app/AppShell.tsx"),
+      "utf8",
+    );
+    // "systemText" occurs once in the file today; the count assert keeps the
+    // anchor honest if a second site ever appears.
+    const anchor = "systemText: buildSystemPrompt(";
+    const hits = shellSrc.split(anchor).length - 1;
+    assert(hits === 1, `anchor expected exactly once, found ${hits}`);
+    const start = shellSrc.indexOf(anchor);
+    const eol = shellSrc.indexOf("\n", start);
+    const lineShape = shapeOf(shellSrc.slice(start, eol));
+    assert(
+      lineShape ===
+        "systemText: buildSystemPrompt(locale, withTools, promptFacts),",
+      `systemText must be exactly one buildSystemPrompt call — appending facts ` +
+        `here would rejoin them to the system prompt and double-count them in ` +
+        `the ceiling guard — found: ${lineShape}`,
     );
   });
 
