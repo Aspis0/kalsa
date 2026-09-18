@@ -209,6 +209,7 @@ import {
   deleteSessionsForModelConversation,
   discardStaleConversationSessions,
   evictSessionPool,
+  evictSessionPoolForSpace,
   readSessionPoolBudgetBytes,
   touchSessionUse,
 } from "./sessionPool";
@@ -3222,38 +3223,54 @@ export async function saveEngineSession(
         // cannot be fixed by freeing (the write cannot be sized), and an
         // unreadable reading is not proof that space is short.
         if (diskGate.reason !== "short") {
-          log(false, { reason: "disk" });
-          return false;
-        }
-        // The write has not happened yet — this is the one place eviction
-        // runs BEFORE a save instead of after one. Global, foreign models
-        // included: the gate requires the estimated session x SESSION_DISK_
-        // MARGIN (2.5), which at the unmeasured default rate (64 KiB/token x
-        // 8192 tokens ≈ 1.3 GB) far exceeds the 255 MB per-model floor, so
-        // the floor regime cannot be assumed to free enough. One eviction,
-        // one gate retry, no loop; the evict marker records what was freed
-        // (forced: true, policy global).
-        await evictSessionPool(stem, await readSessionPoolBudgetBytes(), {
-          forceGlobal: true,
-        });
-        const retryGate = await sessionDiskGate(diskInput);
-        if (!retryGate.ok) {
-          // -1 = unknown, same convention as usedTokens in the save line.
-          const freed =
-            diskGate.freeBytes != null && retryGate.freeBytes != null
-              ? Math.max(0, retryGate.freeBytes - diskGate.freeBytes)
-              : -1;
-          const missing =
-            retryGate.requiredBytes != null && retryGate.freeBytes != null
-              ? Math.max(0, retryGate.requiredBytes - retryGate.freeBytes)
-              : -1;
           log(false, {
             reason: "disk",
-            diskFreedBytes: freed,
-            diskMissingBytes: missing,
+            diskReason: diskGate.reason ?? "gate_error",
           });
           return false;
         }
+        // The write has not happened yet — this is the one place eviction
+        // runs BEFORE a save instead of after one. Space mode: free the
+        // measured deficit, foreign first, and nothing more — never down to
+        // the budget. First guard: if the pool cannot cover the deficit,
+        // nothing is deleted and the save fails without paying caches for a
+        // write that provably cannot succeed.
+        const deficit = Math.max(
+          0,
+          (diskGate.requiredBytes ?? 0) - (diskGate.freeBytes ?? 0),
+        );
+        const space = await evictSessionPoolForSpace(stem, deficit);
+        if (space.insufficient) {
+          log(false, {
+            reason: "disk",
+            diskReason: "short",
+            diskMissingBytes: deficit,
+          });
+          return false;
+        }
+        const retryGate = await sessionDiskGate(diskInput);
+        if (!retryGate.ok) {
+          // Residual case (deleted, still failed): the deficit was an
+          // estimate and the disk can move under it. The bytes stay in the
+          // open — what was actually dropped, and what is still missing
+          // (-1 = unknown, same convention as usedTokens in the save line).
+          log(false, {
+            reason: "disk",
+            diskReason: retryGate.reason ?? "gate_error",
+            diskFreedBytes: space.bytes,
+            diskMissingBytes:
+              retryGate.requiredBytes != null && retryGate.freeBytes != null
+                ? Math.max(0, retryGate.requiredBytes - retryGate.freeBytes)
+                : -1,
+          });
+          return false;
+        }
+        // Two evictions can serve one save, and both are correct: this one
+        // was space mode (measured deficit, foreign first, at most the
+        // deficit); the post-save eviction after the write enforces the
+        // user's budget in LRU order and runs after ANY successful save. The
+        // space eviction takes at most the deficit, so it never does the
+        // budget eviction's job — and each runs at most once per save.
       }
       const path = sessionFilePath(stem);
       tmpPath = `${path}.tmp`;

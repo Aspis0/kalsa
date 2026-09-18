@@ -11,6 +11,7 @@ jest.mock("expo-file-system/legacy", () => ({
   __esModule: true,
   documentDirectory: "file:///kalsa/",
   getInfoAsync: jest.fn(async () => ({ exists: false, isDirectory: false })),
+  getFreeDiskStorageAsync: jest.fn(async () => 1_000_000_000),
 }));
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,6 +24,7 @@ import {
   extractChatKvRestoreSource,
   markSessionDivergesAtLastExchange,
   readSessionMeta,
+  sessionDiskGate,
   sessionFilePath,
   sessionMetaMismatchField,
   sessionAssembleBoundary,
@@ -564,5 +566,45 @@ describe("dropChatKvHold nativeEmpty contract", () => {
         nativeEmptyForHoldDrop({ clearCacheSucceeded: true }),
       ),
     ).toBeNull();
+  });
+});
+
+describe("sessionDiskGate", () => {
+  const input = { nPast: 100, nCtx: 8192, bytesPerToken: 5200 };
+
+  afterEach(() => {
+    (FileSystem.getFreeDiskStorageAsync as jest.Mock)
+      .mockReset()
+      .mockResolvedValue(1_000_000_000);
+  });
+
+  test("plenty of free space passes, with the requirement named", async () => {
+    const gate = await sessionDiskGate(input);
+    expect(gate.ok).toBe(true);
+    expect(gate.reason).toBeNull();
+    expect(gate.requiredBytes).toBeGreaterThan(0);
+    expect(gate.freeBytes).toBe(1_000_000_000);
+  });
+
+  test("free below the requirement is short — the only deleting refusal", async () => {
+    (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockResolvedValue(
+      1_000,
+    );
+    const gate = await sessionDiskGate(input);
+    expect(gate).toMatchObject({ ok: false, reason: "short" });
+    expect(gate.freeBytes).toBe(1_000);
+    expect(gate.requiredBytes).toBeGreaterThan(1_000);
+  });
+
+  test("a negative free reading is unreadable, never short", async () => {
+    // -1-for-unknown must not classify as a small amount of free space:
+    // "short" is the one refusal that authorizes deleting caches.
+    (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockResolvedValue(-1);
+    const gate = await sessionDiskGate(input);
+    expect(gate).toMatchObject({
+      ok: false,
+      reason: "disk_unreadable",
+      freeBytes: null,
+    });
   });
 });

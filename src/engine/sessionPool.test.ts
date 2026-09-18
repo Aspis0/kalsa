@@ -24,21 +24,19 @@ jest.mock("./deviceProfile", () => ({
   getFreeDiskBytes: jest.fn(async () => Number.MAX_SAFE_INTEGER),
 }));
 
-import { EVICTION_FREE_FLOOR_BYTES } from "./sessionBudget";
 import { STATIC_PREFIX_CONVERSATION_ID, sessionStem } from "./sessionKey";
 import {
   deleteSessionsForModelConversation,
   evictSessionPool,
+  evictSessionPoolForSpace,
   pickEvictionStems,
+  pickEvictionStemsForBytes,
   staleStemsForConversation,
 } from "./sessionPool";
 
-const PLENTY = Number.MAX_SAFE_INTEGER;
-const LOW = EVICTION_FREE_FLOOR_BYTES - 1;
-
 const stemOf = (model: string, conv: string) => sessionStem(model, conv, "env")!;
 
-describe("pickEvictionStems, per-model regime (free space at/above floor)", () => {
+describe("pickEvictionStems, per-model regime", () => {
   test("does nothing when under budget", () => {
     const keep = stemOf("lfm2.5-2.6b", "c-keep");
     const old = stemOf("lfm2.5-2.6b", "c-old");
@@ -46,7 +44,7 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
       { stem: keep, bytes: 40_000_000, lastUsedAt: 3 },
       { stem: old, bytes: 40_000_000, lastUsedAt: 1 },
     ];
-    expect(pickEvictionStems(files, 100_000_000, keep, PLENTY)).toEqual([]);
+    expect(pickEvictionStems(files, 100_000_000, keep, "per-model")).toEqual([]);
   });
 
   test("a foreign Qwen file never pays for an LFM save", () => {
@@ -60,7 +58,7 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
       { stem: ownOld, bytes: 40, lastUsedAt: 1 },
       { stem: qwen, bytes: 50, lastUsedAt: 9 },
     ];
-    expect(pickEvictionStems(files, 100, keep, PLENTY)).toEqual([]);
+    expect(pickEvictionStems(files, 100, keep, "per-model")).toEqual([]);
   });
 
   test("over the model's own budget → an LFM file is evicted, not the Qwen one", () => {
@@ -74,7 +72,7 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
     ];
     // LFM total 110 vs 100: drop ownOld (40 left), Qwen is not this save's
     // business even though it is the oldest victim-sized file.
-    const victims = pickEvictionStems(files, 100, keep, PLENTY);
+    const victims = pickEvictionStems(files, 100, keep, "per-model");
     expect(victims).toEqual([ownOld]);
     expect(victims).not.toContain(qwen);
     expect(victims).not.toContain(keep);
@@ -89,8 +87,8 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
       { stem: older, bytes: 40, lastUsedAt: 2 },
       { stem: newer, bytes: 40, lastUsedAt: 8 },
     ];
-    expect(pickEvictionStems(files, 80, keep, PLENTY)).toEqual([older]);
-    expect(pickEvictionStems(files, 80, keep, PLENTY)).not.toContain(newer);
+    expect(pickEvictionStems(files, 80, keep, "per-model")).toEqual([older]);
+    expect(pickEvictionStems(files, 80, keep, "per-model")).not.toContain(newer);
   });
 
   test("stops once the model's own total fits", () => {
@@ -102,13 +100,13 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
       { stem: a, bytes: 40, lastUsedAt: 1 },
       { stem: b, bytes: 40, lastUsedAt: 2 },
     ];
-    expect(pickEvictionStems(files, 80, keep, PLENTY)).toEqual([a]);
+    expect(pickEvictionStems(files, 80, keep, "per-model")).toEqual([a]);
   });
 
   test("an unparseable keep stem evicts nothing (nothing is provably its model)", () => {
     const a = stemOf("lfm2.5-2.6b", "c-a");
     const files = [{ stem: a, bytes: 40, lastUsedAt: 1 }];
-    expect(pickEvictionStems(files, 1, "legacy-no-seps", PLENTY)).toEqual([]);
+    expect(pickEvictionStems(files, 1, "legacy-no-seps", "per-model")).toEqual([]);
   });
 
   test("the static-prefix snapshot is neither charged nor evicted", () => {
@@ -125,7 +123,7 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
     // 42.6 MB total would be over a 42,598,400 budget if the snapshot counted;
     // the chat alone is not, so nothing is evicted and the oldest file — the
     // snapshot — is not the victim it would otherwise be.
-    expect(pickEvictionStems(files, 42_598_400, chat, PLENTY)).toEqual([]);
+    expect(pickEvictionStems(files, 42_598_400, chat, "per-model")).toEqual([]);
     // And even when the chats really are over budget, the snapshot is not
     // offered as a victim — in either regime.
     const chat2 = sessionStem("lfm2.5", "conv-2", "env")!;
@@ -134,12 +132,12 @@ describe("pickEvictionStems, per-model regime (free space at/above floor)", () =
       { stem: chat, bytes: 30_000_000, lastUsedAt: 1 },
       { stem: chat2, bytes: 30_000_000, lastUsedAt: 2 },
     ];
-    expect(pickEvictionStems(three, 42_598_400, chat2, PLENTY)).toEqual([chat]);
-    expect(pickEvictionStems(three, 42_598_400, chat2, LOW)).toEqual([chat]);
+    expect(pickEvictionStems(three, 42_598_400, chat2, "per-model")).toEqual([chat]);
+    expect(pickEvictionStems(three, 42_598_400, chat2, "global")).toEqual([chat]);
   });
 });
 
-describe("pickEvictionStems, global regime (below the floor, or unreadable)", () => {
+describe("pickEvictionStems, global regime", () => {
   const keep = stemOf("lfm2.5-2.6b", "c-keep");
   const ownOld = stemOf("lfm2.5-2.6b", "c-old");
   const qwen = stemOf("qwen3-1.7b", "c-x");
@@ -149,25 +147,53 @@ describe("pickEvictionStems, global regime (below the floor, or unreadable)", ()
     { stem: qwen, bytes: 50, lastUsedAt: 9 },
   ];
 
-  test("below the floor the foreign file becomes evictable again — first", () => {
+  test("global — the regime a below-floor or unreadable reading selects — evicts the foreign file first", () => {
+    // Which readings select global is pinned by evictionGoesGlobal's own
+    // tests (sessionBudget) and by the pool marker test with a null reading.
     // Global total 130 vs 100: foreign-first drops Qwen (80 left) and stops
     // before touching the older same-model file.
-    expect(pickEvictionStems(files, 100, keep, LOW)).toEqual([qwen]);
-    expect(pickEvictionStems(files, 100, keep, LOW)).not.toContain(ownOld);
+    expect(pickEvictionStems(files, 100, keep, "global")).toEqual([qwen]);
+    expect(pickEvictionStems(files, 100, keep, "global")).not.toContain(ownOld);
+  });
+});
+
+describe("pickEvictionStemsForBytes (space mode: cover the deficit, no more)", () => {
+  const keep = stemOf("lfm2.5-2.6b", "c-keep");
+  const ownOld = stemOf("lfm2.5-2.6b", "c-old");
+  const qwenA = stemOf("qwen3-1.7b", "c-a");
+  const qwenB = stemOf("qwen3-1.7b", "c-b");
+  const snapshot = sessionStem("qwen3-1.7b", STATIC_PREFIX_CONVERSATION_ID, "pfx1")!;
+  const files = [
+    { stem: keep, bytes: 40, lastUsedAt: 10 },
+    { stem: ownOld, bytes: 40, lastUsedAt: 1 },
+    { stem: qwenA, bytes: 50, lastUsedAt: 9 },
+    { stem: qwenB, bytes: 30, lastUsedAt: 2 },
+  ];
+
+  test("foreign first, only until the need is covered", () => {
+    // Within the foreign group LRU applies: qwenB (older, 30) first, then
+    // qwenA (50) covers the remaining 30. The older same-model file — older
+    // than both foreign files — is still never touched.
+    expect(pickEvictionStemsForBytes(files, 60, keep)).toEqual([qwenB, qwenA]);
+    expect(pickEvictionStemsForBytes(files, 30, keep)).toEqual([qwenB]);
   });
 
-  test("a null free-space reading selects global, never plenty", () => {
-    expect(pickEvictionStems(files, 100, keep, null)).toEqual([qwen]);
+  test("zero or negative need evicts nothing", () => {
+    expect(pickEvictionStemsForBytes(files, 0, keep)).toEqual([]);
+    expect(pickEvictionStemsForBytes(files, -5, keep)).toEqual([]);
   });
 
-  test("a non-finite reading selects global too", () => {
-    expect(pickEvictionStems(files, 100, keep, Number.NaN)).toEqual([qwen]);
+  test("never the keep stem, even when it is the only file", () => {
+    expect(pickEvictionStemsForBytes([{ stem: keep, bytes: 150, lastUsedAt: 1 }], 100, keep)).toEqual([]);
   });
 
-  test("the floor boundary itself is per-model", () => {
-    expect(
-      pickEvictionStems(files, 100, keep, EVICTION_FREE_FLOOR_BYTES),
-    ).toEqual([]);
+  test("never the static-prefix snapshot, whatever its age or size", () => {
+    const withSnapshot = [
+      { stem: snapshot, bytes: 200, lastUsedAt: 0 },
+      { stem: qwenA, bytes: 30, lastUsedAt: 5 },
+    ];
+    // Need 50, only 30 evictable: the snapshot is not offered to cover it.
+    expect(pickEvictionStemsForBytes(withSnapshot, 50, stemOf("qwen3-1.7b", "c-z"))).toEqual([qwenA]);
   });
 });
 
@@ -279,6 +305,7 @@ describe("evictSessionPool marker", () => {
       expect(payload).toMatchObject({
         op: "evict",
         ok: true,
+        mode: "budget",
         policy: "global",
         keepModel: "lfm2_002e5-2_002e6b",
         budgetBytes: 100,
@@ -452,15 +479,12 @@ describe("evictSessionPool marker", () => {
     }
   });
 
-  test("forceGlobal evicts foreign files even above the floor, and says so", async () => {
+  test("space mode, evictable < deficit → no file removed", async () => {
     const FileSystem = await import("expo-file-system/legacy");
     const spy = jest.spyOn(console, "log").mockImplementation(() => {});
     try {
-      // Free space plenty → the natural regime would be per-model and the
-      // Qwen file would stay; the gate-refusal path pins global.
       (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
         `${keepStem}.kvs`,
-        `${ownOldStem}.kvs`,
         `${qwenStem}.kvs`,
       ]);
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
@@ -472,8 +496,13 @@ describe("evictSessionPool marker", () => {
         }),
       );
 
-      await evictSessionPool(keepStem, 100, { forceGlobal: true });
+      const result = await evictSessionPoolForSpace(keepStem, 200);
 
+      // Evictable (50 — the keep stem is excluded) < deficit 200: nothing
+      // deleted, the save fails without paying caches for a write that
+      // provably cannot succeed.
+      expect(result).toEqual({ insufficient: true, bytes: 0 });
+      expect(FileSystem.deleteAsync as jest.Mock).not.toHaveBeenCalled();
       const lines = spy.mock.calls
         .map((call) => String(call[0]))
         .filter(
@@ -484,16 +513,77 @@ describe("evictSessionPool marker", () => {
         [key: string]: unknown;
       };
       expect(payload).toMatchObject({
-        ok: true,
+        op: "evict",
+        ok: false,
+        reason: "deficit_uncoverable",
+        mode: "space",
         policy: "global",
-        forced: true,
-        freeBytes: Number.MAX_SAFE_INTEGER,
-        totalBytes: 130,
-        poolBytes: 130,
+        neededBytes: 200,
+        evictableBytes: 50,
+        victims: 0,
+        bytes: 0,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("space mode, evictable ≥ deficit → only the necessary files removed", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+        `${ownOldStem}.kvs`,
+        `${qwenStem}.kvs`,
+      ]);
+      const bytesByPath = new Map<string, number>([
+        [`file:///docs/sessions/${keepStem}.kvs`, 40],
+        [`file:///docs/sessions/${ownOldStem}.kvs`, 40],
+        [`file:///docs/sessions/${qwenStem}.kvs`, 50],
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
+        async (path: string) => ({
+          exists: true,
+          isDirectory: false,
+          size: bytesByPath.get(path) ?? 0,
+          modificationTime: 0,
+        }),
+      );
+
+      // Deficit 50: exactly the foreign file covers it — the same-model file
+      // stays warm, and nothing beyond the deficit is taken.
+      const result = await evictSessionPoolForSpace(keepStem, 50);
+
+      expect(result).toEqual({ insufficient: false, bytes: 50 });
+      expect(FileSystem.deleteAsync as jest.Mock).toHaveBeenCalledWith(
+        `file:///docs/sessions/${qwenStem}.kvs`,
+        { idempotent: true },
+      );
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        op: "evict",
+        ok: true,
+        mode: "space",
+        policy: "global",
+        neededBytes: 50,
+        evictableBytes: 90,
         victims: 1,
         bytes: 50,
       });
       expect(payload.victimModels).toEqual(["qwen3-1_002e7b"]);
+      // No stem ever reaches the line.
+      for (const secret of [keepStem, ownOldStem, qwenStem, "c-keep", ".kvs"]) {
+        expect(lines[0]).not.toContain(secret);
+      }
     } finally {
       spy.mockRestore();
     }

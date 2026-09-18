@@ -864,7 +864,14 @@ export async function sessionDiskGate(
         freeBytes: null,
       };
     }
-    if (typeof free !== "number" || !Number.isFinite(free)) {
+    // Negative is the "unknown" some APIs return; it is not a small amount
+    // of free space and must never classify as "short" (which authorizes
+    // deletion). Same convention as deviceProfile.getFreeDiskBytes.
+    if (
+      typeof free !== "number" ||
+      !Number.isFinite(free) ||
+      free < 0
+    ) {
       return {
         ok: false,
         reason: "disk_unreadable",

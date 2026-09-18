@@ -1,5 +1,6 @@
 /**
- * UFS KV session pool: per-model LRU eviction + stale prompt-env discard.
+ * UFS KV session pool: per-model LRU eviction (budget mode) + space eviction
+ * for the disk-gate refusal path + stale prompt-env discard.
  * Budget is disk, not RAM (§7.25 / §7.20). Every eviction run emits one
  * KALSA_SESSION line; stems (conversation ids) never reach it.
  */
@@ -10,6 +11,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { getFreeDiskBytes } from "./deviceProfile";
 import {
   beginEvictMarker,
+  EVICT_REASON_DEFICIT,
   EVICT_REASON_UNEVICTABLE,
 } from "./sessionEvictMarker";
 import {
@@ -77,22 +79,47 @@ function drainToBudget(
   return evict;
 }
 
+/** Which charge eviction enforces: the save's own model only, or everyone. */
+export type EvictionRegime = "per-model" | "global";
+
+/** Foreign-model first, then oldest lastUsedAt. The global/space order. */
+function orderByForeignFirstLru(
+  chatFiles: PoolFile[],
+  keepStem: string,
+  keepModel: string | null,
+): PoolFile[] {
+  const isForeign = (stem: string): boolean => {
+    if (keepModel == null) return false;
+    const model = modelIdOfStem(stem);
+    return model != null && model !== keepModel;
+  };
+  return chatFiles
+    .filter((f) => f.stem !== keepStem)
+    .slice()
+    .sort((a, b) => {
+      const aForeign = isForeign(a.stem);
+      const bForeign = isForeign(b.stem);
+      if (aForeign !== bForeign) return aForeign ? -1 : 1;
+      return byLru(a, b);
+    });
+}
+
 /**
- * Eviction victims for a save of `keepStem`.
+ * Budget-mode eviction victims for a save of `keepStem` under `regime`.
  *
- * At or above EVICTION_FREE_FLOOR_BYTES free space the budget is PER MODEL:
- * only conversations of the keep model are charged and offered as victims, so
- * a save for model A never deletes model B's warm KV cache — that eviction is
- * what made every model switch pay a full cold prefill again. Below the floor
- * (or on an unreadable reading — evictionGoesGlobal) the save wins and the
- * old global policy applies: foreign-model files first, then oldest
- * lastUsedAt. Never the keep stem.
+ * Per-model: only conversations of the keep model are charged and offered as
+ * victims, so a save for model A never deletes model B's warm KV cache — that
+ * eviction is what made every model switch pay a full cold prefill again.
+ * Global: foreign-model files first, then oldest lastUsedAt. Never the keep
+ * stem. The free-space reading that selects the regime lives with the caller
+ * (evictionGoesGlobal) — this picker takes the regime explicitly, never a
+ * sentinel reading.
  */
 export function pickEvictionStems(
   files: PoolFile[],
   budgetBytes: number,
   keepStem: string,
-  freeBytes: number | null,
+  regime: EvictionRegime,
 ): string[] {
   const budget = Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
   // The static-prefix snapshot is infrastructure, not a conversation: it is
@@ -103,11 +130,11 @@ export function pickEvictionStems(
   // file on disk (saveStaticPrefixSnapshot), not by this LRU.
   const chatFiles = files.filter((f) => !isStaticPrefixStem(f.stem));
   const keepModel = modelIdOfStem(keepStem);
-  if (!evictionGoesGlobal(freeBytes)) {
-    // Per-model regime: only a file that provably belongs to the saved model
-    // may be evicted. An unparseable keep stem (a legacy `${modelId}.kvs`)
-    // therefore evicts nothing here; legacy files are handled by
-    // deleteLegacyModelSession and deleteSessionsForModelConversation.
+  if (regime === "per-model") {
+    // Only a file that provably belongs to the saved model may be evicted.
+    // An unparseable keep stem (a legacy `${modelId}.kvs`) therefore evicts
+    // nothing here; legacy files are handled by deleteLegacyModelSession and
+    // deleteSessionsForModelConversation.
     if (keepModel == null) return [];
     const own = chatFiles.filter((f) => modelIdOfStem(f.stem) === keepModel);
     const total = chatTotalBytes(own);
@@ -120,21 +147,39 @@ export function pickEvictionStems(
   }
   const total = chatTotalBytes(chatFiles);
   if (total <= budget) return [];
-  const isForeign = (stem: string): boolean => {
-    if (keepModel == null) return false;
-    const model = modelIdOfStem(stem);
-    return model != null && model !== keepModel;
-  };
-  const ordered = chatFiles
-    .filter((f) => f.stem !== keepStem)
-    .slice()
-    .sort((a, b) => {
-      const aForeign = isForeign(a.stem);
-      const bForeign = isForeign(b.stem);
-      if (aForeign !== bForeign) return aForeign ? -1 : 1;
-      return byLru(a, b);
-    });
-  return drainToBudget(ordered, total, budget);
+  return drainToBudget(
+    orderByForeignFirstLru(chatFiles, keepStem, keepModel),
+    total,
+    budget,
+  );
+}
+
+/**
+ * Space-mode victims for the disk-gate refusal path: foreign-model files
+ * first, then oldest lastUsedAt, taken until their bytes cover `bytesNeeded`
+ * — a measured deficit, not a budget, so at most the deficit is paid and no
+ * more. Never the keep stem, never the static-prefix snapshot.
+ */
+export function pickEvictionStemsForBytes(
+  files: PoolFile[],
+  bytesNeeded: number,
+  keepStem: string,
+): string[] {
+  const chatFiles = files.filter((f) => !isStaticPrefixStem(f.stem));
+  let need = Number.isFinite(bytesNeeded) && bytesNeeded > 0 ? bytesNeeded : 0;
+  if (need === 0) return [];
+  const ordered = orderByForeignFirstLru(
+    chatFiles,
+    keepStem,
+    modelIdOfStem(keepStem),
+  );
+  const evict: string[] = [];
+  for (const f of ordered) {
+    if (need <= 0) break;
+    evict.push(f.stem);
+    need -= Math.max(0, f.bytes);
+  }
+  return evict;
 }
 
 /** Same model+conversation, different prompt-env hash — must not be reused. */
@@ -214,35 +259,32 @@ function chargedTotalBytes(
 }
 
 /**
- * LRU eviction for one save + stale-sidecar sweep.
+ * Budget-mode LRU eviction for one save + stale-sidecar sweep.
  *
  * Emits exactly one KALSA_SESSION line per run via sessionEvictMarker —
  * victims, bytes, keep/victim modelIds, the budget/total figures that decided
  * it, and poolBytes (every chat file on disk, all models). Never a stem.
  *
- * Regime: per-model at or above the free-space floor, global below it
- * (evictionGoesGlobal). opts.forceGlobal pins the global regime regardless of
- * the reading — the disk-gate refusal path uses it, because a short refusal
- * does not imply below-floor space (the gate can require far more than the
- * floor) and "the save succeeds" then outranks foreign warm caches. The
- * marker records the real freeBytes plus forced:true when pinned.
+ * Regime: the free-space floor selects it (evictionGoesGlobal) and the picker
+ * takes it explicitly. Space eviction — freeing a measured deficit on the
+ * disk-gate refusal path — is evictSessionPoolForSpace, not this.
  */
 export async function evictSessionPool(
   keepStem: string,
   budgetBytes: number,
-  opts: { forceGlobal?: boolean } = {},
 ): Promise<void> {
   const marker = beginEvictMarker();
   const keepModel = modelIdOfStem(keepStem);
-  marker.set({ keepModel, budgetBytes });
+  marker.set({ mode: "budget", keepModel, budgetBytes });
   // getFreeDiskBytes never throws (deviceProfile contract); everything after
   // this point can, and the line must still carry policy/freeBytes when it
   // does — so they are set before any throwing read.
   const freeBytes = await getFreeDiskBytes();
-  const global = opts.forceGlobal === true || evictionGoesGlobal(freeBytes);
+  const regime: EvictionRegime = evictionGoesGlobal(freeBytes)
+    ? "global"
+    : "per-model";
   marker.set({
-    policy: global ? "global" : "per-model",
-    ...(opts.forceGlobal === true ? { forced: true } : {}),
+    policy: regime,
     freeBytes,
     // Present even when the run victims nothing: "victims: 0" is itself the
     // diagnostic.
@@ -258,14 +300,7 @@ export async function evictSessionPool(
   try {
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
     const files = await listPoolFiles();
-    const stems = pickEvictionStems(
-      files,
-      budgetBytes,
-      keepStem,
-      // Forced global rides the picker's documented null reading; the marker
-      // above keeps the real freeBytes and says forced:true.
-      opts.forceGlobal === true ? null : freeBytes,
-    );
+    const stems = pickEvictionStems(files, budgetBytes, keepStem, regime);
     const bytesByStem = new Map(
       files.map((f) => [f.stem, Math.max(0, f.bytes)]),
     );
@@ -282,7 +317,11 @@ export async function evictSessionPool(
         victimModels: [...victimModels].sort(),
       });
     }
-    const totalBytes = chargedTotalBytes(files, keepModel, global);
+    const totalBytes = chargedTotalBytes(
+      files,
+      keepModel,
+      regime === "global",
+    );
     const poolBytes = chatTotalBytes(
       files.filter((f) => !isStaticPrefixStem(f.stem)),
     );
@@ -297,6 +336,95 @@ export async function evictSessionPool(
     marker.thrown(err);
   }
   marker.emit();
+}
+
+export type SpaceEvictionResult = {
+  /** True when evictable bytes could not cover the need: nothing deleted. */
+  insufficient: boolean;
+  /** Bytes actually dropped, as measured before dropping; 0 if insufficient. */
+  bytes: number;
+};
+
+/**
+ * Space eviction for the disk-gate refusal path: free the MEASURED deficit,
+ * foreign first, at most that much — never down to a budget.
+ *
+ * The guard here has an honest limit: the deficit is an estimate (required
+ * and free bytes from one gate reading — and the gate itself estimates, at
+ * the 64 KiB/token fallback rate for an uncalibrated model, with calibration
+ * written only after a successful save), and the disk can move between the
+ * measurement and the write. So "evictable < deficit → delete nothing" means
+ * do not pay the user's caches for a write that provably cannot succeed —
+ * it does NOT mean "deleting will certainly be enough". The residual case
+ * (deleted, still failed) stays, with the bytes on this run's marker and on
+ * the save's failure line.
+ */
+export async function evictSessionPoolForSpace(
+  keepStem: string,
+  bytesNeeded: number,
+): Promise<SpaceEvictionResult> {
+  const marker = beginEvictMarker();
+  const keepModel = modelIdOfStem(keepStem);
+  marker.set({ mode: "space", policy: "global", keepModel, neededBytes: bytesNeeded });
+  // getFreeDiskBytes never throws (deviceProfile contract); policy and
+  // freeBytes are on the line before any throwing read.
+  const freeBytes = await getFreeDiskBytes();
+  marker.set({
+    freeBytes,
+    victims: 0,
+    bytes: 0,
+    victimModels: [],
+  });
+  const result: SpaceEvictionResult = { insufficient: false, bytes: 0 };
+  let dropped = 0;
+  let freedBytes = 0;
+  const victimModels = new Set<string>();
+  try {
+    marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
+    const files = await listPoolFiles();
+    // Evictable = what this eviction could actually free: chat files, never
+    // the snapshot, never the file being saved.
+    const evictable = chatTotalBytes(
+      files.filter((f) => !isStaticPrefixStem(f.stem) && f.stem !== keepStem),
+    );
+    const need =
+      Number.isFinite(bytesNeeded) && bytesNeeded > 0 ? bytesNeeded : 0;
+    marker.set({ evictableBytes: evictable });
+    if (evictable < need) {
+      // Provably cannot be enough: delete nothing (docstring's limit).
+      result.insufficient = true;
+      marker.set({ ok: false, reason: EVICT_REASON_DEFICIT });
+    } else {
+      const stems = pickEvictionStemsForBytes(files, need, keepStem);
+      const bytesByStem = new Map(
+        files.map((f) => [f.stem, Math.max(0, f.bytes)]),
+      );
+      for (const stem of stems) {
+        freedBytes += bytesByStem.get(stem) ?? 0;
+        const victimModel = modelIdOfStem(stem);
+        if (victimModel != null) victimModels.add(victimModel);
+        await dropStem(stem);
+        dropped += 1;
+        // Progress lands in the line even if a later drop throws mid-batch.
+        marker.set({
+          victims: dropped,
+          bytes: freedBytes,
+          victimModels: [...victimModels].sort(),
+        });
+      }
+      result.bytes = freedBytes;
+      marker.set({ ok: true });
+    }
+    marker.set({
+      poolBytes: chatTotalBytes(
+        files.filter((f) => !isStaticPrefixStem(f.stem)),
+      ),
+    });
+  } catch (err) {
+    marker.thrown(err);
+  }
+  marker.emit();
+  return result;
 }
 
 /**

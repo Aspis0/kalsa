@@ -2,7 +2,12 @@
  * KV session pool budget: user-facing conversation count ↔ UFS bytes.
  *
  * Measured §7.25: 8_668_927 B / 1672 tokens ≈ 5.2 kB/token → ~41 MB at the
- * loaded 8192 context. Default 7 chats ≈ 300 MB on disk, not RAM.
+ * loaded 8192 context. The budget is PER MODEL since the pool went per-model:
+ * the default 7 chats ≈ 300 MB per model, and the pool total is
+ * models × this figure — deliberately uncapped, a product decision parked
+ * with the owner together with the user-facing "About 7 chats by default"
+ * label, which still reads as one total and still promises ~7 real chats
+ * where a bigger model yields ~3.6 at this one constant.
  */
 
 /** AsyncStorage key: decimal conversation count. */
@@ -42,6 +47,7 @@ export function parseSessionPoolConversations(
   return DEFAULT_SESSION_POOL_CONVERSATIONS;
 }
 
+/** Budget for ONE model: conversations × bytes per loaded conversation. */
 export function sessionPoolBudgetBytes(conversations: number): number {
   const n = isSessionPoolConversationOption(conversations)
     ? conversations
@@ -50,12 +56,13 @@ export function sessionPoolBudgetBytes(conversations: number): number {
 }
 
 /**
- * Free-space floor separating the two eviction regimes: at or above it a save
- * may only evict its own model's conversations; below it the pool evicts
- * globally (foreign models become victims). The disk-gate refusal path pins
- * global regardless of this floor — the gate's requirement (the estimated
- * session x SESSION_DISK_MARGIN) can exceed the floor, so a refusal does not
- * imply a below-floor reading.
+ * Free-space floor separating the two budget-eviction regimes: at or above it
+ * a save may only evict its own model's conversations; below it the pool
+ * evicts globally (foreign models become victims). The disk-gate refusal path
+ * bypasses this floor entirely — it is space mode (evictSessionPoolForSpace),
+ * foreign-first and capped by the measured deficit — because the gate's
+ * requirement (the estimated session x SESSION_DISK_MARGIN) can exceed the
+ * floor, so a refusal does not imply a below-floor reading.
  *
  * In units of the one measured constant: 2 conversations cover the pool's own
  * worst-case in-flight write — sessionPersistence writes a full `.kvs.tmp`
