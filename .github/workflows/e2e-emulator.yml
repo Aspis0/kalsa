@@ -82,6 +82,14 @@ jobs:
       - name: Typecheck + logic harnesses
         run: |
           npm run typecheck
+          # The full jest suite on the push that actually protects main:
+          # ci.yml (jest) is restricted to feat/**, so a test failing on
+          # main used to sit there until someone ran the suite by hand —
+          # sessionPersistence.test.ts rotted exactly that way from 7b5b79b.
+          # Parallel, in-band of the emulator job's budget: 82 suites /
+          # ~950 tests in 14.2 s wall on a 6-core host, well under a minute
+          # on the 4-vCPU runner.
+          npx jest
           node scripts/retrieverHarness.mjs
           node scripts/compactorHarness.mjs
           node scripts/retrievalLoopHarness.mjs
