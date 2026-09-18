@@ -6725,3 +6725,30 @@ un'ora prima: lo strumento riporta successo su un lavoro fatto a metà.
 **Cosa NON abbiamo ancora**: l'inferenza vera su main. L'e2e `35351292439` sul commit dello switch è
 stata cancellata al passo 14 dal push della sessione KV (17 passi verdi prima, incluso il marker nel
 binario); il verdetto arriva dalla loro run `35354417704` su `bc6bd22`, che è main piu' commit JS.
+
+**18/09 — disegno per il residuo 2c (provenienza dell'emissione), scritto prima di delegarlo.**
+Il problema: una `modelEmittedText` che comincia con `<think>` puo' venire da due strade opposte.
+Se e' **output del parser** (turno completato), quel tag e' la ricostruzione del parser e la KV ne
+contiene **uno**. Se e' l'**accumulo grezzo** di un turno interrotto in cui il modello ha
+riecheggiato il seme, la KV ne contiene **due**. Dalla sola stringa salvata sono indistinguibili.
+
+**Dove vive il flag.** Sul messaggio, accanto alla stringa, come `emissionSource: "parsed" | "raw"`,
+impostato **dove la stringa viene scelta** — percorso parsato (`LlamaService.ts:4426-4427`, usato a
+`:4435`) e percorso di abort (`:4033-4035`, `rawEmittedAccum`). Registrare il **meccanismo**, non la
+conseguenza: "parsed ⇒ contiene il seme" e' vero **solo finche' `reasoning_format` resta `"none"`**
+(`thinkingBudgets.ts:139`), quindi quell'inferenza deve stare in **un** punto nel renderer, non
+congelata dentro il nome del campo.
+
+**Nel meta del `.kvs` non va niente**, ed e' una scelta: il flag serve a **renderizzare**, e il
+rendering parte dalla storia, non dal sidecar. L'assenza del flag su un messaggio significa
+"provenienza ignota → usa il predicato sintattico di oggi", che e' esattamente il comportamento
+attuale. Quindi nessuna migrazione, nessuna invalidazione, i 169 messaggi gia' salvati restano
+validi e l'ambiguita' si restringe da sola sui turni nuovi.
+
+**La trappola, e va guardata in faccia:** [[js-flags-about-native-kv-desync]] dice *"mai un flag JS
+che afferma lo stato della KV nativa: si disallinea sempre"*, tre volte lo stesso bug. Qui il flag
+**non** afferma lo stato della KV: descrive la provenienza di una stringa che JS stesso ha prodotto,
+ed e' scritto nello stesso istante della stringa. Ma il disallineamento resta possibile in un caso
+preciso — **l'edit**: se il testo viene modificato, il flag diventa una bugia. Quindi il disegno non
+e' completo senza: **qualunque mutazione della stringa azzera il flag**, e un messaggio `edited`
+torna a provenienza ignota. Senza quella regola questo e' il quarto episodio della stessa storia.
