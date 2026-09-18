@@ -29,8 +29,12 @@ more than the check itself:
   is a Kalsa protection: the app cannot write `/sys/.../cpufreq`.
 - **Qwen3.5-4B is not eligible on a 7 GB phone** — two *foreground* `LOW_MEMORY` kills during
   load (`dumpsys activity exit-info`, `importance=100`). Selection persists, so the app reboots
-  into the same kill: launch → load → die. The send path already refuses this
-  (`reasonKey:"model.tooLarge"`); the load path does not.
+  into the same kill: launch → load → die. A fit guard exists on the send path and it fired —
+  refusing to load **LFM** because Qwen was already resident and left 868 MB, not refusing
+  Qwen (`resolveAdmissionModel` always returns the selected model; the `activeModel` field
+  lives in a different log line). The corner that leaves: an oversized resident model blocks
+  the switch to a smaller one, and only a force-stop escapes it. The startup load runs no fit
+  evaluation at all.
 - **An engine change removes session state silently.** A `.kvs` written by the old engine is
   refused and then removed (81.7 MB), the static-prefix snapshot is deleted explicitly, and
   `evictSessionPool` logs nothing at all — so the store went 8 → 5 files, ~108 MB, with no line

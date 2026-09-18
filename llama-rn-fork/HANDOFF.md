@@ -995,9 +995,24 @@ catalog label 8 GB+, two foreground LOW_MEMORY kills during load):
 ```
 Model selection persists, so every launch reloaded Qwen and died again: launch → load → kill →
 launch. The way out was changing model in Settings *while* the load was sinking the process.
-The send path already refuses this case (`KALSA_SEND {"allow":false,
-"reasonKey":"model.tooLarge","availableMb":868}`); the load path does not. Two guards for one
-risk, one of them missing.
+
+There **is** a fit guard, and it fired — but not on the model this paragraph is about, and the
+first version of this note said otherwise. Verbatim, twice:
+```
+KALSA_SEND {… "activeModel":"qwen3.5-4b"}
+KALSA_SEND {"phase":"fit","alreadyResident":false,"allow":false,
+            "reasonKey":"model.tooLarge","availableMb":868}
+```
+Two different log lines: `activeModel` belongs to the pre-send gate and reports the model
+loaded in native (Qwen, loaded at 18:13:26 in that same pid — accurate). The `phase:"fit"`
+line has no `activeModel` field, and `resolveAdmissionModel` (`src/engine/admissionModel.ts:5-14`)
+always returns `selectedModelId`. So the refusal was the app declining to load **LFM**, the
+small model, because the **big** one was already resident and left 868 MB. The guard did its
+job; the corner it leaves is the real finding: **an oversized resident model blocks the switch
+to a smaller one**, which is exactly the move a user would make to escape. Only a force-stop
+got out of it. The same fit evaluation does not run before the startup load, so the load path
+can still die where the send path refuses — and a fit gate on load must dispose the resident
+model first, or it would refuse on memory that is held by what it is about to replace.
 
 **State the engine change removed, none of it logged.** On engine change a session `.kvs` is
 refused and then removed (81,706,274 B Qwen, 17:58); the static-prefix snapshot is deleted
