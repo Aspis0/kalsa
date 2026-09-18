@@ -569,6 +569,35 @@ scaduto: serve il codice 2FA via email dell'owner.
 
 ## Aperti
 
+### 18/09 sera — riallineamento su M1 (owner: "state anni indietro sul PLAN")
+
+**Dove siamo sul calendario del §12:** la riga "16–18 set, sessione autorevole e contratto restore,
+invalidazione cache, stop/edit/regen" e' chiusa oggi (kv-land su main `87b36f8`, motore v0.12.9 +
+kalsallama 237461a98 su main `2ed2a88`). **Della campagna M1 del §13 non e' partito nulla:** T20C sull'S23
+e' morto a 2/20 il 17/09 (l'harness non ha la nozione di "piu' lento"), i 16 cicli lifecycle per
+telefono non esistono come protocollo, le notti idle non sono iniziate (devono partire entro il 30/09),
+il corpus qualita' da 80 casi va verificato, Xiaomi e Jelly non hanno una campagna.
+
+**Ordine da qui, per sessione:**
+- kalsa-2d: chiudere `boot-loop-breaker` (M1: "nessun blocco su recupero") → **T20C che sopravvive
+  alla termica su telefono scollegato** (fix in "Still open": sonda post-recovery che capisce "piu' lento",
+  hard abort alla linea 43/44 °C, cooldown che guarda la direzione con l'overshoot batteria) → una run
+  S23 scollegato e freddo → stesso T20C sul Jelly.
+- kalsa-93: chiudere `evict-marker` (decisione owner 18/09: la cache dell'altro modello si tiene, budget
+  per modello) → **protocollo lifecycle a 16 cicli** costruito su `device-restore-protocol.sh`, col
+  pacchetto protocollo A/B/C dentro come prerequisito → run S23 dopo il T20C → `anchored-floor` se resta tempo.
+- In attesa di merge su main (push del coordinatore a e2e verde): `persist-guard` c45f044.
+
+**Parcheggiati con la ragione, non cancellati:** step C++ del fork (opzione B) e NDK dichiarato
+(infrastruttura, non M1); bug abort in MTP mem-shared (MTP spento di default, fuori da M1: resta la
+riproduzione sul Mac con la probe quando c'e' tempo); off-by-one del prewarm (contabilita', cache
+riusata comunque); etichetta "N chat" del budget (decisione owner). Il default del registry passa a LFM
+dentro `boot-loop-breaker` (G1 del 10/09; revocabile dall'owner).
+
+**Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
+e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
+
+
 ### DUE RAMI TENUTI FUORI dal pacchetto KV, con il verdetto dell'audit (18/09)
 
 Entrambi vivono nel worktree `/Users/marco/.paseo/worktrees/1vffp1wo/kv-residuals`, ribasati su
