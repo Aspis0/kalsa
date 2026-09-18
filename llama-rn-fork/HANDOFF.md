@@ -672,21 +672,50 @@ a binary without a Metal library.
   plain. Verified on the S23 with Qwen3.5-4B (run log in ALIVE, 18/09 midday). **Evidence status:
   the fallback path is exercised on a device; the proposal path has never been exercised on a
   phone.**
-  **Answered 2026-09-18 (read on disk, both trees): upstream has no line to take, because the
-  decision is not in the binding.** `v0.12.9:cpp/rn-llama.cpp:566` does exactly what we do —
-  `cparams.ctx_other = ctx;` with no condition, in `createMTPDraftContext`. The filter lives in the
-  engine: `v0.12.9:cpp/llama-context.cpp:141-160` sets `cparams.ctx_other = nullptr` and adopts
-  `params.ctx_other` **only** for `LLM_ARCH_GEMMA4_ASSISTANT`, and for `EAGLE3`/`DFLASH` when the
-  draft model has no `tok_embd`/`output`; every other architecture keeps `nullptr`, so a hybrid
-  QWEN35 draft never reaches the iSWA share check at all. **Our engine accepts it for every
-  architecture**: fork `cpp/llama-context.cpp:152-154` has an extra
-  `if (params.ctx_other != nullptr) { cparams.ctx_other = params.ctx_other; }`, added by
-  kalsallama `6f3881baf` ("feat: generalize shared KV cells", 28 August, ours — it lifted the
-  assignment out of the GEMMA4 branch). That is the line that hands the MTP draft a `mem_other`
-  and gets it refused at `llama-kv-cache-iswa.cpp:97`. So this is a kalsa decision to make in
-  `kalsallama`, not an upstream import: whoever takes it must say why the generalization was
-  wanted before narrowing it back, because the shared-cells work (and its
-  `tests/test-governor-v0-shared-cells.cpp`) depends on that same assignment.
+  **Answered 2026-09-18 (read on disk on both trees, then hostile-audited and CORRECTED — the
+  first version of this answer was wrong on the last step).** The binding does not decide, in
+  either tree: `v0.12.9:cpp/rn-llama.cpp:566` sets `cparams.ctx_other = ctx;` with no condition
+  inside `createMTPDraftContext`, exactly like ours at `cpp/rn-llama.cpp:846`. The chain, step by
+  step, with who owns each step:
+  1. `v0.12.9:cpp/llama-context.cpp:141-160` sets `cparams.ctx_other = nullptr` and adopts
+     `params.ctx_other` **only** for `LLM_ARCH_GEMMA4_ASSISTANT`, and for `EAGLE3`/`DFLASH` when
+     the draft has no `tok_embd`/`output`. **Ours adopts it for any architecture**:
+     `cpp/llama-context.cpp:152-154`, `if (params.ctx_other != nullptr) { cparams.ctx_other = params.ctx_other; }`
+     — kalsallama `6f3881baf` ("feat: generalize shared KV cells", 28 August, ours) lifted that
+     assignment out of the GEMMA4 branch. (It is value-conditional; what it drops is the
+     *architecture* predicate.)
+  2. `cpp/llama-context.cpp:393` turns it into the memory constructor's argument:
+     `/*.mem_other =*/ llama_get_memory(cparams.ctx_other)`. Identical upstream (`:388`).
+  3. The routing that follows is **upstream's, not ours**: `mtp_on_hybrid_qwen`
+     (`v0.12.9:cpp/llama-model.cpp:2225`, ours `:2450`) sends an MTP context on QWEN35 down the
+     **dense** path, not the hybrid one — so the draft asks for a plain `llama_kv_cache_iswa`.
+  4. On that dense path **upstream passes `nullptr`** as `mem_other`
+     (`v0.12.9:cpp/llama-model.cpp:2379` and `:2400`); **we pass `params.mem_other`**
+     (`cpp/llama-model.cpp:2648` and `:2669`), also from `6f3881baf`.
+  5. The target's memory is a `llama_memory_hybrid_iswa`, so our
+     `dynamic_cast<llama_kv_cache_iswa *>(mem_other)` fails and **our own** throw fires at
+     `cpp/llama-kv-cache-iswa.cpp:96-97`. Upstream has a blind `static_cast` at that spot
+     (`v0.12.9:cpp/llama-kv-cache-iswa.cpp:87`) — undefined behaviour it never reaches, precisely
+     because steps 1 and 4 keep `mem_other` null. Our `dynamic_cast` + throw is a real improvement
+     on upstream; it is not the defect.
+  6. The binding catches it and runs the turn plain (`cpp/rn-completion.cpp:910-917`,
+     `cpp/rn-slot.cpp:466-473`). **User-visible effect: MTP is silently disabled on that model**,
+     not a crash.
+  **So the earlier sentence "there is no upstream line to import" was wrong.** Upstream's
+  behaviour at `llama-model.cpp:2379/2400` is literally `nullptr`: reverting our two
+  `params.mem_other` arguments (or re-narrowing step 1 to an architecture allowlist) *is*
+  importing upstream. The trade-off to state out loud is that both spellings pay for it with the
+  shared-cell feature `6f3881baf` was written for, and with
+  `tests/test-governor-v0-shared-cells.cpp`. Two more kalsallama-only guards already refuse
+  `ctx_other` earlier for other memory kinds — `cpp/llama-model.cpp:2459-2461` (recurrent) and
+  `:2508-2510` (hybrid-SWA) — so a third, narrower guard on this path would match a habit the
+  engine already has. The edit belongs in **kalsallama**: the fork's `cpp/` is a flattened
+  snapshot, so nothing moves until `sync-kalsallama.sh bump`.
+  Also worth knowing before touching this: the binding differs from upstream in more than that one
+  line — ours downgrades `ctx_type` to `DEFAULT` when the draft has no nextn layers
+  (`cpp/rn-llama.cpp:837-842`, upstream sets MTP unconditionally at `v0.12.9:cpp/rn-llama.cpp:562`),
+  and our early MTP gate carries an extra `router_layer >= 0` clause
+  (`cpp/llama-context.cpp:3762-3765` vs upstream `:3605-3608`).
 - **Engine residual found by the fork's FIRST CI run on `kalsa` (35360547883, 18/09):**
   `cpp/llama-kv-cache-iswa.cpp:97` throws `std::runtime_error` while the file includes
   `<algorithm>` and `<cassert>` but not `<stdexcept>`. GCC on the runner rejects it
