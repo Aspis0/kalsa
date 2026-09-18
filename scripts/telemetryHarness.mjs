@@ -412,11 +412,55 @@ async function main() {
     assert(pure.memoryClassFromBytes(null) === "unknown");
   });
   test("modelCategory from id", () => {
-    assert(pure.modelCategoryFromId("lfm2.5-2.6b") === "dense.2b");
-    assert(pure.modelCategoryFromId("qwen3.5-4b") === "dense.4b");
-    assert(pure.modelCategoryFromId("removed-model-2b") === "unknown");
-    assert(pure.modelCategoryFromId("foo-moe-bar") === "moe");
-    assert(pure.modelCategoryFromId(null) === "unknown");
+    // Category comes from the MODEL_REGISTRY lookup or an explicit flag only.
+    // The old "moe"-substring heuristic is gone on purpose: guessing a
+    // category from an id silently mislabels telemetry for renamed/unknown ids.
+    assert(
+      pure.modelCategoryFromId("lfm2.5-2.6b") === "dense.2b",
+      "lfm2.5-2.6b → dense.2b",
+    );
+    assert(
+      pure.modelCategoryFromId("qwen3.5-4b") === "dense.4b",
+      "qwen3.5-4b → dense.4b",
+    );
+    assert(
+      pure.modelCategoryFromId("removed-model-2b") === "unknown",
+      "unregistered id → unknown",
+    );
+    assert(
+      pure.modelCategoryFromId("foo-moe-bar") === "unknown",
+      '"moe" substring in the id must NOT imply category moe',
+    );
+    assert(pure.modelCategoryFromId(null) === "unknown", "null → unknown");
+    // Explicit opts.moe wins for any id — today the only way to reach "moe".
+    assert(
+      pure.modelCategoryFromId("foo-moe-bar", { moe: true }) === "moe",
+      "explicit opts.moe must win",
+    );
+    // Registry-derived contract: an entry is categorized "moe" if and only if
+    // it opts in via canStreamExperts. Holds unchanged when a MoE model is
+    // added, and catches any reintroduced id-substring heuristic.
+    const registryCandidates = [
+      path.join(outDir, "engine/ModelRegistry.js"),
+      path.join(outDir, "src/engine/ModelRegistry.js"),
+    ];
+    const registryPath = registryCandidates.find((c) => existsSync(c));
+    assert(
+      registryPath,
+      `compiled ModelRegistry.js not found; tried:\n${registryCandidates.join("\n")}`,
+    );
+    const { MODEL_REGISTRY } = require(registryPath);
+    assert(
+      Array.isArray(MODEL_REGISTRY) && MODEL_REGISTRY.length > 0,
+      "MODEL_REGISTRY must be a non-empty array",
+    );
+    for (const entry of MODEL_REGISTRY) {
+      const category = pure.modelCategoryFromId(entry.id);
+      assert(
+        (category === "moe") === (entry.canStreamExperts === true),
+        `registry ${entry.id}: category=${category} but canStreamExperts=${entry.canStreamExperts}`,
+      );
+    }
   });
   test("phase/attempt/chunks context", () => {
     const r = pure.sanitizeReport({

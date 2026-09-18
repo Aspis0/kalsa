@@ -26,6 +26,7 @@ function compile() {
       "tsc",
       "src/engine/embeddingPure.ts",
       "src/documents/semanticIndex.ts",
+      "src/documents/documentChatFormatting.ts",
       "src/context/retriever.ts",
       "src/context/retrievalLoop.ts",
       "--outDir",
@@ -520,17 +521,42 @@ async function main() {
     );
   });
 
-  // 17. Round 6: documentChatTool surfaces 'hung' via degradedNoEmbedder text.
-  check("documentChatTool DenseUnavailableReason includes hung → degradedNoEmbedder", () => {
-    const src = readFileSync(
-      path.join(projectRoot, "src/documents/documentChatTool.ts"),
-      "utf8",
-    );
-    assert(/\|\s*"hung"/.test(src), "DenseUnavailableReason includes hung");
+  // 17. Round 6: documentChat "hung" degrade reaches the user as the same
+  // line as "no_embedder". Executes the real denseDegradeLine compiled from
+  // disk (now in documentChatFormatting.ts) instead of grepping sources: the
+  // mapping already moved once (documentChatTool.ts → documentChatFormatting.ts)
+  // and a source regex rots silently on every move.
+  check("denseDegradeLine maps hung → degradedNoEmbedder (same line as no_embedder)", () => {
+    const fmtCandidates = [
+      path.join(outDir, "documents/documentChatFormatting.js"),
+      path.join(outDir, "src/documents/documentChatFormatting.js"),
+    ];
+    const fmtPath = fmtCandidates.find((c) => existsSync(c));
     assert(
-      /reason === "no_embedder"\s*\|\|\s*reason === "hung"/.test(src),
-      "denseDegradeLine maps hung → degradedNoEmbedder",
+      fmtPath,
+      `compiled documentChatFormatting.js not found; tried:\n${fmtCandidates.join("\n")}`,
     );
+    const { denseDegradeLine } = require(fmtPath);
+    for (const locale of ["en", "it"]) {
+      const noEmbedder = denseDegradeLine(locale, "no_embedder");
+      assert(
+        typeof noEmbedder === "string" && noEmbedder.length > 0,
+        `${locale}: no_embedder must yield the degradedNoEmbedder line, got ${JSON.stringify(noEmbedder)}`,
+      );
+      const hung = denseDegradeLine(locale, "hung");
+      assert(
+        hung === noEmbedder,
+        `${locale}: hung must surface the same line as no_embedder, got ${JSON.stringify(hung)}`,
+      );
+    }
+    // Other reasons must not collapse onto the no-embedder line.
+    for (const reason of ["cap", "corrupt", "timeout"]) {
+      assert(
+        denseDegradeLine("en", reason) !== denseDegradeLine("en", "no_embedder"),
+        `en: ${reason} must not surface the degradedNoEmbedder line`,
+      );
+    }
+    assert(denseDegradeLine("en", null) === null, "null reason → null line");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
