@@ -6480,7 +6480,7 @@ solo sulla macchina di chi l'ha scritta, non è cablata — è solo verde lì.**
 locale (verificato dalla sessione KV, stessa riga d'errore); per il C++ l'equivalente è compilare con
 il cross-compilatore dell'NDK invece che con il clang di sistema.
 
-**18/09 pomeriggio — Step 3: lo switch è su `main` (`185d254..16f6ce9`).**
+**18/09 mattina, più tardi (09:42 EDT) — Step 3: lo switch è su `main` (`185d254..16f6ce9`).**
 Il via è arrivato da Marco tramite la sessione kalsa-ee. Sequenza eseguita e verificata a mano:
 
 1. *Terzo merge di `origin/main` (`185d254`) nel ramo* → zero conflitti, commit `1b86de3`.
