@@ -90,6 +90,14 @@ sentence about your next few seconds: *the model is warm, your seat is free* —
 people are already talking, you will have to wait*. If you are the fifth, the bar says so
 **before** you type, not after the door refuses you.
 
+> **Struck 2026-09-18, by the owner.** The empty bar is a plain invitation to write. The
+> prediction above is not postponed for taste: its substance is *how many seats are taken and
+> by whom*, and §6 records that the door does not answer that yet. A bar that predicted from
+> what we can actually read today — a model name and whether a process is up — would be
+> stating the least useful half of the sentence in the place reserved for the most useful one,
+> and would make the empty prediction look like the finished one. The line comes back when
+> occupancy does, not before.
+
 **Pressing enter opens the chat by transformation, not navigation.** And the animation
 lasts as long as the first token actually takes: instant when the model is warm (0.64 s),
 long enough to narrate the warm-up when it is cold (4.99 s). The transition is not
@@ -101,6 +109,15 @@ the brain's surfaces — Models, Server, Devices, Advanced, Settings, and the wa
 Struck 2026-09-17: see the revision note at the top of this section. The chat does not have
 to display a menu of surfaces at all, and deciding what carries them is a job for whenever
 the navigation is really built. What the thread genuinely owes the reader is a way home.
+
+> **Decided 2026-09-18, by the owner.** The crescent lives in the chat and nowhere else —
+> the brain page does not draw one. It carries the way back to Brain plus the chat's own
+> things: a new conversation, the history, the chat's settings. It does not carry Models,
+> Server, Devices or Advanced; those exist on the brain page only, which is §5 holding.
+> Clicking Brain returns to the starting point and **the conversation stays alive** — coming
+> back by the bar or by the button resumes it where it was. §4 asked for that return to show
+> the conversation from outside, drawn as the four seats; the seats wait on §6, so today the
+> return is plain and the conversation simply survives it.
 
 **Going back is symmetric.** The same animation reversed, plus `Esc`. If leaving is a
 transformation and returning is a menu click, the illusion collapses on second use.
