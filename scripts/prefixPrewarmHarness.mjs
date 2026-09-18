@@ -1923,6 +1923,159 @@ async function main() {
   );
   console.log("PASS settle wait survives SIGPIPE (shell-exercised: new=0, old=141 at 1 MB)");
 
+  // ── The wait's budget is WALL CLOCK, and its log survives the run ────────
+  // "settled after ${waited}s" counted loop passes, not seconds — every pass
+  // also pays the capture greps plus its 1 s sleep — so the seconds suffix
+  // lied in both directions: elapsed time was reported as a poll count, and
+  // the three 09-18 budget expiries took 124.6-134.1 s of wall against
+  // "120". The protocol's own stdout is never persisted, so that figure
+  // died with the terminal. Both are fixed in the script and pinned here by
+  // RUNNING the shell: the extracted log + rp_fg_wait_settled execute under
+  // a sleep stub whose per-pass cost exceeds the budget, the one case where
+  // a pass counter and a clock must disagree.
+  const waitFnAt = protocolSrc.indexOf("rp_fg_wait_settled() {");
+  assert(waitFnAt >= 0, "rp_fg_wait_settled still exists");
+  const waitFnEnd = protocolSrc.indexOf("\n}", waitFnAt);
+  const waitFn = protocolSrc.slice(waitFnAt, waitFnEnd + 2);
+  assert(
+    waitFn.includes("t0=$(date +%s)") &&
+      waitFn.includes("deadline=$((t0 + FG_SETTLE_TIMEOUT_SECONDS))") &&
+      waitFn.includes("settled after $(( $(date +%s) - t0 ))s"),
+    "the settle wait must take its deadline on entry and print true wall seconds",
+  );
+  assert(
+    // bash comments are `#`, not `//` — strip those from the RAW text (they
+    // must go before the whitespace collapse, or the rationale comment that
+    // NAMES the old counter trips the pin).
+    !shapeOf(waitFn.replace(/^[ \t]*#.*$/gm, "")).includes("${waited}"),
+    "the settle wait must not count passes where seconds are meant",
+  );
+  const logFnAt = protocolSrc.indexOf("log() {");
+  assert(logFnAt >= 0, "the protocol's log override still exists");
+  const logFnEnd = protocolSrc.indexOf("\n}", logFnAt);
+  const logFn = protocolSrc.slice(logFnAt, logFnEnd + 2);
+  assert(
+    logFn.includes('>> "$RP_LOG_FILE"'),
+    "the log helper must append to the persisted protocol log",
+  );
+  // Scan CODE for these, not comments: the rationale comment quotes the
+  // forbidden construct verbatim, and a comment saying "never do X" must
+  // not trip a pin on X.
+  const protocolCode = protocolSrc.replace(/^[ \t]*#.*$/gm, "");
+  assert(
+    protocolCode.includes('RP_LOG_FILE="$OUT/protocol.log"') &&
+      !protocolCode.includes("exec > >(tee") &&
+      !protocolCode.includes("> >(tee"),
+    "the protocol log is written per run inside the helper, not via exec tee",
+  );
+
+  // The driver: stubs the watchdog, makes every `sleep` cost SLEEP_SECS
+  // (so a pass costs more than one second), optionally appends the terminal
+  // op line to the capture after the first sleep (simulating an op that
+  // lands mid-wait), and runs the EXTRACTED functions unchanged.
+  function runWaitShell(opts) {
+    const dir = path.join(outDir, `settle-${opts.name}`);
+    mkdirSync(dir, { recursive: true });
+    // Marker only — no terminal op unless the append supplies one.
+    writeFileSync(
+      path.join(dir, "logcat.txt"),
+      noiseLines + "I/KALSA_RP_MARK(1): fg_kick cycle=1\n",
+      "utf8",
+    );
+    let appendFile = "";
+    if (opts.appendMatch) {
+      appendFile = path.join(dir, "op-line.txt");
+      writeFileSync(
+        appendFile,
+        'I/ReactNativeJS(1): \'KALSA_PREWARM\', \'{"op":"skip","reason":"kv_holds_chat"}\'\n',
+        "utf8",
+      );
+    }
+    const script = [
+      "#!/usr/bin/env bash",
+      "set -uo pipefail",
+      "rp_watchdog_stop_requested() { return 1; }",
+      "SLEEPS=0",
+      "sleep() {",
+      "  SLEEPS=$((SLEEPS + 1))",
+      '  command sleep "$SLEEP_SECS"',
+      '  if [ -n "$APPEND_MATCH_FILE" ]; then',
+      '    cat "$APPEND_MATCH_FILE" >> "$OUT/logcat.txt" 2>/dev/null',
+      '    APPEND_MATCH_FILE=""',
+      "  fi",
+      "}",
+      logFn,
+      waitFn,
+      'FG_SETTLE_TIMEOUT_SECONDS="$BUDGET"',
+      "rp_fg_wait_settled 1",
+      "exit $?",
+      "",
+    ].join("\n");
+    const scriptFile = path.join(dir, "wait-probe.sh");
+    writeFileSync(scriptFile, script, "utf8");
+    const startedAt = Date.now();
+    const r = spawnSync("bash", [scriptFile], {
+      cwd: projectRoot,
+      encoding: "utf8",
+      timeout: 60000,
+      env: {
+        ...process.env,
+        OUT: dir,
+        RP_LOG_FILE: path.join(dir, "protocol.log"),
+        SLEEP_SECS: String(opts.sleepSecs),
+        APPEND_MATCH_FILE: appendFile,
+        BUDGET: String(opts.budget),
+      },
+    });
+    return {
+      status: r.status,
+      wallMs: Date.now() - startedAt,
+      protocolLog: readFileSync(path.join(dir, "protocol.log"), "utf8"),
+    };
+  }
+
+  // Expiry is wall clock: with a 2 s budget and 3 s passes, ONE pass must
+  // pass the deadline and stop — a pass counter would burn a second pass
+  // (>= 6 s) before noticing, and print "within 2" either way.
+  const timeout = runWaitShell({ name: "timeout", budget: 2, sleepSecs: 3 });
+  assert(
+    timeout.status === 1,
+    `an expired settle wait must exit 1 — got ${timeout.status}`,
+  );
+  assert(
+    timeout.wallMs >= 2000 && timeout.wallMs < 6000,
+    `the budget must expire on wall clock, not after N passes — took ${timeout.wallMs} ms ` +
+      `(a two-pass counter needs >= 6000 ms at 3 s per pass)`,
+  );
+  assert(
+    timeout.protocolLog.includes("did not settle within 2s"),
+    "the timeout line must state the real budget in seconds",
+  );
+
+  // The settle line reports true elapsed seconds: the op lands after the
+  // first pass, so wall clock says 2 s while a pass counter would print 1.
+  const settled = runWaitShell({
+    name: "settled",
+    budget: 30,
+    sleepSecs: 2,
+    appendMatch: true,
+  });
+  assert(
+    settled.status === 0,
+    `a settle after the op lands must exit 0 — got ${settled.status}`,
+  );
+  assert(
+    settled.protocolLog.includes("kick settled after 2s"),
+    `the settle line must report wall seconds (2), not the pass count (1) — ` +
+      `log said: ${JSON.stringify(settled.protocolLog)}`,
+  );
+  assert(
+    !settled.protocolLog.includes("settled after 1s"),
+    "a pass count leaked into the settle line — the seconds suffix lied again",
+  );
+  console.log("PASS settle wait is wall clock and its log persists (protocol.log)");
+
+
   // ── The re-kick's mutes must speak ───────────────────────────────────────
   // Every exit ahead of the re-kick, and the fall-through past it, used to be
   // a bare `return`: a muted branch and a re-kick that never fired produce

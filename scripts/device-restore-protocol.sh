@@ -22,6 +22,22 @@ _RP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh
 source "$_RP_DIR/device-share-send.sh"
 
+# The protocol's own lines must outlive the run: stdout (or a caller's pipe)
+# is gone when it ends and only VERDICT.txt and evidence.txt are kept — the
+# one line that would have settled the "settled after 35s" figure was lost
+# exactly that way. Persist by appending inside the helper, never
+# `exec > >(tee ...)`: process substitution detaches the writer and breaks
+# the exit-status contract rp_main's callers depend on. The stdout shape is
+# ci-lib's log ("[ci] " prefix) and stays byte-identical; lines emitted
+# before rp_main creates $OUT stay stdout-only (there are none today).
+RP_LOG_FILE=""
+log() {
+  echo "[ci] $*"
+  if [ -n "$RP_LOG_FILE" ]; then
+    printf '%s\n' "[ci] $*" >> "$RP_LOG_FILE"
+  fi
+}
+
 CYCLES="${1:-4}"
 OUT="${OUT:-device-restore-out}"
 ACTIVITY="${ACTIVITY:-com.kalsa.app/.MainActivity}"
@@ -254,9 +270,19 @@ rp_abort_cycle_if_watchdog() {
 # verdict will honestly say no_work, and the log line says the wait expired,
 # which reads differently from "the kick never fired".
 # Exercised against a real phone 2026-09-18 (S23, 2 cycles). Cycle 1: the
-# marker was found and the window closed on the real `{"op":"done"}` after
-# 35s, sealing a 109.5s prefill inside it — the fixed sleep this replaced
-# would have called that working prewarm no_work. Cycle 2: the budget
+# marker was found and the window closed on the real `{"op":"done"}` —
+# 84.6 s marker -> done, 85.3 s kick -> settled, sealing a 109.5s prefill
+# inside it; the fixed sleep this replaced would have called that working
+# prewarm no_work. Older revisions of this block recorded "after 35s" for
+# that cycle: that figure was this function's own ${waited} printed with a
+# seconds suffix, and ${waited} counted LOOP PASSES, not seconds — each
+# pass cost the capture greps plus its 1 s sleep, and while the budget is
+# named FG_SETTLE_TIMEOUT_SECONDS the three expiries in the 09-18 captures
+# took 124.6-134.1 s of wall against "120". The run's own stdout was never
+# persisted (only VERDICT.txt and evidence.txt are), so the printed figure
+# cannot be reproduced; the wall-clock spans above are what the captures
+# actually hold. rp_fg_wait_settled now times against `date +%s` and the
+# protocol's log is kept in $OUT/protocol.log. Cycle 2: the budget
 # expired and fg_settled went out anyway — CORRECTION (SIGPIPE, same day,
 # numbers re-derived from the three 09-18 captures): "no terminal op
 # arrived" was partly the old tail|grep -q shape lying, but not everywhere.
@@ -276,19 +302,26 @@ rp_abort_cycle_if_watchdog() {
 # after the op line before the first poll — not by anything the app did,
 # and not by whether the app did work: 032436 c1's done proves it does.
 rp_fg_wait_settled() {
-  local i="$1" waited=0 line_from=""
-  while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+  # Wall clock, not a pass counter: ${waited} counted loop passes and each
+  # pass costs the capture greps plus its 1 s sleep, so both the printed
+  # "settled after Ns" and the budget under-counted (the 09-18 expiries
+  # took 124.6-134.1 s of wall against "120"). One deadline, taken on
+  # entry, governs the marker phase and the settle phase together.
+  local i="$1" line_from="" t0="" deadline=""
+  t0=$(date +%s)
+  deadline=$((t0 + FG_SETTLE_TIMEOUT_SECONDS))
+  while :; do
     rp_watchdog_stop_requested && return 2
     line_from=$(grep -n "fg_kick cycle=$i" "$OUT/logcat.txt" 2>/dev/null | tail -1 | cut -d: -f1)
     [ -n "$line_from" ] && break
+    [ "$(date +%s)" -ge "$deadline" ] && break
     sleep 1
-    waited=$((waited + 1))
   done
   if [ -z "$line_from" ]; then
-    log "cycle $i: fg_kick marker never reached the capture"
+    log "cycle $i: fg_kick marker never reached the capture within ${FG_SETTLE_TIMEOUT_SECONDS}s"
     return 1
   fi
-  while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+  while :; do
     rp_watchdog_stop_requested && return 2
     # grep -q on the consuming side of a pipe is a false-negative factory
     # under `set -uo pipefail`: grep exits at the first match, tail keeps
@@ -304,11 +337,11 @@ rp_fg_wait_settled() {
       NR >= start && /"op":"(done|restore|skip)"/ { found = 1; exit }
       END { if (found) exit 0; exit 1 }
     ' "$OUT/logcat.txt" 2>/dev/null; then
-      log "cycle $i: kick settled after ${waited}s"
+      log "cycle $i: kick settled after $(( $(date +%s) - t0 ))s"
       return 0
     fi
+    [ "$(date +%s)" -ge "$deadline" ] && break
     sleep 1
-    waited=$((waited + 1))
   done
   log "cycle $i: kick did not settle within ${FG_SETTLE_TIMEOUT_SECONDS}s — fg_settled goes out anyway; the verdict will say no_work"
   return 1
@@ -385,6 +418,10 @@ rp_marker_probe() {
 rp_main() {
   local attached picked i prev
   mkdir -p "$OUT"
+  # The protocol's own log, one file per run (logcat.txt is re-truncated the
+  # same way by the capture redirect below).
+  RP_LOG_FILE="$OUT/protocol.log"
+  : > "$RP_LOG_FILE"
   attached=$(adb devices 2>/dev/null | awk '$2=="device" {print $1}')
   picked=$(device_pick_serial "${ANDROID_SERIAL:-}" "$attached") \
     || die "need ANDROID_SERIAL (attached: $(printf '%s' "$attached" | tr '\n' ' '))"
