@@ -671,9 +671,22 @@ a binary without a Metal library.
   share cells — `llama_init_from_model` fails and `rn-llama.cpp` `fallBackToPlain:876` runs the turn
   plain. Verified on the S23 with Qwen3.5-4B (run log in ALIVE, 18/09 midday). **Evidence status:
   the fallback path is exercised on a device; the proposal path has never been exercised on a
-  phone.** For Step 5: read how llama.rn v0.12.9 decides when to pass `ctx_other` — if upstream
-  skips it for hybrid targets, that is a real line to take from them, unlike the aborting
-  `common_memory` helper we reject.
+  phone.**
+  **Answered 2026-09-18 (read on disk, both trees): upstream has no line to take, because the
+  decision is not in the binding.** `v0.12.9:cpp/rn-llama.cpp:566` does exactly what we do —
+  `cparams.ctx_other = ctx;` with no condition, in `createMTPDraftContext`. The filter lives in the
+  engine: `v0.12.9:cpp/llama-context.cpp:141-160` sets `cparams.ctx_other = nullptr` and adopts
+  `params.ctx_other` **only** for `LLM_ARCH_GEMMA4_ASSISTANT`, and for `EAGLE3`/`DFLASH` when the
+  draft model has no `tok_embd`/`output`; every other architecture keeps `nullptr`, so a hybrid
+  QWEN35 draft never reaches the iSWA share check at all. **Our engine accepts it for every
+  architecture**: fork `cpp/llama-context.cpp:152-154` has an extra
+  `if (params.ctx_other != nullptr) { cparams.ctx_other = params.ctx_other; }`, added by
+  kalsallama `6f3881baf` ("feat: generalize shared KV cells", 28 August, ours — it lifted the
+  assignment out of the GEMMA4 branch). That is the line that hands the MTP draft a `mem_other`
+  and gets it refused at `llama-kv-cache-iswa.cpp:97`. So this is a kalsa decision to make in
+  `kalsallama`, not an upstream import: whoever takes it must say why the generalization was
+  wanted before narrowing it back, because the shared-cells work (and its
+  `tests/test-governor-v0-shared-cells.cpp`) depends on that same assignment.
 - **Engine residual found by the fork's FIRST CI run on `kalsa` (35360547883, 18/09):**
   `cpp/llama-kv-cache-iswa.cpp:97` throws `std::runtime_error` while the file includes
   `<algorithm>` and `<cassert>` but not `<stdexcept>`. GCC on the runner rejects it
