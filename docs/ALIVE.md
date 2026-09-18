@@ -7368,3 +7368,31 @@ sul telefono non c'e' piu' nulla di lungo. Resta, e va detto per quello che e':
    `unzip -p base.apk assets/app.config`, stop se e' altro.
 **Cosa questo giro NON dimostra piu', scritto prima:** il riuso alla scala dove il difetto costava
 172 secondi. Quel numero resta provato dal run del 18/09 mattina su quel binario, non da questo.
+
+### Pacchetto congelato, ramo pushato, APK in build (18/09 sera)
+
+```
+ref  kv-land          sha 6db7263449a0eec6a47c70ec2db13677f8b50db3
+run  35386223059      apk.yml arm64-v8a debuggable=true
+```
+
+**Il flake che ha quasi passato il gate.** Al tip precedente `prefixPrewarmHarness` mi e' fallito
+mentre il writer lo riportava a 0: rilanciato, **1 fallimento su 7**. Un pin nato per togliere un
+flake temporale dell'8% ne aveva introdotto uno di **conteggio**. Bloccato li', perche' quell'harness
+gira nella CI che protegge main e un gate che grida al lupo insegna a ignorare il rosso.
+La riparazione e' migliore della mia proposta: instrumentando sono emerse **due** perdite, non una —
+la gara appender-vs-grep che avevo visto io, **e** un fuoco anticipato per il deadline arrotondato
+(`floor(start) + budget`: un `t0` a X.99 fa scattare la scadenza un passaggio prima). La seconda non
+si chiude con nessuna finestra ne' margine, perche' il jitter e' intrinseco al tempo reale. Quindi il
+driver gira su un **orologio virtuale** che avanza solo dentro lo stub di `sleep`: il tempo reale esce
+del tutto dal pin. Proprieta' ancora pinnata (scadenza condivisa = 2 passaggi, resettata = 3), mutante
+che fallisce per nome, e **10/10 verificate da me**.
+
+**La lezione operativa, quarta occorrenza in un giorno:** i revert-proof su file tracciati NON vanno
+annullati con `git checkout -- <file>` — ogni incidente di oggi e' stato un ripristino che si e'
+mangiato una modifica non committata accanto. Si annulla con una modifica in avanti.
+
+**Porte al tip, misurate da me:** prewarm 10/10 · thinkHistory 0 · jest node20 0 (82 suite / 971
+test) · tsc 0 · `bash -n` 0 su cinque script · nessun commit contiene `node_modules`.
+Condizione di stop all'installazione: `extra.engineBuildId` letto con
+`unzip -p base.apk assets/app.config` deve essere `kalsa-eng-v2:d1a501c9…`.
