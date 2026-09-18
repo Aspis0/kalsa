@@ -962,6 +962,59 @@ async function main() {
     "a missing snapshot remains a measured failure",
   );
 
+  // promptMs is displayed beside the reuse counters, but it is deliberately
+  // not a criterion: this proves that a slow cold prefill and a fast warm
+  // reuse leave the exact same PASS verdict and exit code as before.
+  const telemetryCorrelation = verdict(
+    "telemetry-correlation",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":false,"reason":"meta_mismatch:engineBuild","deleted":true}',
+      'KALSA_PREWARM {"op":"done"}',
+      'KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":0,"tokensEvaluated":2000,"tokensPredicted":229,"promptMs":41200,"predictedMs":25351.476}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=0",
+      "KALSA_RP_MARK cycle=2",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      'KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2892,"tokensEvaluated":2000,"tokensPredicted":229,"promptMs":310,"predictedMs":1200}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    telemetryCorrelation.includes(
+      "KV_PER_CYCLE: cycle=1 embd=1832 text=2000 n_common=0 promptMs=41200 class=cold_start",
+    ) &&
+      telemetryCorrelation.includes(
+        "KV_PER_CYCLE: cycle=2 embd=1832 text=2000 n_common=1832 promptMs=310 class=whole",
+      ),
+    "promptMs is shown beside each cycle's reuse measurement",
+  );
+  assert(
+    telemetryCorrelation.includes("KV_PREFIX_CRITERION: PASS\n"),
+    "telemetry correlation does not change the exact PASS criterion",
+  );
+
+  // Missing telemetry is visible as n/a, not as a failure or a guessed zero.
+  const telemetryMissing = verdict(
+    "telemetry-missing",
+    [
+      "KALSA_RP_MARK cycle=1",
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=2000 n_common=1832",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    telemetryMissing.includes(
+      "KV_PER_CYCLE: cycle=1 embd=1832 text=2000 n_common=1832 promptMs=n/a class=whole",
+    ),
+    "a cycle without telemetry reports promptMs=n/a",
+  );
+  assert(
+    telemetryMissing.includes("KV_PREFIX_CRITERION: PASS\n"),
+    "missing telemetry does not change the criterion",
+  );
+
   // A run that produced nothing must say so, not divide by zero.
   // An empty evidence file means the capture failed. It must not print the same
   // zeros as a real run where nothing was reused — that reads like a finding.

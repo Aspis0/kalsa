@@ -94,6 +94,31 @@ for (const cycle of cycleWindows) {
   cycleStats.push({ ...cycle, rows: cycleRows, mismatchFields, cold });
   rows.push(...cycleRows.map((row) => ({ ...row, cold })));
 }
+// KV_PER_CYCLE is instrumentation only. promptMs is the only telemetry value
+// that can independently contradict n_common: it measures prompt work rather
+// than the cache counter itself. The other fields do not answer that question:
+// tokensEvaluated is prompt size and includes cache hits (src/engine/turnTelemetry.ts:131),
+// tokensCached is n_past after completion rather than n_common, and decode/MTP
+// timings describe generation, not prompt evaluation. No threshold is applied
+// here; the owner will calibrate one from the first real device run on this
+// device. If a cycle has multiple telemetry lines, the last one wins; the
+// protocol sends one turn per cycle, so normally there is only one.
+const promptMsForCycle = (cycle) => {
+  const telemetryPrefix = "KALSA_TELEMETRY ";
+  const telemetryLines = cycle.lines.filter((line) => line.includes(telemetryPrefix));
+  const last = telemetryLines.at(-1);
+  if (!last) return null;
+  const start = last.indexOf(telemetryPrefix);
+  try {
+    const payload = JSON.parse(last.slice(start + telemetryPrefix.length).trim());
+    return typeof payload.promptMs === "number" &&
+      Number.isFinite(payload.promptMs) && payload.promptMs >= 0
+      ? payload.promptMs
+      : null;
+  } catch {
+    return null;
+  }
+};
 if (!rows.length) {
   console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache");
   // Evidence without a live cache never measured the reuse question, and a
@@ -140,6 +165,20 @@ else {
     " late_cold_start_field=" + (lateColdFields.join(",") || "none") +
     " best n_common=" + best.common + " embd=" + best.embd +
     " text_tokens=" + best.text + " min_embd=" + smallest.embd);
+  for (const cycle of measuredCycles) {
+    const row = cycle.rows.at(-1);
+    const className = row.common === 0 && cycle.cold && cycle.number === 1
+      ? "cold_start"
+      : row.common === row.embd
+        ? "whole"
+        : row.common === 0
+          ? "total_loss"
+          : "partial";
+    const promptMs = promptMsForCycle(cycle);
+    console.log("KV_PER_CYCLE: cycle=" + (cycle.number ?? "unmarked") +
+      " embd=" + row.embd + " text=" + row.text + " n_common=" + row.common +
+      " promptMs=" + (promptMs ?? "n/a") + " class=" + className);
+  }
   // The criterion, stated by the script so it cannot be misread off four
   // counters: every cycle reused its whole cache, except for one demonstrated
   // cycle-1 cold start; a prewarm actually ran; and the send hashed the prefix
