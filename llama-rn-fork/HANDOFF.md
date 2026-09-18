@@ -655,6 +655,15 @@ a binary without a Metal library.
 - **`native/kalsallama.pin` in the app stays at `134a35cf2`** while the engine is `70b4302bb`.
   Deliberate: it belongs to the KV session, it is inert on the fork road (only the engine id
   digests it, as a constant), and Step 4 deletes it. Do not "fix" it in isolation.
+- **MTP cannot propose on the only catalog model that has an MTP head, by construction** (device,
+  18/09): `cpp/rn-llama.cpp:846` sets `cparams.ctx_other = ctx` unconditionally when building the
+  draft context, and for a target with hybrid/iSWA memory `llama-kv-cache-iswa.cpp:97` refuses to
+  share cells — `llama_init_from_model` fails and `rn-llama.cpp` `fallBackToPlain:876` runs the turn
+  plain. Verified on the S23 with Qwen3.5-4B (run log in ALIVE, 18/09 midday). **Evidence status:
+  the fallback path is exercised on a device; the proposal path has never been exercised on a
+  phone.** For Step 5: read how llama.rn v0.12.9 decides when to pass `ctx_other` — if upstream
+  skips it for hybrid targets, that is a real line to take from them, unlike the aborting
+  `common_memory` helper we reject.
 - **Engine residual found by the fork's FIRST CI run on `kalsa` (35360547883, 18/09):**
   `cpp/llama-kv-cache-iswa.cpp:97` throws `std::runtime_error` while the file includes
   `<algorithm>` and `<cassert>` but not `<stdexcept>`. GCC on the runner rejects it
