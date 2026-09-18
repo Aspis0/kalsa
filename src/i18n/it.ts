@@ -465,6 +465,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     historyGuardTitle: "Impossibile salvare i nuovi messaggi in questa chat",
     historyGuardBody:
       "Lo storico di questa conversazione non è leggibile e non è stato possibile metterlo al sicuro. Per proteggerlo, i nuovi messaggi non verranno salvati qui finché non apri una nuova chat. Lo storico esistente rimane intatto su questo dispositivo.",
+    historyPartialTitle: "Parte di questa chat non è stata ripristinata",
+    historyPartialBody:
+      "È stato possibile leggere solo una parte dello storico di questa conversazione ({count} messaggi non sono stati ripristinati). Una copia dell'originale è stata conservata su questo dispositivo.",
     backendNotWired: "Backend non collegato.",
     queryLimit: "Hai raggiunto il limite di query di oggi.",
     serviceUnreachable: "Impossibile raggiungere il servizio AI. Riprova.",

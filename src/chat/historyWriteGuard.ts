@@ -1,43 +1,47 @@
 /**
- * Guard for chat-history persistence.
+ * Write-permission state machine for the active conversation's history.
  *
  * Conversations live only on the phone: a write that replaces stored history
- * with less than the store holds is unrecoverable. This module owns the whole
- * state machine for the active conversation's messages key; the screens are
- * thin adapters that wire AsyncStorage and the UI to it.
+ * with less than the store holds is unrecoverable. This module owns the
+ * whole state machine for the active messages key; the screens are thin
+ * adapters that wire AsyncStorage and the UI to it. Preservation slots live
+ * in historyQuarantine.ts.
  *
- * Identity, not counts. A length is not evidence about content, so the guard
- * tracks the SET of message ids the store is known to hold:
+ * Identity, not counts. The guard tracks the SET of message ids the store is
+ * known to hold:
  *
- * - On load, raw entries are identified by their string `id`. A load is
- *   faithful only when every entry has a usable id and every raw id survives
- *   sanitize. Anything else — parse failure, non-array payload, one dropped
- *   or unidentifiable entry — is a lossy load. A load that sanitizes to the
- *   same COUNT is still lossy when the ids differ: equal counts say nothing
- *   about whether the content survived.
- * - A lossy load is quarantined before anything else: the raw is copied to
- *   `<messagesKey>.quarantine` and the copy is awaited. The quarantine is
- *   PRESERVATION, NOT RECOVERY — nothing in the app ever reads it back and
- *   there is no restore path; it exists so the original raw cannot be
- *   overwritten silently. The first copy wins (the oldest surviving copy is
- *   the valuable one) and neither key is ever deleted here.
- * - Preservation confirmed → writes resume against what is on screen (the
- *   known-id set becomes the sanitized ids). Refusing further writes after
- *   preservation would buy nothing and cost the user their new messages.
- * - Preservation failed or still in flight → every write is refused and the
- *   caller is told via LoadOutcome.preservationFailed so it can surface the
- *   state to the user; a console.warn is not telling the user.
+ * - beginHistoryLoad classifies the raw synchronously. A load is faithful
+ *   only when it parses to an array, every entry has a usable string id, and
+ *   no entry is dropped by sanitize — a dropped entry whose id duplicates a
+ *   survivor would pass a pure id-subset check, so the entry count is checked
+ *   too. Still necessary, not sufficient: content damage INSIDE a surviving
+ *   entry (fields sanitize does not carry, truncation at caps) is invisible
+ *   to an id-level guard.
+ * - The readable part goes back to the caller immediately so the screen can
+ *   render; on a lossy load the write gate stays CLOSED until
+ *   settleHistoryLoad has preserved the raw (awaited copy). A write refused
+ *   for that window is the acceptable price; a wedged screen is not.
+ * - Preservation confirmed → the known-id set becomes the sanitized ids and
+ *   writes resume. Refusing after preservation would buy nothing and cost
+ *   the user their new messages.
+ * - Preservation failed → the gate stays closed and settle reports
+ *   preservationFailed so the caller tells the user; a console.warn is not
+ *   telling the user.
  * - A write is permitted without a declaration only when every known id is
- *   still present in the list being written. armDeclaredShrink records the
- *   ids a declared user action (edit / regenerate truncation) may drop; the
- *   write that actually shrinks spends the declaration, so an unrelated
- *   flush in between cannot consume it.
- * - An allowed write moves the known-id set only after its promise resolves:
- *   a rejected write leaves the store — and the guard — as they were.
+ *   still present in the list written. armDeclaredShrink records the ids a
+ *   declared user action (edit / regenerate truncation) may drop — computed
+ *   against known ids PLUS ids of writes in flight, so a declaration made
+ *   before a landing write still covers what that write adds; the shrinking
+ *   write spends the declaration, an unrelated flush cannot.
+ * - A write that outlived its load adopts nothing: it may not reopen a gate
+ *   that a failed preservation closed, nor swap a newer load's id set.
+ * - The known-id set moves only when a write's KV promise RESOLVES; a
+ *   rejected write leaves the store — and the guard — as they were.
  *
  * Privacy: never log message text, conversation ids or storage keys from
  * this module or its call sites — counts and booleans only.
  */
+import { preserveRawHistory } from "./historyQuarantine";
 
 /** Minimal KV surface the caller injects (AsyncStorage satisfies it). */
 export interface HistoryKv {
@@ -45,29 +49,6 @@ export interface HistoryKv {
   setItem(key: string, value: string): Promise<void>;
 }
 
-export function quarantineKeyFor(messagesKey: string): string {
-  return `${messagesKey}.quarantine`;
-}
-
-/**
- * Delete a conversation's messages key together with its quarantine.
- * Deleting the conversation without the quarantine would leave the full raw
- * conversation text on disk forever: nothing reads it back and nothing
- * garbage-collects it.
- * The KV only needs removeItem; KeyValueStorage types it optional, so a
- * storage without delete reports `false` instead of deleting halfway.
- */
-export async function deleteConversationHistory(
-  kv: { removeItem?(key: string): Promise<void> },
-  messagesKey: string,
-): Promise<boolean> {
-  if (!kv.removeItem) return false;
-  await kv.removeItem(messagesKey);
-  await kv.removeItem(quarantineKeyFor(messagesKey));
-  return true;
-}
-
-/** Usable id: the same rule sanitizeHistoryMessages accepts. */
 function idOfEntry(entry: unknown): string | null {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
   const id = (entry as Record<string, unknown>).id;
@@ -83,52 +64,66 @@ function idsOfList(list: readonly unknown[]): Set<string> {
   return ids;
 }
 
-export interface LoadOutcome<T> {
-  /** Sanitized messages to show; [] when nothing readable. */
+/**
+ * Sync refusal signal: `issued` is known synchronously; `landed` resolves
+ * true only when the KV write resolved, so engine-session hashing can be
+ * keyed off the write actually reaching disk.
+ */
+export type HistoryWriteTicket =
+  | { issued: false }
+  | { issued: true; landed: Promise<boolean> };
+
+export interface BegunHistoryLoad<T> {
+  /** Sanitized messages to show now; [] when nothing readable. */
   messages: T[];
-  /**
-   * True when the raw needs preservation and the copy did not land: writes
-   * stay refused until the next successful load, and the caller MUST tell
-   * the user (Alert), not just log.
-   */
+  /** Raw entries sanitize dropped — may be alerted before preservation settles. */
+  droppedCount: number;
+}
+
+export interface SettledHistoryLoad {
+  /** True: no slot could hold the raw — the gate stays closed. Tell the user. */
   preservationFailed: boolean;
+  droppedCount: number;
 }
 
 export interface HistoryWriteGuard {
   /**
-   * Feed the raw observed at load time. Awaits the quarantine copy on a
-   * lossy load before resolving, so the caller knows the outcome before the
-   * first write can be scheduled. A load that starts later invalidates this
-   * one (conversation switch); the copy still completes — preservation
-   * transcends switches — only the state application is dropped.
+   * Classify the raw observed at load time. Closes the write gate for the
+   * classification and, on a lossy load, for the duration of preservation;
+   * returns the readable messages at once so the screen can render.
+   * A later begin invalidates this one (conversation switch).
    */
-  onHistoryLoaded<T>(
+  beginHistoryLoad<T>(
     raw: string | null,
     messagesKey: string,
     sanitize: (entries: unknown[]) => T[],
-  ): Promise<LoadOutcome<T>>;
+  ): BegunHistoryLoad<T>;
   /**
-   * Declare that a user action is about to shrink history to `listAfterShrink`:
-   * the ids it drops become droppable for the write that performs the shrink.
-   * Ids learned later are NOT covered and need a fresh declaration.
+   * Preserve the lossy raw (awaited copy) and open the gate on success.
+   * Resolves without side effects when the load was faithful or superseded.
+   */
+  settleHistoryLoad(): Promise<SettledHistoryLoad>;
+  /**
+   * Declare that a user action is about to shrink history to
+   * `listAfterShrink`: the ids it drops become droppable for the write that
+   * performs the shrink. Ids learned later are NOT covered and need a fresh
+   * declaration.
    */
   armDeclaredShrink(listAfterShrink: readonly unknown[]): void;
   /**
-   * Decide and write. `persist` receives the JSON payload; the guard stringifies.
-   * Returns true when the write was issued (the caller may treat "issued" as
-   * "happened" for engine-session hashing); false when refused — nothing is
-   * written. The known-id set moves only when the promise resolves (B4), and
-   * the declaration is spent only by a write that needed it.
+   * Decide and write. `persist` receives the JSON payload; the guard
+   * stringifies. `issued` is the synchronous refusal signal; the known-id
+   * set moves only when `landed` resolves.
    */
   tryPersist(
     list: readonly unknown[],
     persist: (json: string) => Promise<void>,
-  ): boolean;
+  ): HistoryWriteTicket;
   /**
    * True while the store holds (or may hold) messages the screen is not
-   * showing: blocked state, or a known non-empty id set. Feeds the
-   * "is this chat empty" probe — in that state "New chat" must really
-   * create a conversation instead of keeping the user here.
+   * showing: closed gate, or a known non-empty id set. Feeds the "is this
+   * chat empty" probe — in that state "New chat" must really create a
+   * conversation instead of keeping the user here.
    */
   storeKnownToHoldMessages(): boolean;
 }
@@ -137,30 +132,39 @@ type Gate =
   | { open: true; knownIds: Set<string> }
   | { open: false };
 
+/** A lossy load waiting for its preservation copy. */
+interface PendingPreservation {
+  seq: number;
+  raw: string;
+  messagesKey: string;
+  knownIds: Set<string>;
+  droppedCount: number;
+}
+
 export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
   // Boot: closed until the first load classifies the key, so no write can
-  // land between getItem and the quarantine copy.
+  // land between getItem and the preservation copy.
   let gate: Gate = { open: false };
   /** Ids a declared shrink may drop; null when nothing is armed. */
   let declaredDroppable: Set<string> | null = null;
-  /** Latest load wins state application; copies complete regardless. */
+  /** Ids of the newest issued-but-unsettled write. */
+  let pendingIds: Set<string> | null = null;
+  /** Latest load wins gate application; copies complete regardless. */
   let loadSeq = 0;
   /** Only the newest issued write adopts on resolve. */
   let writeSeq = 0;
+  let pendingPreservation: PendingPreservation | null = null;
 
   return {
-    async onHistoryLoaded(raw, messagesKey, sanitize) {
+    beginHistoryLoad(raw, messagesKey, sanitize) {
       const seq = ++loadSeq;
       declaredDroppable = null;
-      // Closed for the duration of the classification/copy: no write may
-      // land between getItem and quarantine, and a previous load's ids must
-      // not authorize writes to the new key.
+      pendingPreservation = null;
       gate = { open: false };
       if (raw == null) {
         gate = { open: true, knownIds: new Set<string>() };
-        return { messages: [], preservationFailed: false };
+        return { messages: [], droppedCount: 0 };
       }
-
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
@@ -168,9 +172,16 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
         parsed = null;
       }
       const messages = Array.isArray(parsed) ? sanitize(parsed) : [];
-      const sanitizedIds = idsOfList(messages);
+      const knownIds = idsOfList(messages);
+      const droppedCount = Array.isArray(parsed)
+        ? Math.max(0, parsed.length - messages.length)
+        : 0;
       let lossy = !Array.isArray(parsed);
       if (Array.isArray(parsed)) {
+        // The count catches a dropped entry even when its id duplicates a
+        // surviving one (idsOfList dedups — the id-subset check alone would
+        // wave it through).
+        lossy = droppedCount > 0;
         const rawIds = new Set<string>();
         for (const entry of parsed) {
           const id = idOfEntry(entry);
@@ -183,53 +194,63 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
           rawIds.add(id);
         }
         for (const id of rawIds) {
-          if (!sanitizedIds.has(id)) {
+          if (!knownIds.has(id)) {
             lossy = true;
             break;
           }
         }
       }
-
       if (!lossy) {
-        gate = { open: true, knownIds: sanitizedIds };
-        return { messages, preservationFailed: false };
+        gate = { open: true, knownIds };
+        return { messages, droppedCount: 0 };
       }
+      pendingPreservation = { seq, raw, messagesKey, knownIds, droppedCount };
+      return { messages, droppedCount };
+    },
 
-      // Lossy → preserve first. An existing quarantine already holds this
-      // conversation's oldest surviving copy (it is only ever written for
-      // this key's lossy raws), so it counts as preserved — never clobbered.
-      let preserved = true;
-      try {
-        const quarantineKey = quarantineKeyFor(messagesKey);
-        const existing = await kv.getItem(quarantineKey);
-        if (existing == null) await kv.setItem(quarantineKey, raw);
-      } catch {
-        preserved = false;
+    async settleHistoryLoad() {
+      const pending = pendingPreservation;
+      if (pending == null || pending.seq !== loadSeq) {
+        return { preservationFailed: false, droppedCount: 0 };
       }
-      if (seq !== loadSeq) {
+      const preserved = await preserveRawHistory(
+        kv,
+        pending.messagesKey,
+        pending.raw,
+      );
+      if (pending.seq !== loadSeq) {
         // A newer load owns the gate and the user messaging.
-        return { messages: [], preservationFailed: false };
+        return { preservationFailed: false, droppedCount: 0 };
       }
       if (preserved) {
-        gate = { open: true, knownIds: sanitizedIds };
-        return { messages, preservationFailed: false };
+        gate = { open: true, knownIds: pending.knownIds };
+        pendingPreservation = null;
+        return {
+          preservationFailed: false,
+          droppedCount: pending.droppedCount,
+        };
       }
-      gate = { open: false };
-      return { messages, preservationFailed: true };
+      return { preservationFailed: true, droppedCount: pending.droppedCount };
     },
 
     armDeclaredShrink(listAfterShrink) {
       if (!gate.open) return;
+      const known = new Set(gate.knownIds);
+      if (pendingIds != null) {
+        // The store is about to provably hold these: a truncation that drops
+        // them must be declared now, not only after the write lands.
+        for (const id of pendingIds) known.add(id);
+      }
       const kept = idsOfList(listAfterShrink);
       const droppable = new Set<string>();
-      for (const id of gate.knownIds) {
+      for (const id of known) {
         if (!kept.has(id)) droppable.add(id);
       }
       declaredDroppable = droppable;
     },
 
     tryPersist(list, persist) {
-      if (!gate.open) return false;
+      if (!gate.open) return { issued: false };
       const ids = idsOfList(list);
       const missing: string[] = [];
       for (const id of gate.knownIds) {
@@ -241,22 +262,30 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
         if (droppable != null && missing.every((id) => droppable.has(id))) {
           viaDeclaration = true;
         } else {
-          return false;
+          return { issued: false };
         }
       }
       const seq = ++writeSeq;
-      void persist(JSON.stringify(list)).then(
+      const loadAtIssue = loadSeq;
+      pendingIds = ids;
+      const landed: Promise<boolean> = persist(JSON.stringify(list)).then(
         () => {
-          if (seq !== writeSeq) return;
-          gate = { open: true, knownIds: ids };
-          if (viaDeclaration) {
-            // Spent by exactly the write that performed the declared shrink.
-            declaredDroppable = null;
+          if (seq === writeSeq) pendingIds = null;
+          if (seq === writeSeq && loadAtIssue === loadSeq) {
+            gate = { open: true, knownIds: ids };
+            if (viaDeclaration) {
+              // Spent by exactly the write that performed the shrink.
+              declaredDroppable = null;
+            }
           }
+          return true;
         },
-        () => undefined,
+        () => {
+          if (seq === writeSeq) pendingIds = null;
+          return false;
+        },
       );
-      return true;
+      return { issued: true, landed };
     },
 
     storeKnownToHoldMessages() {

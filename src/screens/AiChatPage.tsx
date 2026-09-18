@@ -110,6 +110,7 @@ import { toPersistableHistoryMessages } from "../engine/historyPersistable";
 import {
   createHistoryWriteGuard,
   type HistoryWriteGuard,
+  type HistoryWriteTicket,
 } from "../chat/historyWriteGuard";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
 import {
@@ -597,31 +598,31 @@ function persistMessagesNow(
     /** The active conversation's write guard. Missing → skip write. */
     guard: HistoryWriteGuard;
   },
-): boolean {
-  if (!messagesSnapshot.length) return false;
+): HistoryWriteTicket | null {
+  if (!messagesSnapshot.length) return null;
   const storageKey = opts?.storageKey;
-  if (!storageKey) return false;
+  if (!storageKey) return null;
   // Drop if clear/reset already advanced the epoch before we build the payload.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return false;
+    return null;
   }
   const clean = buildPersistableMessages(messagesSnapshot, opts);
-  if (!clean.length) return false;
+  if (!clean.length) return null;
   // Re-check immediately before the write so a clear that raced the build drops.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return false;
+    return null;
   }
   const guard = opts?.guard;
-  if (!guard) return false;
-  const wrote = guard.tryPersist(clean, (json) =>
+  if (!guard) return null;
+  const ticket = guard.tryPersist(clean, (json) =>
     // Same non-fatal surface as saveEngineSession / voice failures; the
     // rejection must still reach the guard or it would adopt a baseline the
     // store does not hold.
@@ -630,15 +631,15 @@ function persistMessagesNow(
       throw err;
     }),
   );
-  if (!wrote) {
+  if (!ticket.issued) {
     // Refused rather than shrink the store. Counts only — never keys, ids
     // or text.
     console.warn("[historyGuard] history write refused", {
       incoming: clean.length,
     });
-    return false;
+    return null;
   }
-  return true;
+  return ticket;
 }
 
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
@@ -1016,16 +1017,16 @@ export function AiChatPage({
         epoch?: number;
         getEpoch?: () => number;
       },
-    ): boolean => {
+    ): HistoryWriteTicket | null => {
       const key = persistKeyRef.current;
-      if (!key) return false;
-      const wrote = persistMessagesNow(msgs, {
+      if (!key) return null;
+      const ticket = persistMessagesNow(msgs, {
         ...opts,
         storageKey: key,
         guard: historyGuard,
       });
-      if (wrote) notifyConversationTouched(msgs);
-      return wrote;
+      if (ticket?.issued) notifyConversationTouched(msgs);
+      return ticket;
     },
     [notifyConversationTouched],
   );
@@ -1054,24 +1055,31 @@ export function AiChatPage({
 
     let mounted = true;
     AsyncStorage.getItem(key)
-      .then(async (raw) => {
+      .then((raw) => {
         if (!mounted || persistEpochRef.current !== loadEpoch) return;
         // locale is already resolved (App gates on localeReady). The guard
-        // classifies the load by message IDENTITY, preserves a lossy raw in
-        // the quarantine key (awaited), and refuses all writes while
-        // preservation has not landed.
-        const outcome = await historyGuard.onHistoryLoaded(
+        // classifies the load by message IDENTITY; a lossy raw is preserved
+        // in the quarantine key before any write can be issued.
+        const begun = historyGuard.beginHistoryLoad(
           raw,
           key,
           (entries) => sanitizeHistoryMessages(entries, locale),
         );
-        // The quarantine copy was awaited: re-check before applying state.
-        if (!mounted || persistEpochRef.current !== loadEpoch) return;
-        if (outcome.messages.length) {
-          setMessages(outcome.messages);
-          messagesRef.current = outcome.messages;
+        // Show what could be read and open the composer BEFORE awaiting the
+        // preservation copy — the write gate stays closed meanwhile, and one
+        // refused write is a better outcome than a blank wedged chat.
+        if (begun.messages.length) {
+          setMessages(begun.messages);
+          messagesRef.current = begun.messages;
         }
-        if (outcome.preservationFailed) {
+        setHistoryLoaded(true);
+        return historyGuard.settleHistoryLoad();
+      })
+      .then((settled) => {
+        if (!settled || !mounted || persistEpochRef.current !== loadEpoch) {
+          return;
+        }
+        if (settled.preservationFailed) {
           // console.warn is not telling the user: without this Alert the
           // only symptom is "my new messages never survive a restart".
           try {
@@ -1081,6 +1089,16 @@ export function AiChatPage({
             );
           } catch {
             // Alert unavailable (tests / headless) — refusal still holds.
+          }
+        } else if (settled.droppedCount > 0) {
+          // The chat is not silently smaller than it was: say what happened.
+          try {
+            Alert.alert(
+              t("chat.historyPartialTitle"),
+              t("chat.historyPartialBody", { count: settled.droppedCount }),
+            );
+          } catch {
+            // Alert unavailable (tests / headless).
           }
         }
       })
@@ -1396,23 +1414,27 @@ export function AiChatPage({
               // The clean build drops live partials, so it can be shorter
               // than what the store holds — the guard decides.
               if (persistEpochRef.current === epoch && storageKey) {
-                const wrote = historyGuard.tryPersist(clean, (json) =>
+                const ticket = historyGuard.tryPersist(clean, (json) =>
                   AsyncStorage.setItem(storageKey, json).catch((err) => {
                     console.warn("[persistMessages]", err);
                     throw err;
                   }),
                 );
-                if (wrote) {
+                if (ticket.issued) {
                   notifyConversationTouched(clean as Message[]);
-                  void saveEngineSession(
-                    modelId,
-                    computeHistoryHashFromMessages(clean),
-                    clean.length,
-                  );
+                  // .kvs keyed off the write LANDING: hashing a list the
+                  // store does not hold makes boot mismatch and drop it.
+                  void ticket.landed.then((landed) => {
+                    if (landed) {
+                      void saveEngineSession(
+                        modelId,
+                        computeHistoryHashFromMessages(clean),
+                        clean.length,
+                      );
+                    }
+                  });
                 } else {
-                  // Skip saveEngineSession too: hashing clean while the
-                  // larger raw stays stored would make boot mismatch and
-                  // drop a good .kvs. Counts only in the log.
+                  // Counts only in the log.
                   console.warn("[historyGuard] history write refused", {
                     incoming: clean.length,
                     background: true,
@@ -2846,7 +2868,7 @@ export function AiChatPage({
                 // queued delta first — still the correct composed result.
                 // Epoch-stamped: clearChat bumps epoch before removeItem.
                 const epoch = persistEpochRef.current;
-                const historyWrote = persistActiveMessages(finalized, {
+                const historyWrite = persistActiveMessages(finalized, {
                   epoch,
                   getEpoch: () => persistEpochRef.current,
                 });
@@ -2862,27 +2884,43 @@ export function AiChatPage({
                 {
                   const mid = getActiveModelId();
                   const runAfterSave = afterSessionSave;
-                  if (mid && historyWrote) {
-                    const persistable = buildPersistableMessages(finalized);
-                    const payload = JSON.stringify(persistable);
+                  if (mid && historyWrite?.issued) {
                     saveWorkScheduled = true;
-                    void (async () => {
-                      try {
-                        await saveEngineSession(
-                          mid,
-                          computeHistoryHashFromMessages(persistable),
-                          persistable.length,
-                        );
-                        turnSaveHold.resolve?.();
-                      } catch (err) {
-                        turnSaveHold.reject?.(err);
-                      } finally {
-                        // Post-await: generation may have moved during save.
-                        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                    // Snapshot for the deferred closure: the guard adopts on
+                    // landing, so the build must run on the finalized list.
+                    const finalizedAtSave = finalized;
+                    // .kvs keyed off the write LANDING: hashing a list the
+                    // store does not hold makes boot mismatch and drop it.
+                    void historyWrite.landed.then((landed) => {
+                      if (!landed) {
+                        if (
+                          sendRunIdRef.current === runId &&
+                          stillThisRun(myGen)
+                        ) {
                           runAfterSave?.();
                         }
+                        turnSaveHold.resolve?.();
+                        return;
                       }
-                    })();
+                      const persistable = buildPersistableMessages(finalizedAtSave);
+                      void (async () => {
+                        try {
+                          await saveEngineSession(
+                            mid,
+                            computeHistoryHashFromMessages(persistable),
+                            persistable.length,
+                          );
+                          turnSaveHold.resolve?.();
+                        } catch (err) {
+                          turnSaveHold.reject?.(err);
+                        } finally {
+                          // Post-await: generation may have moved during save.
+                          if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                            runAfterSave?.();
+                          }
+                        }
+                      })();
+                    });
                   } else {
                     // No engine save when the history write was refused (or
                     // there is no model): hashing persistable while the store
@@ -2909,7 +2947,7 @@ export function AiChatPage({
               const next = applied.messages;
               messagesRef.current = next;
               const epoch = persistEpochRef.current;
-              const historyWrote = persistActiveMessages(next, {
+              const historyWrite = persistActiveMessages(next, {
                 epoch,
                 getEpoch: () => persistEpochRef.current,
               });
@@ -2918,33 +2956,40 @@ export function AiChatPage({
               }
               const mid = getActiveModelId();
               const runAfterSave = afterSessionSave;
-              if (mid && historyWrote) {
-                const persistable = buildPersistableMessages(next);
-                const payload = JSON.stringify(persistable);
-                // Synchronous install even on the unmounted path.
-                const saveP = (async () => {
-                  try {
-                    await saveEngineSession(
-                      mid,
-                      computeHistoryHashFromMessages(persistable),
-                      persistable.length,
-                    );
-                  } finally {
-                    if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
-                      runAfterSave?.();
-                    }
+              if (mid && historyWrite?.issued) {
+                // .kvs keyed off the write landing (same rule as the turn-end
+                // path): never hash a list the store does not hold.
+                void historyWrite.landed.then((landed) => {
+                  if (!landed) {
+                    runAfterSave?.();
+                    return;
                   }
-                })();
-                turnEndSavePromiseRef.current = saveP;
-                void saveP
-                  .finally(() => {
-                    if (turnEndSavePromiseRef.current === saveP) {
-                      turnEndSavePromiseRef.current = null;
+                  const persistable = buildPersistableMessages(next);
+                  // Synchronous install even on the unmounted path.
+                  const saveP = (async () => {
+                    try {
+                      await saveEngineSession(
+                        mid,
+                        computeHistoryHashFromMessages(persistable),
+                        persistable.length,
+                      );
+                    } finally {
+                      if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                        runAfterSave?.();
+                      }
                     }
-                  })
-                  .catch(() => {
-                    // no-op — unmounted turn-end save is fire-and-forget
-                  });
+                  })();
+                  turnEndSavePromiseRef.current = saveP;
+                  void saveP
+                    .finally(() => {
+                      if (turnEndSavePromiseRef.current === saveP) {
+                        turnEndSavePromiseRef.current = null;
+                      }
+                    })
+                    .catch(() => {
+                      // no-op — unmounted turn-end save is fire-and-forget
+                    });
+                });
               } else {
                 runAfterSave?.();
               }

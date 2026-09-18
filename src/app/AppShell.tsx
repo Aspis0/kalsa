@@ -196,7 +196,7 @@ import {
   upsertMeta,
   type ConversationsState,
 } from "../conversations/ConversationsStore";
-import { deleteConversationHistory } from "../chat/historyWriteGuard";
+import { deleteConversationHistory } from "../chat/historyQuarantine";
 import {
   findPersona,
   getDefaultPersonasStorage,
@@ -2444,7 +2444,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         void deleteConversationHistory(
           getDefaultConversationsStorage(),
           messagesKey(id),
-        );
+        ).catch(() => {
+          // A rejected removal must not become an unhandled rejection; the
+          // slots go first, so the raw at least never survives as a copy.
+          console.warn("[historyGuard] conversation delete incomplete");
+        });
       } catch {
         // ignore illegal id
       }
