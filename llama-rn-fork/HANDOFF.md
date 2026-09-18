@@ -487,6 +487,45 @@ other 41 paths are mechanical (regenerate) or deletions we already decided. Time
 - The fork's `ci.yml` triggers only on `main`; there is no CI for `kalsa`. The app has no iOS
   workflow.
 
+**How the embed actually works at this pin (verified 18/09, on disk, not from memory).**
+- **Upstream llama.rn has NOT adapted** — this closes the open question below. At `v0.12.9` and at
+  `v0.13.0-rc.0` `scripts/bootstrap.sh` still inlines headers into ONE
+  `cpp/ggml-metal/ggml-metal.metal` and dumps it with `od -An -vtx1 "$METAL_FILE"` into a single
+  `.s` (v0.12.9 lines 449-473; rc.0 lines 511-535). rc.0 even deletes upstream's
+  `ggml-metal/CMakeLists.txt` while still requiring a monolith that the split layout does not
+  produce. **Step 5 therefore brings no fix; the fork has to do this itself.** (Web recon; the
+  local half below is what I verified myself and is what the work depends on.)
+- **Our engine already has the recipe**, and it is per kernel, not one blob:
+  `/Users/marco/Projects/kalsallama/ggml/src/ggml-metal/CMakeLists.txt` at pin `70b4302bb` —
+  `METALLIB_KERNEL_SOURCES` (:32) lists the `kernels/*.metal`; for each one it concatenates
+  `kernels/common.h` (+ `dequantize.h`/`quantize.h` where needed), strips the internal includes,
+  inlines `ggml-common.h` through the `__embed_ggml-common.h__` sentinel (:91-92), and emits
+  `ggml-metal-embed-${kind}.s` (:72) that **`.incbin`s** the merged `.metal` between
+  `_ggml_metallib_${kind}_start/_end` (:99-104). The section name stays shared
+  (`__DATA,__ggml_metallib`, 16-char limit); only the symbols vary.
+- **The runtime demands exactly those per-kind symbols**: `ggml/src/ggml-metal/ggml-metal-device.m:455`
+  declares `extern const char ggml_metallib_##s##_start[]` for each kind through an X-macro. After
+  the fork's prefixing these are `lm_ggml_metallib_<kind>_start/_end`. A single
+  `_lm_ggml_metallib_start`, which is what the fork generates today, satisfies none of them.
+- **The fork's two functions no-op in silence at this pin**: `embed_metal_headers` and
+  `generate_metal_embed_s` both open with `[ -f "$metal_source" ] || return 0` — the monolith is
+  absent, so they return success having done nothing, and `ios/CMakeLists.txt:36`'s `*.s` glob
+  matches an empty set. Same family as the unexpanded glob in the app's include gate: a step that
+  reports success for work it never did.
+- **Licences**: kalsallama's own `LICENSE` is `MIT License` / `Copyright (c) 2023-2026 The ggml
+  authors` (read locally); llama.rn's is MIT / `Copyright (c) 2023 Jhen-Jie Hong` (recon, with URLs
+  at both tags). Nothing blocks adapting either recipe; per-file upstream headers stay as they are.
+
+**What the sync must do differently.** Generate **one `.s` per kind** with `lm_`-prefixed kind
+symbols, and prefer the `od`/`.byte` form over `.incbin`: a `.byte` blob is self-contained, so the
+tracked artifact is the `.s` alone and no companion `.metal` has to survive packing — which also
+puts it inside the engine-build-id digest and the provenance manifest. Then un-ignore
+`.gitignore:75`. The alternative — porting the CMake rules into `ios/CMakeLists.txt` and generating
+at build time — keeps nothing tracked and makes the iOS build depend on `sed`/`cat` behaving the
+same on every machine. Whichever is chosen, the non-vacuity probe is the same: delete the generated
+`.s`, and the iOS build must FAIL at link with `lm_ggml_metallib_<kind>_start` undefined, not build
+a binary without a Metal library.
+
 **Do, in order.**
 1. Read how kalsallama itself embeds the split kernels now:
    `/Users/marco/Projects/kalsallama/ggml/src/ggml-metal/CMakeLists.txt` (search
