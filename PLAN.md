@@ -687,6 +687,19 @@ nel run delle 11:01. Mai entrati in git (`git ls-files` = 0, `.gitignore:103`).
   qualunque eccezione, quindi un errore di lettura del DB e' indistinguibile da "nessuna risposta" —
   ed e' la causa dei `no reply within 600s`. Non si tocca prima del giro sul telefono, perche'
   cambiare cosa ritorna quella funzione altera il flusso di `rp_wait_reply`.
+- **APERTO: la stessa perdita esiste in un TERZO posto, nella famiglia `campaign/`.**
+  `scripts/campaign/turn.sh:23-29` `campaign_snapshot_messages()` scrive la conversazione intera in
+  `$dest`, chiamata da `oneTurn.sh:69`, `turn.sh:49` e `turn.sh:276` con `$OUT/.messages.json`.
+  Trovata **dopo** la riparazione, tracciando i chiamanti degli helper cambiati: l'audit non poteva
+  vederla perche' la famiglia campaign era fuori perimetro. **Non convertita di proposito**, e il
+  motivo e' di rischio: quattro consumatori rileggono il file (`campaign_collect_file`,
+  `campaign_user_landed` x2, `campaign_progress_fingerprint`, `campaign_last_assistant_interrupted`)
+  e `campaign/selftest_fakedevice.sh` ne modella la forma, quindi convertirla significa
+  rifattorizzare l'harness della campagna T20C alla vigilia di un giro sul telefono. Sul disco oggi
+  **non esiste nessun `.messages.json`** e quella campagna non gira. Va convertita come cambiamento
+  a se', con il selftest aggiornato. Limite scritto dove sta il codice (`0394014`), e il commit
+  `c63a952` — intitolato *"the conversation never touches disk"* — e' corretto nella stessa storia
+  invece che riscritto.
 
 - **Fine tune MiniCPM5: decisione aperta, gate 12/10 (dopo M1).** Raccomandazione 10/09: nessun branch prima di M1. Si riapre il 12/10 con due input: licenza LFM2.5 e dossier M1 sugli errori reali di LFM. **Licenza (testo letto 10/09, non è una decisione):** LFM Open License v1.0 (https://huggingface.co/LiquidAI/LFM2.5-2.6B/raw/main/LICENSE) §5 — Commercial Use is licensed unless the Legal Entity's annual revenue is ≥ USD 10 million; above that threshold Commercial Use is not licensed. MiniCPM5 (Apache 2.0) remains the fallback if the threshold is a problem. Fino al 12/10 nessuna cella su MiniCPM5. GPU/governor NON sono "dopo M1": stanno in G3 (28-29/09); solo la NPU resta a decisione a tempo.
 
