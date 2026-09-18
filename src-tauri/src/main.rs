@@ -355,8 +355,6 @@ impl Brain {
         }
         options::save(state_file, next)
             .map_err(|_| "The advanced settings could not be saved.".to_string())?;
-        options::save(state_file, next)
-            .map_err(|_| "The advanced settings could not be saved.".to_string())?;
         // The road switch is one of the settings that can act at once: a
         // door that is up right now opens or closes its second road with
         // the save, not at the next turn-on. A save is a gesture, so a
