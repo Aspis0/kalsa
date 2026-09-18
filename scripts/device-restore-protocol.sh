@@ -35,6 +35,13 @@ FG_BOUNCE_SECONDS="${FG_BOUNCE_SECONDS:-20}"
 # unless the prewarm is genuinely still running. 120 ~ 3x the slowest known
 # prefill, well under READY_TIMEOUT's scale.
 FG_SETTLE_TIMEOUT_SECONDS="${FG_SETTLE_TIMEOUT_SECONDS:-120}"
+RP_WATCHDOG_INTERVAL_SECONDS="${RP_WATCHDOG_INTERVAL_SECONDS:-10}"
+RP_TEMP_WARN_DECI=400
+RP_WATCHDOG_SENTINEL="$OUT/.thermal-watchdog.stop"
+RP_WATCHDOG_MAX_FILE="$OUT/.thermal-watchdog.max"
+RP_WATCHDOG_PID=""
+RP_WATCHDOG_STOP_LOGGED=0
+RP_WARNED=0
 
 MESSAGES=(
   "In una riga: qual e la capitale del Portogallo?"
@@ -48,6 +55,7 @@ MESSAGES=(
 rp_wait_ready() {
   local t=0 ui
   while [ "$t" -lt "$READY_TIMEOUT" ]; do
+    rp_watchdog_stop_requested && return 2
     if ui=$(device_dump_ui_retry); then
       device_ui_has_any "$ui" "${_SHARE_READY_LABELS[@]}" && { log "ready after ${t}s"; return 0; }
     fi
@@ -61,6 +69,7 @@ rp_wait_ready() {
 rp_wait_reply() {
   local prev="$1" t=0 count
   while [ "$t" -lt "$REPLY_TIMEOUT" ]; do
+    rp_watchdog_stop_requested && return 2
     count=$(device_history_assistant_count)
     case "$count" in ''|*[!0-9]*) count=-1 ;; esac
     if [ "$count" -gt "$prev" ]; then
@@ -78,9 +87,13 @@ rp_state() {
   log "state: level=$(device_battery_level) temp_deci=$(device_battery_temp_deci) thermal=$(device_thermal_status)"
 }
 
-# Owner stop rules for an unplugged S23, enforced between cycles instead of
-# only logged: battery >= 44.0 C or thermal status >= 3 ends the run. A run
-# that cooks the phone is not evidence, and rp_state alone never stopped one.
+# Owner stop rules for an unplugged S23, enforced between cycles and by the
+# watchdog: battery >= 44.0 C or thermal status >= 3 ends the run. A run that
+# cooks the phone is not evidence, and rp_state alone never stopped one.
+# The 25/08/2026 owner mandate says WARN at 40.0 C and KILL at 43.0 C, while
+# this script's existing owner stop default is 44.0 C. That discrepancy is
+# known and deliberately unresolved here; the owner must decide which stop
+# threshold governs. Do not silently change RP_TEMP_STOP_DECI in this patch.
 RP_TEMP_STOP_DECI="${RP_TEMP_STOP_DECI:-440}"
 RP_THERMAL_STOP="${RP_THERMAL_STOP:-3}"
 
@@ -90,12 +103,131 @@ rp_should_stop() {
   thermal=$(device_thermal_status)
   case "$temp" in ''|*[!0-9-]*) temp=0 ;; esac
   case "$thermal" in ''|*[!0-9-]*) thermal=0 ;; esac
+  RP_LAST_TEMP_DECI="$temp"
+  RP_LAST_THERMAL="$thermal"
+  if [ "$temp" -ge "$RP_TEMP_WARN_DECI" ] && [ "$RP_WARNED" -eq 0 ]; then
+    log "WARN: battery ${temp} deci-C ($(rp_temp_celsius "$temp") C) >= ${RP_TEMP_WARN_DECI} deci-C"
+    RP_WARNED=1
+  fi
   if [ "$temp" -ge "$RP_TEMP_STOP_DECI" ]; then
     log "STOP: battery ${temp} deci-C >= ${RP_TEMP_STOP_DECI} (owner rule)"
     return 0
   fi
   if [ "$thermal" -ge "$RP_THERMAL_STOP" ]; then
     log "STOP: thermal status ${thermal} >= ${RP_THERMAL_STOP} (owner rule)"
+    return 0
+  fi
+  return 1
+}
+
+rp_temp_celsius() {
+  local temp="$1"
+  case "$temp" in
+    ''|*[!0-9]*) printf '%s' unknown ;;
+    *) printf '%s.%s' "$((temp / 10))" "$((temp % 10))" ;;
+  esac
+}
+
+rp_watchdog_write_max() {
+  local max_temp="${1:-unknown}" tmp="${RP_WATCHDOG_MAX_FILE}.$$"
+  printf '%s\n' "$max_temp" > "$tmp" && mv -f "$tmp" "$RP_WATCHDOG_MAX_FILE"
+}
+
+rp_watchdog_write_sentinel() {
+  local temp="$1" thermal="$2" max_temp="$3"
+  local tmp="${RP_WATCHDOG_SENTINEL}.$$"
+  printf 'temp_deci=%s thermal=%s max_temp_deci=%s\n' \
+    "$temp" "$thermal" "$max_temp" > "$tmp" && mv -f "$tmp" "$RP_WATCHDOG_SENTINEL"
+}
+
+rp_watchdog_stop_requested() {
+  local state max_temp
+  [ -f "$RP_WATCHDOG_SENTINEL" ] || return 1
+  if [ "$RP_WATCHDOG_STOP_LOGGED" -eq 0 ]; then
+    state=$(tr -d '\r\n' < "$RP_WATCHDOG_SENTINEL" 2>/dev/null || true)
+    max_temp=$(cat "$RP_WATCHDOG_MAX_FILE" 2>/dev/null || true)
+    log "STOP: thermal watchdog sentinel (${state:-state unavailable}); max_temp_deci=${max_temp:-unknown}"
+    RP_WATCHDOG_STOP_LOGGED=1
+  fi
+  return 0
+}
+
+rp_watchdog_report_max() {
+  local max_temp
+  max_temp=$(cat "$RP_WATCHDOG_MAX_FILE" 2>/dev/null || true)
+  if [ -n "$max_temp" ] && [ "$max_temp" != "unknown" ]; then
+    log "thermal watchdog: max battery temperature seen=${max_temp} deci-C ($(rp_temp_celsius "$max_temp") C)"
+  else
+    log "thermal watchdog: max battery temperature seen=unknown"
+  fi
+}
+
+rp_watchdog_cleanup() {
+  if [ -n "${RP_WATCHDOG_PID:-}" ]; then
+    kill "$RP_WATCHDOG_PID" 2>/dev/null || true
+    wait "$RP_WATCHDOG_PID" 2>/dev/null || true
+    RP_WATCHDOG_PID=""
+  fi
+  rp_watchdog_report_max
+}
+
+# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
+# must confirm the dumpsys cadence, sentinel visibility and cleanup behavior
+# under real adb/logcat scheduling before this watchdog is trusted in a run.
+rp_watchdog_loop() {
+  local parent_pid="$1" max_temp="" temp
+  while kill -0 "$parent_pid" 2>/dev/null; do
+    if rp_should_stop; then
+      temp="$RP_LAST_TEMP_DECI"
+      case "$temp" in
+        ''|*[!0-9]*) ;;
+        *)
+          if [ -z "$max_temp" ] || [ "$temp" -gt "$max_temp" ]; then
+            max_temp="$temp"
+          fi
+          ;;
+      esac
+      rp_watchdog_write_max "${max_temp:-unknown}"
+      rp_watchdog_write_sentinel "$temp" "$RP_LAST_THERMAL" "${max_temp:-$temp}"
+      return 0
+    fi
+    temp="$RP_LAST_TEMP_DECI"
+    case "$temp" in
+      ''|*[!0-9]*) ;;
+      *)
+        if [ -z "$max_temp" ] || [ "$temp" -gt "$max_temp" ]; then
+          max_temp="$temp"
+          rp_watchdog_write_max "$max_temp"
+        fi
+        ;;
+    esac
+    sleep "$RP_WATCHDOG_INTERVAL_SECONDS" &
+    wait "$!" 2>/dev/null || true
+  done
+}
+
+rp_watchdog_start() {
+  rm -f "$RP_WATCHDOG_SENTINEL" "$RP_WATCHDOG_MAX_FILE" \
+    "${RP_WATCHDOG_SENTINEL}.$$" "${RP_WATCHDOG_MAX_FILE}.$$"
+  log "thermal watchdog: armed interval=${RP_WATCHDOG_INTERVAL_SECONDS}s warn=40.0 C stop=${RP_TEMP_STOP_DECI} deci-C thermal=${RP_THERMAL_STOP}"
+  rp_watchdog_loop "$$" &
+  RP_WATCHDOG_PID=$!
+}
+
+rp_sleep_watchdog() {
+  local duration="$1" waited=0
+  while [ "$waited" -lt "$duration" ]; do
+    rp_watchdog_stop_requested && return 1
+    sleep 1
+    waited=$((waited + 1))
+  done
+  return 0
+}
+
+rp_abort_cycle_if_watchdog() {
+  local i="$1"
+  if rp_watchdog_stop_requested; then
+    log "ending run during cycle $i — thermal watchdog stop"
     return 0
   fi
   return 1
@@ -123,6 +255,7 @@ rp_should_stop() {
 rp_fg_wait_settled() {
   local i="$1" waited=0 line_from=""
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+    rp_watchdog_stop_requested && return 2
     line_from=$(grep -n "fg_kick cycle=$i" "$OUT/logcat.txt" 2>/dev/null | tail -1 | cut -d: -f1)
     [ -n "$line_from" ] && break
     sleep 1
@@ -133,6 +266,7 @@ rp_fg_wait_settled() {
     return 1
   fi
   while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+    rp_watchdog_stop_requested && return 2
     if tail -n +"$line_from" "$OUT/logcat.txt" 2>/dev/null | grep -Eq '"op":"(done|restore|skip)"'; then
       log "cycle $i: kick settled after ${waited}s"
       return 0
@@ -148,7 +282,7 @@ rp_fg_bounce() {
   local i="$1"
   adb shell log -p i -t KALSA_RP_MARK "fg_bounce_home cycle=$i" </dev/null >/dev/null 2>&1
   adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME </dev/null >/dev/null 2>&1
-  sleep "$FG_BOUNCE_SECONDS"
+  rp_sleep_watchdog "$FG_BOUNCE_SECONDS" || return 2
   # Before, not after, the relaunch: the verdict classifies what FOLLOWS the
   # marker, and a prewarm logging between the two lines would be lost.
   adb shell log -p i -t KALSA_RP_MARK "fg_kick cycle=$i" </dev/null >/dev/null 2>&1
@@ -222,10 +356,11 @@ rp_main() {
   adb logcat -c </dev/null >/dev/null 2>&1 || true
   adb logcat -v time </dev/null > "$OUT/logcat.txt" 2>&1 &
   local logcat_pid=$!
-  trap 'kill '"$logcat_pid"' 2>/dev/null || true; device_termux_wakelock_restore; _device_session_restore' EXIT
+  trap 'rp_watchdog_cleanup; kill '"$logcat_pid"' 2>/dev/null || true; device_termux_wakelock_restore; _device_session_restore' EXIT
+  rp_watchdog_start
 
   for i in $(seq 1 "$CYCLES"); do
-    if rp_should_stop; then
+    if rp_watchdog_stop_requested || rp_should_stop; then
       log "ending run before cycle $i — device is over an owner stop threshold"
       break
     fi
@@ -236,19 +371,29 @@ rp_main() {
     adb shell log -p i -t KALSA_RP_MARK "cycle=$i" </dev/null >/dev/null 2>&1
     adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1
     sleep 5
+    if rp_abort_cycle_if_watchdog "$i"; then break; fi
     adb shell am start -n "$ACTIVITY" </dev/null >/dev/null 2>&1
-    rp_wait_ready || { log "cycle $i: no Ready, aborting cycle"; continue; }
+    if ! rp_wait_ready; then
+      if rp_abort_cycle_if_watchdog "$i"; then break; fi
+      log "cycle $i: no Ready, aborting cycle"
+      continue
+    fi
     # Between Ready and the first send: the KV holds no chat yet, so the
     # re-kick must produce a real prewarm, not a kv_holds_chat skip.
     if [ "$FG_BOUNCE" = "1" ]; then rp_fg_bounce "$i"; fi
+    if rp_abort_cycle_if_watchdog "$i"; then break; fi
     rp_state
     prev=$(device_history_assistant_count)
     case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
     if ! device_share_send "${MESSAGES[$(( (i - 1) % ${#MESSAGES[@]} ))]}"; then
       log "cycle $i: send failed"
+      if rp_abort_cycle_if_watchdog "$i"; then break; fi
       continue
     fi
-    rp_wait_reply "$prev" || log "cycle $i: reply timeout"
+    if ! rp_wait_reply "$prev"; then
+      if rp_abort_cycle_if_watchdog "$i"; then break; fi
+      log "cycle $i: reply timeout"
+    fi
     rp_state
     sleep 5
   done
