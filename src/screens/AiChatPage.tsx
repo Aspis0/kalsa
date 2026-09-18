@@ -103,6 +103,7 @@ import {
   normalizeThinkingTextForSave,
   readModelEmittedText,
   readThinkingText,
+  type EmissionSource,
 } from "../engine/modelEmittedText";
 import { toPersistableHistoryMessages } from "../engine/historyPersistable";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
@@ -237,6 +238,17 @@ type Message = {
    */
   modelEmittedText?: string;
   /**
+   * Provenance of modelEmittedText — the MECHANISM that produced the string,
+   * set by the same writer that set the string. "parsed" = native parse of a
+   * completed turn (seed tag inside content); "raw" = raw accumulation of an
+   * interrupted turn (seed is prompt bytes, never payload). Absent = unknown
+   * provenance (pre-flag history) — the renderer falls back to its syntactic
+   * predicate, so old messages stay valid. If anything ever mutates
+   * modelEmittedText without rewriting this, the flag becomes a lie — see
+   * the writer audit in modelEmittedText.test.ts.
+   */
+  emissionSource?: EmissionSource;
+  /**
    * Reasoning the model emitted inside its think block (assistant only).
    * UI-only: rendered in a collapsed block above the answer. Prompt replay
    * never uses this — modelEmittedText already carries the raw think span.
@@ -274,7 +286,7 @@ type StreamCallbacks = {
   // RNA-seq job context: emitted once per stream before the LLM starts.
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
   /** Unmodified model output for this assistant turn (prompt replay / KV). */
-  onModelEmittedText?: (text: string) => void;
+  onModelEmittedText?: (text: string, source: EmissionSource) => void;
   /** Model reasoning (think span) for the collapsed block above the answer. */
   onThinkingText?: (text: string) => void;
   /** Optional failure signal from stream backends that resolve instead of reject. */
@@ -647,6 +659,11 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     const emitted = readModelEmittedText(record.role, record.modelEmittedText);
     if (emitted !== undefined) {
       message.modelEmittedText = emitted.slice(0, MAX_TEXT);
+      // Propagate the provenance flag; a persisted value outside the union
+      // (corrupt payload) falls back to unknown → syntactic predicate.
+      if (record.emissionSource === "parsed" || record.emissionSource === "raw") {
+        message.emissionSource = record.emissionSource;
+      }
     }
     // Model reasoning (assistant only) for the collapsed block above the answer.
     const thinking = readThinkingText(record.role, record.thinkingText);
@@ -2371,6 +2388,7 @@ export function AiChatPage({
       let anyTextStreamed = false;
       // Unmodified model output for this turn (prompt replay). UI still streams cleaned text.
       let modelEmittedText: string | undefined;
+      let modelEmittedSource: EmissionSource | undefined;
       // Model reasoning for this turn (collapsed block above the answer).
       let thinkingText: string | undefined;
       // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
@@ -2408,12 +2426,17 @@ export function AiChatPage({
                 }
                 streamCoalescer.push(full);
               },
-              onModelEmittedText: (text) => {
+              onModelEmittedText: (text, source) => {
                 if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
                   return;
                 }
                 if (typeof text === "string" && text.length > 0) {
                   modelEmittedText = text;
+                  // Written with the string, by the same writer: the flag
+                  // records the mechanism that produced it. It becomes a lie
+                  // only if something mutates the string without rewriting
+                  // it (see the writer audit in modelEmittedText.test.ts).
+                  modelEmittedSource = source;
                 }
               },
               onThinkingText: (text) => {
@@ -2673,7 +2696,14 @@ export function AiChatPage({
                   streaming: false,
                   statusLabel: undefined,
                   interrupted: wasInterrupted ? true : undefined,
-                  ...(emittedSave !== undefined ? { modelEmittedText: emittedSave } : {}),
+                  ...(emittedSave !== undefined
+                    ? {
+                        modelEmittedText: emittedSave,
+                        // Same writer, same moment as the string (or no
+                        // string, no flag — see historyPersistable).
+                        emissionSource: modelEmittedSource,
+                      }
+                    : {}),
                   ...(thinkingSave !== undefined ? { thinkingText: thinkingSave } : {}),
                 };
                 if (base.miniapp) return base;

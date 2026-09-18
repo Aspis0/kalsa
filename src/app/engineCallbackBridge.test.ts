@@ -66,13 +66,15 @@ describe("engineCallbackBridge", () => {
     expect(hooks.onDeltaFull).toHaveBeenCalledWith("stream");
   });
 
-  test("onModelEmittedText, onStatus and onMiniapp forward verbatim", () => {
+  test("onModelEmittedText forwards text AND provenance source verbatim", () => {
     const { ui, bridged } = build();
-    bridged.onModelEmittedText?.("raw");
+    bridged.onModelEmittedText?.("raw", "parsed");
+    expect(ui.onModelEmittedText).toHaveBeenCalledWith("raw", "parsed");
+    bridged.onModelEmittedText?.("partial", "raw");
+    expect(ui.onModelEmittedText).toHaveBeenLastCalledWith("partial", "raw");
     bridged.onStatus?.({ label: "Sto pensando" });
-    bridged.onMiniapp?.({ kind: "miniapp_v1" });
-    expect(ui.onModelEmittedText).toHaveBeenCalledWith("raw");
     expect(ui.onStatus).toHaveBeenCalledWith({ label: "Sto pensando" });
+    bridged.onMiniapp?.({ kind: "miniapp_v1" });
     expect(ui.onMiniapp).toHaveBeenCalledWith({ kind: "miniapp_v1" });
   });
 

@@ -103,6 +103,7 @@ import {
   llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
   promptContentForHistoryMessage,
+  type EmissionSource,
 } from "./modelEmittedText";
 import {
   formatToolCallLine,
@@ -693,6 +694,8 @@ export type EngineMessage = {
    * Assistant-only; when present, streamAssistantTurn uses it instead of content.
    */
   modelEmittedText?: string;
+  /** Provenance of modelEmittedText (see EmissionSource). Travels with it. */
+  emissionSource?: EmissionSource;
 };
 
 export type EngineTool = {
@@ -743,8 +746,14 @@ export type EngineCallbacks = {
   /**
    * Unmodified model output for the assistant turn (think wrappers etc.).
    * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
+   * The second argument records the MECHANISM that produced the string, at
+   * the same moment as the string: "parsed" = native parse of a completed
+   * turn (seed tag kept inside content under reasoning_format "none"),
+   * "raw" = raw token accumulation of an interrupted turn (seed is prompt
+   * bytes the KV holds before the first generated token). Persisted next to
+   * the string as emissionSource — see EmissionSource in modelEmittedText.
    */
-  onModelEmittedText?: (text: string) => void;
+  onModelEmittedText?: (text: string, source: EmissionSource) => void;
   /**
    * Reasoning the model emitted inside its think block(s) this turn, for UI
    * display in a collapsed block above the answer. Fired at the same points
@@ -4032,7 +4041,10 @@ export async function streamAssistantTurn(
         });
         if (abortMarker) callbacks.onDelta(abortMarker, abortMarker);
         if (rawEmittedAccum) {
-          callbacks.onModelEmittedText?.(rawEmittedAccum);
+          // The abort path stores the RAW token accumulation: the seeded tag
+          // is prompt bytes the KV holds before the first generated token,
+          // not payload — the renderer must restore it unconditionally.
+          callbacks.onModelEmittedText?.(rawEmittedAccum, "raw");
         }
         if (error) callbacks.onError(error);
         else callbacks.onDone();
@@ -4458,7 +4470,7 @@ export async function streamAssistantTurn(
       // with the full-round parse; the final round never went through the
       // round-transition flush, so join it here exactly once.
       callbacks.onThinkingText?.(turnThinking);
-      if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted);
+      if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted, "parsed");
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       // clean_completion: reducer sets reproducible only if !turnInjected
       // (tool turn final emit stays false). Miniapp strip is marked later by
@@ -5282,7 +5294,7 @@ export async function streamAssistantTurn(
                 fallbackText,
                 fallbackEmitted,
               );
-              if (attachEmitted) callbacks.onModelEmittedText?.(attachEmitted);
+              if (attachEmitted) callbacks.onModelEmittedText?.(attachEmitted, "parsed");
               callbacks.onDelta(fallbackText, fallbackStreamedTextAtStart + fallbackText);
               kvReproState = nextKvReproState(kvReproState, "clean_completion");
             }
