@@ -7396,3 +7396,40 @@ mangiato una modifica non committata accanto. Si annulla con una modifica in ava
 test) · tsc 0 · `bash -n` 0 su cinque script · nessun commit contiene `node_modules`.
 Condizione di stop all'installazione: `extra.engineBuildId` letto con
 `unzip -p base.apk assets/app.config` deve essere `kalsa-eng-v2:d1a501c9…`.
+
+### Quello che il merge di kv-land cambia a main, trovato aspettando la build (18/09 sera)
+
+Mentre `35386223059` compilava ho verificato tre cose sul disco invece di ripeterle a memoria.
+
+**1. kv-land non contiene main.** `git merge-base --is-ancestor 3cabcf1 6db7263` esce **1**: il rebase
+serve. La sovrapposizione fra i due rami da `204298f` e' **un solo file**,
+`.github/workflows/e2e-emulator.yml` (main tocca anche `apk.yml` e `assert-overlay-includes.sh`, io
+no). Condizione di trasferimento dell'evidenza, chiesta da kalsa-02 e accettata: dopo il rebase
+`git diff --stat 6db7263 <rebased-tip> -- . ':!.github'` deve essere **vuoto**, altrimenti il
+telefono ha provato un albero diverso da quello che spingo e serve un altro APK.
+
+**2. Il mio hunk in e2e non e' uno split, e' un'aggiunta — e cambia il gate di main.** Lo avevo
+raccontato male. `git show 204298f:.github/workflows/e2e-emulator.yml | grep -n jest` da' **zero**
+righe, idem su `3cabcf1`: l'e2e non ha mai fatto girare jest. E `ci.yml` parte **solo** su push/PR a
+`feat/**` (righe 7-19). Messe insieme: **oggi un push su main non fa girare jest da nessuna parte**.
+Il mio step `Jest (bounded — the suite that guards main)` lo fa girare, quindi da quel merge in poi
+un jest rosso fa rosso l'e2e di main. E' il motivo per cui lo step esiste, ma e' un cambio del
+contratto di CI di main: si decide prima, non si scopre dopo. Chiesto a kalsa-02 se lo tiene o se lo
+riporto separato.
+
+**3. L'ordine degli step regge, ma per un motivo che va letto.** Il gate degli includes vuole l'NDK
+(`env: KALSA_GATE_REQUIRE_NDK: "1"`, righe 74-79) e `Free disk space` fa
+`sudo rm -rf /usr/local/lib/android/sdk/ndk` (righe 139-141). Il mio step si infila **fra** i due,
+quindi non rompe nulla — ma solo perche' ci sta in mezzo, non per costruzione. Dopo il rebase si
+rilegge la lista renderizzata, non ci si fida di un rebase pulito.
+
+**Nota sull'APK che sto per installare:** kv-land non ha il `KALSA_GATE_REQUIRE_NDK: "1"` che main ha
+aggiunto ad `apk.yml`, quindi nel run 35386223059 il gate degli includes e' girato **senza** pretendere
+l'NDK. Non tocca l'artefatto — `apk.yml` non e' uno dei sei input del digest — e il compile NDK vero
+resta il gate finale; ma e' una differenza reale fra questo APK e uno buildato da main, e si dice.
+
+**Trappola del checkout condiviso, vista ora:** `/Users/marco/Projects/kalsa` non e' su main, e' su
+`step5-bump` a `d3ae1d3`, e `node_modules/llama.rn` sta cambiando sotto per il bump dello Step 5. Un
+ricalcolo locale dell'engine id in questo momento mentirebbe due volte (albero altrui + symlink). Il
+protocollo lo faccio girare dal worktree `kv-residuals` su `6db7263` — lo stesso albero che ha
+buildato l'APK — e l'id lo leggo solo da dentro l'APK.
