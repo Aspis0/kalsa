@@ -803,6 +803,31 @@ a binary without a Metal library.
   the assertion lines) plus the non-vacuity leg: the same test on the parent commit, and a mutation
   that makes it fail. A green test alone does not show the test can see the line you changed.
 
+### Added 2026-09-18 afternoon — the fork's C++ test step cannot be un-gated by the bump
+
+`ci.yml` gates `Run c++ unit tests` with `if: github.ref != 'refs/heads/kalsa'`, and the comment
+above it named **two** reasons. The Step 5 pin bump clears only the first. Verified on disk:
+
+- **Cleared.** Run 35360547883 died on `cpp/llama-kv-cache-iswa.cpp:97: error: 'runtime_error' is
+  not a member of 'std'` — the file missed `<stdexcept>`, which clang forgives and GCC does not.
+  kalsallama `src/llama-kv-cache-iswa.cpp:9` now has the include, so the bump carries the fix in.
+- **Not cleared, and not clearable here.** `tests/CMakeLists.txt:91` puts `cpp/rn-llama.cpp` in
+  `RNLLAMA_COMMON_SOURCES`, which every test target compiles, and `cpp/rn-llama.cpp:2` is
+  `#include "bmoe_stream.h"` — a header that lives in the **app** repo (`native/bmoe/rn`) by
+  design and is not checked out in the fork's CI. Two more TUs are missing besides: the globs in
+  that file catch `llama*.cpp` (so `llama-governor*.cpp` come in) but nothing lists
+  `cpp/rn-governor.cpp` or `cpp/rn-governor-params.cpp`, so `rn_governor` would fail at link even
+  with the header.
+- Un-gating therefore means putting the app repo inside that job: a cross-repo checkout of a
+  **private** repository, i.e. a PAT or deploy key in the fork's secrets. That is **Marco's call**.
+  The cheap half — adding the two `rn-governor*` TUs to `RNLLAMA_COMMON_SOURCES` — is worth doing
+  whenever the header question is answered, but on its own it changes nothing.
+- The same truth from the other side: the fork's own include gate refuses to grade itself without
+  the app. `scripts/sync-kalsallama.sh bump` **exits 1** when `KALSA_BMOE_DIR` is unset
+  (`[includes] FAIL: partial syntax pass`); the gate runs on `$FLATTEN_TMP/cpp` at line 747,
+  *before* anything is installed, so a refusal leaves `kalsallama.pin` and `cpp/` untouched. Run it
+  as `KALSA_BMOE_DIR=<app>/native/bmoe/rn bash scripts/sync-kalsallama.sh bump`.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
