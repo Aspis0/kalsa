@@ -695,8 +695,20 @@ nel run delle 11:01. Mai entrati in git (`git ls-files` = 0, `.gitignore:103`).
   motivo e' di rischio: quattro consumatori rileggono il file (`campaign_collect_file`,
   `campaign_user_landed` x2, `campaign_progress_fingerprint`, `campaign_last_assistant_interrupted`)
   e `campaign/selftest_fakedevice.sh` ne modella la forma, quindi convertirla significa
-  rifattorizzare l'harness della campagna T20C alla vigilia di un giro sul telefono. Sul disco oggi
-  **non esiste nessun `.messages.json`** e quella campagna non gira. Va convertita come cambiamento
+  rifattorizzare l'harness della campagna T20C alla vigilia di un giro sul telefono. **CORREZIONE (stessa sera): avevo scritto che sul disco non
+  esiste nessun `.messages.json`. Falso.** Ce ne sono **dieci**, nessuno in git:
+  `out/t20c-20260914` 36 KB, `out/t20c-rerun-20260914` 54 KB, `out/t20c-rerun2-20260914` 88 KB,
+  `out/t20c-fixprotocol-20260915` 95 KB, `out/t20c-idlefix-20260915` 14 KB,
+  `out/t20c-gate-20260916` 19 KB, `out/t20c-newengine-20260917` 28 KB,
+  `out/t20c-sendfix-20260917` 32 KB, piu' due di agosto fuori da `out/`:
+  `results/ciswire-campaign/2026-08-25` 3,8 KB e `2026-08-26` 28 KB. Coperti da due regole diverse
+  (`.gitignore:96` `out/` e `.gitignore:112` `results/ciswire-campaign/`), `git ls-files` = 0.
+  **Restano**, come gli altri tre: stessa classe, stessa decisione dell'owner. Non aperti.
+  **Perche' l'avevo sbagliato:** avevo cercato con un glob (`ls out/*/.messages.json device-*-out/...`)
+  e **zsh annulla l'intero comando** quando un pattern non matcha — il mio "0 trovati" era l'errore
+  del glob, non una misura. Il comando giusto e'
+  `find . -name .messages.json -not -path './node_modules/*'`, che ne trova dieci e guarda anche
+  fuori dalle cartelle che immaginavo. Va convertita come cambiamento
   a se', con il selftest aggiornato. Limite scritto dove sta il codice (`0394014`), e il commit
   `c63a952` — intitolato *"the conversation never touches disk"* — e' corretto nella stessa storia
   invece che riscritto.
