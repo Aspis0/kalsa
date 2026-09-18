@@ -6,10 +6,11 @@
 # APK that predates the prewarm. This script measures restore + prewarm
 # together, which is the shipping path.
 #
-# Shape, per cycle: force-stop -> relaunch -> wait Ready -> background/
-# foreground bounce (rp_fg_bounce; FG_BOUNCE=0 skips it) -> one continuation
-# turn -> read `n_past` (KALSA_KVDIAG), `promptMs` (KALSA_TELEMETRY) and the
-# prewarm's own verdict (KALSA_PREWARM).
+# Shape, per cycle: force-stop -> relaunch -> wait Ready -> wait for the BOOT
+# prewarm to settle (rp_wait_launch_prewarm; the app logs its outcome as
+# KALSA_PREWARM) -> background/foreground bounce (rp_fg_bounce; FG_BOUNCE=0
+# skips it) -> one continuation turn -> read `n_past` (KALSA_KVDIAG),
+# `promptMs` (KALSA_TELEMETRY) and the prewarm's own verdict (KALSA_PREWARM).
 #
 # Everything runs in ONE invocation with keep-awake armed at the top, because
 # a detached phone loses the wake-lock between scripts. Every adb call takes
@@ -35,6 +36,16 @@ FG_BOUNCE_SECONDS="${FG_BOUNCE_SECONDS:-20}"
 # unless the prewarm is genuinely still running. 120 ~ 3x the slowest known
 # prefill, well under READY_TIMEOUT's scale.
 FG_SETTLE_TIMEOUT_SECONDS="${FG_SETTLE_TIMEOUT_SECONDS:-120}"
+# Ready fires while the BOOT prewarm can still be prefilling: bouncing to
+# home mid-prefill is what cost the baseline run its 109.5 s 1832-token
+# prefill (2026-09-18, against a ~40 s comment) — Android throttles the
+# backgrounded app. rp_wait_launch_prewarm closes on the prewarm's own
+# outcome line, so the bounce lands after the prefill instead of inside it.
+# Generous by the same reasoning as FG_SETTLE_TIMEOUT_SECONDS: `done`
+# follows a WHOLE prefill, skips settle in seconds, and a launch that never
+# emits a line pays the timeout once, visibly, instead of bouncing in
+# silence.
+LAUNCH_PREWARM_TIMEOUT_SECONDS="${LAUNCH_PREWARM_TIMEOUT_SECONDS:-120}"
 RP_WATCHDOG_INTERVAL_SECONDS="${RP_WATCHDOG_INTERVAL_SECONDS:-10}"
 RP_TEMP_WARN_DECI=400
 RP_WATCHDOG_SENTINEL="$OUT/.thermal-watchdog.stop"
@@ -286,6 +297,40 @@ rp_fg_wait_settled() {
   return 1
 }
 
+# Wait for the BOOT prewarm (queued at launch) to settle before the bounce.
+# This cycle's region of the capture starts at start_line: the line offset
+# captured in rp_main just before `am start`, while the previous instance is
+# already force-stopped dead — nothing app-side can log between it and the
+# relaunch, so every KALSA_PREWARM line after the offset is THIS launch's
+# own evidence, and the file only ever grows by appends.
+# Careful with the wire shape: React Native's two-argument console.log
+# reaches logcat as  I/ReactNativeJS(pid): 'KALSA_PREWARM', '{...}'  —
+# single quotes and a comma, never clean JSON — so the terminal op is
+# matched ANYWHERE in the line, never anchored to end-of-line. Terminal:
+# {"op":"done"} ran and finished; {"op":"skip",...} did not run at all
+# (kv_holds_chat is COMMON after a restore and must not hang the wait);
+# {"op":"restore","ok":true} reused a snapshot. A restore with ok:false
+# does NOT settle: the app falls through to the full prefill immediately
+# after that line — the exact thing the bounce must not interrupt — so the
+# wait holds for the prefill's own done/skip. {"op":"start"} does not
+# settle either: it logs at queue time and is exactly the line a
+# working-but-slow prefill has not finished yet. Every exit is named: the
+# operator reads which path was taken instead of guessing from the timing.
+rp_wait_launch_prewarm() {
+  local i="$1" start_line="$2" waited=0
+  while [ "$waited" -lt "$LAUNCH_PREWARM_TIMEOUT_SECONDS" ]; do
+    rp_watchdog_stop_requested && return 2
+    if tail -n +"$start_line" "$OUT/logcat.txt" 2>/dev/null | grep -Eq '"op":"(done|skip)"|"op":"restore","ok":true'; then
+      log "cycle $i: launch prewarm settled after ${waited}s"
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  log "cycle $i: launch prewarm did not settle within ${LAUNCH_PREWARM_TIMEOUT_SECONDS}s — bouncing anyway; a still-running prefill may be throttled in the background"
+  return 1
+}
+
 rp_fg_bounce() {
   local i="$1"
   adb shell log -p i -t KALSA_RP_MARK "fg_bounce_home cycle=$i" </dev/null >/dev/null 2>&1
@@ -322,6 +367,10 @@ rp_validate_bounce_flags() {
     ''|*[!0-9]*|0)
       die "FG_SETTLE_TIMEOUT_SECONDS must be a positive integer, got '$FG_SETTLE_TIMEOUT_SECONDS'" ;;
   esac
+  case "$LAUNCH_PREWARM_TIMEOUT_SECONDS" in
+    ''|*[!0-9]*|0)
+      die "LAUNCH_PREWARM_TIMEOUT_SECONDS must be a positive integer, got '$LAUNCH_PREWARM_TIMEOUT_SECONDS'" ;;
+  esac
 }
 
 # The fg bounce's whole evidence chain hangs on `adb shell log` reaching
@@ -345,7 +394,7 @@ rp_marker_probe() {
 }
 
 rp_main() {
-  local attached picked i prev
+  local attached picked i prev rp_launch_line
   mkdir -p "$OUT"
   attached=$(adb devices 2>/dev/null | awk '$2=="device" {print $1}')
   picked=$(device_pick_serial "${ANDROID_SERIAL:-}" "$attached") \
@@ -381,6 +430,12 @@ rp_main() {
     adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1
     sleep 5
     if rp_abort_cycle_if_watchdog "$i"; then break; fi
+    # Line offset of THIS cycle's launch region, captured while the app is
+    # dead: nothing app-side logs between here and the relaunch, so the
+    # launch-prewarm wait only ever sees this boot's own KALSA_PREWARM lines.
+    rp_launch_line=$(wc -l < "$OUT/logcat.txt" 2>/dev/null)
+    case "$rp_launch_line" in ''|*[!0-9]*) rp_launch_line=0 ;; esac
+    rp_launch_line=$((rp_launch_line + 1))
     adb shell am start -n "$ACTIVITY" </dev/null >/dev/null 2>&1
     if ! rp_wait_ready; then
       if rp_abort_cycle_if_watchdog "$i"; then break; fi
@@ -388,7 +443,10 @@ rp_main() {
       continue
     fi
     # Between Ready and the first send: the KV holds no chat yet, so the
-    # re-kick must produce a real prewarm, not a kv_holds_chat skip.
+    # re-kick must produce a real prewarm, not a kv_holds_chat skip. Before
+    # the bounce, wait out the BOOT prewarm — bouncing mid-prefill is what
+    # throttled the baseline run's 1832-token prefill to 109.5 s.
+    if [ "$FG_BOUNCE" = "1" ]; then rp_wait_launch_prewarm "$i" "$rp_launch_line"; fi
     if [ "$FG_BOUNCE" = "1" ]; then rp_fg_bounce "$i"; fi
     if rp_abort_cycle_if_watchdog "$i"; then break; fi
     rp_state

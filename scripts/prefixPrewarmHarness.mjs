@@ -1803,6 +1803,119 @@ async function main() {
     "the fixed post-relaunch sleep must stay gone — it closed the window on a timer and failed slow, working prefills",
   );
 
+  // ── The launch prewarm wait: the bounce must not land inside the boot ────
+  // prefill. Ready fires while the static-prefix prewarm can still be
+  // running, and the 2026-09-18 baseline measured a 1832-token prefill at
+  // 109.5 s because the bounce backgrounded the app ~4 s into it. The
+  // protocol now waits for the boot prewarm's own outcome line before the
+  // bounce, under the same FG_BOUNCE gate.
+  const launchWaitFnAt = protocolSrc.indexOf("rp_wait_launch_prewarm() {");
+  assert(launchWaitFnAt >= 0, "rp_wait_launch_prewarm still exists");
+  const launchWaitFnEnd = protocolSrc.indexOf("\n}", launchWaitFnAt);
+  assert(
+    launchWaitFnEnd > launchWaitFnAt,
+    "rp_wait_launch_prewarm closes where expected",
+  );
+  const launchWaitFn = shapeOf(protocolSrc.slice(launchWaitFnAt, launchWaitFnEnd));
+  assert(
+    loop.includes(
+      'if [ "$FG_BOUNCE" = "1" ]; then rp_wait_launch_prewarm "$i" "$rp_launch_line"; fi',
+    ),
+    "the launch-prewarm wait is FG_BOUNCE-gated inside the cycles loop, like the bounce",
+  );
+  assert(
+    launchWaitFn.includes("rp_watchdog_stop_requested && return 2"),
+    "the launch wait honours the thermal watchdog like every other wait",
+  );
+  assert(
+    launchWaitFn.includes(
+      "bouncing anyway; a still-running prefill may be throttled in the background",
+    ),
+    "a launch prewarm that never settles bounces with a NAMED outcome, never in silence",
+  );
+  assert(
+    launchWaitFn.includes("settled after"),
+    "a settled launch prewarm says how long it took",
+  );
+  // The launch line offset must be captured BEFORE `am start`, while the
+  // previous instance is force-stopped dead — otherwise the region could
+  // include the previous boot's prewarm lines and settle on stale evidence.
+  const launchLineAt = loop.indexOf("rp_launch_line=");
+  const startAt = loop.indexOf('am start -n "$ACTIVITY"');
+  assert(
+    launchLineAt >= 0 && startAt > launchLineAt,
+    `the launch region offset is captured before the relaunch — offset=${launchLineAt} am_start=${startAt}`,
+  );
+  const launchWaitCallAt = loop.indexOf('rp_wait_launch_prewarm "$i"');
+  assert(
+    launchWaitCallAt >= 0 && launchWaitCallAt < bounceAt && bounceAt < sendAt,
+    `the launch wait sits between rp_wait_ready and the fg bounce — wait=${launchWaitCallAt} bounce=${bounceAt} send=${sendAt}`,
+  );
+  // Bounded, and the bound is validated like the other bounce flags.
+  assert(
+    launchWaitFn.includes("$LAUNCH_PREWARM_TIMEOUT_SECONDS"),
+    "the launch wait is bounded by LAUNCH_PREWARM_TIMEOUT_SECONDS",
+  );
+  const validateFlagsAt = protocolSrc.indexOf("rp_validate_bounce_flags() {");
+  const validateFlagsEnd = protocolSrc.indexOf("\n}", validateFlagsAt);
+  assert(
+    protocolSrc
+      .slice(validateFlagsAt, validateFlagsEnd)
+      .includes("LAUNCH_PREWARM_TIMEOUT_SECONDS"),
+    "the launch-prewarm timeout is validated like the other bounce flags",
+  );
+
+  // The wait's terminal-op pattern, extracted from the script and exercised
+  // against the REAL wire shapes: React Native's two-argument console.log
+  // reaches logcat as  I/ReactNativeJS(pid): 'KALSA_PREWARM', '{...}'  —
+  // single quotes and a comma, never clean JSON, so the pattern must match
+  // mid-line and must never anchor to end-of-line.
+  const ereMatch = launchWaitFn.match(/grep -Eq '([^']+)'/);
+  assert(ereMatch, "the launch wait greps for a terminal prewarm op");
+  const launchSettled = new RegExp(ereMatch[1]);
+  const rnLine = (payload) => `I/ReactNativeJS(30901): 'KALSA_PREWARM', '${payload}'`;
+  assert(
+    launchSettled.test(
+      rnLine('{"op":"done","promptMs":109512.008,"promptN":1832,"hash":"3586270056"}'),
+    ),
+    "the real S23 golden done line settles the wait — quoted wire shape, mid-line match",
+  );
+  assert(
+    launchSettled.test(rnLine('{"op":"skip","reason":"kv_holds_chat"}')),
+    "the COMMON kv_holds_chat skip settles the wait instead of hanging it",
+  );
+  assert(
+    launchSettled.test(rnLine('{"op":"skip","reason":"background"}')) &&
+      launchSettled.test(rnLine('{"op":"skip","reason":"not_ready"}')),
+    "every skip reason settles — a prewarm that did not run cannot throttle",
+  );
+  assert(
+    launchSettled.test(rnLine('{"op":"restore","ok":true,"tokens":1832,"hash":"h"}')),
+    "a restored snapshot settles the wait",
+  );
+  assert(
+    !launchSettled.test(rnLine('{"op":"start","hash":"h"}')),
+    "op start does NOT settle — it logs at queue time and is exactly the line a slow prefill has not finished",
+  );
+  assert(
+    !launchSettled.test(rnLine('{"op":"restore","ok":false,"reason":"no_file"}')),
+    "restore ok:false does NOT settle — the app falls through to the full prefill right after that line",
+  );
+  assert(
+    !launchSettled.test(
+      rnLine('{"op":"snapshot_save","ok":true,"tokens":1832,"hash":"h"}'),
+    ),
+    "snapshot_save alone does not settle",
+  );
+  assert(
+    launchSettled.test('KALSA_PREWARM {"op":"done"}'),
+    "the bare (unquoted) prewarm shape settles too",
+  );
+  assert(
+    !launchSettled.test("KALSA_SESSION {\"op\":\"load\",\"ms\":59,\"ok\":false}"),
+    "non-prewarm lines never settle the launch wait",
+  );
+
   // ── The re-kick's mutes must speak ───────────────────────────────────────
   // Every exit ahead of the re-kick, and the fall-through past it, used to be
   // a bare `return`: a muted branch and a re-kick that never fired produce
