@@ -1167,7 +1167,9 @@ async function main() {
   );
 
   // ...but start FOLLOWED by done is the normal served shape: the presence
-  // of start must not declassify a kick that completed.
+  // of start must not declassify a kick that completed. It is also the
+  // "long prefill, window closed right" case — done lands after a whole
+  // prefill, and with the outcome-closed window it lands INSIDE.
   const fgStartDone = verdict(
     "fg-start-done",
     [
@@ -1186,6 +1188,31 @@ async function main() {
   assert(
     /FG_REKICK_CRITERION: PASS/.test(fgStartDone),
     "a kick that queued and completed passes",
+  );
+
+  // The defect the fixed 5s window had: a ~40s prefill logs start inside the
+  // window and done only AFTER fg_settled — no_work, FAIL. This is EXACTLY
+  // the shape that timer produced on every slow, successful prewarm: a false
+  // FAIL on the case the run wants to see succeed. The window now closes on
+  // the kick's outcome (rp_fg_wait_settled), so this shape only appears when
+  // the kick genuinely never completed.
+  const fgSettledEarly = verdictFail(
+    "fg-settled-early",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"start","hash":"h","systemChars":100,"toolCount":2}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      'KALSA_PREWARM {"op":"done","promptMs":40000,"promptN":1832,"hash":"h"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=0 no_work=1 too_early=0 silent=0/.test(fgSettledEarly),
+    "a kick whose done lands after fg_settled is no_work",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick fired but warmed nothing: queued but no outcome x1\)/.test(fgSettledEarly),
+    "the criterion names the queued-without-outcome form",
   );
 
   // A skip reason this verdict has never been taught: read off the line and
@@ -1330,6 +1357,30 @@ async function main() {
       'adb shell log -p i -t KALSA_RP_MARK "fg_settled cycle=$i" </dev/null >/dev/null 2>&1',
     ),
     `the fg_settled marker must be the LAST thing rp_fg_bounce emits — ends with: …${bounceFn.slice(-100)}`,
+  );
+  // The window now closes on the kick's OUTCOME, not on a timer: the outcome
+  // wait (rp_fg_wait_settled) runs after the relaunch and before fg_settled,
+  // and the fixed post-relaunch sleep is gone — `done` lands after a whole
+  // prefill (tens of seconds), so any fixed sleep classified a working
+  // prewarm as no_work: a false FAIL on the success case the run exists to
+  // see. Anchors counted: the settle marker line is unique in the file, and
+  // the no-sleep-5 check is scoped to this function (other cycles sleep 5
+  // elsewhere on purpose).
+  assert(
+    bounceFn.includes('rp_fg_wait_settled "$i"'),
+    "rp_fg_bounce must wait for the kick's outcome via rp_fg_wait_settled",
+  );
+  const fgRelaunchAt = bounceFn.indexOf('am start -n "$ACTIVITY"');
+  const fgWaitAt = bounceFn.indexOf('rp_fg_wait_settled "$i"');
+  const fgSettledAt = bounceFn.indexOf('fg_settled cycle=$i');
+  assert(
+    fgRelaunchAt >= 0 && fgRelaunchAt < fgWaitAt && fgWaitAt < fgSettledAt,
+    `the outcome wait must sit between the relaunch and fg_settled — ` +
+      `${fgRelaunchAt} < ${fgWaitAt} < ${fgSettledAt}`,
+  );
+  assert(
+    !bounceFn.includes("sleep 5"),
+    "the fixed post-relaunch sleep must stay gone — it closed the window on a timer and failed slow, working prefills",
   );
 
   // ── The re-kick's mutes must speak ───────────────────────────────────────

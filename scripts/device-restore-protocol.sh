@@ -29,6 +29,12 @@ REPLY_TIMEOUT="${REPLY_TIMEOUT:-600}"
 READY_TIMEOUT="${READY_TIMEOUT:-240}"
 FG_BOUNCE="${FG_BOUNCE:-1}"
 FG_BOUNCE_SECONDS="${FG_BOUNCE_SECONDS:-20}"
+# Generous because `done` follows a WHOLE prefill: ~40s measured on the S23
+# for the standard prefix, 2-3x that on the Jelly with a big one. Kicks that
+# take the restore path settle in seconds, so the timeout costs nothing
+# unless the prewarm is genuinely still running. 120 ~ 3x the slowest known
+# prefill, well under READY_TIMEOUT's scale.
+FG_SETTLE_TIMEOUT_SECONDS="${FG_SETTLE_TIMEOUT_SECONDS:-120}"
 
 MESSAGES=(
   "In una riga: qual e la capitale del Portogallo?"
@@ -99,6 +105,45 @@ rp_should_stop() {
 # queueStaticPrefixPrewarm that fires on a foreground transition, and `am start`
 # alone never reaches it: the app was never backgrounded. Bounce to home and
 # back so the run measures the path a real user takes.
+# Wait until THIS cycle's kick resolves, watching this cycle's own region of
+# the capture file the main `adb logcat` is already writing — no second
+# logcat client, so no interleaving and no lost lines. The region starts at
+# the last `fg_kick cycle=$i` line: the next marker (fg_settled) has not been
+# written yet, so everything after it is this kick's own evidence, and the
+# file only ever grows by appends. A TERMINAL line is `{"op":"done"}`,
+# `{"op":"restore"` (either outcome — a restore has a verdict) or any
+# `{"op":"skip"`; `{"op":"start"` does NOT count — it logs at queue time and
+# is exactly the line a working-but-slow prefill has not produced yet.
+# On timeout, return 1 and let rp_fg_bounce emit fg_settled anyway: the
+# verdict will honestly say no_work, and the log line says the wait expired,
+# which reads differently from "the kick never fired".
+# NEVER RUN AGAINST A REAL PHONE YET: authored offline. The first device run
+# must confirm the marker-find and the tail-window polling against real
+# logcat interleaving and write latency.
+rp_fg_wait_settled() {
+  local i="$1" waited=0 line_from=""
+  while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+    line_from=$(grep -n "fg_kick cycle=$i" "$OUT/logcat.txt" 2>/dev/null | tail -1 | cut -d: -f1)
+    [ -n "$line_from" ] && break
+    sleep 1
+    waited=$((waited + 1))
+  done
+  if [ -z "$line_from" ]; then
+    log "cycle $i: fg_kick marker never reached the capture"
+    return 1
+  fi
+  while [ "$waited" -lt "$FG_SETTLE_TIMEOUT_SECONDS" ]; do
+    if tail -n +"$line_from" "$OUT/logcat.txt" 2>/dev/null | grep -Eq '"op":"(done|restore|skip)"'; then
+      log "cycle $i: kick settled after ${waited}s"
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  log "cycle $i: kick did not settle within ${FG_SETTLE_TIMEOUT_SECONDS}s — fg_settled goes out anyway; the verdict will say no_work"
+  return 1
+}
+
 rp_fg_bounce() {
   local i="$1"
   adb shell log -p i -t KALSA_RP_MARK "fg_bounce_home cycle=$i" </dev/null >/dev/null 2>&1
@@ -108,10 +153,13 @@ rp_fg_bounce() {
   # marker, and a prewarm logging between the two lines would be lost.
   adb shell log -p i -t KALSA_RP_MARK "fg_kick cycle=$i" </dev/null >/dev/null 2>&1
   adb shell am start -n "$ACTIVITY" </dev/null >/dev/null 2>&1
-  # The sleep is the window in which the re-kick has time to log; this marker
-  # seals it BEFORE the send starts producing prewarm lines of its own — the
-  # verdict classifies the lines between fg_kick and the next KALSA_RP_MARK.
-  sleep 5
+  # The window closes on the kick's OUTCOME, not on a timer: `done` lands
+  # after a whole prefill — tens of seconds on the S23, more on the Jelly —
+  # so the fixed sleep this replaced classified a working prewarm as no_work:
+  # a false FAIL on exactly the case the run wants to see succeed. fg_settled
+  # is still the last line emitted, BEFORE the send produces prewarm lines of
+  # its own.
+  rp_fg_wait_settled "$i"
   adb shell log -p i -t KALSA_RP_MARK "fg_settled cycle=$i" </dev/null >/dev/null 2>&1
 }
 
@@ -127,6 +175,10 @@ rp_validate_bounce_flags() {
   case "$FG_BOUNCE_SECONDS" in
     ''|*[!0-9]*|0)
       die "FG_BOUNCE_SECONDS must be a positive integer, got '$FG_BOUNCE_SECONDS'" ;;
+  esac
+  case "$FG_SETTLE_TIMEOUT_SECONDS" in
+    ''|*[!0-9]*|0)
+      die "FG_SETTLE_TIMEOUT_SECONDS must be a positive integer, got '$FG_SETTLE_TIMEOUT_SECONDS'" ;;
   esac
 }
 
