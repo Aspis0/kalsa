@@ -16,6 +16,7 @@ jest.mock("expo-file-system/legacy", () => ({
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import { sessionStem } from "./sessionKey";
+import { toPersistableHistoryMessages } from "./historyPersistable";
 import {
   computeHistoryHashFromMessages,
   extractChatKvPaths,
@@ -141,6 +142,43 @@ describe("sessionHistoryPrefixAccepts", () => {
         [...userOnly, { role: "assistant", text: "ciao!" }],
       ),
     ).toEqual({ accept: false, reason: "stale_kv_completed_turn" });
+  });
+});
+
+describe("emissionSource upgrade invariant", () => {
+  // The flag lives in the persisted JSON, so it changes history hashes by
+  // design. The one thing that must NEVER change is the projection of a
+  // record WITHOUT the flag: those are every conversation stored before the
+  // upgrade, and if their bytes move, their saved hash no longer matches on
+  // first boot and each one pays a cold prefill. The value below was frozen
+  // by running commit 204298f's own toPersistableHistoryMessages +
+  // historyHash over this exact record.
+  const FROZEN_204298F_HASH = "3986477111";
+  const flagFree = [
+    { id: "u1", role: "user", text: "ciao", createdAt: 1 },
+    {
+      id: "a1",
+      role: "assistant",
+      text: "hey",
+      createdAt: 2,
+      modelEmittedText: "  hey  ",
+    },
+  ];
+
+  test("a flag-free record hashes byte-identically to the pre-upgrade projection", () => {
+    expect(computeHistoryHashFromMessages(flagFree)).toBe(FROZEN_204298F_HASH);
+  });
+
+  test("the projection of a flag-free record carries no emissionSource key", () => {
+    const projected = JSON.stringify(toPersistableHistoryMessages(flagFree));
+    expect(projected).not.toContain("emissionSource");
+  });
+
+  test("a flagged record hashes differently — the stakes are real, not ceremonial", () => {
+    const flagged = flagFree.map((m, i) =>
+      i === 1 ? { ...m, emissionSource: "parsed" as const } : m,
+    );
+    expect(computeHistoryHashFromMessages(flagged)).not.toBe(FROZEN_204298F_HASH);
   });
 });
 
