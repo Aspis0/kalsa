@@ -6564,3 +6564,26 @@ Altri due numeri di questo run, non previsti. `KALSA_SESSION {"op":"window_slide
 allo slide la KV viene cancellata per intero — il -37% già noto, visto in diretta.
 `KV_FALLBACK: checkpoint_recover=0 no_usable_checkpoint=1`: il recupero da checkpoint di stato RAM,
 che sul baseline aveva salvato 1827 token su 1832, qui non aveva niente da riusare.
+
+**18/09, correzione alla voce qui sopra — la mia spiegazione della causa era sbagliata, il difetto no.**
+Avevo scritto che l'aggiornamento del motore aveva cambiato la forma di cio' che `llama.rn`
+restituisce. **Misurato, e' falso.** Contate le emissioni assistente nello store dell'app legando
+ogni messaggio al proprio timestamp:
+```
+forma A (modelEmittedText SENZA il tag)  n=12    12 anteriori all'update del motore, 0 posteriori
+forma B (modelEmittedText CON il tag)    n=133  128 anteriori all'update del motore, 5 posteriori
+```
+La forma B esiste **dal 9/09**, molto prima dell'aggiornamento: le due forme convivono, non si
+succedono. L'ipotesi "l'update ha cambiato la forma" e' REFUTATA. Cosa distingua A da B resta **non
+spiegato** — non e' il tempo, e non l'ho misurato.
+
+Il che rende l'errore di `7b5b79b` peggiore di come l'avevo raccontato, non migliore: il codice
+PRE-fix era corretto per 133 casi e rotto per 12, e io ho generalizzato da 6 record di quella
+minoranza da 12 invertendo esattamente il rapporto. La riparazione (predicato `startsWith` stretto)
+e' l'unica forma che tiene entrambe, e vale a prescindere da quale sia la causa a monte.
+
+**Come sono stati presi questi conteggi.** Copia del database dell'app estratta dall'S23 via
+`adb exec-out run-as`, interrogata in locale stampando **solo** conteggi, forme e timestamp:
+nessun testo di messaggio e' stato letto, stampato o salvato, nessuna chiave dello store e' finita
+in un file, e la copia locale e' stata cancellata subito dopo ciascuna delle due letture. La copia
+storica in `/tmp/kalsa-rk.5ueDsv` non e' stata toccata.
