@@ -194,7 +194,11 @@ anyway. Today's alternatives are: force-stop (loses the turn) or keep running at
 full speed (does not cool, §2). A third exists and the pilot does not touch it:
 **keep generating on the little cores during the pause.** 5x slower costs nothing
 when the comparison is a full stop, and it is the only option that saves the turn
-*and* sheds heat. Unmeasured.
+*and* sheds heat.
+
+⚠️ **Not untouched after all** (owner, 2026-09-17): a half-attempt at this was
+already made. This section first called it unmeasured; before anyone proposes it
+again, find that attempt and read what it actually did and why it stopped.
 
 ## 8. Open, and the owner's to decide
 
