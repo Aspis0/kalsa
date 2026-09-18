@@ -2061,7 +2061,10 @@ async function main() {
       env: {
         ...process.env,
         OUT: dir,
+        // rp_main's setup (which sets these) is not part of the extracted
+        // region: model its SUCCESS, which is what RP_LOG_OK=1 means.
         RP_LOG_FILE: path.join(dir, "protocol.log"),
+        RP_LOG_OK: "1",
         SLEEP_SECS: String(opts.sleepSecs),
         APPEND_MATCH_FILE: appendFile,
         BUDGET: String(opts.budget),
