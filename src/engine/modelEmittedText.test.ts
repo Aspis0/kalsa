@@ -403,6 +403,148 @@ describe("historyBudgetCharge", () => {
   });
 });
 
+describe("emissionSource (provenance of a stored emission)", () => {
+  test("raw accumulation: the seed is restored unconditionally, even over an echoed tag", () => {
+    // The model echoed the seeded tag itself: the KV holds TWO opens, so the
+    // replay must render seed + echo. The syntactic predicate alone rendered
+    // one — the divergence this flag exists to close.
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "<think>unfinished",
+        emissionSource: "raw",
+      }),
+    ).toEqual({ content: "<think><think>unfinished" });
+    // Common abort shape: no tag in the accumulation; seed restored anyway.
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "partial answer",
+        emissionSource: "raw",
+      }),
+    ).toEqual({ content: "<think>partial answer" });
+    expect(
+      historyReplayCharLength(
+        {
+          role: "assistant",
+          text: "ui",
+          modelEmittedText: "<think>unfinished",
+          emissionSource: "raw",
+        },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe("<think>unfinished".length + "<think>".length);
+  });
+
+  test("parsed: the parser kept the seed tag — never duplicated", () => {
+    const raw = "<think>\n\n</think>answer";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "answer",
+        modelEmittedText: raw,
+        emissionSource: "parsed",
+      }),
+    ).toEqual({ content: raw });
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: "ui", modelEmittedText: raw, emissionSource: "parsed" },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(raw.length);
+  });
+
+  test("unknown provenance (no flag) keeps the pre-flag syntactic behaviour", () => {
+    // Stored turns without the flag stay valid — no migration, no invalidation.
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "<think>kept",
+      }),
+    ).toEqual({ content: "<think>kept" });
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "prefixed",
+      }),
+    ).toEqual({ content: "<think>prefixed" });
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: "ui", modelEmittedText: "<think>kept" },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe("<think>kept".length);
+  });
+});
+
+describe("emissionSource writer audit", () => {
+  // The flag describes a string JS itself produced; it becomes a lie the
+  // moment anything mutates the string without rewriting it. Assistant text
+  // has NO in-place edit path today (editing re-sends and produces a NEW
+  // turn), so the invariant is structural: the audit enumerates EVERY writer
+  // of modelEmittedText in src and requires it to handle emissionSource in
+  // the same region. In-place editing of assistant text would add a write —
+  // this audit fails naming the file until that writer sets or clears the
+  // flag and the expected counts are updated on purpose.
+  const fs = require("fs") as typeof import("fs");
+  const path = require("path") as typeof import("path");
+  const srcRoot = path.join(__dirname, "..");
+  // Writes only: excludes `===` / `!==` / `>=` comparisons and reads.
+  const assignRe = /\w+\.modelEmittedText\s*=(?![=>])/g;
+  const literalRe = /\{\s*modelEmittedText:/g;
+  // Per-file expectation: [property assignments, object-literal writes].
+  const expected: Record<string, [number, number]> = {
+    "screens/AiChatPage.tsx": [1, 1], // hydration restore; finalize spread
+    "app/AppShell.tsx": [2, 0], // validateHistoryMessages; engine-message copy
+    "context/compactor.ts": [1, 0], // toEngineHistoryMessage
+    "engine/historyPersistable.ts": [1, 0], // persistence normaliser
+  };
+
+  function listSources(dir: string): string[] {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((e) => {
+        const p = path.join(dir, e.name);
+        return e.isDirectory() ? listSources(p) : /\.tsx?$/.test(e.name) ? [p] : [];
+      })
+      .filter((p) => !/\.test\./.test(p));
+  }
+
+  test("every writer of modelEmittedText handles emissionSource beside it", () => {
+    for (const [rel, [assigns, literals]] of Object.entries(expected)) {
+      const src = fs.readFileSync(path.join(srcRoot, rel), "utf8");
+      const assignsFound = src.match(assignRe) ?? [];
+      const literalsFound = src.match(literalRe) ?? [];
+      expect(assignsFound.length).toBe(assigns);
+      expect(literalsFound.length).toBe(literals);
+      for (const m of [...assignsFound, ...literalsFound]) {
+        const at = src.indexOf(m);
+        const region = src.slice(Math.max(0, at - 200), at + m.length + 400);
+        expect(region).toContain("emissionSource");
+      }
+    }
+  });
+
+  test("no seventh writer exists anywhere in src without registering itself", () => {
+    let total = 0;
+    let unregistered: string[] = [];
+    for (const file of listSources(srcRoot)) {
+      const src = fs.readFileSync(file, "utf8");
+      const hits = [...(src.match(assignRe) ?? []), ...(src.match(literalRe) ?? [])];
+      total += hits.length;
+      if (hits.length > 0 && expected[path.relative(srcRoot, file)] === undefined) {
+        unregistered.push(`${path.relative(srcRoot, file)}: ${hits.length}`);
+      }
+    }
+    expect(unregistered).toEqual([]);
+    expect(total).toBe(6);
+  });
+});
+
 describe("readModelEmittedText (persist/restore field)", () => {
   test("survives a persist-shaped round-trip for assistant messages", () => {
     const cleaned = "Salvato! 👋";

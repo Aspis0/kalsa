@@ -61,8 +61,20 @@ export function toPersistableHistoryMessages(
       typeof rec.role === "string" ? rec.role : "",
       rec.modelEmittedText,
     );
-    if (emitted !== undefined) next.modelEmittedText = emitted;
-    else delete next.modelEmittedText;
+    if (emitted !== undefined) {
+      next.modelEmittedText = emitted;
+      // The provenance flag only means something WITH its string: valid value
+      // travels, everything else (absent string, corrupt value) is dropped so
+      // the renderer falls back to the syntactic predicate.
+      if (rec.emissionSource === "parsed" || rec.emissionSource === "raw") {
+        next.emissionSource = rec.emissionSource;
+      } else {
+        delete next.emissionSource;
+      }
+    } else {
+      delete next.modelEmittedText;
+      delete next.emissionSource;
+    }
     const thinking = normalizeThinkingTextForSave(
       typeof rec.role === "string" ? rec.role : "",
       rec.thinkingText,

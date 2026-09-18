@@ -51,6 +51,7 @@ import {
   type RetrievedSnippet,
 } from "./retriever";
 import type { DigestTelemetry } from "../engine/digestTelemetry";
+import type { EmissionSource } from "../engine/modelEmittedText";
 import {
   anchoredWindowChars,
   anchoredWindowExceedsBudget,
@@ -113,6 +114,13 @@ export type HistoryRoleMessage = {
    * this over `text` so the KV shared prefix matches what was produced.
    */
   modelEmittedText?: string;
+  /**
+   * Provenance of modelEmittedText (see EmissionSource in
+   * engine/modelEmittedText). Must travel with the string everywhere the
+   * string travels — a writer that moves one without the other desyncs the
+   * renderer from the native KV.
+   */
+  emissionSource?: EmissionSource;
 };
 
 export type EngineHistoryMessage = {
@@ -120,6 +128,8 @@ export type EngineHistoryMessage = {
   content: string;
   /** See HistoryRoleMessage.modelEmittedText — carried into EngineMessage. */
   modelEmittedText?: string;
+  /** See HistoryRoleMessage.emissionSource — carried into EngineMessage. */
+  emissionSource?: EmissionSource;
 };
 
 // ── Defaults & storage key layout ──────────────────────────────────────────
@@ -845,6 +855,7 @@ function toEngineHistoryMessage(
     m.modelEmittedText.length > 0
   ) {
     out.modelEmittedText = m.modelEmittedText;
+    if (m.emissionSource !== undefined) out.emissionSource = m.emissionSource;
   }
   return out;
 }

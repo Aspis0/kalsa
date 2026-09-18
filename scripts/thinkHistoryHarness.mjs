@@ -99,6 +99,103 @@ function resolveBuiltModule() {
   return modulePath;
 }
 
+/**
+ * Enumerates EVERY writer of modelEmittedText in src and requires each to
+ * handle emissionSource in the same region. A writer that moves the string
+ * without the flag desyncs the renderer from the native KV. In-place editing
+ * of assistant text does not exist today (editing re-sends and produces a NEW
+ * turn); if it is ever added, its write lands here and fails BY NAME until it
+ * sets or clears the flag and the expected counts are updated on purpose.
+ */
+function assertEmissionSourceWriters() {
+  const fs = require("node:fs");
+  const srcRoot = path.join(projectRoot, "src");
+  // Writes only: excludes === / !== / >= comparisons and reads.
+  const assignRe = /\w+\.modelEmittedText\s*=(?![=>])/g;
+  const literalRe = /\{\s*modelEmittedText:/g;
+  // Per-file expectation: [property assignments, object-literal writes].
+  // 1. screens/AiChatPage.tsx — hydration restore + finalize spread (capture
+  //    producer writes the pair through the finalize literal).
+  // 2. app/AppShell.tsx — validateHistoryMessages + engine-message copy.
+  // 3. context/compactor.ts — toEngineHistoryMessage assembly.
+  // 4. engine/historyPersistable.ts — persistence normaliser.
+  const expected = {
+    "screens/AiChatPage.tsx": [1, 1],
+    "app/AppShell.tsx": [2, 0],
+    "context/compactor.ts": [1, 0],
+    "engine/historyPersistable.ts": [1, 0],
+  };
+
+  function listSources(dir) {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((e) => {
+        const p = path.join(dir, e.name);
+        return e.isDirectory()
+          ? listSources(p)
+          : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name)
+            ? [p]
+            : [];
+      });
+  }
+
+  for (const [rel, [assigns, literals]] of Object.entries(expected)) {
+    const src = fs.readFileSync(path.join(srcRoot, rel), "utf8");
+    const found = [
+      ...(src.match(assignRe) ?? []),
+      ...(src.match(literalRe) ?? []),
+    ];
+    const expectedCount = assigns + literals;
+    if (found.length !== expectedCount) {
+      throw new Error(
+        `${rel}: expected ${expectedCount} writer(s) of modelEmittedText, ` +
+          `found ${found.length} (${JSON.stringify(found)}) — a writer was ` +
+          `added or removed without updating the emissionSource audit`,
+      );
+    }
+    for (const m of found) {
+      const at = src.indexOf(m);
+      const region = src.slice(Math.max(0, at - 200), at + m.length + 400);
+      if (!region.includes("emissionSource")) {
+        throw new Error(
+          `${rel}: the writer "${m.trim()}" does not handle emissionSource ` +
+            `beside it — a string moved without its provenance flag desyncs ` +
+            `the renderer from the native KV`,
+        );
+      }
+    }
+  }
+
+  let total = 0;
+  const unregistered = [];
+  for (const file of listSources(srcRoot)) {
+    const src = fs.readFileSync(file, "utf8");
+    const hits = [
+      ...(src.match(assignRe) ?? []),
+      ...(src.match(literalRe) ?? []),
+    ];
+    total += hits.length;
+    const rel = path.relative(srcRoot, file);
+    if (hits.length > 0 && expected[rel] === undefined) {
+      unregistered.push(`${rel}: ${hits.length}`);
+    }
+  }
+  if (unregistered.length > 0) {
+    throw new Error(
+      `unregistered writer(s) of modelEmittedText in src — set or clear ` +
+        `emissionSource beside the string and register the site in this ` +
+        `audit: ${unregistered.join(", ")}`,
+    );
+  }
+  if (total !== 6) {
+    throw new Error(
+      `expected 6 writers of modelEmittedText across src, found ${total} — ` +
+        `the writer list changed; update the audit on purpose`,
+    );
+  }
+  console.log("PASS emissionSource writer audit (6 writers, all paired)");
+}
+
 function main() {
   try {
     compile();
@@ -109,6 +206,71 @@ function main() {
       normalizeModelEmittedTextForSave,
       readModelEmittedText,
     } = require(resolveBuiltModule());
+
+    // ── emissionSource: provenance decides the seed ─────────────────────────
+    // "parsed" (completed turn, reasoning_format "none") keeps the seeded tag
+    // inside content; "raw" (interrupted accumulation) never includes it — the
+    // seed is prompt bytes, so it is restored unconditionally, EVEN when the
+    // model echoed the tag itself (the KV then legitimately holds two).
+    assert.deepEqual(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "<think>unfinished",
+        emissionSource: "raw",
+      }),
+      { content: "<think><think>unfinished" },
+      "raw + echoed tag renders TWO opens — the hole the flag closes",
+    );
+    assert.deepEqual(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "partial answer",
+        emissionSource: "raw",
+      }),
+      { content: "<think>partial answer" },
+      "raw without a tag still gets the seed restored",
+    );
+    assert.deepEqual(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "answer",
+        modelEmittedText: "<think>\n\n</think>answer",
+        emissionSource: "parsed",
+      }),
+      { content: "<think>\n\n</think>answer" },
+      "parsed never duplicates the tag the parser kept",
+    );
+    assert.deepEqual(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content: "",
+        modelEmittedText: "<think>kept",
+      }),
+      { content: "<think>kept" },
+      "unknown provenance keeps the pre-flag syntactic behaviour (no migration)",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        {
+          role: "assistant",
+          text: "ui",
+          modelEmittedText: "<think>unfinished",
+          emissionSource: "raw",
+        },
+        { historyThink: "reasoning_content" },
+      ),
+      "<think>unfinished".length + 7,
+      "raw charge always includes the seed",
+    );
+    console.log("PASS emissionSource provenance rendering");
+
+    // ── The writer audit: every writer of modelEmittedText handles ──────────
+    // emissionSource beside it. A flag that asserts something about native KV
+    // state becomes a lie the moment a writer moves the string without it.
+    assertEmissionSourceWriters();
+
     const cases = [
       {
         name: "empty raw",
