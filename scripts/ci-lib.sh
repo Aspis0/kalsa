@@ -499,7 +499,10 @@ REMOTE
 # or before the first call that can fail).
 die() {
   log "FATAL: $*"
-  ui_texts > "$OUT/fatal_state.txt" 2>/dev/null
+  # Each on-screen text node is truncated to its first 120 characters: the
+  # file keeps what diagnoses (which screen, which labels) but a chat open
+  # on screen must not land whole on disk.
+  ui_texts | cut -c 1-120 > "$OUT/fatal_state.txt" 2>/dev/null
   shot fatal
   capture_death_evidence
   exit 1

@@ -101,21 +101,51 @@ device_composer_from_ui() {
   printf '%s\n' "$t"
 }
 
+# Privacy: the conversation JSON is piped STRAIGHT into python on stdin and
+# only the count leaves — it is never written to $OUT (the old
+# .share_hist.json dump landed the user text and every modelEmittedText on
+# disk, twice per attempt, and was never removed).
+# KNOWN LIMITATION, declared: the python prints 0 on any exception, so a
+# failed DB read is indistinguishable from an empty conversation — the cause
+# of the "no reply within Ns" shape. Do not change that return before a
+# trusted device run; rp_wait_reply's control flow depends on it.
 device_history_assistant_count() {
   local index_raw id key
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
   id=$(resolve_active_conversation_id "$index_raw")
   key=$(messages_storage_key "$id")
-  sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" > "$OUT/.share_hist.json" 2>/dev/null \
-    || : > "$OUT/.share_hist.json"
-  python3 -c '
+  sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" 2>/dev/null \
+    | python3 -c '
 import json, sys
 try:
-    data = json.loads(open(sys.argv[1], encoding="utf-8").read() or "[]")
+    data = json.loads(sys.stdin.read() or "[]")
     print(sum(1 for m in data if isinstance(m, dict) and m.get("role") == "assistant"))
 except Exception:
     print(0)
-' "$OUT/.share_hist.json"
+'
+}
+
+# Same privacy shape as device_history_assistant_count, extracting the LAST
+# assistant text instead of the count (pt_last_assistant_text used to call
+# the count only for the side effect of writing .share_hist.json, then
+# re-parse it).
+device_last_assistant_text() {
+  local index_raw id key
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  id=$(resolve_active_conversation_id "$index_raw")
+  key=$(messages_storage_key "$id")
+  sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" 2>/dev/null \
+    | python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.stdin.read() or "[]")
+    msgs = [m for m in data if isinstance(m, dict) and m.get("role") == "assistant"]
+    if not msgs:
+        sys.exit(0)
+    print(msgs[-1].get("text") or "")
+except Exception:
+    pass
+'
 }
 
 # Cache-bust with a fragment: AppShell ignores a URL it already consumed.
