@@ -100,36 +100,80 @@ function assertAppShellLoadPreservesBytes() {
 
 /**
  * Enumerates EVERY writer of modelEmittedText in src and requires each to
- * handle emissionSource in the same region. A writer that moves the string
- * without the flag desyncs the renderer from the native KV. In-place editing
- * of assistant text does not exist today (editing re-sends and produces a NEW
- * turn); if it is ever added, its write lands here and fails BY NAME until it
- * sets or clears the flag and the expected counts are updated on purpose.
+ * handle emissionSource in the same region — a write requires a paired WRITE
+ * of the flag, a removal (delete) requires a paired REMOVAL. A writer that
+ * moves the string without the flag desyncs the renderer from the native KV.
+ * In-place editing of assistant text does not exist today (editing re-sends
+ * and produces a NEW turn); if it is ever added, its write lands here and
+ * fails BY NAME until it sets or clears the flag and the expected counts are
+ * updated on purpose.
  */
+
+/**
+ * Write and removal shapes for a field, each tagged with the pairing it
+ * requires. Writes: dot (incl. compound `+=` `??=` `||=`), bracket key, and
+ * the two object-literal key forms (colon — bare, after a spread, spaced,
+ * quoted — and brace-adjacent shorthand). Removals: `delete x.f` and
+ * `delete x["f"]`. Comparisons (`==` `===` `>=`), reads, call arguments and
+ * type fields (`f?:`) match none of these.
+ */
+function writeShapesFor(field) {
+  const f = String(field);
+  const alt = `(?:"${f}"|'${f}'|${f})`;
+  return [
+    { kind: "write", re: new RegExp(`\\.${f}\\s*(?:(?:\\+|\\?\\?|\\|\\|)?=(?![=>]))`, "g") },
+    { kind: "write", re: new RegExp(`\\[\\s*["']${f}["']\\s*\\]\\s*(?:(?:\\+|\\?\\?|\\|\\|)?=(?![=>]))`, "g") },
+    { kind: "write", re: new RegExp(`(?:\\{|,)\\s*${alt}\\s*:`, "g") },
+    { kind: "write", re: new RegExp(`\\{\\s*${alt}\\s*(?=[,}\\n\\r])`, "g") },
+    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.]+\\.${f}\\b`, "g") },
+    { kind: "delete", re: new RegExp(`delete\\s+[\\w$.]+\\[\\s*["']${f}["']\\s*\\]`, "g") },
+  ];
+}
+
+/**
+ * Per-OCCURRENCE detection: two identical write strings in one file must
+ * each be checked at their own offset — an indexOf on the matched text
+ * pairs the second writer against the first writer's region and a comment
+ * can satisfy it.
+ */
+function findWriteOccurrences(src, field) {
+  return writeShapesFor(field).flatMap(({ re, kind }) =>
+    [...src.matchAll(re)].map((m) => ({ text: m[0], index: m.index, kind })));
+}
+
+/** Writers of modelEmittedText whose region lacks the required paired handling. */
+function emissionWriterViolations(src) {
+  const violations = [];
+  for (const occ of findWriteOccurrences(src, "modelEmittedText")) {
+    // Removals pair FORWARD only: the flag follows the string by convention
+    // at both real sites, and a backward window would let an unrelated flag
+    // removal (e.g. the invalid-value branch above the string's own delete)
+    // satisfy this site's pairing. Writes keep the bidirectional window.
+    const region =
+      occ.kind === "delete"
+        ? src.slice(occ.index, occ.index + occ.text.length + 400)
+        : src.slice(Math.max(0, occ.index - 200), occ.index + occ.text.length + 400);
+    // Pairing is judged on CODE, never on prose: comments are stripped from
+    // the region so a mention of emissionSource in a comment cannot satisfy
+    // the check the way the bare-substring test once did.
+    const code = region
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/^[ \t]*\/\/.*$/gm, "");
+    const paired = findWriteOccurrences(code, "emissionSource").some((p) => p.kind === occ.kind);
+    if (!paired) violations.push(occ);
+  }
+  return violations;
+}
+
 function assertEmissionSourceWriters() {
   const fsMod = require("node:fs");
   const srcRoot = path.join(projectRoot, "src");
-  // Writes only, in every common shape: excludes === / !== / >= comparisons
-  // and reads. `.modelEmittedText =` catches any receiver (including
-  // `msgs[i].modelEmittedText`), the bracket form catches
-  // `msg["modelEmittedText"] =`, and the two literal forms catch object keys:
-  // key followed by a colon (bare, after a spread, spaced, or quoted) and
-  // brace-adjacent shorthand (Object.assign). A comma + name inside a CALL is
-  // a read and must not match — hence the comma form requires the colon.
-  // Type fields (`modelEmittedText?:`) match none of these.
-  const writePatterns = [
-    /\.modelEmittedText\s*=(?![=>])/g,
-    /\[\s*["']modelEmittedText["']\s*\]\s*=(?![=>])/g,
-    /(?:\{|,)\s*(?:"modelEmittedText"|'modelEmittedText'|modelEmittedText)\s*:/g,
-    /\{\s*(?:"modelEmittedText"|'modelEmittedText'|modelEmittedText)\s*(?=[,}\n\r])/g,
-  ];
 
-  function findWrites(src) {
-    return writePatterns.flatMap((re) => src.match(re) ?? []);
-  }
-
-  // Non-vacuity: every common write shape is DETECTED, so a pattern that
-  // rots cannot silently shrink the audit back to substring wishes.
+  // Non-vacuity: every common write AND removal shape is DETECTED, so a
+  // pattern that rots cannot silently shrink the audit back to substring
+  // wishes. The delete forms matter most: historyPersistable.ts removes the
+  // string and the flag together, and a detector that only sees `=` / `:`
+  // scores zero on exactly the regression it exists to prevent.
   const shapeFixtures = [
     ["dot write on a bracket-indexed receiver", "msgs[i].modelEmittedText = x;"],
     ["bracket-key write", 'msg["modelEmittedText"] = x;'],
@@ -138,45 +182,90 @@ function assertEmissionSourceWriters() {
     ["space before the colon", "{ modelEmittedText : x };"],
     ["quoted key", '{ "modelEmittedText": x };'],
     ["bare shorthand", "({ modelEmittedText });"],
+    ["dot removal", "delete msg.modelEmittedText;"],
+    ["bracket removal", 'delete msg["modelEmittedText"];'],
+    ["compound += write", "msg.modelEmittedText += x;"],
+    ["compound ??= write", "msg.modelEmittedText ??= x;"],
+    ["compound ||= write", "msg.modelEmittedText ||= x;"],
   ];
   for (const [name, shape] of shapeFixtures) {
-    assert.equal(findWrites(shape).length, 1, `write shape not detected: ${name}`);
+    assert.equal(
+      findWriteOccurrences(shape, "modelEmittedText").length,
+      1,
+      `write/removal shape not detected: ${name}`,
+    );
   }
   assert.equal(
-    findWrites(shapeFixtures.map(([, s]) => s).join("\n")).length,
+    findWriteOccurrences(shapeFixtures.map(([, s]) => s).join("\n"), "modelEmittedText").length,
     shapeFixtures.length,
     "the write detector double-counts or misses shapes when combined",
   );
   // ...and the shapes the patterns must keep ignoring:
   assert.equal(
-    findWrites("typeof m.modelEmittedText === 'string'").length,
+    findWriteOccurrences("typeof m.modelEmittedText === 'string'", "modelEmittedText").length,
     0,
     "a comparison must not be counted as a write",
   );
   assert.equal(
-    findWrites("type T = { modelEmittedText?: string };").length,
+    findWriteOccurrences("type T = { modelEmittedText?: string };", "modelEmittedText").length,
     0,
     "a type field must not be counted as a write",
   );
   assert.equal(
-    findWrites('normalize("assistant", modelEmittedText,)').length,
+    findWriteOccurrences('normalize("assistant", modelEmittedText,)', "modelEmittedText").length,
     0,
     "a call argument must not be counted as a write",
   );
 
-  // Per-file expectation: [dot assigns, bracket writes, literal keys].
+  // The pairing rule itself, on synthetic text: a paired removal passes, an
+  // unpaired removal violates, and with two IDENTICAL write strings the
+  // per-occurrence offset is what separates them (an indexOf-based check
+  // reads the FIRST writer's region twice and a violation dies unseen).
+  assert.equal(
+    emissionWriterViolations("delete a.modelEmittedText; delete a.emissionSource;").length,
+    0,
+    "a removal paired with a flag removal must pass",
+  );
+  assert.equal(
+    emissionWriterViolations("delete a.modelEmittedText;").length,
+    1,
+    "a removal without the paired flag removal must violate",
+  );
+  const twoWrites = [
+    "x.modelEmittedText = v; x.emissionSource = s;",
+    ...Array.from({ length: 12 }, (_, i) => `// filler ${i} ${"x".repeat(24)}`),
+    "x.modelEmittedText = v;",
+  ].join("\n");
+  assert.equal(
+    findWriteOccurrences(twoWrites, "modelEmittedText").length,
+    2,
+    "both write occurrences must be found individually",
+  );
+  assert.equal(
+    emissionWriterViolations(twoWrites).length,
+    1,
+    "the second, unpaired write must violate at its OWN offset",
+  );
+
+  // Per-file expectation, in writeShapesFor order:
+  // [dotWrite, bracketWrite, keyColon, keyShorthand, deleteDot, deleteBracket].
   // 1. screens/AiChatPage.tsx — hydration restore + finalize spread (capture
   //    producer writes the pair through the finalize literal).
   // 2. app/AppShell.tsx — validateHistoryMessages + engine-message copy.
   // 3. context/compactor.ts — toEngineHistoryMessage assembly.
-  // 4. engine/historyPersistable.ts — persistence normaliser.
+  // 4. engine/historyPersistable.ts — persistence normaliser, which drops
+  //    the string AND the flag together.
   const expected = {
-    "screens/AiChatPage.tsx": [1, 0, 1],
-    "app/AppShell.tsx": [2, 0, 0],
-    "context/compactor.ts": [1, 0, 0],
-    "engine/historyPersistable.ts": [1, 0, 0],
+    "screens/AiChatPage.tsx": [1, 0, 1, 0, 0, 0],
+    "app/AppShell.tsx": [2, 0, 0, 0, 0, 0],
+    "context/compactor.ts": [1, 0, 0, 0, 0, 0],
+    "engine/historyPersistable.ts": [1, 0, 0, 0, 1, 0],
   };
 
+  // Scan scope: src/ only, .ts/.tsx/.js. Root App.tsx and modules/ live
+  // outside src and were verified (2026-09-18, kv-land audit) to mention
+  // modelEmittedText nowhere, so the boundary is an empty escape hatch, not
+  // a live hole — re-verify before widening it.
   function listSources(dir) {
     return fsMod
       .readdirSync(dir, { withFileTypes: true })
@@ -184,7 +273,7 @@ function assertEmissionSourceWriters() {
         const p = path.join(dir, e.name);
         return e.isDirectory()
           ? listSources(p)
-          : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name)
+          : /\.(tsx?|js)$/.test(e.name) && !/\.test\./.test(e.name)
             ? [p]
             : [];
       });
@@ -192,25 +281,23 @@ function assertEmissionSourceWriters() {
 
   for (const [rel, counts] of Object.entries(expected)) {
     const src = fsMod.readFileSync(path.join(srcRoot, rel), "utf8");
-    const found = findWrites(src);
+    const found = findWriteOccurrences(src, "modelEmittedText");
     const expectedCount = counts.reduce((a, b) => a + b, 0);
     if (found.length !== expectedCount) {
       throw new Error(
-        `${rel}: expected ${expectedCount} writer(s) of modelEmittedText, ` +
-          `found ${found.length} (${JSON.stringify(found)}) — a writer was ` +
+        `${rel}: expected ${expectedCount} writer(s)/remover(s) of modelEmittedText, ` +
+          `found ${found.length} (${JSON.stringify(found.map((f) => f.text))}) — a writer was ` +
           `added or removed without updating the emissionSource audit`,
       );
     }
-    for (const m of found) {
-      const at = src.indexOf(m);
-      const region = src.slice(Math.max(0, at - 200), at + m.length + 400);
-      if (!region.includes("emissionSource")) {
-        throw new Error(
-          `${rel}: the writer "${m.trim().replace(/\s+/g, " ")}" does not ` +
-            `handle emissionSource beside it — a string moved without its ` +
-            `provenance flag desyncs the renderer from the native KV`,
-        );
-      }
+    const violations = emissionWriterViolations(src);
+    if (violations.length > 0) {
+      throw new Error(
+        `${rel}: writer(s) of modelEmittedText without the paired ` +
+          `emissionSource handling beside them (${violations.map((v) => `${v.kind}: ${v.text}`).join("; ")})` +
+          ` — a string moved without its provenance flag desyncs the ` +
+          `renderer from the native KV`,
+      );
     }
   }
 
@@ -218,7 +305,7 @@ function assertEmissionSourceWriters() {
   const unregistered = [];
   for (const file of listSources(srcRoot)) {
     const src = fsMod.readFileSync(file, "utf8");
-    const hits = findWrites(src);
+    const hits = findWriteOccurrences(src, "modelEmittedText");
     total += hits.length;
     const rel = path.relative(srcRoot, file);
     if (hits.length > 0 && expected[rel] === undefined) {
@@ -232,13 +319,13 @@ function assertEmissionSourceWriters() {
         `audit: ${unregistered.join(", ")}`,
     );
   }
-  if (total !== 6) {
+  if (total !== 7) {
     throw new Error(
-      `expected 6 writers of modelEmittedText across src, found ${total} — ` +
+      `expected 7 writers/removers of modelEmittedText across src, found ${total} — ` +
         `the writer list changed; update the audit on purpose`,
     );
   }
-  console.log("PASS emissionSource writer audit (6 writers, all paired)");
+  console.log("PASS emissionSource writer audit (7 writers, writes and removals paired)");
 }
 
 function main() {
