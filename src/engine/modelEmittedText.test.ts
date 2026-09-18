@@ -78,10 +78,10 @@ describe("promptContentForHistoryMessage", () => {
 
 describe("llamaHistoryAssistantFields", () => {
   test("form B completed: does not duplicate a leading think span", () => {
-    const raw = "<think>\n\n</think>\n\nLa memoria KV è una cache.";
+    const raw = "<think>\n\n</think>\n\nThe KV cache.";
     const fields = llamaHistoryAssistantFields({
       role: "assistant",
-      content: "La memoria KV è una cache.",
+      content: "The KV cache.",
       modelEmittedText: raw,
     });
     expect(fields).toEqual({ content: raw });
@@ -125,6 +125,16 @@ describe("llamaHistoryAssistantFields", () => {
         content,
       }),
     ).toEqual({ content });
+  });
+
+  test("prefixes plain content when modelEmittedText is absent", () => {
+    const content = "plain content";
+    expect(
+      llamaHistoryAssistantFields({
+        role: "assistant",
+        content,
+      }),
+    ).toEqual({ content: `<think>${content}` });
   });
 
   test("preserves a closing tag at position zero", () => {
@@ -216,7 +226,6 @@ describe("llamaHistoryAssistantFields", () => {
     );
     expect(fields.content).toBe(raw);
     expect(fields.reasoning_content).toBe("");
-    expect(fields.content).toContain("<think>");
   });
 
   test("content_span without a closed think omits reasoning_content", () => {
@@ -269,6 +278,20 @@ describe("historyReplayCharLength", () => {
         { historyThink: "reasoning_content" },
       ),
     ).toBe(fallbackContent.length);
+    const fallbackText = "plain text";
+    const differentContent = "<think>different content";
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(fallbackText.length + "<think>".length);
+    expect(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText, content: differentContent },
+        { historyThink: "reasoning_content" },
+      ),
+    ).toBe(fallbackText.length + "<think>".length);
     expect(
       historyReplayCharLength(
         { role: "assistant", text: "short", modelEmittedText: rawWithoutTag },

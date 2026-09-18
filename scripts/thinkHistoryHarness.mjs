@@ -176,6 +176,15 @@ function main() {
         expected: { content: "<think>FALLBACK" },
       },
       {
+        name: "form A: absent emission prefixes plain content",
+        message: {
+          role: "assistant",
+          content: "plain content",
+        },
+        options: undefined,
+        expected: { content: "<think>plain content" },
+      },
+      {
         name: "content_span branch",
         message: {
           role: "assistant",
@@ -260,6 +269,24 @@ function main() {
       ),
       "<think>FALLBACK".length,
       "absent emission budget measures content source",
+    );
+    const fallbackText = "plain text";
+    const differentContent = "<think>different content";
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText },
+        { historyThink: "reasoning_content" },
+      ),
+      fallbackText.length + 7,
+      "reachable absent emission budget measures text source",
+    );
+    assert.equal(
+      historyReplayCharLength(
+        { role: "assistant", text: fallbackText, content: differentContent },
+        { historyThink: "reasoning_content" },
+      ),
+      fallbackText.length + 7,
+      "text wins over different content in the reachable budget shape",
     );
     assert.equal(
       historyReplayCharLength(
