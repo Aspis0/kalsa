@@ -748,6 +748,80 @@ async function main() {
       /restore_aborted=1/.test(blocked),
     "every reason the job stopped is visible in PREWARM_STOPS",
   );
+  // blocked has no live-cache row at all: with the criterion now always
+  // printed, that shape must name the absence instead of ending without a
+  // verdict — three sections and no criterion read like a pass-by-silence.
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(no live-cache measurement in this run\)/.test(blocked),
+    "a run with prewarm lines but no live cache gets a criterion, not silence",
+  );
+
+  // THE fixture for the worst failure shape of the feature: the prewarm
+  // reports a full success (restore_ok, done, whole-cache reuse) while the
+  // send hashed a DIFFERENT prefix. The match:false payload has no "op"
+  // field, so nothing else in the verdict ever counted it — before
+  // PREFIX_MATCH and the criterion reason existed, this evidence PASSED.
+  const prefixMiss = verdict(
+    "prefix-miss",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h1"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      'KALSA_PREWARM {"match":false,"reason":"prefix_miss","prewarm":"h1","send":"h2"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /PREFIX_MATCH: miss=1 kv_holds_chat=0/.test(prefixMiss),
+    "the send-path prefix_miss is counted despite having no op field",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(prefix hash miss on the send path x1\)/.test(prefixMiss),
+    "a perfect-looking reuse run fails on the send-path hash miss",
+  );
+
+  // match:false with kv_holds_chat is NOT a defect: the KV held a chat, so
+  // the static prefix was deliberately not what was cached. Counted, and the
+  // otherwise-perfect run stays a pass.
+  const matchKvHolds = verdict(
+    "match-kv-holds",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h1"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832",
+      'KALSA_PREWARM {"match":false,"reason":"kv_holds_chat","prewarm":"h1","send":"h2"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /PREFIX_MATCH: miss=0 kv_holds_chat=1/.test(matchKvHolds),
+    "a match:false kv_holds_chat line is counted without failing",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: PASS/.test(matchKvHolds),
+    "the KV holding a chat is not a prefix failure",
+  );
+
+  // Evidence with prewarm lines but not a single live-cache row: the reuse
+  // question was never measured, so the criterion must SAY so instead of
+  // staying silent. The exit code stays 0 — criteria print; only the empty
+  // evidence exits non-zero.
+  const noKvPrefix = verdict(
+    "no-kvprefix",
+    [
+      'KALSA_PREWARM {"op":"restore","ok":true,"tokens":1832,"hash":"h"}',
+      'KALSA_PREWARM {"op":"done"}',
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /KV_PREFIX: no KALSA_KVPREFIX line with a live cache/.test(noKvPrefix),
+    "the missing live cache is still reported on its own line",
+  );
+  assert(
+    /KV_PREFIX_CRITERION: FAIL \(no live-cache measurement in this run\)/.test(noKvPrefix),
+    "a run that never measured reuse fails the criterion instead of silence",
+  );
 
   // A run that produced nothing must say so, not divide by zero.
   // An empty evidence file means the capture failed. It must not print the same

@@ -36,10 +36,29 @@ const stops = ["stale", "no_context", "disposing", "kv_holds_chat",
 console.log("PREWARM_STOPS: " + stops.map((r) =>
   r + "=" + n(new RegExp("\"op\":\"skip\",\"reason\":\"" + r + "\"", "g"))).join(" ") +
   " restore_aborted=" + n(/"op":"restore","ok":false,"reason":"aborted"/g));
+// The send path logs a hash comparison WITHOUT an "op" field, which is why
+// PREWARM_STOPS above never saw it. prefix_miss is THE failure shape of the
+// whole feature: the prewarm reported restore/done while having warmed a
+// prefix the send did not hash — the entire prefill wasted, with every other
+// counter looking perfect. kv_holds_chat on match:false is NOT a defect: the
+// KV held a chat, so the static prefix was deliberately not what was cached.
+const prefixMisses = n(/"match":false,"reason":"prefix_miss"/g);
+const matchKvHolds = n(/"match":false,"reason":"kv_holds_chat"/g);
+console.log("PREFIX_MATCH: miss=" + prefixMisses + " kv_holds_chat=" + matchKvHolds);
 const rows = [...ev.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)]
   .map((m) => ({ embd: +m[1], text: +m[2], common: +m[3] }))
   .filter((r) => r.embd > 0);
-if (!rows.length) { console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache"); }
+if (!rows.length) {
+  console.log("KV_PREFIX: no KALSA_KVPREFIX line with a live cache");
+  // Evidence without a live cache never measured the reuse question, and a
+  // missing criterion read like a pass-by-silence: three sections, no
+  // verdict. Same philosophy as the empty-evidence exit above — but here the
+  // criteria PRINT and the exit code stays out of it; the only non-zero exit
+  // remains the empty evidence. Unlike FG_REKICK there is no legitimate
+  // protocol mode that skips the KV diag, so silence cannot mean "not
+  // exercised" here — it means "no measurement".
+  console.log("KV_PREFIX_CRITERION: FAIL (no live-cache measurement in this run)");
+}
 else {
   const whole = rows.filter((r) => r.common === r.embd).length;
   const lost = rows.filter((r) => r.common === 0).length;
@@ -56,7 +75,9 @@ else {
     " total_loss=" + lost + " best n_common=" + best.common + " embd=" + best.embd +
     " text_tokens=" + best.text + " min_embd=" + smallest.embd);
   // The criterion, stated by the script so it cannot be misread off four
-  // counters: every cycle reused its whole cache, and a prewarm actually ran.
+  // counters: every cycle reused its whole cache, a prewarm actually ran,
+  // and the send hashed the prefix that was warmed — a prefix_miss is a
+  // run-level failure even when the n_common counters look perfect.
   // Written before the data, deliberately more severe than "at least one good
   // cycle" — a run is not a pass because one of its cycles was.
   const ran = n(/"op":"restore","ok":true/g) + n(/"op":"done"/g);
@@ -65,6 +86,7 @@ else {
   if (partial > 0) fails.push("partial reuse x" + partial);
   if (lost > 0) fails.push("total loss x" + lost);
   if (ran < 1) fails.push("no prewarm restore or prefill happened");
+  if (prefixMisses > 0) fails.push("prefix hash miss on the send path x" + prefixMisses);
   console.log("KV_PREFIX_CRITERION: " + (fails.length ? "FAIL (" + fails.join("; ") + ")" : "PASS"));
 }
 console.log("KV_FALLBACK: checkpoint_recover=" + n(/KALSA_KVREUSE checkpoint/g) +
