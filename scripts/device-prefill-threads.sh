@@ -68,18 +68,7 @@ pt_wait_assistant() {
 }
 
 pt_last_assistant_text() {
-  device_history_assistant_count >/dev/null
-  python3 -c '
-import json, sys
-try:
-    data = json.loads(open(sys.argv[1], encoding="utf-8").read() or "[]")
-    msgs = [m for m in data if isinstance(m, dict) and m.get("role") == "assistant"]
-    if not msgs:
-        sys.exit(0)
-    print(msgs[-1].get("text") or "")
-except Exception:
-    pass
-' "$OUT/.share_hist.json"
+  device_last_assistant_text
 }
 
 pt_read_engine_pref() {
