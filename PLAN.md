@@ -2009,3 +2009,23 @@ I numeri e la catena di prova stanno in `docs/ALIVE.md`, voce "18/09 mattina". I
    visto in diretta; e' il -37% gia' calcolato.
 6. Aperte e **non mie**: soglia del gate di catalogo, `WINDOW_RESERVE_TOKENS`, n_ctx 8192→16384,
    e rendere KV-riproducibili i turni con tool call (cambio di disegno, decisione dell'owner).
+
+## Cambio del contratto di CI di main, deciso prima del merge (18/09 sera)
+
+**Da questo merge un jest rosso fa rosso l'e2e di main.** Oggi non e' cosi', e non e' un'opinione:
+`ci.yml` parte solo su push/PR a `feat/**` (righe 7-19 su `3cabcf1`) ed e' l'unico posto dove jest
+girava; `e2e-emulator.yml` e' l'unico workflow che parte su push a main e **non ha mai fatto girare
+jest** (`grep -n jest` su `204298f` e su `3cabcf1`: zero righe). Quindi oggi **un push su main non fa
+girare i test unitari da nessuna parte**.
+
+kv-land aggiunge lo step `Jest (bounded — the suite that guards main)` con `timeout-minutes: 15`,
+prima di `Typecheck + logic harnesses` e prima dell'emulatore. Decisione di kalsa-02 sotto
+l'autorizzazione di Marco per questa linea, **revocabile da lui**: si tiene. Tre motivi, tutti
+verificabili: un push a main senza test unitari e' un buco; oggi si e' visto in diretta cosa vale una
+suite verde quando i test non ci sono (`9a59ef3`, cancellati da un `git checkout --`); e stando prima
+dell'emulatore un rosso costa 15 minuti, non 120.
+
+**Cosa puo' andare storto, scritto prima:** un jest rosso su main per cause che non c'entrano con kv
+adesso blocca anche l'evidenza e2e. Il bound e' li' per quello, ma il rischio esiste e si accetta
+sapendolo. Per questo la punta **rebasata** va rimisurata con jest prima del push: il verde che ho
+(82 suite / 971 test, Node 20, exit 0) vale per `6db7263`, che non contiene `3cabcf1`.
