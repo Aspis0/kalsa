@@ -670,6 +670,27 @@ contratto); al soffitto del contesto su LFM lo stato ricorrente non si evince �
 (decisione 14/09); incollaggio da 9000 char azzera la storia (anchored-floor); stop/modifica/rigenera/
 cambio chat non ancora misurati (16 cicli); riuso col motore 63b92e83 non riprovato sul telefono (termica).
 
+**CI di main, 18/09 notte: verde con tre riserve, e main avanza.** Run e2e `35396235745` su `2ed2a88`
+(tentativo 1 ANR emulatore, `n_past=0`, nessuna risposta in 1490 s; tentativo 2 `success`, 21:20Z→23:50Z),
+riga di verdetto `[ci] PASS: real on-device inference completed (3 turns + telemetry + session restore leg)`.
+Verificato nel log dal coordinatore: (1) **il turno 3 non ha risposto** — `reply3` e' il banner
+dell'app *"The reply did not start within 180 s"* dopo `wait_ui_idle timed out after 240s (soft-fail)`;
+la condizione di PASS chiede tre turni, non tre risposte, quindi il gate e' verde su un turno morto;
+(2) **la gamba di restore e' vuota**: `SESSION_RESTORE: HIT` poi `LOADED BUT COLD (reused 0/2302)`,
+`turn3(restart): cached=? evaluated=? promptMs=? (missing)`, esplicitamente non-fallante;
+(3) **il riuso dopo riavvio e' rifiutato sull'obiettivo stesso**: `KALSA_KVDIAG n_common=2081 total=2302
+checkpoints=[2303,]` e `KV_PREFIX: best n_common=2081 embd=2303 whole_cache_reused=NO` → 2081 token di
+prefisso comune buttati, `Input processed: n_past=0, embd.size=2302`. Il checkpoint sta a 2303, la
+divergenza a 2081: il riuso intero e' rifiutato e non risulta un ripiego che tronchi a n_common.
+In piu', da chiarire: la riga nativa `kv_reuse turn2` finisce con `n_past=0, embd.size=2140` mentre il
+JS dice `KV_CACHE: WARM (turn2 reused 2136/2250)` — totali e n_past diversi, il 2136 va ricondotto alla
+riga nativa che lo produce prima di dire "il riuso in-processo c'e'" (kalsa-93). *Non e' ancora un
+difetto di prodotto*: l'emulatore non e' il telefono e sull'S23 il riuso intero dopo force-stop e'
+misurato (667 ms). *Direzione, decisione dell'owner:* (a) `reply3` uguale al banner d'errore deve far
+fallire il run — oggi il contratto lo tollera; (b) la gamba COLD resta "logged" finche' il ripiego a
+n_common non e' cercato nel codice. **main = `c45f044`** (persist-guard, ff su `2ed2a88`, tsc 0 / jest 0 /
+993 test misurati nel worktree, 9 file tutti `src/`); e2e su c45f044 = run `35407337897`.
+
 **Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
 e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
 
