@@ -594,6 +594,23 @@ riproduzione sul Mac con la probe quando c'e' tempo); off-by-one del prewarm (co
 riusata comunque); etichetta "N chat" del budget (decisione owner). Il default del registry passa a LFM
 dentro `boot-loop-breaker` (G1 del 10/09; revocabile dall'owner).
 
+**Decisione owner 18/09 sera — governor in M1: CPU + GPU, NPU in M2.** "GPU sul Galaxy funzionava:
+non andava piu' veloce ma raffreddava. Stessa cosa NPU per prefill. E' la cosa fondamentale che il
+governor debba fare." I dati lo sostengono (S23 12-13/08: decode GPU 38,5 °C in plateau vs CPU 42,3 in
+salita; QRD8650: +4,5 °C GPU vs +10,1 °C CPU nello stesso turno; NPU prefill 3,5×/4,8×/7,2× su
+v73/v75/v79) ma **l'app non fa nulla di tutto questo** (verificato 18/09, main 2ed2a88): il cool-mode non
+e' deciso da nessuna parte (`thermalThresholds.ts` emette `preferGpuPath`, nessuno lo legge), l'NPU non e'
+instradata (`deviceTuning.ts:780-788`: due esiti, GPU o 0), col governor attivo restore e save della
+sessione sono spenti (`LlamaService.ts:2634-2636`, `:3105-3108`, `:5459-5461`), e il modulo
+`GovernorBatteryModule.kt` che legge corrente e contatore di carica NON e' nell'APK (plugin solo al
+prebuild). Sull'S23 l'energia e' leggibile solo da dentro l'app (shell bloccata da Samsung).
+Entrano in M1, in quest'ordine: (1) contratto KV sotto governor (la sessione si salva e si ripristina
+anche in governor mode), (2) switch cool-mode → prefill GPU al confine di fase con isteresi, sul sensore
+che conta (AP/skin) e non sullo stato OS, che arriva tardi (18/09: i tetti seguono il carico), (3)
+`GovernorBattery` nell'APK come Expo module autolinkato (come `kalsa-thermal`), (4) A/B appaiato CPU vs
+GPU cool-mode su S23 scollegato con T20C come strumento: temperatura, batteria, tok/s, KV riusata.
+NPU prefill: M2.
+
 **Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
 e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
 
