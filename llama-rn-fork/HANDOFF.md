@@ -368,51 +368,65 @@ conflicts and the minutes spent: that number is the migration's real result.
 
 ### 6a. `bump` — a new kalsallama commit reaches the fork
 
-Today kalsallama `main` == the pin (`134a35cf2`), so:
-```
-cd /Users/marco/Projects/llama.rn-kalsa && unset KALSALLAMA_SRC     # bump refuses KALSALLAMA_SRC by design
-KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn scripts/sync-kalsallama.sh bump > /tmp/bump.log 2>&1; echo $?
-git status --short | wc -l                                          # 0: idempotent at the same pin
-```
-**CORRECTION (18/09, measured — an earlier version of this paragraph said the opposite and was
-wrong).** The command above, `KALSA_BMOE_DIR=... bump`, **fails**. `regen_cpp` runs the include
-gate on `$FLATTEN_TMP/cpp` (`scripts/sync-kalsallama.sh:747`) — the tree just flattened out of
-kalsallama — and `SYNC_EXCLUDES` (line 19) is `('rn-*' 'jsi' 'ggml-ext.h' 'anyascii.*')`: those
-files exist only in the installed `cpp/`, never in the temp tree. So both spellings exit 1, and
-both exits are on disk:
+Today kalsallama `main` == the pin (`237461a98`), so a bump is idempotent: it re-flattens the same
+commit, the gate grades it, and `cpp/` comes out unchanged. Run it from the fork with
+`KALSALLAMA_SRC` unset — `bump` refuses that variable by design, because it resolves
+`origin/<branch>` from the clone cache.
 
-- without `KALSA_BMOE_DIR` → partial mode → `[includes] FAIL: partial syntax pass (KALSA_BMOE_DIR
-  not set (rn-*.cpp, jsi and bmoe TUs skipped))`
+**The line that works (18/09, from `kalsa@485519fe` onwards).** Both commands exit 0 and both
+print `307 TUs parse (7 rn, 6 jsi, 9 bmoe, 45 core, 12 cpu, 2 opencl, 20 common, 6 jinja, 49 mtmd,
+151 models)`; the bump's OK line carries `(rn/jsi graded from the installed cpp/, not from this
+tree)`, which is the borrow saying where those 13 TUs came from.
+```
+KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn bash scripts/sync-kalsallama.sh bump   > /tmp/bump.log 2>&1; echo $?
+KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn bash scripts/sync-kalsallama.sh verify > /tmp/verify.log 2>&1; echo $?
+```
+
+**How it got here, so nobody re-derives it (measured, in this order).** Before `485519fe` that
+bump failed, and so did the spelling without `KALSA_BMOE_DIR`:
+
 - with `KALSA_BMOE_DIR` → full mode → `[includes] FAIL: rn parsed 0 TUs, expected at least 7.` and
-  the same for jsi (6); 294 TUs total (9 bmoe, 45 core, 12 cpu, 2 opencl, 20 common, 6 jinja,
-  49 mtmd, 151 models)
+  the same for jsi (6); 294 TUs total
+- without it → partial mode → `[includes] FAIL: partial syntax pass (KALSA_BMOE_DIR not set
+  (rn-*.cpp, jsi and bmoe TUs skipped))`
 
-The shape the gate actually intends is **partial at the flatten, full at `verify`**: at line 747
-full coverage is impossible by construction, while `cmd_verify` runs the same gate on `$CPP_DIR`,
-which has the binding layer, and grades all 307. So the working pair is
+The cause is structural: `regen_cpp` runs the gate on the tree just flattened out of kalsallama,
+and the llama.rn-owned binding sources (`cpp/rn-*.cpp`, `cpp/jsi/*.cpp`) are never in it, because
+the copy lists that build the flatten never name them. `SYNC_EXCLUDES` (line 19) is **not** the
+reason — it only keeps install, verify and the verify diff off those paths; an earlier version of
+this paragraph said otherwise and was wrong. The workaround was partial at the flatten, full at
+`verify`:
 ```
-KALSA_ALLOW_PARTIAL_GATE=1 bash scripts/sync-kalsallama.sh bump      # partial: no rn/jsi/bmoe in the temp tree
-KALSA_BMOE_DIR=/Users/marco/Projects/kalsa/native/bmoe/rn bash scripts/sync-kalsallama.sh verify
+KALSA_ALLOW_PARTIAL_GATE=1 bash scripts/sync-kalsallama.sh bump      # grades no binding source at all
 ```
-and the `verify` line is not optional — it is the only pass that ever sees `rn-*` and `jsi`.
-Nothing is damaged by either refusal: the gate runs before `install_cpp_tree` and `write_pin`, so a
-red bump leaves `kalsallama.pin` and `cpp/` exactly as they were (verified on disk after a real
-exit 1). The structural fix, if someone wants the full gate to run *before* anything is written,
-is to copy the current `rn-*`/`jsi` files into `$FLATTEN_TMP/cpp` ahead of the gate call — an edit
-to `sync-kalsallama.sh`, so ⛔ ASK first.
+That is still what a checkout without `485519fe` needs, and it is why the 18/09 bump recorded
+below shows `285 TUs (0 rn, 0 jsi, 0 bmoe)`.
+
+`485519fe` closed it: `borrow_rn_owned_for_gate` copies the installed rn-owned sources into the
+throwaway tree before the gate call, so the full 307-TU gate runs **before** anything is written,
+and `install_cpp_tree` rsyncs with the same excludes and no `--delete-excluded`, so nothing
+borrowed travels back into `cpp/` (measured: after a bump only the scripts differ). The gate is
+told with the flag `--rn-borrowed`, never an exported variable, and its OK line names only the
+groups whose counters are non-zero. Two consequences for whoever runs the next bump:
+`KALSA_ALLOW_PARTIAL_GATE=1` now means nothing but "grade no binding source", so do not reach for
+it; and `KALSA_ALLOW_PARTIAL_GATE` never skipped a floor in the first place — `partial` being
+non-empty is what selects the weaker floor set, the variable only turns an already partial pass
+from exit 1 into exit 0.
+
+Nothing is damaged by a red gate: it runs before `install_cpp_tree` and `write_pin`, so a red bump
+leaves `kalsallama.pin` and `cpp/` exactly as they were (verified on disk after a real exit 1).
 
 **The mechanism has now been exercised for real (18/09, `kalsa@e8505ca2`).** `bump` from
 `70b4302bb` to kalsallama `237461a98` exited **0** with `285 TUs parse (0 rn, 0 jsi, 0 bmoe,
-45 core, 12 cpu, 2 opencl, 20 common, 6 jinja, 49 mtmd, 151 models)`, and the `verify` after it
-exited **0** with `307 TUs parse (7 rn, 6 jsi, 9 bmoe, …)` and
-`cpp/ == kalsallama@237461a98… + scripts/kalsa-patches`. Eleven files changed and ten of them are
-`cpp/` + `kalsallama.pin`, exactly as this section demands. Two things the OK line says out loud
-and the reader should not skip: the pass ran with **ndk 29.0.14206865, not this repo's pinned
-27.3.13750724** (that is this Mac's NDK; CI runs the pin), and the bump pass covered no binding TU
-at all — that is what the `verify` is for.
+45 core, 12 cpu, 2 opencl, 20 common, 6 jinja, 49 mtmd, 151 models)` — that count is the
+pre-`485519fe` workaround, not a target — and the `verify` after it exited **0** with
+`307 TUs parse (7 rn, 6 jsi, 9 bmoe, …)` and `cpp/ == kalsallama@237461a98… +
+scripts/kalsa-patches`. Eleven files changed and ten of them are `cpp/` + `kalsallama.pin`,
+exactly as this section demands. One thing the OK line says out loud and the reader should not
+skip: the pass ran with **ndk 29.0.14206865, not this repo's pinned 27.3.13750724** (that is this
+Mac's NDK; CI runs the pin).
 
-That idempotence run is a valid first proof of the mechanism; do it now. The real exercise
-happens when kalsa-07 lands a kalsallama commit on `main`: `bump` again, `verify` 0, gate OK,
+The real exercise happens when kalsa-07 lands a kalsallama commit on `main`: `bump` again, `verify` 0, gate OK,
 commit `build(engine): kalsallama <sha7> — <one line of what changed>` (the fork runs
 commitlint on commit-msg: `engine` is **not** an allowed type, and `engine:` is rejected with
 `type must be one of [build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test]`;
