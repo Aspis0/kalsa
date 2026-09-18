@@ -370,6 +370,16 @@ commit `engine: kalsallama <sha7> (<one line of what changed>)`, push, app bump 
 CI, device. If `bump` changes any file outside `cpp/` + `kalsallama.pin`, stop: that is a
 script defect (⛔ ASK).
 
+**The gate's per-group floors are part of the bump, not an obstacle to it (18/09).** Both
+include gates now carry a minimum per group, set near today's counts (fork gate: models 135,
+mtmd 44, core 40, common 18, cpu 10, jinja 5, opencl 2, rn 7, jsi 6, bmoe 9, total 290 full /
+270 partial; app gate: rn 7, common 18, mtmd 5). They exist because a single total let 101 of
+151 model TUs vanish silently. So: if a bump legitimately shrinks a group — kalsallama drops
+model files, upstream merges two TUs into one — **lower that floor in the same bump commit and
+write the reason in the message**. Never loosen a floor in advance, never add an escape
+variable, and never "fix" a red floor by deleting the check: a red floor is the gate saying the
+tree lost sources, and it is right until a commit proves otherwise.
+
 ### 6b. `git merge v0.12.9` — upstream llama.rn reaches the fork
 
 ```

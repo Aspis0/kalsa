@@ -6779,7 +6779,7 @@ assistente, quel test deve fallire.
 `MAX_TEXT = 100_000` **caratteri** (`:615`), cioe' ~25k token: ben oltre qualunque finestra che
 questo modello puo' tenere. Irraggiungibile ai nostri contesti, non e' un difetto vivo.
 
-**18/09 mezzogiorno — tre build, tre commit diversi, gli stessi 38 `.so`.** Confronto chiuso:
+**18/09 mattina — tre build, tre commit diversi, gli stessi 38 `.so`.** Confronto chiuso:
 
 | run | ramo / sha | cosa contiene |
 |---|---|---|
@@ -6817,7 +6817,7 @@ con `librnllama.so = b2d64b7a…` in tutti e tre. Se uno solo di quei file fosse
 sarebbe accorto. Registrato perche' e' il tipo di controllo che rende difendibile un differenziale:
 le misure girano sullo **stesso motore compilato**, e non perche' lo dico io.
 
-**18/09 mezzogiorno — accendere la CI sul ramo del fork si e' ripagata al primo giro.** Il ramo
+**18/09 mattina — accendere la CI sul ramo del fork si e' ripagata al primo giro.** Il ramo
 `kalsa` di `Aspis0/llama.rn` non aveva mai avuto una CI: `ci.yml` partiva solo su `main`, e ogni
 commit di Kalsa va su `kalsa`. Acceso (`a694adfc`, i quattro job pesanti restano di `main` con
 `if: github.ref != 'refs/heads/kalsa'`), la **prima run in assoluto** (`35360547883`) ha trovato due
@@ -6884,7 +6884,7 @@ proprieta' diverse, e non sono sovrapponibili: chi legge solo quest'ultimo non h
 Telefono: max 38,6 °C, batteria 100%, watchdog mai intervenuto.
 Dir: `device-restore-out/run-20260918-110132-fix3`.
 
-**18/09 mezzogiorno — il turno MTP sull'S23: la via si esercita, e si scopre che non puo' mai
+**18/09 mattina — il turno MTP sull'S23: la via si esercita, e si scopre che non puo' mai
 proporre.** APK gia' sul telefono (`35354420026`, stesso motore), nessuna installazione, modello
 cambiato **dalle prefs** (`kalsa.model.id=qwen3.5-4b`, `kalsa.bench.speculative={"type":"draft-mtp"}`)
 come fa `scripts/ci-e2e.sh`, un turno, poi prefs ripristinate e app force-stoppata. Logcat:
@@ -6922,7 +6922,7 @@ difetto di prodotto. Conseguenza per noi: il `.kvs` da 34,9 MB sopravvive ma e' 
 suo transcript non combacera' mai piu'), quindi **la prossima misura KV su telefono riparte da una
 conversazione nuova**.
 
-**18/09 mezzogiorno (11:36 EDT) — lo Step 4 e' su `main`: nell'app la strada vecchia non esiste
+**18/09 mattina (11:36 EDT) — lo Step 4 e' su `main`: nell'app la strada vecchia non esiste
 piu'.** Push `git push origin origin/llama-rn-fork:main` → **`5fb1bfa..204298f`, fast-forward**, via
 di Marco tramite kalsa-ee, un solo pusher. Spariti dall'albero: `patches/`, `vendor/kalsallama-cpp/`
 (715 file), `native/kalsallama.pin`, `scripts/sync-kalsallama.sh`, `scripts/assert-vendor-pristine.sh`
@@ -6949,3 +6949,61 @@ confronto dei `.so`). Rollback: `git revert -m 1 204298f` + `npm ci`.
 Per la sessione KV: l'engine id e' cambiato, quindi i sidecar si rigenerano **una volta sola**; il
 ramo `kv-residuals` si rebasa su `204298f`; i `.so` non cambiano (38/38 identici su tre commit),
 quindi la prossima misura e' sullo stesso motore compilato.
+
+**18/09 mezzogiorno (12:37 EDT) — i due gate degli include compilavano con il compilatore
+sbagliato, e uno dei due usciva 0 senza compilare niente.** Il gate del fork
+(`assert-cpp-includes.sh`) e quello dell'app (`assert-overlay-includes.sh`) facevano il passo di
+sintassi con il **clang di sistema**. Non e' equivalente: il 17/09 `cpp/jsi/JSIParams.cpp` era
+passato qui e aveva rotto la build arm64. Prova a tre gambe, fatta da me sul file pre-fix
+(`da845d16^`): NDK **exit 1** (`SYNTAX FAIL: JSIParams.cpp`, errore dentro `copy.h:162` della
+libc++ dell'NDK), clang di sistema **exit 0** sullo stesso albero, albero pulito **exit 0** con 307
+TU. File ripristinato, sha256 identico.
+
+**Il gate dell'app usciva 0 anche senza compilatore.** `if ! command -v clang++ … exit 0`, e il
+pavimento anti-vacuita' (`parsed`/`rn_parsed`) stava **sotto** quell'uscita: nell'unico caso per cui
+era stato scritto non veniva mai eseguito. Ora un compilatore mancante e' exit 1, e
+`KALSA_GATE_REQUIRE_NDK=1` (acceso sul passo di CI in `apk.yml` e `e2e-emulator.yml`) rende
+fallimento qualunque ripiego.
+
+**La cosa piu' grave l'ha trovata l'audit, e non era la versione dell'NDK: era un `-D` mancante.**
+Il passo di sintassi non passava **nessuna define**, mentre l'app compila con OpenCL acceso
+(`app.config.js` `enableOpenCLAndHexagon: true`) e `cpp/rn-slot.cpp` ha tre blocchi sotto
+`#ifdef LM_GGML_USE_OPENCL` (836, 948, 1071). Il gate leggeva quel file **senza vedere quei
+blocchi**: un drift la' dentro sarebbe uscito solo al quinto minuto della build. Ora entrambi i
+gate compilano il gruppo `rn-*` con `-DLM_GGML_USE_OPENCL`.
+
+**La versione dell'NDK: due affermazioni mie, tutte e due corrette dopo.** Prima ho scritto che
+l'app non dichiara nessun `ndkVersion` (vero) e che quindi non c'era un numero da seguire (falso: lo
+dichiara il **modulo del motore**, `RNLlama_ndkversion=27.3.13750724`). Poi ho scritto che quel
+numero e' l'NDK che la build usa (falso anche questo: `android/build.gradle:130` prende
+`getExtOrDefault("ndkVersion")`, quindi vince l'`ext` del root project — che la nostra app imposta
+via AGP/Expo, e infatti una build locale ha risolto `27.1.12297006`). Il gate segue la proprieta'
+come **miglior candidato dichiarato**, stampa la revisione che ha davvero usato, e dice
+`NOT the engine's pin …` quando non coincidono. La decisione se fissarla davvero e' in PLAN/Aperti.
+
+**La CI ha trovato un mio difetto che cinque prove locali non potevano vedere.** Run `35366958335`:
+il gate ha risolto esattamente il pin sul runner —
+`/usr/local/lib/android/sdk/ndk/27.3.13750724/…/aarch64-linux-android33-clang++` — e poi e' morto su
+`mktemp: too few X's in template`. `mktemp -t nome` e' la grafia BSD; GNU la rifiuta. Su macOS
+passava. Corretto in **entrambi** i gate (quello del fork aveva la stessa riga, mai eseguita perche'
+gira solo qui) con il template che il repo gia' usa altrove.
+
+**Un secondo audit ostile ha trovato che il mio `REQUIRE` non richiedeva niente.**
+`KALSA_GATE_REQUIRE_NDK=1` piu' `KALSA_GATE_SYNTAX_CXX=<path>` usciva **0**: il ramo del
+compilatore esplicito girava prima del controllo, e la nota di debolezza guardava la stringa
+letterale `"host clang"`, quindi la riga stampava `OK [explicit clang++]` senza un avviso.
+Riprodotto, chiuso, riprovato (exit 1 che nomina il compilatore). Stesso audit: i pavimenti erano
+troppo larghi — con il solo `total >= 250` potevano sparire **101 dei 151** TU dei modelli, e
+`jinja`, `cpu`, `opencl`, `mtmd` non avevano pavimento. Ora uno per gruppo, vicino ai conti di oggi,
+e il gruppo viene nominato quando scatta. Regola scritta in HANDOFF §6a: un gruppo che si restringe
+davvero abbassa il suo pavimento **nello stesso commit del bump**, con la ragione; mai prima, mai
+con una variabile di fuga.
+
+**Il binario dello Step 4 e' identico.** APK `35363462434` su `main@204298f`: **38 `.so` su 38
+byte-identici** a `main@bc6bd22` e a `cleanup@38b5cf0` (`llama-rn-fork/main-204298f.so.sha256`,
+`diff` 0 su entrambi i manifesti). Nota di metodo: il primo confronto dava 78 righe diverse ed era
+**il formato** — i manifesti salvati hanno il nome nudo, i miei il percorso `lib/arm64-v8a/`.
+
+Commit: fork `Aspis0/llama.rn` `kalsa` = `91bdb5d0` (gate + correzioni dei due audit); app ramo
+`llama-rn-fork` = `3cabcf1`, run `35369583489` (apk arm64 debuggabile) e' quella da cui si cita la
+riga di CI prima di chiedere lo slot su main.
