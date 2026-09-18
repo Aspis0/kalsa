@@ -511,7 +511,8 @@ reconciled. This entry is what Marco reads to judge whether the migration paid o
 - **Engine-side residual, found by the KV session, not verified by me:** `cpp/common/common.cpp:1813-1815`
   takes two function pointers from `lm_ggml_backend_reg_get_proc_address` and calls them without a null
   check (`lm_ggml_threadpool_new_fn` twice, `free_fn` once). Engine code, so closing it costs a
-  kalsallama commit and a new pin — not worth a round on its own; fold it into the next pin bump.
+  kalsallama commit and a new pin — not worth a round on its own. **Marco, 18/09: it rides with
+  Step 5's pin bump, not a pin of its own.**
 - **The threadpool crash would have hit the S23 too.** The device logcat shows `n_threads=5,
   n_threads_batch=5` — equal, so the JS never sends the batch count (`engineParams.ts:135-148`) and
   `cpuparams_batch` reached the engine as `-1`. The earlier claim that the phone was safe because
