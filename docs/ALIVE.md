@@ -6883,3 +6883,41 @@ proprieta' diverse, e non sono sovrapponibili: chi legge solo quest'ultimo non h
 
 Telefono: max 38,6 °C, batteria 100%, watchdog mai intervenuto.
 Dir: `device-restore-out/run-20260918-110132-fix3`.
+
+**18/09 mezzogiorno — il turno MTP sull'S23: la via si esercita, e si scopre che non puo' mai
+proporre.** APK gia' sul telefono (`35354420026`, stesso motore), nessuna installazione, modello
+cambiato **dalle prefs** (`kalsa.model.id=qwen3.5-4b`, `kalsa.bench.speculative={"type":"draft-mtp"}`)
+come fa `scripts/ci-e2e.sh`, un turno, poi prefs ripristinate e app force-stoppata. Logcat:
+
+```
+W RNLlama : loadPrompt:521 KALSA_KVPREFIX embd=1859 text_tokens=1883 n_common=1859 mtp_draft_mem_shared=0
+I KALSA_NATIVE error llama_init_from_model: failed to initialize the context: cannot share KV cells with an incompatible memory type
+E RNLlama : fallBackToPlain:876 this model cannot create an MTP draft context (failed to create MTP draft context); running plain
+```
+
+Il turno e' poi arrivato in fondo in chiaro (~5 tok/s, batteria 40,0 °C, thermal status 2, in
+carica), nessun crash. **Stato dell'evidenza: la via di fallback e' esercitata su telefono; la via
+di proposta non e' mai stata esercitata su un telefono.** E non per caso: `cpp/rn-llama.cpp:846`
+mette `cparams.ctx_other = ctx` **incondizionatamente** quando crea il contesto draft, e per un
+target con memoria ibrida/iSWA `llama-kv-cache-iswa.cpp:97` rifiuta la condivisione delle celle.
+Quindi sull'unico modello del catalogo con una testa MTP, **oggi MTP non puo' proporre per
+costruzione**. Da portare allo Step 5: guardare come llama.rn v0.12.9 decide quando passare
+`ctx_other` — se upstream non lo passa per i target ibridi, quella e' una riga da prendere da loro
+(al contrario dell'helper che aborta).
+
+L'errore che il telefono incontra e' la stessa riga che sul runner non compilava: `throw
+std::runtime_error` in `llama-kv-cache-iswa.cpp:97` senza `<stdexcept>`. Non e' codice morto, ci si
+passa davvero. Corretto in kalsallama `592f68684`, piu' `3efb44d6c` che mette la guardia ai due
+puntatori di `ggml_backend_reg_get_proc_address` in `common_threadpools::init`. **Nessun bump di
+pin**: viaggiano con lo Step 5.
+
+**Il costo, e va scritto.** Il turno e' finito **dentro la conversazione della campagna KV** e ne ha
+sostituito il transcript. La mia prima spiegazione ("Nuova chat resetta in place") era **sbagliata**:
+`src/app/AppShell.tsx:2360-2363` rende `handleNewConversation` un **no-op quando la chat attiva
+sembra vuota**, e sembrava vuota perche' i messaggi non avevano finito di idratarsi dopo il
+force-stop del run precedente. Quindi non e' un pulsante frainteso: e' un **difetto di perdita dati
+che un utente vero puo' innescare** — apri l'app, tocchi "Nuova chat" prima che i messaggi si
+carichino, scrivi, e il transcript precedente e' sostituito. Lo porta la sessione KV a Marco come
+difetto di prodotto. Conseguenza per noi: il `.kvs` da 34,9 MB sopravvive ma e' **orfano** (senza il
+suo transcript non combacera' mai piu'), quindi **la prossima misura KV su telefono riparte da una
+conversazione nuova**.
