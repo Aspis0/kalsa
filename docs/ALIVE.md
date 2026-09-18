@@ -7291,3 +7291,44 @@ sopra una storia mista. Il protocollo inoltre **non sa creare una chat nuova** (
 `Nuova chat` esiste negli script, verificato con grep), quindi la conversazione nuova avrebbe
 richiesto di scrivere tooling UI alla vigilia del run — piu' codice non provato proprio dove serve
 fiducia. La previsione `e92b310e` resta agli atti com'era scritta: non la riscrivo, la supero.
+
+### La premessa di `fbb047bb` era falsa: lo store non e' riusabile dal mio APK (18/09 sera)
+
+Avevo appena depositato "il giro si fa sulla conversazione esistente, cosi' provo l'invariante di
+aggiornamento su uno store vero". **La premessa era sbagliata su due punti, entrambi verificabili da
+me, entrambi trovati da kalsa-2d misurando invece di discutere.**
+
+1. **Quella `.kvs` non e' stata scritta dal motore `d1a501c9`.** Il meta (in `RKStorage`, non un
+   `.meta` su disco) dice `kalsa-eng-v2:c3418f60…`. Deducibile da solo: le tre APK della campagna KV
+   sono tutte **anteriori** allo switch dello Step 4, quindi il loro motore e' per forza quello di
+   prima. Avevo preso un id da una nota di stato e l'avevo attaccato a un file che quel motore non
+   l'aveva mai visto.
+2. **`evictSessionPool` non sarebbe partito dal mio file.** `pickEvictionStems`
+   (`sessionPool.ts:50-88`) ordina **foreign-model per primo**: con keepStem LFM la vittima e' il
+   `.kvs` qwen da 81,7 MB. Avevo letto `evictSessionPool` e `deleteSessionArtifacts` e mi ero fermato
+   **prima della funzione che decide l'ordine** — cioe' l'unica che rispondeva alla mia domanda.
+   Leggere due funzioni su tre e' come non averle lette.
+
+**La conseguenza vera, che nessuna delle due riguarda:** kv-land parte da `204298f`, che e' **dopo**
+lo switch, quindi il mio APK non avra' `c3418f60` e lo store verra' rifiutato per
+`meta_mismatch:engineBuild` **prima** che l'hash della storia sia confrontato. Quella prova la
+chiudevo io installando il mio APK, indipendentemente da chiunque altro. Verificato invece di
+ricalcolato: `git diff --name-only 204298f..0394014` sui sei input del digest da' **0 file**, quindi
+l'id del mio APK e' quello di main. Valore atteso **`kalsa-eng-v2:d1a501c9…`**, letto da kalsa-2d
+dentro l'APK di `main@3cabcf1` (run 35369583489), non calcolato: e' la condizione di stop
+all'installazione. (Ricalcolarlo nel mio worktree dava un terzo valore, `7cff4f94…`, perche' li'
+`node_modules` e' un symlink al checkout principale: conferma che l'id si legge dall'APK, mai
+dall'albero.)
+
+**Disegno del giro, terza revisione, sempre prima di misurare:**
+1. **conversazione esistente**, ciclo 1: `meta_mismatch:engineBuild` **previsto** — non e' un
+   fallimento, e' la conseguenza dello switch di motore. Prefill a freddo sulla storia vecchia.
+2. **ciclo 2 dopo force-stop: deve riusare INTERO** (`n_common == embd`, prompt sotto il secondo).
+   Qui la storia e' **mista**: record vecchi senza `emissionSource` piu' i turni nuovi che il flag ce
+   l'hanno. E' la forma reale dell'aggiornamento, ed e' cio' che resta di provabile sul dispositivo.
+3. il protocollo stampa `kick settled after 0s`/`1s` e scrive `$OUT/protocol.log`.
+4. `ANDROID_SERIAL` esplicito (il telefono risponde su due trasporti).
+5. **Non provato, e va detto cosi':** l'invariante "un record pre-aggiornamento si proietta byte per
+   byte come su `204298f`" resta provato **solo nel codice** — audit, il mio ricalcolo djb2 della
+   costante `3986477111`, e il test che la congela. Su dispositivo non e' dimostrabile finche' il
+   motore cambia sotto lo store. E il ramo `"raw"` resta non esercitato (serve uno Stop umano).
