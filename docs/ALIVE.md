@@ -7053,3 +7053,23 @@ invece di fidarsi dei miei.
 **Regola che ne esce, e vale oltre questo caso:** un commento che riassume una misura e' un'asserzione
 come le altre e va verificato sulla cattura, non sul ricordo di chi l'ha scritta. Qui il riassunto
 sbagliato era *piu' pulito* del vero ("tutti e sei uguali"), ed e' proprio per questo che passava.
+
+### Previsione depositata PRIMA della verifica su telefono di `kv-land` (nuova conversazione)
+
+Scritta ora, prima di toccare l'S23, con i criteri di falsificazione — l'abitudine che ha pagato sul
+run 3. Il baseline vecchio e' orfano (la sua `.kvs` e' stata riscritta), quindi si parte da una
+**conversazione nuova**.
+
+1. **Il ciclo 2 riusa intero.** `n_common == embd`, `whole`, `promptMs` sotto il secondo dopo un
+   force-stop. Se e' `partial` senza una riga `KALSA_KVDIVERGE` che lo spieghi, ci si ferma.
+2. **La firma diretta del fix SIGPIPE: il protocollo stampa `kick settled after 0s` o `1s`**, non
+   `did not settle within 120s`. Sulle catture del 18/09 l'op terminale arrivava a +0,1-0,2 s, quindi
+   il primo poll a +1 s deve trovarlo. Falsificazione: un `did not settle` mentre il logcat mostra
+   l'op subito dopo il marker = la riparazione non ha preso.
+3. **Conseguenza misurabile a corollario:** il run deve accorciarsi di circa **quattro minuti**
+   rispetto ai due precedenti (due kick che bruciavano 120 s a testa). Se il tempo totale non cala,
+   la (2) e' verde per il motivo sbagliato.
+4. **Caveat onesto, scritto prima e non dopo:** questa verifica esercita `emissionSource` **solo nel
+   ramo `"parsed"`**. Il ramo `"raw"` nasce da un turno interrotto (Stop premuto dall'utente) e il
+   protocollo non lo produce. Resta coperto dai soli test unitari finche' qualcuno non interrompe un
+   turno a mano — e va detto cosi', non spacciato per provato.
