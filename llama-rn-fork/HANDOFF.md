@@ -508,6 +508,18 @@ reconciled. This entry is what Marco reads to judge whether the migration paid o
 - **`native/kalsallama.pin` in the app stays at `134a35cf2`** while the engine is `70b4302bb`.
   Deliberate: it belongs to the KV session, it is inert on the fork road (only the engine id
   digests it, as a constant), and Step 4 deletes it. Do not "fix" it in isolation.
+- **Engine-side residual, found by the KV session, not verified by me:** `cpp/common/common.cpp:1813-1815`
+  takes two function pointers from `lm_ggml_backend_reg_get_proc_address` and calls them without a null
+  check (`lm_ggml_threadpool_new_fn` twice, `free_fn` once). Engine code, so closing it costs a
+  kalsallama commit and a new pin — not worth a round on its own; fold it into the next pin bump.
+- **The threadpool crash would have hit the S23 too.** The device logcat shows `n_threads=5,
+  n_threads_batch=5` — equal, so the JS never sends the batch count (`engineParams.ts:135-148`) and
+  `cpuparams_batch` reached the engine as `-1`. The earlier claim that the phone was safe because
+  "prefill 8 differs from decode 2" came from a delegate quoting a comment about another SoC and was
+  false. Two paths reach the threadpool and they are SEQUENTIAL, not alternative:
+  `common_init_from_params` → `common_threadpools::init` inside `loadModel` first (where the emulator
+  died), then `attachThreadpoolsIfAvailable` from the bridge (`cpp/jsi/RNLlamaJSI.cpp:705`) on
+  already-resolved params — a calm log line from the second says nothing about the first.
 - **Phones are on charge overnight (18/09).** Every historical number (including "S23 unplugged
   100%, 34.4 C", 16/09) was measured unplugged; timings taken while charging are not comparable
   with that baseline. Say so next to any number rather than letting it be compared.
