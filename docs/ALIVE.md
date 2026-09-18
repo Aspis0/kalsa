@@ -7462,3 +7462,24 @@ occhio: `Assert the assembled engine's includes all resolve` con `env={'KALSA_GA
 Resta da fare prima del push: jest **sulla punta rebasata** (il verde che ho vale per `6db7263`), e
 il commit in punta con la frase del contratto nel commento dello step — dentro `.github`, cosi' la
 verifica di equivalenza qui sopra resta vera.
+
+### "Il jest gira contro l'albero sbagliato" — obiezione giusta, risposta misurata
+
+kalsa-02 ha posto un vincolo sensato: il `node_modules` del checkout condiviso e' quello di
+`step5-bump` (pin `e8505ca2`), mentre la punta da validare e' su main (`fada1ebe`) — quindi un jest
+verde li' dentro non direbbe nulla su cio' che si spinge, e servirebbe un `npm ci` isolato.
+
+**La premessa e' vera e la conclusione no, perche' jest non carica mai `llama.rn`.** Verificato:
+solo `LlamaService.ts:13` e `EmbeddingService.ts:35` value-importano il pacchetto; **ogni** import
+di quei due dai `.ts` e' `import type`, cancellato in compilazione — e il codice lo dichiara come
+invariante voluto (`benchConfig.ts:264` "harness must not load llama.rn", stesso concetto in
+`webFetchTool.ts:53` e `documentChatTypes.ts:6`); i soli value-importer sono `.tsx`, che
+`jest.config.js` non risolve nemmeno (`moduleFileExtensions: ["ts","js","json"]`, senza `tsx`).
+
+L'unico contatto con l'albero installato e' `engineIdentity.test.ts:260-292`, che lo legge con `fs`
+ma asserisce **auto-coerenza e stabilita'** (lockfile contro lo stesso lockfile, sha contro se
+stesso, due calcoli dell'id fra loro): un albero diverso cambia l'id e non tocca un'asserzione.
+
+**Rischio residuo nominato prima di correre:** se il bump e' a meta' di un `npm install`,
+`requireEveryEngineTreeDir` puo' lanciare e dare un rosso **spurio** proprio li'. Si tratta come
+flake e si rilancia — dicendolo, invece di incassare un verde al secondo tentativo.
