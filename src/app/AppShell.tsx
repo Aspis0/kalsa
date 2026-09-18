@@ -196,6 +196,7 @@ import {
   upsertMeta,
   type ConversationsState,
 } from "../conversations/ConversationsStore";
+import { deleteConversationHistory } from "../chat/historyWriteGuard";
 import {
   findPersona,
   getDefaultPersonasStorage,
@@ -2438,7 +2439,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       applyConversations(next);
       try {
-        void getDefaultConversationsStorage().removeItem?.(messagesKey(id));
+        // The quarantine key holds the full raw conversation text and
+        // nothing garbage-collects it: it must not outlive the delete.
+        void deleteConversationHistory(
+          getDefaultConversationsStorage(),
+          messagesKey(id),
+        );
       } catch {
         // ignore illegal id
       }
