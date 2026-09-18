@@ -691,6 +691,48 @@ fallire il run — oggi il contratto lo tollera; (b) la gamba COLD resta "logged
 n_common non e' cercato nel codice. **main = `c45f044`** (persist-guard, ff su `2ed2a88`, tsc 0 / jest 0 /
 993 test misurati nel worktree, 9 file tutti `src/`); e2e su c45f044 = run `35407337897`.
 
+**Il 2140 spiegato, e la KV su Qwen non riusa nulla dal secondo turno (artefatto e2e 10573111162, kalsa-93,
+righe verificate dal coordinatore).** Il `n_past=0, embd.size=2140` del turno 2 non e' il turno 2: e' un
+completamento che diverge a 2081, `recoverStateCheckpoint` fallisce perche' l'unico checkpoint sta a 2303 >
+2081, il ramo fa `llama_memory_clear` + `n_past=0` (`rn-completion.cpp:612-645`) e ri-prefilla 2140 token
+da zero; il turno di chat subito dopo riusa 2136/2250 **della cache appena ricostruita**. Il costo e' nel
+numero: `turn1 promptMs=6781` (2083 token, 2068 prewarmed) contro `turn2 promptMs=47504`: un prefill freddo
+da ~2100 token, non 114 nuovi. **La divergenza e' sempre a 2081**, su t2 e su t3, cioe' 2 token prima della
+fine del prompt del turno 1 (`evaluated=2083`): il confine fra l'header assistente seminato dal template e il
+primo token generato. Aritmetica: cache 2303 = 2081 + 2 + 219 generati + 1; replay 2302 = 2081 + 221.
+**Ipotesi "manca il `<think>`" REFUTATA** sull'artefatto: `history2_final.json` ha `emissionSource:"parsed"`,
+`modelEmittedText` che comincia con `<think>\n` (forma B), `splitClosedLeadingThink` matcha, il testo del
+replay combacia. **A non combaciare sono gli id**: `embd`=2303 sono gli id salvati nel blob, `text_tokens`=2302
+e' il prompt ri-tokenizzato dal testo; ri-tokenizzare testo generato non riproduce gli stessi id al confine.
+*Ipotesi, non misurata*: la misura che decide sono gli id di `KALSA_KVDIVERGE` (solo build nativa Debug, e
+mai in un artefatto: detokenizzati restituiscono le parole). Su un modello `hybrid` (`ModelRegistry.ts:203`
+qwen3.5-4b) un solo id fuori posto costa tutto: `seq_rm` non ha ramo parziale e dopo un riavvio l'unico
+checkpoint e' la frontiera. **Se regge, la correzione non e' "rimetti il tag"**: dopo un restore il prompt va
+ricostruito dagli id salvati, tokenizzando solo il turno nuovo, invece di ri-renderizzare la trascrizione.
+Sull'S23 con LFM il riuso intero e' misurato (667 ms); su Qwen non e' mai stato misurato sul telefono.
+*Prossimo passo, prima di qualunque design:* misura locale sul Mac con la probe e il GGUF di catalogo di
+Qwen 3.5 4B, confronto id-per-id (solo interi, in locale, niente artefatto) fra render del turno 1 + risposta
+e cache salvata, al confine 2081. Va **prima** di governor-kv-contract nella coda di kalsa-93: la KV e' M1.
+
+**Due fughe di privacy, verificate su disco (18/09 notte), repo `Aspis0/kalsa` PUBLIC.** (1) Con i tool
+attivi **ogni token generato finisce in logcat in chiaro**: `cpp/llama-grammar.cpp:1439`
+`LLAMA_LOG_DEBUG("Grammar still awaiting trigger after token %d (`%s`)")` col pezzo detokenizzato, a ogni
+token finche' la grammatica lazy aspetta il trigger (`toolChoice:"auto"`); `cpp/jsi/RNLlamaJSI.cpp:301-325`
+`logToJsCallback` non filtra per livello (DEBUG cade in `default: break;` e parte come "info"; `:302` chiama
+`llama_log_callback_default` incondizionato); `src/engine/LlamaService.ts:503` `console.log(\`KALSA_NATIVE
+${level} ${text}\`)` senza `__DEV__` e senza filtro; `babel.config.js` senza `transform-remove-console`.
+Prova: `logcat.txt` dell'artefatto e2e, 43 righe = la risposta del modello un token per riga. Nessun anello
+e' condizionato al tipo di build; su APK release **non misurato**. (2) **Lo stem con l'id di conversazione
+viene stampato**: `LlamaService.ts:3141` (save) e `:3430` (load) mettono `stem: logStem` nel payload
+`KALSA_SESSION`; nell'artefatto `"stem":"qwen3_002e5-4b__conv-<id>__<hash>"`. Contro la regola "id e stem
+mai stampati, solo byte e hash". Nello stesso logcat ci sono l'id della conversazione e il testo della
+risposta, e l'artefatto sta su un repo pubblico. *Fix deciso:* il filtro di livello in `logToJsCallback`
+(niente DEBUG ne' CONT dopo un DEBUG) entra nel bump del fork di kalsa-2d (modulo batteria + savedCtx), non
+come bump separato (ogni bump invalida gli store); verificato che la CI non si rompe: `Input processed` e'
+LOG_INFO (`rn-completion.cpp:758`), `KALSA_KVDIAG` LOG_WARNING (`:635`). Lo stem lo toglie kalsa-93 in un
+ramo app-only `log-privacy` subito dopo evict-marker (byte e hash restano, test che il marker non ha la
+chiave `stem`, audit con modello diverso).
+
 **Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
 e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
 
