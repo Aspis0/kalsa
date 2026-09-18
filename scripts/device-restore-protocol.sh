@@ -6,7 +6,8 @@
 # APK that predates the prewarm. This script measures restore + prewarm
 # together, which is the shipping path.
 #
-# Shape, per cycle: force-stop -> relaunch -> wait Ready -> one continuation
+# Shape, per cycle: force-stop -> relaunch -> wait Ready -> background/
+# foreground bounce (rp_fg_bounce; FG_BOUNCE=0 skips it) -> one continuation
 # turn -> read `n_past` (KALSA_KVDIAG), `promptMs` (KALSA_TELEMETRY) and the
 # prewarm's own verdict (KALSA_PREWARM).
 #

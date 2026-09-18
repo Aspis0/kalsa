@@ -32,7 +32,10 @@ console.log("PREFIX_PREWARM: restore_ok=" + n(/"op":"restore","ok":true/g) +
 // exhausted retry budget all produce zero restore lines and zero prefills.
 // Without this, restore_ok=0 gets read as "the diagnosis is wrong".
 const stops = ["stale", "no_context", "disposing", "kv_holds_chat",
-  "background", "given_up", "not_ready", "in_flight"];
+  "background", "given_up", "not_ready", "in_flight", "already_warm"];
+// already_warm is the queue gate's common case since the fg re-kick learned
+// to log (nothing invalidated the prefix while backgrounded); counted here
+// for symmetry with in_flight, not because the job stopped.
 console.log("PREWARM_STOPS: " + stops.map((r) =>
   r + "=" + n(new RegExp("\"op\":\"skip\",\"reason\":\"" + r + "\"", "g"))).join(" ") +
   " restore_aborted=" + n(/"op":"restore","ok":false,"reason":"aborted"/g));
@@ -120,49 +123,69 @@ if (kickWindows.length === 0) {
   console.log("FG_REKICK: not exercised — no fg_kick markers in this evidence");
 } else {
   // One class per kick, priority order: served wins over warm over held over
-  // stopped over too_early; a kick with no recognised prewarm line is silent
-  // — exactly the hole this section exists to find. `stopped` is a skip
-  // whose reason is recognised but owns no class of its own (listed once, in
-  // `stops` above): the kick FIRED and the job named why it quit. not_ready
-  // after 20s in the background is the model evicted while backgrounded
-  // (thermal pause / onTrimMemory in kalsa-lifecycle) — a model-lifecycle
-  // problem, not a missing re-kick; the criterion names the reason so the
-  // reader knows where to look without reopening logcat. An unrecognised
-  // op/reason stays silent, on purpose: a new reason must not pass as good —
-  // or as diagnosed. `warm` is a WEAK pass: it says the re-kick reached the
-  // queue gate and found the prefix already warm (or a prewarm already in
-  // flight) — it does NOT say the native KV is reusable. That question stays
-  // with KV_PREFIX_CRITERION, which reads KALSA_KVPREFIX / n_common.
-  const stoppedReasons = stops.filter(
-    (r) => r !== "kv_holds_chat" && r !== "in_flight" && r !== "background",
-  );
+  // stopped over no_work over too_early; a kick with NO KALSA_PREWARM line at
+  // all is silent — exactly the hole this section exists to find.
+  // `served` demands COMPLETED work: a prefill done, or a restore that
+  // landed. `start` logs at QUEUE time, before the job has run one step, and
+  // `restore ok:false` exits before any prefill — either without a
+  // completion after it is `no_work`: the re-kick fired and warmed nothing.
+  // A bare start must never dress a kick as served.
+  // `stopped` READS the reason off the line, known to this script or not,
+  // and the criterion names it: the app emits far more skip reasons than any
+  // list here could track, so the list lives in the app and the verdict only
+  // reads. A reason new to the app must fail loudly saying its name — not
+  // pass, and not be swallowed as "no prewarm line" when the line is right
+  // there. not_ready after 20s in the background, for instance, is the model
+  // evicted while backgrounded (thermal pause / onTrimMemory in
+  // kalsa-lifecycle) — a model-lifecycle problem, not a missing re-kick.
+  // `warm` is a WEAK pass: it says the re-kick reached the queue gate and
+  // found the prefix already warm (or a prewarm already in flight) — it does
+  // NOT say the native KV is reusable. That question stays with
+  // KV_PREFIX_CRITERION, which reads KALSA_KVPREFIX / n_common.
   const classify = (w) => {
-    if (/"op":"(start|restore|done)"/.test(w)) return { cls: "served" };
+    if (/"op":"done"/.test(w) || /"op":"restore","ok":true/.test(w)) return { cls: "served" };
     if (/"op":"skip","reason":"(already_warm|in_flight)"/.test(w)) return { cls: "warm" };
     if (w.includes('"op":"skip","reason":"kv_holds_chat"')) return { cls: "held" };
-    const reason = stoppedReasons.find(
-      (r) => w.includes('"op":"skip","reason":"' + r + '"'),
-    );
-    if (reason) return { cls: "stopped", reason };
-    if (w.includes('"op":"skip","reason":"background"')) return { cls: "too_early" };
+    const skipReason = w.match(/"op":"skip","reason":"([^"]*)"/);
+    if (skipReason) {
+      if (skipReason[1] === "background") return { cls: "too_early" };
+      return { cls: "stopped", reason: skipReason[1] };
+    }
+    if (/"op":"restore","ok":false/.test(w)) {
+      return { cls: "no_work", form: "restore did not complete" };
+    }
+    if (/"op":"start"/.test(w)) return { cls: "no_work", form: "queued but no outcome" };
+    // A KALSA_PREWARM line of an op this verdict does not know: fail naming
+    // that, never as "no prewarm line" — the line is right there.
+    if (w.includes("KALSA_PREWARM")) {
+      return { cls: "stopped", reason: "unrecognised prewarm line" };
+    }
     return { cls: "silent" };
   };
-  const count = { served: 0, warm: 0, held: 0, stopped: 0, too_early: 0, silent: 0 };
+  const count = { served: 0, warm: 0, held: 0, stopped: 0, no_work: 0, too_early: 0, silent: 0 };
   const stoppedBy = {};
+  const noWorkBy = {};
   for (const w of kickWindows) {
-    const { cls, reason } = classify(w);
-    count[cls] += 1;
-    if (cls === "stopped") stoppedBy[reason] = (stoppedBy[reason] ?? 0) + 1;
+    const hit = classify(w);
+    count[hit.cls] += 1;
+    if (hit.cls === "stopped") stoppedBy[hit.reason] = (stoppedBy[hit.reason] ?? 0) + 1;
+    if (hit.cls === "no_work") noWorkBy[hit.form] = (noWorkBy[hit.form] ?? 0) + 1;
   }
   console.log("FG_REKICK: kicks=" + kickWindows.length +
     " served=" + count.served + " warm=" + count.warm + " held=" + count.held +
-    " stopped=" + count.stopped +
+    " stopped=" + count.stopped + " no_work=" + count.no_work +
     " too_early=" + count.too_early + " silent=" + count.silent);
   const fgFails = [];
-  const stoppedNames = stoppedReasons.filter((r) => stoppedBy[r]);
+  const stoppedNames = Object.keys(stoppedBy);
   if (count.stopped > 0) {
     fgFails.push("re-kick stopped: " +
       stoppedNames.map((r) => r + " x" + stoppedBy[r]).join("; "));
+  }
+  const noWorkForms = ["restore did not complete", "queued but no outcome"];
+  if (count.no_work > 0) {
+    fgFails.push("re-kick fired but warmed nothing: " +
+      noWorkForms.filter((f) => noWorkBy[f])
+        .map((f) => f + " x" + noWorkBy[f]).join("; "));
   }
   if (count.too_early > 0) {
     fgFails.push("re-kick queued while the app was still backgrounded x" + count.too_early);
