@@ -2005,16 +2005,22 @@ async function main() {
     "the protocol log is written per run inside the helper, not via exec tee",
   );
 
-  // The driver: stubs the watchdog, makes every `sleep` cost SLEEP_SECS
-  // (so a pass costs more than one second), optionally appends the terminal
-  // op line to the capture after the first sleep (simulating an op that
-  // lands mid-wait), and runs the EXTRACTED functions unchanged.
+  // The driver: stubs the watchdog, replaces `date +%s` with a VIRTUAL
+  // CLOCK that only advances inside the `sleep` stub (by SLEEP_SECS per
+  // pass), optionally appends a line to the capture after the first pass,
+  // and runs the EXTRACTED functions unchanged. Logical time makes every
+  // timing pin deterministic: a wall deadline built from floored seconds
+  // can legally fire up to a second early (measured: the marker-late
+  // fixture read 2054 ms once and SLEEPS=1 once in seven runs), while on
+  // the virtual clock each pass costs exactly SLEEP_SECS and expiry lands
+  // on an exact pass boundary.
   function runWaitShell(opts) {
     const dir = path.join(outDir, `settle-${opts.name}`);
     mkdirSync(dir, { recursive: true });
     // Marker only — no terminal op unless the append supplies one. The
-    // marker can also start ABSENT and be appended mid-wait, which is how
-    // the shared-deadline pin makes the marker phase spend real budget.
+    // marker can also start ABSENT and be appended after the first pass,
+    // which is how the shared-deadline pin makes the marker phase spend
+    // budget.
     writeFileSync(
       path.join(dir, "logcat.txt"),
       noiseLines + (opts.markerInBase === false ? "" : "I/KALSA_RP_MARK(1): fg_kick cycle=1\n"),
@@ -2036,9 +2042,13 @@ async function main() {
       "set -uo pipefail",
       "rp_watchdog_stop_requested() { return 1; }",
       "SLEEPS=0",
+      'CLOCK=1000000',
+      'date() {',
+      '  if [ "${1:-}" = "+%s" ]; then printf \'%s\' "$CLOCK"; else command date "$@"; fi;',
+      '}',
       "sleep() {",
       "  SLEEPS=$((SLEEPS + 1))",
-      '  command sleep "$SLEEP_SECS"',
+      '  CLOCK=$((CLOCK + SLEEP_SECS))',
       '  if [ -n "$APPEND_MATCH_FILE" ]; then',
       '    cat "$APPEND_MATCH_FILE" >> "$OUT/logcat.txt" 2>/dev/null',
       '    APPEND_MATCH_FILE=""',
@@ -2055,11 +2065,10 @@ async function main() {
     ].join("\n");
     const scriptFile = path.join(dir, "wait-probe.sh");
     writeFileSync(scriptFile, script, "utf8");
-    const startedAt = Date.now();
     const r = spawnSync("bash", [scriptFile], {
       cwd: projectRoot,
       encoding: "utf8",
-      timeout: 60000,
+      timeout: 30000,
       env: {
         ...process.env,
         OUT: dir,
@@ -2074,28 +2083,24 @@ async function main() {
     });
     return {
       status: r.status,
-      wallMs: Date.now() - startedAt,
       sleeps: Number((r.stdout.match(/SLEEPS=(\d+)/) ?? [])[1]) || 0,
       protocolLog: readFileSync(path.join(dir, "protocol.log"), "utf8"),
     };
   }
 
-  // Expiry is wall clock: with a 2 s budget and 3 s passes, ONE pass must
-  // pass the deadline and stop — a pass counter would burn a second pass
-  // (>= 6 s) before noticing, and print "within 2" either way.
+  // Expiry is by LOGICAL time: each pass advances the virtual clock 3 s
+  // against a 2 s budget, so ONE pass must pass the deadline and stop — a
+  // pass counter would burn a second pass before noticing. On the virtual
+  // clock that difference is exact: 1 pass, not 2, with no wall jitter.
   const timeout = runWaitShell({ name: "timeout", budget: 2, sleepSecs: 3 });
   assert(
     timeout.status === 1,
     `an expired settle wait must exit 1 — got ${timeout.status}`,
   );
-  // The pass-counter shape's FLOOR is two 3 s passes (~6000 ms), but a sleep
-  // that returns a few ms early can slide it just under any bound set at
-  // 6000 — measured 6022 ms. The bound sits at 5000: comfortably above the
-  // correct single pass (~3 s) and below any two-pass shape's floor.
   assert(
-    timeout.wallMs >= 2000 && timeout.wallMs < 5000,
-    `the budget must expire on wall clock, not after N passes — took ${timeout.wallMs} ms ` +
-      `(a two-pass counter needs ~6000 ms at 3 s per pass)`,
+    timeout.sleeps === 1,
+    `the budget must expire after one over-budget pass — got ${timeout.sleeps} passes ` +
+      `(a pass counter needs a second pass to notice)`,
   );
   assert(
     timeout.protocolLog.includes("did not settle within 2s"),
@@ -2114,11 +2119,11 @@ async function main() {
     settled.status === 0,
     `a settle after the op lands must exit 0 — got ${settled.status}`,
   );
-  // The printed value is floor(now) - floor(t0): a CORRECT implementation
-  // reads one second high whenever the sleep straddles a boundary (measured
-  // 2 of 24 runs on an idle host), so the assertion is a FLOOR — at least
-  // the 2 s the stub costs — never an equality. A pass counter would print
-  // 1, and 1 is the one value this pin refuses.
+  // The printed value is the virtual clock's delta: the op lands after one
+  // 2 s step, so a correct implementation prints exactly 2 — while a pass
+  // counter would print 1. The assertion is a FLOOR (at least the 2 s the
+  // replay costs), never an equality, and 1 is the one value this pin
+  // refuses; on the virtual clock that distinction carries no jitter.
   const settledSeconds = Number(
     (settled.protocolLog.match(/kick settled after (\d+)s/) ?? [])[1],
   );
@@ -2138,19 +2143,16 @@ async function main() {
   // clock. Fixture: no marker at first (appended after the first pass), no
   // terminal op ever — the wait must expire on the ORIGINAL budget.
   //
-  // Deterministic by pass count, not wall time. Each pass costs 3 s and the
-  // budget is 4, so the settle phase's deadline check reads floor(t0+3)
-  // against t0+4 on its first pass — 3 >= 4-f fails for every sub-second
-  // fraction f, and floor(t0+6) >= t0+4 on its second pass succeeds for
-  // every f: the ±1 s `date +%s` flooring that once flaked this fixture at
-  // 2054 ms cannot move the expiry across a pass boundary. Shared deadline:
-  // one marker pass + one settle pass = 2 sleeps. A reset second deadline
-  // (t0' = t0+3, budget 4) needs a third pass: 3 < 4-f, then 6 >= 4-f —
-  // exactly 3 sleeps.
+  // Deterministic by pass count: the driver's virtual clock advances
+  // exactly 2 s per pass against a 4 s budget, so the shared deadline
+  // expires after one marker pass + one settle pass (SLEEPS=2) and a reset
+  // second deadline needs a third pass (SLEEPS=3) — no wall time, no
+  // flooring, no race between the appender and pass 1's grep (the appender
+  // fires inside pass 1's own sleep, and pass 2's grep sees it).
   const markerLate = runWaitShell({
     name: "marker-late",
     budget: 4,
-    sleepSecs: 3,
+    sleepSecs: 2,
     markerInBase: false,
     appendMarker: true,
   });
@@ -2161,7 +2163,7 @@ async function main() {
   assert(
     markerLate.sleeps === 2,
     `a late marker must consume the SHARED deadline — expected 2 passes ` +
-      `(one marker pass + one settle pass at 3 s each against a 4 s budget); ` +
+      `(one marker pass + one settle pass, 2 s each against a 4 s budget); ` +
       `got ${markerLate.sleeps} (a reset second deadline needs a third pass)`,
   );
   assert(
