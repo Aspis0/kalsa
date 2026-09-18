@@ -6673,3 +6673,32 @@ lo voleva manuale era che «il lock lega l'installazione» — ed è proprio la 
 smontato: senza integrity verificata, e con npm che installa l'output di `npm pack` del fork e non
 il suo albero di commit, su main non c'era niente che legasse l'installato al commit pinnato.
 Run: `35354214821` (apk sul ramo, `debuggable=true`) è la prova che il passo gira davvero in CI.
+
+**18/09 — l'audit del fix ha DIMOSTRATO il meccanismo che io avevo solo correlato.**
+Avevo scritto "correlazione forte, non legge: non ho letto il sorgente di llama.rn". L'audit
+(deepseek, modello diverso dallo scrittore) l'ha letto, e la catena e' questa:
+`rn-slot.cpp:700-713` parsa con `syntax.generation_prompt`; `chat.cpp:3841-3843` fa
+`effective_input = params.generation_prompt + input`, cioe' **antepone il generation prompt**
+all'input del parser; `chat-peg-parser.cpp:324-327` in `reasoning_format=NONE` **tiene i marker
+del ragionamento dentro `content`**; e `reasoning_format: "none"` e' hardcoded a
+`thinkingBudgets.ts:139` (verificato in proprio). Quindi il turno **completato** viene salvato
+**col** tag, mentre il percorso di **abort** salva l'accumulo grezzo (`LlamaService.ts:4034`)
+**senza**. E' lo split 133/12, spiegato.
+
+**Invariante da cui dipende tutto il fix:** se qualcuno porta `reasoning_format` da `none` ad
+`auto`/`deepseek`, il `content` parsato smette di portare il seme e il predicato diventa sbagliato
+per un secondo motivo. Vale la pena saperlo prima di toccare quel campo.
+
+**Il buco residuo, e il suo limite misurato.** Un turno interrotto la cui emissione grezza comincia
+con un `<think>` letterale (il modello che riecheggia il seme come primo token) sarebbe
+indistinguibile da uno parsato, e il predicato salterebbe il prefisso mentre la KV ne ha due. Il
+discriminante esiste al momento della cattura (`result.content` parsato vs `rawEmittedAccum`) e
+**non viene registrato**. Non e' dimostrato che accada, e c'e' un limite: nei 169 messaggi contati
+i 3 interrotti sono **tutti** forma A, e la forma B ha **zero** interrotti. Quindi in quel campione
+il percorso di abort non ha mai prodotto un tag iniziale. Buco aperto, occorrenze osservate: zero.
+
+Altri due residui **pre-esistenti**, nominati nel commit e non corretti li' per non mettere una
+seconda variabile in una misura gia' avviata: `AppShell.tsx:758-762` taglia gli spazi
+dell'emissione **in caricamento** mentre il salvataggio li preserva (*save preserves, load
+destroys*); e il budget tronca a `baseMessageCap` mentre `compactor.ts:840-842` lascia
+`modelEmittedText` **non troncato** di proposito, quindi un'emissione lunga resta sotto-contata.
