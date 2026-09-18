@@ -555,6 +555,15 @@ scaduto: serve il codice 2FA via email dell'owner.
   il campo minuti va scritto con eventi reali (altrimenti cap 120).
 - Ogni driver NPU include `.farf`; kit sempre ri-pushato per commit.
 - mimo: solo audit mono-documento (recon larghi → Luna/deepseek); delta numerici a deepseek.
+- **Il revert-proof con `git checkout -- <file>` cancella il lavoro NON committato in quel file.**
+  Riporta all'ultimo commit, non allo stato di un minuto prima. Il 18/09 ha morso due volte nella
+  stessa sessione: prima la propagazione di `emissionSource` nel compactor (ripresa da un checkpoint
+  di audit), poi — peggio — i test jest di `9a59ef3`, **mai committati**, con la suite rimasta
+  **verde perche' i test erano assenti** e un report che diceva "test aggiunti". Due regole, una per
+  lato: chi scrive fa `git diff` sul file **dopo** ogni revert-proof e prima del commit; chi verifica
+  cerca il test **per nome** (`git grep -c <concetto> -- 'src/**/*.test.ts'` sulla punta), perche' un
+  totale verde e plausibile e' perfettamente compatibile con i test richiesti che non esistono —
+  **un delta di conteggio non e' copertura**.
 
 ## Aperti
 
