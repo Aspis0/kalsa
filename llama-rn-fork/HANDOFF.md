@@ -19,7 +19,8 @@ writer ≠ reviewer MODEL, one hostile audit per step, real exit codes, `git add
 path, a delegate's output is not evidence). Plus the migration-specific ones:
 
 - **Do not touch on the app's `main` without warning Marco first:** `patches/`, `vendor/`,
-  `native/kalsallama.pin`, `src/engine/LlamaService.ts`. They belong to the KV session
+  `src/engine/LlamaService.ts`. (`native/kalsallama.pin` was on this list and **no longer
+  exists** — Step 4 removed it; checked on disk 18/09.) They belong to the KV session
   (kalsa-0c on 17/09; re-check with ListAgents), which is HOLDING until this migration lands. Step 4 deletes three of them: it
   is announced, not sneaked in.
 - **Push policy.** Committing is always fine. Pushes already authorised by Marco: fork
@@ -27,8 +28,17 @@ path, a delegate's output is not evidence). Plus the migration-specific ones:
   (CI-only). **Pushing to app `main` needs his explicit go each time.** Never push to
   `mybigday/llama.rn`, never open upstream issues (`ggml-org`, `mybigday`).
 - **Builds happen in CI** (`apk.yml` on `Aspis0/kalsa`, `workflow_dispatch`, inputs `abi` and `debuggable`, the latter defaulting to `false`).
-  Local builds only for syntax gates. **One device check per fix**, on the S23, debuggable
-  APK. No benchmark campaigns.
+  Local builds only for syntax gates. **One device check per fix**, debuggable APK. No
+  benchmark campaigns. (18/09, relayed by the coordinator: the Step 5 checks moved to the
+  **Jelly** — Jelly Star, MediaTek G99, CPU-only, so its MTP number is labelled "CPU G99" and
+  is a data point, not the verdict — and the **S23 belongs to the KV session**.)
+- **Never edit a script while a run of it is in flight.** bash reads a script as it executes,
+  so inserting lines shifts the byte offsets under a running interpreter: it can execute
+  garbage, or exit 0 where it should have failed. Learned the expensive way on 18/09 —
+  `sync-kalsallama.sh` and `assert-cpp-includes.sh` were edited during a `bump`. The right
+  answer is the one taken: **kill the run, verify the tree on disk** (`git status`, the pin,
+  `cpp/`), and start again from the final script. A result from a run whose script changed
+  under it is not evidence, whatever it printed.
 - **Docs at every step:** append to `kalsa-moe-experiments/docs/ALIVE.md` (diary, evidence,
   run ids, hashes) and update the status lines in `PLAN.md` §"17/09 sera — fork di llama.rn";
   commit the lab. Update the memory file
@@ -903,8 +913,12 @@ It is embedded at prebuild into the Expo config, which ships as a plain JSON ass
 ```
 gh run download <run> -n kalsa-apk-arm64-v8a-debuggable-<sha> -D <dir>
 unzip -o -q <dir>/app-release.apk assets/app.config -d <dir>/x
-node -e 'console.log(require("<dir>/x/assets/app.config").extra.engineBuildId)'
+python3 -c "import json;print(json.load(open('<dir>/x/assets/app.config'))['extra']['engineBuildId'])"
 ```
+
+Not `node -e 'require(...)'` — an earlier version of this recipe said that and **fails**: the
+asset has no `.json` extension, so Node parses it as JavaScript and dies with
+`SyntaxError: Unexpected token ':'`.
 
 `extra` carries exactly one key, `engineBuildId`. Done on the APK of run **35369583489**
 (`llama-rn-fork@3cabcf1`, the last build before the Step 5 dependency bump): the value is
