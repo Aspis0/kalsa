@@ -43,8 +43,7 @@ const COPY: Record<string, WalkCopy> = {
   },
   choosing: {
     head: "Getting ready",
-    sentence:
-      "Deciding which model fits this computer and knows more than the one on your phone.",
+    sentence: "Deciding which model fits this computer and runs fast enough to use.",
   },
   model_bytes: {
     head: "Downloading",

@@ -10,21 +10,21 @@ function rateText(rate: number | undefined): string {
     : "Not measured yet";
 }
 
-function phoneText(connected: boolean): string {
+function connectedText(connected: boolean): string {
   return connected ? "Connected" : "Not connected";
 }
 
-// The Server surface: one glance tells the owner whether the local server is
-// helping the phone, and the cards below show only facts the process produced.
-// While the first walk runs, its progress (the `brain_progress` events)
-// replaces the body. The state's facts and words come from the shared hook;
-// this page adds only what is its own: the stop failure and the metrics.
+// The Server surface: one glance tells the owner whether the local server is on
+// and what it is doing, and the cards below show only facts the process
+// produced. While the first walk runs, its progress (the `brain_progress`
+// events) replaces the body. The state's facts and words come from the shared
+// hook; this page adds only what is its own: the stop failure and the metrics.
 export function ServerSurface() {
   const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
 
   const metrics = state?.metrics ?? {};
   const deviceCount = metrics.active_devices?.length ?? 0;
-  const words = brainWords(state, heldFailure);
+  const words = brainWords(state, heldFailure, busy);
 
   return (
     <div className="surface-page">
@@ -44,9 +44,9 @@ export function ServerSurface() {
                   <span className="surface-metric-detail">Measured by the server</span>
                 </div>
                 <div className="surface-metric">
-                  <span className="surface-metric-label">Phone</span>
+                  <span className="surface-metric-label">Devices</span>
                   <strong className={`surface-metric-value${deviceCount > 0 ? " is-positive" : ""}`}>
-                    {phoneText(deviceCount > 0)}
+                    {connectedText(deviceCount > 0)}
                   </strong>
                   <span className="surface-metric-detail">Live connection</span>
                 </div>

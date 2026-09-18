@@ -12,22 +12,123 @@
   flex: none;
 }
 
-.brain-settings {
-  margin-top: 1.25rem;
+/* The machine card: what this computer is and what it would run. It shares
+   the page with the presence block, the settings and the bar, so it uses the
+   shared metric vocabulary with a tighter rhythm of its own — the space
+   between blocks shrinks, the type does not. */
+.machine-card {
+  margin-top: 1rem;
 }
 
-.brain-settings-item {
-  display: block;
-  width: 100%;
-  margin-top: 0.45rem;
-  padding: 0.6rem 0.75rem;
-  color: var(--ink);
-  text-align: left;
-  font-size: 0.92rem;
-  font-weight: 500;
+.machine-card .surface-eyebrow {
+  margin-bottom: 0.3rem;
+}
+
+.machine-card .surface-sentence {
+  margin-bottom: 0.6rem;
+  line-height: 1.5;
+}
+
+/* One option, three tight lines. The head is a two-column line — what it is on
+   the left, how fast on the right — so two options are compared down a column
+   instead of through prose, and the card still leaves the writing bar above
+   the fold at 1000x720. */
+.machine-option {
+  margin-bottom: 0.5rem;
+  padding: 0.45rem 0.7rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+.machine-option-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.machine-option-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.machine-option-speed {
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.machine-option-detail {
+  margin: 0.1rem 0 0;
+  color: var(--silence);
+  font-size: 0.74rem;
+}
+
+.machine-option-reason {
+  margin: 0.22rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.machine-card .surface-quiet {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 0.74rem;
+}
+
+.machine-working {
+  margin: 0 0 0.25rem;
+}
+
+.machine-working > summary {
+  color: var(--silence);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.machine-working > summary:hover {
+  color: var(--accent);
+}
+
+.machine-working-body {
+  margin: 0.5rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* The settings, side by side: five labels, one row when it fits and wrapped
+   when it does not. All five are always there and always say their whole
+   word — this is a change of density, never of contents. They are the page's
+   secondary weight: quiet pills, quieter than the card above and the bar
+   below, which are what the eye should land on. */
+.brain-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+/* The eyebrow takes the first line whole; the labels fill the rows under it. */
+.brain-settings > .surface-eyebrow {
+  flex: 0 0 100%;
+  margin: 0;
+}
+
+.brain-settings-item {
+  padding: 0.35rem 0.75rem;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
 }
 
 .brain-settings-item:hover {

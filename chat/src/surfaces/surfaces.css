@@ -1,8 +1,14 @@
 /* Shared vocabulary for the ported surfaces (Brain, Models, Server,
    Devices, Advanced). Chat's own tokens and button classes only. */
 
+/* One column for the whole app: the surfaces take the chat's own measure, so
+   the writing bar starts as wide as the column its first message lands in and
+   the brain→chat morph has almost nothing to stretch (THE-BRAIN-IS-THE-HOME
+   §3: the bar you typed into IS the thing you said). `--measure` is the chat's
+   prose measure; the 4rem is the padding each side of it, as in Composer.css
+   and Thread.css. */
 .surface-page {
-  width: min(30rem, 100%);
+  width: min(calc(var(--measure) + 4rem), 100%);
   margin: 0 auto;
   padding: 2rem 1rem;
 }

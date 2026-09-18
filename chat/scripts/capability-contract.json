@@ -1,0 +1,74 @@
+{
+  "_regenerate": "cd src-tauri && cargo test the_json_the_page_reads_is_a_contract_pinned_here -- --nocapture",
+  "_source": "the JSON printed by src-tauri/src/capability.rs :: tests :: the_json_the_page_reads_is_a_contract_pinned_here",
+  "_used_for": "brain-shots.mjs validates every fixture against this: a fixture may not carry a field the page does not read, or miss one it does. The machine, model and top-level key sets are read from `sample` below, not retyped. Two things are declared by hand because one sample cannot show them: the speed shapes other than the one in the sample (mirrors SpeedDto), and which bandwidth_basis values each runs_on allows (mirrors kalsa_probe::path and soc — a GPU path is never \"measured\", because the CPU probe cannot time it: it is a \"floor\", or the chip's own figure).",
+  "runs_on": {
+    "the graphics card": [
+      "floor",
+      "chip"
+    ],
+    "the graphics chip": [
+      "floor",
+      "chip"
+    ],
+    "the processor": [
+      "measured"
+    ],
+    "this computer": [
+      "measured"
+    ]
+  },
+  "sample": {
+    "kind": "measured",
+    "machine": {
+      "bandwidth_basis": "chip",
+      "bandwidth_bytes_per_second": 197000000000.0,
+      "budget_bytes": 13958643712,
+      "gpu_accounted_for": true,
+      "ram_bytes": 18253611008,
+      "runs_on": "the graphics chip"
+    },
+    "model": {
+      "context_tokens": 4584,
+      "details": "the full working",
+      "name": "IBM Granite 4 Tiny",
+      "quant": "Q4_K_M",
+      "reason": "It runs a clearly bigger model than your phone does.",
+      "speed": {
+        "high": 21.0,
+        "low": 12.0,
+        "shape": "range"
+      },
+      "speed_context_tokens": 8192,
+      "weights_bytes": 4000000000
+    },
+    "quicker": {
+      "context_tokens": 8192,
+      "details": "the full working",
+      "name": "Arcee Trinity Nano",
+      "quant": "Q4_K_M",
+      "reason": "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
+      "speed": {
+        "machine": "an M1 Max",
+        "shape": "measured",
+        "value": 62.7
+      },
+      "speed_context_tokens": 8192,
+      "weights_bytes": 3786957088
+    },
+    "refusal": null
+  },
+  "speed_keys": {
+    "at_least": [
+      "value"
+    ],
+    "measured": [
+      "value",
+      "machine"
+    ],
+    "range": [
+      "low",
+      "high"
+    ]
+  }
+}

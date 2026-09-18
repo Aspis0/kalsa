@@ -6,7 +6,7 @@ import "./surfaces.css";
 
 const POLL_MS = 2000;
 const MODEL_AUTO =
-  "A model is chosen automatically — from this computer's memory and what your phone runs — every time you turn on.";
+  "A model is chosen automatically — from this computer's memory and speed — every time you turn on.";
 const MODEL_NO_PICK = "You never have to pick one.";
 
 /** What `brain_state` answers; this page only reads the kind. */

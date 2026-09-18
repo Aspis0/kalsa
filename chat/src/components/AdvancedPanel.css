@@ -73,6 +73,13 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
+/* A field is as wide as what it holds: 32768 and 600 are five digits at most,
+   so they do not get a paragraph's width. The checkbox keeps its own
+   `width: auto`. */
+.advanced-field input:not([type="checkbox"]) {
+  max-width: min(100%, 9rem);
+}
+
 .advanced-field-check {
   display: flex;
   align-items: center;

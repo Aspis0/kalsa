@@ -1,5 +1,7 @@
+/* One column for the whole app: the same expression as the surfaces and the
+   chat's own column (surfaces.css, Composer.css, Thread.css). */
 .settings-page {
-  width: min(30rem, 100%);
+  width: min(calc(var(--measure) + 4rem), 100%);
   margin: 0 auto;
   padding: 2rem 1rem;
 }
@@ -46,6 +48,13 @@
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* The address and the key hold long strings and keep the column. A model name
+   is a word or two — the only plain-text field here — so it stops at about
+   forty characters of this monospace type instead of running the page wide. */
+.settings-field input[type="text"] {
+  max-width: min(100%, 24rem);
 }
 
 .settings-error {

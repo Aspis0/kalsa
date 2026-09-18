@@ -47,9 +47,15 @@ let pollTimer: ReturnType<typeof setInterval> | undefined;
 let offProgress: (() => void) | null = null;
 
 function publish(): void {
-  readSnapshot = { state: currentState, step: currentStep };
   // A stable snapshot: identical facts keep their identity, so a poll
-  // that changes nothing re-renders nobody.
+  // that changes nothing re-renders nobody. `invoke` parses fresh JSON
+  // every second, so identity has to be re-established by value — and
+  // until it was, this line handed out a new object on every poll and the
+  // sentence above was true only of the server block below it.
+  const next: BrainRead = { state: currentState, step: currentStep };
+  if (JSON.stringify(next) !== JSON.stringify(readSnapshot)) {
+    readSnapshot = next;
+  }
   const server =
     currentState?.kind === "running" && currentState.endpoint
       ? { endpoint: currentState.endpoint, model: currentState.model ?? "" }
@@ -147,10 +153,40 @@ export interface BrainWords {
 // The brain's state in words, shared by the brain page (presence only) and
 // the Server surface (which adds its metrics). One decision, so the two
 // pages can never disagree about the same machine.
-export function brainWords(state: BrainState | null, heldFailure: string | null): BrainWords {
+export function brainWords(
+  state: BrainState | null,
+  heldFailure: string | null,
+  busy: boolean,
+): BrainWords {
   const running = state?.kind === "running";
   if (!state) {
     return { headline: "Not known", sentence: COULD_NOT_TELL, button: "Try again", enabled: true, running };
+  }
+  // A turn-on under way owns the page, whatever it was saying before. Without
+  // this, Try again on a machine that refuses the same way twice leaves the
+  // screen identical for the ten seconds the probe takes, and the button
+  // looks like it does nothing.
+  if (state.kind === "starting" || (busy && !running)) {
+    return {
+      headline: "Starting",
+      sentence: "Getting ready. On an older computer this can take a minute.",
+      button: "Starting",
+      enabled: false,
+      running,
+    };
+  }
+  // The mirror of the branch above. A turn-OFF in flight leaves the state
+  // `running`, so the page held "On — this computer is ready for you" over a
+  // server on its way down, under a greyed-out Turn off. Ready is the one
+  // thing it is not.
+  if (busy && running) {
+    return {
+      headline: "Stopping",
+      sentence: "Putting the assistant away.",
+      button: "Stopping",
+      enabled: false,
+      running,
+    };
   }
   switch (state.kind) {
     case "stopped":
@@ -159,25 +195,21 @@ export function brainWords(state: BrainState | null, heldFailure: string | null)
       // something was halted that never began.
       return {
         headline: heldFailure ? "Did not start" : "Off",
-        sentence: heldFailure ?? "This computer is not helping your phone right now.",
+        sentence: heldFailure ?? "This computer is not running anything right now.",
         button: heldFailure ? "Try again" : "Turn on",
         enabled: true,
         running,
       };
-    case "starting":
-      return {
-        headline: "Starting",
-        sentence: "Getting ready. On an older computer this can take a minute.",
-        button: "Starting",
-        enabled: false,
-        running,
-      };
     case "running": {
+      // A connected device is real information, so it keeps its own sentence.
+      // With none, the honest and useful thing is that the computer is on and
+      // the bar below it writes to it — the phone is one client, not the
+      // reason it is running.
       const deviceCount = state.metrics?.active_devices?.length ?? 0;
       return {
         headline: "On",
         sentence:
-          deviceCount > 0 ? "Your phone is using this computer right now." : "This computer is ready for your phone.",
+          deviceCount > 0 ? "Your phone is using this computer right now." : "This computer is ready for you.",
         button: "Turn off",
         enabled: true,
         running: true,
@@ -229,9 +261,13 @@ export function useBrain() {
     if (!next || (next.kind !== "running" && next.kind !== "starting")) holdStopFailure(false);
   }, [read.state]);
 
-  // The walk lives only while the read still says stopped and no start
-  // failure is held; otherwise the ordinary view takes the page back.
-  const liveStep = state?.kind === "stopped" && heldFailure === null ? read.step : null;
+  // The walk lives while the brain is on its way up and no start failure is
+  // held; otherwise the ordinary view takes the page back. `starting` counts:
+  // suppressing it there hid the progress bar for the whole walk and put the
+  // previous measurement's card in its place, which is the one thing the
+  // surface's own comment says must not happen.
+  const walking = state?.kind === "stopped" || state?.kind === "starting";
+  const liveStep = walking && heldFailure === null ? read.step : null;
 
   async function act(): Promise<void> {
     if (!state) {
@@ -243,8 +279,13 @@ export function useBrain() {
     holdStopFailure(false);
     try {
       if (state.kind === "stopped" || state.kind === "failed") {
-        await invoke("brain_start");
+        // The attempt takes the page before it runs: the sentence it is
+        // answering goes, and so does the previous walk's last step, so what
+        // appears is this walk and not the one before it.
         holdFailure(null);
+        currentStep = null;
+        publish();
+        await invoke("brain_start");
       } else {
         await invoke("brain_stop");
       }
