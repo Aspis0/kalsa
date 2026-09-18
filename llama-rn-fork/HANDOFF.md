@@ -895,6 +895,26 @@ Read line by line (`git diff 3eb8ac2f^1 3eb8ac2f`), four files outside `cpp/` an
 - `jest/mock.js` kept our governor bindings through the merge (lines 199-207, `llamaSetGovernorThermo`,
   `llamaGetGovernorStats`, …); `src/__tests__/index.test.ts` gained upstream's cancellation tests.
 
+### Added 2026-09-18 evening — how to read the engine id out of an APK (and the pre-bump value, measured)
+
+`strings` on `assets/index.android.bundle` finds **nothing**: the id never reaches the JS bundle.
+It is embedded at prebuild into the Expo config, which ships as a plain JSON asset:
+
+```
+gh run download <run> -n kalsa-apk-arm64-v8a-debuggable-<sha> -D <dir>
+unzip -o -q <dir>/app-release.apk assets/app.config -d <dir>/x
+node -e 'console.log(require("<dir>/x/assets/app.config").extra.engineBuildId)'
+```
+
+`extra` carries exactly one key, `engineBuildId`. Done on the APK of run **35369583489**
+(`llama-rn-fork@3cabcf1`, the last build before the Step 5 dependency bump): the value is
+`kalsa-eng-v2:d1a501c95b8b23c27a9e850b1663e54b40bc7f898271c67ee7039a4f9fcd9e1d`, which confirms
+**by measurement** what was until now an inference from "the gate commits touch no engine input".
+After the bump to `llama.rn@e8505ca2` the id computed on this Mac is
+`kalsa-eng-v2:63b92e83ba6369602fd5c80118ca4a024a27de5f5e8fec9c3b12ed5c1ad4f665`, and the APK built
+from the branch must carry that one — if it does not, the APK is not this tree and nothing measured
+on the phone can be attributed to the bump.
+
 ## 9. When to call the orchestrator (kalsa-c8) or Marco
 
 - ⛔ Any push to app `main` → Marco's go, every time.
