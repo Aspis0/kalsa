@@ -7,38 +7,43 @@
 //! publication, they can lose a device. This guard makes the assumption
 //! true, and the store it protects is one user's file in one user's data
 //! directory, so the lock that guards it lives there too: an exclusive
-//! non-blocking `flock` on a file beside the store, taken inside the app
-//! setup, held for the app's whole life. The lock is kernel state on the
-//! open file description, so the kernel gives it back on every process
-//! death, `kill -9` included — measured on this Mac: a second process is
-//! refused with `EAGAIN` while the holder lives, and the instant the
-//! holder is killed the lock is acquirable again, though the file it went
-//! through is still on disk. A leftover file means nothing, so nothing
-//! stale can lock the owner out of their own app; and because the lock
-//! covers one account's data directory, a second macOS account runs its
-//! own copy against its own store without contention. And the lock must
-//! never be inherited by a spawned child — this app is not a leaf process,
-//! it spawns a llama-server that can outlive a crash, and a surviving
-//! child holding the lock's descriptor would keep the flock alive after
-//! the app's own death, locking the owner out of their own app with
-//! nothing stale to delete — so the lock file is opened close-on-exec,
-//! pinned by test. On Windows the same
-//! shape is `LockFileEx` with `LOCKFILE_FAIL_IMMEDIATELY`; the measured
-//! claims above were measured on macOS.
+//! non-blocking `flock` on the data directory's own descriptor, taken
+//! inside the app setup, held for the app's whole life — measured on this
+//! Mac: a second process is refused with `EAGAIN` while the holder lives,
+//! and the instant the holder dies, `kill -9` included, the lock is
+//! acquirable again. The lock hangs on the directory itself, not on a
+//! file inside it — an earlier file-based lock was defeated by deleting
+//! that file while the app ran, which left the next launch to lock a
+//! fresh inode unopposed — so there is nothing inside the directory that
+//! deleting can turn into a second lock. The remaining hole, said
+//! plainly: deleting or replacing the whole data directory while the app
+//! runs defeats this lock too — but that act destroys the store as well,
+//! so there is nothing left to protect. And because the lock covers one
+//! account's data directory, a second macOS account runs its own copy
+//! against its own store without contention. The lock must also never be
+//! inherited by a spawned child: this app is not a leaf process — it
+//! spawns a llama-server that can outlive a crash — and a surviving child
+//! holding the lock's descriptor would keep the flock alive after the
+//! app's own death, locking the owner out of their own app with nothing
+//! stale to delete. The descriptor is opened close-on-exec, pinned by
+//! test. The authority is unix-only today; the claims above were measured
+//! on macOS.
 //!
-//! The fixed loopback port is no longer the authority. The first launch to
-//! bind it watches it; a later launch fails to bind, knocks — a bare
-//! connect, loopback, carrying nothing — and the watcher brings the
-//! window forward. The knock cannot say who answered, and the binder
-//! cannot tell the running app from a stranger on the port, which is
-//! exactly why the port decides nothing: losing the bind must cost this
-//! launch nothing but the ability to be knocked, and the directory lock
-//! alone decides whether it may run at all.
+//! The fixed loopback port is no longer the authority. The first launch
+//! to bind it watches it; a later launch fails to bind, knocks — a bare
+//! connect with a short timeout, loopback, carrying nothing — and the
+//! watcher brings the window forward. A knock is a courtesy: if it cannot
+//! be delivered promptly it is abandoned, never waited on. The knock
+//! cannot say who answered, and the binder cannot tell the running app
+//! from a stranger on the port, which is exactly why the port decides
+//! nothing: losing the bind must cost this launch nothing but the ability
+//! to be knocked, and the directory lock alone decides whether it may run
+//! at all.
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io;
-use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
-use std::path::Path;
+use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -49,10 +54,11 @@ use std::time::Duration;
 const GUARD_PORT: u16 = 8132;
 /// How often the knock watcher re-checks its stop flag between knocks.
 const WATCH_POLL: Duration = Duration::from_millis(100);
-/// The lock file, beside the credential store in the app data directory.
-/// Its presence on disk means nothing; the lock is kernel state on the
-/// open file, and the file is only the handle the lock hangs on.
-const LOCK_FILE: &str = "instance.lock";
+/// How long a knock may take to connect before it is abandoned. The only
+/// case this fires in is a holder whose accept queue is full — a squatter,
+/// or a watcher dead at its post — and no launch should hang on that
+/// before any window exists.
+const KNOCK_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Why the directory lock could not be taken.
 #[derive(Debug)]
@@ -60,9 +66,14 @@ pub(crate) enum LockFailure {
     /// A live instance of this app holds the lock. The one refusal, and
     /// not a malfunction.
     AlreadyRunning,
-    /// The lock file could not be opened, or the lock could not be taken
-    /// for any other reason: the machine failing under the app.
-    Io(io::Error),
+    /// The directory could not be opened, or the lock could not be taken
+    /// for any other reason: the machine failing under the app. Carries
+    /// the directory, because the owner is told this text and deserves to
+    /// know where the app was reaching.
+    Io {
+        path: PathBuf,
+        source: io::Error,
+    },
 }
 
 impl std::fmt::Display for LockFailure {
@@ -72,7 +83,11 @@ impl std::fmt::Display for LockFailure {
                 f,
                 "another Kalsa Brain instance already owns this account's credential store"
             ),
-            Self::Io(error) => write!(f, "the instance lock could not be taken: {error}"),
+            Self::Io { path, source } => write!(
+                f,
+                "the instance lock on {} could not be taken: {source}",
+                path.display()
+            ),
         }
     }
 }
@@ -80,7 +95,7 @@ impl std::fmt::Display for LockFailure {
 impl std::error::Error for LockFailure {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Io(error) => Some(error),
+            Self::Io { source, .. } => Some(source),
             Self::AlreadyRunning => None,
         }
     }
@@ -108,43 +123,52 @@ fn claim_on(port: u16) -> Guard {
             // come forward. If nothing answers, the port is held by
             // something that is not this app; a connect on loopback
             // cannot tell the two apart, and neither can this process.
-            // Either way the knock is the whole of what this launch does
-            // about the port: it binds nothing and refuses itself
-            // nothing — that verdict belongs to the directory lock.
-            if let Ok(stream) = TcpStream::connect((Ipv4Addr::LOCALHOST, port)) {
-                let _ = stream.shutdown(Shutdown::Both);
-            }
+            // The connect is timed: a holder that never accepts — a
+            // squatter, or a watcher dead at its post — fills its queue
+            // and then silently drops new connections, and without a
+            // deadline the launch would hang here in the dark. A knock is
+            // a courtesy; it is abandoned, never waited on.
+            let _ = TcpStream::connect_timeout(&knock_addr(port), KNOCK_TIMEOUT);
             Guard::deaf()
         }
     }
 }
 
-/// Takes the authority: an exclusive, non-blocking lock on a file in
-/// `dir` — the app data directory, beside the credential store. The
-/// caller must keep the returned lock for the app's whole life; managed
-/// app state does that. Dropping it, or the death of the process in any
-/// way at all, gives it back.
+/// The address a knock is sent to.
+fn knock_addr(port: u16) -> SocketAddr {
+    SocketAddr::from((Ipv4Addr::LOCALHOST, port))
+}
+
+/// Takes the authority: an exclusive, non-blocking lock on `dir` itself —
+/// the app data directory's own descriptor, not a file inside it, so
+/// there is nothing in the directory that deleting can turn into a second
+/// lock. The caller must keep the returned lock for the app's whole life;
+/// managed app state does that. Dropping it, or the death of the process
+/// in any way at all, gives it back.
 pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
-    let file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(dir.join(LOCK_FILE))
-        .map_err(LockFailure::Io)?;
-    match try_lock_exclusive(&file) {
-        Ok(()) => Ok(DirLock { _file: file }),
+    let opened =
+        File::open(dir).map_err(|source| LockFailure::Io {
+            path: dir.to_path_buf(),
+            source,
+        })?;
+    match try_lock_exclusive(&opened) {
+        Ok(()) => Ok(DirLock { _dir: opened }),
         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
             Err(LockFailure::AlreadyRunning)
         }
-        Err(error) => Err(LockFailure::Io(error)),
+        Err(error) => Err(LockFailure::Io {
+            path: dir.to_path_buf(),
+            source: error,
+        }),
     }
 }
 
 /// The exclusive lock, without waiting. Non-blocking is the whole point:
 /// a second launch must be told no at once, not queued behind the first.
 #[cfg(unix)]
-fn try_lock_exclusive(file: &File) -> io::Result<()> {
+fn try_lock_exclusive(opened: &File) -> io::Result<()> {
     use std::os::unix::io::AsRawFd;
-    let status = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+    let status = unsafe { libc::flock(opened.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
     if status == 0 {
         Ok(())
     } else {
@@ -152,48 +176,18 @@ fn try_lock_exclusive(file: &File) -> io::Result<()> {
     }
 }
 
-/// The Windows analogue of the `flock` above. The behaviour of this call
-/// has not been measured on this Mac, which has no Windows to measure it
-/// with; the module doc's measured claims are the macOS ones.
-#[cfg(windows)]
-fn try_lock_exclusive(file: &File) -> io::Result<()> {
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Foundation::OVERLAPPED;
-    use windows_sys::Win32::Storage::FileSystem::{
-        LockFileEx, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
-    };
-    let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
-    let locked = unsafe {
-        LockFileEx(
-            file.as_raw_handle(),
-            LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY,
-            0,
-            1,
-            0,
-            &mut overlapped,
-        )
-    };
-    if locked != 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
-    }
-}
-
 /// The held authority. No `Drop` is needed: the lock lives on the open
-/// file description, so closing the file — by drop, or by the death of
-/// the process, any death — releases it. The file is left behind on disk
-/// and is inert.
-#[derive(Debug)]
+/// file description — the open directory — so closing it, by drop or by
+/// the death of the process in any way at all, releases it. Nothing was
+/// created on disk to carry it.
 pub(crate) struct DirLock {
-    _file: File,
+    _dir: File,
 }
 
 /// The held knock port, if this process won it. A `listener` of `None`
 /// means somebody else holds the port — the running instance or a
 /// stranger; this process cannot tell which — and so this process can
 /// knock but not listen.
-#[derive(Debug)]
 pub(crate) struct Guard {
     listener: Option<TcpListener>,
     stop: Arc<AtomicBool>,
@@ -292,7 +286,7 @@ mod tests {
     }
 
     /// A fresh directory to lock, one per test, so no two runs of the
-    /// suite contend for each other's file.
+    /// suite contend for each other's directory.
     fn lock_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("kalsa-instance-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -348,9 +342,18 @@ mod tests {
             .spawn()
             .expect("the child test process spawns");
 
-        // Wait until the child actually holds the port.
+        // Wait until the child actually holds the port. The connect is
+        // timed: the child accepts nothing, so once its backlog fills, a
+        // timeout-less connect would hang here well past this loop's own
+        // deadline.
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
-        while TcpStream::connect((Ipv4Addr::LOCALHOST, TEST_PORT)).is_err() {
+        loop {
+            match TcpStream::connect_timeout(&knock_addr(TEST_PORT), KNOCK_TIMEOUT) {
+                Ok(_) => break,
+                // Refused (not bound yet) or timed out (backlog full):
+                // either way the child may still be starting. Poll on.
+                Err(_) => {}
+            }
             assert!(
                 std::time::Instant::now() < deadline,
                 "the child never claimed the guard"
@@ -419,9 +422,13 @@ mod tests {
         );
         drop(first);
 
-        // The file is still on disk. It means nothing: the lock lived on
-        // the open file, and that is closed now.
-        assert!(dir.join(LOCK_FILE).exists(), "the lock file is left behind");
+        // The guard left nothing behind inside the directory: the lock
+        // hangs on the directory's own descriptor, so there is no file
+        // whose deletion can turn into a second lock.
+        let left_behind = std::fs::read_dir(&dir)
+            .expect("the locked directory reads")
+            .count();
+        assert_eq!(left_behind, 0, "the guard created nothing in the directory");
         let second = acquire_dir_lock(&dir).expect("the dropped lock leaves the way open");
         drop(second);
         let _ = std::fs::remove_dir_all(&dir);
@@ -443,9 +450,9 @@ mod tests {
 
     /// The property the module doc claims, in the case that matters — two
     /// processes, not two claims in one: a live rival is refused, and the
-    /// hard kill gives the lock back at once though the file it went
-    /// through is still on disk. The child is this same test binary,
-    /// re-invoked on the one test that holds the lock and waits.
+    /// hard kill gives the lock back at once, with nothing left behind to
+    /// clean up. The child is this same test binary, re-invoked on the one
+    /// test that holds the lock and waits.
     #[test]
     fn a_killed_process_releases_the_directory_lock() {
         let _lock = test_lock();
@@ -482,9 +489,9 @@ mod tests {
         child.kill().expect("the child is killed");
         let _ = child.wait();
 
-        // The kernel gave the lock back: the file is still there and
-        // means nothing, and the lock is claimable again at once.
-        assert!(dir.join(LOCK_FILE).exists(), "the lock file is left behind");
+        // The kernel gave the lock back: the lock is claimable again at
+        // once, though a child's readiness marker is still in the
+        // directory where the lock pays it no attention.
         let lock =
             acquire_dir_lock(&dir).expect("a killed process must not keep holding the lock");
         drop(lock);
@@ -502,7 +509,7 @@ mod tests {
         use std::os::unix::io::AsRawFd;
         let dir = lock_dir("cloexec");
         let lock = acquire_dir_lock(&dir).expect("the lock is taken");
-        let flags = unsafe { libc::fcntl(lock._file.as_raw_fd(), libc::F_GETFD) };
+        let flags = unsafe { libc::fcntl(lock._dir.as_raw_fd(), libc::F_GETFD) };
         assert!(flags >= 0, "F_GETFD failed on the lock descriptor");
         assert!(
             flags & libc::FD_CLOEXEC != 0,

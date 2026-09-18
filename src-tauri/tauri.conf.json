@@ -9,6 +9,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Kalsa Brain",
         "width": 520,
         "height": 320,

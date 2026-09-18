@@ -41,6 +41,9 @@ const MODEL_ENV: &str = "KALSA_BRAIN_MODEL";
 /// Where the pairing handshake is kept, so the catalog knows what the phone
 /// runs. The pairing crate persists and loads it; this is its path.
 const PAIRING_FILE: &str = "pairing.json";
+/// The one window, declared with this label in tauri.conf.json. Lookups
+/// go through this constant, so the two can never drift apart silently.
+const MAIN_WINDOW_LABEL: &str = "main";
 
 struct Brain {
     supervisor: Supervisor,
@@ -810,31 +813,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // needs the listener's port: both are only knowable once the app
             // has a handle, so this is where the pairing side is born.
             let file = app.path().app_data_dir()?.join(PAIRING_FILE);
-            if let Some(parent) = file.parent() {
-                std::fs::create_dir_all(parent)?;
-                // The authority, before anything can read or write the
-                // store: one exclusive lock on this account's own data
-                // directory, held for the app's whole life by the state
-                // manager. A refusal is the ordinary second launch, not a
-                // setup error — tauri runs this hook on the event loop's
-                // Ready and panics on its Err — so the refusal is handled
-                // here: say why, close the window tauri has already built
-                // by the time this hook runs, and let the empty window
-                // list end the app by the ordinary exit path.
-                let lock = match instance::acquire_dir_lock(parent) {
-                    Ok(lock) => lock,
-                    Err(instance::LockFailure::AlreadyRunning) => {
-                        eprintln!(
-                            "Kalsa Brain is already running — its window is coming forward."
-                        );
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.close();
-                        }
-                        return Ok(());
+            // Not an `if let`: the store below must be unreachable without
+            // the lock, not reachable-but-not-today. A path built by join
+            // always has a parent.
+            let parent = file
+                .parent()
+                .expect("a path built by join always has a parent");
+            std::fs::create_dir_all(parent)?;
+            // The authority, before anything below can read or write the
+            // store: one exclusive lock on this account's own data
+            // directory, held for the app's whole life. A refusal is the
+            // ordinary second launch, not a setup error — tauri runs this
+            // hook on the event loop's Ready and panics on its Err — so
+            // the refusal is handled here: say why, close the windows
+            // tauri has already built by the time this hook runs, and let
+            // the empty window list end the app by the ordinary exit path.
+            let lock = match instance::acquire_dir_lock(parent) {
+                Ok(lock) => lock,
+                Err(instance::LockFailure::AlreadyRunning) => {
+                    eprintln!("Kalsa Brain is already running — its window is coming forward.");
+                    for window in app.webview_windows().values() {
+                        let _ = window.close();
                     }
-                    Err(instance::LockFailure::Io(error)) => return Err(error.into()),
-                };
-                app.manage(lock);
+                    return Ok(());
+                }
+                // The machine failing under the app: the lock failure
+                // carries the directory and the cause, and that text is
+                // what the owner is told.
+                Err(failure) => return Err(Box::new(failure)),
+            };
+            // A duplicate manage returns false and drops the value — the
+            // flock would be released under a running app. That is a
+            // programming error, and it fails loudly.
+            if !app.manage(lock) {
+                return Err(io::Error::other("the instance lock was already managed").into());
             }
             // A pairing-side loopback bind failure is a startup failure,
             // not an empty pairing state: `?` aborts the hook, and tauri
@@ -845,7 +857,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // window forward, so the owner sees the app they already have.
             let handle = app.handle().clone();
             guard.watch(move || {
-                if let Some(window) = handle.get_webview_window("main") {
+                if let Some(window) = handle.get_webview_window(MAIN_WINDOW_LABEL) {
                     let _ = window.unminimize();
                     let _ = window.show();
                     let _ = window.set_focus();
