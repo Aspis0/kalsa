@@ -9,6 +9,10 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { getFreeDiskBytes } from "./deviceProfile";
 import {
+  beginEvictMarker,
+  EVICT_REASON_UNEVICTABLE,
+} from "./sessionEvictMarker";
+import {
   DEFAULT_SESSION_POOL_CONVERSATIONS,
   evictionGoesGlobal,
   parseSessionPoolConversations,
@@ -191,21 +195,6 @@ export async function keepOnlyStaticPrefixSnapshot(
   return dropped;
 }
 
-/** One KALSA_SESSION line for the pool's destructive path. Must never throw. */
-function emitEvictLine(payload: Record<string, unknown>): void {
-  try {
-    console.log(`KALSA_SESSION ${JSON.stringify(payload)}`);
-  } catch {
-    // telemetry must never throw
-  }
-}
-
-/** Error TYPE only: an error message can contain paths, paths contain stems. */
-function errorTypeOf(err: unknown): string {
-  const name = (err as { name?: unknown } | null | undefined)?.name;
-  return typeof name === "string" && name.length > 0 ? name : "unknown";
-}
-
 /** The total the regime charges against budgetBytes (snapshot excluded). */
 function chargedTotalBytes(
   files: PoolFile[],
@@ -227,50 +216,87 @@ function chargedTotalBytes(
 /**
  * LRU eviction for one save + stale-sidecar sweep.
  *
- * Emits exactly one KALSA_SESSION line (op "evict") per run — victims, bytes,
- * keep/victim modelIds, the budget/total figures that decided it — and never
- * a stem: stems contain conversation ids, and conversation identifiers must
- * not reach a log. When the run throws mid-way, the same line comes out
- * ok:false with reason and the error type only. The silent `catch {}` this
- * replaces is why an 80 MB deletion once left no trace at all.
+ * Emits exactly one KALSA_SESSION line per run via sessionEvictMarker —
+ * victims, bytes, keep/victim modelIds, the budget/total figures that decided
+ * it, and poolBytes (every chat file on disk, all models). Never a stem.
+ *
+ * Regime: per-model at or above the free-space floor, global below it
+ * (evictionGoesGlobal). opts.forceGlobal pins the global regime regardless of
+ * the reading — the disk-gate refusal path uses it, because a short refusal
+ * does not imply below-floor space (the gate can require far more than the
+ * floor) and "the save succeeds" then outranks foreign warm caches. The
+ * marker records the real freeBytes plus forced:true when pinned.
  */
 export async function evictSessionPool(
   keepStem: string,
   budgetBytes: number,
+  opts: { forceGlobal?: boolean } = {},
 ): Promise<void> {
-  const line: Record<string, unknown> = { op: "evict", ok: false };
+  const marker = beginEvictMarker();
+  const keepModel = modelIdOfStem(keepStem);
+  marker.set({ keepModel, budgetBytes });
+  // getFreeDiskBytes never throws (deviceProfile contract); everything after
+  // this point can, and the line must still carry policy/freeBytes when it
+  // does — so they are set before any throwing read.
+  const freeBytes = await getFreeDiskBytes();
+  const global = opts.forceGlobal === true || evictionGoesGlobal(freeBytes);
+  marker.set({
+    policy: global ? "global" : "per-model",
+    ...(opts.forceGlobal === true ? { forced: true } : {}),
+    freeBytes,
+    // Present even when the run victims nothing: "victims: 0" is itself the
+    // diagnostic.
+    victims: 0,
+    bytes: 0,
+    victimModels: [],
+  });
+  const budget =
+    Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
+  let dropped = 0;
+  let freedBytes = 0;
+  const victimModels = new Set<string>();
   try {
-    line.sidecars = await sweepStaleSidecars(keepStem);
+    marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
     const files = await listPoolFiles();
-    const freeBytes = await getFreeDiskBytes();
-    const keepModel = modelIdOfStem(keepStem);
-    const global = evictionGoesGlobal(freeBytes);
-    const stems = pickEvictionStems(files, budgetBytes, keepStem, freeBytes);
+    const stems = pickEvictionStems(
+      files,
+      budgetBytes,
+      keepStem,
+      // Forced global rides the picker's documented null reading; the marker
+      // above keeps the real freeBytes and says forced:true.
+      opts.forceGlobal === true ? null : freeBytes,
+    );
     const bytesByStem = new Map(
       files.map((f) => [f.stem, Math.max(0, f.bytes)]),
     );
-    let evictedBytes = 0;
-    const victimModels = new Set<string>();
     for (const stem of stems) {
-      evictedBytes += bytesByStem.get(stem) ?? 0;
+      freedBytes += bytesByStem.get(stem) ?? 0;
       const victimModel = modelIdOfStem(stem);
       if (victimModel != null) victimModels.add(victimModel);
       await dropStem(stem);
+      dropped += 1;
+      // Progress lands in the line even if a later drop throws mid-batch.
+      marker.set({
+        victims: dropped,
+        bytes: freedBytes,
+        victimModels: [...victimModels].sort(),
+      });
     }
-    line.ok = true;
-    line.policy = global ? "global" : "per-model";
-    line.keepModel = keepModel;
-    line.budgetBytes = budgetBytes;
-    line.totalBytes = chargedTotalBytes(files, keepModel, global);
-    line.freeBytes = freeBytes;
-    line.victims = stems.length;
-    line.bytes = evictedBytes;
-    line.victimModels = [...victimModels].sort();
+    const totalBytes = chargedTotalBytes(files, keepModel, global);
+    const poolBytes = chatTotalBytes(
+      files.filter((f) => !isStaticPrefixStem(f.stem)),
+    );
+    const stillOver = totalBytes - freedBytes > budget;
+    marker.set({
+      ok: !stillOver,
+      totalBytes,
+      poolBytes,
+      ...(stillOver ? { reason: EVICT_REASON_UNEVICTABLE } : {}),
+    });
   } catch (err) {
-    line.reason = "evict_failed";
-    line.errorType = errorTypeOf(err);
+    marker.thrown(err);
   }
-  emitEvictLine(line);
+  marker.emit();
 }
 
 /**

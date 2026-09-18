@@ -182,6 +182,21 @@ describe("staleStemsForConversation", () => {
 });
 
 describe("deleteSessionsForModelConversation", () => {
+  // Restore the shared expo mocks even when the assertion fails, so a
+  // leaked exists:true / .kvs listing cannot poison later tests.
+  afterEach(async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    (FileSystem.getInfoAsync as jest.Mock)
+      .mockReset()
+      .mockResolvedValue({ exists: false, isDirectory: false });
+    (FileSystem.readDirectoryAsync as jest.Mock)
+      .mockReset()
+      .mockResolvedValue([]);
+    (FileSystem.deleteAsync as jest.Mock)
+      .mockReset()
+      .mockResolvedValue(undefined);
+  });
+
   test("throws when a matching .kvs survives the delete", async () => {
     const FileSystem = await import("expo-file-system/legacy");
     const stem = sessionStem("lfm2.5-2.6b", "chat-1", "env")!;
@@ -196,11 +211,6 @@ describe("deleteSessionsForModelConversation", () => {
     await expect(
       deleteSessionsForModelConversation("lfm2.5-2.6b", "chat-1"),
     ).rejects.toThrow(/left 1 \.kvs/);
-    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
-      exists: false,
-      isDirectory: false,
-    });
-    (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([]);
   });
 });
 
@@ -273,6 +283,7 @@ describe("evictSessionPool marker", () => {
         keepModel: "lfm2_002e5-2_002e6b",
         budgetBytes: 100,
         totalBytes: 140,
+        poolBytes: 140,
         freeBytes: null,
         victims: 1,
         bytes: 50,
@@ -330,7 +341,207 @@ describe("evictSessionPool marker", () => {
         reason: "evict_failed",
         errorType: "Error",
       });
-      expect(lines[0]).not.toContain("c-keep");
+      // The rejection message contained a stem; the strong absence list runs
+      // on the failure line exactly as on the success line.
+      for (const secret of [
+        keepStem,
+        ownOldStem,
+        qwenStem,
+        "c-keep",
+        "c-old",
+        "c-x",
+        ".kvs",
+        "sessions/",
+      ]) {
+        expect(lines[0]).not.toContain(secret);
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("a common no-victim per-model run still emits its line", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      // Free space plenty (default mock) → per-model; LFM total 40 <= 100 →
+      // nothing to do. The Qwen file is charged to poolBytes, not to the
+      // regime's totalBytes.
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+        `${qwenStem}.kvs`,
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
+        async (path: string) => ({
+          exists: true,
+          isDirectory: false,
+          size: path.includes("qwen") ? 50 : 40,
+          modificationTime: 0,
+        }),
+      );
+
+      await evictSessionPool(keepStem, 100);
+
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        op: "evict",
+        ok: true,
+        policy: "per-model",
+        keepModel: "lfm2_002e5-2_002e6b",
+        totalBytes: 40,
+        poolBytes: 90,
+        victims: 0,
+        bytes: 0,
+        victimModels: [],
+      });
+      expect(payload.reason).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("over budget with nothing evictable is reported, not silent", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      // One own file (the keep stem) larger than the whole budget: the
+      // victim list is empty while the charge stays over budget.
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
+        async () => ({
+          exists: true,
+          isDirectory: false,
+          size: 150,
+          modificationTime: 0,
+        }),
+      );
+
+      await evictSessionPool(keepStem, 100);
+
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        op: "evict",
+        ok: false,
+        reason: "over_budget_unevictable",
+        policy: "per-model",
+        totalBytes: 150,
+        poolBytes: 150,
+        victims: 0,
+        bytes: 0,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("forceGlobal evicts foreign files even above the floor, and says so", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      // Free space plenty → the natural regime would be per-model and the
+      // Qwen file would stay; the gate-refusal path pins global.
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+        `${ownOldStem}.kvs`,
+        `${qwenStem}.kvs`,
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
+        async (path: string) => ({
+          exists: true,
+          isDirectory: false,
+          size: path.includes("qwen") ? 50 : 40,
+          modificationTime: 0,
+        }),
+      );
+
+      await evictSessionPool(keepStem, 100, { forceGlobal: true });
+
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        ok: true,
+        policy: "global",
+        forced: true,
+        freeBytes: Number.MAX_SAFE_INTEGER,
+        totalBytes: 130,
+        poolBytes: 130,
+        victims: 1,
+        bytes: 50,
+      });
+      expect(payload.victimModels).toEqual(["qwen3-1_002e7b"]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("a hostile error name never reaches the line", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        isDirectory: false,
+      });
+      const hostile = Object.assign(
+        new Error(`EIO listing ${keepStem}.kvs`),
+        { name: `/docs/sessions/${keepStem}.kvs` },
+      );
+      (FileSystem.readDirectoryAsync as jest.Mock).mockRejectedValue(hostile);
+
+      await evictSessionPool(keepStem, 100);
+
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        op: "evict",
+        ok: false,
+        reason: "evict_failed",
+        errorType: "unknown",
+      });
+      for (const secret of [
+        keepStem,
+        ownOldStem,
+        qwenStem,
+        "c-keep",
+        "c-old",
+        "c-x",
+        ".kvs",
+        "sessions/",
+      ]) {
+        expect(lines[0]).not.toContain(secret);
+      }
     } finally {
       spy.mockRestore();
     }

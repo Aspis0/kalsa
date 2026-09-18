@@ -816,17 +816,82 @@ export function shouldSaveSession(args: {
   return { save: true };
 }
 
+export type SessionDiskGateResult = {
+  ok: boolean;
+  /** Null when the gate passed. */
+  reason: "no_size" | "disk_unreadable" | "short" | "gate_error" | null;
+  usedTokens: number | null;
+  /** What this write demands; null when it could not be sized. */
+  requiredBytes: number | null;
+  /** The free-space reading the decision judged; null when unreadable. */
+  freeBytes: number | null;
+};
+
+/**
+ * The save disk gate with its refusal NAMED. hasEnoughDiskForSession reduces
+ * this to a boolean; a caller that would free space on refusal must use this
+ * one, because only "short" — a measured free <= required — is a refusal
+ * that deleting cache can fix: no_size means the write cannot even be sized,
+ * disk_unreadable is no proof of shortage, gate_error is any other throw.
+ */
+export async function sessionDiskGate(
+  input: SessionDiskGateInput,
+): Promise<SessionDiskGateResult> {
+  try {
+    const usedTokens = resolveSessionDiskTokens(input);
+    if (usedTokens == null) {
+      return {
+        ok: false,
+        reason: "no_size",
+        usedTokens: null,
+        requiredBytes: null,
+        freeBytes: null,
+      };
+    }
+    const requiredBytes = sessionDiskBytesRequired(
+      usedTokens,
+      input.bytesPerToken ?? undefined,
+    );
+    let free: number;
+    try {
+      free = await FileSystem.getFreeDiskStorageAsync();
+    } catch {
+      return {
+        ok: false,
+        reason: "disk_unreadable",
+        usedTokens,
+        requiredBytes,
+        freeBytes: null,
+      };
+    }
+    if (typeof free !== "number" || !Number.isFinite(free)) {
+      return {
+        ok: false,
+        reason: "disk_unreadable",
+        usedTokens,
+        requiredBytes,
+        freeBytes: null,
+      };
+    }
+    if (free <= requiredBytes) {
+      return { ok: false, reason: "short", usedTokens, requiredBytes, freeBytes: free };
+    }
+    return { ok: true, reason: null, usedTokens, requiredBytes, freeBytes: free };
+  } catch {
+    return {
+      ok: false,
+      reason: "gate_error",
+      usedTokens: null,
+      requiredBytes: null,
+      freeBytes: null,
+    };
+  }
+}
+
 export async function hasEnoughDiskForSession(
   input: SessionDiskGateInput,
 ): Promise<boolean> {
-  try {
-    const usedTokens = resolveSessionDiskTokens(input);
-    if (usedTokens == null) return false;
-    const free = await FileSystem.getFreeDiskStorageAsync();
-    return free > sessionDiskBytesRequired(usedTokens, input.bytesPerToken ?? undefined);
-  } catch {
-    return false;
-  }
+  return (await sessionDiskGate(input)).ok;
 }
 
 /** Read + parse session meta; null if missing/invalid. Never throws. */

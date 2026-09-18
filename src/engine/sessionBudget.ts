@@ -50,8 +50,12 @@ export function sessionPoolBudgetBytes(conversations: number): number {
 }
 
 /**
- * Free-space floor below which per-model eviction loses to "the save must
- * succeed" and the pool evicts globally again (foreign models become victims).
+ * Free-space floor separating the two eviction regimes: at or above it a save
+ * may only evict its own model's conversations; below it the pool evicts
+ * globally (foreign models become victims). The disk-gate refusal path pins
+ * global regardless of this floor — the gate's requirement (the estimated
+ * session x SESSION_DISK_MARGIN) can exceed the floor, so a refusal does not
+ * imply a below-floor reading.
  *
  * In units of the one measured constant: 2 conversations cover the pool's own
  * worst-case in-flight write — sessionPersistence writes a full `.kvs.tmp`
@@ -64,17 +68,23 @@ export function sessionPoolBudgetBytes(conversations: number): number {
 export const EVICTION_FREE_FLOOR_BYTES = 6 * KV_BYTES_PER_CONVERSATION;
 
 /**
- * Which eviction regime a free-space reading selects: true → the old global
- * policy applies (foreign models first), false → a save may only evict its
- * own model's conversations.
+ * Which eviction regime a free-space reading selects: true → the global
+ * policy (foreign models first), false → a save may only evict its own
+ * model's conversations.
  *
- * A null (or non-finite / negative) reading selects global. The floor exists
- * so a full disk cannot fail the save, and an unreadable disk is
- * indistinguishable from a full disk from the save's point of view: guessing
- * "full" wrong costs one cold prefill for another conversation, guessing
- * "plenty" wrong on a truly full disk costs a failed save. The guess is never
- * silent — the KALSA_SESSION evict line records freeBytes and the policy it
- * selected.
+ * A null reading selects global: no reading must not silently mean "plenty".
+ * The unreadable case itself is owned by the DISK GATE, not by this floor —
+ * sessionPersistence.sessionDiskGate names a measured short-space refusal
+ * ("short") and only that refusal leads to deleting; null here merely means
+ * "no reading, so pick the regime that frees the most".
+ * deviceProfile.getFreeDiskBytes normalizes non-finite / negative readings to
+ * null upstream, so from the app only null or a finite >= 0 value arrives;
+ * the non-finite / negative branches pin the behavior for direct callers
+ * instead of letting NaN fall through "<" as per-model.
+ *
+ * The regime chosen is never silent: the KALSA_SESSION evict line records
+ * freeBytes and the policy it selected (plus forced:true when the caller
+ * pins global regardless of the reading).
  */
 export function evictionGoesGlobal(freeBytes: number | null): boolean {
   if (freeBytes == null) return true;

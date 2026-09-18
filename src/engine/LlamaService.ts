@@ -165,6 +165,7 @@ import {
   rememberSuccessfulSessionSave,
   readSessionMeta,
   resolveSessionDiskTokens,
+  sessionDiskGate,
   sessionFileExists,
   sessionFilePath,
   extractChatKvPaths,
@@ -3215,9 +3216,44 @@ export async function saveEngineSession(
         log(true, { reason: "unchanged" });
         return true;
       }
-      if (!(await hasEnoughDiskForSession(diskInput))) {
-        log(false, { reason: "disk" });
-        return false;
+      const diskGate = await sessionDiskGate(diskInput);
+      if (!diskGate.ok) {
+        // Only a measured short-space refusal may delete anything: no_size
+        // cannot be fixed by freeing (the write cannot be sized), and an
+        // unreadable reading is not proof that space is short.
+        if (diskGate.reason !== "short") {
+          log(false, { reason: "disk" });
+          return false;
+        }
+        // The write has not happened yet — this is the one place eviction
+        // runs BEFORE a save instead of after one. Global, foreign models
+        // included: the gate requires the estimated session x SESSION_DISK_
+        // MARGIN (2.5), which at the unmeasured default rate (64 KiB/token x
+        // 8192 tokens ≈ 1.3 GB) far exceeds the 255 MB per-model floor, so
+        // the floor regime cannot be assumed to free enough. One eviction,
+        // one gate retry, no loop; the evict marker records what was freed
+        // (forced: true, policy global).
+        await evictSessionPool(stem, await readSessionPoolBudgetBytes(), {
+          forceGlobal: true,
+        });
+        const retryGate = await sessionDiskGate(diskInput);
+        if (!retryGate.ok) {
+          // -1 = unknown, same convention as usedTokens in the save line.
+          const freed =
+            diskGate.freeBytes != null && retryGate.freeBytes != null
+              ? Math.max(0, retryGate.freeBytes - diskGate.freeBytes)
+              : -1;
+          const missing =
+            retryGate.requiredBytes != null && retryGate.freeBytes != null
+              ? Math.max(0, retryGate.requiredBytes - retryGate.freeBytes)
+              : -1;
+          log(false, {
+            reason: "disk",
+            diskFreedBytes: freed,
+            diskMissingBytes: missing,
+          });
+          return false;
+        }
       }
       const path = sessionFilePath(stem);
       tmpPath = `${path}.tmp`;
