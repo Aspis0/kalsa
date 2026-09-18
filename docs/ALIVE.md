@@ -7678,3 +7678,53 @@ preferenza per il modello estraneo e' l'unica operazione distruttiva del motore 
 traccia**. Tutto il resto — load, save, refuse, mismatch, prewarm — ha il suo marcatore. Un marcatore
 con conteggi e `modelId` (**mai lo stem**: contiene l'id della conversazione) renderebbe questa
 discussione una lettura invece che una deduzione. Voce aperta, piccola e concreta.
+
+### persist-guard: sei giri per riparare una perdita dati, e cosa ha insegnato ognuno (18/09 sera)
+
+Ramo `persist-guard`, sette commit `f4e1b17`…`c45f044` da `main@2ed2a88`, in attesa di merge. Gates
+sulla punta, misurati con Node **v20.20.2** (quello della CI): `TSC=0`, `I18N=0`, `JEST_ALL=0`,
+**83 suite / 993 test** (erano 971 a inizio ramo). Nove file toccati, tutti sotto `src/`.
+
+**Il difetto di partenza, visto in produzione:** il carico faceva `JSON.parse` → `sanitizeHistoryMessages`
+→ `if (valid.length)`, e un grezzo illeggibile veniva **ignorato in silenzio**; il salvataggio scriveva
+la lista in memoria sopra la chiave **senza mai guardare cosa c'era gia'**. Schermata vuota piu' un
+messaggio scritto = 2 voci sopra 17. Le conversazioni vivono **solo** sul telefono.
+
+**Sei giri, un audit ostile per giro**, stesso Reviewer (deepseek-v4.1-flash) sempre su un modello
+diverso dallo scrittore (GLM-5.3-Flash). Rilievi chiusi per classe: **7 B · 7 N · 6 M · 5 P · 1 Q = 26**.
+
+**I quattro che valgono la giornata, e nessuno e' "un bug in piu'":**
+1. **Due erano perdite dati della stessa classe di quella originale, dentro il fix che doveva
+   impedirla.** B1: la guardia confrontava **conteggi**, e un conteggio pari al conteggio del grezzo
+   non e' prova che il contenuto sia sopravvissuto. N1: "una quarantena esiste" veniva scambiato per
+   "QUESTO grezzo e' preservato", e **un test fissava il difetto** — nome onesto, premessa sbagliata.
+2. **Un delete cross-conversazione introdotto dalla rete di sicurezza che avevamo voluto noi** (Q1):
+   la spazzata per prefisso aggiunta al giro 5 per chiudere P1 poteva cancellare la chiave viva di
+   un'altra conversazione, perche' gli id possono contenere punti. La rete costa, e va pagata intera.
+3. **Un'invariante persa dal refactor, che nessun test copriva** (P2): lo split in quattro moduli ha
+   lasciato indietro `declaredDroppable = null` all'inizio del carico, cosi' una dichiarazione di
+   troncamento armata in una visita poteva autorizzare uno shrink in una visita successiva. Trovata
+   solo perche' il brief dell'audit diceva **"verifica lo stato finale, non il racconto di chi ha
+   rifattorizzato"**. Un refactor "senza cambi di comportamento" e' un'affermazione, non un fatto.
+4. **La prova che il gate jest serviva.** Durante lo stesso split, il primo tentativo dello scrittore
+   ha violato B5 e **i test l'hanno preso**. Questo ramo e' nato perche' una suite verde non toccava
+   il codice che contava; ora quella suite blocca una regressione vera dentro un refactor.
+
+**Limiti noti, scritti perche' restino noti.**
+- **La contabilita' e' best-effort, la cancellazione no.** L'indice degli slot e' un read-modify-write
+  senza transazione (un solo scrittore per conversazione in-app). Ogni modo in cui puo' perdere una
+  voce finisce nello stesso posto: uno slot che la **spazzata** rimuove al momento del delete. L'unico
+  caso scoperto e' uno storage senza `getAllKeys`, e li' la funzione restituisce `false` e l'app avvisa
+  invece di dichiarare un successo che non ha avuto.
+- **Il controllo di perdita confronta id, conteggi e lunghezza del testo — mai il contenuto.** Non
+  prende la corruzione **della stessa lunghezza** di una voce sopravvissuta, ne' la perdita di campi
+  non testuali.
+- **Tutto cio' che vive nei `.tsx` non e' coperto** — i tre Alert, il re-flush, il try/catch del
+  `begin`, i timer del fallback, il sito di delete in AppShell. `jest.config.js` ha
+  `moduleFileExtensions: ["ts","js","json"]`, **senza `tsx`**: non e' una svista, e' strutturale. La
+  risposta e' stata spostare le **decisioni** in moduli `.ts` testabili e lasciare nei `.tsx` un
+  adattatore sottile — non fingere copertura con un mock.
+
+**Quarantena = preservazione, non recupero.** Nessuno in app legge gli slot. E' scritto nel codice,
+perche' un commento che promettesse un recupero inesistente sarebbe la stessa bugia che il ramo
+ripara.
