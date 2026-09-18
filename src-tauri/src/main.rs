@@ -453,6 +453,14 @@ enum StateDto {
     Starting,
     Running {
         port: u16,
+        /// Where an OpenAI-style client on this machine reaches the local
+        /// server. Loopback, not the door: the desktop is the host, not a
+        /// guest with a credential.
+        endpoint: String,
+        /// The catalog's own name for what launched — the one model
+        /// identity the user is shown. Absent on the development path,
+        /// where the developer pinned a file no catalog choice named.
+        model: Option<String>,
         metrics: metrics::RuntimeMetricsDto,
     },
     /// Already in the user's words, produced only by `failure::words`.
@@ -489,6 +497,8 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             let active_devices = brain.active_devices();
             StateDto::Running {
                 port,
+                endpoint: format!("http://127.0.0.1:{port}/v1"),
+                model: brain.model_dto().display_name,
                 metrics: brain.metrics.snapshot(active_devices),
             }
         }
@@ -938,6 +948,31 @@ mod tests {
         assert!(model_chosen(Some("IBM Granite 4 Tiny"), false));
         assert!(model_chosen(None, true));
         assert!(!model_chosen(None, false), "neither fact, no model");
+    }
+
+    #[test]
+    fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
+        let dto = StateDto::Running {
+            port: startup::PORT,
+            endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
+            model: Some("IBM Granite 4 Tiny".to_string()),
+            metrics: metrics::RuntimeMetricsDto {
+                decode_tokens_per_second: None,
+                active_devices: None,
+                throttled: None,
+            },
+        };
+        let json = serde_json::to_value(&dto).expect("a running state serialises");
+        assert_eq!(json["kind"], "running");
+        assert_eq!(
+            json["endpoint"],
+            format!("http://127.0.0.1:{}/v1", startup::PORT),
+            "the local server's own OpenAI-style address, loopback, not the door"
+        );
+        assert_eq!(
+            json["model"], "IBM Granite 4 Tiny",
+            "the catalog's own name, not a filename"
+        );
     }
 
     #[test]

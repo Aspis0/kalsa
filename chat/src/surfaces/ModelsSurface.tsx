@@ -58,12 +58,12 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         break;
       case "failed":
         headline = "Not running";
-        sentence = "This computer is not running right now. The Status page says why.";
+        sentence = "This computer is not running right now. The Server page says why.";
         break;
       case "stopped":
         sentence =
           "When you turn on, this computer measures itself, picks a model it can run, and starts it. You never have to pick anything.";
-        button = "Go to Status";
+        button = "Go to Server";
         break;
       default:
         sentence = "This page could not tell what this computer is running. Trying again usually works.";

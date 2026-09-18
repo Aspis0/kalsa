@@ -127,7 +127,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       case "idle":
         onAction = () => onNavigate("server");
         sentence = "This computer is not running yet, so there is nothing for your phone to connect to.";
-        button = "Go to Status";
+        button = "Go to Server";
         break;
       case "waiting":
         // No square yet is its own honest moment, not a camera instruction.
@@ -168,7 +168,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
           onAction = () => onNavigate("server");
           headline = "Pairing unavailable";
           sentence = "The local pairing service stopped. Restart the app to make pairing available again.";
-          button = "Go to Status";
+          button = "Go to Server";
           break;
         }
         onAction = retry;

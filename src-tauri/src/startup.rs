@@ -250,12 +250,15 @@ fn choice_input(
 /// A measurement the probe itself distrusts — every attempt failed its
 /// checks, and the last one came back anyway — must not decide which model a
 /// real machine runs. The probe's own word is the authority; this adds
-/// nothing to it.
+/// nothing to it. The notes it wrote for the user, numbers included, travel
+/// with the failure unchanged: they are the reason the owner is told.
 pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupFailure> {
     if measurement.is_reliable() {
         Ok(())
     } else {
-        Err(StartupFailure::MeasurementUnreliable)
+        Err(StartupFailure::MeasurementUnreliable(
+            measurement.reliability.notes.clone(),
+        ))
     }
 }
 
@@ -839,6 +842,11 @@ mod tests {
         // back anyway: deciding on it would decide on noise.
         let mut measurement = measured(80.0e9, Backend::Cpu);
         measurement.reliability.reliable = false;
+        measurement.reliability.notes = vec![
+            "the repetitions disagreed by 35%: something else was using this machine \
+             while it was measured"
+                .to_string(),
+        ];
         let root = scratch("unreliable");
         let err = run(
             Some(PathBuf::from("/server/llama-server")),
@@ -853,9 +861,24 @@ mod tests {
             &mut |_| {},
         )
         .expect_err("an unreliable measurement is not a decision");
+        let StartupFailure::MeasurementUnreliable(notes) = &err else {
+            panic!("not a measurement refusal: {err:?}")
+        };
+        assert_eq!(notes.len(), 1, "the probe's own notes travel, unchanged");
+        assert!(notes[0].contains("disagreed by 35%"), "{notes:?}");
+        // And the reason reaches the owner's sentence: the probe's words sit
+        // between the opening and the advice that were already approved.
+        let spoken = crate::failure::words(&err);
+        assert!(spoken.contains("disagreed by 35%"), "{spoken}");
         assert!(
-            matches!(err, StartupFailure::MeasurementUnreliable),
-            "{err:?}"
+            spoken.starts_with(
+                "This computer could not be measured just now — it may be busy. "
+            ),
+            "{spoken}"
+        );
+        assert!(
+            spoken.ends_with("Waiting a moment and turning on again usually works."),
+            "{spoken}"
         );
         let _ = std::fs::remove_dir_all(&root);
     }

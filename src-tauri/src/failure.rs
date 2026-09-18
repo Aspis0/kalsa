@@ -5,7 +5,9 @@
 //! report breaks this build until it is given words. Every sentence says
 //! what happened and what the user can do; a `detail` payload never crosses
 //! it, and nothing the crates say in their own vocabulary reaches the
-//! screen.
+//! screen. The one carrying over is deliberate: the probe's reliability
+//! notes were written for the user, numbers included, and they are the only
+//! words in the app that name the exact reason a measurement failed.
 
 use kalsa_catalog::RefusalReason;
 use kalsa_download::DownloadError;
@@ -41,8 +43,10 @@ pub(crate) enum StartupFailure {
     /// starting would run numbers that belong to some other row.
     ChosenModelUnresolved,
     /// The probe retried past its budget and still calls the measurement
-    /// unreliable: deciding on it would decide on noise.
-    MeasurementUnreliable,
+    /// unreliable: deciding on it would decide on noise. The notes are the
+    /// probe's own words for what its checks saw on the last attempt —
+    /// written for the user, with the numbers in them.
+    MeasurementUnreliable(Vec<String>),
     // — placing the model on disk —
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
@@ -121,11 +125,7 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              entry, so it was not started. An app update may fix this."
                 .into()
         }
-        StartupFailure::MeasurementUnreliable => {
-            "This computer could not be measured just now — it may be busy. Waiting a \
-             moment and turning on again usually works."
-                .into()
-        }
+        StartupFailure::MeasurementUnreliable(notes) => measurement_unreliable_words(notes),
         StartupFailure::WeightsUnverified => {
             "The model chosen for this computer cannot yet be verified against its \
              publisher, so it was not downloaded. A future app update finishes this."
@@ -147,6 +147,30 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
                 .into()
         }
     }
+}
+
+/// The measurement failure, told in three parts: the approved opening, the
+/// probe's own reason, the approved advice. The notes were written where the
+/// numbers were; this only stands them up as sentences between the words that
+/// were already approved — every note that fired, since a machine can fail two
+/// checks at once. When no note arrived, the standing sentence says all that
+/// was known.
+fn measurement_unreliable_words(notes: &[String]) -> String {
+    const OPENING: &str = "This computer could not be measured just now — it may be busy.";
+    const ADVICE: &str = "Waiting a moment and turning on again usually works.";
+    let mut spoken = String::from(OPENING);
+    for note in notes {
+        let mut sentence = note.trim().to_string();
+        if let Some(first) = sentence.get_mut(..1) {
+            first.make_ascii_uppercase();
+        }
+        sentence.push('.');
+        spoken.push(' ');
+        spoken.push_str(&sentence);
+    }
+    spoken.push(' ');
+    spoken.push_str(ADVICE);
+    spoken
 }
 
 /// The supervisor's sentences, verbatim from when the supervisor was the
@@ -241,6 +265,11 @@ mod tests {
             StartupFailure::ServerFetchFailed,
             StartupFailure::MachineNotMeasured,
             StartupFailure::PairPhoneFirst,
+            StartupFailure::MeasurementUnreliable(vec![
+                "the repetitions disagreed by 35%: something else was using this machine \
+                 while it was measured"
+                    .into(),
+            ]),
             StartupFailure::NothingFits,
             StartupFailure::NothingBetter,
             StartupFailure::NothingFastEnough,
@@ -274,5 +303,39 @@ mod tests {
                 .any(|word| spoken.to_ascii_lowercase().contains(word));
             assert!(actionable, "{failure:?} is a dead end: {spoken}");
         }
+    }
+
+    #[test]
+    fn the_measurement_failure_says_what_the_probe_saw() {
+        // The probe's notes, in the order they fired, standing as sentences
+        // between the approved opening and the approved advice.
+        let spoken = words(&StartupFailure::MeasurementUnreliable(vec![
+            "the repetitions disagreed by 35%: something else was using this machine \
+             while it was measured"
+                .to_string(),
+            "the probe's threads received 0.5 cores of the 10 it asked for: the machine \
+             is busy"
+                .to_string(),
+        ]));
+        assert_eq!(
+            spoken,
+            "This computer could not be measured just now — it may be busy. \
+             The repetitions disagreed by 35%: something else was using this machine \
+             while it was measured. \
+             The probe's threads received 0.5 cores of the 10 it asked for: the machine \
+             is busy. \
+             Waiting a moment and turning on again usually works."
+        );
+    }
+
+    #[test]
+    fn a_measurement_failure_without_notes_says_the_standing_sentence() {
+        // No note arrived, so there is no reason to tell; the sentence must
+        // be exactly what it has always been.
+        assert_eq!(
+            words(&StartupFailure::MeasurementUnreliable(Vec::new())),
+            "This computer could not be measured just now — it may be busy. \
+             Waiting a moment and turning on again usually works."
+        );
     }
 }

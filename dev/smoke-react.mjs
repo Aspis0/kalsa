@@ -310,7 +310,7 @@ try {
     "can take a minute",
     "You never have to pick one",
     "You never have to pick anything",
-    "The Status page says why",
+    "The Server page says why",
     "It is starting now",
   ];
   for (const { heading, sentence, button, working, walk, qr } of results) {
@@ -416,6 +416,9 @@ try {
   }
 
   const failureText = await renderer.renderStartFailureProbe({ state: { kind: "stopped" }, startFailure: "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option." });
+  if (!failureText.includes("Did not start")) {
+    problems.push("a held start failure must not be titled as if something had been running");
+  }
   if (!failureText.includes("The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.")) {
     problems.push("a walk failure must be spoken in its own words, not the generic ones");
   }

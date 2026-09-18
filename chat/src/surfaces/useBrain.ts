@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { available, invoke, listen } from "../lib/tauri";
 import type { ProgressStep } from "./SetupProgress";
+import type { ChatSettings } from "../lib/types";
 
 const POLL_MS = 1000;
 const COULD_NOT_TELL =
@@ -10,10 +11,127 @@ const COULD_NOT_TELL =
 export interface BrainState {
   kind: "stopped" | "starting" | "running" | "failed";
   reason?: string;
+  // Only on `running`: where an OpenAI-style client on this machine
+  // reaches the local server, and the catalog's own name for what
+  // launched (absent on the development path).
+  endpoint?: string;
+  model?: string;
   metrics?: {
     decode_tokens_per_second?: number;
     active_devices?: unknown[];
     throttled?: boolean;
+  };
+}
+
+/** Where the local server answers and what it loaded, while it is running. */
+export interface BrainServer {
+  endpoint: string;
+  model: string;
+}
+
+// One read of `brain_state` runs for the whole app: the command itself
+// reconciles the pairing door on every answer, so a second poller would
+// double its side effects. The surfaces and the shell subscribe to the
+// same poll instead of each owning one.
+interface BrainRead {
+  state: BrainState | null;
+  step: ProgressStep | null;
+}
+
+let currentState: BrainState | null = null;
+let currentStep: ProgressStep | null = null;
+let readSnapshot: BrainRead = { state: null, step: null };
+let serverSnapshot: BrainServer | null = null;
+const listeners = new Set<() => void>();
+let pollTimer: ReturnType<typeof setInterval> | undefined;
+let offProgress: (() => void) | null = null;
+
+function publish(): void {
+  readSnapshot = { state: currentState, step: currentStep };
+  // A stable snapshot: identical facts keep their identity, so a poll
+  // that changes nothing re-renders nobody.
+  const server =
+    currentState?.kind === "running" && currentState.endpoint
+      ? { endpoint: currentState.endpoint, model: currentState.model ?? "" }
+      : null;
+  if (
+    server === null ||
+    serverSnapshot === null ||
+    server.endpoint !== serverSnapshot.endpoint ||
+    server.model !== serverSnapshot.model
+  ) {
+    serverSnapshot = server;
+  }
+  for (const listener of listeners) listener();
+}
+
+async function poll(): Promise<void> {
+  let next: BrainState | null = null;
+  if (available()) {
+    try {
+      next = await invoke<BrainState>("brain_state");
+    } catch {
+      next = null;
+    }
+  }
+  currentState = next;
+  publish();
+}
+
+// The first reader starts the poll, the last one stops it. The bus
+// subscription is async: if the last reader leaves before it answers,
+// the unsubscribe still runs.
+function subscribeBrainRead(listener: () => void): () => void {
+  listeners.add(listener);
+  if (listeners.size === 1) {
+    void poll();
+    pollTimer = setInterval(() => void poll(), POLL_MS);
+    void listen("brain_progress", (step: unknown) => {
+      currentStep = (step as ProgressStep) || null;
+      void poll();
+    }).then((unsubscribe) => {
+      if (listeners.size > 0) offProgress = unsubscribe;
+      else unsubscribe();
+    });
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      clearInterval(pollTimer);
+      pollTimer = undefined;
+      if (offProgress) offProgress();
+      offProgress = null;
+      // The walk's step is live only while someone reads it: the next
+      // reader starts from nothing, never from a stale phase.
+      currentStep = null;
+      readSnapshot = { state: null, step: null };
+    }
+  };
+}
+
+function getBrainRead(): BrainRead {
+  return readSnapshot;
+}
+
+function getBrainServer(): BrainServer | null {
+  return serverSnapshot;
+}
+
+/** The brain's server facts, for the shell: filled blanks, never overrides. */
+export function useBrainServer(): BrainServer | null {
+  return useSyncExternalStore(subscribeBrainRead, getBrainServer, getBrainServer);
+}
+
+/** The owner's settings win; the brain's own server fills their blanks. */
+export function withBrainDefaults(
+  settings: ChatSettings,
+  server: BrainServer | null,
+): ChatSettings {
+  if (!server) return settings;
+  return {
+    ...settings,
+    endpoint: settings.endpoint.trim() ? settings.endpoint : server.endpoint,
+    model: settings.model.trim() ? settings.model : server.model,
   };
 }
 
@@ -36,8 +154,11 @@ export function brainWords(state: BrainState | null, heldFailure: string | null)
   }
   switch (state.kind) {
     case "stopped":
+      // A held start failure means an attempt ran and did not end in a
+      // running brain. "Off" would deny the attempt; "Stopped" would claim
+      // something was halted that never began.
       return {
-        headline: heldFailure ? "Stopped" : "Off",
+        headline: heldFailure ? "Did not start" : "Off",
         sentence: heldFailure ?? "This computer is not helping your phone right now.",
         button: heldFailure ? "Try again" : "Turn on",
         enabled: true,
@@ -70,13 +191,14 @@ export function brainWords(state: BrainState | null, heldFailure: string | null)
 }
 
 /**
- * The brain's state as the frontend sees it: the polled `brain_state` read,
- * the live `brain_progress` step, and `act` — the one start/stop path. Two
- * surfaces use it, never at the same time (one surface shows at once), so
- * there is always exactly one poller, as before.
+ * The brain's state as a surface sees it: the shared poll's read, plus the
+ * surface-local facts — a held start failure, a held stop failure, and
+ * `act`, the one start/stop path. Surfaces never mount together, so the
+ * held facts are always exactly one surface's.
  */
 export function useBrain() {
-  const [state, setState] = useState<BrainState | null>(null);
+  const read = useSyncExternalStore(subscribeBrainRead, getBrainRead);
+  const state = read.state;
   // A start that failed keeps its own sentence on the page against the poll,
   // until a start actually succeeds.
   const [heldFailure, setHeldFailure] = useState<string | null>(null);
@@ -88,9 +210,6 @@ export function useBrain() {
   const [stopFailure, setStopFailure] = useState(false);
   const stopFailureRef = useRef(false);
   const [busy, setBusy] = useState(false);
-  // The latest walk step, live. It is cleared — never shown stale — the
-  // moment the read stops saying "stopped".
-  const [liveStep, setLiveStep] = useState<ProgressStep | null>(null);
 
   function holdFailure(value: string | null): void {
     heldFailureRef.current = value;
@@ -102,52 +221,21 @@ export function useBrain() {
     setStopFailure(value);
   }
 
-  const refresh = useCallback(async (): Promise<void> => {
-    let next: BrainState | null = null;
-    if (available()) {
-      try {
-        next = await invoke<BrainState>("brain_state");
-      } catch {
-        next = null;
-      }
-    }
-    setState(next);
-    // A held stop failure survives the poll. Only the brain really going
-    // down — or becoming unreadable — takes it back; a new action clears
-    // it in act.
+  // A held stop failure survives the polls. Only the brain honestly going
+  // down — or the read becoming impossible — takes it back; a new action
+  // clears it in act.
+  useEffect(() => {
+    const next = read.state;
     if (!next || (next.kind !== "running" && next.kind !== "starting")) holdStopFailure(false);
-    // The walk lives only while the read still says stopped and no start
-    // failure is held; otherwise the ordinary view takes the page back.
-    if (!next || next.kind !== "stopped" || heldFailureRef.current) setLiveStep(null);
-  }, []);
+  }, [read.state]);
 
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [refresh]);
-
-  // The subscription is async: if the surface unmounts before the bus
-  // answers, the unsubscribe still runs.
-  useEffect(() => {
-    let off: (() => void) | null = null;
-    let live = true;
-    void listen("brain_progress", (step: unknown) => {
-      setLiveStep((step as ProgressStep) || null);
-      void refresh();
-    }).then((unsubscribe) => {
-      if (live) off = unsubscribe;
-      else unsubscribe();
-    });
-    return () => {
-      live = false;
-      if (off) off();
-    };
-  }, [refresh]);
+  // The walk lives only while the read still says stopped and no start
+  // failure is held; otherwise the ordinary view takes the page back.
+  const liveStep = state?.kind === "stopped" && heldFailure === null ? read.step : null;
 
   async function act(): Promise<void> {
     if (!state) {
-      void refresh();
+      void poll();
       return;
     }
     setBusy(true);
@@ -170,7 +258,7 @@ export function useBrain() {
       }
     }
     setBusy(false);
-    void refresh();
+    void poll();
   }
 
   return { state, liveStep, heldFailure, stopFailure, busy, act };
