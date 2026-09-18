@@ -109,6 +109,9 @@ device_composer_from_ui() {
 # failed DB read is indistinguishable from an empty conversation — the cause
 # of the "no reply within Ns" shape. Do not change that return before a
 # trusted device run; rp_wait_reply's control flow depends on it.
+# Exit status note: since the stdin conversion this function returns sql's
+# status under pipefail (it was always-0 when the python read a file); every
+# current caller captures stdout in an assignment and ignores the status.
 device_history_assistant_count() {
   local index_raw id key
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
