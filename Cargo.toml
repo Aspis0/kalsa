@@ -29,3 +29,16 @@ license = "Apache-2.0"
 # Measured 2026-09-18: `cargo run -p kalsa-probe` debug vs release.
 [profile.dev.package.kalsa-probe]
 opt-level = 3
+
+# The same lesson, found the same day on the other end of the walk. Verifying
+# a 22.13 GB model against its sha256 took ELEVEN MINUTES in a debug build and
+# had not finished; the system's own `shasum` did the same file in 74 seconds
+# while competing for the disk. Nine times slower, on the one step between a
+# finished download and a running assistant, with nothing on screen saying so
+# — the app reads as hung. `sha2` is the hot loop, `kalsa-download` drives it.
+# Measured 2026-09-18 on the first end-to-end product run.
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.kalsa-download]
+opt-level = 3
