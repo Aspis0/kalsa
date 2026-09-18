@@ -401,6 +401,8 @@ Resolution rules, in order:
      scripts/sync-kalsallama.sh pin 134a35cf201f3a9c4b25eb32768198b8cb3f3c5d > /tmp/pin.log 2>&1; echo $?
    KALSA_BMOE_DIR=… KALSALLAMA_SRC=… scripts/sync-kalsallama.sh verify > /tmp/verify.log 2>&1; echo $?
    npm ci > /tmp/npm-ci.log 2>&1; echo $?; npm run build > /tmp/bob.log 2>&1; echo $?   # src/ changed → lib/ changes
+   # typecheck/test/lint mean something ONLY from fork commit 24fb7098 + 653e2ddb on:
+   # before those, `sync` left its clone in tmp/ and all three tools read it.
    npm run typecheck > /tmp/tc.log 2>&1; echo $?; npm test -- --maxWorkers=2 > /tmp/jest.log 2>&1; echo $?
    git add -A cpp lib src package.json package-lock.json .gitignore .github   # explicit paths; check `git status` first
    git commit -m "merge: llama.rn v0.12.9 (N conflicts: <list>); engine regenerated from the pin"
@@ -653,6 +655,22 @@ a binary without a Metal library.
 - **`native/kalsallama.pin` in the app stays at `134a35cf2`** while the engine is `70b4302bb`.
   Deliberate: it belongs to the KV session, it is inert on the fork road (only the engine id
   digests it, as a constant), and Step 4 deletes it. Do not "fix" it in isolation.
+- **Engine residual found by the fork's FIRST CI run on `kalsa` (35360547883, 18/09):**
+  `cpp/llama-kv-cache-iswa.cpp:97` throws `std::runtime_error` while the file includes
+  `<algorithm>` and `<cassert>` but not `<stdexcept>`. GCC on the runner rejects it
+  (`'runtime_error' is not a member of 'std'`); clang on macOS and in the NDK accepts it because
+  libc++ pulls the header in transitively, so no gate we own could see it. Same line in kalsallama
+  `src/llama-kv-cache-iswa.cpp:97`, and the message ("cannot share iSWA cells with an incompatible
+  memory type") is our own TAG_KV_CACHE_SHARE_CELLS code. One-line engine fix, rides with Step 5's
+  pin bump alongside the null checks below. **The app is unaffected** — it builds with NDK clang.
+  Until it lands, the fork's `test` job stays red on `kalsa` on purpose: gating the step would hide
+  a defect a real compiler found.
+- **Fork `kalsa` head moved on 18/09** to `653e2ddb` (was `fada1ebe`): `24fb7098` excludes the
+  `tmp/` clone cache from tsconfig+jest, `45fee016` adds the two governor bindings the jest mock
+  never declared, `a694adfc` runs the fork's own CI on `kalsa` (heavy jobs gated off this branch),
+  `2e313c77` fixes `no-use-before-define` in `src/types.ts`, `653e2ddb` excludes `tmp/` from eslint
+  too. **`kalsa-v0129` (the v0.12.9 dry run) and `gate-ndk` (the NDK gate) are both off `fada1ebe`
+  and must be rebased onto the new head before they go anywhere.**
 - **Engine-side residual, found by the KV session, not verified by me:** `cpp/common/common.cpp:1813-1815`
   takes two function pointers from `lm_ggml_backend_reg_get_proc_address` and calls them without a null
   check (`lm_ggml_threadpool_new_fn` twice, `free_fn` once). Engine code, so closing it costs a
