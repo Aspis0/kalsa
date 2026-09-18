@@ -1,14 +1,60 @@
 /**
  * Harness for extractDocxTextFromBytes (pure) + pickKind.
- * Imports the TypeScript source via Node type-stripping. Exit 1 on fail.
+ * Compile-from-disk pattern. Exit 1 on fail.
  */
+import { spawnSync } from "node:child_process";
 import { zipSync } from "fflate";
-import { pathToFileURL } from "node:url";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
+const outDir = path.join(projectRoot, "scripts/.build/docxToTextHarness");
+
+function compile() {
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  const r = spawnSync(
+    "npx",
+    [
+      "tsc",
+      "src/documents/docxToText.ts",
+      "src/documents/documentKinds.ts",
+      "--outDir",
+      outDir,
+      "--module",
+      "nodenext",
+      "--target",
+      "es2020",
+      "--moduleResolution",
+      "nodenext",
+      "--skipLibCheck",
+      "--ignoreConfig",
+      "--esModuleInterop",
+      "--types",
+      "node",
+    ],
+    { cwd: projectRoot, encoding: "utf8", shell: true },
+  );
+  if (r.status !== 0) {
+    console.error("tsc failed:\n", r.stdout, r.stderr);
+    process.exit(1);
+  }
+}
+
+function resolveBuilt(base) {
+  const candidates = [
+    path.join(outDir, `documents/${base}`),
+    path.join(outDir, `src/documents/${base}`),
+    path.join(outDir, base),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  console.error(`Could not find compiled ${base}. Tried:\n`, candidates.join("\n"));
+  process.exit(1);
+}
 
 let pass = 0;
 let fail = 0;
@@ -43,12 +89,9 @@ const SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </w:document>`;
 
 async function loadModules() {
-  const extractUrl = pathToFileURL(
-    path.join(projectRoot, "src/documents/docxToText.ts"),
-  ).href;
-  const kindsUrl = pathToFileURL(
-    path.join(projectRoot, "src/documents/documentKinds.ts"),
-  ).href;
+  compile();
+  const extractUrl = pathToFileURL(resolveBuilt("docxToText.js")).href;
+  const kindsUrl = pathToFileURL(resolveBuilt("documentKinds.js")).href;
   const extractMod = await import(extractUrl);
   const kindsMod = await import(kindsUrl);
   return { extractMod, kindsMod };
