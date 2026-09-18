@@ -7544,3 +7544,43 @@ Quindi la frase esatta e': **"la conversazione ha toccato il disco" si', "la con
 dalla macchina" no.** La seconda e' quella che conterebbe davvero, ed e' falsa — dirlo non attenua il
 difetto, lo dimensiona. Crepa accanto, segnalata da kalsa-2d e non mia: `device-decode-lineup-out/`
 **non** e' ignorata, e la classe `*-out/` andrebbe ignorata per costruzione.
+
+### Il gate jest ha pagato in venti minuti, e la prima cosa che ha beccato e' una regressione mia
+
+`87b36f8` e' su main dalle 16:16:58. Lo step nuovo, sul run vero `35390592640`:
+**`Jest (bounded — the suite that guards main)` = success, 20:18:33Z → 20:18:59Z, 26 secondi.** Il
+bound di 15 minuti e' per un hang, non per la durata.
+
+**Poi kalsa-2d ha fatto girare jest sul suo ramo prima di rebasare, e ha trovato un rosso.** Non era
+il suo bump. Riprodotto da me in un worktree pulito su `3cabcf1` con Node **v20.20.2** (quello della
+CI, non il 26 di questo Mac):
+
+```
+npx jest src/engine/sessionPersistence.test.ts  →  exit 1
+✕ history hash persistable projection › raw boot extras hash as persistable of the same turn
+   Expected: "3587087287"   Received: "3986477111"
+```
+
+**Bisezionato, perche' "era gia' rotto" senza un colpevole non e' un fatto:**
+
+```
+8ec99c9  jest=0   34 passed, 34 total
+7b5b79b  jest=1   1 failed, 33 passed
+bc6bd22  jest=1   1 failed, 33 passed
+```
+
+**L'ha rotto `7b5b79b`, che e' mio** — "the history was missing the one token the template seeds",
+gia' agli atti come mia regressione sul KV del telefono. Quello che non sapevo e' che avesse lasciato
+**jest rosso su main**, e che ci sia rimasto attraverso `bc6bd22`, `5fb1bfa`, `204298f` e `3cabcf1`:
+ore, con **tre e2e verdi sopra**, perche' su un push a main la suite non girava da nessuna parte.
+
+Tre cose che vale la pena tenere da questa mezz'ora, e nessuna e' "avevo ragione":
+1. **Il buco non era teorico.** Lo step l'ho difeso con un argomento; la prova e' arrivata dopo, e a
+   fornirla e' stato un test mio rimasto rosso per ore. Un gate che non ha ancora beccato niente e'
+   una promessa; questo ha smesso di esserlo il giorno stesso.
+2. **La regressione e' doppia e l'avevo vista meta'.** `7b5b79b` era gia' registrata come regressione
+   *sul dispositivo*. La stessa riga aveva rotto anche la proiezione della storia in jest, e il fatto
+   che nessuno l'abbia vista non e' una scusante: e' esattamente la ragione per cui si guarda.
+3. **L'ha trovata chi stava per rebasare, non chi aveva scritto il codice.** kalsa-2d ha fatto girare
+   la suite *prima* del rebase invece che dopo il push. Senza quel giro, il primo a scoprirlo sarebbe
+   stato il loro push, e sarebbe sembrato colpa del bump.
