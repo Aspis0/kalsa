@@ -1,67 +1,43 @@
 /**
- * Write-permission state machine for the active conversation's history.
+ * Two-phase load lifecycle + persistence orchestration for one conversation's
+ * history key. The permission rules live in historyWritePolicy.ts, load
+ * classification in historyClassifier.ts, preservation slots in
+ * historyQuarantine.ts.
  *
  * Conversations live only on the phone: a write that replaces stored history
- * with less than the store holds is unrecoverable. This module owns the
- * whole state machine for the active messages key; the screens are thin
- * adapters that wire AsyncStorage and the UI to it. Preservation slots live
- * in historyQuarantine.ts.
+ * with less than the store holds is unrecoverable. The flow:
  *
- * Identity, not counts. The guard tracks the SET of message ids the store is
- * known to hold:
- *
- * - beginHistoryLoad classifies the raw synchronously. A load is faithful
- *   only when it parses to an array, every entry has a usable string id, and
- *   no entry is dropped by sanitize — a dropped entry whose id duplicates a
- *   survivor would pass a pure id-subset check, so the entry count is checked
- *   too. Still necessary, not sufficient: content damage INSIDE a surviving
- *   entry (fields sanitize does not carry, truncation at caps) is invisible
- *   to an id-level guard.
- * - The readable part goes back to the caller immediately so the screen can
- *   render; on a lossy load the write gate stays CLOSED until
- *   settleHistoryLoad has preserved the raw (awaited copy). A write refused
- *   for that window is the acceptable price; a wedged screen is not.
- * - Preservation confirmed → the known-id set becomes the sanitized ids and
+ * - beginHistoryLoad classifies the raw synchronously. The readable part goes
+ *   back to the caller at once so the screen can render; on a lossy load the
+ *   gate stays CLOSED until settleHistoryLoad has preserved the raw (awaited
+ *   copy). One refused write in that window is the acceptable price; a
+ *   wedged screen is not.
+ * - Preservation confirmed → the gate opens against the sanitized ids and
  *   writes resume. Refusing after preservation would buy nothing and cost
  *   the user their new messages.
- * - Preservation failed → the gate stays closed and settle reports
+ * - Preservation failed (unreadable raw with no slot, the copy could not be
+ *   written, the cap is reached) → the gate stays closed and settle reports
  *   preservationFailed so the caller tells the user; a console.warn is not
  *   telling the user.
- * - A write is permitted without a declaration only when every known id is
- *   still present in the list written. armDeclaredShrink records the ids a
- *   declared user action (edit / regenerate truncation) may drop — computed
- *   against known ids PLUS ids of writes in flight, so a declaration made
- *   before a landing write still covers what that write adds; the shrinking
- *   write spends the declaration, an unrelated flush cannot.
- * - A write that outlived its load adopts nothing: it may not reopen a gate
- *   that a failed preservation closed, nor swap a newer load's id set.
- * - The known-id set moves only when a write's KV promise RESOLVES; a
- *   rejected write leaves the store — and the guard — as they were.
+ * - A superseded load (conversation switch) loses only the gate application —
+ *   its copy is dispatched regardless: preservation transcends switches.
+ * - Turn-end flows key engine-session hashing off the write LANDING via
+ *   HistoryWriteTicket.landed, not off the synchronous issue.
  *
  * Privacy: never log message text, conversation ids or storage keys from
  * this module or its call sites — counts and booleans only.
  */
+import { classifyHistory } from "./historyClassifier";
 import { preserveRawHistory } from "./historyQuarantine";
+import {
+  createWritePermissionPolicy,
+  type WritePermissionPolicy,
+} from "./historyWritePolicy";
 
 /** Minimal KV surface the caller injects (AsyncStorage satisfies it). */
 export interface HistoryKv {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
-}
-
-function idOfEntry(entry: unknown): string | null {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
-  const id = (entry as Record<string, unknown>).id;
-  return typeof id === "string" && id ? id : null;
-}
-
-function idsOfList(list: readonly unknown[]): Set<string> {
-  const ids = new Set<string>();
-  for (const entry of list) {
-    const id = idOfEntry(entry);
-    if (id != null) ids.add(id);
-  }
-  return ids;
 }
 
 /**
@@ -76,22 +52,25 @@ export type HistoryWriteTicket =
 export interface BegunHistoryLoad<T> {
   /** Sanitized messages to show now; [] when nothing readable. */
   messages: T[];
-  /** Raw entries sanitize dropped — may be alerted before preservation settles. */
+  /** Raw entries sanitize dropped; 0 when unreadable (nothing to count). */
   droppedCount: number;
 }
 
 export interface SettledHistoryLoad {
   /** True: no slot could hold the raw — the gate stays closed. Tell the user. */
   preservationFailed: boolean;
+  /** True: the raw parsed to nothing readable — the chat really is empty. */
+  unreadable: boolean;
   droppedCount: number;
 }
 
 export interface HistoryWriteGuard {
   /**
-   * Classify the raw observed at load time. Closes the write gate for the
+   * Classify the raw observed at load time. Closes the gate for the
    * classification and, on a lossy load, for the duration of preservation;
-   * returns the readable messages at once so the screen can render.
-   * A later begin invalidates this one (conversation switch).
+   * returns the readable messages at once so the screen can render. A later
+   * begin invalidates this one (conversation switch) but its copy still
+   * completes — only the gate application is dropped.
    */
   beginHistoryLoad<T>(
     raw: string | null,
@@ -103,12 +82,7 @@ export interface HistoryWriteGuard {
    * Resolves without side effects when the load was faithful or superseded.
    */
   settleHistoryLoad(): Promise<SettledHistoryLoad>;
-  /**
-   * Declare that a user action is about to shrink history to
-   * `listAfterShrink`: the ids it drops become droppable for the write that
-   * performs the shrink. Ids learned later are NOT covered and need a fresh
-   * declaration.
-   */
+  /** Delegate: declare the ids a user truncation may drop. */
   armDeclaredShrink(listAfterShrink: readonly unknown[]): void;
   /**
    * Decide and write. `persist` receives the JSON payload; the guard
@@ -128,10 +102,6 @@ export interface HistoryWriteGuard {
   storeKnownToHoldMessages(): boolean;
 }
 
-type Gate =
-  | { open: true; knownIds: Set<string> }
-  | { open: false };
-
 /** A lossy load waiting for its preservation copy. */
 interface PendingPreservation {
   seq: number;
@@ -139,79 +109,52 @@ interface PendingPreservation {
   messagesKey: string;
   knownIds: Set<string>;
   droppedCount: number;
+  unreadable: boolean;
 }
 
 export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
-  // Boot: closed until the first load classifies the key, so no write can
-  // land between getItem and the preservation copy.
-  let gate: Gate = { open: false };
-  /** Ids a declared shrink may drop; null when nothing is armed. */
-  let declaredDroppable: Set<string> | null = null;
-  /** Ids of the newest issued-but-unsettled write. */
-  let pendingIds: Set<string> | null = null;
+  const policy: WritePermissionPolicy = createWritePermissionPolicy();
   /** Latest load wins gate application; copies complete regardless. */
   let loadSeq = 0;
-  /** Only the newest issued write adopts on resolve. */
-  let writeSeq = 0;
   let pendingPreservation: PendingPreservation | null = null;
 
   return {
     beginHistoryLoad(raw, messagesKey, sanitize) {
       const seq = ++loadSeq;
-      declaredDroppable = null;
+      // A superseded load's raw is still preserved: dispatch its copy now,
+      // fire-and-forget (preserveRawHistory never rejects). Only the gate
+      // application below is dropped.
+      const orphan = pendingPreservation;
       pendingPreservation = null;
-      gate = { open: false };
-      if (raw == null) {
-        gate = { open: true, knownIds: new Set<string>() };
-        return { messages: [], droppedCount: 0 };
+      if (orphan != null) {
+        void preserveRawHistory(kv, orphan.messagesKey, orphan.raw);
       }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        parsed = null;
+      policy.close();
+      const classified = classifyHistory(raw, sanitize);
+      if (!classified.lossy) {
+        policy.open(classified.knownIds);
+        return { messages: classified.messages, droppedCount: 0 };
       }
-      const messages = Array.isArray(parsed) ? sanitize(parsed) : [];
-      const knownIds = idsOfList(messages);
-      const droppedCount = Array.isArray(parsed)
-        ? Math.max(0, parsed.length - messages.length)
-        : 0;
-      let lossy = !Array.isArray(parsed);
-      if (Array.isArray(parsed)) {
-        // The count catches a dropped entry even when its id duplicates a
-        // surviving one (idsOfList dedups — the id-subset check alone would
-        // wave it through).
-        lossy = droppedCount > 0;
-        const rawIds = new Set<string>();
-        for (const entry of parsed) {
-          const id = idOfEntry(entry);
-          if (id == null) {
-            // An entry without a usable id cannot be tracked across writes:
-            // lossy by definition.
-            lossy = true;
-            continue;
-          }
-          rawIds.add(id);
-        }
-        for (const id of rawIds) {
-          if (!knownIds.has(id)) {
-            lossy = true;
-            break;
-          }
-        }
+      if (raw != null) {
+        pendingPreservation = {
+          seq,
+          raw,
+          messagesKey,
+          knownIds: classified.knownIds,
+          droppedCount: classified.droppedCount,
+          unreadable: classified.unreadable,
+        };
       }
-      if (!lossy) {
-        gate = { open: true, knownIds };
-        return { messages, droppedCount: 0 };
-      }
-      pendingPreservation = { seq, raw, messagesKey, knownIds, droppedCount };
-      return { messages, droppedCount };
+      return {
+        messages: classified.messages,
+        droppedCount: classified.droppedCount,
+      };
     },
 
     async settleHistoryLoad() {
       const pending = pendingPreservation;
       if (pending == null || pending.seq !== loadSeq) {
-        return { preservationFailed: false, droppedCount: 0 };
+        return { preservationFailed: false, unreadable: false, droppedCount: 0 };
       }
       const preserved = await preserveRawHistory(
         kv,
@@ -220,68 +163,46 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
       );
       if (pending.seq !== loadSeq) {
         // A newer load owns the gate and the user messaging.
-        return { preservationFailed: false, droppedCount: 0 };
+        return { preservationFailed: false, unreadable: false, droppedCount: 0 };
       }
       if (preserved) {
-        gate = { open: true, knownIds: pending.knownIds };
+        policy.open(pending.knownIds);
         pendingPreservation = null;
         return {
           preservationFailed: false,
+          unreadable: pending.unreadable,
           droppedCount: pending.droppedCount,
         };
       }
-      return { preservationFailed: true, droppedCount: pending.droppedCount };
+      return {
+        preservationFailed: true,
+        unreadable: pending.unreadable,
+        droppedCount: pending.droppedCount,
+      };
     },
 
     armDeclaredShrink(listAfterShrink) {
-      if (!gate.open) return;
-      const known = new Set(gate.knownIds);
-      if (pendingIds != null) {
-        // The store is about to provably hold these: a truncation that drops
-        // them must be declared now, not only after the write lands.
-        for (const id of pendingIds) known.add(id);
-      }
-      const kept = idsOfList(listAfterShrink);
-      const droppable = new Set<string>();
-      for (const id of known) {
-        if (!kept.has(id)) droppable.add(id);
-      }
-      declaredDroppable = droppable;
+      policy.armDeclaredShrink(listAfterShrink);
     },
 
     tryPersist(list, persist) {
-      if (!gate.open) return { issued: false };
-      const ids = idsOfList(list);
-      const missing: string[] = [];
-      for (const id of gate.knownIds) {
-        if (!ids.has(id)) missing.push(id);
-      }
-      let viaDeclaration = false;
-      if (missing.length > 0) {
-        const droppable = declaredDroppable;
-        if (droppable != null && missing.every((id) => droppable.has(id))) {
-          viaDeclaration = true;
-        } else {
-          return { issued: false };
-        }
-      }
-      const seq = ++writeSeq;
+      const decision = policy.authorize(list);
+      if (!decision.allowed) return { issued: false };
+      const seq = policy.beginIssue(decision.ids);
       const loadAtIssue = loadSeq;
-      pendingIds = ids;
       const landed: Promise<boolean> = persist(JSON.stringify(list)).then(
         () => {
-          if (seq === writeSeq) pendingIds = null;
-          if (seq === writeSeq && loadAtIssue === loadSeq) {
-            gate = { open: true, knownIds: ids };
-            if (viaDeclaration) {
-              // Spent by exactly the write that performed the shrink.
-              declaredDroppable = null;
-            }
-          }
+          policy.writeLanded(
+            seq,
+            decision.ids,
+            loadAtIssue,
+            loadSeq,
+            decision.viaDeclaration,
+          );
           return true;
         },
         () => {
-          if (seq === writeSeq) pendingIds = null;
+          policy.writeRejected(seq);
           return false;
         },
       );
@@ -289,8 +210,7 @@ export function createHistoryWriteGuard(kv: HistoryKv): HistoryWriteGuard {
     },
 
     storeKnownToHoldMessages() {
-      if (!gate.open) return true;
-      return gate.knownIds.size > 0;
+      return policy.knownToHoldMessages();
     },
   };
 }

@@ -472,6 +472,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     historyPartialTitle: "Part of this chat couldn't be restored",
     historyPartialBody:
       "Only part of this conversation's stored history could be read ({count} messages could not be restored). A copy of the original has been kept on this device.",
+    historyUnreadableBody:
+      "The stored history of this conversation could not be read at all. A copy of the original has been kept on this device, and this chat now starts empty.",
     backendNotWired: "Backend not wired.",
     queryLimit: "You've reached your query limit for today.",
     serviceUnreachable: "Couldn't reach the AI service. Please try again.",

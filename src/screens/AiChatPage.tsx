@@ -109,6 +109,7 @@ import {
 import { toPersistableHistoryMessages } from "../engine/historyPersistable";
 import {
   createHistoryWriteGuard,
+  type BegunHistoryLoad,
   type HistoryWriteGuard,
   type HistoryWriteTicket,
 } from "../chat/historyWriteGuard";
@@ -576,6 +577,13 @@ function buildPersistableMessages(
 ): Message[] {
   return toPersistableHistoryMessages(messagesSnapshot, opts) as Message[];
 }
+
+/**
+ * Bounded fallback for the turn-end lifecycle: a KV write promise that never
+ * settles must not hang the turn (it blocks dispose and memory extraction).
+ * A late landing still writes the .kvs — the hold just does not wait forever.
+ */
+const HISTORY_WRITE_FALLBACK_MS = 10_000;
 
 /**
  * Immediate history write (AppState / unmount / throttle) — fire-and-forget.
@@ -1060,11 +1068,24 @@ export function AiChatPage({
         // locale is already resolved (App gates on localeReady). The guard
         // classifies the load by message IDENTITY; a lossy raw is preserved
         // in the quarantine key before any write can be issued.
-        const begun = historyGuard.beginHistoryLoad(
-          raw,
-          key,
-          (entries) => sanitizeHistoryMessages(entries, locale),
-        );
+        let begun: BegunHistoryLoad<Message>;
+        try {
+          begun = historyGuard.beginHistoryLoad(raw, key, (entries) =>
+            sanitizeHistoryMessages(entries, locale),
+          );
+        } catch {
+          // A throw here must not leave the gate closed with no user signal:
+          // treat it like a failed preservation.
+          try {
+            Alert.alert(
+              t("chat.historyGuardTitle"),
+              t("chat.historyGuardBody"),
+            );
+          } catch {
+            // Alert unavailable (tests / headless) — refusal still holds.
+          }
+          return undefined;
+        }
         // Show what could be read and open the composer BEFORE awaiting the
         // preservation copy — the write gate stays closed meanwhile, and one
         // refused write is a better outcome than a blank wedged chat.
@@ -1090,6 +1111,14 @@ export function AiChatPage({
           } catch {
             // Alert unavailable (tests / headless) — refusal still holds.
           }
+        } else if (settled.unreadable) {
+          // The raw existed but nothing readable came out of it: never let
+          // the person believe an emptied chat means a lost conversation.
+          try {
+            Alert.alert(t("chat.historyPartialTitle"), t("chat.historyUnreadableBody"));
+          } catch {
+            // Alert unavailable (tests / headless).
+          }
         } else if (settled.droppedCount > 0) {
           // The chat is not silently smaller than it was: say what happened.
           try {
@@ -1100,6 +1129,17 @@ export function AiChatPage({
           } catch {
             // Alert unavailable (tests / headless).
           }
+        }
+        if (
+          !settled.preservationFailed &&
+          (settled.unreadable || settled.droppedCount > 0)
+        ) {
+          // Writes made while the gate was closed were refused; flush what
+          // the user typed in that window now that the gate is open.
+          persistActiveMessages(messagesRef.current, {
+            epoch: persistEpochRef.current,
+            getEpoch: () => persistEpochRef.current,
+          });
         }
       })
       .catch(() => undefined)
@@ -2889,17 +2929,30 @@ export function AiChatPage({
                     // Snapshot for the deferred closure: the guard adopts on
                     // landing, so the build must run on the finalized list.
                     const finalizedAtSave = finalized;
+                    // Bounded fallback: a KV promise that never settles must
+                    // not hang the turn (dispose + memory extract wait on it).
+                    let holdSettled = false;
+                    const settleHold = () => {
+                      if (holdSettled) return;
+                      holdSettled = true;
+                      if (
+                        sendRunIdRef.current === runId &&
+                        stillThisRun(myGen)
+                      ) {
+                        runAfterSave?.();
+                      }
+                      turnSaveHold.resolve?.();
+                    };
+                    const holdFallback = setTimeout(
+                      settleHold,
+                      HISTORY_WRITE_FALLBACK_MS,
+                    );
                     // .kvs keyed off the write LANDING: hashing a list the
                     // store does not hold makes boot mismatch and drop it.
                     void historyWrite.landed.then((landed) => {
+                      clearTimeout(holdFallback);
                       if (!landed) {
-                        if (
-                          sendRunIdRef.current === runId &&
-                          stillThisRun(myGen)
-                        ) {
-                          runAfterSave?.();
-                        }
-                        turnSaveHold.resolve?.();
+                        settleHold();
                         return;
                       }
                       const persistable = buildPersistableMessages(finalizedAtSave);
@@ -2910,7 +2963,7 @@ export function AiChatPage({
                             computeHistoryHashFromMessages(persistable),
                             persistable.length,
                           );
-                          turnSaveHold.resolve?.();
+                          settleHold();
                         } catch (err) {
                           turnSaveHold.reject?.(err);
                         } finally {
@@ -2957,9 +3010,18 @@ export function AiChatPage({
               const mid = getActiveModelId();
               const runAfterSave = afterSessionSave;
               if (mid && historyWrite?.issued) {
+                // Bounded fallback (same rule as the turn-end path): a KV
+                // promise that never settles must not hang the lifecycle.
+                // A late landing still installs the save below.
+                const landedFallback = setTimeout(() => {
+                  if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+                    runAfterSave?.();
+                  }
+                }, HISTORY_WRITE_FALLBACK_MS);
                 // .kvs keyed off the write landing (same rule as the turn-end
                 // path): never hash a list the store does not hold.
                 void historyWrite.landed.then((landed) => {
+                  clearTimeout(landedFallback);
                   if (!landed) {
                     runAfterSave?.();
                     return;

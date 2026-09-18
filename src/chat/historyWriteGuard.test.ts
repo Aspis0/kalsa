@@ -10,6 +10,7 @@ import {
 const KEY = "kalsa.messages.testconv";
 const OTHER_KEY = "kalsa.messages.other";
 const QUARANTINE_KEY = quarantineKeyFor(KEY);
+const INDEX_KEY = `${QUARANTINE_KEY}.index`;
 
 /** History in the persisted shape (id/role/text per message). */
 function rawHistory(count: number, idPrefix = "m"): string {
@@ -34,6 +35,14 @@ function all17Ids(): string[] {
   return Array.from({ length: 17 }, (_, i) => `m${i}`);
 }
 
+/** Quarantine slots of KEY, excluding the index bookkeeping key. */
+function quarantineSlots(map: Map<string, string>): [string, string][] {
+  return [...map.entries()].filter(
+    ([k, v]) =>
+      k.startsWith(`${KEY}.quarantine`) && !k.endsWith(".index") && v !== undefined,
+  ) as [string, string][];
+}
+
 /** Map-backed fake KV standing in for AsyncStorage in these tests. */
 function fakeKv(seed?: Record<string, string>) {
   const map = new Map<string, string>(Object.entries(seed ?? {}));
@@ -49,8 +58,8 @@ function fakeKv(seed?: Record<string, string>) {
 }
 
 /**
- * Fake KV whose quarantine writes (any slot of KEY) hang until released —
- * drives the in-flight preservation window.
+ * Fake KV whose quarantine writes (any slot or the index of KEY) hang until
+ * released — drives the in-flight preservation window.
  */
 function deferredQuarantineKv(seed?: Record<string, string>) {
   const base = fakeKv(seed);
@@ -140,9 +149,7 @@ describe("historyWriteGuard", () => {
     const settled = await guard.settleHistoryLoad();
     expect(settled.preservationFailed).toBe(false);
     // THIS raw now has its own slot; the first copy is not clobbered.
-    const slots = [...deferred.map.entries()].filter(([k]) =>
-      k.startsWith(`${KEY}.quarantine`),
-    );
+    const slots = quarantineSlots(deferred.map);
     expect(slots).toHaveLength(2);
     expect(deferred.map.get(QUARANTINE_KEY)).toBe(unrelated);
     const newSlot = slots.find(([k]) => k !== QUARANTINE_KEY);
@@ -160,11 +167,9 @@ describe("historyWriteGuard", () => {
     const guard2 = createHistoryWriteGuard(kv);
     guard2.beginHistoryLoad(raw17, KEY, () => []);
     await guard2.settleHistoryLoad();
-    const slots = [...map.keys()].filter((k) =>
-      k.startsWith(`${KEY}.quarantine`),
-    );
-    expect(slots).toEqual([QUARANTINE_KEY]);
+    expect(quarantineSlots(map).map(([k]) => k)).toEqual([QUARANTINE_KEY]);
     expect(map.get(QUARANTINE_KEY)).toBe(raw17);
+    expect(JSON.parse(map.get(INDEX_KEY) as string)).toEqual([QUARANTINE_KEY]);
   });
 
   test("N2: a write issued before a load adopts nothing when it resolves after it", async () => {
@@ -205,8 +210,7 @@ describe("historyWriteGuard", () => {
         return kv.setItem(key, value);
       },
     } satisfies HistoryKv;
-    const deferred = withDeferredWrites(failingQuarantine, () => false);
-    const guard = createHistoryWriteGuard(deferred.kv);
+    const guard = createHistoryWriteGuard(failingQuarantine);
     guard.beginHistoryLoad(raw17, KEY, (e) => e);
     await guard.settleHistoryLoad();
     const ticket = guard.tryPersist(
@@ -218,11 +222,26 @@ describe("historyWriteGuard", () => {
     guard.beginHistoryLoad("{", OTHER_KEY, (e) => e);
     const settled = await guard.settleHistoryLoad();
     expect(settled.preservationFailed).toBe(true);
-    deferred.releaseAll();
     await flush();
     // The stale write landed; the gate must stay closed anyway.
     expect(guard.tryPersist(messages(["a"]), async () => {}).issued).toBe(false);
     expect(guard.storeKnownToHoldMessages()).toBe(true);
+  });
+
+  test("M3: a superseded lossy load still completes its copy", async () => {
+    // Live raw present, NO quarantine slot yet: the copy is required.
+    const deferred = deferredQuarantineKv({
+      [KEY]: raw17,
+      [OTHER_KEY]: rawHistory(3, "b"),
+    });
+    const guard = createHistoryWriteGuard(deferred.kv);
+    guard.beginHistoryLoad(raw17, KEY, () => []);
+    // Switch away BEFORE the copy settles: the raw must still be preserved.
+    guard.beginHistoryLoad(rawHistory(3, "b"), OTHER_KEY, (e) => e);
+    deferred.releaseCopy();
+    await flush();
+    expect(quarantineSlots(deferred.map).map(([k]) => k)).toEqual([QUARANTINE_KEY]);
+    expect(deferred.map.get(QUARANTINE_KEY)).toBe(raw17);
   });
 
   test("N3: a dropped entry whose id duplicates a survivor is lossy and quarantined", async () => {
@@ -249,6 +268,30 @@ describe("historyWriteGuard", () => {
     expect(deferred.map.get(KEY)).toBe(raw);
   });
 
+  test("M6: a surviving entry whose text shrank is lossy even with equal counts and ids", async () => {
+    const slicer = (entries: unknown[]) =>
+      entries.map((e, i) => {
+        if (i !== 3) return e;
+        const rec = e as { text: string };
+        return { ...rec, text: rec.text.slice(0, 2) };
+      });
+    const { kv, map } = fakeKv({ [KEY]: raw17 });
+    const guard = createHistoryWriteGuard(kv);
+    const begun = guard.beginHistoryLoad(raw17, KEY, slicer);
+    // Same count, same ids — only the length check can see this.
+    expect(begun.messages).toHaveLength(17);
+    expect(begun.droppedCount).toBe(0);
+    const settled = await guard.settleHistoryLoad();
+    expect(settled.preservationFailed).toBe(false);
+    expect(settled.droppedCount).toBe(0);
+    expect(settled.unreadable).toBe(false);
+    expect(map.get(QUARANTINE_KEY)).toBe(raw17);
+    // Preservation confirmed: writes resume against what is on screen.
+    expect(
+      guard.tryPersist(messages(all17Ids()), async () => {}).issued,
+    ).toBe(true);
+  });
+
   test("N4: a lossy-but-preserved load reports the dropped count", async () => {
     const { kv } = fakeKv({ [KEY]: raw17 });
     const guard = createHistoryWriteGuard(kv);
@@ -257,6 +300,49 @@ describe("historyWriteGuard", () => {
     const settled = await guard.settleHistoryLoad();
     expect(settled.preservationFailed).toBe(false);
     expect(settled.droppedCount).toBe(15);
+  });
+
+  test("M1: an unparseable or non-array raw is reported unreadable once preserved", async () => {
+    const broken = '{"messages": [';
+    const { kv } = fakeKv({ [KEY]: broken });
+    const guard = createHistoryWriteGuard(kv);
+    const begun = guard.beginHistoryLoad(broken, KEY, (e) => e);
+    expect(begun.messages).toEqual([]);
+    const settled = await guard.settleHistoryLoad();
+    expect(settled.preservationFailed).toBe(false);
+    expect(settled.unreadable).toBe(true);
+
+    const notAnArray = fakeKv({ [KEY]: '{"a": 1}' });
+    const guard2 = createHistoryWriteGuard(notAnArray.kv);
+    guard2.beginHistoryLoad('{"a": 1}', KEY, (e) => e);
+    const settled2 = await guard2.settleHistoryLoad();
+    expect(settled2.unreadable).toBe(true);
+    expect(settled2.preservationFailed).toBe(false);
+  });
+
+  test("cap: a fourth distinct loss is refused honestly and no slot is evicted", async () => {
+    const s2 = `${QUARANTINE_KEY}.aaa`;
+    const s3 = `${QUARANTINE_KEY}.bbb`;
+    const index = JSON.stringify([QUARANTINE_KEY, s2, s3]);
+    const { kv, map } = fakeKv({
+      [KEY]: raw17,
+      [QUARANTINE_KEY]: '{"first": true}',
+      [s2]: '{"second": true}',
+      [s3]: '{"third": true}',
+      [INDEX_KEY]: index,
+    });
+    const guard = createHistoryWriteGuard(kv);
+    guard.beginHistoryLoad(raw17, KEY, () => []);
+    const settled = await guard.settleHistoryLoad();
+    expect(settled.preservationFailed).toBe(true);
+    // Oldest copies are never evicted, and no fourth slot appeared.
+    expect(map.get(QUARANTINE_KEY)).toBe('{"first": true}');
+    expect(map.get(s2)).toBe('{"second": true}');
+    expect(map.get(s3)).toBe('{"third": true}');
+    expect(quarantineSlots(map)).toHaveLength(3);
+    // The gate stays closed: the raw must not be overwritten unpreserved.
+    expect(guard.tryPersist(messages(["a"]), async () => {}).issued).toBe(false);
+    expect(guard.storeKnownToHoldMessages()).toBe(true);
   });
 
   test("N5: the declared shrink covers ids of a write that is still in flight", async () => {
@@ -348,19 +434,8 @@ describe("historyWriteGuard", () => {
     expect(guardAbsent.storeKnownToHoldMessages()).toBe(false);
   });
 
-  test("unparseable raw behaves like any lossy load: preserved → resume, failed → refuse", async () => {
-    const broken = '{"messages": [';
-    const ok = fakeKv({ [KEY]: broken });
-    const guardOk = createHistoryWriteGuard(ok.kv);
-    const begun = guardOk.beginHistoryLoad(broken, KEY, (e) => e);
-    expect(begun.messages).toEqual([]);
-    const settledOk = await guardOk.settleHistoryLoad();
-    expect(settledOk.preservationFailed).toBe(false);
-    expect(ok.map.get(QUARANTINE_KEY)).toBe(broken);
-    expect(ok.map.get(KEY)).toBe(broken);
-    expect(guardOk.tryPersist(messages(["a"]), async () => {}).issued).toBe(true);
-
-    const failing = createHistoryWriteGuard({
+  test("lossy load whose copy fails: writes stay refused and the caller is told (preservationFailed)", async () => {
+    const guard = createHistoryWriteGuard({
       async getItem() {
         return null;
       },
@@ -368,44 +443,49 @@ describe("historyWriteGuard", () => {
         throw new Error("quota");
       },
     });
-    failing.beginHistoryLoad(broken, KEY, (e) => e);
-    const outcome = await failing.settleHistoryLoad();
-    expect(outcome.preservationFailed).toBe(true);
-    expect(failing.tryPersist(messages(["a"]), async () => {}).issued).toBe(false);
+    guard.beginHistoryLoad(raw17, KEY, () => []);
+    const settled = await guard.settleHistoryLoad();
+    expect(settled.preservationFailed).toBe(true);
+    expect(guard.tryPersist(messages(["a"]), async () => {}).issued).toBe(false);
+    // The probe: the store must still count as holding messages.
+    expect(guard.storeKnownToHoldMessages()).toBe(true);
   });
 
-  test("B6: deleting a conversation removes the messages key with every quarantine slot", async () => {
+  test("B6: deleting a conversation removes the live key with every indexed slot", async () => {
+    const s2 = `${QUARANTINE_KEY}.aaa`;
     const { map } = fakeKv({
       [KEY]: raw17,
       [QUARANTINE_KEY]: raw17,
-      [`${QUARANTINE_KEY}.1a2b3c`]: rawHistory(5, "x"),
+      [s2]: rawHistory(5, "x"),
+      [INDEX_KEY]: JSON.stringify([QUARANTINE_KEY, s2]),
       "kalsa.messages.other": "keep me",
     });
     const done = await deleteConversationHistory(
       {
+        getItem: async (key: string) => map.get(key) ?? null,
         removeItem: async (key: string) => {
           map.delete(key);
         },
-        getAllKeys: async () => [...map.keys()],
       },
       KEY,
     );
     expect(done).toBe(true);
     expect(map.has(KEY)).toBe(false);
     expect(map.has(QUARANTINE_KEY)).toBe(false);
-    expect(map.has(`${QUARANTINE_KEY}.1a2b3c`)).toBe(false);
+    expect(map.has(s2)).toBe(false);
+    expect(map.has(INDEX_KEY)).toBe(false);
     expect(map.get("kalsa.messages.other")).toBe("keep me");
   });
 
-  test("B6: without getAllKeys the live key and the first slot still go; no delete capability reports false", async () => {
+  test("B6: a pre-index conversation still loses the live key and the first slot; no delete capability reports false", async () => {
     const { map } = fakeKv({
       [KEY]: raw17,
       [QUARANTINE_KEY]: raw17,
-      [`${QUARANTINE_KEY}.1a2b3c`]: "suffixed copy",
     });
     expect(
       await deleteConversationHistory(
         {
+          getItem: async (key: string) => map.get(key) ?? null,
           removeItem: async (key: string) => {
             map.delete(key);
           },
@@ -415,8 +495,8 @@ describe("historyWriteGuard", () => {
     ).toBe(true);
     expect(map.has(KEY)).toBe(false);
     expect(map.has(QUARANTINE_KEY)).toBe(false);
-    expect(map.has(`${QUARANTINE_KEY}.1a2b3c`)).toBe(true);
+    expect(map.has(INDEX_KEY)).toBe(false);
 
-    expect(await deleteConversationHistory({}, KEY)).toBe(false);
+    expect(await deleteConversationHistory({ getItem: async () => null }, KEY)).toBe(false);
   });
 });
