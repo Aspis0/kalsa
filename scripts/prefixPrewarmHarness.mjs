@@ -779,7 +779,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=1 warm=0 held=0 too_early=0 silent=0/.test(fgServed),
+    /FG_REKICK: kicks=1 served=1 warm=0 held=0 stopped=0 too_early=0 silent=0/.test(fgServed),
     "a restore after the kick is served",
   );
   assert(/FG_REKICK_CRITERION: PASS/.test(fgServed), "a served kick passes");
@@ -795,7 +795,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=0 held=1 too_early=0 silent=0/.test(fgHeld),
+    /FG_REKICK: kicks=1 served=0 warm=0 held=1 stopped=0 too_early=0 silent=0/.test(fgHeld),
     "kv_holds_chat after the kick is held",
   );
   assert(/FG_REKICK_CRITERION: PASS/.test(fgHeld), "a held kick passes");
@@ -812,7 +812,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=0 silent=1/.test(fgSilent),
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=0 too_early=0 silent=1/.test(fgSilent),
     "a kick with no prewarm line is silent",
   );
   assert(
@@ -831,7 +831,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=1 silent=0/.test(fgTooEarly),
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=0 too_early=1 silent=0/.test(fgTooEarly),
     "a background skip after the kick is too_early",
   );
   assert(
@@ -854,7 +854,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=2 served=1 warm=0 held=0 too_early=0 silent=1/.test(fgMixed),
+    /FG_REKICK: kicks=2 served=1 warm=0 held=0 stopped=0 too_early=0 silent=1/.test(fgMixed),
     "one served kick and one mute kick are counted separately",
   );
   assert(
@@ -876,7 +876,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=1 held=0 too_early=0 silent=0/.test(fgWarm),
+    /FG_REKICK: kicks=1 served=0 warm=1 held=0 stopped=0 too_early=0 silent=0/.test(fgWarm),
     "already_warm counts in warm — the common case is not a failure",
   );
   assert(/FG_REKICK_CRITERION: PASS/.test(fgWarm), "a warm kick passes");
@@ -892,7 +892,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=1 held=0 too_early=0 silent=0/.test(fgInFlight),
+    /FG_REKICK: kicks=1 served=0 warm=1 held=0 stopped=0 too_early=0 silent=0/.test(fgInFlight),
     "in_flight counts in warm",
   );
   assert(/FG_REKICK_CRITERION: PASS/.test(fgInFlight), "an in-flight kick passes");
@@ -941,7 +941,7 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=0 warm=0 held=0 too_early=0 silent=1/.test(fgClosedWindow),
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=0 too_early=0 silent=1/.test(fgClosedWindow),
     "the send's done after fg_settled stays out of the kick window",
   );
   assert(
@@ -963,12 +963,60 @@ async function main() {
     ].join("\n"),
   );
   assert(
-    /FG_REKICK: kicks=1 served=1 warm=0 held=0 too_early=0 silent=0/.test(fgServedSettled),
+    /FG_REKICK: kicks=1 served=1 warm=0 held=0 stopped=0 too_early=0 silent=0/.test(fgServedSettled),
     "the restore inside the window is served",
   );
   assert(
     /FG_REKICK_CRITERION: PASS/.test(fgServedSettled),
     "a served kick inside a closed window passes",
+  );
+
+  // A stopped kick: the re-kick FIRED and the job named why it quit. The
+  // physical cause is real and frequent on this app: the model is evicted
+  // while backgrounded (thermal pause / onTrimMemory in kalsa-lifecycle), so
+  // isEngineReady() is false at the kick. Counting this as "no prewarm line"
+  // was a false motive — it sent the diagnosis hunting in AppShell instead
+  // of the model lifecycle. FAIL, but naming the reason.
+  const fgNotReady = verdict(
+    "fg-not-ready",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"not_ready"}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=1 served=0 warm=0 held=0 stopped=1 too_early=0 silent=0/.test(fgNotReady),
+    "a recognised skip reason is stopped, not silent",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick stopped: not_ready x1\)/.test(fgNotReady),
+    "the criterion names the stop reason, not an anonymous count",
+  );
+
+  // Two kicks, two different stop reasons: the criterion must name BOTH with
+  // their counts, not just the first — the same property KV_PREFIX_CRITERION
+  // already respects for its own failure reasons.
+  const fgStoppedTwo = verdict(
+    "fg-stopped-two",
+    [
+      "KALSA_RP_MARK fg_kick cycle=1",
+      'KALSA_PREWARM {"op":"skip","reason":"not_ready"}',
+      "KALSA_RP_MARK fg_settled cycle=1",
+      "KALSA_RP_MARK fg_kick cycle=2",
+      'KALSA_PREWARM {"op":"skip","reason":"given_up","hash":"h"}',
+      "KALSA_RP_MARK fg_settled cycle=2",
+      "",
+    ].join("\n"),
+  );
+  assert(
+    /FG_REKICK: kicks=2 served=0 warm=0 held=0 stopped=2 too_early=0 silent=0/.test(fgStoppedTwo),
+    "two differently-stopped kicks count as stopped=2",
+  );
+  assert(
+    /FG_REKICK_CRITERION: FAIL \(re-kick stopped: given_up x1; not_ready x1\)/.test(fgStoppedTwo),
+    "the criterion names EVERY stop reason with its count, in `stops` order",
   );
 
   // The warm gate must stay observable: a silent return and a re-kick that

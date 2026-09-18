@@ -98,24 +98,50 @@ if (kickWindows.length === 0) {
   console.log("FG_REKICK: not exercised — no fg_kick markers in this evidence");
 } else {
   // One class per kick, priority order: served wins over warm over held over
-  // too_early; a kick with no recognised prewarm line is silent — exactly the
-  // hole this section exists to find. An unrecognised op/reason also lands in
-  // silent: it must fail loudly, not pass on something new. `warm` is a WEAK
-  // pass: it says the re-kick reached the queue gate and found the prefix
-  // already warm (or a prewarm already in flight) — it does NOT say the
-  // native KV is reusable. That question stays with KV_PREFIX_CRITERION,
-  // which reads KALSA_KVPREFIX / n_common.
-  const classify = (w) =>
-    /"op":"(start|restore|done)"/.test(w) ? "served" :
-    /"op":"skip","reason":"(already_warm|in_flight)"/.test(w) ? "warm" :
-    w.includes('"op":"skip","reason":"kv_holds_chat"') ? "held" :
-    w.includes('"op":"skip","reason":"background"') ? "too_early" : "silent";
-  const count = { served: 0, warm: 0, held: 0, too_early: 0, silent: 0 };
-  for (const w of kickWindows) count[classify(w)] += 1;
+  // stopped over too_early; a kick with no recognised prewarm line is silent
+  // — exactly the hole this section exists to find. `stopped` is a skip
+  // whose reason is recognised but owns no class of its own (listed once, in
+  // `stops` above): the kick FIRED and the job named why it quit. not_ready
+  // after 20s in the background is the model evicted while backgrounded
+  // (thermal pause / onTrimMemory in kalsa-lifecycle) — a model-lifecycle
+  // problem, not a missing re-kick; the criterion names the reason so the
+  // reader knows where to look without reopening logcat. An unrecognised
+  // op/reason stays silent, on purpose: a new reason must not pass as good —
+  // or as diagnosed. `warm` is a WEAK pass: it says the re-kick reached the
+  // queue gate and found the prefix already warm (or a prewarm already in
+  // flight) — it does NOT say the native KV is reusable. That question stays
+  // with KV_PREFIX_CRITERION, which reads KALSA_KVPREFIX / n_common.
+  const stoppedReasons = stops.filter(
+    (r) => r !== "kv_holds_chat" && r !== "in_flight" && r !== "background",
+  );
+  const classify = (w) => {
+    if (/"op":"(start|restore|done)"/.test(w)) return { cls: "served" };
+    if (/"op":"skip","reason":"(already_warm|in_flight)"/.test(w)) return { cls: "warm" };
+    if (w.includes('"op":"skip","reason":"kv_holds_chat"')) return { cls: "held" };
+    const reason = stoppedReasons.find(
+      (r) => w.includes('"op":"skip","reason":"' + r + '"'),
+    );
+    if (reason) return { cls: "stopped", reason };
+    if (w.includes('"op":"skip","reason":"background"')) return { cls: "too_early" };
+    return { cls: "silent" };
+  };
+  const count = { served: 0, warm: 0, held: 0, stopped: 0, too_early: 0, silent: 0 };
+  const stoppedBy = {};
+  for (const w of kickWindows) {
+    const { cls, reason } = classify(w);
+    count[cls] += 1;
+    if (cls === "stopped") stoppedBy[reason] = (stoppedBy[reason] ?? 0) + 1;
+  }
   console.log("FG_REKICK: kicks=" + kickWindows.length +
     " served=" + count.served + " warm=" + count.warm + " held=" + count.held +
+    " stopped=" + count.stopped +
     " too_early=" + count.too_early + " silent=" + count.silent);
   const fgFails = [];
+  const stoppedNames = stoppedReasons.filter((r) => stoppedBy[r]);
+  if (count.stopped > 0) {
+    fgFails.push("re-kick stopped: " +
+      stoppedNames.map((r) => r + " x" + stoppedBy[r]).join("; "));
+  }
   if (count.too_early > 0) {
     fgFails.push("re-kick queued while the app was still backgrounded x" + count.too_early);
   }
