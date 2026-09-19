@@ -1535,3 +1535,101 @@ lives in the engine — at which point the same rehearsal gains a build.
 Reproduction is two throwaway worktrees (`bump-rehearsal-tmp` in kalsallama,
 `bump-rehearsal-rn` in llama.rn-kalsa) and costs nothing but disk; both are
 deleted once the post-§25 re-run is done.
+
+## 25. bmoe moves into the engine — the last inversion
+
+The one thing still pointing the wrong way. `cpp/rn-llama.cpp:2` includes
+`"bmoe_stream.h"`, and that header lives in the **app**:
+
+    android/src/main/rnllama/CMakeLists.txt:17
+    get_filename_component(BMOE_ROOT "${RNLLAMA_CPP_DIR}/../../../native/bmoe" ABSOLUTE)
+
+A library reaching three directories up out of itself into its consumer. The
+block is guarded by `if (EXISTS "${BMOE_ROOT}")` so npm consumers still build,
+but `rn-llama.cpp` includes the header unconditionally — which is why five of
+six CI jobs are red on `bmoe_stream.h: No such file`, and why §24's bump
+rehearsal has no compile half.
+
+### 25.1 Where each file goes, and why it is forced
+
+Measured, not assumed — every non-local include across the 25 tracked files:
+
+| part | files | external deps |
+|---|---|---|
+| `include/bmoe/*.h`, `src/config.cpp`, `src/io/*`, `src/moe/*` | 22 | `ggml.h`, `ggml-backend.h`, `gguf.h`, `ggml-cpu.h` |
+| `rn/bmoe_stream.{h,cpp}` | 2 | `common.h`, `llama.h` |
+| `bmoe_lmggml_compat.h` | 1 | — |
+
+That table decides the layout on its own. The core touches **no llama header
+at all** — it is ggml-level code, so it can sit inside `libllama` without a
+cycle. `bmoe_stream` needs `common.h`, and `common` links *against* `llama`,
+so it cannot go in `src/` without inverting the dependency a second time.
+The split is not a preference:
+
+- **core (22 files) -> kalsallama `src/bmoe/`**, flat. `src` is a
+  whole-directory entry in the export manifest, so it vendors with **zero**
+  manifest edits. `${_llama}` (= `vendor/llama.cpp/src`) is already in
+  `RNLLAMA_INCLUDE_DIRS`, so `#include "bmoe/config.h"` resolves with **zero**
+  include-path edits.
+- **`bmoe_stream.{h,cpp}` -> llama.rn `cpp/`**, joining our four existing
+  files there. `${RNLLAMA_CPP_DIR}` is first in the include dirs, so
+  `rn-llama.cpp`'s existing `#include "bmoe_stream.h"` resolves unchanged, and
+  `llama-rn.podspec:41`'s `cpp/**` glob picks the source up for iOS for free.
+- **`bmoe_lmggml_compat.h` -> deleted.** Its own comment says it exists
+  because "llama.rn renames every ggml/gguf symbol with an `lm_` prefix".
+  Verified on the vendored tree: `lm_ggml_` appears **0** times in
+  `vendor/llama.cpp/ggml/include/ggml.h` against 710 plain `ggml_tensor`, and
+  `scripts/bootstrap.sh` no longer renames anything. The shim maps names that
+  no longer exist.
+
+Rejected: flattening the core into `src/` with a `bmoe-` prefix, which was the
+earlier decision. Upstream keeps `src/models/` as a subdirectory and llama.rn's
+glob already handles it (`file(GLOB ${_llama}/*.cpp ${_llama}/models/*.cpp)`),
+so a sibling `src/bmoe/` follows an existing precedent for the price of one
+glob line — and 22 files named `bmoe-*` sprayed among 50 `llama-*` files is
+worse to work in, which matters because we will be working in it.
+
+`BMOE_HAVE_EXPERT_READY_HOOK` is deleted with its false branches. It guarded
+`ggml_cpu_set_expert_ready_hook` for a hypothetical stock llama.cpp; once the
+code lives *inside* the fork the condition is a tautology. Verified present in
+the vendored engine: declared at `ggml/include/ggml-cpu.h:152`, defined at
+`ggml/src/ggml-cpu/ggml-cpu.c:65`. Deleting it is also what removes the need to
+plumb a compile definition through both the android CMake and the podspec.
+
+### 25.2 Gates, written before the work
+
+1. **The falsifiable one.** CI on the branch goes from **1 of 6 green** to
+   **6 of 6 green**, with the five `if: github.head_ref != 'kalsa'` guards and
+   the c++ test-step guard removed. Today: `lint` green;
+   `build-ios-from-source`, `build-android-libs`, `build-android-from-source`,
+   `build-ios-frameworks`, `test` red on the missing header. Prediction: all
+   six green with no guard left in `ci.yml`. A green run that still carries a
+   guard does not count.
+2. `grep -n bmoe android/src/main/rnllama/CMakeLists.txt` -> **0 lines**. No
+   path escapes llama.rn any more; that is the actual subject of this step.
+3. `grep -rn BMOE_HAVE_EXPERT_READY_HOOK` over both repos -> **0**.
+4. No file matching `*lmggml_compat*` survives, and
+   `grep -rn 'lm_ggml_\|lm_gguf_'` over `src/bmoe/` and `cpp/bmoe_stream.*`
+   -> **0**.
+5. A full `scripts/sync-vendor.sh` puts 22 files in
+   `vendor/llama.cpp/src/bmoe/` and both gates still pass, with **no** edit to
+   the export manifest and at most **one** added glob line in
+   `cmake/rnllama-sources.cmake`.
+6. **The loop back to §24.** Re-running the bump rehearsal after the move must
+   report the same cost — 1 conflicted line, 0 patch rejects, 0 escapes.
+   Prediction: unchanged, because 22 files under a `bmoe/` prefix are files
+   upstream will never create. If the cost moves, the layout was wrong.
+
+Linkage needs no separate gate: `cpp/rn-llama.cpp:802` constructs
+`kalsa::MoeStream` and `bmoe_stream.cpp` calls into the core, so
+`build-android-from-source` cannot link unless all 22 files really compiled
+into the target. Gate 1 covers it.
+
+### 25.3 What is deliberately NOT in this step
+
+Deleting `native/bmoe/` from the app. Until the app's llama.rn pin moves past
+this commit, its installed tree has no bmoe and deleting the app copy breaks
+the app build. The deletion — 25 files, plus the `BMOE_ROOT` block and the
+`-include bmoe_lmggml_compat.h` force-include — belongs to the pin bump, and
+is listed there so it cannot be forgotten: two copies of 7367 lines drifting
+apart is a worse failure than one copy in the wrong place.
