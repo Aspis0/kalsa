@@ -12,10 +12,26 @@ REPO="$(cd "$HERE/../.." && pwd)"
 CAMPAIGN_CONFIG="${CAMPAIGN_CONFIG:-$REPO/campaigns/t20c.json}"
 CONFIG="$CAMPAIGN_CONFIG"
 SCRIPT="$(dirname "$CONFIG")/t20c/script.json"
+# Only a non-empty JSON string names a device. null, true, 1234 and ["a"]
+# stringify to None/True/1234/['a'], which would otherwise pass the check below.
 SERIAL="$(python3 -c 'import json,sys
-print(json.load(open(sys.argv[1]))["device"])' "$CONFIG" 2>/dev/null)"
+d=json.load(open(sys.argv[1], encoding="utf-8"))["device"]
+if isinstance(d, str) and d: print(d)' "$CONFIG" 2>/dev/null)"
 if [ -z "$SERIAL" ] || [ "${ANDROID_SERIAL:-}" != "$SERIAL" ]; then
   echo "refuse: ANDROID_SERIAL must be exactly ${SERIAL:-<config device unavailable>} (got '${ANDROID_SERIAL:-}')" >&2
+  exit 2
+fi
+# This runner hard-codes 20 turns and derives the conversation script from the
+# config. A config declaring another campaign's turn count or carrying no
+# script would run the T20C arm, ids and evidence under that campaign's name.
+CONFIG_TURNS="$(python3 -c 'import json,sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["turns"])' "$CONFIG" 2>/dev/null)"
+if [ "$CONFIG_TURNS" != "20" ]; then
+  echo "refuse: $CONFIG declares turns=${CONFIG_TURNS:-<unreadable>}; run-t20c.sh runs exactly 20" >&2
+  exit 2
+fi
+if [ ! -f "$SCRIPT" ]; then
+  echo "refuse: conversation script not found: $SCRIPT" >&2
   exit 2
 fi
 # The fake harness has no installed phone APK; every real run must bind one.
@@ -41,7 +57,16 @@ CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-600}"
 export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS \
   CAMPAIGN_THERMAL_PAUSE CAMPAIGN_THERMAL_MAX_C CAMPAIGN_THERMAL_COOLDOWN_CAP_S
 
-export OUT="${OUT:-$REPO/results/t20c-campaign}"
+# Evidence goes where the config says. campaigns/t20c.json resolves to the same
+# path as the old literal; OUT still overrides it for one-off runs.
+RESULTS_REL="$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1], encoding="utf-8"))["resultsDir"]
+if isinstance(d, str) and d: print(d)' "$CONFIG" 2>/dev/null)"
+if [ -z "$RESULTS_REL" ]; then
+  echo "refuse: $CONFIG has no resultsDir; refusing to guess an evidence directory" >&2
+  exit 2
+fi
+export OUT="${OUT:-$REPO/$RESULTS_REL}"
 mkdir -p "$OUT"
 
 # shellcheck source=../../scripts/device-share-send.sh

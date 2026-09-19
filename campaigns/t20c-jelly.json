@@ -3,7 +3,7 @@
  "device": "192.168.1.82:5555",
  "model": "lfm2.5-2.6b",
  "pkg": "com.kalsa.app",
- "resultsDir": "results/t20c-campaign",
+ "resultsDir": "results/t20c-jelly-campaign",
  "turns": 20,
  "conversations": 1,
  "locale": "it",

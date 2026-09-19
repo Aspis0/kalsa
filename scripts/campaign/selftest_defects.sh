@@ -551,12 +551,16 @@ printf '\n== (b) early abort after turn 2 ==\n'
 run_campaign_case marker-turn1 4
 run_campaign_case never 4
 
+# The serial guard is the ONLY thing that can exit 2 here: CAMPAIGN_APK_PATH is
+# bound the way a real run binds it, so with the guard removed the run gets past
+# the APK gate and the exit code stops looking like that gate's refusal.
 serial_refusal_case() {
   local out="$WORK/serial-refusal" rc
   rm -rf "$out"
   mkdir -p "$out"
   env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
     CAMPAIGN_CONFIG="$REPO/campaigns/t20c-jelly.json" \
+    CAMPAIGN_APK_PATH="$out/not-installed.apk" \
     ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
     bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
   rc=$?
@@ -568,6 +572,98 @@ serial_refusal_case() {
 }
 
 serial_refusal_case
+
+# A synthetic config lives in the case's own temp dir, together with the sibling
+# script the runner derives from it. `device` is injected as raw JSON so a case
+# can hand it a non-string (`null`) as well as a string.
+write_synthetic_config() {
+  local dir="$1" device_json="$2" turns="$3"
+  mkdir -p "$dir/t20c"
+  cp "$REPO/campaigns/t20c/script.json" "$dir/t20c/script.json"
+  cat > "$dir/config.json" <<JSON
+{
+ "name": "selftest-synthetic",
+ "device": $device_json,
+ "resultsDir": "results/t20c-jelly-campaign",
+ "turns": $turns
+}
+JSON
+}
+
+printf '\n== (a2) the pre-device guards read the config ==\n'
+
+# (a) POSITIVE: the guard must read the configured serial, not a literal Jelly.
+# 10.0.0.1:9999 appears nowhere else in the tree. With CAMPAIGN_APK_PATH bound
+# the run gets past the APK gate and refuses at the JavaScript provenance gate —
+# the next refusal on this path — which proves the serial guard let it through.
+configured_serial_case() {
+  local dir="$WORK/configured-serial" out="$WORK/configured-serial/out" rc
+  rm -rf "$dir"
+  write_synthetic_config "$dir" '"10.0.0.1:9999"' 20
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=10.0.0.1:9999 OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if grep -qF 'refuse: ANDROID_SERIAL must be exactly' "$out/run.log"; then
+    bad "configured serial 10.0.0.1:9999 was refused by the serial guard (rc=$rc)"
+  elif [ "$rc" -eq 2 ]; then
+    bad "configured serial 10.0.0.1:9999 stopped at a pre-device gate (rc=$rc; output: $(cat "$out/run.log"))"
+  elif grep -qF 'JavaScript provenance gate failed before any device operation' "$out/run.log"; then
+    ok "configured serial 10.0.0.1:9999 passed the serial guard, refused at the provenance gate"
+  else
+    bad "configured serial 10.0.0.1:9999: expected the provenance refusal, got rc=$rc; $(tail -3 "$out/run.log" | tr '\n' '|')"
+  fi
+}
+
+# (b) `"device": null` stringifies to None, so ANDROID_SERIAL=None satisfies the
+# comparison whenever the extraction emits it. It must refuse instead.
+null_device_case() {
+  local dir="$WORK/null-device" out="$WORK/null-device/out" rc
+  rm -rf "$dir"
+  write_synthetic_config "$dir" 'null' 20
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=None OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq "refuse: ANDROID_SERIAL must be exactly <config device unavailable> (got 'None')" "$out/run.log"; then
+    ok "a non-string device is refused, not compared as None"
+  else
+    bad "device:null was not refused as a non-string (rc=$rc; output: $(cat "$out/run.log"))"
+  fi
+}
+
+# (c) This runner executes exactly 20 turns; a config declaring another count
+# would run the T20C arm, ids and evidence under that config's name.
+foreign_turns_case() {
+  local dir="$WORK/foreign-turns" out="$WORK/foreign-turns/out" rc
+  rm -rf "$dir"
+  write_synthetic_config "$dir" '"10.0.0.2:9999"' 24
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=10.0.0.2:9999 OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq 'declares turns=24' "$out/run.log"; then
+    ok "a config declaring 24 turns is refused"
+  else
+    bad "turns=24 config was not refused (rc=$rc; output: $(cat "$out/run.log"))"
+  fi
+}
+
+configured_serial_case
+null_device_case
+foreign_turns_case
 
 # A throttled engine changes its progress fingerprint before its marker lands.
 # The late marker and the changing assistant text both come from the fake adb.
