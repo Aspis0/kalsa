@@ -802,6 +802,14 @@ export function App() {
           ) : surface === "settings" ? (
             <SettingsForm
               initial={settings}
+              onWebTools={(webTools) => {
+                // Writes only itself, from the settings that are already
+                // stored: the text sitting unsaved in the connection fields is
+                // neither committed nor wiped by touching this.
+                const next = { ...settings, webTools };
+                setSettings(next);
+                saveSettings(next);
+              }}
               onSave={(next) => {
                 setSettings(next);
                 saveSettings(next);

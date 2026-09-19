@@ -1811,7 +1811,9 @@ const tests = {
     await seed(page, { settings: okSettings("markup-demo") });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "One more search?", "one more search");
+    // The marker is the whole sentence, not a prefix of it: waiting on a
+    // prefix can return while the rest is still rendering.
+    await sendAndWait(page, "One more search?", "I need one more search to be sure.");
     const thread = (await page.locator(".thread").textContent()) ?? "";
     check("markup: the words around the call are shown", thread.includes("I need one more search to be sure."), thread.slice(0, 200));
     check("markup: no tool-call markup reaches the reader", !thread.includes("tool_call") && !thread.includes("web_search") && !thread.includes("parameter"), thread.slice(0, 300));
@@ -2027,6 +2029,70 @@ const tests = {
     check("json: the words around the call are shown", text.includes("Here is the syntax."), text.slice(0, 200));
     check("json: and the markup is not", !text.includes("tool_call") && !text.includes("parameter"), text.slice(0, 240));
     check("json: the text after it is kept too", text.includes("That was the markup."), text.slice(-120));
+    await browser.close();
+  },
+
+  // The web-tools switch is a privacy control, not a field of the connection
+  // form, and it is applied when it is touched. Live, 2026-09-19: the owner
+  // toggled it off, pressed Save, and was told to enter a server address —
+  // which is empty on a normal install, because the brain runs on this
+  // computer. The switch was unreachable, and it defaults to on.
+  async webswitch() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/ok", token: "t", model: "toolsloop-demo", webTools: true },
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator(".brain-settings").getByRole("button", { name: "Settings" }).click();
+    await page.waitForTimeout(300);
+    // The owner's shape: the address field is empty. (On his machine the brain
+    // runs here and fills it in; the field is cleared here to make the same
+    // case, and to catch a switch write that blanks or commits it.)
+    await page.getByLabel("Server address").fill("");
+    const toggle = page.getByRole("checkbox", { name: "Let the assistant search the web" });
+    check("switch: it is on to begin with", await toggle.isChecked());
+    await toggle.uncheck();
+    await page.waitForTimeout(500);
+
+    const stored = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("crescent-chat.settings.v1") ?? "{}"),
+    );
+    check(
+      "switch: turning it off is saved, with the server address field empty",
+      stored.webTools === false,
+      JSON.stringify(stored),
+    );
+    check(
+      "switch: and the stored address is neither blanked nor the unsaved field",
+      stored.endpoint === "http://127.0.0.1:18081/ok" && stored.model === "toolsloop-demo",
+      JSON.stringify(stored),
+    );
+    check(
+      "switch: and it is not refused for a field about something else",
+      (await page.locator(".settings-error").count()) === 0,
+      ((await page.locator(".settings-page").textContent()) ?? "").slice(0, 160),
+    );
+
+    // The running chat reads the switch when it builds a request: the very next
+    // message must respect it. Stay inside the app — a `goto` would re-run the
+    // harness's seed script and wipe the toggle this test just made.
+    await page.getByRole("button", { name: /^Back to / }).first().click();
+    await page.waitForTimeout(500);
+    await page.locator(".brain-bar-chat").first().click();
+    await page.waitForTimeout(1000);
+    await resetMock(page);
+    await page.getByRole("textbox", { name: "Message" }).fill("Just answer.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(3000);
+    const body = (await allBodies(page)).at(-1);
+    check(
+      "switch: the next message offers no tools, without a reload",
+      body !== undefined && body.tools === undefined && body.tool_choice === undefined,
+      JSON.stringify({ sent: body !== undefined, tools: body?.tools?.length ?? 0, messages: body?.messages?.length ?? 0 }),
+    );
     await browser.close();
   },
 
