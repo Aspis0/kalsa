@@ -14,6 +14,13 @@ CAMPAIGN_SERIAL="${CAMPAIGN_SERIAL:-192.168.1.82:34037}"
 # gate sits above the working equilibrium and below MediaTek's ~47-48°C throttle).
 CAMPAIGN_THERMAL_PAUSE="${CAMPAIGN_THERMAL_PAUSE:-5}"
 CAMPAIGN_THERMAL_MAX_C="${CAMPAIGN_THERMAL_MAX_C:-45}"
+# Owner's written unplugged stop line. The external device watchdog kills at
+# 43°C battery, so this is the second line of defence, not the first.
+CAMPAIGN_THERMAL_HARD_ABORT_C="${CAMPAIGN_THERMAL_HARD_ABORT_C:-44.0}"
+CAMPAIGN_THERMAL_HARD_ABORT_STATUS="${CAMPAIGN_THERMAL_HARD_ABORT_STATUS:-3}"
+CAMPAIGN_THERMAL_OVERSHOOT_S="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
+CAMPAIGN_THERMAL_COOLDOWN_STEP_S="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
+CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
 
 campaign_connect() {
   local serial="${1:-$CAMPAIGN_SERIAL}" attempt delay
@@ -175,19 +182,100 @@ campaign_thermal_still_hot() {
   python3 -c "exit(0 if float('$bt') > $CAMPAIGN_THERMAL_MAX_C else 1)"
 }
 
+campaign_thermal_is_plugged() {
+  local serial="${ANDROID_SERIAL:-${CAMPAIGN_SERIAL:-}}" dump
+  if [ -n "$serial" ]; then
+    dump=$(adb -s "$serial" shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' || true)
+  else
+    dump=$(adb shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' || true)
+  fi
+  [ -n "$dump" ] || { printf '%s\n' unknown; return 0; }
+  if printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true'; then
+    printf '%s\n' true
+  else
+    printf '%s\n' false
+  fi
+}
+
+campaign_thermal_hard_abort_reason() {
+  local plugged st bt
+  plugged=$(campaign_thermal_is_plugged)
+  [ "$plugged" = false ] || return 1
+  st=$(device_thermal_status)
+  case "$st" in
+    ''|unknown|*[!0-9]*) ;;
+    *)
+      if [ "$st" -ge "$CAMPAIGN_THERMAL_HARD_ABORT_STATUS" ]; then
+        printf 'unplugged thermal status %s >= %s' "$st" "$CAMPAIGN_THERMAL_HARD_ABORT_STATUS"
+        return 0
+      fi
+      ;;
+  esac
+  bt=$(device_battery_temp_c)
+  case "$bt" in
+    ''|unknown|*[!0-9.]*) return 1 ;;
+  esac
+  if python3 - "$bt" "$CAMPAIGN_THERMAL_HARD_ABORT_C" <<'PY'
+import sys
+sys.exit(0 if float(sys.argv[1]) >= float(sys.argv[2]) else 1)
+PY
+  then
+    printf 'unplugged battery %.1f°C >= %.1f°C' "$bt" "$CAMPAIGN_THERMAL_HARD_ABORT_C"
+    return 0
+  fi
+  return 1
+}
+
+campaign_thermal_should_hard_abort() {
+  local reason
+  reason=$(campaign_thermal_hard_abort_reason) || return 1
+  CAMPAIGN_THERMAL_HARD_ABORT_REASON="$reason"
+  log "THERMAL HARD ABORT: $reason — stopping the unplugged run; it will not resume"
+  return 0
+}
+
+campaign_thermal_cooldown_wait() {
+  local stop_app="${1:-yes}" waited=0 step cap overshoot previous_bt bt trend
+  step="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
+  cap="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
+  overshoot="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
+  previous_bt=$(device_battery_temp_c)
+  log "RECOVERY reason=thermal — pause (battery > ${CAMPAIGN_THERMAL_MAX_C}°C or status >= $CAMPAIGN_THERMAL_PAUSE; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=${overshoot}s)"
+  [ "$stop_app" = yes ] && campaign_force_stop
+  campaign_thermal_should_hard_abort && return 1
+  while [ "$waited" -lt "$cap" ]; do
+    sleep "$step"
+    waited=$((waited + step))
+    campaign_thermal_should_hard_abort && return 1
+    bt=$(device_battery_temp_c)
+    trend=steady
+    if [ "$previous_bt" != unknown ] && [ "$bt" != unknown ]; then
+      trend=$(python3 - "$bt" "$previous_bt" <<'PY'
+import sys
+current, previous = map(float, sys.argv[1:])
+print("rising" if current > previous else "falling" if current < previous else "steady")
+PY
+      )
+    fi
+    if [ "$waited" -le "$overshoot" ]; then
+      log "thermal overshoot window (${waited}s/${overshoot}s, battery=${bt}°C, trend=$trend) — rise is expected after load stops"
+    elif [ "$trend" = rising ]; then
+      CAMPAIGN_THERMAL_HARD_ABORT_REASON="unplugged battery temperature kept rising after the ${overshoot}s overshoot window (${previous_bt}°C -> ${bt}°C)"
+      log "THERMAL HARD ABORT: $CAMPAIGN_THERMAL_HARD_ABORT_REASON — stopping the unplugged run; it will not resume"
+      return 1
+    elif ! campaign_thermal_should_pause; then
+      log "thermal cool after ${waited}s (battery=${bt}°C, trend=$trend; below resume threshold)"
+      return 0
+    else
+      log "thermal still hot (${waited}s, battery=${bt}°C, trend=$trend)"
+    fi
+    previous_bt="$bt"
+  done
+  log "THERMAL GIVEUP: still paused after ${cap}s — stopping the run (cooldown cap reached; no recursive wait)"
+  return 1
+}
+
 # Stop, cooldown, caller resumes SAME arm/conv only.
 campaign_thermal_cooldown() {
-  local waited=0 cap=7200
-  log "RECOVERY reason=thermal — pause (battery > ${CAMPAIGN_THERMAL_MAX_C}°C or status >= $CAMPAIGN_THERMAL_PAUSE; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through)"
-  campaign_force_stop
-  while [ "$waited" -lt "$cap" ]; do
-    sleep 60
-    waited=$((waited + 60))
-    campaign_thermal_should_pause || { log "thermal cool after ${waited}s (battery <= ${CAMPAIGN_THERMAL_MAX_C}°C, status < $CAMPAIGN_THERMAL_PAUSE)"; return 0; }
-    log "thermal still hot (${waited}s)"
-  done
-  log "thermal still paused after ${cap}s — waiting again, safer than resuming hot (owner: slow but safe)"
-  # Do NOT die; loop again with a fresh budget. The phone cools eventually;
-  # resuming hot is what risks the hardware. Keep waiting.
-  campaign_thermal_cooldown
+  campaign_thermal_cooldown_wait yes
 }

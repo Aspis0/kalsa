@@ -26,6 +26,7 @@ if [ -z "$CAMPAIGN_METRO_IN_FLIGHT_NEEDLE" ]; then
   exit 1
 fi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kalsa-defects.XXXXXX")"
+ORIGINAL_PATH="$PATH"
 
 # The one KALSA_TELEMETRY line the app emitted in 32,683 logcat lines on
 # 2026-09-16 (out/t20c-gate-20260916/logcat.txt, 11:50:53.532).
@@ -38,6 +39,10 @@ cp "$HERE/selftest_fakedevice.sh" "$WORK/bin/adb"
 chmod +x "$WORK/bin/adb"
 PATH="$WORK/bin:$PATH"
 export PATH
+if [ "$(command -v adb)" != "$WORK/bin/adb" ]; then
+  printf 'selftest_defects: refusing to run because adb is not the fake at %s\n' "$WORK/bin/adb" >&2
+  exit 1
+fi
 
 pass=0
 fail=0
@@ -47,6 +52,8 @@ bad() { printf 'FAIL: %s\n' "$1"; fail=$((fail + 1)); }
 cleanup() {
   pkill -f "$WORK" >/dev/null 2>&1 || true
   rm -rf "$WORK"
+  PATH="$ORIGINAL_PATH"
+  export PATH
 }
 trap cleanup EXIT
 
@@ -54,6 +61,10 @@ trap cleanup EXIT
 fake_reset() {
   local mode="$1" temp=350
   [ "$mode" = "hot" ] && temp=500
+  case "$mode" in
+    thermal-rise-fall|thermal-hard-abort) temp=425 ;;
+    thermal-status-abort) temp=420 ;;
+  esac
   rm -rf "$FAKE_DEV/fake" "$FAKE_DEV/databases"
   mkdir -p "$FAKE_DEV/fake" "$FAKE_DEV/databases" "$FAKE_DEV/data/local/tmp"
   sqlite3 "$FAKE_DEV/databases/RKStorage" \
@@ -63,6 +74,7 @@ fake_reset() {
   printf '%s' 4242 > "$FAKE_DEV/fake/pid_base"
   printf '%s\n' device > "$FAKE_DEV/fake/adb_state"
   printf '%s' 0 > "$FAKE_DEV/fake/turn"
+  printf '%s' 0 > "$FAKE_DEV/fake/battery_reads"
   printf '%s\n' "$TELEMETRY_LINE" > "$FAKE_DEV/fake/telemetry.line"
   cat > "$FAKE_DEV/fake/battery.txt" <<EOF
   AC powered: false
@@ -249,6 +261,7 @@ run_campaign_case() {
     ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
     CAMPAIGN_METRO_BUNDLE_URL="$url" \
     CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=1000 \
     bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
   local rc=$?
   kill "$http_pid" >/dev/null 2>&1 || true
@@ -258,7 +271,7 @@ run_campaign_case() {
   else
     bad "$mode run exit rc=$rc (want $want_rc); tail: $(tail -3 "$out/run.log" | tr '\n' '|')"
   fi
-  if grep -q "ABORT after turn 2: completion signal 'KALSA_TELEMETRY '" "$out/run.log"; then
+  if grep -q 'ABORT after turn 2: completion counter stayed at' "$out/run.log"; then
     ok "$mode abort names the missing signal"
   else
     bad "$mode abort message missing in $out/run.log"
@@ -274,6 +287,50 @@ run_campaign_case() {
 printf '\n== (b) early abort after turn 2 ==\n'
 run_campaign_case marker-turn1 4
 run_campaign_case never 4
+
+# A throttled engine changes its progress fingerprint before its marker lands.
+# The late marker and the changing assistant text both come from the fake adb.
+completion_progress_case() {
+  local out="$WORK/throttled" rc
+  fake_reset throttled
+  rm -rf "$out"
+  mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=1200
+    CAMPAIGN_TELEMETRY_SEEN=0
+    campaign_logcat_start "$out/logcat.txt"
+    adb shell "am start -a android.intent.action.VIEW kalsa://share?text=slow-turn"
+    adb shell "input tap 950 2050"
+    : > "$out/.slice.txt"
+    campaign_completion_signal_lost 2 "$out/.slice.txt"
+    printf '%s' "$?" > "$out/rc.txt"
+    sleep 2
+    campaign_logcat_stop
+    wait >/dev/null 2>&1 || true
+  ) > "$out/turn.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" = 1 ] && grep -q 'progress fingerprint changed' "$out/turn.log"; then
+    ok "throttled completion: changing fingerprint does not abort"
+  else
+    bad "throttled completion: rc=$rc and/or progress continuation missing"
+    tail -5 "$out/turn.log" | sed 's/^/   | /'
+  fi
+  if grep -q 'KALSA_TELEMETRY ' "$out/logcat.txt"; then
+    ok "throttled completion: late marker arrived after the progress probe"
+  else
+    bad "throttled completion: fake marker did not arrive late"
+  fi
+}
+
+printf '\n== (b2) throttled completion gets a progress probe ==\n'
+completion_progress_case
 
 # Turn 1 must have produced a TURN record only in marker-turn1; turn 2 must
 # never vanish silently in either mode (defect 3 site at oneTurn.sh's
@@ -362,6 +419,45 @@ skip_case fail-send none send-failed
 skip_case vanish none retry-send-failed
 skip_case hot cooldown-fail thermal-cooldown-failed
 skip_case never recover-2 recovery-refused
+
+# Thermal direction and the unplugged hard stop use the fake adb's evolving
+# battery/status fixtures; no case is allowed to reach a real adb binary.
+cooldown_case() {
+  local mode="$1" want_rc="$2" want_log="$3" out="$WORK/cool-$1" rc
+  fake_reset "$mode"
+  rm -rf "$out"
+  mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/recovery.sh"
+    CAMPAIGN_THERMAL_MAX_C=42
+    CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
+    CAMPAIGN_THERMAL_COOLDOWN_CAP_S=6
+    CAMPAIGN_THERMAL_OVERSHOOT_S=2
+    campaign_thermal_cooldown
+    printf '%s' "$?" > "$out/rc.txt"
+  ) > "$out/thermal.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" = "$want_rc" ]; then
+    ok "$mode cooldown rc=$want_rc"
+  else
+    bad "$mode cooldown rc=$rc (want $want_rc)"
+  fi
+  if grep -qF "$want_log" "$out/thermal.log"; then
+    ok "$mode records '$want_log'"
+  else
+    bad "$mode missing '$want_log'"
+    tail -8 "$out/thermal.log" | sed 's/^/   | /'
+  fi
+}
+
+printf '\n== (g) thermal overshoot direction and unplugged hard stops ==\n'
+cooldown_case thermal-rise-fall 0 'thermal cool after'
+cooldown_case thermal-hard-abort 1 'THERMAL HARD ABORT: unplugged battery'
+cooldown_case thermal-status-abort 1 'THERMAL HARD ABORT: unplugged thermal status'
 
 printf '\n== (d) the verdict tool reads the markers it claims to read ==\n'
 # Synthetic run, because the real 5.4 MB reference logcat lives under the

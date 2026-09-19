@@ -4,7 +4,9 @@
 # talks to a device. Put this file on PATH as `adb`.
 #
 # State files (all under $FAKE_DEV/fake):
-#   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag
+#   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag |
+#                throttled | thermal-rise-fall | thermal-hard-abort |
+#                thermal-status-abort
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
 #   pid_dead_once  set at a turn boundary; the NEXT pidof reports the app dead
@@ -31,6 +33,39 @@ _unhandled() {
 }
 
 _mode() { cat "$F/mode" 2>/dev/null || printf '%s\n' marker-turn1; }
+
+_battery_dump() {
+  local mode reads temp
+  mode=$(_mode)
+  reads=$(( $(cat "$F/battery_reads" 2>/dev/null || printf 0) + 1 ))
+  printf '%s' "$reads" > "$F/battery_reads"
+  case "$mode" in
+    thermal-rise-fall)
+      case "$reads" in
+        1|2|3) temp=425 ;;
+        4|5|6) temp=430 ;;
+        7|8|9) temp=425 ;;
+        *) temp=415 ;;
+      esac
+      ;;
+    thermal-hard-abort)
+      [ "$reads" -ge 2 ] && temp=440 || temp=425
+      ;;
+    thermal-status-abort) temp=420 ;;
+    *)
+      temp=$(sed -n -E 's/^[[:space:]]*temperature:[[:space:]]*([0-9]+).*/\1/p' "$F/battery.txt" | head -1)
+      ;;
+  esac
+  sed -E "s/^([[:space:]]*temperature:)[[:space:]]*[0-9]+/\\1 $temp/" "$F/battery.txt"
+}
+
+_thermal_dump() {
+  if [ "$(_mode)" = thermal-status-abort ]; then
+    printf '%s\n' 'Thermal Status: 3'
+  else
+    cat "$F/thermalservice.txt"
+  fi
+}
 
 # Consume the one-shot crash flag: the app was alive for the send and dead at
 # the next poll. In `vanish` mode the crash also loses the turn's messages.
@@ -70,16 +105,18 @@ open(sys.argv[1], "w", encoding="utf-8").write(
     '</hierarchy>\n' % text
 )
 PY
-  # chat history: the app finished the turn, so user + assistant both landed
-  python3 - "$F/messages.json" "$text" "$turn" <<'PY'
+# Chat history: normal modes finish the turn here; throttled mode adds its
+# assistant bubble incrementally after the Send tap.
+  python3 - "$F/messages.json" "$text" "$turn" "$mode" <<'PY'
 import json, sys
-path, text, turn = sys.argv[1], sys.argv[2], int(sys.argv[3])
+path, text, turn, mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 try:
     msgs = json.load(open(path, encoding="utf-8"))
 except Exception:
     msgs = []
 msgs.append({"role": "user", "text": text})
-msgs.append({"role": "assistant", "text": "Risposta %d %s" % (turn, "x" * (40 * turn))})
+if mode != "throttled":
+    msgs.append({"role": "assistant", "text": "Risposta %d %s" % (turn, "x" * (40 * turn))})
 json.dump(msgs, open(path, "w", encoding="utf-8"))
 PY
   # db-lag: the engine accepted the turn and started it, but the app has not
@@ -111,7 +148,9 @@ PY
   fi
   # The app dies at the first poll AFTER this turn, except for the one turn
   # that is supposed to complete (turn 1 in marker-turn1).
-  if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then :; else : > "$F/pid_dead_once"; fi
+  if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then :
+  elif [ "$mode" = throttled ]; then :
+  else : > "$F/pid_dead_once"; fi
   exit 0
 }
 
@@ -157,8 +196,8 @@ case "${1:-}" in
       "if pidof $PKG"*)
         if [ -n "$(app_pid)" ]; then printf '%s\n' RUNNING; else printf '%s\n' STOPPED; fi
         ;;
-      "dumpsys battery") cat "$F/battery.txt" ;;
-      "dumpsys thermalservice") cat "$F/thermalservice.txt" ;;
+      "dumpsys battery") _battery_dump ;;
+      "dumpsys thermalservice") _thermal_dump ;;
       "dumpsys deviceidle whitelist"*) : ;;
       "settings get system screen_off_timeout") printf '%s\n' null ;;
       "settings get global stay_on_while_plugged_in") printf '%s\n' 0 ;;
@@ -172,6 +211,34 @@ case "${1:-}" in
         if [ -s "$F/composer" ] && [ -s "$F/pending_turn" ]; then
           t=$(cat "$F/pending_turn"); : > "$F/pending_turn"
           _append "09-16 12:00:0$t.300  4242  4243 I ReactNativeJS: KALSA_THINKING {\"turnId\":\"$t\",\"budget\":512}"
+          if [ "$(_mode)" = throttled ]; then
+            (
+              for n in 1 2 3; do
+                sleep 0.4
+                python3 - "$F/messages.json" "$DEV/databases/RKStorage" "$t" "$n" <<'PY'
+import json, sqlite3, sys
+messages_path, db_path, turn, step = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+messages = json.load(open(messages_path, encoding="utf-8"))
+assistant = next((item for item in messages if item.get("role") == "assistant"), None)
+if assistant is None:
+    assistant = {"role": "assistant", "text": ""}
+    messages.append(assistant)
+assistant["text"] = "Risposta %d %s" % (turn, "x" * (step * 15))
+payload = json.dumps(messages)
+json.dump(messages, open(messages_path, "w", encoding="utf-8"))
+conn = sqlite3.connect(db_path)
+conn.execute(
+    "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES (?,?)",
+    ("kalsa.messages.v1", payload),
+)
+conn.commit()
+PY
+                _append "09-16 12:00:1$n.100  4242  4243 I ReactNativeJS: KALSA_NATIVE throttled progress $n"
+              done
+              sleep 0.4
+              _append "$(cat "$F/telemetry.line")"
+            ) >/dev/null 2>&1 &
+          fi
         fi
         ;;
       "input "*) : ;;

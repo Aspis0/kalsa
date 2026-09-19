@@ -115,7 +115,7 @@ campaign_telemetry_total() {
 # read as "stuck" after a truncation is exactly the false positive this
 # function was rewritten to remove.
 campaign_completion_signal_lost() {
-  local i="${1:?}" slice="${2:?}" seen
+  local i="${1:?}" slice="${2:?}" seen before after wait_ms wait_s after_seen max_ms waited_ms=0
   seen=$(campaign_telemetry_total)
   case "$seen" in ''|*[!0-9]*) seen=0 ;; esac
 
@@ -130,7 +130,35 @@ campaign_completion_signal_lost() {
   fi
 
   [ "$i" -ge 2 ] || { CAMPAIGN_TELEMETRY_SEEN="$seen"; return 1; }
-  log "ABORT after turn $i: completion signal 'KALSA_TELEMETRY ' did not advance in $CAMPAIGN_LOGCAT_FILE during this turn (total stuck at $seen) — the app has stopped emitting it; stopping the run instead of repeating the ${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}ms wait per turn"
+  wait_ms="${CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS:-30000}"
+  case "$wait_ms" in ''|*[!0-9]*|0) wait_ms=30000 ;; esac
+  max_ms="${CAMPAIGN_COMPLETION_PROGRESS_MAX_MS:-120000}"
+  case "$max_ms" in ''|*[!0-9]*|0) max_ms=120000 ;; esac
+  [ "$max_ms" -ge "$wait_ms" ] || max_ms="$wait_ms"
+  wait_s=$(python3 -c "print(max(0.001, int('$wait_ms') / 1000))")
+  campaign_snapshot_messages "$OUT/.messages.json"
+  before=$(campaign_progress_fingerprint "$(campaign_assistant_count)" "$OUT/.messages.json" "$slice")
+  while [ "$waited_ms" -lt "$max_ms" ]; do
+    sleep "$wait_s"
+    waited_ms=$((waited_ms + wait_ms))
+    campaign_logcat_ensure
+    campaign_snapshot_messages "$OUT/.messages.json"
+    after=$(campaign_progress_fingerprint "$(campaign_assistant_count)" "$OUT/.messages.json" "$slice")
+    after_seen=$(campaign_telemetry_total)
+    case "$after_seen" in ''|*[!0-9]*) after_seen="$seen" ;; esac
+    if [ "$after_seen" -gt "$seen" ] || campaign_slice_has_telemetry "$slice"; then
+      CAMPAIGN_TELEMETRY_SEEN="$after_seen"
+      return 1
+    fi
+    if [ "$before" != "$after" ]; then
+      log "turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint changed '$before' -> '$after' — continuing the bounded wait"
+      before="$after"
+      continue
+    fi
+    log "ABORT after turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint remained '$after' — stopping the run"
+    return 0
+  done
+  log "ABORT after turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint changed during the bounded wait but no completion marker arrived — stopping the run"
   return 0
 }
 

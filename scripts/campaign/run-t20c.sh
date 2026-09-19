@@ -35,8 +35,9 @@ CAMPAIGN_TELEMETRY_GAP_MS=1800000
 CAMPAIGN_POLL_MS=5000
 CAMPAIGN_THERMAL_PAUSE=5
 CAMPAIGN_THERMAL_MAX_C=42
+CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-600}"
 export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS \
-  CAMPAIGN_THERMAL_PAUSE CAMPAIGN_THERMAL_MAX_C
+  CAMPAIGN_THERMAL_PAUSE CAMPAIGN_THERMAL_MAX_C CAMPAIGN_THERMAL_COOLDOWN_CAP_S
 
 export OUT="${OUT:-$REPO/results/t20c-campaign}"
 mkdir -p "$OUT"
@@ -253,21 +254,7 @@ log "charging monitor pid=$MON_PID (30s poll)"
 # Wait for cool with the app alive and in foreground. Budget 600s (10 min);
 # still hot after that -> die (run stops and reports, per run order).
 campaign_thermal_cooldown() {
-  local waited=0 step=30 cap=600 bt
-  bt=$(device_battery_temp_c)
-  log "RECOVERY reason=thermal — pause WITHOUT force-stop (app stays alive+foreground; resume when battery <= ${CAMPAIGN_THERMAL_MAX_C}°C; current=${bt}°C)"
-  while [ "$waited" -lt "$cap" ]; do
-    sleep "$step"
-    waited=$((waited + step))
-    if ! campaign_thermal_should_pause; then
-      log "thermal cool after ${waited}s (battery <= ${CAMPAIGN_THERMAL_MAX_C}°C, app never stopped)"
-      return 0
-    fi
-    bt=$(device_battery_temp_c)
-    log "thermal still hot (${waited}s, battery=${bt}°C) — app left running"
-  done
-  log "THERMAL GIVEUP: battery still > ${CAMPAIGN_THERMAL_MAX_C}°C after ${cap}s — stopping the run as ordered (app left alive)"
-  die "thermal did not recover in 10 min"
+  campaign_thermal_cooldown_wait no
 }
 
 # Same-conversation restore is only needed when the app actually died. On a
