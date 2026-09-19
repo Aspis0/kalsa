@@ -26,7 +26,7 @@ use kalsa_download::{default_roots, download};
 // stays underneath it, so this is an optimization on top of the engine the
 // download path already used.
 use kalsa_reuse::find_reusable;
-use kalsa_launch::{LaunchInput, Offload, ServerArgs};
+use kalsa_launch::{KvCache, LaunchInput, Offload, ServerArgs, ServerSettings};
 use kalsa_probe::Measurement;
 use kalsa_runtime::ServerBackend;
 use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
@@ -85,12 +85,31 @@ pub(crate) enum Progress {
     ModelBytes { done: u64, total: u64 },
 }
 
+/// The funded maxima under both cache types. The guard compares against the
+/// maximum for the cache type actually being launched — choosing f16 and
+/// keeping a context only q8_0 could fund must be refused — and the panel
+/// shows both so it never invents the arithmetic itself.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ContextMaxima {
+    pub(crate) q8_0: Option<u64>,
+    pub(crate) f16: Option<u64>,
+}
+
+impl ContextMaxima {
+    pub(crate) fn for_cache(&self, cache: KvCache) -> Option<u64> {
+        match cache {
+            KvCache::Q8_0 => self.q8_0,
+            KvCache::F16 => self.f16,
+        }
+    }
+}
+
 /// The exact launch data kept by the shell after the supervisor receives it.
 /// The UI reads this rather than reconstructing values from argv strings.
 #[derive(Debug)]
 pub(crate) struct LaunchInfo {
     pub(crate) args: ServerArgs,
-    pub(crate) maximum_context_tokens: Option<u64>,
+    pub(crate) maximum_context: ContextMaxima,
     /// The catalog's own name for what launched — the one model identity the
     /// user is shown. `None` on the development path: the developer pinned a
     /// file and owns its bytes, and no catalog choice was made to name.
@@ -368,29 +387,46 @@ fn planned_config_with_overrides(
     state_file: PathBuf,
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
-    let mut input = LaunchInput {
+    let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
+    let batch_size = overrides.batch_size.unwrap_or(automatic.batch_size);
+    let ubatch_size = overrides.ubatch_size.unwrap_or(automatic.ubatch_size);
+    let kv_cache = overrides.kv_cache.unwrap_or_default();
+    let budget = memory_budget(
+        budget_backend(backend, machine.measurement.will_run_on),
+        machine.ram_bytes,
+    );
+    let build = |cache: KvCache, context_limit: Option<u64>| LaunchInput {
         backend,
         model: row,
-        budget: memory_budget(
-            budget_backend(backend, machine.measurement.will_run_on),
-            machine.ram_bytes,
-        ),
+        budget,
         thread_ramp: &machine.measurement.ramp,
-        model_path: model,
+        model_path: model.clone(),
         port: PORT,
-        context_limit: None,
+        context_limit,
+        batch_size,
+        ubatch_size,
+        kv_cache: cache,
     };
-    let maximum = kalsa_launch::plan(&input)
-        .ok_or(StartupFailure::ChosenModelUnfundable)?
-        .args
-        .context_tokens;
-    if let Some(context) = overrides.context_tokens {
+    // The funded maximum for each cache type: f16 costs twice per token and
+    // therefore funds a smaller context. Either may be absent — the row can
+    // be unfundable under one cache and fine under the other — so this is not
+    // an error until the cache actually being launched has no maximum.
+    let maxima = ContextMaxima {
+        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None)).map(|plan| plan.args.context_tokens),
+        f16: kalsa_launch::plan(&build(KvCache::F16, None)).map(|plan| plan.args.context_tokens),
+    };
+    if let (Some(context), Some(maximum)) = (overrides.context_tokens, maxima.for_cache(kv_cache)) {
+        // The guard reads the maximum FOR THE CHOSEN CACHE TYPE: a context
+        // that only q8_0 could fund is refused when f16 is being launched.
         if context > maximum {
-            return Err(StartupFailure::ContextTooLarge);
+            return Err(StartupFailure::ContextTooLarge {
+                maximum_tokens: maximum,
+                cache: Some(kv_cache),
+            });
         }
-        input.context_limit = Some(context);
     }
-    let mut plan = kalsa_launch::plan(&input).ok_or(StartupFailure::ChosenModelUnfundable)?;
+    let mut plan = kalsa_launch::plan(&build(kv_cache, overrides.context_tokens))
+        .ok_or(StartupFailure::ChosenModelUnfundable)?;
     if let Some(seconds) = overrides.idle_unload_seconds {
         plan.args.idle_unload_seconds = seconds;
     }
@@ -407,7 +443,7 @@ fn planned_config_with_overrides(
         server,
         info: LaunchInfo {
             args,
-            maximum_context_tokens: Some(maximum),
+            maximum_context: maxima,
             display_name: Some(row.display_name.to_owned()),
         },
     })
@@ -433,20 +469,31 @@ fn dev_config_with_overrides(
         .context_tokens
         .is_some_and(|context| context > DEV_CONTEXT_TOKENS)
     {
-        return Err(StartupFailure::ContextTooLarge);
+        return Err(StartupFailure::ContextTooLarge {
+            maximum_tokens: DEV_CONTEXT_TOKENS,
+            cache: None,
+        });
     }
+    let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
+    let kv_cache = overrides.kv_cache.unwrap_or_default();
     let mut args = ServerArgs {
         model_path: model,
         port: PORT,
         context_tokens: DEV_CONTEXT_TOKENS,
         // No catalog budget here to carve the roof from; one chat
-        // reservation at the dev context keeps the behavior honest.
+        // reservation at the dev context keeps the behavior honest. Like the
+        // budgeted roof it is priced at the cache the run will use: an f16
+        // chat is bigger, and the server skips one that does not fit.
         cache_ram_mib: kalsa_catalog::footprint::ASSUMED_KV_BYTES_PER_TOKEN
-            * DEV_CONTEXT_TOKENS
+            .saturating_mul(kv_cache.bytes_per_element())
+            .saturating_mul(DEV_CONTEXT_TOKENS)
             / kalsa_catalog::footprint::MIB,
         threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
         offload: offload_of_build(&dev_backend()),
         idle_unload_seconds: kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS,
+        batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
+        ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
+        kv_cache,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -466,7 +513,12 @@ fn dev_config_with_overrides(
         server,
         info: LaunchInfo {
             args,
-            maximum_context_tokens: Some(DEV_CONTEXT_TOKENS),
+            // No budget on the dev path, so there is no funded maximum for
+            // either cache type to report.
+            maximum_context: ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
             display_name: None,
         },
     })
@@ -1077,6 +1129,7 @@ mod tests {
                 context_tokens: Some(1024),
                 idle_unload_seconds: Some(600),
                 internet_road: false,
+                ..LaunchOverrides::default()
             },
         )
         .expect("save advanced settings");
@@ -1110,6 +1163,7 @@ mod tests {
                 context_tokens: Some(DEV_CONTEXT_TOKENS + 1),
                 idle_unload_seconds: Some(600),
                 internet_road: false,
+                ..LaunchOverrides::default()
             },
         )
         .expect("save advanced settings");
@@ -1126,8 +1180,46 @@ mod tests {
             &mut |_| {},
         )
         .expect_err("the dev path has a conservative context ceiling");
-        assert!(matches!(err, StartupFailure::ContextTooLarge));
+        assert!(matches!(
+            err,
+            StartupFailure::ContextTooLarge { .. }
+        ));
         assert!(crate::failure::words(&err).contains("Choose a smaller context"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The development roof is the budgeted roof's smaller cousin, and it
+    /// follows the cache type for the same reason: an f16 chat is bigger, and
+    /// the server skips a state larger than the cap instead of keeping it warm.
+    /// One chat at the dev context is 96 KiB * 4096 = 384 MiB at q8_0, so 768
+    /// MiB at f16.
+    #[test]
+    fn the_development_roof_follows_the_cache_type() {
+        let root = scratch("dev-roof-f16");
+        let state_file = root.join("server.state");
+        crate::options::save(
+            &state_file,
+            LaunchOverrides {
+                kv_cache: Some(KvCache::F16),
+                ..LaunchOverrides::default()
+            },
+        )
+        .expect("save the f16 choice");
+        let config = run(
+            Some(PathBuf::from("/server/llama-server")),
+            Machine {
+                measurement: measured(0.0, Backend::Cpu),
+                ram_bytes: 0,
+            },
+            None,
+            Some(PathBuf::from("/models/chosen.gguf")),
+            state_file,
+            &root,
+            &mut |_| {},
+        )
+        .expect("the dev override is the answer");
+        let joined = config.server.argv.join(" ");
+        assert!(joined.contains("--cache-ram 768"), "{joined}");
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1150,10 +1242,58 @@ mod tests {
                 context_tokens: Some(8192),
                 idle_unload_seconds: Some(600),
                 internet_road: false,
+                ..LaunchOverrides::default()
             },
         )
         .expect_err("8192 exceeds Granite's funded maximum on 8 GiB");
-        assert!(matches!(err, StartupFailure::ContextTooLarge));
+        assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
+    }
+
+    #[test]
+    fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
+        // Granite 4 Tiny on 8 GiB of CPU funds 4584 tokens at q8_0 and 2292
+        // at f16. 4096 fits the q8_0 cache and not the f16 one: choosing f16
+        // must refuse it, not start a server whose f16 cache would
+        // oversubscribe the machine. If the guard read the q8_0 maximum
+        // instead of the chosen cache's, this would be accepted.
+        let row = rows()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let err = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+            LaunchOverrides {
+                context_tokens: Some(4096),
+                idle_unload_seconds: Some(600),
+                kv_cache: Some(KvCache::F16),
+                ..LaunchOverrides::default()
+            },
+        )
+        .expect_err("4096 is beyond the f16 funded maximum of 2292");
+        assert!(
+            matches!(err, StartupFailure::ContextTooLarge { .. }),
+            "{err:?}"
+        );
+        // The refusal must carry the figure and the cache it was funded
+        // for: the owner is told what to choose below, not just that the
+        // request was too large.
+        let spoken = crate::failure::words(&err);
+        assert!(
+            spoken.contains("2292"),
+            "the refusal must name the funded maximum: {spoken}"
+        );
+        assert!(
+            spoken.contains("f16"),
+            "the refusal must name the chosen cache: {spoken}"
+        );
     }
 
     #[test]

@@ -6,6 +6,7 @@ import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeCh
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, fetchContextSize, serverBase, streamChatCompletion } from "./lib/chat";
 import type { ChatErrorKind } from "./lib/chat";
+import { loadSampling, samplingWire } from "./lib/sampling";
 import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
@@ -361,6 +362,7 @@ export function App() {
           token: currentSettings.token,
           model: currentSettings.model,
           messages: history,
+          sampling: samplingWire(loadSampling()),
           signal: controller.signal,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {

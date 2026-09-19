@@ -1,3 +1,6 @@
+import { SAMPLING_KNOBS } from "./knobs/sampling";
+import type { Sampling } from "./sampling";
+
 /**
  * Minimal OpenAI-compatible client. Fetch + SSE only, no dependencies.
  *
@@ -41,6 +44,7 @@ export interface StreamOptions {
   token: string;
   model: string;
   messages: WireMessage[];
+  sampling: Record<string, number>;
   signal: AbortSignal;
   onToken: (text: string) => void;
   /** Reasoning tokens. A separate buffer, never concatenated with content. */
@@ -85,6 +89,56 @@ export async function fetchContextSize(base: string, timeoutMs = 8000): Promise<
   }
 }
 
+/** Read only the sampler defaults this build actually reports through /props. */
+export type SamplingDefaultsStatus = "reported" | "unavailable" | "refused" | "invalid";
+
+export interface SamplingDefaultsResult {
+  values: Sampling;
+  status: SamplingDefaultsStatus;
+}
+
+function blankSampling(): Sampling {
+  return Object.fromEntries(SAMPLING_KNOBS.map(({ wire }) => [wire, null]));
+}
+
+export async function fetchSamplingDefaultsWithStatus(
+  base: string,
+  timeoutMs = 8000,
+  token = "",
+): Promise<SamplingDefaultsResult> {
+  const defaults = blankSampling();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const cleanToken = token.trim();
+    const response = await fetch(`${base}/props`, {
+      signal: controller.signal,
+      ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
+    });
+    if (!response.ok) return { values: defaults, status: "refused" };
+    const data: unknown = await response.json();
+    if (typeof data !== "object" || data === null) return { values: defaults, status: "invalid" };
+    const settings = (data as { default_generation_settings?: unknown }).default_generation_settings;
+    if (typeof settings !== "object" || settings === null) return { values: defaults, status: "invalid" };
+    const params = (settings as { params?: unknown }).params;
+    if (typeof params !== "object" || params === null) return { values: defaults, status: "invalid" };
+    const values = params as Record<string, unknown>;
+    for (const { wire } of SAMPLING_KNOBS) {
+      const value = values[wire];
+      defaults[wire] = typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+    return { values: defaults, status: "reported" };
+  } catch {
+    return { values: defaults, status: "unavailable" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchSamplingDefaults(base: string, timeoutMs = 8000, token = ""): Promise<Sampling> {
+  return (await fetchSamplingDefaultsWithStatus(base, timeoutMs, token)).values;
+}
+
 /**
  * Accepts a base URL (with or without /v1), or a full /chat/completions URL.
  * Never doubles /v1: https://api.openai.com/v1 -> .../v1/chat/completions.
@@ -94,6 +148,14 @@ export function completionsUrl(endpoint: string): string {
   if (/\/chat\/completions$/.test(base)) return base;
   if (/\/v1$/.test(base)) return `${base}/chat/completions`;
   return `${base}/v1/chat/completions`;
+}
+
+export function completionBody(
+  model: string,
+  messages: WireMessage[],
+  sampling: Record<string, number>,
+): Record<string, unknown> {
+  return { ...sampling, model, messages, stream: true };
 }
 
 function firstPresent(values: unknown[]): string | null {
@@ -170,7 +232,7 @@ function extractMessage(payload: unknown): string | null {
 }
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
-  const { token, model, messages, signal, onToken, onReasoning } = options;
+  const { token, model, messages, sampling, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
 
   // The user's signal (Stop) and our idle timer share one controller so a
@@ -198,7 +260,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         "Content-Type": "application/json",
         ...(token.trim() ? { Authorization: `Bearer ${token.trim()}` } : {}),
       },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify(completionBody(model, messages, sampling)),
       signal: linked.signal,
     });
   } catch (error) {

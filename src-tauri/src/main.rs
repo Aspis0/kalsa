@@ -326,7 +326,7 @@ impl Brain {
         let active = launch
             .as_ref()
             .and_then(|stored| stored.as_ref())
-            .map(|info| (&info.args, info.maximum_context_tokens));
+            .map(|info| (&info.args, &info.maximum_context));
         let iroh_sentence = if overrides.internet_road {
             self.road.sentence()
         } else {
@@ -342,22 +342,42 @@ impl Brain {
         context_tokens: Option<u64>,
         idle_unload_seconds: Option<u32>,
         internet_road: Option<bool>,
+        batch_size: Option<u32>,
+        ubatch_size: Option<u32>,
+        kv_cache: Option<kalsa_launch::KvCache>,
     ) -> Result<options::AdvancedDto, String> {
         let kept = options::load(state_file);
         let next = options::LaunchOverrides {
             context_tokens,
             idle_unload_seconds,
+            batch_size,
+            ubatch_size,
+            kv_cache,
             internet_road: internet_road.unwrap_or(kept.internet_road),
         };
-        next.validate().map_err(str::to_string)?;
-        if let Some(maximum) = self
-            .launch
-            .lock()
-            .ok()
-            .and_then(|stored| stored.as_ref().and_then(|info| info.maximum_context_tokens))
+        // The refusal for a value that breaks the machine carries the numbers,
+        // and an out-of-range micro-batch never reaches the file.
+        next.validate()?;
         {
-            if context_tokens.is_some_and(|context| context > maximum) {
-                return Err("That context is larger than this model's funded maximum.".to_string());
+            // Scoped so the lock is released before `self.advanced` takes it.
+            let launch = self.launch.lock().ok();
+            if let Some(info) = launch.as_ref().and_then(|stored| stored.as_ref()) {
+                // The guard reads the maximum for the cache being saved, not
+                // the one for the cache that happens to be running: choosing
+                // f16 and keeping a context only q8_0 could fund must be
+                // refused here too.
+                let cache = kv_cache.unwrap_or_default();
+                if let (Some(context), Some(maximum)) = (
+                    context_tokens,
+                    info.maximum_context.for_cache(cache),
+                ) {
+                    if context > maximum {
+                        return Err(format!(
+                            "That context is larger than the {maximum} tokens this model funds on this computer with the {} cache.",
+                            cache.flag()
+                        ));
+                    }
+                }
             }
         }
         options::save(state_file, next)
@@ -545,6 +565,9 @@ fn brain_set_advanced(
     context_tokens: Option<u64>,
     idle_unload_seconds: Option<u32>,
     internet_road: Option<bool>,
+    batch_size: Option<u32>,
+    ubatch_size: Option<u32>,
+    kv_cache: Option<kalsa_launch::KvCache>,
 ) -> Result<options::AdvancedDto, String> {
     let state_file = state_file(&app)?;
     let pairing_file = pairing_file(&app)?;
@@ -554,6 +577,9 @@ fn brain_set_advanced(
         context_tokens,
         idle_unload_seconds,
         internet_road,
+        batch_size,
+        ubatch_size,
+        kv_cache,
     )
 }
 
@@ -1082,7 +1108,10 @@ mod tests {
         brain.record_launch(
             startup::LaunchInfo {
                 args: launch_args("/models/chosen.gguf", startup::PORT),
-                maximum_context_tokens: Some(8192),
+                maximum_context: startup::ContextMaxima {
+                    q8_0: Some(8192),
+                    f16: Some(4096),
+                },
                 display_name: Some("IBM Granite 4 Tiny".to_string()),
             },
             StartOutcome::Accepted,
@@ -1150,11 +1179,17 @@ mod tests {
             threads: Some(4),
             offload: kalsa_launch::Offload::NoGpuBuild,
             idle_unload_seconds: 300,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: kalsa_launch::KvCache::Q8_0,
         };
         if let Ok(mut launch) = brain.launch.lock() {
             *launch = Some(startup::LaunchInfo {
                 args,
-                maximum_context_tokens: Some(8192),
+                maximum_context: startup::ContextMaxima {
+                    q8_0: Some(8192),
+                    f16: Some(4096),
+                },
                 display_name: None,
             });
         }
@@ -1172,12 +1207,18 @@ mod tests {
         let brain = Brain::new();
         let running = startup::LaunchInfo {
             args: launch_args("/models/running.gguf", 8137),
-            maximum_context_tokens: Some(8192),
+            maximum_context: startup::ContextMaxima {
+                q8_0: Some(8192),
+                f16: Some(4096),
+            },
             display_name: None,
         };
         let rejected = startup::LaunchInfo {
             args: launch_args("/models/rejected.gguf", 8138),
-            maximum_context_tokens: Some(4096),
+            maximum_context: startup::ContextMaxima {
+                q8_0: Some(4096),
+                f16: Some(2048),
+            },
             display_name: None,
         };
         brain.record_launch(running, StartOutcome::Accepted);
@@ -1200,6 +1241,9 @@ mod tests {
             threads: Some(4),
             offload: kalsa_launch::Offload::NoGpuBuild,
             idle_unload_seconds: 300,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: kalsa_launch::KvCache::Q8_0,
         }
     }
 
@@ -1432,6 +1476,7 @@ mod tests {
                 context_tokens: None,
                 idle_unload_seconds: None,
                 internet_road: false,
+                ..options::LaunchOverrides::default()
             },
         )
         .expect("flip the switch off in the file");
@@ -1659,12 +1704,48 @@ mod tests {
         let brain = Brain::new();
         let pairing = root.join("pairing.json");
         let dto = brain
-            .set_advanced(&state_file, &pairing, Some(2048), None, Some(false))
+            .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None)
             .unwrap();
         let stored = options::load(&state_file);
         assert_eq!(stored.context_tokens, Some(2048));
         assert_eq!(stored.idle_unload_seconds, None);
         assert_eq!(dto.idle_override, None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// The panel's "next start" values must be the owner's saved overrides on
+    /// top of the automatic ones. If `dto` went back to reporting the bare
+    /// defaults for a stopped server, `ubatch_size` would read 512 and
+    /// `kv_cache_type` q8_0 while the file says 1024/f16.
+    #[test]
+    fn a_stopped_panel_reports_the_saved_launch_values_as_next_start() {
+        let root = std::env::temp_dir().join(format!(
+            "kalsa-brain-main-next-start-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let state_file = root.join("server.state");
+        options::save(
+            &state_file,
+            options::LaunchOverrides {
+                ubatch_size: Some(1024),
+                kv_cache: Some(kalsa_launch::KvCache::F16),
+                ..options::LaunchOverrides::default()
+            },
+        )
+        .expect("save the owner's choice");
+        let brain = Brain::new();
+        let panel = brain.advanced(&state_file);
+        assert!(!panel.running);
+        assert_eq!(panel.ubatch_size, 1024);
+        assert_eq!(panel.kv_cache_type, "f16");
+        assert_eq!(panel.ubatch_override, Some(1024));
+        assert_eq!(panel.kv_cache_override, Some("f16"));
+        assert_eq!(panel.ubatch_automatic, 512);
+        assert_eq!(panel.kv_cache_automatic, "q8_0");
+        assert_eq!(panel.batch_automatic, 2048);
+        assert_eq!(panel.batch_size, 2048, "no batch override, so automatic");
         let _ = std::fs::remove_dir_all(root);
     }
 }

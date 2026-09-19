@@ -1,0 +1,64 @@
+.knob-info {
+  position: relative;
+  display: inline-flex;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.knob-info-trigger {
+  display: inline-grid;
+  width: 1.1rem;
+  height: 1.1rem;
+  place-items: center;
+  padding: 0;
+  color: var(--silence);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.knob-info-trigger:hover,
+.knob-info-trigger:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.knob-info-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.knob-info-popover {
+  position: fixed;
+  z-index: 10;
+  display: grid;
+  width: min(20rem, calc(100vw - 3rem));
+  max-height: min(20rem, calc(100vh - 2rem));
+  overflow: auto;
+  gap: 0.35rem;
+  padding: 0.8rem;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 94%, var(--page));
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.14);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.knob-info-heading {
+  margin-top: 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.knob-info-heading:first-child {
+  margin-top: 0;
+}

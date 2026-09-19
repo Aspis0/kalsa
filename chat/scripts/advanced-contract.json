@@ -1,0 +1,30 @@
+{
+  "_regenerate": "cd src-tauri && cargo test the_json_the_advanced_page_reads_is_a_contract_pinned_here -- --nocapture",
+  "_source": "the JSON printed by src-tauri/src/options.rs :: tests :: the_json_the_advanced_page_reads_is_a_contract_pinned_here",
+  "_used_for": "the dev harness validates its AdvancedDto fixture against this: a fixture may not carry a field the real panel does not read, or miss one it does. The field names and JSON types are the contract; the numbers are the sample's own and are not pinned.",
+  "sample": {
+    "batch_automatic": 2048,
+    "batch_override": 2048,
+    "batch_size": 2048,
+    "context_max": 4096,
+    "context_max_f16": 4096,
+    "context_override": 4096,
+    "context_tokens": 4096,
+    "door_port": 8130,
+    "flash_attention": "on",
+    "gpu_layers": "all",
+    "idle_override": 600,
+    "idle_unload_seconds": 600,
+    "internet_road": true,
+    "iroh_sentence": "The internet road is open.",
+    "kv_cache_automatic": "q8_0",
+    "kv_cache_override": "f16",
+    "kv_cache_type": "f16",
+    "running": true,
+    "threads": 8,
+    "threads_batch": 8,
+    "ubatch_automatic": 512,
+    "ubatch_override": 1024,
+    "ubatch_size": 1024
+  }
+}

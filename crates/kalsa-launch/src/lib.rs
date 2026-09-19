@@ -42,7 +42,8 @@ mod argv;
 mod policy;
 
 pub use args::{
-    LaunchPlan, MemoryAssumption, Offload, ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS,
-    MAX_IDLE_UNLOAD_SECONDS, MIN_IDLE_UNLOAD_SECONDS,
+    KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs, ServerSettings,
+    DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH, MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH,
+    MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
 };
 pub use policy::{funded_context, plan, LaunchInput};

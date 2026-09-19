@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
-import { AdvancedPanel, type AdvancedDto } from "../components/AdvancedPanel";
+import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
 import { available, invoke } from "../lib/tauri";
 import "./surfaces.css";
 
@@ -84,8 +84,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         </div>
       ) : null}
       <AdvancedPanel
-        save={(contextTokens, idleUnloadSeconds) =>
-          invoke<AdvancedDto>("brain_set_advanced", { contextTokens, idleUnloadSeconds })}
+        save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}
       />
     </div>
   );

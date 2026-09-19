@@ -1,4 +1,5 @@
-import { AdvancedPanel, type AdvancedDto } from "../components/AdvancedPanel";
+import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
+import { SamplingPanel } from "../components/SamplingPanel";
 import { invoke } from "../lib/tauri";
 import "./surfaces.css";
 
@@ -8,9 +9,9 @@ export function AdvancedSurface() {
   return (
     <div className="surface-page">
       <AdvancedPanel
-        save={(contextTokens, idleUnloadSeconds, internetRoad) =>
-          invoke<AdvancedDto>("brain_set_advanced", { contextTokens, idleUnloadSeconds, internetRoad })}
+        save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}
       />
+      <SamplingPanel />
     </div>
   );
 }

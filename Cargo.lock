@@ -2587,6 +2587,7 @@ dependencies = [
  "kalsa-door",
  "kalsa-probe",
  "kalsa-runtime",
+ "serde",
  "serde_json",
 ]
 

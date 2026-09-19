@@ -39,7 +39,7 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use kalsa_launch::{Offload, ServerArgs};
+use kalsa_launch::{KvCache, Offload, ServerArgs};
 
 /// Findable, and clear of the supervisor's 8137 and the sibling's 8138.
 const PORT: u16 = 8139;
@@ -109,6 +109,9 @@ fn the_second_turn_is_measured_against_the_first() {
         threads: Some(4),
         offload: Offload::All,
         idle_unload_seconds: 300,
+        batch_size: 2048,
+        ubatch_size: 512,
+        kv_cache: KvCache::Q8_0,
     };
     let mut argv = args.argv();
     // Harness-only variants, appended after the plan: what a changed launch

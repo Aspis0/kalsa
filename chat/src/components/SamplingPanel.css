@@ -1,0 +1,120 @@
+.sampling-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sampling-eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.sampling-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.sampling-note {
+  max-width: 42rem;
+  margin: 0.5rem 0 0.9rem;
+  color: var(--silence);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.sampling-groups {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sampling-group {
+  overflow: visible;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sampling-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sampling-group-toggle span:last-child {
+  color: var(--silence);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.sampling-group-body {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0 0.8rem 0.85rem;
+}
+
+.sampling-field {
+  min-width: 0;
+}
+
+.sampling-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.3rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.sampling-field input {
+  width: min(100%, 10rem);
+  padding: 0.55rem 0.7rem;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sampling-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.sampling-automatic,
+.sampling-feedback {
+  margin: 0.35rem 0 0;
+  color: var(--silence);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.sampling-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.sampling-feedback {
+  margin: 0;
+  color: var(--ink-soft);
+}

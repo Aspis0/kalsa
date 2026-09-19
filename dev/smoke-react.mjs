@@ -77,6 +77,10 @@ class FakeNode {
     return this.childNodes.filter((child) => child.nodeType === 1);
   }
 
+  get options() {
+    return this.childNodes.filter((child) => child.nodeType === 1 && child.tagName === "OPTION");
+  }
+
   get textContent() {
     if (this.nodeType === 3) return this.data;
     if (this.nodeType === 8) return "";
@@ -275,12 +279,107 @@ try {
   const { dir, renderer } = await loadRenderer();
   const results = await renderer.renderStates();
   const problems = [];
+  const EXPECTED_SAMPLING_WIRES = [
+    "adaptive_decay",
+    "adaptive_target",
+    "dry_allowed_length",
+    "dry_base",
+    "dry_multiplier",
+    "dry_penalty_last_n",
+    "dynatemp_exponent",
+    "dynatemp_range",
+    "frequency_penalty",
+    "max_tokens",
+    "min_keep",
+    "min_p",
+    "mirostat",
+    "mirostat_eta",
+    "mirostat_tau",
+    "presence_penalty",
+    "repeat_last_n",
+    "repeat_penalty",
+    "seed",
+    "temperature",
+    "top_k",
+    "top_n_sigma",
+    "top_p",
+    "typical_p",
+    "xtc_probability",
+    "xtc_threshold",
+  ].sort();
+  const chosenSampling = Object.fromEntries(
+    renderer.SAMPLING_KNOBS.map((knob) => [
+      knob.wire,
+      knob.kind === "integer"
+        ? Math.min(knob.max, Math.max(knob.min, 1))
+        : Math.max(knob.min, 0.25),
+    ]),
+  );
+  const chosenWire = renderer.samplingWire(chosenSampling);
+  const chosenBody = renderer.completionBody("m", [], chosenWire);
+  for (const wire of EXPECTED_SAMPLING_WIRES) {
+    if (chosenBody[wire] !== chosenSampling[wire]) problems.push(`sampling body lost chosen value: ${wire}`);
+  }
+  if (chosenBody.model !== "m" || chosenBody.messages?.length !== 0 || chosenBody.stream !== true) {
+    problems.push("sampling body lost model, messages, or stream");
+  }
+  const nullSampling = Object.fromEntries(EXPECTED_SAMPLING_WIRES.map((wire) => [wire, null]));
+  const nullBody = renderer.completionBody("m", [], renderer.samplingWire(nullSampling));
+  if (EXPECTED_SAMPLING_WIRES.some((wire) => Object.hasOwn(nullBody, wire))) {
+    problems.push("sampling body sent an unset value");
+  }
+  const actualSamplingWires = renderer.SAMPLING_KNOBS.map(({ wire }) => wire).sort();
+  if (JSON.stringify(actualSamplingWires) !== JSON.stringify(EXPECTED_SAMPLING_WIRES)) {
+    problems.push("sampling table wire names do not match the server schema list");
+  }
+  const pollutedWire = renderer.samplingWire({ ...chosenSampling, verbose: 1, other_junk: 2 });
+  const pollutedBody = renderer.completionBody("m", [], pollutedWire);
+  for (const key of ["verbose", "other_junk"]) {
+    if (Object.hasOwn(pollutedWire, key) || Object.hasOwn(pollutedBody, key)) {
+      problems.push(`sampling allowlist forwarded polluted key: ${key}`);
+    }
+  }
+  const overriddenBody = renderer.completionBody("m", [], { model: "wrong", messages: [], stream: false });
+  if (overriddenBody.model !== "m" || overriddenBody.messages?.length !== 0 || overriddenBody.stream !== true) {
+    problems.push("sampling completion body let sampling override its core fields");
+  }
+  if (renderer.samplingProblem({ top_k: 7.5 }) === null) problems.push("fractional integer sampling value was accepted");
+  if (renderer.samplingProblem({ top_p: 5 }) === null) problems.push("out-of-range sampling value was accepted");
+  const invalidWire = renderer.samplingWire({ ...chosenSampling, top_k: 7.5, top_p: 5 });
+  if (Object.hasOwn(invalidWire, "top_k") || Object.hasOwn(invalidWire, "top_p")) {
+    problems.push("invalid sampling value reached the request");
+  }
+  const previousStorage = globalThis.localStorage;
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+  };
+  try {
+    const roundTrip = { temperature: 0.73, top_k: 40 };
+    if (!renderer.saveSampling(roundTrip)) problems.push("sampling round trip could not save");
+    const loaded = renderer.loadSampling();
+    if (loaded.temperature !== 0.73 || loaded.top_k !== 40) problems.push("sampling round trip changed saved values");
+    storage.set("crescent-chat.sampling.v1", JSON.stringify({ ...roundTrip, top_k: 7.5, top_p: 5, verbose: 1 }));
+    const pollutedLoaded = renderer.loadSampling();
+    const sanitized = renderer.samplingWire(pollutedLoaded);
+    if (Object.hasOwn(sanitized, "top_k") || Object.hasOwn(sanitized, "top_p") || Object.hasOwn(sanitized, "verbose")) {
+      problems.push("polluted stored sampling reached the request");
+    }
+    globalThis.localStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("storage unavailable");
+      },
+    };
+    if (renderer.saveSampling(roundTrip)) problems.push("sampling save reported success when storage rejected it");
+  } finally {
+    globalThis.localStorage = previousStorage;
+  }
   const expertCards = results.filter(
     ({ heading }) =>
       heading.includes("running, live metrics") ||
-      heading === "Model — advanced settings are visible" ||
-      heading === "Model — advanced settings with the internet road unavailable" ||
-      heading === "Model — advanced settings with the internet road turned off",
+      heading.startsWith("Model — advanced settings"),
   );
   const expertText = expertCards.flatMap((r) => r.lines).join("\n");
   const normalText = results.filter((r) => !expertCards.includes(r)).flatMap((r) => r.lines).join("\n");
@@ -413,6 +512,17 @@ try {
     if (!(await renderer.renderAdvancedFieldProbe(advancedProbeDto))) problems.push("an open Advanced field was overwritten by polling");
   } catch (error) {
     problems.push(`the Advanced polling probe could not run: ${error.message}`);
+  }
+
+  try {
+    const cacheProbe = await renderer.renderAdvancedCacheProbe({ advanced: renderer.advancedDto() });
+    const f16Help = "Automatic is up to 4096. A smaller value uses less memory.";
+    const q8Help = "Automatic is up to 8192. A smaller value uses less memory.";
+    if (!cacheProbe.help.includes(f16Help) || cacheProbe.help.includes(q8Help)) {
+      problems.push("f16 cache context help must use context_max_f16 and stop showing context_max");
+    }
+  } catch (error) {
+    problems.push(`the Advanced cache context probe could not run: ${error.message}`);
   }
 
   const failureText = await renderer.renderStartFailureProbe({ state: { kind: "stopped" }, startFailure: "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option." });

@@ -11,6 +11,7 @@
 
 use kalsa_catalog::RefusalReason;
 use kalsa_download::DownloadError;
+use kalsa_launch::KvCache;
 use kalsa_runtime::DecideError;
 use kalsa_supervisor::Failure;
 
@@ -37,7 +38,13 @@ pub(crate) enum StartupFailure {
     /// this machine's budget: it is never started smaller, the start fails.
     ChosenModelUnfundable,
     /// The user requested more context than this model's budget funds.
-    ContextTooLarge,
+    ContextTooLarge {
+        /// The most tokens this start path can give the chosen model.
+        maximum_tokens: u64,
+        /// The cache the maximum was funded for. `None` on the development
+        /// path, whose fixed ceiling does not depend on the cache.
+        cache: Option<KvCache>,
+    },
     /// The selection the catalog returned does not name exactly one row, so
     /// starting would run numbers that belong to some other row.
     ChosenModelUnresolved,
@@ -109,11 +116,21 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              give it, even to start. An app update may bring a smaller option."
                 .into()
         }
-        StartupFailure::ContextTooLarge => {
-            "This context is too large for the chosen model on this computer. \
-             Choose a smaller context in Advanced and try again."
-                .into()
-        }
+        StartupFailure::ContextTooLarge {
+            maximum_tokens,
+            cache,
+        } => match cache {
+            Some(cache) => format!(
+                "This context is larger than the {maximum_tokens} tokens the chosen model \
+                 can hold on this computer with the {} cache. Choose a smaller context in \
+                 Advanced and try again.",
+                cache.flag()
+            ),
+            None => format!(
+                "This context is larger than the {maximum_tokens} tokens this development \
+                 setup allows. Choose a smaller context in Advanced and try again."
+            ),
+        },
         StartupFailure::ChosenModelUnresolved => {
             "The model chosen for this computer could not be matched to its catalogue \
              entry, so it was not started. An app update may fix this."

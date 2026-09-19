@@ -4,9 +4,7 @@
 //! nothing itself, so the flags cannot drift between the decision and the
 //! process that runs it.
 
-use crate::args::{
-    ServerArgs, ServerSettings, ALL_LAYERS, BATCH, FLASH_ATTN, HOST, KV_CACHE_TYPE, UBATCH,
-};
+use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, FLASH_ATTN, HOST};
 
 impl ServerArgs {
     /// The argv for `llama-server`, in the supervisor's order.
@@ -32,9 +30,9 @@ impl ServerArgs {
         }
         argv.extend([
             "--batch-size".to_string(),
-            BATCH.to_string(),
+            self.batch_size.to_string(),
             "--ubatch-size".to_string(),
-            UBATCH.to_string(),
+            self.ubatch_size.to_string(),
             "--ctx-size".to_string(),
             self.context_tokens.to_string(),
         ]);
@@ -49,18 +47,18 @@ impl ServerArgs {
             }
             crate::args::Offload::NoGpuBuild => {}
         }
-        // The cache the memory arithmetic counted: one byte per element, both
-        // tensors, under flash attention — a quantized V cache is refused
-        // without it, and f16 would make the reported cache size half the
-        // truth. The flash-attn value must be rendered: a bare flag takes
-        // the next argument as its value, and the server never starts.
+        // The cache the memory arithmetic counted: the owner's choice (q8_0
+        // by default, one byte per element) under flash attention — a
+        // quantized V cache is refused without it. The flash-attn value must
+        // be rendered: a bare flag takes the next argument as its value, and
+        // the server never starts.
         argv.extend([
             "--flash-attn".to_string(),
             FLASH_ATTN.to_string(),
             "--cache-type-k".to_string(),
-            KV_CACHE_TYPE.to_string(),
+            self.kv_cache.flag().to_string(),
             "--cache-type-v".to_string(),
-            KV_CACHE_TYPE.to_string(),
+            self.kv_cache.flag().to_string(),
         ]);
         argv.extend([
             "--sleep-idle-seconds".to_string(),
@@ -104,9 +102,9 @@ impl ServerArgs {
             crate::args::Offload::NoGpuBuild => None,
         };
         ServerSettings {
-            batch_size: BATCH,
-            ubatch_size: UBATCH,
-            kv_cache_type: KV_CACHE_TYPE,
+            batch_size: self.batch_size,
+            ubatch_size: self.ubatch_size,
+            kv_cache_type: self.kv_cache.flag(),
             flash_attention: FLASH_ATTN,
             idle_unload_seconds: self.idle_unload_seconds,
             gpu_layers,
@@ -145,6 +143,9 @@ mod tests {
             threads: Some(4),
             offload: crate::args::Offload::All,
             idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: crate::args::KvCache::Q8_0,
         }
     }
 
@@ -170,5 +171,29 @@ mod tests {
         let argv = some_args().argv();
         assert!(argv.iter().any(|arg| arg == "--model"), "{argv:?}");
         assert!(argv.iter().any(|arg| arg == "--ctx-size"), "{argv:?}");
+    }
+
+    /// The three launch values the owner may change must reach the command
+    /// line as the decided values, not as the crate's defaults. This goes
+    /// RED the moment someone re-renders `BATCH`/`UBATCH`/`KV_CACHE_TYPE`:
+    /// it asks for a batch, a micro-batch and a cache type none of those
+    /// constants carry.
+    #[test]
+    fn the_owners_batch_microbatch_and_cache_choice_reach_the_command_line() {
+        let args = ServerArgs {
+            batch_size: 1024,
+            ubatch_size: 256,
+            kv_cache: crate::args::KvCache::F16,
+            ..some_args()
+        };
+        let line = args.argv().join(" ");
+        assert!(line.contains("--batch-size 1024"), "{line}");
+        assert!(line.contains("--ubatch-size 256"), "{line}");
+        assert!(line.contains("--cache-type-k f16"), "{line}");
+        assert!(line.contains("--cache-type-v f16"), "{line}");
+        let settings = args.settings();
+        assert_eq!(settings.batch_size, 1024);
+        assert_eq!(settings.ubatch_size, 256);
+        assert_eq!(settings.kv_cache_type, "f16");
     }
 }

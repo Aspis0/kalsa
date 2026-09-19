@@ -4,13 +4,28 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalsa_launch::{
-    ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_IDLE_UNLOAD_SECONDS,
-    MIN_IDLE_UNLOAD_SECONDS,
+    KvCache, ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH,
+    MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
 };
 use serde::{Deserialize, Serialize};
 
+use crate::startup::ContextMaxima;
+
 pub(crate) const MIN_CONTEXT_TOKENS: u64 = 512;
 pub(crate) const MAX_CONTEXT_TOKENS: u64 = 32_768;
+
+/// Reads the saved cache name, treating anything this build does not know as
+/// "automatic". Only this field is forgiving: a cache type a future or older
+/// build writes must not take the owner's context and idle choices with it,
+/// while genuinely malformed JSON is still the whole file's problem and
+/// [`load`] still falls back to defaults.
+fn deserialize_cache<'de, D>(deserializer: D) -> Result<Option<KvCache>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = serde_json::Value::deserialize(deserializer)?;
+    Ok(raw.as_str().and_then(KvCache::parse))
+}
 
 /// The only launch values the owner may change. Context can only go down from
 /// the budgeted maximum; idle time stays between one minute and one hour.
@@ -18,6 +33,17 @@ pub(crate) const MAX_CONTEXT_TOKENS: u64 = 32_768;
 pub(crate) struct LaunchOverrides {
     pub(crate) context_tokens: Option<u64>,
     pub(crate) idle_unload_seconds: Option<u32>,
+    /// The logical prompt batch the owner saved, if any. `#[serde(default)]`
+    /// so files written before the knob existed still load.
+    #[serde(default)]
+    pub(crate) batch_size: Option<u32>,
+    /// The micro-batch the owner saved, if any.
+    #[serde(default)]
+    pub(crate) ubatch_size: Option<u32>,
+    /// The KV cache precision the owner saved, if any. An unknown name
+    /// degrades to "automatic" rather than discarding the rest of the file.
+    #[serde(default, deserialize_with = "deserialize_cache")]
+    pub(crate) kv_cache: Option<KvCache>,
     /// Whether the computer may open its second, internet-facing road at
     /// all. Opening it announces the machine on a public directory service,
     /// which is not a thing consent may be presumed from: the default is
@@ -108,16 +134,40 @@ fn replace_file(temporary: &Path, path: &Path) -> io::Result<()> {
 }
 
 impl LaunchOverrides {
-    pub(crate) fn validate(self) -> Result<(), &'static str> {
+    pub(crate) fn validate(self) -> Result<(), String> {
         if let Some(context) = self.context_tokens {
             if !(MIN_CONTEXT_TOKENS..=MAX_CONTEXT_TOKENS).contains(&context) {
-                return Err("Context must be between 512 and 32768 tokens.");
+                return Err("Context must be between 512 and 32768 tokens.".to_string());
             }
         }
         if let Some(seconds) = self.idle_unload_seconds {
             if !(MIN_IDLE_UNLOAD_SECONDS..=MAX_IDLE_UNLOAD_SECONDS).contains(&seconds) {
-                return Err("Idle time must be between 60 seconds and 1 hour.");
+                return Err("Idle time must be between 60 seconds and 1 hour.".to_string());
             }
+        }
+        // The micro-batch ceiling is a measurement, not a preference: 1024
+        // fits the 512 MiB compute-buffer forfait and 2048 does not. The
+        // refusal carries both numbers.
+        if let Some(ubatch) = self.ubatch_size {
+            if !(MIN_UBATCH..=MAX_UBATCH).contains(&ubatch) {
+                return Err("The micro-batch must be between 64 and 1024. At 2048 the compute buffers measured 602 MiB, above the 512 MiB this computer keeps for them.".to_string());
+            }
+        }
+        if let Some(batch) = self.batch_size {
+            if !(MIN_BATCH..=MAX_BATCH).contains(&batch) {
+                return Err("The batch must be between 64 and 8192.".to_string());
+            }
+        }
+        // A batch below the micro-batch is not a value the server can honour;
+        // the rule compares the values that would actually be launched — the
+        // override when set, the shipped default otherwise — and names both.
+        let automatic = ServerSettings::defaults(DEFAULT_IDLE_UNLOAD_SECONDS);
+        let batch = self.batch_size.unwrap_or(automatic.batch_size);
+        let ubatch = self.ubatch_size.unwrap_or(automatic.ubatch_size);
+        if batch < ubatch {
+            return Err(format!(
+                "The batch ({batch}) cannot be smaller than the micro-batch ({ubatch})."
+            ));
         }
         Ok(())
     }
@@ -127,12 +177,22 @@ impl LaunchOverrides {
 pub(crate) struct AdvancedDto {
     pub(crate) context_tokens: Option<u64>,
     pub(crate) context_max: Option<u64>,
+    /// The funded maximum under the f16 cache, shown beside the cache knob so
+    /// the panel recomputes the context from Rust's arithmetic instead of
+    /// inventing its own.
+    pub(crate) context_max_f16: Option<u64>,
     pub(crate) context_override: Option<u64>,
     pub(crate) idle_unload_seconds: u32,
     pub(crate) idle_override: Option<u32>,
     pub(crate) batch_size: u32,
     pub(crate) ubatch_size: u32,
+    pub(crate) batch_override: Option<u32>,
+    pub(crate) ubatch_override: Option<u32>,
+    pub(crate) batch_automatic: u32,
+    pub(crate) ubatch_automatic: u32,
     pub(crate) kv_cache_type: &'static str,
+    pub(crate) kv_cache_override: Option<&'static str>,
+    pub(crate) kv_cache_automatic: &'static str,
     pub(crate) flash_attention: &'static str,
     pub(crate) gpu_layers: Option<String>,
     pub(crate) threads: Option<usize>,
@@ -147,23 +207,38 @@ pub(crate) struct AdvancedDto {
 
 pub(crate) fn dto(
     overrides: LaunchOverrides,
-    active: Option<(&ServerArgs, Option<u64>)>,
+    active: Option<(&ServerArgs, &ContextMaxima)>,
     door_port: Option<u16>,
     iroh_sentence: String,
 ) -> AdvancedDto {
     let idle = overrides
         .idle_unload_seconds
         .unwrap_or(DEFAULT_IDLE_UNLOAD_SECONDS);
-    let (settings, context_tokens, context_max, running) = match active {
-        Some((args, maximum_context)) => (
+    // The automatic values are the shipped defaults, shown as themselves: the
+    // panel must not become a second source of truth for 2048/512/q8_0.
+    let automatic = ServerSettings::defaults(idle);
+    let (settings, context_tokens, context_max, context_max_f16, running) = match active {
+        Some((args, maxima)) => (
             args.settings(),
             Some(args.context_tokens),
-            maximum_context,
+            // The maximum in force is the one for the cache type the running
+            // args carry: the guard and the panel must read the same number.
+            maxima.for_cache(args.kv_cache),
+            maxima.f16,
             true,
         ),
         None => (
-            ServerSettings::defaults(idle),
+            // "Next start": the owner's saved overrides on top of the
+            // automatic values, or the panel would report 2048/512/q8_0
+            // while the file says otherwise.
+            ServerSettings {
+                batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
+                ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
+                kv_cache_type: overrides.kv_cache.unwrap_or_default().flag(),
+                ..automatic
+            },
             overrides.context_tokens,
+            None,
             None,
             false,
         ),
@@ -171,12 +246,19 @@ pub(crate) fn dto(
     AdvancedDto {
         context_tokens,
         context_max,
+        context_max_f16,
         context_override: overrides.context_tokens,
         idle_unload_seconds: settings.idle_unload_seconds,
         idle_override: overrides.idle_unload_seconds,
         batch_size: settings.batch_size,
         ubatch_size: settings.ubatch_size,
+        batch_override: overrides.batch_size,
+        ubatch_override: overrides.ubatch_size,
+        batch_automatic: automatic.batch_size,
+        ubatch_automatic: automatic.ubatch_size,
         kv_cache_type: settings.kv_cache_type,
+        kv_cache_override: overrides.kv_cache.map(KvCache::flag),
+        kv_cache_automatic: automatic.kv_cache_type,
         flash_attention: settings.flash_attention,
         gpu_layers: settings.gpu_layers.map(str::to_string),
         threads: settings.threads,
@@ -190,7 +272,10 @@ pub(crate) fn dto(
 
 #[cfg(test)]
 mod tests {
-    use super::{load, path_for, save, write_atomic, LaunchOverrides};
+    use super::{
+        dto, load, path_for, save, write_atomic, ContextMaxima, KvCache, LaunchOverrides,
+        ServerArgs,
+    };
     use std::fs;
     use std::path::PathBuf;
 
@@ -210,11 +295,16 @@ mod tests {
         let values = LaunchOverrides {
             context_tokens: Some(4096),
             idle_unload_seconds: Some(600),
+            batch_size: Some(1024),
+            ubatch_size: Some(256),
+            kv_cache: Some(KvCache::F16),
             internet_road: true,
         };
         save(&state_file, values).expect("save advanced settings");
         assert_eq!(load(&state_file), values);
         assert!(path_for(&state_file).exists());
+        assert_eq!(KvCache::parse("f16"), Some(KvCache::F16));
+        assert_eq!(KvCache::parse("nonsense"), None);
     }
 
     #[test]
@@ -246,6 +336,63 @@ mod tests {
             !loaded.internet_road,
             "a missing switch is a closed road"
         );
+        // The same file predates the batch, micro-batch and cache knobs: a
+        // missing key is "automatic", never an invented value.
+        assert_eq!(loaded.batch_size, None);
+        assert_eq!(loaded.ubatch_size, None);
+        assert_eq!(loaded.kv_cache, None);
+    }
+
+    #[test]
+    fn an_unknown_cache_name_does_not_discard_the_other_settings() {
+        let state_file = scratch("unknown-cache");
+        // A cache type this build does not know (a future build's q4_0, or a
+        // typo) must degrade to "automatic" for that one field. It must not
+        // take the owner's context and idle choices with it.
+        fs::write(
+            path_for(&state_file),
+            br#"{"context_tokens": 4096, "idle_unload_seconds": 600, "kv_cache": "q4_0"}"#,
+        )
+        .expect("write an unknown cache type");
+        let loaded = load(&state_file);
+        assert_eq!(loaded.context_tokens, Some(4096));
+        assert_eq!(loaded.idle_unload_seconds, Some(600));
+        assert_eq!(
+            loaded.kv_cache, None,
+            "an unknown cache name degrades to automatic"
+        );
+    }
+
+    #[test]
+    fn a_micro_batch_above_the_measured_ceiling_is_refused_with_the_number() {
+        let overrides = LaunchOverrides {
+            ubatch_size: Some(2048),
+            ..LaunchOverrides::default()
+        };
+        let spoken = overrides
+            .validate()
+            .expect_err("2048 micro-batch exceeds the measured ceiling");
+        assert!(
+            spoken.contains("1024"),
+            "the refusal must name the ceiling: {spoken}"
+        );
+        assert!(
+            spoken.contains("602"),
+            "the refusal must carry the measurement: {spoken}"
+        );
+    }
+
+    #[test]
+    fn a_batch_below_the_automatic_microbatch_names_both_numbers() {
+        let overrides = LaunchOverrides {
+            batch_size: Some(256),
+            ..LaunchOverrides::default()
+        };
+        let spoken = overrides
+            .validate()
+            .expect_err("256 cannot carry the automatic 512 micro-batch");
+        assert!(spoken.contains("256"), "{spoken}");
+        assert!(spoken.contains("512"), "{spoken}");
     }
 
     #[test]
@@ -277,11 +424,13 @@ mod tests {
             context_tokens: Some(1024),
             idle_unload_seconds: Some(600),
             internet_road: true,
+            ..LaunchOverrides::default()
         };
         let b = LaunchOverrides {
             context_tokens: Some(2048),
             idle_unload_seconds: None,
             internet_road: false,
+            ..LaunchOverrides::default()
         };
         // The readers start before any writer has published: seed the file,
         // or the first reads would honestly see "no file", which is a state
@@ -318,5 +467,116 @@ mod tests {
             observed == a || observed == b,
             "the last writer left something else behind: {observed:?}"
         );
+    }
+
+    /// The field names of an object and the JSON type of each value.
+    fn field_types(value: &serde_json::Value) -> std::collections::BTreeMap<String, &'static str> {
+        value
+            .as_object()
+            .expect("the advanced dto is a JSON object")
+            .iter()
+            .map(|(name, value)| (name.clone(), json_type(value)))
+            .collect()
+    }
+
+    fn json_type(value: &serde_json::Value) -> &'static str {
+        match value {
+            serde_json::Value::Null => "null",
+            serde_json::Value::Bool(_) => "boolean",
+            serde_json::Value::Number(_) => "number",
+            serde_json::Value::String(_) => "string",
+            serde_json::Value::Array(_) => "array",
+            serde_json::Value::Object(_) => "object",
+        }
+    }
+
+    /// The advanced JSON the panel reads is a contract, pinned here for the
+    /// harness to validate its fixtures against. The names and the JSON types
+    /// are compared; the numbers are not, because a test that fails when a
+    /// default changes is noise. A rename or a dropped field is not: this is
+    /// what makes a stale fixture fail in a test instead of rendering
+    /// `undefined` on screen.
+    #[test]
+    fn the_json_the_advanced_page_reads_is_a_contract_pinned_here() {
+        // A realistic answer: a server running, with the owner's overrides
+        // saved for context, micro-batch and the f16 cache, so the sample
+        // exercises the interesting fields rather than a row of nulls.
+        let args = ServerArgs {
+            model_path: PathBuf::from("/models/chosen.gguf"),
+            port: 8130,
+            context_tokens: 4096,
+            cache_ram_mib: 1024,
+            threads: Some(8),
+            offload: kalsa_launch::Offload::All,
+            idle_unload_seconds: 600,
+            batch_size: 2048,
+            ubatch_size: 1024,
+            kv_cache: KvCache::F16,
+        };
+        let maxima = ContextMaxima {
+            q8_0: Some(8192),
+            f16: Some(4096),
+        };
+        let sample = dto(
+            LaunchOverrides {
+                context_tokens: Some(4096),
+                idle_unload_seconds: Some(600),
+                batch_size: Some(2048),
+                ubatch_size: Some(1024),
+                kv_cache: Some(KvCache::F16),
+                internet_road: true,
+            },
+            Some((&args, &maxima)),
+            Some(8130),
+            "The internet road is open.".to_string(),
+        );
+        let json = serde_json::to_value(&sample).expect("serialise the advanced dto");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&sample).expect("serialise")
+        );
+
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../chat/scripts/advanced-contract.json");
+        let Ok(text) = fs::read_to_string(&path) else {
+            panic!(
+                "the advanced contract is missing: create {} from the JSON printed above",
+                path.display()
+            );
+        };
+        let mut contract: serde_json::Value =
+            serde_json::from_str(&text).expect("the contract file is json");
+
+        let pinned = field_types(&contract["sample"]);
+        let actual = field_types(&json);
+        let mut problems: Vec<String> = Vec::new();
+        for (name, kind) in &actual {
+            match pinned.get(name) {
+                None => problems.push(format!("appeared: {name} ({kind})")),
+                Some(pinned_kind) if pinned_kind != kind => {
+                    problems.push(format!("type changed: {name}: {pinned_kind} -> {kind}"))
+                }
+                _ => {}
+            }
+        }
+        for name in pinned.keys() {
+            if !actual.contains_key(name) {
+                problems.push(format!("vanished: {name}"));
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "the advanced DTO no longer matches chat/scripts/advanced-contract.json:\n  {}",
+            problems.join("\n  ")
+        );
+
+        // The fixture the harness reads is written from this very value, so a
+        // field added above appears there on the next `cargo test`, and a
+        // stale sample shows up as a dirty file instead of as a green suite.
+        // Same convention as the capability contract: only the sample is
+        // replaced, and the hand-written keys beside it stay.
+        contract["sample"] = json;
+        let written = serde_json::to_string_pretty(&contract).expect("serialise the contract");
+        fs::write(&path, format!("{written}\n")).expect("write the contract");
     }
 }

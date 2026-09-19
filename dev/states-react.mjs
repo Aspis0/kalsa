@@ -11,6 +11,9 @@ import { AdvancedSurface } from "../chat/src/surfaces/AdvancedSurface";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
+import { completionBody } from "../chat/src/lib/chat";
+import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
+import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
 
 const REASON_PORT =
   "Another program is in the way. Restarting the computer usually clears it.";
@@ -39,12 +42,19 @@ function advancedDto(extra = {}) {
   return {
     context_tokens: 4096,
     context_max: 8192,
+    context_max_f16: 4096,
     context_override: null,
     idle_unload_seconds: 300,
     idle_override: null,
     batch_size: 512,
+    batch_override: null,
+    batch_automatic: 2048,
     ubatch_size: 128,
+    ubatch_override: null,
+    ubatch_automatic: 1024,
     kv_cache_type: "q8_0",
+    kv_cache_override: null,
+    kv_cache_automatic: "q8_0",
     flash_attention: "on",
     gpu_layers: "all",
     threads: 8,
@@ -110,6 +120,8 @@ const scenarios = [
   ["Model", "advanced settings are visible", "models", { state: { kind: "running" }, advanced: advancedDto() }],
   ["Model", "advanced settings with the internet road unavailable", "models", { state: { kind: "running" }, advanced: advancedDto({ iroh_sentence: "The internet road could not open on this computer. The other roads to it still work." }) }],
   ["Model", "advanced settings with the internet road turned off", "models", { state: { kind: "running" }, advanced: advancedDto({ internet_road: false, iroh_sentence: "The internet road is turned off. The phone reaches this computer the Tailscale way." }) }],
+  ["Model", "advanced settings with an f16 cache override", "models", { state: { kind: "running" }, advanced: advancedDto({ kv_cache_override: "f16", kv_cache_type: "f16" }) }],
+  ["Model", "advanced settings with a saved micro-batch", "models", { state: { kind: "running" }, advanced: advancedDto({ ubatch_override: 1024, ubatch_size: 1024 }) }],
   ["Model", "starting on the chosen model", "models", { state: { kind: "starting" } }],
   ["Model", "off: nothing is chosen while off", "models", { state: { kind: "stopped" } }],
   ["Model", "not running: the Status page says why", "models", { state: { kind: "failed", reason: REASON_PORT } }],
@@ -312,6 +324,29 @@ export async function renderAdvancedFieldProbe(data) {
   return preserved;
 }
 
+export async function renderAdvancedCacheProbe(data) {
+  bridgeState = data;
+  eventHandlers = new Set();
+  installBridge();
+  const panel = document.createElement("div");
+  const root = createRoot(panel);
+  root.render(React.createElement(AdvancedSurface));
+  await settle();
+  const toggle = first(panel, (el) => el.tagName === "BUTTON" && elementText(el) === "Show settings");
+  toggle?.click();
+  await settle();
+  const select = first(panel, (el) => el.tagName === "SELECT");
+  if (select) {
+    select.value = "f16";
+    select.dispatchEvent({ type: "change", target: select, bubbles: true });
+    await settle();
+  }
+  const help = elements(panel, (el) => el.className === "advanced-help").map(elementText);
+  root.unmount();
+  await settle();
+  return { help };
+}
+
 export async function renderStartFailureProbe(data) {
   bridgeState = data;
   eventHandlers = new Set();
@@ -328,4 +363,14 @@ export async function renderStartFailureProbe(data) {
   return result;
 }
 
-export { REASON_UNFUNDABLE, MODEL_BYTES, advancedDto };
+export {
+  REASON_UNFUNDABLE,
+  MODEL_BYTES,
+  advancedDto,
+  completionBody,
+  loadSampling,
+  samplingProblem,
+  samplingWire,
+  saveSampling,
+  SAMPLING_KNOBS,
+};

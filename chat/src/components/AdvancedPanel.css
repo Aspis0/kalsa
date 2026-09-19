@@ -47,6 +47,12 @@
   margin-bottom: 0.4rem;
 }
 
+.advanced-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .advanced-field-label {
   display: block;
   margin-bottom: 0.3rem;
@@ -55,7 +61,8 @@
   font-weight: 500;
 }
 
-.advanced-field input {
+.advanced-field input,
+.advanced-field select {
   width: 100%;
   padding: 0.55rem 0.75rem;
   color: var(--ink);
@@ -73,11 +80,21 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
+.advanced-field select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 /* A field is as wide as what it holds: 32768 and 600 are five digits at most,
    so they do not get a paragraph's width. The checkbox keeps its own
    `width: auto`. */
 .advanced-field input:not([type="checkbox"]) {
   max-width: min(100%, 9rem);
+}
+
+.advanced-field select {
+  max-width: min(100%, 15rem);
 }
 
 .advanced-field-check {
@@ -92,6 +109,10 @@
 
 .advanced-field-check .advanced-field-label {
   margin-bottom: 0;
+}
+
+.advanced-field-check .advanced-field-heading {
+  display: inline-flex;
 }
 
 .advanced-help {

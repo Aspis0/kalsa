@@ -11,7 +11,7 @@ use kalsa_catalog::manifest::ModelEntry;
 use kalsa_probe::plateau;
 use kalsa_runtime::ServerBackend;
 
-use crate::args::{LaunchPlan, MemoryAssumption, Offload, ServerArgs};
+use crate::args::{KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs};
 
 /// Everything the decision needs, already decided upstream: the build that
 /// won, the model that was chosen, the budget it was chosen against, and the
@@ -28,6 +28,13 @@ pub struct LaunchInput<'a> {
     /// A user-selected lower context. `None` keeps the largest context the
     /// budget funds; a larger request is rejected rather than silently capped.
     pub context_limit: Option<u64>,
+    /// The owner's logical prompt batch, carried into the rendered argv.
+    pub batch_size: u32,
+    /// The owner's micro-batch, carried into the rendered argv.
+    pub ubatch_size: u32,
+    /// The owner's KV cache precision: it scales the per-token figure the
+    /// context is sized against, so the arithmetic follows the choice.
+    pub kv_cache: KvCache,
 }
 
 /// The start command for this machine and model, with the memory it implies.
@@ -38,7 +45,7 @@ pub struct LaunchInput<'a> {
 /// of context must not be started smaller, it must not be started.
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     let (maximum_context, prompt_cache_roof) =
-        context_and_prompt_cache_roof(input.model, input.budget.usable_bytes)?;
+        context_and_prompt_cache_roof(input.model, input.budget.usable_bytes, input.kv_cache)?;
     let context_tokens = match input.context_limit {
         Some(limit) if limit > 0 && limit <= maximum_context => limit,
         Some(_) => return None,
@@ -52,13 +59,26 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         threads: plateau(input.thread_ramp).map(|(threads, _rate)| threads),
         offload: offload(input),
         idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
+        batch_size: input.batch_size,
+        ubatch_size: input.ubatch_size,
+        kv_cache: input.kv_cache,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
+    // The catalog's footprint is q8_0 arithmetic; the cache the server will
+    // actually run is the owner's choice, so the reported cache cost — and the
+    // total that carries it — is scaled here, where the choice is known.
+    let kv_bytes = footprint
+        .kv_bytes
+        .saturating_mul(input.kv_cache.bytes_per_element());
     let memory = MemoryAssumption {
         context_tokens,
-        kv_cache_bytes: footprint.kv_bytes,
+        kv_cache_bytes: kv_bytes,
         kv_per_token_assumed: footprint.kv_is_assumed(input.model),
-        total_bytes: footprint.total_bytes(),
+        total_bytes: footprint
+            .weights_bytes
+            .saturating_add(footprint.mmproj_bytes)
+            .saturating_add(footprint.buffer_bytes)
+            .saturating_add(kv_bytes),
         budget_bytes: input.budget.usable_bytes,
     };
     Some(LaunchPlan { args, memory })
@@ -69,8 +89,10 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
 /// fund even one token. The narrow question a caller asks before any plan
 /// exists (a preview has no downloaded file to point at and no port), answered
 /// from the one copy of the arithmetic rather than a recomputation beside it.
+/// It previews under the automatic q8_0 cache; the owner's f16 choice scales
+/// the per-token figure and travels through [`plan`].
 pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
-    context_and_prompt_cache_roof(model, usable_bytes).map(|(tokens, _roof)| tokens)
+    context_and_prompt_cache_roof(model, usable_bytes, KvCache::Q8_0).map(|(tokens, _roof)| tokens)
 }
 
 /// THE BUDGET ARITHMETIC, AMENDED — this function now splits what is left
@@ -107,20 +129,32 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
 /// would halve every dense row's context to insure against a direction the
 /// constant already guards; the honest fix for the rows above it is a
 /// measurement, not a bigger guess.
-fn context_and_prompt_cache_roof(model: &ModelEntry, usable_bytes: u64) -> Option<(u64, u64)> {
+/// The catalog's per-token figures are stated in q8_0 bytes — the catalog's
+/// chosen unit, whose conservative relationship to the real q8_0 block
+/// layout is spelled out on [`KvCache::bytes_per_element`] — so the owner's
+/// choice is applied here: f16 costs two bytes per element and therefore
+/// halves the funded context. The multiplier is what makes the arithmetic
+/// follow the knob; without it the plan would fund a context the machine
+/// cannot hold at f16.
+fn context_and_prompt_cache_roof(
+    model: &ModelEntry,
+    usable_bytes: u64,
+    kv_cache: KvCache,
+) -> Option<(u64, u64)> {
     let per_token = match model.kv_bytes_per_token {
         // A zero measurement is broken data: refuse it rather than silently
         // substituting the assumption and calling the result measured.
         Some(0) => return None,
         Some(per_token) => per_token,
         None => ASSUMED_KV_BYTES_PER_TOKEN,
-    };
+    }
+    .saturating_mul(kv_cache.bytes_per_element());
     let fixed = model
         .weights_bytes
         .saturating_add(model.mmproj_bytes.unwrap_or(0))
         .saturating_add(COMPUTE_BUFFER_BYTES);
     let leftover = usable_bytes.checked_sub(fixed)?;
-    let prompt_cache_roof = prompt_cache_roof_bytes(leftover);
+    let prompt_cache_roof = prompt_cache_roof_bytes(leftover, kv_cache);
     let funded = (leftover - prompt_cache_roof) / per_token;
     // The memory is not the only limit, and it is not the binding one on a
     // large machine: a model attends over the positions it was trained for,
@@ -147,20 +181,35 @@ fn context_and_prompt_cache_roof(model: &ModelEntry, usable_bytes: u64) -> Optio
 /// PROMPT_CACHE_CHAT_TOKENS and PROMPT_CACHE_KEPT_CHATS come from — two
 /// long chats at the budget's own KV assumption, one alive and one asleep.
 ///
+/// The figure is a hard CAP, not a reservation: `--cache-ram` becomes
+/// `limit_size` (`tools/server/server-task.h:613`), and the allocator skips
+/// any state larger than the cap outright — "prompt state size ...". MiB
+/// exceeds cache size limit ..., skipping" (`tools/server/server-task.cpp`,
+/// `server_prompt_cache::alloc`) — so this arithmetic cannot oversubscribe
+/// the machine. What the cap governs is the warm start, and that is why it
+/// follows the cache type: the two long chats are priced in q8_0 bytes, so
+/// at f16 the same two chats cost `KvCache::bytes_per_element()` times more,
+/// and an unscaled cap would hold roughly one of them — a long f16 chat
+/// would be skipped rather than kept warm. Scaling makes the funded context
+/// smaller at f16 (the roof is carved first), which is the safe direction:
+/// fewer tokens, the warm chat kept.
+///
 /// The quarter-of-the-leftover share is a rule, not a measurement: no
 /// experiment chose it. It is the brake that keeps a big machine from
 /// turning its whole advance into sleeping chats — hoarding the advance
 /// would be the "gentle on the PC" rule broken from the other side.
 const PROMPT_CACHE_CHAT_TOKENS: u64 = 32 * 1024;
-/// One chat alive, one asleep.
+/// One chat alive, one asleep — at the cache type in force.
 const PROMPT_CACHE_KEPT_CHATS: u64 = 2;
 /// A rule, not a measurement: the roof takes at most this share of the
 /// leftover after the fixed footprint.
 const PROMPT_CACHE_ROOF_SHARE: u64 = 4;
 
-fn prompt_cache_roof_bytes(leftover_bytes: u64) -> u64 {
-    let two_long_chats =
-        ASSUMED_KV_BYTES_PER_TOKEN * PROMPT_CACHE_CHAT_TOKENS * PROMPT_CACHE_KEPT_CHATS;
+fn prompt_cache_roof_bytes(leftover_bytes: u64, kv_cache: KvCache) -> u64 {
+    let two_long_chats = ASSUMED_KV_BYTES_PER_TOKEN
+        .saturating_mul(PROMPT_CACHE_CHAT_TOKENS)
+        .saturating_mul(PROMPT_CACHE_KEPT_CHATS)
+        .saturating_mul(kv_cache.bytes_per_element());
     (leftover_bytes / PROMPT_CACHE_ROOF_SHARE).min(two_long_chats)
 }
 
@@ -261,6 +310,9 @@ mod tests {
             model_path: PathBuf::from("/models/chosen.gguf"),
             port: 8123,
             context_limit: None,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: KvCache::Q8_0,
         }
     }
 
@@ -538,6 +590,110 @@ mod tests {
         assert!(plan(&input(ServerBackend::Cpu, small, model, M1_MAX_RAMP)).is_none());
     }
 
+    /// The two knobs interact: f16 costs two bytes per element where the
+    /// catalog's figures are stated in q8_0 bytes, so the context funded
+    /// under f16 is exactly half — floored — the one funded under q8_0. If
+    /// the cache type stopped reaching the arithmetic, both plans would
+    /// carry the same context and this goes RED.
+    ///
+    /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 4584
+    /// tokens at q8_0, four orders of magnitude below its 1_048_576-token
+    /// trained cap, so the cap does not bind and the halving is visible. At
+    /// f16 the same leftover buys 2292, which is `4584 / 2`.
+    #[test]
+    fn the_cache_type_halves_the_context_the_budget_funds() {
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Cpu, 8 * GIB);
+        let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        let f16 = plan(&LaunchInput {
+            kv_cache: KvCache::F16,
+            ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the model is fundable");
+        assert_eq!(q8_0.args.kv_cache, KvCache::Q8_0);
+        assert_eq!(f16.args.kv_cache, KvCache::F16);
+        assert_eq!(q8_0.args.context_tokens, 4584);
+        assert_eq!(f16.args.context_tokens, 2292);
+        assert_eq!(
+            f16.args.context_tokens,
+            q8_0.args.context_tokens / 2,
+            "the f16 funded context must be half the q8_0 one"
+        );
+    }
+
+    /// The prompt-cache roof is "one chat alive, one asleep" priced in q8_0
+    /// bytes, and it must keep that promise at f16: the cap is hard, so an
+    /// f16 long chat larger than the cap is skipped by the server and the
+    /// warm start is lost. The roof must therefore follow the cache type the
+    /// same way the context arithmetic does.
+    ///
+    /// Granite 4 Tiny on 64 GiB of CPU: at q8_0 the two-long-chats term binds
+    /// (6144 MiB); at f16 the same two chats are priced twice and the
+    /// quarter-of-the-leftover rule caps them (11_151 MiB). The context, carved
+    /// after the roof, drops from the unscaled 205_125 tokens to 178_420.
+    #[test]
+    fn the_prompt_cache_roof_keeps_its_two_chat_promise_at_f16() {
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Cpu, 64 * GIB);
+        let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        let f16 = plan(&LaunchInput {
+            kv_cache: KvCache::F16,
+            ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the model is fundable");
+
+        assert_eq!(q8_0.args.cache_ram_mib, 6144);
+        assert!(
+            f16.args.cache_ram_mib > q8_0.args.cache_ram_mib,
+            "the roof did not follow the cache type: f16 {} MiB, q8_0 {} MiB",
+            f16.args.cache_ram_mib,
+            q8_0.args.cache_ram_mib,
+        );
+        assert_eq!(q8_0.args.context_tokens, 410_250);
+        assert_eq!(f16.args.context_tokens, 178_420);
+        assert!(
+            f16.args.context_tokens < q8_0.args.context_tokens / 2,
+            "the bigger roof must make the f16 context smaller than half the q8_0 one"
+        );
+    }
+
+    /// `MemoryAssumption::kv_cache_bytes` is the cost of the cache the server
+    /// will actually run, so an f16 plan reports twice the q8_0 figure and a
+    /// total that includes the difference. The catalog's `footprint_bytes`
+    /// stays q8_0-only; the multiplier belongs here, where the choice is known.
+    #[test]
+    fn the_memory_report_is_true_for_the_chosen_cache() {
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Cpu, 64 * GIB);
+        let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        let f16 = plan(&LaunchInput {
+            kv_cache: KvCache::F16,
+            ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the model is fundable");
+
+        assert_eq!(
+            q8_0.memory.kv_cache_bytes,
+            q8_0.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN
+        );
+        assert_eq!(
+            f16.memory.kv_cache_bytes,
+            f16.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN * 2,
+            "the f16 cache cost must be the doubled per-token figure"
+        );
+        assert_eq!(
+            f16.memory.total_bytes,
+            model.weights_bytes
+                + model.mmproj_bytes.unwrap_or(0)
+                + COMPUTE_BUFFER_BYTES
+                + f16.memory.kv_cache_bytes,
+            "the total must carry the cache the plan reports"
+        );
+    }
+    
     #[test]
     fn the_server_stays_on_loopback_and_goes_cold_when_idle() {
         let model = shipped_row(GRANITE);
