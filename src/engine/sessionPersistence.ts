@@ -483,6 +483,41 @@ export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
 }
 
 /**
+ * True when a pooled `.kvs` may be loaded for the CURRENT engine and history.
+ *
+ * This is the normal restore path's rule, gathered in one place so a caller
+ * that opens the file without passing through sessionMetaMismatchField cannot
+ * check a subset of it: the config fields (modelFileId, engineBuild, nCtx,
+ * cache types, prompt env, spec/knob flags, conversation) are compared
+ * exactly, and the history is compared prefix-wise against the current
+ * messages — a saved prefix is still a valid restore point.
+ *
+ * `active` is the live engine's meta WITHOUT historyHash: the history is
+ * `currentMessages`' business, not a number to fabricate here. Missing stored
+ * meta, or a null/incomplete active side, is false — nothing to compare is
+ * not a match.
+ */
+export function sessionRestoreAccepts(
+  stored: SessionMeta | null | undefined,
+  active: Omit<SessionMeta, "historyHash"> | null | undefined,
+  currentMessages: unknown,
+): boolean {
+  if (stored == null || active == null) return false;
+  // Placeholder so the config comparison below does not double-check history;
+  // sessionHistoryPrefixAccepts owns that test.
+  const historySkip = "__history_checked_by_prefix__";
+  if (
+    sessionMetaMismatchField(
+      { ...stored, historyHash: historySkip },
+      { ...active, historyHash: historySkip },
+    ) !== null
+  ) {
+    return false;
+  }
+  return sessionHistoryPrefixAccepts(stored, currentMessages).accept;
+}
+
+/**
  * First mismatching field name, or null when the metas match.
  * Diagnostic companion to sessionMetaMatches — telemetry logs
  * meta_mismatch:<field> so cold starts are attributable (e2e run 31274549471

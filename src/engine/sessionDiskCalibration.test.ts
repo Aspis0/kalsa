@@ -27,6 +27,7 @@ import {
   mergeSessionDiskCalibrations,
   recordSessionDiskSample,
   sessionBytesPerTokenForModel,
+  sessionDiskCalibrationKey,
 } from "./sessionDiskCalibration";
 import { registrySessionBytesPerToken } from "./sessionDiskFallback";
 import {
@@ -48,6 +49,12 @@ import {
 const REAL_FILE_BYTES = 43_622_476;
 const REAL_FILE_TOKENS = 6484;
 const MODEL = "lfm2.5-2.6b";
+/**
+ * Where a sample measured at the shipped profile lands. A sample records the
+ * cache profile it was written at, so the store has one rate per (model,
+ * profile) — see sessionDiskCalibrationKey.
+ */
+const SHIPPED_KEY = sessionDiskCalibrationKey(MODEL, "q8_0", "q4_0");
 const N_CTX = 8192;
 
 beforeEach(() => memoryStore.clear());
@@ -127,7 +134,7 @@ describe("recordSessionDiskSample", () => {
       {},
       { ok: true, modelId: MODEL, fileBytes: 565_564, usedTokens: 19, knownBytesPerToken: registrySessionBytesPerToken(MODEL) },
     );
-    expect(tiny[MODEL]).toBeUndefined();
+    expect(tiny[SHIPPED_KEY]).toBeUndefined();
   });
 
   it("learns at the floor but not one token below it", () => {
@@ -142,7 +149,7 @@ describe("recordSessionDiskSample", () => {
         knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
-    expect(below[MODEL]).toBeUndefined();
+    expect(below[SHIPPED_KEY]).toBeUndefined();
 
     const at = recordSessionDiskSample(
       {},
@@ -155,11 +162,14 @@ describe("recordSessionDiskSample", () => {
       },
     );
     // Pin the value, not just its presence: asserting non-null lets a
-    // mutation that learns garbage at the floor survive.
-    expect(at[MODEL]).toBeCloseTo(
+    // mutation that learns garbage at the floor survive. Pin the KEY too: a
+    // write that reverts to the bare modelId would still pass the value
+    // assertion through the fallback lookup.
+    expect(at[SHIPPED_KEY]).toBeCloseTo(
       (bytes - SESSION_FIXED_BYTES) / SESSION_CALIBRATION_MIN_TOKENS,
       6,
     );
+    expect(Object.keys(at)).toEqual([SHIPPED_KEY]);
   });
 
   it("learning at the floor still over-estimates a full context", () => {
@@ -191,7 +201,7 @@ describe("recordSessionDiskSample", () => {
     // cost less per token than the catalog measured.
     const floor = registrySessionBytesPerToken(MODEL)!;
     const tooCheap = recordSessionDiskSample(
-      { [MODEL]: 8000 },
+      { [SHIPPED_KEY]: 8000 },
       {
         ok: true,
         modelId: MODEL,
@@ -200,12 +210,15 @@ describe("recordSessionDiskSample", () => {
         knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
-    expect(tooCheap[MODEL]).toBe(8000);
+    expect(tooCheap[SHIPPED_KEY]).toBe(8000);
+    // The refused sample adds nothing anywhere, and the key it was judged
+    // against is the profiled one.
+    expect(Object.keys(tooCheap)).toEqual([SHIPPED_KEY]);
   });
 
   it("corrects a stored rate downwards", () => {
     const corrected = recordSessionDiskSample(
-      { [MODEL]: 29_910 },
+      { [SHIPPED_KEY]: 29_910 },
       {
         ok: true,
         modelId: MODEL,
@@ -214,8 +227,9 @@ describe("recordSessionDiskSample", () => {
         knownBytesPerToken: registrySessionBytesPerToken(MODEL),
       },
     );
-    expect(corrected[MODEL]).toBeLessThan(29_910);
-    expect(corrected[MODEL]).toBeGreaterThan(6_000);
+    expect(corrected[SHIPPED_KEY]).toBeLessThan(29_910);
+    expect(corrected[SHIPPED_KEY]).toBeGreaterThan(6_000);
+    expect(Object.keys(corrected)).toEqual([SHIPPED_KEY]);
   });
 
   it("leaves other models alone and rejects failed writes", () => {
@@ -263,6 +277,48 @@ describe("the store, end to end", () => {
   it("starts empty for a device that only ever stored the v1 key", async () => {
     memoryStore.set("kalsa.session.disk.v1", JSON.stringify({ [MODEL]: 29_910 }));
     expect(await loadSessionDiskCalibration()).toEqual({});
+  });
+});
+
+describe("cache-profile-aware calibration", () => {
+  it("reserves the requested profile, not the one the sample was written at", () => {
+    // A real LFM write, measured at the shipped q8_0/q4_0.
+    const learned = recordSessionDiskSample(
+      {},
+      {
+        ok: true,
+        modelId: MODEL,
+        fileBytes: REAL_FILE_BYTES,
+        usedTokens: REAL_FILE_TOKENS,
+        knownBytesPerToken: registrySessionBytesPerToken(MODEL, "q8_0", "q4_0"),
+        cacheTypeK: "q8_0",
+        cacheTypeV: "q4_0",
+      },
+    );
+    // 6672 = 6656 B/token of KV + 16 B of per-cell bookkeeping, exact here.
+    expect(sessionBytesPerTokenForModel(learned, MODEL, null, "q8_0", "q4_0")).toBe(6672);
+    // Under q8_0 V the same 4096 elements/token/side cost 2048 bytes more, and
+    // the file carries them. Answering with the stored 6672 under-reserves the
+    // disk by 31% of the KV share — the bug this lookup exists to avoid.
+    expect(sessionBytesPerTokenForModel(learned, MODEL, null, "q8_0", "q8_0")).toBe(8720);
+  });
+
+  it("treats an entry without a recorded profile as the shipped profile", () => {
+    expect(sessionBytesPerTokenForModel({ [MODEL]: 6672 }, MODEL, null, "q8_0", "q8_0")).toBe(8720);
+    // No profile asked for → the stored number, unchanged (older callers).
+    expect(sessionBytesPerTokenForModel({ [MODEL]: 6672 }, MODEL, null)).toBe(6672);
+  });
+
+  it("prefers the profiled measurement over a stale bare entry", () => {
+    // A device that ran the pre-profile build and then this one holds both.
+    // The bare value is the older reading (it reads ~29,910 for a write the
+    // profiled key records at 6672); rescaling it would reserve 4x the disk.
+    const both = {
+      [MODEL]: 29_910,
+      [sessionDiskCalibrationKey(MODEL, "q8_0", "q4_0")]: 6672,
+    };
+    expect(sessionBytesPerTokenForModel(both, MODEL, null, "q8_0", "q8_0")).toBe(8720);
+    expect(sessionBytesPerTokenForModel(both, MODEL, null)).toBe(6672);
   });
 });
 

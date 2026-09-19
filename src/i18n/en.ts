@@ -101,12 +101,13 @@ export const en = {
       "Asked for {requested}; the phone can hold {loaded} tokens ({needed} MiB non-evictable, {available} MiB available).",
     contextSizeModelMax: "Asked for {requested}; {model} holds at most {loaded} tokens.",
     optionTight: "Fits now, but the system may kill it in the background.",
+    optionDowngradesTo: "Loads at {tokens} tokens instead.",
     kvCache: "KV cache precision",
     kvCacheHint:
       "How precisely the attention cache is stored. High keeps V at 8 bits instead of 4 and costs more memory. Takes effect on the next model load.",
     kvCacheStandard: "Standard (K 8-bit, V 4-bit)",
     kvCacheHigh: "High (K 8-bit, V 8-bit)",
-    kvCacheHighCost: "{mib} MiB more at the resolved {tokens}-token context.",
+    kvCacheHighCost: "{mib} MiB more at the {tokens}-token context you asked for.",
     ciswire: "CisWire",
     ciswireHint:
       "Choose compaction and tool help independently. New flags are off unless you enable them.",

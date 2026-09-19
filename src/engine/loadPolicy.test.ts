@@ -128,6 +128,17 @@ describe("resolveGateLoadPolicy — gate-side pricing input", () => {
       resolveGateLoadPolicy({ policy: { mmap: false, repack: true } }),
     ).toEqual({ mmap: false, repack: true });
   });
+
+  it("bench:engine useMmap reaches the gate resolution too", () => {
+    // The gate must price the mode init will use, and init honours this lever.
+    expect(resolveGateLoadPolicy({ benchUseMmap: false })).toEqual({
+      mmap: false,
+      repack: true,
+    });
+    expect(
+      resolveGateLoadPolicy({ benchNoRepack: false, benchUseMmap: true }),
+    ).toEqual({ mmap: true, repack: true });
+  });
 });
 
 describe("MODEL_REGISTRY — loadPolicy entries", () => {

@@ -100,12 +100,13 @@ export const it: typeof en = {
       "Richiesti {requested}; il telefono può tenere {loaded} token ({needed} MiB non liberabili, {available} MiB disponibili).",
     contextSizeModelMax: "Richiesti {requested}; {model} arriva al massimo a {loaded} token.",
     optionTight: "Ci sta adesso, ma il sistema può chiuderla in background.",
+    optionDowngradesTo: "Carica invece a {tokens} token.",
     kvCache: "Precisione della cache KV",
     kvCacheHint:
       "Con quanta precisione viene salvata la cache di attenzione. High tiene V a 8 bit invece di 4 e costa più memoria. Ha effetto al prossimo caricamento del modello.",
     kvCacheStandard: "Standard (K 8 bit, V 4 bit)",
     kvCacheHigh: "High (K 8 bit, V 8 bit)",
-    kvCacheHighCost: "{mib} MiB in più al contesto risolto di {tokens} token.",
+    kvCacheHighCost: "{mib} MiB in più al contesto di {tokens} token che hai chiesto.",
     ciswire: "CisWire",
     ciswireHint:
       "Scegli separatamente la compattazione e l'aiuto per gli strumenti. Le nuove funzioni sono disattivate finché non le attivi.",

@@ -27,6 +27,8 @@
  * we would then have to re-prefill.
  */
 
+import { kvBytesPerTokenAtProfile, MEASURED_KV_PROFILE } from "./kvQuantCost";
+
 export type SessionDiskCalibration = Record<string, number>;
 
 /**
@@ -83,6 +85,44 @@ function positiveFinite(value: unknown): value is number {
 }
 
 /**
+ * Key a sample measured at `cacheTypeK`/`cacheTypeV` is stored under. The
+ * profile is part of the key, not a second store: one rate map, no parallel
+ * bookkeeping, and an entry without a profile (a bare `modelId`, written
+ * before profiles were recorded) still reads as the measured default.
+ */
+export function sessionDiskCalibrationKey(
+  modelId: string,
+  cacheTypeK: string,
+  cacheTypeV: string,
+): string {
+  return `${modelId}@${cacheTypeK}/${cacheTypeV}`;
+}
+
+/**
+ * Move a measured rate from the profile it was written at to `to`. Only the
+ * KV share changes between profiles; the per-token bookkeeping does not, so it
+ * is added back unchanged rather than scaled.
+ */
+function rescaleSessionRate(
+  bytesPerToken: number,
+  to: { k: string; v: string },
+): number | null {
+  const kvBytes = bytesPerToken - SESSION_PER_TOKEN_META_BYTES;
+  if (!positiveFinite(kvBytes)) return bytesPerToken;
+  const rescaled = kvBytesPerTokenAtProfile(kvBytes, to.k, to.v);
+  return rescaled === null ? null : rescaled + SESSION_PER_TOKEN_META_BYTES;
+}
+
+/**
+ * The rate to budget this model at, for the cache profile the engine is about
+ * to load.
+ *
+ * A rate learned at q8_0/q4_0 is the KV rows of a q8_0/q4_0 file. Asking for
+ * the same model under q8_0/q8_0 must not answer with it: the V cache alone is
+ * 31% larger, so the stored number under-reserves the disk. The learned value
+ * is rescaled rather than discarded — it is still the best measurement of this
+ * model's KV, just at another quant.
+ *
  * `knownBytesPerToken` is what the catalog measured for this model — see
  * registrySessionBytesPerToken in sessionDiskFallback.ts. It is a required
  * argument, not an optional one, so that a new call site cannot silently fall
@@ -92,9 +132,30 @@ export function sessionBytesPerTokenForModel(
   calibration: SessionDiskCalibration | null | undefined,
   modelId: string,
   knownBytesPerToken: number | null,
+  /** Cache profile the rate is asked for; absent → the measured default. */
+  cacheTypeK?: string | null,
+  cacheTypeV?: string | null,
 ): number | null {
-  const value = calibration && modelId ? calibration[modelId] : undefined;
+  if (!modelId) return null;
+  const requested =
+    typeof cacheTypeK === "string" && typeof cacheTypeV === "string"
+      ? { k: cacheTypeK, v: cacheTypeV }
+      : MEASURED_KV_PROFILE;
+  const value = calibration?.[
+    sessionDiskCalibrationKey(modelId, requested.k, requested.v)
+  ];
   if (positiveFinite(value)) return value;
+  // The profiled default key is the NEWER, more specific measurement; the bare
+  // key is only the pre-profile fallback. A device that ran both builds has
+  // both, and rescaling the older bare number would over-reserve the disk.
+  const profiled =
+    calibration?.[
+      sessionDiskCalibrationKey(modelId, MEASURED_KV_PROFILE.k, MEASURED_KV_PROFILE.v)
+    ];
+  const measured = positiveFinite(profiled) ? profiled : calibration?.[modelId];
+  if (positiveFinite(measured)) {
+    return rescaleSessionRate(measured, requested) ?? measured;
+  }
   // No observed write yet: the catalog's measured KV cost beats a generic
   // dense ceiling that no hybrid can ever grow into.
   return positiveFinite(knownBytesPerToken) ? knownBytesPerToken : null;
@@ -120,6 +181,9 @@ export function recordSessionDiskSample(
     /** The catalog's measured cost; the low-outlier floor. Required, so a new
      * caller cannot drop the guard by omission. */
     knownBytesPerToken: number | null;
+    /** Cache profile the write happened at; absent → the shipped default. */
+    cacheTypeK?: string | null;
+    cacheTypeV?: string | null;
   },
 ): SessionDiskCalibration {
   if (
@@ -144,9 +208,14 @@ export function recordSessionDiskSample(
     return calibration;
   }
 
-  const previous = calibration[input.modelId];
+  const key = sessionDiskCalibrationKey(
+    input.modelId,
+    typeof input.cacheTypeK === "string" ? input.cacheTypeK : MEASURED_KV_PROFILE.k,
+    typeof input.cacheTypeV === "string" ? input.cacheTypeV : MEASURED_KV_PROFILE.v,
+  );
+  const previous = calibration[key];
   if (positiveFinite(previous) && previous === perTokenBytes) return calibration;
-  return { ...calibration, [input.modelId]: perTokenBytes };
+  return { ...calibration, [key]: perTokenBytes };
 }
 
 /**

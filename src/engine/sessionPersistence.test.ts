@@ -29,6 +29,7 @@ import {
   sessionFilePath,
   sessionMetaMismatchField,
   sessionMetaMatches,
+  sessionRestoreAccepts,
   sessionAssembleBoundary,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
@@ -349,6 +350,57 @@ describe("session meta marker", () => {
     ).toBe("cacheTypeK");
     // Same quant on both sides is reusable again.
     expect(sessionMetaMatches(saved, { ...saved })).toBe(true);
+  });
+
+  test("a pooled .kvs is only loaded for the same build, GGUF, context and history", () => {
+    // The memory-extract disk branch opens the file with no meta check of its
+    // own, and the stem encodes only modelId + conversation + env hash: this
+    // predicate is what stands between a same-stem file and a context built by
+    // another build, another GGUF, or for another history.
+    const messages = [
+      { role: "user", text: "old question" },
+      { role: "assistant", text: "old answer" },
+    ];
+    const historyHash = computeHistoryHashFromMessages(messages);
+    const stored: SessionMeta = {
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: "1:2",
+      engineBuild: "build-a",
+      nCtx: 8192,
+      cacheTypeK: "q8_0",
+      cacheTypeV: "q8_0",
+      historyHash,
+      historyMessageCount: messages.length,
+      promptEnvHash: "env-1",
+    };
+    const active: Omit<SessionMeta, "historyHash"> = {
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: "1:2",
+      engineBuild: "build-a",
+      nCtx: 8192,
+      cacheTypeK: "q8_0",
+      cacheTypeV: "q8_0",
+      promptEnvHash: "env-1",
+    };
+    expect(sessionRestoreAccepts(stored, active, messages)).toBe(true);
+    // Quant + nCtx alone is not the rule: the file must also come from this
+    // build and this GGUF file, or it is not the same KV buffer.
+    expect(sessionRestoreAccepts({ ...stored, engineBuild: "build-b" }, active, messages)).toBe(false);
+    expect(sessionRestoreAccepts({ ...stored, modelFileId: "9:9" }, active, messages)).toBe(false);
+    expect(sessionRestoreAccepts({ ...stored, cacheTypeV: "q4_0" }, active, messages)).toBe(false);
+    expect(sessionRestoreAccepts({ ...stored, nCtx: 16384 }, active, messages)).toBe(false);
+    expect(sessionRestoreAccepts({ ...stored, promptEnvHash: "env-2" }, active, messages)).toBe(false);
+    // History is prefix-wise: a KV saved before a new user turn still matches.
+    expect(
+      sessionRestoreAccepts(stored, active, [
+        ...messages,
+        { role: "user", text: "next question" },
+      ]),
+    ).toBe(true);
+    expect(sessionRestoreAccepts({ ...stored, historyHash: "other" }, active, messages)).toBe(false);
+    // Nothing to compare is not a match.
+    expect(sessionRestoreAccepts(null, active, messages)).toBe(false);
+    expect(sessionRestoreAccepts(stored, null, messages)).toBe(false);
   });
 
   test("readSessionMeta keeps assembleBoundary (omit → unknown)", async () => {

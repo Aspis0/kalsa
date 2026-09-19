@@ -174,6 +174,7 @@ import {
   extractChatKvRestoreSource,
   sessionHistoryPrefixAccepts,
   sessionLoadHasTokens,
+  sessionRestoreAccepts,
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   buildKvDiagPayload,
@@ -1184,6 +1185,8 @@ export async function queueStaticPrefixPrewarm(
               activeCacheTypeK,
               activeCacheTypeV,
             ),
+            activeCacheTypeK,
+            activeCacheTypeV,
           )
         : null;
       if (snapshotIdentity) {
@@ -1427,6 +1430,8 @@ export async function queueStaticPrefixPrewarm(
                 activeCacheTypeK,
                 activeCacheTypeV,
               ),
+              cacheTypeK: activeCacheTypeK,
+              cacheTypeV: activeCacheTypeV,
             });
             if (next !== diskCalibration) await saveSessionDiskCalibration(next);
           } catch {
@@ -3101,6 +3106,8 @@ async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
       calibration,
       modelId,
       registrySessionBytesPerToken(modelId, activeCacheTypeK, activeCacheTypeV),
+      activeCacheTypeK,
+      activeCacheTypeV,
     ),
     calibration,
   };
@@ -3369,6 +3376,8 @@ export async function saveEngineSession(
             activeCacheTypeK,
             activeCacheTypeV,
           ),
+          cacheTypeK: activeCacheTypeK,
+          cacheTypeV: activeCacheTypeV,
         });
         if (nextCalibration !== diskCalibration) {
           await saveSessionDiskCalibration(nextCalibration);
@@ -5689,7 +5698,36 @@ export async function extractMemory(
                 // ignore
               }
               if (source === "disk") {
-                restorePath = paths.disk;
+                // The stem encodes only modelId + conversation + env hash, and
+                // restoreNativeSession opens the file with no meta check of its
+                // own — so apply the normal restore path's FULL rule here: the
+                // config fields (build, GGUF, n_ctx, cache types) exactly, and
+                // the history prefix-wise. Anything else is refused exactly as
+                // when there is no snapshot at all.
+                const diskMeta = await readSessionMeta(chatStem);
+                if (
+                  sessionRestoreAccepts(
+                    diskMeta,
+                    {
+                      formatVersion: SESSION_FORMAT_VERSION,
+                      modelFileId: activeModelFileId ?? "",
+                      engineBuild: activeEngineBuild ?? "",
+                      nCtx: activeEngineCtx,
+                      cacheTypeK: activeCacheTypeK ?? "",
+                      cacheTypeV: activeCacheTypeV ?? "",
+                      promptEnvHash: lastPromptEnvHash,
+                      mtpNMax: activeMtpNMax,
+                      specType: activeSpecType,
+                      engineKnob: activeEngineKnob,
+                      conversationId: getSessionConversationId(),
+                    },
+                    await readBootMessages(),
+                  )
+                ) {
+                  restorePath = paths.disk;
+                } else {
+                  stopReason = "skipped_no_snapshot";
+                }
               } else {
                 stopReason = "skipped_no_snapshot";
               }

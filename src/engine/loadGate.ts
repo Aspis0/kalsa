@@ -7,8 +7,94 @@
  * no dispose, no size-vs-available re-check.
  */
 import { decidePreSendFit } from "./deviceProfile";
+import { resolveContextProfile } from "./contextProfile";
+import { resolveGateContextTokens, type TuningDeviceProfile } from "./deviceTuning";
 import { shouldRecoverLost } from "./engineLiveness";
+import { modelAtKvProfile } from "./kvQuantCost";
+import type { KvCacheProfile } from "./ModelRegistry";
 import type { LoadPolicy } from "./loadPolicy";
+
+/**
+ * The fit input for ONE load: KV priced at the chosen cache profile, and the
+ * context the load will ACTUALLY run at.
+ *
+ * That context is the budget's own resolution of (bench ?? user ?? catalog) —
+ * the same resolveEngineTuningSync initEngine runs. Charging the raw request
+ * would refuse a load that could have degraded gracefully (the binary search
+ * exists precisely to avoid that); charging the catalog default ignores the
+ * user's choice on the real load path. Both gates call this, so neither can
+ * disagree with the engine or with each other.
+ */
+export function loadGateFitModel(input: {
+  model: {
+    id: string;
+    sizeBytes: number;
+    engineCtx: number;
+    contextLength: number;
+    hybrid?: boolean;
+    kvCache?: KvCacheProfile;
+    kvBytesPerToken?: number;
+    mmproj?: { sizeBytes: number } | null;
+    loadPolicy?: LoadPolicy;
+    /** Capability for the expert-streaming alternative, priced by the gate. */
+    canStreamExperts?: boolean;
+    /** Phone-measured streamed footprint at one context. */
+    streamingResident?: { bytes: number; measuredAtContextTokens: number };
+  };
+  profile: TuningDeviceProfile;
+  /** bench ?? user ?? catalog; absent → the catalog / high-RAM resolution. */
+  requestedContextTokens?: number;
+  /** Chosen cache profile; absent → the catalog's own. */
+  kvCache?: KvCacheProfile | null;
+  benchNoRepack?: boolean;
+  /** bench:engine useMmap; the other half of the same load mode. */
+  benchUseMmap?: boolean;
+}): {
+  id: string;
+  sizeBytes: number;
+  engineCtx: number;
+  kvBytesPerToken?: number;
+  mmproj?: { sizeBytes: number };
+  loadPolicy?: LoadPolicy;
+  canStreamExperts?: boolean;
+  streamingResident?: { bytes: number; measuredAtContextTokens: number };
+} {
+  const chosenKv = input.kvCache ?? input.model.kvCache;
+  // resolveContextProfile decides the request exactly as init does: an explicit
+  // value wins and skips the high-RAM upgrade; otherwise the catalog value plus
+  // that upgrade for a high-RAM hybrid.
+  const requestedContextTokens = resolveContextProfile({
+    hybrid: input.model.hybrid,
+    kvCache: chosenKv ?? undefined,
+    catalogCtx: input.model.engineCtx,
+    explicitNCtx: input.requestedContextTokens,
+    totalMemoryBytes: input.profile.totalMemoryBytes,
+  }).nCtx;
+  const priced = modelAtKvProfile(
+    input.model,
+    chosenKv?.k ?? "q8_0",
+    chosenKv?.v ?? "q4_0",
+  );
+  return {
+    id: input.model.id,
+    sizeBytes: input.model.sizeBytes,
+    engineCtx: resolveGateContextTokens({
+      model: priced,
+      profile: input.profile,
+      requestedContextTokens,
+      benchNoRepack: input.benchNoRepack,
+      benchUseMmap: input.benchUseMmap,
+    }),
+    kvBytesPerToken: priced.kvBytesPerToken,
+    mmproj: input.model.mmproj ?? undefined,
+    loadPolicy: input.model.loadPolicy,
+    // Streaming capability travels with the model: without it the gate prices
+    // a streamable MoE resident and can refuse a load that would have fitted
+    // by streaming its experts.
+    canStreamExperts: input.model.canStreamExperts,
+    streamingResident: input.model.streamingResident,
+  };
+}
 
 /**
  * reasonKey carries ONLY the fit decider's own reason, pass-through. A marker

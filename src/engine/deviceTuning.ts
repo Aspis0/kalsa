@@ -24,6 +24,7 @@ import {
   getThreadCountSource,
 } from "./threadProfile";
 import { DEFAULT_N_CTX } from "./contextProfile";
+import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
 
 // ── Types (design §3–§6) ────────────────────────────────────────────────────
 //
@@ -53,7 +54,16 @@ export type TuningModelInfo = {
   engineCtx: number;
   contextLength: number;
   kvCache?: { k: string; v: string };
-  kvBytesPerToken?: number;
+  /**
+   * Measured/derived KV bytes per token. `null` means unknown, exactly like
+   * absent: the budget prices an unknown cache at zero, never at a guess.
+   */
+  kvBytesPerToken?: number | null;
+  /**
+   * ModelInfo.loadPolicy, resolved through loadPolicy.ts so the budget prices
+   * the load mode the engine will actually use.
+   */
+  loadPolicy?: LoadPolicy;
 };
 
 export type BackendPolicyKind =
@@ -156,7 +166,12 @@ export type TuningResult = {
   thermal: { maxDecodeSeconds?: number; guardSource: string };
 };
 
-/** Provenance strings allowed by design §8 (+ measured kv/ubatch tags). */
+/**
+ * Provenance strings allowed by design §8 (+ measured kv/ubatch tags).
+ * The floor tag carries the number it enforced: `floor:<tokens>` is CTX_FLOOR
+ * unless the model's own maximum sits below it, which the union below covers
+ * so a future membership check cannot reject a source this code emits.
+ */
 export const PROVENANCE_SOURCES = [
   "soc-preset:helio-g99",
   "soc-preset:sd-8-gen2",
@@ -176,7 +191,11 @@ export const PROVENANCE_SOURCES = [
   "none",
 ] as const;
 
-export type ProvenanceSource = (typeof PROVENANCE_SOURCES)[number];
+export type ProvenanceSource =
+  | (typeof PROVENANCE_SOURCES)[number]
+  /** `floor:<tokens>` — the floor this load was pinned to (CTX_FLOOR, or the
+   *  model's own maximum when that is lower). */
+  | `floor:${number}`;
 
 // ── Measured registry (design §5) ───────────────────────────────────────────
 
@@ -521,22 +540,33 @@ function resolveContextBudget(
     typeof model.engineCtx === "number" && Number.isFinite(model.engineCtx)
       ? model.engineCtx
       : DEFAULT_N_CTX;
+  /** Declared maximum, or null when the model does not state one. */
+  const declaredMax =
+    typeof model.contextLength === "number" &&
+    Number.isFinite(model.contextLength) &&
+    model.contextLength > 0
+      ? Math.floor(model.contextLength)
+      : null;
+  /**
+   * The lowest context this model may be loaded at. CTX_FLOOR is OUR product
+   * minimum, so it cannot exceed what the model itself holds: a 4k model would
+   * otherwise be asked for 8192, and the binary search below could never reach
+   * its own maximum.
+   */
+  const effectiveFloor =
+    declaredMax === null ? CTX_FLOOR : Math.min(CTX_FLOOR, declaredMax);
   let requested =
     typeof requestedIn === "number" && Number.isFinite(requestedIn) && requestedIn > 0
       ? Math.floor(requestedIn)
       : catalog;
 
-  if (
-    typeof model.contextLength === "number" &&
-    Number.isFinite(model.contextLength) &&
-    model.contextLength > 0
-  ) {
-    requested = Math.min(requested, Math.floor(model.contextLength));
+  if (declaredMax !== null) {
+    requested = Math.min(requested, declaredMax);
   }
 
   // Floor applies to the final value; requested may be above floor.
-  if (requested < CTX_FLOOR) {
-    requested = CTX_FLOOR;
+  if (requested < effectiveFloor) {
+    requested = effectiveFloor;
   }
 
   const kvBytesPerToken =
@@ -595,10 +625,10 @@ function resolveContextBudget(
     };
   }
 
-  // Binary search largest ctx in [CTX_FLOOR, requested] with nonEvictable ≤ available.
-  let lo = CTX_FLOOR;
+  // Binary search largest ctx in [effectiveFloor, requested] with nonEvictable ≤ available.
+  let lo = effectiveFloor;
   let hi = requested;
-  let best = CTX_FLOOR;
+  let best = effectiveFloor;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const e = estimateAt(mid);
@@ -610,16 +640,16 @@ function resolveContextBudget(
     }
   }
 
-  // Never below floor even if floor itself does not fit (conservative load attempt).
-  const n_ctx = Math.max(CTX_FLOOR, best);
+  // Never below the floor even if the floor itself does not fit (conservative load attempt).
+  const n_ctx = Math.max(effectiveFloor, best);
   const estFinal = estimateAt(n_ctx);
   const fitFinal = fitMemoryEstimate(estFinal, availableMiB);
 
   return {
     n_ctx,
     ctxSource:
-      n_ctx === CTX_FLOOR && best < CTX_FLOOR
-        ? `floor:${CTX_FLOOR}`
+      n_ctx === effectiveFloor && best < effectiveFloor
+        ? `floor:${effectiveFloor}`
         : "memory-budget",
     memory: {
       nonEvictableMiB: estFinal.nonEvictableMiB,
@@ -627,6 +657,42 @@ function resolveContextBudget(
       fit: fitFinal.status,
     },
   };
+}
+
+/**
+ * The n_ctx a fit gate must charge for a load: the context initEngine will
+ * actually run with, after the SAME memory budget init applies binary-searches
+ * the request down.
+ *
+ * Charging the raw request would refuse a load that could have degraded
+ * gracefully — the binary search exists precisely to avoid that — while
+ * charging the catalog default ignores the user's choice. Returns the
+ * resolver's own n_ctx, so the gate and the engine cannot disagree.
+ */
+export function resolveGateContextTokens(input: {
+  model: TuningModelInfo;
+  profile: TuningDeviceProfile;
+  /** bench ?? user ?? catalog — what init passes as contextBudget. */
+  requestedContextTokens?: number;
+  /** kalsa.bench.norepack tri-state; the load mode this load will use. */
+  benchNoRepack?: boolean;
+  /** kalsa.bench.engine useMmap; the other half of the same load mode. */
+  benchUseMmap?: boolean;
+}): number {
+  const load = resolveGateLoadPolicy({
+    policy: input.model.loadPolicy,
+    benchNoRepack: input.benchNoRepack,
+    benchUseMmap: input.benchUseMmap,
+  });
+  return resolveEngineTuningSync({
+    model: input.model,
+    profile: input.profile,
+    request: {
+      contextBudget: input.requestedContextTokens,
+      repack: load.repack,
+      mmap: load.mmap,
+    },
+  }).context.n_ctx;
 }
 
 /**

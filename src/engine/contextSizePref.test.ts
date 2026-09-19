@@ -12,7 +12,9 @@ import {
   CONTEXT_SIZE_OPTIONS,
   contextSizeChoices,
   contextSizeOutcome,
+  nearestOfferedContextSize,
   readUserContextSize,
+  resolveRequestedContextTokens,
   writeUserContextSize,
 } from "./contextSizePref";
 
@@ -46,6 +48,32 @@ describe("context size preference", () => {
   test("a failed write reports false and never throws", async () => {
     (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error("volume full"));
     await expect(writeUserContextSize(16384)).resolves.toBe(false);
+  });
+
+  test("refuses to store a size the ladder does not offer", async () => {
+    await expect(writeUserContextSize(99999)).resolves.toBe(false);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    await expect(writeUserContextSize(16384)).resolves.toBe(true);
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(CONTEXT_SIZE_KEY, "16384");
+  });
+
+  test("accepts a size only when this model offers it", async () => {
+    // LFM's own maximum (131072) is on ITS list; the same number is not a size
+    // a 4k model offers.
+    await expect(writeUserContextSize(131072, 131072)).resolves.toBe(true);
+    await expect(writeUserContextSize(131072, 4096)).resolves.toBe(false);
+  });
+
+  test("clamps an off-ladder stored value on read when the model is known", async () => {
+    expect(nearestOfferedContextSize(99999, 131072)).toBe(65536);
+    expect(nearestOfferedContextSize(4096, 4096)).toBe(4096);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("99999");
+    expect(await readUserContextSize()).toBe(99999);
+    expect(await readUserContextSize(131072)).toBe(65536);
+    expect(await readUserContextSize(4096)).toBe(4096);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("131072");
+    expect(await readUserContextSize(131072)).toBe(131072);
+    expect(await readUserContextSize(262144)).toBe(102400);
   });
 
   test("choices never offer more than the model's own maximum", () => {
@@ -112,5 +140,33 @@ describe("contextSizeOutcome", () => {
         availableMiB: 6000,
       }).kind,
     ).toBe("as-requested");
+  });
+});
+
+describe("resolveRequestedContextTokens", () => {
+  const base = {
+    catalogContextTokens: 8192,
+    modelContextLength: 131072,
+  };
+
+  test("the bench lever outranks the setting and the catalog", () => {
+    expect(
+      resolveRequestedContextTokens({ ...base, benchNCtx: 32768, storedUserContextSize: 16384 }),
+    ).toBe(32768);
+  });
+
+  test("the stored choice outranks the catalog, clamped to what the model offers", () => {
+    expect(resolveRequestedContextTokens({ ...base, storedUserContextSize: 262144 })).toBe(131072);
+    expect(
+      resolveRequestedContextTokens({
+        catalogContextTokens: 8192,
+        modelContextLength: 262144,
+        storedUserContextSize: 262144,
+      }),
+    ).toBe(262144);
+  });
+
+  test("nothing chosen anywhere → the catalog / RAM-resolved value", () => {
+    expect(resolveRequestedContextTokens({ catalogContextTokens: 16384 })).toBe(16384);
   });
 });

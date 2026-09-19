@@ -88,11 +88,14 @@ export function resolveLoadPolicy(input: LoadPolicyInput): ResolvedLoad {
 export function resolveGateLoadPolicy(input: {
   policy?: LoadPolicy;
   benchNoRepack?: boolean;
+  /** bench:engine useMmap override, same lever the load itself honours. */
+  benchUseMmap?: boolean;
 }): { mmap: boolean; repack: boolean } {
   const resolved = resolveLoadPolicy({
     policy: input.policy,
     streamExperts: false,
     benchNoRepack: input.benchNoRepack,
+    benchUseMmap: input.benchUseMmap,
   });
   return { mmap: resolved.useMmap, repack: !resolved.noExtraBufts };
 }

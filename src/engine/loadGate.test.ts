@@ -1,5 +1,11 @@
-import { gateModelLoad, refusalMessageKey, smallerModelExists } from "./loadGate";
+import {
+  gateModelLoad,
+  loadGateFitModel,
+  refusalMessageKey,
+  smallerModelExists,
+} from "./loadGate";
 import { estimateMemory } from "./memoryEstimate";
+import { gateNonEvictableMiB } from "./modelGateRAM";
 
 /** Qwen-class 4B: ~3.5 GB bundle, KV-heavy at catalog ctx. */
 const BIG = {
@@ -195,5 +201,111 @@ describe("refusalMessageKey (claim only the cause the code knows)", () => {
     expect(smallerModelExists([1_500_000_000, 3_500_000_000], 1_593_894_944)).toBe(true);
     expect(smallerModelExists([3_500_000_000], 1_593_894_944)).toBe(false);
     expect(smallerModelExists([], 1_593_894_944)).toBe(false);
+  });
+});
+
+/** LFM2.5 2.6B as the catalog carries it, plus the tuning fields. */
+const FIT_MODEL = {
+  id: "lfm2.5-2.6b",
+  sizeBytes: 1_593_894_944,
+  engineCtx: 8192,
+  contextLength: 131072,
+  hybrid: true,
+  kvCache: { k: "q8_0", v: "q4_0" } as const,
+  kvBytesPerToken: 6656,
+  mmproj: null,
+  loadPolicy: undefined,
+};
+
+const fitDevice = (availableMiB: number, totalBytes = 12_000_000_000) => ({
+  brand: "test",
+  cpuCoreCount: 8,
+  availableMemoryBytes: availableMiB * 1024 * 1024,
+  totalMemoryBytes: totalBytes,
+});
+
+describe("loadGateFitModel", () => {
+  test("charges the context the budget will load, not the request nor the catalog", () => {
+    // The 100k request cannot fit at 1.7 GiB, so the gate must charge what init
+    // will actually run with. Charging 102400 refuses a graceful downgrade;
+    // charging the catalog 8192 ignores the user's choice on the load path.
+    const fit = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(1700),
+      requestedContextTokens: 102400,
+    });
+    expect(fit.engineCtx).toBeGreaterThanOrEqual(8192);
+    expect(fit.engineCtx).toBeLessThan(102400);
+  });
+
+  test("keeps the high-RAM hybrid upgrade when nobody asked for a size", () => {
+    // 8 GB total ≥ the 7.5 GB gate: resolveContextProfile upgrades 8192 → 16384,
+    // and the gate must charge that upgraded context, not the catalog default.
+    const fit = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(6000, 8_000_000_000),
+    });
+    expect(fit.engineCtx).toBe(16384);
+  });
+
+  test("prices KV at the chosen cache profile, not the catalog's", () => {
+    const shipped = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(6000, 8_000_000_000),
+    });
+    const high = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(6000, 8_000_000_000),
+      kvCache: { k: "q8_0", v: "q8_0" },
+    });
+    expect(shipped.kvBytesPerToken).toBe(6656);
+    expect(high.kvBytesPerToken).toBe(8704);
+  });
+});
+
+describe("loadGateFitModel — expert streaming", () => {
+  const MiB = 1024 * 1024;
+
+  test("carries the streaming capability, so a streamable MoE is priced streamed", () => {
+    // A model that fits ONLY streamed: 5 GB of weights, a 1000 MiB measured
+    // RssAnon, 3000 MiB free. Dropping canStreamExperts here prices the full
+    // resident footprint and refuses a load the gate would have allowed.
+    const streamable = {
+      id: "dev-moe",
+      sizeBytes: 5_000_000_000,
+      engineCtx: 8192,
+      contextLength: 131072,
+      kvBytesPerToken: 6656,
+      mmproj: null,
+      loadPolicy: undefined,
+      canStreamExperts: true,
+      streamingResident: { bytes: 1_000 * MiB, measuredAtContextTokens: 8192 },
+    };
+    const fit = loadGateFitModel({
+      model: streamable,
+      profile: {
+        brand: "test",
+        cpuCoreCount: 8,
+        availableMemoryBytes: 3_000 * MiB,
+        totalMemoryBytes: 8_000_000_000,
+      },
+      requestedContextTokens: 8192,
+    });
+    expect(fit.canStreamExperts).toBe(true);
+    expect(fit.streamingResident).toEqual({
+      bytes: 1_000 * MiB,
+      measuredAtContextTokens: 8192,
+    });
+    // The gate charges the MEASUREMENT when the capability survives: without
+    // the fields this is the resident estimate (4.5 GiB), which does not fit.
+    // Same shape AppShell passes: the fit model's size-only mmproj view is
+    // replaced by the catalog's spec.
+    expect(
+      gateNonEvictableMiB({
+        model: { ...fit, mmproj: undefined },
+        contextTokens: 8192,
+        availableMemoryBytes: 3_000 * MiB,
+      }),
+    ).toBe(1_000);
   });
 });

@@ -55,7 +55,8 @@ import {
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
-import { gateNonEvictableMiB, gateOptionFit, optionAvailability } from "../engine/modelGateRAM";
+import { gateCacheOptionFit, gateContextOptionFit, gateNonEvictableMiB, optionAvailability } from "../engine/modelGateRAM";
+import { resolveGateLoadPolicy } from "../engine/loadPolicy";
 import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
 import { resolveEngineTuningSync } from "../engine/deviceTuning";
 import { kvBytesPerTokenAtProfile, modelAtKvProfile } from "../engine/kvQuantCost";
@@ -63,6 +64,7 @@ import {
   contextSizeChoices,
   contextSizeOutcome,
   readUserContextSize,
+  resolveRequestedContextTokens,
   writeUserContextSize,
 } from "../engine/contextSizePref";
 import {
@@ -106,7 +108,7 @@ import {
   DEVICE_TOOLS_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
-import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
+import { getBenchNCtx, getBenchNoRepack, getEngineOverride, getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { radius, spacing } from "../theme/tokens";
@@ -240,6 +242,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // Both are init inputs: the next load reads them, so a change applies then.
   const [userContextSize, setUserContextSize] = useState<number | null>(null);
   const [kvCacheChoiceId, setKvCacheChoiceId] = useState<KvCacheChoiceId | null>(null);
+  /** kalsa.bench.nctx: a dev lever that outranks the setting — grade what loads. */
+  const [benchNCtx, setBenchNCtx] = useState<number | null>(null);
+  /** Dev load-mode levers, read once: the panel prices the mode init will use. */
+  const [benchNoRepack, setBenchNoRepack] = useState<boolean | undefined>(undefined);
+  const [benchUseMmap, setBenchUseMmap] = useState<boolean | undefined>(undefined);
 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
@@ -457,6 +464,15 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     void readKvCacheChoice().then((choice) => {
       if (mounted) setKvCacheChoiceId(choice?.id ?? null);
     });
+    void getBenchNCtx().then((nCtx) => {
+      if (mounted) setBenchNCtx(nCtx);
+    });
+    void getBenchNoRepack().then((flag) => {
+      if (mounted) setBenchNoRepack(flag);
+    });
+    void getEngineOverride().then((override) => {
+      if (mounted) setBenchUseMmap(override?.useMmap);
+    });
     return () => {
       mounted = false;
     };
@@ -521,10 +537,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // Both writers report whether the write landed; a failed write rolls the
   // selection back, so the row never shows a choice that was not persisted.
   const handleSelectContextSize = useCallback(
-    (nCtx: number) => {
+    (nCtx: number, modelContextLength?: number | null) => {
       const previous = userContextSize;
       setUserContextSize(nCtx);
-      void writeUserContextSize(nCtx).then((persisted) => {
+      void writeUserContextSize(nCtx, modelContextLength).then((persisted) => {
         if (!persisted && mountedRef.current) setUserContextSize(previous);
       });
     },
@@ -1099,7 +1115,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // ── Context size + KV cache precision (priced, not asserted) ──────────────
   // Every number below comes from the load path's own resolver
   // (resolveEngineTuningSync → resolveContextBudget) or from the model gate's own
-  // estimator (gateOptionFit → gateNonEvictableMiB). Nothing here re-derives a
+  // estimator (gateContextOptionFit / gateCacheOptionFit → gateNonEvictableMiB).
+  // Nothing here re-derives a
   // budget, so a figure shown in Settings cannot disagree with what the engine
   // allocates.
   const activeModelForMemory = useMemo(
@@ -1122,8 +1139,34 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         : null,
     [activeModelForMemory, deviceProfile?.totalMemoryBytes, deviceTotalMemoryBytes],
   );
-  /** What the user asked for: their stored size, else the catalog/device value. */
-  const requestedContextTokens = userContextSize ?? catalogContextTokens;
+  /**
+   * What the engine will be asked for: the bench lever first, then the user's
+   * stored size (clamped to a size this model offers), then the catalog/device
+   * value. Same precedence AppShell resolves, so the grading and the shown
+   * context are the ones that load.
+   */
+  const requestedContextTokens = resolveRequestedContextTokens({
+    benchNCtx,
+    storedUserContextSize: userContextSize,
+    catalogContextTokens,
+    modelContextLength: activeModelForMemory?.contextLength,
+  });
+
+  /**
+   * The load mode init will use for this model, bench levers included: the
+   * same resolution LlamaService runs (resolveLoadPolicy, streamExperts:false).
+   */
+  const gateLoadMode = useMemo(
+    () =>
+      activeModelForMemory
+        ? resolveGateLoadPolicy({
+            policy: activeModelForMemory.loadPolicy,
+            benchNoRepack,
+            benchUseMmap,
+          })
+        : null,
+    [activeModelForMemory, benchNoRepack, benchUseMmap],
+  );
 
   const contextResolution = useMemo(() => {
     if (!activeModelForMemory || !deviceProfile || requestedContextTokens == null) {
@@ -1135,9 +1178,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       // the tuning request — a q8_0 V cache is 31% larger than the catalog's.
       model: modelAtKvProfile(activeModelForMemory, kv?.k ?? "q8_0", kv?.v ?? "q4_0"),
       profile: deviceProfile,
-      // Default load mode: every listed catalog entry ships the default policy,
-      // and the bench norepack lever is not a user setting.
-      request: { contextBudget: requestedContextTokens },
+      request: {
+        contextBudget: requestedContextTokens,
+        // The load mode init will use, dev levers included: without it the
+        // panel prices a repack/mmap configuration the engine may not use.
+        repack: gateLoadMode?.repack ?? true,
+        mmap: gateLoadMode?.mmap ?? true,
+      },
     });
     return {
       requested: requestedContextTokens,
@@ -1150,7 +1197,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         availableMiB: tuning.memory.availableMiB,
       }),
     };
-  }, [activeModelForMemory, deviceProfile, requestedContextTokens, kvCacheChoice]);
+  }, [
+    activeModelForMemory,
+    deviceProfile,
+    requestedContextTokens,
+    kvCacheChoice,
+    gateLoadMode,
+  ]);
 
   /** What the row says the engine resolved to, and why it is not the request. */
   const contextStatusLabel = useMemo(() => {
@@ -1177,9 +1230,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     return t("settings.contextSizeResolved", { tokens: outcome.loaded });
   }, [contextResolution, activeModelForMemory, t]);
 
-  // One row per offered context size, priced at that size and the chosen cache
-  // quant, using the same gate the model rows use. `does_not_fit` blocks a row,
-  // `tight` warns, `unknown` shows it with no verdict.
+  // One row per offered context size, each resolved the way the load resolves
+  // it. A size the phone cannot hold stays SELECTABLE and reports the context
+  // it will load at instead: the budget degrades a context, it does not refuse
+  // one. Only a size whose even-the-floor cannot load is unselectable.
   const contextSizeOptionRows = useMemo(() => {
     if (!activeModelForMemory) return [];
     const kv = kvCacheChoice ?? activeModelForMemory.kvCache;
@@ -1189,43 +1243,60 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       kv?.v ?? "q4_0",
     );
     return contextSizeChoices(activeModelForMemory.contextLength).map((tokens) => {
-      const fit = gateOptionFit({
+      const fit = gateContextOptionFit({
         model: priced,
-        contextTokens: tokens,
+        requestedContextTokens: tokens,
+        profile: deviceProfile,
         availableMemoryBytes: deviceProfile?.availableMemoryBytes ?? null,
+        benchNoRepack,
+        benchUseMmap,
       });
       return { tokens, ...fit, availability: optionAvailability(fit.status) };
     });
-  }, [activeModelForMemory, kvCacheChoice, deviceProfile?.availableMemoryBytes]);
+  }, [
+    activeModelForMemory,
+    kvCacheChoice,
+    deviceProfile,
+    benchNoRepack,
+    benchUseMmap,
+  ]);
 
-  // Same pricing for the two cache qualities, at the context that will load, so
-  // the cost of High moves with the context size and the phone's free memory.
+  // Same pricing for the two cache qualities, at the context each candidate
+  // would ITSELF resolve to: the larger cache can force a further downgrade, so
+  // judging it at the context the current profile resolved to hides what it
+  // costs. gateCacheOptionFit does both resolutions in one call.
   const kvCacheOptionRows = useMemo(() => {
-    const pricingContext = contextResolution?.loaded ?? requestedContextTokens;
-    if (!activeModelForMemory || pricingContext == null) return [];
+    if (!activeModelForMemory || !deviceProfile || requestedContextTokens == null) {
+      return [];
+    }
     return KV_CACHE_CHOICES.map((choice) => {
-      const fit = gateOptionFit({
-        model: modelAtKvProfile(activeModelForMemory, choice.k, choice.v),
-        contextTokens: pricingContext,
-        availableMemoryBytes: deviceProfile?.availableMemoryBytes ?? null,
+      const fit = gateCacheOptionFit({
+        model: activeModelForMemory,
+        choice: { k: choice.k, v: choice.v },
+        profile: deviceProfile,
+        requestedContextTokens,
+        availableMemoryBytes: deviceProfile.availableMemoryBytes,
+        benchNoRepack,
+        benchUseMmap,
       });
       return { choice, ...fit, availability: optionAvailability(fit.status) };
     });
   }, [
     activeModelForMemory,
     requestedContextTokens,
-    contextResolution?.loaded,
-    deviceProfile?.availableMemoryBytes,
+    deviceProfile,
+    benchNoRepack,
+    benchUseMmap,
   ]);
 
-  /** KV bytes High costs over Standard at the resolved context — a real number. */
+  /** KV bytes High costs over Standard at the context the user asked for. */
   const kvCacheHighCostMiB = useMemo(() => {
-    if (!activeModelForMemory || contextResolution == null) return null;
+    if (!activeModelForMemory || requestedContextTokens == null) return null;
     const base = activeModelForMemory.kvBytesPerToken;
     const high = kvBytesPerTokenAtProfile(base, "q8_0", "q8_0");
     if (typeof base !== "number" || high === null) return null;
-    return Math.round(((high - base) * contextResolution.loaded) / (1024 * 1024));
-  }, [activeModelForMemory, contextResolution]);
+    return Math.round(((high - base) * requestedContextTokens) / (1024 * 1024));
+  }, [activeModelForMemory, requestedContextTokens]);
 
   /** Compact device line: brand model · N GB RAM · M cores (null parts omitted). */
   const deviceLineLabel = useMemo(() => {
@@ -1510,11 +1581,17 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <View style={{ gap: spacing.xs }}>
             {contextSizeOptionRows.map((option) => {
               const selected = contextResolution?.requested === option.tokens;
-              const blocked = option.availability === "blocked";
+              // Only a genuine no-load blocks (even the floor does not fit).
+              const blocked = !option.selectable;
               return (
                 <Pressable
                   key={option.tokens}
-                  onPress={() => handleSelectContextSize(option.tokens)}
+                  onPress={() =>
+                    handleSelectContextSize(
+                      option.tokens,
+                      activeModelForMemory?.contextLength,
+                    )
+                  }
                   disabled={blocked || busy}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, disabled: blocked }}
@@ -1557,6 +1634,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                       </Text>
                     ) : null}
                   </View>
+                  {option.downgradesTo != null ? (
+                    <Text
+                      style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
+                    >
+                      {t("settings.optionDowngradesTo", { tokens: option.downgradesTo })}
+                    </Text>
+                  ) : null}
                   {blocked ? (
                     <Text
                       style={[
@@ -1646,8 +1730,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
                       {t("settings.kvCacheHighCost", {
                         mib: kvCacheHighCostMiB,
-                        tokens: contextResolution?.loaded ?? "",
+                        tokens: requestedContextTokens ?? "",
                       })}
+                    </Text>
+                  ) : null}
+                  {requestedContextTokens != null &&
+                  row.contextTokens < requestedContextTokens ? (
+                    <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                      {t("settings.optionDowngradesTo", { tokens: row.contextTokens })}
                     </Text>
                   ) : null}
                   {blocked ? (

@@ -22,23 +22,45 @@ export const CONTEXT_SIZE_KEY = "kalsa.context.size";
  */
 export const CONTEXT_SIZE_OPTIONS = [8192, 16384, 32768, 65536, 102400] as const;
 
-/** The stored choice, or null when the user never picked one. Never throws. */
-export async function readUserContextSize(): Promise<number | null> {
+/**
+ * The stored choice, or null when the user never picked one. Never throws.
+ *
+ * Given the active model's context length, an off-ladder stored value — a
+ * corrupt write, or a size chosen for another model — is CLAMPED DOWN to the
+ * largest size that model offers. What init reads is then always a size the
+ * Settings row can show selected, instead of a number nobody offered.
+ * Sans a model length the value is returned as stored.
+ */
+export async function readUserContextSize(
+  modelContextLength?: number | null,
+): Promise<number | null> {
   try {
     const raw = await AsyncStorage.getItem(CONTEXT_SIZE_KEY);
     if (raw == null) return null;
     const n = Number(String(raw).trim());
     if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
-    return n;
+    if (modelContextLength == null) return n;
+    return nearestOfferedContextSize(n, modelContextLength);
   } catch {
     return null;
   }
 }
 
-/** Persists the choice; returns whether the write landed. Never throws. */
-export async function writeUserContextSize(nCtx: number): Promise<boolean> {
+/**
+ * Persists the choice; returns whether the write landed. Never throws.
+ *
+ * A value that is not one of the sizes `contextSizeChoices` offers for this
+ * model is REJECTED, not stored: the stored number reaches initEngine, and a
+ * stale caller must not turn a typo into a context nobody offered. Pass the
+ * active model's context length whenever it is known.
+ */
+export async function writeUserContextSize(
+  nCtx: number,
+  modelContextLength?: number | null,
+): Promise<boolean> {
+  if (!isOfferedContextSize(nCtx, modelContextLength)) return false;
   try {
-    await AsyncStorage.setItem(CONTEXT_SIZE_KEY, String(Math.floor(nCtx)));
+    await AsyncStorage.setItem(CONTEXT_SIZE_KEY, String(nCtx));
     return true;
   } catch (error) {
     console.warn(`Failed to persist ${CONTEXT_SIZE_KEY}`, error);
@@ -61,6 +83,62 @@ export function contextSizeChoices(contextLength?: number | null): number[] {
   const choices: number[] = CONTEXT_SIZE_OPTIONS.filter((n) => n <= max);
   if (choices[choices.length - 1] !== max) choices.push(max);
   return choices;
+}
+
+/** True when `nCtx` is one of the sizes contextSizeChoices would offer. */
+export function isOfferedContextSize(
+  nCtx: unknown,
+  modelContextLength?: number | null,
+): nCtx is number {
+  return (
+    typeof nCtx === "number" &&
+    Number.isFinite(nCtx) &&
+    contextSizeChoices(modelContextLength).includes(nCtx)
+  );
+}
+
+/**
+ * The largest offered size at or below `nCtx`, so a value that is not offered
+ * still becomes one the UI can display as selected. Falls back to the smallest
+ * offered size for a model shorter than the whole ladder.
+ */
+export function nearestOfferedContextSize(
+  nCtx: number,
+  modelContextLength?: number | null,
+): number | null {
+  if (typeof nCtx !== "number" || !Number.isFinite(nCtx) || nCtx <= 0) return null;
+  const offered = contextSizeChoices(modelContextLength);
+  if (offered.length === 0) return null;
+  const atOrBelow = offered.filter((size) => size <= nCtx);
+  return atOrBelow.length > 0 ? atOrBelow[atOrBelow.length - 1] : offered[0];
+}
+
+/**
+ * The context the engine will be ASKED for: the bench lever first, then the
+ * user's stored size clamped to what this model offers, then the catalog /
+ * RAM-resolved value. ONE place states that precedence, so a surface that
+ * grades the setting cannot grade a number the engine will not use. Null when
+ * there is no catalog value to fall back on (no active model yet).
+ */
+export function resolveRequestedContextTokens(input: {
+  /** kalsa.bench.nctx — a dev lever that outranks the user's choice. */
+  benchNCtx?: number | null;
+  /** The persisted user choice, before clamping. */
+  storedUserContextSize?: number | null;
+  /** resolveContextProfile's value for this model on this device. */
+  catalogContextTokens: number | null;
+  modelContextLength?: number | null;
+}): number | null {
+  if (typeof input.benchNCtx === "number" && Number.isFinite(input.benchNCtx)) {
+    return input.benchNCtx;
+  }
+  if (typeof input.storedUserContextSize === "number") {
+    return (
+      nearestOfferedContextSize(input.storedUserContextSize, input.modelContextLength) ??
+      input.catalogContextTokens
+    );
+  }
+  return input.catalogContextTokens;
 }
 
 export type ContextSizeOutcome =
