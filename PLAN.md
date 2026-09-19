@@ -1082,8 +1082,15 @@ fixture di rifiuto erano una sola forma con tre stringhe di motivo, e il gate ve
 valida per il tipo ma mai emessa dal produttore e' peggio di nessuna fixture; forme vere copiate dal sorgente
 (no_size: tre null; disk_unreadable: usedTokens e requiredBytes numerici, freeBytes null; gate_error: tre null;
 short: tre numerici con free <= required; ok: reason null). Le quattro mutazioni riprodotte dal coordinatore su
-copia archive con gli stessi conteggi e nomi (13 / 2 / 1 / 1 rossi su 55), gate completo in corso; terzo giro di
-audit sulla tabella del commit. Entra su main dopo 9f96a45 e dopo la chiusura dell'e2e del "dopo".
+copia archive con gli stessi conteggi e nomi (13 / 2 / 1 / 1 rossi su 55), gate completo del coordinatore verde
+(TSC 0, jest 89/1071, 59/59 Node 20). *Terzo giro NOT READY (02:35Z), riprodotto dal coordinatore:* il cablaggio
+si e' SPOSTATO, non chiuso — `evict("other-stem")` cablato resta verde perche' l'unica `CalledWith` e' quella
+(test:126), e il corpo del commit affermava il contrario (seconda frase non sostenuta dall'albero in una sera);
+sette casi su otto che raggiungono l'evictor non asseriscono nulla su di lui (una seconda `evict` su `not_needed`
+passa); la fixture `ok: true` eredita free 9_000 <= required 10_000, stato che il produttore non emette (ok solo
+dopo `free > required`). Condizioni: due stem in due test, times E argomenti su ogni caso che sfratta, fixture sana
+copiata dal produttore, commit riscritto; il null di `sessionDiskDeficitBytes` e' tenuto da ts-jest strict, non da
+un test (da scrivere nel commento). Entra su main dopo 9f96a45 e dopo la chiusura dell'e2e del "dopo".
 
 **persist-guard sul Jelly: A/B/C PASS (kalsa-2d, 18/09 22:13-22:27 EDT, seriale 192.168.1.82:5555, mai uninstall,
 mai testo stampato; non rieseguito dal coordinatore, che ha verificato solo il punto di ripristino sul Mac:
