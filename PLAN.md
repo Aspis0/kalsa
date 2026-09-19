@@ -1289,6 +1289,17 @@ e' ctx_decode e il commit e' soppresso → decode con cache vuota mentre lo slot
 silenzio. Sarebbe la ragione vera delle quattro guardie `activeGovernorActive` in LlamaService.ts. Domande aperte:
 se `llama_kv_commit` muova lo stato ricorrente (LFM2 hybrid, `rn-slot.cpp:1141-1155`); se esista un salvataggio con
 `last_ctx == ctx_prefill` (prewarm senza decode). Contratto in scrittura (Luna af89ce1d), audit deepseek dopo.
+*Correzione (kalsa-93, 23:40 EDT, righe rilette dal coordinatore):* il perimetro ha DUE strati — l'app non usa i
+slot paralleli di `rn-slot.cpp` ma `JSISession.h`, che salva/carica il contesto intero (`llama_state_save_file`
+`:213`, `llama_state_load_file` `:61` su `active_ctx()`) e **lancia** con `hasGovernor()` (`:48-49` load,
+`:173-174` save). Le quattro guardie TS rispecchiano un rifiuto nativo: togliere le guardie JS da' un'eccezione,
+non l'output sbagliato; la chiusura richiede un cambio del fork (bump di kalsallama, corsia di kalsa-2d) con il
+design accoppiato dei due contesti. `llama_hybrid_commit` (`llama-hybrid-commit.cpp:78-87`) passa p0/p1 solo alla
+cache di attenzione e `copy_recurrent` (`:56-75`) copia interi i tensori ricorrenti a ogni cambio di fase: per LFM2
+sotto governor il commit ha un pavimento indipendente dai token nuovi, due volte per turno (sezione costi).
+**Decisione del coordinatore:** stanotte il contratto e' un DOCUMENTO del lab (Luna scrive, deepseek audita); il
+codice va nella lista del fork bump di kalsa-2d (battery module, filtro DEBUG, HTP estratte solo se assenti, gate
+nativo della sessione sotto governor); la corsia codice passa poi ad anchored-floor (tutto JS).
 
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
