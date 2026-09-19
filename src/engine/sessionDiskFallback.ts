@@ -12,6 +12,7 @@
  */
 
 import { MODEL_REGISTRY } from "./ModelRegistry";
+import { kvBytesPerTokenAtProfile } from "./kvQuantCost";
 import { SESSION_PER_TOKEN_META_BYTES } from "./sessionDiskCalibration";
 
 /**
@@ -27,9 +28,22 @@ import { SESSION_PER_TOKEN_META_BYTES } from "./sessionDiskCalibration";
  * a write that SUCCEEDED, a device that cannot pass the gate never calibrates
  * — so an over-large fallback is not merely cautious, it is permanent.
  */
-export function registrySessionBytesPerToken(modelId: string): number | null {
+export function registrySessionBytesPerToken(
+  modelId: string,
+  /** Cache types of the engine writing/reading the session; omitted → catalog. */
+  cacheTypeK?: string | null,
+  cacheTypeV?: string | null,
+): number | null {
   if (!modelId) return null;
   const kv = MODEL_REGISTRY.find((m) => m.id === modelId)?.kvBytesPerToken;
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return null;
-  return kv + SESSION_PER_TOKEN_META_BYTES;
+  // The catalog number is derived at the shipped q8_0/q4_0. A session file holds
+  // the quantized KV rows of the cache that wrote it, so under q8_0 V the
+  // catalog rate under-counts the file by 31% — the same profile rescale the
+  // memory estimates use.
+  const priced =
+    typeof cacheTypeK === "string" && typeof cacheTypeV === "string"
+      ? kvBytesPerTokenAtProfile(kv, cacheTypeK, cacheTypeV)
+      : null;
+  return (priced ?? kv) + SESSION_PER_TOKEN_META_BYTES;
 }

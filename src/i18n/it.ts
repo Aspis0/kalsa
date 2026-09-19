@@ -90,6 +90,22 @@ export const it: typeof en = {
     contextCompaction: "Memoria conversazionale intelligente",
     contextCompactionHint:
       "Attiva di default. I turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Disattiva per usare la finestra scorrevole legacy.",
+    contextSize: "Dimensione del contesto",
+    contextSizeHint:
+      "Quanti token l'assistente tiene contemporaneamente. Un contesto più lungo costa più memoria; le dimensioni che il telefono non può sostenere sono disattivate. Ha effetto al prossimo caricamento del modello.",
+    contextSizeAuto: "Valore predefinito del dispositivo — scegli una dimensione per cambiarlo.",
+    contextSizeOption: "{tokens} token",
+    contextSizeResolved: "Risolta: {tokens} token",
+    contextSizeDowngraded:
+      "Richiesti {requested}; il telefono può tenere {loaded} token ({needed} MiB non liberabili, {available} MiB disponibili).",
+    contextSizeModelMax: "Richiesti {requested}; {model} arriva al massimo a {loaded} token.",
+    optionTight: "Ci sta adesso, ma il sistema può chiuderla in background.",
+    kvCache: "Precisione della cache KV",
+    kvCacheHint:
+      "Con quanta precisione viene salvata la cache di attenzione. High tiene V a 8 bit invece di 4 e costa più memoria. Ha effetto al prossimo caricamento del modello.",
+    kvCacheStandard: "Standard (K 8 bit, V 4 bit)",
+    kvCacheHigh: "High (K 8 bit, V 8 bit)",
+    kvCacheHighCost: "{mib} MiB in più al contesto risolto di {tokens} token.",
     ciswire: "CisWire",
     ciswireHint:
       "Scegli separatamente la compattazione e l'aiuto per gli strumenti. Le nuove funzioni sono disattivate finché non le attivi.",

@@ -67,6 +67,8 @@ import { PdfExtractError, PdfToImages } from "../components/PdfToImages";
 import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand, getBenchNoRepack } from "../bench/benchConfig";
+import { modelAtKvProfile } from "../engine/kvQuantCost";
+import { readKvCacheChoice } from "../engine/kvCachePref";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { type MiniappTemplate } from "../domain/miniappTemplates";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
@@ -2031,11 +2033,18 @@ export function AiChatPage({
       available = null;
     }
     if (!mountedRef.current) return { ok: false, reasonKey: "chat.regenFailed" };
+    // Price the cache at the profile that will load: the catalog's
+    // kvBytesPerToken is derived at q8_0/q4_0 and under-counts a q8_0 V cache.
+    const kvCache = await readKvCacheChoice();
     const decision = decidePreSendFit(
       {
         sizeBytes: model.sizeBytes,
         engineCtx: model.engineCtx,
-        kvBytesPerToken: model.kvBytesPerToken,
+        kvBytesPerToken: modelAtKvProfile(
+          model,
+          kvCache?.k ?? model.kvCache?.k ?? "q8_0",
+          kvCache?.v ?? model.kvCache?.v ?? "q4_0",
+        ).kvBytesPerToken,
         mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
         loadPolicy: model.loadPolicy,
       },

@@ -69,6 +69,15 @@ describe("registry fallback", () => {
     expect(sessionBytesPerTokenForModel(null, MODEL, registrySessionBytesPerToken(MODEL))).toBe(6656 + 16);
   });
 
+  it("prices the cache profile the writing engine uses", () => {
+    // The catalog number is derived at q8_0/q4_0; under q8_0 V the same 4096
+    // elements/token/side cost 2048 bytes more, and the file carries them.
+    expect(registrySessionBytesPerToken(MODEL, "q8_0", "q4_0")).toBe(6656 + 16);
+    expect(registrySessionBytesPerToken(MODEL, "q8_0", "q8_0")).toBe(8704 + 16);
+    // An unpriced quant name falls back to the catalog rate, never to a guess.
+    expect(registrySessionBytesPerToken(MODEL, "q9_9", "q4_0")).toBe(6656 + 16);
+  });
+
   it("returns null for a model the catalog does not know", () => {
     expect(registrySessionBytesPerToken("not-a-model")).toBeNull();
     expect(sessionBytesPerTokenForModel({}, "not-a-model", registrySessionBytesPerToken("not-a-model"))).toBeNull();

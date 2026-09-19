@@ -55,8 +55,23 @@ import {
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
-import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import { gateNonEvictableMiB, gateOptionFit, optionAvailability } from "../engine/modelGateRAM";
 import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
+import { resolveEngineTuningSync } from "../engine/deviceTuning";
+import { kvBytesPerTokenAtProfile, modelAtKvProfile } from "../engine/kvQuantCost";
+import {
+  contextSizeChoices,
+  contextSizeOutcome,
+  readUserContextSize,
+  writeUserContextSize,
+} from "../engine/contextSizePref";
+import {
+  KV_CACHE_CHOICES,
+  kvCacheChoiceById,
+  readKvCacheChoice,
+  writeKvCacheChoice,
+  type KvCacheChoiceId,
+} from "../engine/kvCachePref";
 import {
   deviceBandwidthForModel,
   type DeviceBandwidthCalibration,
@@ -220,6 +235,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [sessionPoolChats, setSessionPoolChats] = useState<SessionPoolConversationOption>(
     DEFAULT_SESSION_POOL_CONVERSATIONS,
   );
+
+  // ── Engine memory choices (context size + KV cache precision) ────────────
+  // Both are init inputs: the next load reads them, so a change applies then.
+  const [userContextSize, setUserContextSize] = useState<number | null>(null);
+  const [kvCacheChoiceId, setKvCacheChoiceId] = useState<KvCacheChoiceId | null>(null);
 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
@@ -431,6 +451,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     void readGovernorEnabled().then((on) => {
       if (mounted) setGovernorEnabled(on);
     });
+    void readUserContextSize().then((nCtx) => {
+      if (mounted) setUserContextSize(nCtx);
+    });
+    void readKvCacheChoice().then((choice) => {
+      if (mounted) setKvCacheChoiceId(choice?.id ?? null);
+    });
     return () => {
       mounted = false;
     };
@@ -490,6 +516,30 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       });
     },
     [ciswireToolHelpEnabled],
+  );
+
+  // Both writers report whether the write landed; a failed write rolls the
+  // selection back, so the row never shows a choice that was not persisted.
+  const handleSelectContextSize = useCallback(
+    (nCtx: number) => {
+      const previous = userContextSize;
+      setUserContextSize(nCtx);
+      void writeUserContextSize(nCtx).then((persisted) => {
+        if (!persisted && mountedRef.current) setUserContextSize(previous);
+      });
+    },
+    [userContextSize],
+  );
+
+  const handleSelectKvCache = useCallback(
+    (id: KvCacheChoiceId) => {
+      const previous = kvCacheChoiceId;
+      setKvCacheChoiceId(id);
+      void writeKvCacheChoice(id).then((persisted) => {
+        if (!persisted && mountedRef.current) setKvCacheChoiceId(previous);
+      });
+    },
+    [kvCacheChoiceId],
   );
 
   useEffect(() => {
@@ -994,11 +1044,18 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           const available = await getAvailableMemoryBytesUncached();
           const active = MODEL_REGISTRY.find((m) => m.id === model.currentModelId);
           if (active) {
+            // Same KV pricing as the load path: the catalog number is derived at
+            // q8_0/q4_0, so a High choice must be re-priced before judging fit.
+            const priced = modelAtKvProfile(
+              active,
+              kvCacheChoice?.k ?? active.kvCache?.k ?? "q8_0",
+              kvCacheChoice?.v ?? active.kvCache?.v ?? "q4_0",
+            );
             const fit = evaluateModelFit(
               {
                 sizeBytes: active.sizeBytes,
                 engineCtx: active.engineCtx,
-                kvBytesPerToken: active.kvBytesPerToken,
+                kvBytesPerToken: priced.kvBytesPerToken,
                 mmproj: active.mmproj
                   ? { sizeBytes: active.mmproj.sizeBytes }
                   : null,
@@ -1019,7 +1076,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     return () => {
       cancelled = true;
     };
-  }, [model.currentModelId]);
+  }, [model.currentModelId, kvCacheChoiceId]);
 
   /** Localized hard-gate reason; null when allowed / unknown / no profile yet. */
   const gateReasonLabel = useCallback(
@@ -1038,6 +1095,137 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     },
     [t],
   );
+
+  // ── Context size + KV cache precision (priced, not asserted) ──────────────
+  // Every number below comes from the load path's own resolver
+  // (resolveEngineTuningSync → resolveContextBudget) or from the model gate's own
+  // estimator (gateOptionFit → gateNonEvictableMiB). Nothing here re-derives a
+  // budget, so a figure shown in Settings cannot disagree with what the engine
+  // allocates.
+  const activeModelForMemory = useMemo(
+    () => MODEL_REGISTRY.find((entry) => entry.id === model.currentModelId) ?? null,
+    [model.currentModelId],
+  );
+  const kvCacheChoice = kvCacheChoiceById(kvCacheChoiceId);
+  /** Standard is the shipped default, so unset and Standard render the same. */
+  const effectiveKvCacheChoiceId: KvCacheChoiceId = kvCacheChoiceId ?? "standard";
+
+  const catalogContextTokens = useMemo(
+    () =>
+      activeModelForMemory
+        ? resolveContextProfile({
+            hybrid: activeModelForMemory.hybrid,
+            kvCache: activeModelForMemory.kvCache,
+            catalogCtx: activeModelForMemory.engineCtx,
+            totalMemoryBytes: deviceProfile?.totalMemoryBytes ?? deviceTotalMemoryBytes,
+          }).nCtx
+        : null,
+    [activeModelForMemory, deviceProfile?.totalMemoryBytes, deviceTotalMemoryBytes],
+  );
+  /** What the user asked for: their stored size, else the catalog/device value. */
+  const requestedContextTokens = userContextSize ?? catalogContextTokens;
+
+  const contextResolution = useMemo(() => {
+    if (!activeModelForMemory || !deviceProfile || requestedContextTokens == null) {
+      return null;
+    }
+    const kv = kvCacheChoice ?? activeModelForMemory.kvCache;
+    const tuning = resolveEngineTuningSync({
+      // KV priced at the chosen quant, exactly as LlamaService.initEngine prices
+      // the tuning request — a q8_0 V cache is 31% larger than the catalog's.
+      model: modelAtKvProfile(activeModelForMemory, kv?.k ?? "q8_0", kv?.v ?? "q4_0"),
+      profile: deviceProfile,
+      // Default load mode: every listed catalog entry ships the default policy,
+      // and the bench norepack lever is not a user setting.
+      request: { contextBudget: requestedContextTokens },
+    });
+    return {
+      requested: requestedContextTokens,
+      loaded: tuning.context.n_ctx,
+      outcome: contextSizeOutcome({
+        requested: requestedContextTokens,
+        loaded: tuning.context.n_ctx,
+        ctxSource: tuning.context.ctxSource,
+        nonEvictableMiB: tuning.memory.nonEvictableMiB,
+        availableMiB: tuning.memory.availableMiB,
+      }),
+    };
+  }, [activeModelForMemory, deviceProfile, requestedContextTokens, kvCacheChoice]);
+
+  /** What the row says the engine resolved to, and why it is not the request. */
+  const contextStatusLabel = useMemo(() => {
+    const outcome = contextResolution?.outcome;
+    if (!outcome) return t("settings.contextSizeAuto");
+    if (outcome.kind === "phone-could-not-hold") {
+      return t("settings.contextSizeDowngraded", {
+        requested: outcome.requested,
+        loaded: outcome.loaded,
+        needed: outcome.neededMiB,
+        // A memory-budget shrink always carries a reading; "?" only guards a
+        // malformed profile.
+        available:
+          outcome.availableMiB != null ? Math.round(outcome.availableMiB) : "?",
+      });
+    }
+    if (outcome.kind === "model-max") {
+      return t("settings.contextSizeModelMax", {
+        requested: outcome.requested,
+        loaded: outcome.loaded,
+        model: activeModelForMemory?.name ?? "",
+      });
+    }
+    return t("settings.contextSizeResolved", { tokens: outcome.loaded });
+  }, [contextResolution, activeModelForMemory, t]);
+
+  // One row per offered context size, priced at that size and the chosen cache
+  // quant, using the same gate the model rows use. `does_not_fit` blocks a row,
+  // `tight` warns, `unknown` shows it with no verdict.
+  const contextSizeOptionRows = useMemo(() => {
+    if (!activeModelForMemory) return [];
+    const kv = kvCacheChoice ?? activeModelForMemory.kvCache;
+    const priced = modelAtKvProfile(
+      activeModelForMemory,
+      kv?.k ?? "q8_0",
+      kv?.v ?? "q4_0",
+    );
+    return contextSizeChoices(activeModelForMemory.contextLength).map((tokens) => {
+      const fit = gateOptionFit({
+        model: priced,
+        contextTokens: tokens,
+        availableMemoryBytes: deviceProfile?.availableMemoryBytes ?? null,
+      });
+      return { tokens, ...fit, availability: optionAvailability(fit.status) };
+    });
+  }, [activeModelForMemory, kvCacheChoice, deviceProfile?.availableMemoryBytes]);
+
+  // Same pricing for the two cache qualities, at the context that will load, so
+  // the cost of High moves with the context size and the phone's free memory.
+  const kvCacheOptionRows = useMemo(() => {
+    const pricingContext = contextResolution?.loaded ?? requestedContextTokens;
+    if (!activeModelForMemory || pricingContext == null) return [];
+    return KV_CACHE_CHOICES.map((choice) => {
+      const fit = gateOptionFit({
+        model: modelAtKvProfile(activeModelForMemory, choice.k, choice.v),
+        contextTokens: pricingContext,
+        availableMemoryBytes: deviceProfile?.availableMemoryBytes ?? null,
+      });
+      return { choice, ...fit, availability: optionAvailability(fit.status) };
+    });
+  }, [
+    activeModelForMemory,
+    requestedContextTokens,
+    contextResolution?.loaded,
+    deviceProfile?.availableMemoryBytes,
+  ]);
+
+  /** KV bytes High costs over Standard at the resolved context — a real number. */
+  const kvCacheHighCostMiB = useMemo(() => {
+    if (!activeModelForMemory || contextResolution == null) return null;
+    const base = activeModelForMemory.kvBytesPerToken;
+    const high = kvBytesPerTokenAtProfile(base, "q8_0", "q8_0");
+    if (typeof base !== "number" || high === null) return null;
+    return Math.round(((high - base) * contextResolution.loaded) / (1024 * 1024));
+  }, [activeModelForMemory, contextResolution]);
 
   /** Compact device line: brand model · N GB RAM · M cores (null parts omitted). */
   const deviceLineLabel = useMemo(() => {
@@ -1308,6 +1496,179 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               thumbColor={ciswireToolHelpEnabled ? colors.accent : colors.muted}
               accessibilityLabel={t("settings.ciswireToolHelp")}
             />
+          </View>
+        </GlassPanel2>
+
+        {/* ── Context size (init input; the next load applies it) ───────── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("settings.contextSize")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("settings.contextSizeHint")}
+          </Text>
+          <View style={{ gap: spacing.xs }}>
+            {contextSizeOptionRows.map((option) => {
+              const selected = contextResolution?.requested === option.tokens;
+              const blocked = option.availability === "blocked";
+              return (
+                <Pressable
+                  key={option.tokens}
+                  onPress={() => handleSelectContextSize(option.tokens)}
+                  disabled={blocked || busy}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, disabled: blocked }}
+                  accessibilityLabel={t("settings.contextSizeOption", {
+                    tokens: option.tokens,
+                  })}
+                  style={{
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    opacity: blocked ? 0.5 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        typography.bodySm,
+                        {
+                          color: selected ? colors.accent : colors.ink,
+                          fontFamily: selected
+                            ? fontFamilies.displayBold
+                            : fontFamilies.bodyMedium,
+                        },
+                      ]}
+                    >
+                      {t("settings.contextSizeOption", { tokens: option.tokens })}
+                    </Text>
+                    {option.nonEvictableMiB != null ? (
+                      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                        {Math.round(option.nonEvictableMiB)} MiB
+                      </Text>
+                    ) : null}
+                  </View>
+                  {blocked ? (
+                    <Text
+                      style={[
+                        typography.bodyXs,
+                        { color: colors.bad ?? colors.muted, marginTop: 2 },
+                      ]}
+                    >
+                      {t("models.blockedRam")}
+                    </Text>
+                  ) : option.availability === "tight" ? (
+                    <Text
+                      style={[typography.bodyXs, { color: colors.warn, marginTop: 2 }]}
+                    >
+                      {t("settings.optionTight")}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {contextStatusLabel}
+          </Text>
+        </GlassPanel2>
+
+        {/* ── KV cache precision (init input; the next load applies it) ─── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("settings.kvCache")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("settings.kvCacheHint")}
+          </Text>
+          <View style={{ gap: spacing.xs }}>
+            {kvCacheOptionRows.map((row) => {
+              const selected = effectiveKvCacheChoiceId === row.choice.id;
+              const blocked = row.availability === "blocked";
+              const label =
+                row.choice.id === "standard"
+                  ? t("settings.kvCacheStandard")
+                  : t("settings.kvCacheHigh");
+              return (
+                <Pressable
+                  key={row.choice.id}
+                  onPress={() => handleSelectKvCache(row.choice.id)}
+                  disabled={blocked || busy}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, disabled: blocked }}
+                  accessibilityLabel={label}
+                  style={{
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    opacity: blocked ? 0.5 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        typography.bodySm,
+                        {
+                          color: selected ? colors.accent : colors.ink,
+                          fontFamily: selected
+                            ? fontFamilies.displayBold
+                            : fontFamilies.bodyMedium,
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                    {row.nonEvictableMiB != null ? (
+                      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                        {Math.round(row.nonEvictableMiB)} MiB
+                      </Text>
+                    ) : null}
+                  </View>
+                  {row.choice.id === "high" && kvCacheHighCostMiB != null ? (
+                    <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                      {t("settings.kvCacheHighCost", {
+                        mib: kvCacheHighCostMiB,
+                        tokens: contextResolution?.loaded ?? "",
+                      })}
+                    </Text>
+                  ) : null}
+                  {blocked ? (
+                    <Text
+                      style={[
+                        typography.bodyXs,
+                        { color: colors.bad ?? colors.muted, marginTop: 2 },
+                      ]}
+                    >
+                      {t("models.blockedRam")}
+                    </Text>
+                  ) : row.availability === "tight" ? (
+                    <Text
+                      style={[typography.bodyXs, { color: colors.warn, marginTop: 2 }]}
+                    >
+                      {t("settings.optionTight")}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         </GlassPanel2>
 
@@ -2218,12 +2579,23 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     ramTier: deviceProfile.ramTier,
                     modelMinRamTier: entry.minRamTier,
                     modelNonEvictableMiB: gateNonEvictableMiB({
-                      model: entry,
+                      model: modelAtKvProfile(
+                        entry,
+                        kvCacheChoice?.k ?? entry.kvCache?.k ?? "q8_0",
+                        kvCacheChoice?.v ?? entry.kvCache?.v ?? "q4_0",
+                      ),
                       contextTokens: resolveContextProfile({
                         hybrid: entry.hybrid,
-                        kvCache: entry.kvCache,
+                        kvCache: kvCacheChoice ?? entry.kvCache,
                         catalogCtx: entry.engineCtx,
                         totalMemoryBytes: deviceProfile.totalMemoryBytes,
+                        // The active row prices the resolved context (the user's
+                        // choice, clamped and budgeted by the same resolver the
+                        // engine uses); other rows keep the catalog context.
+                        explicitNCtx:
+                          active && contextResolution
+                            ? contextResolution.loaded
+                            : undefined,
                       }).nCtx,
                       availableMemoryBytes: deviceProfile.availableMemoryBytes,
                     }),

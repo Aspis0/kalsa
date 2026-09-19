@@ -87,6 +87,7 @@ import {
 } from "./engineParams";
 import type { EngineOverrideFields } from "./engineParams";
 import { shouldStreamModel } from "./modelGateRAM";
+import { modelAtKvProfile } from "./kvQuantCost";
 import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
@@ -1178,7 +1179,11 @@ export async function queueStaticPrefixPrewarm(
         ? sessionBytesPerTokenForModel(
             await loadSessionDiskCalibration(),
             snapshotIdentity.modelId,
-            registrySessionBytesPerToken(snapshotIdentity.modelId),
+            registrySessionBytesPerToken(
+              snapshotIdentity.modelId,
+              activeCacheTypeK,
+              activeCacheTypeV,
+            ),
           )
         : null;
       if (snapshotIdentity) {
@@ -1419,6 +1424,8 @@ export async function queueStaticPrefixPrewarm(
               usedTokens: prefixTokens,
               knownBytesPerToken: registrySessionBytesPerToken(
                 snapshotIdentity.modelId,
+                activeCacheTypeK,
+                activeCacheTypeV,
               ),
             });
             if (next !== diskCalibration) await saveSessionDiskCalibration(next);
@@ -2212,6 +2219,13 @@ export function initEngine(
     // repacking). Resolved here so the skip-reload key and the init params share
     // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
+    // Every estimate in this function prices KV at the profile the engine is
+    // about to load, not at the catalog's. The catalog numbers (LFM 6656,
+    // Qwen 13312) are derived at the shipped q8_0/q4_0; under a q8_0 V cache
+    // using them unchanged would under-count by 31% — the same class of error
+    // as pricing a model's KV at zero. Unpriced profiles fall back to the
+    // catalog object, i.e. today's behaviour.
+    const pricedModel = modelInfo ? modelAtKvProfile(modelInfo, cacheTypeK, cacheTypeV) : null;
     const deviceProfile = await getCachedDeviceProfile();
     const governorFeatureEnabled = await readGovernorEnabled();
     const benchGovernorForce = governorFeatureEnabled
@@ -2221,9 +2235,9 @@ export function initEngine(
     // Same predicate the RAM gate uses. Production writes params.moe_stream
     // below, BEFORE applyEngineOverride, so a bench A/B still wins.
     const streamExperts =
-      modelInfo != null &&
+      pricedModel != null &&
       shouldStreamModel({
-        model: modelInfo,
+        model: pricedModel,
         contextTokens: engineCtx,
         availableMemoryBytes: deviceProfile.availableMemoryBytes,
       });
@@ -2242,7 +2256,7 @@ export function initEngine(
       benchUseMmap: options.engineOverride?.useMmap,
     });
     const tuning = await resolveEngineTuning({
-      model: modelInfo,
+      model: pricedModel ?? modelInfo,
       profile: deviceProfile,
       cpuCapacities: deviceProfile.cpuCapacities,
       request: {
@@ -2277,8 +2291,8 @@ export function initEngine(
       ? await readGovernorThermo()
       : null;
     const governorBase =
-      governorFeatureEnabled && modelInfo != null
-        ? buildGovernorParams(modelInfo, deviceProfile, {
+      governorFeatureEnabled && pricedModel != null
+        ? buildGovernorParams(pricedModel, deviceProfile, {
             availableMemoryBytes: deviceProfile.availableMemoryBytes,
             totalMemoryBytes: deviceProfile.totalMemoryBytes,
             contextTokens: effectiveNCtx,
@@ -3086,7 +3100,7 @@ async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
     bytesPerToken: sessionBytesPerTokenForModel(
       calibration,
       modelId,
-      registrySessionBytesPerToken(modelId),
+      registrySessionBytesPerToken(modelId, activeCacheTypeK, activeCacheTypeV),
     ),
     calibration,
   };
@@ -3350,7 +3364,11 @@ export async function saveEngineSession(
               ? fileInfo.size
               : undefined,
           usedTokens: tokens,
-          knownBytesPerToken: registrySessionBytesPerToken(modelId),
+          knownBytesPerToken: registrySessionBytesPerToken(
+            modelId,
+            activeCacheTypeK,
+            activeCacheTypeV,
+          ),
         });
         if (nextCalibration !== diskCalibration) {
           await saveSessionDiskCalibration(nextCalibration);

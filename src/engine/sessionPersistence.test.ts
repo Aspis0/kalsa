@@ -28,6 +28,7 @@ import {
   sessionDiskGate,
   sessionFilePath,
   sessionMetaMismatchField,
+  sessionMetaMatches,
   sessionAssembleBoundary,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
@@ -322,6 +323,32 @@ describe("session meta marker", () => {
     expect(sessionAssembleBoundary({ assembleBoundary: 1.5 })).toBeUndefined();
     expect(sessionAssembleBoundary({ assembleBoundary: 12 })).toBe(12);
     expect(sessionAssembleBoundary({ assembleBoundary: 0 })).toBe(0);
+  });
+
+  test("refuses a saved session written with a different cache quant", () => {
+    // The file stem does not carry cache types (sessionKey.ts: "Engine knobs
+    // and KV cache types stay in SessionMeta"), so this comparison is the only
+    // gate between a .kvs whose V cache is q4_0 and a context whose V cache is
+    // q8_0. The tensors have a different element type: reusing the file is
+    // silent corruption, not a slow path. tryLoadEngineSession deletes the
+    // artifacts and returns false on any non-null mismatch field names.
+    const saved: SessionMeta = {
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: "1:2",
+      engineBuild: "build-a",
+      nCtx: 8192,
+      cacheTypeK: "q8_0",
+      cacheTypeV: "q4_0",
+      historyHash: "hash",
+    };
+    const current: SessionMeta = { ...saved, cacheTypeV: "q8_0" };
+    expect(sessionMetaMatches(saved, current)).toBe(false);
+    expect(sessionMetaMismatchField(saved, current)).toBe("cacheTypeV");
+    expect(
+      sessionMetaMismatchField(saved, { ...saved, cacheTypeK: "f16" }),
+    ).toBe("cacheTypeK");
+    // Same quant on both sides is reusable again.
+    expect(sessionMetaMatches(saved, { ...saved })).toBe(true);
   });
 
   test("readSessionMeta keeps assembleBoundary (omit → unknown)", async () => {

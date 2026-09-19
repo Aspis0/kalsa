@@ -50,7 +50,7 @@ import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
+import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type KvCacheProfile, type ModelInfo } from "../engine/ModelRegistry";
 import {
   downloadModelBundle,
   friendlyNetworkError,
@@ -105,6 +105,9 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import { modelAtKvProfile } from "../engine/kvQuantCost";
+import { readUserContextSize } from "../engine/contextSizePref";
+import { readKvCacheChoice } from "../engine/kvCachePref";
 import { resolveLoadPolicy } from "../engine/loadPolicy";
 import {
   deviceBandwidthForModel,
@@ -515,6 +518,8 @@ function gateForModel(
   /** kalsa.bench.norepack tri-state; absent → the model's loadPolicy decides. */
   benchNoRepack?: boolean,
   deviceBandwidth: DeviceBandwidthCalibration = {},
+  /** Chosen cache profile; absent → the catalog's own. */
+  kvCache?: KvCacheProfile | null,
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
   const resolvedContextTokens = resolveContextProfile({
@@ -523,6 +528,13 @@ function gateForModel(
     catalogCtx: model.engineCtx,
     totalMemoryBytes: profile.totalMemoryBytes,
   }).nCtx;
+  // KV is charged at the profile that will load, not at the catalog's: a q8_0 V
+  // cache costs 31% more than the q4_0 the catalog numbers are derived at.
+  const pricedModel = modelAtKvProfile(
+    model,
+    kvCache?.k ?? model.kvCache?.k ?? "q8_0",
+    kvCache?.v ?? model.kvCache?.v ?? "q4_0",
+  );
 
   // One responsibility: what the gate should charge this model for RAM. Measured
   // streamed footprint when expert streaming is loaded, else the repack estimate
@@ -539,7 +551,7 @@ function gateForModel(
       ramTier: profile.ramTier,
       modelMinRamTier: model.minRamTier,
       modelNonEvictableMiB: gateNonEvictableMiB({
-        model,
+        model: pricedModel,
         contextTokens: resolvedContextTokens,
         availableMemoryBytes: profile.availableMemoryBytes,
         benchNoRepack,
@@ -2853,10 +2865,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // (getCtxTokens → chatEngineCtxRef) and AiChatPage longChat (engineCtx prop)
   // share that same resolved value — see comment on chatEngineCtxRef.
   const [benchNCtxOverride, setBenchNCtxOverride] = useState<number | null>(null);
+  // Settings' context-size choice, read on mount so the pre-init estimate uses
+  // it; the load paths read it themselves (they must never decide from a
+  // render-time value). Bench wins when both are set: it is the harness arm.
+  const [userContextSize, setUserContextSize] = useState<number | null>(null);
   // Read bench nctx override on mount; applies to all three resolveContextProfile
   // call sites so the engine reload key never disagrees mid-conversation.
   useEffect(() => {
     getBenchNCtx().then(setBenchNCtxOverride).catch(() => setBenchNCtxOverride(null));
+    readUserContextSize().then(setUserContextSize).catch(() => setUserContextSize(null));
   }, []);
   const catalogEngineCtx = useMemo(
     () =>
@@ -2864,9 +2881,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         hybrid: currentModel.hybrid,
         kvCache: currentModel.kvCache,
         catalogCtx: currentModel.engineCtx,
-        explicitNCtx: benchNCtxOverride ?? undefined,
+        explicitNCtx: benchNCtxOverride ?? userContextSize ?? undefined,
       }).nCtx,
-    [currentModel, benchNCtxOverride],
+    [currentModel, benchNCtxOverride, userContextSize],
   );
   const [chatEngineCtx, setChatEngineCtx] = useState<number>(catalogEngineCtx);
   // Keep state in sync when the selected model changes (pre-init estimate).
@@ -3403,11 +3420,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 streamExperts: false,
                 benchNoRepack: await getBenchNoRepack(),
               });
+              // KV at the chosen cache profile: High costs 31% more than the
+              // catalog's q4_0 V.
+              const kvCache = await readKvCacheChoice();
               const fit = evaluateModelFit(
                 {
                   sizeBytes: model.sizeBytes,
                   engineCtx: model.engineCtx,
-                  kvBytesPerToken: model.kvBytesPerToken,
+                  kvBytesPerToken: modelAtKvProfile(
+                    model,
+                    kvCache?.k ?? model.kvCache?.k ?? "q8_0",
+                    kvCache?.v ?? model.kvCache?.v ?? "q4_0",
+                  ).kvBytesPerToken,
                   mmproj: model.mmproj
                     ? { sizeBytes: model.mmproj.sizeBytes }
                     : null,
@@ -3835,12 +3859,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * switch-path dispose.
    */
   const evaluateLoadGate = useCallback(async (model: ModelInfo) => {
+    // Price KV at the chosen cache profile, not the catalog's: under High
+    // (q8_0 V) the catalog number under-counts the cache by 31%.
+    const kvCache = await readKvCacheChoice();
     return gateModelLoad({
       model: {
         id: model.id,
         sizeBytes: model.sizeBytes,
         engineCtx: model.engineCtx,
-        kvBytesPerToken: model.kvBytesPerToken,
+        kvBytesPerToken: modelAtKvProfile(
+          model,
+          kvCache?.k ?? model.kvCache?.k ?? "q8_0",
+          kvCache?.v ?? model.kvCache?.v ?? "q4_0",
+        ).kvBytesPerToken,
         mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
         loadPolicy: model.loadPolicy,
       },
@@ -3970,6 +4001,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorDetail(null);
       return false;
     }
+    // Both init-time choices are read once per load attempt, so the RAM gate,
+    // the resolved profile and the engine init below cannot disagree.
+    const userNCtx = await readUserContextSize();
+    const kvCache = await readKvCacheChoice();
     // Ownership token acquired by THIS ensure call (null until tryAcquireChat).
     // Catch must only release this gen — never a previous owner's (FIX 1).
     let acquiredChatGen: number | null = null;
@@ -4004,6 +4039,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           true,
           await getBenchNoRepack(),
           deviceBandwidth,
+          kvCache,
         );
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
         // Active-model exception: if getActiveModelId matches, never refuse
@@ -4222,12 +4258,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
       // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      // Bench nctx still outranks the Settings choice.
       const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
-        kvCache: model.kvCache,
+        kvCache: kvCache ?? model.kvCache,
         catalogCtx: model.engineCtx,
-        explicitNCtx: benchNCtx ?? undefined,
+        explicitNCtx: benchNCtx ?? userNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
@@ -4792,6 +4829,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+      // Same init-time choices the load below will use — one read per attempt.
+      const userNCtxDl = await readUserContextSize();
+      const kvCacheDl = await readKvCacheChoice();
 
       // Hard RAM/tier gate before initEngine after download. Never force-evict
       // the currently active model (if this download is for a non-active model
@@ -4813,6 +4853,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           true,
           await getBenchNoRepack(),
           deviceBandwidth,
+          kvCacheDl,
         );
         if (
           !gate.allowed &&
@@ -4849,12 +4890,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
+      // Bench nctx still outranks the Settings choice.
       const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
-        kvCache: model.kvCache,
+        kvCache: kvCacheDl ?? model.kvCache,
         catalogCtx: model.engineCtx,
-        explicitNCtx: benchNCtx ?? undefined,
+        explicitNCtx: benchNCtx ?? userNCtxDl ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
@@ -6985,6 +7027,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // Settings may have edited memory — refresh facts for the next turn.
             void refreshMemoryFacts();
             void refreshToolFlags();
+            // The context size is an init input: pull it out of storage so the
+            // pre-init estimate agrees with what the next load will pass.
+            void readUserContextSize().then(setUserContextSize);
           }}
           onOpenHelp={() => setActiveOverlay({ kind: "help" })}
           model={{

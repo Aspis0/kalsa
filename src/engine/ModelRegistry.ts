@@ -203,11 +203,30 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     kvUnified: true,
     sizeClass: "4B",
-    // kvBytesPerToken intentionally omitted: no on-device measurement for the 4B
-    // at q8_0/q4_0, and the registry lacks attention-layer count / n_embd_k_gqa
-    // fields needed to derive it honestly from the hybrid layout (header comment
-    // "~32KB/token q8_0" is a pre-measurement sketch, not a fit). Estimator
-    // callers pass 0 → KV term degrades to zero rather than a fabricated value.
+    // Derived, not measured, and not guessed: the six numbers below come from
+    // the GGUF metadata of the shipped file (Qwen3.5-4B-Q4_K_M.gguf):
+    //   general.architecture           = qwen35
+    //   qwen35.block_count             = 32
+    //   qwen35.full_attention_interval = 4     → 32/4 = 8 layers hold KV
+    //   qwen35.attention.head_count_kv = 4
+    //   qwen35.attention.key_length    = 256
+    //   qwen35.attention.value_length  = 256
+    // K elements/token = 8 x 4 x 256 = 8192, V the same. At the kvCache profile
+    // above (q8_0 = 34 B per 32 elements, q4_0 = 18): 8192 x 1.0625 + 8192 x
+    // 0.5625 = 13312 B/token. Cross-check: exactly 2x the measured LFM 6656,
+    // whose GGUF gives 8 attention layers x 8 KV heads x 64 key_length = 4096
+    // elements/token/side.
+    //
+    // Tied to the kvCache profile above. Changing k or v invalidates this
+    // number and it must be recomputed the same way; at q8_0/q8_0 the same
+    // 8192 elements/side cost 17408 B/token. The file header's pre-measurement
+    // sketch ("~32KB/token q8_0") was about 2x too high.
+    //
+    // It was omitted for want of attention-layer count and key/value length
+    // fields, which this registry does not model — but the GGUF has carried
+    // all of them from the start. Callers read 0 until now, so the estimator
+    // priced this model's KV at zero.
+    kvBytesPerToken: 13312,
     mtp: { nMax: 3 },
     thinking: { short: 256, extended: 512 },
     descriptionKey: "models.qwen4b.description",

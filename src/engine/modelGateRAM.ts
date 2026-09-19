@@ -16,7 +16,7 @@
  * input), matching estimateModelNonEvictableMiB's contract.
  */
 
-import { estimateModelNonEvictableMiB } from "./deviceProfile";
+import { estimateMemory, fitMemoryEstimate, type MemoryEstimate, type MemoryFitVerdict } from "./memoryEstimate";
 import { shouldStreamExperts } from "./expertStreaming";
 import { resolveGateLoadPolicy } from "./loadPolicy";
 
@@ -50,6 +50,81 @@ export function shouldStreamModel(input: {
   });
 }
 
+/**
+ * The gate's own resident estimate for a model at `contextTokens`: weights at
+ * the resolved load policy + compute + KV, priced at this model's
+ * kvBytesPerToken (rescale it first when the loading cache profile is not the
+ * catalog's). Shared by the two functions below so the MiB a caller is shown
+ * and the verdict it is handed come from the SAME numbers, not two estimates.
+ * Null when the bundle cannot be priced (bad size input).
+ */
+export function estimateGateLoad(input: {
+  model: ModelGateRAMModel;
+  contextTokens: number;
+  benchNoRepack?: boolean;
+}): MemoryEstimate | null {
+  // RAM estimate includes optional mmproj (vision bundle), matching the callers.
+  const bundleBytes = input.model.sizeBytes + (input.model.mmproj?.sizeBytes ?? 0);
+  if (!Number.isFinite(bundleBytes) || bundleBytes <= 0) return null;
+  const load = resolveGateLoadPolicy({
+    policy: input.model.loadPolicy,
+    benchNoRepack: input.benchNoRepack,
+  });
+  return estimateMemory({
+    fileBytes: bundleBytes,
+    contextTokens: input.contextTokens,
+    kvBytesPerToken: input.model.kvBytesPerToken ?? 0,
+    ubatch: 256,
+    repack: load.repack,
+    mmap: load.mmap,
+  });
+}
+
+/**
+ * RAM cost and fit verdict for ONE option (a context size, a cache quality),
+ * both read off a single estimate. `status` is fitMemoryEstimate's own verdict,
+ * four-way: `tight` (foreground may live, background kill likely) is not
+ * collapsed into a boolean, and `unknown` means the device could not be judged
+ * — the caller shows the option with no verdict.
+ */
+export function gateOptionFit(input: {
+  model: ModelGateRAMModel;
+  contextTokens: number;
+  availableMemoryBytes: number | null;
+  benchNoRepack?: boolean;
+}): { nonEvictableMiB: number | null; status: MemoryFitVerdict["status"] } {
+  const estimate = estimateGateLoad(input);
+  if (!estimate) return { nonEvictableMiB: null, status: "unknown" };
+  const availableMiB =
+    typeof input.availableMemoryBytes === "number" &&
+    Number.isFinite(input.availableMemoryBytes) &&
+    input.availableMemoryBytes > 0
+      ? input.availableMemoryBytes / (1024 * 1024)
+      : null;
+  return {
+    nonEvictableMiB: estimate.nonEvictableMiB,
+    status: fitMemoryEstimate(estimate, availableMiB).status,
+  };
+}
+
+/**
+ * How an option's fit verdict may be presented. ONE place states the policy:
+ * `does_not_fit` blocks the option, `tight` stays selectable with a warning
+ * (the foreground may live while a backgrounded app is killed), and `unknown`
+ * shows the option with no verdict — the behaviour an unreadable MemAvailable
+ * has always had.
+ */
+export type OptionAvailability = "selectable" | "tight" | "blocked" | "unknown";
+
+export function optionAvailability(
+  status: MemoryFitVerdict["status"],
+): OptionAvailability {
+  if (status === "does_not_fit") return "blocked";
+  if (status === "tight") return "tight";
+  if (status === "unknown") return "unknown";
+  return "selectable";
+}
+
 export function gateNonEvictableMiB(input: {
   model: ModelGateRAMModel;
   contextTokens: number;
@@ -63,8 +138,6 @@ export function gateNonEvictableMiB(input: {
   benchNoRepack?: boolean;
 }): number | null {
   const { model, contextTokens, availableMemoryBytes, benchNoRepack } = input;
-  // RAM estimate includes optional mmproj (vision bundle), matching the callers.
-  const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
 
   const streamDecision = shouldStreamModel({
     model,
@@ -78,15 +151,5 @@ export function gateNonEvictableMiB(input: {
   if (streamDecision && typeof model.streamingResident?.bytes === "number") {
     return model.streamingResident.bytes / (1024 * 1024);
   }
-  const load = resolveGateLoadPolicy({
-    policy: model.loadPolicy,
-    benchNoRepack,
-  });
-  return estimateModelNonEvictableMiB({
-    sizeBytes: bundleBytes,
-    contextTokens,
-    kvBytesPerToken: model.kvBytesPerToken,
-    repack: load.repack,
-    mmap: load.mmap,
-  });
+  return estimateGateLoad({ model, contextTokens, benchNoRepack })?.nonEvictableMiB ?? null;
 }
