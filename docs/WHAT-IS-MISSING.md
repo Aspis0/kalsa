@@ -311,18 +311,60 @@ exactly what would have revealed the debug-build defect in a day instead of a we
 What it needs is not a cache but a record: the figures, the build's optimisation level,
 the backend, and the date, so a stale one can be recognised rather than trusted.
 
-## 16. The second option plays by weaker rules than the first
+## 16. The second option played by weaker rules than the first — CLOSED
 
-`crates/kalsa-catalog/src/choice.rs` — `quicker_alternative` filters on fit and floor and
-nothing else. No `capability_basis`, no `expected_but_unmeasured`, no `SAME_CLASS_BAND`,
-no phone. So the row it offers beside the pick can be one the chooser's own walk would
-refuse, and on a machine where that row is the largest that fits, the product refuses
-outright while the card offers it as a second option. Confirmed by audit, reproduced on a
-16 GiB Metal machine with a wall-powered phone.
+`crates/kalsa-catalog/src/choice.rs` — `quicker_alternative` filtered on fit and floor and
+nothing else: no `capability_basis`, no `expected_but_unmeasured`, no `SAME_CLASS_BAND`, no
+phone. So the row it offered beside a pick could be one the chooser's own walk would refuse.
+Confirmed by audit, reproduced on a 16 GiB Metal machine with a wall-powered phone: `choose`
+picks Gemma 4 12B on capability, and the row beside it, Trinity Nano at 62.7 tok/s, earns none
+of the three and would not be started.
 
-It ships because two honest options beat one, and the speed gate it does apply is real.
-What it owes is the justification the walk applies, or a stated reason why a second
-option is held to a lower bar than a first.
+The first telling of this called it "the product refuses outright while the card offers it as
+a second option", and that shape was never reachable: the card builds its second option from
+the prediction of the row it is showing (`decode.and_then`, `capability.rs:248-249`), and a
+refusal carries no such row. What reached a screen was the pick with an unjustified row beside
+it, which is what the test below covers.
+
+Closed by the `justification` gate in `crates/kalsa-catalog/src/choice.rs` rather than by a
+commit hash to look up — uncommitted at the time of writing — so the closure is checkable by
+name instead: four tests in `crates/kalsa-catalog/tests/selection.rs` are what hold it. The
+rule is that the second option is held to the bar of the row it sits beside, and there are
+only two bars because there are only two roads to a first option:
+
+- **A phone is paired.** The first option came from `choose`, which admits a candidate only
+  with a justification — `capability_basis`, else `expected_but_unmeasured`, else the
+  battery-powered `SAME_CLASS_BAND` relief. The second option must clear the same gate.
+- **No phone.** The first option came from `largest_that_runs_well`, which applies no
+  justification at all, because no comparison was made. The second option applies none either:
+  demanding one of it would be this same bug from the other side, a row held to a standard its
+  neighbour never faced.
+
+One road applies the gate and the other does not, which is the point rather than a gap. The
+three-branch decision lives in one function, `justification`, and the road a paired phone takes
+applies it to both rows: `choose` to every candidate it walks, and `quicker_alternative` to the
+row beside the pick, which it asks only `if input.phone` is `Some`. The phone-free road asks
+neither row to justify itself and never calls the function at all. `choose` needs the value it
+answers with, so the function answers the `Justification` and not a bool. The speed rule is
+unchanged: the most model that still decodes `QUICK_SPEED_ADVANTAGE` times faster than the row
+on the page, compared at its pessimistic end.
+
+The audit's machine is the test that matters,
+`a_pick_is_not_offered_a_second_option_that_earns_nothing`: 16 GiB of unified memory at
+120 GB/s and a 4B phone on the wall socket, where the walk succeeds and picks Gemma 4 12B on
+capability. Trinity Nano is the only fitting row clearing the speed bar (62.7 tok/s against
+the pick's 20.4), and it earns nothing — 6B of mixture is below the size an expectation is
+credited at, publishes no dense equivalence, and a wall socket justifies no relief — so it is
+no longer offered. The test asserts those three branches, not only the answer, and the phone's
+battery flag is what decides the third: on battery the row is legitimate relief and there is
+no defect.
+
+The refusal-shaped case is kept as a property of the helper rather than a screen,
+`a_refused_machine_offers_no_second_option_either` — a refusal never shows a second option, so
+it asserts only that asking beside one answers nothing. Two tests then hold the rule from both
+sides: `without_a_phone_the_second_option_keeps_the_only_bar_there_is` still offers the same
+row with nothing paired, and `a_phone_on_battery_still_earns_the_quicker_row_its_place` offers
+it when the phone is on battery, on the relief the walk itself would grant.
 
 ## 17. Small things the audits confirmed and nobody has fixed
 

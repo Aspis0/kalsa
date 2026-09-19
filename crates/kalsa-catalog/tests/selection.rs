@@ -6,7 +6,8 @@
 use kalsa_catalog::{
     capability_basis, choose, footprint_bytes, largest_that_runs_well, quicker_alternative,
     usable_bytes, Backend, CapabilityBasis, ChoiceInput, Decision, Justification, Parameters,
-    PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB, QUICK_SPEED_ADVANTAGE,
+    PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB, LARGE_MOE_TOTAL_PARAMETERS,
+    QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -34,6 +35,18 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
         compute_flops_per_second: 100.0e9,
         context_tokens: 8192,
         phone: phone_known.then_some(phone(Some(true))),
+    }
+}
+
+/// A dense 9B, about 5.2 GB of weights. Big enough that no PC row below 12.6B
+/// parameters clears the capability bar against it, which is what makes a
+/// 16 GiB machine refuse the walk outright.
+fn nine_billion_phone(battery_powered: Option<bool>) -> PhoneModel {
+    PhoneModel {
+        weights_bytes: 5_200_000_000,
+        parameters: Some(Parameters::dense(9_000_000_000)),
+        measured_tokens_per_second: Some(9.0),
+        battery_powered,
     }
 }
 
@@ -945,6 +958,167 @@ fn an_unmeasured_machine_is_offered_no_second_option_either() {
         ..input(64, false)
     };
     assert!(quicker_alternative(&machine, &Prediction::Range { low: 1.0, high: 2.0 }).is_none());
+}
+
+#[test]
+fn a_refused_machine_offers_no_second_option_either() {
+    // A property of the helper, and not a screen: the card computes its second
+    // option from the prediction of the row it is showing, and a refusal
+    // carries no row — `decode.and_then` in `src-tauri/src/capability.rs:248-249`
+    // keeps it that way, which is why the refusal-shaped symptom was never
+    // reachable. What is asserted here is only that asking beside a refusal
+    // answers nothing rather than offering a row the walk would not start.
+    //
+    // The audit's 16 GiB Mac at 120 GB/s, with a phone that runs a dense 9B on
+    // its wall socket: nothing that fits clears the parameter bar against 9B —
+    // the biggest runnable row is the dense Gemma 4 12B at 11.95B, and the bar
+    // is 12.6B — so the walk refuses the machine outright.
+    let machine = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 120.0e9,
+        ..input_with_phone_model(16, nine_billion_phone(Some(false)))
+    };
+    assert_eq!(refusal(&machine).0, RefusalReason::NothingBetter);
+
+    // The row that used to appear here is Trinity Nano: 6B of mixture, which
+    // earns none of the three justifications — below the total the literature
+    // permits an expectation at, publishing no dense equivalence, and no relief
+    // from a phone on the wall socket. It clears the speed bar easily (62.7
+    // against 20.4 tok/s), so the bar was never what stopped it: it is a row
+    // the walk would not start, and it is not offered here.
+    let than = largest_that_runs_well(&machine)
+        .expect("a 16 GiB machine runs something")
+        .decode;
+    let trinity = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "arcee-ai/Trinity-Nano-Preview")
+        .expect("the row the audit saw offered is on the menu");
+    assert!(
+        footprint_bytes(trinity.entry(), machine.context_tokens).total_bytes()
+            <= usable_bytes(machine.ram_bytes),
+        "the row must be a candidate at all, or this test proves nothing about the gate"
+    );
+    assert!(
+        kalsa_catalog::decode_prediction(trinity, &machine).floor()
+            >= than.floor() * QUICK_SPEED_ADVANTAGE,
+        "the speed bar no longer admits it, so this test would pass for the wrong reason"
+    );
+    assert!(
+        quicker_alternative(&machine, &than).is_none(),
+        "a model the walk refuses must not be offered beside the refusal"
+    );
+}
+
+#[test]
+fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
+    // The reachable shape, and so the one that matters: the walk SUCCEEDS and
+    // there is a row on the page for a second option to stand beside. A refusal
+    // cannot show one at all — `decode.and_then` in `src-tauri/src/capability.rs:248-249`
+    // computes the alternative only from the prediction of the row on the
+    // page, and a refusal carries no such row. Sixteen gibibytes of unified
+    // memory at 120 GB/s with a 4B phone on the wall socket: the pick is Gemma 4
+    // 12B on capability, and the row beside it used to earn nothing.
+    let machine = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 120.0e9,
+        ..input_with_phone_model(16, phone(Some(false)))
+    };
+    let Decision::Pick(pick) = choose(&machine) else {
+        panic!("this machine is offered a model, so the card has a pick to stand beside");
+    };
+    assert_eq!(pick.repo, "google/gemma-4-12B-it");
+    assert!(matches!(pick.justification, Justification::Capability(_)));
+
+    // The row the old rule offered beside that pick, and why it earns none of
+    // the three — asserting the branches, not only the outcome: no capability
+    // (a mixture against a dense phone, with no published dense equivalence),
+    // no expectation (under the total the literature permits one at), and no
+    // relief, though relief is the branch this row would have taken. The
+    // phone's battery flag is therefore what decides it, and a phone on battery
+    // makes the row legitimate: there would be no defect at all.
+    let trinity = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "arcee-ai/Trinity-Nano-Preview")
+        .expect("the row the audit saw offered is on the menu");
+    assert!(
+        footprint_bytes(trinity.entry(), machine.context_tokens).total_bytes()
+            <= usable_bytes(machine.ram_bytes),
+        "the row must be a candidate at all, or this test proves nothing about the gate"
+    );
+    assert!(
+        capability_basis(
+            trinity.entry().parameters,
+            trinity.entry().dense_equivalent,
+            Some(PHONE_PARAMS)
+        )
+        .is_none(),
+        "the capability branch must fail: 6B of mixture does not clear a bar against a dense 4B"
+    );
+    assert!(
+        trinity.entry().parameters.total().count() < LARGE_MOE_TOTAL_PARAMETERS,
+        "the expectation branch must fail on the size line"
+    );
+    assert!(
+        trinity.entry().weights_bytes as f64 >= PHONE_BYTES as f64 * SAME_CLASS_BAND,
+        "it is inside the phone's own class, so relief is the branch the battery flag decides"
+    );
+    assert_eq!(
+        machine.phone.map(|phone| phone.battery_powered),
+        Some(Some(false)),
+        "a phone on battery would earn this row relief, and there would be nothing to fix"
+    );
+    assert!(
+        quicker_alternative(&machine, &pick.decode).is_none(),
+        "a pick may not be offered a second option that earns nothing"
+    );
+}
+
+#[test]
+fn without_a_phone_the_second_option_keeps_the_only_bar_there_is() {
+    // A phone is what makes a comparison; without one, the first option is
+    // simply the largest that runs well, and nothing asked it to justify
+    // itself. Asking the second option for a justification its neighbour
+    // never faced would be the same bug from the other side. Trinity Nano is
+    // offered here — the very row the phone road above no longer offers.
+    let machine = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 120.0e9,
+        ..input(16, false)
+    };
+    let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
+    let quick = quicker_alternative(&machine, &first.decode)
+        .expect("fit and the speed bar are the whole of the rule with no phone");
+    assert_eq!(quick.entry.repo, "arcee-ai/Trinity-Nano-Preview");
+}
+
+#[test]
+fn a_phone_on_battery_still_earns_the_quicker_row_its_place() {
+    // The rule is not "the second option is gone". On the same machine, a
+    // phone that runs on battery and whose own class the quicker row is in
+    // (3.79 GB against a 2.83 GB phone, inside the 0.85 band) justifies relief
+    // — every token generated here is one the phone did not generate — so the
+    // quicker row is still offered, and on exactly the ground the walk itself
+    // would offer it.
+    let machine = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 120.0e9,
+        ..input_with_phone(16, Some(true))
+    };
+    assert_eq!(chosen(&machine), "google/gemma-4-12B-it");
+    let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
+    let quick = quicker_alternative(&machine, &first.decode).expect("relief earns it a place");
+    assert_eq!(quick.entry.repo, "arcee-ai/Trinity-Nano-Preview");
+    assert!(
+        capability_basis(
+            quick.entry.parameters,
+            quick.entry.dense_equivalent,
+            Some(PHONE_PARAMS)
+        )
+        .is_none(),
+        "it is not offered as a capability claim: 6B of mixture does not clear a bar against 4B"
+    );
+    assert!(
+        quick.entry.weights_bytes as f64 >= PHONE_BYTES as f64 * SAME_CLASS_BAND,
+        "relief holds it inside the phone's own class, on the phone's own bytes"
+    );
 }
 
 #[test]

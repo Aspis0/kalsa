@@ -214,6 +214,38 @@ pub enum Justification {
     ExpectedButUnmeasured,
 }
 
+/// The one gate a candidate passes to be offered at all, on either road: the
+/// capability claim when the evidence supports one, else "expected, not yet
+/// measured", else the relief a battery-powered phone justifies. `None` means
+/// this candidate admits nothing and must not be put in front of the owner —
+/// the caller walks on to the next candidate.
+///
+/// Both options go through it: the first pick in [`choose`], and the second in
+/// [`quicker_alternative`], whose row sits beside one that passed here. Two
+/// bars for two rows on one page is how the second option came to offer a
+/// model the walk itself would refuse.
+fn justification(candidate: &Candidate, phone: &PhoneModel) -> Option<Justification> {
+    if let Some(basis) = capability_basis(
+        candidate.entry.parameters,
+        candidate.entry.dense_equivalent,
+        phone.parameters,
+    ) {
+        return Some(Justification::Capability(basis));
+    }
+    if expected_but_unmeasured(candidate, phone) {
+        return Some(Justification::ExpectedButUnmeasured);
+    }
+    // Relief is for a device that runs on battery, and only within the
+    // phone's own class: every token generated on this machine is one the
+    // phone did not generate, which is the whole of the exchange.
+    if phone.battery_powered == Some(true)
+        && candidate.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
+    {
+        return Some(Justification::Relief);
+    }
+    None
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefusalReason {
     /// The phone has not said what it runs, so nothing can be compared to it.
@@ -323,7 +355,6 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     // survivors; `remaining` stays whole for the nothing-admitted analysis
     // below, where every fitting row still counts.
     let mut walk: Vec<&Candidate> = remaining.iter().collect();
-    let battery_powered = phone.battery_powered == Some(true);
     // The existing preference, walked until a candidate admits an honest
     // justification: the biggest that fits, then — among models of the same
     // class — the one the numbers say decodes fastest. The biggest may admit
@@ -346,23 +377,11 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .expect("the leader is in its own class");
-        let justification = if let Some(basis) = capability_basis(
-            chosen.entry.parameters,
-            chosen.entry.dense_equivalent,
-            phone.parameters,
-        ) {
-            Justification::Capability(basis)
-        } else if expected_but_unmeasured(chosen, &phone) {
-            Justification::ExpectedButUnmeasured
-        } else if battery_powered
-            && chosen.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
-        {
-            Justification::Relief
-        } else {
+        let Some(earned) = justification(chosen, &phone) else {
             walk.retain(|candidate| !std::ptr::eq(*candidate, chosen));
             continue;
         };
-        return Decision::Pick(selection(chosen, input, &phone, budget, justification));
+        return Decision::Pick(selection(chosen, input, &phone, budget, earned));
     }
 
     // Nothing that fits admitted a justification. Say which axis failed.
@@ -485,6 +504,13 @@ pub const QUICK_SPEED_ADVANTAGE: f64 = 2.0;
 /// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being offered.
 /// `None` when nothing does — one honest option beats two that feel the same.
 ///
+/// It is held to the bar of the row it sits beside, which is
+/// [`justification`]: a phone-free first option is the largest that runs well
+/// and was never asked to justify itself, so neither is this one; a first
+/// option chosen *against a paired phone* had to earn a justification, so a
+/// second option that earns none is not offered — the product would refuse to
+/// start it.
+///
 /// It takes the speed of the row on the page rather than recomputing which
 /// row that is, because the page reaches its first pick by two different
 /// roads (the phone comparison, or the biggest that runs well) and "faster"
@@ -500,6 +526,10 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         .remaining
         .iter()
         .filter(|candidate| candidate.decode.floor() >= wanted)
+        .filter(|candidate| match input.phone {
+            Some(phone) => justification(candidate, &phone).is_some(),
+            None => true,
+        })
         // The most model that still clears the bar, never merely the
         // smallest: a toy is not an option.
         .max_by_key(|candidate| candidate.entry.weights_bytes)?;
