@@ -241,26 +241,22 @@ describe("llamaHistoryAssistantFields", () => {
 
   test("content_span final splits reasoning from the answer", () => {
     const raw = "<think>\nplan\n</think>\n\nANSWER";
-    expect(
-      llamaHistoryAssistantFields(
-        { role: "assistant", content: raw, modelEmittedText: raw },
-        { historyThink: "content_span", isFinal: true },
-      ),
-    ).toEqual({ content: "ANSWER", reasoning_content: "plan" });
-  });
-
-  test("content_span final fields reconstruct the measured template separators", () => {
-    const raw = "<think>\nplan\n\n</think>\n\nANSWER";
     const fields = llamaHistoryAssistantFields(
       { role: "assistant", content: raw, modelEmittedText: raw },
       { historyThink: "content_span", isFinal: true },
     );
-    const reconstructed = `<think>\n${fields.reasoning_content}\n</think>\n\n${fields.content}`;
-    expect(reconstructed).toBe(raw.replace("\n\n</think>", "\n</think>"));
+    expect(fields).toEqual({ content: "ANSWER", reasoning_content: "plan" });
+    expect(`<think>\n${fields.reasoning_content}\n</think>\n\n${fields.content}`).toBe(raw);
   });
 
-  test("content_span final keeps a tight empty think block in the older shape", () => {
-    const raw = "<think></think>ANSWER";
+  test.each([
+    ["tight", "<think></think>ANSWER"],
+    ["leading whitespace", "\n<think>\nplan\n</think>\n\nANSWER"],
+    ["missing answer separator", "<think>\nplan\n</think>ANSWER"],
+    ["extra reasoning newline", "<think>\nplan\n\n</think>\n\nANSWER"],
+    ["missing reasoning newline", "<think>\nplan</think>\n\nANSWER"],
+    ["space-only reasoning", "<think>\n   </think>\n\nANSWER"],
+  ])("content_span final falls back for %s", (_name, raw) => {
     expect(llamaHistoryAssistantFields(
       { role: "assistant", content: raw, modelEmittedText: raw },
       { historyThink: "content_span", isFinal: true },

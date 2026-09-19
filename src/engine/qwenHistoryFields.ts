@@ -1,4 +1,4 @@
-import { THINK_CLOSE } from "./thinkStream";
+import { THINK_CLOSE, THINK_OPEN } from "./thinkStream";
 
 export type QwenHistoryAssistantFields = {
   content: string;
@@ -38,10 +38,8 @@ export function qwenHistoryAssistantFields(
     };
   }
 
-  const leading = source.match(/^[ \t\r\n]*<think>/);
-  const opening = leading?.[0];
-  const inner = opening ? source.slice(opening.length, closeIndex) : "";
-  if (!opening || inner.length < 2 || !inner.startsWith("\n")) {
+  const opening = `${THINK_OPEN}\n`;
+  if (!source.startsWith(opening)) {
     // A zero-separator block cannot round-trip through a template that always
     // adds its newline wrappers; the raw older shape preserves the prefix.
     return {
@@ -49,8 +47,18 @@ export function qwenHistoryAssistantFields(
       reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
     };
   }
-  const reasoning_content = stripTrailingReasoningNewlines(inner.slice(1));
+  const inner = source.slice(opening.length, closeIndex);
+  const reasoning_content = stripTrailingReasoningNewlines(inner);
   const afterClose = source.slice(closeIndex + THINK_CLOSE.length);
   const content = afterClose.startsWith("\n\n") ? afterClose.slice(2) : afterClose;
+  const rendered = `${opening}${reasoning_content}\n${THINK_CLOSE}\n\n${content}`;
+  if (rendered !== source) {
+    // A non-canonical separator cannot round-trip through the template; the
+    // raw older shape preserves the prefix.
+    return {
+      content: source,
+      reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+    };
+  }
   return { content, reasoning_content };
 }
