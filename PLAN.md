@@ -794,6 +794,21 @@ prenda lo stesso percorso di `llama-server` (stessa `common_chat_templates_apply
 passo 2). Il campo dipende dalla posizione, quindi la decisione e' una funzione pura di (messaggio, e'
 finale) rifatta a ogni render: e' il modulo .ts del passo 2.
 
+**Percorso chiuso sul sorgente (18/09 ~20:55, kalsa-93, righe verificate dal coordinatore):** il dispatcher
+sceglie per sottostringa del template (`chat.cpp:3596-3601`, commento "also used by ... Qwen3.5") →
+`common_chat_params_init_qwen3_coder` → `:1168 data.prompt = common_chat_template_direct_apply_impl(tmpl,
+inputs)`: l'handler **rende il template**, non concatena; il pezzo C++ che costruisce `<think>` a mano
+(`:1206-1213`) e' sotto `has_continuation()`, che ne' la probe ne' l'app usano. Il `|trim` inefficace della
+riga 99 e' quindi una proprieta' di minja, non di un handler (ipotesi "handler" ritirata). L'app prende lo
+stesso percorso (`rn-llama.cpp:874-912`, `use_jinja = true`, stessa `common_chat_templates_apply`). L'app usa
+`reasoning_format: "none"` (`LlamaService.ts:751`): **rimisurato con `--reasoning-format none`, identico, 6/6**.
+`force_pure_content` (campo solo nostro, `chat.h:266`) mai settato dall'app e comunque non cambia la forma del
+prompt. **Regola del turno finale col `rstrip`: spedibile.** Residuo nominato: il prewarm
+(`LlamaService.ts:1276-1288`: `add_generation_prompt: false`, `enable_thinking: false`, `reasoning_format:
+"none"`, `chat_template_kwargs: { enable_thinking: false }`) e' proprio il punto dove la posizione "finale"
+gira; con `add_generation_prompt: false` le righe 150-153 del template (il seed) non dovrebbero scattare, ma
+la variante va misurata prima del passo 2, non assunta.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
