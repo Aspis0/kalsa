@@ -528,22 +528,19 @@ mod tests {
             serde_json::to_value(CapabilityDto::Unmeasured).expect("serialise");
         assert_eq!(unmeasured, serde_json::json!({ "kind": "unmeasured" }));
 
-        // The fixture the Playwright harness validates against is written
-        // from this very value, so it cannot drift from the Rust type: a
-        // field added above appears there on the next `cargo test`, and a
-        // stale sample shows up as a dirty file instead of as a green suite.
-        // Only the sample is replaced — the hand-written keys beside it say
-        // things one sample cannot show.
+        // The fixture the Playwright harness validates against is pinned
+        // here: this test compares what the type now produces against the
+        // stored sample and fails on drift — a stale sample is a red suite,
+        // never a dirty file nobody notices. UPDATE_CONTRACT=1 is the one
+        // deliberate way to rewrite it, and only the sample is replaced:
+        // the hand-written keys beside it say things one sample cannot show.
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../chat/scripts/capability-contract.json");
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            let mut contract: serde_json::Value =
-                serde_json::from_str(&text).expect("the contract file is json");
-            contract["sample"] = json;
-            let written =
-                serde_json::to_string_pretty(&contract).expect("serialise the contract");
-            std::fs::write(&path, format!("{written}\n")).expect("write the contract");
-        }
+        crate::contract::check_sample(
+            &path,
+            "the_json_the_page_reads_is_a_contract_pinned_here",
+            &json,
+        );
     }
 
     #[test]

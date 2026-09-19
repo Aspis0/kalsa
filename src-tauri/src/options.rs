@@ -509,10 +509,10 @@ mod tests {
 
     /// The advanced JSON the panel reads is a contract, pinned here for the
     /// harness to validate its fixtures against. The names and the JSON types
-    /// are compared; the numbers are not, because a test that fails when a
-    /// default changes is noise. A rename or a dropped field is not: this is
-    /// what makes a stale fixture fail in a test instead of rendering
-    /// `undefined` on screen.
+    /// are compared by field, so a rename names itself; the whole sample is
+    /// then compared by value, because a test that rewrites its own fixture
+    /// cannot go red on drift — a quietly changed default is exactly the
+    /// change that must be regenerated deliberately, not waved through.
     #[test]
     fn the_json_the_advanced_page_reads_is_a_contract_pinned_here() {
         // A realistic answer: a server running, with the owner's overrides
@@ -562,7 +562,7 @@ mod tests {
                 path.display()
             );
         };
-        let mut contract: serde_json::Value =
+        let contract: serde_json::Value =
             serde_json::from_str(&text).expect("the contract file is json");
 
         let pinned = field_types(&contract["sample"]);
@@ -588,13 +588,15 @@ mod tests {
             problems.join("\n  ")
         );
 
-        // The fixture the harness reads is written from this very value, so a
-        // field added above appears there on the next `cargo test`, and a
-        // stale sample shows up as a dirty file instead of as a green suite.
-        // Same convention as the capability contract: only the sample is
-        // replaced, and the hand-written keys beside it stay.
-        contract["sample"] = json;
-        let written = serde_json::to_string_pretty(&contract).expect("serialise the contract");
-        fs::write(&path, format!("{written}\n")).expect("write the contract");
+        // The fixture the harness reads is pinned under the one convention:
+        // compare and fail, regenerate only on purpose. The field types
+        // above name what moved; this comparison catches every other drift
+        // between the type and the stored sample. UPDATE_CONTRACT=1
+        // replaces only the sample, and the hand-written keys beside it stay.
+        crate::contract::check_sample(
+            &path,
+            "the_json_the_advanced_page_reads_is_a_contract_pinned_here",
+            &json,
+        );
     }
 }

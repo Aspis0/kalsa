@@ -164,10 +164,27 @@ fn context_and_prompt_cache_roof(
     // header read — the research rows — keeps the memory figure, because a
     // guessed limit is worse than none.
     let tokens = match model.trained_context_tokens {
+        // A header that says zero was there and read as nothing: broken data
+        // about the model. It is refused here exactly as an unfundable
+        // machine is — a plan needs a context — which is why the start path
+        // asks [`trained_context_unreadable`] first and gives the zero its
+        // own words.
+        Some(0) => 0,
         Some(trained) => funded.min(trained),
         None => funded,
     };
     (tokens > 0).then_some((tokens, prompt_cache_roof))
+}
+
+/// Is this row's trained context a header we could not read? `None` on the
+/// field means it was never in the file, and the memory figure stands;
+/// `Some(0)` means it was there and is nonsense — this model's context
+/// length could not be read, which is a fact about the file, not about the
+/// computer. [`plan`] refuses both with a bare `None`, so the start path
+/// asks here first, before the arithmetic, and never blames the machine for
+/// a header it read wrong.
+pub fn trained_context_unreadable(model: &ModelEntry) -> bool {
+    model.trained_context_tokens == Some(0)
 }
 
 /// The prompt cache keeps yesterday's chat warm; its roof is carved out of
@@ -743,5 +760,19 @@ mod tests {
         let uncapped = funded_context(&model, ROOMY_BYTES).expect("a window");
         model.trained_context_tokens = Some(u64::MAX);
         assert_eq!(uncapped, funded_context(&model, ROOMY_BYTES).expect("a window"));
+    }
+
+    #[test]
+    fn a_zero_trained_length_is_not_the_same_as_no_header_read() {
+        // Absent, the memory figure stands; zero, the length is unreadable
+        // and nothing may be started from it. Collapsing the two would blame
+        // the machine for a header we read wrong.
+        let mut model = *shipped_row(GRANITE);
+        model.trained_context_tokens = None;
+        assert!(!trained_context_unreadable(&model));
+        assert!(funded_context(&model, ROOMY_BYTES).is_some());
+        model.trained_context_tokens = Some(0);
+        assert!(trained_context_unreadable(&model));
+        assert_eq!(funded_context(&model, ROOMY_BYTES), None);
     }
 }

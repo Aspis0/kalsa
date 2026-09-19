@@ -484,6 +484,12 @@ fn planned_config_with_overrides(
         ubatch_size,
         kv_cache: cache,
     };
+    // A zero trained length is a header we could not read, not a machine
+    // that cannot fund the model: `plan` refuses both with a bare `None`,
+    // so the honest answer is decided before the arithmetic runs.
+    if kalsa_launch::trained_context_unreadable(row) {
+        return Err(StartupFailure::ChosenModelContextUnreadable);
+    }
     // The funded maximum for each cache type: f16 costs twice per token and
     // therefore funds a smaller context. Either may be absent — the row can
     // be unfundable under one cache and fine under the other — so this is not
@@ -1525,6 +1531,38 @@ mod tests {
         .expect_err("the weights and buffers alone exceed this budget");
         assert!(
             matches!(err, StartupFailure::ChosenModelUnfundable),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn a_zero_trained_length_blames_the_models_data_not_the_machine() {
+        // Granite on a roomy machine funds a real context, so zeroing the
+        // row's trained length is the only thing that can stop this start.
+        // The refusal must say the model's context length could not be read
+        // — a fact about the file — never that the machine is short of
+        // memory, which is what the unfundable refusal said.
+        let mut row = *rows()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        row.trained_context_tokens = Some(0);
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        let err = planned_config(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            &row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect_err("a model whose trained length reads as zero is not started");
+        assert_eq!(
+            crate::failure::words(&err),
+            "The model chosen for this computer does not say how long a conversation \
+             it was built for, so it was not started. An app update may fix this.",
             "{err:?}"
         );
     }

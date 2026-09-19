@@ -46,4 +46,4 @@ pub use args::{
     DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH, MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH,
     MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
 };
-pub use policy::{funded_context, plan, LaunchInput};
+pub use policy::{funded_context, plan, trained_context_unreadable, LaunchInput};

@@ -1,5 +1,5 @@
 {
-  "_regenerate": "cd src-tauri && cargo test the_json_the_page_reads_is_a_contract_pinned_here -- --nocapture",
+  "_regenerate": "cd src-tauri && UPDATE_CONTRACT=1 cargo test the_json_the_page_reads_is_a_contract_pinned_here -- --nocapture",
   "_source": "the JSON printed by src-tauri/src/capability.rs :: tests :: the_json_the_page_reads_is_a_contract_pinned_here",
   "_used_for": "brain-shots.mjs validates every fixture against this: a fixture may not carry a field the page does not read, or miss one it does. The machine, model and top-level key sets are read from `sample` below, not retyped. Two things are declared by hand because one sample cannot show them: the speed shapes other than the one in the sample (mirrors SpeedDto), and which bandwidth_basis values each runs_on allows (mirrors kalsa_probe::path and soc — a GPU path is never \"measured\", because the CPU probe cannot time it: it is a \"floor\", or the chip's own figure).",
   "runs_on": {

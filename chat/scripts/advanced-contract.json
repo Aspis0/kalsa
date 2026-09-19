@@ -1,5 +1,5 @@
 {
-  "_regenerate": "cd src-tauri && cargo test the_json_the_advanced_page_reads_is_a_contract_pinned_here -- --nocapture",
+  "_regenerate": "cd src-tauri && UPDATE_CONTRACT=1 cargo test the_json_the_advanced_page_reads_is_a_contract_pinned_here -- --nocapture",
   "_source": "the JSON printed by src-tauri/src/options.rs :: tests :: the_json_the_advanced_page_reads_is_a_contract_pinned_here",
   "_used_for": "the dev harness validates its AdvancedDto fixture against this: a fixture may not carry a field the real panel does not read, or miss one it does. The field names and JSON types are the contract; the numbers are the sample's own and are not pinned.",
   "sample": {

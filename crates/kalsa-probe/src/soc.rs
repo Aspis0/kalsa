@@ -71,13 +71,17 @@ const PUBLISHED: &[(&str, f64)] = &[
 /// The published figure for a brand string, or `None` for a chip this table
 /// does not know.
 ///
-/// Longest match wins, which is why the table is ordered with the suffixed
-/// names before their bare family: "Apple M1 Max" must not be answered by the
-/// "Apple M1" row, and a prefix test alone would do exactly that.
+/// The brand string must name a row exactly. A prefix test is what would let
+/// "Apple M4 Ultra" — a chip that has never shipped and has no row — inherit
+/// the bare M4's 120 GB/s, 6.8x short, and every prediction on such a machine
+/// would be optimistic by that factor. An unknown variant of a known family
+/// reads as unmeasured instead, and the caller keeps the CPU figure that says
+/// it is a floor: a guessed bandwidth is worse than a number that admits its
+/// path.
 pub fn published_bandwidth(brand: &str) -> Option<f64> {
     PUBLISHED
         .iter()
-        .find(|(name, _)| brand.starts_with(name))
+        .find(|(name, _)| *name == brand)
         .map(|(_, bytes)| *bytes)
 }
 
@@ -117,6 +121,16 @@ mod tests {
         assert_eq!(published_bandwidth("Apple M1 Pro"), Some(200.0e9));
         assert_eq!(published_bandwidth("Apple M1"), Some(68.25e9));
         assert_eq!(published_bandwidth("Apple M5 Ultra"), Some(1200.0e9));
+    }
+
+    #[test]
+    fn an_ultra_of_a_family_without_an_ultra_row_is_not_answered_by_the_bare_chip() {
+        // No M4 Ultra has shipped and the table has no row for one. A prefix
+        // match answered "Apple M4 Ultra" with the bare M4's 120 GB/s — 6.8x
+        // short — and every speed prediction on such a machine would have
+        // been optimistic by that factor. An unknown variant of a known
+        // family reads as unmeasured, which the app already handles.
+        assert_eq!(published_bandwidth("Apple M4 Ultra"), None);
     }
 
     #[test]

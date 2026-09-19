@@ -37,6 +37,11 @@ pub(crate) enum StartupFailure {
     /// The chosen model cannot be given even one token of context within
     /// this machine's budget: it is never started smaller, the start fails.
     ChosenModelUnfundable,
+    /// The chosen model's trained context length arrived as a zero: the
+    /// field was in its header and reads as nothing a conversation can be
+    /// sized with. That is a fact about the model's data, never about this
+    /// machine's memory, so it must not wear the unfundable refusal's words.
+    ChosenModelContextUnreadable,
     /// The user requested more context than this model's budget funds.
     ContextTooLarge {
         /// The most tokens this start path can give the chosen model.
@@ -114,6 +119,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::ChosenModelUnfundable => {
             "The model chosen for this computer needs more memory than the computer can \
              give it, even to start. An app update may bring a smaller option."
+                .into()
+        }
+        StartupFailure::ChosenModelContextUnreadable => {
+            "The model chosen for this computer does not say how long a conversation \
+             it was built for, so it was not started. An app update may fix this."
                 .into()
         }
         StartupFailure::ContextTooLarge {
@@ -293,6 +303,7 @@ mod tests {
             StartupFailure::NothingFits,
             StartupFailure::NothingBetter,
             StartupFailure::NothingFastEnough,
+            StartupFailure::ChosenModelContextUnreadable,
             StartupFailure::WeightsUnverified,
             StartupFailure::NotEnoughDisk,
             StartupFailure::DownloadCorrupted,

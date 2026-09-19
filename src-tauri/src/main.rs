@@ -10,6 +10,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod capability;
+mod contract;
 mod door;
 mod failure;
 mod instance;
