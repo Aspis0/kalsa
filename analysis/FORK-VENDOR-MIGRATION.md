@@ -901,3 +901,46 @@ gate is a per-file consumer proof that covers both paths, not a source-list scan
 The 17 engine files cannot go before step 7: `cpp/rn-governor.cpp` includes `"llama-governor.h"`,
 which today resolves to `cpp/llama-governor.h`, and the vendored tree does not provide it until
 `LLAMA_CPP_REPO` points at kalsallama.
+
+---
+
+## 15. Step 7's missing gate: the export manifest, measured against the whole fork delta
+
+§10.8 recorded that steps 7 and 8 have no gate. Step 7's is now defined and already run, before
+the re-point rather than after it, because a manifest that drops a file produces a tree that fails
+to build for a reason that looks nothing like its cause.
+
+**The measurement.** `LLAMA_CPP_PATHS` in `scripts/sync-vendor.sh` is 96 entries. The kalsa delta
+is `git diff --name-only 4bc272fd7 8e081313f` in kalsallama — plain upstream b11010 to our head —
+**104 files**. Classify each against the manifest (a path is covered if it equals an entry or sits
+under one):
+
+| | count | |
+|---|---|---|
+| exported | **71** | everything under `src/`, `common/`, `ggml/` |
+| not exported | **33** | 20 `tests/*`, 8 `tools/*`, 2 `.github/workflows/*`, `KALSA_FORK.md`, `build-xcframework.sh`, `tests/CMakeLists.txt` |
+
+Every one of the 33 is deliberate: tests and host tools stay in kalsallama (step 4's rule), and
+the fork's CI and docs are not part of the engine. **No `src/`, `common/` or `ggml/` file is
+missed.**
+
+**The second half, which is the one that actually bites.** A complete list of files still fails if
+an exported file reaches outside the exported set. Grepping every `#include` in the 71 exported
+files for `tools/`, `tests/` or `../` returns four, all resolving inside the manifest:
+
+```
+common/common.cpp:10:#include "../src/llama-ext.h"
+ggml/src/ggml-cpu/arch/arm/repack.cpp:19:#include "../../repack.h"
+ggml/src/ggml-opencl/ggml-opencl-kalsa-diag.cpp:10:#include "../ggml-quants.h"
+ggml/src/ggml-opencl/ggml-opencl.cpp:15:#include "../ggml-quants.h"
+```
+
+`src/llama-ext.h` is an upstream file we modified, not a kalsa addition, and `src` is a
+whole-directory export. The new OpenCL diagnostic pair from `8e081313f` lands inside
+`ggml/src/ggml-opencl`, also a whole-directory export, so the scaffolding relocation needed no
+manifest change.
+
+This is the same class of defect as the `repack-q23k.h` omission found in step 4, and it is the
+only one: one kalsa header, included by three exported files, that the manifest did not name.
+**Run this check on every future bump** — it is two commands, and it is the difference between a
+build failure that names the missing header and one that names a symbol three layers away.
