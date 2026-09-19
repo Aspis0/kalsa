@@ -14,6 +14,8 @@ import {
   promptContentForHistoryMessage,
   readModelEmittedText,
 } from "./modelEmittedText";
+import { historyMessagePositions } from "./historyMessagePositions";
+import { QWEN_HISTORY_OLDER_REASONING_SENTINEL } from "./qwenHistoryFields";
 import {
   assembleEngineHistory,
   LEGACY_MAX_CHARS,
@@ -225,7 +227,7 @@ describe("llamaHistoryAssistantFields", () => {
       { historyThink: "content_span" },
     );
     expect(fields.content).toBe(raw);
-    expect(fields.reasoning_content).toBe(" ");
+    expect(fields.reasoning_content).toBe(QWEN_HISTORY_OLDER_REASONING_SENTINEL);
   });
 
   test("content_span without a closed think omits reasoning_content", () => {
@@ -247,6 +249,27 @@ describe("llamaHistoryAssistantFields", () => {
     ).toEqual({ content: "ANSWER", reasoning_content: "plan" });
   });
 
+  test("content_span final fields reconstruct the measured template separators", () => {
+    const raw = "<think>\nplan\n\n</think>\n\nANSWER";
+    const fields = llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      { historyThink: "content_span", isFinal: true },
+    );
+    const reconstructed = `<think>\n${fields.reasoning_content}\n</think>\n\n${fields.content}`;
+    expect(reconstructed).toBe(raw.replace("\n\n</think>", "\n</think>"));
+  });
+
+  test("content_span final keeps a tight empty think block in the older shape", () => {
+    const raw = "<think></think>ANSWER";
+    expect(llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      { historyThink: "content_span", isFinal: true },
+    )).toEqual({
+      content: raw,
+      reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+    });
+  });
+
   test("content_span changes final assistant to older after a user arrives", () => {
     const raw = "<think>\nplan\n</think>\n\nANSWER";
     const message = { role: "assistant" as const, content: raw, modelEmittedText: raw };
@@ -257,7 +280,26 @@ describe("llamaHistoryAssistantFields", () => {
     expect(llamaHistoryAssistantFields(message, {
       historyThink: "content_span",
       isFinal: false,
-    })).toEqual({ content: raw, reasoning_content: " " });
+    })).toEqual({
+      content: raw,
+      reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+    });
+  });
+});
+
+describe("assistant-terminated history rendering", () => {
+  test("has no current user and renders its final assistant turn", () => {
+    const messages = [{ role: "user" }, { role: "assistant" }];
+    const positions = historyMessagePositions(messages);
+    expect(positions).toEqual({ userIndex: -1, finalAssistantIndex: 1 });
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
+    expect(llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      {
+        historyThink: "content_span",
+        isFinal: positions.finalAssistantIndex === 1,
+      },
+    )).toEqual({ content: "ANSWER", reasoning_content: "plan" });
   });
 });
 
@@ -360,7 +402,7 @@ describe("historyReplayCharLength", () => {
     );
     expect(a1.content).toBe(t1);
     expect(a2.content).toBe(t2);
-    expect(a1.reasoning_content).toBe(" ");
+    expect(a1.reasoning_content).toBe(QWEN_HISTORY_OLDER_REASONING_SENTINEL);
     expect(assembled[0]?.content).toBe("u1");
   });
 });
