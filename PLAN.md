@@ -1337,7 +1337,14 @@ ricevono `floorIndex` (le funzioni del confine restano cieche ai ruoli); cinque 
 l'invariante numerico come test per nCtx 2048/3072/4096/6144/8192. **Serve all'owner (domattina):** confermare la
 riserva proporzionale a contesto piccolo; e decidere per 4096 (4608 − 4000 = 608 char restano per la storia con
 un incolla al cap): scende il cap dell'incolla o sale la riserva relativa — stanotte a 4096 un incolla al cap
-tiene al massimo l'ultimo messaggio utente.
+tiene al massimo l'ultimo messaggio utente. *Tabella dalla specifica (kalsa-93, a mano, aritmetica verificata dal
+coordinatore; e' l'attesa del test col nome, non un commento):* nCtx 2048 → riserva 1024, budget 2304 char,
+bersaglio 1440, resto con incolla al cap −1696; 3072 → 1536 / 3456 / 2160 / −544; 4096 → 2048 / 4608 / 2880 /
+**608**; 6144 → 2048 / 9216 / 5760 / 5216; 8192 → 2048 / 13824 / 8640 / 9824. Frase per l'owner: **un incolla al
+massimo consentito e un ultimo scambio al massimo consentito convivono solo da 8192 in su**; a 6144 il pavimento
+si ritira all'utente da solo; a 4096 regge o cade secondo la lunghezza vera dei messaggi (le righe 4096 e 6144 si
+asseriscono due volte, al cap e a lunghezza realistica); sotto 4096 con incolla al cap la storia cade con motivo.
+Cosa cede sotto 8192 lo decide l'owner: cap dell'incolla, quota 0.75, o "sotto 4096 la chat ricorda un turno".
 
 **Jelly T20C, decisione (23:50 EDT):** il Jelly e' al 70% (non 85): si parte lo stesso dopo l'anti-loop S23 con
 `CAMPAIGN_MIN_BATTERY_LEVEL=65` dichiarato, watchdog dell'operatore che uccide il run sotto il 25% (evidenza
