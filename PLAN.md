@@ -866,6 +866,21 @@ ENTRAMBI i percorsi (spazio e budget), con l'evictor che controlla esplicitament
 esito "nulla da fare", mai `ok:true` come se avesse sfrattato. Previsione rebasata su `0eaa090`: 86 suite /
 1051 test (base `2ed2a88` = 82 / 971; +1/+22 persist-guard; +2/+30 boot-loop; +1/+28 evict-marker).
 
+**evict-marker giro 7 = `72c3e72`: l'audit non trova difetti nella superficie nuova (18/09 ~21:45 EDT).** 6 file
+`src/engine`, +308/−57; tsc 0, jest 1002/1002 (Node 20). H1-H9 confermati con le righe: il ciclo si ferma al
+primo drop fallito (`break`, era `continue`); solo un `"short"` con misura utilizzabile autorizza, controllo
+esplicito nell'evictor (`sessionPool.ts:467-474`, "zero is a consequence ... not the guard"); drop a due
+campi (`artifactsDeleted` / `bookkeepingFailed`); pre-controllo `LlamaService.ts:3223-3226` intoccato. Sei
+stati enumerati, chiamante e marker concordano su tutti. Luna ha trovato da sola due cose della classe
+centrale (una lettura del disco in piu' nel marker; byte liberati assegnati solo a fine ciclo, quindi la
+riga d'errore poteva omettere una cancellazione): non ha eseguito una lista, ha capito cosa si proteggeva.
+**La regola d'arresto non scatta.** Residuo, "gaps not defects": nessun test fa differire due letture di
+`getFreeDiskBytes` (rimettere il regime sulla lettura pre-sweep lascia tutte le 79 prove verdi), `drop_failed`
+mai testato, nessun throw in modo spazio; `insufficient` scritto in sette punti e letto in zero,
+`usageForgotten` mai letto. *Decisione:* un giro SOLO test (tre test che devono andare rossi con la logica
+riportata indietro, dimostrato col revert temporaneo) + rimozione dei due campi morti, nessun altro codice
+di produzione; rilettura corta in audit; poi rebase su `0eaa090` e push in fila dopo boot-loop-breaker.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
