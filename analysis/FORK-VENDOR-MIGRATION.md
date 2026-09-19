@@ -1419,3 +1419,119 @@ undefined symbol at link time.
 
 The deleted 466-line predecessor asserted six properties; this restores the one whose loss
 mattered, in a script small enough to read. The rest died honestly with the flattened layout.
+
+## 24. The bump cost, measured: 46 upstream commits for one conflicted line
+
+The point of the whole migration was never "it builds" — it was that the next
+upstream bump should be cheap. That is a claim about the future, so it stays an
+opinion until someone runs one. On 19/09 there were finally 46 commits of
+divergence to run it against, so the bump was rehearsed end to end, in
+throwaway worktrees, and the cost is now a number.
+
+Ahead/behind at the time of the rehearsal:
+
+    git rev-list --left-right --count HEAD...upstream/master   ->  157   46
+
+157 commits of ours, 46 of theirs. That is a real bump, not a tautology — the
+previous attempt to measure this reported `0 conflicts, down from 223` off a
+base that was already merged, which measured nothing.
+
+### 24.1 Merge: one conflict, one line, mechanical
+
+`git merge-tree --write-tree --name-only HEAD upstream/master` names exactly
+one conflicted path, `tests/CMakeLists.txt`, and auto-merges eight files that
+we and upstream both touched (`ggml-cpu.c`, `ggml-hexagon.cpp`,
+`ggml-opencl/CMakeLists.txt`, `ggml-opencl.cpp`, `include/llama.h`,
+`llama-model.cpp`, `llama-model.h`, `test-backend-ops.cpp`). The real merge in
+a worktree reproduced that prediction exactly.
+
+The conflict is adjacency, not semantics. Our block of `test-governor-v0*`
+registrations was appended immediately above upstream's
+
+    if (NOT GGML_BACKEND_DL)
+
+and upstream changed that same line to
+
+    if (NOT GGML_BACKEND_DL AND GGML_CPU)
+
+Both sides edited touching lines, so git cannot know they are independent.
+Resolution: keep our block, take their line. Four lines deleted, nothing
+reasoned about. Resolved as `b33bea25b`.
+
+This conflict will recur on every bump that touches the end of
+`tests/CMakeLists.txt`, because our block is pinned to that spot. Moving the
+governor registrations into their own `tests/CMakeLists-kalsa.cmake`, included
+from the top of the file, would make it structurally impossible. Not done —
+one mechanical line per bump is not yet worth a refactor, but it is the
+cheapest remaining win if it starts recurring.
+
+### 24.2 Patches: 20 of 20 clean, zero fuzz, before and after
+
+The 20 files in `scripts/patches/llama.cpp/` are the part of a bump that
+usually rots, so they were dry-run twice against the same script, once on each
+side of the merge:
+
+    /tmp/dryrun-patches.sh <tree>   # patch -p1 --dry-run --force, per patch
+
+    pre-bump  (f6ba2786d)  ->  clean=20 fuzzy=0 failed=0
+    post-bump (b33bea25b)  ->  clean=20 fuzzy=0 failed=0
+
+The `fuzzy` column is not decoration. `patch` exits **0** when a hunk lands
+with fuzz or at an offset, so "the sync did not abort" is not evidence a patch
+landed where it was meant to; `apply_patches` then deletes `*.rej` and
+`*.orig`, so the evidence would be gone either way. The dry run greps for
+`fuzz` and `offset` in the output precisely because the exit code cannot see
+them. Both runs were silent on both.
+
+### 24.3 The export subset let through 8 of 9 new files, and the ninth is correct
+
+A full `scripts/sync-vendor.sh` was then run in an isolated worktree with
+`LLAMA_RN_CACHE_DIR=/tmp/bump-rehearsal/cache` and `LLAMA_CPP_REPO` pointed at
+the merged tree. Exit 0, and both gates fired at the end of it:
+
+    assert-kalsa-vendor: ok (marker x1, kalsa_moe x1, upstream hunks present, governor src present)
+    assert-rnllama-sources: ok (40 explicitly-named paths resolve)
+
+Delta in `vendor/`: 87 files modified, 8 added, **0 deleted**. Build number
+11167 -> 11214, which is 46 upstream commits plus the merge.
+
+The 8 additions matter more than the modifications, because §15's open worry
+was a new upstream file quietly failing to be exported: `export_subset` uses
+`rsync -a --delete`, so a file the manifest does not name simply never appears
+and nothing says so. Checking every file upstream added against the exported
+tree:
+
+    added upstream: 9
+    MISSING scripts/check-release-apiabi.sh
+    total missing=1
+
+The eight that landed — one hexagon op, two OpenCL kernels, five
+`ggml-vulkan` files from an upstream split — all arrived through
+whole-directory manifest entries, with no manifest edit. The one that did not
+is upstream's own release script, which llama.rn has never vendored and should
+not start. Zero escapes.
+
+One caveat on this check that should not be lost: `git diff --name-status` does
+**not** see files rsync created, because they are untracked. The first pass
+here reported `87 M` and no additions at all, which would have read as "the
+bump added nothing" — an answer that is wrong in the direction of comfort.
+`git status --porcelain` is the tool; the eight `??` lines are the finding.
+
+### 24.4 The number, and what it does not cover
+
+    46 upstream commits
+     1 conflicted file, 1 line, mechanical
+     0 patch rejects, 0 fuzz
+     0 manifest escapes, 0 stale files
+     0 CMake edits
+
+What the rehearsal does **not** prove is that the bumped tree compiles. That
+gate is unavailable today for a reason unrelated to the bump: five of six CI
+jobs are red on `bmoe_stream.h: No such file`, because the app still owns
+`native/bmoe/` while `cpp/rn-llama.cpp` includes it. The compile half of this
+measurement is therefore blocked behind §25, and should be re-run once bmoe
+lives in the engine — at which point the same rehearsal gains a build.
+
+Reproduction is two throwaway worktrees (`bump-rehearsal-tmp` in kalsallama,
+`bump-rehearsal-rn` in llama.rn-kalsa) and costs nothing but disk; both are
+deleted once the post-§25 re-run is done.
