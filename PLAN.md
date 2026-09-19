@@ -1270,6 +1270,26 @@ blocco da 30 turni LFM, harness dal ramo 7d607c8 lato Mac, keepalive adb, watchd
 scritto nel lab, poi modulo puro con deps iniettati e mutazioni per nome dal primo giro), poi anchored-floor.
 Coordinatore: push del tip, lettore unico dell'e2e del "dopo" e della build APK, confronto dei due artefatti.
 
+**Xiaomi, vincolo dell'owner (23:36 EDT): ha la password di blocco, lo schermo NON deve spegnersi stanotte.**
+Coordinatore: `settings put system screen_off_timeout 2147483647` (originale **120000**, da ripristinare domattina),
+schermo sveglio, nessun lockscreen. Regole: mai KEYCODE_POWER/SLEEP, mai `svc power` che spenga; luminosita' al
+minimo ammessa (annotare l'originale); la notte di inattivita' dello Xiaomi e' "schermo acceso al minimo, app in
+primo piano", misura diversa da una notte a schermo spento e dichiarata cosi'. Se a un campione lo schermo risulta
+Asleep: non sbloccare, annotare l'ora, fermarsi sullo Xiaomi.
+
+**governor-kv-contract, ricognizione nativa (kalsa-93, 23:28 EDT; tre righe portanti rilette dal coordinatore sul
+fork; catena NON dimostrata, verdetto chiesto a Luna e poi all'audit):** il governor tiene DUE contesti e le due KV
+non sono tenute uguali: il commit fra i lati avviene solo al cambio di fase ed e' soppresso quando la rotta di
+prefill e' CPU (`llama-governor.cpp:190-192` target = ctx_decode con rotta CPU; `:202-205` `cpu_route_handoff`
+salta `commit_side`); salvataggio e ripristino passano da `active_ctx()` = `last_ctx` con ripiego su
+`prefill_ctx()` (`rn-governor.cpp:32-38`, `llama-governor-runtime.cpp:228`). Asimmetria sospetta: in salvataggio
+l'ultima fase e' Decode → si scrive ctx_decode (completo); in ripristino nessun decode e' avvenuto, last_ctx e'
+null → il blob entra in ctx_prefill con i watermark a 0; se il primo prefill dopo il ripristino va su CPU il target
+e' ctx_decode e il commit e' soppresso → decode con cache vuota mentre lo slot crede n_past = N: output sbagliato in
+silenzio. Sarebbe la ragione vera delle quattro guardie `activeGovernorActive` in LlamaService.ts. Domande aperte:
+se `llama_kv_commit` muova lo stato ricorrente (LFM2 hybrid, `rn-slot.cpp:1141-1155`); se esista un salvataggio con
+`last_ctx == ctx_prefill` (prewarm senza decode). Contratto in scrittura (Luna af89ce1d), audit deepseek dopo.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
