@@ -328,9 +328,18 @@ option is held to a lower bar than a first.
 
 Each was reproduced, none is load-bearing, all are cheap:
 
-- `chat/index.html` promises *"connections only to the configured endpoint"* over a
-  policy that is `connect-src 'self' http: https: ws: wss:` — any origin, any scheme.
-  Narrowing it needs to not break the endpoint the owner configures.
+- The two content security policies did not agree, and the webview enforces their
+  intersection. `chat/index.html` claimed `connect-src 'self' http: https: ws: wss:` — any
+  origin, any scheme — while `app.security.csp` in `src-tauri/tauri.conf.json` had no
+  `connect-src` at all and so fell back to `default-src 'self'`. `'self'` is
+  `tauri://localhost`, so all three frontend fetches in `chat/src/lib/chat.ts` were blocked
+  in a built binary, the chat completion included; the server was answering the whole time
+  (verified by curl: 200, `Access-Control-Allow-Origin: tauri://localhost`). No test could
+  see it, because node and Playwright talk to the server without passing through a webview.
+  Fixed: both policies now name the same local-only list (`'self'`, `ipc:`, the
+  two loopback hosts), and `chat/scripts/csp-consistency.mjs` fails if they drift, if either
+  one stops admitting the local server, or if either is widened back to a scheme-wide
+  source. No websocket was in use, so `ws:`/`wss:` are gone.
 - `chat/scripts/shots.mjs` waits for the chat's empty state as the landing view. Since
   the brain became the home it never appears, so the harness times out. Broken before
   2026-09-18's work and unrelated to it.

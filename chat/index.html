@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <!-- No remote loads, ever: images self-only (the app renders none),
-         connections only to the configured endpoint; inline scripts allowed
-         because Vite dev needs them (real XSS defense is markdown escaping
-         plus never rendering remote images). -->
+         connections self-only plus this computer's own server and Tauri's IPC
+         channel — never a remote origin. This list must match
+         `app.security.csp` in src-tauri/tauri.conf.json: the webview enforces
+         the intersection of the two, so a policy here that is wider than that
+         one is a lie, not a permission.
+         scripts/csp-consistency.mjs fails when the two drift.
+         Inline scripts and styles are allowed because Vite needs them (real
+         XSS defense is markdown escaping plus never rendering remote images). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self' http: https: ws: wss:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; base-uri 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Crescent Chat</title>

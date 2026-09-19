@@ -9,6 +9,7 @@ import type { SamplingKnob } from "../lib/knobs/types";
 import { loadSampling, samplingProblem, saveSampling } from "../lib/sampling";
 import type { Sampling } from "../lib/sampling";
 import { loadSettings } from "../lib/settings";
+import { useBrainServer, withBrainDefaults } from "../surfaces/useBrain";
 import { KnobInfo, KnobInfoScope } from "./KnobInfo";
 import "./SamplingPanel.css";
 
@@ -25,6 +26,18 @@ function displayNumber(value: number): string {
 }
 
 type DefaultsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
+
+/**
+ * Silence is not yet a failure. A fresh server starts answering only after it
+ * has loaded the model, which on a large one is well over a minute, and the
+ * app reaches this page while that is still happening. So the first read is
+ * expected to find nothing, and the panel keeps asking while the answer is
+ * silence: one second, then doubling up to a cap, until the budget runs out —
+ * only then does the line stop saying it is being read and report the silence.
+ */
+const RETRY_FIRST_MS = 1000;
+const RETRY_MAX_MS = 16_000;
+const RETRY_BUDGET_MS = 60_000;
 
 function statusLine(status: DefaultsStatus): string | null {
   if (status === "unavailable") return "Automatic could not be read because the server did not answer.";
@@ -57,26 +70,46 @@ export function SamplingPanel(): JSX.Element {
     () => Array.from(new Set(SAMPLING_KNOBS.map(({ group }) => group))),
     [],
   );
+  // The owner's typed endpoint wins; the running brain's own endpoint fills the
+  // blank. On a normal install nothing is typed while the machine is serving,
+  // so reading only the typed field left every row saying no server existed.
+  const brainServer = useBrainServer();
+  const settings = withBrainDefaults(loadSettings(), brainServer);
+  const endpoint = settings.endpoint.trim();
+  const token = settings.token;
 
   useEffect(() => {
-    const settings = loadSettings();
-    const endpoint = settings.endpoint.trim();
     if (!endpoint) {
       setDefaultsStatus("not-configured");
       return undefined;
     }
     let alive = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     setDefaultsStatus("loading");
-    void fetchSamplingDefaultsWithStatus(serverBase(endpoint), 8000, settings.token).then((result) => {
-      if (alive) {
+    const deadline = Date.now() + RETRY_BUDGET_MS;
+
+    // Only silence is retried. `refused` and `invalid` are answers from a
+    // server that is there, and asking it again would be hammering it.
+    async function read(delay: number): Promise<void> {
+      const result = await fetchSamplingDefaultsWithStatus(serverBase(endpoint), 8000, token);
+      if (!alive) return;
+      if (result.status !== "unavailable" || Date.now() + delay > deadline) {
         setDefaults(result.values);
         setDefaultsStatus(result.status);
+        return;
       }
-    });
+      retry = setTimeout(() => void read(Math.min(delay * 2, RETRY_MAX_MS)), delay);
+    }
+
+    void read(RETRY_FIRST_MS);
     return () => {
+      // `alive` is false once this run is unmounted or superseded by a newer
+      // endpoint, so a late answer cannot overwrite a newer read and the retry
+      // timer cannot outlive the run that started it.
       alive = false;
+      clearTimeout(retry);
     };
-  }, []);
+  }, [endpoint, token]);
 
   function change(row: SamplingKnob, raw: string): void {
     const value = raw === "" ? null : Number(raw);

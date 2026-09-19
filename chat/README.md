@@ -31,6 +31,8 @@ locally, phones home to nobody.
 - `node scripts/shots.mjs [name ...]` — screenshot driver, fail-loud markers
 - `node scripts/verify.mjs [test ...]` — functional assertions (exit 1 on failure)
 - `node scripts/contrast-dom.mjs` — WCAG contrast from computed DOM styles
+- `node scripts/csp-consistency.mjs` — the page's CSP and Tauri's must allow the
+  same local origins (exit 1 when they drift)
 - `node scripts/palette.mjs` — oklch derivation of the accent scale (not verification)
 
 ## Palette

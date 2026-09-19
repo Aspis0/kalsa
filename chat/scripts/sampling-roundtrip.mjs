@@ -22,14 +22,9 @@
 //   cd chat && node scripts/sampling-roundtrip.mjs
 // Point it elsewhere with KALSA_ENDPOINT (default http://127.0.0.1:8138).
 
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { build } from "../node_modules/esbuild/lib/main.js";
+import { rm } from "node:fs/promises";
+import { loadApp, requireServer } from "./lib/app-bundle.mjs";
 
-const CHAT_DIR = fileURLToPath(new URL("..", import.meta.url));
-const SCRIPTS_DIR = fileURLToPath(new URL(".", import.meta.url));
 const ENDPOINT = process.env.KALSA_ENDPOINT ?? "http://127.0.0.1:8138";
 /// The server returns float32, so 0.77 comes back 0.7699999809265137. An
 /// absolute band this wide is still far under any real transformation.
@@ -69,35 +64,6 @@ const VALUES = {
   seed: 12345,
   max_tokens: 4,
 };
-
-/// Compiles the real TypeScript and re-exports the three functions under test.
-/// A virtual entry (esbuild `stdin`) keeps this to one file: nothing is copied
-/// into JavaScript, and nothing new is written beside the app.
-async function loadApp() {
-  const dir = await mkdtemp(join(tmpdir(), "kalsa-sampling-roundtrip-"));
-  const outfile = join(dir, "app.mjs");
-  await build({
-    stdin: {
-      contents: `
-        export { samplingWire } from "../src/lib/sampling.ts";
-        export { completionBody, completionsUrl } from "../src/lib/chat.ts";
-        export { SAMPLING_KNOBS } from "../src/lib/knobs/sampling.ts";
-      `,
-      resolveDir: SCRIPTS_DIR,
-      loader: "ts",
-    },
-    bundle: true,
-    format: "esm",
-    platform: "node",
-    target: "node20",
-    outfile,
-    nodePaths: [join(CHAT_DIR, "node_modules")],
-    loader: { ".css": "empty" },
-    logLevel: "silent",
-  });
-  const app = await import(`${pathToFileURL(outfile).href}?cache=${Date.now()}`);
-  return { dir, app };
-}
 
 /// A missing or wrong table entry is a product problem, not a test crash, so it
 /// is collected and reported with the request results rather than thrown here.
@@ -205,49 +171,13 @@ function lastSseData(text) {
   return ssePayloads(text).at(-1) ?? null;
 }
 
-/// The exact command that would put a server behind this endpoint, so a failed
-/// health check is actionable instead of a silent skip.
-function startCommand() {
-  const url = new URL(ENDPOINT);
-  const port = url.port || (url.protocol === "https:" ? "443" : "80");
-  return [
-    `"$HOME/Library/Application Support/kalsa-brain/runtime/builds/metal/llama-b10950/llama-server"`,
-    "--host 127.0.0.1",
-    `--port ${port}`,
-    `--model "$HOME/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf"`,
-    "--n-gpu-layers all",
-    "--flash-attn on",
-    "--cache-type-k q8_0",
-    "--cache-type-v q8_0",
-    "--ctx-size 4096",
-    "--no-webui",
-  ].join(" ");
-}
-
-/// Never skips silently: a test that passes because it did nothing is worse
-/// than no test.
-async function requireServer() {
-  try {
-    const response = await fetch(new URL("/health", ENDPOINT), {
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (response.ok) return;
-  } catch {
-    // fall through to the loud failure
-  }
-  console.error(`No llama-server answers /health at ${ENDPOINT}.`);
-  console.error("Start one, then run this again:");
-  console.error(`  ${startCommand()}`);
-  process.exit(1);
-}
-
 const timeout = setTimeout(() => {
   console.error("sampling round trip timed out");
   process.exit(2);
 }, REQUEST_TIMEOUT + 30_000);
 
 try {
-  await requireServer();
+  await requireServer(ENDPOINT);
   const { dir, app } = await loadApp();
   try {
     const problems = tableProblems(app);

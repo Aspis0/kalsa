@@ -11,7 +11,8 @@
     "shots": "node scripts/shots.mjs",
     "brain-shots": "node scripts/brain-shots.mjs",
     "advanced-shots": "node scripts/advanced-shots.mjs",
-    "sampling-roundtrip": "node scripts/sampling-roundtrip.mjs"
+    "sampling-roundtrip": "node scripts/sampling-roundtrip.mjs",
+    "csp": "node scripts/csp-consistency.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

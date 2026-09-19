@@ -379,7 +379,8 @@ try {
   const expertCards = results.filter(
     ({ heading }) =>
       heading.includes("running, live metrics") ||
-      heading.startsWith("Model — advanced settings"),
+      heading.startsWith("Model — advanced settings") ||
+      heading.startsWith("Advanced —"),
   );
   const expertText = expertCards.flatMap((r) => r.lines).join("\n");
   const normalText = results.filter((r) => !expertCards.includes(r)).flatMap((r) => r.lines).join("\n");
@@ -447,14 +448,81 @@ try {
     problems.push("the connection-lost failure must keep the resume promise in its own words");
   }
 
-  const MODEL_AUTO = "A model is chosen automatically — from this computer's memory and what your phone runs — every time you turn on.";
+  // A running Model card must show what actually happened on this start: the
+  // name the shell chose, the reason the shell gave for THIS start, and the
+  // promise that picking is never asked. Two of these are the real cases — a
+  // paired phone (a comparison was made) and no phone (none was) — and the
+  // third is the same card shape with the dev path's absent reason.
   const MODEL_NO_PICK = "You never have to pick one.";
+  const RUNNING_CARDS = [
+    ["running: the choice is automatic", renderer.AUTO_REASON],
+    ["running: a phone was paired and compared", renderer.PHONE_REASON],
+    ["running: no phone was paired", renderer.PHONE_FREE_REASON],
+  ];
   const modelCards = results.filter((r) => r.heading.startsWith("Model —"));
-  if (!modelCards.some((r) => r.sentence.includes(MODEL_AUTO) && r.sentence.includes(MODEL_NO_PICK))) {
-    problems.push("the Model page must explain the automatic choice and that picking is never asked");
+  for (const [note, reason] of RUNNING_CARDS) {
+    const card = modelCards.find((r) => r.heading === `Model — ${note}`);
+    if (!card) {
+      problems.push(`the Model page is missing the "${note}" card`);
+      continue;
+    }
+    if (!card.all.includes(renderer.RUNNING_MODEL)) {
+      problems.push(`a running Model card must name the model it is running: ${note}`);
+    }
+    if (!card.sentence.includes(reason)) {
+      problems.push(`a running Model card must carry the shell's reason for this start, not a general rule: ${note}`);
+    }
+    if (!card.sentence.includes(MODEL_NO_PICK)) {
+      problems.push(`a running Model card must still promise that picking is never asked: ${note}`);
+    }
+    // Exact equality, not a search for forbidden words: the sentence is the
+    // shell's reason and then the promise, and nothing else may ride along.
+    if (card.sentence !== `${reason} ${MODEL_NO_PICK}`) {
+      problems.push(
+        `a running Model card's sentence must be exactly the reason followed by the promise: ${note}`,
+      );
+    }
   }
   for (const { heading, buttons } of modelCards) {
     if (buttons.some((text) => text.startsWith("Measure"))) problems.push(`the Model page must not ask the user to measure: ${heading}`);
+  }
+
+  // The sampling panel must show the automatic value of the server that is
+  // actually running. The "after a server is configured" sentence is only for a
+  // machine that has none — no running brain and nothing typed in Settings — so
+  // both directions are asserted and neither can be satisfied by deleting it.
+  const NOT_CONFIGURED = "Automatic will appear after a server is configured.";
+  const runningSampling = results.find((r) => r.heading === "Advanced — sampling values come from the running server");
+  const stoppedSampling = results.find((r) => r.heading === "Advanced — sampling with no server and nothing typed in Settings");
+  if (!runningSampling) {
+    problems.push("the harness is missing the running-server sampling state");
+  } else {
+    if (runningSampling.automatic.length === 0) problems.push("the sampling panel rendered no automatic lines");
+    if (runningSampling.automatic.includes(NOT_CONFIGURED)) {
+      problems.push("a running server must show its automatic values, not \"after a server is configured\"");
+    }
+    if (!runningSampling.automatic.some((line) => line.includes("Automatic is 1 — the server's own value."))) {
+      problems.push("the running server's own temperature must be shown as the automatic value");
+    }
+  }
+  if (!stoppedSampling) {
+    problems.push("the harness is missing the no-server sampling state");
+  } else if (!stoppedSampling.automatic.includes(NOT_CONFIGURED)) {
+    problems.push("with no server and nothing typed the sampling panel must say a server is not configured");
+  }
+  // A server that is up but still loading answers nothing at first. The panel
+  // must keep asking: the values still have to appear, and the silence must not
+  // have been reported as a failure along the way.
+  const retriedSampling = results.find((r) => r.heading === "Advanced — sampling after the server was still loading");
+  if (!retriedSampling) {
+    problems.push("the harness is missing the still-loading sampling state");
+  } else {
+    if (!retriedSampling.automatic.some((line) => line.includes("Automatic is 1 — the server's own value."))) {
+      problems.push("a server that answers on a later read must still fill the automatic values in");
+    }
+    if (retriedSampling.automatic.some((line) => line.includes("did not answer"))) {
+      problems.push("silence must not be reported as a failure while the panel is still asking");
+    }
   }
   if (!results.some((r) => r.heading.includes("a progress event arrives") && r.working)) {
     problems.push("the progress event must reach the screen");

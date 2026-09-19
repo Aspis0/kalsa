@@ -33,6 +33,7 @@ use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use crate::capability::PHONE_FREE_REASON;
 use crate::failure::StartupFailure;
 use crate::options::LaunchOverrides;
 
@@ -114,6 +115,10 @@ pub(crate) struct LaunchInfo {
     /// user is shown. `None` on the development path: the developer pinned a
     /// file and owns its bytes, and no catalog choice was made to name.
     pub(crate) display_name: Option<String>,
+    /// The catalog's own reason for this launch, in the words built to be
+    /// shown as-is. `None` on the development path: the developer pinned a
+    /// file and owns its bytes, and no catalog choice was made to explain.
+    pub(crate) reason: Option<String>,
 }
 
 #[derive(Debug)]
@@ -161,27 +166,28 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let (plan, row) = choose_model(backend, &machine, phone)?;
+            let (plan, row, reason) = choose_model(backend, &machine, phone)?;
             let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
-                backend, exe, path, row, &machine, state_file, overrides,
+                backend, exe, path, row, reason, &machine, state_file, overrides,
             );
         }
     };
     dev_config_with_overrides(exe, model, state_file, &machine, overrides)
 }
 
-/// The model step's answer: what to fetch, and the row it belongs to. With a
-/// phone paired, the catalog's full comparison runs (`choose`); with none,
-/// the phone-free question does (`largest_that_runs_well`) — the phone
-/// decides whether this computer is an upgrade, never whether the brain can
-/// run. Each branch carries the row its plan was built from, so the file
-/// that is fetched is always the row that was judged.
+/// The model step's answer: what to fetch, the row it belongs to, and the
+/// reason to show. With a phone paired, the catalog's full comparison runs
+/// (`choose`); with none, the phone-free question does
+/// (`largest_that_runs_well`) — the phone decides whether this computer is an
+/// upgrade, never whether the brain can run. Each branch carries the row its
+/// plan was built from, so the file that is fetched is always the row that was
+/// judged, and the reason in the owner's words that came with the branch.
 fn choose_model(
     winner: ServerBackend,
     machine: &Machine,
     phone: Option<PhoneModel>,
-) -> Result<(DownloadPlan, &'static ModelEntry), StartupFailure> {
+) -> Result<(DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     let input = choice_input(winner, machine, phone);
     match phone {
         // No `PhoneUnknown` can reach the walk from either arm: this one
@@ -190,7 +196,7 @@ fn choose_model(
         None => {
             let run = kalsa_catalog::largest_that_runs_well(&input)
                 .map_err(StartupFailure::from)?;
-            Ok((run.download, run.entry))
+            Ok((run.download, run.entry, PHONE_FREE_REASON.to_string()))
         }
         Some(_) => {
             let selection = match kalsa_catalog::choose(&input) {
@@ -203,7 +209,7 @@ fn choose_model(
                 selection.quant,
                 selection.weights_bytes,
             )?;
-            Ok((selection.download, row))
+            Ok((selection.download, row, selection.plain_reason))
         }
     }
 }
@@ -352,6 +358,12 @@ fn acquire_model(
     Ok(path)
 }
 
+/// The reason a test's launch record carries. These tests are about budgets
+/// and argv, so the words only have to be recognisable and provably the ones
+/// the model step handed over.
+#[cfg(test)]
+const TEST_REASON: &str = "the catalog chose this row for the test";
+
 /// The server's configuration, from the launch decision: the context is
 /// derived from the chosen row's cache geometry against this machine's real
 /// budget, the thread count is the measured plateau, the offload follows the
@@ -372,6 +384,7 @@ fn planned_config(
         exe,
         model,
         row,
+        TEST_REASON.to_string(),
         machine,
         state_file,
         LaunchOverrides::default(),
@@ -383,6 +396,7 @@ fn planned_config_with_overrides(
     exe: PathBuf,
     model: PathBuf,
     row: &ModelEntry,
+    reason: String,
     machine: &Machine,
     state_file: PathBuf,
     overrides: LaunchOverrides,
@@ -445,6 +459,7 @@ fn planned_config_with_overrides(
             args,
             maximum_context: maxima,
             display_name: Some(row.display_name.to_owned()),
+            reason: Some(reason),
         },
     })
 }
@@ -520,6 +535,7 @@ fn dev_config_with_overrides(
                 f16: None,
             },
             display_name: None,
+            reason: None,
         },
     })
 }
@@ -821,8 +837,13 @@ mod tests {
         // phone at all, the model step answers with the largest row the
         // machine runs well, and the plan carries that row's pinned file.
         let machine = machine(Backend::Cpu);
-        let (plan, row) = choose_model(ServerBackend::Cpu, &machine, None)
+        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None)
             .expect("a standalone brain is a legitimate configuration");
+        assert_eq!(
+            reason, PHONE_FREE_REASON,
+            "with no phone there is no comparison to report: the reason is the\
+             phone-free sentence, not a generic claim"
+        );
         assert!(
             rows().any(|entry| entry.repo == row.repo && entry.display_name == row.display_name),
             "the row is a real catalog row, not an invention"
@@ -1070,8 +1091,14 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let (plan, row) =
+        let (plan, row, reason) =
             choose_model(ServerBackend::Cpu, &machine, Some(phone)).expect("the tier is not empty");
+        assert_ne!(
+            reason, PHONE_FREE_REASON,
+            "a paired phone means a comparison was made, so the reason is the\
+             comparison's own words"
+        );
+        assert!(!reason.is_empty(), "the comparison must say something");
         let trinity = rows().find(|entry| entry.display_name == "Arcee Trinity Nano")
             .expect("the comparison row left the catalog");
         assert!(
@@ -1236,6 +1263,7 @@ mod tests {
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
             row,
+            TEST_REASON.to_string(),
             &machine,
             PathBuf::from("/state/server.state"),
             LaunchOverrides {
@@ -1268,6 +1296,7 @@ mod tests {
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
             row,
+            TEST_REASON.to_string(),
             &machine,
             PathBuf::from("/state/server.state"),
             LaunchOverrides {
@@ -1366,6 +1395,11 @@ mod tests {
             Some("IBM Granite 4 Tiny"),
             "the catalog's own name travels with the launch"
         );
+        assert_eq!(
+            config.info.reason.as_deref(),
+            Some(TEST_REASON),
+            "the reason the model step answered with travels with the launch"
+        );
 
         // The development override launches without a catalog choice: the
         // name is absent rather than invented.
@@ -1385,6 +1419,10 @@ mod tests {
         )
         .expect("the override is the answer");
         assert_eq!(dev.info.display_name, None);
+        assert_eq!(
+            dev.info.reason, None,
+            "nothing was chosen, so there is nothing to explain"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 

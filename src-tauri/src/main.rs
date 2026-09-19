@@ -148,18 +148,19 @@ impl Brain {
     }
 
     /// The Model page's read, from the launch record: the catalog's own name
-    /// while a catalog-chosen launch stands. A development override
-    /// configures a model the catalog never chose, so `chosen` is true with
-    /// no name to show.
+    /// while a catalog-chosen launch stands, and the catalog's own reason for
+    /// that choice. A development override configures a model the catalog
+    /// never chose, so `chosen` is true with no name and no reason to show.
+    /// One lock answers both fields.
     fn model_dto(&self) -> ModelDto {
-        let display_name = self
-            .launch
-            .lock()
-            .ok()
-            .and_then(|stored| stored.as_ref().and_then(|info| info.display_name.clone()));
+        let launch = self.launch.lock().ok();
+        let info = launch.as_deref().and_then(|stored| stored.as_ref());
+        let display_name = info.and_then(|info| info.display_name.clone());
+        let reason = info.and_then(|info| info.reason.clone());
         ModelDto {
             chosen: model_chosen(display_name.as_deref(), std::env::var(MODEL_ENV).is_ok()),
             display_name,
+            reason,
         }
     }
 
@@ -488,6 +489,11 @@ enum StateDto {
         /// identity the user is shown. Absent on the development path,
         /// where the developer pinned a file no catalog choice named.
         model: Option<String>,
+        /// The catalog's own reason for this launch, in the words built to
+        /// be shown as-is. Absent on the development path, where the
+        /// developer pinned a file and no catalog choice was made to
+        /// explain.
+        reason: Option<String>,
         metrics: metrics::RuntimeMetricsDto,
     },
     /// Already in the user's words, produced only by `failure::words`.
@@ -520,10 +526,12 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 desk.desk.stop_serving();
             }
             let active_devices = brain.active_devices();
+            let model = brain.model_dto();
             StateDto::Running {
                 port,
                 endpoint: format!("http://127.0.0.1:{port}/v1"),
-                model: brain.model_dto().display_name,
+                model: model.display_name,
+                reason: model.reason,
                 metrics: brain.metrics.snapshot(active_devices),
             }
         }
@@ -601,14 +609,16 @@ fn model_chosen(display_name: Option<&str>, override_env_set: bool) -> bool {
 }
 
 /// Whether a model is configured, and which one when the catalog chose it.
-/// `display_name` is the catalog's own human name, built to be shown; the
-/// development override configures a model with no catalog choice, so the
-/// name is optional and `chosen` stands on its own. A filename never
-/// crosses this boundary, because the user has no use for one.
+/// `display_name` is the catalog's own human name, built to be shown, and
+/// `reason` is the catalog's own sentence for why this one; the development
+/// override configures a model with no catalog choice, so both are optional
+/// and `chosen` stands on its own. A filename never crosses this boundary,
+/// because the user has no use for one.
 #[derive(Serialize)]
 struct ModelDto {
     chosen: bool,
     display_name: Option<String>,
+    reason: Option<String>,
 }
 
 #[tauri::command]
@@ -1105,6 +1115,11 @@ mod tests {
             None,
             "nothing launched, no name invented"
         );
+        assert_eq!(
+            brain.model_dto().reason,
+            None,
+            "nothing launched, no reason invented"
+        );
         brain.record_launch(
             startup::LaunchInfo {
                 args: launch_args("/models/chosen.gguf", startup::PORT),
@@ -1113,6 +1128,7 @@ mod tests {
                     f16: Some(4096),
                 },
                 display_name: Some("IBM Granite 4 Tiny".to_string()),
+                reason: Some("It is the more capable of the two.".to_string()),
             },
             StartOutcome::Accepted,
         );
@@ -1121,6 +1137,11 @@ mod tests {
             dto.display_name.as_deref(),
             Some("IBM Granite 4 Tiny"),
             "the catalog's own name, not a filename"
+        );
+        assert_eq!(
+            dto.reason.as_deref(),
+            Some("It is the more capable of the two."),
+            "the catalog's own reason for this start, not a general rule"
         );
         assert!(dto.chosen, "a catalog-chosen launch is chosen");
     }
@@ -1141,6 +1162,7 @@ mod tests {
             port: startup::PORT,
             endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
             model: Some("IBM Granite 4 Tiny".to_string()),
+            reason: Some("It is the more capable of the two.".to_string()),
             metrics: metrics::RuntimeMetricsDto {
                 decode_tokens_per_second: None,
                 active_devices: None,
@@ -1157,6 +1179,10 @@ mod tests {
         assert_eq!(
             json["model"], "IBM Granite 4 Tiny",
             "the catalog's own name, not a filename"
+        );
+        assert_eq!(
+            json["reason"], "It is the more capable of the two.",
+            "the catalog's own reason reaches the page with the name"
         );
     }
 
@@ -1191,6 +1217,7 @@ mod tests {
                     f16: Some(4096),
                 },
                 display_name: None,
+                reason: None,
             });
         }
         brain.clear_launch_for_state(&ServerState::Starting);
@@ -1212,6 +1239,7 @@ mod tests {
                 f16: Some(4096),
             },
             display_name: None,
+            reason: None,
         };
         let rejected = startup::LaunchInfo {
             args: launch_args("/models/rejected.gguf", 8138),
@@ -1220,6 +1248,7 @@ mod tests {
                 f16: Some(2048),
             },
             display_name: None,
+            reason: None,
         };
         brain.record_launch(running, StartOutcome::Accepted);
         brain.record_launch(rejected, StartOutcome::Refused);

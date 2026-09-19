@@ -26,7 +26,7 @@ use crate::startup::CHOOSER_CONTEXT_TOKENS;
 /// justification to report, because no comparison was ever made. The true
 /// thing is that this is the biggest model the machine runs well, and the
 /// phone is what would turn it into a comparison.
-const PHONE_FREE_REASON: &str = "This is the biggest model this computer runs well. \
+pub(crate) const PHONE_FREE_REASON: &str = "This is the biggest model this computer runs well. \
 Pair your phone and the app can tell you whether it beats what the phone runs.";
 
 /// The second option's sentence. It says the trade in the order the owner

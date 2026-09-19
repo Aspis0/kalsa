@@ -5,13 +5,18 @@ import { available, invoke } from "../lib/tauri";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
-const MODEL_AUTO =
-  "A model is chosen automatically — from this computer's memory and speed — every time you turn on.";
 const MODEL_NO_PICK = "You never have to pick one.";
+/** Shown only when the launch record carried no reason: the development path,
+ *  where the developer pinned a file and no catalog choice was made. It states
+ *  nothing about a phone, because on this path a phone played no part. */
+const MODEL_REASON_FALLBACK = "A model is chosen for this computer every time you turn on.";
 
-/** What `brain_state` answers; this page only reads the kind. */
+/** What `brain_state` answers. The kind decides the sentence; on a running
+ *  start the catalog's own name and its reason for THIS start travel with it. */
 interface BrainState {
   kind: "stopped" | "starting" | "running" | "failed";
+  model?: string | null;
+  reason?: string | null;
 }
 
 interface ModelsSurfaceProps {
@@ -19,8 +24,9 @@ interface ModelsSurfaceProps {
 }
 
 // The Models surface explains that selection is automatic and owns the advanced
-// launch controls. The chooser remains in Rust; this page only reads its
-// answer and sends explicit edits back to the start command.
+// launch controls. The chooser remains in Rust; this page reads its answer — the
+// model and the reason it gave for this start — and sends explicit edits back to
+// the start command.
 export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
   const [state, setState] = useState<BrainState | null>(null);
 
@@ -49,8 +55,11 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
   } else {
     switch (state.kind) {
       case "running":
-        headline = "Chosen for this computer";
-        sentence = `${MODEL_AUTO} ${MODEL_NO_PICK}`;
+        // The name the catalog chose is already on the wire; showing it is the
+        // point. The sentence is the reason the shell gave for THIS start, not
+        // a general rule about how choosing works.
+        headline = state.model ? `Running ${state.model}` : "Chosen for this computer";
+        sentence = `${state.reason ?? MODEL_REASON_FALLBACK} ${MODEL_NO_PICK}`;
         break;
       case "starting":
         headline = "Chosen and starting";
