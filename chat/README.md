@@ -33,6 +33,9 @@ locally, phones home to nobody.
 - `node scripts/contrast-dom.mjs` — WCAG contrast from computed DOM styles
 - `node scripts/csp-consistency.mjs` — the page's CSP and Tauri's must allow the
   same local origins (exit 1 when they drift)
+- `node scripts/command-contract.mjs` — literal `brain_...` command names in
+  frontend source must have a matching Tauri handler; registered-only handlers
+  are reported, and event-shaped literals are called out separately.
 - `node scripts/palette.mjs` — oklch derivation of the accent scale (not verification)
 
 ## Palette
