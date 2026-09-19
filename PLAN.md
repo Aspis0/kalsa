@@ -757,6 +757,31 @@ prima di scegliere: se il template di Qwen 3.5 rende i turni vecchi senza think,
 nei turni vecchi e' esattamente cio' su cui e' stato addestrato — quindi (A) va misurato in qualita', non
 dato per innocuo.
 
+**DECISIONE DELL'OWNER (18/09, 20:30 EDT): "fai A su Qwen e confermi fix fuga privacy".** (A) Il ragionamento
+resta nella storia: i turni assistente vecchi vengono resi con lo span grezzo `<think>...</think>risposta`
+cosi' che il replay riproduca token per token cio' che la cache viva contiene, e la KV riusa tutto. Il
+costo in contesto e la qualita' (il modello rivede i suoi think) si misurano dopo, sugli 80 casi.
+*Implementazione preferita, app-only, da verificare con minja sul GGUF di catalogo prima di scrivere codice:*
+`content` = span grezzo per ogni turno assistente; `reasoning_content` = stringa NON vuota (una sola forma,
+es. uno spazio) **solo per i turni non finali** (prima dell'ultimo messaggio utente: il template Qwen non la
+rende mai per quei turni, misurato 18/09 — la sentinella non compare — ma salta lo split di `</think>`);
+per il turno assistente **finale** (storia che termina con l'assistente: prewarm dopo una risposta) nessun
+campo, perche' il template splitta e ri-avvolge `<think>\n` + reasoning + `\n</think>\n\n` + risposta, che e'
+identico allo span grezzo se lo span ha la forma canonica emessa dal modello — da misurare, non da assumere.
+Se la misura mostra che una delle quattro posizioni (vecchio/finale × con/senza think) non riproduce i token
+vivi, la via alternativa e' nel fork (`chat.cpp:232`: inoltrare `reasoning_content` anche vuoto quando la
+chiave e' presente), da mettere nello stesso bump del modulo batteria, mai come bump a se'. *Accettazione:*
+(1) uguaglianza id-per-id fra render e cache viva alle quattro posizioni, misurata con `llama-server --jinja`
+`/apply-template` sul GGUF di catalogo (solo interi, in locale); (2) in CI, `KV_CACHE: WARM` al turno 2 con
+riuso ≈ totale − token nuovi (oggi 2136/2250 e' un riuso della cache appena ricostruita, non del turno 1) e
+gamba di restart non piu' `LOADED BUT COLD`; (3) una verifica sul telefono con Qwen quando l'S23 e' libero.
+Un modulo .ts (la decisione di quale campo per quale posizione) con test jest, e la verifica minja come
+script del lab, non come test jest. Coda kalsa-93: evict-marker → `log-privacy` → **`qwen-think-in-history`**
+→ `save-wiring-coverage` → governor-kv-contract → coolmode.
+**Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
+(niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
+`log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
+
 **Due fughe di privacy, verificate su disco (18/09 notte), repo `Aspis0/kalsa` PUBLIC.** (1) Con i tool
 attivi **ogni token generato finisce in logcat in chiaro**: `cpp/llama-grammar.cpp:1439`
 `LLAMA_LOG_DEBUG("Grammar still awaiting trigger after token %d (`%s`)")` col pezzo detokenizzato, a ogni
