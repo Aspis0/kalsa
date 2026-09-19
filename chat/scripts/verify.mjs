@@ -5,6 +5,7 @@
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
 import { crescentEntriesFor } from "../src/app/crescentLayout.ts";
+import { HANDOFF_ATTRIBUTE as handoffAttribute, HANDOFF_MS as handoffMs } from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
 
 const APP = "http://localhost:5173";
@@ -827,6 +828,10 @@ const tests = {
       check(`crescent: "${label}" is not a control the page already has`, elsewhere === 0, `${elsewhere} elsewhere`);
     }
     check("crescent: the chat's own new-chat control is not repeated", labels.every((label) => !label.includes("New chat")), JSON.stringify(labels));
+    // One door per surface: the header carries the app's settings everywhere
+    // except here, where this menu carries them, and except the page itself.
+    const doors = await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).count();
+    check("crescent: the chat offers Settings once, not twice", doors === 0 && labels.some((label) => label === "Settings"), JSON.stringify({ doors, labels }));
     await browser.close();
   },
 
@@ -2254,6 +2259,119 @@ const tests = {
       (await page.locator(".sampling-panel").count()) === 1,
       "the sampler panel is not there at all",
     );
+    await browser.close();
+  },
+
+  // The app's own settings are the app's, and the app's strip is the header: on
+  // the Brain home, with no chat open, one step must reach them. They used to be
+  // a chip called Settings inside a row called Settings; taking that away
+  // without a door left the home with no way at all, and the theme — which
+  // moved into Settings — three steps from a page that used to carry it.
+  async settingsdoor() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    check("door: the brain home is where the app opens", (await page.locator(".brain-bar").count()) === 1, "the home is not on screen");
+    const door = page.locator(".topbar").getByRole("button", { name: "Settings", exact: true });
+    check("door: the home reaches Settings in one step", (await door.count()) === 1, "no Settings door in the header on the home");
+    await door.first().click();
+    await page.waitForTimeout(400);
+    check("door: and it opens them", (await page.locator(".settings-page").count()) === 1, "the click did not open Settings");
+    // The rule the crescent follows, kept here: no way to the page you are on.
+    check(
+      "door: not offered on Settings itself",
+      (await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).count()) === 0,
+      "a door to the page already open",
+    );
+    // And it is not a sixth chip in the machine's row.
+    await page.locator(".topbar").getByRole("button", { name: /^Back to / }).first().click();
+    await page.waitForTimeout(400);
+    const chips = await page.locator(".brain-settings-item").allTextContents();
+    check("door: the machine row stays four", chips.length === 4 && !chips.includes("Settings"), JSON.stringify(chips));
+    await browser.close();
+  },
+
+  // The writing bar becoming the first message, by hand. It used to be
+  // `document.startViewTransition` with a shared `view-transition-name`, and on
+  // this machine the effect simply never happened — the pseudo-elements are not
+  // inspectable from a test, so a day of "it looks wired" proved nothing. A FLIP
+  // is in the DOM: the moving element, its layout, its keyframes and its
+  // duration can all be read.
+  async handoff() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await seed(page, { settings: okSettings("x") });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+
+    const bar = await page.locator(".brain-bar").boundingBox();
+    check("handoff: the bar is on the home", bar !== null, "no bar to measure");
+    await page.getByRole("textbox", { name: "Write to the brain" }).fill("First message from the bar.");
+    await page.getByRole("textbox", { name: "Write to the brain" }).press("Enter");
+    // The move exists, and it is measured while it is happening.
+    await page
+      .locator(`[${handoffAttribute}]`)
+      .first()
+      .waitFor({ timeout: 1500 })
+      .catch(() => check("handoff: the moving element exists", false, "nothing carried the move"));
+    const move = await page.evaluate((attribute) => {
+      const mover = document.querySelector(`[${attribute}]`);
+      if (!mover) return null;
+      const animation = mover.getAnimations()[0];
+      // `getKeyframes()` lives on the effect, not on the animation.
+      const keyframes = animation?.effect && "getKeyframes" in animation.effect ? animation.effect.getKeyframes() : [];
+      return {
+        layout: { left: mover.offsetLeft, top: mover.offsetTop, width: mover.offsetWidth, height: mover.offsetHeight },
+        text: mover.textContent ?? "",
+        duration: animation ? animation.effect?.getTiming().duration : null,
+        last: keyframes.length > 0 ? keyframes[keyframes.length - 1].transform : null,
+      };
+    }, handoffAttribute);
+    check("handoff: the moving element exists", move !== null, "no element carried the move");
+    if (move && bar) {
+      check(
+        "handoff: it starts where the bar was",
+        Math.abs(move.layout.left - bar.x) <= 2 && Math.abs(move.layout.top - bar.y) <= 2 && Math.abs(move.layout.width - bar.width) <= 2,
+        `${JSON.stringify(move.layout)} vs bar ${JSON.stringify(bar)}`,
+      );
+      check("handoff: it carries the message", move.text.includes("First message from the bar."), move.text);
+      check("handoff: with the declared duration", move.duration === handoffMs, `${move.duration} vs ${handoffMs}`);
+      // It ends where the bubble lands: the last keyframe is the difference
+      // between the two rectangles.
+      await page.waitForTimeout(handoffMs + 200);
+      const bubble = await page.locator(".user-bubble").first().boundingBox();
+      const translate = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(move.last ?? "");
+      check("handoff: the last keyframe is a translation", translate !== null, String(move.last));
+      if (translate && bubble && bar) {
+        check(
+          "handoff: and it lands on the bubble",
+          Math.abs(Number(translate[1]) - (bubble.x - bar.x)) <= 2 && Math.abs(Number(translate[2]) - (bubble.y - bar.y)) <= 2,
+          `${translate[1]},${translate[2]} vs ${bubble.x - bar.x},${bubble.y - bar.y}`,
+        );
+      }
+      check(
+        "handoff: the moving element is taken away when it lands",
+        (await page.locator(`[${handoffAttribute}]`).count()) === 0,
+        "the mover stayed on the page",
+      );
+    }
+    check("handoff: the message is in the thread", ((await page.locator(".thread").textContent()) ?? "").includes("First message from the bar."), "the message did not arrive");
+
+    // Reduced motion falls back to the plain state change: no move at all, and
+    // the message still lands.
+    const calm = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await calm.emulateMedia({ reducedMotion: "reduce" });
+    await seed(calm, { settings: okSettings("x") });
+    await calm.goto(APP);
+    await calm.waitForTimeout(1200);
+    await calm.getByRole("textbox", { name: "Write to the brain" }).fill("No animation for me.");
+    await calm.getByRole("textbox", { name: "Write to the brain" }).press("Enter");
+    await calm.waitForTimeout(handoffMs + 200);
+    check("handoff: reduced motion moves nothing", (await calm.locator(`[${handoffAttribute}]`).count()) === 0, "a move ran under reduced motion");
+    check("handoff: and the message still arrives", ((await calm.locator(".thread").textContent()) ?? "").includes("No animation for me."), "reduced motion lost the message");
     await browser.close();
   },
 

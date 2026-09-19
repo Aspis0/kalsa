@@ -211,14 +211,15 @@
   opacity: 0.35;
 }
 
-/* The brain→chat move (THE-BRAIN-IS-THE-HOME.md §3): the writing bar becomes
-   the first message, and the rest of the brain screen becomes the thread.
-   One duration, set from BRAIN_OPEN_MS in App.tsx when the transition
-   starts — deliberately short, and open to being re-judged on screen. */
-::view-transition-group(*),
-::view-transition-old(*),
-::view-transition-new(*) {
-  animation-duration: var(--brain-open-ms, 240ms);
+/* The writing bar becoming the first message: one fixed element flies from the
+   bar's rectangle onto the bubble's (`app/handoff.ts`, one duration constant),
+   and nothing else on the screen moves. The view-transition rules that used to
+   live here went with the technique — one mechanism, not two. */
+.user-bubble[data-brain-handoff] {
+  max-width: none;
+  margin: 0;
+  z-index: 40;
+  pointer-events: none;
 }
 
 @media (max-width: 760px) {

@@ -14,6 +14,7 @@ import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
+import { handoff } from "./app/handoff";
 import { CrescentNav } from "./components/CrescentNav";
 import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -35,11 +36,6 @@ import { executeToolCall, offeredTools } from "./lib/tools/registry";
 import "./App.css";
 
 const store = createStore();
-
-// The brain→chat move: the writing bar becomes the first message (§3 of
-// THE-BRAIN-IS-THE-HOME.md). Deliberately short — the duration is open and
-// will be judged on a real screen, so it lives here, in one place.
-const BRAIN_OPEN_MS = 240;
 
 // How far the settings path may grow before the oldest step falls off. The
 // surfaces' own hops are shallow; the bound is for the general case.
@@ -94,7 +90,6 @@ export function App() {
   const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[] }>>({});
   const [liveMessage, setLiveMessage] = useState("");
   // The message the brain's writing bar became, for the one open move.
-  const [barMessageId, setBarMessageId] = useState<string | null>(null);
   // The composer's unsent text. Going home unmounts the chat, and the
   // draft must survive that round trip, so it lives here.
   const [draft, setDraft] = useState("");
@@ -523,34 +518,28 @@ export function App() {
   }
 
   // Enter in the brain's bar: the chat opens with the text as the first
-  // message, and the bar itself becomes that message (§3). Being
-  // unconfigured is a reason the ANSWER will fail, not a reason the bar
-  // should not become the message, so it is no fallback here: the morph
-  // runs whenever the transition path can, and the error appears in the
-  // thread afterwards. Without that path — no API, or reduced motion — the
-  // same state change happens plainly, and the name is never set, so
-  // nothing can leak past the move.
+  // message, and the bar itself becomes that message (§3) — the move is a FLIP
+  // in `app/handoff.ts`, measured before and after the state change. Being
+  // unconfigured is a reason the ANSWER will fail, not a reason the bar should
+  // not become the message, so there is no fallback here on that account; under
+  // reduced motion the same state change happens plainly and nothing moves.
   function writeFromBrain(text: string): void {
-    if (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      !document.startViewTransition
-    ) {
-      sendMessage(text);
-      return;
-    }
-    document.documentElement.style.setProperty("--brain-open-ms", `${BRAIN_OPEN_MS}ms`);
+    const calm =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const bar = calm ? null : document.querySelector(".brain-bar");
+    const before = bar ? bar.getBoundingClientRect() : null;
+
     let openedId: string | null = null;
-    const transition = document.startViewTransition(() => {
-      flushSync(() => {
-        openedId = sendMessage(text);
-        if (openedId) setBarMessageId(openedId);
-      });
+    // The commit has to be in the DOM before the bubble can be measured, which
+    // is what flushSync is for: not the animation, the measurement.
+    flushSync(() => {
+      openedId = sendMessage(text);
     });
-    // The name rides only for the move; and only its own message is
-    // unnamed, so a transition started right after is untouched.
-    void transition.finished.finally(() => {
-      if (openedId !== null) setBarMessageId((current) => (current === openedId ? null : current));
-    });
+    if (openedId === null) return;
+    // The bubble is in the DOM by now — flushSync committed it — and it is
+    // found by its message id, so no state has to be held for the move.
+    handoff(before, document.querySelector(`[data-message-id="${openedId}"]`));
   }
 
   function stop(): void {
@@ -681,6 +670,22 @@ export function App() {
           <h1>{title}</h1>
         </div>
         <div className="topbar-actions">
+          {/* The app's own settings, in the app's own strip. The row below the
+              bar on the home is the machine's (what runs on it, who can reach
+              it, how it is launched); this is the door to the app's. One door
+              per surface, by the same rule the crescent follows: not on
+              Settings itself, where it would do nothing, and not on the chat,
+              whose own menu already carries it. */}
+          {surface !== "settings" && surface !== "chat" ? (
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={() => openSurface("settings")}
+              aria-label="Settings"
+            >
+              Settings
+            </button>
+          ) : null}
           {surface !== "brain" && surface !== "chat" ? (
             <button
               type="button"
@@ -778,7 +783,6 @@ export function App() {
                     tails={tails}
                     onRetry={retry}
                     onOpenSettings={() => openSurface("settings")}
-                    originMessageId={barMessageId}
                   />
                 )}
                 {attachStatus ? (

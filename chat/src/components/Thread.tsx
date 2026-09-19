@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, UIEvent } from "react";
+import type { UIEvent } from "react";
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
 import { Markdown } from "./Markdown";
@@ -22,9 +22,6 @@ interface ThreadProps {
   tails: Record<string, string>;
   onRetry: (messageId: string) => void;
   onOpenSettings: () => void;
-  // The message the brain's writing bar became: it carries the transition
-  // name for the one open move, then rides as an ordinary message.
-  originMessageId?: string | null;
 }
 
 function errorCopy(kind: ChatErrorKind, status?: number): { title: string; body: string } {
@@ -176,7 +173,6 @@ export function Thread({
   tails,
   onRetry,
   onOpenSettings,
-  originMessageId,
 }: ThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -214,14 +210,7 @@ export function Thread({
           {messages.map((message) =>
             message.role === "user" ? (
               <div className="row row-user" key={message.id} title={stamp(message.createdAt)}>
-                <div
-                  className="user-bubble"
-                  style={
-                    message.id === originMessageId
-                      ? ({ viewTransitionName: "brain-bar" } as CSSProperties)
-                      : undefined
-                  }
-                >
+                <div className="user-bubble" data-message-id={message.id}>
                   {message.content}
                 </div>
               </div>

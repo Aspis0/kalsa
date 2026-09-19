@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { SURFACES } from "../app/surfaces";
 import { MachineCard } from "./MachineCard";
@@ -169,9 +169,6 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
           onChange={(event) => setText(event.target.value)}
           placeholder="Say something…"
           aria-label="Write to the brain"
-          // The bar is what becomes the first message (§3): the name is how
-          // the transition finds it.
-          style={{ viewTransitionName: "brain-bar" } as CSSProperties}
         />
         <button
           type="submit"
