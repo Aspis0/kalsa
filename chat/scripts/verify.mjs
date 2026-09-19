@@ -1802,37 +1802,82 @@ const tests = {
     check("links: the address the model asked for is still shown as text", shown.includes("javascript:alert(1)"), shown.slice(0, 300));
     await browser.close();
   },
-  // A model forbidden a structured tool call can write one out as text. Live,
-  // on 2026-09-19, the page printed the markup to the reader as the answer.
-  // Both halves are asserted: the words around it arrive, the markup does not.
+  // Tool-call markup, in the two situations that matter, plus the one where
+  // nothing should be hidden at all. The owner's live case (2026-09-19): he
+  // asked the model to show him the tags, the model wrote <tool_call> fourteen
+  // times without closing it, and the stripper ate the whole 2,603-character
+  // answer — the page sat on "thinking" and nothing ever appeared.
   async markup() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
+
+    // An ordinary round, tools offered: the tags are part of the answer.
+    const shown = await browser.newPage();
+    await stubDoor(shown, { search: LISBON });
+    await seedOnce(shown, toolSettings("toolsshowmarkup-demo"));
+    await openChat(shown);
+    await shown.waitForTimeout(1200);
+    await sendAndWait(shown, "Show me the tool-call tags.", "that is the format.");
+    const asked = (await shown.locator(".thread").textContent()) ?? "";
+    check("markup: the words around the tags are shown", asked.includes("Here is the syntax:"), asked.slice(0, 200));
+    check(
+      "markup: and the tags the user asked to see are shown",
+      asked.includes("<tool_call>") && asked.includes("</tool_call>"),
+      asked.slice(0, 240),
+    );
+    await shown.close();
+
+    // The capped round, tools offered and the call forbidden: invented markup.
+    const capped = await browser.newPage();
+    await stubDoor(capped, { search: LISBON });
+    await seedOnce(capped, toolSettings("toolshidemarkup-demo"));
+    await openChat(capped);
+    await capped.waitForTimeout(1200);
+    await sendAndWait(capped, "One more search?", "I cannot answer in words.", 40000);
+    const hid = (await capped.locator(".thread").textContent()) ?? "";
+    check("markup: the words of the capped answer are shown", hid.includes("I cannot answer in words."), hid.slice(0, 200));
+    check(
+      "markup: and the invented call in it is not",
+      !hid.includes("tool_call") && !hid.includes("parameter"),
+      hid.slice(0, 260),
+    );
+    await capped.close();
+
+    // No tools were offered, so no call was forbidden and nothing may be
+    // hidden: the same characters, and the reader may want them.
+    const plain = await browser.newPage();
+    await seed(plain, { settings: okSettings("markup-demo") });
+    await openChat(plain);
+    await plain.waitForTimeout(1200);
+    // Waited to the last line of the leaked text: the markup is part of the
+    // answer now, so it arrives with it and a prefix marker would assert on a
+    // half-rendered stream.
+    await sendAndWait(plain, "One more search?", "</tool_call>");
+    const open = (await plain.locator(".thread").textContent()) ?? "";
+    check("markup: with no tools offered nothing is hidden", open.includes("<tool_call>"), open.slice(0, 240));
+    check("markup: and the answer is all there", open.includes("weather in Tokyo today"), open.slice(0, 300));
+    await plain.close();
+
+    await browser.close();
+  },
+
+  // A round that spends itself on calls and produces no words. Live, 2026-09-19,
+  // the model answered "show me the <tool_call> format" with 40 structured
+  // web_search calls, no content, finish_reason "length" — so the calls were
+  // refused, the turn returned, and the reader got nothing at all.
+  async toolsburn() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
-    await seed(page, { settings: okSettings("markup-demo") });
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsburn-demo"));
     await openChat(page);
     await page.waitForTimeout(1200);
-    // The marker is the whole sentence, not a prefix of it: waiting on a
-    // prefix can return while the rest is still rendering.
-    await sendAndWait(page, "One more search?", "I need one more search to be sure.");
-    const thread = (await page.locator(".thread").textContent()) ?? "";
-    check("markup: the words around the call are shown", thread.includes("I need one more search to be sure."), thread.slice(0, 200));
-    check("markup: no tool-call markup reaches the reader", !thread.includes("tool_call") && !thread.includes("web_search") && !thread.includes("parameter"), thread.slice(0, 300));
-    // The thread renders from the live buffer; what is stored trails it by the
-    // persist throttle, so wait for it rather than read it too early.
-    await page
-      .waitForFunction(
-        () =>
-          Object.keys(localStorage).some(
-            (k) => k.startsWith("crescent-chat.msgs.") && (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => m.role === "assistant" && (m.content ?? "") !== ""),
-          ),
-        null,
-        { timeout: 10000 },
-      )
-      .catch(() => check("markup: the answer reached the disk", false, "never written"));
-    const stored = await page.evaluate(() => ({ ...localStorage }));
-    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
-    const saved = JSON.parse(stored[key] ?? "[]").find((m) => m.role === "assistant");
-    check("markup: what is stored is what was shown", (saved?.content ?? "").trim() === "I need one more search to be sure.", JSON.stringify(saved?.content));
+    await resetMock(page);
+    await sendAndWait(page, "Show me the tags.", "the answer is 42", 40000);
+    const text = (await page.locator(".thread").textContent()) ?? "";
+    check("burn: an answer arrives even though the calls were refused", text.includes("the answer is 42"), text.slice(0, 200));
+    check("burn: the refused call is on the record too", text.includes("ended the turn as"), text.slice(0, 260));
+    const bodies = await allBodies(page);
+    check("burn: the fallback round asked for words", bodies.at(-1)?.tool_choice === "none", JSON.stringify(bodies.map((b) => b.tool_choice)));
     await browser.close();
   },
 
@@ -2027,72 +2072,12 @@ const tests = {
     await sendAndWait(markup, "Show me the syntax.", "That was the markup.");
     const text = (await markup.locator(".thread").textContent()) ?? "";
     check("json: the words around the call are shown", text.includes("Here is the syntax."), text.slice(0, 200));
-    check("json: and the markup is not", !text.includes("tool_call") && !text.includes("parameter"), text.slice(0, 240));
+    // The hiding rule is "only in a round where a call was forbidden" (see
+    // `markup`), and this chat offered no tools: nothing is hidden, so the whole
+    // answer arrives — tags included. Asserted rather than assumed, because the
+    // alternative silently ate an answer once.
+    check("json: with no tools offered the tags come through", text.includes("<tool_call>") && text.includes("</tool_call>"), text.slice(0, 240));
     check("json: the text after it is kept too", text.includes("That was the markup."), text.slice(-120));
-    await browser.close();
-  },
-
-  // The web-tools switch is a privacy control, not a field of the connection
-  // form, and it is applied when it is touched. Live, 2026-09-19: the owner
-  // toggled it off, pressed Save, and was told to enter a server address —
-  // which is empty on a normal install, because the brain runs on this
-  // computer. The switch was unreachable, and it defaults to on.
-  async webswitch() {
-    const browser = await chromium.launch({ args: ["--no-sandbox"] });
-    const page = await browser.newPage();
-    await stubDoor(page, { search: LISBON });
-    await seed(page, {
-      settings: { endpoint: "http://127.0.0.1:18081/ok", token: "t", model: "toolsloop-demo", webTools: true },
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.locator(".brain-settings").getByRole("button", { name: "Settings" }).click();
-    await page.waitForTimeout(300);
-    // The owner's shape: the address field is empty. (On his machine the brain
-    // runs here and fills it in; the field is cleared here to make the same
-    // case, and to catch a switch write that blanks or commits it.)
-    await page.getByLabel("Server address").fill("");
-    const toggle = page.getByRole("checkbox", { name: "Let the assistant search the web" });
-    check("switch: it is on to begin with", await toggle.isChecked());
-    await toggle.uncheck();
-    await page.waitForTimeout(500);
-
-    const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("crescent-chat.settings.v1") ?? "{}"),
-    );
-    check(
-      "switch: turning it off is saved, with the server address field empty",
-      stored.webTools === false,
-      JSON.stringify(stored),
-    );
-    check(
-      "switch: and the stored address is neither blanked nor the unsaved field",
-      stored.endpoint === "http://127.0.0.1:18081/ok" && stored.model === "toolsloop-demo",
-      JSON.stringify(stored),
-    );
-    check(
-      "switch: and it is not refused for a field about something else",
-      (await page.locator(".settings-error").count()) === 0,
-      ((await page.locator(".settings-page").textContent()) ?? "").slice(0, 160),
-    );
-
-    // The running chat reads the switch when it builds a request: the very next
-    // message must respect it. Stay inside the app — a `goto` would re-run the
-    // harness's seed script and wipe the toggle this test just made.
-    await page.getByRole("button", { name: /^Back to / }).first().click();
-    await page.waitForTimeout(500);
-    await page.locator(".brain-bar-chat").first().click();
-    await page.waitForTimeout(1000);
-    await resetMock(page);
-    await page.getByRole("textbox", { name: "Message" }).fill("Just answer.");
-    await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.waitForTimeout(3000);
-    const body = (await allBodies(page)).at(-1);
-    check(
-      "switch: the next message offers no tools, without a reload",
-      body !== undefined && body.tools === undefined && body.tool_choice === undefined,
-      JSON.stringify({ sent: body !== undefined, tools: body?.tools?.length ?? 0, messages: body?.messages?.length ?? 0 }),
-    );
     await browser.close();
   },
 

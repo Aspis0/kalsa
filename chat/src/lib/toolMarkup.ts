@@ -19,8 +19,16 @@
  * seen here.
  *
  * The tags arrive in pieces, so a piece that might be the start of one is held
- * back until the next piece decides it. Nothing is held for longer than a tag:
- * `flush()` releases whatever is still waiting when the stream ends.
+ * back until the next piece decides it, and a block that has opened is held
+ * whole until it closes. Two rules keep that from eating an answer:
+ *
+ * * an unterminated block is given back by `flush()`, verbatim — opening tag
+ *   and all. Markup on screen is a blemish; a blank answer is a broken
+ *   product, and this is the case that produced one (2026-09-19: fourteen
+ *   opening tags, no closing tag, 2,603 characters gone);
+ * * the caller runs this only in the round where `tool_choice` forbade a
+ *   structured call, because that is where the markup was ever invented. A
+ *   reader asking to be shown the tags gets them.
  */
 
 const OPEN = "<tool_call>";
@@ -35,7 +43,10 @@ export interface ToolMarkupStripper {
 
 export function createToolMarkupStripper(): ToolMarkupStripper {
   let inside = false;
+  /** A possible tag start, waiting for the next delta to decide it. */
   let carry = "";
+  /** Text inside a block that has opened and not closed: dropped if it closes. */
+  let block = "";
 
   function take(text: string): string {
     let out = "";
@@ -46,6 +57,7 @@ export function createToolMarkupStripper(): ToolMarkupStripper {
           out += text.slice(0, at);
           text = text.slice(at + OPEN.length);
           inside = true;
+          block = OPEN;
           continue;
         }
         // Not inside a call: anything but a possible tag start is the answer.
@@ -59,12 +71,16 @@ export function createToolMarkupStripper(): ToolMarkupStripper {
       }
       const at = text.indexOf(CLOSE);
       if (at >= 0) {
+        // A complete block is markup: it goes, opening tag included.
         text = text.slice(at + CLOSE.length);
         inside = false;
+        block = "";
         continue;
       }
-      // Inside a call: the text is markup, but its end may be arriving.
+      // Inside a call that has not closed: keep what has arrived, in case it
+      // never does, and hold a suffix that may be the closing tag.
       const held = partialSuffix(text, CLOSE);
+      block += text.slice(0, text.length - held);
       carry = text.slice(text.length - held);
       return out;
     }
@@ -77,8 +93,11 @@ export function createToolMarkupStripper(): ToolMarkupStripper {
       return take(text);
     },
     flush() {
-      const rest = inside ? "" : carry;
+      // An open block that never closed was not a call: give it back, whole,
+      // rather than answer with nothing.
+      const rest = inside ? block + carry : carry;
       carry = "";
+      block = "";
       inside = false;
       return rest;
     },

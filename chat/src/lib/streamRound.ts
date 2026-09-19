@@ -102,9 +102,17 @@ export async function runRound(
   messages: WireMessage[],
   tools: ToolDefinition[],
   toolChoice: "auto" | "none",
+  hideInventedCalls: boolean,
 ): Promise<Round> {
   const { token, model, sampling, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
+
+  // Invented markup was seen in exactly one situation: the capped round, where
+  // `tool_choice: "none"` forbids a structured call and the model writes one out
+  // anyway. Everything else — an ordinary round, and the round that asks a
+  // silent model for words — is the answer, because hiding it cost an answer
+  // outright once (live, 2026-09-19). Fresh per round, like the phone.
+  const markup = hideInventedCalls ? createToolMarkupStripper() : null;
 
   // The user's signal (Stop) and our idle timer share one controller so a
   // stalled read() can be released without confusing the two causes.
@@ -183,8 +191,10 @@ export async function runRound(
       if (complete.reasoning) onReasoning(complete.reasoning);
       // A server that ignored `stream: true` can carry the same tool-call
       // markup the streamed path filters, so it is filtered the same way.
-      const markup = createToolMarkupStripper();
-      const visible = markup.push(complete.content ?? "") + markup.flush();
+      const visible =
+        markup === null
+          ? (complete.content ?? "")
+          : markup.push(complete.content ?? "") + markup.flush();
       if (visible) onToken(visible);
       return {
         gotContent: complete.content !== null,
@@ -212,14 +222,11 @@ export async function runRound(
   let sawDone = false;
   let toolCalls: ToolCall[] = [];
   let finishReason: string | null = null;
-  // A model that cannot make a structured call may write one out; it must not
-  // reach the reader as the answer. Fresh per round, like the phone.
-  const markup = createToolMarkupStripper();
 
   const round = (): Round => ({ gotContent: gotToken, gotReasoning, sawDone, finishReason, toolCalls });
 
   function releaseMarkup(): void {
-    const tail = markup.flush();
+    const tail = markup === null ? "" : markup.flush();
     if (tail) onToken(tail);
   }
 
@@ -254,7 +261,7 @@ export async function runRound(
         // turns out to be markup and nothing is shown.
         gotToken = true;
         poke();
-        const visible = markup.push(content);
+        const visible = markup === null ? content : markup.push(content);
         if (visible) onToken(visible);
       }
       const calls = accumulate(toolCalls, (choice.delta as { tool_calls?: unknown }).tool_calls);

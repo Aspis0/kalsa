@@ -555,7 +555,32 @@ function streamTools(res, bodyText, model) {
   }
 
   let frames;
-  if (model.includes("toolsloop-demo")) {
+  if (model.includes("toolsshowmarkup-demo")) {
+    // The user asked to be shown the tags, and the model wrote them out in an
+    // ordinary round (tools offered, tool_choice "auto"). They must be visible.
+    frames = answerFrames(
+      "Here is the syntax: <tool_call>\n<function=web_search>\n<parameter=query>x</parameter>\n</function>\n</tool_call> and that is the format.",
+    );
+  } else if (model.includes("toolshidemarkup-demo")) {
+    // The round cap: told with tool_choice "none" to answer in words, the model
+    // wrote a call out anyway. This is the markup the page must not show.
+    frames =
+      body.tool_choice === "none"
+        ? answerFrames(
+            "I cannot answer in words. <tool_call>\n<function=web_search>\n<parameter=query>x</parameter>\n</function>\n</tool_call>",
+          )
+        : callFrames([{ id: `hide${rounds}`, name: "web_search", arguments: `{"query":"round ${rounds}"}` }], false);
+  } else if (model.includes("toolsburn-demo")) {
+    // The model spends the whole round on calls and ends it as "length" with no
+    // words at all — the live shape of 2026-09-19, where the turn refused the
+    // calls and the reader got silence. Asked for words, it answers.
+    if (body.tool_choice === "none") {
+      frames = answerFrames("In words, since calls are not allowed: the answer is 42.");
+    } else {
+      frames = callFrames([{ id: `burn${rounds}`, name: "web_search", arguments: `{"query":"burn ${rounds}"}` }], false);
+      frames[frames.length - 1] = { choices: [{ delta: {}, finish_reason: "length" }] };
+    }
+  } else if (model.includes("toolsloop-demo")) {
     // Answers only when the client asks for words with tool_choice: "none".
     frames =
       body.tool_choice === "none"

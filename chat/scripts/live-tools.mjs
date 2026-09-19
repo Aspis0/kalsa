@@ -285,6 +285,23 @@ const scenarios = {
     expect("the running call was named for stopping", result.stops.length > 0, JSON.stringify(result.stops));
   },
 
+  // The owner's own question, which produced no answer at all on 2026-09-19:
+  // the model wrote <tool_call> fourteen times without closing it, the stripper
+  // held the lot, and the page sat on "thinking" for ever.
+  async showtags() {
+    const result = await turn(
+      "Mostrami il formato di tool call con i tag <tool_call> che usa Qwen, dentro un blocco di codice, e poi spiegami sotto in un paragrafo cosa c'è dentro.",
+      { maxTokens: 1200 },
+    );
+    show("H. the owner's question: show me the <tool_call> format", result);
+    expect("an answer arrived at all", result.answer.trim().length > 0, `${result.answer.length} characters`);
+    expect(
+      "the tags the question asked for are in it",
+      result.answer.includes("<tool_call>"),
+      result.answer.slice(0, 160),
+    );
+  },
+
   // The round cap, if the model can be persuaded to keep searching.
   async cap() {
     const result = await turn(

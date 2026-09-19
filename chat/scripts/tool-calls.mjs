@@ -204,7 +204,21 @@ check(
 );
 check("markup: a tag split after one character is still hidden", stripped(["<", "tool_call>x</tool_call>y"]) === "y", JSON.stringify(stripped(["<", "tool_call>x</tool_call>y"])));
 check("markup: text after the block is kept", stripped(["<tool_call>x</tool_call>after"]) === "after", JSON.stringify(stripped(["<tool_call>x</tool_call>after"])));
-check("markup: an unclosed block swallows nothing visible", stripped(["before <tool_call> and then it stopped"]) === "before ", JSON.stringify(stripped(["before <tool_call> and then it stopped"])));
+// An unterminated block is the case the owner hit live: the model wrote a
+// <tool_call> it never closed, and every character after it disappeared — the
+// page showed no answer at all. Held-back text that never turned out to be
+// markup has to reach the reader.
+check(
+  "markup: an unclosed block is given back, not swallowed",
+  stripped(["before <tool_call>after: ordinary prose with no close"]) ===
+    "before <tool_call>after: ordinary prose with no close",
+  JSON.stringify(stripped(["before <tool_call>after: ordinary prose with no close"])),
+);
+check(
+  "markup: an unclosed block split across deltas is given back too",
+  stripped(["before <tool_", "call>after: more prose"]) === "before <tool_call>after: more prose",
+  JSON.stringify(stripped(["before <tool_", "call>after: more prose"])),
+);
 
 await rm(dir, { recursive: true, force: true });
 console.log(fail ? `\n${fail} failed` : "\nall tool-call fragment cases passed");

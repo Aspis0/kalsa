@@ -37,26 +37,57 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   const conversation = [...options.messages];
   const toolRounds = tools.length > 0 && runTool ? MAX_TOOL_ROUNDS : 0;
 
+  let forceWords = false;
   for (let round = 0; round <= toolRounds; round += 1) {
-    const final = round >= toolRounds;
-    const answered = await runRound(options, conversation, tools, final ? "none" : "auto");
-    if (answered.toolCalls.length === 0) return;
+    const last = forceWords || round >= toolRounds;
+    // Hiding invented markup is for the capped round alone: the round that asks
+    // a silent model for words can be answering "show me the tags", and eating
+    // that is how the answer disappeared in the first place.
+    const hideInventedCalls = tools.length > 0 && round >= toolRounds;
+    const answered = await runRound(
+      options,
+      conversation,
+      tools,
+      last ? "none" : "auto",
+      hideInventedCalls,
+    );
     // The server numbers its calls per response, so round two can hand back the
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
     // the round is the only thing here that makes it so.
     const calls = answered.toolCalls.map((call) => ({ ...call, id: `${round}-${call.id}` }));
-    if (!forTools(answered.finishReason)) {
-      // The server sent tool calls and then said the turn was over for some
-      // other reason — `length`, `stop`. Running one would hand a tool half a
-      // sentence, so the calls are recorded as refused instead.
-      refuse(options, calls, `The server sent a tool call but ended the turn as “${answered.finishReason}”, so nothing was run.`);
+    // A round that said nothing in words leaves the reader with an empty turn,
+    // whether it spent itself on calls or simply stopped after thinking. Ask
+    // once for words, in a round that cannot call anything. Live, 2026-09-19:
+    // one run produced forty calls and no answer to "show me the <tool_call>
+    // format", another stopped after 150 characters of thinking. The phone has
+    // had this fallback since the beginning (LlamaService.ts:5208); only a turn
+    // that offered tools can take it, so a plain chat is untouched.
+    const askForWords = !answered.gotContent && !last;
+    if (calls.length === 0) {
+      if (askForWords) {
+        forceWords = true;
+        continue;
+      }
       return;
     }
-    if (final) {
-      // Out of rounds: a server that ignored `tool_choice: "none"` has left
-      // these nowhere to run, and the thread still has to say what happened.
-      refuse(options, calls, "There was no round left to run this, so the answer had to be in words.");
+
+    // Either the server sent calls and ended the round for some other reason —
+    // `length`, `stop` — or the turn is out of rounds. Running a call under
+    // `length` would hand a tool half a sentence, so they are recorded as
+    // refused: the thread says what happened.
+    if (!forTools(answered.finishReason) || last) {
+      refuse(
+        options,
+        calls,
+        forTools(answered.finishReason)
+          ? "There was no round left to run this, so the answer had to be in words."
+          : `The server sent a tool call but ended the turn as “${answered.finishReason}”, so nothing was run.`,
+      );
+      if (askForWords) {
+        forceWords = true;
+        continue;
+      }
       return;
     }
 
