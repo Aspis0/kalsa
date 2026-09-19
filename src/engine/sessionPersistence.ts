@@ -679,10 +679,11 @@ export function sessionDiskDeficitBytes(
   requiredBytes: number | null,
   freeBytes: number | null,
 ): number {
+  // The gate passes only when free > required, so equality needs one byte.
   if (
     requiredBytes == null ||
     freeBytes == null ||
-    requiredBytes <= freeBytes
+    requiredBytes < freeBytes
   ) {
     return 0;
   }
