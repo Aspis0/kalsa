@@ -508,12 +508,13 @@ export function shouldRebuild(
 export const ANCHORED_REBUILD_TARGET_SHARE = 0.625;
 
 /**
- * Named outcome of an anchored rebuild that kept no history at all: the last
- * complete exchange, charged with the turn being sent, does not fit the real
- * char budget, so nothing older than the turn can be sent either.
+ * Named outcome of an anchored rebuild that kept no history at all: the window
+ * it would have kept — the last complete exchange and everything newer, charged
+ * with the turn being sent — does not fit the char budget the rebuild used,
+ * whether that budget came from the profile or from a token ceiling.
  */
 export const ANCHORED_HISTORY_DROPPED_REASON =
-  "history_dropped_current_turn_exceeds_budget";
+  "history_dropped_window_exceeds_budget";
 
 /**
  * Index of the user message that opens the last exchange whose assistant reply
@@ -536,20 +537,53 @@ export function lastCompleteExchangeStart(roles: readonly string[]): number {
 }
 
 /**
- * The named reason a rebuild dropped the whole history, or undefined when it
- * kept some. Reads the outcome the caller already has — the boundary the
- * rebuild returned — so it names a deliberate decision instead of becoming a
- * second place that decides.
+ * The named reason a rebuild dropped the whole history, or undefined otherwise.
+ * Reads the outcome the caller already has — the boundary the rebuild returned
+ * — so it names a deliberate decision instead of becoming a second place that
+ * decides.
+ *
+ * It detects the TOTAL wipe only. A boundary that stayed ahead of a floor that
+ * did fit, because a previous boundary was already past it (the Math.max in
+ * computeAnchoredBoundary), reports undefined on purpose: that exchange left
+ * the window on an earlier turn, and re-reporting it every turn afterwards
+ * would be noise, not telemetry.
  */
 export function anchoredHistoryDropReason(
   boundaryIndex: number,
   historyLength: number,
-  floorIndex: number,
+  floorIndex: number | null | undefined,
 ): string | undefined {
   if (historyLength <= 0) return undefined;
-  if (floorIndex < 0 || floorIndex >= historyLength) return undefined;
+  // Same tolerance as computeAnchoredBoundary's floor: a non-finite index is
+  // "no floor", so it cannot be the floor a wipe was measured against.
+  const floor =
+    typeof floorIndex === "number" && Number.isFinite(floorIndex)
+      ? floorIndex
+      : -1;
+  if (floor < 0 || floor >= historyLength) return undefined;
   return boundaryIndex >= historyLength
     ? ANCHORED_HISTORY_DROPPED_REASON
+    : undefined;
+}
+
+/**
+ * The char budget an anchored rebuild uses, and where it came from: the token
+ * ceiling when the caller derived one (a ceiling slide; 0 is a real budget, not
+ * "absent"), the profile otherwise. Undefined when neither is finite — there is
+ * then nothing to walk against and the rebuild leaves the boundary where it is.
+ */
+export function selectAnchoredBudget(
+  profileCharBudget: number,
+  ceilingBudgetChars?: number,
+): { chars: number; source: "ceiling" | "profile" } | undefined {
+  if (
+    typeof ceilingBudgetChars === "number" &&
+    Number.isFinite(ceilingBudgetChars)
+  ) {
+    return { chars: Math.max(0, ceilingBudgetChars), source: "ceiling" };
+  }
+  return Number.isFinite(profileCharBudget)
+    ? { chars: profileCharBudget, source: "profile" }
     : undefined;
 }
 
@@ -560,9 +594,10 @@ export function anchoredHistoryDropReason(
  * boundary is passed through unchanged, so history length never moves it.
  *
  * `floorIndex` (from `lastCompleteExchangeStart`) is the last complete
- * exchange. It is kept even when the current turn alone exceeds the target: a
- * turn larger than the target cannot be removed from the prompt before it
- * becomes history, so its size is not a reason to throw the conversation away.
+ * exchange. It is kept even when the rebuild target cannot hold it: the loop
+ * charges the turn being sent PLUS the message under test, and a window that
+ * no longer fits the target cannot be removed from the prompt before it becomes
+ * history, so its size is not a reason to throw the conversation away.
  * The floor is charged against the real budget, never against the 0.625 target
  * — the share exists to leave hysteresis for the NEXT rebuild, not to decide
  * whether history survives at all. When even the floor does not fit, the
@@ -592,12 +627,9 @@ export function computeAnchoredBoundary(
       ? Math.max(0, Math.min(Math.floor(previousBoundaryIndex), n))
       : 0;
 
-  const budget =
-    typeof ceilingBudgetChars === "number" &&
-    Number.isFinite(ceilingBudgetChars)
-      ? Math.max(0, ceilingBudgetChars)
-      : profile.charBudget;
-  if (!Number.isFinite(budget)) return previous;
+  const selected = selectAnchoredBudget(profile.charBudget, ceilingBudgetChars);
+  if (!selected) return previous;
+  const budget = selected.chars;
 
   const target = budget * ANCHORED_REBUILD_TARGET_SHARE;
   let start = n;

@@ -4,7 +4,6 @@
  */
 
 import {
-  ANCHORED_HISTORY_DROPPED_REASON,
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
   anchoredHistoryDropReason,
@@ -399,8 +398,9 @@ describe("anchored boundary under a token ceiling", () => {
   });
 
   test("a ceiling slide keeps the floor as well", () => {
-    // ceilingBudget 1000 → target 625, and the capped turn is 700: larger than
-    // the target on its own, so the walk keeps nothing unless the floor does.
+    // ceilingBudget 1000 → target 625; candidate i = 29 charges the 700-char
+    // turn plus the 100-char message = 800 > 625, so the walk keeps nothing
+    // unless the floor does.
     const floor = 28;
     expect(
       computeAnchoredBoundary(lengths, infinityProfile, 4000, 700, 0, 1000, floor),
@@ -536,7 +536,27 @@ describe("anchored boundary floor", () => {
     expect(boundary).toBe(historyLengths.length);
     expect(
       anchoredHistoryDropReason(boundary, historyLengths.length, floorIndex),
-    ).toBe(ANCHORED_HISTORY_DROPPED_REASON);
+    ).toBe("history_dropped_window_exceeds_budget");
+  });
+
+  test("names a drop for a floor it cannot read only when there was one", () => {
+    // computeAnchoredBoundary treats a non-finite floor index as "no floor"
+    // (it guards with Number.isFinite), so this must not blame a floor for a
+    // wipe that no floor was measured against.
+    expect(
+      anchoredHistoryDropReason(
+        historyLengths.length,
+        historyLengths.length,
+        Number.NaN,
+      ),
+    ).toBeUndefined();
+    expect(
+      anchoredHistoryDropReason(
+        historyLengths.length,
+        historyLengths.length,
+        undefined,
+      ),
+    ).toBeUndefined();
   });
 
   test("names no drop when the floor survives", () => {
@@ -556,6 +576,45 @@ describe("anchored boundary floor", () => {
     // No floor to apply (no user message) or no history at all: not a drop.
     expect(anchoredHistoryDropReason(0, 0, 0)).toBeUndefined();
     expect(anchoredHistoryDropReason(historyLengths.length, historyLengths.length, historyLengths.length)).toBeUndefined();
+  });
+
+  test("keeps a floor whose window is exactly the budget", () => {
+    const profile = profileAt(2048);
+    // Floor window = the turn 2204 + the last exchange [60 user, 40 assistant]
+    // = 2304, exactly charBudget at 2048 (the turn is under the per-message cap
+    // so it is charged whole). Fitting the budget on the nose is fitting it: a
+    // `<=` here is the difference between keeping the exchange and wiping it.
+    expect(profile.charBudget).toBe(2304);
+    expect(
+      computeAnchoredBoundary(
+        historyLengths,
+        profile,
+        maxCharsPerMessage,
+        2204,
+        0,
+        undefined,
+        floorIndex,
+      ),
+    ).toBe(floorIndex);
+  });
+
+  test("at a consumed ceiling the floor cannot be honoured and the whole history is dropped", () => {
+    // ceilingBudgetChars = 0 is a real budget, not an absent one: at nCtx 2048
+    // with a 1832-token system prompt windowCeilingTokens is 0, so every send
+    // from turn two crosses the ceiling and arrives here. Target 0 and any
+    // nonempty window over it, the floor's own window included, so the
+    // conversation goes. This is the limit of the floor, not an intention.
+    expect(
+      computeAnchoredBoundary(
+        historyLengths,
+        profileAt(2048),
+        maxCharsPerMessage,
+        1500,
+        0,
+        0,
+        floorIndex,
+      ),
+    ).toBe(historyLengths.length);
   });
 
   test("monotonicity leaves a boundary already past the floor where it is", () => {

@@ -155,8 +155,9 @@ export function shouldSlideWindowAtCeiling(args: {
   if (!args.kvHeld) return false;
   // Inert ONLY without an engine: no nCtx, nothing to protect. A VALID n_ctx
   // whose ceiling is fully consumed by reserve + prefix means every prompt
-  // crosses — slide (the advance clamps to the minimum window) instead of
-  // standing down at exactly the worst case.
+  // crosses — slide (the legacy walker clamps to WINDOW_MIN_MESSAGES; the
+  // anchored path can drop to an empty window) instead of standing down at
+  // exactly the worst case.
   if (
     typeof args.nCtx !== "number" ||
     !Number.isFinite(args.nCtx) ||

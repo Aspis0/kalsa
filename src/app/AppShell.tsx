@@ -331,6 +331,7 @@ import {
   parseContextMode,
   refreshQueryDigest,
   resolveBoundaryIndex,
+  selectAnchoredBudget,
   serializeCompactorState,
   shouldRebuildAnchored,
   shouldRebuild,
@@ -5738,6 +5739,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // Named reason when the anchored rebuild dropped the whole history
             // (below), reported on the per-send KALSA_WINDOW line.
             let anchoredHistoryDropped: string | undefined;
+            // The char budget that rebuild used and where it came from, so a
+            // reader can tell a profile budget from a consumed ceiling.
+            let anchoredRebuildBudget:
+              | { chars: number; source: "ceiling" | "profile" }
+              | undefined;
             let nativeClearedForAssemble = false;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
@@ -6113,7 +6119,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       maxCharsPerMessage: perMessageCap,
                       ceilingBudgetChars,
                       // The last complete exchange is kept even when the turn
-                      // being sent alone exceeds the rebuild target.
+                      // being sent plus the newest history message exceed the
+                      // rebuild target — but only within the budget this
+                      // rebuild uses. On the ceiling path a consumed ceiling
+                      // gives a 0-char budget, the floor cannot fit either, and
+                      // the history is still dropped.
                       floorIndex: anchoredFloorIndex,
                     })
                   : advanceCompactionBoundary(state, {
@@ -6138,6 +6148,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     nextStart,
                     validatedHistory.length,
                     anchoredFloorIndex,
+                  );
+                  anchoredRebuildBudget = selectAnchoredBudget(
+                    windowProfile.charBudget,
+                    ceilingBudgetChars,
                   );
                 }
                 // A held window may only advance. In particular, the
@@ -6390,6 +6404,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // Present only when the anchored rebuild had to drop history:
                   // counts and a constant name, never message text.
                   historyDropped: anchoredHistoryDropped,
+                  // The budget the rebuild walked against, and its kind — 0 from
+                  // a consumed ceiling and 2304 from a profile budget are not
+                  // the same event.
+                  rebuildBudgetChars: anchoredRebuildBudget?.chars,
+                  rebuildBudgetSource: anchoredRebuildBudget?.source,
                   textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
                 })}`,
               );

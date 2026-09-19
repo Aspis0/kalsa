@@ -603,9 +603,12 @@ async function main() {
   // chars each (20 messages ≈ 4743 prompt tokens), an order of magnitude more —
   // the fixture is short, not the budget loose. So bind it explicitly with a
   // context small enough for this data, which keeps (5b) honest: without this
-  // pair, (5b) would pass while silently measuring the message cap.
+  // pair, (5b) would pass while silently measuring the message cap. 2048 is the
+  // app's context floor: reserve min(2048, 1024) = 1024, so the budget is
+  // (2048 - 1024) * 0.75 * 3 = 2304 chars, well under this fixture.
+  const tightNCtx = 2048;
   const tightProfile = resolveWindowProfile({
-    nCtx: 3072,
+    nCtx: tightNCtx,
     hasImages: false,
     hasDigest: false,
   });
@@ -628,7 +631,8 @@ async function main() {
       tightWindow.length < convo.length &&
       tightWindow.length < WINDOW_MAX_MESSAGES &&
       tightChars <= tightProfile.charBudget,
-    `start=${tightStart} window=${tightWindow.length} chars=${tightChars}/${tightProfile.charBudget}`,
+    `start=${tightStart} window=${tightWindow.length} chars=${tightChars}/${tightProfile.charBudget} ` +
+      `nCtx=${tightNCtx} src=${tightProfile.source}`,
   );
 
   // Bonus: serialize/parse roundtrip includes boundaryIndex
