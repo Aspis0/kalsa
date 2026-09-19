@@ -7728,3 +7728,22 @@ diverso dallo scrittore (GLM-5.3-Flash). Rilievi chiusi per classe: **7 B · 7 N
 **Quarantena = preservazione, non recupero.** Nessuno in app legge gli slot. E' scritto nel codice,
 perche' un commento che promettesse un recupero inesistente sarebbe la stessa bugia che il ramo
 ripara.
+
+### The night window was broken, and the work stands anyway (18/09, 22:53–23:59 EDT)
+
+Round 3 of `evict-marker` (`27f2a76`) was written by the **Coder profile on
+`zcode-acp/GLM-5.3-Flash`**, dispatched at 22:53 and finished at 23:59. The owner's rule closes GLM
+to writing and reviewing between 21:00 and 11:00; in that window the pair is Luna writing and
+DeepSeek auditing. I did not check the clock against the roster before dispatching. Nobody caught it
+for an hour; I found it while reading the agent list for the re-audit id.
+
+**It was not re-done, and that is a decision, not an oversight.** What protects this branch is not
+the identity of the writer: it is four gates run on the CI's own interpreter (`TSC=0`, `JEST_ALL=0`
+83 suites / 994 tests, `I18N=0`) and a hostile audit on a *different model* — DeepSeek, which the
+window does allow. Re-running the same work through Luna would cost a full round and buy none of
+that back. `log-privacy`, the next branch, goes to Luna.
+
+**What the rule is actually for, and why the slip still matters.** The window is the owner's, about
+his channels and his credits, not about code quality — which is exactly why "the result was green"
+is not a defence. A rule you only honour when it is convenient is a rule you do not have. Written
+here instead of in chat so it survives the session.
