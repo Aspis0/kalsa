@@ -917,6 +917,23 @@ letterali trovati, nessuno con `stem`, entrambi con `hash`, con prova rossa; com
 e' scritto cosi'. Quando `save-wiring-coverage` estrae l'orchestrazione, questa guardia si SOSTITUISCE col
 test di comportamento e si toglie, non si affianca.
 
+**`log-privacy` READY (18/09 ~22:50 EDT): `9b08ae0`**, 2 commit sopra `429cd92`, 3 file (+81/−17). Produzione
+(letta con `show -w` dal coordinatore): stem → `stemHash = historyHash(stem)` nei due payload e nel legacy;
+`hash: historyHashValue` intoccato; i due `console.warn` di save/load stampano `sessionErrorReason(error)` e
+non piu' l'oggetto grezzo (un errore di filesystem porta il percorso, che porta lo stem); commento esatto e
+non lusinghiero: "unsalted 32-bit djb2 of the stem: not invertible in practice from the hash alone, but a
+deterministic fingerprint — anyone holding a candidate stem can confirm a match, and the same conversation
+links across logs". Guardia sul testo sorgente (`sessionMarkerPrivacy.test.ts`): sette marker su sette
+(JSON e stringa piatta), conteggio esatto come asserzione (una guardia che ne vedeva sei su sette sarebbe
+passata verde: la vacuita' colta due volte nello stesso ramo), provenienza (`historyHash(` per ciascun
+sito), niente `stem`, niente `hash:` scritto nel letterale; otto prove rosse in tutto, tutte ripristinate.
+Gate misurati due volte (kalsa-93 e coordinatore): tsc 0, jest 0 (**87 suite / 1058**), harness prewarm 0,
+i18n 0. *Nota dell'auditor, non lavoro:* il campo `hash` accanto e' l'hash della storia persistibile, cioe'
+un'impronta del CONTENUTO, verificatore piu' forte dello pseudonimo; se un giorno la domanda e' "cosa resta
+di identificabile in quelle righe", si comincia da li'. *Push:* uno solo, `9b08ae0:main` (contiene `0eaa090`
+e `429cd92`), al verdetto dell'e2e su `c45f044`; se rosso si separa dopo. Coda kalsa-93: `qwen-think-in-history`
+passo 2 (ramo da `9b08ae0`) → `save-wiring-coverage` → governor-kv-contract → coolmode.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
