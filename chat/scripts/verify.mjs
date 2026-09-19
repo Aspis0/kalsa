@@ -2321,37 +2321,56 @@ const tests = {
       const mover = document.querySelector(`[${attribute}]`);
       if (!mover) return null;
       const animation = mover.getAnimations()[0];
-      // `getKeyframes()` lives on the effect, not on the animation.
       const keyframes = animation?.effect && "getKeyframes" in animation.effect ? animation.effect.getKeyframes() : [];
       return {
-        layout: { left: mover.offsetLeft, top: mover.offsetTop, width: mover.offsetWidth, height: mover.offsetHeight },
+        // The inline box, not the animated one: the animation overrides it at
+        // runtime, so this is where the move starts.
+        starts: {
+          left: parseFloat(mover.style.left),
+          top: parseFloat(mover.style.top),
+          width: parseFloat(mover.style.width),
+          height: parseFloat(mover.style.height),
+        },
         text: mover.textContent ?? "",
         duration: animation ? animation.effect?.getTiming().duration : null,
-        last: keyframes.length > 0 ? keyframes[keyframes.length - 1].transform : null,
+        last: keyframes.length > 0 ? keyframes[keyframes.length - 1] : null,
+        scales: keyframes.some((frame) => "transform" in frame || "scale" in frame),
       };
     }, handoffAttribute);
     check("handoff: the moving element exists", move !== null, "no element carried the move");
     if (move && bar) {
       check(
         "handoff: it starts where the bar was",
-        Math.abs(move.layout.left - bar.x) <= 2 && Math.abs(move.layout.top - bar.y) <= 2 && Math.abs(move.layout.width - bar.width) <= 2,
-        `${JSON.stringify(move.layout)} vs bar ${JSON.stringify(bar)}`,
+        Math.abs(move.starts.left - bar.x) <= 2 &&
+          Math.abs(move.starts.top - bar.y) <= 2 &&
+          Math.abs(move.starts.width - bar.width) <= 2 &&
+          Math.abs(move.starts.height - bar.height) <= 2,
+        `${JSON.stringify(move.starts)} vs bar ${JSON.stringify(bar)}`,
       );
       check("handoff: it carries the message", move.text.includes("First message from the bar."), move.text);
       check("handoff: with the declared duration", move.duration === handoffMs, `${move.duration} vs ${handoffMs}`);
-      // It ends where the bubble lands: the last keyframe is the difference
-      // between the two rectangles.
+      // No scale, ever: the box travels and resizes, and the glyphs inside it
+      // keep their size. A scale here is the defect this replaced — measured at
+      // 0.29 by 1.94, one third as wide and twice as tall.
+      check(
+        "handoff: nothing scales the text",
+        move.scales === false,
+        JSON.stringify(move.last),
+      );
+      // The landing is exact: the last keyframe is the bubble's rectangle, in
+      // position and in size.
       await page.waitForTimeout(handoffMs + 200);
       const bubble = await page.locator(".user-bubble").first().boundingBox();
-      const translate = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(move.last ?? "");
-      check("handoff: the last keyframe is a translation", translate !== null, String(move.last));
-      if (translate && bubble && bar) {
-        check(
-          "handoff: and it lands on the bubble",
-          Math.abs(Number(translate[1]) - (bubble.x - bar.x)) <= 2 && Math.abs(Number(translate[2]) - (bubble.y - bar.y)) <= 2,
-          `${translate[1]},${translate[2]} vs ${bubble.x - bar.x},${bubble.y - bar.y}`,
-        );
-      }
+      const lands = (key) => (move.last && typeof move.last[key] === "string" ? parseFloat(move.last[key]) : NaN);
+      check(
+        "handoff: the last keyframe is the bubble's rectangle",
+        bubble !== null &&
+          Math.abs(lands("left") - bubble.x) <= 1 &&
+          Math.abs(lands("top") - bubble.y) <= 1 &&
+          Math.abs(lands("width") - bubble.width) <= 1 &&
+          Math.abs(lands("height") - bubble.height) <= 1,
+        `${JSON.stringify({ left: lands("left"), top: lands("top"), width: lands("width"), height: lands("height") })} vs ${JSON.stringify(bubble)}`,
+      );
       check(
         "handoff: the moving element is taken away when it lands",
         (await page.locator(`[${handoffAttribute}]`).count()) === 0,

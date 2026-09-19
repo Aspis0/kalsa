@@ -220,6 +220,10 @@
   margin: 0;
   z-index: 40;
   pointer-events: none;
+  /* The box narrows while the words inside it keep their size and reflow; a
+     line that does not fit yet is clipped rather than spilled. No transform:
+     a scale would squeeze the glyphs. */
+  overflow: hidden;
 }
 
 @media (max-width: 760px) {
