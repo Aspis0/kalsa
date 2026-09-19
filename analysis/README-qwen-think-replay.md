@@ -112,3 +112,20 @@ selects the native `Input processed` line whose `embd.size` equals the turn's
 match exists — a fallback that can pick a background load. In the baseline the
 exact match existed (`n_past=0, embd.size=2215`), so COLD there is real and not a
 picker artifact. Check that the exact match exists before believing either verdict.
+
+## Two things that will look like the fix failing, and are not
+
+**On a phone that updates, every existing conversation pays one cold prefill.** The prompt
+rendered for the *same* history changed, so a `.kvs` written by the previous build no longer
+matches what the new build renders. It is one cold turn per conversation, once. In CI this never
+appears — the emulator starts clean and the same build both writes and restores the session
+within the run — so a cold restart leg in CI is a real failure, while a cold first turn on a
+freshly upgraded device is expected.
+
+**The repair only covers turns whose raw emission was stored.** An assistant turn whose
+`modelEmittedText` is missing or whitespace-only falls back to `content`, which is the answer
+without the reasoning, and still diverges from the KV. That is deliberate and pre-existing
+(`modelEmittedText.ts:246-249`: assemble falls back to `text`/`content` when the emission is
+missing, and G1 interrupted turns were saved that way). So "the history replays byte-exact" is
+true for emission-present turns, not for every row ever written. A conversation carrying old
+interrupted turns will still lose its tail at those rows.
