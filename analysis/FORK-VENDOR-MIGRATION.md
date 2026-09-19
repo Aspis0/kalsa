@@ -820,3 +820,84 @@ is rejected by the backend, and the Android artifact is an ARM ELF. Compile-leve
 arithmetic is the honest ceiling, and both the implementer and the auditor said so rather than
 manufacturing a pass. **The queue for the next device session is: (1) MoE with `ne01 % 64 != 0`,
 (2) the q4_0 odd-`ne01` grid, (3) the OOB reads under a memory checker.**
+
+---
+
+## 14. Step 5 measured: the `LM_` de-prefix is nearly empty, and the branch does not compile
+
+Step 5 was written as a decision ("the `LM_` de-prefix, once", with a note about `-Wl,-Bsymbolic`
+on Android and the two-level namespace on Apple). On disk the decision is already made, and the
+step is four orders smaller than it reads. Measured on `llama.rn-kalsa@12f49b30` (branch
+`vendor-migration`).
+
+### 14.1 Upstream dropped the prefix entirely
+
+```
+$ grep -rl 'lm_ggml_\|LM_GGML_' vendor/llama.cpp | wc -l
+       0
+$ grep -rl 'lm_ggml_\|LM_GGML_' cpp/ | wc -l
+      15
+```
+
+The vendored engine exports plain `ggml_*`. There is nothing for us to decide: the rename
+machinery lives only in `scripts/sync-kalsallama.sh` (lines 159–190), the script step 8 deletes.
+
+### 14.2 The branch does not compile today — one line
+
+`cpp/rn-governor.cpp:77`:
+
+```cpp
+    profile_valid_ = llama_governor_set_thermo_profile(
+        governor_, profile, lm_ggml_time_us() / 1000);
+```
+
+`lm_ggml_time_us` is declared nowhere in the tree; `vendor/llama.cpp/ggml/include/ggml.h:744`
+declares `GGML_API int64_t ggml_time_us(void);`. And `cpp/rn-governor.cpp` **is** compiled — it is
+named in `RNLLAMA_RN_SOURCES` in `cmake/rnllama-sources.cmake`. This is a hard compile error, not
+a link error, sitting on the branch since the merge. Nobody has built it because builds run in CI
+and CI has not seen this branch.
+
+It matters for sequencing: left in place it would have surfaced during **step 7** and looked like
+the re-point broke the build.
+
+### 14.3 Why the step is small: 105 of 114 hits are in files nothing compiles
+
+Of the 15 files under `cpp/` that still carry prefixed identifiers, 12 are kalsa **engine** files
+(`llama-kv-staged`, `llama-memory-hybrid-idx`, `llama-kv-commit`, `llama-hybrid-commit`,
+`llama-kv-cache-dsa-iswa`, `llama-governor`, `llama-governor-runtime`) flattened into `cpp/` by
+the old sync. **No source list names any of them.** All seven pairs already exist in kalsallama
+under `src/`, so after step 7 they arrive through `vendor/` with plain names, and the `cpp/`
+copies are pure deletion.
+
+The residue is therefore: one call (`rn-governor.cpp:77`), one comment (`rn-llama.cpp:770`,
+`lm_ggml_aligned_malloc`), and `cpp/ggml-version.h` — which has no consumer and asserts a **false**
+engine identity (`LM_GGML_COMMIT "2361be3"`, our pre-merge head) while
+`vendor/llama.cpp/ggml/src/ggml-version.h` carries the real one (`GGML_COMMIT "4bc272f"`).
+
+### 14.4 The glob is the whole prize
+
+```cmake
+file(GLOB RNLLAMA_LLAMA_SOURCES CONFIGURE_DEPENDS ${_llama}/*.cpp ${_llama}/models/*.cpp)
+```
+
+with `_llama = vendor/llama.cpp/src`. Our engine files live in kalsallama's `src/`, `src` is a
+whole-directory export in `LLAMA_CPP_PATHS`, and the build globs it. **Step 7 pulls the governor
+and the KV work into the build with zero CMake edits**, and a future kalsa engine file needs no
+build-system change at all. That is the "next rebase is cheap" property, and it is the reason the
+vendor layout is worth the migration rather than merely survivable.
+
+### 14.5 What step 8 deletes, and the one thing that could bite
+
+`cpp/` is 69 tracked files. 33 are upstream's binding surface (`rn-*`, `jsi/`, `anyascii`). The
+rest are candidates: 17 kalsa engine files, `ggml-version.h`, `llama-version.h`, `KALSALLAMA_SHA`,
+and `cpp/hash/**` — now duplicated by `vendor/llama.cpp/vendor/hash`, which is what
+`RNLLAMA_VENDOR_SOURCES` actually compiles.
+
+The hazard is **include-path shadowing**, not the source lists: `RNLLAMA_INCLUDE_DIRS` puts
+`${RNLLAMA_CPP_DIR}` **first**, so a bare `#include "hash.h"` resolves to the stale `cpp/` copy
+before the vendored one. A file can be absent from every source list and still be live. Step 8's
+gate is a per-file consumer proof that covers both paths, not a source-list scan.
+
+The 17 engine files cannot go before step 7: `cpp/rn-governor.cpp` includes `"llama-governor.h"`,
+which today resolves to `cpp/llama-governor.h`, and the vendored tree does not provide it until
+`LLAMA_CPP_REPO` points at kalsallama.
