@@ -12,6 +12,7 @@ import {
   WINDOW_MAX_MESSAGES_IMAGES,
   WINDOW_MIN_MESSAGES,
   WINDOW_RESERVE_TOKENS,
+  charBudgetReserveTokens,
   projectedWindowTokens,
   promptTokensExceedNCtx,
   resolveWindowProfile,
@@ -198,8 +199,92 @@ describe("resolveWindowProfile", () => {
   });
 
   it("never returns a negative budget for a context smaller than the reserve", () => {
+    // 512 is below CTX_FLOOR (2048), so this is unreachable in production. The
+    // reserve is min(2048, floor(512 * 0.5)) = 256, so the budget is
+    // floor((512 - 256) * 0.75 * 3) = floor(576) = 576 — non-negative, which is
+    // the property this case exists to pin.
     const p = resolveWindowProfile({ nCtx: 512, hasImages: false, hasDigest: false });
-    expect(p.charBudget).toBe(0);
+    expect(p.charBudget).toBe(576);
+  });
+});
+
+describe("charBudgetReserveTokens", () => {
+  it("halves the reserve at the app's context floor", () => {
+    // CTX_FLOOR (engine/deviceTuning.ts) is 2048, so min(2048, 1024) = 1024.
+    expect(charBudgetReserveTokens(2048)).toBe(1024);
+  });
+
+  it("returns the constant once half the context reaches it", () => {
+    // min(2048, floor(nCtx / 2)) = 2048 for every nCtx >= 4096.
+    expect(charBudgetReserveTokens(3072)).toBe(1536);
+    expect(charBudgetReserveTokens(4096)).toBe(WINDOW_RESERVE_TOKENS);
+    expect(charBudgetReserveTokens(6144)).toBe(WINDOW_RESERVE_TOKENS);
+    expect(charBudgetReserveTokens(8192)).toBe(WINDOW_RESERVE_TOKENS);
+  });
+
+  it("falls back to the constant when there is no usable context", () => {
+    for (const nCtx of [0, null, undefined, Number.NaN, -1]) {
+      expect(charBudgetReserveTokens(nCtx)).toBe(WINDOW_RESERVE_TOKENS);
+    }
+  });
+});
+
+describe("char budget across the contexts the app can load", () => {
+  // Hand arithmetic. Constants: WINDOW_RESERVE_TOKENS 2048,
+  // WINDOW_CHARS_PER_TOKEN 3, WINDOW_SHARE_NO_DIGEST 0.75,
+  // WINDOW_SHARE_WITH_DIGEST 0.6. reserve = min(2048, floor(nCtx * 0.5));
+  // budgetTokens = (nCtx - reserve) * share; charBudget = floor(budgetTokens * 3).
+  //
+  //   nCtx   reserve   nCtx-reserve   bare 0.75               digest 0.6
+  //   2048    1024        1024        768 * 3   = 2304         614.4 * 3 = 1843
+  //   3072    1536        1536        1152 * 3  = 3456         921.6 * 3 = 2764
+  //   4096    2048        2048        1536 * 3  = 4608         1228.8* 3 = 3686
+  //   6144    2048        4096        3072 * 3  = 9216         2457.6* 3 = 7372
+  //   8192    2048        6144        4608 * 3  = 13824        3686.4* 3 = 11059
+  //
+  // The 4096+ rows are the pre-change budgets: before the reserve was derived
+  // from nCtx, bare was (nCtx - 2048) * 0.75 * 3, i.e. the same 4608 / 9216 /
+  // 13824. Only the two rows below 4096 move.
+  it("2048, the context floor, is the row the fix exists for", () => {
+    const bare = resolveWindowProfile({
+      nCtx: 2048,
+      hasImages: false,
+      hasDigest: false,
+    });
+    // (2048 - 1024) * 0.75 * 3 = 2304. With the bare constant this was
+    // (2048 - 2048) * 0.75 * 3 = 0: no anchored history at all.
+    expect(bare.charBudget).toBe(2304);
+
+    const digest = resolveWindowProfile({
+      nCtx: 2048,
+      hasImages: false,
+      hasDigest: true,
+    });
+    // (2048 - 1024) * 0.6 * 3 = 1843.2, floored.
+    expect(digest.charBudget).toBe(1843);
+  });
+
+  it("matches the hand-computed table at 3072, 4096, 6144 and 8192", () => {
+    const table = [
+      { nCtx: 3072, bare: 3456, digest: 2764 },
+      { nCtx: 4096, bare: 4608, digest: 3686 },
+      { nCtx: 6144, bare: 9216, digest: 7372 },
+      { nCtx: 8192, bare: 13824, digest: 11059 },
+    ];
+    const got = table.map((row) => ({
+      nCtx: row.nCtx,
+      bare: resolveWindowProfile({
+        nCtx: row.nCtx,
+        hasImages: false,
+        hasDigest: false,
+      }).charBudget,
+      digest: resolveWindowProfile({
+        nCtx: row.nCtx,
+        hasImages: false,
+        hasDigest: true,
+      }).charBudget,
+    }));
+    expect(got).toEqual(table);
   });
 });
 

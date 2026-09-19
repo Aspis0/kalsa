@@ -4,11 +4,15 @@
  */
 
 import {
+  ANCHORED_HISTORY_DROPPED_REASON,
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
+  anchoredHistoryDropReason,
   assembleEngineHistory,
   computeAnchoredBoundary,
   emptyCompactorState,
+  lastCompleteExchangeStart,
+  LEGACY_MAX_CHARS,
   parseBenchDigestCadence,
   shouldRebuildAnchored,
   shouldInjectOperativeBlock,
@@ -21,7 +25,7 @@ import {
   splitAtBoundary,
   type HistoryRoleMessage,
 } from "./compactor";
-import { anchoredWindowChars } from "./windowProfile";
+import { resolveWindowProfile, anchoredWindowChars } from "./windowProfile";
 
 function makeHistory(n: number): HistoryRoleMessage[] {
   const out: HistoryRoleMessage[] = [];
@@ -392,5 +396,244 @@ describe("anchored boundary under a token ceiling", () => {
     expect(
       computeAnchoredBoundary(lengths, infinityProfile, 4000, 0, 28, 100_000),
     ).toBe(28);
+  });
+
+  test("a ceiling slide keeps the floor as well", () => {
+    // ceilingBudget 1000 → target 625, and the capped turn is 700: larger than
+    // the target on its own, so the walk keeps nothing unless the floor does.
+    const floor = 28;
+    expect(
+      computeAnchoredBoundary(lengths, infinityProfile, 4000, 700, 0, 1000, floor),
+    ).toBe(floor);
+    // Same call without the floor: 30, i.e. the whole history gone.
+    expect(computeAnchoredBoundary(lengths, infinityProfile, 4000, 700, 0, 1000)).toBe(
+      lengths.length,
+    );
+  });
+});
+
+describe("lastCompleteExchangeStart", () => {
+  test("returns the user message that opens the last complete exchange", () => {
+    expect(
+      lastCompleteExchangeStart(["user", "assistant", "user", "assistant"]),
+    ).toBe(2);
+  });
+
+  test("keeps the exchange, not the orphan turn, when the newest user is unanswered", () => {
+    // [u, a, u]: the newest user message has no reply, so the last exchange
+    // with an answer is the previous one and the floor opens at 0 — not at the
+    // orphan at index 2, which would keep a question the model never answered.
+    expect(lastCompleteExchangeStart(["user", "assistant", "user"])).toBe(0);
+    expect(
+      lastCompleteExchangeStart(["user", "assistant", "user", "assistant", "user"]),
+    ).toBe(2);
+  });
+
+  test("falls back to the newest user message when no exchange was answered", () => {
+    expect(lastCompleteExchangeStart(["assistant", "user"])).toBe(1);
+    expect(lastCompleteExchangeStart(["user"])).toBe(0);
+  });
+
+  test("returns the length when the history holds no user message", () => {
+    expect(lastCompleteExchangeStart([])).toBe(0);
+    expect(lastCompleteExchangeStart(["assistant", "assistant"])).toBe(2);
+  });
+});
+
+describe("anchored boundary floor", () => {
+  // Hand arithmetic. Constants: WINDOW_RESERVE_TOKENS 2048,
+  // WINDOW_CHARS_PER_TOKEN 3, WINDOW_SHARE_NO_DIGEST 0.75,
+  // ANCHORED_REBUILD_TARGET_SHARE 0.625; reserve = min(2048, floor(nCtx / 2));
+  // charBudget = floor((nCtx - reserve) * 0.75 * 3); target = charBudget * 0.625.
+  //
+  //   nCtx   reserve   charBudget        target    turn = target + 60
+  //   2048    1024    1024*0.75*3 = 2304   1440    1500
+  //   3072    1536    1536*0.75*3 = 3456   2160    2220
+  //   4096    2048    2048*0.75*3 = 4608   2880    2940
+  //   6144    2048    4096*0.75*3 = 9216   5760    5820
+  //   8192    2048    6144*0.75*3 = 13824  8640    8700
+  //
+  // `turn` is one 60-char user message over the target, so the capped turn is
+  // by itself larger than the rebuild target — the shape that used to return n.
+  // The history is 1300 chars: 24 messages of 50 plus the last exchange
+  // [60 user, 40 assistant]. Deliberately well under every budget in the
+  // table, so "the exchange survives" is a claim and not an accident of a
+  // history that could never have overflowed.
+  //
+  // maxCharsPerMessage is set above every length here so the cap never binds
+  // and each row charges the turn itself. The production cap (4000, 2000 with
+  // images) is smaller than the 6144/8192 targets, so on those contexts no
+  // single capped turn can exceed the target: the defect is confined to
+  // contexts whose target is under the cap, and the drop case below uses the
+  // 2048 profile for that reason.
+  const rows = [
+    { nCtx: 2048, charBudget: 2304, turn: 1500 },
+    { nCtx: 3072, charBudget: 3456, turn: 2220 },
+    { nCtx: 4096, charBudget: 4608, turn: 2940 },
+    { nCtx: 6144, charBudget: 9216, turn: 5820 },
+    { nCtx: 8192, charBudget: 13824, turn: 8700 },
+  ];
+  const historyLengths = [...new Array(24).fill(50), 60, 40];
+  // 13 complete exchanges: the last one opens at index 24, its user message.
+  const roles = new Array(26)
+    .fill(null)
+    .map((_, i) => (i % 2 === 0 ? "user" : "assistant"));
+  const floorIndex = 24;
+  const maxCharsPerMessage = 20_000;
+
+  const profileAt = (nCtx: number) =>
+    resolveWindowProfile({ nCtx, hasImages: false, hasDigest: false });
+
+  test("keeps the last exchange in every context the app can load", () => {
+    expect(lastCompleteExchangeStart(roles)).toBe(floorIndex);
+    expect(historyLengths.reduce((sum, n) => sum + n, 0)).toBe(1300);
+
+    const kept = rows.map((row) => {
+      const profile = profileAt(row.nCtx);
+      // The real profile, but its budget must be the hand-computed one or this
+      // row is not testing what it claims to test.
+      expect(profile.charBudget).toBe(row.charBudget);
+      return computeAnchoredBoundary(
+        historyLengths,
+        profile,
+        maxCharsPerMessage,
+        row.turn,
+        0,
+        undefined,
+        floorIndex,
+      );
+    });
+    expect(kept).toEqual(rows.map(() => floorIndex));
+  });
+
+  test("the same walk without a floor keeps nothing — the defect this pins", () => {
+    // No floor index: the loop stops on its first candidate and the whole
+    // conversation is dropped, which is why the floor exists.
+    const dropped = rows.map((row) =>
+      computeAnchoredBoundary(
+        historyLengths,
+        profileAt(row.nCtx),
+        maxCharsPerMessage,
+        row.turn,
+        0,
+      ),
+    );
+    expect(dropped).toEqual(rows.map(() => historyLengths.length));
+  });
+
+  test("names the drop when even the floor does not fit the budget", () => {
+    const profile = profileAt(2048);
+    // 2400 > charBudget 2304, so the floor window is 2400 + 100 as well.
+    const boundary = computeAnchoredBoundary(
+      historyLengths,
+      profile,
+      maxCharsPerMessage,
+      2400,
+      0,
+      undefined,
+      floorIndex,
+    );
+    expect(boundary).toBe(historyLengths.length);
+    expect(
+      anchoredHistoryDropReason(boundary, historyLengths.length, floorIndex),
+    ).toBe(ANCHORED_HISTORY_DROPPED_REASON);
+  });
+
+  test("names no drop when the floor survives", () => {
+    const boundary = computeAnchoredBoundary(
+      historyLengths,
+      profileAt(2048),
+      maxCharsPerMessage,
+      1500,
+      0,
+      undefined,
+      floorIndex,
+    );
+    expect(boundary).toBe(floorIndex);
+    expect(
+      anchoredHistoryDropReason(boundary, historyLengths.length, floorIndex),
+    ).toBeUndefined();
+    // No floor to apply (no user message) or no history at all: not a drop.
+    expect(anchoredHistoryDropReason(0, 0, 0)).toBeUndefined();
+    expect(anchoredHistoryDropReason(historyLengths.length, historyLengths.length, historyLengths.length)).toBeUndefined();
+  });
+
+  test("monotonicity leaves a boundary already past the floor where it is", () => {
+    // previousIndex 26 is past the floor: an earlier rebuild already evicted
+    // the exchange, and the destructive half of a window slide is gated on an
+    // advance, so the floor cannot walk the boundary back to re-admit it.
+    expect(
+      computeAnchoredBoundary(
+        historyLengths,
+        profileAt(2048),
+        maxCharsPerMessage,
+        1500,
+        26,
+        undefined,
+        floorIndex,
+      ),
+    ).toBe(26);
+  });
+});
+
+describe("anchored boundary floor at the production per-message cap", () => {
+  // LEGACY_MAX_CHARS is the FLOOR of the cap the send actually uses: AppShell
+  // passes baseMessageCap + userTailChars (persona instructions + memory
+  // facts), so a configured app charges more per message, never less.
+  //
+  // The loop's first candidate charges the turn being sent PLUS the newest
+  // history message, i.e. two messages at the cap: 2 * 4000 = 8000. So the
+  // wipe needs 8000 > target, with charBudget = floor((nCtx - reserve) * share
+  // * 3) and target = 0.625 * charBudget:
+  //
+  //   nCtx / share   reserve   charBudget   target       8000 > target?
+  //   6144 bare       2048      9216         5760         yes → wipes
+  //   8192 digest     2048     11059         6911.875     yes → wipes
+  //   8192 bare       2048     13824         8640         no
+  //
+  // History: 24 * 40 = 960, then the last exchange [1000 user, 4000 assistant]
+  // = 5960 with its floor at index 24. The floor window charges 4000 (the
+  // turn, capped down from an 8000-char paste) + 1000 + 4000 = 9000, which fits
+  // 9216 and 11059 with 216 and 2059 chars to spare.
+  const historyLengths = [...new Array(24).fill(40), 1000, 4000];
+  const floorIndex = 24;
+  const currentTurnLength = 8000;
+  const profileAt = (nCtx: number, hasDigest: boolean) =>
+    resolveWindowProfile({ nCtx, hasImages: false, hasDigest });
+  const rows = [
+    { nCtx: 6144, hasDigest: false, charBudget: 9216 },
+    { nCtx: 8192, hasDigest: true, charBudget: 11059 },
+  ];
+
+  test("two capped messages wipe the history without the floor", () => {
+    const wiped = rows.map((row) =>
+      computeAnchoredBoundary(
+        historyLengths,
+        profileAt(row.nCtx, row.hasDigest),
+        LEGACY_MAX_CHARS,
+        currentTurnLength,
+        0,
+      ),
+    );
+    expect(wiped).toEqual(rows.map(() => historyLengths.length));
+  });
+
+  test("the floor keeps the last exchange on the same rows", () => {
+    const kept = rows.map((row) => {
+      const profile = profileAt(row.nCtx, row.hasDigest);
+      // The real profile must carry the hand-computed budget or the row is not
+      // testing what it claims to.
+      expect(profile.charBudget).toBe(row.charBudget);
+      return computeAnchoredBoundary(
+        historyLengths,
+        profile,
+        LEGACY_MAX_CHARS,
+        currentTurnLength,
+        0,
+        undefined,
+        floorIndex,
+      );
+    });
+    expect(kept).toEqual(rows.map(() => floorIndex));
   });
 });

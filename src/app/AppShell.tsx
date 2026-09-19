@@ -312,6 +312,7 @@ import {
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
+  anchoredHistoryDropReason,
   assembleEngineHistory,
   CISWIRE_FLAG_COMPACTION,
   CISWIRE_FLAG_MEMORY,
@@ -323,6 +324,7 @@ import {
   countUserTurns,
   DEFAULT_CHAT_ID,
   emptyCompactorState,
+  lastCompleteExchangeStart,
   parseCiswireToolHelp,
   parseCompactorState,
   shouldInjectOperativeBlock,
@@ -5733,6 +5735,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             let boundaryForAssemble = 0;
             // Set when this send follows a deliberate ceiling slide (below).
             let windowSlideForCeiling = false;
+            // Named reason when the anchored rebuild dropped the whole history
+            // (below), reported on the per-send KALSA_WINDOW line.
+            let anchoredHistoryDropped: string | undefined;
             let nativeClearedForAssemble = false;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
@@ -6073,6 +6078,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // The gate compares the two real assemble starts: anchored's
               // persisted boundary, ciswire's clamped/trusted window start.
               const previousStart = anchoredOn ? pinnedStart : legacyWindowStart;
+              // Roles only, no text: the floor the anchored rebuild must not
+              // cross. Its index is the user that opens the last exchange with
+              // an assistant reply (so historyLengths, same order, indexes it);
+              // with the newest user message still unanswered, the previous
+              // exchange.
+              const anchoredFloorIndex = anchoredOn
+                ? lastCompleteExchangeStart(validatedHistory.map((m) => m.role))
+                : -1;
               if (windowAction.slide) {
                 // At the ceiling the profile's charBudget is exactly what
                 // cannot help (it is Infinity for attachment turns), so derive
@@ -6099,6 +6112,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       profile: windowProfile,
                       maxCharsPerMessage: perMessageCap,
                       ceilingBudgetChars,
+                      // The last complete exchange is kept even when the turn
+                      // being sent alone exceeds the rebuild target.
+                      floorIndex: anchoredFloorIndex,
                     })
                   : advanceCompactionBoundary(state, {
                       chatId,
@@ -6114,6 +6130,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   nextState,
                   validatedHistory.length,
                 );
+                // Name the one outcome this rebuild can produce that is not a
+                // window: the floor did not fit the real budget, so no history
+                // is kept. Reported on KALSA_WINDOW below.
+                if (anchoredOn) {
+                  anchoredHistoryDropped = anchoredHistoryDropReason(
+                    nextStart,
+                    validatedHistory.length,
+                    anchoredFloorIndex,
+                  );
+                }
                 // A held window may only advance. In particular, the
                 // attempted-start carrier from a killed post-clear prefill
                 // must not be replaced by a fresh char walk that moved
@@ -6361,6 +6387,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   loadedB,
                   hasDigest,
                   legacyWindowStart,
+                  // Present only when the anchored rebuild had to drop history:
+                  // counts and a constant name, never message text.
+                  historyDropped: anchoredHistoryDropped,
                   textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
                 })}`,
               );

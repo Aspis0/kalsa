@@ -43,6 +43,28 @@
 export const WINDOW_RESERVE_TOKENS = 2048;
 
 /**
+ * Reserve the CHAR BUDGET may subtract from a loaded context, relative to it.
+ *
+ * `WINDOW_RESERVE_TOKENS` equals the app's context floor (CTX_FLOOR in
+ * engine/deviceTuning), so at the smallest context the app can load the
+ * subtraction cancels the whole context: `(2048 - 2048) * share = 0` and the
+ * anchored history is empty on the one device the floor exists for. Halving
+ * the reserve there leaves half the context for the window.
+ *
+ * Only the char budget uses this. The ceiling slide
+ * (`windowCeilingTokens`) keeps the constant: overrunning n_ctx is the failure
+ * its reserve protects against, and that does not get cheaper on a small
+ * phone. From 4096 up the min selects the constant, so every window a shipped
+ * 4k/6k/8k context resolves is unchanged.
+ */
+export function charBudgetReserveTokens(nCtx: number | null | undefined): number {
+  if (typeof nCtx !== "number" || !Number.isFinite(nCtx) || nCtx <= 0) {
+    return WINDOW_RESERVE_TOKENS;
+  }
+  return Math.min(WINDOW_RESERVE_TOKENS, Math.floor(nCtx * 0.5));
+}
+
+/**
  * Chars per token, deliberately LOW. The window budget is in characters
  * because that is what the history carries, and a low ratio converts a token
  * budget into fewer characters — i.e. it errs toward a smaller window. Italian
@@ -246,7 +268,8 @@ export function resolveWindowProfile(input: {
   // never overflow, and the opposite ordering would need the window sized after
   // retrieval, which is what the caller uses it to bound.
   const share = hasDigest ? WINDOW_SHARE_WITH_DIGEST : WINDOW_SHARE_NO_DIGEST;
-  const budgetTokens = Math.max(0, nCtx - WINDOW_RESERVE_TOKENS) * share;
+  const budgetTokens =
+    Math.max(0, nCtx - charBudgetReserveTokens(nCtx)) * share;
   const charBudget = Math.floor(budgetTokens * WINDOW_CHARS_PER_TOKEN);
 
   return {

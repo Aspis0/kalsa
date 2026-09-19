@@ -508,10 +508,66 @@ export function shouldRebuild(
 export const ANCHORED_REBUILD_TARGET_SHARE = 0.625;
 
 /**
+ * Named outcome of an anchored rebuild that kept no history at all: the last
+ * complete exchange, charged with the turn being sent, does not fit the real
+ * char budget, so nothing older than the turn can be sent either.
+ */
+export const ANCHORED_HISTORY_DROPPED_REASON =
+  "history_dropped_current_turn_exceeds_budget";
+
+/**
+ * Index of the user message that opens the last exchange whose assistant reply
+ * is present. With the newest user message still unanswered, that is the
+ * previous exchange, so the floor keeps a question and its answer rather than a
+ * lone orphan turn. When no exchange has a reply, the newest user message is
+ * the floor; with no user message at all, `roles.length`, i.e. no floor. The
+ * result is always a user index or `roles.length`, never an assistant message:
+ * a window starting on a reply replays the answer without the question.
+ */
+export function lastCompleteExchangeStart(roles: readonly string[]): number {
+  const n = roles.length;
+  for (let i = n - 2; i >= 0; i--) {
+    if (roles[i] === "user" && roles[i + 1] === "assistant") return i;
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    if (roles[i] === "user") return i;
+  }
+  return n;
+}
+
+/**
+ * The named reason a rebuild dropped the whole history, or undefined when it
+ * kept some. Reads the outcome the caller already has — the boundary the
+ * rebuild returned — so it names a deliberate decision instead of becoming a
+ * second place that decides.
+ */
+export function anchoredHistoryDropReason(
+  boundaryIndex: number,
+  historyLength: number,
+  floorIndex: number,
+): string | undefined {
+  if (historyLength <= 0) return undefined;
+  if (floorIndex < 0 || floorIndex >= historyLength) return undefined;
+  return boundaryIndex >= historyLength
+    ? ANCHORED_HISTORY_DROPPED_REASON
+    : undefined;
+}
+
+/**
  * Pick the widest anchored suffix that fits the rebuild target.
  *
  * The caller invokes this only on a rebuild. Between rebuilds the stored
  * boundary is passed through unchanged, so history length never moves it.
+ *
+ * `floorIndex` (from `lastCompleteExchangeStart`) is the last complete
+ * exchange. It is kept even when the current turn alone exceeds the target: a
+ * turn larger than the target cannot be removed from the prompt before it
+ * becomes history, so its size is not a reason to throw the conversation away.
+ * The floor is charged against the real budget, never against the 0.625 target
+ * — the share exists to leave hysteresis for the NEXT rebuild, not to decide
+ * whether history survives at all. When even the floor does not fit, the
+ * history is dropped deliberately (ANCHORED_HISTORY_DROPPED_REASON), not by a
+ * loop that fell through.
  */
 export function computeAnchoredBoundary(
   historyLengths: readonly number[],
@@ -526,6 +582,8 @@ export function computeAnchoredBoundary(
    * target then comes from the token ceiling, not the profile.
    */
   ceilingBudgetChars?: number,
+  /** Start of the last complete exchange, or -1 / `n` for no floor. */
+  floorIndex = -1,
 ): number {
   const n = historyLengths.length;
   const previous =
@@ -556,6 +614,34 @@ export function computeAnchoredBoundary(
     }
     start = i;
   }
+
+  // The floor clamps from above and only when its own window fits the real
+  // budget. A floor that does not fit is not a candidate at all: every start
+  // at or before it carries at least as much, and a start after it would begin
+  // on the reply the exchange exists to keep.
+  const floor =
+    typeof floorIndex === "number" &&
+    Number.isFinite(floorIndex) &&
+    floorIndex >= 0
+      ? Math.min(Math.floor(floorIndex), n)
+      : n;
+  if (start > floor) {
+    start =
+      anchoredWindowChars(
+        historyLengths,
+        floor,
+        maxCharsPerMessage,
+        currentTurnLength,
+      ) <= budget
+        ? floor
+        : n;
+  }
+
+  // Monotonicity wins over the floor. The destructive half of a window slide
+  // is gated on an ADVANCE (shouldDiscardKvForSlide), so a retreating boundary
+  // is a state that gate has no branch for; the floor never moves the boundary
+  // backwards. When `previous` is already past the floor the floor is simply
+  // unreachable.
   return Math.max(previous, start);
 }
 
@@ -895,6 +981,8 @@ export function advanceAnchoredBoundary(
     maxCharsPerMessage: number;
     /** Token-ceiling-derived budget for a forced slide (see computeAnchoredBoundary). */
     ceilingBudgetChars?: number;
+    /** Start of the last complete exchange (see computeAnchoredBoundary). */
+    floorIndex?: number;
   },
 ): CompactorState {
   const chatId = args.chatId || DEFAULT_CHAT_ID;
@@ -909,6 +997,7 @@ export function advanceAnchoredBoundary(
     args.currentTurnLength,
     previousBoundary,
     args.ceilingBudgetChars,
+    args.floorIndex,
   );
   const userTurnCount = Number.isFinite(args.userTurnCount)
     ? Math.floor(args.userTurnCount)
