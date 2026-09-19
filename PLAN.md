@@ -1000,6 +1000,21 @@ domanda dell'utente**. Correzione, non regressione, ma senza nome: va nel messag
 al punto d'uso, e con un test (il render con storia che finisce per assistente oggi non e' coperto). Giro in
 corso con questi cinque punti + tolleranza agli spazi; poi 59 per nome, sha, diff --stat, push.
 
+**`qwen-think-in-history` READY (19/09 ~01:50Z = 18/09 21:50 EDT): `1bd26b8`**, 3 commit su `9b08ae0` (59349ca
+contratto misurato → 5e600a6 harness → 1bd26b8 i cinque punti + estrazione), 6 file +150/−34: due moduli
+nuovi (`historyMessagePositions.ts` 16 righe, `qwenHistoryFields.ts` 56), `modelEmittedText.ts` −29 nette
+(helper cancellato), `LlamaService.ts` +10, test +69, harness 4. Riga LFM `emissionAlreadySeeded(source…)`
+assente dal diff (grep sulla riga che decide, non sul nome: 0). I cinque punti per nome: forma stretta →
+span grezzo (`qwenHistoryFields.ts:44-50`); test di ricostruzione senza template (test `:252-259`); posizioni
+estratte e storia che finisce per assistente coperta (test `:287-300`), cambio nominato nel corpo del commit
+("no longer treat assistant content as current-user input for document matching, auto-query, or web_search
+privacy checks"); sentinella con provenienza misurata e datata (`:8-17`); tolleranza agli spazi (`:41`).
+Gate misurati due volte (kalsa-93 e coordinatore, Node 20 / build fredda): tsc 0, jest 0 (**87 / 1062**),
+**59 harness su 59** per nome. *Prima del push:* rilettura corta di 1bd26b8 (deepseek-commandcode: i cinque
+punti uno per uno nel codice attuale, e `historyMessagePositions` uguale al codice sostituito sui quattro
+confini) e la chiusura dell'e2e su `9b08ae0` (run `35412505963`, il "prima": `0/2215`, `n_common=2213/2383`).
+Poi `1bd26b8:main` e il "dopo" sull'e2e seguente: WARM al turno 2 con riuso ≈ totale − nuovi, restart non COLD.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
