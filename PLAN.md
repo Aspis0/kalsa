@@ -1354,6 +1354,59 @@ json via `CAMPAIGN_CONFIG`, rifiuto exit 2 se manca o non coincide con ANDROID_S
 soglie termiche invariate, selftest 47/0 + un caso nuovo con prova rossa. Xiaomi: originali da ripristinare
 domattina `screen_brightness=44`, `screen_brightness_mode=1`, `screen_off_timeout=120000`.
 
+**main = `c7e3f9c` (03:46Z = 23:46 EDT, push del coordinatore):** after-e2e 35416502047 su 9f96a45 letto dal
+coordinatore `completed success`; fast-forward verificato (origin/main 9f96a45, 7 commit = sei T20C + save-wiring,
+0 modifiche tracciate); `origin/main` riletto = c7e3f9c. E2E di c7e3f9c = run **35419493718**, un solo lettore
+sparso. L'APK 35418569854 in coda e' di 9f96a45: la differenza (scripts/campaign + `decideSessionDiskSpace` pura con
+test, percorso reale invariato) non entra nell'APK; niente secondo APK stanotte. `7d607c8` e' antenato vero di main
+(kalsa-2d, `merge-base --is-ancestor` = 0), quindi `t20c-jelly` (ramo di **kalsa-2d**, agente Luna 42da5458) si
+innesta senza rebase.
+
+**KV Qwen sul CI, DOPO (9f96a45, 35416502047) contro PRIMA (9b08ae0, 35412505963) — letto dal coordinatore nei due
+`RESULT.txt`, artefatti scaricati una volta, estrattore di kalsa-93 sugli stessi byte.** Tre criteri depositati prima
+di misurare: (1) prompt del turno 2 > cached del turno 1; (2) WARM con riuso ≈ totale − nuovi; (3) riavvio non COLD.
+DOPO: turno 1 cached 2254 (evaluated 2083, predicted 170), turno 2 evaluated **2276** promptMs **6343.9**, `WARM
+(reused 2254/2276)`, riavvio evaluated 2472 `WARM RESTART CONFIRMED (reused 2450/2472)`, `whole_cache_reused=YES` —
+3/3 PASS, +22. PRIMA: turno 1 cached 2287 (predicted 203), turno 2 evaluated 2217 promptMs **684847.2**, `COLD
+(reused 0/2217)`, riavvio `cached=? … (missing)`, `LOADED BUT COLD (reused 0/2340)`, `whole_cache_reused=NO` — 3/3
+FAIL, −70. Prefill del turno 2 da 684847 ms a 6344 ms sull'emulatore (fattore 108: numero dell'emulatore, non del
+telefono). Il riuso e' esatto: 2276 − 2254 = **22** = turno utente nuovo + prompt di generazione, e lo stesso 22 al
+riavvio (2472 − 2450): il ragionamento dei turni vecchi ora sta dentro il prefisso. Aritmetica interna in tutti e
+quattro i turni: cached = evaluated + predicted + 1. I due run NON sono confrontabili token per token (170 contro
+203 predetti al turno 1): il criterio e' relativo dentro ogni run, ed e' l'unica ragione per cui il confronto vale.
+Nel PRIMA il terzo turno NON ESISTE (`reply3` = l'errore dei 180 s); nel DOPO e' una risposta vera (`Un singolo albero
+puo' produrre…`). Il −70 del PRIMA resta un pavimento. **Decisione dell'owner pendente:** adottare i tre criteri come
+contratto di CI (rosso se uno fallisce; terzo turno senza risposta = rosso).
+
+**Contratto governor-KV (`analysis/README-governor-kv-contract.md`, scritto da Luna af89ce1d, 260 righe, sha
+`1bca5036…`, audit deepseek-commandcode 6ea0979e sugli stessi byte, verificato dal coordinatore):** 62 citazioni,
+59 esatte, 1 sbagliata, 2 troppo larghe. Cinque buchi di specifica: (1) `last_ctx == ctx_decode && last_phase ==
+Prefill` e' raggiungibile (rotta CPU, `llama-governor.cpp:190-192`, `:226-227`) e il ripristino "as Decode" lo
+butterebbe; (2) "successful pairing commit" nel cancello del warm poggia su un commit che NON rileva un fallimento a
+meta' copia (`llama-kv-commit.cpp:340-343`, limite dichiarato nel sorgente) e `:120-121` pubblica i watermark
+comunque; (3) l'envelope non porta i campi che il formato del blob e `compatible()` testano davvero
+(`n_seq_max`/`n_stream`, `n_pad`, `n_swa`/`swa_type`, `v_trans`); (4) `Direct` e' ammesso ma un commit Direct non
+copia niente (`:363-366`); (5) la query inversa e' gia' fatta alla costruzione e l'oracolo e' simmetrico: la cosa
+direzionale e' la modalita' Staged/Naive del lato sorgente. Privacy: REFUTATA come fuga, regola da scrivere nel doc.
+Dal coordinatore: due buchi in piu' — il doc non dice se il blob whole-context porta lo stato RICORRENTE (LFM2 e' il
+modello spedito; `llama-memory-hybrid.cpp:251-262` chiama i due `state_write/read`, ma la meta' di attenzione a
+`:249` sta sotto una condizione non ancora letta) e il meta ha UNA coppia K/V (`sessionPersistence.ts:36-37`) mentre
+`rn-llama.cpp:93-114` costruisce i due parametri separatamente — e la scelta del commit **DIFFERITO** al posto
+dell'eager: carica in `ctx_decode`, watermark 0/0, `last_ctx=decode`; il cambio di fase esistente copia `[0,end)`
+(range semiaperto verificato da kalsa-93 su `llama-governor.cpp:91-122`, `:176-208`, `llama-kv-cells.h:413-417`), la
+rotta CPU non copia niente, "successful pairing commit" esce dal cancello del warm. Correzione di kalsa-93: il solo
+prefill (prewarm) NON e' un turno completato, quindi il buco 1 si trasforma nella regola esplicita per l'artefatto del
+prefisso statico etichettato a parte. Un giro di correzioni a Luna (resume), ri-audit deepseek sulle sezioni cambiate
+con sha pinnato prima e dopo, re-read di kalsa-93, rilettura del coordinatore, UN commit del coordinatore. Pin dei
+riferimenti nel doc: `Aspis0/kalsa @ c7e3f9c`, `Aspis0/llama.rn @ 485519fe`, non il nome del worktree.
+
+**Ordine dell'owner sui ruoli (23:50 EDT):** su Paseo Luna e' il `Reviewer` e deepseek l'`Alternative Coder`, e si
+usano cosi': **deepseek scrive, Luna revisiona**, dalla prossima dispatch. Verificato dal coordinatore su
+`~/.paseo/config.json`. Stanotte contratto e `t20c-jelly` sono stati scritti da Luna e auditati da deepseek: validi
+(modelli diversi) ma nella direzione che non si usa piu'; gli agenti in volo finiscono in resume, anchored-floor
+sara' deepseek → Luna (`modeId` esplicito perche' cross-provider). Due controlli prima di accoppiare: i `model` sul
+config e l'ultima riga dell'owner sulla direzione.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
