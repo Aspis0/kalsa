@@ -1708,3 +1708,135 @@ they compile. It is answered properly by §25 gate 1: once the five gated CI
 jobs run unconditionally, a real compiler resolves every include on Android
 and iOS on every push. A compiler is a better gate than a script that
 approximates one. The script is not coming back.
+
+## 27. Step 25 landed, and un-gating CI was worth more than bmoe
+
+bmoe is in the engine. kalsallama `e1866612d` adds the 22 core files as
+`src/bmoe/` plus two lines of CMake; llama.rn `dc205f56` brings
+`cpp/bmoe_stream.{h,cpp}` over, deletes the `BMOE_ROOT` block that reached
+`../../../native/bmoe` out of the library into the app, and removes every
+branch guard from `ci.yml`.
+
+Gates 2 to 6 of §25.2, all re-checked by hand rather than taken from a
+delegate's report:
+
+    grep -ni bmoe android/src/main/rnllama/CMakeLists.txt   0
+    BMOE_HAVE_EXPERT_READY_HOOK, both repos                 0
+    *lmggml_compat* anywhere                                0
+    lm_ggml_/lm_gguf_/lm_llama_ in the moved code           0
+    vendor/llama.cpp/src/bmoe                               22 files
+    export manifest edits                                   0
+    cmake/rnllama-sources.cmake                             2 lines
+    refs/heads/kalsa in ci.yml                              0
+
+The move itself was clean. Diffing all 24 copied files against their
+originals: 18 of the 22 core files byte-identical, the other four differing
+by 16 lines in total — the five include rewrites and six preprocessor lines
+specified in advance — plus two `lm_ggml_tensor` spellings in `bmoe_stream`
+corrected to `ggml_tensor`, which the implementer declared rather than hid.
+The callback typedef at `ggml-backend.h:316` is `struct ggml_tensor *`, so
+the correction is right and was necessary: nothing defines `lm_ggml_tensor`
+any more.
+
+### 27.1 The gate found two defects that had nothing to do with bmoe
+
+Gate 1 predicted 7 of 7 green. The first real run came back 2 of 7, and
+both new causes had been hiding behind the branch guards for months.
+
+**Four of the five failures were one cause.** Both Android jobs died on
+`Hexagon SDK not found at /home/runner/.hexagon-sdk`; both iOS jobs died on
+a wall of undefined `_ggml_metallib_*_start/_end`. Same root: this fork had
+dropped `npm run bootstrap` from `.github/actions/setup` while upstream
+still runs it, and bootstrap is what fetches that SDK and generates the
+Metal embed assembly. Established by diffing the two repos, not by
+inference: `build-hexagon-htp.sh` and `bootstrap.sh` are identical, the
+action differs by one line.
+
+The reason it was dropped had expired. `bootstrap.sh` used to rewrite the
+whole engine tree with the `lm_` prefix — the auditor found the deleted
+`files_add_lm_prefix` and its `sed -i 's/ggml_/lm_ggml_/g'` before commit
+`2d669962` — so running it in CI would have corrupted the checkout. It
+renames nothing now.
+
+**The fifth was ours and real.** With bootstrap restored, `build-android-*`
+got far enough to compile bmoe and failed on five calls:
+
+    src/bmoe/platform_io.cpp:394: error: 'AHardwareBuffer_allocate' is
+    unavailable: introduced in Android 26
+
+llama.rn builds at `RNLlama_minSdkVersion=23`. The app built bmoe at a
+higher one, so this defect could not exist before the move. The file already
+had the right shape — an `#else` branch reporting "unsupported" so callers
+fall back to an ordinary allocation — so only the condition changed, to
+`#if defined(__ANDROID__) && __ANDROID_API__ >= 26`.
+
+That is the argument for un-gating in one paragraph: three of these jobs had
+never run on this fork, and the two things they found had been broken the
+whole time.
+
+### 27.2 The audit: eight CONFIRMED, three of them about my own claims
+
+Six were fixed, two recorded as latent. The ones worth keeping:
+
+**The committed comment I wrote was false.** Restoring bootstrap, I wrote
+that it "fetches the SDK and generates the gitignored Metal embed assembly,
+so it is safe". It is not: `scripts/bootstrap.sh:106` runs `npm install` in
+`example/` and `:176` runs `npm run pods` on macOS, and **both**
+`example/package-lock.json` and `example/ios/Podfile.lock` are tracked. It
+does not change the decision — the runner is ephemeral — but it explains the
+`example/package-lock.json` modification I had dismissed as noise, and a
+committed comment is an assertion. Corrected in `4a6859ff`.
+
+**Three checks read text, not code.** A file containing only
+`// llama_governor` satisfied the check that asserts "this engine is our
+fork". Comments in `src/version.ts` satisfied the identity comparison. A
+block-commented declaration satisfied the progress-callback check. All three
+now run through a `code_only()` that strips `/* */` and `//` first, and each
+bypass was re-proved failing.
+
+On that last one the audit blamed the `[=;]` loosening of `18f3ff33`, and it
+was wrong — measured, then accepted by the auditor. The earlier
+`= *nullptr;$` form matched a commented declaration just as readily. Which
+also retires an overclaim of mine in §23: anchoring made "a `//` comment is
+not a declaration" true, not "a comment is not a declaration".
+
+**Fixing it nearly introduced something worse.** The first version piped
+`code_only` into `grep -q`. `grep -q` exits at the first match, perl takes
+SIGPIPE, and `set -o pipefail` turns that into a failed pipeline. It went
+red once in 26 runs. A gate that fails at random is worse than the bug it
+closes, so the pattern is gone — herestring or shell matching — and
+`code_only` carries the warning above it.
+
+### 27.3 Two latent hazards, recorded not fixed
+
+`MoeStream` installs an abort callback pointing at `st_->source.get()` and
+never clears it; `ctx` is a local parameter of `bind()`, so `shutdown()`
+could not clear it even if it tried. Not reachable today: both call sites
+(`cpp/rn-llama.cpp:625` and `:755`) destroy the context immediately after,
+and a comment at `:754` documents exactly that ordering. It is a
+use-after-free held off by caller discipline rather than by the class.
+
+`ggml_cpu_set_expert_ready_hook` is documented at `ggml-cpu.h:150-152` as
+**process-global** and not thread-safe with concurrent graph computation,
+while each `MoeStream` registers its own object and any stream's shutdown
+unregisters the one global hook. Two live contexts overwrite each other.
+Worth knowing before the next round of work on bmoe.
+
+Also open: deleting the macro made `libllama` depend on a fork-only ggml
+symbol unconditionally, so the (never used here) `LLAMA_USE_SYSTEM_GGML=ON`
+configuration cannot build bmoe.
+
+### 27.4 The upstream test we had to diverge from
+
+`test` was red on "Slot MTP Params and Reset" while upstream is green on the
+same byte-identical file. The cause is a deliberate divergence: our
+`should_use_mtp()` also answers "does the runtime permit MTP right now",
+consulting `parent_ctx->hasGovernor()` and the model's capabilities, so it
+returns false without a context instead of dereferencing a null one — and
+that guard is load-bearing, because it replaced throws that were removed
+from `init_mtp()`. The audit tested whether the guard was the bug and
+returned REFUTED.
+
+The test now asserts our contract. Stated plainly rather than sold: both
+`should_use_mtp()` calls in it are now constants, and what it still proves
+is that `reset()` clears `params` and both draft counters.
