@@ -7747,3 +7747,23 @@ that back. `log-privacy`, the next branch, goes to Luna.
 his channels and his credits, not about code quality — which is exactly why "the result was green"
 is not a defence. A rule you only honour when it is convenient is a rule you do not have. Written
 here instead of in chat so it survives the session.
+
+### Correction: the night window was NOT broken — the agent timestamps were UTC (18/09, 20:02 EDT)
+
+The entry above is wrong, and the error is mine twice over: I misread the clock, and then I reported
+the miss to the coordinating session as a fact instead of checking it.
+
+**Measured, on this Mac:** `date` → `Fri Sep 18 20:02:31 EDT 2026`, `date -u` →
+`Sat Sep 19 00:02:31 UTC 2026`. The Paseo agent list prints **UTC**, and says so — the field is
+`"createdAt":"2026-09-18T22:53:48.242Z"`, with the `Z` in plain sight. Converted: the Coder agent ran
+**18:53–19:59 EDT**, which is inside the 11:00–21:00 window where GLM is the Coder. Nothing was
+violated. The giveaway I walked straight past: 22:53 local had not happened yet when I "found" it.
+
+**How to not repeat it:** the owner's window is in **local** time and every machine-printed timestamp
+here is in **UTC**. Convert before comparing — never eyeball a `Z` timestamp against a local-time
+rule. Four hours is exactly the size of an error that still looks plausible.
+
+**What stays true from the entry above:** that a rule you only honour when it is convenient is a rule
+you do not have. What does not stay is the claim that this branch broke one. `27f2a76` was written in
+the permitted window, and the four gates and the different-model audit remain what actually protects
+it.
