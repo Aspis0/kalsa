@@ -7,15 +7,14 @@
 set -uo pipefail
 
 CAMPAIGN_SERIAL="${CAMPAIGN_SERIAL:-192.168.1.82:34037}"
-# Critical status threshold (≥5 = real overheating). Status 2-3 is the Jelly's
-# steady state on AC power (42-44°C battery) — NOT a reason to pause. The real
-# safety gate is battery temp > THERMAL_MAX_C (47°C — the Jelly's charging+
-# working equilibrium is 43-44°C; 43 was measured to block every send, so the
-# gate sits above the working equilibrium and below MediaTek's ~47-48°C throttle).
+# Pause threshold: critical status (default ≥5) or battery temperature above
+# CAMPAIGN_THERMAL_MAX_C. Status 2-3 on AC power is the Jelly's equilibrium,
+# while the separate unplugged owner stop line below is deliberately stricter.
 CAMPAIGN_THERMAL_PAUSE="${CAMPAIGN_THERMAL_PAUSE:-5}"
 CAMPAIGN_THERMAL_MAX_C="${CAMPAIGN_THERMAL_MAX_C:-45}"
-# Owner's written unplugged stop line. The external device watchdog kills at
-# 43°C battery, so this is the second line of defence, not the first.
+# Owner's written unplugged stop line: battery >=44.0°C or thermal status >=3.
+# The external device watchdog kills at 43°C battery, so this is the second line
+# of defence, not the first.
 CAMPAIGN_THERMAL_HARD_ABORT_C="${CAMPAIGN_THERMAL_HARD_ABORT_C:-44.0}"
 CAMPAIGN_THERMAL_HARD_ABORT_STATUS="${CAMPAIGN_THERMAL_HARD_ABORT_STATUS:-3}"
 CAMPAIGN_THERMAL_OVERSHOOT_S="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
@@ -153,6 +152,11 @@ campaign_thermal_should_pause() {
   case "$st" in
     ''|unknown|*[!0-9]*) return 1 ;;
   esac
+  # The hard-abort condition must imply the pause condition: status 3/4 on an
+  # unplugged phone must enter cooldown so the owner's stop line is reachable.
+  if campaign_thermal_hard_abort_reason >/dev/null; then
+    return 0
+  fi
   # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (T20C sets
   # 42 in run-t20c.sh:32; the 45 default here only applies if nothing sets it)
   # or a critical system
@@ -195,8 +199,10 @@ campaign_thermal_is_plugged() {
   [ -n "$dump" ] || { printf '%s\n' unknown; return 0; }
   if printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true'; then
     printf '%s\n' true
-  else
+  elif printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless|Dock) powered:'; then
     printf '%s\n' false
+  else
+    printf '%s\n' unknown
   fi
 }
 
@@ -237,12 +243,29 @@ campaign_thermal_should_hard_abort() {
   return 0
 }
 
+campaign_thermal_trend() {
+  python3 - "$1" "$2" <<'PY'
+import sys
+current, previous = map(float, sys.argv[1:])
+print("rising" if current > previous else "falling" if current < previous else "steady")
+PY
+}
+
 campaign_thermal_cooldown_wait() {
   local stop_app="${1:-yes}" waited=0 step cap overshoot previous_bt bt trend
   local rising_samples=0 rising_readings plugged
   step="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
   cap="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
   overshoot="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
+  CAMPAIGN_THERMAL_HARD_ABORT_REASON=""
+  case "$step" in ''|*[!0-9]*|0) log "thermal cooldown failed: invalid step '$step'"; return 1 ;; esac
+  case "$cap" in ''|*[!0-9]*|0) log "thermal cooldown failed: invalid cap '$cap'"; return 1 ;; esac
+  case "$overshoot" in ''|*[!0-9]*|0) log "thermal cooldown failed: invalid overshoot window '$overshoot'"; return 1 ;; esac
+  if [ "$step" -gt "$overshoot" ]; then
+    # Keep the first post-load sample inside the expected battery overshoot window.
+    log "thermal cooldown step ${step}s exceeds overshoot window ${overshoot}s — clamping step to ${overshoot}s"
+    step="$overshoot"
+  fi
   previous_bt=$(device_battery_temp_c)
   log "RECOVERY reason=thermal — pause (battery > ${CAMPAIGN_THERMAL_MAX_C}°C or status >= $CAMPAIGN_THERMAL_PAUSE; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=${overshoot}s)"
   [ "$stop_app" = yes ] && campaign_force_stop
@@ -254,12 +277,10 @@ campaign_thermal_cooldown_wait() {
     bt=$(device_battery_temp_c)
     trend=steady
     if [ "$previous_bt" != unknown ] && [ "$bt" != unknown ]; then
-      trend=$(python3 - "$bt" "$previous_bt" <<'PY'
-import sys
-current, previous = map(float, sys.argv[1:])
-print("rising" if current > previous else "falling" if current < previous else "steady")
-PY
-      )
+      if ! trend=$(campaign_thermal_trend "$bt" "$previous_bt"); then
+        trend=unknown
+        log "thermal trend unavailable: failed to compare battery readings previous=${previous_bt}°C current=${bt}°C"
+      fi
     fi
     if [ "$waited" -le "$overshoot" ]; then
       rising_samples=0
@@ -294,7 +315,8 @@ PY
     fi
     previous_bt="$bt"
   done
-  log "THERMAL GIVEUP: still paused after ${cap}s — stopping the run (cooldown cap reached; no recursive wait)"
+  CAMPAIGN_THERMAL_HARD_ABORT_REASON="thermal-giveup: cooldown cap ${cap}s reached"
+  log "THERMAL GIVEUP: ${CAMPAIGN_THERMAL_HARD_ABORT_REASON} — stopping the run (no recursive wait)"
   return 1
 }
 

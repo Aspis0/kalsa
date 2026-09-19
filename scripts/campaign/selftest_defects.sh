@@ -62,7 +62,8 @@ fake_reset() {
   local mode="$1" temp=350
   [ "$mode" = "hot" ] && temp=500
   case "$mode" in
-    thermal-rise-fall|thermal-hard-abort) temp=425 ;;
+    thermal-rise-fall|thermal-hard-abort|thermal-sustained-rise|thermal-unknown-power) temp=425 ;;
+    thermal-giveup) temp=430 ;;
     thermal-status-abort) temp=420 ;;
   esac
   rm -rf "$FAKE_DEV/fake" "$FAKE_DEV/databases"
@@ -191,13 +192,204 @@ hard_abort_recovery_case() {
   fi
 }
 
-if [ "${CAMPAIGN_SELFTEST_ONLY:-}" = hard-abort-recovery ]; then
+thermal_turn_case() {
+  local name="$1" mode="$2" sender="$3" out="$WORK/$1" rc
+  fake_reset "$mode"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_ROOT="$HERE" CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+    export SCRIPT="$REPO/campaigns/t20c/script.json"
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/conversation.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    CAMPAIGN_THERMAL_MAX_C=42
+    CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
+    CAMPAIGN_THERMAL_COOLDOWN_CAP_S=2
+    CAMPAIGN_THERMAL_OVERSHOOT_S=1
+    : > "$out/logcat.txt"
+    if [ "$sender" = real-status ]; then
+      campaign_send_turn() {
+        if campaign_thermal_should_pause; then
+          CAMPAIGN_TURN_STATUS=thermal
+        else
+          CAMPAIGN_TURN_STATUS=not-thermal
+        fi
+        return 1
+      }
+    else
+      campaign_send_turn() { CAMPAIGN_TURN_STATUS=thermal; return 1; }
+    fi
+    campaign_thermal_cooldown() { campaign_thermal_cooldown_wait no; }
+    campaign_one_turn 1 "thermal recovery test"
+    printf '%s' "$?" > "$out/rc.txt"
+  ) > "$out/turn.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" != 0 ] && grep -q 'thermal hard abort turn 1: thermal-giveup: cooldown cap 2s reached' "$out/turn.log" \
+    && grep -q '"reason": "thermal-hard-abort: thermal-giveup: cooldown cap 2s reached' "$out/turn.log"; then
+    ok "thermal GIVEUP reached through oneTurn and stopped the run"
+  elif [ "$name" = thermal-status-turn ] && [ "$rc" != 0 ] \
+    && grep -q 'thermal hard abort turn 1: unplugged thermal status 3' "$out/turn.log"; then
+    ok "thermal status 3 reached hard abort through the real turn path"
+  else
+    bad "$name did not stop through the expected oneTurn path (rc=$rc)"
+    tail -8 "$out/turn.log" | sed 's/^/   | /'
+  fi
+}
+
+thermal_sustained_case() {
+  local mode="$1" want="$2" out="$WORK/$1" rc
+  fake_reset "$mode"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    CAMPAIGN_THERMAL_MAX_C=42
+    CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
+    CAMPAIGN_THERMAL_COOLDOWN_CAP_S=8
+    CAMPAIGN_THERMAL_OVERSHOOT_S=2
+    campaign_thermal_cooldown_wait no
+    printf '%s' "$?" > "$out/rc.txt"
+  ) > "$out/thermal.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" = 1 ] && grep -qF "$want" "$out/thermal.log"; then
+    ok "$mode reaches its recovery branch"
+  else
+    bad "$mode did not reach '$want' (rc=$rc)"
+    tail -8 "$out/thermal.log" | sed 's/^/   | /'
+  fi
+}
+
+thermal_step_clamp_case() {
+  local out="$WORK/thermal-step-clamp" rc
+  fake_reset thermal-rise-fall
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    CAMPAIGN_THERMAL_MAX_C=42 CAMPAIGN_THERMAL_COOLDOWN_STEP_S=5
+    CAMPAIGN_THERMAL_OVERSHOOT_S=2 CAMPAIGN_THERMAL_COOLDOWN_CAP_S=6
+    campaign_thermal_cooldown_wait no
+    rc=$?
+    printf '%s' "$rc" > "$out/rc.txt"
+  ) > "$out/thermal.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if grep -q 'clamping step to 2s' "$out/thermal.log"; then
+    ok "cooldown clamps a step longer than the overshoot window (rc=$rc)"
+  else
+    bad "cooldown did not clamp the overshoot step (rc=$rc)"
+  fi
+}
+
+thermal_trend_failure_case() {
+  local out="$WORK/thermal-trend-failure"
+  fake_reset thermal-rise-fall
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    campaign_thermal_trend() { return 1; }
+    CAMPAIGN_THERMAL_MAX_C=42 CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
+    CAMPAIGN_THERMAL_OVERSHOOT_S=1 CAMPAIGN_THERMAL_COOLDOWN_CAP_S=3
+    campaign_thermal_cooldown_wait no
+  ) > "$out/thermal.log" 2>&1
+  if grep -q 'thermal trend unavailable: failed to compare battery readings' "$out/thermal.log"; then
+    ok "failed thermal trend computation is explicit and unknown"
+  else
+    bad "failed thermal trend computation was not reported"
+  fi
+}
+
+completion_backstop_case() {
+  local out="$WORK/completion-backstop" rc
+  fake_reset throttled
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=180000 CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=30000
+    CAMPAIGN_COMPLETION_PROGRESS_MAX_MS=120000 CAMPAIGN_TELEMETRY_SEEN=0
+    CAMPAIGN_LOGCAT_FILE="$out/logcat.txt"
+    virtual_ms=0
+    sleep() {
+      virtual_ms=$((virtual_ms + ${1%.*} * 1000))
+      make_messages "$FAKE_DEV/fake/long.json" 1 "$((virtual_ms / 1000))"
+      db_put_messages "$FAKE_DEV/fake/long.json"
+      if [ "$virtual_ms" -ge 150000 ]; then
+        printf '%s\n' "$TELEMETRY_LINE" >> "$out/logcat.txt"
+      fi
+    }
+    make_messages "$FAKE_DEV/fake/long.json" 1 1
+    db_put_messages "$FAKE_DEV/fake/long.json"
+    : > "$out/logcat.txt"
+    : > "$out/.slice.txt"
+    campaign_completion_signal_lost 2 "$out/.slice.txt"
+    printf '%s' "$?" > "$out/rc.txt"
+  ) > "$out/turn.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" = 1 ] && grep -q 'completion counter stayed at 0 for 120000ms' "$out/turn.log" \
+    && grep -q 'KALSA_TELEMETRY ' "$out/logcat.txt"; then
+    ok "completion probe ignores the old short ceiling while progress moves"
+  else
+    bad "completion probe did not reach the late marker beyond the old ceiling (rc=$rc)"
+    tail -8 "$out/turn.log" | sed 's/^/   | /'
+  fi
+}
+
+case "${CAMPAIGN_SELFTEST_ONLY:-}" in
+hard-abort-recovery)
   printf '\n== isolated hard-abort recovery case ==\n'
   hard_abort_recovery_case
   printf 'passed=%d failed=%d\n' "$pass" "$fail"
   [ "$fail" -eq 0 ]
   exit
-fi
+  ;;
+thermal-giveup)
+  thermal_turn_case thermal-giveup thermal-giveup giveup
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-status-turn)
+  thermal_turn_case thermal-status-turn thermal-status-abort real-status
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-sustained-rise)
+  thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-unknown-power)
+  thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort'
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-step-clamp)
+  thermal_step_clamp_case
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-trend-failure)
+  thermal_trend_failure_case
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+completion-backstop)
+  completion_backstop_case
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+esac
 
 # ── (a) liveness is not the completion marker ───────────────────────────────
 # driver = background mutation; expect = CAMPAIGN_TURN_STATUS the wait must end
@@ -306,6 +498,7 @@ run_campaign_case() {
     ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
     CAMPAIGN_METRO_BUNDLE_URL="$url" \
     CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_TURN_TIMEOUT_MS=6000 CAMPAIGN_TELEMETRY_GAP_MS=2000 CAMPAIGN_POLL_MS=1000 \
     CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=1000 \
     bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
   local rc=$?
@@ -456,6 +649,7 @@ skip_case() {
     user=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["turns"][0]["user"])' "$SCRIPT")
     campaign_one_turn 1 "$user"
     printf '%s' "$?" > "$out/rc.txt"
+    printf '%s' "${CAMPAIGN_TURN_STATUS:-}" > "$out/status.txt"
     campaign_logcat_stop
   ) > "$out/turn.log" 2>&1
   local rc
@@ -467,6 +661,11 @@ skip_case() {
     bad "skip path '$want': rc=$rc jsonl=$(jsonl_reason "$out/T20C/c1-V1.jsonl" 1 "$want" 2>&1 | head -1)"
     tail -5 "$out/turn.log" | sed 's/^/   | /' 
   fi
+  if [ "$stub" = cooldown-fail ] && [ -s "$out/status.txt" ]; then
+    bad "technical cooldown failure left CAMPAIGN_TURN_STATUS set to $(cat "$out/status.txt")"
+  elif [ "$stub" = cooldown-fail ]; then
+    ok "technical cooldown failure clears CAMPAIGN_TURN_STATUS before skipping"
+  fi
 }
 
 printf '\n== (c) skip paths leave a RECOVERY-shaped record ==\n'
@@ -477,6 +676,7 @@ skip_case never recover-2 recovery-refused
 
 printf '\n== (c2) hard abort in recovery path stops the run ==\n'
 hard_abort_recovery_case
+thermal_turn_case thermal-giveup thermal-giveup giveup
 
 # Thermal direction and the unplugged hard stop use the fake adb's evolving
 # battery/status fixtures; no case is allowed to reach a real adb binary.
@@ -514,10 +714,17 @@ cooldown_case() {
 }
 
 printf '\n== (g) thermal overshoot direction and unplugged hard stops ==\n'
-cooldown_case thermal-rise-fall 0 'thermal cool after'
+# This fixture guards both the expected overshoot log and the eventual cool exit;
+# a test that only checked rc=0 would also pass with the direction logic removed.
+cooldown_case thermal-rise-fall 0 'thermal overshoot window'
 cooldown_case thermal-hard-abort 1 'THERMAL HARD ABORT: unplugged battery'
 cooldown_case thermal-status-abort 1 'THERMAL HARD ABORT: unplugged thermal status'
 cooldown_case thermal-plugged-rise 1 'rising temperature is not a reason to stop'
+thermal_turn_case thermal-status-turn thermal-status-abort real-status
+thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
+thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort'
+thermal_step_clamp_case
+thermal_trend_failure_case
 
 printf '\n== (d) the verdict tool reads the markers it claims to read ==\n'
 # Synthetic run, because the real 5.4 MB reference logcat lives under the

@@ -30,9 +30,9 @@ export CAMPAIGN_SERIAL="$SERIAL"
 export BENCH_TARGET=device
 export MODEL_ID="lfm2.5-2.6b"
 export LOCALE_VAL="it"
-CAMPAIGN_TURN_TIMEOUT_MS=2700000
-CAMPAIGN_TELEMETRY_GAP_MS=1800000
-CAMPAIGN_POLL_MS=5000
+CAMPAIGN_TURN_TIMEOUT_MS="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
+CAMPAIGN_TELEMETRY_GAP_MS="${CAMPAIGN_TELEMETRY_GAP_MS:-1800000}"
+CAMPAIGN_POLL_MS="${CAMPAIGN_POLL_MS:-5000}"
 CAMPAIGN_THERMAL_PAUSE=5
 CAMPAIGN_THERMAL_MAX_C=42
 CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-600}"
@@ -251,8 +251,8 @@ log "charging monitor pid=$MON_PID (30s poll)"
 # which force-stops the app on every thermal pause (what shredded the
 # 2026-09-14 run: turns force-stopped mid-prefill, every relaunch cold).
 
-# Wait for cool with the app alive and in foreground. Budget 600s (10 min);
-# still hot after that -> die (run stops and reports, per run order).
+# Wait for cool with the app alive and in foreground. The cap comes from
+# CAMPAIGN_THERMAL_COOLDOWN_CAP_S; reaching it records a GIVEUP and stops the run.
 campaign_thermal_cooldown() {
   campaign_thermal_cooldown_wait no
 }
