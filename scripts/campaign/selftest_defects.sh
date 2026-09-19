@@ -728,7 +728,7 @@ printf '\n== (a3) the identity gate reads the config deviceModel ==\n'
 # behind the Metro gate, so a synthetic config reaches it only with a bundle that
 # passes: serve the same minimal bundle the (b) cases serve.
 run_identity_config() {
-  local name="$1" model_json="$2" dir served out port url rc http_pid
+  local name="$1" model_json="$2" fake_model="${3:-SM-S911B}" dir served out port url rc http_pid
   dir="$WORK/identity-$name"
   served="$WORK/identity-$name-bundle"
   out="$dir/out"
@@ -749,7 +749,7 @@ run_identity_config() {
   fake_reset marker-turn1
   env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
     FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
-    FAKE_DEVICE_MODEL="${FAKE_DEVICE_MODEL:-SM-S911B}" \
+    FAKE_DEVICE_MODEL="$fake_model" \
     CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
     CAMPAIGN_CONFIG="$dir/config.json" CAMPAIGN_METRO_BUNDLE_URL="$url" \
     ANDROID_SERIAL=10.0.0.3:9999 OUT="$out" \
@@ -795,7 +795,7 @@ matching_model_case() {
 # This case is the only one that fails when the comparison loses its quotes.
 spaced_model_case() {
   local dir="$WORK/identity-spaced-model" rc
-  rc=$(FAKE_DEVICE_MODEL="Jelly Star" run_identity_config spaced-model '"Jelly Star"')
+  rc=$(run_identity_config spaced-model '"Jelly Star"' 'Jelly Star')
   if [ "$rc" -eq 4 ] && grep -Fq "DEVICE IDENTITY: model=Jelly Star serial=10.0.0.3:9999 (matches config deviceModel 'Jelly Star')" "$dir/out/run.log"; then
     ok "a model name with a space clears the gate, quoted end to end"
   else
@@ -808,7 +808,9 @@ spaced_model_case() {
 empty_model_case() {
   local dir="$WORK/identity-empty-model" rc
   rc=$(run_identity_config empty-model '""')
-  if grep -Fq "declares a deviceModel that is not a bare model string" "$dir/out/run.log"; then
+  if [ "$rc" -eq 1 ] \
+     && grep -Fq "declares a deviceModel that is not a bare model string" "$dir/out/run.log" \
+     && ! grep -qF "DEVICE IDENTITY:" "$dir/out/run.log"; then
     ok "a declared-but-empty deviceModel is refused, not silently unenforced"
   else
     bad "empty deviceModel did not refuse (rc=$rc; identity: $(grep -F 'DEVICE IDENTITY' "$dir/out/run.log" | tail -1))"
