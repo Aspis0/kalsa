@@ -1057,9 +1057,10 @@ scrivere nel corpo del commit:** turni interrotti/legacy senza `modelEmittedText
 restano freddi; su un telefono aggiornato la prima ripresa di ogni conversazione esistente e' fredda una volta
 (il prompt per la stessa storia e' cambiato) — in CI non morde, sul device non va letto come fix mancato.
 **Candidato contratto CI (kalsa-93, dall'artefatto 35407337897):** al turno 2 `prompt` deve essere piu' LUNGO
-del `cached` finale del turno 1 (prima: 2215 contro 2294, 79 token = il think buttato); proprieta' del prompt
+del `cached` finale del turno 1 (prima, turno 2: 2215 resi contro 2294 in cache, ALMENO 79 token di ragionamento persi — il prompt del turno 2 porta anche l'utente nuovo e il generation prompt; la gamba del riavvio, turno 3, e' n_common 2213 su 2383: due turni, mai da sommare nella stessa frase; i 917 s del turno 2 sono 2215 token a 2,41 tok/s sull'emulatore CI, coerenti col turno 1 a 1,98, non un numero da telefono); proprieta' del prompt
 reso, indipendente da checkpoint e da `pickReuse`; da affiancare alla soglia sul riuso (proposta 50% del prefisso
 condiviso) e al terzo turno senza risposta = rosso. **Decisione dell'owner; e2e non toccato finche' non risponde.**
+*Fermo n. 3 su `dbfb464` (02:30Z, audit deepseek riprodotto dal coordinatore):* la mutazione `includes(THINK_OPEN) && includes(THINK_CLOSE)` — cioe' la vecchia regola del tag iniziale — lascia jest 62/62 e harness 0: l'allargamento, unico cambio di comportamento oltre `""` → `" "`, non e' coperto perche' tutte e sette le forme portano `<think>`; la fixture senza tag (`REASONING</think>ANSWER`, test riga 305, popolazione osservata 133 con / 12 senza) esiste ma serve solo un'asserzione di lunghezza. Amend in corso: caso senza tag con prova rossa su quella mutazione (anche nell'harness), docstring con i due turni separati e il tasso dell'emulatore. Le quattro prove rosse e i gate li rifa' il coordinatore sull'archive del nuovo sha.
 
 **T20C, terza passata `3608b75` (kalsa-2d, 18/09 ~22:10 EDT):** `campaign_thermal_should_pause` valuta PRIMA la
 condizione di hard abort e mette in pausa se vale (l'invariante e' nel commento: la linea status ≥ 3 dell'owner
