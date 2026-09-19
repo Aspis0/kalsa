@@ -1633,3 +1633,74 @@ the app build. The deletion — 25 files, plus the `BMOE_ROOT` block and the
 `-include bmoe_lmggml_compat.h` force-include — belongs to the pin bump, and
 is listed there so it cannot be forgotten: two copies of 7367 lines drifting
 apart is a worse failure than one copy in the wrong place.
+
+## 26. The recovered audit: three findings that were never closed
+
+The step-8 audit (`3a1b7c6b`, gpt-5.6-luna) returned more than fitted in the
+reply that was read at the time, and §22 recorded only part of it. Pulling the
+full activity back proves three findings still open. Each was re-verified on
+disk here before being written down.
+
+### 26.1 The committed `lib/` output lies about which engine it contains
+
+    src/version.ts            BUILD_NUMBER '11167'   BUILD_COMMIT 'f6ba278'
+    lib/commonjs/version.js   BUILD_NUMBER '11010'   BUILD_COMMIT '4bc272f'
+    lib/module/version.js     BUILD_NUMBER '11010'   BUILD_COMMIT '4bc272f'
+    lib/typescript/version.d.ts          "11010"                  "4bc272f"
+
+All three are tracked (`git ls-files` returns them; `lib/` is not in
+`.gitignore`, 58 files are committed), and `package.json:5-7` points `main`,
+`module` and `types` at exactly those files. So the package's public statement
+about its engine is a commit we stopped shipping.
+
+This is the fourth stale identity file the step-8 brief went looking for, after
+`cpp/ggml-version.h`, `cpp/KALSALLAMA_SHA` and `kalsallama.pin`. It survived
+because `sync-vendor.sh` regenerates `src/version.ts` and nothing regenerates
+`lib/`, which is produced by `npm run build` (bob) and committed by hand.
+
+Our app does not read it — `grep -rn 'BUILD_COMMIT\|BUILD_NUMBER'` over the
+app's `src/` and `scripts/` returns nothing — so no measurement was ever
+mislabelled. That is luck, not design.
+
+Fix: keep one generator, add a gate. `npm run build` stays the only thing that
+writes `lib/`; the vendor gate asserts the three files agree with
+`src/version.ts` and names `npm run build` in the failure message.
+
+### 26.2 The `progress_callback_user_data` check still passes on a fake
+
+`assert-kalsa-vendor.sh:65-67` was already hardened once, against the wrong
+half of the problem. Its comment says:
+
+> Pin the 'void *' too: load_progress_callback_user_data shares the suffix,
+> and a bare-substring grep would pass on the wrong field.
+
+That closes the **prefix** (`load_...`). The **suffix** is still open, and
+measured:
+
+    printf 'void * progress_callback_user_data_fake = nullptr;\n' \
+      | grep -c 'void \* progress_callback_user_data'
+    1
+
+A tree where the real field is gone and a differently-named one remains passes
+the check written to notice exactly that. The real declaration is
+`common.h:609`, `void * progress_callback_user_data = nullptr;` — the pattern
+has to reach the terminator.
+
+### 26.3 The fork-only governor check accepts a symlink or an empty file
+
+`assert-kalsa-vendor.sh:83-88` loops seven filenames through `[ -f ... ]`.
+`-f` follows symlinks, so the auditor made the guard pass by replacing
+`llama-governor-runtime.cpp` with a symlink to `common.h`; an empty file
+passes too. The claim the check exists to make is "this engine is the fork",
+and a name on disk does not make it.
+
+### 26.4 What §25 closes by itself
+
+The audit's other CONFIRMED finding — that deleting `assert-cpp-includes.sh`
+removed the assertion that **C++ translation units actually parse with
+build-shaped include paths** — is only partly answered by
+`assert-rnllama-sources.sh`, which checks that named paths exist, not that
+they compile. It is answered properly by §25 gate 1: once the five gated CI
+jobs run unconditionally, a real compiler resolves every include on Android
+and iOS on every push. A compiler is a better gate than a script that
+approximates one. The script is not coming back.
