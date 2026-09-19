@@ -1098,3 +1098,54 @@ ODR mismatch, not a compile error.
 This is the strongest argument for step 8 that the plan has. Deleting the 17 orphan engine files
 from `cpp/` is not tidying — it is removing a shadow that turns a future one-line engine change
 into an undiagnosable runtime bug.
+
+---
+
+## 19. Step 3b closed: the relocation was not context-preserving
+
+`8e081313f` moved 17 KALSA diagnostic helpers out of `ggml-opencl.cpp` into a new
+`ggml-opencl-kalsa-diag.{h,cpp}`. The hostile audit (Luna, xhigh) returned three CONFIRMED
+findings; the fix is `f6ba2786d`.
+
+**The finding that mattered.** The new translation unit was the **only** OpenCL TU in the backend
+that did not set the OpenCL target version before reaching the CL headers:
+
+```
+ggml-opencl.cpp:1        #define CL_TARGET_OPENCL_VERSION GGML_OPENCL_TARGET_VERSION
+cl-program-cache.cpp:3   #define CL_TARGET_OPENCL_VERSION GGML_OPENCL_TARGET_VERSION
+ggml-opencl-kalsa-diag.cpp:1   #include "ggml-opencl-kalsa-diag.h"   <- nothing first
+ggml-opencl-kalsa-diag.h:19        #include <CL/cl.h>
+```
+
+`CL/cl_version.h` silently defaults to OpenCL 3.1 when the macro is absent while the build sets
+`GGML_OPENCL_TARGET_VERSION=300`, and `ggml-opencl.cpp` branches on that macro at `:237`, `:3581`
+and `:6813`. So one TU of the backend saw a different API level than the rest.
+
+**Two committed comments were false, which is the part worth remembering.** The new file's header
+comment claimed the include stack was "mirrored from ggml-opencl.cpp, so the relocated helpers see
+exactly the types/macros they used in-place" — while omitting the two `#define`s that come first.
+The same comment named `ggml_tensor`, `ggml_nbytes`, `ggml_type_name` and `ggml_type` as what the
+helpers need; a token sweep of the relocated code finds **one** backend symbol, `GGML_LOG_INFO`.
+A comment that describes a relocation is an assertion about the relocation, and both halves of
+this one were wrong.
+
+**The dual was free, because the header announces the defect itself.** `cl_version.h:22` emits a
+`#pragma message` when the macro is missing, so the gate is a real compile of the single TU with
+the flags taken from `compile_commands.json`: **2 pragma hits before, 0 after, exit 0 both times.**
+Exit code alone would have proved nothing — the pragma is a warning, and the TU compiled fine in
+both states. The count is the signal.
+
+**What I verified myself rather than accepting.** All 34 changed lines between `8e081313f` and
+`f6ba2786d` are comments, `#include` or `#define`:
+
+```
+$ git diff 8e081313f f6ba2786d -- ggml/src/ggml-opencl/ \
+    | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
+    | grep -vE '^[+-]\s*(//|#include|#define|$)'
+(no output)
+```
+
+Zero function bodies touched. That is the property the fix had to preserve, and it is mechanical
+to check, so it was checked rather than asserted.
+
+**Step 7's engine sha is therefore settled at `f6ba2786d`.**
