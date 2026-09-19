@@ -237,6 +237,9 @@ thermal_turn_case() {
   elif [ "$name" = thermal-status-turn ] && [ "$rc" != 0 ] \
     && grep -q 'thermal hard abort turn 1: unplugged thermal status 3' "$out/turn.log"; then
     ok "thermal status 3 reached hard abort through the real turn path"
+  elif [ "$name" = thermal-unreadable-status-turn ] && [ "$rc" != 0 ] \
+    && grep -q 'thermal hard abort turn 1: unplugged battery 44.5°C >= 44.0°C' "$out/turn.log"; then
+    ok "unreadable thermal status still reaches the battery hard abort through the real turn path"
   else
     bad "$name did not stop through the expected oneTurn path (rc=$rc)"
     tail -8 "$out/turn.log" | sed 's/^/   | /'
@@ -373,6 +376,9 @@ thermal-giveup)
   printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
 thermal-status-turn)
   thermal_turn_case thermal-status-turn thermal-status-abort real-status
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
+thermal-unreadable-status-turn)
+  thermal_turn_case thermal-unreadable-status-turn thermal-unreadable-status real-status
   printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
 thermal-sustained-rise)
   thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
@@ -721,6 +727,7 @@ cooldown_case thermal-hard-abort 1 'THERMAL HARD ABORT: unplugged battery'
 cooldown_case thermal-status-abort 1 'THERMAL HARD ABORT: unplugged thermal status'
 cooldown_case thermal-plugged-rise 1 'rising temperature is not a reason to stop'
 thermal_turn_case thermal-status-turn thermal-status-abort real-status
+thermal_turn_case thermal-unreadable-status-turn thermal-unreadable-status real-status
 thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
 thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort'
 thermal_step_clamp_case

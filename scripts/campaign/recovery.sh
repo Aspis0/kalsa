@@ -148,15 +148,16 @@ campaign_relaunch_or_reinstall() {
 
 campaign_thermal_should_pause() {
   local st bt
+  # The hard-abort condition must imply the pause condition: status 3/4 on an
+  # unplugged phone must enter cooldown so the owner's stop line is reachable.
+  # Check it first: an unreadable thermal status must not swallow its battery arm.
+  if campaign_thermal_hard_abort_reason >/dev/null; then
+    return 0
+  fi
   st=$(device_thermal_status)
   case "$st" in
     ''|unknown|*[!0-9]*) return 1 ;;
   esac
-  # The hard-abort condition must imply the pause condition: status 3/4 on an
-  # unplugged phone must enter cooldown so the owner's stop line is reachable.
-  if campaign_thermal_hard_abort_reason >/dev/null; then
-    return 0
-  fi
   # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (T20C sets
   # 42 in run-t20c.sh:32; the 45 default here only applies if nothing sets it)
   # or a critical system

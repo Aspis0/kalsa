@@ -6,7 +6,8 @@
 # State files (all under $FAKE_DEV/fake):
 #   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
-#                thermal-status-abort | thermal-giveup | thermal-plugged-rise |
+#                thermal-status-abort | thermal-unreadable-status | thermal-giveup |
+#                thermal-plugged-rise |
 #                thermal-sustained-rise | thermal-unknown-power
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
@@ -53,6 +54,7 @@ _battery_dump() {
       [ "$reads" -ge 2 ] && temp=440 || temp=425
       ;;
     thermal-status-abort) temp=420 ;;
+    thermal-unreadable-status) temp=445 ;;
     thermal-giveup) temp=430 ;;
     thermal-plugged-rise)
       case "$reads" in
@@ -86,6 +88,8 @@ _battery_dump() {
 _thermal_dump() {
   if [ "$(_mode)" = thermal-status-abort ]; then
     printf '%s\n' 'Thermal Status: 3'
+  elif [ "$(_mode)" = thermal-unreadable-status ]; then
+    printf '%s\n' 'Thermal Status: unavailable'
   else
     cat "$F/thermalservice.txt"
   fi
