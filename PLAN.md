@@ -895,6 +895,20 @@ zero") quel test va aggiornato insieme — un test che blocca un difetto noto no
 kalsa-93 da qui: `log-privacy` (ramo da `429cd92`) → `qwen-think-in-history` passo 2 → `save-wiring-coverage`
 (estrazione) → governor-kv-contract → coolmode.
 
+**`log-privacy` (18/09 ~22:20 EDT, ramo da `429cd92`, Luna scrive).** Sette siti sul ramo (save `:3130/:3144/:3179`,
+load `:3478/:3487/:3520`, legacy `:3552`); nessun consumatore legge la chiave (attenzione al falso positivo
+"sy-stem" in `prefixPrewarmHarness.mjs`); lo snapshot del prefisso non e' una terza fuga (`:1399` spande
+solo op/ok/tokens/reason/hash). *Decisione:* al posto dello stem un **hash corto non reversibile dello stem
+intero** con l'hashing gia' esistente (se niente e' riusabile, via il campo), chiave `hash`: e' uno
+pseudonimo per conversazione, stabile dentro un logcat, non reversibile all'id — entro "solo byte e hash" e
+necessario per legare il save di un turno alla load dopo il riavvio (la diagnosi di `LOADED BUT COLD`).
+Scartata l'alternativa "model + prompt-env hash": `sessionKey.ts:1-4` dice che il terzo segmento dello stem e'
+`computePromptEnvHash(locale, memoryFacts, tools...)`, uguale per tutte le chat con stessa locale/memoria/
+tool → zero correlazione (errore del coordinatore, verificato da kalsa-93). *Nota, non lavoro:* `memoryFacts`
+entra nel prompt-env hash, quindi quel segmento dipende anche da contenuto dell'utente; e' un hash, sta nella
+regola, ma non e' neutro. Le otto fixture di `prefixPrewarmHarness.mjs` seguono il formato nuovo nello stesso
+ramo (un harness che verifica un formato inesistente e' peggio di uno che non lo verifica).
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
