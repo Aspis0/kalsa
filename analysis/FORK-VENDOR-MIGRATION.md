@@ -944,3 +944,41 @@ This is the same class of defect as the `repack-q23k.h` omission found in step 4
 only one: one kalsa header, included by three exported files, that the manifest did not name.
 **Run this check on every future bump** — it is two commands, and it is the difference between a
 build failure that names the missing header and one that names a symbol three layers away.
+
+---
+
+## 16. Step 6 measured: the app glue is a no-op
+
+Step 6 ("app glue") named no command and no expected value — §10.8 called it an intention. Here is
+the measurement that settles it, taken between the commit the app actually pins (`95c3493b`) and
+the branch head (`12f49b30`).
+
+**What the app imports.** Exactly two files reach llama.rn, and between them eight identifiers:
+
+```
+src/engine/LlamaService.ts:  addNativeLogListener, initLlama, toggleNativeLog,
+                             ContextParams, LlamaContext, RNLlamaMessagePart,
+                             RNLlamaOAICompatibleMessage, TokenData
+src/engine/EmbeddingService.ts: initLlama
+```
+
+**What changed.** The public export list went 25 → 26 names: nothing removed, `LlamaSpeaker`
+added. On `LlamaContext`, one method was removed — `getAudioCompletionGuideTokens` — against six
+added (`createSpeaker`, `getTTSCapabilities`, `generateAudioCodes`, `decodeAudioEmbeddings`,
+`getAudioSampleRate`, `bake`). The app calls none of the seven.
+
+**The two changes worth naming, both inert for us:**
+
+- **`guide_tokens` is gone**, not renamed: zero hits in `src/`, `cpp/rn-tts.*` and `src/tts.ts` at
+  head, where `95c3493b` had it wired through `cpp/jsi/RNLlamaJSI.cpp:1240-1272` into
+  `tts_wrapper->setGuideTokens`. Upstream replaced the mechanism with the speaker API rather than
+  moving it. The app never passed guide tokens, so we inherit the change at zero cost — but it is
+  an upstream capability loss, not a merge regression of ours, and it should not be "fixed" back.
+- **`NativeContextParams.devices`**: Hexagon became opt-in on Android (`['HTP0']`, `['HTP*']`)
+  where the field previously defaulted to the full `getBackendDevicesInfo` result. The app never
+  passes `devices` — the only three hits in `LlamaService.ts` are comments — so nothing changes
+  for us. It would matter to anyone relying on automatic Hexagon selection.
+
+**Caveat, stated rather than hidden:** this is a name-and-signature comparison of the public TS
+surface, not a type-check of the app against the new package. The real gate stays what §10.9 set:
+the app's pin does not advance until the fork is green, and then a build proves it.
