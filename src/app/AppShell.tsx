@@ -4496,6 +4496,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // statements preceding the launch — so there is no double release.
         if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
+        // The rethrow below reaches no handler — this app has no global
+        // rejection handler and all callers discard the returned promise — so
+        // without this line a failed switch is invisible on a release build.
+        // Name and message only: these logs ride on public CI artifacts.
+        console.warn(
+          `[kalsa] model switch failed before dispose: ${(error as Error)?.name ?? "Error"}: ${(error as Error)?.message ?? String(error)}`,
+        );
         throw error;
       }
     },
