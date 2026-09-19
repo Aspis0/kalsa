@@ -1598,13 +1598,17 @@ plumb a compile definition through both the android CMake and the podspec.
 
 ### 25.2 Gates, written before the work
 
-1. **The falsifiable one.** CI on the branch goes from **1 of 6 green** to
-   **6 of 6 green**, with the five `if: github.head_ref != 'kalsa'` guards and
-   the c++ test-step guard removed. Today: `lint` green;
-   `build-ios-from-source`, `build-android-libs`, `build-android-from-source`,
-   `build-ios-frameworks`, `test` red on the missing header. Prediction: all
-   six green with no guard left in `ci.yml`. A green run that still carries a
-   guard does not count.
+1. **The falsifiable one.** CI on the branch goes from **2 of 7 green** to
+   **7 of 7 green**, with every branch guard removed: four job-level
+   `if: github.head_ref != 'kalsa' && github.ref != 'refs/heads/kalsa'` at
+   `ci.yml:89,125,167,240`, and one step-level `if: github.ref !=
+   'refs/heads/kalsa'` at `:79` on the c++ test step. Today `vendor` and
+   `lint` are green; `test`, `build-ios-from-source`, `build-ios-frameworks`,
+   `build-android-from-source`, `build-android-libs` are red on the missing
+   header. Note `test` carries no job guard — only its c++ step does, which is
+   why it runs and fails on `vendor-migration`. Prediction: all seven green
+   with `grep -c "refs/heads/kalsa" .github/workflows/ci.yml` returning 0. A
+   green run that still carries a guard does not count.
 2. `grep -n bmoe android/src/main/rnllama/CMakeLists.txt` -> **0 lines**. No
    path escapes llama.rn any more; that is the actual subject of this step.
 3. `grep -rn BMOE_HAVE_EXPERT_READY_HOOK` over both repos -> **0**.
