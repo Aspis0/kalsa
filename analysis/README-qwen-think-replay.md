@@ -129,3 +129,21 @@ without the reasoning, and still diverges from the KV. That is deliberate and pr
 missing, and G1 interrupted turns were saved that way). So "the history replays byte-exact" is
 true for emission-present turns, not for every row ever written. A conversation carrying old
 interrupted turns will still lose its tail at those rows.
+
+### Why the upgrade turn is worse than a cold start, and why that is still not a bug
+
+Traced on `sessionPersistence.ts:283-306`: the restore guard compares `historyHash`, computed
+from the stored **messages**, against the saved meta. This fix does not change what is stored —
+only how the stored history is rendered into a prompt. So after an upgrade the hash still
+matches, the guard accepts, and the `.kvs` is read from disk in full.
+
+Then the new prompt diverges from those tokens. On a hybrid model there is no partial
+`seq_rm`, so the cache is cleared and the turn re-prefills from zero. The first turn of an
+existing conversation therefore pays **the file read plus the full prefill** — strictly more
+than a cold start would have cost.
+
+It is not a correctness risk: the guard is right to accept (the KV really is that history under
+the old render), and the divergence is caught by comparing actual token ids, not by trusting a
+flag. But on a device it will look like the fix made the first turn slower, because for that one
+turn it did. Measure the SECOND turn of an existing conversation, or a fresh conversation, and
+say which one the number came from.
