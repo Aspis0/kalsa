@@ -1220,6 +1220,22 @@ inerte; sull'ipotesi FastRPC non dice ancora nulla. Limiti: baseline di 4 min (i
 con LFM**, poi: .so htp mappate nel pid dopo il load (se mai mappate, l'ipotesi muore li'), daemon a +3/+10, force-stop
 +3/+10, ricampionamenti a un'ora e domattina senza altri avvii. Stop a batteria ≥ 43 °C o status ≥ 3.
 
+**S23, l'ipotesi FastRPC NON e' supportata da questo run (kalsa-2d, 22:50 EDT; estrazione verificata dal
+coordinatore sul fork).** Al secondo avvio a schermo acceso il prewarm ha fatto un prefill vero
+(`KALSA_PREWARM snapshot_save ok tokens=1826`, `grep -c gguf /proc/18345/maps` = 2): motore caricato e inferenza
+eseguita. In quello stato: NESSUNA .so `htp|hexagon|dsp|rpc|qnn` mappata nel processo; `adsprpcd` utime 0,
+`cdsprpcd` utime 0, entrambi in S cinque minuti dopo il caricamento; batteria 38,2 → 34,3 °C, status 0. Perche':
+RNLlama ESTRAE le quattro librerie HTP a ogni avvio (`RNLlama.java:124-146 ensureHtpLibraries`, copia
+incondizionata dagli asset, nessun controllo di esistenza: ~2,8 MB scritti per avvio — v73 653 KB, v75 722 KB,
+v79/v81 730 KB) e poi carica la variante JNI `rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl` con `nGpuLayers 0`:
+le HTP stanno su disco e non vengono mai mappate, il motore gira su CPU. *Conclusione in una riga:* nessuno spin al
+boot, nessuno spin con il modello caricato e un prefill di 1826 token; HTP estratte ma mai mappate; l'ipotesi
+"sessione FastRPC aperta dalla nostra app" non regge su questo run. *Limiti:* baseline di 4 min; turno manuale NON
+eseguito (uiautomator dump senza nodi di testo, screencap 0 byte: niente coordinate cieche); il fenomeno originale
+era comparso ~2,7 giorni dopo il boot, nessuna finestra di stasera lo esclude — decidono i ricampionamenti a
+un'ora e domattina, senza altri avvii. Force-stop fatto, campioni +3/+10 in corso. *Debito per il fork bump:*
+estrarre le HTP solo se assenti o di dimensione diversa (oggi 2,8 MB di scritture inutili a ogni avvio).
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
