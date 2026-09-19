@@ -371,7 +371,7 @@ completion_backstop_case() {
   expiry_rc=$(cat "$out/expiry-rc.txt" 2>/dev/null || printf missing)
   late_rc=$(cat "$out/late-rc.txt" 2>/dev/null || printf missing)
   if [ "$expiry_rc" = 0 ] \
-    && grep -q 'fingerprint kept changing through the turn-timeout backstop' "$out/expiry.log" \
+    && grep -q 'for 120000ms; progress fingerprint kept changing through the turn-timeout backstop' "$out/expiry.log" \
     && [ "$late_rc" = 1 ] \
     && grep -q 'completion counter stayed at 0 for 120000ms' "$out/late.log" \
     && grep -q 'KALSA_TELEMETRY ' "$out/logcat.txt"; then
