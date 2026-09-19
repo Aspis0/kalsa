@@ -58,7 +58,8 @@ pub mod parameters;
 pub use candidate::{decode_prediction, Prediction};
 pub use choice::DownloadPlan;
 pub use choice::{
-    capability_basis, choose, largest_that_runs_well, quicker_alternative, CapabilityBasis,
+    capability_basis, choose, largest_that_runs_well, quicker_alternative, runnable_row,
+    CapabilityBasis,
     ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
     IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };

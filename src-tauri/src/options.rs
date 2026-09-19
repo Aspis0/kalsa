@@ -29,7 +29,7 @@ where
 
 /// The only launch values the owner may change. Context can only go down from
 /// the budgeted maximum; idle time stays between one minute and one hour.
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub(crate) struct LaunchOverrides {
     pub(crate) context_tokens: Option<u64>,
     pub(crate) idle_unload_seconds: Option<u32>,
@@ -52,6 +52,14 @@ pub(crate) struct LaunchOverrides {
     /// asked for the road, which is the truth.
     #[serde(default)]
     pub(crate) internet_road: bool,
+    /// The model the owner picked, as the opaque token the capability page was
+    /// handed (`startup::model_token`). `None` — the default, and what an
+    /// unknown token degrades to at launch — means this computer keeps
+    /// choosing for itself. It is stored as the token and not as a name or a
+    /// size: only the backend can turn a token back into a catalog row, and
+    /// only one row answers to it.
+    #[serde(default)]
+    pub(crate) model: Option<String>,
 }
 
 pub(crate) fn load(state_file: &Path) -> LaunchOverrides {
@@ -65,6 +73,9 @@ pub(crate) fn load(state_file: &Path) -> LaunchOverrides {
     if overrides.validate().is_ok() {
         overrides
     } else {
+        // A file this build cannot make sense of is no preferences at all —
+        // including the model choice, which is the field most likely to be
+        // written by a newer build.
         LaunchOverrides::default()
     }
 }
@@ -134,7 +145,10 @@ fn replace_file(temporary: &Path, path: &Path) -> io::Result<()> {
 }
 
 impl LaunchOverrides {
-    pub(crate) fn validate(self) -> Result<(), String> {
+    /// Checked in place: the choice it carries is a value, not a thing to
+    /// spend, and the callers that validate then keep the value had to clone it
+    /// while this took `self`.
+    pub(crate) fn validate(&self) -> Result<(), String> {
         if let Some(context) = self.context_tokens {
             if !(MIN_CONTEXT_TOKENS..=MAX_CONTEXT_TOKENS).contains(&context) {
                 return Err("Context must be between 512 and 32768 tokens.".to_string());
@@ -293,6 +307,7 @@ mod tests {
     fn saved_values_round_trip_beside_the_state_file() {
         let state_file = scratch("round-trip");
         let values = LaunchOverrides {
+            model: None,
             context_tokens: Some(4096),
             idle_unload_seconds: Some(600),
             batch_size: Some(1024),
@@ -300,7 +315,7 @@ mod tests {
             kv_cache: Some(KvCache::F16),
             internet_road: true,
         };
-        save(&state_file, values).expect("save advanced settings");
+        save(&state_file, values.clone()).expect("save advanced settings");
         assert_eq!(load(&state_file), values);
         assert!(path_for(&state_file).exists());
         assert_eq!(KvCache::parse("f16"), Some(KvCache::F16));
@@ -435,14 +450,15 @@ mod tests {
         // The readers start before any writer has published: seed the file,
         // or the first reads would honestly see "no file", which is a state
         // this test does not investigate.
-        save(&state_file, a).expect("seed the file with a whole value");
+        save(&state_file, a.clone()).expect("seed the file with a whole value");
         std::thread::scope(|scope| {
-            for values in [a, b] {
+            for values in [a.clone(), b.clone()] {
                 for _ in 0..2 {
+                    let values = values.clone();
                     let writer_state = state_file.clone();
                     scope.spawn(move || {
                         for _ in 0..40 {
-                            save(&writer_state, values).expect("concurrent save");
+                            save(&writer_state, values.clone()).expect("concurrent save");
                             std::thread::yield_now();
                         }
                     });
@@ -450,6 +466,7 @@ mod tests {
             }
             for _ in 0..2 {
                 let reader_state = state_file.clone();
+                let (a, b) = (a.clone(), b.clone());
                 scope.spawn(move || {
                     for _ in 0..4000 {
                         let observed = load(&reader_state);
@@ -519,6 +536,7 @@ mod tests {
         };
         let sample = dto(
             LaunchOverrides {
+                model: None,
                 context_tokens: Some(4096),
                 idle_unload_seconds: Some(600),
                 batch_size: Some(2048),

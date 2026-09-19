@@ -494,6 +494,26 @@ pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusa
     Ok(row(chosen, answer.budget))
 }
 
+/// One named row, as this machine would run it, or `None` when it is not on
+/// the menu: it does not fit the budget, is provably too slow, or has no file
+/// left to fetch.
+///
+/// This is what the manual path asks before it honours a stored choice. A
+/// preference is a preference: one this machine cannot satisfy falls back to
+/// the automatic answer, because a brain that will not start is worse than one
+/// running a model nobody chose.
+pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<RunnableRow> {
+    let answer = runnable_on(input).ok()?;
+    let candidate = answer.remaining.iter().find(|candidate| {
+        let row = candidate.entry;
+        row.repo == entry.repo
+            && row.display_name == entry.display_name
+            && row.quant == entry.quant
+            && row.weights_bytes == entry.weights_bytes
+    })?;
+    Some(row(candidate, answer.budget))
+}
+
 /// How much faster the quick option must decode before it is worth offering
 /// at all. Below this the two rows feel the same on the machine that will run
 /// them, and the page would be asking the owner to choose between a model and

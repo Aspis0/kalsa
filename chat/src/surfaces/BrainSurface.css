@@ -197,3 +197,35 @@
   padding: 0 0.9rem;
   font-size: 0.84rem;
 }
+
+/* --- choosing a model: only the one that is not already running --- */
+
+.machine-option-running {
+  color: var(--silence);
+  font-size: 0.86rem;
+}
+
+.machine-option-use {
+  min-height: 26px;
+  margin-top: 0.3rem;
+}
+
+.machine-option-choose {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.machine-option-choose p {
+  margin: 0 0 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.machine-option-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

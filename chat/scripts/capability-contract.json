@@ -31,6 +31,7 @@
     "model": {
       "context_tokens": 4584,
       "details": "the full working",
+      "id": "0000000000000001",
       "name": "IBM Granite 4 Tiny",
       "quant": "Q4_K_M",
       "reason": "It runs a clearly bigger model than your phone does.",
@@ -45,6 +46,7 @@
     "quicker": {
       "context_tokens": 8192,
       "details": "the full working",
+      "id": "0000000000000002",
       "name": "Arcee Trinity Nano",
       "quant": "Q4_K_M",
       "reason": "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",

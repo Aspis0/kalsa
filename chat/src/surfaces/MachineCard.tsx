@@ -1,9 +1,16 @@
+import { useState } from "react";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
 /** One of the two the page offers. Both are the same shape by construction:
     the backend builds them from the same row type. */
 export interface ModelOption {
+  /**
+   * The backend's own opaque name for this row, to send back when the reader
+   * chooses it. `null` when the backend could not resolve the row to exactly
+   * one catalog entry — then this option is shown and not offered.
+   */
+  id: string | null;
   name: string;
   quant: string;
   weights_bytes: number;
@@ -146,20 +153,78 @@ function modelDetail(model: ModelOption): string {
 // One option, on three tight lines: what it is and how fast, what it costs on
 // disk and where the speed comes from, and why you would take this one. Three
 // lines because the page also has to hold the writing bar above the fold.
-function Option({ model }: { model: ModelOption }) {
+function Option({
+  model,
+  running,
+  busy,
+  onChoose,
+}: {
+  model: ModelOption;
+  running?: string | null;
+  busy?: boolean;
+  onChoose?: (token: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const isRunning = running != null && running === model.name;
   return (
     <div className="machine-option">
       <p className="machine-option-head">
         <strong className="machine-option-name">{model.name}</strong>
         <span className="machine-option-speed">{speedText(model.speed)}</span>
+        {isRunning ? <span className="machine-option-running">Running now.</span> : null}
       </p>
       <p className="machine-option-detail">{modelDetail(model)}</p>
       <p className="machine-option-reason">{model.reason}</p>
+      {isRunning ? null : model.id === null || onChoose === undefined ? null : confirming ? (
+        <div className="machine-option-choose">
+          <p>
+            The assistant stops and starts again on {model.name}. If this model is not on this
+            computer yet it is downloaded first — {bytesText(model.weights_bytes)} — so this is not
+            instant.
+          </p>
+          <div className="machine-option-actions">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={busy}
+              onClick={() => {
+                setConfirming(false);
+                onChoose(model.id as string);
+              }}
+            >
+              Start again on {model.name}
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="btn-quiet machine-option-use"
+          disabled={busy}
+          onClick={() => setConfirming(true)}
+        >
+          Use this model
+        </button>
+      )}
     </div>
   );
 }
 
-export function MachineCard({ capability }: { capability: Capability }) {
+export function MachineCard({
+  capability,
+  running,
+  busy,
+  onChoose,
+}: {
+  capability: Capability;
+  /** The display name of the model running right now, if the brain is up. */
+  running?: string | null;
+  busy?: boolean;
+  onChoose?: (token: string) => void;
+}) {
   if (capability.kind === "unmeasured") {
     return (
       <p className="surface-quiet">
@@ -179,11 +244,13 @@ export function MachineCard({ capability }: { capability: Capability }) {
       <p className="surface-eyebrow">This computer</p>
       <p className="surface-sentence">{machineSentence(machine)}</p>
 
-      <p className="surface-eyebrow">{second ? "What it would run — two options" : "What it would run"}</p>
+      <p className="surface-eyebrow">
+        {second ? "What it would run — pick one" : "What it would run"}
+      </p>
       {model ? (
         <>
-          <Option model={model} />
-          {second ? <Option model={second} /> : null}
+          <Option model={model} running={running} busy={busy} onChoose={onChoose} />
+          {second ? <Option model={second} running={running} busy={busy} onChoose={onChoose} /> : null}
           <details className="machine-working">
             <summary>Show the working</summary>
             <p className="machine-working-body">{model.details}</p>

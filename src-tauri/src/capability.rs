@@ -29,6 +29,20 @@ use crate::startup::CHOOSER_CONTEXT_TOKENS;
 pub(crate) const PHONE_FREE_REASON: &str = "This is the biggest model this computer runs well. \
 Pair your phone and the app can tell you whether it beats what the phone runs.";
 
+/// The sentence for a model the owner picked themselves. It says who decided,
+/// because the whole difference between this row and an automatic one is that
+/// somebody asked for it.
+pub(crate) const CHOSEN_REASON: &str = "You chose this model, so it is the one this computer runs. \
+Choose another, or let this computer choose again, from the same page.";
+
+/// Said before the automatic answer when a stored choice could not be honoured
+/// — a row the catalog no longer has, or one this machine cannot run now. The
+/// owner is told why the model in front of them is not the one they picked;
+/// the automatic answer's own words follow it.
+pub(crate) const CHOSEN_STALE_NOTE: &str =
+    "The model you chose is not one this computer can run now, so it has gone back to choosing for \
+     itself. ";
+
 /// The second option's sentence. It says the trade in the order the owner
 /// needs it: what it gives (speed), what it costs (capability), and which of
 /// the two is the stronger model — never leaving that to be inferred from the
@@ -109,6 +123,12 @@ pub(crate) struct MachineDto {
 
 #[derive(Serialize)]
 pub(crate) struct ModelChoiceDto {
+    /// The opaque token this row answers to (`startup::model_token`), or `None`
+    /// for a row the backend cannot resolve to exactly one catalog row — a page
+    /// may not offer a choice it cannot name back. It is derived from the four
+    /// fields `startup::chosen_row` matches on, and the page never learns what
+    /// they are.
+    id: Option<String>,
     name: String,
     quant: String,
     weights_bytes: u64,
@@ -186,6 +206,7 @@ pub(crate) fn dto(
                 .unwrap_or(selection.decode);
             (
                 Some(ModelChoiceDto {
+                    id: row.map(crate::startup::model_token),
                     name: selection.display_name.to_string(),
                     quant: selection.quant.to_string(),
                     weights_bytes: selection.weights_bytes,
@@ -212,6 +233,7 @@ pub(crate) fn dto(
                         shown_decode(row.entry, &input, context).unwrap_or(row.decode);
                     (
                         Some(ModelChoiceDto {
+                            id: Some(crate::startup::model_token(row.entry)),
                             name: row.entry.display_name.to_string(),
                             quant: row.entry.quant.to_string(),
                             weights_bytes: row.entry.weights_bytes,
@@ -251,6 +273,7 @@ pub(crate) fn dto(
             let context = shown_context(row.entry, budget.usable_bytes);
             let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
             ModelChoiceDto {
+                id: Some(crate::startup::model_token(row.entry)),
                 name: row.entry.display_name.to_string(),
                 quant: row.entry.quant.to_string(),
                 weights_bytes: row.entry.weights_bytes,
@@ -411,6 +434,7 @@ mod tests {
                 bandwidth_basis: "chip",
             },
             model: Some(ModelChoiceDto {
+                id: Some("0000000000000001".to_string()),
                 name: "IBM Granite 4 Tiny".to_string(),
                 quant: "Q4_K_M".to_string(),
                 weights_bytes: 4_000_000_000,
@@ -427,6 +451,7 @@ mod tests {
             // one: a page that never sees the field cannot be trusted to
             // render it the first time a machine produces one.
             quicker: Some(ModelChoiceDto {
+                id: Some("0000000000000002".to_string()),
                 name: "Arcee Trinity Nano".to_string(),
                 quant: "Q4_K_M".to_string(),
                 weights_bytes: 3_786_957_088,
@@ -486,6 +511,7 @@ mod tests {
             [
                 "context_tokens",
                 "details",
+                "id",
                 "name",
                 "quant",
                 "reason",

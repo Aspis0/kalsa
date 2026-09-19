@@ -32,7 +32,7 @@ interface BrainSurfaceProps {
 // waits behind a tab. The walk's failures are not retried by themselves —
 // they are spoken, and they wait for Try again.
 export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfaceProps) {
-  const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
+  const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const [text, setText] = useState("");
   // Whether this mount carries the opening's one automatic attempt. Spent
   // on first appearance — before any read lands — so nothing the owner does
@@ -131,7 +131,14 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
           </div>
           {/* Not during the first walk: the page is showing progress then,
               and a measurement taken before it finished would be stale. */}
-          {capability ? <MachineCard capability={capability} /> : null}
+          {capability ? (
+          <MachineCard
+            capability={capability}
+            running={state?.kind === "running" ? state.model : null}
+            busy={busy}
+            onChoose={(token) => void chooseModel(token)}
+          />
+        ) : null}
         </>
       )}
 

@@ -90,6 +90,7 @@ const SEEDED = [
 ];
 
 const MODEL = {
+  id: "0f3e5d7c9b1a2468",
   name: "IBM Granite 4 Tiny",
   quant: "Q4_K_M",
   weights_bytes: 4_000_000_000,
@@ -118,6 +119,9 @@ const NO_CONTEXT_MODEL = {
 // least twice as fast as the pick above it, carrying a rate measured on the
 // real path — the shape the page must render without ever having seen it.
 const QUICK_MODEL = {
+  // The backend's opaque token for the row. The page sends it back on a click
+  // and never learns what it is made of.
+  id: "6f1c0a4b2d9e7315",
   name: "Arcee Trinity Nano",
   quant: "Q4_K_M",
   weights_bytes: 3_786_957_088,
@@ -147,6 +151,7 @@ const BIG_MAC = {
 };
 
 const BIG_MODEL = {
+  id: "1a2b3c4d5e6f7081",
   name: "Alibaba Qwen 3.6",
   quant: "Q4_K_M",
   weights_bytes: 22_134_528_992,
@@ -491,6 +496,15 @@ async function main() {
       }
       if (tiles.speeds.length !== expected.length) {
         problems.push(`${tiles.speeds.length} speeds for ${expected.length} options`);
+      }
+      // Every option says which side of the choice it is on: the one that is
+      // running says so, and each of the others offers to switch — never a
+      // control on a model that is already up, because that click would do
+      // nothing.
+      const up = (tiles.text.match(/Running now\./g) ?? []).length;
+      const offered = (tiles.text.match(/Use this model/g) ?? []).length;
+      if (up + offered !== expected.length) {
+        problems.push(`${expected.length} options but ${up} running and ${offered} offered to choose`);
       }
       // The length every speed is priced at, in the drawer now rather than on
       // the card. Without it the figures read as general claims, and the cache

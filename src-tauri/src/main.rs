@@ -350,6 +350,10 @@ impl Brain {
     ) -> Result<options::AdvancedDto, String> {
         let kept = options::load(state_file);
         let next = options::LaunchOverrides {
+            // The model choice is the capability page's, and this panel does
+            // not own it: carried through untouched so saving the launch knobs
+            // cannot silently un-pick the model.
+            model: kept.model.clone(),
             context_tokens,
             idle_unload_seconds,
             batch_size,
@@ -382,6 +386,7 @@ impl Brain {
                 }
             }
         }
+        let internet_road = next.internet_road;
         options::save(state_file, next)
             .map_err(|_| "The advanced settings could not be saved.".to_string())?;
         // The road switch is one of the settings that can act at once: a
@@ -393,7 +398,7 @@ impl Brain {
             .lock()
             .ok()
             .and_then(|stored| stored.as_ref().map(|active| active.address));
-        self.reconcile_road(next.internet_road, address, pairing_file, true);
+        self.reconcile_road(internet_road, address, pairing_file, true);
         Ok(self.advanced(state_file))
     }
 
@@ -684,6 +689,22 @@ async fn brain_measure(brain: State<'_, Brain>) -> Result<bool, String> {
 /// started (the screen then follows `brain_state` through starting to
 /// running), or the failure's own words. A second press while a walk is
 /// still going is refused, not queued.
+/// Remember which model to run, or `None` to let this computer choose again.
+///
+/// The token is the opaque string `brain_capability` handed the page. It is not
+/// resolved here: the next launch resolves it, and a token nothing answers to is
+/// ignored there with a sentence — a choice must never be able to stop the walk.
+#[tauri::command]
+fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<(), String> {
+    let state_file = state_file(&app)?;
+    let mut next = options::load(&state_file);
+    next.model = token
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    next.validate()?;
+    options::save(&state_file, next).map_err(|_| "The choice could not be saved.".to_string())
+}
+
 #[tauri::command]
 async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
     if !brain.begin_turn_on() {
@@ -888,6 +909,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_state,
             brain_advanced,
             brain_set_advanced,
+            brain_choose_model,
             brain_model,
             brain_measured,
             brain_capability,

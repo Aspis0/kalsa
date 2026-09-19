@@ -307,5 +307,30 @@ export function useBrain() {
     void poll();
   }
 
-  return { state, liveStep, heldFailure, stopFailure, busy, act };
+  /**
+   * Run a different model: remember the choice, stop what is running, and take
+   * the walk again. The stop is skipped when nothing is up. The choice is
+   * written by the backend, which is the only side that can turn the page's
+   * token back into a catalog row.
+   */
+  async function chooseModel(token: string): Promise<void> {
+    setBusy(true);
+    holdStopFailure(false);
+    try {
+      await invoke("brain_choose_model", { token });
+      if (state !== null && state.kind !== "stopped" && state.kind !== "failed") {
+        await invoke("brain_stop");
+      }
+      holdFailure(null);
+      currentStep = null;
+      publish();
+      await invoke("brain_start");
+    } catch (error) {
+      holdFailure(String(error));
+    }
+    setBusy(false);
+    void poll();
+  }
+
+  return { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel };
 }

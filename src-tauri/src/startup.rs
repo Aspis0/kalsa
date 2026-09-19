@@ -33,7 +33,7 @@ use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::capability::PHONE_FREE_REASON;
+use crate::capability::{CHOSEN_REASON, CHOSEN_STALE_NOTE, PHONE_FREE_REASON};
 use crate::failure::StartupFailure;
 use crate::options::LaunchOverrides;
 
@@ -166,7 +166,8 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let (plan, row, reason) = choose_model(backend, &machine, phone)?;
+            let (plan, row, reason) =
+                choose_model(backend, &machine, phone, overrides.model.as_deref())?;
             let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
                 backend, exe, path, row, reason, &machine, state_file, overrides,
@@ -187,8 +188,33 @@ fn choose_model(
     winner: ServerBackend,
     machine: &Machine,
     phone: Option<PhoneModel>,
+    chosen: Option<&str>,
 ) -> Result<(DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     let input = choice_input(winner, machine, phone);
+    // A stored choice is honoured first, and only when this machine can
+    // actually run that row — it is on the menu (its file is still fetchable)
+    // and it fits. Anything else falls back to the automatic answer with a
+    // sentence saying so: a model that will not start is worse than one nobody
+    // chose.
+    if let Some(token) = chosen {
+        if let Some(run) = row_for_token(token).and_then(|row| kalsa_catalog::runnable_row(&input, row)) {
+            return Ok((run.download, run.entry, CHOSEN_REASON.to_string()));
+        }
+        let (plan, row, reason) = automatic_choice(&input, phone)?;
+        return Ok((plan, row, format!("{CHOSEN_STALE_NOTE}{reason}")));
+    }
+    automatic_choice(&input, phone)
+}
+
+/// The answer this computer would give with nobody choosing: the largest row
+/// that runs well with no phone, the catalog's full comparison with one. This
+/// is the whole promise for everyone who never opens the page that offers a
+/// choice, so it is one function and the stored-choice branch is beside it,
+/// not inside it.
+fn automatic_choice(
+    input: &ChoiceInput,
+    phone: Option<PhoneModel>,
+) -> Result<(DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     match phone {
         // No `PhoneUnknown` can reach the walk from either arm: this one
         // runs `choose` only when a phone is in the input it is given, and
@@ -211,6 +237,43 @@ fn choose_model(
             )?;
             Ok((selection.download, row, selection.plain_reason))
         }
+    }
+}
+
+/// The identity of a catalog row, as one opaque token.
+///
+/// The page that offers the choice never learns how the catalog is shaped: it
+/// is handed this string and hands it back. It is derived from everything
+/// [`chosen_row`] matches on — repo, display name, quantisation, weight — so a
+/// row that changes in any of them is a different row with a different token,
+/// rather than a token that silently means something else. FNV-1a, spelled out
+/// because a hash of four fields does not need a dependency.
+pub(crate) fn model_token(entry: &ModelEntry) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let fields = entry
+        .repo
+        .bytes()
+        .chain([0])
+        .chain(entry.display_name.bytes())
+        .chain([0])
+        .chain(entry.quant.bytes())
+        .chain([0])
+        .chain(entry.weights_bytes.to_le_bytes());
+    for byte in fields {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
+/// The row a stored token names, or `None` when nothing does. Exactly one
+/// match, like [`chosen_row`]: a token several rows answer to names none of
+/// them.
+pub(crate) fn row_for_token(token: &str) -> Option<&'static ModelEntry> {
+    let matches: Vec<&ModelEntry> = rows().filter(|entry| model_token(entry) == token).collect();
+    match matches.as_slice() {
+        [row] => Some(row),
+        [] | [_, _, ..] => None,
     }
 }
 
@@ -817,6 +880,124 @@ mod tests {
         (format!("http://{addr}/stories260K.gguf"), requests)
     }
 
+    /// The machine these tests decide for, and a row on the menu that is not
+    /// the automatic pick — the shape a real choice has.
+    fn a_smaller_row_that_runs(machine: &Machine) -> (&'static ModelEntry, &'static ModelEntry) {
+        let input = choice_input(ServerBackend::Cpu, machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input)
+            .expect("the test machine runs something");
+        let smaller = rows()
+            .filter(|entry| entry.weights_bytes < automatic.entry.weights_bytes)
+            .find(|entry| kalsa_catalog::runnable_row(&input, entry).is_some())
+            .expect("a smaller row runs on the same machine");
+        (automatic.entry, smaller)
+    }
+
+    #[test]
+    fn a_stored_choice_is_the_model_that_runs() {
+        // What the owner picked, not what the catalog would have picked. The
+        // row is smaller than the automatic one on purpose: a test that
+        // happens to agree with the automatic answer proves nothing.
+        let machine = machine(Backend::Cpu);
+        let (automatic, chosen) = a_smaller_row_that_runs(&machine);
+        assert_ne!(automatic.display_name, chosen.display_name);
+
+        let (plan, row, reason) = choose_model(
+            ServerBackend::Cpu,
+            &machine,
+            None,
+            Some(&model_token(chosen)),
+        )
+        .expect("a chosen row this machine can run is a legitimate start");
+
+        assert_eq!(row.display_name, chosen.display_name, "the stored choice was not honoured");
+        assert_eq!(reason, CHOSEN_REASON, "and the reason says who chose");
+        assert!(plan.bytes > 0 && !plan.url.is_empty() && plan.sha256.len() == 64, "the row brings its own pinned file");
+    }
+
+    #[test]
+    fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
+        // The whole promise for everyone who never opens the page: with no
+        // stored choice the walk must answer exactly what the catalog answers,
+        // plan and reason and all. Compared against the catalog itself rather
+        // than against a copied expectation.
+        let machine = machine(Backend::Cpu);
+        let input = choice_input(ServerBackend::Cpu, &machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
+        let (plan, row, reason) =
+            choose_model(ServerBackend::Cpu, &machine, None, None).expect("no choice is today's walk");
+
+        assert_eq!(row.repo, automatic.entry.repo);
+        assert_eq!(row.quant, automatic.entry.quant);
+        assert_eq!(row.weights_bytes, automatic.entry.weights_bytes);
+        assert_eq!(plan.url, automatic.download.url, "the same file, byte for byte");
+        assert_eq!(plan.bytes, automatic.download.bytes);
+        assert_eq!(plan.sha256, automatic.download.sha256);
+        assert_eq!(reason, PHONE_FREE_REASON, "and the same sentence");
+    }
+
+    #[test]
+    fn a_choice_the_catalog_does_not_know_falls_back_and_says_so() {
+        // A token from a build whose catalog has moved on. It must not stop
+        // the walk and must not be passed over in silence.
+        let machine = machine(Backend::Cpu);
+        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None, Some("not-a-token"))
+            .expect("a stale choice must not stop the brain from starting");
+
+        let input = choice_input(ServerBackend::Cpu, &machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
+        assert_eq!(row.display_name, automatic.entry.display_name);
+        assert_eq!(plan.sha256, automatic.download.sha256);
+        assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
+        assert!(reason.contains(PHONE_FREE_REASON), "the automatic answer's own words follow: {reason}");
+    }
+
+    #[test]
+    fn a_choice_with_no_file_left_to_fetch_falls_back_and_says_so() {
+        // The other way a stored choice goes stale: the catalog still knows
+        // the row, and there is nothing left to fetch for it — the research
+        // rows carry no file. This is the "its file has gone" case, and it
+        // falls back for the same reason.
+        let machine = machine(Backend::Cpu);
+        let without_file = rows()
+            .find(|entry| {
+                !kalsa_catalog::usable()
+                    .any(|candidate| candidate.entry().repo == entry.repo && candidate.entry().quant == entry.quant)
+            })
+            .expect("the catalog carries rows with no file");
+        assert!(
+            row_for_token(&model_token(without_file)).is_some(),
+            "the token resolves: this is not the unknown-token case"
+        );
+
+        let (_, row, reason) = choose_model(
+            ServerBackend::Cpu,
+            &machine,
+            None,
+            Some(&model_token(without_file)),
+        )
+        .expect("a row with nothing to fetch must not stop the brain from starting");
+        let input = choice_input(ServerBackend::Cpu, &machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
+        assert_eq!(row.display_name, automatic.entry.display_name);
+        assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
+    }
+
+    #[test]
+    fn a_token_names_one_row_or_none() {
+        // The discipline `chosen_row` has, for the identity the page can send
+        // back: exactly one row answers to a token, and every row's token is
+        // its own.
+        let tokens: Vec<String> = rows().map(model_token).collect();
+        let unique: std::collections::HashSet<&String> = tokens.iter().collect();
+        assert_eq!(unique.len(), tokens.len(), "two rows share a token");
+        for (token, entry) in tokens.iter().zip(rows()) {
+            let resolved = row_for_token(token).expect("a row's own token resolves");
+            assert_eq!(resolved.display_name, entry.display_name);
+            assert_eq!(resolved.weights_bytes, entry.weights_bytes);
+        }
+    }
+
     #[test]
     fn the_lower_bound_truth_rides_with_the_measurement() {
         // The exact fact that was once dropped: a CPU-path measurement under
@@ -837,7 +1018,7 @@ mod tests {
         // phone at all, the model step answers with the largest row the
         // machine runs well, and the plan carries that row's pinned file.
         let machine = machine(Backend::Cpu);
-        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None)
+        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None, None)
             .expect("a standalone brain is a legitimate configuration");
         assert_eq!(
             reason, PHONE_FREE_REASON,
@@ -1092,7 +1273,7 @@ mod tests {
             battery_powered: Some(true),
         };
         let (plan, row, reason) =
-            choose_model(ServerBackend::Cpu, &machine, Some(phone)).expect("the tier is not empty");
+            choose_model(ServerBackend::Cpu, &machine, Some(phone), None).expect("the tier is not empty");
         assert_ne!(
             reason, PHONE_FREE_REASON,
             "a paired phone means a comparison was made, so the reason is the\
