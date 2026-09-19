@@ -4381,33 +4381,35 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
       // Pool: keep the previous model's session on disk so switch-back can restore.
 
-      // Sync lock: the double-tap guard must not sit behind the awaited clear
-      // below.
+      // Sync invalidation: the double-tap guard, the generation bump and the
+      // gen capture/clear must not sit behind the awaited clear below — an
+      // in-flight ensure is invalidated by the bump the moment the tap lands,
+      // not one storage round-trip later. modelIndexRef moves with them: it is
+      // invalidation, not the flip, and triggers no render. The flip itself
+      // stays after the clear (the kick it triggers reads the marker through
+      // the load gate, and a fire-and-forget clear could lose that race and
+      // refuse the freshly re-asserted model — same reason userReloadModel
+      // awaits its clear).
       modelSwitchInFlightRef.current = true;
-      // Awaited BEFORE the selection flips: the kick this flip triggers reads
-      // the marker through the load gate, and a fire-and-forget clear could
-      // lose that race and refuse the freshly re-asserted model — same reason
-      // userReloadModel awaits its clear. No new window opens between the
-      // clear and the selection: they share one continuation with no await in
-      // between, re-entry is locked above, and modelIndex is still unchanged,
-      // so no kick exists yet.
-      // The lock above has exactly ONE release — the dispose IIFE's finally.
-      // The awaited clear put code in front of that release point, so a throw
-      // in the tail must clear the lock on its way out or every later switch
-      // is refused until restart. No crash was witnessed; this closes the
-      // shape the await introduced. The IIFE's finally still owns the normal
-      // path, so a second false is harmless.
+      engineGenerationRef.current += 1;
+      // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
+      // The dispose callback must never read chatGateGenRef.current — a newer
+      // ensureEngineForModel may have acquired a higher gen by then.
+      const releasedGen = chatGateGenRef.current;
+      chatGateGenRef.current = null;
+      modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
+
+      // Two releases for the lock, two for the gen, mutually exclusive: the
+      // catch below covers throws from statements BEFORE the dispose IIFE
+      // launches; the IIFE's finally covers everything from launch on and is
+      // the only release on the normal path.
       try {
+        // Awaited BEFORE the selection flips: they share one continuation with
+        // no await in between, re-entry is locked above, and modelIndex is
+        // still unchanged, so no kick exists yet.
         await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
-        // Transition: bump generation + show checking before dispose awaits.
-        engineGenerationRef.current += 1;
-        // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
-        // The dispose callback must never read chatGateGenRef.current — a newer
-        // ensureEngineForModel may have acquired a higher gen by then.
-        const releasedGen = chatGateGenRef.current;
-        chatGateGenRef.current = null;
-        modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
+        // Transition: show checking before dispose awaits.
         setModelIndex(nextIndex);
         setModelState("checking");
         setModelError(null);
@@ -4480,9 +4482,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
         })();
       } catch (error) {
-        // The lock's only release lives in the IIFE's finally; if we never
-        // reach it, nothing else ever clears the lock and every later switch
-        // is refused.
+        // Mirror of the IIFE's finally, for throws before its launch: release
+        // the captured gen (or chat_ready would outlive chatGateGenRef and
+        // tryAcquireChat would refuse forever) and clear the lock. The catch
+        // and the finally are mutually exclusive — the catch only sees
+        // statements preceding the launch — so there is no double release.
+        if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
         throw error;
       }
@@ -4925,6 +4930,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       modelStateRef.current = "ready";
       // FIX B / FIX 1: chat context resident (token-guarded).
       markChatReady(chatGenDl);
+      // The gen is consumed: the catch below must never release a READY gen —
+      // that would drive the gate chat_ready → idle with the native context
+      // alive. Nothing between here and the return is known to throw today,
+      // so this closes the shape; it does not fix a witnessed crash.
+      acquiredChatGenDl = null;
       // Same end-based clear as ensureEngineForModel: no stale banner on ready.
       setModelError(null);
       setModelErrorDetail(null);
