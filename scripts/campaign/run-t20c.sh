@@ -17,6 +17,17 @@ SCRIPT="$(dirname "$CONFIG")/t20c/script.json"
 SERIAL="$(python3 -c 'import json,sys
 d=json.load(open(sys.argv[1], encoding="utf-8"))["device"]
 if isinstance(d, str) and d: print(d)' "$CONFIG" 2>/dev/null)"
+# $(...) strips a trailing newline, so a config device of "192.168.1.82:5555\n"
+# compares equal to the stripped ANDROID_SERIAL below. Only a string that is
+# already its own stripped form names a device; json.dumps keeps the whitespace
+# visible in the refusal.
+SERIAL_UNTRIMMED="$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1], encoding="utf-8"))["device"]
+if isinstance(d, str) and d != d.strip(): print(json.dumps(d))' "$CONFIG" 2>/dev/null)"
+if [ -n "$SERIAL_UNTRIMMED" ]; then
+  echo "refuse: $CONFIG declares device=$SERIAL_UNTRIMMED, which is not a bare serial (got '${ANDROID_SERIAL:-}')" >&2
+  exit 2
+fi
 if [ -z "$SERIAL" ] || [ "${ANDROID_SERIAL:-}" != "$SERIAL" ]; then
   echo "refuse: ANDROID_SERIAL must be exactly ${SERIAL:-<config device unavailable>} (got '${ANDROID_SERIAL:-}')" >&2
   exit 2
@@ -24,8 +35,12 @@ fi
 # This runner hard-codes 20 turns and derives the conversation script from the
 # config. A config declaring another campaign's turn count or carrying no
 # script would run the T20C arm, ids and evidence under that campaign's name.
+# turns must be a JSON int: the string "20" satisfies [ "$CONFIG_TURNS" != "20" ].
+# A non-int is printed as JSON, so the refusal shows the type it actually has.
 CONFIG_TURNS="$(python3 -c 'import json,sys
-print(json.load(open(sys.argv[1], encoding="utf-8"))["turns"])' "$CONFIG" 2>/dev/null)"
+t=json.load(open(sys.argv[1], encoding="utf-8"))["turns"]
+if type(t) is int: print(t)
+else: print(json.dumps(t))' "$CONFIG" 2>/dev/null)"
 if [ "$CONFIG_TURNS" != "20" ]; then
   echo "refuse: $CONFIG declares turns=${CONFIG_TURNS:-<unreadable>}; run-t20c.sh runs exactly 20" >&2
   exit 2
@@ -254,9 +269,18 @@ _device_model=$(adb -s "$SERIAL" shell getprop ro.product.model </dev/null 2>/de
 case "$_device_model" in
   ''|*[![:print:]]*) die "device identity unreadable: ro.product.model is empty or malformed" ;;
 esac
-if [ -n "${CAMPAIGN_EXPECT_MODEL:-}" ]; then
+# A serial is an address, not an identity: a DHCP lease that moves to another
+# phone leaves the serial check passing. The config names the model this
+# campaign must run on, and every enforcing branch records which physical
+# device produced the evidence.
+CONFIG_DEVICE_MODEL="$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1], encoding="utf-8")).get("deviceModel")
+if isinstance(d, str) and d: print(d)' "$CONFIG" 2>/dev/null)"
+if [ -n "$CONFIG_DEVICE_MODEL" ]; then
+  [ "$_device_model" = "$CONFIG_DEVICE_MODEL" ] || die "device identity mismatch: $CONFIG declares deviceModel '$CONFIG_DEVICE_MODEL', got '$_device_model'"
+  log "DEVICE IDENTITY: model=$_device_model serial=$SERIAL (matches config deviceModel '$CONFIG_DEVICE_MODEL')"
+elif [ -n "${CAMPAIGN_EXPECT_MODEL:-}" ]; then
   [ "$_device_model" = "$CAMPAIGN_EXPECT_MODEL" ] || die "device identity mismatch: expected model '$CAMPAIGN_EXPECT_MODEL', got '$_device_model'"
-  # Record which physical device produced this evidence, not just that it matched.
   log "DEVICE IDENTITY: model=$_device_model serial=$SERIAL (matches CAMPAIGN_EXPECT_MODEL)"
 else
   log "DEVICE IDENTITY: model=$_device_model (CAMPAIGN_EXPECT_MODEL unset; not enforcing)"

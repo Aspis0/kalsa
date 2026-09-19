@@ -577,7 +577,11 @@ serial_refusal_case
 # script the runner derives from it. `device` is injected as raw JSON so a case
 # can hand it a non-string (`null`) as well as a string.
 write_synthetic_config() {
-  local dir="$1" device_json="$2" turns="$3"
+  local dir="$1" device_json="$2" turns="$3" model_json="${4:-}" model_member=""
+  # deviceModel is emitted only when a case declares one: a config without the
+  # key must stay on the pre-existing "not enforcing" path.
+  [ -n "$model_json" ] && model_member=",
+ \"deviceModel\": $model_json"
   mkdir -p "$dir/t20c"
   cp "$REPO/campaigns/t20c/script.json" "$dir/t20c/script.json"
   cat > "$dir/config.json" <<JSON
@@ -585,9 +589,17 @@ write_synthetic_config() {
  "name": "selftest-synthetic",
  "device": $device_json,
  "resultsDir": "results/t20c-jelly-campaign",
- "turns": $turns
+ "turns": $turns$model_member
 }
 JSON
+  # The runner writes its telemetry schema from the config before the identity
+  # gate, so the fixture needs that key to reach the gate at all.
+  python3 - "$dir/config.json" "$REPO/campaigns/t20c-jelly.json" <<'PY'
+import json, sys
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+cfg["telemetry"] = json.load(open(sys.argv[2], encoding="utf-8"))["telemetry"]
+json.dump(cfg, open(sys.argv[1], "w", encoding="utf-8"))
+PY
 }
 
 printf '\n== (a2) the pre-device guards read the config ==\n'
@@ -664,6 +676,120 @@ foreign_turns_case() {
 configured_serial_case
 null_device_case
 foreign_turns_case
+
+# (d) $(...) strips a trailing newline, so "192.168.1.82:5555\n" matches the
+# stripped ANDROID_SERIAL and passes the serial guard. It names no device.
+untrimmed_device_case() {
+  local dir="$WORK/untrimmed-device" out="$WORK/untrimmed-device/out" rc
+  rm -rf "$dir"
+  write_synthetic_config "$dir" '"192.168.1.82:5555\n"' 20
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=192.168.1.82:5555 OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq 'declares device="192.168.1.82:5555\n"' "$out/run.log"; then
+    ok "a device string with a trailing newline is refused, not compared stripped"
+  else
+    bad "trailing-newline device was not refused (rc=$rc; output: $(cat "$out/run.log"))"
+  fi
+}
+
+# (e) turns is read as JSON text, so the string "20" satisfies the numeric
+# comparison even though it is not the int this runner runs.
+string_turns_case() {
+  local dir="$WORK/string-turns" out="$WORK/string-turns/out" rc
+  rm -rf "$dir"
+  write_synthetic_config "$dir" '"10.0.0.4:9999"' '"20"'
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=10.0.0.4:9999 OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq 'declares turns="20"' "$out/run.log"; then
+    ok "turns as the string \"20\" is refused, not compared as the int"
+  else
+    bad "string turns was not refused (rc=$rc; output: $(cat "$out/run.log"))"
+  fi
+}
+
+untrimmed_device_case
+string_turns_case
+
+printf '\n== (a3) the identity gate reads the config deviceModel ==\n'
+
+# The fake adb answers ro.product.model with SM-S911B, but the identity gate sits
+# behind the Metro gate, so a synthetic config reaches it only with a bundle that
+# passes: serve the same minimal bundle the (b) cases serve.
+run_identity_config() {
+  local name="$1" model_json="$2" dir served out port url rc http_pid
+  dir="$WORK/identity-$name"
+  served="$WORK/identity-$name-bundle"
+  out="$dir/out"
+  rm -rf "$dir" "$served"
+  write_synthetic_config "$dir" '"10.0.0.3:9999"' 20 "$model_json"
+  mkdir -p "$out" "$served/.expo"
+  {
+    printf '%s\n' "$CAMPAIGN_STARTUP_MARKER"
+    printf '%s\n' 'function shouldRunForegroundIdleDispose(args) {'
+    printf '%s\n' "$CAMPAIGN_METRO_IN_FLIGHT_NEEDLE"
+    printf '%s\n' '}'
+  } > "$served/.expo/.virtual-metro-entry.bundle"
+  port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+  python3 -m http.server "$port" --directory "$served" >/dev/null 2>&1 &
+  http_pid=$!
+  disown "$http_pid" 2>/dev/null || true
+  url="http://127.0.0.1:$port/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true"
+  fake_reset marker-turn1
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" CAMPAIGN_METRO_BUNDLE_URL="$url" \
+    ANDROID_SERIAL=10.0.0.3:9999 OUT="$out" \
+    CAMPAIGN_TURN_TIMEOUT_MS=6000 CAMPAIGN_TELEMETRY_GAP_MS=2000 CAMPAIGN_POLL_MS=1000 \
+    CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=1000 \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  kill "$http_pid" >/dev/null 2>&1 || true
+  printf '%s' "$rc"
+}
+
+# (f) The Jelly Star is the phone the campaign config names; a device answering
+# SM-S911B must be refused, and the refusal must name both models — the serial
+# alone cannot tell the two apart.
+mismatched_model_case() {
+  local dir="$WORK/identity-mismatched-model" rc
+  rc=$(run_identity_config mismatched-model '"Jelly Star"')
+  if [ "$rc" -eq 1 ] && grep -Fq "device identity mismatch: $dir/config.json declares deviceModel 'Jelly Star', got 'SM-S911B'" "$dir/out/run.log"; then
+    ok "deviceModel Jelly Star on an SM-S911B device is refused, naming both models"
+  else
+    bad "deviceModel mismatch was not refused naming both models (rc=$rc; output: $(tail -3 "$dir/out/run.log" | tr '\n' '|'))"
+  fi
+}
+
+# (g) Dual of (f): the model the fake device answers must clear the gate and the
+# run must continue into the turn loop, with the identity line naming the config
+# as the source. A gate that refuses every declared model fails here.
+matching_model_case() {
+  local dir="$WORK/identity-matching-model" rc
+  rc=$(run_identity_config matching-model '"SM-S911B"')
+  if grep -qF 'device identity mismatch' "$dir/out/run.log"; then
+    bad "deviceModel SM-S911B was refused by the identity gate (rc=$rc)"
+  elif [ "$rc" -eq 4 ] && grep -qF "DEVICE IDENTITY: model=SM-S911B serial=10.0.0.3:9999 (matches config deviceModel 'SM-S911B')" "$dir/out/run.log"; then
+    ok "deviceModel SM-S911B clears the identity gate and the run continues to the turn loop"
+  else
+    bad "deviceModel SM-S911B did not clear the identity gate (rc=$rc; identity: $(grep -F 'DEVICE IDENTITY' "$dir/out/run.log" | tail -1))"
+  fi
+}
+
+mismatched_model_case
+matching_model_case
 
 # A throttled engine changes its progress fingerprint before its marker lands.
 # The late marker and the changing assistant text both come from the fake adb.

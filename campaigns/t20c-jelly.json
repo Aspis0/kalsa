@@ -1,6 +1,7 @@
 {
  "name": "t20c-jelly",
  "device": "192.168.1.82:5555",
+ "deviceModel": "Jelly Star",
  "model": "lfm2.5-2.6b",
  "pkg": "com.kalsa.app",
  "resultsDir": "results/t20c-jelly-campaign",
