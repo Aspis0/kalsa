@@ -84,11 +84,18 @@ SESSION_RESTORE: HIT, then LOADED BUT COLD (reused 0/2383)
 ```
 
 The arithmetic names the defect without any inference: the turn-2 prompt is
-**2215 tokens while the cache holds 2294** — the replay is 79 tokens SHORTER
-than what was generated, and turn 3 is 2383 against 2460, short by 77. That
-missing span is the reasoning block. Divergence puts `n_common` (2081) *below*
-the only checkpoint (2294); on a hybrid model there is no partial `seq_rm`, so
-the whole cache is cleared.
+**2215 tokens while the cache holds 2294**, and turn 3 is 2383 against 2460.
+The replay comes out SHORTER than what was generated, which is the reasoning
+block missing.
+
+**The 79 and the 77 are floors, not the measurement.** Turn 2's prompt does not
+only replay turn 1 — it also adds the new user turn and the generation prompt.
+So the dropped reasoning is 79 *plus* whatever those cost, and the honest
+statement is "at least 79 tokens short despite also carrying a new user turn".
+Reporting 79 as the loss understates it.
+
+Divergence puts `n_common` (2081) *below* the only checkpoint (2294); on a
+hybrid model there is no partial `seq_rm`, so the whole cache is cleared.
 
 After the repair, on the same cells:
 
