@@ -1061,6 +1061,45 @@ del `cached` finale del turno 1 (prima, turno 2: 2215 resi contro 2294 in cache,
 reso, indipendente da checkpoint e da `pickReuse`; da affiancare alla soglia sul riuso (proposta 50% del prefisso
 condiviso) e al terzo turno senza risposta = rosso. **Decisione dell'owner; e2e non toccato finche' non risponde.**
 *Fermo n. 3 su `dbfb464` (02:30Z, audit deepseek riprodotto dal coordinatore):* la mutazione `includes(THINK_OPEN) && includes(THINK_CLOSE)` — cioe' la vecchia regola del tag iniziale — lascia jest 62/62 e harness 0: l'allargamento, unico cambio di comportamento oltre `""` → `" "`, non e' coperto perche' tutte e sette le forme portano `<think>`; la fixture senza tag (`REASONING</think>ANSWER`, test riga 305, popolazione osservata 133 con / 12 senza) esiste ma serve solo un'asserzione di lunghezza. Amend in corso: caso senza tag con prova rossa su quella mutazione (anche nell'harness), docstring con i due turni separati e il tasso dell'emulatore. Le quattro prove rosse e i gate li rifa' il coordinatore sull'archive del nuovo sha.
+**Ramo Qwen READY su `9f96a45` (amend di dbfb464, 02:22Z) — verificato dal coordinatore su copia archive:** 3 file
++114/−43, LlamaService 0 righe, riga LFM 0; verde jest 63/63 e harness 21/21 (caso nuovo `content_span tagless but
+closed` in tutti e due); QUATTRO mutazioni rosse su ENTRAMBI i gate (tag iniziale richiesto → 1 rosso col nome;
+sentinella tolta, content splittato, sentinella "" → 9 rossi ciascuna; harness `AssertionError` con nome);
+gate completo con Node v20.20.2 da build fredda, due esecuzioni indipendenti (kalsa-93 e coordinatore) che
+concordano: TSC=0, JEST_ALL=0 87 suite/1065 test, 59/59 harness RED_TOTAL=0. Docstring corretto (turno 2 e turno 3
+separati, 79 = pavimento, tasso dell'emulatore, chat.cpp della dipendenza pinnata). Push `9f96a45:main` alla
+chiusura dell'e2e 35412505963 su 9b08ae0 (durate dei run riusciti su main: 84-150 min, nessun orario).
+*Regola uscita stanotte (kalsa-93):* una prova rossa non e' un exit code, e' un'asserzione fallita con un nome —
+serve il conteggio `Tests: N failed` o il nome del caso, E il verde di riferimento deve stampare lo stesso tipo di
+riga (quattro `exit 1` finti del coordinatore: in zsh una variabile non quotata non si divide, jest ha ricevuto un
+pattern solo, "No tests found, exiting with code 1").
+
+**`save-wiring-coverage` a `3a1ac47` (amend di 880cbed; il sorgente non e' cambiato, solo fixture e asserzioni):**
+il re-audit aveva trovato quattro mutazioni verdi — gate mai asserito sugli argomenti, `reason !== "short" &&
+usedTokens != null` (un no_size vero sarebbe entrato nell'evictor e lo sweep avrebbe cancellato file), `&&`→`||`
+nel residuo, `evict("private-stem")` cablato (un solo valore non distingue "inoltra" da "costante"). Diagnosi: le
+fixture di rifiuto erano una sola forma con tre stringhe di motivo, e il gate vero non la produce mai — una fixture
+valida per il tipo ma mai emessa dal produttore e' peggio di nessuna fixture; forme vere copiate dal sorgente
+(no_size: tre null; disk_unreadable: usedTokens e requiredBytes numerici, freeBytes null; gate_error: tre null;
+short: tre numerici con free <= required; ok: reason null). Le quattro mutazioni riprodotte dal coordinatore su
+copia archive con gli stessi conteggi e nomi (13 / 2 / 1 / 1 rossi su 55), gate completo in corso; terzo giro di
+audit sulla tabella del commit. Entra su main dopo 9f96a45 e dopo la chiusura dell'e2e del "dopo".
+
+**persist-guard sul Jelly: A/B/C PASS (kalsa-2d, 18/09 22:13-22:27 EDT, seriale 192.168.1.82:5555, mai uninstall,
+mai testo stampato; non rieseguito dal coordinatore, che ha verificato solo il punto di ripristino sul Mac:
+434.176 B, sha a2241b7d…).** Preflight: `pkgFlags DEBUGGABLE`, sha256 APK sul telefono = file (a73de1dd…), DB
+byte-identico prima/dopo `install -r` (417.792 B), scollegato 85%, 26 °C, status 0. A: conversazione della build
+vecchia byte-identica dopo l'apertura (1016 B), nessun Alert, zero `.quarantine*`; turno nuovo persistito (2→4
+messaggi, 5381 B) e sopravvissuto al force-stop. B: raw troncata a meta' (non JSON) → Alert "Impossibile leggere lo
+storico di questa chat" col corpo che promette la copia; chat vuota; `.quarantine` 2689 B sha 2979c3ca… IDENTICA
+alla raw corrotta; `.quarantine.index` 54 B; turno nuovo riflushato (la chiave viva teneva ancora la raw corrotta
+finche' il turno non e' stato persistito), quarantena intatta al secondo avvio. C: cancellazione dall'UI → chiavi
+70→69, quarantena 2→0, zero residui per quell'id. Telefono lasciato con 9b08ae0 debuggabile, 69 conversazioni; la
+g1-probe di prova cancellata (contenuto pre-corruzione solo nel punto di ripristino sul Mac). Metodo: il primo
+invio non era partito (tastiera sopra "Invia": il dump da' il layout, non la visibilita'), un orario dichiarato e
+poi corretto. Osservazione da spiegare col logcat: fra le 22:13 e le 22:19 il motore si e' scaricato da solo a
+telefono fermo e freddo (MemAvailable 5,5→3,9 GB al ricarico; il Jelly ha 8 GB).
+
 **Perimetro del risultato KV di stanotte (kalsa-93, verificato dal coordinatore su `LlamaService.ts`):** il replay
 della storia riproduce i token della KV **sul percorso senza governor**; col governor attivo la sessione non viene
 ne' salvata ne' ripristinata (`saveEngineSession` esce alla prima riga con `logGovernorSessionSaveSkip()` se
