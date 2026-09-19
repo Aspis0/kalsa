@@ -138,8 +138,13 @@ campaign_completion_signal_lost() {
   [ "$i" -ge 2 ] || { CAMPAIGN_TELEMETRY_SEEN="$seen"; return 1; }
   wait_ms="${CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS:-30000}"
   case "$wait_ms" in ''|*[!0-9]*|0) wait_ms=30000 ;; esac
-  max_ms="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
-  case "$max_ms" in ''|*[!0-9]*|0) max_ms=2700000 ;; esac
+  max_ms="${CAMPAIGN_COMPLETION_PROGRESS_MAX_MS:-${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}}"
+  case "$max_ms" in
+    ''|*[!0-9]*|0)
+      max_ms="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
+      case "$max_ms" in ''|*[!0-9]*|0) max_ms=2700000 ;; esac
+      ;;
+  esac
   [ "$max_ms" -ge "$wait_ms" ] || max_ms="$wait_ms"
   wait_s=$(python3 -c "print(max(0.001, int('$wait_ms') / 1000))")
   campaign_snapshot_messages "$OUT/.messages.json"

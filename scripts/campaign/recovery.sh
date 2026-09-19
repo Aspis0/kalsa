@@ -210,6 +210,12 @@ campaign_thermal_is_plugged() {
 campaign_thermal_hard_abort_reason() {
   local plugged st bt
   plugged=$(campaign_thermal_is_plugged)
+  if [ "$plugged" = unknown ]; then
+    st=$(device_thermal_status)
+    bt=$(device_battery_temp_c)
+    log "THERMAL HARD ABORT unavailable: power state unknown; declining unplugged status/battery stop arms (thermal status=${st:-unknown}, battery=${bt:-unknown}°C)" >&2
+    return 1
+  fi
   [ "$plugged" = false ] || return 1
   st=$(device_thermal_status)
   case "$st" in

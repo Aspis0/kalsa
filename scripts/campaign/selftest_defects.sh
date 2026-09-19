@@ -247,7 +247,7 @@ thermal_turn_case() {
 }
 
 thermal_sustained_case() {
-  local mode="$1" want="$2" out="$WORK/$1" rc
+  local mode="$1" want="$2" also="${3:-}" out="$WORK/$1" rc
   fake_reset "$mode"
   rm -rf "$out"; mkdir -p "$out"
   (
@@ -261,11 +261,19 @@ thermal_sustained_case() {
     CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
     CAMPAIGN_THERMAL_COOLDOWN_CAP_S=8
     CAMPAIGN_THERMAL_OVERSHOOT_S=2
+    scenario_step=0
+    if [ "$mode" = thermal-sustained-rise ]; then
+      sleep() {
+        scenario_step=$((scenario_step + 1))
+        printf '%s' "$scenario_step" > "$FAKE_DEV/fake/thermal_step"
+      }
+    fi
     campaign_thermal_cooldown_wait no
     printf '%s' "$?" > "$out/rc.txt"
   ) > "$out/thermal.log" 2>&1
   rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
-  if [ "$rc" = 1 ] && grep -qF "$want" "$out/thermal.log"; then
+  if [ "$rc" = 1 ] && grep -qF "$want" "$out/thermal.log" \
+    && { [ -z "$also" ] || grep -qF "$also" "$out/thermal.log"; }; then
     ok "$mode reaches its recovery branch"
   else
     bad "$mode did not reach '$want' (rc=$rc)"
@@ -322,7 +330,7 @@ thermal_trend_failure_case() {
 }
 
 completion_backstop_case() {
-  local out="$WORK/completion-backstop" rc
+  local out="$WORK/completion-backstop"
   fake_reset throttled
   rm -rf "$out"; mkdir -p "$out"
   (
@@ -338,11 +346,12 @@ completion_backstop_case() {
     CAMPAIGN_COMPLETION_PROGRESS_MAX_MS=120000 CAMPAIGN_TELEMETRY_SEEN=0
     CAMPAIGN_LOGCAT_FILE="$out/logcat.txt"
     virtual_ms=0
+    emit_marker=0
     sleep() {
       virtual_ms=$((virtual_ms + ${1%.*} * 1000))
       make_messages "$FAKE_DEV/fake/long.json" 1 "$((virtual_ms / 1000))"
       db_put_messages "$FAKE_DEV/fake/long.json"
-      if [ "$virtual_ms" -ge 150000 ]; then
+      if [ "$emit_marker" -eq 1 ] && [ "$virtual_ms" -ge 150000 ]; then
         printf '%s\n' "$TELEMETRY_LINE" >> "$out/logcat.txt"
       fi
     }
@@ -350,16 +359,26 @@ completion_backstop_case() {
     db_put_messages "$FAKE_DEV/fake/long.json"
     : > "$out/logcat.txt"
     : > "$out/.slice.txt"
-    campaign_completion_signal_lost 2 "$out/.slice.txt"
-    printf '%s' "$?" > "$out/rc.txt"
+    campaign_completion_signal_lost 2 "$out/.slice.txt" > "$out/expiry.log" 2>&1
+    printf '%s' "$?" > "$out/expiry-rc.txt"
+    virtual_ms=0
+    emit_marker=1
+    CAMPAIGN_COMPLETION_PROGRESS_MAX_MS=180000
+    : > "$out/logcat.txt"
+    campaign_completion_signal_lost 2 "$out/.slice.txt" > "$out/late.log" 2>&1
+    printf '%s' "$?" > "$out/late-rc.txt"
   ) > "$out/turn.log" 2>&1
-  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
-  if [ "$rc" = 1 ] && grep -q 'completion counter stayed at 0 for 120000ms' "$out/turn.log" \
+  expiry_rc=$(cat "$out/expiry-rc.txt" 2>/dev/null || printf missing)
+  late_rc=$(cat "$out/late-rc.txt" 2>/dev/null || printf missing)
+  if [ "$expiry_rc" = 0 ] \
+    && grep -q 'fingerprint kept changing through the turn-timeout backstop' "$out/expiry.log" \
+    && [ "$late_rc" = 1 ] \
+    && grep -q 'completion counter stayed at 0 for 120000ms' "$out/late.log" \
     && grep -q 'KALSA_TELEMETRY ' "$out/logcat.txt"; then
-    ok "completion probe ignores the old short ceiling while progress moves"
+    ok "completion probe exercises the expiry branch and survives the late marker"
   else
-    bad "completion probe did not reach the late marker beyond the old ceiling (rc=$rc)"
-    tail -8 "$out/turn.log" | sed 's/^/   | /'
+    bad "completion probe expiry/late checks failed (expiry_rc=$expiry_rc late_rc=$late_rc)"
+    tail -8 "$out/turn.log" "$out/expiry.log" "$out/late.log" | sed 's/^/   | /'
   fi
 }
 
@@ -384,7 +403,7 @@ thermal-sustained-rise)
   thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
   printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
 thermal-unknown-power)
-  thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort'
+  thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort' 'THERMAL HARD ABORT unavailable: power state unknown'
   printf 'passed=%d failed=%d\n' "$pass" "$fail"; [ "$fail" -eq 0 ]; exit ;;
 thermal-step-clamp)
   thermal_step_clamp_case
@@ -729,7 +748,7 @@ cooldown_case thermal-plugged-rise 1 'rising temperature is not a reason to stop
 thermal_turn_case thermal-status-turn thermal-status-abort real-status
 thermal_turn_case thermal-unreadable-status-turn thermal-unreadable-status real-status
 thermal_sustained_case thermal-sustained-rise 'unplugged battery kept rising for 3 consecutive samples'
-thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort'
+thermal_sustained_case thermal-unknown-power 'power state is unknown — no hard abort' 'THERMAL HARD ABORT unavailable: power state unknown'
 thermal_step_clamp_case
 thermal_trend_failure_case
 

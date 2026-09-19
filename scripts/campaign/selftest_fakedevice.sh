@@ -64,7 +64,14 @@ _battery_dump() {
         *) temp=$((420 + reads)) ;;
       esac
       ;;
-    thermal-sustained-rise|thermal-unknown-power)
+    thermal-sustained-rise)
+      scenario_step=$(cat "$F/thermal_step" 2>/dev/null || printf 0)
+      case "$scenario_step" in
+        0|1|2) temp=425 ;;
+        *) temp=$((425 + scenario_step - 2)) ;;
+      esac
+      ;;
+    thermal-unknown-power)
       if [ "$reads" -le 4 ]; then
         temp=425
       else
