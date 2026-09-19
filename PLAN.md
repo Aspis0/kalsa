@@ -1031,6 +1031,19 @@ sulle storie che finiscono con un messaggio `tool` (su main ri-etichettato come 
 con test, o ripristino. Le dodici misure restano vere: erano canoniche; le forme controllate erano quelle a
 cui si era pensato. L'e2e su `9b08ae0` continua: il "prima" serve comunque.
 
+**S23, 18/09 ~22:00 EDT, misurato dal coordinatore: due daemon DSP al 100% CPU ciascuno, con l'app NON in
+esecuzione.** Telefono scollegato, Dozing, `pidof com.kalsa` vuoto: `cdsprpcd` (pid 2273) e `adsprpcd` (pid 2272)
+a 99,6% CPU ciascuno su `top -n 2 -d 3`, TIME+ 1997/2004 min (33 h di CPU a testa), avviati al boot 4 giorni fa
+(uptime 351386 s). Effetti: AP 51,8 °C e status 2 a riposo, batteria 100% → 70% in 2 ore a schermo spento;
+spiega il pavimento a 47 °C sul cavo, i tetti di frequenza "load-driven" del decode (il carico erano loro) e
+forse il crollo di batteria che l'owner ricorda. **Conseguenze:** (1) tutte le misure termiche/batteria/tok/s
+sull'S23 di questi giorni sono contaminate da due core al 100% e vanno rilette con questo in mano; (2) S23
+NO-GO per la verifica anti-loop finche' i daemon non scendono; (3) la cura e' il riavvio, che decide l'owner
+(puo' cambiare la porta di adb wireless); (4) dopo il riavvio, misurare i daemon PRIMA e DOPO il primo avvio
+dell'app per sapere se li scatena la nostra .so HTP (nel pacchetto anche se l'NPU non e' mai instradato).
+APK debuggabile pronto (run `35412537213`, artefatto `kalsa-apk-arm64-v8a-debuggable-9b08ae0…`): il Jelly
+(27 °C, status 0) fa la verifica di persist-guard ora; l'S23 aspetta.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
