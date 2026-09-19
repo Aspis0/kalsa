@@ -41,6 +41,70 @@ verdict can delay the start but not the direction.
 
 ---
 
+## 1b. The real objective: make the NEXT rebase cheap
+
+**Owner, 19/09:** *"fare in modo che i prossimi rebase upstream siano facili e indolori."*
+
+Migrating once is not the goal. The goal is that the migration after this one costs hours, not
+days. That reframes success: a migration that lands but leaves our delta shaped the same way has
+failed, because we will pay this bill again at every bump.
+
+### What actually costs, measured on this migration
+
+A rebase costs in proportion to **edits to upstream-owned files**, not to lines of our code.
+New files we own never conflict. The evidence is in this very job:
+
+| | our new files | our edits to upstream files | what hurt |
+|---|---|---|---|
+| kalsallama **[V]** | 44 | 53 | 5 conflicts, all in edited files |
+| llama.rn **[V/E]** | 4 (`rn-governor*`) | 16 | the whole bottleneck, step 6 |
+
+The four `rn-governor*` files are +306 lines and port for **free**. `cpp/rn-tts.cpp` is +12 lines
+of ours and is the single most expensive file in the migration, because upstream grew it to 3233
+lines underneath us. **Twelve lines in someone else's file cost more than three hundred in ours.**
+That is the whole lesson, and it is the metric.
+
+### The rules that follow
+
+1. **New capability goes in a new file.** An edit to an upstream file is a recurring tax; a new
+   file is paid once. When both are possible, take the new file even if it is more code.
+2. **Where an edit is unavoidable, shrink it to a call.** The ideal edit to an upstream file is one
+   line that calls into a file we own. Fifty lines of our logic inlined into `rn-completion.cpp` is
+   fifty lines that must be re-read against every upstream refactor; one call site is one line.
+3. **Prefer an upstream extension point; if none exists, consider upstreaming the hook itself.**
+   Our `ggml_cpu_set_expert_ready_hook` (`kalsallama:ggml/include/ggml-cpu.h:152`) is exactly this
+   shape — a hook we added so the logic could live outside. **[E]** upstream has nothing
+   equivalent, which makes it a candidate to propose rather than carry forever.
+4. **Every edit to an upstream file carries a one-line reason, in `KALSA_FORK.md`.** Not for
+   documentation's sake: it is what makes the question in rule 5 answerable in minutes.
+5. **Run the supersede check before every bump.** On this migration it deleted three carried
+   changes: the Hexagon `error_count` (upstream's `eafe15a5e` is strictly stronger), the noshuffle
+   `%128` rule (upstream relaxed it to `%64` and ours is now *wrong*), and seven duplicate
+   cherry-picks. That check is `git log -S <our subject> <base>..upstream/master` per edit, and it
+   pays for itself every time.
+6. **Adopt upstream's mechanism instead of building a parallel one.** This entire migration exists
+   because we wrote an 845-line sync script to do what upstream now does with `VERSIONS` +
+   `sync-vendor.sh`. The cost of a parallel mechanism is not the code — it is that it drifts out
+   of the upgrade path and one day has to be demolished under time pressure.
+
+### The gate for this objective
+
+Steps 6 and 8 are not done until this is true and recorded:
+
+- A count of **edits to upstream-owned files, before and after**, in both repos. The number must go
+  down, and where it does not, the reason is written next to it.
+- For each of the 16 edited binding files: either it is reduced to a call into a file we own, or
+  `KALSA_FORK.md` says why it cannot be.
+- A dry-run of the next bump — `git merge-tree --write-tree` against the then-current
+  `upstream/master` — recorded in `KALSA_FORK.md` as the baseline the following bump is measured
+  against. If we cannot produce that number, we have no evidence the objective was met.
+
+**Anti-goal.** Do not reduce the edit count by deleting behaviour, and do not reduce it by moving
+code into a file we own that upstream then has no reason to call. Rule 2's "one call site" still
+needs that one call site to exist and to be in the right place.
+
+---
+
 ## 2. Measured size of the job
 
 ### kalsallama ← ggml-org/llama.cpp **[V]**
@@ -278,3 +342,252 @@ take their `prepack`.
 - **[E]:** whether our `use_q4k_tiled` interaction is still needed after upstream's `d03efa5d5`.
 - Whether the committed `bin/arm64-v8a/libggml-htp-*.so` correspond to the kalsallama commit now
   pinned — **[E]** says nothing in either repo records their provenance any more.
+
+---
+
+## 9. Upstream churn recon — the answer to §1b, measured
+
+Explorer `8113746e` (deepseek v4.1, read-only, online). **[V]** = the orchestrator re-ran it.
+
+### 9.1 How fast the surface we hold actually moves **[V — re-measured, matches]**
+
+`upstream/master`, 2026-06-19 → 2026-09-19 (90 days):
+
+| path | commits | days touched | last | our delta |
+|---|---|---|---|---|
+| `ggml/src/ggml-opencl/ggml-opencl.cpp` | **59** | **41 / 90 (46%)** | 09-18 | **+3124/−117** |
+| `tests/test-backend-ops.cpp` | **106** | 55 | 09-19 | +640/−10 |
+| `ggml/src/ggml-hexagon/` | 39 | 29 | 09-18 | +50/−4 |
+| `ggml/src/ggml-opencl/kernels/` | 36 | 28 | 09-18 | +1913/−356 (our 6 files: 0 upstream touches) |
+| `ggml/src/ggml-cpu/ggml-cpu.c` | 13 | 13 | 09-18 | part of the q23k cluster |
+| `ggml/src/ggml-cpu/repack.cpp` | 2 | 2 | 09-10 | |
+| `ggml/src/ggml-cpu/repack.h` | **0** | — | 2026-03-10 | |
+| `ggml/src/ggml-cpu/traits.cpp` | **0** | — | 2025-08-06 | |
+| **`ggml/include/ggml-cpu.h`** (our hook) | **1** | 1 | 2026-07-16 | our `expert_ready_hook` |
+
+**This is the answer to §1b, and it is a single sentence: one file carries the whole recurring
+cost.** 3124 of our ~5400 churn-exposed engine lines sit in a file upstream edits on 46% of
+calendar days. Everything else we hold is either in files we own (never conflict) or in files
+upstream has effectively frozen.
+
+Two consequences that change the work:
+
+1. **Our hook placement is already right.** `ggml-cpu.h` was touched **once in 90 days**. §1b rule 3
+   said "consider upstreaming the hook"; the churn says **do not bother** — holding it as a patch
+   costs nothing. This also agrees with the owner's standing decision (`PLAN.md`, 04/09):
+   *"Non aprire nessuna issue upstream. O fixiamo noi stessi o lasciamo perdere."*
+2. **The single highest-value refactor in this whole migration** is to move our Adreno MoE host
+   code out of `ggml-opencl.cpp` into translation units we own, leaving a thin registration/glue
+   delta behind. That is §1b rule 2 applied to the one file where it actually pays. Budget it as
+   part of step 2, not as a later cleanup.
+
+### 9.2 Is the `vendor/` layout settled? **Yes.** **[E]**
+
+Four branches upstream (`main`, `auto/sync-llama.cpp`, `rpc`, `v0.9`); the last two predate the
+restructure. **Zero open PRs touch `sync-vendor.sh`, `cmake/rnllama-sources.cmake`, the podspec or
+the export manifest.** `#391`/`#392`/`#393` merged 12–14/09 with **no follow-up commits**; the last
+commit to `cpp/jsi` or `cpp/rn-*` outside engine syncs is 2026-09-14. `-Wl,-Bsymbolic` is not being
+dropped — `AGENTS.md:107` justifies it by whisper.rn coexistence. npm `0.13.0-rc.4` **already ships
+the `vendor/` layout**.
+
+One forward signal, inference only: `#392`'s body says *"we may can share ggml as library between
+llama.rn and whisper.rn"*. No issue, PR or branch. If that ever happens the boundary moves again.
+
+### 9.3 `b11010` is a clean pin and later ones are not — yet **[V, partly]**
+
+**[V]** Upstream llama.rn **duplicates the OpenCL kernel list by hand**:
+`android/src/main/rnllama/CMakeLists.txt:159` holds **179 names**, mirroring the **177** in
+`vendor/llama.cpp/ggml/src/ggml-opencl/CMakeLists.txt`. **[E]** At `b11010` the two agree; at
+`b11046` (open PR #400) upstream added `flash_attn_repack` and
+`gemv_noshuffle_q6_k_f32_32b_trans` to the vendored list and not to llama.rn's copy, and the
+Android build fails with `fatal error: 'gemv_noshuffle_q6_k_f32_32b_trans.cl.h' file not found`.
+
+→ Two things follow. **`b11010` stays the target for step 2.** And **§7's decision to keep our glob
+instead of upstream's hand list is now evidence-backed, not taste** — upstream's own mechanism is
+failing on exactly this, today, in their own CI.
+
+### 9.4 `LLAMA_CPP_REPO` works, but nobody exercises it **[E]**
+
+`sync_dep()` honours it and `ensure_repo` clones it. But a code search across the `mybigday` org
+returns **one** hit, and it is a **name collision** — `sync-llama-cpp.yml:102` uses
+`LLAMA_CPP_REPO` as a local cache path, unrelated to the `VERSIONS` variable. No fork, no CI, no
+docs exercise the real one. **We are the only user, so we own its rot.** This raises the priority
+of step 7 (disable the cron) from hygiene to necessary.
+
+### 9.5 The largest future conflict source is not in this migration at all **[E]**
+
+Two open upstream PRs target exactly the four files our q23k cluster (+2192 lines) lives against:
+**#23492** "ARM Repack kernels for Q1_0" (+762) and **#15719** "block repack support for Q4_K for
+AArch64" (+939, open since January) — both touch `arch-fallback.h`, `arch/arm/repack.cpp`,
+`repack.cpp`, `repack.h`. Those files are frozen *today*, which is why our delta there is cheap
+*today*. Record this as a standing hazard in `KALSA_FORK.md`: the q23k cluster is cheap by luck of
+timing, not by structure.
+
+Also **[E]**, unverified and material: open PR **#28577** ("q2_K and q3_K matrix multiply", +3243)
+has 2 hunks in `cvt.cl`, the first at `@@ -116,6` against our delta at `@@ -118,0` — **a direct
+collision**, in our second-largest single-file change. It does not touch our 6 MoE kernel files.
+
+### 9.6 Verdict **[E]**
+
+> **Migrate now, but expect a second merge within ~2 weeks**, because llama.rn's auto-sync advances
+> the pin every 1–6 days (time-to-merge median ~1.5 days over the last seven PRs) and #400 is
+> already queued at `b11046`.
+>
+> **Recurring cost per bump: one hand-resolution session in `ggml-opencl.cpp`, plus a mechanical
+> refresh of the duplicated kernel list.** The one change that most reduces it is §9.1 point 2.
+
+Evidence that would overturn it: upstream replacing the hand-written `GGML_OPENCL_KERNELS` list
+with a glob; `cvt.cl` or `gemm_moe_*` appearing in a merged upstream commit; a llama.rn PR
+reopening the `cpp/` layout; or confirmation that #28577's hunks collide with ours, which would
+move the target from `b11010` to a tag containing #28577.
+
+---
+
+## 10. Audit corrections — THIS SECTION SUPERSEDES THE BODY
+
+Hostile audit `70d2c296` (deepseek v4.1), 19/09. Where §10 disagrees with §1–§9, **§10 wins**.
+**[V]** = the orchestrator re-read it on disk.
+
+### 10.1 The fourth error: `LLAMA_CPP_REPO` can be silently ignored **[V] CONFIRMED**
+
+`sync-vendor.sh:209-222` keys the clone cache on the **dependency name**, never on the URL:
+`local repo="$CACHE_DIR/$name"` (`:211`), `if [ ! -d "$repo/.git" ]` (`:213`), then
+`git -C "$repo" fetch --quiet origin "$ref"` (`:232`). There is no `remote get-url` check anywhere.
+So if `~/.cache/llama.rn/llama.cpp` already exists pointing at ggml-org — which it will, the first
+time anyone runs the upstream script, **including our own first test of it** — flipping
+`LLAMA_CPP_REPO` to our fork does nothing.
+
+**[V] Refinement the audit did not make: how silent it is depends on how we pin.** `:225`
+branches on `^[0-9a-f]{40}$`:
+
+- **Pin by tag** (`LLAMA_CPP_REF=b11010`) → `rev-parse refs/tags/b11010` succeeds **in the ggml-org
+  cache**, no fetch, no error → `vendor/llama.cpp` is populated from **upstream**, `record_commit`
+  writes that sha, and step 3's `git status`-clean gate **passes**. Silent, total.
+- **Pin by our fork's 40-hex sha** → `cat-file -e` fails in the ggml-org cache → `fetch origin
+  <sha>` from ggml-org → fails → `set -e` aborts. **Loud.**
+
+→ **Two rules, both mandatory.** (a) Assert `git -C "$repo" remote get-url origin` equals `$url`,
+else re-clone. (b) **Always pin `LLAMA_CPP_REF` to our fork's commit sha, never to a tag name that
+also exists upstream.** (b) is free and converts the trap from silent to loud even if (a) is ever
+lost in a future upstream merge.
+
+### 10.2 Corrections to the numbers **[E, re-derived by the auditor]**
+
+| §  | said | actually |
+|---|---|---|
+| §2 | 20 files touched by both, 15 auto-merge | **19** touched, **14** auto-merge |
+| §2 | 77 of 97 untouched | **78** |
+| §2 | opencl 4 conflict hunks | **5** |
+| §2 | `tests/CMakeLists.txt` 2 hunks | **1** |
+| §1 | `vendor/llama.cpp` = 1515 files | **1368** (1515 is all of `vendor/`) |
+| §1 | `third_party/` = OpenCL submodules | **committed headers only; there is no ICD loader in our tree at all** — we ship `bin/arm64-v8a/libOpenCL.so`; upstream *builds* it from `vendor/OpenCL-ICD-Loader`. **The plan never says what replaces it.** |
+| §8 | delete `.gitmodules` | **already absent from our branch** |
+| §9.3 | 179 vs 177 | **179 vs 179** base; with Adreno on, **196 vs 181**. Conclusion (keep our glob) unaffected; the cited evidence was wrong. |
+
+**§2's +/− table is measured against `master`, not against `b11010` — the tree we are merging into.**
+At `b11010` our opencl conflict is **1919/285**, not 2728/369: **37% smaller** than the plan
+budgeted. The claim that the same five conflicts appear either way still holds.
+
+### 10.3 §4's Hexagon row is wrong — "delete ours" loses behaviour **[V] REFUTED**
+
+Our `ggml-hexagon.cpp:5230-5232` is `sess->flush();` … `return sess->error_count == 0 ? …`.
+`b11010` has **zero** `sess->flush()` in the file and checks `last_error` at the **top** of
+`ggml_backend_hexagon_graph_compute` (`:5855`), not at the end.
+
+So the exchange is not "weaker duplicate → stronger duplicate". It moves error observation from
+**synchronous at end of graph** to **deferred to the next call**, and drops a drain-before-status
+barrier. → Resolve hunk 4 deliberately: keep the flush, adopt upstream's `last_error`. Hunks 1–3
+are a genuine supersession.
+
+Two more **[E]** corrections to §4: `ff7ae8009` is **not** a hexagon commit
+(`tests: tighten NPU judge failure reporting`, one file under `tests/`), and our
+`15ad4b8e3` — the HMX `%32` eligibility gate — is **ours, not superseded** (`b11010` still reads
+`if (ne01_padded % 32 != 0) {`) and is missing from §4's "survives" list. It auto-merges, so today
+it survives **by luck of git, not by decision**.
+
+### 10.4 §1b needs three repairs **[E]**
+
+1. **"New files we own never conflict" is false as an absolute.** They do not *merge*-conflict, but
+   they can still be dropped by lists and manifests we do not own. This migration has three
+   instances: `repack-q23k.h` (killed by the export manifest), our 6 MoE `.cl` kernels (dropped by
+   `GGML_OPENCL_KERNELS`), and the `common.h.patch` basename we would newly occupy. Read the rule
+   as: *free of merge cost, not free.*
+2. **The gate is gameable.** §1b counts **edited files**; §9.1's action moves lines out of
+   `ggml-opencl.cpp` and leaves the file count at 1. Doing nothing passes. → The metric is
+   **lines changed and hunks in upstream-owned files**, not files.
+3. **Rule 3 ("consider upstreaming the hook") is struck.** `ggml/include/ggml-cpu.h` took 1 commit
+   in 90 days, and `PLAN.md` 04/09 says *"Non aprire nessuna issue upstream."* Holding it as a
+   patch costs nothing. Leaving rule 3 in invites a future agent to do the forbidden thing.
+
+### 10.5 §9.1's "highest-value refactor" is a 20% claim, not a highest-value one **[E]**
+
+Measured shape of our +3124 in `ggml-opencl.cpp`: **77 hunks**, and the enclosing upstream-owned
+functions account for **3123 of the 3124 added lines** (`moe_router_reoerder` 867,
+`ggml_backend_opencl_buffer_set_tensor` 368, `ggml_cl_mul_mat_id` 353, …). Only **19–20 added
+top-level definitions** (~280 lines) are free-standing, and they are the diagnostic helpers
+(`ggml_opencl_log_alloc*`, `ggml_opencl_gemv_audit_*`, `ggml_opencl_env_*`, the oracle predicates).
+
+**Realistic relocatable range: 300–800 of 3124 lines (10–25%), ~20 of 77 hunks.** → Do it, but
+demote it from "the single highest-value refactor" and scope it to **the experiment scaffolding**,
+which is what actually lifts out. The larger lever is §10.7.
+
+### 10.6 The order is wrong: the plan is missing its own step 0 **[V] CONFIRMED**
+
+`scripts/sync-vendor.sh`, `vendor/VERSIONS`, `cmake/rnllama-sources.cmake` and the `sync:vendor`
+script **do not exist on our branch** — they arrive only with the merge of `upstream/main`, which
+no step performs. So steps 3, 4 and 5 all consume the output of an unnamed step, and step 3's gate
+is unrunnable when step 3 runs.
+
+**Corrected order:**
+
+| # | step | note |
+|---|---|---|
+| **0** | Fix `ensure_repo`'s cache identity (§10.1) and **disable the cron in the merge commit** | `sync-llama-cpp.yml` arrives *with* the merge; old step 7 was mis-sequenced |
+| **1** | Extract the guards out of `sync-kalsallama.sh` | unchanged, but the gate is `assert_kalsa_post_image`'s "exactly once", **not a grep** — a double-applied patch passes a grep |
+| **2** | **Merge `upstream/main` into `llama.rn-kalsa`** on a branch, old `cpp/` and new `vendor/` coexisting | this is the missing step; both trees can sit in the tree at once, so nothing is all-or-nothing |
+| **3a** | Merge kalsallama → `b11010` | **runs fully in parallel, different repo, its gate needs nothing from llama.rn** |
+| **3b** | Relocate the opencl scaffolding (§10.5) | separate step: a red 3b with a green 3a is diagnosable; both red together is not |
+| **4** | Export manifest: `repack-q23k.h`; tests stay in kalsallama | |
+| **5** | The `LM_` de-prefix, once | ELF `-Wl,-Bsymbolic` is **Android only**; on Apple the mechanism is the two-level namespace plus the per-library `GGMLMetalClass` `-D` rename |
+| **6** | App glue | |
+| **7** | Re-point `LLAMA_CPP_REPO`, sync | |
+| **8** | Delete | |
+
+### 10.7 The largest lever is a cadence, and it is free **[E]**
+
+Never be more than one upstream release behind. That turns a 245-commit merge into N 20-commit
+merges, each cheap, with the supersede check (§1b rule 5) run each time. Larger than any refactor
+in §9.1, and it costs nothing but discipline. Record per bump, in `KALSA_FORK.md`, one line:
+date, `upstream/master` sha, lines changed in upstream-owned files per repo, hunk count,
+`merge-tree` conflict count. §1b asked for a baseline without fixing the unit or the file, so the
+next bump would have measured something else.
+
+### 10.8 Gates that a broken implementation passes **[E]** — fix before executing
+
+- **Step 3a's `test-backend-ops` gate.** The harness enumerates **registered** backends: if OpenCL
+  fails to register, its cases simply do not run and the suite exits **green** — a CPU-only pass of
+  a GPU correctness test. → The gate must name the backend and **assert the executed q4_K
+  `MUL_MAT_ID` case count against a recorded baseline**.
+- **Steps 5 and 6's gates** name no command, no expected value and no place to record the result.
+  As written they are intentions.
+- **Steps 7 and 8 have no gate at all**, and step 8 deletes the tree that
+  `assert-overlay-includes.sh` and `assert-native-patch.sh` consume.
+
+### 10.9 Missing: rollback, shippability, same-engine **[E]**
+
+- **Rollback target exists only by accident.** The app pins `95c3493b`, which is exactly
+  `v0129-on-gate`. → **Tag it** and say so; it is the only way back to the shipping engine once
+  step 8 deletes `sync-kalsallama.sh`, `kalsa-patches/` and `cpp/`.
+- **Shippability rule, previously unstated:** the app's pin is never advanced until the fork is
+  green, and step 8 lands on a branch the app does not pin.
+- **What proves it is the same engine.** Nothing in the plan. The digest cannot do it — it is
+  *defined* to change. → `scripts/assert-native-patch.sh` (both markers in `librnllama*.so`) **plus
+  a fixed prompt and seed producing token-identical output** against the pre-migration APK
+  (`/Users/marco/kalsa-apks/35444615003/app-release.apk`, sha256 `ea6165eb…`).
+- **Step 1 would overwrite upstream's own patches.** Our `kalsa-patches/common.{cpp,h}.patch` share
+  basenames with upstream's `scripts/patches/llama.cpp/common.{cpp,h}.patch`, which carry
+  `vocab_only`, `progress_callback`, `progress_callback_user_data` and
+  `reasoning_budget_activate_immediately`. **The regenerated patch must be the union**, or we
+  delete three upstream features.
+- **npm:** `package-lock.json` resolves `git+ssh://` while `package.json` says `git+https://`; any
+  pin bump needs lockfile regeneration plus SSH in whatever CI runs `npm ci`.
