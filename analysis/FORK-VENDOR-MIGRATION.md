@@ -735,3 +735,88 @@ record the number; the before/after pair is the §1b gate.
   miscompiles. 12 lines against a silent-wrong-numbers path, in a file where we already carry
   +3124 lines. Verified: preprocessor nesting depth at `:5101` is zero, so the guard is reachable,
   not stranded in a dead branch. **Delete this when the ILA kernel is rebuilt on the 16-arg ABI.**
+
+---
+
+## 13. The OpenCL detour: audited, closed, and what we deliberately left alone
+
+Two fix commits on `b11010-merge` (`754a96426`, `738346fd6`), one hostile audit by a different
+model, one self-correction (`cf1bc2395`). All of this is **pre-existing** in the shipping engine;
+none of it is a merge regression. It is fixed here because it lives in the highest-churn file we
+own, where a deferred fix is a fix re-derived at every rebase.
+
+### 13.1 Fixed and verified on disk
+
+Unguarded stores under a dispatch grid padded to `CEIL_DIV(extent, 64) * 64`. The base kernels
+carried a store guard and documented it; five siblings dispatched from the same grid did not:
+
+| Kernel | Default? | Guard form |
+|---|---|---|
+| q4_K fused gate+up GLU GEMV | **ON** (`fuse_mm_glu = true`) | per lane |
+| q4_K split-K **partial buffer** | **ON** for `adreno_gen == X2E` | unit (`M` even by `%64` gate) |
+| q4_K / q6_K mc3 | env opt-in | unit |
+| q4_0 / q4_1 mc3 | env opt-in | **per lane** — neither quant takes the q4_K branch of `use_adreno_kernels()`, so `M` is not certified even and a unit guard could have dropped row `M-1` |
+| q5_K mc3 | env opt-in | unit (`%64` via `use_adreno_kernels`, `%4` via the trans-weight gate) |
+
+The split-K one is the worst of the set and was found by the implementer, not by me: a tail lane
+of slice *k* writes into slice *k+1*'s rows and races that slice's own workgroups, so the failure
+is **nondeterministic wrong partials**, not a clean overrun.
+
+Every guard is a pure suppression: on shapes already exactly covered the predicate is trivially
+true, so output is byte-identical.
+
+### 13.2 Self-correction: the `#error` was over-broad (`cf1bc2395`)
+
+I instructed a hard `#error` on `GGML_OPENCL_USE_ADRENO_BIN_KERNELS`. The audit showed the
+reasoning was too broad, and it was right:
+
+- `docs/backend/OPENCL.md:85` **documents** the option. Breaking a documented upstream
+  configuration is a divergence we pay for at every rebase — exactly what §1b exists to prevent.
+- The library is resolved **per GPU name** and targets X2 parts (Snapdragon X2, Windows). On the
+  A7X where the E031.41.03.62 mask miscompile was actually measured, the lookup returns nothing,
+  `..._bin` stays null, and the host binds the masks normally. The exposure on our hardware is
+  essentially nil, and this tree cannot prove the external binary's argument list either way.
+
+The comment correction stands — the original text claimed "this tree compiles them out", which
+was false. What remains asserts only what is verifiable.
+
+### 13.3 CONFIRMED and deliberately NOT fixed — with the criterion that would change that
+
+These are real, they predate us, and the fixes are riskier than the defects **until we can run on
+a device**. Off-device edits to E031-sensitive kernels are how wrong numbers get shipped.
+
+1. **Divergent `barrier()` in the MoE noshuffle GEMVs.** `gemv_moe_q4_k_f32_ns.cl:193-194` does
+   `if (i01 >= ne01) return;`, and `:274` is `barrier(CLK_LOCAL_MEM_FENCE)`. The dispatch is
+   `global_size[0] = ((ne01+63)/64)*64` with `local_size = {64,4,1}`
+   (`ggml-opencl.cpp:28400`, `:28372`+`:28407`), so tail lanes exit while lanes in the *same*
+   workgroup reach the barrier — undefined behaviour, classically a hang. The MoE gate is
+   `ne01 % 32 == 0` (`:9143`), so it admits `ne01 ≡ 32 (mod 64)`. Same shape in the q4_0, q4_1,
+   q5_0, q5_1 and MXFP4 MoE GEMVs, and in the MoE GEMM DP4A tails.
+   → **Trigger criterion: a q4_K MoE expert tensor with `ne01 % 64 != 0`.** Common expert dims
+   (768, 2880) are multiples of 64, so nothing we ship is known to hit it. That is an argument
+   from the dims we know, not a proof.
+   → The correct fix is structural (clamp instead of `return`, so every lane reaches the barrier,
+   and guard only the store), touches ~6 kernels, and must be verified on hardware.
+
+2. **Odd `ne01` under-dispatches generic q4_0.** The grid is `CEIL_DIV(ne01/2, 64)*64` with
+   **integer** division, so `M = 513` gives 256 lanes covering rows 0–511 and row 512 is never
+   launched. The implementer called this unreachable because "the noshuffle layout requires
+   `ne1 % 4 == 0`"; the audit refuted that — q4_0 falls through the `default` of
+   `use_adreno_kernels()` (`:9111`) and carries no alignment requirement at all.
+   → Silent wrong output, not corruption. Requires an **odd** weight row count ≥ 512, which no
+   real model has. Fixing it means changing the grid computation, which the store guards now make
+   safe — so it is cheap, but it is a behaviour change and belongs with a device run.
+
+3. **Padded lanes read out of bounds before their store is suppressed.** The new guards stop the
+   writes, not the reads: at `M = 576`, `LINE_STRIDE_A = 288` while the grid is 320, so lanes
+   288–319 read `src0_d[gid + sb*LINE_STRIDE_A]` past the packed row. The values are discarded, so
+   this is a robustness issue (a read past the end of the `cl_mem`), not a wrong-numbers one.
+   Image reads are safe by OpenCL's addressing rules; the buffer read is the exposure.
+
+### 13.4 The gate all three share
+
+None of this can be settled off-device: the Mac build has `GGML_OPENCL:BOOL=OFF`, the Apple device
+is rejected by the backend, and the Android artifact is an ARM ELF. Compile-level verification plus
+arithmetic is the honest ceiling, and both the implementer and the auditor said so rather than
+manufacturing a pass. **The queue for the next device session is: (1) MoE with `ne01 % 64 != 0`,
+(2) the q4_0 odd-`ne01` grid, (3) the OOB reads under a memory checker.**
