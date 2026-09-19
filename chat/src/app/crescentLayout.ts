@@ -64,3 +64,20 @@ export function layoutCrescent<Key extends string>(
     canNext: safeOffset < maxOffset,
   };
 }
+
+/**
+ * The rule the crescent follows, kept apart from the component so it can be
+ * checked without a browser: a menu is a way between pages, so it never offers
+ * the page you are on, nor a destination that page already offers itself.
+ *
+ * `offered` is how a surface says what it already has. The next surface to gain
+ * this menu filters itself by declaring it, rather than by someone remembering
+ * to delete an entry.
+ */
+export function crescentEntriesFor<T extends { key: string }>(
+  entries: T[],
+  current: string,
+  offered: string[] = [],
+): T[] {
+  return entries.filter((entry) => entry.key !== current && !offered.includes(entry.key));
+}

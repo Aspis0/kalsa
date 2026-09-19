@@ -8,7 +8,7 @@ import { ChatRequestError, fetchContextSize, serverBase } from "./lib/chat";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
-import { loadThinking } from "./lib/thinking";
+import { loadThinking, saveThinking, thinkingSupport } from "./lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
@@ -25,6 +25,7 @@ import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrainServer, withBrainDefaults } from "./surfaces/useBrain";
+import { useServerFacts } from "./surfaces/useServerFacts";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
@@ -166,6 +167,17 @@ export function App() {
     [settings, brainServer],
   );
   const configured = isConfigured(effectiveSettings);
+  // The model's own chat template decides whether a thinking switch may be
+  // offered at all, and it is read from the one road to `/props`
+  // (`useServerFacts`) — the sampler panel reads the same fact the same way.
+  const { chatTemplate } = useServerFacts(effectiveSettings.endpoint, effectiveSettings.token);
+  const thinkingSupported = thinkingSupport(chatTemplate).enableThinking;
+  // Per model, and it follows the model this request will name: the brain's own
+  // fills the blank while the machine is serving.
+  const [thinking, setThinking] = useState(() => loadThinking(effectiveSettings.model));
+  useEffect(() => {
+    setThinking(loadThinking(effectiveSettings.model));
+  }, [effectiveSettings.model]);
   const attachments: Attachment[] = useMemo(
     () => (activeId ? store.getAttachments(activeId) : []),
     // conversations refreshes on every store notification (index is small).
@@ -563,12 +575,11 @@ export function App() {
     void runAssistant(active.id, messageId, effectiveSettings);
   }
 
-  function toggleTheme(): void {
-    setTheme((t) => {
-      const next: Theme = t === "light" ? "dark" : "light";
-      saveTheme(next);
-      return next;
-    });
+  /** Appearance is a preference of the app, not a command in every header:
+      it is chosen where the app's other settings are, and applied at once. */
+  function chooseTheme(next: Theme): void {
+    saveTheme(next);
+    setTheme(next);
   }
 
   function removeConversation(id: string): void {
@@ -622,13 +633,11 @@ export function App() {
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 
-  // The crescent lives in the chat alone, and it carries the chat's own
-  // things plus the way home — never the settings surfaces, which live on
-  // the brain page (THE-BRAIN-IS-THE-HOME.md §5).
+  // The crescent lives in the chat alone. Its entries are destinations, and
+  // the component drops the page you are on and anything that page already
+  // offers — see the rule in `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
     { key: "brain", label: "Brain", onSelect: () => openSurface("brain") },
-    { key: "new", label: "New chat", onSelect: newConversation },
-    { key: "history", label: "History", onSelect: () => setDrawerOpen(true) },
     { key: "settings", label: "Settings", onSelect: () => openSurface("settings") },
   ];
 
@@ -645,11 +654,16 @@ export function App() {
     >
       {/* The crescent lives in the chat alone, overlaid at the shell's
           level: an open menu dims the page beneath it, so it must not sit
-          inside what gets dimmed. It carries the chat's own things plus the
-          way home — never the settings surfaces, which live on the brain
-          page (THE-BRAIN-IS-THE-HOME.md §5). */}
+          inside what gets dimmed. It is a way between pages: the chat's own
+          drawer already offers a new conversation and the history, so neither
+          is repeated here. */}
       {surface === "chat" ? (
-        <CrescentNav entries={chatEntries} open={navOpen} onOpenChange={setNavOpen} />
+        <CrescentNav
+          entries={chatEntries}
+          current="chat"
+          open={navOpen}
+          onOpenChange={setNavOpen}
+        />
       ) : null}
 
       <header className="topbar">
@@ -688,14 +702,6 @@ export function App() {
               Files
             </button>
           ) : null}
-          <button
-            type="button"
-            className="topbar-btn"
-            onClick={toggleTheme}
-            aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
         </div>
       </header>
 
@@ -781,6 +787,13 @@ export function App() {
                   </p>
                 ) : null}
                 <Composer
+                  thinking={thinkingSupported ? thinking : null}
+                  onThinking={(enabled) => {
+                    // Saved at once and read at send time: the next message uses
+                    // it, with no reload.
+                    saveThinking(effectiveSettings.model, enabled);
+                    setThinking(enabled);
+                  }}
                   streaming={streaming}
                   draft={draft}
                   onDraftChange={setDraft}
@@ -806,6 +819,8 @@ export function App() {
           ) : surface === "settings" ? (
             <SettingsForm
               initial={settings}
+              theme={theme}
+              onTheme={chooseTheme}
               onWebTools={(webTools) => {
                 // Writes only itself, from the settings that are already
                 // stored: the text sitting unsaved in the connection fields is

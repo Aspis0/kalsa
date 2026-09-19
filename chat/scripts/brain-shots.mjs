@@ -27,13 +27,17 @@ const SMALL = { width: 720, height: 480 };
 const TALL = { width: 1000, height: 1240 };
 const GB = 1024 ** 3;
 
-// The five surfaces of the home page (chat/src/app/surfaces.ts), pinned here
-// because they must all survive any change of density: same words, same keys.
+// The home page's row lists this machine — what runs on it, who can reach it,
+// how it is launched — and nothing else. The app's own settings are not on it:
+// a row called "Settings" holding an entry called "Settings" said neither, and
+// appearance, the connection and the web-search switch mean something with the
+// brain switched off. Pinned here because every word must survive any change of
+// density: same words, same order.
 // The words a refused turn-off says, pinned so they cannot drift apart from
 // the Server page's copy of the same fact.
 const STOP_REFUSED = "The assistant did not turn off. Closing this window will stop it.";
 
-const SETTINGS = ["Models", "Server", "Devices", "Advanced", "Settings"];
+const MACHINE = ["Models", "Server", "Devices", "Advanced"];
 
 // A rate is stubbed in the same binary gigabytes the card divides by, so the
 // fixture's bytes and the number on screen agree.
@@ -362,7 +366,7 @@ async function layout(page) {
       sameWords: labelled.length === expected.length && labelled.every((word, i) => word === expected[i]),
       allInside: boxes.length > 0 && boxes.every(within),
     };
-  }, SETTINGS);
+  }, MACHINE);
 }
 
 async function shot(page, path) {
@@ -542,13 +546,13 @@ async function main() {
       problems.push(`the page scrolls: ${held.scrollHeight} tall in ${WINDOW.height}`);
     }
     if (!held.sameWords) {
-      problems.push(`settings are [${held.labelled}] not [${SETTINGS}]`);
+      problems.push(`the home row is [${held.labelled}] not [${MACHINE}]`);
     } else if (!held.allInside) {
       problems.push(`settings outside the viewport: ${JSON.stringify(held.boxes)}`);
     }
     console.log(
       `  ${fixture.name}: bar ${held.bar.bottom}/${WINDOW.height}, ` +
-        `settings ${held.labelled.length}/5 in ${held.rows} row(s) ${held.rowWidth}px wide inside a ` +
+        `machine items ${held.labelled.length}/4 in ${held.rows} row(s) ${held.rowWidth}px wide inside a ` +
         `${held.nav.bottom - held.nav.top}px nav (${held.nav.top}-${held.nav.bottom}), ` +
         `scrollTop ${held.scrollTop}`,
     );
@@ -571,7 +575,7 @@ async function main() {
     const small = await layout(page);
     console.log(
       `  ${fixture.name} at ${SMALL.width}x${SMALL.height}: bar bottom ${small.bar.bottom}, ` +
-        `settings ${small.labelled.length}/5 in ${small.rows} row(s) ${small.rowWidth}px wide ` +
+        `machine items ${small.labelled.length}/4 in ${small.rows} row(s) ${small.rowWidth}px wide ` +
         `${small.allInside ? "inside" : "OFF SCREEN"} (nav ${small.nav.top}-${small.nav.bottom}), ` +
         `page ${small.scrollHeight}x${small.scrollWidth} tall/wide, scrollTop ${small.scrollTop}`,
     );

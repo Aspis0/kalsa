@@ -300,7 +300,6 @@ async function main() {
     });
     await page.goto(APP);
     await page.locator(".brain-settings-item", { hasText: "Advanced" }).click();
-    if (fixture.showAdvanced) await page.locator(".advanced-toggle").click();
     if (fixture.group) {
       await page.locator(".sampling-group-toggle", { hasText: fixture.group }).click();
     }
@@ -311,6 +310,16 @@ async function main() {
     await mustText(page, fixture.marker, fixture.name);
 
     const problems = [];
+    // The launch fields are this page's content, not something behind a
+    // "Show settings" button: a settings page, a panel called Server settings
+    // and a button to reveal them was a third nesting. The check moved with
+    // them — there is nothing to click, and no such button anywhere.
+    if ((await page.locator(".advanced-toggle").count()) > 0) {
+      problems.push("the panel still hides its fields behind a button");
+    }
+    if (fixture.showAdvanced && !(await page.locator("#advanced-context").first().isVisible())) {
+      problems.push("the launch fields are not visible without a click");
+    }
     const text = await page.locator("body").innerText();
     for (const word of fixture.forbid ?? []) {
       if (text.includes(word)) problems.push(`the page shows "${word}"`);

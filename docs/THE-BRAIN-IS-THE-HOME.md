@@ -114,6 +114,21 @@ the navigation is really built. What the thread genuinely owes the reader is a w
 > the brain page does not draw one. It carries the way back to Brain plus the chat's own
 > things: a new conversation, the history, the chat's settings. It does not carry Models,
 > Server, Devices or Advanced; those exist on the brain page only, which is §5 holding.
+>
+> **Revised 2026-09-19, by the owner, after using it.** The owner used the app and said the
+> navigation made no sense, and the reason is structural: the brain page's row was called
+> *Settings* and held an entry called *Settings*. Three rulings replace the paragraph above.
+> **A crescent entry is a destination, never an action the page already offers.** From the
+> chat, *New chat* and *History* were the drawer the reader already had, which is why their
+> clicks appeared to do nothing; the rule is implemented in `crescentEntriesFor`, so the next
+> surface to gain the crescent filters itself by declaring what it already offers. **The brain
+> page's row is the machine** — *Models*, *Server*, *Devices*, *Advanced*, under the eyebrow
+> *This computer*; *Server* is there because it reports this machine's own server, its measured
+> decode rate and its connected devices. **The app's own settings are the app's**: appearance
+> (which left every header), the remote connection and the web-search switch, reached from the
+> crescent. Thinking, which is "answer me now instead of reasoning first", left the sampler
+> knobs for the chat's composer. The chat is still not a tab and the brain is still the first
+> page; §5 holds.
 > Clicking Brain returns to the starting point and **the conversation stays alive** — coming
 > back by the bar or by the button resumes it where it was. §4 asked for that return to show
 > the conversation from outside, drawn as the four seats; the seats wait on §6, so today the

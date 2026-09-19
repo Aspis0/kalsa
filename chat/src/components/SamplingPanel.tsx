@@ -1,23 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  fetchSamplingDefaultsWithStatus,
-  serverBase,
-  type SamplingDefaultsStatus,
-} from "../lib/chat";
+import { useMemo, useState } from "react";
+import type { SamplingDefaultsStatus } from "../lib/chat";
 import { SAMPLING_KNOBS } from "../lib/knobs/sampling";
 import type { SamplingKnob } from "../lib/knobs/types";
 import { loadSampling, samplingProblem, saveSampling } from "../lib/sampling";
 import type { Sampling } from "../lib/sampling";
 import { loadSettings } from "../lib/settings";
-import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
-import type { ThinkingSupport } from "../lib/thinking";
 import { useBrainServer, withBrainDefaults } from "../surfaces/useBrain";
+import { useServerFacts } from "../surfaces/useServerFacts";
 import { KnobInfo, KnobInfoScope } from "./KnobInfo";
 import "./SamplingPanel.css";
-
-function blankDefaults(): Sampling {
-  return Object.fromEntries(SAMPLING_KNOBS.map(({ wire }) => [wire, null]));
-}
 
 function finiteValue(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -30,36 +21,33 @@ function displayNumber(value: number): string {
 type DefaultsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
 
 /**
- * Silence is not yet a failure. A fresh server starts answering only after it
- * has loaded the model, which on a large one is well over a minute, and the
- * app reaches this page while that is still happening. So the first read is
- * expected to find nothing, and the panel keeps asking while the answer is
- * silence: one second, then doubling up to a cap, until the budget runs out —
- * only then does the line stop saying it is being read and report the silence.
+ * What the automatic read is doing, in one line, or `null` when it has an
+ * answer — the row then says what that answer is.
  */
-const RETRY_FIRST_MS = 1000;
-const RETRY_MAX_MS = 16_000;
-const RETRY_BUDGET_MS = 60_000;
-
 function statusLine(status: DefaultsStatus): string | null {
-  if (status === "unavailable") return "Automatic could not be read because the server did not answer.";
-  if (status === "refused") return "Automatic could not be read because the server refused the request.";
-  if (status === "invalid") return "Automatic could not be read because the server returned an unexpected response.";
-  if (status === "not-configured") return "Automatic will appear after a server is configured.";
-  if (status === "loading") return "Automatic is being read from the server.";
-  return null;
+  return status === "unavailable"
+    ? "Automatic could not be read because the server did not answer."
+    : status === "refused"
+      ? "Automatic could not be read because the server refused the request."
+      : status === "invalid"
+        ? "Automatic could not be read because the server returned an unexpected response."
+        : status === "not-configured"
+          ? "Automatic will appear after a server is configured."
+          : status === "loading"
+            ? "Automatic is being read from the server."
+            : null;
 }
 
+/** What one row says under its input about the value it would use by itself. */
 function automaticLine(row: SamplingKnob, defaults: Sampling, status: DefaultsStatus): string {
-  const unavailable = statusLine(status);
-  if (unavailable) return unavailable;
+  const line = statusLine(status);
+  if (line) return line;
   const value = finiteValue(defaults[row.wire]);
-  if (value !== null && row.automaticSentinels?.includes(value)) {
-    return row.automaticDescription ?? "Automatic uses the server's random setting.";
-  }
-  return value === null
-    ? "Automatic leaves it to the server, which has not said which value it uses."
-    : `Automatic is ${displayNumber(value)} — the server's own value.`;
+  return value !== null && row.automaticSentinels?.includes(value)
+    ? row.automaticDescription ?? "Automatic uses the server's random setting."
+    : value === null
+      ? "Automatic leaves it to the server, which has not said which value it uses."
+      : `Automatic is ${displayNumber(value)} — the server's own value.`;
 }
 
 export function SamplingPanel(): JSX.Element {
@@ -74,66 +62,13 @@ export function SamplingPanel(): JSX.Element {
   const token = settings.token;
 
   const [sampling, setSampling] = useState<Sampling>(() => loadSampling());
-  const [defaults, setDefaults] = useState<Sampling>(() => blankDefaults());
-  const [defaultsStatus, setDefaultsStatus] = useState<DefaultsStatus>("not-configured");
+  const { defaults, status: defaultsStatus } = useServerFacts(endpoint, token);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  // What this model's own chat template can read. Null until `/props` has
-  // answered: no control before the model has said it has one.
-  const [support, setSupport] = useState<ThinkingSupport | null>(null);
-  const [thinking, setThinking] = useState<boolean>(() => loadThinking(settings.model));
   const groups = useMemo(
     () => Array.from(new Set(SAMPLING_KNOBS.map(({ group }) => group))),
     [],
   );
-
-  useEffect(() => {
-    if (!endpoint) {
-      setDefaultsStatus("not-configured");
-      return undefined;
-    }
-    let alive = true;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    setDefaultsStatus("loading");
-    const deadline = Date.now() + RETRY_BUDGET_MS;
-
-    // Only silence is retried. `refused` and `invalid` are answers from a
-    // server that is there, and asking it again would be hammering it.
-    async function read(delay: number): Promise<void> {
-      const result = await fetchSamplingDefaultsWithStatus(serverBase(endpoint), 8000, token);
-      if (!alive) return;
-      if (result.status !== "unavailable" || Date.now() + delay > deadline) {
-        setDefaults(result.values);
-        setDefaultsStatus(result.status);
-        setSupport(thinkingSupport(result.chatTemplate));
-        return;
-      }
-      retry = setTimeout(() => void read(Math.min(delay * 2, RETRY_MAX_MS)), delay);
-    }
-
-    void read(RETRY_FIRST_MS);
-    return () => {
-      // `alive` is false once this run is unmounted or superseded by a newer
-      // endpoint, so a late answer cannot overwrite a newer read and the retry
-      // timer cannot outlive the run that started it.
-      alive = false;
-      clearTimeout(retry);
-    };
-  }, [endpoint, token]);
-
-  /**
-   * The template decides whether there is anything to offer, and the choice
-   * lands immediately: it is a per-message setting like the knobs, not
-   * something behind a Save that could refuse it for an unrelated reason.
-   */
-  function chooseThinking(enabled: boolean): void {
-    setThinking(enabled);
-    setFeedback(
-      saveThinking(settings.model, enabled)
-        ? "Saved. Your next message uses it."
-        : "Could not save. Your next message still uses the previous choice.",
-    );
-  }
 
   function change(row: SamplingKnob, raw: string): void {
     const value = raw === "" ? null : Number(raw);
@@ -165,26 +100,9 @@ export function SamplingPanel(): JSX.Element {
       <p className="sampling-note">
         Saved choices change the next message you send. Nothing restarts, and the assistant keeps running.
       </p>
-      {/* Only what this model's template can read. No template read: no control
-          — a switch that moves while nothing changes is worse than none. */}
-      {support === null ? null : support.enableThinking ? (
-        <label className="sampling-thinking">
-          <input
-            type="checkbox"
-            checked={thinking}
-            onChange={(event) => chooseThinking(event.target.checked)}
-          />
-          <span>Thinking</span>
-          <span className="sampling-thinking-note">
-            Off asks this model's own template not to think before answering: faster, and it spends no
-            tokens on reasoning.
-          </span>
-        </label>
-      ) : support.reasoningEffort ? (
-        <p className="sampling-thinking-note">
-          This model's template takes a reasoning effort. This app does not set one yet.
-        </p>
-      ) : null}
+      {/* Thinking is not here: it is not a sampler value, it is "answer me now
+          instead of reasoning first", worth tens of seconds a message — and it
+          lives on the chat's own composer, where the answer is written. */}
       <KnobInfoScope>
         <div className="sampling-groups">
           {groups.map((group) => {

@@ -4,6 +4,7 @@ import {
   CRESCENT_LABEL_MAX_WIDTH,
   CRESCENT_SHELL_WIDTH,
   CRESCENT_VISIBLE_COUNT,
+  crescentEntriesFor,
   layoutCrescent,
 } from "../app/crescentLayout";
 import "./CrescentNav.css";
@@ -15,7 +16,14 @@ export interface CrescentEntry {
 }
 
 interface CrescentNavProps {
+  /** Destinations, in the order they should appear. Not actions: a menu that
+      offers what the page under it already offers looks broken, because the
+      click appears to do nothing. */
   entries: CrescentEntry[];
+  /** The page this menu is drawn on. It offers no way to itself. */
+  current: string;
+  /** Destinations this page already offers by itself. */
+  offered?: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -27,11 +35,12 @@ interface CrescentNavProps {
  * §5). Hovering the sliver opens it; leaving the shell, or moving well below
  * it, closes. The keyboard keeps a deliberate way in (Enter / ArrowDown).
  */
-export function CrescentNav({ entries, open, onOpenChange }: CrescentNavProps) {
+export function CrescentNav({ entries, current, offered, open, onOpenChange }: CrescentNavProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const shown = crescentEntriesFor(entries, current, offered);
   // Four entries, four slots, offset zero: canPrev/canNext are always false.
   const points = layoutCrescent(
-    entries.map((entry) => entry.key),
+    shown.map((entry) => entry.key),
     CRESCENT_VISIBLE_COUNT,
     0,
   ).points;
@@ -97,7 +106,7 @@ export function CrescentNav({ entries, open, onOpenChange }: CrescentNavProps) {
         </svg>
 
         {points.map((point) => {
-          const entry = entries.find((item) => item.key === point.key);
+          const entry = shown.find((item) => item.key === point.key);
           if (!entry) return null;
           return (
             <button

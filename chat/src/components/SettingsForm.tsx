@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Theme } from "../lib/settings";
 import type { ChatSettings } from "../lib/types";
 import "./Settings.css";
 
@@ -7,6 +8,8 @@ interface SettingsFormProps {
   onSave: (settings: ChatSettings) => void;
   /** Applied the moment it is touched — no Save button in between. */
   onWebTools: (enabled: boolean) => void;
+  theme: Theme;
+  onTheme: (theme: Theme) => void;
 }
 
 /**
@@ -17,7 +20,7 @@ interface SettingsFormProps {
  * filled in — and on a normal install they are not, because the brain runs on
  * this computer. So the switch could never be changed, and it defaults to on.
  */
-export function SettingsForm({ initial, onSave, onWebTools }: SettingsFormProps) {
+export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: SettingsFormProps) {
   const [endpoint, setEndpoint] = useState(initial.endpoint);
   const [token, setToken] = useState(initial.token);
   const [model, setModel] = useState(initial.model);
@@ -58,6 +61,20 @@ export function SettingsForm({ initial, onSave, onWebTools }: SettingsFormProps)
   return (
     <div className="settings-page">
       <h2>Settings</h2>
+      {/* Appearance first, and applied on the spot like the switch below: it
+          is a preference of the app, not a field of the connection form, and it
+          used to be a button in every header. */}
+      <div className="settings-toggle">
+        <label>
+          <input
+            type="checkbox"
+            checked={theme === "dark"}
+            onChange={(event) => onTheme(event.target.checked ? "dark" : "light")}
+          />
+          <span>Dark theme</span>
+        </label>
+      </div>
+
       <div className="settings-toggle">
         <label>
           <input

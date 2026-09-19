@@ -142,9 +142,14 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
         </>
       )}
 
-      <nav className="brain-settings" aria-label="Settings">
-        <p className="surface-eyebrow">Settings</p>
-        {SURFACES.map((surface) => (
+      {/* The machine, not the app: what runs on this computer, who can reach
+          it, how it is launched. The app's own settings are behind the
+          crescent in the chat — they mean something with the brain off, and a
+          row called "Settings" holding an entry called "Settings" said
+          neither. */}
+      <nav className="brain-settings" aria-label="This computer">
+        <p className="surface-eyebrow">This computer</p>
+        {SURFACES.filter((surface) => surface.group === "machine").map((surface) => (
           <button
             type="button"
             key={surface.key}

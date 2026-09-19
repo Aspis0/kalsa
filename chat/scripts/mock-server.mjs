@@ -205,7 +205,16 @@ const server = http.createServer((req, res) => {
   // sees a known size. Anything else stays silent: unknown, never invented.
   if (req.method === "GET" && (req.url === "/props" || req.url === "/ok/props")) {
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
-    res.end(JSON.stringify({ n_ctx: 32768 }));
+    // A chat template with the switch the real model has: `/props` answers the
+    // sampler values and the template together, and the app reads both from the
+    // same answer.
+    res.end(
+      JSON.stringify({
+        n_ctx: 32768,
+        chat_template:
+          "{%- if enable_thinking is defined and not enable_thinking %}{%- endif %}{%- for message in messages %}{{ message['content'] }}{%- endfor %}",
+      }),
+    );
     return;
   }
   if (req.method === "GET" && req.url === "/small/props") {

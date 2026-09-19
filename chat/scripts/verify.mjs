@@ -4,6 +4,7 @@
 // then `node scripts/verify.mjs [test ...]`.
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
+import { crescentEntriesFor } from "../src/app/crescentLayout.ts";
 import { zipSync, strToU8 } from "fflate";
 
 const APP = "http://localhost:5173";
@@ -762,36 +763,102 @@ const tests = {
         opened[1].args?.url === "https://example.com/page",
       JSON.stringify(opened),
     );
-    let external = 0;
+    // The conversation pulls nothing from outside. "Outside" means anything
+    // but the page the app is served from and the model server it was
+    // configured with: the chat now reads `/props` when it opens, because the
+    // thinking switch has to know whether the model's own template reads it
+    // before it can be offered. That address is the app's own server on
+    // loopback — not a third party, and never something the message chose.
+    const serverOrigin = new URL("http://127.0.0.1:18081/ok").origin;
+    const external = [];
     page.on("request", (req) => {
-      if (!req.url().startsWith("http://localhost:5173")) external++;
+      const url = req.url();
+      if (!url.startsWith("http://localhost:5173") && !url.startsWith(serverOrigin)) external.push(url);
     });
     await page.reload();
     await page.waitForTimeout(1500);
-    check("imgblocked: zero external requests", external === 0, `${external} seen`);
+    check("imgblocked: nothing outside the page and its own server", external.length === 0, JSON.stringify(external.slice(0, 3)));
     await browser.close();
   },
 
   // The crescent carries six surfaces and nothing else.
-  async surfaces() {
+  // The navigation rule, and the menu it governs. A menu that offers the page
+  // you are on, or something that page already offers, is a menu whose clicks
+  // appear to do nothing — which is exactly what the chat's crescent did with
+  // "New chat" and "History", both of which the chat's own drawer has.
+  //
+  // The rule is checked apart from any list: a list-shaped test would pass
+  // again the moment somebody added the duplicate back under another name.
+  async crescent() {
+    const entries = [
+      { key: "brain", label: "Brain" },
+      { key: "chat", label: "Chat" },
+      { key: "settings", label: "Settings" },
+      { key: "history", label: "History" },
+    ];
+    const shown = crescentEntriesFor(entries, "chat", ["history"]);
+    check("crescent: the page you are on is not offered", !shown.some((e) => e.key === "chat"), JSON.stringify(shown.map((e) => e.key)));
+    check("crescent: what the page already offers is not offered again", !shown.some((e) => e.key === "history"), JSON.stringify(shown.map((e) => e.key)));
+    check("crescent: and everything else is kept", shown.map((e) => e.key).join(",") === "brain,settings", JSON.stringify(shown.map((e) => e.key)));
+    check(
+      "crescent: a surface that offers nothing is filtered only by being itself",
+      crescentEntriesFor(entries, "brain").length === 3,
+      JSON.stringify(crescentEntriesFor(entries, "brain").map((e) => e.key)),
+    );
+
+    // And the live menu, held to the same rule: no entry repeats a control the
+    // page already has, and none offers the page under it.
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show sections/ }).click();
-    await page.waitForTimeout(500);
-    check("surfaces: six points", (await page.locator(".crescent-nav .nav-point").count()) === 6);
-    check("surfaces: no paging arrows", (await page.locator(".crescent-page-arrow").count()) === 0);
-    await page.getByRole("button", { name: "Open Models" }).click();
+    await openChat(page);
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "Show menu" }).click();
     await page.waitForTimeout(400);
-    const body = (await page.locator(".stage").textContent()) ?? "";
-    check("surfaces: honest placeholder", body.includes("Model choice will live here"));
-    check("surfaces: no fake controls", (await page.locator(".stage button").count()) === 0);
+    const labels = await page.locator(".nav-point-label").allTextContents();
+    const currentLabel = "Chat";
+    check("crescent: the live menu offers something", labels.length > 0, JSON.stringify(labels));
+    check("crescent: and never the page it sits on", !labels.includes(currentLabel), JSON.stringify(labels));
+    for (const label of labels) {
+      const elsewhere = await page
+        .locator(".topbar, .composer, .sidebar, .drawer, .thread")
+        .getByRole("button", { name: label, exact: true })
+        .count();
+      check(`crescent: "${label}" is not a control the page already has`, elsewhere === 0, `${elsewhere} elsewhere`);
+    }
+    check("crescent: the chat's own new-chat control is not repeated", labels.every((label) => !label.includes("New chat")), JSON.stringify(labels));
     await browser.close();
   },
 
-  // Thinking separates from answering: same stream, two buffers.
+  // Appearance is a preference of the app, so it is chosen where the app's
+  // settings are — not as a button shouting in every header. It used to be a
+  // "Dark" button in the topbar of all seven surfaces.
+  async appearance() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(800);
+    check(
+      "appearance: no theme button in the header",
+      (await page.locator(".topbar").getByRole("button", { name: /dark theme|light theme/i }).count()) === 0,
+      "the header still carries a theme toggle",
+    );
+
+    // The settings surface, reached the way a reader reaches it: the crescent.
+    await page.getByRole("button", { name: "Show menu" }).click();
+    await page.waitForTimeout(300);
+    await page.getByRole("button", { name: "Open Settings" }).click();
+    await page.waitForTimeout(400);
+    const toggle = page.getByRole("checkbox", { name: "Dark theme" });
+    check("appearance: the app's settings carry it", (await toggle.count()) === 1, "no Dark theme control in Settings");
+    await toggle.check();
+    await page.waitForTimeout(300);
+    check("appearance: and it applies at once", (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+    check("appearance: and it is remembered", (await page.evaluate(() => localStorage.getItem("crescent-chat.theme.v1"))) === "dark");
+    await browser.close();
+  },
+
   async think() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -2131,6 +2198,62 @@ const tests = {
     // alternative silently ate an answer once.
     check("json: with no tools offered the tags come through", text.includes("<tool_call>") && text.includes("</tool_call>"), text.slice(0, 240));
     check("json: the text after it is kept too", text.includes("That was the markup."), text.slice(-120));
+    await browser.close();
+  },
+
+  // Thinking is "answer me now instead of reasoning first" — worth tens of
+  // seconds a message — so it lives on the composer, not above twenty-six
+  // sampler knobs on Advanced, where the owner could not find it. The switch is
+  // offered only when the model's own chat template reads it, and the choice
+  // reaches the next request with no reload.
+  async thinking() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1500);
+
+    const toggle = page.locator(".composer").getByRole("button", { name: /thinking/i });
+    check("thinking: the composer offers it", (await toggle.count()) === 1, "no thinking control on the composer");
+    check("thinking: it starts on", (await toggle.getAttribute("aria-pressed")) === "true", String(await toggle.getAttribute("aria-pressed")));
+
+    await resetMock(page);
+    await toggle.click();
+    await page.waitForTimeout(300);
+    check("thinking: it turns off", (await toggle.getAttribute("aria-pressed")) === "false", String(await toggle.getAttribute("aria-pressed")));
+
+    await page.getByRole("textbox", { name: "Message" }).fill("Answer quickly.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    const body = (await allBodies(page)).at(-1);
+    check(
+      "thinking: the next message asks the template not to think",
+      JSON.stringify(body?.chat_template_kwargs) === '{"enable_thinking":false}',
+      JSON.stringify(body?.chat_template_kwargs),
+    );
+
+    // And it is no longer among the sampler knobs: the page that carries
+    // twenty-six of those carries no thinking control.
+    await page.getByRole("button", { name: "Show menu" }).click();
+    await page.waitForTimeout(300);
+    await page.getByRole("button", { name: "Open Brain" }).click();
+    await page.waitForTimeout(500);
+    await page.locator(".brain-settings").getByRole("button", { name: "Advanced" }).click();
+    await page.waitForTimeout(800);
+    const pageThinking =
+      (await page.locator(".surface-page").getByRole("button", { name: /thinking/i }).count()) +
+      (await page.locator(".surface-page").getByRole("checkbox", { name: /thinking/i }).count());
+    check(
+      "thinking: the page with the sampler knobs carries no thinking control",
+      pageThinking === 0,
+      `${pageThinking} thinking controls on the Advanced page`,
+    );
+    // A positive control, so the line above cannot pass by the page being blank.
+    check(
+      "thinking: and the sampler panel is on that page",
+      (await page.locator(".sampling-panel").count()) === 1,
+      "the sampler panel is not there at all",
+    );
     await browser.close();
   },
 

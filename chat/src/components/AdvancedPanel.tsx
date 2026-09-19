@@ -82,7 +82,6 @@ function cacheHelp(dto: AdvancedDto | null): string {
 }
 export function AdvancedPanel({ save }: { save: AdvancedSave }) {
   const [dto, setDto] = useState<AdvancedDto | null>(null);
-  const [open, setOpenState] = useState(false);
   const [context, setContext] = useState("");
   const [idle, setIdle] = useState("");
   const [batch, setBatch] = useState("");
@@ -93,7 +92,6 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const dirty = useRef(false);
   const focused = useRef(false);
-  const openRef = useRef(false);
   const syncInputs = useCallback((next: AdvancedDto | null): void => {
     if (dirty.current || focused.current) return;
     setContext(next ? String(next.context_override ?? "") : "");
@@ -109,7 +107,9 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
       try {
         next = await invoke<AdvancedDto>("brain_advanced");
       } catch {
-        if (openRef.current) return;
+        // A read that failed leaves what is on screen alone: the fields are
+        // visible now, and blanking them for one failed poll would be a lie.
+        return;
       }
     }
     setDto(next);
@@ -120,17 +120,6 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
     const timer = setInterval(() => void refresh(), POLL_MS);
     return () => clearInterval(timer);
   }, [refresh]);
-  function toggle(): void {
-    const next = !openRef.current;
-    openRef.current = next;
-    setOpenState(next);
-    if (next) {
-      dirty.current = false;
-      focused.current = false;
-      setFeedback(null);
-      syncInputs(dto);
-    }
-  }
   function trackText(setValue: (value: string) => void) {
     return {
       onFocus: () => {
@@ -164,79 +153,77 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
     <div className="advanced-panel">
       <p className="advanced-eyebrow">ADVANCED</p>
       <p className="advanced-title">Server settings</p>
-      <button type="button" className="btn-quiet advanced-toggle" aria-expanded={open} onClick={toggle}>
-        {open ? "Hide settings" : "Show settings"}
-      </button>
-      {open ? (
-        <KnobInfoScope>
-          <div className="advanced-body">
-            <p className="advanced-note">
-              {dto
-                ? dto.running
-                  ? "The current server stays as it is. Changes apply next time you turn on."
-                  : "Changes apply next time you turn on."
-                : "These settings are available inside the Kalsa Brain app."}
-            </p>
-            <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={32768} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
-            <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
-            <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
-            <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>
-              <select
-                id="advanced-cache"
-                value={cache}
-                onFocus={() => {
-                  focused.current = true;
-                }}
-                onBlur={() => {
-                  focused.current = false;
-                }}
-                onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                  dirty.current = true;
-                  setCache(event.currentTarget.value as CacheChoice);
-                }}
-              >
-                <option value="">Automatic</option>
-                <option value="q8_0">q8_0 — less memory</option>
-                <option value="f16">f16 — more cache precision</option>
-              </select>
-            </AdvancedField>
-            <AdvancedField id="advanced-idle" knob={IDLE_KNOB} help="Between 60 seconds and 1 hour, so an ordinary pause does not reload the model."><input id="advanced-idle" type="number" min={60} max={3600} step={60} placeholder="Automatic" value={idle} {...trackText(setIdle)} /></AdvancedField>
-            <AdvancedField id="advanced-road" knob={ROAD_KNOB} check help={dto?.iroh_sentence ?? "The internet road is waiting for the server to run."}>
-              <input
-                id="advanced-road"
-                type="checkbox"
-                checked={road}
-                onFocus={() => {
-                  focused.current = true;
-                }}
-                onBlur={() => {
-                  focused.current = false;
-                }}
-                onChange={(event) => {
-                  dirty.current = true;
-                  setRoad(event.currentTarget.checked);
-                }}
-              />
-            </AdvancedField>
-            <p className="advanced-values">
-              {dto
-                ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? "automatic"}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.`
-                : "The values in force will appear here when the app is open."}
-            </p>
-            <p className="advanced-help">
-              {dto && dto.door_port
-                ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve ${dto.door_port}`
-                : "The local door is waiting for the server to run."}
-            </p>
-            {dto ? (
-              <button type="button" className="btn-primary" disabled={saving} onClick={() => void saveEdits()}>
-                Save settings
-              </button>
-            ) : null}
-            {feedback ? <p className="advanced-feedback">{feedback}</p> : null}
-          </div>
-        </KnobInfoScope>
-      ) : null}
+      {/* The fields are this page's content. They used to sit behind "Show
+          settings", which made a third nesting: a settings page, a panel called
+          Server settings, and a button to reveal them. */}
+      <KnobInfoScope>
+        <div className="advanced-body">
+          <p className="advanced-note">
+            {dto
+              ? dto.running
+                ? "The current server stays as it is. Changes apply next time you turn on."
+                : "Changes apply next time you turn on."
+              : "These settings are available inside the Kalsa Brain app."}
+          </p>
+          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={32768} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
+          <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
+          <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
+          <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>
+            <select
+              id="advanced-cache"
+              value={cache}
+              onFocus={() => {
+                focused.current = true;
+              }}
+              onBlur={() => {
+                focused.current = false;
+              }}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                dirty.current = true;
+                setCache(event.currentTarget.value as CacheChoice);
+              }}
+            >
+              <option value="">Automatic</option>
+              <option value="q8_0">q8_0 — less memory</option>
+              <option value="f16">f16 — more cache precision</option>
+            </select>
+          </AdvancedField>
+          <AdvancedField id="advanced-idle" knob={IDLE_KNOB} help="Between 60 seconds and 1 hour, so an ordinary pause does not reload the model."><input id="advanced-idle" type="number" min={60} max={3600} step={60} placeholder="Automatic" value={idle} {...trackText(setIdle)} /></AdvancedField>
+          <AdvancedField id="advanced-road" knob={ROAD_KNOB} check help={dto?.iroh_sentence ?? "The internet road is waiting for the server to run."}>
+            <input
+              id="advanced-road"
+              type="checkbox"
+              checked={road}
+              onFocus={() => {
+                focused.current = true;
+              }}
+              onBlur={() => {
+                focused.current = false;
+              }}
+              onChange={(event) => {
+                dirty.current = true;
+                setRoad(event.currentTarget.checked);
+              }}
+            />
+          </AdvancedField>
+          <p className="advanced-values">
+            {dto
+              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? "automatic"}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.`
+              : "The values in force will appear here when the app is open."}
+          </p>
+          <p className="advanced-help">
+            {dto && dto.door_port
+              ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve ${dto.door_port}`
+              : "The local door is waiting for the server to run."}
+          </p>
+          {dto ? (
+            <button type="button" className="btn-primary" disabled={saving} onClick={() => void saveEdits()}>
+              Save settings
+            </button>
+          ) : null}
+          {feedback ? <p className="advanced-feedback">{feedback}</p> : null}
+        </div>
+      </KnobInfoScope>
     </div>
   );
 }

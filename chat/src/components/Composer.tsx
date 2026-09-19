@@ -11,11 +11,25 @@ interface ComposerProps {
   onSend: (text: string) => boolean;
   onStop: () => void;
   onAttach: (files: FileList) => void;
+  /** Null when this model's own template cannot read a thinking switch, in
+      which case no control is shown: a switch that moves while nothing changes
+      is worse than none. Otherwise whether thinking is on for this model. */
+  thinking: boolean | null;
+  onThinking: (enabled: boolean) => void;
 }
 
 const MAX_HEIGHT = 200;
 
-export function Composer({ streaming, draft, onDraftChange, onSend, onStop, onAttach }: ComposerProps) {
+export function Composer({
+  streaming,
+  draft,
+  onDraftChange,
+  onSend,
+  onStop,
+  onAttach,
+  thinking,
+  onThinking,
+}: ComposerProps) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const text = draft;
@@ -74,6 +88,22 @@ export function Composer({ streaming, draft, onDraftChange, onSend, onStop, onAt
             event.target.value = "";
           }}
         />
+        {thinking === null ? null : (
+          <button
+            type="button"
+            className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
+            aria-pressed={thinking}
+            aria-label={thinking ? "Turn thinking off" : "Turn thinking on"}
+            title={
+              thinking
+                ? "Thinking: the model reasons before answering. Turn it off to be answered at once."
+                : "Thinking off: the model answers at once, without reasoning first."
+            }
+            onClick={() => onThinking(!thinking)}
+          >
+            Think
+          </button>
+        )}
         <button
           type="button"
           className="composer-action composer-attach"
