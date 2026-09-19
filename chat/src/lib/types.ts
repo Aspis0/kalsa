@@ -15,7 +15,14 @@ export interface ToolRun {
   arguments: string;
   /** What the tool answered — this is what the model read. Bounded upstream. */
   result: string;
-  state: "running" | "ok" | "failed";
+  /**
+   * `refused` is a call that never became an exchange on the wire: one the
+   * stream never named, one whose turn ended for another reason, or one with no
+   * round left to run in. It is shown to the reader and must never be rebuilt
+   * into an assistant `tool_calls` message — the server never saw it, and an
+   * unnamed one is a malformed request.
+   */
+  state: "running" | "ok" | "failed" | "refused";
 }
 
 export interface ChatMessage {

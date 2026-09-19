@@ -35,7 +35,27 @@ export function publicHttpUrl(raw: unknown): string | null {
   if (!host) return null;
 
   if (/^[\d.]+$/.test(host)) return isPublicV4(host) ? value : null;
-  return isPublicName(host) ? value : null;
+  if (!isPublicName(host)) return null;
+  return embedsAddress(host) ? null : value;
+}
+
+/**
+ * True when the host carries something that reads as an IPv4 literal, dotted or
+ * dashed: `127.0.0.1.nip.io`, `192-168-1-1.sslip.io`. Those names are public by
+ * every lexical rule and resolve to whoever the reader is — a browser opening
+ * the link goes to that address, and this file cannot see it happening.
+ */
+function embedsAddress(host: string): boolean {
+  let run = 0;
+  for (const token of host.toLowerCase().split(/[.-]/)) {
+    if (/^\d{1,3}$/.test(token) && Number(token) <= 255) {
+      run += 1;
+      if (run === 4) return true;
+      continue;
+    }
+    run = 0;
+  }
+  return false;
 }
 
 function isPublicV4(host: string): boolean {

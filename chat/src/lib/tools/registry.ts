@@ -14,8 +14,14 @@ export function offeredTools(enabled: boolean): ToolDefinition[] {
   return enabled && available() ? TOOL_DEFINITIONS : [];
 }
 
-/** Names for the web calls, so Stop can say which one it is stopping. */
-let nextCallId = 1;
+/**
+ * Names for the web calls, so Stop can say which one it is stopping. The Rust
+ * side keys its running calls by this number, and a counter starting at one
+ * would collide across a reload and between two windows — one window's Stop
+ * could then name the other window's call. A page prefix from the operating
+ * system's random source, under 2^53 so it survives being a JSON number.
+ */
+let nextCallId = (crypto.getRandomValues(new Uint32Array(1))[0] % 0x100000) * 2 ** 32 + 1;
 
 /**
  * Run one call the model asked for and answer with the text it will read next

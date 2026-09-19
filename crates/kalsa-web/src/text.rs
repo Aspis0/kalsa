@@ -43,6 +43,20 @@ pub(crate) fn html_to_text(html: &str, max_chars: usize) -> (String, bool) {
         }
         i = open;
 
+        // A `<` that cannot begin markup is text: pages contain `2 < 3 and 4 >
+        // 1`, and treating that as a tag eats the rest of the sentence.
+        let begins_tag = matches!(
+            lower[open + 1..].chars().next(),
+            Some(c) if c.is_ascii_alphabetic() || c == '/' || c == '!' || c == '?'
+        );
+        if !begins_tag {
+            if drop_until.is_none() {
+                raw.push('<');
+            }
+            i = open + 1;
+            continue;
+        }
+
         if lower[i..].starts_with("<!--") {
             match lower[i + 4..].find("-->") {
                 Some(end) => i += 4 + end + 3,
@@ -283,6 +297,16 @@ mod tests {
         let (text, truncated) = html_to_text(&html, 10);
         assert_eq!(text, "é".repeat(10));
         assert!(truncated);
+    }
+
+    #[test]
+    fn a_comparison_in_prose_is_text_not_markup() {
+        let (text, _) = html_to_text("<p>The expression 2 < 3 and 4 > 1 holds.</p>", LIMIT);
+        assert_eq!(text, "The expression 2 < 3 and 4 > 1 holds.");
+        let (text, _) = html_to_text("a < b", LIMIT);
+        assert_eq!(text, "a < b");
+        let (text, _) = html_to_text("5 <", LIMIT);
+        assert_eq!(text, "5 <");
     }
 
     #[test]

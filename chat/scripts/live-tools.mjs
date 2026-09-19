@@ -153,22 +153,43 @@ function answerTokens(result) {
   return tokens.map((token) => ({ token, inTool: toolText.includes(token.toLowerCase()) }));
 }
 
-/** Did the answer come from the tools, or from the model's imagination? */
-function verdict(result) {
+let failures = 0;
+
+/** A live check, with the exit status that makes it mean something. */
+function expect(label, ok, detail = "") {
+  console.log(`${ok ? "ok  " : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
+  if (!ok) failures += 1;
+}
+
+/**
+ * Did the answer come from the tools, or from the model's imagination?
+ * "A tool ran" and "every number in the answer was in what a tool returned" are
+ * the two things a broken loop or a hallucinating model cannot satisfy, so they
+ * are assertions here, not a paragraph in the log.
+ */
+function verdict(result, { allowEmptyAnswer = false } = {}) {
+  if (result.calls.length === 0) {
+    expect("a tool actually ran", false, "no tool call reached the door");
+    return;
+  }
+  expect("a tool actually ran", true, result.calls.map((c) => c.tool).join(", "));
   if (!result.answer.trim()) {
-    console.log("VERDICT: NO ANSWER AT ALL — the turn ended with thinking and no words" +
-      (result.calls.length ? " after the tools had answered" : ""));
+    expect(
+      "the turn ended with words",
+      allowEmptyAnswer,
+      "the model thought and gave no answer after the tools had answered",
+    );
     return;
   }
   const tokens = answerTokens(result);
-  console.log("numbers in the answer, and whether a tool returned them:");
-  for (const { token, inTool } of tokens) console.log(`  ${inTool ? "IN TOOL " : "NOT IN TOOL"}  ${token}`);
+  for (const { token, inTool } of tokens) {
+    console.log(`     ${inTool ? "in tool   " : "NOT IN TOOL"}  ${token}`);
+  }
   const unsourced = tokens.filter((t) => !t.inTool);
-  console.log(
-    `VERDICT: ${result.calls.length ? `tools ran (${result.calls.map((c) => c.tool).join(", ")})` : "NO TOOL RAN"}; ` +
-      (unsourced.length === 0
-        ? "every number in the answer appears in what a tool returned"
-        : `UNSOURCED NUMBERS: ${unsourced.map((t) => t.token).join(", ")}`),
+  expect(
+    "every number in the answer appears in what a tool returned",
+    unsourced.length === 0,
+    unsourced.map((t) => t.token).join(", "),
   );
 }
 
@@ -180,6 +201,9 @@ const scenarios = {
     );
     show("A. a fact the model cannot know (latest Rust release)", result);
     verdict(result);
+    const answer = result.answer;
+    expect("the answer names a version", /\b\d+\.\d+(\.\d+)?\b/.test(answer), answer.slice(0, 120));
+    expect("the answer's version was in the search", result.calls.some((call) => String(call.result ?? "").includes(regOf(answer))), regOf(answer));
   },
 
   // A number that changes daily.
@@ -201,7 +225,10 @@ const scenarios = {
       { maxTokens: 700 },
     );
     show("A2. the same fact, one search, a small generation budget", result);
-    verdict(result);
+    // A forced 700-token budget can legitimately be spent on thinking, so this
+    // one may end with no words; what must hold is that the tool ran.
+    verdict(result, { allowEmptyAnswer: true });
+    expect("the search ran", result.calls.some((call) => call.tool === "search"), JSON.stringify(result.calls.map((c) => c.tool)));
   },
 
   // Two rounds: search, then read one of the results.
@@ -211,7 +238,15 @@ const scenarios = {
     );
     show("C. two rounds: a search, then a fetch of a result", result);
     const kinds = result.calls.map((call) => call.tool).join(",");
-    console.log(`VERDICT: tool order was ${kinds || "(none)"}; rounds used ${result.runs.length}`);
+    expect("the model searched and then opened a page, in that order", kinds === "search,fetch", kinds || "(none)");
+    const searched = result.calls.find((call) => call.tool === "search");
+    const opened = result.calls.find((call) => call.tool === "fetch");
+    expect(
+      "the page it opened was one the search returned",
+      opened !== undefined && String(searched?.result ?? "").includes(String(opened.argument)),
+      `${opened?.argument}`,
+    );
+    expect("the turn ended with words", result.answer.trim().length > 0);
   },
 
   // A real network failure reaching the model as a tool result.
@@ -220,7 +255,9 @@ const scenarios = {
       "Open this exact address and tell me what it says: https://192.0.2.1/ . If you cannot open it, say exactly what went wrong.",
     );
     show("D. a real failure: a routable address that never answers", result);
-    console.log(`VERDICT: the tool reported: ${JSON.stringify(result.calls[0]?.result ?? "(nothing)")}`);
+    const reported = String(result.calls[0]?.result ?? "");
+    expect("the dead address was reported as a failure", result.calls[0]?.ok === false, reported.slice(0, 80));
+    expect("the answer says it could not open the page", /cannot|could not|unable|too long/i.test(result.answer), result.answer.slice(0, 120));
   },
 
   // A real stop in the middle of a real fetch.
@@ -230,8 +267,9 @@ const scenarios = {
       { stopAfterMs: 3000 },
     );
     show("E. a call stopped in flight by the crate's own stop flag", result);
-    console.log(`VERDICT: the tool reported: ${JSON.stringify(result.calls[0]?.result ?? "(nothing)")}`);
-    console.log(`VERDICT: the turn ${result.answer ? "carried on and answered" : "produced no words"}`);
+    const said = String(result.calls[0]?.result ?? "");
+    expect("the stopped call said it was stopped", said.includes("stopped"), said.slice(0, 80));
+    expect("the turn carried on and answered", result.answer.trim().length > 0, result.answer.slice(0, 120));
   },
 
   // The user pressing Stop while a tool is running. Late enough that the
@@ -243,8 +281,8 @@ const scenarios = {
     );
     show("F. the user stops the turn while the tool is in flight", result);
     console.log(`stop asked for: ${JSON.stringify(result.stops)}`);
-    console.log(`VERDICT: turn ended as ${result.failure ?? "no failure"}; ` +
-      `${result.stops.length ? "the running call was named for stopping" : "NO STOP WAS SENT"}`);
+    expect("the turn ended as stopped", String(result.failure).startsWith("aborted"), String(result.failure));
+    expect("the running call was named for stopping", result.stops.length > 0, JSON.stringify(result.stops));
   },
 
   // The round cap, if the model can be persuaded to keep searching.
@@ -254,7 +292,8 @@ const scenarios = {
       { maxTokens: 1500 },
     );
     show("G. trying to reach the round cap", result);
-    console.log(`VERDICT: ${result.runs.length} tool rounds ran (the cap is 4, then one forced round of words)`);
+    expect("the cap stopped the searching at four", result.calls.length === 4, String(result.calls.length));
+    expect("no tool-call markup was shown to the reader", !/<tool_call|<function=|parameter=/.test(result.answer), result.answer.slice(0, 120));
   },
 };
 
@@ -268,3 +307,10 @@ for (const name of only.length ? only : Object.keys(scenarios)) {
 }
 
 await (await import("node:fs/promises")).rm(dir, { recursive: true, force: true });
+console.log(failures === 0 ? "\nall live checks passed" : `\n${failures} live checks FAILED`);
+process.exit(failures === 0 ? 0 : 1);
+
+/** The version the answer names, for checking it came from the search. */
+function regOf(answer) {
+  return (answer.match(/\b\d+\.\d+(?:\.\d+)?\b/) ?? [""])[0];
+}

@@ -251,7 +251,10 @@ function docBlockFor(docs: Attachment[]): WireMessage {
  * role: this is the only place the roles are invented.
  */
 function wireFor(message: ChatMessage): WireMessage[] {
-  const runs = message.toolRuns ?? [];
+  // A refused run never happened as far as the server is concerned: it was
+  // never sent back as a call, and an unnamed one would be a malformed request.
+  // It stays in the transcript for the reader and out of the wire.
+  const runs = (message.toolRuns ?? []).filter((run) => run.state !== "refused");
   if (message.role !== "assistant" || runs.length === 0) {
     return [{ role: message.role, content: message.content }];
   }

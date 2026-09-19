@@ -9,7 +9,7 @@
 use std::sync::atomic::AtomicBool;
 
 use crate::jsonrpc;
-use crate::search::post;
+use crate::search::{post, Budget};
 use crate::WebError;
 
 const ENDPOINT: &str = "https://mcp.exa.ai/mcp";
@@ -25,11 +25,10 @@ const BODY_CAP: usize = 512 * 1024;
 const MESSAGE_CAP: usize = 300;
 
 /// Ask Exa and return the results as the model reads them.
-pub(crate) fn search(
-    agent: &ureq::Agent,
-    query: &str,
-    stop: &AtomicBool,
-) -> Result<String, WebError> {
+pub(crate) fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {
+    // One budget for the handshake and the call together: three requests each
+    // allowed the full time would be three times the bound.
+    let budget = Budget::starts();
     let initialize = serde_json::json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -40,7 +39,17 @@ pub(crate) fn search(
             "clientInfo": { "name": "kalsa-brain", "version": "0.0.1" },
         },
     });
-    let (session, body) = post(agent, ENDPOINT, None, &initialize.to_string(), BODY_CAP, stop)?;
+    // The initialize answer is where the session comes from, and this request
+    // sends none: the header sent and the header read back are separate things.
+    let (session, body) = post(
+        &budget.agent()?,
+        ENDPOINT,
+        None,
+        Some(SESSION),
+        &initialize.to_string(),
+        BODY_CAP,
+        stop,
+    )?;
     if jsonrpc::envelope(&body, 1).is_none() {
         return Err(WebError::Network);
     }
@@ -49,7 +58,7 @@ pub(crate) fn search(
     // dislikes it is not one this crate can talk to.
     let ready = serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/initialized" });
     let carried = session.as_deref().map(|value| (SESSION, value));
-    post(agent, ENDPOINT, carried, &ready.to_string(), BODY_CAP, stop)?;
+    post(&budget.agent()?, ENDPOINT, carried, None, &ready.to_string(), BODY_CAP, stop)?;
 
     let call = serde_json::json!({
         "jsonrpc": "2.0",
@@ -61,20 +70,42 @@ pub(crate) fn search(
         },
     });
     let carried = session.as_deref().map(|value| (SESSION, value));
-    let (_, body) = post(agent, ENDPOINT, carried, &call.to_string(), BODY_CAP, stop)?;
+    let (_, body) = post(&budget.agent()?, ENDPOINT, carried, None, &call.to_string(), BODY_CAP, stop)?;
     let answer = jsonrpc::envelope(&body, 2).ok_or(WebError::Network)?;
-    if let Some(error) = answer.get("error") {
-        let message = error
-            .get("message")
-            .and_then(|value| value.as_str())
-            .unwrap_or("no reason was given");
-        return Err(WebError::Provider(shorten(message)));
+    if let Some(said) = refusal(&answer) {
+        return Err(WebError::Provider(shorten(said)));
     }
     let text = answer
         .pointer("/result/content/0/text")
         .and_then(|value| value.as_str())
         .unwrap_or("");
     Ok(results(text, query))
+}
+
+/// A refusal inside an envelope, in the provider's own words. Two shapes matter:
+/// JSON-RPC's own `error`, and MCP's `result.isError` — a tool that refused
+/// arrives as a *successful* envelope carrying that flag, so without this the
+/// refusal prose is shaped as if it were results and the run is recorded as a
+/// success.
+fn refusal(answer: &serde_json::Value) -> Option<&str> {
+    if let Some(error) = answer.get("error") {
+        return Some(
+            error
+                .get("message")
+                .and_then(|value| value.as_str())
+                .unwrap_or("no reason was given"),
+        );
+    }
+    let refused = answer.pointer("/result/isError").and_then(|value| value.as_bool()) == Some(true);
+    if refused {
+        return Some(
+            answer
+                .pointer("/result/content/0/text")
+                .and_then(|value| value.as_str())
+                .unwrap_or("no reason was given"),
+        );
+    }
+    None
 }
 
 fn shorten(message: &str) -> String {
@@ -177,7 +208,34 @@ impl Reader {
 
 #[cfg(test)]
 mod tests {
-    use super::results;
+    use super::{refusal, results};
+
+    #[test]
+    fn a_json_rpc_error_is_a_refusal() {
+        let answer = serde_json::json!({ "jsonrpc": "2.0", "id": 2, "error": { "code": -32000, "message": "rate limited" } });
+        assert_eq!(refusal(&answer), Some("rate limited"));
+    }
+
+    #[test]
+    fn a_tool_that_refused_inside_a_successful_envelope_is_a_refusal() {
+        let answer = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": { "isError": true, "content": [{ "type": "text", "text": "quota exhausted" }] },
+        });
+        assert_eq!(refusal(&answer), Some("quota exhausted"));
+    }
+
+    #[test]
+    fn an_ordinary_answer_is_not_a_refusal() {
+        let answer = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": { "isError": false, "content": [{ "type": "text", "text": "Title: One\nURL: https://example.com/" }] },
+        });
+        assert_eq!(refusal(&answer), None);
+        assert!(results("Title: One\nURL: https://example.com/", "q").starts_with("1. One"));
+    }
 
     const EXA_TEXT: &str = "Title: Rust 1.85 released\nURL: https://blog.rust-lang.org/1.85\n\
                             Published: 2025-02-20\nHighlights:\nAsync closures are stable.\nThe edition is 2024.\n\

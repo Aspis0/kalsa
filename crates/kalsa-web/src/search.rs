@@ -5,12 +5,13 @@
 //! own dialect lives beside the results it shapes, in [`crate::exa`].
 //!
 //! **A second provider would supply** a module next to `exa.rs` that builds its
-//! own request bodies and reads its own answers, calling [`post`] per request
-//! and [`agent`] once, plus a line in [`search`] choosing between them. Nothing
-//! in this file, `fetch.rs`, `url.rs`, `body.rs` or `text.rs` would move.
+//! own request bodies and reads its own answers, taking one [`Budget`] for the
+//! operation and calling [`post`] with `budget.agent()` per request, plus a line
+//! in [`search`] choosing between them. Nothing in this file, `fetch.rs`,
+//! `url.rs`, `body.rs` or `text.rs` would move.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::body::read_capped;
 use crate::exa;
@@ -30,34 +31,57 @@ pub fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {
     }
     // One provider exists, so one is named here. This is where a second one
     // would be chosen between.
-    exa::search(&agent(), query, stop)
+    exa::search(query, stop)
 }
 
-/// The agent every search request goes through: the address gate, the resolver,
-/// the deadline, and no redirects — a redirect would be a request to an address
-/// the gate never saw.
-pub(crate) fn agent() -> ureq::Agent {
-    ureq::AgentBuilder::new()
-        .timeout_connect(CONNECT_TIMEOUT)
-        // One request, however slowly the service feeds it (see REQUEST_BUDGET).
-        .timeout(REQUEST_BUDGET)
-        .timeout_read(READ_TIMEOUT)
-        .redirects(0)
-        .resolver(url::resolver)
-        .user_agent(USER_AGENT)
-        .build()
+/// When a search operation started, and how long it may run in total. A search
+/// is several requests — a handshake and a call — and each one gets only what
+/// is left of this, so a provider that stalls every leg cannot hold a tool call
+/// for a multiple of the budget.
+pub(crate) struct Budget(Instant);
+
+impl Budget {
+    pub(crate) fn starts() -> Self {
+        Budget(Instant::now() + REQUEST_BUDGET)
+    }
+
+    /// The agent for the next request: the address gate, the resolver, no
+    /// redirects, and the time this operation has left.
+    pub(crate) fn agent(&self) -> Result<ureq::Agent, WebError> {
+        let left = remaining(self.0, Instant::now())?;
+        Ok(ureq::AgentBuilder::new()
+            .timeout_connect(CONNECT_TIMEOUT)
+            .timeout(left)
+            .timeout_read(READ_TIMEOUT)
+            .redirects(0)
+            .resolver(url::resolver)
+            .user_agent(USER_AGENT)
+            .build())
+    }
+}
+
+/// What is left of a deadline, or a timeout once it has passed.
+fn remaining(deadline: Instant, now: Instant) -> Result<Duration, WebError> {
+    let left = deadline.saturating_duration_since(now);
+    if left.is_zero() {
+        return Err(WebError::Timeout);
+    }
+    Ok(left)
 }
 
 /// One JSON request against a search service, its answer read under `cap`.
 ///
-/// `header` is the provider's own: a header it must send whose value on the
-/// answer comes back alongside the body — MCP hands out a session that way, and
-/// a bearer token simply ignores the reply. The stop flag is checked before the
-/// request and while the body reads.
+/// `send` is a header the provider needs on the way out — a session it must
+/// echo, an `Authorization` it carries — and `read_back` is one it wants from
+/// the answer. They are deliberately separate: the initialize request sends no
+/// session and is exactly the one that is handed a new one, so tying the two
+/// together loses the handshake. The stop flag is checked before the request and
+/// while the body reads.
 pub(crate) fn post(
     agent: &ureq::Agent,
     url: &str,
-    header: Option<(&str, &str)>,
+    send: Option<(&str, &str)>,
+    read_back: Option<&str>,
     body: &str,
     cap: usize,
     stop: &AtomicBool,
@@ -69,8 +93,7 @@ pub(crate) fn post(
         .post(url)
         .set("Content-Type", "application/json")
         .set("Accept", "application/json, text/event-stream");
-    let name = header.map(|(name, _)| name);
-    if let Some((name, value)) = header {
+    if let Some((name, value)) = send {
         request = request.set(name, value);
     }
     let response = match request.send_string(body) {
@@ -84,7 +107,7 @@ pub(crate) fn post(
     if !(200..300).contains(&response.status()) {
         return Err(WebError::Status(response.status()));
     }
-    let handed_out = name.and_then(|name| response.header(name)).map(str::to_string);
+    let handed_out = read_back.and_then(|name| response.header(name)).map(str::to_string);
     let (bytes, truncated) = read_capped(response.into_reader(), cap, stop)?;
     if truncated {
         return Err(WebError::Oversize);
@@ -133,7 +156,7 @@ mod tests {
         // check a 302 would be read as the answer. Found 2026-09-19 by reading
         // ureq's `request.rs` while splitting this file.
         let url = answer_once("HTTP/1.1 302 Found\r\nlocation: /\r\ncontent-length: 5\r\n\r\nhello");
-        let answer = post(&plain_agent(), &url, None, "{}", 4096, &AtomicBool::new(false));
+        let answer = post(&plain_agent(), &url, None, None, "{}", 4096, &AtomicBool::new(false));
         assert_eq!(answer, Err(WebError::Status(302)));
     }
 
@@ -146,6 +169,7 @@ mod tests {
             &plain_agent(),
             &url,
             Some(("mcp-session-id", "first")),
+            Some("mcp-session-id"),
             "{}",
             4096,
             &AtomicBool::new(false),
@@ -153,17 +177,56 @@ mod tests {
         assert_eq!(answer, Ok((Some("abc123".to_string()), "hi".to_string())));
     }
 
+    /// The handshake: no session to send, and the answer is where one comes
+    /// from. Reading back only what was sent loses it (found by review,
+    /// 2026-09-19; Exa happens to tolerate the loss today, which is why no live
+    /// test caught it).
+    #[test]
+    fn the_header_that_is_only_read_back_arrives() {
+        let url = answer_once(
+            "HTTP/1.1 200 OK\r\nmcp-session-id: minted\r\ncontent-length: 2\r\n\r\nhi",
+        );
+        let answer = post(
+            &plain_agent(),
+            &url,
+            None,
+            Some("mcp-session-id"),
+            "{}",
+            4096,
+            &AtomicBool::new(false),
+        );
+        assert_eq!(answer, Ok((Some("minted".to_string()), "hi".to_string())));
+    }
+
     #[test]
     fn an_answer_over_the_cap_is_refused_rather_than_parsed() {
         let url = answer_once("HTTP/1.1 200 OK\r\ncontent-length: 11\r\n\r\nhellohello!");
-        let answer = post(&plain_agent(), &url, None, "{}", 4, &AtomicBool::new(false));
+        let answer = post(&plain_agent(), &url, None, None, "{}", 4, &AtomicBool::new(false));
         assert_eq!(answer, Err(WebError::Oversize));
+    }
+
+    #[test]
+    fn a_spent_budget_is_a_timeout() {
+        let now = std::time::Instant::now();
+        assert_eq!(
+            super::remaining(now + std::time::Duration::from_secs(5), now),
+            Ok(std::time::Duration::from_secs(5))
+        );
+        assert_eq!(
+            super::remaining(now, now),
+            Err(WebError::Timeout),
+            "a budget that has run out must not be read as no time at all"
+        );
+        assert_eq!(
+            super::remaining(now - std::time::Duration::from_secs(1), now),
+            Err(WebError::Timeout)
+        );
     }
 
     #[test]
     fn a_stopped_call_is_not_sent() {
         let url = answer_once("HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nhi");
-        let answer = post(&plain_agent(), &url, None, "{}", 4096, &AtomicBool::new(true));
+        let answer = post(&plain_agent(), &url, None, None, "{}", 4096, &AtomicBool::new(true));
         assert_eq!(answer, Err(WebError::Stopped));
     }
 }

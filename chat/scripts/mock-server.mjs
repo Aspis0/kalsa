@@ -265,6 +265,32 @@ const server = http.createServer((req, res) => {
       // toolstwo-demo, toolsbad-demo, toolsloop-demo, toolsslow-demo.
       if (model.includes("tools")) return streamTools(res, bodyPeek, model);
       if (model.includes("cut-demo")) return streamCut(res);
+      if (model.includes("casestream-demo")) {
+        // A stream announced with a mixed-case media type: still a stream.
+        res.writeHead(200, { "Content-Type": "Text/Event-Stream", ...CORS });
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "Mixed case is still a stream." } }] })}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
+        return;
+      }
+      if (model.includes("jsonmarkup-demo")) {
+        // A server that ignored stream:true, answering with the tool-call markup
+        // that must never reach the reader. See the live run of 2026-09-19.
+        res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+        res.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content:
+                    "Here is the syntax.\n\n<tool_call>\n<function=web_search>\n<parameter=query>\nweather in Tokyo\n</parameter>\n</function>\n</tool_call>\n\nThat was the markup.",
+                },
+              },
+            ],
+          }),
+        );
+        return;
+      }
       if (model.includes("json-demo")) {
         res.writeHead(200, { "Content-Type": "application/json", ...CORS });
         res.end(JSON.stringify({ choices: [{ message: { content: JSON_MD } }] }));
@@ -422,13 +448,15 @@ function toolSequenceProblem(bodyText) {
   const calls = asked.message.tool_calls;
   if (calls.length === 0) return "the assistant message carried an empty tool_calls array";
 
-  const after = messages.slice(asked.at + 1);
-  const results = after.filter((message) => message.role === "tool");
-  if (after.length !== results.length) {
-    return `expected only tool messages after the call, found ${after.map((m) => m.role).join(", ")}`;
+  // The results of that call, and only those: the run ends where the next
+  // message is not a tool result. A later turn's user message is not a fault.
+  const results = [];
+  for (const message of messages.slice(asked.at + 1)) {
+    if (message.role !== "tool") break;
+    results.push(message);
   }
   if (results.length !== calls.length) {
-    return `expected ${calls.length} tool result(s), found ${results.length}`;
+    return `expected ${calls.length} tool result(s) right after the call, found ${results.length}`;
   }
   for (const [nth, call] of calls.entries()) {
     if (typeof call.id !== "string" || !call.id) return `call ${nth} has no id`;
@@ -515,7 +543,13 @@ function streamTools(res, bodyText, model) {
   const rounds = messages.filter(
     (message) => message.role === "assistant" && Array.isArray(message.tool_calls),
   ).length;
-  if (messages.some((message) => message.role === "tool")) {
+  // Checked whenever an exchange is on the wire, not only when a result is
+  // present: a client that sent the call and dropped every result used to skip
+  // the oracle entirely and still get its answer.
+  const carriesExchange = messages.some(
+    (message) => message.role === "assistant" && Array.isArray(message.tool_calls),
+  );
+  if (carriesExchange) {
     const problem = parsed ? toolSequenceProblem(bodyText) : "the body was not JSON";
     if (problem) return refuseWire(res, problem);
   }
@@ -527,6 +561,15 @@ function streamTools(res, bodyText, model) {
       body.tool_choice === "none"
         ? answerFrames("I have looked enough: the answer is 42.")
         : callFrames([{ id: `loop${rounds}`, name: "web_search", arguments: `{"query":"round ${rounds}"}` }], false);
+  } else if (model.includes("toolsrepeat-demo")) {
+    // The server numbers its calls per response, so it may reuse an id in the
+    // next round; the client's transcript must still keep both exchanges.
+    frames =
+      rounds === 0
+        ? callFrames([{ id: "call_1", name: "web_search", arguments: '{"query":"first"}' }], false)
+        : rounds === 1
+          ? callFrames([{ id: "call_1", name: "web_search", arguments: '{"query":"second"}' }], false)
+          : answerFrames("Both searches are in, and the answer is 42.");
   } else if (model.includes("toolstwo-demo")) {
     if (rounds === 0) {
       frames = callFrames(

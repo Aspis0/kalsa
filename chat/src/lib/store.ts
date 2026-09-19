@@ -79,6 +79,13 @@ const PREVIEW_CHARS = 140;
 const SEARCH_CHARS = 500;
 /** Every conversation payload key starts with this; nothing else may. */
 const MSG_PREFIX = "crescent-chat.msgs.";
+/**
+ * How long an unnamed payload is left alone before the sweep may take it. Long
+ * enough that a write in progress in another window, or a page loading while
+ * one is, is never mistaken for junk; short enough that the junk the sweep is
+ * for — left by an older build — is gone the first time the store opens.
+ */
+const SWEEP_GRACE_MS = 60_000;
 
 function msgKey(id: string): string {
   return `${MSG_PREFIX}${id}.v2`;
@@ -143,7 +150,7 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
     const r = run as Record<string, unknown>;
     if (typeof r.id !== "string" || typeof r.name !== "string") continue;
     if (typeof r.arguments !== "string" || typeof r.result !== "string") continue;
-    if (r.state !== "running" && r.state !== "ok" && r.state !== "failed") continue;
+    if (r.state !== "running" && r.state !== "ok" && r.state !== "failed" && r.state !== "refused") continue;
     runs.push({
       id: r.id,
       name: r.name,
@@ -233,7 +240,15 @@ export function createStore(): ConversationStore {
   function readIndex(): ConversationMeta[] {
     if (index === null) {
       migrateOnce();
-      index = loadIndex();
+      const loaded = loadIndex();
+      if (loaded === null) {
+        // Nothing is cached and nothing is swept: the list reads as empty
+        // because we cannot see it, and that is not a reason to delete
+        // anything. The next read tries again, so a repaired index comes back
+        // and the payloads are still there.
+        return [];
+      }
+      index = loaded;
       sweepOrphans(index);
     }
     return index;
@@ -244,22 +259,25 @@ export function createStore(): ConversationStore {
    * can open, nothing ever rewrites and nothing ever removes — and it keeps
    * consuming the quota that stopped the write in the first place. The undo in
    * `put` stops new ones appearing; this clears any left by an older build, or
-   * by a write that failed between the two keys. It runs whenever the index is
-   * read fresh — first use, and after another window writes — and always after
-   * `migrateOnce`, so a migration in progress is not mistaken for junk: its v1
-   * key survives until the new index reads back whole, and the next load
-   * migrates again. Both writes of one `put` happen in the same synchronous
-   * block, so no other window can be caught between them here.
+   * by a write that failed between the two keys.
+   *
+   * Only unnamed payloads older than `SWEEP_GRACE_MS` are touched. `put` writes
+   * the payload and the index in two statements, and a second window (or a
+   * reload) that reads the index between them would otherwise see a fresh,
+   * unnamed payload and delete a conversation another window is in the middle
+   * of filing. Whether the two writes can be observed apart is a timing
+   * argument nobody should have to rely on; a grace period means they cannot be
+   * punished even if they are.
    */
   function sweepOrphans(named: ConversationMeta[]): void {
     try {
       const wanted = new Set(named.map((meta) => msgKey(meta.id)));
+      const cutoff = Date.now() - SWEEP_GRACE_MS;
       const orphans: string[] = [];
       for (let at = 0; at < localStorage.length; at += 1) {
         const key = localStorage.key(at);
-        if (key !== null && key.startsWith(MSG_PREFIX) && !wanted.has(key)) {
-          orphans.push(key);
-        }
+        if (key === null || !key.startsWith(MSG_PREFIX) || wanted.has(key)) continue;
+        if (newestMessage(key) < cutoff) orphans.push(key);
       }
       for (const key of orphans) localStorage.removeItem(key);
     } catch {
@@ -267,18 +285,44 @@ export function createStore(): ConversationStore {
     }
   }
 
-  function loadIndex(): ConversationMeta[] {
+  /**
+   * When this payload was last written to, as far as it can say. A payload with
+   * no readable messages has no date, and 0 makes it the oldest thing on the
+   * machine — which is what it is: there is nothing in it to keep.
+   */
+  function newestMessage(key: string): number {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return 0;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return 0;
+      return parsed.reduce((newest, message) => {
+        const at = (message as { createdAt?: unknown })?.createdAt;
+        return typeof at === "number" && at > newest ? at : newest;
+      }, 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * The index, or null when there is nothing readable there. The difference is
+   * what stops the orphan sweep from deleting real work: an index that says
+   * "these conversations" is evidence, and an index we cannot read is not
+   * evidence of anything — least of all that every payload should go.
+   */
+  function loadIndex(): ConversationMeta[] | null {
     try {
       const raw = localStorage.getItem(INDEX_KEY);
-      if (!raw) return [];
+      if (raw === null) return null;
       const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
+      if (!Array.isArray(parsed)) return null;
       return parsed
         .map(cleanMeta)
         .filter((m): m is ConversationMeta => m !== null)
         .sort((a, b) => b.updatedAt - a.updatedAt);
     } catch {
-      return [];
+      return null;
     }
   }
 

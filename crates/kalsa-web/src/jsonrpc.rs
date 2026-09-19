@@ -13,6 +13,9 @@ pub(crate) fn envelope(body: &str, id: u64) -> Option<serde_json::Value> {
             return Some(found);
         }
     }
+    // SSE allows CRLF separators, and a stream of more than one such frame
+    // would otherwise be read as a single frame with two JSON texts inside it.
+    let body = body.replace("\r\n", "\n");
     for frame in body.split("\n\n") {
         let mut data = String::new();
         for line in frame.lines() {
@@ -59,6 +62,14 @@ mod tests {
                     event: message\ndata: {\"jsonrpc\":\"2.0\",\n\
                     data: \"id\":2,\"result\":{\"ok\":true}}\n\n";
         let found = envelope(body, 2).expect("multiline data is reassembled");
+        assert_eq!(found.pointer("/result/ok").unwrap(), true);
+    }
+
+    #[test]
+    fn reads_an_envelope_from_a_crlf_event_stream() {
+        let body = "event: message\r\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r\n\r\n\
+                    event: message\r\ndata: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"ok\":true}}\r\n\r\n";
+        let found = envelope(body, 2).expect("the second CRLF frame is the answer");
         assert_eq!(found.pointer("/result/ok").unwrap(), true);
     }
 

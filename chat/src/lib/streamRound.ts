@@ -164,7 +164,8 @@ export async function runRound(
     throw new ChatRequestError("bad-response", "Empty body", response.status, url);
   }
 
-  const contentType = response.headers.get("content-type") ?? "";
+  // Media types are case-insensitive; a server may answer Text/Event-Stream.
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
   if (!contentType.includes("text/event-stream")) {
     // A server ignoring stream:true answers plain JSON (or an HTML login
     // page with status 200). Read it as a completion before giving up.
@@ -180,7 +181,11 @@ export async function runRound(
         throw new Error("not a completion");
       }
       if (complete.reasoning) onReasoning(complete.reasoning);
-      if (complete.content) onToken(complete.content);
+      // A server that ignored `stream: true` can carry the same tool-call
+      // markup the streamed path filters, so it is filtered the same way.
+      const markup = createToolMarkupStripper();
+      const visible = markup.push(complete.content ?? "") + markup.flush();
+      if (visible) onToken(visible);
       return {
         gotContent: complete.content !== null,
         gotReasoning: complete.reasoning !== null,
@@ -188,8 +193,13 @@ export async function runRound(
         finishReason: complete.finishReason,
         toolCalls: accumulate([], complete.toolCalls),
       };
-    } catch {
+    } catch (error) {
       finish();
+      // Stop pressed while that body was arriving is a stop, not a server that
+      // answered with something other than a stream.
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new ChatRequestError("aborted", "Stopped", undefined, url);
+      }
       throw new ChatRequestError("bad-response", "Not a stream", response.status, url);
     }
   }

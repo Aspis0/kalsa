@@ -98,7 +98,7 @@ pub fn fetch(url: &str, stop: &AtomicBool) -> Result<String, WebError> {
         if !is_html && !content_type.is_empty() && content_type != "text/plain" {
             return Err(WebError::Unsupported);
         }
-        let (bytes, _) = read_capped(response.into_reader(), BODY_CAP, stop)?;
+        let (bytes, body_cut) = read_capped(response.into_reader(), BODY_CAP, stop)?;
         if stop.load(Ordering::Relaxed) {
             return Err(WebError::Stopped);
         }
@@ -109,14 +109,25 @@ pub fn fetch(url: &str, stop: &AtomicBool) -> Result<String, WebError> {
         } else {
             cut(&body, TEXT_CAP)
         };
-        if text.is_empty() {
-            return Ok("That page has no readable text on it.".to_string());
+        // Two different cuts, said differently: the raw body may have been
+        // longer than this app reads at all, and the text that came out of it is
+        // cut to what a small context can hold. A reader — and the model — must
+        // not mistake a prefix for the whole page.
+        let mut note = String::new();
+        if body_cut {
+            note.push_str(&format!(
+                "\n\n[The page was longer than {BODY_CAP} bytes, so only its beginning was read.]"
+            ));
         }
-        return Ok(if truncated {
-            format!("{text}\n\n[Only the first {TEXT_CAP} characters of this page are shown.]")
-        } else {
-            text
-        });
+        if truncated {
+            note.push_str(&format!(
+                "\n\n[Only the first {TEXT_CAP} characters of what was read are shown.]"
+            ));
+        }
+        if text.is_empty() {
+            return Ok(format!("That page has no readable text on it.{note}"));
+        }
+        return Ok(format!("{text}{note}"));
     }
 }
 

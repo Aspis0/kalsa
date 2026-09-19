@@ -29,7 +29,7 @@ function ToolRow({ run }: { run: ToolRun }) {
   // stay text.
   const url = publicHttpUrl(asked);
   const sources = run.name === "web_fetch" ? (url ? [url] : []) : linksIn(run.result);
-  const failed = run.state === "failed";
+  const failed = run.state === "failed" || run.state === "refused";
 
   return (
     <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>

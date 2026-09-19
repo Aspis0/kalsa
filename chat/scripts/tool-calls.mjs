@@ -97,11 +97,36 @@ check("a real object parses", readArguments("web_search", '{"query":"q"}').probl
 
 // --- placement: an index that cannot be placed must not be guessed (finding 11)
 
-check("non-object fragments are skipped", accumulate([], [null, 7, "x"]).length === 0);
-check("an absurd index is ignored", accumulate([], [{ index: 1e9, function: { name: "web_search" } }]).length === 0);
-check(
-  "a fractional index is ignored",
-  accumulate([], [{ index: 0.5, function: { name: "web_search", arguments: "{}" } }]).length === 0,
+// Each of these carries a valid call beside the junk, so "the junk was skipped"
+// cannot be satisfied by an accumulator that returns nothing at all.
+equal(
+  "non-object fragments are skipped and the real one is not",
+  accumulate([], [null, { index: 0, id: "k1", function: { name: "web_search", arguments: "{}" } }, 7, "x"]),
+  [call(0, "k1", "web_search", "{}")],
+);
+equal(
+  "an absurd index is ignored and the real one is not",
+  accumulate([], [
+    { index: 1e9, function: { name: "web_search" } },
+    { index: 0, id: "k2", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k2", "web_search", "{}")],
+);
+equal(
+  "a fractional index is ignored and the real one is not",
+  accumulate([], [
+    { index: 0.5, function: { name: "web_search", arguments: "{}" } },
+    { index: 0, id: "k3", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k3", "web_search", "{}")],
+);
+equal(
+  "a negative index is ignored and the real one is not",
+  accumulate([], [
+    { index: -1, function: { name: "web_fetch", arguments: '{"url":"https://evil"}' } },
+    { index: 0, id: "k4", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k4", "web_search", "{}")],
 );
 // This used to be asserted the other way round: a negative index folded its
 // arguments into the real call at zero, which is one tool receiving another's

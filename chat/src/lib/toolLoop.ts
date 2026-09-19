@@ -41,36 +41,41 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     const final = round >= toolRounds;
     const answered = await runRound(options, conversation, tools, final ? "none" : "auto");
     if (answered.toolCalls.length === 0) return;
+    // The server numbers its calls per response, so round two can hand back the
+    // id round one used. The transcript replaces a run by id and the wire pairs
+    // a result to its call by id, so an id has to be unique for the whole turn:
+    // the round is the only thing here that makes it so.
+    const calls = answered.toolCalls.map((call) => ({ ...call, id: `${round}-${call.id}` }));
     if (!forTools(answered.finishReason)) {
       // The server sent tool calls and then said the turn was over for some
       // other reason — `length`, `stop`. Running one would hand a tool half a
       // sentence, so the calls are recorded as refused instead.
-      refuse(options, answered.toolCalls, `The server sent a tool call but ended the turn as “${answered.finishReason}”, so nothing was run.`);
+      refuse(options, calls, `The server sent a tool call but ended the turn as “${answered.finishReason}”, so nothing was run.`);
       return;
     }
     if (final) {
       // Out of rounds: a server that ignored `tool_choice: "none"` has left
       // these nowhere to run, and the thread still has to say what happened.
-      refuse(options, answered.toolCalls, "There was no round left to run this, so the answer had to be in words.");
+      refuse(options, calls, "There was no round left to run this, so the answer had to be in words.");
       return;
     }
 
     // A call the stream never named cannot be run and must not go back on the
     // wire: `function.name: ""` is a malformed request. It is still recorded,
     // so the thread says what happened rather than showing nothing.
-    const calls = answered.toolCalls.filter((call) => call.name !== "");
+    const runnable = calls.filter((call) => call.name !== "");
     refuse(
       options,
-      answered.toolCalls.filter((call) => call.name === ""),
+      calls.filter((call) => call.name === ""),
       "The stream ended before this call's name arrived, so nothing was run.",
     );
-    if (calls.length === 0) return;
+    if (runnable.length === 0) return;
 
     // Serial on purpose, like the phone (LlamaService.ts:5030): two searches at
     // once would cost more for no answer a model can use, and the results have
     // to be paired with their calls in order anyway.
     const results: string[] = [];
-    for (const call of calls) {
+    for (const call of runnable) {
       const { args, problem } = readArguments(call.name, call.arguments, call.cut);
       const started: ToolRun = {
         id: call.id,
@@ -107,7 +112,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         function: { name: call.name, arguments: call.arguments },
       })),
     });
-    calls.forEach((call, index) => {
+    runnable.forEach((call, index) => {
       conversation.push({ role: "tool", content: results[index], tool_call_id: call.id });
     });
   }
@@ -124,7 +129,8 @@ function refuse(options: StreamOptions, calls: ToolCall[], reason: string): void
       name: call.name,
       arguments: call.arguments,
       result: reason,
-      state: "failed",
+      // Never an exchange on the wire, so never rebuilt as one.
+      state: "refused",
     });
   }
 }

@@ -1772,7 +1772,7 @@ const tests = {
                   name: "web_search",
                   arguments: '{"query":"a secret question"}',
                   result:
-                    "1. Local service\n   URL: http://127.0.0.1:8130/v1/models\n   An internal thing.\n\n2. File\n   URL: file:///etc/passwd\n   Not a page.\n\n3. Real page\n   URL: https://example.com/ok\n   A real page.",
+                    "1. Local service\n   URL: http://127.0.0.1:8130/v1/models\n   An internal thing.\n\n2. File\n   URL: file:///etc/passwd\n   Not a page.\n\n3. Loopback by name\n   URL: https://foo.127.0.0.1.nip.io/\n   Still this machine.\n\n4. Real page\n   URL: https://example.com/ok\n   A real page.",
                   state: "ok",
                 },
               ],
@@ -1788,13 +1788,15 @@ const tests = {
     await page.locator(".tool-run").first().waitFor({ timeout: 8000 });
     for (const summary of await page.locator(".tool-run > summary").all()) await summary.click();
     const hrefs = await page.locator(".tool-activity a").evaluateAll((nodes) => nodes.map((n) => n.getAttribute("href")));
+    // One assertion for both directions: exactly the one public address is a
+    // link. A page that renders no links fails it, so it cannot pass by
+    // rendering nothing.
     check(
-      "links: only public web addresses are links",
-      hrefs.every((href) => href === null || (href.startsWith("https://example.com/") && !href.includes("127.0.0.1"))),
+      "links: exactly the public web address is a link",
+      hrefs.length === 1 && hrefs[0] === "https://example.com/ok",
       JSON.stringify(hrefs),
     );
-    check("links: the real one is there", hrefs.some((href) => href === "https://example.com/ok"), JSON.stringify(hrefs));
-    check("links: the loopback address is not a link", !hrefs.some((href) => (href ?? "").includes("127.0.0.1")), JSON.stringify(hrefs));
+    check("links: no link resolves back to this machine", !hrefs.some((href) => (href ?? "").includes("127.0.0.1")), JSON.stringify(hrefs));
     check("links: a script address is not a link", !hrefs.some((href) => (href ?? "").startsWith("javascript:")), JSON.stringify(hrefs));
     const shown = (await page.locator(".tool-activity").textContent()) ?? "";
     check("links: the address the model asked for is still shown as text", shown.includes("javascript:alert(1)"), shown.slice(0, 300));
@@ -1832,18 +1834,55 @@ const tests = {
     await browser.close();
   },
 
-  // A payload the index does not name is a conversation nothing can open and
-  // nothing ever cleans, and it keeps eating the quota that stopped the write.
-  // Both halves are driven by hand: the index write is made to fail the way a
-  // full store fails it, and an orphan is planted on every load so that only
-  // the store's own sweep can remove it (a plain seed would clear it instead,
-  // which is a check that passes without testing anything).
+  // What the store does with payloads the index does not name: it must never
+  // take an unreadable index as evidence that they are junk, it must leave a
+  // payload that might still be being written, and it must still clear real
+  // junk. Each phase opens its own page, because the sweep runs as the store
+  // opens.
   async orphans() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    /** A page whose storage is planted after `seed`'s clear (init scripts run in order). */
+    const opened = async (plant) => {
+      const page = await browser.newPage();
+      await seed(page, { settings: okSettings("x") });
+      await page.addInitScript(plant);
+      await page.goto(APP);
+      await page.waitForTimeout(1200);
+      return page;
+    };
+    const payloads = (page) =>
+      page.evaluate(() => Object.keys({ ...localStorage }).filter((k) => k.startsWith("crescent-chat.msgs.")).sort());
+
+    const corrupt = await opened(() => {
+      localStorage.setItem("crescent-chat.index.v2", "{ not json at all");
+      // Deliberately old: the grace window must not be what saves these, or the
+      // check would pass for the wrong reason. Only "an unreadable index is not
+      // evidence" can keep them.
+      const old = Date.now() - 10 * 60 * 1000;
+      const message = (id, content) => JSON.stringify([{ id, role: "user", content, createdAt: old }]);
+      localStorage.setItem("crescent-chat.msgs.a.v2", message("m1", "keep me"));
+      localStorage.setItem("crescent-chat.msgs.b.v2", message("m2", "keep me too"));
+    });
+    const kept = await payloads(corrupt);
+    check("orphans: an index that cannot be read never authorises a deletion", kept.length === 2, JSON.stringify(kept));
+    await corrupt.close();
+
+    const windowed = await opened(() => {
+      localStorage.setItem("crescent-chat.index.v2", "[]");
+      const message = (id, content, createdAt) => JSON.stringify([{ id, role: "user", content, createdAt }]);
+      localStorage.setItem("crescent-chat.msgs.fresh.v2", message("m3", "just written", Date.now()));
+      localStorage.setItem("crescent-chat.msgs.old.v2", message("m4", "long abandoned", Date.now() - 10 * 60 * 1000));
+      localStorage.setItem("crescent-chat.msgs.empty.v2", "[]");
+    });
+    const left = await payloads(windowed);
+    check("orphans: a payload younger than the grace window is left alone", left.includes("crescent-chat.msgs.fresh.v2"), JSON.stringify(left));
+    check("orphans: an old unnamed payload is still swept", !left.includes("crescent-chat.msgs.old.v2"), JSON.stringify(left));
+    check("orphans: a payload with nothing in it is swept", !left.includes("crescent-chat.msgs.empty.v2"), JSON.stringify(left));
+    await windowed.close();
+
+    // A brand-new conversation whose index write fails must leave nothing behind.
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("x") });
-    // After `seed`, so it runs after the seed's clear: the orphan is re-planted
-    // on every document, including the reload below.
     await page.addInitScript(() => {
       const real = Storage.prototype.setItem;
       Storage.prototype.setItem = function (key, value) {
@@ -1852,14 +1891,9 @@ const tests = {
         }
         return real.call(this, key, value);
       };
-      localStorage.setItem("crescent-chat.msgs.orphan.v2", "[]");
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    const swept = await page.evaluate(() => Object.keys({ ...localStorage }).filter((k) => k.startsWith("crescent-chat.msgs.")));
-    check("orphans: a payload the index does not name is swept when the store opens", swept.length === 0, JSON.stringify(swept));
-
-    // Now a brand-new conversation whose index write fails.
     await page.evaluate(() => sessionStorage.setItem("block-index", "1"));
     await openChat(page);
     await page.waitForTimeout(1000);
@@ -1874,6 +1908,125 @@ const tests = {
     check("orphans: and the index still names nothing", !(after.index ?? "").includes("This one cannot be filed"), (after.index ?? "").slice(0, 120));
     const thread = (await page.locator(".thread").textContent()) ?? "";
     check("orphans: the session keeps what the disk refused", thread.includes("This one cannot be filed"), thread.slice(0, 160));
+    await browser.close();
+  },
+
+  // A reloaded conversation must never be rebuilt into a request a strict
+  // server would reject. A refused run — one the stream never named, or one
+  // with no round left — was never an exchange on the wire, so it must not
+  // come back as an assistant tool_calls message.
+  async wirehistory() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        {
+          id: "history",
+          title: "With history",
+          createdAt: 1,
+          updatedAt: 2,
+          messages: [
+            { id: "u1", role: "user", content: "Look something up.", createdAt: 1 },
+            {
+              id: "a1",
+              role: "assistant",
+              content: "I looked it up.",
+              createdAt: 2,
+              toolRuns: [
+                { id: "0-call_1", name: "web_search", arguments: '{"query":"a fact"}', result: "1. A fact\n   URL: https://example.com/fact", state: "ok" },
+                { id: "0-", name: "", arguments: "{}", result: "The stream ended before this call's name arrived, so nothing was run.", state: "refused" },
+                { id: "1-call_9", name: "web_fetch", arguments: '{"url":"https://example.com/"}', result: "There was no round left to run this.", state: "refused" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "With history");
+    await page.waitForTimeout(400);
+    await resetMock(page);
+    await sendAndWait(page, "And now?", "line is open");
+
+    const wired = (await allBodies(page)).at(-1)?.messages ?? [];
+    const exchanges = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls));
+    check("history: only the run that really happened is rebuilt", exchanges.length === 1 && exchanges[0].tool_calls.length === 1, JSON.stringify(exchanges.map((m) => m.tool_calls?.length)));
+    check("history: and its name is a name", exchanges[0]?.tool_calls?.[0]?.function?.name === "web_search", JSON.stringify(exchanges[0]?.tool_calls));
+    const names = exchanges.flatMap((m) => m.tool_calls.map((call) => call.function?.name ?? ""));
+    const ids = exchanges.flatMap((m) => m.tool_calls.map((call) => call.id));
+    check("history: no empty function name reaches the wire", names.every((name) => name !== ""), JSON.stringify(names));
+    check("history: no id is repeated", new Set(ids).size === ids.length, JSON.stringify(ids));
+    const tools = wired.filter((m) => m.role === "tool");
+    check("history: one result, for the call that was sent", tools.length === 1 && tools[0].tool_call_id === ids[0], JSON.stringify(tools.map((m) => m.tool_call_id)));
+    await browser.close();
+  },
+
+  // Two rounds in which the server reuses one call id: the transcript must keep
+  // both exchanges, not have the second erase the first.
+  async toolrepeat() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsrepeat-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Search twice.", "answer is 42", 40000);
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check("repeat: both rounds ran their search", calls.length === 2, JSON.stringify(calls.map((c) => c.args.query)));
+    const bodies = await allBodies(page);
+    const wired = bodies.at(-1)?.messages ?? [];
+    const exchanges = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls));
+    const ids = exchanges.flatMap((m) => m.tool_calls.map((call) => call.id));
+    check("repeat: both exchanges are on the wire", exchanges.length === 2, JSON.stringify(exchanges.map((m) => m.tool_calls?.length)));
+    check("repeat: and their ids are distinct despite the server reusing one", new Set(ids).size === 2, JSON.stringify(ids));
+    const runs = await page.locator(".tool-run").count();
+    check("repeat: the thread shows both runs", runs === 2, String(runs));
+    // The thread renders from the live buffer; the disk trails it.
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) =>
+              k.startsWith("crescent-chat.msgs.") &&
+              (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => (m.toolRuns ?? []).length >= 2),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("repeat: both runs reached the disk", false, "never written"));
+    const stored = await page.evaluate(() => ({ ...localStorage }));
+    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
+    const message = JSON.parse(stored[key] ?? "[]").find((m) => (m.toolRuns ?? []).length > 0);
+    const runIds = (message?.toolRuns ?? []).map((run) => run.id);
+    check("repeat: the transcript keeps both runs", runIds.length === 2 && new Set(runIds).size === 2, JSON.stringify(runIds));
+    await browser.close();
+  },
+
+  // Two answers that arrive without SSE, and what the client must do with each.
+  async jsonpaths() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("casestream-demo") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Is this a stream?", "still a stream");
+    check("stream: a media type in any case is still a stream", ((await page.locator(".thread").textContent()) ?? "").includes("Mixed case is still a stream."), ((await page.locator(".thread").textContent()) ?? "").slice(0, 160));
+    await page.close();
+
+    const markup = await browser.newPage();
+    await seed(markup, { settings: okSettings("jsonmarkup-demo") });
+    await openChat(markup);
+    await markup.waitForTimeout(1200);
+    await sendAndWait(markup, "Show me the syntax.", "That was the markup.");
+    const text = (await markup.locator(".thread").textContent()) ?? "";
+    check("json: the words around the call are shown", text.includes("Here is the syntax."), text.slice(0, 200));
+    check("json: and the markup is not", !text.includes("tool_call") && !text.includes("parameter"), text.slice(0, 240));
+    check("json: the text after it is kept too", text.includes("That was the markup."), text.slice(-120));
     await browser.close();
   },
 
