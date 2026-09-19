@@ -1183,5 +1183,104 @@ else
   bad "spend: decay wrong: $(printf '%s' "$sout" | grep -F 'decode tok/s')"
 fi
 
+printf '\n== (g) a turn carrying a tool round is timingValid:false; a clean turn is true ==\n'
+
+# collector.mjs stamps timingValid=false only when charging. A turn whose
+# telemetry contains ANY round with a `tool` field is VOID, never an abort, so
+# it must come out timingValid:false with reason "tool_rounds" — a reader can
+# tell a tool-invalidated turn from a charging-invalidated one. A turn WITHOUT
+# tool rounds must STILL come out timingValid:true: a rule that invalidates
+# everything is not a rule.
+timing_valid_case() {
+  local dir="$WORK/timing-valid" schemas msgs tool_out clean_out
+  rm -rf "$dir"
+  mkdir -p "$dir"
+  schemas="$dir/schemas.json"
+  msgs="$dir/messages.json"
+  printf '%s\n' '[{"prefix":"KALSA_TELEMETRY"}]' > "$schemas"
+  printf '%s\n' '[]' > "$msgs"
+  # One of two telemetry rounds carries "tool":"web_search".
+  printf '%s\n' \
+    '09-17 10:00:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tool":"web_search"}' \
+    '09-17 10:00:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":1}' \
+    > "$dir/tool.logcat"
+  # No round carries a tool field.
+  printf '%s\n' \
+    '09-17 10:00:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0}' \
+    '09-17 10:00:00.000 1 2 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":1}' \
+    > "$dir/clean.logcat"
+  node "$HERE/collector.mjs" --logcat "$dir/tool.logcat" --telemetry "$schemas" --messages "$msgs" --out "$dir/tool.jsonl"
+  node "$HERE/collector.mjs" --logcat "$dir/clean.logcat" --telemetry "$schemas" --messages "$msgs" --out "$dir/clean.jsonl"
+  local tool_valid tool_reason clean_valid
+  tool_valid=$(python3 -c "import json;print(json.load(open('$dir/tool.jsonl')).get('timingValid'))")
+  tool_reason=$(python3 -c "import json;print(json.load(open('$dir/tool.jsonl')).get('timingReason'))")
+  clean_valid=$(python3 -c "import json;print(json.load(open('$dir/clean.jsonl')).get('timingValid'))")
+  if [ "$tool_valid" = "False" ] && [ "$tool_reason" = "tool_rounds" ] && [ "$clean_valid" = "True" ]; then
+    ok "a tool round forces timingValid:false (reason tool_rounds); a clean turn stays timingValid:true"
+  else
+    bad "timingValid/tool_rounds wrong: tool_valid=$tool_valid tool_reason=$tool_reason clean_valid=$clean_valid"
+  fi
+}
+
+timing_valid_case
+
+printf '\n== (h) the cell writes AND verifies the three tool keys as 0 ==\n'
+
+# A measurement cell runs with tools OFF, and a turn carrying any tool round is
+# VOID, never an abort. campaign_write_flags must therefore WRITE the three tool
+# keys (kalsa.web.enabled, kalsa.tools.device, kalsa.tools.calendar) as the
+# literal "0", and campaign_verify_flags must READ them all back, dying on a
+# mismatch. This case proves both halves against the fake DB:
+#   - half 1 fails if the WRITE is removed (the three keys never land, so the
+#     independent readback finds them absent);
+#   - half 2 fails if the VERIFY is removed (a deliberately corrupted key is no
+#     longer caught, so campaign_verify_flags stops dying on it).
+flags_tools_case() {
+  local db="$FAKE_DEV/databases/RKStorage"
+  rm -rf "$WORK/flags-tools"
+  mkdir -p "$WORK/flags-tools"
+  # Fresh fake DB with the table the harness reads.
+  sqlite3 "$db" "CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT);" >/dev/null
+  # campaign_write_flags/campaign_verify_flags live here; source them.
+  source "$HERE/flags.sh"
+  # Operate on the fake DB directly (no device pull/push). die() ABORTS the
+  # subshell (exit 1) so campaign_verify_flags can fail the case on mismatch.
+  sql() { sqlite3 "$db" "$1" 2>/dev/null; }
+  sql_write() {
+    local statement="$1" key="$2" expected="$3" actual
+    printf '%s\n' "$statement" | sqlite3 -bail "$db" >/dev/null 2>&1 || return 1
+    actual=$(sqlite3 "$db" "SELECT value FROM catalystLocalStorage WHERE key='${key}';" 2>/dev/null | tr -d '[:space:]')
+    if [ "$expected" = "__ABSENT__" ]; then [ -z "$actual" ]; else [ "$actual" = "$expected" ]; fi
+  }
+  die() { printf 'flags: die: %s\n' "$*" >&2; exit 1; }
+  log() { :; }
+  PKG="com.kalsa.app"
+
+  # Half 1 (catches a removed WRITE): campaign_write_flags writes the three tool
+  # keys as "0" and verifies them; read them back independently.
+  if ( COMPACTION_VAL=off MEMORY_VAL=0 TOOLHELP_VAL=0 FLAG_PARAMS="" campaign_write_flags ) \
+     && [ "$(sqlite3 "$db" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.web.enabled';" 2>/dev/null | tr -d '[:space:]')" = "0" ] \
+     && [ "$(sqlite3 "$db" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.tools.device';" 2>/dev/null | tr -d '[:space:]')" = "0" ] \
+     && [ "$(sqlite3 "$db" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.tools.calendar';" 2>/dev/null | tr -d '[:space:]')" = "0" ]; then
+    ok "campaign_write_flags wrote the three tool keys as 0 and verified them"
+  else
+    bad "campaign_write_flags did not write the three tool keys as 0"
+  fi
+
+  # Half 2 (catches a removed VERIFY): corrupt one tool key, then require
+  # campaign_verify_flags to DIE on it. A verify that ignores the three keys
+  # lets the corrupted key stand → case goes RED.
+  sqlite3 "$db" "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.web.enabled','1');" >/dev/null
+  if ( COMPACTION_VAL=off MEMORY_VAL=0 TOOLHELP_VAL=0 FLAG_PARAMS="" campaign_verify_flags ) 2>/dev/null; then
+    bad "campaign_verify_flags let a corrupted tool key through (verify removed?)"
+  else
+    ok "campaign_verify_flags died on a corrupted tool key"
+  fi
+
+  unset sql sql_write die log
+}
+
+flags_tools_case
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

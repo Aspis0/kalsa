@@ -56,6 +56,10 @@ campaign_force_stop() {
 #                   for winbudget is resolved via PHASE0_WINBUDGET or fails.
 # Always writes compaction.choice=1 and kalsa.bench.kvtranscript=1.
 # Always DELETEs kalsa.bench.toolchoice (auto = absent).
+# Writes the three tool keys as the literal "0": parseToolToggle recognises
+# only "1"/"true" (on) and "0"/"false" (off), so "0" forces web+device+calendar
+# OFF. A measurement cell runs with tools OFF, and a turn carrying any tool
+# round is VOID, never an abort.
 # Does not write thinking unless THINKING_VAL is set.
 campaign_write_flags() {
   campaign_validate_compaction "${COMPACTION_VAL:?}" || die "bad compaction"
@@ -71,6 +75,12 @@ campaign_write_flags() {
   _campaign_sql_put "kalsa.ciswire.toolhelp" "$TOOLHELP_VAL"
   _campaign_sql_put "kalsa.bench.kvtranscript" "1"
   _campaign_sql_del "kalsa.bench.toolchoice"
+  # Tools OFF for the whole cell. "0" is the exact string parseToolToggle
+  # maps to off; anything else would fall back to the default (ON for web and
+  # device, OFF for calendar), which is the defect being fixed here.
+  _campaign_sql_put "kalsa.web.enabled" "0"
+  _campaign_sql_put "kalsa.tools.device" "0"
+  _campaign_sql_put "kalsa.tools.calendar" "0"
   if [ -n "${LOCALE_VAL:-}" ]; then
     _campaign_sql_put "kalsa.locale" "$LOCALE_VAL"
   fi
@@ -130,7 +140,13 @@ campaign_verify_flags() {
   [ "$got" = "1" ] || die "readback kvtranscript='$got' expected 1"
   got=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.toolchoice';" | head -1 | tr -d '[:space:]')
   [ -z "$got" ] || die "readback toolchoice='$got' expected ABSENT"
-  log "flags readback ok compaction=$COMPACTION_VAL memory=$MEMORY_VAL toolhelp=$TOOLHELP_VAL"
+  got=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.web.enabled';" | head -1 | tr -d '[:space:]')
+  [ "$got" = "0" ] || die "readback web.enabled='$got' expected 0"
+  got=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.tools.device';" | head -1 | tr -d '[:space:]')
+  [ "$got" = "0" ] || die "readback device.tools='$got' expected 0"
+  got=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.tools.calendar';" | head -1 | tr -d '[:space:]')
+  [ "$got" = "0" ] || die "readback calendar.tools='$got' expected 0"
+  log "flags readback ok compaction=$COMPACTION_VAL memory=$MEMORY_VAL toolhelp=$TOOLHELP_VAL web.enabled=$got device.tools=$got calendar.tools=$got"
 }
 
 # Unit entry: bash scripts/campaign/flags.sh --selftest  (no device)

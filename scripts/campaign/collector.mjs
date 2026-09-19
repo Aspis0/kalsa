@@ -9,6 +9,7 @@ import {
   lastTelemetry,
   assertCompactionBit,
   stampTimingInvalid,
+  hasToolRounds,
   isChargingFromDump,
 } from "./telemetryParse.mjs";
 
@@ -32,6 +33,7 @@ export function collectTurn(opts) {
   const tel = lastTelemetry(byPrefix);
   const interrupted = opts.interrupted === true;
   const charging = Boolean(opts.charging);
+  const toolRounds = hasToolRounds(byPrefix);
   const timingKeys = [];
   for (const s of schemas) {
     for (const k of s.timingInvalidOnCharge || []) timingKeys.push(k);
@@ -62,7 +64,12 @@ export function collectTurn(opts) {
     transcript: { user, assistant },
     telemetry: telemetryStamped,
     charging,
-    timingValid: !charging,
+    // A turn carrying any tool round is VOID, never an abort. Charging keeps
+    // exactly its old decision (false); a non-charging turn with a tool round
+    // is now invalid too. timingReason names the cause so a reader can tell a
+    // tool-invalidated turn from a charging-invalidated one.
+    timingValid: !charging && !toolRounds,
+    timingReason: toolRounds ? "tool_rounds" : null,
     retried: Boolean(opts.retried),
     interrupted: interrupted || null,
     recovery: opts.recovery || null,

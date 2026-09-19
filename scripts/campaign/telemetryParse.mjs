@@ -60,6 +60,22 @@ export function stampTimingInvalid(obj, charging, keys) {
   return next;
 }
 
+/**
+ * True if any telemetry round in any prefix carries a `tool` field. A round
+ * with a tool is a network/tool call inside a timed turn; the owner's rule is
+ * that a measurement cell runs with tools OFF, so a turn carrying ANY tool
+ * round is VOID, never an abort. Returns false when no round carries `tool`
+ * (a clean turn, or one whose rounds omit the field).
+ */
+export function hasToolRounds(byPrefix) {
+  for (const rows of Object.values(byPrefix || {})) {
+    for (const r of rows || []) {
+      if (r && typeof r === "object" && "tool" in r) return true;
+    }
+  }
+  return false;
+}
+
 export function parseTurnTelemetry(logText, schemas) {
   const byPrefix = {};
   for (const schema of schemas || []) {
