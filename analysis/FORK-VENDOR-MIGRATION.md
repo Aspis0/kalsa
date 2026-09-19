@@ -1054,3 +1054,47 @@ audit settles the sha** — pushing first would publish a commit the audit may s
 
 `LLAMA_CPP_REF` still takes a 40-hex sha, never a branch name (§10.1 rule (b)); the branch only has
 to exist on the remote so the commit is reachable.
+
+---
+
+## 18. Step 7 gets a falsifiable gate: 37 errors must become 0
+
+§10.8 recorded that step 7 has no gate. It has one now, it is one command, it needs no device
+and no CI, and it is **falsifiable before the step runs** — the number is written down first.
+
+```
+clang++ -std=c++17 -fsyntax-only -ferror-limit=0 \
+  -I cpp -I vendor/llama.cpp/include -I vendor/llama.cpp/ggml/include \
+  -I vendor/llama.cpp/ggml/src -I vendor/llama.cpp/common -I vendor/llama.cpp/src \
+  cpp/rn-governor.cpp > /tmp/rng.log 2>&1; echo $?
+```
+
+**Today (`f5fd027b`): exit 1, 37 errors, 0 of them naming `lm_ggml_`.** Every residual is the
+governor API. `-ferror-limit=0` matters: clang's default limit of 20 stops before line 77, so the
+first run of this gate hides the symbol it was written to catch.
+
+**The chain that produces the 37**, traced rather than guessed:
+
+```
+cpp/rn-governor.cpp  ->  #include "llama-governor.h"
+cpp/llama-governor.h:3  ->  #include "llama-ext.h"        (cpp/ has no llama-ext.h)
+                        ->  vendor/llama.cpp/src/llama-ext.h   (plain ggml-org: 0 hits for
+                                                                llama_governor_params)
+```
+
+kalsallama's `src/llama-ext.h` is where the governor types are declared. So step 7 — re-pointing
+`LLAMA_CPP_REPO` at kalsallama — is exactly what supplies them. **The prediction is 37 -> 0.** If
+it lands on anything else, the re-point did something other than what we think.
+
+### 18.1 A trap that is benign today and will not stay that way
+
+`RNLLAMA_INCLUDE_DIRS` puts `cpp/` first, so after step 7 `#include "llama-governor.h"` still
+resolves to `cpp/llama-governor.h`, **not** to the vendored `src/llama-governor.h`. Right now the
+two files are byte-identical (`diff` exit 0, zero lines), so nothing is wrong. But the binding
+would then be compiling against a private copy of a class the engine compiles from its own: the
+first edit to kalsallama's governor header silently desynchronises the two, and the symptom is an
+ODR mismatch, not a compile error.
+
+This is the strongest argument for step 8 that the plan has. Deleting the 17 orphan engine files
+from `cpp/` is not tidying — it is removing a shadow that turns a future one-line engine change
+into an undiagnosable runtime bug.
