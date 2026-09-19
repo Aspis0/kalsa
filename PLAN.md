@@ -778,6 +778,22 @@ gamba di restart non piu' `LOADED BUT COLD`; (3) una verifica sul telefono con Q
 Un modulo .ts (la decisione di quale campo per quale posizione) con test jest, e la verifica minja come
 script del lab, non come test jest. Coda kalsa-93: evict-marker → `log-privacy` → **`qwen-think-in-history`**
 → `save-wiring-coverage` → governor-kv-contract → coolmode.
+**Passo 1 di `qwen-think-in-history` MISURATO (18/09 ~20:40 EDT, kalsa-93, minja via `llama-server` sul GGUF
+di catalogo, id per id, 6 casi su 6 riusano l'intera cache).** Regola per posizione: **turno vecchio**
+(`loop.index0 <= last_query_index`): `content` = span grezzo, `reasoning_content` = stringa non vuota
+qualsiasi (mai resa in quel ramo, sentinella assente dal prompt; serve solo a saltare lo split) → 235/235,
+232/232, 26/26 (i due messaggi assistente reali dell'artefatto + il think vuoto). **Turno finale** (prewarm):
+`content` = risposta dopo `</think>\n\n`, `reasoning_content` = interno **con i newline finali tolti**
+(`rstrip`) → 235/235, 232/232, 26/26; col ragionamento grezzo si rompe a 195/235 per UN newline
+(`'\n</think>'` vivo contro `'\n\n</think>'` reso): il `|trim` della riga 99 del template non lo toglie, e
+non e' determinato se il render dell'ultimo turno passi dal template puro o da un handler di formato di
+llama.cpp. Le emissioni salvate sono gia' in forma canonica (`<think>\n` + interno + `\n</think>\n\n` +
+risposta): basta partizionare su `</think>`. **Non misurato:** che `getFormattedChatWithJinja` di llama.rn
+prenda lo stesso percorso di `llama-server` (stessa `common_chat_templates_apply`, ma gli input —
+`enable_thinking`, `reasoning_format`, `add_generation_prompt` — vanno confrontati sul sorgente prima del
+passo 2). Il campo dipende dalla posizione, quindi la decisione e' una funzione pura di (messaggio, e'
+finale) rifatta a ogni render: e' il modulo .ts del passo 2.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
