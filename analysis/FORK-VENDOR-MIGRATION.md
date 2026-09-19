@@ -577,9 +577,11 @@ next bump would have measured something else.
 
 ### 10.9 Missing: rollback, shippability, same-engine **[E]**
 
-- **Rollback target exists only by accident.** The app pins `95c3493b`, which is exactly
-  `v0129-on-gate`. → **Tag it** and say so; it is the only way back to the shipping engine once
-  step 8 deletes `sync-kalsallama.sh`, `kalsa-patches/` and `cpp/`.
+- **Rollback target exists only by accident.** The app pins `95c3493b`. `v0129-on-gate` is a
+  **branch**, not a tag, and `origin/kalsa` points at the same commit — both will move as the
+  migration lands. → **DONE 19/09:** annotated tag `rollback/v0129-on-gate` in
+  `llama.rn-kalsa`, local only (not pushed: needs the owner's go). It is the only way back to the
+  shipping engine once step 8 deletes `sync-kalsallama.sh`, `kalsa-patches/` and `cpp/`.
 - **Shippability rule, previously unstated:** the app's pin is never advanced until the fork is
   green, and step 8 lands on a branch the app does not pin.
 - **What proves it is the same engine.** Nothing in the plan. The digest cannot do it — it is
