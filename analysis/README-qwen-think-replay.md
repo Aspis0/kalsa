@@ -22,3 +22,21 @@ doing at all.
 Measured 18/09/2026: 6/6 on the two real stored emissions plus the
 closed-immediately `<think>\n\n</think>\n\n` shape. Counts only; no prompt text
 is printed.
+
+## When to re-run this
+
+**Whenever the chat template changes or the fork is bumped.** The contract this
+probe checks is a property of the template *as rendered by the engine we ship*,
+not of the app: two things it depends on are invisible from JS and would break
+silently.
+
+1. For an older turn the value of `reasoning_content` is never rendered — a
+   single space is enough to stop the `</think>` split. If a template version
+   starts rendering it, that space lands in the prompt and the cache breaks on
+   exactly the seam this work repaired.
+2. The final turn needs the reasoning `rstrip`ped because the template's `|trim`
+   does not take effect on that path. If it starts taking effect, the strip
+   becomes wrong in the other direction.
+
+A jest test cannot see either: no test in the app may import the module that
+loads the engine. This probe is the only check that looks at the real render.
