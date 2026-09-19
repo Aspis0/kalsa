@@ -15,6 +15,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 
 ## Dove siamo
 
+> **Governor, rilevazione del dispositivo (M1, 19/09):** il piano vive in un file suo — [`analysis/GOVERNOR-DEVICE-PLAN.md`](analysis/GOVERNOR-DEVICE-PLAN.md). Si segue li', non qui.
+
 **18/09: Step 5 chiuso sul Mac.** L'aggiornamento del motore gira col gate pieno (307 TU) prima di scrivere: fork `kalsa@485519fe`, app `main@2ed2a88`, engine id `63b92e83`; sull'S23 il motore gira e MTP si attiva, ma i due turni di confronto non sono stati eseguiti (watchdog termico) e restano aperti tre punti — tetti di frequenza guidati dal carico, Qwen3.5-4B non caricabile su 7 GB, cancellazioni di sessione senza log. Dettaglio in ALIVE.
 
 **10/09: G1 chiuso, modello principale LFM2.5-2.6B.** Da qui in poi il piano è la fase "un modello completo" (§3 sessione/cache, §7 suite, §8 termica/memoria/UI, §13 protocollo M1 9/10), anticipata di 5 giorni.
