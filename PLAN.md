@@ -947,6 +947,30 @@ COLD, sullo stesso e2e. E2e su `9b08ae0`: run `35412505963`. APK debuggabile arm
 run `35412537213` (per la verifica sul telefono del fix anti-loop sull'S23 e di persist-guard sul Jelly,
 una per fix, precondizioni: schermo spento, batteria < 40 °C, AP < 45 °C letti subito prima).
 
+**T20C thermal-aware (ramo `t20c-thermal-aware`, 18/09 sera, kalsa-2d + Luna, audit deepseek-commandcode).**
+Passata 1 `4911a1b`: l'argine duro non abortiva nel percorso di recovery (`oneTurn.sh:180` registrava e
+proseguiva). Passata 2 `aabb020`: argine = motivo registrato POI `die` in entrambi i chiamanti (`:47`, `:188`),
+salita sostenuta su N campioni consecutivi (default 3) con letture nel log e tre stati di alimentazione
+(scollegato → abort; in carica → "rising is not a reason to stop"; sconosciuto → nessun abort, detto), cap
+della sonda agganciato al budget di turno; selftest 39/39 e prova rossa riprodotta dal coordinatore-peer su
+copia `git archive` (una riga, un test). *Verdetto sull'audit di `aabb020`, verificato su disco dal
+coordinatore:* **la linea status ≥ 3 dell'owner non puo' scattare** — l'hard abort e' valutato solo dentro il
+cooldown (`recovery.sh:249/:253`), e nel cooldown si entra solo con una pausa, ma il cancello di pausa e' piu'
+severo della linea (`recovery.sh:161` status ≥ `CAMPAIGN_THERMAL_PAUSE` = **5** in T20C, o batteria > 42):
+un telefono scollegato a status 3-4 con batteria ≤ 42,0 non pausa, non raggiunge il controllo, e il turno
+gira fino in fondo oltre la linea. Il selftest non lo vede perche' chiama il cooldown direttamente, saltando
+il cancello. **Invariante da tenere in codice e da far fallire a un test: la condizione di hard abort deve
+implicare la condizione di pausa.** Inoltre: `CAMPAIGN_TURN_STATUS` non azzerato sul percorso di skip (un
+fallimento d'invio successivo viene riletto come `thermal`); tre rami mai eseguiti da alcun test (salita
+sostenuta, alimentazione sconosciuta, scadenza 45 min); `skip_case hot cooldown-fail` codifica il
+comportamento sbagliato. GIVEUP (tetto del cooldown raggiunto) = motivo → registrato → `die` in entrambi i
+chiamanti (decisione del coordinatore: un run che non si raffredda in due ore non e' piu' una misura).
+**Numero per turno, misurato dall'audit:** un turno silenzioso costa esattamente un intervallo (30 s con i
+default T20C); i 45 minuti sono raggiungibili solo mentre l'impronta cambia, cioe' mentre il motore produce;
+composizione peggiore di un solo indice di turno ~93 min senza retry, ~150 con retry d'invio (3,5 + 45 + ≤10
++ 45 + 45) — il tetto non e' il costo del silenzio, e' il costo del throttling estremo. Passata 3 in scrittura
+(sette punti, ogni caso nuovo visto rosso prima di chiamarlo copertura). Rebase finale su `9b08ae0`.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
