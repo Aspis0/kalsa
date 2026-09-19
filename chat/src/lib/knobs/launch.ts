@@ -58,8 +58,8 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
     max: 3600,
     step: 60,
     whatItIs: "This is how long the unused model and its conversation cache stay loaded before the server releases them.",
-    whatItsFor: "A shorter time frees memory sooner but reloads more often; a longer time keeps the next message ready but retains memory while idle.",
-    usualValues: "300 seconds is the app default; the panel allows 60 to 3600 seconds.",
+    whatItsFor: "A shorter time frees memory sooner but reloads more often; a longer time keeps the next message ready but holds memory while idle. Either way the next message loads the model back.",
+    usualValues: "5 minutes is the app default. The choices are 1 minute, 5 minutes and 1 hour.",
   },
   {
     wire: "internet_road",

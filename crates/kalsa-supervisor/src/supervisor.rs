@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crate::child::{self, ChildHandle};
+use crate::child::{self, ChildHandle, Residency};
 use crate::config::ServerConfig;
 use crate::health;
 use crate::instance::{Existing, InstanceFile};
@@ -134,6 +134,12 @@ pub struct Supervisor {
     /// compare against their last-seen value and act on the difference — an
     /// event no poll can miss, because the count never goes back down.
     releases: Arc<AtomicU64>,
+    /// Whether the model is in memory right now, toggled by the same drain
+    /// thread from both lines the server prints around a release (see
+    /// `child::Residency`). A fact of its own, not a reading of `releases`:
+    /// a count that never goes down can say a release happened, never that
+    /// the model is back.
+    residency: Residency,
 }
 
 impl Supervisor {
@@ -141,16 +147,19 @@ impl Supervisor {
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
         let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
-            move || work(inbox, state, releases)
+            let residency = residency.clone();
+            move || work(inbox, state, releases, residency)
         });
         Self {
             commands,
             state,
             worker: Mutex::new(Some(worker)),
             releases,
+            residency,
         }
     }
 
@@ -161,6 +170,16 @@ impl Supervisor {
     /// unannounced to us.
     pub fn release_watcher(&self) -> Arc<AtomicU64> {
         Arc::clone(&self.releases)
+    }
+
+    /// Whether the server holds the model in memory right now. `None` when
+    /// nothing can say: a server adopted from an earlier run is reused without
+    /// a `ChildHandle` (`take_over`), so there is no pipe and its releases and
+    /// reloads are never announced. An adopted server is still serving — the
+    /// door answers and the model comes back when a message arrives — so this
+    /// answers about the model, never about whether the server counts as up.
+    pub fn model_asleep(&self) -> Option<bool> {
+        self.residency.asleep()
     }
 
     pub fn state(&self) -> ServerState {
@@ -208,6 +227,7 @@ fn work(
     inbox: Receiver<Command>,
     state: Arc<Mutex<ServerState>>,
     releases: Arc<AtomicU64>,
+    residency: Residency,
 ) {
     let mut owned: Option<Owned> = None;
     loop {
@@ -222,7 +242,15 @@ fn work(
                 // whose answer decides whether the record exists at all.
                 let _ = outcome.send(StartOutcome::Accepted);
                 set(&state, ServerState::Starting);
-                match start_blocking(&config, Arc::clone(&releases)) {
+                // This start owns the residency cell from here. The previous
+                // server's answer must not outlive it, and the new server's
+                // drain thread has not looked yet: between those two moments the
+                // honest answer is "not known", and the reset is synchronous so
+                // that no poll can land on the older server's answer. It sits
+                // before the handshake, because the handshake's success is what
+                // reports the new server as running.
+                residency.forget();
+                match start_blocking(&config, Arc::clone(&releases), residency.clone()) {
                     Ok(Started::Adopted { pid }) => {
                         set(
                             &state,
@@ -355,7 +383,11 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
 }
 
 /// Reuses or clears a previous instance, then spawns and waits for readiness.
-fn start_blocking(config: &ServerConfig, releases: Arc<AtomicU64>) -> Result<Started, Failure> {
+fn start_blocking(
+    config: &ServerConfig,
+    releases: Arc<AtomicU64>,
+    residency: Residency,
+) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
     config
@@ -377,11 +409,16 @@ fn start_blocking(config: &ServerConfig, releases: Arc<AtomicU64>) -> Result<Sta
         .map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
-    let mut child =
-        ChildHandle::spawn(&config.exe, &config.argv, Some(instance.handle()), releases)
-            .map_err(|e| Failure::ServerNotStarted {
-                detail: format!("could not start the server: {e}"),
-            })?;
+    let mut child = ChildHandle::spawn(
+        &config.exe,
+        &config.argv,
+        Some(instance.handle()),
+        releases,
+        residency,
+    )
+    .map_err(|e| Failure::ServerNotStarted {
+        detail: format!("could not start the server: {e}"),
+    })?;
     instance
         .describe(child.pid(), config.port)
         .map_err(|e| Failure::InstanceUnwritable {
@@ -535,7 +572,8 @@ fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     fn config(port: u16) -> ServerConfig {
         ServerConfig {
@@ -562,7 +600,7 @@ mod tests {
             "--port".into(),
             "8290".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -582,7 +620,7 @@ mod tests {
             "--port".into(),
             "9999".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -596,7 +634,7 @@ mod tests {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
         let config = config(8292);
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)))
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -604,6 +642,143 @@ mod tests {
             other => panic!("unexpected outcome for a well-bound argv: {other:?}"),
         }
         let _ = std::fs::remove_file(&config.state_file);
+    }
+
+    #[test]
+    fn an_adopted_server_has_no_answer_about_its_model() {
+        // The gap the residency's third value exists for: a server from an
+        // earlier run of this app is reused by `take_over` without a
+        // `ChildHandle`, so no stderr pipe is ever held and nothing can
+        // announce a release or a reload. The answer must be "not known",
+        // never "in memory".
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind the stand-in health port");
+        let port = listener
+            .local_addr()
+            .expect("the stand-in's own address")
+            .port();
+        let stop = Arc::new(AtomicBool::new(false));
+        let stand_in = std::thread::spawn({
+            let stop = Arc::clone(&stop);
+            move || {
+                let _ = listener.set_nonblocking(true);
+                while !stop.load(Ordering::Relaxed) {
+                    match listener.accept() {
+                        // Every probe gets a 200: an adopted server is one that
+                        // answers, which is how it came to be adopted.
+                        Ok((mut stream, _)) => {
+                            let _ = std::io::Write::write_all(&mut stream, b"HTTP/1.0 200 OK\r\n\r\n");
+                        }
+                        Err(_) => std::thread::sleep(Duration::from_millis(10)),
+                    }
+                }
+            }
+        });
+        // A state file this very process holds the lock on, naming a live pid:
+        // the shape `inspect` reports as Live, which `take_over` adopts when the
+        // port answers. No `binding` line, so no command to mismatch.
+        let config = config(port);
+        std::fs::write(
+            &config.state_file,
+            format!("kalsa-brain v1\npid={}\nport={port}\n", std::process::id()),
+        )
+        .expect("write the earlier run's state file");
+        let lock = std::fs::File::open(&config.state_file).expect("open the state file");
+        lock.try_lock().expect("hold the lock as an earlier run would");
+
+        let residency = Residency::new();
+        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone());
+        let announced = residency.asleep();
+
+        // Teardown before the assertions, so a failing one cannot leave the
+        // listener accepting or the state file behind for the rest of the run.
+        // `tests/common` has a `Drop` guard for its own fake health server; this
+        // is the unit-test module, so it is done by hand.
+        stop.store(true, Ordering::Relaxed);
+        let _ = stand_in.join();
+        drop(lock);
+        let _ = std::fs::remove_file(&config.state_file);
+
+        match adopted.expect("the earlier run's server must be adopted, not started again") {
+            Started::Adopted { pid } => assert!(pid.is_some(), "a Live state file names a pid"),
+            Started::Spawned { .. } => panic!("the earlier run's server was spawned a second time"),
+        }
+        assert_eq!(
+            announced,
+            None,
+            "an adopted server has no pipe: its model's residency must stay unknown, not be assumed loaded"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_start_forgets_what_the_previous_server_announced() {
+        // The residency cell describes the server that owns it. Server A
+        // announced a release; the owner stopped it and asked for a start. The
+        // new server cannot be reported running until its health handshake
+        // answers, but until its own drain thread has looked, the cell would
+        // still hold A's answer — and the page, polling every second, would say
+        // "On, asleep" about a server that is loading its model. The reset is
+        // synchronous, on the path that begins the start.
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut announcing = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+        )
+        .expect("spawn the server that released its model");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep() != Some(true) {
+            assert!(
+                Instant::now() < deadline,
+                "the announcing server never reached the cell"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+
+        // The supervisor's own worker over that same cell, with nothing running:
+        // A is the server before this start, and this start is the new one. The
+        // exe does not exist, so the new drain never looks — which is the window
+        // under test, held open for the length of the assertion below.
+        let (commands, inbox) = mpsc::channel();
+        let state = Arc::new(Mutex::new(ServerState::Stopped));
+        let worker = std::thread::spawn({
+            let state = Arc::clone(&state);
+            let releases = Arc::clone(&releases);
+            let residency = residency.clone();
+            move || work(inbox, state, releases, residency)
+        });
+        let config = config(8294);
+        let state_file = config.state_file.clone();
+        let _ = std::fs::remove_file(&state_file);
+        let (outcome, _verdict) = mpsc::channel();
+        let _ = commands.send(Command::Start(Box::new(config), outcome));
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep().is_some() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let forgot = residency.asleep();
+
+        // Teardown before the assertion, so failing leaves nothing behind: the
+        // worker stops, the announcing child is reaped, and the state file the
+        // failed start wrote is removed — the same "assertions included" shape
+        // `ScratchDir` gives the tests next door in `main.rs`.
+        let _ = commands.send(Command::Shutdown);
+        let _ = worker.join();
+        let _ = announcing.terminate(Duration::from_millis(50));
+        let _ = std::fs::remove_file(&state_file);
+
+        assert_eq!(
+            forgot, None,
+            "a new start kept the released model of the server before it"
+        );
     }
 
     #[test]

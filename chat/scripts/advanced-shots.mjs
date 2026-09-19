@@ -18,6 +18,7 @@
 // picture.
 import { readFileSync, rmSync } from "node:fs";
 import { chromium } from "@playwright/test";
+import { LAUNCH_KNOBS } from "../src/lib/knobs/launch.ts";
 
 const CONTRACT = JSON.parse(readFileSync(new URL("./advanced-contract.json", import.meta.url), "utf8"));
 const CONTRACT_KEYS = Object.keys(CONTRACT.sample).sort();
@@ -80,11 +81,17 @@ const RUNNING_F16 = {
   context_tokens: 32657,
   kv_cache_override: "f16",
 };
-// Stopped, with the owner's own next-start values saved.
+// Stopped, with the owner's own next-start values saved — including an idle
+// time that is none of the panel's three choices, typed into the number field
+// this control replaced. Saving must keep it, and must carry every other value
+// back: `brain_set_advanced` rebuilds the whole launch record from its
+// arguments, so an argument left out is a knob reset to automatic.
 const OVERRIDDEN = {
   ...BASE,
   context_tokens: 8192,
   context_override: 8192,
+  idle_unload_seconds: 600,
+  idle_override: 600,
   ubatch_size: 1024,
   ubatch_override: 1024,
 };
@@ -130,6 +137,7 @@ const STATES = [
     scrollTo: ".advanced-panel",
     marker: "micro-batch 1024",
     require: ["Next start: context 8192"],
+    check: idleSaveProblems,
   },
   {
     name: "sampling-collapsed",
@@ -234,6 +242,86 @@ async function popoverProblems(page) {
   });
 }
 
+/**
+ * The idle clock, in one gesture: read what the file holds, choose a different
+ * duration, press Save, and read the arguments back off the bridge.
+ *
+ * This is the trap the whole check exists for. `brain_set_advanced` is not a
+ * patch — it rebuilds the launch record from the call's parameters and carries
+ * nothing over but the model and the internet road — so a control that sent
+ * only its own value would reset context, batch, micro-batch and cache to
+ * automatic with no error to show for it. The owner's 8192-token context and
+ * 1024 micro-batch must come back on the wire, and the idle choice must arrive
+ * as the number of seconds it stands for.
+ */
+async function idleSaveProblems(page) {
+  const problems = [];
+  const select = page.locator("#advanced-idle");
+  const chosenBefore = await select.inputValue();
+  if (chosenBefore !== "600") {
+    problems.push(
+      `the idle control shows ${chosenBefore === "" ? "nothing" : chosenBefore} where the settings file says 600 seconds`,
+    );
+  }
+  const labels = await select.locator("option").allTextContents();
+  const expected = ["1 minute", "5 minutes", "10 minutes", "1 hour"];
+  if (labels.join(" | ") !== expected.join(" | ")) {
+    problems.push(`the idle choices are [${labels.join(" | ")}], not [${expected.join(" | ")}]`);
+  }
+  // Every duration the control offers must be one the backend accepts. That
+  // range lives in kalsa-launch (`MIN_IDLE_UNLOAD_SECONDS` ..
+  // `MAX_IDLE_UNLOAD_SECONDS`, which `validate` enforces) and is mirrored by
+  // this knob's own bounds; the choices name the ends a third time. A range
+  // change in either place must not leave the control offering a duration the
+  // backend refuses, so the seconds the select really renders are read back
+  // against the knob's min and max. (The label check above already fails if the
+  // select rendered nothing, so this cannot pass by having no options.)
+  const knob = LAUNCH_KNOBS.find((candidate) => candidate.wire === "sleep-idle-seconds");
+  const offered = await select
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => Number(option.value)));
+  if (knob === undefined) {
+    problems.push("the launch knob table no longer carries the idle clock");
+  } else if (typeof knob.min !== "number" || typeof knob.max !== "number") {
+    problems.push("the idle knob declares no range for its choices to be checked against");
+  } else {
+    for (const seconds of offered) {
+      if (seconds < knob.min || seconds > knob.max) {
+        problems.push(
+          `the idle control offers ${seconds} seconds, outside the knob's own range ${knob.min}..${knob.max}`,
+        );
+      }
+    }
+  }
+  await select.selectOption("3600");
+  await page.locator(".advanced-panel .btn-primary").click();
+  await page.waitForFunction(
+    () => (window.__INVOKES__ ?? []).some(([command]) => command === "brain_set_advanced"),
+  );
+  const call = await page.evaluate(() =>
+    (window.__INVOKES__ ?? []).find(([command]) => command === "brain_set_advanced"),
+  );
+  const args = call?.[1] ?? {};
+  const wanted = {
+    contextTokens: 8192,
+    idleUnloadSeconds: 3600,
+    internetRoad: false,
+    batchSize: null,
+    ubatchSize: 1024,
+    kvCache: null,
+  };
+  for (const [key, value] of Object.entries(wanted)) {
+    if (!(key in args)) {
+      problems.push(`the save sent no ${key}, which resets that setting to automatic`);
+    } else if (args[key] !== value) {
+      problems.push(
+        `the save sent ${key}=${JSON.stringify(args[key])} where the panel showed ${JSON.stringify(value)}`,
+      );
+    }
+  }
+  return problems;
+}
+
 /** The trigger closest to the window's right edge: the worst case for a popover. */
 async function rightmostTrigger(page) {
   return page.evaluate(() => {
@@ -251,20 +339,24 @@ async function rightmostTrigger(page) {
   });
 }
 
-/** Stubs the Tauri bridge the way brain-shots.mjs does: answers, no bus. */
+/** Stubs the Tauri bridge the way brain-shots.mjs does: answers, no bus. Every
+    call is kept on the page, so a check can read the arguments a gesture sent. */
 function installStub({ advanced, brain }) {
+  window.__INVOKES__ = [];
   window.__TAURI__ = {
     core: {
-      invoke: (command) =>
-        Promise.resolve(
-          command === "brain_advanced"
+      invoke: (command, args) => {
+        window.__INVOKES__.push([command, args]);
+        return Promise.resolve(
+          command === "brain_advanced" || command === "brain_set_advanced"
             ? advanced
             : command === "brain_state"
               ? brain
               : command === "brain_capability"
                 ? { kind: "unmeasured" }
                 : null,
-        ),
+        );
+      },
     },
     event: {
       listen: () => Promise.resolve(() => {}),

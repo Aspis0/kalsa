@@ -448,6 +448,50 @@ try {
     problems.push("the connection-lost failure must keep the resume promise in its own words");
   }
 
+  // A release is the one case where "On" alone would be a lie: the server is up
+  // and the model is not in memory. The page must say both — and must not say
+  // either when the app cannot know, which is a server it adopted on startup
+  // and holds no stderr pipe to. The released case must also give way to a
+  // phone that is working right now: a served connection is the opposite of
+  // idle, so that is the fresher fact.
+  const ASLEEP_VERDICT = "On, asleep";
+  const ASLEEP_SENTENCE =
+    "The model is not in memory right now. Your next message brings it back, which takes a few seconds.";
+  const asleepCard = results.find((r) => r.heading === "Status — running, asleep");
+  const busyAsleepCard = results.find((r) => r.heading === "Status — running, asleep while a phone works");
+  if (!asleepCard || !busyAsleepCard) {
+    problems.push("the harness is missing a released-model state the page must speak about");
+  } else {
+    if (!asleepCard.all.includes(ASLEEP_VERDICT)) {
+      problems.push("a released model must be said in the verdict, not only in the sentence");
+    }
+    if (!asleepCard.all.includes(ASLEEP_SENTENCE)) {
+      problems.push("a released model must say that the next message brings it back");
+    }
+    if (!busyAsleepCard.all.includes("Your phone is using this computer right now.")) {
+      problems.push("a phone working right now must keep its own sentence even after a release was announced");
+    }
+    if (busyAsleepCard.all.includes(ASLEEP_VERDICT)) {
+      problems.push("a phone working right now must not be told the model is asleep, which that work contradicts");
+    }
+  }
+  // Both shapes of "not known": the field absent, and the field null. Neither
+  // may be spoken as a fact, and neither may change the words that were there
+  // before the app could tell.
+  for (const note of ["running, phone unknown", "running, residency unknown (stub)"]) {
+    const card = results.find((r) => r.heading === `Status — ${note}`);
+    if (!card) {
+      problems.push(`the harness is missing the "${note}" card`);
+      continue;
+    }
+    if (card.all.includes("asleep")) {
+      problems.push(`an unknown model residency must not be spoken as a fact: ${note}`);
+    }
+    if (!card.all.includes("This computer is ready for you.")) {
+      problems.push(`an unknown model residency must keep the running words: ${note}`);
+    }
+  }
+
   // A running Model card must show what actually happened on this start: the
   // name the shell chose, the reason the shell gave for THIS start, and the
   // promise that picking is never asked. Two of these are the real cases — a

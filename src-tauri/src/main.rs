@@ -500,6 +500,14 @@ enum StateDto {
         /// developer pinned a file and no catalog choice was made to
         /// explain.
         reason: Option<String>,
+        /// Whether the server holds the model in memory right now, as its own
+        /// stderr announces it ("... entering sleeping state", "... exiting
+        /// sleeping state"). `None` is "not known", never "loaded": a server
+        /// adopted from an earlier run is reused without a stderr pipe, so
+        /// nothing can announce its release or its reload. An asleep server is
+        /// still serving — the door answers and the model comes back on
+        /// demand — so this says nothing about `kind`.
+        asleep: Option<bool>,
         metrics: metrics::RuntimeMetricsDto,
     },
     /// Already in the user's words, produced only by `failure::words`.
@@ -538,6 +546,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 endpoint: format!("http://127.0.0.1:{port}/v1"),
                 model: model.display_name,
                 reason: model.reason,
+                asleep: brain.supervisor.model_asleep(),
                 metrics: brain.metrics.snapshot(active_devices),
             }
         }
@@ -1191,6 +1200,7 @@ mod tests {
             endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
             model: Some("IBM Granite 4 Tiny".to_string()),
             reason: Some("It is the more capable of the two.".to_string()),
+            asleep: Some(true),
             metrics: metrics::RuntimeMetricsDto {
                 decode_tokens_per_second: None,
                 active_devices: None,
@@ -1211,6 +1221,37 @@ mod tests {
         assert_eq!(
             json["reason"], "It is the more capable of the two.",
             "the catalog's own reason reaches the page with the name"
+        );
+        assert_eq!(
+            json["asleep"], true,
+            "the announcement that the model is out of memory must reach the page"
+        );
+    }
+
+    #[test]
+    fn an_unknown_residency_crosses_as_an_absence_not_as_a_fact() {
+        // What `brain_state` answers for a server this app adopted on startup:
+        // the supervisor holds no stderr pipe to it (`take_over` in
+        // kalsa-supervisor), so it has no answer at all. The page must receive
+        // the absence of an answer — `null` — which its words read as "not
+        // known". Defaulting this to `false` would tell the owner the model is
+        // in memory on no evidence.
+        let dto = StateDto::Running {
+            port: startup::PORT,
+            endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
+            model: None,
+            reason: None,
+            asleep: None,
+            metrics: metrics::RuntimeMetricsDto {
+                decode_tokens_per_second: None,
+                active_devices: None,
+                throttled: None,
+            },
+        };
+        let json = serde_json::to_value(&dto).expect("a running state serialises");
+        assert!(
+            json["asleep"].is_null(),
+            "a residency nothing announced must cross as null, not as a fact: {json}"
         );
     }
 
@@ -1767,6 +1808,86 @@ mod tests {
         assert_eq!(stored.context_tokens, Some(2048));
         assert_eq!(stored.idle_unload_seconds, None);
         assert_eq!(dto.idle_override, None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// The panel's save is a whole-record write: `brain_set_advanced` rebuilds
+    /// the launch record from its arguments and carries nothing over from the
+    /// file but the model and the internet road. The browser check proves what
+    /// the page sent; this proves what Rust kept. The file starts with the
+    /// owner's own values for all four knobs, the way an earlier build leaves
+    /// it, and only the idle clock changes — so every other value has to come
+    /// back out of the file. A save that quietly dropped one would reset that
+    /// knob to automatic with nothing on screen to say so.
+    #[test]
+    fn saving_the_idle_clock_keeps_every_other_launch_value() {
+        let root = std::env::temp_dir().join(format!(
+            "kalsa-brain-main-idle-keeps-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let state_file = root.join("server.state");
+        let brain = Brain::new();
+        let pairing = root.join("pairing.json");
+        options::save(
+            &state_file,
+            options::LaunchOverrides {
+                context_tokens: Some(8192),
+                idle_unload_seconds: Some(600),
+                batch_size: Some(1024),
+                ubatch_size: Some(256),
+                kv_cache: Some(kalsa_launch::KvCache::F16),
+                ..options::LaunchOverrides::default()
+            },
+        )
+        .expect("write the values an earlier build left behind");
+
+        let dto = brain
+            .set_advanced(
+                &state_file,
+                &pairing,
+                Some(8192),
+                Some(3600),
+                None,
+                Some(1024),
+                Some(256),
+                Some(kalsa_launch::KvCache::F16),
+            )
+            .unwrap();
+
+        let stored = options::load(&state_file);
+        assert_eq!(
+            stored.idle_unload_seconds,
+            Some(3600),
+            "the idle clock is the one value that changed"
+        );
+        assert_eq!(
+            stored.context_tokens,
+            Some(8192),
+            "the save dropped the context"
+        );
+        assert_eq!(
+            stored.batch_size,
+            Some(1024),
+            "the save dropped the batch size"
+        );
+        assert_eq!(
+            stored.ubatch_size,
+            Some(256),
+            "the save dropped the micro-batch size"
+        );
+        assert_eq!(
+            stored.kv_cache,
+            Some(kalsa_launch::KvCache::F16),
+            "the save dropped the cache type"
+        );
+        assert_eq!(dto.idle_override, Some(3600));
+        assert_eq!(
+            dto.context_override,
+            Some(8192),
+            "the panel reads the file back, and the file kept the context"
+        );
         let _ = std::fs::remove_dir_all(root);
     }
 

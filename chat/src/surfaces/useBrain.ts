@@ -7,6 +7,12 @@ const POLL_MS = 1000;
 const COULD_NOT_TELL =
   "This page could not tell whether the assistant is running. Trying again usually works.";
 
+/** What a released model costs the owner, in one sentence. The release itself
+    is the server's (`--sleep-idle-seconds`); this only says what their next
+    message will find. */
+const ASLEEP_SENTENCE =
+  "The model is not in memory right now. Your next message brings it back, which takes a few seconds.";
+
 /** What a refused turn-off says. Shared, because the home page is where the
     owner presses Turn off and the Server page is where they go looking when
     it did not work; two sentences for one fact is how they come to disagree. */
@@ -21,6 +27,11 @@ export interface BrainState {
   // launched (absent on the development path).
   endpoint?: string;
   model?: string;
+  // Only on `running`: whether the model is in memory right now, as the
+  // server's own announcement on stderr. `null` (and an absent field) is "not
+  // known" — a server this app adopted on startup has no stderr to read — and
+  // is never taken for "loaded".
+  asleep?: boolean | null;
   metrics?: {
     decode_tokens_per_second?: number;
     active_devices?: unknown[];
@@ -207,14 +218,23 @@ export function brainWords(
       };
     case "running": {
       // A connected device is real information, so it keeps its own sentence.
-      // With none, the honest and useful thing is that the computer is on and
-      // the bar below it writes to it — the phone is one client, not the
-      // reason it is running.
+      // It wins over the sleeping model below: a release cannot cut a live job
+      // (the server releases its weights only when idle), so a phone using this
+      // computer right now is the fresher of the two facts and the one the
+      // owner can see for themselves.
       const deviceCount = state.metrics?.active_devices?.length ?? 0;
+      // Only `true` changes the words. `false` is a model in memory, and `null`
+      // is a residency nothing could announce — an adopted server, whose
+      // stderr this app never held. `null` is not guessed into either answer.
+      const asleep = state.asleep === true;
       return {
-        headline: "On",
+        headline: asleep && deviceCount === 0 ? "On, asleep" : "On",
         sentence:
-          deviceCount > 0 ? "Your phone is using this computer right now." : "This computer is ready for you.",
+          deviceCount > 0
+            ? "Your phone is using this computer right now."
+            : asleep
+              ? ASLEEP_SENTENCE
+              : "This computer is ready for you.",
         button: "Turn off",
         enabled: true,
         running: true,

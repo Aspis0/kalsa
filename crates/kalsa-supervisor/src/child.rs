@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -28,16 +28,69 @@ const OUTPUT_TAIL: usize = 12;
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
 
-/// The stderr line llama-server b10950 prints at the moment
-/// `--sleep-idle-seconds` releases the model ("I srv  handle_sleep: server is
-/// entering sleeping state"). This is how the owner learns of a release: the
-/// server offers no endpoint for it — `/health` keeps answering 200 and
+/// The two stderr lines llama-server b10950 prints around a release:
+/// `--sleep-idle-seconds` fires and it frees the model ("I srv  handle_sleep:
+/// server is entering sleeping state"), then the next request loads the model
+/// back ("I srv  handle_sleep: server is exiting sleeping state"). This is how
+/// the owner learns either fact: the server offers no endpoint for its
+/// residency — `/health` keeps answering 200 while the model is gone, and
 /// `/props` carries `is_sleeping` but only a poll would read it — so the
 /// announcement on the pipe we already drain is the signal. The wording is a
 /// contract with the shipped build, which the runtime pins by digest; a
-/// future build that rewords the line stops being watched, and releases then
-/// go unannounced rather than invented.
+/// future build that rewords a line stops being watched, and that fact then
+/// goes unannounced rather than invented.
 const MODEL_RELEASED_LINE: &str = "server is entering sleeping state";
+const MODEL_RELOADED_LINE: &str = "server is exiting sleeping state";
+
+// The three values of the residency cell below.
+const RESIDENCY_UNKNOWN: u8 = 0;
+const RESIDENCY_IN_MEMORY: u8 = 1;
+const RESIDENCY_RELEASED: u8 = 2;
+
+/// Whether the server holds the model in memory right now, as its own stderr
+/// announces it.
+///
+/// Three-valued, and the third value is the point: a server adopted from an
+/// earlier run of this app is reused without a `ChildHandle` (see
+/// `supervisor::take_over`), so there is no pipe to read and no announcement
+/// can ever arrive. Its residency stays unknown rather than being assumed
+/// loaded.
+///
+/// Deliberately a different fact from the release *counter*. The counter only
+/// ever goes up, so no poll can miss an event; and for the same reason no
+/// count can answer "is it asleep now", because nothing brings it back down.
+#[derive(Clone)]
+pub(crate) struct Residency(Arc<AtomicU8>);
+
+impl Residency {
+    pub(crate) fn new() -> Self {
+        Self(Arc::new(AtomicU8::new(RESIDENCY_UNKNOWN)))
+    }
+
+    /// `None` while nothing has announced this server's residency — a server
+    /// we hold no pipe to, and the moment before a drain of ours has looked.
+    pub(crate) fn asleep(&self) -> Option<bool> {
+        match self.0.load(Ordering::Relaxed) {
+            RESIDENCY_IN_MEMORY => Some(false),
+            RESIDENCY_RELEASED => Some(true),
+            _ => None,
+        }
+    }
+
+    fn set(&self, value: u8) {
+        self.0.store(value, Ordering::Relaxed);
+    }
+
+    /// Forgets what the previous server announced. Called on the path that
+    /// begins a start, before the new server can be reported running: the cell
+    /// describes the server that owns it, and until the new one's drain has
+    /// looked there is no answer to give. A poll landing in that window reads
+    /// "unknown" — today's words — instead of the released model of the server
+    /// before it.
+    pub(crate) fn forget(&self) {
+        self.set(RESIDENCY_UNKNOWN);
+    }
+}
 
 pub struct ChildHandle {
     child: Child,
@@ -53,7 +106,9 @@ impl ChildHandle {
     /// signal, so `Stdio::null()` would be an immediate EOF.
     ///
     /// `releases` is bumped once per model release the server announces on
-    /// stderr; see [`MODEL_RELEASED_LINE`].
+    /// stderr; see [`MODEL_RELEASED_LINE`]. `residency` carries the two-way
+    /// fact the same lines tell — released, then loaded again — and stays
+    /// unknown for a server this drain never watches.
     ///
     /// The working directory is pinned to the binary's own directory because
     /// ggml's backend scan puts the process' current directory in its module
@@ -65,6 +120,7 @@ impl ChildHandle {
         args: &[String],
         inherit: Option<&File>,
         releases: Arc<AtomicU64>,
+        residency: Residency,
     ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
@@ -114,7 +170,7 @@ impl ChildHandle {
             child.raw_handle().and_then(job::confine)
         };
         let stdin = child.stdin.take();
-        let tail = drain_stderr(child.stderr.take(), releases);
+        let tail = drain_stderr(child.stderr.take(), releases, residency);
         Ok(Self {
             child,
             stdin,
@@ -305,6 +361,7 @@ fn signal_group(pid: u32, signal: i32) {
 fn drain_stderr(
     stderr: Option<std::process::ChildStderr>,
     releases: Arc<AtomicU64>,
+    residency: Residency,
 ) -> Arc<Mutex<VecDeque<String>>> {
     let tail = Arc::new(Mutex::new(VecDeque::new()));
     let Some(stderr) = stderr else {
@@ -312,9 +369,18 @@ fn drain_stderr(
     };
     let sink = Arc::clone(&tail);
     std::thread::spawn(move || {
+        // A pipe of ours is what makes the residency knowable: this child is
+        // loading (or has already loaded) its model and no line has announced
+        // a release, so the model is in memory until one does. A server whose
+        // pipe we do not hold never reaches this line, which is exactly how
+        // its residency stays unknown instead of defaulting to "loaded".
+        residency.set(RESIDENCY_IN_MEMORY);
         for line in BufReader::new(stderr).lines().map_while(Result::ok) {
             if line.contains(MODEL_RELEASED_LINE) {
                 releases.fetch_add(1, Ordering::Relaxed);
+                residency.set(RESIDENCY_RELEASED);
+            } else if line.contains(MODEL_RELOADED_LINE) {
+                residency.set(RESIDENCY_IN_MEMORY);
             }
             if let Ok(mut lines) = sink.lock() {
                 if lines.len() == OUTPUT_TAIL {
@@ -405,6 +471,7 @@ mod tests {
         // prints and stays alive, so the pipe stays open the way a serving
         // server's does.
         let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
         let mut child = ChildHandle::spawn(
             Path::new("/bin/sh"),
             &[
@@ -414,6 +481,7 @@ mod tests {
             ],
             None,
             Arc::clone(&releases),
+            residency.clone(),
         )
         .expect("spawn the announcing child");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -424,6 +492,11 @@ mod tests {
             );
             std::thread::sleep(WAIT_POLL);
         }
+        assert_eq!(
+            residency.asleep(),
+            Some(true),
+            "the release line must make the model asleep, not just count"
+        );
         assert!(matches!(child.try_wait(), Ok(None)), "the child must still be running");
     }
 
@@ -431,6 +504,7 @@ mod tests {
     #[test]
     fn stderr_that_announces_nothing_moves_no_counter() {
         let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
         let mut child = ChildHandle::spawn(
             Path::new("/bin/sh"),
             &[
@@ -440,6 +514,7 @@ mod tests {
             ],
             None,
             Arc::clone(&releases),
+            residency.clone(),
         )
         .expect("spawn the quiet child");
         std::thread::sleep(Duration::from_millis(300));
@@ -448,6 +523,70 @@ mod tests {
             0,
             "a non-release line (here: the wake-up) counted as a release"
         );
+        assert_eq!(
+            residency.asleep(),
+            Some(false),
+            "the reload line says the model is back, which is not a release"
+        );
         assert!(matches!(child.try_wait(), Ok(None)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_reload_line_brings_the_model_back() {
+        // The two lines move one fact in opposite directions. A drain that
+        // watched only the release would leave the page saying "asleep" for the
+        // rest of the run, while the model was back in memory the whole time.
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' >&2; sleep 1; printf '%s\\n' 'I srv  handle_sleep: server is exiting sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+        )
+        .expect("spawn the sleeping-then-waking child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep() != Some(true) {
+            assert!(
+                Instant::now() < deadline,
+                "the release line never made the model asleep"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep() != Some(false) {
+            assert!(
+                Instant::now() < deadline,
+                "the reload line never brought the model back"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert_eq!(
+            releases.load(Ordering::Relaxed),
+            1,
+            "the reload is not a release, so it must not bump the count"
+        );
+        assert!(matches!(child.try_wait(), Ok(None)));
+    }
+
+    #[test]
+    fn a_pipe_we_do_not_hold_gives_no_answer_about_the_model() {
+        // The adopted server's shape: `ChildHandle` is never made for a server
+        // reused from an earlier run, so the drain is handed nothing and no
+        // announcement can ever arrive. The answer must stay unknown — a
+        // defaulted bit would claim the model is in memory on no evidence.
+        let residency = Residency::new();
+        let _tail = drain_stderr(None, Arc::new(AtomicU64::new(0)), residency.clone());
+        assert_eq!(
+            residency.asleep(),
+            None,
+            "a server whose stderr we do not hold must be unknown, not assumed loaded"
+        );
     }
 }

@@ -197,6 +197,30 @@ const STATES = [
     stopRefused: true,
   },
   {
+    name: "asleep",
+    // The model is out of memory and the server is still up: the presence must
+    // say both, because "On — this computer is ready for you" is what the owner
+    // would read while the first message of the day pays to load the model
+    // back. The machine card behind it is unchanged, which is the point: this
+    // state differs from `pick` only in the sentences.
+    file: "shots/76-brain-asleep.png",
+    state: {
+      kind: "running",
+      endpoint: "http://127.0.0.1:8080/v1",
+      model: "IBM Granite 4 Tiny",
+      asleep: true,
+    },
+    capability: {
+      kind: "measured",
+      machine: MAC,
+      model: MODEL,
+      quicker: QUICK_MODEL,
+      refusal: null,
+    },
+    marker: "On, asleep",
+    presence: "The model is not in memory right now. Your next message brings it back, which takes a few seconds.",
+  },
+  {
     name: "refusal",
     file: "shots/71-brain-refusal.png",
     state: { kind: "stopped" },

@@ -56,6 +56,36 @@ const UBATCH_KNOB = launchKnob("ubatch-size");
 const CACHE_KNOB = launchKnob("cache-type-k/cache-type-v");
 const IDLE_KNOB = launchKnob("sleep-idle-seconds");
 const ROAD_KNOB = launchKnob("internet_road");
+
+/** The idle clock's legible choices, in the wire's own unit (seconds). The two
+    ends are the range Rust enforces (`MIN_IDLE_UNLOAD_SECONDS` ..
+    `MAX_IDLE_UNLOAD_SECONDS`, mirrored by the knob's min/max and by
+    `validate`), the middle is the app's own default. One control over one
+    value: the range used to be typed into this file a second time as the
+    input's min/max, and a duration is something an owner recognizes rather
+    than arithmetic to do. */
+const IDLE_CHOICES: readonly { seconds: number; label: string }[] = [
+  { seconds: 60, label: "1 minute" },
+  { seconds: 300, label: "5 minutes" },
+  { seconds: 3600, label: "1 hour" },
+];
+
+/** The three choices, plus the value already on file when it is none of them:
+    an owner who typed 10 minutes in an earlier build still sees what the
+    server is really using, and saving without touching it keeps their value
+    rather than silently rounding it to a preset. */
+function idleChoices(current: string): readonly { seconds: number; label: string }[] {
+  const seconds = Number(current);
+  if (current === "" || IDLE_CHOICES.some((choice) => choice.seconds === seconds)) return IDLE_CHOICES;
+  const minutes = seconds / 60;
+  const label = Number.isInteger(minutes)
+    ? minutes === 1
+      ? "1 minute"
+      : `${minutes} minutes`
+    : `${seconds} seconds`;
+  return [...IDLE_CHOICES, { seconds, label }].sort((a, b) => a.seconds - b.seconds);
+}
+
 function numberOrNull(value: string): number | null {
   if (value === "") return null;
   const number = Number(value);
@@ -134,6 +164,22 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
       },
     };
   }
+  /** The same hold against the poll, for a <select>: an owner choosing a value
+      while a poll lands must not have the choice taken off the screen. */
+  function trackSelect(setValue: (value: string) => void) {
+    return {
+      onFocus: () => {
+        focused.current = true;
+      },
+      onBlur: () => {
+        focused.current = false;
+      },
+      onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+        dirty.current = true;
+        setValue(event.currentTarget.value);
+      },
+    };
+  }
   async function saveEdits(): Promise<void> {
     setFeedback(null);
     setSaving(true);
@@ -169,26 +215,21 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
           <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
           <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>
-            <select
-              id="advanced-cache"
-              value={cache}
-              onFocus={() => {
-                focused.current = true;
-              }}
-              onBlur={() => {
-                focused.current = false;
-              }}
-              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                dirty.current = true;
-                setCache(event.currentTarget.value as CacheChoice);
-              }}
-            >
+            <select id="advanced-cache" value={cache} {...trackSelect((value) => setCache(value as CacheChoice))}>
               <option value="">Automatic</option>
               <option value="q8_0">q8_0 — less memory</option>
               <option value="f16">f16 — more cache precision</option>
             </select>
           </AdvancedField>
-          <AdvancedField id="advanced-idle" knob={IDLE_KNOB} help="Between 60 seconds and 1 hour, so an ordinary pause does not reload the model."><input id="advanced-idle" type="number" min={60} max={3600} step={60} placeholder="Automatic" value={idle} {...trackText(setIdle)} /></AdvancedField>
+          <AdvancedField id="advanced-idle" knob={IDLE_KNOB} help="The model is released from memory after this much sitting idle, so an ordinary pause does not reload it. The running server keeps the time it started with, so this takes effect the next time you turn on.">
+            <select id="advanced-idle" value={idle} {...trackSelect(setIdle)}>
+              {idleChoices(idle).map((choice) => (
+                <option key={choice.seconds} value={String(choice.seconds)}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+          </AdvancedField>
           <AdvancedField id="advanced-road" knob={ROAD_KNOB} check help={dto?.iroh_sentence ?? "The internet road is waiting for the server to run."}>
             <input
               id="advanced-road"
