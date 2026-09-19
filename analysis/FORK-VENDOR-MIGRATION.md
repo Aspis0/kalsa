@@ -982,3 +982,60 @@ added (`createSpeaker`, `getTTSCapabilities`, `generateAudioCodes`, `decodeAudio
 **Caveat, stated rather than hidden:** this is a name-and-signature comparison of the public TS
 surface, not a type-check of the app against the new package. The real gate stays what §10.9 set:
 the app's pin does not advance until the fork is green, and then a build proves it.
+
+---
+
+## 17. Step 7 rehearsed where it was riskiest — and one blocker nobody named
+
+### 17.1 The patches apply to kalsallama, and the result grades exactly once
+
+The re-point changes what the patches are applied *to*. `scripts/patches/llama.cpp/common.{h,cpp}.patch`
+were built as the union of our two kalsa hunks and llama.rn's four features, against **ggml-org's**
+`common/`. Point `LLAMA_CPP_REPO` at kalsallama and the base changes underneath them. The failure
+mode to fear was a double application: if kalsallama already carried the kalsa hunks, the patch
+would add them a second time and `assert-kalsa-vendor.sh`'s "exactly once" would go red — or, worse,
+the patch would apply with fuzz and nobody would look.
+
+Measured first: kalsallama's `common/` carries **zero** `kalsa-native-patches` markers and **zero**
+`kalsa_moe`. Our two hunks are llama.rn-side only; they never lived in the engine fork.
+
+Then rehearsed, in a temp dir, with the same invocation `sync-vendor.sh` uses (`patch -p1 -d`):
+
+```
+apply common.h.patch   exit=0     apply common.cpp.patch exit=0    (no fuzz, no rejects)
+marker_n=1   (expect 1)           moe_n=1   (expect 1)
+vocab_only                            h=1 cpp=1
+progress_callback                     h=4 cpp=5   (kalsallama had 2/2 before the patch)
+progress_callback_user_data           h=2 cpp=2   (0/0 before)
+reasoning_budget_activate_immediately h=1 cpp=0
+```
+
+The grading is the awk from `assert-kalsa-vendor.sh`, scoped to the enclosing function and struct —
+not a `grep -c`, which a double application passes. `reasoning_budget_activate_immediately` is
+declared in the header and unused in `common.cpp` because its only consumer is `arg.cpp`, which
+llama.rn's source lists exclude.
+
+**Step 7's patch stage is pre-verified.** It is the one stage whose base changes under it, and it
+holds.
+
+### 17.2 The blocker: the engine branch is not pushed
+
+```
+$ git -C kalsallama remote -v
+origin    https://github.com/Aspis0/kalsallama.git
+$ git rev-parse origin/b11010-merge
+origin/b11010-merge      <- does not resolve
+```
+
+`ensure_repo` clones `LLAMA_CPP_REPO` into a cache and resolves `LLAMA_CPP_REF` inside it. Our
+engine work lives on `b11010-merge`, **local only**. So step 7 cannot commit a working pin until
+that branch is on `Aspis0/kalsallama`. Pointing `LLAMA_CPP_REPO` at the local path
+`/Users/marco/Projects/kalsallama` would sync on this machine and fail in CI, which is the worst
+of the two — it would look done.
+
+This is the same shape as the rollback tag in §10.9: a local-only ref that the plan silently
+assumed was reachable. **It needs the owner's go, and it should be pushed only after the step-3b
+audit settles the sha** — pushing first would publish a commit the audit may supersede.
+
+`LLAMA_CPP_REF` still takes a 40-hex sha, never a branch name (§10.1 rule (b)); the branch only has
+to exist on the remote so the commit is reachable.
