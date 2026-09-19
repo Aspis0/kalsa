@@ -26,7 +26,6 @@ import {
   readSessionMeta,
   sessionDiskBytesRequired,
   sessionDiskGate,
-  sessionDiskDeficitBytes,
   sessionFilePath,
   sessionMetaMismatchField,
   sessionAssembleBoundary,
@@ -573,15 +572,6 @@ describe("dropChatKvHold nativeEmpty contract", () => {
 
 describe("sessionDiskGate", () => {
   const input = { nPast: 100, nCtx: 8192, bytesPerToken: 5200 };
-
-  test("equality is still a refusal, so it is a one-byte deficit", () => {
-    const required = 100;
-    const free = 90;
-    const evictable = required - free;
-
-    expect(sessionDiskDeficitBytes(required, free)).toBe(evictable + 1);
-    expect(sessionDiskDeficitBytes(required, required)).toBe(1);
-  });
 
   afterEach(() => {
     (FileSystem.getFreeDiskStorageAsync as jest.Mock)

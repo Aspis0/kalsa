@@ -34,11 +34,11 @@ import {
 import {
   deleteSessionArtifacts,
   promoteSessionBak,
-  sessionDiskDeficitBytes,
   sessionDiskGate,
   sessionsDirectory,
   type SessionDiskGateInput,
 } from "./sessionPersistence";
+import { sessionDiskDeficitBytes } from "./sessionDiskMath";
 
 const USED_KEY = "kalsa.session.pool.used.v1";
 

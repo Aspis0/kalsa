@@ -166,7 +166,6 @@ import {
   rememberSuccessfulSessionSave,
   readSessionMeta,
   resolveSessionDiskTokens,
-  sessionDiskDeficitBytes,
   sessionDiskGate,
   sessionFileExists,
   sessionFilePath,
@@ -186,6 +185,7 @@ import {
   type SessionSaveFingerprint,
   type SessionMeta,
 } from "./sessionPersistence";
+import { decideSessionDiskSpace } from "./sessionDiskSpaceDecision";
 import { engineBuildFingerprint, readEngineBuildId } from "./engineIdentity";
 import {
   recordSessionDiskSample,
@@ -3223,63 +3223,13 @@ export async function saveEngineSession(
         log(true, { reason: "unchanged" });
         return true;
       }
-      const diskGate = await sessionDiskGate(diskInput);
-      if (!diskGate.ok) {
-        // Only a measured short-space refusal may delete anything: no_size
-        // cannot be fixed by freeing (the write cannot be sized), and an
-        // unreadable reading is not proof that space is short.
-        if (diskGate.reason !== "short") {
-          log(false, {
-            reason: "disk",
-            diskReason: diskGate.reason ?? "gate_error",
-          });
-          return false;
-        }
-        // The write has not happened yet — this is the one place eviction
-        // runs BEFORE a save instead of after one. The space evictor
-        // deliberately re-reads after sweeping: stale sidecars can close the
-        // deficit, and any refusal must describe the disk as it is then.
-        const space = await evictSessionPoolForSpace(stem, diskInput);
-        if (space.status !== "covered" && space.status !== "not_needed") {
-          log(false, {
-            reason: "disk",
-            diskReason: space.status === "uncoverable" ? "short" : space.status,
-            diskEvictionStatus: space.status,
-            ...(space.requiredDeficitBytes != null &&
-            space.requiredDeficitBytes > 0
-              ? { diskRequiredDeficitBytes: space.requiredDeficitBytes }
-              : {}),
-            ...(space.bytes > 0 ? { diskFreedBytes: space.bytes } : {}),
-          });
-          return false;
-        }
-        const retryGate = await sessionDiskGate(diskInput);
-        if (!retryGate.ok) {
-          // Residual case (deleted, still failed): the deficit was an
-          // estimate and the disk can move under it. The bytes stay in the
-          // open — what was actually dropped, and what is still missing
-          // (-1 = unknown, same convention as usedTokens in the save line).
-          log(false, {
-            reason: "disk",
-            diskReason: retryGate.reason ?? "gate_error",
-            diskFreedBytes: space.bytes,
-            // Keep -1 for unknown retry inputs; known inputs use the shared
-            // strict-gate arithmetic instead of re-deriving it here.
-            diskResidualShortfallBytes:
-              retryGate.requiredBytes != null && retryGate.freeBytes != null
-                ? sessionDiskDeficitBytes(
-                    retryGate.requiredBytes,
-                    retryGate.freeBytes,
-                  )
-                : -1,
-          });
-          return false;
-        }
-        // Two evictions can serve one save, and both are correct: this one
-        // was space mode (measured deficit, foreign first, whole files); the
-        // post-save eviction after the write enforces the user's budget in
-        // LRU order and runs after ANY successful save. Each runs at most
-        // once per save.
+      const diskDecision = await decideSessionDiskSpace(
+        { stem, diskInput },
+        { gate: sessionDiskGate, evict: evictSessionPoolForSpace },
+      );
+      if (!diskDecision.proceed) {
+        log(false, diskDecision.log);
+        return false;
       }
       const path = sessionFilePath(stem);
       tmpPath = `${path}.tmp`;
