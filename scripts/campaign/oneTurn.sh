@@ -42,7 +42,13 @@ campaign_recover_status() {
       return 0
       ;;
     thermal)
-      campaign_thermal_cooldown || die "thermal cooldown failed turn $CAMPAIGN_TURN_I"
+      if ! campaign_thermal_cooldown; then
+        if [ -n "${CAMPAIGN_THERMAL_HARD_ABORT_REASON:-}" ]; then
+          campaign_record_recovery "thermal-hard-abort: $CAMPAIGN_THERMAL_HARD_ABORT_REASON"
+          die "thermal hard abort turn $CAMPAIGN_TURN_I: $CAMPAIGN_THERMAL_HARD_ABORT_REASON"
+        fi
+        die "thermal cooldown failed turn $CAMPAIGN_TURN_I"
+      fi
       campaign_restore_same_conv || die "restore after thermal failed turn $CAMPAIGN_TURN_I"
       return 0
       ;;
@@ -132,8 +138,8 @@ campaign_completion_signal_lost() {
   [ "$i" -ge 2 ] || { CAMPAIGN_TELEMETRY_SEEN="$seen"; return 1; }
   wait_ms="${CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS:-30000}"
   case "$wait_ms" in ''|*[!0-9]*|0) wait_ms=30000 ;; esac
-  max_ms="${CAMPAIGN_COMPLETION_PROGRESS_MAX_MS:-120000}"
-  case "$max_ms" in ''|*[!0-9]*|0) max_ms=120000 ;; esac
+  max_ms="${CAMPAIGN_COMPLETION_PROGRESS_MAX_MS:-${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}}"
+  case "$max_ms" in ''|*[!0-9]*|0) max_ms="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}" ;; esac
   [ "$max_ms" -ge "$wait_ms" ] || max_ms="$wait_ms"
   wait_s=$(python3 -c "print(max(0.001, int('$wait_ms') / 1000))")
   campaign_snapshot_messages "$OUT/.messages.json"
@@ -158,7 +164,7 @@ campaign_completion_signal_lost() {
     log "ABORT after turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint remained '$after' — stopping the run"
     return 0
   done
-  log "ABORT after turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint changed during the bounded wait but no completion marker arrived — stopping the run"
+  log "ABORT after turn $i: completion counter stayed at $seen for ${waited_ms}ms; progress fingerprint kept changing through the turn-timeout backstop but no completion marker arrived — stopping the run"
   return 0
 }
 
@@ -177,7 +183,14 @@ campaign_one_turn() {
   if ! campaign_send_turn "$user"; then
     if [ "${CAMPAIGN_TURN_STATUS:-}" = "thermal" ]; then
       log "turn $i send aborted by thermal — cooldown then retry"
-      campaign_thermal_cooldown || { campaign_record_recovery "thermal-cooldown-failed"; return 0; }
+      if ! campaign_thermal_cooldown; then
+        if [ -n "${CAMPAIGN_THERMAL_HARD_ABORT_REASON:-}" ]; then
+          campaign_record_recovery "thermal-hard-abort: $CAMPAIGN_THERMAL_HARD_ABORT_REASON"
+          die "thermal hard abort turn $i: $CAMPAIGN_THERMAL_HARD_ABORT_REASON"
+        fi
+        campaign_record_recovery "thermal-cooldown-failed"
+        return 0
+      fi
       CAMPAIGN_TURN_STATUS=""
       # M5 (audit GLM): after cooldown the share may already have landed (race
       # between the thermal check and the land-check, poll 3s). Re-sharing

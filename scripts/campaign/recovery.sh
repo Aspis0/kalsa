@@ -19,6 +19,9 @@ CAMPAIGN_THERMAL_MAX_C="${CAMPAIGN_THERMAL_MAX_C:-45}"
 CAMPAIGN_THERMAL_HARD_ABORT_C="${CAMPAIGN_THERMAL_HARD_ABORT_C:-44.0}"
 CAMPAIGN_THERMAL_HARD_ABORT_STATUS="${CAMPAIGN_THERMAL_HARD_ABORT_STATUS:-3}"
 CAMPAIGN_THERMAL_OVERSHOOT_S="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
+# Three consecutive 0.1°C rises are required after the expected overshoot;
+# one battery reporting tick is too noisy to end a 20-turn run.
+CAMPAIGN_THERMAL_RISING_SAMPLES="${CAMPAIGN_THERMAL_RISING_SAMPLES:-3}"
 CAMPAIGN_THERMAL_COOLDOWN_STEP_S="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
 CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
 
@@ -236,6 +239,7 @@ campaign_thermal_should_hard_abort() {
 
 campaign_thermal_cooldown_wait() {
   local stop_app="${1:-yes}" waited=0 step cap overshoot previous_bt bt trend
+  local rising_samples=0 rising_readings plugged
   step="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
   cap="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
   overshoot="${CAMPAIGN_THERMAL_OVERSHOOT_S:-120}"
@@ -258,16 +262,35 @@ PY
       )
     fi
     if [ "$waited" -le "$overshoot" ]; then
+      rising_samples=0
+      rising_readings="$bt"
       log "thermal overshoot window (${waited}s/${overshoot}s, battery=${bt}°C, trend=$trend) — rise is expected after load stops"
-    elif [ "$trend" = rising ]; then
-      CAMPAIGN_THERMAL_HARD_ABORT_REASON="unplugged battery temperature kept rising after the ${overshoot}s overshoot window (${previous_bt}°C -> ${bt}°C)"
-      log "THERMAL HARD ABORT: $CAMPAIGN_THERMAL_HARD_ABORT_REASON — stopping the unplugged run; it will not resume"
-      return 1
-    elif ! campaign_thermal_should_pause; then
-      log "thermal cool after ${waited}s (battery=${bt}°C, trend=$trend; below resume threshold)"
-      return 0
     else
-      log "thermal still hot (${waited}s, battery=${bt}°C, trend=$trend)"
+      if [ "$trend" = rising ]; then
+        rising_samples=$((rising_samples + 1))
+        rising_readings="$rising_readings $bt"
+      else
+        rising_samples=0
+        rising_readings="$bt"
+      fi
+      if [ "$rising_samples" -ge "$CAMPAIGN_THERMAL_RISING_SAMPLES" ]; then
+        plugged=$(campaign_thermal_is_plugged)
+        if [ "$plugged" = false ]; then
+          CAMPAIGN_THERMAL_HARD_ABORT_REASON="unplugged battery kept rising for ${rising_samples} consecutive samples after the ${overshoot}s overshoot window (readings:${rising_readings})"
+          log "THERMAL HARD ABORT: $CAMPAIGN_THERMAL_HARD_ABORT_REASON — stopping the unplugged run; it will not resume"
+          return 1
+        elif [ "$plugged" = true ]; then
+          log "thermal battery kept rising for ${rising_samples} samples (readings:${rising_readings}) while plugged — rising temperature is not a reason to stop"
+        else
+          log "thermal battery kept rising for ${rising_samples} samples (readings:${rising_readings}) but power state is unknown — no hard abort"
+        fi
+      fi
+      if ! campaign_thermal_should_pause; then
+        CAMPAIGN_THERMAL_HARD_ABORT_REASON=""
+        log "thermal cool after ${waited}s (battery=${bt}°C, trend=$trend; below resume threshold)"
+        return 0
+      fi
+      log "thermal still hot (${waited}s, battery=${bt}°C, trend=$trend, rising_samples=${rising_samples}/${CAMPAIGN_THERMAL_RISING_SAMPLES}, readings:${rising_readings})"
     fi
     previous_bt="$bt"
   done

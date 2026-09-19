@@ -6,7 +6,7 @@
 # State files (all under $FAKE_DEV/fake):
 #   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
-#                thermal-status-abort
+#                thermal-status-abort | thermal-plugged-rise
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
 #   pid_dead_once  set at a turn boundary; the NEXT pidof reports the app dead
@@ -52,11 +52,20 @@ _battery_dump() {
       [ "$reads" -ge 2 ] && temp=440 || temp=425
       ;;
     thermal-status-abort) temp=420 ;;
+    thermal-plugged-rise)
+      case "$reads" in
+        1|2|3) temp=425 ;;
+        4|5|6) temp=430 ;;
+        7|8|9) temp=425 ;;
+        *) temp=$((420 + reads)) ;;
+      esac
+      ;;
     *)
       temp=$(sed -n -E 's/^[[:space:]]*temperature:[[:space:]]*([0-9]+).*/\1/p' "$F/battery.txt" | head -1)
       ;;
   esac
-  sed -E "s/^([[:space:]]*temperature:)[[:space:]]*[0-9]+/\\1 $temp/" "$F/battery.txt"
+  sed -E "s/^([[:space:]]*temperature:)[[:space:]]*[0-9]+/\\1 $temp/" "$F/battery.txt" \
+    | if [ "$mode" = thermal-plugged-rise ]; then sed 's/AC powered: false/AC powered: true/'; else cat; fi
 }
 
 _thermal_dump() {

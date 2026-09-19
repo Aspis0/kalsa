@@ -154,6 +154,51 @@ sys.exit(0 if len(hit) == 1 else 1)
 ' "$1" "$2" "$3"
 }
 
+hard_abort_recovery_case() {
+  local out="$WORK/hard-abort-recovery" rc
+  fake_reset hot
+  rm -rf "$out"
+  mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_ROOT="$HERE" CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+    export SCRIPT="$REPO/campaigns/t20c/script.json"
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/conversation.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    campaign_send_turn() { CAMPAIGN_TURN_STATUS=thermal; return 1; }
+    campaign_thermal_cooldown() {
+      CAMPAIGN_THERMAL_HARD_ABORT_REASON="unplugged battery 44.0°C >= 44.0°C"
+      return 1
+    }
+    campaign_one_turn 1 "hard abort test"
+    printf '%s' "$?" > "$out/rc.txt"
+  ) > "$out/turn.log" 2>&1
+  rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
+  if [ "$rc" != 0 ] \
+    && grep -q 'thermal hard abort turn 1: unplugged battery 44.0°C' "$out/turn.log" \
+    && grep -q '"reason": "thermal-hard-abort: unplugged battery' "$out/turn.log"; then
+    ok "hard abort in recovery path records reason and stops the run"
+  else
+    bad "hard abort in recovery path did not stop after recording the reason (rc=$rc)"
+    tail -8 "$out/turn.log" | sed 's/^/   | /'
+  fi
+}
+
+if [ "${CAMPAIGN_SELFTEST_ONLY:-}" = hard-abort-recovery ]; then
+  printf '\n== isolated hard-abort recovery case ==\n'
+  hard_abort_recovery_case
+  printf 'passed=%d failed=%d\n' "$pass" "$fail"
+  [ "$fail" -eq 0 ]
+  exit
+fi
+
 # ── (a) liveness is not the completion marker ───────────────────────────────
 # driver = background mutation; expect = CAMPAIGN_TURN_STATUS the wait must end
 # with. hang is the failure mode being fixed; timeout means liveness kept the
@@ -303,21 +348,31 @@ completion_progress_case() {
     source "$HERE/logcat.sh"
     source "$HERE/turn.sh"
     source "$HERE/oneTurn.sh"
-    CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=1200
+    CAMPAIGN_TURN_TIMEOUT_MS=180000
+    CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=30000
     CAMPAIGN_TELEMETRY_SEEN=0
+    virtual_ms=0
+    sleep() {
+      virtual_ms=$((virtual_ms + ${1%.*} * 1000))
+      make_messages "$FAKE_DEV/fake/long.json" 1 "$((virtual_ms / 1000))"
+      db_put_messages "$FAKE_DEV/fake/long.json"
+      if [ "$virtual_ms" -ge 150000 ]; then
+        printf '%s\n' "$TELEMETRY_LINE" >> "$out/logcat.txt"
+      fi
+    }
+    make_messages "$FAKE_DEV/fake/long.json" 1 1
+    db_put_messages "$FAKE_DEV/fake/long.json"
     campaign_logcat_start "$out/logcat.txt"
-    adb shell "am start -a android.intent.action.VIEW kalsa://share?text=slow-turn"
-    adb shell "input tap 950 2050"
     : > "$out/.slice.txt"
     campaign_completion_signal_lost 2 "$out/.slice.txt"
     printf '%s' "$?" > "$out/rc.txt"
-    sleep 2
     campaign_logcat_stop
     wait >/dev/null 2>&1 || true
   ) > "$out/turn.log" 2>&1
   rc=$(cat "$out/rc.txt" 2>/dev/null || printf missing)
-  if [ "$rc" = 1 ] && grep -q 'progress fingerprint changed' "$out/turn.log"; then
-    ok "throttled completion: changing fingerprint does not abort"
+  if [ "$rc" = 1 ] && grep -q 'progress fingerprint changed' "$out/turn.log" \
+    && grep -q 'completion counter stayed at 0 for 120000ms' "$out/turn.log"; then
+    ok "throttled completion: changing fingerprint survives beyond the old 120s ceiling"
   else
     bad "throttled completion: rc=$rc and/or progress continuation missing"
     tail -5 "$out/turn.log" | sed 's/^/   | /'
@@ -420,6 +475,9 @@ skip_case vanish none retry-send-failed
 skip_case hot cooldown-fail thermal-cooldown-failed
 skip_case never recover-2 recovery-refused
 
+printf '\n== (c2) hard abort in recovery path stops the run ==\n'
+hard_abort_recovery_case
+
 # Thermal direction and the unplugged hard stop use the fake adb's evolving
 # battery/status fixtures; no case is allowed to reach a real adb binary.
 cooldown_case() {
@@ -432,6 +490,7 @@ cooldown_case() {
     export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
     source "$REPO/scripts/ci-lib.sh"
     source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/watchdog.sh"
     source "$HERE/recovery.sh"
     CAMPAIGN_THERMAL_MAX_C=42
     CAMPAIGN_THERMAL_COOLDOWN_STEP_S=1
@@ -458,6 +517,7 @@ printf '\n== (g) thermal overshoot direction and unplugged hard stops ==\n'
 cooldown_case thermal-rise-fall 0 'thermal cool after'
 cooldown_case thermal-hard-abort 1 'THERMAL HARD ABORT: unplugged battery'
 cooldown_case thermal-status-abort 1 'THERMAL HARD ABORT: unplugged thermal status'
+cooldown_case thermal-plugged-rise 1 'rising temperature is not a reason to stop'
 
 printf '\n== (d) the verdict tool reads the markers it claims to read ==\n'
 # Synthetic run, because the real 5.4 MB reference logcat lives under the
