@@ -4408,6 +4408,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // no await in between, re-entry is locked above, and modelIndex is
         // still unchanged, so no kick exists yet.
         await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+        // Re-asserting a selection clears that model's death marker so the user
+        // can retry a model whose load killed a previous launch.
 
         // Transition: show checking before dispose awaits.
         setModelIndex(nextIndex);
@@ -4421,24 +4423,29 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // Extraction holds the engine: wait briefly so dispose does not race it.
         // Epoch checks discard any delayed writes after the engine is gone.
         void (async () => {
-          if (memoryExtractRef.current) {
-            let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
-            try {
-              await Promise.race([
-                memoryExtractRef.current,
-                new Promise<void>((resolve) => {
-                  memoryExtractTimer = setTimeout(resolve, 3000);
-                }),
-              ]);
-            } catch {
-              // ignore
-            } finally {
-              // Keep the 3s bound, but never leak the timer when extraction wins.
-              if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
-            }
-            memoryExtractRef.current = null;
-          }
+          // The outer try arms at the TOP of the body, so the memory-extract
+          // block below runs inside it: the body can no longer end without
+          // releasing what the switch captured (gen + lock). Nothing in here
+          // is known to throw — clearTimeout never does for a live or
+          // undefined handle — so this closes a shape, not a witnessed crash.
           try {
+            if (memoryExtractRef.current) {
+              let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
+              try {
+                await Promise.race([
+                  memoryExtractRef.current,
+                  new Promise<void>((resolve) => {
+                    memoryExtractTimer = setTimeout(resolve, 3000);
+                  }),
+                ]);
+              } catch {
+                // ignore
+              } finally {
+                // Keep the 3s bound, but never leak the timer when extraction wins.
+                if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
+              }
+              memoryExtractRef.current = null;
+            }
             if (isEngineReady() && !sendingInFlightRef.current) {
               const modelId = getActiveModelId();
               if (modelId) {
