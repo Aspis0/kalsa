@@ -971,6 +971,35 @@ composizione peggiore di un solo indice di turno ~93 min senza retry, ~150 con r
 + 45 + 45) — il tetto non e' il costo del silenzio, e' il costo del throttling estremo. Passata 3 in scrittura
 (sette punti, ogni caso nuovo visto rosso prima di chiamarlo copertura). Rebase finale su `9b08ae0`.
 
+**`qwen-think-in-history` passo 2 in audit (18/09 ~23:40 EDT): `59349ca` → `5e600a6`** (4 file +72/−32; modulo puro
+`qwenHistoryFields.ts` 36 righe senza import nativi; `isFinal` solo se la storia termina con un assistente,
+`LlamaService.ts:4309-4313`; ramo LFM assente dal diff; `thinkHistoryHarness.mjs` era ROSSO su 59349ca perche'
+due aspettative fissavano il vuoto pre-fix → corrette in 5e600a6, diff di produzione vuoto). Gate: tsc 0,
+jest 87/1059, **59 harness auto-verificanti su 59** (unione dei tre workflow = 61, meno i 2 strumenti con
+argomenti). *Verdetto (deepseek-commandcode), pezzi confermati:* contratto in entrambe le posizioni con i
+separatori rimossi e non trimmati; purezza (nessun memo, nessuna mutazione, l'output non torna nel record);
+`isFinal` su storia vuota / finisce con user / con tool / con assistente. **Numero su
+`historyReplayCharLength`:** posizione vecchia Δ = 0 esatto; finale canonico Δ = +1 (sovrastima, il newline
+strappato); **non si accumula** — al massimo un messaggio per render e' finale, quindi l'errore totale e' una
+costante, non una somma per turno; non canonici (solo finale): ragionamento vuoto −3, separatore mancante
+−1/−2, newline finali in piu' +k (direzione sicura). *Debito preesistente, piu' grosso del ±3:* il clamp
+`Math.min(..., baseMessageCap)` in `AppShell.tsx:~5809-5819` — quando uno span supera il cap la sottostima e'
+`|raw| − k − cap`. **Buco nella misura 12/12:** la forma stretta `<think></think>ANSWER` (senza newline dentro
+i tag) alla posizione finale da' `reasoning_content: ""` e il template ri-avvolge AGGIUNGENDO newline →
+diverge ancora; la "empty think" misurata era `<think>\n\n</think>\n\n…`. Regola: se una forma non puo' fare
+round-trip, prende la forma vecchia (span grezzo, sempre riproducibile: un turno che non riusa e' meglio di
+uno che rompe il prefisso per tutto quello che segue). **Filo d'inciampo per la sentinella:** nessun segnale
+automatico oggi (il budget addebita solo `content`, i test asseriscono il campo e mai il prompt reso, il
+criterio KV sul telefono sparerebbe puntando al sottosistema sbagliato) → test di ricostruzione senza template
+(dai due campi ricostruire `<think>\n{r}\n</think>\n\n{c}` = span grezzo meno esattamente i newline strappati),
+piu' la probe minja del lab a ogni bump. **Cambio di comportamento non annunciato, e tocca la privacy:**
+`userIndex` derivato da "l'ultimo e' un utente" ha cambiato `lastUserMessageText` (`:4318-4321`): su una storia
+che finisce con l'assistente ora e' `""` invece del contenuto DELL'ASSISTENTE — che prima veniva passato alla
+guardia privacy di web_search, al match documenti, alla query automatica e al tool gate **come se fosse la
+domanda dell'utente**. Correzione, non regressione, ma senza nome: va nel messaggio di commit, in un commento
+al punto d'uso, e con un test (il render con storia che finisce per assistente oggi non e' coperto). Giro in
+corso con questi cinque punti + tolleranza agli spazi; poi 59 per nome, sha, diff --stat, push.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
