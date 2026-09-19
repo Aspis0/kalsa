@@ -3128,8 +3128,9 @@ export async function saveEngineSession(
     });
     let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
-    // a per-conversation pseudonym: stable within one logcat, not reversible to
-    // the conversation id; allowed by the "bytes and hashes only" rule, and
+    // a stable, unsalted 32-bit djb2 of the stem: not invertible in practice from
+    // the hash alone, but a deterministic fingerprint — anyone holding a candidate
+    // stem can confirm a match, and the same conversation links across logs
     // needed to pair a turn's save with the load after restart
     let logStemHash: string | null = null;
     const log = (
@@ -3439,7 +3440,7 @@ export async function saveEngineSession(
       });
       return true;
     } catch (error) {
-      console.warn("[saveEngineSession]", error);
+      console.warn("[saveEngineSession]", sessionErrorReason(error));
       // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
       if (tmpPath) {
         try {
@@ -3670,7 +3671,7 @@ async function tryLoadEngineSession(
     });
     return true;
   } catch (error) {
-    console.warn("[tryLoadEngineSession]", error);
+    console.warn("[tryLoadEngineSession]", sessionErrorReason(error));
     bakedUserTails = [];
     bakeUnprefixedHealed = false;
     await dropHoldAfterOptionalNativeClear(context);

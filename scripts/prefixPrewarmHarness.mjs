@@ -669,7 +669,7 @@ async function main() {
   const realEvidenceGolden = [
     `09-18 03:24:40.810 I/KALSA_RP_MARK(30795): cycle=1`,
     `09-18 03:24:47.767 I/ReactNativeJS(30901): KALSA_SESSION {"op":"init","no_extra_bufts":0}`,
-    `09-18 03:24:53.771 I/ReactNativeJS(30901): KALSA_SESSION {"op":"load","ms":59,"ok":false,"tokensOnDisk":0,"stemHash":"<redacted>","reason":"meta_mismatch:stale_kv_completed_turn"}`,
+    `09-18 03:24:53.771 I/ReactNativeJS(30901): KALSA_SESSION {"op":"load","ms":59,"ok":false,"tokensOnDisk":0,"reason":"meta_mismatch:stale_kv_completed_turn","stemHash":"<redacted>"}`,
     `09-18 03:24:53.772 I/ReactNativeJS(30901): 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'`,
     `09-18 03:24:53.814 I/ReactNativeJS(30901): 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`,
     `09-18 03:24:53.834 W/RNLlama (30901): loadPrompt:521 KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000075034dd200`,

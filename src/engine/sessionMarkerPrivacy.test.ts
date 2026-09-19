@@ -4,8 +4,8 @@
  * value-imports llama.rn. Until save-wiring-coverage extracts that orchestration,
  * this is the only guard available. That behavior test replaces this guard
  * when the extraction lands; it must not be kept alongside it.
- * The narrow pair asserts the fix; the wider scan asserts the rule for every
- * session marker.
+ * The narrow pair asserts the fix; the wider scan checks every template or
+ * fixed-string KALSA_SESSION payload in this file.
  */
 
 import fs from "fs";
@@ -26,6 +26,7 @@ const allSessionPayloads = [
   ...llamaServiceSource.matchAll(
     /KALSA_SESSION \$\{JSON\.stringify\(\{[\s\S]*?\}\)\}`/g,
   ),
+  ...llamaServiceSource.matchAll(/KALSA_SESSION \{[^}\n]*\}/g),
 ].map((match) => match[0]);
 
 test("save and load session payloads stay hash-only", () => {
@@ -39,13 +40,20 @@ test("save and load session payloads stay hash-only", () => {
     expect(payload).not.toMatch(/\bhash\s*:/);
     expect(payload).toMatch(/\bstemHash\s*:/);
   }
-  if (allSessionPayloads.length < 5) {
+  if (allSessionPayloads.length < 7) {
     throw new Error(
-      `expected at least five KALSA_SESSION payload literals, found ${allSessionPayloads.length}`,
+      `expected at least seven KALSA_SESSION payload literals, found ${allSessionPayloads.length}`,
     );
   }
   for (const payload of allSessionPayloads) {
     expect(payload).not.toMatch(/\bstem\s*:/);
   }
   expect(llamaServiceSource).not.toMatch(/\blogStem\b/);
+  expect(llamaServiceSource.match(/logStemHash = historyHash\(/g)).toHaveLength(3);
+  expect(llamaServiceSource).toMatch(
+    /console\.warn\("\[saveEngineSession\]",\s*sessionErrorReason\(error\)\)/,
+  );
+  expect(llamaServiceSource).toMatch(
+    /console\.warn\("\[tryLoadEngineSession\]",\s*sessionErrorReason\(error\)\)/,
+  );
 });
