@@ -776,6 +776,26 @@ LOG_INFO (`rn-completion.cpp:758`), `KALSA_KVDIAG` LOG_WARNING (`:635`). Lo stem
 ramo app-only `log-privacy` subito dopo evict-marker (byte e hash restano, test che il marker non ha la
 chiave `stem`, audit con modello diverso).
 
+**evict-marker, giro 3 → 4 (18/09 notte).** `27f2a76` (7 file `src/engine`, gate misurati con Node 20: tsc 0,
+jest 994/994, i18n 0) bocciato dal ri-audit deepseek `85ccfbc6` per un off-by-one sul percorso distruttivo,
+verificato dal coordinatore: `LlamaService.ts:3238-3241` libera `deficit = required − free`, ma il gate passa
+solo con `free > required` (`sessionPersistence.ts:883` `free <= requiredBytes → short`), quindi liberare
+esattamente il deficit lascia `free == required`, il retry fallisce **dopo** aver cancellato la cache di un
+altro modello e `diskMissingBytes` (`:3261-3264`) dichiara 0. R2-R5 confermati; R1 plausibile; R6 "confermato
+come costruito, refutato come enunciato" (due siti, vittime disgiunte). Aspettativa di test riscritta:
+REFUTATA come difetto (`orderByForeignFirstLru` `sessionPool.ts:83-101` serve entrambi i picker, il rosso
+diceva il falso). Giro 4 su Luna (`f1ab962c`, N1-N7; fuori: stem del logger → `log-privacy`, snapshot, split).
+**Debito segnato, non in questo giro:** `sessionPool.ts` a 648 righe — i due picker condividono l'helper, ma
+~35 righe di impalcatura attorno ai due evictor (marker, sweep, listing, bytesByStem, progresso, catch,
+emit) sono duplicate attorno a due regole d'arresto diverse (budget vs deficit), e la duplicazione nasconde
+gia' due divergenze (N7 raw-vs-sanitized; guardia zero-need in un picker e non nell'altro). Estrazione dello
+scaffolding = passo suo con audit suo. **Copertura mancante, passo suo dopo `log-privacy`:** il cablaggio
+gate → deficit → evict → retry → esito in `saveEngineSession` non ha test (per questo N1 e' sopravvissuto a
+tre giri): estrarlo in un modulo .ts con dipendenze iniettate (ricetta persist-guard, jest non carica .tsx),
+test al confine `free == required` e "evictable < deficit → niente cancellazione", audit degli invarianti
+dei giri 1-4 uno per uno. Coda kalsa-93: giro 4 → audit (non Luna) → rebase su `c45f044` → suite intera →
+READY → push; `log-privacy`; `save-wiring-coverage`; governor-kv-contract; coolmode.
+
 **Serve all'owner:** staccare il cavo dell'S23 (batteria 40 °C a riposo, status 2) e tenerlo scollegato
 e freddo per le campagne; il Jelly sul bus; la soglia di catalogo (8 GB+ su 7 GB) e le notti idle.
 
