@@ -1161,6 +1161,42 @@ dopo il reboot e PRIMA di lanciare l'app campionare i due daemon; poi un avvio d
 dopo = nostro; gia' presente = non nostro. I comandi adb sul Jelly li esegue kalsa-2d, non un delegato: con due
 telefoni sul bus un seriale sbagliato scrive sull'S23.
 
+**S23 RIAVVIATO dall'owner (18/09 ~22:40 EDT: "s23 riavviato, se era colpa nostra, e' un bel bug").** Test decisivo
+in corso (kalsa-2d, solo lettura): campione dei daemon `cdsprpcd`/`adsprpcd` PRIMA di qualunque avvio dell'app
+(utime/stime, %CPU, temperatura, status, due campioni a 60 s), poi UN avvio dell'app con il modello di default e
+ricampionamento dopo 3 min, poi force-stop e ricampionamento dopo 3 min. Esiti possibili: spin gia' presente al
+boot / solo dopo l'app / dopo l'app e sopravvive al force-stop / nessuno spin. La porta adb wireless puo' essere
+cambiata col riavvio: se non si ricollega, la chiede il coordinatore all'owner.
+
+**Jelly, scarico spontaneo del motore SPIEGATO (kalsa-2d, riprodotto, non dedotto):** logcat del pid non era piu'
+nel buffer, riprodotto con cattura filtrata: `'model.unload', '{"reason":"idle","idleMs":219969}'` = il foreground
+idle dispose (`src/app/foregroundIdleDispose.ts:4`, `FOREGROUND_IDLE_DISPOSE_MS = 180_000`; l'eccedenza e' il passo
+del timer). Non termico, non memoria, non watchdog, non il rilascio in background: primo piano fermo. Il save che lo
+accompagna, `KALSA_SESSION {"op":"save","ok":false,"reason":"kv_not_chat"}`, non e' una perdita: nessun turno era
+stato mandato in quella sessione. Backup del DB del Jelly (pre-install 417.792 B, pre-corruzione 434.176 B) in
+`~/kalsa-device-backups/jelly-persist-guard-20260918/`, fuori da ogni repository per scelta (contenuto utente:
+zero repository, non un gitignore).
+
+**T20C quinta passata `f20a3ae` (kalsa-2d, selftest 47/0 eseguito da lui):** knob ripristinato (`oneTurn.sh:141`),
+ramo di scadenza con messaggio proprio (`:172`), unknown-power che logga su stderr invece di declinare in silenzio
+(`recovery.sh:213-217`), fixture della salita guidata dallo scenario, stub di `sleep` chiuso nella subshell del
+caso. Ultimo audit commandcode su tre domande (stub di sleep che fa passare per un motivo non riproducibile sul
+telefono; ramo di scadenza coperto da un test che fallisce senza; limitare in frequenza il log unknown-power, il
+gate gira ~300 volte per turno). Poi rebase sullo sha finale di main comunicato dal coordinatore.
+
+**`save-wiring-coverage` a `578152c` (amend di 3a1ac47; sorgente: solo il commento sul null tenuto dal type
+checker in `sessionDiskMath.ts`):** due stem in due test (`other-stem` su not_needed, `third-stem` su covered), ogni
+costante presa dall'ALTRO test; sei mutazioni riprodotte dal coordinatore con conteggio e nome (13 / 2 / 1 / 1 / 1 /
+1 rossi su 55); fixture ok:true con free 20_000 > required; corpo del commit = tabella di otto mutazioni misurate.
+Gate del coordinatore in corso; da kalsa-93 READY (59/59, tsc 0, 89/1071). Entra dopo 9f96a45 e dopo l'e2e del
+"dopo".
+
+**Limite secondario dell'API GitHub colpito (02:40Z):** tre lettori sullo stesso account (il watcher del
+coordinatore ogni 60 s da prima della compattazione, il watcher riarmato di kalsa-93, il suo polling manuale) piu'
+due `run download`. `HTTP 403` con core 5000/5000 intatto = limite anti-abuso. Un `exit 1` di gh non e' un verdetto
+del run. Regola: UN lettore per run, una lettura ogni 5 min, `--json status,conclusion` soltanto, un solo download
+al verdetto. Lettore unico = coordinatore.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
