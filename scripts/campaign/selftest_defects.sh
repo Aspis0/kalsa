@@ -551,6 +551,24 @@ printf '\n== (b) early abort after turn 2 ==\n'
 run_campaign_case marker-turn1 4
 run_campaign_case never 4
 
+serial_refusal_case() {
+  local out="$WORK/serial-refusal" rc
+  rm -rf "$out"
+  mkdir -p "$out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    CAMPAIGN_CONFIG="$REPO/campaigns/t20c-jelly.json" \
+    ANDROID_SERIAL=192.168.1.152:43089 OUT="$out" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq "refuse: ANDROID_SERIAL must be exactly 192.168.1.82:5555 (got '192.168.1.152:43089')" "$out/run.log"; then
+    ok "mismatched configured serial is refused"
+  else
+    bad "mismatched configured serial was not refused as expected (rc=$rc; output: $(cat "$out/run.log"))"
+  fi
+}
+
+serial_refusal_case
+
 # A throttled engine changes its progress fingerprint before its marker lands.
 # The late marker and the changing assistant text both come from the fake adb.
 completion_progress_case() {

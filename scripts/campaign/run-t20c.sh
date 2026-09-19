@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# T20C acceptance runner: one 20-turn conversation on the Galaxy S23 at
-# 192.168.1.152:43089. Enforces the Metro provenance gate, fresh-start 85%
+# T20C acceptance runner: one 20-turn conversation on the configured device.
+# Enforces the Metro provenance gate, fresh-start 85%
 # battery floor, thermal start gate, and fail-closed charging monitoring.
 # Writes append-only acceptance evidence; no APK install.
 #
-#   ANDROID_SERIAL=192.168.1.152:43089 bash run-t20c.sh
+#   ANDROID_SERIAL=<configured-device> bash run-t20c.sh
 set -uo pipefail
 
-SERIAL="192.168.1.152:43089"
-if [ "${ANDROID_SERIAL:-}" != "$SERIAL" ]; then
-  echo "refuse: ANDROID_SERIAL must be exactly $SERIAL (got '${ANDROID_SERIAL:-}')" >&2
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
+CAMPAIGN_CONFIG="${CAMPAIGN_CONFIG:-$REPO/campaigns/t20c.json}"
+CONFIG="$CAMPAIGN_CONFIG"
+SCRIPT="$(dirname "$CONFIG")/t20c/script.json"
+SERIAL="$(python3 -c 'import json,sys
+print(json.load(open(sys.argv[1]))["device"])' "$CONFIG" 2>/dev/null)"
+if [ -z "$SERIAL" ] || [ "${ANDROID_SERIAL:-}" != "$SERIAL" ]; then
+  echo "refuse: ANDROID_SERIAL must be exactly ${SERIAL:-<config device unavailable>} (got '${ANDROID_SERIAL:-}')" >&2
   exit 2
 fi
 # The fake harness has no installed phone APK; every real run must bind one.
@@ -18,11 +24,7 @@ if [ -z "${CAMPAIGN_APK_PATH:-}" ] && [ -z "${FAKE_DEV:-}" ]; then
   exit 2
 fi
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$HERE/../.." && pwd)"
 CAMPAIGN_ROOT="$REPO/scripts/campaign"
-CONFIG="$REPO/campaigns/t20c.json"
-SCRIPT="$REPO/campaigns/t20c/script.json"
 
 export PKG="com.kalsa.app"
 export ANDROID_SERIAL="$SERIAL"
