@@ -13,6 +13,7 @@ import {
   beginEvictMarker,
   EVICT_REASON_DEFICIT,
   EVICT_REASON_FAILED,
+  EVICT_REASON_GATE_UNREADABLE,
   EVICT_REASON_INVALID_BUDGET,
   EVICT_REASON_UNEVICTABLE,
 } from "./sessionEvictMarker";
@@ -285,16 +286,15 @@ export async function evictSessionPool(
     Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
   const validBudget = Number.isFinite(budgetBytes) && budgetBytes > 0;
   marker.set({ mode: "budget", keepModel, budgetBytes: budget });
-  // getFreeDiskBytes never throws (deviceProfile contract); everything after
-  // this point can, and the line must still carry policy/freeBytes when it
-  // does — so they are set before any throwing read.
-  const freeBytes = await getFreeDiskBytes();
-  const regime: EvictionRegime = evictionGoesGlobal(freeBytes)
+  // The pre-sweep reading labels a failure line only. The post-sweep reading
+  // decides policy and foreign-model eligibility.
+  const labelFreeBytes = await getFreeDiskBytes();
+  const labelRegime: EvictionRegime = evictionGoesGlobal(labelFreeBytes)
     ? "global"
     : "per-model";
   marker.set({
-    policy: regime,
-    freeBytes,
+    policy: labelRegime,
+    freeBytes: labelFreeBytes,
     // Present even when the run victims nothing: "victims: 0" is itself the
     // diagnostic.
     victims: 0,
@@ -309,17 +309,23 @@ export async function evictSessionPool(
   let dropped = 0;
   let freedBytes = 0;
   let dropFailed = false;
+  let bookkeepingFailed = false;
   const victimModels = new Set<string>();
   try {
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
+    const decisionFreeBytes = await getFreeDiskBytes();
+    const regime: EvictionRegime = evictionGoesGlobal(decisionFreeBytes)
+      ? "global"
+      : "per-model";
+    marker.set({ policy: regime, freeBytes: decisionFreeBytes });
     const files = await listPoolFiles();
     const stems = pickEvictionStems(files, budget, keepStem, regime);
     const bytesByStem = new Map(
       files.map((f) => [f.stem, Math.max(0, f.bytes)]),
     );
     for (const stem of stems) {
-      const didDrop = await dropStem(stem);
-      if (!didDrop) {
+      const drop = await dropStem(stem);
+      if (!drop.artifactsDeleted) {
         dropFailed = true;
         marker.set({
           ok: false,
@@ -327,6 +333,10 @@ export async function evictSessionPool(
           errorType: "DeleteFailed",
         });
         continue;
+      }
+      if (drop.bookkeepingFailed) {
+        bookkeepingFailed = true;
+        marker.set({ bookkeepingFailed: true });
       }
       freedBytes += bytesByStem.get(stem) ?? 0;
       const victimModel = modelIdOfStem(stem);
@@ -352,6 +362,7 @@ export async function evictSessionPool(
       ok: !stillOver && !dropFailed,
       totalBytes,
       poolBytes,
+      ...(bookkeepingFailed ? { bookkeepingFailed: true } : {}),
       ...(!dropFailed && stillOver
         ? { reason: EVICT_REASON_UNEVICTABLE }
         : {}),
@@ -362,13 +373,22 @@ export async function evictSessionPool(
   marker.emit();
 }
 
+export type SpaceEvictionStatus =
+  | "covered"
+  | "not_needed"
+  | "uncoverable"
+  | "gate_unreadable"
+  | "drop_failed"
+  | "evict_failed";
+
 export type SpaceEvictionResult = {
-  /** True when the need was uncovered or a drop failed; sidecars may be swept. */
+  status: SpaceEvictionStatus;
+  /** True when the caller must not proceed to the save. */
   insufficient: boolean;
   /** Bytes counted for completed drops; a failed batch may be partial. */
   bytes: number;
-  /** The post-sweep deficit used by the guard and caller's failure log. */
-  requiredDeficitBytes: number;
+  /** The post-sweep deficit, or null when the gate did not measure one. */
+  requiredDeficitBytes: number | null;
 };
 
 /**
@@ -392,40 +412,81 @@ export async function evictSessionPoolForSpace(
 ): Promise<SpaceEvictionResult> {
   const marker = beginEvictMarker();
   const keepModel = modelIdOfStem(keepStem);
+  // This pre-sweep reading labels a sweep failure only; it never decides the
+  // deficit or whether a cache may be deleted.
+  const labelFreeBytes = await getFreeDiskBytes();
   marker.set({
     mode: "space",
     policy: "global",
     keepModel,
+    neededBytes: 0,
+    evictableBytes: 0,
+    freeBytes: labelFreeBytes,
+    sidecars: 0,
+    victims: 0,
+    bytes: 0,
+    victimModels: [],
   });
   const result: SpaceEvictionResult = {
-    insufficient: false,
+    status: "evict_failed",
+    insufficient: true,
+    requiredDeficitBytes: null,
     bytes: 0,
-    requiredDeficitBytes: 0,
   };
   let dropped = 0;
   let freedBytes = 0;
-  let dropFailed = false;
+  let bookkeepingFailed = false;
   const victimModels = new Set<string>();
   try {
     // The caller's first gate read authorized this run; the sweep can itself
     // close the deficit, so deliberately re-read before measuring or logging.
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
     const gate = await sessionDiskGate(diskInput);
-    const need = sessionDiskDeficitBytes(
-      gate.requiredBytes,
-      gate.freeBytes,
-    );
-    result.requiredDeficitBytes = need;
-    marker.set({ neededBytes: need });
-    // Keep the policy free-space reading on the same post-sweep side of the
-    // marker as the gate-derived need and evictable total.
-    const freeBytes = await getFreeDiskBytes();
-    marker.set({
-      freeBytes,
-      victims: 0,
-      bytes: 0,
-      victimModels: [],
-    });
+    // The gate's post-sweep reading decides deletion and labels this marker;
+    // do not take a second reading that could disagree with it.
+    marker.set({ freeBytes: gate.freeBytes });
+    let need: number | null;
+    if (gate.ok) {
+      result.status = "not_needed";
+      result.insufficient = false;
+      result.requiredDeficitBytes = 0;
+      need = 0;
+      marker.set({ neededBytes: 0 });
+    } else if (gate.reason !== "short") {
+      // An unreadable or unsized post-sweep gate cannot authorize deletion;
+      // fail loudly instead of turning null arithmetic into a success.
+      result.status = "gate_unreadable";
+      marker.set({
+        ok: false,
+        reason: EVICT_REASON_GATE_UNREADABLE,
+        gateReason: gate.reason ?? "unknown",
+        neededBytes: null,
+      });
+      need = null;
+    } else {
+      // Only "short" authorizes deletion; zero is a consequence of a
+      // malformed short measurement, not the guard that authorizes it.
+      const measuredNeed = sessionDiskDeficitBytes(
+        gate.requiredBytes,
+        gate.freeBytes,
+      );
+      if (measuredNeed <= 0) {
+        result.status = "gate_unreadable";
+        marker.set({
+          ok: false,
+          reason: EVICT_REASON_GATE_UNREADABLE,
+          gateReason: "short_without_measurement",
+          neededBytes: null,
+        });
+        need = null;
+      } else {
+        result.status = "covered";
+        result.insufficient = false;
+        result.requiredDeficitBytes = measuredNeed;
+        marker.set({ neededBytes: measuredNeed });
+        need = measuredNeed;
+      }
+    }
     const files = await listPoolFiles();
     // Evictable = what this eviction could actually free: chat files, never
     // the snapshot, never the file being saved.
@@ -433,9 +494,14 @@ export async function evictSessionPoolForSpace(
       files.filter((f) => !isStaticPrefixStem(f.stem) && f.stem !== keepStem),
     );
     marker.set({ evictableBytes: evictable });
-    if (evictable < need) {
+    if (need == null) {
+      // The gate branch already recorded the explicit refusal.
+    } else if (need === 0) {
+      marker.set({ ok: true, outcome: "not_needed" });
+    } else if (evictable < need) {
       // Post-sweep inventory cannot cover the post-sweep deficit: drop no
       // whole session cache and let the caller report this refusal.
+      result.status = "uncoverable";
       result.insufficient = true;
       marker.set({ ok: false, reason: EVICT_REASON_DEFICIT });
     } else {
@@ -444,18 +510,23 @@ export async function evictSessionPoolForSpace(
         files.map((f) => [f.stem, Math.max(0, f.bytes)]),
       );
       for (const stem of stems) {
-        const didDrop = await dropStem(stem);
-        if (!didDrop) {
-          dropFailed = true;
+        const drop = await dropStem(stem);
+        if (!drop.artifactsDeleted) {
+          result.status = "drop_failed";
           result.insufficient = true;
           marker.set({
             ok: false,
             reason: EVICT_REASON_FAILED,
             errorType: "DeleteFailed",
           });
-          continue;
+          break;
+        }
+        if (drop.bookkeepingFailed) {
+          bookkeepingFailed = true;
+          marker.set({ bookkeepingFailed: true });
         }
         freedBytes += bytesByStem.get(stem) ?? 0;
+        result.bytes = freedBytes;
         const victimModel = modelIdOfStem(stem);
         if (victimModel != null) victimModels.add(victimModel);
         dropped += 1;
@@ -466,17 +537,20 @@ export async function evictSessionPoolForSpace(
           victimModels: [...victimModels].sort(),
         });
       }
-      result.bytes = freedBytes;
-      if (!dropFailed) marker.set({ ok: true });
+      if (result.status === "covered") {
+        marker.set({ ok: true, outcome: "covered" });
+      }
     }
     marker.set({
       poolBytes: chatTotalBytes(
         files.filter((f) => !isStaticPrefixStem(f.stem)),
       ),
+      ...(bookkeepingFailed ? { bookkeepingFailed: true } : {}),
     });
   } catch (err) {
     // Unexpected errors outside dropStem leave the run failed; ordinary drop
     // failures are returned and counted explicitly above.
+    result.status = "evict_failed";
     result.insufficient = true;
     marker.thrown(err);
   }
@@ -573,11 +647,30 @@ export async function deleteLegacyModelSession(modelId: string): Promise<void> {
   if (stem) await dropStem(stem);
 }
 
-async function dropStem(stem: string): Promise<boolean> {
-  if (!stem) return false;
-  const artifactsDeleted = await deleteSessionArtifacts(stem);
+type DropResult = {
+  artifactsDeleted: boolean;
+  usageForgotten: boolean;
+  bookkeepingFailed: boolean;
+};
+
+async function dropStem(stem: string): Promise<DropResult> {
+  if (!stem) {
+    return {
+      artifactsDeleted: false,
+      usageForgotten: false,
+      bookkeepingFailed: false,
+    };
+  }
+  // Eviction uses disk deletion separately from bookkeeping. The
+  // path-divergent-name case remains out of scope, as do the boolean results
+  // from keepOnlyStaticPrefixSnapshot and discardStaleConversationSessions.
+  const deletion = await deleteSessionArtifacts(stem);
   const usageForgotten = await forgetSessionUse(stem);
-  return artifactsDeleted && usageForgotten;
+  return {
+    artifactsDeleted: deletion.cacheDeleted,
+    usageForgotten,
+    bookkeepingFailed: deletion.bookkeepingFailed || !usageForgotten,
+  };
 }
 
 async function listSessionDirNames(): Promise<string[]> {

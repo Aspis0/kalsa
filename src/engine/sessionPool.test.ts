@@ -259,6 +259,7 @@ describe("evictSessionPool marker", () => {
 
   beforeEach(async () => {
     const FileSystem = await import("expo-file-system/legacy");
+    const AsyncStorage = await import("@react-native-async-storage/async-storage");
     const { getFreeDiskBytes } = await import("./deviceProfile");
     (FileSystem.getInfoAsync as jest.Mock)
       .mockReset()
@@ -270,6 +271,12 @@ describe("evictSessionPool marker", () => {
       .mockReset()
       .mockResolvedValue(1_000_000_000);
     (FileSystem.deleteAsync as jest.Mock)
+      .mockReset()
+      .mockResolvedValue(undefined);
+    (AsyncStorage.default.getItem as jest.Mock)
+      .mockReset()
+      .mockResolvedValue(null);
+    (AsyncStorage.default.setItem as jest.Mock)
       .mockReset()
       .mockResolvedValue(undefined);
     (getFreeDiskBytes as jest.Mock)
@@ -501,6 +508,7 @@ describe("evictSessionPool marker", () => {
       (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
         `${keepStem}.kvs`,
         `${qwenStem}.kvs`,
+        `${qwenStem}.kvs.tmp`,
       ]);
       await evictSessionPool(keepStem, 0);
 
@@ -520,6 +528,7 @@ describe("evictSessionPool marker", () => {
         victims: 0,
         bytes: 0,
       });
+      expect(payload.sidecars).toBeUndefined();
     } finally {
       spy.mockRestore();
     }
@@ -573,6 +582,128 @@ describe("evictSessionPool marker", () => {
     }
   });
 
+  test("bookkeeping failure keeps freed bytes and marks the line", async () => {
+    const AsyncStorage = await import("@react-native-async-storage/async-storage");
+    const FileSystem = await import("expo-file-system/legacy");
+    const { getFreeDiskBytes } = await import("./deviceProfile");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      (getFreeDiskBytes as jest.Mock).mockResolvedValue(null);
+      (AsyncStorage.default.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify({ [qwenStem]: 1 }),
+      );
+      (AsyncStorage.default.setItem as jest.Mock).mockRejectedValue(
+        new Error("storage"),
+      );
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+        `${qwenStem}.kvs`,
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
+        async (path: string) => ({
+          exists: true,
+          isDirectory: false,
+          size: path.includes("qwen") ? 50 : 40,
+          modificationTime: 0,
+        }),
+      );
+
+      await evictSessionPool(keepStem, 40);
+
+      const lines = spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter(
+          (l) => l.startsWith("KALSA_SESSION ") && l.includes('"op":"evict"'),
+        );
+      const payload = JSON.parse(lines[0].slice("KALSA_SESSION ".length)) as {
+        [key: string]: unknown;
+      };
+      expect(payload).toMatchObject({
+        ok: true,
+        victims: 1,
+        bytes: 50,
+        bookkeepingFailed: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("a post-sweep gate pass reports that nothing was needed", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
+        `${keepStem}.kvs`,
+        `${qwenStem}.kvs`,
+      ]);
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        isDirectory: false,
+        size: 50,
+        modificationTime: 0,
+      });
+      (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockResolvedValue(
+        spaceGateRequiredBytes + 1,
+      );
+
+      const result = await evictSessionPoolForSpace(keepStem, spaceGateInput);
+
+      expect(result).toEqual({
+        status: "not_needed",
+        insufficient: false,
+        bytes: 0,
+        requiredDeficitBytes: 0,
+      });
+      expect(FileSystem.deleteAsync as jest.Mock).not.toHaveBeenCalled();
+      const payload = JSON.parse(
+        String(spy.mock.calls[0][0]).slice("KALSA_SESSION ".length),
+      ) as { [key: string]: unknown };
+      expect(payload).toMatchObject({
+        ok: true,
+        outcome: "not_needed",
+        neededBytes: 0,
+        victims: 0,
+        bytes: 0,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("an unreadable post-sweep gate refuses without deleting", async () => {
+    const FileSystem = await import("expo-file-system/legacy");
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockRejectedValue(
+        new Error("EIO"),
+      );
+
+      const result = await evictSessionPoolForSpace(keepStem, spaceGateInput);
+
+      expect(result).toEqual({
+        status: "gate_unreadable",
+        insufficient: true,
+        bytes: 0,
+        requiredDeficitBytes: null,
+      });
+      expect(FileSystem.deleteAsync as jest.Mock).not.toHaveBeenCalled();
+      const payload = JSON.parse(
+        String(spy.mock.calls[0][0]).slice("KALSA_SESSION ".length),
+      ) as { [key: string]: unknown };
+      expect(payload).toMatchObject({
+        ok: false,
+        reason: "gate_unreadable",
+        gateReason: "disk_unreadable",
+        neededBytes: null,
+        victims: 0,
+        bytes: 0,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   test("space mode, evictable < deficit → no cache removed, sidecar swept", async () => {
     const FileSystem = await import("expo-file-system/legacy");
     const spy = jest.spyOn(console, "log").mockImplementation(() => {});
@@ -603,6 +734,7 @@ describe("evictSessionPool marker", () => {
       // The foreign .kvs is only 50 bytes, so no whole cache can cover the
       // 200-byte deficit. The stale foreign sidecar is still swept first.
       expect(result).toEqual({
+        status: "uncoverable",
         insufficient: true,
         bytes: 0,
         requiredDeficitBytes: 200,
@@ -672,6 +804,7 @@ describe("evictSessionPool marker", () => {
       const result = await evictSessionPoolForSpace(keepStem, spaceGateInput);
 
       expect(result).toEqual({
+        status: "covered",
         insufficient: false,
         bytes: 50,
         requiredDeficitBytes: 50,

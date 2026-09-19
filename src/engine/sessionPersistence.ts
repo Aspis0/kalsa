@@ -994,28 +994,44 @@ export async function markSessionDivergesAtLastExchange(stem: string): Promise<b
   });
 }
 
+export type SessionArtifactDeletion = {
+  /** Whether the session's main `.kvs` file was deleted. */
+  cacheDeleted: boolean;
+  /** Whether sidecar or metadata cleanup failed. */
+  bookkeepingFailed: boolean;
+};
+
 /**
- * Delete .kvs file + llama.rn `.kvs.meta` sidecar + any `.kvs.tmp` partial
- * + AsyncStorage meta. Idempotent, never throws; returns false if any cleanup
- * call fails.
+ * Delete the session cache and its sidecars/meta. Idempotent, never throws.
+ * The main cache result is separate from bookkeeping cleanup so callers can
+ * account for bytes that were actually freed.
  */
-export async function deleteSessionArtifacts(stem: string): Promise<boolean> {
-  if (!stem) return false;
+export async function deleteSessionArtifacts(
+  stem: string,
+): Promise<SessionArtifactDeletion> {
+  if (!stem) return { cacheDeleted: false, bookkeepingFailed: false };
   const path = sessionFilePath(stem);
-  let succeeded = true;
-  for (const p of [path, `${path}.meta`, `${path}.tmp`, `${path}.bak`]) {
+  let cacheDeleted = true;
+  let bookkeepingFailed = false;
+  for (const [index, p] of [
+    path,
+    `${path}.meta`,
+    `${path}.tmp`,
+    `${path}.bak`,
+  ].entries()) {
     try {
       await FileSystem.deleteAsync(p, { idempotent: true });
     } catch {
-      succeeded = false;
+      if (index === 0) cacheDeleted = false;
+      else bookkeepingFailed = true;
     }
   }
   try {
     await AsyncStorage.removeItem(sessionMetaKey(stem));
   } catch {
-    succeeded = false;
+    bookkeepingFailed = true;
   }
-  return succeeded;
+  return { cacheDeleted, bookkeepingFailed };
 }
 
 /** True if the .kvs file exists on disk. Never throws. */

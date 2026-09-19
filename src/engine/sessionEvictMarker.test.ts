@@ -56,6 +56,7 @@ describe("beginEvictMarker", () => {
     const spy = jest.spyOn(console, "log").mockImplementation(() => {});
     try {
       const marker = beginEvictMarker();
+      marker.set({ ok: true });
       marker.thrown(new TypeError("message with /docs/paths"));
       marker.emit();
       const payload = JSON.parse(

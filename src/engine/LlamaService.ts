@@ -3235,11 +3235,16 @@ export async function saveEngineSession(
         // deliberately re-reads after sweeping: stale sidecars can close the
         // deficit, and any refusal must describe the disk as it is then.
         const space = await evictSessionPoolForSpace(stem, diskInput);
-        if (space.insufficient) {
+        if (space.status !== "covered" && space.status !== "not_needed") {
           log(false, {
             reason: "disk",
-            diskReason: "short",
-            diskRequiredDeficitBytes: space.requiredDeficitBytes,
+            diskReason: space.status === "uncoverable" ? "short" : space.status,
+            diskEvictionStatus: space.status,
+            ...(space.requiredDeficitBytes != null &&
+            space.requiredDeficitBytes > 0
+              ? { diskRequiredDeficitBytes: space.requiredDeficitBytes }
+              : {}),
+            ...(space.bytes > 0 ? { diskFreedBytes: space.bytes } : {}),
           });
           return false;
         }
