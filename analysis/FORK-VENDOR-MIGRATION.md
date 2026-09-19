@@ -1219,3 +1219,64 @@ kalsallama and grade exactly once.
 
 **Rule worth keeping: a gate written while its subject is red must be re-proven the moment the
 subject goes green.** Otherwise "red" is being read as "working".
+
+---
+
+## 21. Steps 7 and 8 landed. The numbered plan is finished; the migration is not shipped
+
+| commit | what |
+|---|---|
+| `2f1996d4` | step 7 — re-point `LLAMA_CPP_REPO` at `Aspis0/kalsallama`, pin `f6ba2786d…`, re-sync. 77 files |
+| `ab7c2e65` | harden `assert-kalsa-vendor.sh` before using it to gate a deletion |
+| `54c99f14` | step 8 — delete the legacy flattened engine, ~50 files |
+| `4fab9622` | delete `kalsallama.pin`, the last file asserting a false engine identity |
+
+`cpp/` is now **37 files**: the 33 upstream llama.rn also has, plus our four `rn-governor{,-params}.{cpp,h}`.
+Gone: `scripts/sync-kalsallama.sh`, `scripts/assert-cpp-includes.sh`, `third_party/`, `cpp/hash/`,
+the 17 flattened engine sources, `cpp/KALSALLAMA_SHA`, `cpp/llama-version.h`, `cpp/ggml-version.h`.
+
+Verified on the branch by me, not reported: `git ls-files cpp/ | wc -l` = 37;
+`assert-kalsa-vendor.sh` exit 0; `clang++ -fsyntax-only` on `cpp/rn-governor.cpp` exit 0 with 0
+errors; no dangling reference to any deleted file.
+
+### 21.1 The gate could not tell our engine from upstream's
+
+Worth recording because it survived several passes. Everything `assert-kalsa-vendor.sh` asserted
+about kalsa came from **our own patch** (`scripts/patches/llama.cpp/common.{h,cpp}.patch`), so the
+script would have passed, word for word, on a plain ggml-org tree with those patches applied —
+which is precisely the state step 7 existed to leave behind. Two further holes sat beside it: a
+missing `build-info.cpp` silently skipped its whole check block (`if [ -f ... ]` around the only
+assertions, so absence passed), and `progress_callback_user_data` was never checked at all.
+
+All three now have duals — a mutation that reinstates the hole and turns the script red, run
+against a copy of the vendored tree rather than the tree itself. The third asserts the presence of
+the governor sources under `vendor/llama.cpp/src/`, chosen over the declaration in `llama-ext.h`
+because a header alone would pass while its implementation was missing, which is the broken-sync
+case the gate exists for.
+
+### 21.2 Two corrections from the delegate, both right
+
+The dangling-reference gate as I specified it was **impossible**: `package.json` (jest
+`modulePathIgnorePatterns` and the coverage ignore list) and `tsconfig.json` (`exclude`) also named
+`third_party/`. And `kalsallama.pin` — a tracked file pinning `2361be3`, 208 commits behind — was
+not on my deletion list at all; the delegate found it and reported rather than acting, which is the
+behaviour the brief asked for.
+
+`scripts/assert-cpp-includes.sh` was **deleted rather than retuned**, on the argument that its
+numeric floors were calibrated to a layout that no longer exists and that the bug class it caught —
+copy lists falling behind — died with the flattening, because `sync-vendor.sh` exports whole
+directories and there are no lists to fall behind. That argument is under audit; deleting a gate is
+the one move in this step that could quietly cost coverage.
+
+### 21.3 What is actually left
+
+The numbered list is done. **Shipping is not**, and the distance is not small:
+
+1. A real CI build of llama.rn on this branch. Nothing here has been compiled beyond one
+   translation unit with `-fsyntax-only`.
+2. §10.9's same-engine proof: both markers present in `librnllama*.so`, **plus** a fixed prompt and
+   seed producing token-identical output against the pre-migration APK.
+3. Only then the app's pin moves off `95c3493b`. The app today runs `kalsallama@2361be35`, **208
+   commits behind** the engine this branch now vendors.
+4. §10.7's cadence, which is the largest lever and costs nothing but discipline, and the §15
+   export-manifest check re-run on every bump.
