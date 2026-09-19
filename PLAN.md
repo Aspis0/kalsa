@@ -881,6 +881,20 @@ mai testato, nessun throw in modo spazio; `insufficient` scritto in sette punti 
 riportata indietro, dimostrato col revert temporaneo) + rimozione dei due campi morti, nessun altro codice
 di produzione; rilettura corta in audit; poi rebase su `0eaa090` e push in fila dopo boot-loop-breaker.
 
+**evict-marker READY (18/09 ~22:05 EDT): `429cd92`**, 8 commit ribasati su `0eaa090`, 9 file (+1877/−128), patch
+prima/dopo identico byte per byte (`cmp` dal coordinatore); giro di soli test `2591997` con 11 cancellazioni
+e 0 aggiunte nei file di produzione (solo i campi morti `insufficient` e `usageForgotten`), tre test visti
+rossi per il motivo giusto con la logica riportata indietro (H2 asserisce sull'INSIEME delle vittime,
+`expect(deletedPaths).not.toContain(qwen)`, direzionale). Gate misurati due volte (kalsa-93 e coordinatore):
+tsc 0, jest 0 (**86 suite / 1057** = i due numeri predetti prima di misurare, base 971 per la quinta volta),
+i18n 0. *Push:* un solo `429cd92:main` (contiene `0eaa090`) dopo il verdetto dell'e2e su `c45f044`: due push
+consecutivi si cancellerebbero (cancel-in-progress per ref), quindi anti-loop ed evict-marker salgono in un
+solo e2e; se rosso, si separa dopo. **Debito:** il test del throw durante lo sweep fissa i segnaposto di N1
+(`neededBytes: 0`, `evictableBytes: 0`): quando N1 verra' corretto (distinguere "non misurato" da "misurato
+zero") quel test va aggiornato insieme — un test che blocca un difetto noto non e' una specifica. Coda
+kalsa-93 da qui: `log-privacy` (ramo da `429cd92`) → `qwen-think-in-history` passo 2 → `save-wiring-coverage`
+(estrazione) → governor-kv-contract → coolmode.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
