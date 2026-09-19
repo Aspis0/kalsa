@@ -11,7 +11,7 @@ import { resolveContextProfile } from "./contextProfile";
 import { resolveGateContextTokens, type TuningDeviceProfile } from "./deviceTuning";
 import { shouldRecoverLost } from "./engineLiveness";
 import { modelAtKvProfile } from "./kvQuantCost";
-import type { KvCacheProfile } from "./ModelRegistry";
+import type { KvCacheProfile } from "./kvCacheProfile";
 import type { LoadPolicy } from "./loadPolicy";
 
 /**

@@ -14,7 +14,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { KvCacheProfile } from "./ModelRegistry";
+import type { KvCacheProfile } from "./kvCacheProfile";
 
 export const KV_CACHE_KEY = "kalsa.kv.cache";
 

@@ -17,7 +17,15 @@
 import type { RamTier } from "./contextProfile";
 import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
+import type { KvCacheProfile } from "./kvCacheProfile";
 import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
+
+/**
+ * K/V quant pair of a model's cache. Defined in a leaf module so the pure
+ * arithmetic engine modules can take the type without pulling this catalog
+ * graph (and its expo/react-native requires) into their standalone compile.
+ */
+export type { KvCacheProfile };
 
 export type ModelFileSpec = {
   file: string;
@@ -34,11 +42,6 @@ export type ModelWeightBytesPerToken = {
   bytes: number;
   /** Provenance is part of the value so estimates cannot look measured. */
   source: "tensor-map" | "file-size-estimate";
-};
-
-export type KvCacheProfile = {
-  k: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
-  v: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
 };
 
 export type ModelInfo = {

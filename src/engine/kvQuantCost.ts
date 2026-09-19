@@ -17,7 +17,7 @@
  * harness share one implementation.
  */
 
-import type { KvCacheProfile } from "./ModelRegistry";
+import type { KvCacheProfile } from "./kvCacheProfile";
 
 export type KvQuant = KvCacheProfile["k"];
 
