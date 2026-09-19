@@ -1015,6 +1015,22 @@ punti uno per uno nel codice attuale, e `historyMessagePositions` uguale al codi
 confini) e la chiusura dell'e2e su `9b08ae0` (run `35412505963`, il "prima": `0/2215`, `n_common=2213/2383`).
 Poi `1bd26b8:main` e il "dopo" sull'e2e seguente: WARM al turno 2 con riuso ≈ totale − nuovi, restart non COLD.
 
+**PUSH FERMATO su `1bd26b8` (18/09 ~22:00 EDT): la rilettura ha trovato un difetto vero, verificato eseguendo il
+codice.** Il predicato che decide se una forma ripiega sulla forma vecchia (`qwenHistoryFields.ts:44`,
+`!opening || inner.length < 2 || !inner.startsWith("\n")`) e' una lista di controlli sui separatori, non un
+round-trip: copre la forma stretta e basta. Confronto render misurato vs sorgente su sette forme: canonica
+OK; stretta → fallback corretto; **cinque divergono e nessuna ripiega** (newline iniziale −1, niente riga vuota
+dopo la chiusura +2, due newline finali −1, niente newline prima della chiusura +1, reasoning di soli spazi
++1) — esattamente il difetto che il ramo esiste per riparare, subito dopo `<|im_start|>assistant\n`. E il
+test di ricostruzione (`modelEmittedText.test.ts:252-260`) aveva l'attesa derivata dall'input con la stessa
+normalizzazione dell'implementazione: benediceva la perdita. *Fix, una riga:* il predicato diventa il
+round-trip (costruisci `<think>\n${r}\n</think>\n\n${c}`, ripiega se non identico alla sorgente); test con
+attese indipendenti (canonica → due campi e ricostruzione identica; le cinque forme → span grezzo), prova
+rossa rimettendo la lista. *Terzo rilievo da verificare:* `historyMessagePositions` cambia il comportamento
+sulle storie che finiscono con un messaggio `tool` (su main ri-etichettato come user): o correzione nominata
+con test, o ripristino. Le dodici misure restano vere: erano canoniche; le forme controllate erano quelle a
+cui si era pensato. L'e2e su `9b08ae0` continua: il "prima" serve comunque.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
