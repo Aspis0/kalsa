@@ -1265,8 +1265,20 @@ behaviour the brief asked for.
 `scripts/assert-cpp-includes.sh` was **deleted rather than retuned**, on the argument that its
 numeric floors were calibrated to a layout that no longer exists and that the bug class it caught —
 copy lists falling behind — died with the flattening, because `sync-vendor.sh` exports whole
-directories and there are no lists to fall behind. That argument is under audit; deleting a gate is
-the one move in this step that could quietly cost coverage.
+directories and there are no lists to fall behind.
+
+**That argument is false, and I accepted it.** The audit refuted it and I verified the refutation:
+
+```
+individual ggml/src/ggml-*.{c,cpp,h} entries in LLAMA_CPP_PATHS : 15
+whole-directory entries (src, common, include, cmake)           :  4
+```
+
+`export_subset()` archives only what the manifest names, so a new `ggml/src/ggml-something.cpp`
+upstream is silently absent from `vendor/` and surfaces later as an undefined symbol far from its
+cause. The list that can fall behind is still there. I read a persuasive argument for deleting a
+gate, found it convincing, and wrote it into this document as settled — which is exactly the
+failure the one-audit-per-step rule exists to catch, and this time it did.
 
 ### 21.3 What is actually left
 
@@ -1280,3 +1292,83 @@ The numbered list is done. **Shipping is not**, and the distance is not small:
    commits behind** the engine this branch now vendors.
 4. §10.7's cadence, which is the largest lever and costs nothing but discipline, and the §15
    export-manifest check re-run on every bump.
+
+---
+
+## 22. The audit of step 8: three CONFIRMED, and the worst is that the gate runs nowhere
+
+### 22.1 The gate is wired to nothing
+
+```
+$ grep -rn 'assert-kalsa-vendor' --include='*.sh' --include='*.yml' --include='*.json' . \
+    | grep -v node_modules | grep -v '^./vendor/'
+KALSA_FORK.md:26                      (documentation)
+AGENTS.md:70                          (documentation)
+scripts/assert-kalsa-vendor.sh:34,91  (itself)
+```
+
+`scripts/sync-vendor.sh` does not call it. No npm script calls it. No CI job calls it. Every
+guarantee in §20 and §21 — patches applied exactly once, the tree really being the fork, a
+7-character commit — holds only when a human remembers to type the command. The gate was hardened
+today with three real duals and it still protects nothing automatically.
+
+This is the defect that most threatens the standing objective. "The next bump is cheap" is not a
+property of the layout alone; it is a property of the layout **plus a check that runs by itself**.
+
+### 22.2 The identity check matches text, not code
+
+`scripts/assert-kalsa-vendor.sh:75-78` extracts the commit with an unanchored `sed` for
+`LLAMA_COMMIT = "..."`. A comment containing that text satisfies it. The check exists to prove the
+binary reports the engine it was built from, and it reads a string rather than the declaration.
+
+### 22.3 Two things the audit cleared
+
+Both of my own worries were REFUTED with evidence, which is worth recording so they are not
+re-litigated:
+
+- **Deleting `cpp/hash/` does not break iOS hashing.** The source build now compiles
+  `vendor/llama.cpp/vendor/hash/hash.cpp` and `.../sha256/sha256.c`
+  (`cmake/rnllama-sources.cmake:102-105`, `llama-rn.podspec:51`), the exclude list only drops
+  `hash/sha1` and `hash/xxhash`, and `tools/mtmd/mtmd-helper.cpp:15` resolves `"hash/hash.h"` from
+  the vendored path. The `cpp`-first include path no longer supplies hashing and no longer needs to.
+- **Removing the `third_party/` ignore entries widens nothing.** `vendor/` is still excluded from
+  jest (`package.json:121-130`), eslint (`:236-247`) and tsc (`tsconfig.json:31-40`), and there are
+  no JS/TS files under `vendor/` anyway.
+
+### 22.4 llama.rn's own CI cannot prove this tree builds, and that is by design
+
+Run `35465310732` on `vendor-migration`: `lint` passed, the other five jobs failed, every one of
+them in a real build step. The first error is the honest one:
+
+```
+cpp/rn-llama.cpp:2:10: fatal error: bmoe_stream.h: No such file or directory
+```
+
+This is **not** a migration regression. `9cb24abb` (18/09) documents it: `cpp/rn-llama.h:128` holds
+a `std::unique_ptr<kalsa::MoeStream>` and `cpp/rn-llama.cpp:802` constructs it, and that type lives
+in the **app** repo (`native/bmoe/rn/`) by design. The same commit gated those five jobs off the
+`kalsa` branch for exactly this reason, which is why `kalsa`'s green CI has four of six jobs
+**skipped** — a green that compiles no native code at all.
+
+Half the blocker has since dissolved on its own: the commit also cited `rn_governor`'s TUs being
+absent from the source list, and they are now present at `cmake/rnllama-sources.cmake:131-132`
+because the vendor layout has one list instead of several. What remains is the layering inversion:
+a library that includes a header its consumer supplies.
+
+### 22.5 The app-side consequence of the migration, which §16 missed
+
+`native/bmoe/bmoe_lmggml_compat.h` in the app is force-included ahead of every bmoe translation
+unit and maps `ggml_tensor -> lm_ggml_tensor`, `gguf_context -> lm_gguf_context` and so on. Its own
+header comment states the reason: *"llama.rn renames every ggml/gguf symbol with an `lm_` prefix"*.
+**It does not any more.** After the pin bump that shim translates correct names into names that no
+longer exist, and the app's bmoe module stops compiling — 19 `lm_ggml_` references under
+`native/bmoe/`.
+
+The remedy is the best possible one: **delete the shim**. Its comment says the vendored sources are
+written against upstream names and that it exists only to translate them. With the prefix gone the
+reason evaporates, one force-included header disappears, and the vendored copy becomes literally
+identical to its source with nothing in between.
+
+§16 concluded step 6 was a no-op. That was true of the TypeScript surface, which is what it
+measured, and it said so — but it did not look at the app's native modules, and that is where the
+migration actually lands.
