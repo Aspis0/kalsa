@@ -19,6 +19,7 @@
 #
 #   ANDROID_SERIAL=<serial> scripts/device-prefill-threads.sh [decodeThreads] [prefillCounts…]
 set -uo pipefail
+MEASUREMENT_RUN=1
 
 _PT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh

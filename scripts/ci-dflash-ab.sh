@@ -22,6 +22,7 @@ PKG=com.kalsa.app
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 # Host-side draft GGUF produced by the workflow (cached curl download).
 DRAFT_HOST="${DRAFT_HOST:-draft.gguf}"
+MEASUREMENT_RUN=1
 
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"

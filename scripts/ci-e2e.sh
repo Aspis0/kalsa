@@ -10,6 +10,7 @@ MODEL_DIR="${MODEL_DIR:-qwen3.5-4b}"
 COMPACTION_IN="${COMPACTION:-on}"
 THINKING="${THINKING:-default}"
 PKG=com.kalsa.app
+MEASUREMENT_RUN=1
 
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
@@ -17,7 +18,9 @@ source "$(dirname "$0")/ci-lib.sh"
 _active_messages_key() {
   local index_raw id
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
-  id=$(resolve_active_conversation_id "$index_raw")
+  if ! id=$(resolve_active_conversation_id "$index_raw"); then
+    return 1
+  fi
   messages_storage_key "$id"
 }
 
@@ -116,7 +119,9 @@ for i in $(seq 1 60); do
   ui_texts > "$OUT/poll_$i.txt"
   shot "poll_$i" 2>/dev/null
   # The assistant bubble is persisted only when the turn completes.
-  key=$(_active_messages_key)
+  if ! key=$(_active_messages_key); then
+    die "cannot capture history without an active conversation id"
+  fi
   HIST=$(sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST" > "$OUT/history_$i.json"
   if echo "$HIST" | grep -q '"role":"assistant"'; then
@@ -133,7 +138,9 @@ capture_kv_reuse 1
 adb logcat -d | grep -iE "RNLlama|llama|ReactNativeJS" | tail -80 > "$OUT/logcat.txt" 2>/dev/null
 shot 99_final
 ui_texts > "$OUT/99_final.txt"
-key=$(_active_messages_key)
+if ! key=$(_active_messages_key); then
+  die "cannot capture final history without an active conversation id"
+fi
 sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history_final.json"
 
 {
@@ -187,7 +194,9 @@ for i in $(seq 1 60); do
   ui_texts > "$OUT/poll2_$i.txt"
   shot "poll2_$i" 2>/dev/null
   # Need a *second* assistant bubble; turn-1 alone must not satisfy this poll.
-  key=$(_active_messages_key)
+  if ! key=$(_active_messages_key); then
+    die "cannot capture history without an active conversation id"
+  fi
   HIST2=$(sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST2" > "$OUT/history2_$i.json"
   ASSISTANT_N=$(printf '%s' "$HIST2" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
@@ -204,7 +213,9 @@ capture_kv_reuse 2
 
 shot 06_reply2
 ui_texts > "$OUT/06_reply2.txt"
-key=$(_active_messages_key)
+if ! key=$(_active_messages_key); then
+  die "cannot capture final history without an active conversation id"
+fi
 sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history2_final.json"
 
 {
@@ -354,7 +365,9 @@ for i in $(seq 1 60); do
   sleep 15
   ui_texts > "$OUT/poll3_$i.txt"
   shot "poll3_$i" 2>/dev/null
-  key=$(_active_messages_key)
+  if ! key=$(_active_messages_key); then
+    die "cannot capture history without an active conversation id"
+  fi
   HIST3=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST3" > "$OUT/history3_$i.json"
   ASSISTANT_N3=$(printf '%s' "$HIST3" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
@@ -371,7 +384,9 @@ capture_kv_reuse 3
 
 shot 10_reply3
 ui_texts > "$OUT/10_reply3.txt"
-key=$(_active_messages_key)
+if ! key=$(_active_messages_key); then
+  die "cannot capture final history without an active conversation id"
+fi
 sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history3_final.json"
 
 {

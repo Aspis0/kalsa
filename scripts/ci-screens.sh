@@ -7,6 +7,7 @@
 # Never exits non-zero for a missing/failed screen — only fatal setup dies.
 set -uo pipefail
 OUT="e2e-out"; mkdir -p "$OUT" "$OUT/seeds"
+MEASUREMENT_RUN=0
 PKG=com.kalsa.app
 # Default LFM2.5-2.6b (not the 4B) is intentional: lighter screens CI uses the
 # smaller model so emulator captures stay fast and cheap (no inference runs).

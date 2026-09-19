@@ -54,6 +54,7 @@
 #   COUNTS_MANIFEST       default: scripts/fixtures/energy-counts/manifest.csv
 
 set -uo pipefail
+MEASUREMENT_RUN=1
 
 _SWEEP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${OUT:-device-energy-sweep-out}"

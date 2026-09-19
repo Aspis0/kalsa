@@ -91,6 +91,7 @@ MODEL_DIR="${MODEL_DIR:-qwen3.5-4b}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 PKG=com.kalsa.app
 BENCH_TARGET="${BENCH_TARGET:-emulator}"
+MEASUREMENT_RUN=1
 
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
@@ -768,7 +769,9 @@ dismiss_foreign_dialog() {
 _active_messages_key() {
   local index_raw id
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
-  id=$(resolve_active_conversation_id "$index_raw")
+  if ! id=$(resolve_active_conversation_id "$index_raw"); then
+    return 1
+  fi
   messages_storage_key "$id"
 }
 
@@ -776,14 +779,18 @@ _active_messages_key() {
 _active_compactor_key() {
   local index_raw id
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
-  id=$(resolve_active_conversation_id "$index_raw")
+  if ! id=$(resolve_active_conversation_id "$index_raw"); then
+    return 1
+  fi
   compactor_storage_key "$id"
 }
 
 _active_summary_key() {
   local index_raw id
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
-  id=$(resolve_active_conversation_id "$index_raw")
+  if ! id=$(resolve_active_conversation_id "$index_raw"); then
+    return 1
+  fi
   summary_storage_key "$id"
 }
 
@@ -791,7 +798,9 @@ _active_summary_key() {
 # Value is a single JSON line (JSON escapes newlines). Missing key → empty file.
 snapshot_history() {
   local key
-  key=$(_active_messages_key)
+  if ! key=$(_active_messages_key); then
+    die "cannot snapshot history without an active conversation id"
+  fi
   sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" \
     > "$1" || : > "$1"
 }
@@ -1237,7 +1246,9 @@ capture_turn_evidence() {
   # arm start, so anything here came from this run. Never fail a turn over it.
   # Per-conversation key (multi-chat); falls back to *.default when no index.
   local ckey
-  ckey=$(_active_compactor_key)
+  if ! ckey=$(_active_compactor_key); then
+    die "cannot capture compactor state without an active conversation id"
+  fi
   sql "SELECT value FROM catalystLocalStorage WHERE key='$ckey';" \
     > "$tdir/compactor_state.json" 2>/dev/null \
     || : > "$tdir/compactor_state.json"
@@ -1905,8 +1916,14 @@ _len_or_0() {
     *) echo "$v" ;;
   esac
 }
-COMPACTOR_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$(_active_compactor_key)';")
-SUMMARY_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$(_active_summary_key)';")
+if ! _compactor_key=$(_active_compactor_key); then
+  die "cannot measure compactor state without an active conversation id"
+fi
+if ! _summary_key=$(_active_summary_key); then
+  die "cannot measure summary state without an active conversation id"
+fi
+COMPACTOR_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$_compactor_key';")
+SUMMARY_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$_summary_key';")
 log "compactorState: compactorChars=$COMPACTOR_CHARS summaryChars=$SUMMARY_CHARS"
 
 # raw.json via python3 (escaping correct by construction — no hand-concat JSON).

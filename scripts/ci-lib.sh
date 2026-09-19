@@ -12,6 +12,9 @@ set -uo pipefail
 PKG="${PKG:-com.kalsa.app}"
 DB="/data/data/$PKG/databases/RKStorage"
 BENCH_TARGET="${BENCH_TARGET:-emulator}"
+# Full-screen fatal screenshots are diagnostic-only. Fail closed when the
+# caller does not explicitly opt into diagnostics with MEASUREMENT_RUN=0.
+MEASUREMENT_RUN="${MEASUREMENT_RUN:-1}"
 # Keep-awake ceiling applied to system screen_off_timeout on a device arm (ms).
 # 24h covers the full length of any single arm; it is always saved+restored
 # on exit, so a dev phone is never left with a long timeout.
@@ -36,6 +39,12 @@ log() { echo "[ci] $*"; }
 dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; adb shell cat /data/local/tmp/ui.xml 2>/dev/null; }
 ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//'; }
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }
+fatal_shot() {
+  # Only an explicit diagnostic run may write the unexpected-death capture.
+  # Deliberate named screenshots continue to use shot() unchanged.
+  [ "${MEASUREMENT_RUN:-1}" = "0" ] || return 0
+  shot fatal
+}
 
 _device_pull_db() {
   local dir="$1"
@@ -498,22 +507,23 @@ REMOTE
 # die() expects $OUT to already exist (the caller creates it before sourcing
 # or before the first call that can fail).
 die() {
-  log "FATAL: $*"
+  log "FATAL: $*" >&2
   # Each on-screen text node is truncated to its first 120 characters: the
   # file keeps what diagnoses (which screen, which labels) but a chat open
   # on screen must not land whole on disk.
   ui_texts | cut -c 1-120 > "$OUT/fatal_state.txt" 2>/dev/null
   # OVERSTATED, and measured: c63a952's message said "the conversation never
-  # touches disk". It does. `shot fatal` is a full screencap, so a chat open
+  # touches disk". It does. `fatal_shot` is a full screencap, so a chat open
   # on screen lands on disk whole, truncation of the text nodes or not — seen
   # in device-restore-out/run-20260918-161000-kvland (fatal.png, 292633 B) and
   # in ten older fatal*/fatal_state* pairs since 14/09 written by every harness
   # that sources this file, not just the restore protocol. Bounded, and the
   # bound is worth stating: every one of those OUT dirs is gitignored, so this
   # is "the conversation touched disk", never "the conversation left the
-  # machine". The fix (gate or redact the capture on measurement runs) is in
-  # the separate protocol package with the `die`-in-a-subshell defect.
-  shot fatal
+  # machine". Measurement runs now gate only this unexpected-death capture;
+  # diagnostic runs opt in with MEASUREMENT_RUN=0. Deliberate named captures
+  # remain available to collect run evidence.
+  fatal_shot
   capture_death_evidence
   exit 1
 }

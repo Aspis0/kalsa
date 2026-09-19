@@ -17,6 +17,7 @@
 #
 #   ANDROID_SERIAL=<serial> scripts/device-decode-lineup.sh
 set -uo pipefail
+MEASUREMENT_RUN=1
 
 _DL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh
