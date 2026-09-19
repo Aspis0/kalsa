@@ -26,6 +26,20 @@ mod url;
 pub use fetch::fetch;
 pub use search::search;
 
+/// The address gate on its own: the same rules [`fetch`] applies, for a caller
+/// that will hand the address to something other than this crate — the desktop
+/// opens a link in the system browser this way, and must refuse exactly what a
+/// fetch refuses. Nothing is resolved here, so a name that carries an address
+/// inside it (`127.0.0.1.nip.io`) is refused by the spelling gate itself: the
+/// browser would do the resolving, and nothing here would see it.
+pub fn openable(url: &str) -> Result<(), WebError> {
+    if url::fetchable(url) {
+        Ok(())
+    } else {
+        Err(WebError::Refused)
+    }
+}
+
 /// The most one request may take, however slowly the server feeds it. A read
 /// timeout alone is not a bound: `ureq` applies it per read, so a page that
 /// dribbles a byte at a time reaches it only on the first byte. Measured live

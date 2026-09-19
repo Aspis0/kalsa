@@ -900,7 +900,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_forget,
             web::brain_web_search,
             web::brain_web_fetch,
-            web::brain_web_stop
+            web::brain_web_stop,
+            web::brain_open_url
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);

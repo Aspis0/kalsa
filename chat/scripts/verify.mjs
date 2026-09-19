@@ -212,6 +212,10 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
               window.__TOOL_CALLS__.push({ command, args });
               return null;
             }
+            if (command === "brain_open_url") {
+              window.__TOOL_CALLS__.push({ command, args });
+              return null;
+            }
             if (command.startsWith("brain_web_")) {
               window.__TOOL_CALLS__.push({ command, args });
               if (hang) return new Promise(() => {});
@@ -1744,6 +1748,7 @@ const tests = {
   async toolslinks() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
+    await stubDoor(page, {});
     await seed(page, {
       settings: okSettings("x"),
       convos: [
@@ -1787,21 +1792,41 @@ const tests = {
     await page.waitForTimeout(400);
     await page.locator(".tool-run").first().waitFor({ timeout: 8000 });
     for (const summary of await page.locator(".tool-run > summary").all()) await summary.click();
-    const hrefs = await page.locator(".tool-activity a").evaluateAll((nodes) => nodes.map((n) => n.getAttribute("href")));
-    // One assertion for both directions: exactly the one public address is a
-    // link. A page that renders no links fails it, so it cannot pass by
-    // rendering nothing.
+
+    // One assertion for both directions: exactly the one public address is
+    // offered as something to open. A page that offers none fails it, so it
+    // cannot pass by rendering nothing.
+    const links = await page.locator(".tool-activity .tool-link").allTextContents();
     check(
-      "links: exactly the public web address is a link",
-      hrefs.length === 1 && hrefs[0] === "https://example.com/ok",
-      JSON.stringify(hrefs),
+      "links: exactly the public web address is offered to open",
+      links.length === 1 && links[0] === "example.com",
+      JSON.stringify(links),
     );
-    check("links: no link resolves back to this machine", !hrefs.some((href) => (href ?? "").includes("127.0.0.1")), JSON.stringify(hrefs));
-    check("links: a script address is not a link", !hrefs.some((href) => (href ?? "").startsWith("javascript:")), JSON.stringify(hrefs));
     const shown = (await page.locator(".tool-activity").textContent()) ?? "";
-    check("links: the address the model asked for is still shown as text", shown.includes("javascript:alert(1)"), shown.slice(0, 300));
+    check("links: no address that resolves back to this machine is offered", !shown.includes("foo.127.0.0.1.nip.io"), shown.slice(0, 300));
+    // Shown as text, never as something to open: the refusal is a rendering
+    // decision (`publicUrl.ts`), and this is that decision asserted.
+    const offered = await page.locator(".tool-activity .tool-link").allTextContents();
+    check(
+      "links: a script address is shown as text, never offered to open",
+      shown.includes("javascript:alert(1)") && offered.every((label) => !shown.includes(`Asked for: ${label}`) || label === "example.com"),
+      JSON.stringify({ offered, shown: shown.slice(0, 120) }),
+    );
+
+    // Nothing in the page may reach the outside world on its own: the click is
+    // a command, and Rust decides. A plain `href` did nothing at all in the
+    // Tauri webview — underlined, cursor changes, no browser (2026-09-19).
+    await page.locator(".tool-activity .tool-link").first().click();
+    await page.waitForTimeout(400);
+    const opened = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((call) => call.command === "brain_open_url");
+    check(
+      "links: clicking one asks Rust to open it",
+      opened.length === 1 && opened[0].args?.url === "https://example.com/ok",
+      JSON.stringify(opened),
+    );
     await browser.close();
   },
+
   // Tool-call markup, in the two situations that matter, plus the one where
   // nothing should be hidden at all. The owner's live case (2026-09-19): he
   // asked the model to show him the tags, the model wrote <tool_call> fourteen
@@ -2005,8 +2030,8 @@ const tests = {
     const ids = exchanges.flatMap((m) => m.tool_calls.map((call) => call.id));
     check("history: no empty function name reaches the wire", names.every((name) => name !== ""), JSON.stringify(names));
     check("history: no id is repeated", new Set(ids).size === ids.length, JSON.stringify(ids));
-    const tools = wired.filter((m) => m.role === "tool");
-    check("history: one result, for the call that was sent", tools.length === 1 && tools[0].tool_call_id === ids[0], JSON.stringify(tools.map((m) => m.tool_call_id)));
+    const toolMessages = wired.filter((m) => m.role === "tool");
+    check("history: one result, for the call that was sent", toolMessages.length === 1 && toolMessages[0].tool_call_id === ids[0], JSON.stringify(toolMessages.map((m) => m.tool_call_id)));
     await browser.close();
   },
 

@@ -316,10 +316,19 @@
   overflow-wrap: anywhere;
 }
 
-.tool-sources a {
+.tool-link {
+  padding: 0;
   color: var(--accent);
+  background: none;
+  border: 0;
+  font: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tool-link:hover {
+  color: var(--accent-hover);
 }
 
 .tool-working {

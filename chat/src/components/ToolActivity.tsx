@@ -1,5 +1,6 @@
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
+import { available, invoke } from "../lib/tauri";
 import type { ToolRun } from "../lib/types";
 
 /**
@@ -47,14 +48,7 @@ function ToolRow({ run }: { run: ToolRun }) {
         {query ? <p className="tool-query">Searched for: {query}</p> : null}
         {asked ? (
           <p className="tool-query">
-            Asked for:{" "}
-            {url ? (
-              <a href={url} target="_blank" rel="noreferrer">
-                {hostOf(url)}
-              </a>
-            ) : (
-              asked
-            )}
+            Asked for: {url ? <Openable url={url}>{hostOf(url)}</Openable> : asked}
           </p>
         ) : null}
         {failed ? <p className="tool-failure">{run.result}</p> : null}
@@ -62,15 +56,44 @@ function ToolRow({ run }: { run: ToolRun }) {
           <ul className="tool-sources">
             {sources.map((source) => (
               <li key={source}>
-                <a href={source} target="_blank" rel="noreferrer">
-                  {hostOf(source)}
-                </a>
+                <Openable url={source}>{hostOf(source)}</Openable>
               </li>
             ))}
           </ul>
         ) : null}
       </div>
     </details>
+  );
+}
+
+/**
+ * Something the reader can open in this computer's browser.
+ *
+ * A button, not an `href`: a Tauri webview does not reach the system browser on
+ * its own, so the anchor this used to be was underlined, changed the cursor,
+ * and did nothing at all when clicked. The page does not open anything itself —
+ * it asks a command, which checks the address again in Rust and only then hands
+ * it to the operating system. Outside the app (a plain browser) there is no
+ * command, and the browser can open it itself.
+ */
+function Openable({ url, children }: { url: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="tool-link"
+      onClick={() => {
+        if (available()) {
+          // The refusal is the command's sentence; the same gate has already
+          // refused such an address before this was offered, so there is
+          // nothing to show the reader here.
+          void invoke("brain_open_url", { url }).catch(() => {});
+          return;
+        }
+        window.open(url, "_blank", "noreferrer");
+      }}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -77,6 +77,9 @@ pub(crate) fn fetchable(url: &str) -> bool {
     if host.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
         return parse_v4(host).is_some_and(|octets| address_allowed(IpAddr::from(octets)));
     }
+    if embeds_address(host) {
+        return false;
+    }
     public_name(host)
 }
 
@@ -121,6 +124,29 @@ fn address_allowed(address: IpAddr) -> bool {
             global && !documentation
         }
     }
+}
+
+/// True when the host carries something that reads as an IPv4 literal, dotted
+/// or dashed: `127.0.0.1.nip.io`, `192-168-1-1.sslip.io`. Such a name passes
+/// every other rule here and resolves to whoever asks — for [`crate::fetch`] the
+/// resolver stops it, but an address handed to the system browser is resolved by
+/// the browser, so it has to be refused by its spelling.
+fn embeds_address(host: &str) -> bool {
+    let mut run = 0;
+    for token in host.to_ascii_lowercase().split(['.', '-']) {
+        let octet = token.len() <= 3
+            && token.bytes().all(|b| b.is_ascii_digit())
+            && token.parse::<u16>().is_ok_and(|value| value <= 255);
+        if octet {
+            run += 1;
+            if run == 4 {
+                return true;
+            }
+            continue;
+        }
+        run = 0;
+    }
+    false
 }
 
 /// Exactly four decimal octets, no leading zeros.
@@ -220,6 +246,18 @@ mod tests {
         assert!(!fetchable("http://224.0.0.1/"));
         // 172.32 is public; the /12 block must not swallow it.
         assert!(fetchable("http://172.32.0.1/"));
+    }
+
+    #[test]
+    fn refuses_a_name_that_carries_an_address_inside_it() {
+        // These are public by every other rule and resolve to whoever asks.
+        assert!(!fetchable("http://127.0.0.1.nip.io:8130/v1/models"));
+        assert!(!fetchable("https://foo.127.0.0.1.nip.io/"));
+        assert!(!fetchable("http://127-0-0-1.sslip.io:8130/"));
+        assert!(!fetchable("http://192.168.1.1.example.com/"));
+        // A digit in a label is not an address: `365.example.com` is a name.
+        assert!(fetchable("https://365.example.com/"));
+        assert!(fetchable("https://www.2.example.com/"));
     }
 
     #[test]
