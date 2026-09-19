@@ -791,7 +791,12 @@ emit) sono duplicate attorno a due regole d'arresto diverse (budget vs deficit),
 gia' due divergenze (N7 raw-vs-sanitized; guardia zero-need in un picker e non nell'altro). Estrazione dello
 scaffolding = passo suo con audit suo. **Copertura mancante, passo suo dopo `log-privacy`:** il cablaggio
 gate → deficit → evict → retry → esito in `saveEngineSession` non ha test (per questo N1 e' sopravvissuto a
-tre giri): estrarlo in un modulo .ts con dipendenze iniettate (ricetta persist-guard, jest non carica .tsx),
+tre giri): estrarlo in un modulo .ts con dipendenze iniettate — non per eleganza: e' **l'unico modo** perche' quel
+cablaggio abbia un test, dato che `LlamaService.ts:13` importa `llama.rn` a valore e ogni test che lo importasse
+lo caricherebbe a runtime (tutta la suite e' costruita per non farlo mai: ogni import .ts di quel modulo e'
+`import type`; `saveEngineSession` e' esportata a `:3102` ma nessun test la chiama, solo un commento la nomina
+in `sessionDiskCalibration.test.ts:286`). Il brief elenca per nome gli invarianti da conservare (le due guardie,
+l'aritmetica stretta di N1, il marker che descrive la decisione e non gli input grezzi),
 test al confine `free == required` e "evictable < deficit → niente cancellazione", audit degli invarianti
 dei giri 1-4 uno per uno. Coda kalsa-93: giro 4 → audit (non Luna) → rebase su `c45f044` → suite intera →
 READY → push; `log-privacy`; `save-wiring-coverage`; governor-kv-contract; coolmode.
