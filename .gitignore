@@ -130,3 +130,18 @@ results/ciswire-campaign/
 # ../kalsa-moe-experiments. Its PLAN.md and docs/ALIVE.md are the two living docs.
 # A copy of them grew here on 15/09 and diverged for two days; do not track it again.
 kalsa-moe-experiments/
+
+# --- 2026-09-19: keep local scratch, build outputs, and an accidental add -A sweep out of git ---
+# Scratch/junk files
+/.txt
+/[0-9].txt
+/n[0-9].txt
+/dead-id.txt
+.zcode/
+device-decode-lineup-out/
+# Build OUTPUT of local Expo modules (their native SOURCES stay tracked via the !modules/*/android rules above)
+modules/*/android/build/
+# Stray audit/planning docs a git add -A swept in on 2026-09-19; the living docs are PLAN + ALIVE (separate repo)
+/KV-REUSE-PATCH-AUDIT-2026-09-11.md
+/P0-P1-KV-EMA-AUDIT-2026-09-11.md
+archived/docs/
