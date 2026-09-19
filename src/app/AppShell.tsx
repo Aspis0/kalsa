@@ -4391,87 +4391,101 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // clear and the selection: they share one continuation with no await in
       // between, re-entry is locked above, and modelIndex is still unchanged,
       // so no kick exists yet.
-      await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+      // The lock above has exactly ONE release — the dispose IIFE's finally.
+      // The awaited clear put code in front of that release point, so a throw
+      // in the tail must clear the lock on its way out or every later switch
+      // is refused until restart. No crash was witnessed; this closes the
+      // shape the await introduced. The IIFE's finally still owns the normal
+      // path, so a second false is harmless.
+      try {
+        await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
-      // Transition: bump generation + show checking before dispose awaits.
-      engineGenerationRef.current += 1;
-      // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
-      // The dispose callback must never read chatGateGenRef.current — a newer
-      // ensureEngineForModel may have acquired a higher gen by then.
-      const releasedGen = chatGateGenRef.current;
-      chatGateGenRef.current = null;
-      modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
-      setModelIndex(nextIndex);
-      setModelState("checking");
-      setModelError(null);
-      setModelErrorDetail(null);
-      setModelErrorKind(null);
-      // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
-      AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+        // Transition: bump generation + show checking before dispose awaits.
+        engineGenerationRef.current += 1;
+        // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
+        // The dispose callback must never read chatGateGenRef.current — a newer
+        // ensureEngineForModel may have acquired a higher gen by then.
+        const releasedGen = chatGateGenRef.current;
+        chatGateGenRef.current = null;
+        modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
+        setModelIndex(nextIndex);
+        setModelState("checking");
+        setModelError(null);
+        setModelErrorDetail(null);
+        setModelErrorKind(null);
+        // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
-      // Extraction holds the engine: wait briefly so dispose does not race it.
-      // Epoch checks discard any delayed writes after the engine is gone.
-      void (async () => {
-        if (memoryExtractRef.current) {
-          let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
+        // Extraction holds the engine: wait briefly so dispose does not race it.
+        // Epoch checks discard any delayed writes after the engine is gone.
+        void (async () => {
+          if (memoryExtractRef.current) {
+            let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
+            try {
+              await Promise.race([
+                memoryExtractRef.current,
+                new Promise<void>((resolve) => {
+                  memoryExtractTimer = setTimeout(resolve, 3000);
+                }),
+              ]);
+            } catch {
+              // ignore
+            } finally {
+              // Keep the 3s bound, but never leak the timer when extraction wins.
+              if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
+            }
+            memoryExtractRef.current = null;
+          }
           try {
-            await Promise.race([
-              memoryExtractRef.current,
-              new Promise<void>((resolve) => {
-                memoryExtractTimer = setTimeout(resolve, 3000);
-              }),
-            ]);
+            if (isEngineReady() && !sendingInFlightRef.current) {
+              const modelId = getActiveModelId();
+              if (modelId) {
+                try {
+                  const msgs = await readBootMessages();
+                  await saveEngineSession(
+                    modelId,
+                    computeHistoryHashFromMessages(msgs),
+                    msgs.length,
+                  );
+                } catch {
+                  // previous good .kvs stays
+                }
+              }
+            }
+            // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
+            // overlap an in-flight embed op (never-overlap invariant).
+            // Bounded: a hung native completion (the case handleStop's 3s watchdog
+            // recovers from) must not hold the FIFO forever and leave the UI stuck
+            // on "checking". Emptiness check + enqueue are atomic; on timeout we
+            // refuse WITHOUT enqueueing behind the possibly-hung op.
+            const disposeResult = await runNativeOpBounded(
+              () => disposeEngine(),
+              MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+            );
+            if (!disposeResult.ok) {
+              console.warn(
+                `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
+              );
+              setModelState("error");
+              setModelErrorKind("engine");
+              setModelError(t("errors.engineDisposeTimeout"));
+              setModelErrorDetail(null);
+            }
           } catch {
             // ignore
           } finally {
-            // Keep the 3s bound, but never leak the timer when extraction wins.
-            if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
+            // FIX B / FIX 1: dispose → free only the gen captured at switch time.
+            if (releasedGen !== null) markChatReleased(releasedGen);
+            modelSwitchInFlightRef.current = false;
           }
-          memoryExtractRef.current = null;
-        }
-        try {
-          if (isEngineReady() && !sendingInFlightRef.current) {
-            const modelId = getActiveModelId();
-            if (modelId) {
-              try {
-                const msgs = await readBootMessages();
-                await saveEngineSession(
-                  modelId,
-                  computeHistoryHashFromMessages(msgs),
-                  msgs.length,
-                );
-              } catch {
-                // previous good .kvs stays
-              }
-            }
-          }
-          // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
-          // overlap an in-flight embed op (never-overlap invariant).
-          // Bounded: a hung native completion (the case handleStop's 3s watchdog
-          // recovers from) must not hold the FIFO forever and leave the UI stuck
-          // on "checking". Emptiness check + enqueue are atomic; on timeout we
-          // refuse WITHOUT enqueueing behind the possibly-hung op.
-          const disposeResult = await runNativeOpBounded(
-            () => disposeEngine(),
-            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-          );
-          if (!disposeResult.ok) {
-            console.warn(
-              `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
-            );
-            setModelState("error");
-            setModelErrorKind("engine");
-            setModelError(t("errors.engineDisposeTimeout"));
-            setModelErrorDetail(null);
-          }
-        } catch {
-          // ignore
-        } finally {
-          // FIX B / FIX 1: dispose → free only the gen captured at switch time.
-          if (releasedGen !== null) markChatReleased(releasedGen);
-          modelSwitchInFlightRef.current = false;
-        }
-      })();
+        })();
+      } catch (error) {
+        // The lock's only release lives in the IIFE's finally; if we never
+        // reach it, nothing else ever clears the lock and every later switch
+        // is refused.
+        modelSwitchInFlightRef.current = false;
+        throw error;
+      }
     },
     [modelIndex, modelState, t],
   );
