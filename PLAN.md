@@ -821,6 +821,20 @@ assistente passa da finale a vecchio e cambia regola, riusa il prefisso del prew
 forma a think vuoto. Limite invariato: minja via `llama-server`, stessa funzione e stesso template dell'app,
 non l'APK; la verifica sul telefono resta nell'accettazione. Il passo 2 ha tutto.
 
+**boot-loop-breaker READY (18/09 ~21:10 EDT): `0eaa090`**, 9 commit ribasati su `c45f044`, 9 file (+1194/−117:
+`AppShell.tsx`, `loadGate.ts` + test, `loadMarker.ts` + test, `ModelRegistry.ts` default LFM, i18n). Otto
+passate GLM dentro finestra, tre audit (228451b8 deepseek-flash; poi 1653c794 deepseek-commandcode, due
+verdetti) — ultimo: **puliti entrambi i commit**, un rilascio per risorsa (lock e generazione del gate) su ogni
+uscita, catch e finally mutuamente esclusivi; il log del cambio modello fallito porta nome e messaggio,
+dimostrato path-free per costruzione (l'unico punto che fa di un id un nome file e' `saveEngineSession`,
+dentro la IIFE sotto il proprio catch). Gate misurati due volte (kalsa-2d e coordinatore): tsc 0, jest 0
+(85 suite, **1023** = 993 + 30), i18n 0, albero pulito; patch byte-identico prima e dopo il rebase.
+*Push:* dopo il verdetto dell'e2e su `c45f044` (run `35407337897`), per non perdere la separazione dei
+livelli. Poi APK debuggabile da CI e UNA verifica sul telefono (S23 freddo, schermo spento): il boot loop
+LMK con Qwen su 7 GB. **Debito, fuori dal ramo:** il `catch { // ignore }` della IIFE di dispose e' muto — un
+`disposeEngine` che fallisce lascia lo switch su "checking" col vecchio modello residente e zero righe di
+log, stessa classe del log appena aggiunto venti righe sopra.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
