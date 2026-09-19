@@ -1197,6 +1197,29 @@ due `run download`. `HTTP 403` con core 5000/5000 intatto = limite anti-abuso. U
 del run. Regola: UN lettore per run, una lettura ogni 5 min, `--json status,conclusion` soltanto, un solo download
 al verdetto. Lettore unico = coordinatore.
 
+**MAIN AVANZATO: `9b08ae0` → `9f96a45` (push del coordinatore, 19/09 02:43Z = 18/09 22:43 EDT).** Il "prima" e'
+chiuso: e2e 35412505963 su 9b08ae0 = completed SUCCESS (letto dal lettore unico; i numeri del prima restano quelli
+dell'artefatto 35407337897: turno 2 `reused 0/2215` contro cached 2294, turno 3 `n_common 2213/2383`). L'e2e del
+"dopo" su 9f96a45 parte da solo; lettore unico = coordinatore, una lettura ogni 5 min, un solo download
+dell'artefatto al verdetto. Accettazione del "dopo", dai kvdiag dentro l'artefatto: prompt del turno 2 PIU' LUNGO del
+cached finale del turno 1; `KV_CACHE: WARM` al turno 2 con riuso ≈ totale − token nuovi; gamba del riavvio non
+`LOADED BUT COLD`. `save-wiring-coverage` 578152c READY da entrambe le parti (gate del coordinatore: TSC 0, jest
+89/1071, 59/59 Node 20): entra dopo la chiusura dell'e2e del "dopo". Ramo `qwen-think-in-history` (346debd)
+superato, da rimuovere con il suo worktree.
+
+**S23 dopo il riavvio, primi campioni (kalsa-2d, 22:35-22:45 EDT, solo lettura, seriale mDNS
+`adb-R3CW406P8CV-…`; la porta 43089 e' morta col riavvio, non serve una porta nuova):** uptime 255 s, app mai
+lanciata: `adsprpcd` 2251 e `cdsprpcd` 2252 in stato S con utime 0 → **lo spin NON e' presente al boot**. App
+lanciata una volta alle 22:39:00 (selezione persistita `lfm2.5-2.6b`, nessun death marker): a +3 min i daemon sono
+invariati (utime 0), 0 righe htp/hexagon/fastrpc nel logcat, processi nuovi nella finestra solo la nostra app e
+`com.google.android.apps.turbo`. MA il motore non e' mai stato caricato (`grep -c gguf /proc/17049/maps` = 0, PSS
+83 MB, nessuna .so htp mappata: questa build carica pigramente al primo invio, "Pronto" non vuol dire pesi
+residenti) e lo schermo era spento (Dozing). Conclusione parziale: nessuno spin al boot ne' con l'app viva ma
+inerte; sull'ipotesi FastRPC non dice ancora nulla. Limiti: baseline di 4 min (il fenomeno originale e' partito
+~2,7 giorni dopo il boot). **Via del coordinatore (22:47 EDT) per accendere lo schermo e mandare UN turno breve
+con LFM**, poi: .so htp mappate nel pid dopo il load (se mai mappate, l'ipotesi muore li'), daemon a +3/+10, force-stop
++3/+10, ricampionamenti a un'ora e domattina senza altri avvii. Stop a batteria ≥ 43 °C o status ≥ 3.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
