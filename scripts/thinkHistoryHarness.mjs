@@ -471,7 +471,7 @@ function main() {
         options: { historyThink: "content_span" },
         expected: {
           content: "<think>REASONING</think>ANSWER",
-          reasoning_content: "",
+          reasoning_content: " ",
         },
       },
       {
@@ -484,7 +484,7 @@ function main() {
         options: { historyThink: "content_span" },
         expected: {
           content: "<think></think>ANSWER",
-          reasoning_content: "",
+          reasoning_content: " ",
         },
       },
     ];
