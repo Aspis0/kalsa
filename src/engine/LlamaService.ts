@@ -148,6 +148,7 @@ import {
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
+  historyHash,
   memoryFactTextsForEnvHash,
   deleteSessionArtifacts,
   ensureSessionsDir,
@@ -3127,7 +3128,10 @@ export async function saveEngineSession(
     });
     let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
-    let logStem: string | null = null;
+    // a per-conversation pseudonym: stable within one logcat, not reversible to
+    // the conversation id; allowed by the "bytes and hashes only" rule, and
+    // needed to pair a turn's save with the load after restart
+    let logStemHash: string | null = null;
     const log = (
       ok: boolean,
       extra?: Record<string, number | boolean | string>,
@@ -3141,8 +3145,8 @@ export async function saveEngineSession(
             ok,
             estimatedBytes,
             usedTokens: usedTokens ?? -1,
-            ...(logStem ? { stem: logStem } : {}),
             ...extra,
+            ...(logStemHash ? { stemHash: logStemHash } : {}),
           })}`,
         );
       } catch {
@@ -3176,7 +3180,7 @@ export async function saveEngineSession(
         log(false, { reason: "no_session_key" });
         return false;
       }
-      logStem = stem;
+      logStemHash = historyHash(stem);
       if (!activeModelFileId || !activeEngineBuild) {
         log(false, { reason: "session_identity_unavailable" });
         return false;
@@ -3475,7 +3479,7 @@ async function tryLoadEngineSession(
   let loadOk = false;
   const heldChatKvAtEntry = kvHoldsChatSession;
   let tokensLoaded: unknown;
-  let logStem: string | null = null;
+  let logStemHash: string | null = null;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
@@ -3484,8 +3488,8 @@ async function tryLoadEngineSession(
           ms: Date.now() - t0,
           ok,
           tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
-          ...(logStem ? { stem: logStem } : {}),
           ...extra,
+          ...(logStemHash ? { stemHash: logStemHash } : {}),
         })}`,
       );
     } catch {
@@ -3517,7 +3521,7 @@ async function tryLoadEngineSession(
       log(false, { reason: "no_session_key" });
       return false;
     }
-    logStem = stem;
+    logStemHash = historyHash(stem);
     const staleDropped = convId
       ? await discardStaleConversationSessions(modelId, convId, envHash ?? "")
       : 0;
@@ -3549,7 +3553,7 @@ async function tryLoadEngineSession(
           return false;
         }
         loadStem = legacy;
-        logStem = legacy;
+        logStemHash = historyHash(legacy);
       }
     }
     const stored = await readSessionMeta(loadStem);
