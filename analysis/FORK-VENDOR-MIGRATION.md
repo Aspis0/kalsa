@@ -491,8 +491,10 @@ budgeted. The claim that the same five conflicts appear either way still holds.
 ### 10.3 §4's Hexagon row is wrong — "delete ours" loses behaviour **[V] REFUTED**
 
 Our `ggml-hexagon.cpp:5230-5232` is `sess->flush();` … `return sess->error_count == 0 ? …`.
-`b11010` has **zero** `sess->flush()` in the file and checks `last_error` at the **top** of
-`ggml_backend_hexagon_graph_compute` (`:5855`), not at the end.
+`b11010` has **zero** `sess->flush()` in the file — but that is a grep artefact, not the fact.
+Upstream **renamed** it: `flush_sync(bool all = true)` is declared at `b11010:477`. Taking the
+grep literally ("keep `sess->flush()`") would not have compiled. Upstream checks `last_error` at
+the **top** of `ggml_backend_hexagon_graph_compute` (`:5855`), not at the end.
 
 So the exchange is not "weaker duplicate → stronger duplicate". It moves error observation from
 **synchronous at end of graph** to **deferred to the next call**, and drops a drain-before-status
@@ -591,3 +593,78 @@ next bump would have measured something else.
   delete three upstream features.
 - **npm:** `package-lock.json` resolves `git+ssh://` while `package.json` says `git+https://`; any
   pin bump needs lockfile regeneration plus SSH in whatever CI runs `npm ci`.
+
+---
+
+## 11. Step "merge `b11010`" — executed, audited, verdict
+
+Branch `b11010-merge`, commit `6b6d4a980`. Parents `2361be359` (ours) + `4bc272fd7` (`b11010`),
+0 behind / 152 ahead, tree clean. Hostile audit by a different model (Luna, xhigh) plus my own
+on-disk verification of every load-bearing claim.
+
+### 11.1 Verdict: the merge stands
+
+The auditor returned "do not approve". Three of its four blocking findings do not survive
+verification against the parents:
+
+| Audit finding | Verified outcome |
+|---|---|
+| CTest registration of `test-backend-ops` lost | **Upstream's own change.** `4bc272fd7:tests/CMakeLists.txt:310` is already `llama_build(test-backend-ops.cpp)`; ours at `2361be359:300` was `llama_build_and_test`. Upstream also removed the `test-backend-ops-metallib-tensor` registration. The merge took upstream's side, which is the point of the migration. |
+| Hexagon `last_error` is a session-wide latch, not a per-graph reset | **Upstream's own model.** `4bc272fd7` resets `last_error` only at session alloc (`:3691`) and already rejects later graphs at `:5855`. Our `error_count = 0` per-graph reset disappeared because we adopted upstream's error model wholesale. |
+| `%64 != 0 ⇒ %4 != 0` implication is backwards | **True, but the claim is not in the tree.** It was in the implementer's report prose. The committed comment justifies `%64` correctly: the predicate must be the exact complement of `use_adreno_kernels()`'s `%64 == 0`, because it also selects the `set_tensor` convert kernel. |
+| The bin-kernel path keeps the literal-mask ABI | **CONFIRMED, and pre-existing** — see §11.3. Present at `2361be359:27055`, not introduced by the merge. |
+
+The merge added exactly three lines to `ggml_backend_hexagon_graph_compute`: the drain comment and
+`sess->flush_sync()` before the status check. That drain is **ours**, carried over faithfully —
+`2361be359` had `sess->flush()` with the same comment at the same place. Upstream checks
+`last_error` without draining first.
+
+Also verified intact: 61 host mask bindings + 5/7 in the two MoE kernels, `%64` rule at `:9095`
+with no `%128` residue, 7 governor sources in `src/CMakeLists.txt`, `ggml_opencl_oracle_q4_0`
+reconstructed byte-identically, the HMX `%32` gate, and the `use_q4k_tiled()` deferral at the head
+of `use_flat_gemv_for_large_m_q4_K` (`:9477`).
+
+### 11.2 The gate is a false pass, and it is reproducible
+
+`./build/bin/test-backend-ops -o MUL_MAT_ID -p 'type_a=q4_K'` → **93 cases enumerated, 0 executed,
+exit 0**, because BLAS reports every case `not supported` and the harness skips-then-succeeds
+(`tests/test-backend-ops.cpp:12306-12307`, `:12365`). With `-b CPU`: 93 executed, 93/93, exit 0 —
+which proves only that the CPU agrees with the CPU reference (`:12272`). The Mac build has
+`GGML_OPENCL:BOOL=OFF` and the Apple device is rejected by the backend. **No OpenCL correctness
+claim can be made off-device.** The gate is taken on the S23.
+
+### 11.3 Two pre-existing correctness holes found while verifying (NOT merge regressions)
+
+Both live in `ggml-opencl.cpp` / its kernels — the highest-churn file we own (46% of days, +3124
+of our lines), so they are fixed now rather than re-derived at the next rebase.
+
+**(a) Unguarded stores under a padded dispatch grid.** The decode GEMV grid is
+`CEIL_DIV(ne01/2 | ne01/4 | ne01, 64)*64` (`ggml-opencl.cpp:22674`), so lanes exceed output rows
+whenever the divided extent is not a multiple of 64. The base kernel guards this and says so
+(`gemv_noshuffle_q4_k_f32.cl:338-339`). Its siblings, dispatched from the same grid, do not:
+
+- `gemv_noshuffle_q4_k_f32.cl:482-483` — **fused gate+up GLU GEMV, production default.** Needs
+  `ne01 % 128 == 0`; its only gate is `use_adreno_kernels()` (`:8645-8648`), which admits
+  `% 64 == 0`. An FFN dim of 2880 writes 64 floats past `dst`.
+- `gemv_noshuffle_q4_k_f32_o4.cl:346` — **lm_head GEMV, default ON** (`:22520`, opt-out
+  `GGML_OPENCL_Q4K_GEMV_O4=0`). Gated at `ne01 % 4 == 0 && ne01 >= 32768`; grid needs
+  `% 256 == 0`. A 151936 vocab passes the gate and overruns.
+- `gemv_noshuffle_q4_k_f32.cl:819-821` and `gemv_noshuffle_q6_k_f32.cl:405-407` — the mc3 twins,
+  opt-in only (`GGML_OPENCL_Q4K_MC3`).
+
+Small overruns of this kind usually land in allocator padding, which is why they have never been
+seen. That is not a reason to keep them.
+
+**(b) A false committed comment hiding an E031 escape hatch.** `ggml-opencl.cpp:28613-28623`
+binds the three masks only when the ILA binary kernel is absent, and the comment asserts
+"this tree compiles them out". `ggml/src/ggml-opencl/CMakeLists.txt:36` makes
+`GGML_OPENCL_USE_ADRENO_BIN_KERNELS` a build option: turning it on silently reinstates the
+literal-mask signature that E031.41.03.62 miscompiles — **wrong numbers, not a crash**. The
+option must fail loudly at build time, and the comment must say what is true.
+
+### 11.4 Consequences for the plan
+
+- §10.6's step order is unchanged; the merge was its step 2 prerequisite and is done.
+- **New gate constraint:** upstream de-registered `test-backend-ops` from CTest, so a green
+  `ctest` run can never cover it. Any gate that names it must invoke the binary directly, with
+  `-b` naming the backend and an asserted executed-case count (§10.8 already requires this).
