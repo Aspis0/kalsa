@@ -1236,6 +1236,21 @@ era comparso ~2,7 giorni dopo il boot, nessuna finestra di stasera lo esclude �
 un'ora e domattina, senza altri avvii. Force-stop fatto, campioni +3/+10 in corso. *Debito per il fork bump:*
 estrarre le HTP solo se assenti o di dimensione diversa (oggi 2,8 MB di scritture inutili a ogni avvio).
 
+**T20C READY a `7d607c8` (kalsa-2d, `t20c-thermal-aware` rebasato su 9f96a45, sei commit, solo scripts/campaign;
+riletto dal coordinatore sul worktree principale, 19/09 03:00Z):** patch byte-identiche al pre-rebase 237f70a
+(diff delle righe aggiunte/rimosse = zero); hard abort valutato PRIMA del parse dello status
+(`recovery.sh:153-156`), GIVEUP con motivo → `die` nei due chiamanti (`oneTurn.sh:48`, `:194`),
+`CAMPAIGN_TURN_STATUS` azzerato (`:196`, `:200`), sesta passata = una riga (`selftest_defects.sh:374` asserisce il
+numero 120000ms, non solo il testo: col knob tolto il bound torna 180000 e il caso fallisce); selftest rifatto dal
+coordinatore: exit 0, 47/0, albero invariato. Gate di kalsa-2d sull'albero rebasato: tsc 0, jest 87/1065, i18n 0,
+60/61 dei workflow (il 61° e' `benchAggregate.mjs`, strumento con argomento, non harness). Errore riparato: un
+`git checkout 9f96a45 -- .` incatenato in un comando ha riportato i cinque file di scripts/campaign allo stato di
+main; visto dallo status, non dalla stampa del comando; ripristinato per percorso con `git restore
+--source=HEAD --staged --worktree scripts/campaign/`, selftest rifatto dopo. **Ingresso su main: UN push solo** —
+ogni push cancella l'e2e in corso (cancel-in-progress per ref) — con la catena 9f96a45 → 7d607c8 (T20C) →
+save-wiring 578152c rebasato sopra (kalsa-93 in corso), gate completo del coordinatore sul tip finale, push dopo
+la chiusura dell'e2e del "dopo" 35416502047. S23 coda lunga: +3/+6 dopo il force-stop ancora utime 0, 33 °C.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
