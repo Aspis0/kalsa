@@ -610,6 +610,52 @@ che conta (AP/skin) e non sullo stato OS, che arriva tardi (18/09: i tetti seguo
 `GovernorBattery` nell'APK come Expo module autolinkato (come `kalsa-thermal`), (4) A/B appaiato CPU vs
 GPU cool-mode su S23 scollegato con T20C come strumento: temperatura, batteria, tok/s, KV riusata.
 NPU prefill: M2.
+**Correzione 19/09 00:45 EDT (ricognizione kalsa-93 su c7e3f9c + fork 485519fe, righe verificate dal
+coordinatore):** "il cool-mode non e' deciso da nessuna parte" e' FALSO: sono due percorsi. (A) `preferGpuPath`
+(`thermalThresholds.ts:171,187`) e' morto davvero — zero consumatori di produzione — ma irrilevante. (B) il
+NATIVO decide gia' la rotta dalla temperatura con isteresi: `admit_prefill` (`llama-governor-runtime.cpp:45-60`)
+ripiega su CPU quando `policy_.thermal_state() != FAST`; `llama_governor_policy::update_thermal`
+(`llama-governor-policy.cpp:88-130`) ha stati FAST/COOLMODE/CRITICAL/LOWBAT, soglie separate di ingresso/uscita,
+`can_leave`/`dwell_elapsed`; l'app gliela manda gia' con `setGovernorThermo` (`LlamaService.ts:1698-1712`, sei
+punti di produzione, anche prima di ogni completion). Quindi l'item (2) non e' "collegare il cool-mode", sono due
+problemi diversi: **(2a)** il sensore e' la BATTERIA e basta — `readGovernorThermo` (`governorInputs.ts:179-205`)
+legge `NativeModules.GovernorBattery.readThermo()` e la struct nativa `llama_governor_thermo_profile`
+(`llama-ext.h:267-275`: `batt_temp_tenths_c`, `batt_level_pct`, `plugged`, `sensor_valid`, `t_idle_*`,
+`trend_c_per_min`) NON ha un campo AP/skin → lo switch "sul sensore che conta" e' un campo nuovo nel fork + bump
+di kalsallama, non TypeScript (seconda volta stanotte); **(2b)** `governorLoad` richiede `governorThermo.sensor_valid`
+(`LlamaService.ts:2291-2303`, unico punto che mette `governor:` nel load, `:2379`): senza sensore valido non e'
+spento il cool-mode, NON SI CARICA IL GOVERNOR; `sensor_valid` viene da `NativeModules.GovernorBattery`, che sta
+nell'APK solo se il plugin `withGovernorBattery` (`app.config.js:101`) gira al prebuild — 16/09: 0 occorrenze nei
+dex dell'APK S23 contro 13 di `KalsaThermalModule`. **Misurato dal coordinatore alle 00:50 EDT sull'APK di 9f96a45
+(run 35418569854, 151.245.842 B, sha 602a9282…): 21 dex, `GovernorBattery` 26, `GovernorBatteryPackage` 2,
+`KalsaThermalModule` 29** (grep binario; `strings` stampava vuoto senza errore). Il modulo nel build di apk.yml
+C'E'; la misura del 16/09 descriveva quell'APK. NON provato: che a runtime `NativeModules.GovernorBattery` esista
+e `readThermo()` dia `sensor_valid:true` — i logcat dell'S23 con 9f96a45 hanno zero righe "governor", ma l'S23 e'
+fascia alta col governor spento per policy, quindi non dicono niente. **Ordine di M1 corretto: (3) → (2) → (4)**,
+dove (3) diventa "prova a runtime su un telefono dove il governor si carica (Jelly/Xiaomi): riga di load con
+`governor:` e `thermo_source`/`sensor_valid`": finche' `sensor_valid` e' falso non c'e' governor, e l'A/B (4)
+misurerebbe due volte la stessa cosa. L'item (2) diventa: campo AP/skin nel profilo termico del fork + sorgente
+skin lato app + prova che la soglia si muove sul sensore giusto, DOPO la prova (3).
+
+**Anti-loop S23 — VERDE (kalsa-2d, 00:16-00:21 EDT; letto dal coordinatore in
+`~/kalsa-device-backups/s23-antiloop-20260919/EVIDENCE-antiloop.txt`, sei catture logcat + 14 snapshot RKStorage
+con byte e sha):** APK 9f96a45 installata con `install -r` (nessun uninstall, RKStorage identico byte per byte
+prima/dopo). (A) load buono: `engine.eagerInit {"modelId":"lfm2.5-2.6b"}` 00:16:10 → `kalsa.model.lastGoodId =
+lfm2.5-2.6b`, `dead_markers=0`. (B) trigger naturale su Qwen (MemAvailable 4,5 GB): 00:17:40.452 `eagerInit qwen3.5-4b`
+→ .477 `KALSA_LOAD {"phase":"fitGate","refusedBy":"fit","reasonKey":"model.tightNow"}` → .496 `eagerInit lfm2.5-2.6b`;
+nessun marker scritto (il fit gate rifiuta PRIMA del load), un solo salto verso `lastGoodId`, e **la scelta
+dell'utente non viene riscritta** (`kalsa.model.id` resta `qwen3.5-4b`). (C) piano B, morte durante il load:
+selezione LFM, `am start` + `am force-stop` a t+3,2 s dentro `llama_init_from_model` → `kalsa.load.dead.lfm2.5-2.6b = 1`
+sopravvive; rilancio 1 (00:19:54.174) e rilancio 2 (00:20:27.446): `KALSA_LOAD {"phase":"fitGate","modelId":
+"lfm2.5-2.6b","refusedBy":"marker"}` e **`llama_model_loader_lines=0`** su 2356 e 4194 righe (43 in ogni altra fase):
+non carica niente; il marker resta finche' un umano non lo tocca. Rossi mai visti: `eagerInit` su un modello
+marcato, marker assente dopo la morte, marker sparito da solo. Recupero: marker cancellato a mano dal DB (l'app lo
+cancella solo col tap), load normale ripartito alle 00:21:04, app ferma. **Perimetro dichiarato:** la selezione del
+modello e' stata scritta in `kalsa.model.id` ad app ferma perche' la UI di questo S23 non e' pilotabile (`screencap`
+ucciso da Signal 36, `uiautomator dump` vuoto): stessa precondizione che legge `pickStartModel`, non il tap
+dell'utente; il caso "morte durante il load" e' provocato con force-stop, il trigger naturale non arma il breaker.
+S23 47%, 32,9 °C, status 0; poi messo in carica dall'owner (00:20): da li' nessun numero di batteria/termica valido
+sull'S23, il trail dei daemon continua (solo la % CPU resta leggibile).
 
 **Cosa manca per M1, M2, M3 (stato 18/09 sera; fatto = misurato, non "c'e' il codice").**
 *M1, 9/10 (§13):* chiuso G1 (LFM), sessione+restore provati su S23 con force-stop (667 ms; 512 ms vs
