@@ -934,6 +934,19 @@ di identificabile in quelle righe", si comincia da li'. *Push:* uno solo, `9b08a
 e `429cd92`), al verdetto dell'e2e su `c45f044`; se rosso si separa dopo. Coda kalsa-93: `qwen-think-in-history`
 passo 2 (ramo da `9b08ae0`) → `save-wiring-coverage` → governor-kv-contract → coolmode.
 
+**MAIN = `9b08ae0` (18/09 21:23 EDT, push ff del coordinatore, 19 commit: boot-loop-breaker `0eaa090` + evict-marker
+`429cd92` + log-privacy `9b08ae0`).** E2e su `c45f044` (run `35407337897`): VERDE, 91 minuti, Jest 83/993 in
+33,8 s, verdetto PASS — ma le tre righe KV sono peggiori di ieri e cambiano la stima del difetto:
+`KV_CACHE: COLD (turn2 reused 0/2215 — full re-prefill)`, `SESSION_RESTORE: LOADED BUT COLD (reused 0/2383)`,
+`KV_PREFIX: best n_common=2213 embd=2460 text_tokens=2383 whole_cache_reused=NO`. **Il WARM 2136/2250 di ieri
+era la coincidenza** (riuso della cache appena ricostruita da un completamento); il caso normale e' zero al
+turno 2, il 93% del prefill condiviso buttato, tre turni su tre (`elapsed_to_reply` 1301 / 1405 / 536 s), e il
+job verde lo stesso ("logged, not failing job"). **0/2215 e' il numero "prima" dell'accettazione di
+`qwen-think-in-history`**; il "dopo" e' WARM al turno 2 con riuso ≈ totale − nuovi e gamba di restart non
+COLD, sullo stesso e2e. E2e su `9b08ae0`: run `35412505963`. APK debuggabile arm64 su main dispatchato:
+run `35412537213` (per la verifica sul telefono del fix anti-loop sull'S23 e di persist-guard sul Jelly,
+una per fix, precondizioni: schermo spento, batteria < 40 °C, AP < 45 °C letti subito prima).
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
