@@ -10,8 +10,6 @@ import { decidePreSendFit } from "./deviceProfile";
 import { shouldRecoverLost } from "./engineLiveness";
 import type { LoadPolicy } from "./loadPolicy";
 
-export type LoadRefusalKind = "marker" | "fit" | "disposeTimeout";
-
 /**
  * reasonKey carries ONLY the fit decider's own reason, pass-through. A marker
  * refusal has no fit reason — the marker knows only that a load did not
@@ -107,6 +105,12 @@ export async function gateModelLoad(input: {
   if (input.residentModelId === input.model.id) {
     return { allow: true, refusedBy: null, reasonKey: null, disposedResident: false };
   }
+  // Reachable, not defensive. Precondition: a model-switch dispose that TIMED
+  // OUT — runNativeOpBounded refused without ever invoking disposeEngine, so
+  // the old context is still resident (isEngineReady() still true, activeModelId
+  // never cleared) while the switch's finally released the chat slot. The next
+  // explicit load acquires from idle and lands here: dispose the leaked
+  // resident (bounded) before admitting the target.
   let disposedResident = false;
   if (input.residentModelId !== null) {
     const disposed = await input.disposeResident();

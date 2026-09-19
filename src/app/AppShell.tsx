@@ -4099,6 +4099,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // resident model different from the target is disposed first (bounded)
       // so the gate never refuses on memory held by the model it is about to
       // replace; same model → no dispose.
+      //
+      // Accepted cost of this order, written down rather than discovered
+      // later: bumpEmbedJobGeneration and the co-residency seed above are
+      // PRECONDITIONS of tryAcquireChat — the seed decides whether the acquire
+      // is allowed at all, and the bump is what lets a bounded
+      // releaseEmbedder succeed — so neither can move after the gate, and the
+      // gate cannot move before the acquisition without reintroducing the
+      // self-read of the in-flight marker. Consequence: a load the gate
+      // REFUSES has already aborted any in-flight embed job. Self-healing on
+      // the next rebuild, but real.
       const gateVerdict = await evaluateLoadGate(model);
       if (!gateVerdict.allow) {
         // Refusal releases THIS gen before reporting/falling back — the
@@ -4320,6 +4330,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       modelStateRef.current = "ready";
       // FIX B / FIX 1: chat context resident — only if we still own this gen.
       markChatReady(chatGen);
+      // The gen is consumed: the catch below must never release a READY gen —
+      // that would drive the gate chat_ready → idle with the native context
+      // alive. Nothing between here and return is known to throw today, so
+      // this closes the shape; it does not fix a witnessed crash.
+      acquiredChatGen = null;
       // End-based clear too: two concurrent ensures (double-tap in the probe
       // window) where the first fails and the second succeeds must not leave
       // "Ready" coexisting with a stale red banner.
@@ -4351,7 +4366,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
-    (nextIndex: number) => {
+    async (nextIndex: number) => {
       if (thermalHardGateRef.current) return;
       if (
         downloadInFlight.current ||
@@ -4366,8 +4381,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
       // Pool: keep the previous model's session on disk so switch-back can restore.
 
-      // Sync transition: bump generation + show checking before dispose awaits.
+      // Sync lock: the double-tap guard must not sit behind the awaited clear
+      // below.
       modelSwitchInFlightRef.current = true;
+      // Awaited BEFORE the selection flips: the kick this flip triggers reads
+      // the marker through the load gate, and a fire-and-forget clear could
+      // lose that race and refuse the freshly re-asserted model — same reason
+      // userReloadModel awaits its clear. No new window opens between the
+      // clear and the selection: they share one continuation with no await in
+      // between, re-entry is locked above, and modelIndex is still unchanged,
+      // so no kick exists yet.
+      await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+
+      // Transition: bump generation + show checking before dispose awaits.
       engineGenerationRef.current += 1;
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
@@ -4382,9 +4408,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorKind(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
-      // Re-asserting a selection clears that model's death marker so the user
-      // can retry a model whose load killed a previous launch.
-      void clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
@@ -4780,6 +4803,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (!dlGate.allow) {
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        // Same shape as the ensure path's refusal: null the ownership token so
+        // the catch cannot release this gen twice. markChatReleased is
+        // token-guarded, so this closes an inconsistency, not a crash.
+        acquiredChatGenDl = null;
         await reportLoadRefusal(model, dlGate, "download");
         setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
         return;

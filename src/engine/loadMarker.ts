@@ -1,11 +1,15 @@
 /**
  * Boot-loop defence bookkeeping, two pieces of small persisted state:
- * - a per-model death marker, written before a load starts. guardedLoad clears
- *   it on every settled outcome, so the marker that reaches the next launch
- *   means the process never reached its own error handler. One honest
- *   exception: a swallowed storage failure in the clear (disk gone, store
- *   broken) leaves a marker behind with the process alive — the clear is
- *   best-effort, fail-open, and the user can still recover by re-selection.
+ * - a per-model death marker, written before a load starts and cleared when
+ *   the load settles. What a surviving marker actually proves: the previous
+ *   process's load DID NOT SETTLE. Usually the process died mid-load and never
+ *   reached its own error handler; a wedged native op is the second road to
+ *   the same state (runNativeOpBounded puts no deadline on an op it has
+ *   already submitted, so a wedged initEngine never settles and the finally
+ *   never runs while the process sits there alive and stuck). Best-effort,
+ *   fail-open: a swallowed storage failure in the clear can also leave a
+ *   marker behind with the process alive; the user can still recover by
+ *   re-selection.
  * - the id of the last model that loaded successfully, the fallback target.
  * Storage is injected so the module is testable without AsyncStorage.
  */
