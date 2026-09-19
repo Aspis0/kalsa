@@ -3231,22 +3231,15 @@ export async function saveEngineSession(
           return false;
         }
         // The write has not happened yet — this is the one place eviction
-        // runs BEFORE a save instead of after one. Space mode: free enough
-        // whole session caches, foreign first, for the strict gate to pass;
-        // the final cache may overshoot the measured deficit. First guard:
-        // if the pool cannot cover the deficit, no whole session cache is
-        // dropped and the save fails without paying caches for a write that
-        // provably cannot succeed; stale sidecars may still be swept.
-        const deficit = sessionDiskDeficitBytes(
-          diskGate.requiredBytes,
-          diskGate.freeBytes,
-        );
-        const space = await evictSessionPoolForSpace(stem, deficit);
+        // runs BEFORE a save instead of after one. The space evictor
+        // deliberately re-reads after sweeping: stale sidecars can close the
+        // deficit, and any refusal must describe the disk as it is then.
+        const space = await evictSessionPoolForSpace(stem, diskInput);
         if (space.insufficient) {
           log(false, {
             reason: "disk",
             diskReason: "short",
-            diskRequiredDeficitBytes: deficit,
+            diskRequiredDeficitBytes: space.requiredDeficitBytes,
           });
           return false;
         }
@@ -3260,9 +3253,14 @@ export async function saveEngineSession(
             reason: "disk",
             diskReason: retryGate.reason ?? "gate_error",
             diskFreedBytes: space.bytes,
+            // Keep -1 for unknown retry inputs; known inputs use the shared
+            // strict-gate arithmetic instead of re-deriving it here.
             diskResidualShortfallBytes:
               retryGate.requiredBytes != null && retryGate.freeBytes != null
-                ? Math.max(0, retryGate.requiredBytes - retryGate.freeBytes)
+                ? sessionDiskDeficitBytes(
+                    retryGate.requiredBytes,
+                    retryGate.freeBytes,
+                  )
                 : -1,
           });
           return false;

@@ -24,6 +24,7 @@ import {
   extractChatKvRestoreSource,
   markSessionDivergesAtLastExchange,
   readSessionMeta,
+  sessionDiskBytesRequired,
   sessionDiskGate,
   sessionDiskDeficitBytes,
   sessionFilePath,
@@ -604,6 +605,23 @@ describe("sessionDiskGate", () => {
     expect(gate).toMatchObject({ ok: false, reason: "short" });
     expect(gate.freeBytes).toBe(1_000);
     expect(gate.requiredBytes).toBeGreaterThan(1_000);
+  });
+
+  test("free exactly at the requirement is still short", async () => {
+    const required = sessionDiskBytesRequired(
+      input.nPast,
+      input.bytesPerToken,
+    );
+    (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockResolvedValue(
+      required,
+    );
+    const gate = await sessionDiskGate(input);
+    expect(gate).toMatchObject({
+      ok: false,
+      reason: "short",
+      requiredBytes: required,
+      freeBytes: required,
+    });
   });
 
   test("a negative free reading is unreadable, never short", async () => {

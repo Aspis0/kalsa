@@ -1,5 +1,5 @@
 /**
- * Conversation-count budget ↔ disk bytes (§7.25: ~5.2 kB/token, ~41 MB/chat).
+ * Conversation-count budget ↔ disk bytes (§7.25: ~5.2 kB/token, ~42.6 MB/chat).
  */
 
 import {

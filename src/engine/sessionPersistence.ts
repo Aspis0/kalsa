@@ -996,23 +996,26 @@ export async function markSessionDivergesAtLastExchange(stem: string): Promise<b
 
 /**
  * Delete .kvs file + llama.rn `.kvs.meta` sidecar + any `.kvs.tmp` partial
- * + AsyncStorage meta. Idempotent, never throws.
+ * + AsyncStorage meta. Idempotent, never throws; returns false if any cleanup
+ * call fails.
  */
-export async function deleteSessionArtifacts(stem: string): Promise<void> {
-  if (!stem) return;
+export async function deleteSessionArtifacts(stem: string): Promise<boolean> {
+  if (!stem) return false;
   const path = sessionFilePath(stem);
+  let succeeded = true;
   for (const p of [path, `${path}.meta`, `${path}.tmp`, `${path}.bak`]) {
     try {
       await FileSystem.deleteAsync(p, { idempotent: true });
     } catch {
-      // ignore
+      succeeded = false;
     }
   }
   try {
     await AsyncStorage.removeItem(sessionMetaKey(stem));
   } catch {
-    // ignore
+    succeeded = false;
   }
+  return succeeded;
 }
 
 /** True if the .kvs file exists on disk. Never throws. */

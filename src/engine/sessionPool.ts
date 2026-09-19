@@ -12,6 +12,8 @@ import { getFreeDiskBytes } from "./deviceProfile";
 import {
   beginEvictMarker,
   EVICT_REASON_DEFICIT,
+  EVICT_REASON_FAILED,
+  EVICT_REASON_INVALID_BUDGET,
   EVICT_REASON_UNEVICTABLE,
 } from "./sessionEvictMarker";
 import {
@@ -31,7 +33,10 @@ import {
 import {
   deleteSessionArtifacts,
   promoteSessionBak,
+  sessionDiskDeficitBytes,
+  sessionDiskGate,
   sessionsDirectory,
+  type SessionDiskGateInput,
 } from "./sessionPersistence";
 
 const USED_KEY = "kalsa.session.pool.used.v1";
@@ -121,7 +126,8 @@ export function pickEvictionStems(
   keepStem: string,
   regime: EvictionRegime,
 ): string[] {
-  const budget = Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
+  if (!Number.isFinite(budgetBytes) || budgetBytes <= 0) return [];
+  const budget = budgetBytes;
   // The static-prefix snapshot is infrastructure, not a conversation: it is
   // neither charged to the budget nor offered as a victim. Otherwise, at the
   // picker's minimum of 1 conversation, a long chat plus the snapshot is over
@@ -277,6 +283,7 @@ export async function evictSessionPool(
   const keepModel = modelIdOfStem(keepStem);
   const budget =
     Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
+  const validBudget = Number.isFinite(budgetBytes) && budgetBytes > 0;
   marker.set({ mode: "budget", keepModel, budgetBytes: budget });
   // getFreeDiskBytes never throws (deviceProfile contract); everything after
   // this point can, and the line must still carry policy/freeBytes when it
@@ -294,8 +301,14 @@ export async function evictSessionPool(
     bytes: 0,
     victimModels: [],
   });
+  if (!validBudget) {
+    marker.set({ ok: false, reason: EVICT_REASON_INVALID_BUDGET });
+    marker.emit();
+    return;
+  }
   let dropped = 0;
   let freedBytes = 0;
+  let dropFailed = false;
   const victimModels = new Set<string>();
   try {
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
@@ -305,12 +318,21 @@ export async function evictSessionPool(
       files.map((f) => [f.stem, Math.max(0, f.bytes)]),
     );
     for (const stem of stems) {
+      const didDrop = await dropStem(stem);
+      if (!didDrop) {
+        dropFailed = true;
+        marker.set({
+          ok: false,
+          reason: EVICT_REASON_FAILED,
+          errorType: "DeleteFailed",
+        });
+        continue;
+      }
       freedBytes += bytesByStem.get(stem) ?? 0;
       const victimModel = modelIdOfStem(stem);
       if (victimModel != null) victimModels.add(victimModel);
-      await dropStem(stem);
       dropped += 1;
-      // Progress lands in the line even if a later drop throws mid-batch.
+      // Progress counts only completed drops; failed drops leave counters unchanged.
       marker.set({
         victims: dropped,
         bytes: freedBytes,
@@ -327,10 +349,12 @@ export async function evictSessionPool(
     );
     const stillOver = totalBytes - freedBytes > budget;
     marker.set({
-      ok: !stillOver,
+      ok: !stillOver && !dropFailed,
       totalBytes,
       poolBytes,
-      ...(stillOver ? { reason: EVICT_REASON_UNEVICTABLE } : {}),
+      ...(!dropFailed && stillOver
+        ? { reason: EVICT_REASON_UNEVICTABLE }
+        : {}),
     });
   } catch (err) {
     marker.thrown(err);
@@ -339,10 +363,12 @@ export async function evictSessionPool(
 }
 
 export type SpaceEvictionResult = {
-  /** True when no whole session cache could cover the need; sidecars may be swept. */
+  /** True when the need was uncovered or a drop failed; sidecars may be swept. */
   insufficient: boolean;
-  /** Bytes actually dropped, as measured before dropping; 0 if insufficient. */
+  /** Bytes counted for completed drops; a failed batch may be partial. */
   bytes: number;
+  /** The post-sweep deficit used by the guard and caller's failure log. */
+  requiredDeficitBytes: number;
 };
 
 /**
@@ -362,33 +388,44 @@ export type SpaceEvictionResult = {
  */
 export async function evictSessionPoolForSpace(
   keepStem: string,
-  bytesNeeded: number,
+  diskInput: SessionDiskGateInput,
 ): Promise<SpaceEvictionResult> {
   const marker = beginEvictMarker();
   const keepModel = modelIdOfStem(keepStem);
-  const need =
-    Number.isFinite(bytesNeeded) && bytesNeeded > 0 ? bytesNeeded : 0;
   marker.set({
     mode: "space",
     policy: "global",
     keepModel,
-    neededBytes: need,
   });
-  // getFreeDiskBytes never throws (deviceProfile contract); policy and
-  // freeBytes are on the line before any throwing read.
-  const freeBytes = await getFreeDiskBytes();
-  marker.set({
-    freeBytes,
-    victims: 0,
+  const result: SpaceEvictionResult = {
+    insufficient: false,
     bytes: 0,
-    victimModels: [],
-  });
-  const result: SpaceEvictionResult = { insufficient: false, bytes: 0 };
+    requiredDeficitBytes: 0,
+  };
   let dropped = 0;
   let freedBytes = 0;
+  let dropFailed = false;
   const victimModels = new Set<string>();
   try {
+    // The caller's first gate read authorized this run; the sweep can itself
+    // close the deficit, so deliberately re-read before measuring or logging.
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
+    const gate = await sessionDiskGate(diskInput);
+    const need = sessionDiskDeficitBytes(
+      gate.requiredBytes,
+      gate.freeBytes,
+    );
+    result.requiredDeficitBytes = need;
+    marker.set({ neededBytes: need });
+    // Keep the policy free-space reading on the same post-sweep side of the
+    // marker as the gate-derived need and evictable total.
+    const freeBytes = await getFreeDiskBytes();
+    marker.set({
+      freeBytes,
+      victims: 0,
+      bytes: 0,
+      victimModels: [],
+    });
     const files = await listPoolFiles();
     // Evictable = what this eviction could actually free: chat files, never
     // the snapshot, never the file being saved.
@@ -397,8 +434,8 @@ export async function evictSessionPoolForSpace(
     );
     marker.set({ evictableBytes: evictable });
     if (evictable < need) {
-      // Provably cannot be enough: drop no whole session cache (sidecars were
-      // swept above, and result.bytes is assigned only after the full batch).
+      // Post-sweep inventory cannot cover the post-sweep deficit: drop no
+      // whole session cache and let the caller report this refusal.
       result.insufficient = true;
       marker.set({ ok: false, reason: EVICT_REASON_DEFICIT });
     } else {
@@ -407,12 +444,22 @@ export async function evictSessionPoolForSpace(
         files.map((f) => [f.stem, Math.max(0, f.bytes)]),
       );
       for (const stem of stems) {
+        const didDrop = await dropStem(stem);
+        if (!didDrop) {
+          dropFailed = true;
+          result.insufficient = true;
+          marker.set({
+            ok: false,
+            reason: EVICT_REASON_FAILED,
+            errorType: "DeleteFailed",
+          });
+          continue;
+        }
         freedBytes += bytesByStem.get(stem) ?? 0;
         const victimModel = modelIdOfStem(stem);
         if (victimModel != null) victimModels.add(victimModel);
-        await dropStem(stem);
         dropped += 1;
-        // Progress lands in the line even if a later drop throws mid-batch.
+        // Progress counts only completed drops; failed drops leave counters unchanged.
         marker.set({
           victims: dropped,
           bytes: freedBytes,
@@ -420,7 +467,7 @@ export async function evictSessionPoolForSpace(
         });
       }
       result.bytes = freedBytes;
-      marker.set({ ok: true });
+      if (!dropFailed) marker.set({ ok: true });
     }
     marker.set({
       poolBytes: chatTotalBytes(
@@ -428,8 +475,8 @@ export async function evictSessionPoolForSpace(
       ),
     });
   } catch (err) {
-    // A mid-batch throw can leave marker progress in freedBytes, while
-    // result.bytes stays 0 because it is assigned only after the loop.
+    // Unexpected errors outside dropStem leave the run failed; ordinary drop
+    // failures are returned and counted explicitly above.
     result.insufficient = true;
     marker.thrown(err);
   }
@@ -508,7 +555,7 @@ export async function deleteSessionsForModelConversation(
         : legacySessionStem(modelId),
     );
   }
-  // deleteAsync failures are swallowed inside deleteSessionArtifacts, so a
+  // deleteAsync failures are contained inside deleteSessionArtifacts, so a
   // stale .kvs could survive what looks like a successful clear and be reused
   // on the next boot. Re-list and throw, so callers' diskOk is not a lie.
   const survivors = (await listKvsNames()).filter(matches);
@@ -526,10 +573,11 @@ export async function deleteLegacyModelSession(modelId: string): Promise<void> {
   if (stem) await dropStem(stem);
 }
 
-async function dropStem(stem: string): Promise<void> {
-  if (!stem) return;
-  await deleteSessionArtifacts(stem);
-  await forgetSessionUse(stem);
+async function dropStem(stem: string): Promise<boolean> {
+  if (!stem) return false;
+  const artifactsDeleted = await deleteSessionArtifacts(stem);
+  const usageForgotten = await forgetSessionUse(stem);
+  return artifactsDeleted && usageForgotten;
 }
 
 async function listSessionDirNames(): Promise<string[]> {
@@ -645,14 +693,15 @@ async function readUsedMap(): Promise<Record<string, number>> {
   }
 }
 
-async function forgetSessionUse(stem: string): Promise<void> {
-  if (!stem) return;
+async function forgetSessionUse(stem: string): Promise<boolean> {
+  if (!stem) return false;
   try {
     const map = await readUsedMap();
-    if (map[stem] === undefined) return;
+    if (map[stem] === undefined) return true;
     delete map[stem];
     await AsyncStorage.setItem(USED_KEY, JSON.stringify(map));
+    return true;
   } catch {
-    // best-effort
+    return false;
   }
 }

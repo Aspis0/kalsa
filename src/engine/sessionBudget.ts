@@ -1,13 +1,13 @@
 /**
  * KV session pool budget: user-facing conversation count ↔ UFS bytes.
  *
- * Measured §7.25: 8_668_927 B / 1672 tokens ≈ 5.2 kB/token → ~41 MB at the
+ * Measured §7.25: 8_668_927 B / 1672 tokens ≈ 5.2 kB/token → ~42.6 MB at the
  * loaded 8192 context. The budget is PER MODEL since the pool went per-model:
- * the default 7 chats ≈ 300 MB per model, and the pool total is
+ * the default 7 chats ≈ 298 MB per model, and the pool total is
  * models × this figure — deliberately uncapped, a product decision parked
  * with the owner together with the user-facing "About 7 chats by default"
- * label, which still reads as one total and still promises ~7 real chats
- * where a bigger model yields ~3.6 at this one constant.
+ * label, which still reads as one total and still promises ~7 real chats;
+ * larger models may fit fewer conversations at this fixed byte budget.
  */
 
 /** AsyncStorage key: decimal conversation count. */
@@ -18,7 +18,7 @@ export const KV_BYTES_PER_TOKEN = 5200;
 
 export const KV_CONTEXT_TOKENS = 8192;
 
-/** ~41 MB per loaded conversation. */
+/** ~42.6 MB per loaded conversation. */
 export const KV_BYTES_PER_CONVERSATION = KV_BYTES_PER_TOKEN * KV_CONTEXT_TOKENS;
 
 export const DEFAULT_SESSION_POOL_CONVERSATIONS = 7;
