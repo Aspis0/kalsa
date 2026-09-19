@@ -402,7 +402,7 @@ export async function getToolChoiceMode(): Promise<ToolChoiceMode> {
 }
 
 /**
- * Bench-only n_ctx override. Absent / invalid / below floor (2048) → null
+ * Bench-only n_ctx override. Absent / invalid / below floor (8192) → null
  * (catalog n_ctx wins). The parser rejects 0, NaN, and sub-floor values here
  * rather than letting them reach engine init. The floor is ours
  * (`contextProfile.ts` BENCH_NCTX_FLOOR), not a vendor clamp.

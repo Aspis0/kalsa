@@ -199,7 +199,7 @@ describe("resolveWindowProfile", () => {
   });
 
   it("never returns a negative budget for a context smaller than the reserve", () => {
-    // 512 is below CTX_FLOOR (2048), so this is unreachable in production. The
+    // 512 is below CTX_FLOOR (8192), so this is unreachable in production. The
     // reserve is min(2048, floor(512 * 0.5)) = 256, so the budget is
     // floor((512 - 256) * 0.75 * 3) = floor(576) = 576 — non-negative, which is
     // the property this case exists to pin.
@@ -209,8 +209,11 @@ describe("resolveWindowProfile", () => {
 });
 
 describe("charBudgetReserveTokens", () => {
-  it("halves the reserve at the app's context floor", () => {
-    // CTX_FLOOR (engine/deviceTuning.ts) is 2048, so min(2048, 1024) = 1024.
+  it("halves the reserve below the constant's knee", () => {
+    // 2048 is below CTX_FLOOR (engine/deviceTuning.ts, now 8192), so this row is
+    // unreachable from the chat path; the halving still guards any context
+    // under the 4096 knee. At the floor itself the reserve is the constant —
+    // see the next case.
     expect(charBudgetReserveTokens(2048)).toBe(1024);
   });
 
@@ -245,7 +248,7 @@ describe("char budget across the contexts the app can load", () => {
   // The 4096+ rows are the pre-change budgets: before the reserve was derived
   // from nCtx, bare was (nCtx - 2048) * 0.75 * 3, i.e. the same 4608 / 9216 /
   // 13824. Only the two rows below 4096 move.
-  it("2048, the context floor, is the row the fix exists for", () => {
+  it("2048, below the context floor, still gets a non-empty window", () => {
     const bare = resolveWindowProfile({
       nCtx: 2048,
       hasImages: false,

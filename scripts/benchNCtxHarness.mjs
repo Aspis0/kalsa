@@ -75,7 +75,7 @@ async function main() {
   const mod = await import(pathToFileURL(resolveBuilt("contextProfile.js")).href);
   const { parseBenchNCtx, resolveContextProfile, BENCH_NCTX_FLOOR } = mod;
 
-  check("floor is the llama.rn clamp (2048)", BENCH_NCTX_FLOOR === 2048);
+  check("floor is the app's minimum chat context (8192)", BENCH_NCTX_FLOOR === 8192);
 
   // Absent pref: the benchmark must run at catalog n_ctx, not at a fabricated one.
   check("null → no override", parseBenchNCtx(null) === null);
@@ -88,15 +88,16 @@ async function main() {
   check("NaN literal → no override", parseBenchNCtx("NaN") === null);
   check("non-integer → no override", parseBenchNCtx("4096.5") === null);
 
-  // Below the floor: llama.rn would clamp silently, so the parser refuses first.
+  // Below the floor: the parser refuses before a sub-floor value can become an
+  // override, whatever the engine would do with it.
   check("\"0\" → no override (below floor)", parseBenchNCtx("0") === null);
   check("1024 → no override (below floor)", parseBenchNCtx("1024") === null);
-  check("2047 → no override (one below floor)", parseBenchNCtx("2047") === null);
+  check("8191 → no override (one below floor)", parseBenchNCtx("8191") === null);
 
   // Valid values, including exactly the floor.
-  check("2048 → 2048 (floor is inclusive)", parseBenchNCtx("2048") === 2048);
-  check("4096 → 4096", parseBenchNCtx("4096") === 4096);
-  check("surrounding whitespace tolerated", parseBenchNCtx(" 4096 ") === 4096);
+  check("8192 → 8192 (floor is inclusive)", parseBenchNCtx("8192") === 8192);
+  check("16384 → 16384", parseBenchNCtx("16384") === 16384);
+  check("surrounding whitespace tolerated", parseBenchNCtx(" 16384 ") === 16384);
 
   // The override must beat both the catalog value and the high-RAM upgrade,
   // otherwise a 16k-catalog model would ignore the bench regime entirely.

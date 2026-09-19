@@ -172,7 +172,7 @@ export const PROVENANCE_SOURCES = [
   "measured:ubatch-256",
   "request",
   "memory-budget",
-  "floor:2048",
+  "floor:8192",
   "none",
 ] as const;
 
@@ -223,7 +223,9 @@ export const MEASURED_PRESETS: readonly MeasuredPreset[] = [
 ] as const;
 
 const DEFAULT_UBATCH = 256;
-const CTX_FLOOR = 2048;
+// Minimum viable chat context, set by the product owner: below 8192 tokens the
+// assistant is unusable as a chatbot. Ours, not a vendor clamp.
+const CTX_FLOOR = 8192;
 const MIB = 1024 * 1024;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -500,7 +502,7 @@ function resolveThreadsSync(input: TuningInput): ThreadResolution {
 
 /**
  * Memory-budgeted n_ctx (design §7.3).
- * n_ctx = clamp(requested, [2048, ctxFit]); unknown available → keep requested.
+ * n_ctx = clamp(requested, [CTX_FLOOR, ctxFit]); unknown available → keep requested.
  * Reuses estimateMemory / fitMemoryEstimate (never reimplements arithmetic).
  */
 function resolveContextBudget(
@@ -615,7 +617,10 @@ function resolveContextBudget(
 
   return {
     n_ctx,
-    ctxSource: n_ctx === CTX_FLOOR && best < CTX_FLOOR ? "floor:2048" : "memory-budget",
+    ctxSource:
+      n_ctx === CTX_FLOOR && best < CTX_FLOOR
+        ? `floor:${CTX_FLOOR}`
+        : "memory-budget",
     memory: {
       nonEvictableMiB: estFinal.nonEvictableMiB,
       availableMiB,

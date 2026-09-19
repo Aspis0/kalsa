@@ -322,8 +322,8 @@ async function main() {
     assert(nGpuLayersForBackend(r.backend) === 99, "n_gpu_layers metal");
   });
 
-  // Design §9 case 6: ctx budget tight → n_ctx reduced, floor 2048.
-  await test("6. ctx budget: tight availableMiB → n_ctx reduced, floor 2048", () => {
+  // Design §9 case 6: ctx budget tight → n_ctx reduced, floor 8192.
+  await test("6. ctx budget: tight availableMiB → n_ctx reduced, floor 8192", () => {
     // Large model + high kv cost + small available → force shrink.
     const model = makeModel({
       id: "qwen3.5-4b",
@@ -345,8 +345,8 @@ async function main() {
       contextLength: 262144,
       kvBytesPerToken: 16_000, // 16k tokens ≈ 256 MiB KV
     });
-    // available 200 MiB: floor@2048 ≈ 32 MiB KV + small repack/compute fits;
-    // 16384 ≈ 256 MiB KV alone does not.
+    // available 200 MiB: floor@8192 ≈ 125 MiB KV + small repack/compute fits;
+    // 16384 ≈ 250 MiB KV alone does not.
     const profile = makeProfile({
       brand: "generic",
       cpuCoreCount: 8,
@@ -361,20 +361,20 @@ async function main() {
       resolvedThreadsSource: "fallback:capacity-missing",
     });
     assert(r.context.n_ctx < 16384, `n_ctx not reduced: ${r.context.n_ctx}`);
-    assert(r.context.n_ctx >= 2048, `below floor: ${r.context.n_ctx}`);
+    assert(r.context.n_ctx >= 8192, `below floor: ${r.context.n_ctx}`);
     assert(
       r.context.ctxSource === "memory-budget" ||
-        r.context.ctxSource === "floor:2048",
+        r.context.ctxSource === "floor:8192",
       `ctxSource ${r.context.ctxSource}`,
     );
     assert(r.memory.availableMiB !== null, "availableMiB null");
   });
 
-  await test("6b. ctx never below floor 2048 even when floor is tight", () => {
+  await test("6b. ctx never below floor 8192 even when floor is tight", () => {
     const model = makeModel({
       sizeBytes: 50_000_000,
       engineCtx: 16384,
-      kvBytesPerToken: 100_000, // even 2048 is large
+      kvBytesPerToken: 100_000, // even 8192 is large
     });
     const profile = makeProfile({
       availableMemoryBytes: 10 * 1024 * 1024, // 10 MiB — nothing fits
@@ -386,7 +386,7 @@ async function main() {
       platformHint: "android",
       resolvedThreads: 4,
     });
-    assert(r.context.n_ctx === 2048, `floor violated: ${r.context.n_ctx}`);
+    assert(r.context.n_ctx === 8192, `floor violated: ${r.context.n_ctx}`);
   });
 
   // Design §9 case 7: kv quant q8_0/q4_0 on android cpu-only.

@@ -2257,7 +2257,7 @@ export function initEngine(
     });
     // Prefer caller engineCtx when budget did not shrink (identical path on
     // measured devices / unknown MemAvailable). Use tuning only when the
-    // memory budget actually reduced n_ctx (safety clamp, floor 2048).
+    // memory budget actually reduced n_ctx (safety clamp, floor 8192).
     const effectiveNCtx =
       tuning.context.n_ctx < engineCtx ? tuning.context.n_ctx : engineCtx;
     if (windowCeilingTokens(effectiveNCtx) <= 0) {

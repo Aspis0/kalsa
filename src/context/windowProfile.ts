@@ -45,11 +45,12 @@ export const WINDOW_RESERVE_TOKENS = 2048;
 /**
  * Reserve the CHAR BUDGET may subtract from a loaded context, relative to it.
  *
- * `WINDOW_RESERVE_TOKENS` equals the app's context floor (CTX_FLOOR in
- * engine/deviceTuning), so at the smallest context the app can load the
- * subtraction cancels the whole context: `(2048 - 2048) * share = 0` and the
- * anchored history is empty on the one device the floor exists for. Halving
- * the reserve there leaves half the context for the window.
+ * `WINDOW_RESERVE_TOKENS` is 2048. The app's context floor (`CTX_FLOOR` in
+ * engine/deviceTuning) is 8192, so at the smallest context the app can load
+ * the reserve no longer cancels the context: history gets
+ * 8192 - 2048 = 6144 tokens, less the system prompt. The halving below
+ * (`min(2048, floor(nCtx / 2))`) therefore binds only under 4096, which the
+ * floor now makes unreachable from the chat path.
  *
  * Only the char budget uses this. The ceiling slide
  * (`windowCeilingTokens`) keeps the constant: overrunning n_ctx is the failure

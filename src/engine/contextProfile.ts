@@ -11,7 +11,7 @@ export const HIGH_RAM_N_CTX = 16384;
 /**
  * Floor for the bench n_ctx override, and it is enforced HERE: `parseBenchNCtx`
  * rejects anything lower, so a sub-floor value never becomes an override at
- * all. 2048 is picked to agree with the memory-budget floor in
+ * all. 8192 is picked to agree with the memory-budget floor in
  * `deviceTuning.ts` (`CTX_FLOOR`, :226 and :536-537) — not because any vendor
  * imposes it.
  *
@@ -25,15 +25,19 @@ export const HIGH_RAM_N_CTX = 16384;
  * adopts the tuned value only when it is SMALLER than engineCtx, so a
  * sub-floor engineCtx passes straight through — which is precisely why
  * LlamaService logs `KALSA_CTX_FLOOR` right after that assignment.
+ *
+ * Raised 2048 → 8192 on 2026-09-19: 8192 is the owner's minimum viable chat
+ * context, below which the assistant is unusable as a chatbot. The bench floor
+ * and `CTX_FLOOR` move together; no vendor limit is involved.
  */
-export const BENCH_NCTX_FLOOR = 2048;
+export const BENCH_NCTX_FLOOR = 8192;
 
 /**
  * Defensive parser for the bench-only n_ctx override pref.
  * - null / undefined / empty / whitespace → null (no override — catalog wins)
  * - non-numeric / NaN / non-integer → null (no override)
- * - below BENCH_NCTX_FLOOR (2048) → null (no override; OUR floor, see above)
- * - valid integer >= 2048 → the number
+ * - below BENCH_NCTX_FLOOR (8192) → null (no override; OUR floor, see above)
+ * - valid integer >= 8192 → the number
  *
  * "no override" means resolveContextProfile falls through to catalog n_ctx.
  * Returning null (never 0 or NaN) prevents a silently broken engine init.
