@@ -809,6 +809,18 @@ prompt. **Regola del turno finale col `rstrip`: spedibile.** Residuo nominato: i
 gira; con `add_generation_prompt: false` le righe 150-153 del template (il seed) non dovrebbero scattare, ma
 la variante va misurata prima del passo 2, non assunta.
 
+**Residuo del prewarm CHIUSO (18/09 ~21:05, kalsa-93, flag veri della chiamata: `add_generation_prompt=false`,
+`enable_thinking=false`, `reasoning_format=none`; verificato prima che `/apply-template` onori davvero
+`add_generation_prompt:false`).** Due controlli, tre forme ciascuno: **P1** render del prewarm (storia che
+finisce con l'assistente, nessun generation prompt) contro i token vivi lasciati dal turno → **identici**,
+stessa lunghezza e stessi id (235/235, 232/232, 26/26); **P2** il turno successivo, dove lo stesso messaggio
+assistente passa da finale a vecchio e cambia regola, riusa il prefisso del prewarm → **REUSES ALL**
+(235→259, 232→256, 26→50). Con le regole scambiate si rompe a 13-14 token, subito dopo
+`<|im_start|>assistant\n`: e' il numero atteso per il test jest della transizione. Totale `qwen-think-in-history`:
+**12 casi su 12** sulla configurazione dell'app, con i due messaggi assistente reali dell'artefatto piu' la
+forma a think vuoto. Limite invariato: minja via `llama-server`, stessa funzione e stesso template dell'app,
+non l'APK; la verifica sul telefono resta nell'accettazione. Il passo 2 ha tutto.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
