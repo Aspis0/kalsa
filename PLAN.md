@@ -909,6 +909,14 @@ entra nel prompt-env hash, quindi quel segmento dipende anche da contenuto dell'
 regola, ma non e' neutro. Le otto fixture di `prefixPrewarmHarness.mjs` seguono il formato nuovo nello stesso
 ramo (un harness che verifica un formato inesistente e' peggio di uno che non lo verifica).
 
+*`log-privacy`, la guardia:* nessun test puo' importare `LlamaService.ts` (value-import di `llama.rn` a `:13`);
+Luna si e' fermata da sola invece di ristrutturare la produzione per rendersi testabile (il comportamento
+giusto). Stopgap deciso: un test sul TESTO SORGENTE, idioma gia' nostro (`engineIdentity.test.ts` legge file
+con `fs`), ancorato ai due letterali dei payload `KALSA_SESSION` e non a un grep di file: esattamente due
+letterali trovati, nessuno con `stem`, entrambi con `hash`, con prova rossa; commento in cima che dice perche'
+e' scritto cosi'. Quando `save-wiring-coverage` estrae l'orchestrazione, questa guardia si SOSTITUISCE col
+test di comportamento e si toglie, non si affianca.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
