@@ -1324,8 +1324,12 @@ successivo al contratto governor.
 anche con un turno da 120 caratteri, senza incolla — il difetto sotto il difetto e' la riserva assoluta uguale al
 pavimento del contesto; a 4096 il ramo del tetto azzera come quello del budget; da 6144 in su l'incolla da 9000
 tiene 4 messaggi, da 8192 tutto. **Decisioni del coordinatore (00:00 EDT, provvisorie, da confermare dall'owner):**
-(1) riserva proporzionale SOTTO 4096 e identica sopra: `min(2048, max(1024, nCtx/2))` (2048 → 1024, 3072 → 1536,
-≥ 4096 → 2048 come oggi); cap per messaggio 4000 invariato stanotte; (2) pavimento = ultimo scambio completo se
+(1) riserva proporzionale SOTTO 4096 e identica sopra, `min(2048, max(1024, nCtx/2))` (2048 → 1024, 3072 → 1536,
+≥ 4096 → 2048 come oggi), MA solo per il budget della finestra: funzione con nome usata solo a
+`windowProfile.ts:249`; `WINDOW_RESERVE_TOKENS` resta la costante 2048 perche' ha altri tre usi vivi che non si
+muovono (tetto `windowProfile.ts:100` = quando la KV viva viene scartata; prewarm `prefixPrewarm.ts:144`, `:253`;
+pin `prefixPrewarm.test.ts:148`) — controproposta di kalsa-93, quattro usi verificati dal coordinatore; cap per
+messaggio 4000 invariato stanotte; (2) pavimento = ultimo scambio completo se
 entra in `charBudget − currentChars`, altrimenti l'ultimo messaggio utente se entra, altrimenti la storia cade con
 motivo con nome (`history_dropped_current_turn_exceeds_budget`), mai in silenzio e mai con confine dispari; (3)
 firma: aiutante puro `lastCompleteExchangeStart(roles)` e `computeAnchoredBoundary`/`advanceAnchoredBoundary` che
