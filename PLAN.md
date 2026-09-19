@@ -1251,6 +1251,25 @@ ogni push cancella l'e2e in corso (cancel-in-progress per ref) — con la catena
 save-wiring 578152c rebasato sopra (kalsa-93 in corso), gate completo del coordinatore sul tip finale, push dopo
 la chiusura dell'e2e del "dopo" 35416502047. S23 coda lunga: +3/+6 dopo il force-stop ancora utime 0, 33 °C.
 
+**NOTTE 18→19/09, ordine dell'owner (23:20 EDT, "vado a dormire, vorrei che M1 venisse chiusa con S23 e Jelly;
+lo Xiaomi e' disponibile in carica"):** di M1 restano all'owner corpus/rubrica, esperienza manuale e le notti su
+S23/Jelly; stanotte si chiudono i gate su device che non lo richiedono. Tip finale `c7e3f9c` (9f96a45 → T20C
+7d607c8 → save-wiring rebasato; sette commit; gate del coordinatore su archive: TSC 0, jest 89/1078, 59/59,
+selftest 47/0) pronto per il push unico alla chiusura dell'e2e del "dopo". APK debuggabile di main 9f96a45 in
+build (apk.yml run 35418569854, 03:26Z), una sola APK per tutte le verifiche. **Device (kalsa-2d, unico operatore
+adb, tre telefoni sul bus: S23 mDNS adb-R3CW406P8CV 192.168.1.152:44071; Jelly 192.168.1.82:5555; Xiaomi 14
+23127PN0CG 192.168.1.193:46873, appaiato dal coordinatore col codice dell'owner alle 23:30 EDT — al momento
+"AC/USB powered: false", 42%, 31,4 °C, build del 13/09):** (1) S23: install -r 9f96a45, verifica ANTI-LOOP di
+boot-loop-breaker (criterio scritto da kalsa-2d dal codice prima di eseguire; trigger = Qwen che non carica su
+7 GB; due riaperture), piu' coda lunga dei daemon; (2) Xiaomi: install -r, verifica KV del fix Qwen (unica: e'
+l'unico telefono su cui Qwen 4B carica sicuro): turno 2 con n_common ≈ total − nuovi, gamba del riavvio non COLD,
+governor come perimetro se salta il salvataggio; poi NOTTE DI INATTIVITA' con campione ogni ora (stato di carica
+registrato: se resta scollegato e' una notte scollegata, stop sotto il 25%); (3) Jelly: T20C uso sostenuto, un
+blocco da 30 turni LFM, harness dal ramo 7d607c8 lato Mac, keepalive adb, watchdog termico, linea 43 °C/status 3.
+**Codice (kalsa-93, Luna scrive e deepseek audita, niente GLM fino alle 11:00):** governor-kv-contract (contratto
+scritto nel lab, poi modulo puro con deps iniettati e mutazioni per nome dal primo giro), poi anchored-floor.
+Coordinatore: push del tip, lettore unico dell'e2e del "dopo" e della build APK, confronto dei due artefatti.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
