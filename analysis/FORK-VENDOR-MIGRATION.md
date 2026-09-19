@@ -1149,3 +1149,73 @@ Zero function bodies touched. That is the property the fix had to preserve, and 
 to check, so it was checked rather than asserted.
 
 **Step 7's engine sha is therefore settled at `f6ba2786d`.**
+
+---
+
+## 20. Step 7 rehearsed end-to-end, in a scratch clone. It works — and it found the gate lying
+
+`b11010-merge` is now on `Aspis0/kalsallama` at `f6ba2786d2811932904584ce79291e9ea34f8a45`
+(`git ls-remote` agrees with local), so §17.2's blocker is gone. The step itself was then run in
+full, in a throwaway clone at `/tmp`, because a hostile audit was reading `vendor/llama.cpp/**` in
+the real tree at the time and `sync:vendor` would have rewritten it underneath.
+
+The rehearsal is honest rather than convenient: `CACHE_DIR` defaults to `$HOME/.cache/llama.rn`,
+outside the repo, so the scratch run is isolated from the branch but warms the cache the real run
+will reuse. And the pin points at the **GitHub URL**, not at the local path — a local path would
+sync here and fail in CI, which is the failure mode worth avoiding.
+
+```
+LLAMA_CPP_REPO=https://github.com/Aspis0/kalsallama
+LLAMA_CPP_REF=f6ba2786d2811932904584ce79291e9ea34f8a45
+```
+
+### 20.1 The sync
+
+`./scripts/sync-vendor.sh` → **exit 0**, and the line that matters:
+
+```
+==> Generating version files (build 11167, commit f6ba278)
+```
+
+`11167` is a count over kalsallama's whole history, which is what the shallow-clone refusal exists
+to protect; `f6ba278` is **our** sha, seven characters, from the truncation that replaced
+`--short=7`. `src/version.ts` now reads `export const BUILD_COMMIT = 'f6ba278'`.
+
+### 20.2 The prediction held: 37 -> 0
+
+§18 wrote the number down before the step ran. Afterwards, in the rehearsal clone:
+
+```
+clang++ -std=c++17 -fsyntax-only -ferror-limit=0 -I cpp -I vendor/... cpp/rn-governor.cpp
+EXIT=0    errors: 0
+```
+
+From 37 to 0, exactly as predicted, for exactly the predicted reason: `vendor/llama.cpp/src/llama-ext.h`
+is now kalsallama's and declares the governor types. **The engine now arrives from our fork.**
+
+### 20.3 The gate was broken, and had been since the day it was written
+
+`scripts/assert-kalsa-vendor.sh` failed — not on content, on a name:
+
+```
+assert-kalsa-vendor: could not read LLAMA_BUILD_COMMIT from .../vendor/llama.cpp/common/build-info.cpp
+```
+
+The generated file declares `char const * LLAMA_COMMIT = "f6ba278";`. `LLAMA_BUILD_COMMIT` is only
+the **template placeholder** (`@LLAMA_BUILD_COMMIT@`) that substitutes into a variable with a
+different name. So `assert-kalsa-vendor.sh:67` had never matched anything since `d6d95ecc`.
+
+The reason nobody noticed is the interesting part: the script was **expected** to fail, by design,
+for as long as the vendored tree was plain ggml-org. A gate that is supposed to be red hides its
+own defects — the first green run is the first time it is tested. With the one word corrected the
+gate passes on the real synced tree:
+
+```
+assert-kalsa-vendor: ok (marker x1, kalsa_moe x1, upstream hunks present)   EXIT=0
+```
+
+Which also proves, on a real sync rather than a temp-dir dry run, that the patches apply to
+kalsallama and grade exactly once.
+
+**Rule worth keeping: a gate written while its subject is red must be re-proven the moment the
+subject goes green.** Otherwise "red" is being read as "working".
