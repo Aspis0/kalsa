@@ -1407,6 +1407,94 @@ usano cosi': **deepseek scrive, Luna revisiona**, dalla prossima dispatch. Verif
 sara' deepseek → Luna (`modeId` esplicito perche' cross-provider). Due controlli prima di accoppiare: i `model` sul
 config e l'ultima riga dell'owner sulla direzione.
 
+**S23, +81 min dal force-stop (00:08 EDT, kalsa-2d; riletto dal coordinatore alle 00:10): lo spin E' TORNATO, ed e'
+`adsprpcd` da solo.** App ferma dalle 22:47:10 (`pidof` vuoto): `adsprpcd` pid 2251 stato R, utime 68185 → 70136 e
+sale, un solo thread; `cdsprpcd` pid 2252 utime 1 in 95 min. In 61 s di `/proc/uptime` +849 jiffies = **13,9% di
+un core**; 29,3 °C, Thermal Status 0, 49% staccato. Zero CPU nei 39 min dal boot che contenevano la sessione
+dell'app con un prefill vero da 1826 token: l'ipotesi "sessione FastRPC lasciata aperta da noi" e' **contraddetta**.
+E' il demone audio/sensori (sei sensori Samsung su ADSP in `dumpsys sensorservice`), non quello di calcolo. Limiti:
+intensita' non storica (14% su UN demone contro ~51% medio su DUE per 2,7 giorni), niente root, una notte non
+distingue "fase iniziale" da "altra cosa". Conseguenze: il riavvio NON e' una cura durevole; ogni tok/s o numero
+termico preso sull'S23 da ora porta un fondo di ~14-16% di un core e va scritto accanto al numero; l'anti-loop
+resta valido (test di logica). Trail ogni 30 min fino alle 07:00 in `~/kalsa-device-backups/s23-dsp-trail-20260919.txt`
+(nohup, i campioni stessi svegliano l'AP, due orologi per riga). **Trappola misurata (kalsa-2d, confermata dal
+coordinatore):** sull'S23 un `sleep` dentro `adb shell` con stdin da `/dev/null` NON dorme (`sleep 5` → 0 s; con
+stdin ereditato 13 s; sul Jelly dorme sempre); e' l'idioma di ogni chiamata adb della campagna (run-t20c.sh:77),
+il runner T20C non ha attese lato-device, `device-energy-sweep.sh:365` e `device-ngram-spec.sh:154` si'. Regola:
+l'attesa sta sul Mac, l'intervallo si legge da `/proc/uptime` ai due estremi. `dumpsys battery` sull'S23 stampa lo
+storico dei broadcast: i `current_avg` includono i nostri campionamenti, non sono corrente di riposo.
+
+**`t20c-jelly` @ `29be5fa` (kalsa-2d, scritto da Luna 42da5458, audit deepseek efedb3be chiuso 23:58 EDT; riletto
+dal coordinatore su disco):** nessun letterale `192.168.1.` nel runner, seriale dal `device` di `CAMPAIGN_CONFIG`,
+guardia exit 2 con testo esatto, caso `serial_refusal_case` (selftest_defects.sh:554-570). Prove lette dal
+coordinatore nei log di kalsa-2d: verde `passed=48 failed=0` exit 0 (`PASS: mismatched configured serial is
+refused`), rossa in copia `git archive` con la guardia a `if false` → `passed=47 failed=1` exit 1 con il nome del
+caso. **La suite non gira in CI** (nessun workflow invoca selftest_defects.sh): gate locale. Audit, CONFERMATI:
+la manopola `CAMPAIGN_CONFIG` e' cablata a meta' (cambia device/telemetria/validazione ma NON lo script
+`dirname($CONFIG)/t20c/script.json` :14, NON i turni `seq 1 20` :314 / `-eq 20` :381, NON `T20C`/`V1` :65-66,
+NON MODEL_ID/LOCALE :33-34, NON `OUT` :44) → chimera raggiungibile con file esistenti (`ciswire.json`: device
+`192.168.1.82:34037`, 24 turni); `"device": null/true/1234` passano la guardia (solo `-z`); `resultsDir` del json
+jelly IDENTICO a quello S23 — letto solo da `supervisor.sh:84` (fallback `:85` = `results/ciswire-campaign`, quindi
+togliere il campo instrada su un'altra campagna), NON dal runner: le scritture di turno passano `datastore.mjs`
+con `"$OUT"` esplicito (oneTurn.sh:23-25, turn.sh:384, watchdog.sh:47-48) e `campaignRoot(cfg)` non ha chiamanti,
+quindi stanotte `OUT` esplicito separa i due telefoni; la stringa attesa dal caso coincide con il fallback di
+`resilient.sh:129` (`192.168.1.82:34037`), quindi una guardia inchiodata al Jelly passerebbe. REFUTATO: "i timeout
+S23 abortiranno un turno legittimo sul Jelly" (run 2.6b gia' registrati: ~6 tok/s, promptMs 1,6-44 s contro
+2700 s). PLAUSIBILE fuori diff: `recovery.sh:52` confronta solo l'IP e `:84-85` riscrive `ANDROID_SERIAL`/
+`CAMPAIGN_SERIAL` con l'endpoint mDNS — stesso telefono, ma l'invariante "un seriale per tutta la corsa" non regge.
+**Fix in volo (deepseek scrive, Luna revisiona, prima dispatch nella direzione dell'owner):** `resultsDir`
+esplicito `results/t20c-jelly-campaign`, `OUT` derivato da `resultsDir` con override e default byte-identico,
+device accettato solo come stringa JSON non vuota, rifiuto fail-closed se `turns` ≠ 20 o script derivato assente,
+tre casi nuovi con prova rossa + caso POSITIVO con seriale sintetico `10.0.0.1:9999` (distingue "letto dal file"
+da "inchiodato al Jelly"), `CAMPAIGN_APK_PATH` valorizzato in ogni caso cosi' la guardia e' l'unico exit 2 e il
+codice discrimina, non solo il testo. La corsa di stanotte parte sul ramo corretto e verificato dal coordinatore.
+**Jelly:** 70% alle 23:31 → 65% alle 00:10 da fermo (~7,5 punti/ora, schermo acceso perche' muore nei sleep, niente
+cavo per scelta dell'owner); gate dichiarato = livello al lancio −1 (non 65, che rifiuterebbe), pavimento del
+watchdog 25% / 43,0 °C / status 3 (watchdog provato contro un pid finto con letture vere: `level=65% temp=260dC`),
+report "partito a L%, k turni sostenuti". APK 35418569854: step 12/16 "Build APK (arm64-v8a)" dalle 03:32:45Z.
+
+**Contratto governor-KV, v2 (Luna, 278 righe, 20332 byte, sha `437a3ccc…`, byte verificati dal coordinatore) e
+secondo passaggio deepseek 6ea0979e (10/11 FIXED, 1 PARTIAL, file invariato durante l'audit):** entrati:
+invariante stretta `governor_session_requires_decode_phase` (salvataggio di chat solo con `last_phase == Decode`,
+il solo-prefill del prewarm resta artefatto etichettato a parte), commit **differito** (carica in `ctx_decode`,
+watermark 0/0, il cambio di fase esistente copia; ragione scritta: `llama-governor.cpp:92` rifiuta `end <
+src.watermark`, quindi watermark salvati non nulli sarebbero il punto dove una frontiera stantia atterra), stato
+ricorrente scritto SEMPRE (`llama-memory-hybrid.cpp:244-262`: l'attenzione solo senza `PARTIAL_ONLY`, throw su
+memoria `shared` a `:245`), tipi K/V oggi forzati uguali (un solo `owner.params` clonato) ma pinnati per lato
+nell'envelope. Nuovi rilievi del secondo passaggio, citazioni riverificate: `prefill_route` nell'envelope e' morto
+per costruzione (`:178-180` azzera la rotta al primo prefill dopo una fase non-Prefill); la frase "failed commit →
+replay or cold-prefill" (righe 237-239) promette un ripiego che non esiste — `fail` e' latching (`:152`, `:163-165`)
+e un Reject all'handoff e' un governor morto; il rifiuto per fase va chiavato su `kind` o blocca anche il prewarm;
+`compatible_states` ibrido confronta anche `size`/`n_rs_seq`/`rs_idx`/`r_l`/`s_l` (`llama-hybrid-commit.cpp:25-29`);
+**vincolo di catalogo:** un GGUF con `attention.sliding_window > 0` prende `llama_memory_hybrid_iswa`, che
+`llama_kv_context_attn_cache` non riconosce (`llama-kv-commit.cpp:268-271` → nullptr → Reject → il governor non si
+costruisce). Coordinatore, letto nel fork a 485519fe: `commit_side` torna falso in tre punti (`:86` Reject, `:92`
+frontiera, `:105` commit) e mai su copia parziale; quindi il contratto richiede che la query di compatibilita' al
+caricamento sia la STESSA `llama_kv_route_query(dst, src)` di `:85` con gli stessi input (un Reject all'handoff dopo
+un load pulito = violazione del contratto, non ripiego), i fallimenti a tempo di caricamento → cold prefill, e la
+copia parziale non verificabile nel turno ripreso e' lo stesso rischio residuo che OGNI handoff porta oggi in
+regime stazionario (`llama-kv-commit.cpp:340-343`), ereditato non introdotto, su un prefisso intero invece che
+incrementale: rischio con nome che l'owner accetta o no. Undici correzioni (C1-C11) a Luna in resume, paragrafo
+duplicato (righe 51/61) da CANCELLARE non riparafrasare; poi re-read di kalsa-93, rilettura intera del
+coordinatore, UN commit.
+
+**Anchored-floor, corsia aperta (kalsa-93, 00:0x EDT):** scrive deepseek `db1759ec` (Alternative Coder,
+pi/commandcode, thinking max), revisiona Luna dopo il contratto. Numeri di riga riverificati su disco prima del brief
+(compactor.ts:544/:545/:559, windowProfile.ts:249/:250/:318, deviceTuning.ts:226 `CTX_FLOOR = 2048`,
+AppShell.tsx:6094). Decisioni nel brief: il pavimento stringe solo dall'alto (`Math.min(start, floorIndex)`) e la
+monotonia `Math.max(previous, …)` resta — motivazione vera, letta da kalsa-93 in `windowKvInvariant.ts`: la meta'
+distruttiva dello slide e' autorizzata solo su avanzamento (`shouldDiscardKvForSlide` :84-89, `nextBoundaryIndex >
+previousBoundaryIndex`, chiamata a AppShell.tsx:6125), un boundary che arretra e' uno stato senza ramo; limite
+dichiarato: una conversazione colpita dal difetto vecchio non recupera la storia gia' persa, sono protetti i turni
+dopo la fix. Riserva `min(WINDOW_RESERVE_TOKENS, floor(nCtx*0.5))` senza `max(1024, …)` (equivalente con
+`CTX_FLOOR`), riga 2048 → 1024 asserita da sola; verifica byte-per-byte che 4096/6144/8192 non cambino. `reason`
+`history_dropped_current_turn_exceeds_budget` solo se esiste un log intorno a AppShell.tsx:6094, altrimenti nessun
+campo nuovo. **Incidente evitato:** il checkout `/Users/marco/Projects/kalsa` era a 9f96a45 (7 dietro c7e3f9c) e lo
+scrittore e' partito li'; `git diff --name-only 9f96a45..c7e3f9c` sui file toccati e' vuoto, righe pinnate identiche;
+consegna: branch `anchored-floor` sullo sha, rebase su c7e3f9c dentro il branch, `main` locale riportato a
+`origin/main` solo dopo, `git add` per percorso (15 `??` in quel worktree), nessun `checkout`/`reset`/`stash`/
+`pull`/`fetch`/`rebase`/`merge` all'agente.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
