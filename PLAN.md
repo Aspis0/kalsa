@@ -1061,6 +1061,16 @@ del `cached` finale del turno 1 (prima, turno 2: 2215 resi contro 2294 in cache,
 reso, indipendente da checkpoint e da `pickReuse`; da affiancare alla soglia sul riuso (proposta 50% del prefisso
 condiviso) e al terzo turno senza risposta = rosso. **Decisione dell'owner; e2e non toccato finche' non risponde.**
 *Fermo n. 3 su `dbfb464` (02:30Z, audit deepseek riprodotto dal coordinatore):* la mutazione `includes(THINK_OPEN) && includes(THINK_CLOSE)` — cioe' la vecchia regola del tag iniziale — lascia jest 62/62 e harness 0: l'allargamento, unico cambio di comportamento oltre `""` → `" "`, non e' coperto perche' tutte e sette le forme portano `<think>`; la fixture senza tag (`REASONING</think>ANSWER`, test riga 305, popolazione osservata 133 con / 12 senza) esiste ma serve solo un'asserzione di lunghezza. Amend in corso: caso senza tag con prova rossa su quella mutazione (anche nell'harness), docstring con i due turni separati e il tasso dell'emulatore. Le quattro prove rosse e i gate li rifa' il coordinatore sull'archive del nuovo sha.
+**Perimetro del risultato KV di stanotte (kalsa-93, verificato dal coordinatore su `LlamaService.ts`):** il replay
+della storia riproduce i token della KV **sul percorso senza governor**; col governor attivo la sessione non viene
+ne' salvata ne' ripristinata (`saveEngineSession` esce alla prima riga con `logGovernorSessionSaveSkip()` se
+`activeGovernorActive`, righe 3109-3111; guardia speculare sul restore a 2638, PLAN §135 lo dichiara gia'). L'e2e
+gira senza governor, quindi la misura vale li'; sui telefoni a governor acceso (Jelly) il riuso in-process del
+turno 2 c'e' comunque, la gamba del riavvio no, finche' `governor-kv-contract` non definisce cosa si salva dei due
+contesti (stato ricorrente, checkpoint, o ricostruzione dal replay: ora il render della storia e' riproducibile
+byte per byte, e un contratto di persistenza puo' appoggiarsi al replay invece di salvare tutto). Non scrivere
+"la KV funziona su Qwen" senza questo perimetro.
+
 
 **T20C, terza passata `3608b75` (kalsa-2d, 18/09 ~22:10 EDT):** `campaign_thermal_should_pause` valuta PRIMA la
 condizione di hard abort e mette in pausa se vale (l'invariante e' nel commento: la linea status ≥ 3 dell'owner
