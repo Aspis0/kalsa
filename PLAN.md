@@ -835,6 +835,30 @@ LMK con Qwen su 7 GB. **Debito, fuori dal ramo:** il `catch { // ignore }` della
 `disposeEngine` che fallisce lascia lo switch su "checking" col vecchio modello residente e zero righe di
 log, stessa classe del log appena aggiunto venti righe sopra.
 
+**evict-marker giro 6 → 7 (18/09 ~21:20 EDT).** `82329e5` (8 file `src/engine`, +244/−65; tsc 0, jest 999/999 con
+Node 20; aritmetica del gate in UN posto: `sessionPersistence.ts:690`; nessun file in comune con
+boot-loop-breaker) **bocciato** dal ri-audit deepseek-commandcode `323fcb5e`: G1-G8 confermati, ma **sette
+rilievi nuovi, cinque nella superficie creata dalla ristrutturazione G4**. Due distruttivi, verificati dal
+coordinatore: (1) `sessionPool.ts:449-456` un drop fallito mette `insufficient = true` e fa `continue`,
+mentre `LlamaService.ts:3238-3244` su `insufficient` fa `return false` incondizionato → ogni vittima
+successiva viene cancellata per un salvataggio gia' perso; (2) nel modo budget il regime (globale vs
+per-modello, cioe' se le cache di ALTRI modelli sono eleggibili) e' deciso a `:292-294` su una lettura
+pre-sweep (`:291`), con lo sweep a `:314` e la cancellazione a `:321`: il giro 6 ha corretto questo nel
+percorso spazio e l'ha lasciato nel percorso che cancella i dati altrui. Gli altri cinque: rilettura
+illeggibile → "nessun deficit" silenzioso con `ok:true`; la riga di fallimento ha perso campi del contratto
+del marker; quattro cause di `insufficient` indistinguibili, e un caso stampa `diskReason:"short"` con
+deficit 0; need=0 dopo lo sweep stampa `ok:true` per un non-fatto; due asserzioni che non possono fallire
+(fra cui G6). Struttura: l'evictor non guarda mai `gate.ok`/`gate.reason` — l'unica cosa fra una lettura
+non-short e una cancellazione e' la guardia sui null dell'helper → **solo un `"short"` misurato autorizza,
+controllato esplicitamente** (nel giro 7). *Regola del coordinatore, scritta prima del verdetto:* **il giro 7
+e' l'ultimo a punti.** Se il ri-audit trova ancora rilievi nuovi nella superficie del giro 7, niente giro 8:
+si ferma e il passo diventa l'estrazione (`save-wiring-coverage` anticipata e allargata): orchestrazione
+gate → sweep → UNA rilettura → deficit → regime → vittime fino al deficit → esito in un modulo .ts puro con
+letture e cancellazioni iniettate, testato sui confini e sulla matrice dropFailed × insufficient × need=0,
+chiamante ridotto a una chiamata, invarianti per nome verificati uno per uno. In ogni caso: sweep prima,
+UNA lettura dopo, per ENTRAMBI i percorsi (spazio e budget). Previsione rebasata su `0eaa090`: 86 suite /
+1051 test (base `2ed2a88` = 82 / 971; +1/+22 persist-guard; +2/+30 boot-loop; +1/+28 evict-marker).
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
