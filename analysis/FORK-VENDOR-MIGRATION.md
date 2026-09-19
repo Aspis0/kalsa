@@ -1895,3 +1895,61 @@ the job" are different claims, and only re-running distinguishes them.
 
 Run `35472151797` (sha `739d7a54`) carries both fixes and is the next attempt
 at the gate.
+
+### 27.6 Six of seven, and a fifth cause the audit surfaced before CI did
+
+Run `35472151797` (sha `739d7a54`): **6 of 7 green**. Both Android jobs passed,
+so the OpenCL glob of `bde3f975` is confirmed on the thing it was meant to fix.
+`build-ios-frameworks` failed alone.
+
+**Fifth cause — the same defect one line down.** `RNLlamaJSI.cpp` also
+included `"llama-ext.h"` bare, and that header lives in
+`vendor/llama.cpp/src/`, so with a prebuilt xcframework it is reachable only
+as `<rnllama/llama-ext.h>`. The failure is character-for-character the
+previous one with a different name:
+
+```
+cpp/jsi/RNLlamaJSI.cpp:12:10: fatal error: 'llama-ext.h' file not found
+```
+
+Same file, same line number, next header. A compiler stops at the first fatal
+error, so `739d7a54` did not fix the job — it moved the failure down one line.
+The line is ours, introduced by `987799a1`.
+
+This was written down as a falsifiable prediction before the run finished and
+then checked against the job log rather than assumed.
+
+**The hostile audit earned its cost, sideways.** Four findings, all CONFIRMED
+after checking each against the file: three real holes in the gate (it skipped
+subdirectories, `.hpp`, and `# include` with a space; it could not tell code
+from a block comment; process-substitution failures were masked) and one false
+claim in a committed comment — `JSINativeHeaders.h` was never the only place
+carrying both spellings, `JSIParams.cpp:2-6` already did. But the finding that
+mattered most was not raised as a defect at all: the auditor quoted
+`#include "llama-ext.h"` only as evidence that the comment was overbroad. The
+consequence — iOS will fail again — came from reading that line in context.
+A delegate's output is worth checking even where the delegate did not think it
+was pointing at anything.
+
+**Stop fixing layers, enumerate the class.** Instead of guarding one more
+include, the whole class was swept in one pass with the invariant that
+actually holds: *a quoted include that does not resolve inside `cpp/jsi` must
+have a `<rnllama/name.h>` counterpart in the same file*. Exactly one offender
+remained. The gate in `assert-rnllama-sources.sh` now asserts that invariant
+rather than a list of header names, which is why it needs no exemption list
+and accepts both shapes already in the tree.
+
+Mutation-proven in both directions: green on the clean tree (18 sources); red,
+naming the right repo-relative path, for a bare unpaired include, for
+`# include` with a space, for a file in a subdirectory, and for an unpaired
+`.hpp`; still green for an include inside a block comment. Files restored and
+compared by sha256 afterwards — not with `git checkout`, since the fix was
+uncommitted at the time.
+
+One of the five mutations initially proved nothing: it appended a bare include
+to a file that already carried the paired spelling, so green was the correct
+answer, not a hole. Re-run against a file with no pairing, it went red. A
+mutation that cannot fail for the intended reason is not evidence.
+
+Fixed in `a974a52b`; run `35474384553` (sha `a974a52b`) is the next attempt at
+the §25.2 gate.
