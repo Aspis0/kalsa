@@ -29,6 +29,8 @@ impl Kind {
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             return Self::Other;
         };
+        // Lowercased, and the drive letters and backslashes of a Windows
+        // path change nothing: only the extension after the last dot reads.
         match ext.to_ascii_lowercase().as_str() {
             "txt" | "md" | "markdown" | "csv" | "log" | "json" => Self::Text,
             "pdf" => Self::Pdf,
@@ -43,11 +45,11 @@ impl Kind {
     }
 }
 
-/// One row. Symlinks are not listed, so a row describes the file its path
-/// named when the folder was read — the disk can still swap that file
-/// between the read and the open, which is why the parser that opens the
-/// path has the last word. Through [`crate::listing::list_dir`] the parent
-/// of the path is the canonical one the boundary approved.
+/// One row of a listing. The whole disk is the scope now, so every entry is
+/// listed: dotfiles used to be dropped when the crate bounded itself to
+/// three document folders, but a browser that hides what search can find
+/// teaches the user the list is broken — if a page wants a quieter list it
+/// can filter in the page, where a toggle can live.
 #[derive(Debug, Clone, Serialize)]
 pub struct Entry {
     pub name: String,
@@ -56,27 +58,28 @@ pub struct Entry {
     pub kind: Kind,
     pub bytes: u64,
     /// Milliseconds since the epoch. Absent when the filesystem does not
-    /// keep it — sorted last rather than pretended to be zero.
+    /// keep it.
     pub modified_ms: Option<u64>,
 }
 
 impl Entry {
+    /// `None` only for entries with no name in Unicode — the row could not
+    /// cross the page as JSON without corrupting it.
     pub fn from_dir_entry(entry: &std::fs::DirEntry) -> Option<Self> {
         let path = entry.path();
         let name = entry.file_name().to_str()?.to_owned();
-        // Dotfiles are the machine's business, not the person's.
-        if name.starts_with('.') {
-            return None;
-        }
-        // A symlink is dropped, not followed or labeled: labeling the link
-        // presents the target's file as a document in this folder, and
-        // following it would hand out a path the boundary never approved.
-        // Checking the target would need the roots, which this layer is not
-        // given — so out it goes.
-        if entry.file_type().ok()?.is_symlink() {
-            return None;
-        }
-        let meta = entry.metadata().ok()?;
+        // A link is listed as what it points at, because clicking it goes
+        // there; a broken link stays a plain file-shaped row rather than
+        // vanishing. Loops are a walk concern — search does not follow
+        // links — and one flat folder cannot loop.
+        let file_type = entry.file_type().ok()?;
+        let meta = if file_type.is_symlink() {
+            std::fs::metadata(&path)
+                .or_else(|_| entry.metadata())
+                .ok()?
+        } else {
+            entry.metadata().ok()?
+        };
         let is_dir = meta.is_dir();
         Some(Self {
             name,
@@ -90,13 +93,6 @@ impl Entry {
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as u64),
         })
-    }
-
-    pub fn newest_first(a: &Self, b: &Self) -> std::cmp::Ordering {
-        b.modified_ms
-            .unwrap_or(0)
-            .cmp(&a.modified_ms.unwrap_or(0))
-            .then_with(|| a.name.cmp(&b.name))
     }
 }
 

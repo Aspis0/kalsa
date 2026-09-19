@@ -1,6 +1,6 @@
 [package]
 name = "kalsa-files"
-description = "The few folders a person keeps documents in, listed for the picker — and the boundary that keeps the page from reading anything else"
+description = "The user's files, listed and found for the picker — the whole filesystem, with paths resolved and errors that do not lie"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,3 +8,11 @@ license.workspace = true
 [dependencies]
 # The listing crosses into the page as JSON; nothing here is read back.
 serde = { version = "1", features = ["derive"] }
+# ripgrep's directory walker (MIT OR Apache-2.0). Every gitignore and
+# hidden-file filter is switched off at the one call site: the disk is the
+# scope, and the index's blind spots are what a find-file box must not have.
+ignore = "0.4"
+# The fzf-style fuzzy matcher behind helix's picker (MPL-2.0). One matching
+# brain for every backend — the walker, mdfind, and whatever index comes
+# next — so a match means the same thing whichever ran.
+nucleo-matcher = "0.3"

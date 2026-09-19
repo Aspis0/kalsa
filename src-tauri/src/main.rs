@@ -13,6 +13,7 @@ mod capability;
 mod contract;
 mod door;
 mod failure;
+mod files;
 mod instance;
 mod metrics;
 mod options;
@@ -915,6 +916,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = tauri::Builder::default()
         .manage(Brain::new())
         .manage(web::WebCalls::default())
+        .manage(files::Searches::default())
         .invoke_handler(tauri::generate_handler![
             brain_state,
             brain_advanced,
@@ -933,7 +935,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             web::brain_web_search,
             web::brain_web_fetch,
             web::brain_web_stop,
-            web::brain_open_url
+            web::brain_open_url,
+            files::brain_files_roots,
+            files::brain_files_list,
+            files::brain_files_read,
+            files::brain_files_search
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);

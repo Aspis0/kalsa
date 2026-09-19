@@ -1,91 +1,69 @@
-//! The boundary. Everything else in this crate is a convenience; this file
-//! is the part that must be right.
+//! Path hygiene. This file was once the crate's boundary — every read was
+//! checked against Desktop, Documents and Downloads, because a page that
+//! renders what a model wrote must not be handed `~/.ssh`. On 2026-09-19 the
+//! owner removed that boundary, on the record: "togli qualsiasi protezione.
+//! Stiamo parlando di modelli locali. La protezione è solo ad uscire, e in
+//! futuro un sandbox se fa coding." The whole filesystem is in scope.
 //!
-//! The page asks for a path and gets back bytes. That is a capability, and
-//! the page is the least trustworthy thing in the program: it renders text
-//! the model wrote, and the model reads documents that came from strangers.
-//! So the answer to "which paths may be read" is decided HERE, in Rust, on
-//! the canonical path — never in the page, and never on the string it sent.
+//! The reasoning, which this file no longer argues with: the guarded
+//! direction is the one that LEAVES the machine. Network egress happens only
+//! in Rust (`kalsa-web` refuses loopback, private and inward-resolving
+//! addresses twice), the page's CSP admits this machine and nothing else,
+//! and a local model reading a local file sends it nowhere. There is no
+//! half-boundary here and no setting: a rule the disk can opt out of is not
+//! a rule.
 //!
-//! Two rules, both cheap and both necessary:
+//! What survives is the part that was never about permission:
 //!
-//! 1. **Canonicalize first, compare second.** `..` is not stripped, it is
-//!    resolved by the operating system, and so is every symlink on the way.
-//!    A link inside Documents that points at `/etc` therefore fails the
-//!    prefix test, because by the time we test it the path IS `/etc`.
-//! 2. **Compare whole components, not string prefixes.** `/Users/mar` is a
-//!    prefix of `/Users/marco` as text, and of nothing at all as a path.
-//!    `Path::starts_with` compares components, which is why it is used here
-//!    and `str::starts_with` is not.
-//!
-//! The roots are the folders a person actually keeps documents in. Not the
-//! home directory itself: that holds `.ssh`, `.aws`, browser profiles and
-//! every token this machine has ever been given. A picker has no business
-//! in there, and the smaller the door the less there is to argue about.
+//! 1. **Canonicalize before use.** `..` is not stripped, it is resolved by
+//!    the operating system, and so is every symlink on the way. Callers open
+//!    the returned path, never the string they were given.
+//! 2. **Refuse a path that does not exist.** This costs the caller a clear
+//!    "not found" instead of a silent empty listing, and it is what makes
+//!    canonicalization meaningful at all.
+//! 3. **Keep the error honest.** Debug and Display tell the same story, and
+//!    the story names the cause where the page can act on it.
 
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Where the picker may look. Missing folders are simply absent — a machine
-/// without a Downloads folder is not an error, it is a machine.
+/// The filesystem's roots: the place a browser starts. One root on unix,
+/// the drive letters that exist on Windows.
 pub fn roots() -> Vec<PathBuf> {
-    roots_under(home_dir().as_deref())
+    #[cfg(windows)]
+    {
+        roots_from(|letter| PathBuf::from(format!("{letter}:\\")).is_dir())
+    }
+    #[cfg(not(windows))]
+    {
+        vec![PathBuf::from("/")]
+    }
 }
 
-/// The pure half of [`roots`]: the three document names resolved from
-/// `home` — wherever each name POINTS, which may be another disk — minus
-/// any that resolve to a folder containing the home itself. The canonical
-/// forms are what get returned, so every [`resolve_within`] call re-derives
-/// containment from exactly the paths that were vetted here.
-///
-/// The accepted limit, on the record: a root that resolves to a sibling or
-/// unrelated directory (`Documents -> /etc`, `-> /Users/someone-else`) IS
-/// kept. Its canonical form does not contain the home, and a path-based
-/// check cannot tell an attacker-chosen target from a user-chosen one —
-/// that is the same mechanism that keeps the external-disk setup working.
-/// No device-id rule or string heuristic closes it either; both break on a
-/// machine with `/home` on its own partition. Whoever wires this up decides
-/// whether that door is acceptable.
-///
-/// No home, no roots.
-pub(crate) fn roots_under(home: Option<&Path>) -> Vec<PathBuf> {
-    let Some(home) = home else {
-        return Vec::new();
-    };
-    // Without a canonical home the containment test below cannot run, and a
-    // check that cannot run approves everything. No roots is the safe answer.
-    let Ok(real_home) = home.canonicalize() else {
-        return Vec::new();
-    };
-    ["Desktop", "Documents", "Downloads"]
-        .iter()
-        .map(|name| home.join(name))
-        .filter(|path| path.is_dir())
-        .filter_map(|path| {
-            // `is_dir` follows symlinks, so a candidate root may resolve
-            // anywhere — `Documents -> /` would make `resolve_within`
-            // approve every path on the disk, because every path starts
-            // with `/`. A root whose canonical form CONTAINS the home is
-            // therefore refused. The canonical form is also what is
-            // RETURNED: the raw name was never vetted whenever it differs
-            // from it, and resolve_within would re-canonicalize the raw
-            // name on every call, following whatever the name points at
-            // by then. This narrows the swap window to what later happens
-            // at the canonical path itself — the open-handle problem,
-            // deliberately not solved here.
-            let real_root = path.canonicalize().ok()?;
-            (!real_home.starts_with(&real_root)).then_some(real_root)
-        })
+/// The pure half of [`roots`] on Windows: the drive letters that exist, in
+/// order, as rooted paths (`C:\`). A drive-relative `C:` would read that
+/// drive's current directory, so the separator is part of the answer.
+/// The existence predicate is injected so the shape is testable on a
+/// machine that has none of the drives — this crate's tests run everywhere,
+/// which is why the function itself does too.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn roots_from(drive_exists: impl Fn(char) -> bool) -> Vec<PathBuf> {
+    (b'A'..=b'Z')
+        .map(|byte| byte as char)
+        .filter(|letter| drive_exists(*letter))
+        .map(|letter| PathBuf::from(format!("{letter}:\\")))
         .collect()
 }
 
-/// The home directory, from the environment the OS sets.
+/// The user's home directory, from the environment the OS sets.
 ///
 /// The platform's own variable first — `HOME` on unix, `USERPROFILE` on
 /// Windows, where a `HOME` set by a unix-y shell (`/c/Users/...`) would
 /// never survive `is_dir`. Then the other one, then the `HOMEDRIVE` +
-/// `HOMEPATH` pair that older setups still provide.
+/// `HOMEPATH` pair that older setups still provide. The page cannot guess
+/// any of this; the roots command hands it over as the place browsing
+/// usually starts.
 pub fn home_dir() -> Option<PathBuf> {
     // The order is spelled out as data, not a `cfg!` inside the lookup, so
     // the tests exercise both platforms' ordering on every machine.
@@ -128,54 +106,40 @@ fn starts_with_separator(path: &OsStr) -> bool {
     matches!(path.as_encoded_bytes(), [b'/' | b'\\', ..])
 }
 
-/// Resolve `candidate` and return it only if it lies inside one of `roots`.
+/// Resolve `candidate` against the disk and return the canonical path.
 ///
 /// The returned path is canonical at the moment of the check; callers open
-/// THAT, never the string they were given. The disk can still move under
-/// the path before the open — what holds then is decided where the file is
-/// opened, not by this function.
-///
-/// A path that does not exist is rejected. This costs the caller a clear
-/// "not found" instead of a silent empty listing, and it is what makes the
-/// canonical comparison possible at all.
-pub fn resolve_within(candidate: &Path, roots: &[PathBuf]) -> Result<PathBuf, ScopeError> {
-    let real = candidate.canonicalize().map_err(ScopeError::Unresolvable)?;
-    for root in roots {
-        let Ok(real_root) = root.canonicalize() else {
-            continue;
-        };
-        if real.starts_with(&real_root) {
-            return Ok(real);
-        }
-    }
-    Err(ScopeError::OutsideRoots)
+/// THAT, never the string they were given. A path that does not exist — or
+/// that the process may not traverse to — is an error, not an empty answer.
+pub fn resolve(candidate: &Path) -> Result<PathBuf, ScopeError> {
+    candidate.canonicalize().map_err(ScopeError::Unresolvable)
 }
 
 pub enum ScopeError {
     /// The path does not exist, or the process may not traverse to it.
     Unresolvable(io::Error),
-    /// It exists, and it is somewhere the picker does not go.
-    OutsideRoots,
 }
 
 impl std::fmt::Debug for ScopeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Delegating to Display, because a derived Debug would distinguish
-        // NotFound from PermissionDenied and map the disk by existence —
-        // the same oracle Display refuses to be, and `{:?}` is what logs
-        // and `unwrap()` actually print.
+        // Delegating to Display, so `{:?}` — what logs and `unwrap()`
+        // actually print — tells the same story as `{}`.
         std::fmt::Display::fmt(self, f)
     }
 }
 
 impl std::fmt::Display for ScopeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            // The cause is deliberately not repeated: an error string that
-            // says which paths do and do not exist is a probing oracle for
-            // whatever wrote the path.
-            Self::Unresolvable(_) => f.write_str("no such file"),
-            Self::OutsideRoots => f.write_str("outside the folders this app reads"),
+        // The page can list any directory it likes, so naming the cause is
+        // no longer a probing oracle — it is the difference between "typo"
+        // and "the OS said no", which read as different bugs.
+        let Self::Unresolvable(error) = self;
+        match error.kind() {
+            io::ErrorKind::NotFound => f.write_str("no such file"),
+            io::ErrorKind::PermissionDenied => {
+                f.write_str("the operating system refused to follow this path")
+            }
+            _ => f.write_str("the path could not be followed on this disk"),
         }
     }
 }

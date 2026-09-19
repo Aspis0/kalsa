@@ -13,6 +13,10 @@ tauri-build = { version = "2", features = [] }
 sha2 = "0.10"
 kalsa-catalog = { path = "../crates/kalsa-catalog" }
 kalsa-door = { path = "../crates/kalsa-door" }
+# The file panel's listing, search and read. The whole filesystem is in
+# scope, by the owner's decision of 2026-09-19; the guarded direction is
+# egress, which lives in kalsa-web and the page's CSP.
+kalsa-files = { path = "../crates/kalsa-files" }
 kalsa-launch = { path = "../crates/kalsa-launch" }
 kalsa-download = { path = "../crates/kalsa-download" }
 # The cheap first pass over stores that name blobs by digest, ahead of
