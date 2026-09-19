@@ -1,199 +1,169 @@
-//! One web search, through Exa's hosted MCP endpoint.
+//! The plumbing a web search goes through, whatever service answers it.
 //!
-//! No API key: the free plan is per-IP, which is what the phone uses too
-//! (kalsa `src/search/ExaMCP.ts`). The protocol is JSON-RPC 2.0 over
-//! streamable HTTP: initialize, notify, then one `tools/call`. What comes
-//! back is folded into the model's numbered results by [`crate::exa`].
+//! One agent that cannot reach this machine, one request at a time — each
+//! stoppable, bounded, and turned into a sentence when it fails. The provider's
+//! own dialect lives beside the results it shapes, in [`crate::exa`].
+//!
+//! **A second provider would supply** a module next to `exa.rs` that builds its
+//! own request bodies and reads its own answers, calling [`post`] per request
+//! and [`agent`] once, plus a line in [`search`] choosing between them. Nothing
+//! in this file, `fetch.rs`, `url.rs`, `body.rs` or `text.rs` would move.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::body::read_capped;
-use crate::failure;
 use crate::exa;
+use crate::failure;
 use crate::url;
 use crate::{WebError, REQUEST_BUDGET};
 
-const ENDPOINT: &str = "https://mcp.exa.ai/mcp";
-const PROTOCOL_VERSION: &str = "2025-03-26";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const READ_TIMEOUT: Duration = Duration::from_secs(20);
-/// Exa clamps at five; four is enough to answer from and cheap to read.
-const RESULTS: usize = 4;
-/// A JSON-RPC envelope is small. Past this it is not one, and reading it whole
-/// would be the crate's only unbounded read.
-const BODY_CAP: usize = 512 * 1024;
-/// A service's complaint is a sentence, not a document.
-const MESSAGE_CAP: usize = 300;
 const USER_AGENT: &str = "kalsa-brain/0.0.1";
 
 /// Search the web and return the results as numbered text with their URLs.
-/// `stop` is checked before every request and while each body is read.
 pub fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {
     let query = query.trim();
     if query.is_empty() {
         return Ok("No search was made: the query was empty.".to_string());
     }
-    let agent = ureq::AgentBuilder::new()
+    // One provider exists, so one is named here. This is where a second one
+    // would be chosen between.
+    exa::search(&agent(), query, stop)
+}
+
+/// The agent every search request goes through: the address gate, the resolver,
+/// the deadline, and no redirects — a redirect would be a request to an address
+/// the gate never saw.
+pub(crate) fn agent() -> ureq::Agent {
+    ureq::AgentBuilder::new()
         .timeout_connect(CONNECT_TIMEOUT)
         // One request, however slowly the service feeds it (see REQUEST_BUDGET).
         .timeout(REQUEST_BUDGET)
         .timeout_read(READ_TIMEOUT)
-        // The endpoint has no business redirecting, and a redirect would be a
-        // request to an address the gate never saw. Any 3xx is a failed search.
         .redirects(0)
         .resolver(url::resolver)
         .user_agent(USER_AGENT)
-        .build();
-
-    let initialize = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": { "name": "kalsa-brain", "version": "0.0.1" },
-        },
-    });
-    let (session, body) = post(&agent, None, &initialize.to_string(), stop)?;
-    if envelope(&body, 1).is_none() {
-        return Err(WebError::Network);
-    }
-
-    // The handshake notification takes no id and needs no answer; a server
-    // that dislikes it is not one this crate can talk to.
-    let notify = serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/initialized" });
-    post(&agent, session.as_deref(), &notify.to_string(), stop)?;
-
-    let call = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/call",
-        "params": {
-            "name": "web_search_exa",
-            "arguments": { "query": query, "numResults": RESULTS },
-        },
-    });
-    let (_, body) = post(&agent, session.as_deref(), &call.to_string(), stop)?;
-    let answer = envelope(&body, 2).ok_or(WebError::Network)?;
-    if let Some(error) = answer.get("error") {
-        let message = error
-            .get("message")
-            .and_then(|value| value.as_str())
-            .unwrap_or("no reason was given");
-        return Err(WebError::Provider(shorten(message)));
-    }
-    let text = answer
-        .pointer("/result/content/0/text")
-        .and_then(|value| value.as_str())
-        .unwrap_or("");
-    Ok(exa::results(text, query))
+        .build()
 }
 
-/// One JSON-RPC request. Returns the session id the server handed out, if any,
-/// and the raw body — JSON or an event stream, both are answered.
-fn post(
+/// One JSON request against a search service, its answer read under `cap`.
+///
+/// `header` is the provider's own: a header it must send whose value on the
+/// answer comes back alongside the body — MCP hands out a session that way, and
+/// a bearer token simply ignores the reply. The stop flag is checked before the
+/// request and while the body reads.
+pub(crate) fn post(
     agent: &ureq::Agent,
-    session: Option<&str>,
+    url: &str,
+    header: Option<(&str, &str)>,
     body: &str,
+    cap: usize,
     stop: &AtomicBool,
 ) -> Result<(Option<String>, String), WebError> {
     if stop.load(Ordering::Relaxed) {
         return Err(WebError::Stopped);
     }
     let mut request = agent
-        .post(ENDPOINT)
+        .post(url)
         .set("Content-Type", "application/json")
         .set("Accept", "application/json, text/event-stream");
-    if let Some(session) = session {
-        request = request.set("mcp-session-id", session);
+    let name = header.map(|(name, _)| name);
+    if let Some((name, value)) = header {
+        request = request.set(name, value);
     }
     let response = match request.send_string(body) {
         Ok(response) => response,
-        // Notifications are answered with a bare 202 by some servers, and
-        // ureq reports anything outside 2xx as an error.
-        Err(ureq::Error::Status(202, response)) => response,
         Err(ureq::Error::Status(code, _)) => return Err(WebError::Status(code)),
         Err(ureq::Error::Transport(transport)) => return Err(failure::classify(&transport)),
     };
-    let session = response.header("mcp-session-id").map(str::to_string);
-    let (bytes, truncated) = read_capped(response.into_reader(), BODY_CAP, stop)?;
+    // ureq calls only 4xx and 5xx an error, so a 3xx arrives here as an answer.
+    // A search service that redirects is not answering, and following one is
+    // something this crate never does.
+    if !(200..300).contains(&response.status()) {
+        return Err(WebError::Status(response.status()));
+    }
+    let handed_out = name.and_then(|name| response.header(name)).map(str::to_string);
+    let (bytes, truncated) = read_capped(response.into_reader(), cap, stop)?;
     if truncated {
         return Err(WebError::Oversize);
     }
-    Ok((session, String::from_utf8_lossy(&bytes).into_owned()))
-}
-
-fn shorten(message: &str) -> String {
-    let message = message.trim();
-    if message.chars().count() <= MESSAGE_CAP {
-        return message.to_string();
-    }
-    let cut = message.char_indices().nth(MESSAGE_CAP).map(|(i, _)| i).unwrap_or(message.len());
-    format!("{}…", &message[..cut])
-}
-
-/// The JSON-RPC envelope answering `id`, from either a plain JSON body or an
-/// event stream whose `data:` lines each carry one envelope.
-fn envelope(body: &str, id: u64) -> Option<serde_json::Value> {
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(body) {
-        if let Some(found) = matching(&value, id) {
-            return Some(found);
-        }
-    }
-    for frame in body.split("\n\n") {
-        let mut data = String::new();
-        for line in frame.lines() {
-            if let Some(rest) = line.strip_prefix("data:") {
-                if !data.is_empty() {
-                    data.push('\n');
-                }
-                data.push_str(rest.trim_start());
-            }
-        }
-        if data.is_empty() {
-            continue;
-        }
-        if let Some(found) = serde_json::from_str(&data).ok().and_then(|v| matching(&v, id)) {
-            return Some(found);
-        }
-    }
-    None
-}
-
-fn matching(value: &serde_json::Value, id: u64) -> Option<serde_json::Value> {
-    if value.get("id").and_then(|v| v.as_u64()) == Some(id) {
-        Some(value.clone())
-    } else {
-        None
-    }
+    Ok((handed_out, String::from_utf8_lossy(&bytes).into_owned()))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::envelope;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::atomic::AtomicBool;
 
-    #[test]
-    fn reads_an_envelope_from_a_plain_json_body() {
-        let body = r#"{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"hi"}]}}"#;
-        let found = envelope(body, 2).expect("id 2 is in the body");
-        assert_eq!(found.pointer("/result/content/0/text").unwrap(), "hi");
-        assert!(envelope(body, 1).is_none());
+    use super::post;
+    use crate::WebError;
+
+    /// One canned HTTP answer on a loopback listener, for the checks that need
+    /// a service and cannot have one.
+    fn answer_once(response: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("a port");
+        let port = listener.local_addr().expect("an address").port();
+        std::thread::spawn(move || {
+            if let Ok((mut socket, _)) = listener.accept() {
+                let mut scratch = [0u8; 1024];
+                let _ = socket.read(&mut scratch);
+                let _ = socket.write_all(response.as_bytes());
+                let _ = socket.flush();
+                // Half-close so the reader sees a clean end of body, and stay
+                // alive a moment so it is not a reset.
+                let _ = socket.shutdown(std::net::Shutdown::Write);
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+        });
+        format!("http://127.0.0.1:{port}/")
+    }
+
+    /// The agent refuses this machine, so these build their own: what is under
+    /// test is what `post` makes of a status, not the address gate.
+    fn plain_agent() -> ureq::Agent {
+        ureq::AgentBuilder::new().redirects(0).build()
     }
 
     #[test]
-    fn reads_an_envelope_from_an_event_stream() {
-        let body = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n\
-                    event: message\ndata: {\"jsonrpc\":\"2.0\",\n\
-                    data: \"id\":2,\"result\":{\"ok\":true}}\n\n";
-        let found = envelope(body, 2).expect("multiline data is reassembled");
-        assert_eq!(found.pointer("/result/ok").unwrap(), true);
+    fn a_redirect_is_a_failure_and_not_a_body() {
+        // ureq calls only 4xx and 5xx an error, so without `post`'s own status
+        // check a 302 would be read as the answer. Found 2026-09-19 by reading
+        // ureq's `request.rs` while splitting this file.
+        let url = answer_once("HTTP/1.1 302 Found\r\nlocation: /\r\ncontent-length: 5\r\n\r\nhello");
+        let answer = post(&plain_agent(), &url, None, "{}", 4096, &AtomicBool::new(false));
+        assert_eq!(answer, Err(WebError::Status(302)));
     }
 
     #[test]
-    fn nothing_to_read_is_not_a_panic() {
-        assert!(envelope("", 1).is_none());
-        assert!(envelope("not json at all", 1).is_none());
+    fn a_body_comes_back_with_the_header_it_was_asked_for() {
+        let url = answer_once(
+            "HTTP/1.1 200 OK\r\nmcp-session-id: abc123\r\ncontent-length: 2\r\n\r\nhi",
+        );
+        let answer = post(
+            &plain_agent(),
+            &url,
+            Some(("mcp-session-id", "first")),
+            "{}",
+            4096,
+            &AtomicBool::new(false),
+        );
+        assert_eq!(answer, Ok((Some("abc123".to_string()), "hi".to_string())));
+    }
+
+    #[test]
+    fn an_answer_over_the_cap_is_refused_rather_than_parsed() {
+        let url = answer_once("HTTP/1.1 200 OK\r\ncontent-length: 11\r\n\r\nhellohello!");
+        let answer = post(&plain_agent(), &url, None, "{}", 4, &AtomicBool::new(false));
+        assert_eq!(answer, Err(WebError::Oversize));
+    }
+
+    #[test]
+    fn a_stopped_call_is_not_sent() {
+        let url = answer_once("HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nhi");
+        let answer = post(&plain_agent(), &url, None, "{}", 4096, &AtomicBool::new(true));
+        assert_eq!(answer, Err(WebError::Stopped));
     }
 }

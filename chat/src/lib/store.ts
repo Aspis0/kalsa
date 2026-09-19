@@ -77,9 +77,29 @@ function cleanAttachment(value: unknown): Attachment | null {
 }
 const PREVIEW_CHARS = 140;
 const SEARCH_CHARS = 500;
+/** Every conversation payload key starts with this; nothing else may. */
+const MSG_PREFIX = "crescent-chat.msgs.";
 
 function msgKey(id: string): string {
-  return `crescent-chat.msgs.${id}.v2`;
+  return `${MSG_PREFIX}${id}.v2`;
+}
+
+/**
+ * Whether the index **on disk** names this conversation. The index in memory is
+ * the wrong question: a write the disk refused still lands there for the rest
+ * of the session, so asking it would call an unfiled conversation filed.
+ */
+function namedOnDisk(id: string): boolean {
+  try {
+    const raw = localStorage.getItem(INDEX_KEY);
+    if (!raw) return false;
+    const parsed: unknown = JSON.parse(raw);
+    return (
+      Array.isArray(parsed) && parsed.some((meta) => (meta as { id?: unknown }).id === id)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isValidMessage(value: unknown): value is ChatMessage {
@@ -214,8 +234,37 @@ export function createStore(): ConversationStore {
     if (index === null) {
       migrateOnce();
       index = loadIndex();
+      sweepOrphans(index);
     }
     return index;
+  }
+
+  /**
+   * Payloads the index does not name. A key like that is a conversation nothing
+   * can open, nothing ever rewrites and nothing ever removes — and it keeps
+   * consuming the quota that stopped the write in the first place. The undo in
+   * `put` stops new ones appearing; this clears any left by an older build, or
+   * by a write that failed between the two keys. It runs whenever the index is
+   * read fresh — first use, and after another window writes — and always after
+   * `migrateOnce`, so a migration in progress is not mistaken for junk: its v1
+   * key survives until the new index reads back whole, and the next load
+   * migrates again. Both writes of one `put` happen in the same synchronous
+   * block, so no other window can be caught between them here.
+   */
+  function sweepOrphans(named: ConversationMeta[]): void {
+    try {
+      const wanted = new Set(named.map((meta) => msgKey(meta.id)));
+      const orphans: string[] = [];
+      for (let at = 0; at < localStorage.length; at += 1) {
+        const key = localStorage.key(at);
+        if (key !== null && key.startsWith(MSG_PREFIX) && !wanted.has(key)) {
+          orphans.push(key);
+        }
+      }
+      for (const key of orphans) localStorage.removeItem(key);
+    } catch {
+      // Storage that cannot be read cannot be swept; nothing else to do.
+    }
   }
 
   function loadIndex(): ConversationMeta[] {
@@ -338,7 +387,17 @@ export function createStore(): ConversationStore {
         localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
         const rest = readIndex().filter((m) => m.id !== meta.id);
         const next = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
-        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        try {
+          localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        } catch (error) {
+          // The index is what makes the payload reachable. Writing the index
+          // first instead would be worse — a listed conversation that opens
+          // empty — so the payload is undone, but only when nothing names it:
+          // for a conversation the index already knows, the payload on disk is
+          // still reachable and holds the newest turn.
+          if (!namedOnDisk(meta.id)) localStorage.removeItem(msgKey(meta.id));
+          throw error;
+        }
         index = next;
         payloadCache.set(meta.id, messages);
       });

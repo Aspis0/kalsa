@@ -1,9 +1,90 @@
-//! Exa's search results, as the model reads them.
+//! Exa: the one search service this build talks to, and the shape of its answers.
 //!
-//! The MCP tool answers with flat text, one block per result: `Title: …`,
-//! `URL: …`, `Published: …`, `Highlights:` and then the highlight lines. That
-//! is reformatted here into the numbered shape a model reads best, and cut to
-//! the size a small context can hold.
+//! The protocol is MCP over streamable HTTP — initialize, tell the server we
+//! are ready, then one `tools/call` carrying the question. No API key: the free
+//! plan is per-IP, which is what the phone uses too (kalsa
+//! `src/search/ExaMCP.ts`). The plumbing it stands on is [`crate::search`].
+//!
+
+use std::sync::atomic::AtomicBool;
+
+use crate::jsonrpc;
+use crate::search::post;
+use crate::WebError;
+
+const ENDPOINT: &str = "https://mcp.exa.ai/mcp";
+const PROTOCOL_VERSION: &str = "2025-03-26";
+/// The header the handshake hands back, echoed on everything after it.
+const SESSION: &str = "mcp-session-id";
+/// Exa clamps at five; four is enough to answer from and cheap to read.
+const RESULTS: usize = 4;
+/// A JSON-RPC envelope is small. Past this it is not one, and reading it whole
+/// would be the crate's only unbounded read.
+const BODY_CAP: usize = 512 * 1024;
+/// A service's complaint is a sentence, not a document.
+const MESSAGE_CAP: usize = 300;
+
+/// Ask Exa and return the results as the model reads them.
+pub(crate) fn search(
+    agent: &ureq::Agent,
+    query: &str,
+    stop: &AtomicBool,
+) -> Result<String, WebError> {
+    let initialize = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {},
+            "clientInfo": { "name": "kalsa-brain", "version": "0.0.1" },
+        },
+    });
+    let (session, body) = post(agent, ENDPOINT, None, &initialize.to_string(), BODY_CAP, stop)?;
+    if jsonrpc::envelope(&body, 1).is_none() {
+        return Err(WebError::Network);
+    }
+
+    // The handshake notification takes no id and needs no answer; a server that
+    // dislikes it is not one this crate can talk to.
+    let ready = serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/initialized" });
+    let carried = session.as_deref().map(|value| (SESSION, value));
+    post(agent, ENDPOINT, carried, &ready.to_string(), BODY_CAP, stop)?;
+
+    let call = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": "web_search_exa",
+            "arguments": { "query": query, "numResults": RESULTS },
+        },
+    });
+    let carried = session.as_deref().map(|value| (SESSION, value));
+    let (_, body) = post(agent, ENDPOINT, carried, &call.to_string(), BODY_CAP, stop)?;
+    let answer = jsonrpc::envelope(&body, 2).ok_or(WebError::Network)?;
+    if let Some(error) = answer.get("error") {
+        let message = error
+            .get("message")
+            .and_then(|value| value.as_str())
+            .unwrap_or("no reason was given");
+        return Err(WebError::Provider(shorten(message)));
+    }
+    let text = answer
+        .pointer("/result/content/0/text")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    Ok(results(text, query))
+}
+
+fn shorten(message: &str) -> String {
+    let message = message.trim();
+    if message.chars().count() <= MESSAGE_CAP {
+        return message.to_string();
+    }
+    let cut = message.char_indices().nth(MESSAGE_CAP).map(|(i, _)| i).unwrap_or(message.len());
+    format!("{}…", &message[..cut])
+}
 
 /// What the model reads.
 const TEXT_CAP: usize = 2_500;

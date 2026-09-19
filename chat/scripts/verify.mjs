@@ -1832,6 +1832,51 @@ const tests = {
     await browser.close();
   },
 
+  // A payload the index does not name is a conversation nothing can open and
+  // nothing ever cleans, and it keeps eating the quota that stopped the write.
+  // Both halves are driven by hand: the index write is made to fail the way a
+  // full store fails it, and an orphan is planted on every load so that only
+  // the store's own sweep can remove it (a plain seed would clear it instead,
+  // which is a check that passes without testing anything).
+  async orphans() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("x") });
+    // After `seed`, so it runs after the seed's clear: the orphan is re-planted
+    // on every document, including the reload below.
+    await page.addInitScript(() => {
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === "crescent-chat.index.v2" && sessionStorage.getItem("block-index") === "1") {
+          throw new DOMException("exceeded the quota", "QuotaExceededError");
+        }
+        return real.call(this, key, value);
+      };
+      localStorage.setItem("crescent-chat.msgs.orphan.v2", "[]");
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    const swept = await page.evaluate(() => Object.keys({ ...localStorage }).filter((k) => k.startsWith("crescent-chat.msgs.")));
+    check("orphans: a payload the index does not name is swept when the store opens", swept.length === 0, JSON.stringify(swept));
+
+    // Now a brand-new conversation whose index write fails.
+    await page.evaluate(() => sessionStorage.setItem("block-index", "1"));
+    await openChat(page);
+    await page.waitForTimeout(1000);
+    await page.getByRole("textbox", { name: "Message" }).fill("This one cannot be filed.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    const after = await page.evaluate(() => ({
+      keys: Object.keys({ ...localStorage }).filter((k) => k.startsWith("crescent-chat.msgs.")),
+      index: localStorage.getItem("crescent-chat.index.v2"),
+    }));
+    check("orphans: a failed index write leaves no payload behind", after.keys.length === 0, JSON.stringify(after.keys));
+    check("orphans: and the index still names nothing", !(after.index ?? "").includes("This one cannot be filed"), (after.index ?? "").slice(0, 120));
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("orphans: the session keeps what the disk refused", thread.includes("This one cannot be filed"), thread.slice(0, 160));
+    await browser.close();
+  },
+
   async corrupt() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();

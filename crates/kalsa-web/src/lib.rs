@@ -18,6 +18,7 @@ mod body;
 mod exa;
 mod failure;
 mod fetch;
+mod jsonrpc;
 mod search;
 mod text;
 mod url;
