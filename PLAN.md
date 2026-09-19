@@ -1031,6 +1031,48 @@ sulle storie che finiscono con un messaggio `tool` (su main ri-etichettato come 
 con test, o ripristino. Le dodici misure restano vere: erano canoniche; le forme controllate erano quelle a
 cui si era pensato. L'e2e su `9b08ae0` continua: il "prima" serve comunque.
 
+**`qwen-think-in-history`, 18/09 ~22:05 EDT: il terzo commit e' INERTE, si TAGLIA (deciso dal coordinatore).**
+Su `346debd` (4 commit su 9b08ae0) i gate erano tutti verdi: sette forme sul file (canonica SPLIT, sei FALLBACK),
+prove rosse duali (3 e 4 rossi), 59/59 harness, tsc 0, jest 87 suite/1066 test. Ma tracciando il chiamante
+(kalsa-93, verificato dal coordinatore sui tre grep, rilettura deepseek NOT REFUTED e rafforzata):
+`streamAssistantTurn` ha un solo chiamante (`AppShell.tsx:6450`), `engineMessages` riceve `push(userMessage)`
+incondizionato a `:6430`, e il prewarm rende solo `[system]` piu' l'eventuale filler (`buildStaticPrefixMessages`
+prefixPrewarm.ts:360-362, LlamaService.ts:1162-1164). La storia finisce SEMPRE con l'utente: `finalAssistantIndex`
+= -1, `isFinal` = false, `userIndex` = length-1; il modulo `historyMessagePositions` e la macchina SPLIT/round-trip
+non girano mai in produzione — otto casi jest verdi su un ramo morto ("suite verde, target morto"), e quel ramo
+aveva gia' partorito una contraddizione invisibile: la forma a think vuoto `<think>\n\n</think>\n\n` in posizione
+finale dava `reasoning_content: ""` (la misura REUSES ALL vince sull'inferenza da chat.cpp:232, ma il codice
+emetteva il valore che il commento accanto diceva di evitare). La riparazione viva e' UNA: turno vecchio →
+`content` = span grezzo, `reasoning_content` = sentinella non vuota ogni volta che compare `</think>` (allargamento
+rispetto a main: copre anche gli span senza `<think>` iniziale, che prima finivano sul percorso che splitta).
+*Esecuzione:* ramo nuovo `qwen-think-older-turns` da 9b08ae0 (niente riscrittura della storia), tre file soli —
+`modelEmittedText.ts` (sei righe + sentinella), `modelEmittedText.test.ts` (sette forme in posizione vecchia,
+attese letterali, campo ASSENTE senza blocco), `thinkHistoryHarness.mjs` (`""` → `" "`) — e `LlamaService.ts`
+torna byte per byte a main (`git diff 9b08ae0 HEAD -- src/engine/LlamaService.ts | wc -l` = 0): tutto cio' che
+il ramo cambia e' caricabile da jest. Scrittore Luna, audit deepseek-commandcode (notte), poi 59 + tsc + jest per
+nome, verifica su disco del coordinatore, push `<sha>:main` dopo la chiusura dell'e2e su 9b08ae0;
+`qwen-think-in-history` a 346debd si cancella dopo il push. Il contratto della posizione finale resta misurato
+(qui e in memoria) e si riaggiunge INSIEME al chiamante, il giorno che esiste. **Cosa il fix NON ripara, da
+scrivere nel corpo del commit:** turni interrotti/legacy senza `modelEmittedText` (`modelEmittedText.ts:246-249`)
+restano freddi; su un telefono aggiornato la prima ripresa di ogni conversazione esistente e' fredda una volta
+(il prompt per la stessa storia e' cambiato) — in CI non morde, sul device non va letto come fix mancato.
+**Candidato contratto CI (kalsa-93, dall'artefatto 35407337897):** al turno 2 `prompt` deve essere piu' LUNGO
+del `cached` finale del turno 1 (prima: 2215 contro 2294, 79 token = il think buttato); proprieta' del prompt
+reso, indipendente da checkpoint e da `pickReuse`; da affiancare alla soglia sul riuso (proposta 50% del prefisso
+condiviso) e al terzo turno senza risposta = rosso. **Decisione dell'owner; e2e non toccato finche' non risponde.**
+
+**T20C, terza passata `3608b75` (kalsa-2d, 18/09 ~22:10 EDT):** `campaign_thermal_should_pause` valuta PRIMA la
+condizione di hard abort e mette in pausa se vale (l'invariante e' nel commento: la linea status ≥ 3 dell'owner
+ora RAGGIUNGE il cooldown e aborta); GIVEUP = `thermal-giveup: cooldown cap ${cap}s reached` → registrato → `die` in
+entrambi i chiamanti; `CAMPAIGN_TURN_STATUS` azzerato prima del return sullo skip; selftest 46/0, red-proof
+dichiarati per i sette casi nuovi (da rileggere dal coordinatore a READY). **Buco nuovo da una riga vecchia:**
+`recovery.sh:152` fa `case "$st" in ''|unknown|*[!0-9]*) return 1 ;;` PRIMA dell'hard abort, riga identica in
+`c45f044` — ma ora che la linea dell'owner passa da quel cancello, un thermalservice illeggibile spegne anche
+l'abort a batteria ≥ 44,0 °C scollegato: prima costava una pausa mancata, ora costa la linea di stop. Quarta
+passata: hard abort SOPRA il parse dello status, fixture "status illeggibile + batteria 44,5 °C scollegata" sul
+percorso vero, rossa prima. Poi un solo audit commandcode su terza e quarta, rebase su 9b08ae0, 61/59 per nome piu'
+selftest nel worktree principale, principale lasciato su main allineato a origin (fast-forward, non reset).
+
 **S23, 18/09 ~22:00 EDT, misurato dal coordinatore: due daemon DSP al 100% CPU ciascuno, con l'app NON in
 esecuzione.** Telefono scollegato, Dozing, `pidof com.kalsa` vuoto: `cdsprpcd` (pid 2273) e `adsprpcd` (pid 2272)
 a 99,6% CPU ciascuno su `top -n 2 -d 3`, TIME+ 1997/2004 min (33 h di CPU a testa), avviati al boot 4 giorni fa
@@ -1043,6 +1085,24 @@ NO-GO per la verifica anti-loop finche' i daemon non scendono; (3) la cura e' il
 dell'app per sapere se li scatena la nostra .so HTP (nel pacchetto anche se l'NPU non e' mai instradato).
 APK debuggabile pronto (run `35412537213`, artefatto `kalsa-apk-arm64-v8a-debuggable-9b08ae0…`): il Jelly
 (27 °C, status 0) fa la verifica di persist-guard ora; l'S23 aspetta.
+
+**S23, indagine read-only di kalsa-2d (18/09 ~22:15 EDT), nessun riavvio, nessun tocco ai daemon, nessun
+tentativo di root.** Confermati `cdsprpcd` 2273 e `adsprpcd` 2272 `state=R` con `pidof com.kalsa.app` vuoto
+(`top -b -n 1 -s 3`). `/proc/2272/stat`: utime 12.032.977 tick contro stime 7.430 (CLK_TCK 100 → 120.330 s di
+utente contro 74 s di kernel; 2273 quasi identico): girano in codice utente, non bloccati in un driver. ELAPSED 4
+giorni 1:37 ma CPU ~33,4 h a testa: se lo spin e' continuo al 100% e' cominciato ~33 h fa, cioe' ~2,7 giorni DOPO
+il boot — qualcosa l'ha avviato (un solo campione cumulativo: "continuo da 33 h" e "a raffiche" non si
+distinguono). Silenziosi: su 340.789 righe di logcat, 36 contengono `adsprpc|fastrpc|cdsp`, 34 da un daemon
+diverso (`sscrpcd` 1358, sensori, apre file in `/mnt/vendor/persist`) piu' una riga `nativeloader` della nostra app
+delle 18:18; nessun SSR, crash o restart. Chi ha aperto la sessione FastRPC non e' leggibile (`/proc/<pid>/fd`
+negato senza root; non tentato). L'app spedisce davvero le librerie HTP: `app.config.js:98
+enableOpenCLAndHexagon: true`, `libggml-htp-v73|v75|v79|v81.so` copiate in `assets/ggml-hexagon`; l'Hexagon
+dell'S23 e' v73; `lib/arm64` dell'app installata e' vuota (`extractNativeLibs=false`). **Ipotesi, etichettata e non
+dimostrata:** una sessione FastRPC sopravvissuta al client, e l'unico client Hexagon noto su quel telefono e' la
+nostra app; la coincidenza temporale col 17/09 e' debole. **Test decisivo, gratis, al riavvio dell'owner:** subito
+dopo il reboot e PRIMA di lanciare l'app campionare i due daemon; poi un avvio dell'app e ricampionare. Spin solo
+dopo = nostro; gia' presente = non nostro. I comandi adb sul Jelly li esegue kalsa-2d, non un delegato: con due
+telefoni sul bus un seriale sbagliato scrive sull'S23.
 
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
