@@ -4,10 +4,11 @@ import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
-import { ChatRequestError, fetchContextSize, serverBase, streamChatCompletion } from "./lib/chat";
+import { ChatRequestError, fetchContextSize, serverBase } from "./lib/chat";
+import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
-import type { ChatSettings, Conversation, ConversationMeta } from "./lib/types";
+import type { ChatSettings, Conversation, ConversationMeta, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import type { SurfaceKey } from "./app/surfaces";
@@ -28,6 +29,7 @@ import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { AdvancedSurface } from "./surfaces/AdvancedSurface";
 import { EmptyState } from "./components/EmptyState";
+import { executeToolCall, offeredTools } from "./lib/tools/registry";
 import "./App.css";
 
 const store = createStore();
@@ -85,9 +87,9 @@ export function App() {
   // plus once at the end — never per token. The stored copy always trails
   // the buffer, so the buffer is authoritative until the run finishes.
   const bufs = useRef(
-    new Map<string, { convId: string; content: string; reasoning: string; tail: string; timer: ReturnType<typeof setTimeout> | undefined }>(),
+    new Map<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[]; timer: ReturnType<typeof setTimeout> | undefined }>(),
   );
-  const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string }>>({});
+  const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[] }>>({});
   const [liveMessage, setLiveMessage] = useState("");
   // The message the brain's writing bar became, for the one open move.
   const [barMessageId, setBarMessageId] = useState<string | null>(null);
@@ -107,6 +109,21 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Leaving with a turn in flight must not leave callbacks writing into a dead
+  // tree, or a throttle timer firing after the page is gone. Rust is told to
+  // stop separately, by the abort hooks the tool calls installed.
+  useEffect(
+    () => () => {
+      controllers.current.forEach((controller) => controller.abort());
+      controllers.current.clear();
+      bufs.current.forEach((buffer) => {
+        if (buffer.timer !== undefined) clearTimeout(buffer.timer);
+      });
+      bufs.current.clear();
+    },
+    [],
+  );
+
   // No explicit choice yet: follow the operating system while it changes.
   useEffect(() => {
     if (themeChoiceMade()) return;
@@ -124,7 +141,7 @@ export function App() {
       const l = live[m.id];
       if (!l || l.convId !== conv.id) return m;
       changed = true;
-      return { ...m, content: l.content, reasoning: l.reasoning };
+      return { ...m, content: l.content, reasoning: l.reasoning, toolRuns: l.toolRuns };
     });
     return changed ? { ...conv, messages } : conv;
     // conversations refreshes on every store notification (index is small).
@@ -316,6 +333,7 @@ export function App() {
                   ...m,
                   content: b ? b.content : m.content,
                   reasoning: b ? b.reasoning : m.reasoning,
+                  toolRuns: b ? b.toolRuns : m.toolRuns,
                   ...extra,
                 }
               : m,
@@ -347,12 +365,28 @@ export function App() {
       function ingest(kind: "content" | "reasoning", text: string): void {
         let b = bufs.current.get(assistantId);
         if (!b) {
-          b = { convId: conversationId, content: "", reasoning: "", tail: "", timer: undefined };
+          b = { convId: conversationId, content: "", reasoning: "", tail: "", toolRuns: [], timer: undefined };
           bufs.current.set(assistantId, b);
         }
         b[kind] += text;
         if (kind === "reasoning") b.tail = appendTail(b.tail, text);
-        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail };
+        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
+        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
+        schedulePersist();
+      }
+
+      // A running tool is replaced by its answer, matched by the call's id:
+      // the thread shows the call once, not twice.
+      function ingestToolRun(run: ToolRun): void {
+        let b = bufs.current.get(assistantId);
+        if (!b) {
+          b = { convId: conversationId, content: "", reasoning: "", tail: "", toolRuns: [], timer: undefined };
+          bufs.current.set(assistantId, b);
+        }
+        b.toolRuns = b.toolRuns.some((existing) => existing.id === run.id)
+          ? b.toolRuns.map((existing) => (existing.id === run.id ? run : existing))
+          : [...b.toolRuns, run];
+        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
         setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
         schedulePersist();
       }
@@ -364,6 +398,9 @@ export function App() {
           messages: history,
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
+          tools: offeredTools(currentSettings.webTools),
+          runTool: executeToolCall,
+          onToolRun: ingestToolRun,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
               thoughtStartedAt = performance.now();

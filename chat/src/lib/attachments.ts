@@ -44,7 +44,11 @@ export function estTokens(text: string): number {
 }
 
 export function messageTokens(message: ChatMessage): number {
-  return estTokens(message.content) + estTokens(message.reasoning ?? "");
+  const toolTokens = (message.toolRuns ?? []).reduce(
+    (sum, run) => sum + estTokens(run.arguments) + estTokens(run.result),
+    0,
+  );
+  return estTokens(message.content) + estTokens(message.reasoning ?? "") + toolTokens;
 }
 
 /** Same formula the pinning uses: one place where history is weighed. */
@@ -239,6 +243,38 @@ function docBlockFor(docs: Attachment[]): WireMessage {
   };
 }
 
+/**
+ * One stored message as the wire sees it. A message that used tools becomes the
+ * ordinary three-part turn — the assistant asking, the tool answering, the
+ * assistant's own words — because that is the shape the model was trained on
+ * and the shape it expects to see again. The transcript itself holds no `tool`
+ * role: this is the only place the roles are invented.
+ */
+function wireFor(message: ChatMessage): WireMessage[] {
+  const runs = message.toolRuns ?? [];
+  if (message.role !== "assistant" || runs.length === 0) {
+    return [{ role: message.role, content: message.content }];
+  }
+  const asked: WireMessage = {
+    role: "assistant",
+    content: "",
+    tool_calls: runs.map((run) => ({
+      id: run.id,
+      type: "function" as const,
+      function: { name: run.name, arguments: run.arguments },
+    })),
+  };
+  const answered: WireMessage[] = runs.map((run) => ({
+    role: "tool",
+    content: run.result,
+    tool_call_id: run.id,
+  }));
+  const said: WireMessage[] = message.content
+    ? [{ role: "assistant", content: message.content }]
+    : [];
+  return [asked, ...answered, ...said];
+}
+
 export type PinnedContext =
   | { status: "ok"; wire: WireMessage[]; dropped: number; docTokens: number; historyTokens: number }
   | { status: "refused"; need: number; have: number; docTokens: number; historyTokens: number };
@@ -271,7 +307,7 @@ export function buildPinnedContext(
       return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }
   }
-  const wire = turns.map((m): WireMessage => ({ role: m.role, content: m.content }));
+  const wire = turns.flatMap(wireFor);
   if (actives.length > 0) wire.unshift(docBlockFor(actives));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

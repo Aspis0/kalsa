@@ -152,6 +152,9 @@ const CORS = {
 };
 
 let lastBody = null;
+/// Every chat body this run has received, oldest first. A tool round trip is a
+/// sequence, and `__last-body` can only show its end; an oracle needs all of it.
+const chatBodies = [];
 
 const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
@@ -164,6 +167,21 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/__last-body") {
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
     res.end(JSON.stringify({ body: lastBody }));
+    return;
+  }
+  // Test-only: the whole sequence, and a way to start a clean one, so a test
+  // can assert what the loop sent round by round.
+  if (req.method === "GET" && req.url === "/__bodies") {
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ bodies: chatBodies }));
+    return;
+  }
+  if (req.url === "/__reset") {
+    req.resume();
+    chatBodies.length = 0;
+    lastBody = null;
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
   // Context sizes: big by default, tiny under /small, tight under /tight.
@@ -213,6 +231,7 @@ const server = http.createServer((req, res) => {
     req.on("data", (c) => (bodyPeek += c));
     req.on("end", () => {
       lastBody = bodyPeek;
+      chatBodies.push(bodyPeek);
       let model = "";
       try {
         model = JSON.parse(bodyPeek).model ?? "";
@@ -226,6 +245,9 @@ const server = http.createServer((req, res) => {
         return;
       }
       if (model.includes("split-demo")) return streamSplit(res);
+      // Every tool scenario shares this prefix: tools-demo, toolsfetch-demo,
+      // toolstwo-demo, toolsbad-demo, toolsloop-demo, toolsslow-demo.
+      if (model.includes("tools")) return streamTools(res, bodyPeek, model);
       if (model.includes("cut-demo")) return streamCut(res);
       if (model.includes("json-demo")) {
         res.writeHead(200, { "Content-Type": "application/json", ...CORS });
@@ -352,6 +374,191 @@ function streamDualReasoning(res, rcText, rText) {
       res.write("data: [DONE]\n\n");
       res.end();
     }
+  }, 25);
+  res.on("close", () => clearInterval(timer));
+}
+
+// Tool calling: the first request asks for a search with the argument JSON
+// torn across three chunks; the second carries the tool's result and answers
+// in words. The mock reads the body to tell which request it is, so it does
+// not depend on counting requests.
+/**
+ * The oracle for a tool round trip. The client is what is under test here, so
+ * the mock reads the wire it sends back: every call the assistant made must be
+ * answered once, by id, in the same order, with words in the result. Anything
+ * else is answered with a 400 naming the fault, so a broken pairing fails the
+ * test loudly instead of quietly getting an answer.
+ *
+ * Returns null when the sequence is whole.
+ */
+function toolSequenceProblem(bodyText) {
+  let messages;
+  try {
+    messages = JSON.parse(bodyText).messages ?? [];
+  } catch {
+    return "the body was not JSON";
+  }
+  const asked = messages
+    .map((message, at) => ({ message, at }))
+    .filter(({ message }) => message.role === "assistant" && Array.isArray(message.tool_calls))
+    .pop();
+  if (!asked) return "no assistant message carried tool_calls";
+  const calls = asked.message.tool_calls;
+  if (calls.length === 0) return "the assistant message carried an empty tool_calls array";
+
+  const after = messages.slice(asked.at + 1);
+  const results = after.filter((message) => message.role === "tool");
+  if (after.length !== results.length) {
+    return `expected only tool messages after the call, found ${after.map((m) => m.role).join(", ")}`;
+  }
+  if (results.length !== calls.length) {
+    return `expected ${calls.length} tool result(s), found ${results.length}`;
+  }
+  for (const [nth, call] of calls.entries()) {
+    if (typeof call.id !== "string" || !call.id) return `call ${nth} has no id`;
+    if (typeof call.function?.name !== "string" || !call.function.name) {
+      return `call ${nth} has no name`;
+    }
+    if (typeof call.function?.arguments !== "string") return `call ${nth} has no argument text`;
+    if (results[nth].tool_call_id !== call.id) {
+      return `result ${nth} answers ${results[nth].tool_call_id}, not ${call.id}`;
+    }
+    if (typeof results[nth].content !== "string" || results[nth].content === "") {
+      return `result ${nth} is empty`;
+    }
+  }
+  return null;
+}
+
+function refuseWire(res, problem) {
+  res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+  res.end(JSON.stringify({ error: { message: `tool wire rejected: ${problem}` } }));
+}
+
+function callFrames(calls, splitFirst) {
+  const frames = [];
+  calls.forEach((call, index) => {
+    const pieces = splitFirst && index === 0 ? [8, 12] : [];
+    const parts = [];
+    let rest = call.arguments;
+    for (const size of pieces) {
+      parts.push(rest.slice(0, size));
+      rest = rest.slice(size);
+    }
+    parts.push(rest);
+    frames.push({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              { index, id: call.id, type: "function", function: { name: call.name, arguments: parts[0] } },
+            ],
+          },
+        },
+      ],
+    });
+    for (const part of parts.slice(1)) {
+      frames.push({ choices: [{ delta: { tool_calls: [{ index, function: { arguments: part } }] } }] });
+    }
+  });
+  frames.push({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+  return frames;
+}
+
+function answerFrames(text) {
+  const parts = [];
+  for (let at = 0; at < text.length; at += 9) parts.push(text.slice(at, at + 9));
+  return [
+    ...parts.map((content) => ({ choices: [{ delta: { content } }] })),
+    { choices: [{ delta: {}, finish_reason: "stop" }] },
+  ];
+}
+
+/**
+ * Tool calling. What the mock sends depends on the model and on how many tool
+ * rounds the client has already taken — it reads the body, so it never has to
+ * count requests. Each scenario covers one thing the loop must get right:
+ *
+ * - `tools-demo`   one search, its argument JSON torn across three chunks;
+ * - `toolsfetch-demo`  a page fetch;
+ * - `toolstwo-demo`   two calls in one round, then a third in a second round;
+ * - `toolsbad-demo`   arguments that are not JSON, and the turn must survive;
+ * - `toolsloop-demo`  a call every round, until the client asks for words;
+ * - `toolsslow-demo`  one call, and the page stops the turn while it runs.
+ */
+function streamTools(res, bodyText, model) {
+  let body = {};
+  let parsed = false;
+  try {
+    body = JSON.parse(bodyText);
+    parsed = true;
+  } catch {
+    /* refuseWire below names it */
+  }
+  const messages = (body.messages ?? []);
+  const rounds = messages.filter(
+    (message) => message.role === "assistant" && Array.isArray(message.tool_calls),
+  ).length;
+  if (messages.some((message) => message.role === "tool")) {
+    const problem = parsed ? toolSequenceProblem(bodyText) : "the body was not JSON";
+    if (problem) return refuseWire(res, problem);
+  }
+
+  let frames;
+  if (model.includes("toolsloop-demo")) {
+    // Answers only when the client asks for words with tool_choice: "none".
+    frames =
+      body.tool_choice === "none"
+        ? answerFrames("I have looked enough: the answer is 42.")
+        : callFrames([{ id: `loop${rounds}`, name: "web_search", arguments: `{"query":"round ${rounds}"}` }], false);
+  } else if (model.includes("toolstwo-demo")) {
+    if (rounds === 0) {
+      frames = callFrames(
+        [
+          { id: "two0", name: "web_search", arguments: '{"query":"first search"}' },
+          { id: "two1", name: "web_fetch", arguments: '{"url":"https://example.com/one"}' },
+        ],
+        false,
+      );
+    } else if (rounds === 1) {
+      frames = callFrames([{ id: "two2", name: "web_search", arguments: '{"query":"second search"}' }], false);
+    } else {
+      frames = answerFrames("Both searches and the page are in, and the answer is 42.");
+    }
+  } else if (model.includes("toolsfetch-demo")) {
+    frames =
+      rounds === 0
+        ? callFrames([{ id: "fetch1", name: "web_fetch", arguments: '{"url":"https://example.com/page"}' }], false)
+        : answerFrames("The page says the answer is 42.");
+  } else if (model.includes("toolsbad-demo")) {
+    frames =
+      rounds === 0
+        ? callFrames([{ id: "bad1", name: "web_search", arguments: '{"query": "unterminated' }], false)
+        : answerFrames("Without that search I can still say: 42.");
+  } else if (model.includes("toolsslow-demo")) {
+    frames = callFrames([{ id: "slow1", name: "web_search", arguments: '{"query":"slow one"}' }], false);
+  } else if (rounds === 0) {
+    frames = callFrames([{ id: "call_1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], true);
+  } else {
+    frames = answerFrames("It will be mild: 18 °C on Saturday, 21 °C on Sunday.");
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    ...CORS,
+  });
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i < frames.length) {
+      res.write(`data: ${JSON.stringify(frames[i])}\n\n`);
+      i++;
+      return;
+    }
+    clearInterval(timer);
+    res.write("data: [DONE]\n\n");
+    res.end();
   }, 25);
   res.on("close", () => clearInterval(timer));
 }

@@ -24,6 +24,9 @@ kalsa-probe = { path = "../crates/kalsa-probe" }
 kalsa-runtime = { path = "../crates/kalsa-runtime" }
 kalsa-sentinel = { path = "../crates/kalsa-sentinel" }
 kalsa-supervisor = { path = "../crates/kalsa-supervisor" }
+# The assistant's web search and page fetch. Requests leave from Rust: the
+# page's content security policy admits its own machine and nothing else.
+kalsa-web = { path = "../crates/kalsa-web" }
 serde = { version = "1", features = ["derive"] }
 # The two pairing messages on the wire, and the DTO the page reads.
 serde_json = "1"

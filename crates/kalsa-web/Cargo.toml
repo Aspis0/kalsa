@@ -1,0 +1,17 @@
+[package]
+name = "kalsa-web"
+description = "Web search and page fetch for the assistant's tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Blocking on purpose, like kalsa-download: the caller runs this on a
+# background thread, and an async runtime would be a dependency bought for
+# two requests.
+[dependencies]
+serde_json = "1"
+# Redirect targets are joined against the current URL, and a hand-rolled
+# resolver got `?query`-only redirects wrong. This is already in the lock as a
+# dependency of ureq, so it costs nothing new.
+url = "2"
+ureq = "2"

@@ -16,15 +16,18 @@ export type Theme = "light" | "dark";
 export function loadSettings(): ChatSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { endpoint: "", token: "", model: "" };
+    if (!raw) return { endpoint: "", token: "", model: "", webTools: true };
     const parsed = JSON.parse(raw) as Partial<ChatSettings>;
     return {
       endpoint: typeof parsed.endpoint === "string" ? parsed.endpoint : "",
       token: typeof parsed.token === "string" ? parsed.token : "",
       model: typeof parsed.model === "string" ? parsed.model : "",
+      // Settings written before this switch existed have no answer to give,
+      // and the default — the same one new installs get — is on.
+      webTools: parsed.webTools !== false,
     };
   } catch {
-    return { endpoint: "", token: "", model: "" };
+    return { endpoint: "", token: "", model: "", webTools: true };
   }
 }
 

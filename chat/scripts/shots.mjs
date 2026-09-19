@@ -675,6 +675,49 @@ async function main() {
     await page.close();
   }
 
+  if (want("toolrun")) {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    // Seeded, not streamed: this is the state a reload leaves behind, and it
+    // is the one that would silently vanish if the tool runs were not carried
+    // through the store's validator.
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        conv("Weather in Lisbon", [
+          msg("user", "What is the weather in Lisbon this weekend?"),
+          msg("assistant", "It will be mild: 18 °C on Saturday, 21 °C on Sunday, with rain after six.", {
+            toolRuns: [
+              {
+                id: "call_1",
+                name: "web_search",
+                arguments: '{"query":"Lisbon weather this weekend"}',
+                result:
+                  "1. Lisbon weekend forecast\n   URL: https://example.com/lisbon\n   Mild, 18 °C Saturday, rain Sunday evening.\n\n2. Portugal outlook\n   URL: https://example.org/portugal\n   Settled through the weekend.",
+                state: "ok",
+              },
+              {
+                id: "call_2",
+                name: "web_fetch",
+                arguments: '{"url":"https://example.com/lisbon"}',
+                result: "Lisbon: Saturday 18 °C, Sunday 21 °C, rain after 18:00.",
+                state: "ok",
+              },
+            ],
+          }),
+        ]),
+      ],
+    });
+    await openApp(page);
+    await page.waitForTimeout(1200);
+    await openConvo(page, "Weather in Lisbon");
+    await must(page, ".tool-run", "tool activity");
+    await shot(page, "shots/56-tool-runs.png");
+    await page.locator(".tool-run > summary").first().click();
+    await must(page, ".tool-sources", "tool sources");
+    await shot(page, "shots/57-tool-runs-open.png");
+    await page.close();
+  }
+
   if (want("cloudopen")) {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo"), theme: "light" });

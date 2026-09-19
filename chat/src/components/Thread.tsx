@@ -4,6 +4,7 @@ import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
 import { Markdown } from "./Markdown";
 import { ThoughtCloud } from "./ThoughtCloud";
+import { ToolActivity } from "./ToolActivity";
 import "./Thread.css";
 
 export interface FailedState {
@@ -106,9 +107,12 @@ function AssistantRow({
 }) {
   const failedHere = failed !== null && failed.messageId === message.id;
   const hasReasoning = (message.reasoning ?? "") !== "";
-  // Dots only when nothing has arrived at all: reasoning, once present,
-  // is the waiting face.
-  const showThinking = streaming && message.content.length === 0 && !hasReasoning && !failedHere;
+  const toolRuns = message.toolRuns ?? [];
+  const toolWorking = toolRuns.some((run) => run.state === "running");
+  // Dots only when nothing has arrived at all: reasoning, once present, is the
+  // waiting face, and a running tool says what it is doing.
+  const showThinking =
+    streaming && message.content.length === 0 && !hasReasoning && !failedHere && !toolWorking;
   const showNoAnswer =
     hasReasoning && message.content === "" && !streaming && !failedHere && !message.stopped;
   return (
@@ -124,6 +128,7 @@ function AssistantRow({
             tail={tail}
           />
         ) : null}
+        <ToolActivity runs={toolRuns} />
         {showThinking ? (
           <>
             <Thinking />

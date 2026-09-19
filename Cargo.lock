@@ -2520,6 +2520,7 @@ dependencies = [
  "kalsa-runtime",
  "kalsa-sentinel",
  "kalsa-supervisor",
+ "kalsa-web",
  "libc",
  "serde",
  "serde_json",
@@ -2651,6 +2652,15 @@ version = "0.0.1"
 dependencies = [
  "libc",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "kalsa-web"
+version = "0.0.1"
+dependencies = [
+ "serde_json",
+ "ureq",
+ "url",
 ]
 
 [[package]]

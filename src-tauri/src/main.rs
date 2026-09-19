@@ -19,6 +19,7 @@ mod pairing;
 mod road;
 mod startup;
 mod transport;
+mod web;
 
 use std::io;
 use std::net::SocketAddr;
@@ -882,6 +883,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let guard = std::sync::Arc::new(instance::claim());
     let app = tauri::Builder::default()
         .manage(Brain::new())
+        .manage(web::WebCalls::default())
         .invoke_handler(tauri::generate_handler![
             brain_state,
             brain_advanced,
@@ -895,7 +897,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing,
             brain_pairing_retry,
             brain_pairing_forget_device,
-            brain_pairing_forget
+            brain_pairing_forget,
+            web::brain_web_search,
+            web::brain_web_fetch,
+            web::brain_web_stop
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);

@@ -80,6 +80,17 @@ async function openSidebar(page, titlePart) {
   await page.waitForTimeout(400);
 }
 
+/**
+ * Open the app at the chat. The brain is the home surface now, so a `goto`
+ * lands on its writing bar and the composer is one click away — the same
+ * conditional click `shots.mjs` has made since that change.
+ */
+async function openChat(page) {
+  await page.goto(APP);
+  const chat = page.locator(".brain-bar-chat");
+  if ((await chat.count()) > 0) await chat.first().click();
+}
+
 function xmlEsc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -168,6 +179,79 @@ async function lastBody(page) {
   });
   return JSON.parse(res.body ?? "null");
 }
+
+/** Every request body the mock has seen, oldest first — a tool round trip is a
+    sequence, and the last body can only show its end. */
+async function allBodies(page) {
+  const res = await page.evaluate(async () => {
+    const r = await fetch("http://127.0.0.1:18081/__bodies");
+    return r.json();
+  });
+  return (res.bodies ?? []).map((body) => JSON.parse(body));
+}
+
+async function resetMock(page) {
+  await page.evaluate(async () => {
+    await fetch("http://127.0.0.1:18081/__reset", { method: "POST" });
+  });
+}
+
+/**
+ * The desktop door, stubbed for the browser: a place to answer the two web
+ * commands and to watch what was asked of them. `tools` are the definitions a
+ * real bridge would be given; without one, none are offered at all.
+ */
+async function stubDoor(page, { search = null, fetch = null, hang = false } = {}) {
+  await page.addInitScript(
+    ({ search, fetchResult, hang }) => {
+      window.__TOOL_CALLS__ = [];
+      window.__TAURI__ = {
+        core: {
+          invoke: async (command, args) => {
+            if (command === "brain_web_stop") {
+              window.__TOOL_CALLS__.push({ command, args });
+              return null;
+            }
+            if (command.startsWith("brain_web_")) {
+              window.__TOOL_CALLS__.push({ command, args });
+              if (hang) return new Promise(() => {});
+              if (command === "brain_web_search") return search;
+              return fetchResult;
+            }
+            // The other surfaces read their own commands; none of them is part
+            // of these tests, so they answer as an unknown state.
+            return null;
+          },
+        },
+        // The brain surface subscribes to the walk's progress on mount; the
+        // real door resolves to an unlisten function.
+        event: { listen: () => Promise.resolve(() => {}) },
+      };
+    },
+    { search, fetchResult: fetch, hang },
+  );
+}
+
+/** Seeded once, not on every document: a reload must not wipe what the page
+    wrote, which is what the persistence checks are about. */
+async function seedOnce(page, settings) {
+  await page.addInitScript((settings) => {
+    if (sessionStorage.getItem("verified-seeded")) return;
+    sessionStorage.setItem("verified-seeded", "1");
+    localStorage.clear();
+    localStorage.setItem("crescent-chat.theme.v1", "light");
+    localStorage.setItem("crescent-chat.settings.v1", JSON.stringify(settings));
+  }, settings);
+}
+
+const toolSettings = (model, webTools = true) => ({
+  endpoint: "http://127.0.0.1:18081/ok",
+  token: "t",
+  model,
+  webTools,
+});
+
+const LISBON = "1. Lisbon weekend forecast\n   URL: https://example.com/lisbon\n   Mild, rain on Sunday evening.";
 
 const tests = {
   // v1 -> v2 migration: nothing lost, never repeats, old key removed.
@@ -1345,6 +1429,375 @@ const tests = {
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Are you there?", "took too long", 80000);
     check("silent: idle timeout fires", true);
+    await browser.close();
+  },
+  // Tool calling, end to end: the model asks for a search, the tool runs
+  // through the desktop door (stubbed here — offered tools exist only where a
+  // command can run them), the result goes back on the wire, and the answer
+  // arrives. Then the same page is reloaded: the tool activity is part of the
+  // transcript, not of the live stream.
+  // Tool calling, end to end: the model asks for a search, the tool runs
+  // through the desktop door (stubbed here — offered tools exist only where a
+  // command can run them), the result goes back on the wire, and the answer
+  // arrives. Then a reload, a switch that is off, and a page with no door.
+  async tools() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, fetch: "The page text." });
+    await seedOnce(page, toolSettings("tools-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "What is the weather in Lisbon this weekend?", "mild");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) =>
+      String(c.command).startsWith("brain_web_"),
+    );
+    check("tools: the search ran through the desktop door", calls.length === 1 && calls[0].command === "brain_web_search", JSON.stringify(calls));
+    check("tools: the call carried an id Stop could name", typeof calls[0]?.args?.id === "number", JSON.stringify(calls[0]?.args));
+    check("tools: the query was reassembled from split chunks", calls[0]?.args?.query === "weather in Lisbon", JSON.stringify(calls[0]?.args));
+
+    // The mock refuses a malformed round trip with a 400, so an answer here
+    // means the whole sequence was right: one assistant call, one result,
+    // matched by id, with words in it.
+    const bodies = await allBodies(page);
+    const first = bodies[0];
+    const wired = bodies[bodies.length - 1]?.messages ?? [];
+    const asked = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).pop();
+    const results = wired.filter((m) => m.role === "tool");
+    check("tools: the loop asked again exactly once", bodies.length === 2, String(bodies.length));
+    check("tools: one call and one result came back", asked?.tool_calls?.length === 1 && results.length === 1, `${asked?.tool_calls?.length} / ${results.length}`);
+    check("tools: tool_choice starts at auto", first?.tool_choice === "auto", String(first?.tool_choice));
+    check("tools: the argument JSON survived the wire", asked?.tool_calls?.[0]?.function?.arguments === '{"query":"weather in Lisbon"}', asked?.tool_calls?.[0]?.function?.arguments);
+    check("tools: the result answers the same call id", results[0]?.tool_call_id === asked?.tool_calls?.[0]?.id, `${results[0]?.tool_call_id} vs ${asked?.tool_calls?.[0]?.id}`);
+    check("tools: the result carried the tool's words", (results[0]?.content ?? "").includes("Lisbon weekend forecast"));
+
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("tools: the thread says what was searched", thread.includes("Searched for"), thread.slice(0, 200));
+    check("tools: the thread shows the query", thread.includes("weather in Lisbon"));
+
+    // The trap the recon report named, and the check that makes it bite: the
+    // transcript must hold the run itself, with no `tool` role anywhere.
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) => k.startsWith("crescent-chat.msgs.") && (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => (m.toolRuns ?? []).length > 0),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("tools: the run reached the disk", false, "never written"));
+    const stored = await page.evaluate(() => ({ ...localStorage }));
+    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
+    const messages = JSON.parse(stored[key] ?? "[]");
+    const assistant = messages.find((m) => m.role === "assistant");
+    check(
+      "tools: the transcript keeps the run and no tool role",
+      messages.length === 2 &&
+        messages.every((m) => m.role === "user" || m.role === "assistant") &&
+        assistant?.toolRuns?.length === 1 &&
+        assistant.toolRuns[0].state === "ok",
+      JSON.stringify(messages.map((m) => ({ role: m.role, runs: (m.toolRuns ?? []).length }))),
+    );
+
+    // The switch, the door, and nothing else may decide. One assertion for all
+    // three directions, so dropping tools anywhere — or offering them where
+    // nothing can run them — is red.
+    const off = await browser.newPage();
+    await stubDoor(off, { search: LISBON });
+    await seedOnce(off, toolSettings("toolsloop-demo", false));
+    await openChat(off);
+    await off.waitForTimeout(1200);
+    await resetMock(off);
+    await off.getByRole("textbox", { name: "Message" }).fill("Just answer.");
+    await off.getByRole("textbox", { name: "Message" }).press("Enter");
+    await off.waitForTimeout(3000);
+    // Read this page's bodies before the next page resets the mock: the
+    // counter is the mock's, not the tab's.
+    const offBodies = await allBodies(off);
+
+    const plain = await browser.newPage();
+    await seedOnce(plain, toolSettings("toolsloop-demo"));
+    await openChat(plain);
+    await plain.waitForTimeout(1200);
+    await resetMock(plain);
+    await plain.getByRole("textbox", { name: "Message" }).fill("Just answer.");
+    await plain.getByRole("textbox", { name: "Message" }).press("Enter");
+    await plain.waitForTimeout(3000);
+
+    const offered = (body) => (body?.tools ?? []).length;
+    const plainBodies = await allBodies(plain);
+    const withDoor = offered(first);
+    const switchOff = offered(offBodies.at(-1));
+    const noDoor = offered(plainBodies.at(-1));
+    // The two negative halves also require that those pages actually sent a
+    // request: a page that crashed before sending must not read as "offered
+    // nothing", which is what would make this pass for the wrong reason.
+    check(
+      "tools: offered only when the switch is on and a command can run them",
+      withDoor === 2 && switchOff === 0 && noDoor === 0 && plainBodies.length >= 1 && offBodies.length >= 1,
+      `on with door ${withDoor}, switch off ${switchOff} (${offBodies.length} sent), no door ${noDoor} (${plainBodies.length} sent)`,
+    );
+
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const chat = page.locator(".brain-bar-chat");
+    if ((await chat.count()) > 0) await chat.first().click();
+    await page.waitForTimeout(800);
+    await openSidebar(page, "weather");
+    await page.waitForTimeout(400);
+    const after = (await page.locator(".thread").textContent()) ?? "";
+    check("tools: reload keeps what was searched", after.includes("Searched for"));
+    check("tools: reload keeps the answer", after.includes("mild"));
+    await page
+      .locator(".tool-run > summary")
+      .first()
+      .click({ timeout: 5000 })
+      .catch(() => check("tools: reload keeps the run", false, "no tool block after reload"));
+    const opened = (await page.locator(".tool-run").first().textContent()) ?? "";
+    check("tools: reload keeps the sources", opened.includes("example.com"), opened.slice(0, 200));
+
+    await browser.close();
+  },
+
+  // What a tool result costs the transcript. The turn that ran the tool reads
+  // all of it; what stays on disk — and what every later turn sends — is the
+  // beginning, so one page cannot sit in browser storage for the life of the
+  // conversation.
+  async toolskept() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    const long = `1. A very long result\n   URL: https://example.com/long\n   ${"x".repeat(4000)}`;
+    await stubDoor(page, { search: long });
+    await seedOnce(page, toolSettings("tools-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Search for something.", "mild");
+
+    const wired = (await allBodies(page)).at(-1)?.messages ?? [];
+    const result = wired.filter((m) => m.role === "tool")[0];
+    check("kept: the turn itself read the whole result", (result?.content ?? "").length > 4000, String((result?.content ?? "").length));
+
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) =>
+              k.startsWith("crescent-chat.msgs.") &&
+              (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => (m.toolRuns ?? []).length > 0),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("kept: the run reached the disk", false, "never written"));
+    const stored = await page.evaluate(() => ({ ...localStorage }));
+    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
+    const run = JSON.parse(stored[key] ?? "[]").find((m) => (m.toolRuns ?? []).length > 0)?.toolRuns[0];
+    check(
+      "kept: the transcript keeps only the beginning, and says so",
+      run !== undefined && run.result.length < 1400 && run.result.includes("not kept after the turn"),
+      `kept ${run?.result?.length ?? 0} chars`,
+    );
+    await browser.close();
+  },
+
+  // A page fetch, which is the other tool and a different command.
+  async toolsfetch() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, fetch: "The page says the answer is 42." });
+    await seedOnce(page, toolSettings("toolsfetch-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Open that page for me.", "page says");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check("fetch: the page was opened through its own command", calls.length === 1 && calls[0].command === "brain_web_fetch", JSON.stringify(calls));
+    check("fetch: the address survived as an argument", calls[0]?.args?.url === "https://example.com/page", JSON.stringify(calls[0]?.args));
+    const wired = (await allBodies(page)).at(-1)?.messages ?? [];
+    const asked = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).pop();
+    check("fetch: the call went back named as web_fetch", asked?.tool_calls?.[0]?.function?.name === "web_fetch");
+    const text = (await page.locator(".thread").textContent()) ?? "";
+    check("fetch: the thread says it read the page", text.includes("Read example.com"), text.slice(0, 200));
+    await browser.close();
+  },
+
+  // Two calls in one round and a third in the next: serial execution, in
+  // order, with one result per call each time.
+  async toolsrounds() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, fetch: "The page text." });
+    await seedOnce(page, toolSettings("toolstwo-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Search twice and read a page.", "Both searches");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check(
+      "rounds: three calls ran, in the order the model asked",
+      calls.map((c) => c.command).join(",") === "brain_web_search,brain_web_fetch,brain_web_search",
+      JSON.stringify(calls.map((c) => `${c.command}:${c.args.query ?? c.args.url}`)),
+    );
+    const bodies = await allBodies(page);
+    check("rounds: three requests, one per round", bodies.length === 3, String(bodies.length));
+    check(
+      "rounds: the first round carried two results for two calls",
+      (bodies[1]?.messages ?? []).filter((m) => m.role === "tool").length === 2,
+      String((bodies[1]?.messages ?? []).filter((m) => m.role === "tool").length),
+    );
+    check(
+      "rounds: the last round carried three calls' worth of history",
+      (bodies[2]?.messages ?? []).filter((m) => m.role === "tool").length === 3,
+      String((bodies[2]?.messages ?? []).filter((m) => m.role === "tool").length),
+    );
+    const runs = await page.locator(".tool-run").count();
+    check("rounds: the thread shows all three", runs === 3, String(runs));
+    check("rounds: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("Both searches"));
+    await browser.close();
+  },
+
+  // Arguments that are not JSON: nothing must run, the turn must survive, and
+  // the model must be told why.
+  async toolsbad() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsbad-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Search for something.", "still say");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check("bad: a broken call never reached the door", calls.length === 0, JSON.stringify(calls));
+    const wired = (await allBodies(page)).at(-1)?.messages ?? [];
+    const result = wired.filter((m) => m.role === "tool")[0];
+    check("bad: the model was told, as a tool result", (result?.content ?? "").includes("not valid JSON"), (result?.content ?? "").slice(0, 120));
+    const text = (await page.locator(".thread").textContent()) ?? "";
+    check("bad: the thread shows the failure, not a silent call", text.includes("That search did not run"), text.slice(0, 200));
+    check("bad: the turn still produced an answer", text.includes("still say"));
+    await browser.close();
+  },
+
+  // A model that keeps asking for tools: the loop must stop at the cap and ask
+  // for words instead of running forever.
+  async toolsloop() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsloop-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Keep looking until you know.", "looked enough", 40000);
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check("loop: the cap stopped the searching at four", calls.length === 4, String(calls.length));
+    const bodies = await allBodies(page);
+    check("loop: four rounds of tools, then one round of words", bodies.length === 5, String(bodies.length));
+    check(
+      "loop: every round but the last was allowed to call tools",
+      bodies.slice(0, 4).every((b) => b.tool_choice === "auto") && bodies[4]?.tool_choice === "none",
+      bodies.map((b) => b.tool_choice).join(","),
+    );
+    check("loop: the forced round still offered the tools", (bodies[4]?.tools ?? []).length === 2);
+    check("loop: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("looked enough"));
+    await browser.close();
+  },
+
+  // Stop, pressed while a tool is running: the turn ends at once and Rust is
+  // told to stop the call it is no longer waiting for.
+  async toolsstop() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { hang: true });
+    await seedOnce(page, toolSettings("toolsslow-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await page.getByRole("textbox", { name: "Message" }).fill("Search for something.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    // Wait until the tool is actually in flight, then stop.
+    await page.locator(".tool-working").first().waitFor({ timeout: 10000 }).catch(() => check("stop: the tool started", false, "never showed as running"));
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(1200);
+
+    const calls = await page.evaluate(() => window.__TOOL_CALLS__ ?? []);
+    const search = calls.find((c) => c.command === "brain_web_search");
+    const stop = calls.find((c) => c.command === "brain_web_stop");
+    check("stop: the search was in flight", search !== undefined, JSON.stringify(calls));
+    check("stop: Rust was told to stop that exact call", stop !== undefined && stop.args?.id === search?.args?.id, JSON.stringify({ stop: stop?.args, search: search?.args }));
+    const text = (await page.locator(".thread").textContent()) ?? "";
+    check("stop: the turn stopped instead of waiting for the network", text.includes("Stopped early"), text.slice(0, 200));
+    check("stop: the composer is free again", (await page.locator(".composer-stop").count()) === 0);
+    await browser.close();
+  },
+
+  // Nothing a model or a page wrote becomes clickable unless it is a public web
+  // address. The transcript here is seeded, so it is also the reload path.
+  async toolslinks() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, {
+      settings: okSettings("x"),
+      convos: [
+        {
+          id: "links",
+          title: "Addresses",
+          createdAt: 1,
+          updatedAt: 2,
+          messages: [
+            { id: "u1", role: "user", content: "Open something.", createdAt: 1 },
+            {
+              id: "a1",
+              role: "assistant",
+              content: "I opened the address you gave me.",
+              createdAt: 2,
+              toolRuns: [
+                {
+                  id: "link1",
+                  name: "web_fetch",
+                  arguments: '{"url":"javascript:alert(1)"}',
+                  result: "The page says the answer is 42.",
+                  state: "failed",
+                },
+                {
+                  id: "link2",
+                  name: "web_search",
+                  arguments: '{"query":"a secret question"}',
+                  result:
+                    "1. Local service\n   URL: http://127.0.0.1:8130/v1/models\n   An internal thing.\n\n2. File\n   URL: file:///etc/passwd\n   Not a page.\n\n3. Real page\n   URL: https://example.com/ok\n   A real page.",
+                  state: "ok",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Addresses");
+    await page.waitForTimeout(400);
+    await page.locator(".tool-run").first().waitFor({ timeout: 8000 });
+    for (const summary of await page.locator(".tool-run > summary").all()) await summary.click();
+    const hrefs = await page.locator(".tool-activity a").evaluateAll((nodes) => nodes.map((n) => n.getAttribute("href")));
+    check(
+      "links: only public web addresses are links",
+      hrefs.every((href) => href === null || (href.startsWith("https://example.com/") && !href.includes("127.0.0.1"))),
+      JSON.stringify(hrefs),
+    );
+    check("links: the real one is there", hrefs.some((href) => href === "https://example.com/ok"), JSON.stringify(hrefs));
+    check("links: the loopback address is not a link", !hrefs.some((href) => (href ?? "").includes("127.0.0.1")), JSON.stringify(hrefs));
+    check("links: a script address is not a link", !hrefs.some((href) => (href ?? "").startsWith("javascript:")), JSON.stringify(hrefs));
+    const shown = (await page.locator(".tool-activity").textContent()) ?? "";
+    check("links: the address the model asked for is still shown as text", shown.includes("javascript:alert(1)"), shown.slice(0, 300));
     await browser.close();
   },
   async corrupt() {

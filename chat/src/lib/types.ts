@@ -1,5 +1,23 @@
 export type Role = "user" | "assistant";
 
+/**
+ * One call the model made, kept beside the assistant's answer so the thread can
+ * say what was searched and what came back. The transcript has no `tool` role:
+ * these expand into `role: "tool"` wire messages only when the next request is
+ * built (see `attachments.ts`), and the reload validator never has to know a
+ * third role exists.
+ */
+export interface ToolRun {
+  /** The call's id on the wire, so a running entry becomes the answered one. */
+  id: string;
+  name: string;
+  /** The arguments as the model sent them, as JSON text. */
+  arguments: string;
+  /** What the tool answered — this is what the model read. Bounded upstream. */
+  result: string;
+  state: "running" | "ok" | "failed";
+}
+
 export interface ChatMessage {
   id: string;
   role: Role;
@@ -11,6 +29,8 @@ export interface ChatMessage {
   reasoning?: string;
   /** First reasoning delta to first answer delta, milliseconds. Measured, not set. */
   reasoningMs?: number;
+  /** Tools this answer used, in the order they were called. */
+  toolRuns?: ToolRun[];
 }
 
 export interface ConversationMeta {
@@ -38,4 +58,12 @@ export interface ChatSettings {
   endpoint: string;
   token: string;
   model: string;
+  /**
+   * Whether the assistant may search the web and open pages. The query and the
+   * address leave this computer for a search service on the internet; the
+   * answer comes back into the conversation. On by default, like the phone
+   * (kalsa `src/agent/toolRegistry.ts`), and off means no tools are offered to
+   * the model at all.
+   */
+  webTools: boolean;
 }

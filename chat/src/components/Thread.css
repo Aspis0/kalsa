@@ -240,6 +240,102 @@
   white-space: pre;
 }
 
+/* --- tool activity: quiet, collapsed, and never an image from the network --- */
+
+.tool-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.tool-run {
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 0.85rem;
+}
+
+.tool-run[open] {
+  background: transparent;
+}
+
+.tool-run > summary {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-run > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-run > summary::before {
+  content: "\203A";
+  color: var(--silence);
+  font-size: 1.05em;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+
+.tool-run[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.tool-run-failed > summary {
+  color: var(--danger);
+}
+
+.tool-detail {
+  padding: 0 0.75rem 0.6rem 1.6rem;
+}
+
+.tool-query {
+  margin: 0 0 0.35rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.tool-failure {
+  margin: 0 0 0.35rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.tool-sources {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.tool-sources li {
+  margin: 0.15rem 0;
+  overflow-wrap: anywhere;
+}
+
+.tool-sources a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tool-working {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tool-working span {
+  width: 7px;
+  height: 7px;
+  background: var(--silence);
+  border-radius: 999px;
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+
 /* --- streaming indicator: three quiet dots, no idle spinner --- */
 
 .thinking {

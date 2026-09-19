@@ -1,4 +1,4 @@
-import type { ChatMessage, Conversation, ConversationMeta } from "./types";
+import type { ChatMessage, Conversation, ConversationMeta, ToolRun } from "./types";
 import type { Attachment, AttachmentKind } from "./attachments";
 
 /**
@@ -105,7 +105,35 @@ function cleanMessage(value: unknown): ChatMessage | null {
       ? { reasoning: value.reasoning }
       : {}),
     ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
+    ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
   };
+}
+
+/** Tool runs read back from disk are kept only if whole: a half-written run
+    would render as a call with no answer, which reads like a broken tool.
+
+    `running` is a live state, not a stored one. `put` and `get` both come
+    through here, so a run on its way to disk is already marked interrupted —
+    otherwise a crash while a tool was in flight would leave "Searching the
+    web…" on screen forever after the next reload. */
+function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
+  const runs: ToolRun[] = [];
+  for (const run of value) {
+    if (typeof run !== "object" || run === null) continue;
+    const r = run as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.name !== "string") continue;
+    if (typeof r.arguments !== "string" || typeof r.result !== "string") continue;
+    if (r.state !== "running" && r.state !== "ok" && r.state !== "failed") continue;
+    runs.push({
+      id: r.id,
+      name: r.name,
+      arguments: r.arguments,
+      result:
+        r.state === "running" && r.result === "" ? "Stopped before this finished." : r.result,
+      state: r.state === "running" ? "failed" : r.state,
+    });
+  }
+  return runs.length > 0 ? { toolRuns: runs } : {};
 }
 
 function cleanMeta(value: unknown): ConversationMeta | null {

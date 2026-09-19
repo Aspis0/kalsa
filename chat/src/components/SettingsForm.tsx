@@ -12,6 +12,7 @@ export function SettingsForm({ initial, onSave }: SettingsFormProps) {
   const [endpoint, setEndpoint] = useState(initial.endpoint);
   const [token, setToken] = useState(initial.token);
   const [model, setModel] = useState(initial.model);
+  const [webTools, setWebTools] = useState(initial.webTools);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -34,7 +35,7 @@ export function SettingsForm({ initial, onSave }: SettingsFormProps) {
       return;
     }
     setError(null);
-    onSave({ endpoint: trimmedEndpoint, token: token.trim(), model: model.trim() });
+    onSave({ endpoint: trimmedEndpoint, token: token.trim(), model: model.trim(), webTools });
     setSaved(true);
   }
 
@@ -87,6 +88,23 @@ export function SettingsForm({ initial, onSave }: SettingsFormProps) {
         </p>
       ) : null}
       {saved && !error ? <p className="settings-saved">Saved.</p> : null}
+
+      <div className="settings-toggle">
+        <label>
+          <input
+            type="checkbox"
+            checked={webTools}
+            onChange={(event) => setWebTools(event.target.checked)}
+          />
+          <span>Let the assistant search the web</span>
+        </label>
+        <p className="settings-note">
+          When your question needs something current, the assistant can search the web and open a
+          page. That search — the words it chose, and the address it opens — leaves this computer
+          for a search service on the internet, and what comes back is kept in the conversation.
+          With this off, nothing is sent and the assistant answers from what it already knows.
+        </p>
+      </div>
 
       <div className="settings-actions">
         <button type="button" className="btn-primary" onClick={save}>
