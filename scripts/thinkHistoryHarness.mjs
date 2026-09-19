@@ -471,7 +471,7 @@ function main() {
         options: { historyThink: "content_span" },
         expected: {
           content: "<think>REASONING</think>ANSWER",
-          reasoning_content: "",
+          reasoning_content: " ",
         },
       },
       {
@@ -484,7 +484,20 @@ function main() {
         options: { historyThink: "content_span" },
         expected: {
           content: "<think></think>ANSWER",
-          reasoning_content: "",
+          reasoning_content: " ",
+        },
+      },
+      {
+        name: "content_span tagless but closed",
+        message: {
+          role: "assistant",
+          content: "REASONING</think>ANSWER",
+          modelEmittedText: "REASONING</think>ANSWER",
+        },
+        options: { historyThink: "content_span" },
+        expected: {
+          content: "REASONING</think>ANSWER",
+          reasoning_content: " ",
         },
       },
     ];

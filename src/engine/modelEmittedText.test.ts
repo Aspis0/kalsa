@@ -13,6 +13,7 @@ import {
   normalizeModelEmittedTextForSave,
   promptContentForHistoryMessage,
   readModelEmittedText,
+  QWEN_HISTORY_OLDER_REASONING_SENTINEL,
 } from "./modelEmittedText";
 import {
   assembleEngineHistory,
@@ -218,33 +219,92 @@ describe("llamaHistoryAssistantFields", () => {
     expect(fields).toEqual({ content: `<think>${raw}` });
   });
 
-  test("content_span keeps the raw think span so Qwen history prefixes KV", () => {
-    const raw = "<think>\nplan\n</think>\n\nLa memoria KV è una cache.";
+  test.each([
+    {
+      name: "canonical",
+      source: "<think>\nplan\n</think>\n\nANSWER",
+      expected: {
+        content: "<think>\nplan\n</think>\n\nANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "tight",
+      source: "<think></think>ANSWER",
+      expected: {
+        content: "<think></think>ANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "tagless but closed",
+      source: "REASONING</think>ANSWER",
+      expected: {
+        content: "REASONING</think>ANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "leading whitespace",
+      source: "\n<think>\nplan\n</think>\n\nANSWER",
+      expected: {
+        content: "\n<think>\nplan\n</think>\n\nANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "missing answer separator",
+      source: "<think>\nplan\n</think>ANSWER",
+      expected: {
+        content: "<think>\nplan\n</think>ANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "extra reasoning newline",
+      source: "<think>\nplan\n\n</think>\n\nANSWER",
+      expected: {
+        content: "<think>\nplan\n\n</think>\n\nANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "missing reasoning newline",
+      source: "<think>\nplan</think>\n\nANSWER",
+      expected: {
+        content: "<think>\nplan</think>\n\nANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+    {
+      name: "space-only reasoning",
+      source: "<think>\n   </think>\n\nANSWER",
+      expected: {
+        content: "<think>\n   </think>\n\nANSWER",
+        reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+      },
+    },
+  ])("content_span older preserves %s", ({ source, expected }) => {
     const fields = llamaHistoryAssistantFields(
-      { role: "assistant", content: "La memoria KV è una cache.", modelEmittedText: raw },
+      { role: "assistant", content: source, modelEmittedText: source },
       { historyThink: "content_span" },
     );
-    expect(fields.content).toBe(raw);
-    expect(fields.reasoning_content).toBe("");
+    expect(fields).toEqual(expected);
+    expect(typeof fields.reasoning_content).toBe("string");
+    expect(fields.reasoning_content).not.toHaveLength(0);
+  });
+
+  test("the older-turn sentinel must be non-empty or the template drops it", () => {
+    expect(QWEN_HISTORY_OLDER_REASONING_SENTINEL).not.toBe("");
   });
 
   test("content_span without a closed think omits reasoning_content", () => {
     const fields = llamaHistoryAssistantFields(
-      { role: "assistant", content: "hi", modelEmittedText: "hi" },
+      { role: "assistant", content: "ANSWER", modelEmittedText: "ANSWER" },
       { historyThink: "content_span" },
     );
-    expect(fields.content).toBe("hi");
-    expect(fields.reasoning_content).toBeUndefined();
-  });
-
-  test("content_span keeps an empty think span", () => {
-    const raw = "<think></think>ANSWER";
-    expect(
-      llamaHistoryAssistantFields(
-        { role: "assistant", content: raw, modelEmittedText: raw },
-        { historyThink: "content_span" },
-      ),
-    ).toEqual({ content: raw, reasoning_content: "" });
+    expect(fields).toEqual({ content: "ANSWER" });
+    expect(fields).not.toHaveProperty("reasoning_content");
   });
 });
 
@@ -347,7 +407,7 @@ describe("historyReplayCharLength", () => {
     );
     expect(a1.content).toBe(t1);
     expect(a2.content).toBe(t2);
-    expect(a1.reasoning_content).toBe("");
+    expect(a1.reasoning_content).toBe(QWEN_HISTORY_OLDER_REASONING_SENTINEL);
     expect(assembled[0]?.content).toBe("u1");
   });
 });

@@ -2,7 +2,7 @@
  * Separate "what the model emitted" from "what the user reads".
  * Prompt assembly replays modelEmittedText when present; UI keeps cleaned text.
  * History field shaping adds only the template token required to reproduce
- * the seeded LFM think prefix.
+ * the seeded LFM think prefix or the Qwen older-turn sentinel.
  */
 
 import { THINK_CLOSE, THINK_OPEN } from "./thinkStream";
@@ -30,6 +30,11 @@ export type LlamaHistoryAssistantFields = {
   content: string;
   reasoning_content?: string;
 };
+
+// Measured against the catalogue GGUF with --jinja --reasoning-format none on
+// 18/09/2026: non-empty reasoning_content is never rendered for an older turn.
+// It only stops the template from splitting </think> out of content.
+export const QWEN_HISTORY_OLDER_REASONING_SENTINEL = " ";
 
 /**
  * Where a stored modelEmittedText came from. It records the MECHANISM that
@@ -77,10 +82,17 @@ function emissionAlreadySeeded(
  * - `reasoning_content`: LFM / `preserveThinking` history is replayed through
  *   `content` with the seeded `<think>` prefix restored explicitly.
  * - `content_span`: Qwen 3.5 history (`loop.index0 <= last_query_index`)
- *   emits `content` only. If `reasoning_content` is absent it splits
- *   `</think>` out of content and drops the KV think tokens (S23 9151f78
- *   t6: embd=8009 text_tokens=4438 n_common=0). An empty-string field
- *   skips that split so the raw span stays in `content`.
+ *   keeps the raw span in `content` and supplies the sentinel whenever the
+ *   span contains `</think>`, including spans without a leading `<think>`.
+ *   The old empty string never reached the template: the pinned `llama.rn`
+ *   dependency's `cpp/common/chat.cpp` omits empty `reasoning_content`, so
+ *   the template split `</think>` out of content and dropped the KV reasoning
+ *   block. On CI, turn 2 rendered 2215 tokens against a cache holding 2294,
+ *   at least 79 tokens short despite also carrying a new user turn. After
+ *   restart, turn 3 rendered 2383 with a common prefix of 2213; the whole
+ *   cache was not reused. The 917-second prefill was on a CI emulator at
+ *   roughly 2 tokens per second. The S23 observation was (S23 9151f78 t6:
+ *   embd=8009 text_tokens=4438 n_common=0).
  */
 export type HistoryThinkPlacement = "reasoning_content" | "content_span";
 
@@ -113,9 +125,9 @@ export function llamaHistoryAssistantFields(
       : undefined;
   const source = emitted ?? message.content;
   if (opts?.historyThink === "content_span") {
-    const split = splitClosedLeadingThink(source);
-    if (!split) return { content: source };
-    return { content: source, reasoning_content: "" };
+    return source.includes(THINK_CLOSE)
+      ? { content: source, reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL }
+      : { content: source };
   }
   // The GGUF generation prompt seeds one `<think>` unconditionally (lines
   // 123–125), so the KV already holds exactly one opening tag. Whether the
@@ -167,20 +179,6 @@ export function historyReplayCharLength(
       : replayText.length + THINK_OPEN.length;
   }
   return replayText.length;
-}
-
-function splitClosedLeadingThink(
-  raw: string,
-): { inner: string; after: string } | null {
-  const leading = raw.match(/^[ \t\r\n]*<think>/);
-  if (!leading) return null;
-  const afterOpen = raw.slice(leading[0].length);
-  const closeIdx = afterOpen.indexOf(THINK_CLOSE);
-  if (closeIdx < 0) return null;
-  return {
-    inner: afterOpen.slice(0, closeIdx),
-    after: afterOpen.slice(closeIdx + THINK_CLOSE.length),
-  };
 }
 
 /**
