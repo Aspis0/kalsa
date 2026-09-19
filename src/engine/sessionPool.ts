@@ -157,8 +157,8 @@ export function pickEvictionStems(
 /**
  * Space-mode victims for the disk-gate refusal path: foreign-model files
  * first, then oldest lastUsedAt, taken until their bytes cover `bytesNeeded`
- * — a measured deficit, not a budget, so at most the deficit is paid and no
- * more. Never the keep stem, never the static-prefix snapshot.
+ * — a measured deficit, not a budget. The final whole file may overshoot the
+ * need. Never the keep stem, never the static-prefix snapshot.
  */
 export function pickEvictionStemsForBytes(
   files: PoolFile[],
@@ -275,7 +275,9 @@ export async function evictSessionPool(
 ): Promise<void> {
   const marker = beginEvictMarker();
   const keepModel = modelIdOfStem(keepStem);
-  marker.set({ mode: "budget", keepModel, budgetBytes });
+  const budget =
+    Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
+  marker.set({ mode: "budget", keepModel, budgetBytes: budget });
   // getFreeDiskBytes never throws (deviceProfile contract); everything after
   // this point can, and the line must still carry policy/freeBytes when it
   // does — so they are set before any throwing read.
@@ -292,15 +294,13 @@ export async function evictSessionPool(
     bytes: 0,
     victimModels: [],
   });
-  const budget =
-    Number.isFinite(budgetBytes) && budgetBytes > 0 ? budgetBytes : 0;
   let dropped = 0;
   let freedBytes = 0;
   const victimModels = new Set<string>();
   try {
     marker.set({ sidecars: await sweepStaleSidecars(keepStem) });
     const files = await listPoolFiles();
-    const stems = pickEvictionStems(files, budgetBytes, keepStem, regime);
+    const stems = pickEvictionStems(files, budget, keepStem, regime);
     const bytesByStem = new Map(
       files.map((f) => [f.stem, Math.max(0, f.bytes)]),
     );
@@ -339,7 +339,7 @@ export async function evictSessionPool(
 }
 
 export type SpaceEvictionResult = {
-  /** True when evictable bytes could not cover the need: nothing deleted. */
+  /** True when no whole session cache could cover the need; sidecars may be swept. */
   insufficient: boolean;
   /** Bytes actually dropped, as measured before dropping; 0 if insufficient. */
   bytes: number;
@@ -347,17 +347,18 @@ export type SpaceEvictionResult = {
 
 /**
  * Space eviction for the disk-gate refusal path: free the MEASURED deficit,
- * foreign first, at most that much — never down to a budget.
+ * foreign first, using whole session files until the need is covered — never
+ * down to a budget.
  *
  * The guard here has an honest limit: the deficit is an estimate (required
  * and free bytes from one gate reading — and the gate itself estimates, at
  * the 64 KiB/token fallback rate for an uncalibrated model, with calibration
  * written only after a successful save), and the disk can move between the
- * measurement and the write. So "evictable < deficit → delete nothing" means
- * do not pay the user's caches for a write that provably cannot succeed —
- * it does NOT mean "deleting will certainly be enough". The residual case
- * (deleted, still failed) stays, with the bytes on this run's marker and on
- * the save's failure line.
+ * measurement and the write. So "evictable < deficit → no whole session cache
+ * dropped" means do not pay the user's caches for a write that provably cannot
+ * succeed; the stale-sidecar sweep still runs. It does NOT mean "deleting will
+ * certainly be enough". The residual case (deleted, still failed) stays, with
+ * the bytes on this run's marker and on the save's failure line.
  */
 export async function evictSessionPoolForSpace(
   keepStem: string,
@@ -365,7 +366,14 @@ export async function evictSessionPoolForSpace(
 ): Promise<SpaceEvictionResult> {
   const marker = beginEvictMarker();
   const keepModel = modelIdOfStem(keepStem);
-  marker.set({ mode: "space", policy: "global", keepModel, neededBytes: bytesNeeded });
+  const need =
+    Number.isFinite(bytesNeeded) && bytesNeeded > 0 ? bytesNeeded : 0;
+  marker.set({
+    mode: "space",
+    policy: "global",
+    keepModel,
+    neededBytes: need,
+  });
   // getFreeDiskBytes never throws (deviceProfile contract); policy and
   // freeBytes are on the line before any throwing read.
   const freeBytes = await getFreeDiskBytes();
@@ -387,11 +395,10 @@ export async function evictSessionPoolForSpace(
     const evictable = chatTotalBytes(
       files.filter((f) => !isStaticPrefixStem(f.stem) && f.stem !== keepStem),
     );
-    const need =
-      Number.isFinite(bytesNeeded) && bytesNeeded > 0 ? bytesNeeded : 0;
     marker.set({ evictableBytes: evictable });
     if (evictable < need) {
-      // Provably cannot be enough: delete nothing (docstring's limit).
+      // Provably cannot be enough: drop no whole session cache (sidecars were
+      // swept above, and result.bytes is assigned only after the full batch).
       result.insufficient = true;
       marker.set({ ok: false, reason: EVICT_REASON_DEFICIT });
     } else {
@@ -421,6 +428,9 @@ export async function evictSessionPoolForSpace(
       ),
     });
   } catch (err) {
+    // A mid-batch throw can leave marker progress in freedBytes, while
+    // result.bytes stays 0 because it is assigned only after the loop.
+    result.insufficient = true;
     marker.thrown(err);
   }
   marker.emit();

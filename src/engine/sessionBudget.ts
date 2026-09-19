@@ -60,8 +60,9 @@ export function sessionPoolBudgetBytes(conversations: number): number {
  * a save may only evict its own model's conversations; below it the pool
  * evicts globally (foreign models become victims). The disk-gate refusal path
  * bypasses this floor entirely — it is space mode (evictSessionPoolForSpace),
- * foreign-first and capped by the measured deficit — because the gate's
- * requirement (the estimated session x SESSION_DISK_MARGIN) can exceed the
+ * foreign-first, using whole session files until the measured deficit is
+ * covered — because the gate's requirement (the estimated session x
+ * SESSION_DISK_MARGIN) can exceed the
  * floor, so a refusal does not imply a below-floor reading.
  *
  * In units of the one measured constant: 2 conversations cover the pool's own
@@ -90,8 +91,7 @@ export const EVICTION_FREE_FLOOR_BYTES = 6 * KV_BYTES_PER_CONVERSATION;
  * instead of letting NaN fall through "<" as per-model.
  *
  * The regime chosen is never silent: the KALSA_SESSION evict line records
- * freeBytes and the policy it selected (plus forced:true when the caller
- * pins global regardless of the reading).
+ * freeBytes and the policy it selected.
  */
 export function evictionGoesGlobal(freeBytes: number | null): boolean {
   if (freeBytes == null) return true;

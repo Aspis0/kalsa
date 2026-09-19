@@ -8,7 +8,8 @@
  *
  * `reason` always rides ok:false: over_budget_unevictable (budget mode,
  * nothing left it may evict while still over), deficit_uncoverable (space
- * mode, evictable bytes below the measured need — nothing deleted).
+ * mode, evictable bytes below the measured need — no whole session cache
+ * deleted; stale sidecars may still be swept).
  *
  * poolBytes is every chat file on disk, every model — the pool total. Nothing
  * caps it: the per-model budget multiplies (nModels x budgetBytes), and how

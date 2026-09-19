@@ -165,6 +165,7 @@ import {
   rememberSuccessfulSessionSave,
   readSessionMeta,
   resolveSessionDiskTokens,
+  sessionDiskDeficitBytes,
   sessionDiskGate,
   sessionFileExists,
   sessionFilePath,
@@ -3230,21 +3231,22 @@ export async function saveEngineSession(
           return false;
         }
         // The write has not happened yet — this is the one place eviction
-        // runs BEFORE a save instead of after one. Space mode: free the
-        // measured deficit, foreign first, and nothing more — never down to
-        // the budget. First guard: if the pool cannot cover the deficit,
-        // nothing is deleted and the save fails without paying caches for a
-        // write that provably cannot succeed.
-        const deficit = Math.max(
-          0,
-          (diskGate.requiredBytes ?? 0) - (diskGate.freeBytes ?? 0),
+        // runs BEFORE a save instead of after one. Space mode: free enough
+        // whole session caches, foreign first, for the strict gate to pass;
+        // the final cache may overshoot the measured deficit. First guard:
+        // if the pool cannot cover the deficit, no whole session cache is
+        // dropped and the save fails without paying caches for a write that
+        // provably cannot succeed; stale sidecars may still be swept.
+        const deficit = sessionDiskDeficitBytes(
+          diskGate.requiredBytes,
+          diskGate.freeBytes,
         );
         const space = await evictSessionPoolForSpace(stem, deficit);
         if (space.insufficient) {
           log(false, {
             reason: "disk",
             diskReason: "short",
-            diskMissingBytes: deficit,
+            diskRequiredDeficitBytes: deficit,
           });
           return false;
         }
@@ -3258,7 +3260,7 @@ export async function saveEngineSession(
             reason: "disk",
             diskReason: retryGate.reason ?? "gate_error",
             diskFreedBytes: space.bytes,
-            diskMissingBytes:
+            diskResidualShortfallBytes:
               retryGate.requiredBytes != null && retryGate.freeBytes != null
                 ? Math.max(0, retryGate.requiredBytes - retryGate.freeBytes)
                 : -1,
@@ -3266,11 +3268,10 @@ export async function saveEngineSession(
           return false;
         }
         // Two evictions can serve one save, and both are correct: this one
-        // was space mode (measured deficit, foreign first, at most the
-        // deficit); the post-save eviction after the write enforces the
-        // user's budget in LRU order and runs after ANY successful save. The
-        // space eviction takes at most the deficit, so it never does the
-        // budget eviction's job — and each runs at most once per save.
+        // was space mode (measured deficit, foreign first, whole files); the
+        // post-save eviction after the write enforces the user's budget in
+        // LRU order and runs after ANY successful save. Each runs at most
+        // once per save.
       }
       const path = sessionFilePath(stem);
       tmpPath = `${path}.tmp`;

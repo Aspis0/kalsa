@@ -674,6 +674,21 @@ export function sessionDiskBytesRequired(
   return Math.max(SESSION_DISK_FLOOR_BYTES, estimated * SESSION_DISK_MARGIN);
 }
 
+/** Bytes to free so the strict disk gate can pass after eviction. */
+export function sessionDiskDeficitBytes(
+  requiredBytes: number | null,
+  freeBytes: number | null,
+): number {
+  if (
+    requiredBytes == null ||
+    freeBytes == null ||
+    requiredBytes <= freeBytes
+  ) {
+    return 0;
+  }
+  return requiredBytes - freeBytes + 1;
+}
+
 /** Message count of persisted chat history, or null if missing/invalid. */
 export async function readPersistedHistoryLength(): Promise<number | null> {
   try {

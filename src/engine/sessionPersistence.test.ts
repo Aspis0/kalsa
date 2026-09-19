@@ -25,6 +25,7 @@ import {
   markSessionDivergesAtLastExchange,
   readSessionMeta,
   sessionDiskGate,
+  sessionDiskDeficitBytes,
   sessionFilePath,
   sessionMetaMismatchField,
   sessionAssembleBoundary,
@@ -571,6 +572,15 @@ describe("dropChatKvHold nativeEmpty contract", () => {
 
 describe("sessionDiskGate", () => {
   const input = { nPast: 100, nCtx: 8192, bytesPerToken: 5200 };
+
+  test("exact-fit eviction still leaves one byte for the strict gate", () => {
+    const required = 100;
+    const free = 90;
+    const evictable = required - free;
+
+    expect(sessionDiskDeficitBytes(required, free)).toBe(evictable + 1);
+    expect(sessionDiskDeficitBytes(required, required)).toBe(0);
+  });
 
   afterEach(() => {
     (FileSystem.getFreeDiskStorageAsync as jest.Mock)

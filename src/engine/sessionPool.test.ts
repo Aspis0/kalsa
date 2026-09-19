@@ -479,30 +479,42 @@ describe("evictSessionPool marker", () => {
     }
   });
 
-  test("space mode, evictable < deficit → no file removed", async () => {
+  test("space mode, evictable < deficit → no cache removed, sidecar swept", async () => {
     const FileSystem = await import("expo-file-system/legacy");
     const spy = jest.spyOn(console, "log").mockImplementation(() => {});
     try {
       (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([
         `${keepStem}.kvs`,
         `${qwenStem}.kvs`,
+        `${qwenStem}.kvs.tmp`,
       ]);
       (FileSystem.getInfoAsync as jest.Mock).mockImplementation(
         async (path: string) => ({
           exists: true,
           isDirectory: false,
-          size: path.includes("qwen") ? 50 : 40,
+          size: path.endsWith(".kvs.tmp")
+            ? 0
+            : path.includes("qwen")
+              ? 50
+              : 40,
           modificationTime: 0,
         }),
       );
 
       const result = await evictSessionPoolForSpace(keepStem, 200);
 
-      // Evictable (50 — the keep stem is excluded) < deficit 200: nothing
-      // deleted, the save fails without paying caches for a write that
-      // provably cannot succeed.
+      // The foreign .kvs is only 50 bytes, so no whole cache can cover the
+      // 200-byte deficit. The stale foreign sidecar is still swept first.
       expect(result).toEqual({ insufficient: true, bytes: 0 });
-      expect(FileSystem.deleteAsync as jest.Mock).not.toHaveBeenCalled();
+      const deletedPaths = (FileSystem.deleteAsync as jest.Mock).mock.calls.map(
+        ([path]) => String(path),
+      );
+      expect(deletedPaths).toEqual([
+        `file:///docs/sessions/${qwenStem}.kvs.tmp`,
+      ]);
+      expect(deletedPaths).not.toContain(
+        `file:///docs/sessions/${qwenStem}.kvs`,
+      );
       const lines = spy.mock.calls
         .map((call) => String(call[0]))
         .filter(
@@ -528,7 +540,7 @@ describe("evictSessionPool marker", () => {
     }
   });
 
-  test("space mode, evictable ≥ deficit → only the necessary files removed", async () => {
+  test("space mode, evictable ≥ deficit → whole files cover the need", async () => {
     const FileSystem = await import("expo-file-system/legacy");
     const spy = jest.spyOn(console, "log").mockImplementation(() => {});
     try {
@@ -551,8 +563,8 @@ describe("evictSessionPool marker", () => {
         }),
       );
 
-      // Deficit 50: exactly the foreign file covers it — the same-model file
-      // stays warm, and nothing beyond the deficit is taken.
+      // Need 50: the foreign file covers it — the same-model file stays warm.
+      // Victims are whole files, so a final victim may overshoot the need.
       const result = await evictSessionPoolForSpace(keepStem, 50);
 
       expect(result).toEqual({ insufficient: false, bytes: 50 });
