@@ -1372,3 +1372,50 @@ identical to its source with nothing in between.
 §16 concluded step 6 was a no-op. That was true of the TypeScript surface, which is what it
 measured, and it said so — but it did not look at the app's native modules, and that is where the
 migration actually lands.
+
+---
+
+## 23. The gate now runs by itself — §22.1 and §22.2 are closed
+
+`4e3b2385` and `6eea3f53`. §22.1 called the unwired gate the defect that most threatened the
+standing objective, because "the next bump is cheap" needs the layout **and** a check that runs
+without being remembered. Both halves now exist.
+
+**Wired in two places.** At the end of `scripts/sync-vendor.sh`, after the last export and before
+`log "Done."` — with `set -eo pipefail`, a failing assertion aborts the sync instead of printing
+past it. And as a new `vendor` job in `.github/workflows/ci.yml`, placed first, **with no `if:`**:
+the build jobs there gate themselves off the `kalsa` branch, but the vendored tree is checked in
+and must be valid on every branch, so this job inherits no gating and widens none. It is a checkout
+plus two shell assertions, no node setup.
+
+**Verified live, not by inspection.** The delegate could not execute the CI half locally and said
+so rather than claiming it. I pushed and dispatched: run `35466782230`,
+`vendor :: completed success`. The job exists, runs, and passes.
+
+**§22.2 closed too.** The identity check is now a whole-line match:
+
+```sh
+commit=$(sed -n 's/^char const \* LLAMA_COMMIT *= *"\([^"]*\)";$/\1/p' "$build_info")
+```
+
+anchored at both ends, so a comment mentioning `LLAMA_COMMIT = "..."` no longer satisfies it. The
+dual proves the difference rather than asserting it: against a copy whose real declaration was
+replaced by `// char const * LLAMA_COMMIT = "deadbee";`, the old pattern extracted `deadbee`, found
+seven characters and printed **ok, exit 0** — a build lying about its own engine, passing the gate
+written to prevent exactly that. The new pattern extracts nothing and fails.
+
+### 23.1 §22 finding 3 closed by a smaller script, not a resurrection
+
+`scripts/assert-rnllama-sources.sh` (new) takes the source lists in `cmake/rnllama-sources.cmake`
+— the single source of truth for what is built — and asserts every **explicitly named** path
+resolves on disk. Globbed entries are skipped by design: a glob cannot fall behind. It finds 40
+explicit paths and exits 0 today.
+
+The dual: delete `ggml/src/ggml-backend-reg.cpp` from a copy and it reports
+`1 of 40 explicitly-named paths are absent from the tree`, exit 1. That is precisely the drift
+§21.2 admitted was still possible — 15 individually listed `ggml/src/ggml-*` files against 4
+whole-directory entries — and it is now caught at sync time and in CI instead of surfacing as an
+undefined symbol at link time.
+
+The deleted 466-line predecessor asserted six properties; this restores the one whose loss
+mattered, in a script small enough to read. The rest died honestly with the flattened layout.
