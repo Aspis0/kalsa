@@ -1953,3 +1953,52 @@ mutation that cannot fail for the intended reason is not evidence.
 
 Fixed in `a974a52b`; run `35474384553` (sha `a974a52b`) is the next attempt at
 the §25.2 gate.
+
+### 27.7 The §25.2 gate is met: 7 of 7, zero guards
+
+Run `35474384553` (sha `a974a52b`): **all seven jobs green**, run conclusion
+`success`.
+
+Checked against the prediction as written, not as remembered:
+
+- `grep -c "refs/heads/kalsa" .github/workflows/ci.yml` → **0**.
+- Parsing `ci.yml` as YAML: **7 jobs defined, and not one carries an `if:`**.
+  A raw `grep -cE "^  [a-z][a-z0-9-]*:$"` returns 8 — it also counts `push:`
+  under `on:`. That is orthography, not structure, and it is the second time
+  on this plan a grep count of guards has been wrong; the count that decides
+  a gate has to come from a parser.
+- All 7 defined jobs ran, and all 7 are green.
+
+`build-ios-frameworks` had never once reached the end on this fork. It is
+green now.
+
+**What the gate cost to meet, honestly.** Three CI rounds after the guards
+came off, five distinct causes, and only one of them (`AHardwareBuffer_*`)
+was created by the bmoe move. The other four were pre-existing breakage that
+the `if:` conditions had been hiding — two of them for months. The prediction
+in §25.2 said "all seven green"; the first attempt returned 2, the second 4,
+the third 6, the fourth 7. Recorded as three misses and one hit, not as one
+success.
+
+**The falsifiable-gate habit paid twice.** Writing the prediction before the
+run made the 4/7 result impossible to spin, and writing "iOS will fail next on
+`llama-ext.h`" before run `35472151797` finished turned a guess into a
+confirmed mechanism when the log said exactly that, at the same line number.
+
+### 27.8 What is left
+
+- `0f313bab` (gate path resolution, from the re-audit) is pushed; run
+  `35476684286` confirms the tip. It touches no build input, only
+  `scripts/assert-rnllama-sources.sh`.
+- **Step 25b, at the app pin bump:** delete `kalsa/native/bmoe/` (25 files).
+  Two copies exist until then and editing the app's copy loses the work.
+- Latent, recorded and not reachable today: `MoeStream`'s abort callback
+  outliving `st_->source`; `ggml_cpu_set_expert_ready_hook` being
+  process-global while bmoe treats it as per-stream; `LLAMA_USE_SYSTEM_GGML=ON`
+  cannot build bmoe; model filesystem paths reaching logs.
+- The recurring `tests/CMakeLists.txt` conflict is left as measured (one
+  mechanical line per bump). Moving the governor test block into an included
+  file would zero it, and `git rerere` would not — rerere only replays an
+  identical conflict preimage, and upstream's side differs at every bump.
+  Not worth risking the governor suite for one line; written down so the
+  option is not rediscovered from scratch.
