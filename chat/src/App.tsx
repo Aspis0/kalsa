@@ -8,6 +8,7 @@ import { ChatRequestError, fetchContextSize, serverBase } from "./lib/chat";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
+import { loadThinking } from "./lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
@@ -399,6 +400,9 @@ export function App() {
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
           tools: offeredTools(currentSettings.webTools),
+          // Read at send time, so the control takes effect on the very next
+          // message with no reload.
+          thinking: loadThinking(currentSettings.model),
           runTool: executeToolCall,
           onToolRun: ingestToolRun,
           onReasoning: (text) => {

@@ -34,6 +34,7 @@ export async function loadApp() {
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";
+        export { thinkingSupport } from "../src/lib/thinking.ts";
         export { createToolMarkupStripper } from "../src/lib/toolMarkup.ts";
       `,
       resolveDir: SCRIPTS_DIR,

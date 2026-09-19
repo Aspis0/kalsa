@@ -118,3 +118,27 @@
   margin: 0;
   color: var(--ink-soft);
 }
+
+/* --- thinking: only where the model's template can read it --- */
+
+.sampling-thinking {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+}
+
+.sampling-thinking input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
+.sampling-thinking-note {
+  flex-basis: 100%;
+  color: var(--silence);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}

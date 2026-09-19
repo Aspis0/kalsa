@@ -1,4 +1,6 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { publicHttpUrl } from "../lib/publicUrl";
+import { Openable } from "./Openable";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -17,21 +19,17 @@ function hostOf(src?: string): string {
   }
 }
 
-function safeHref(src?: string): string | undefined {
-  if (src && /^https?:\/\//i.test(src)) return src;
-  return undefined;
-}
-
 // Remote images are never loaded: no request, no IP, no Referer, no query
-// smuggling the conversation out. The address stays openable by hand.
+// smuggling the conversation out. The address stays openable by hand — through
+// the command, which checks it again in Rust.
 function BlockedImage({ alt, src }: { alt?: string; src?: string }) {
-  const href = safeHref(src);
+  const href = publicHttpUrl(src);
   return (
     <span className="blocked-image">
       Image blocked{alt ? `: ${alt}` : ""} ({hostOf(src)}). Images from the network are
       never loaded.{href ? (
         <>
-          {" "}<a href={href} target="_blank" rel="noreferrer">Open address</a>
+          {" "}<Openable url={href}>Open address</Openable>
         </>
       ) : null}
     </span>
@@ -118,11 +116,14 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
           pre: Pre,
           code: Code,
           img: BlockedImage,
-          a: ({ children, href }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          ),
+          // An address the gate refuses is text, not something to click:
+          // `publicUrl.ts` is the one place that decides, and the click itself
+          // goes through Rust. A model writes these addresses; a Tauri webview
+          // cannot follow an `href` anyway.
+          a: ({ children, href }) => {
+            const url = publicHttpUrl(href);
+            return url ? <Openable url={url}>{children}</Openable> : <>{children}</>;
+          },
         }}
       >
         {text}

@@ -9,6 +9,8 @@ import type { SamplingKnob } from "../lib/knobs/types";
 import { loadSampling, samplingProblem, saveSampling } from "../lib/sampling";
 import type { Sampling } from "../lib/sampling";
 import { loadSettings } from "../lib/settings";
+import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
+import type { ThinkingSupport } from "../lib/thinking";
 import { useBrainServer, withBrainDefaults } from "../surfaces/useBrain";
 import { KnobInfo, KnobInfoScope } from "./KnobInfo";
 import "./SamplingPanel.css";
@@ -61,22 +63,29 @@ function automaticLine(row: SamplingKnob, defaults: Sampling, status: DefaultsSt
 }
 
 export function SamplingPanel(): JSX.Element {
+  // The owner's typed endpoint wins; the running brain's own endpoint fills the
+  // blank. On a normal install nothing is typed while the machine is serving,
+  // so reading only the typed field left every row saying no server existed.
+  // Read before the state below, because one of those states starts from the
+  // model the request will name.
+  const brainServer = useBrainServer();
+  const settings = withBrainDefaults(loadSettings(), brainServer);
+  const endpoint = settings.endpoint.trim();
+  const token = settings.token;
+
   const [sampling, setSampling] = useState<Sampling>(() => loadSampling());
   const [defaults, setDefaults] = useState<Sampling>(() => blankDefaults());
   const [defaultsStatus, setDefaultsStatus] = useState<DefaultsStatus>("not-configured");
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  // What this model's own chat template can read. Null until `/props` has
+  // answered: no control before the model has said it has one.
+  const [support, setSupport] = useState<ThinkingSupport | null>(null);
+  const [thinking, setThinking] = useState<boolean>(() => loadThinking(settings.model));
   const groups = useMemo(
     () => Array.from(new Set(SAMPLING_KNOBS.map(({ group }) => group))),
     [],
   );
-  // The owner's typed endpoint wins; the running brain's own endpoint fills the
-  // blank. On a normal install nothing is typed while the machine is serving,
-  // so reading only the typed field left every row saying no server existed.
-  const brainServer = useBrainServer();
-  const settings = withBrainDefaults(loadSettings(), brainServer);
-  const endpoint = settings.endpoint.trim();
-  const token = settings.token;
 
   useEffect(() => {
     if (!endpoint) {
@@ -96,6 +105,7 @@ export function SamplingPanel(): JSX.Element {
       if (result.status !== "unavailable" || Date.now() + delay > deadline) {
         setDefaults(result.values);
         setDefaultsStatus(result.status);
+        setSupport(thinkingSupport(result.chatTemplate));
         return;
       }
       retry = setTimeout(() => void read(Math.min(delay * 2, RETRY_MAX_MS)), delay);
@@ -110,6 +120,20 @@ export function SamplingPanel(): JSX.Element {
       clearTimeout(retry);
     };
   }, [endpoint, token]);
+
+  /**
+   * The template decides whether there is anything to offer, and the choice
+   * lands immediately: it is a per-message setting like the knobs, not
+   * something behind a Save that could refuse it for an unrelated reason.
+   */
+  function chooseThinking(enabled: boolean): void {
+    setThinking(enabled);
+    setFeedback(
+      saveThinking(settings.model, enabled)
+        ? "Saved. Your next message uses it."
+        : "Could not save. Your next message still uses the previous choice.",
+    );
+  }
 
   function change(row: SamplingKnob, raw: string): void {
     const value = raw === "" ? null : Number(raw);
@@ -141,6 +165,26 @@ export function SamplingPanel(): JSX.Element {
       <p className="sampling-note">
         Saved choices change the next message you send. Nothing restarts, and the assistant keeps running.
       </p>
+      {/* Only what this model's template can read. No template read: no control
+          — a switch that moves while nothing changes is worse than none. */}
+      {support === null ? null : support.enableThinking ? (
+        <label className="sampling-thinking">
+          <input
+            type="checkbox"
+            checked={thinking}
+            onChange={(event) => chooseThinking(event.target.checked)}
+          />
+          <span>Thinking</span>
+          <span className="sampling-thinking-note">
+            Off asks this model's own template not to think before answering: faster, and it spends no
+            tokens on reasoning.
+          </span>
+        </label>
+      ) : support.reasoningEffort ? (
+        <p className="sampling-thinking-note">
+          This model's template takes a reasoning effort. This app does not set one yet.
+        </p>
+      ) : null}
       <KnobInfoScope>
         <div className="sampling-groups">
           {groups.map((group) => {

@@ -77,6 +77,9 @@ export interface StreamOptions {
   /** Called when a call starts and again when it answers, so the thread can
       say what is happening while it happens. */
   onToolRun?: (run: ToolRun) => void;
+  /** The reader's thinking choice for this model: `false` asks the model's own
+      template not to think. `undefined` leaves it to the template. */
+  thinking?: boolean;
 }
 
 /** What a tool answered, and whether that answer is a result or a refusal. */
@@ -129,6 +132,9 @@ export type SamplingDefaultsStatus = "reported" | "unavailable" | "refused" | "i
 export interface SamplingDefaultsResult {
   values: Sampling;
   status: SamplingDefaultsStatus;
+  /** The model's own chat template, as `/props` reports it — empty if absent.
+      It says which switches the model can read (see `thinking.ts`). */
+  chatTemplate: string;
 }
 
 function blankSampling(): Sampling {
@@ -149,21 +155,27 @@ export async function fetchSamplingDefaultsWithStatus(
       signal: controller.signal,
       ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
     });
-    if (!response.ok) return { values: defaults, status: "refused" };
+    if (!response.ok) return { values: defaults, status: "refused", chatTemplate: "" };
     const data: unknown = await response.json();
-    if (typeof data !== "object" || data === null) return { values: defaults, status: "invalid" };
+    if (typeof data !== "object" || data === null) return { values: defaults, status: "invalid", chatTemplate: "" };
+    const template = (data as { chat_template?: unknown }).chat_template;
+    const chatTemplate = typeof template === "string" ? template : "";
     const settings = (data as { default_generation_settings?: unknown }).default_generation_settings;
-    if (typeof settings !== "object" || settings === null) return { values: defaults, status: "invalid" };
+    if (typeof settings !== "object" || settings === null) {
+      return { values: defaults, status: "invalid", chatTemplate };
+    }
     const params = (settings as { params?: unknown }).params;
-    if (typeof params !== "object" || params === null) return { values: defaults, status: "invalid" };
+    if (typeof params !== "object" || params === null) {
+      return { values: defaults, status: "invalid", chatTemplate };
+    }
     const values = params as Record<string, unknown>;
     for (const { wire } of SAMPLING_KNOBS) {
       const value = values[wire];
       defaults[wire] = typeof value === "number" && Number.isFinite(value) ? value : null;
     }
-    return { values: defaults, status: "reported" };
+    return { values: defaults, status: "reported", chatTemplate };
   } catch {
-    return { values: defaults, status: "unavailable" };
+    return { values: defaults, status: "unavailable", chatTemplate: "" };
   } finally {
     clearTimeout(timer);
   }
@@ -198,7 +210,14 @@ export function completionBody(
   sampling: Record<string, number>,
   tools: ToolDefinition[] = [],
   toolChoice: "auto" | "none" = "auto",
+  thinking: boolean | null = null,
 ): Record<string, unknown> {
-  if (tools.length === 0) return { ...sampling, model, messages, stream: true };
-  return { ...sampling, model, messages, stream: true, tools, tool_choice: toolChoice };
+  // The model's own switch, and only that one. `thinking === false` is the
+  // reader having turned it off; `true` and `null` send nothing, so the
+  // template keeps its default. A template that cannot read `enable_thinking`
+  // is never offered the control (see `thinking.ts`), so this cannot be a field
+  // the model ignores.
+  const kwargs = thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {};
+  if (tools.length === 0) return { ...sampling, model, messages, stream: true, ...kwargs };
+  return { ...sampling, model, messages, stream: true, tools, tool_choice: toolChoice, ...kwargs };
 }

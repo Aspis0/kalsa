@@ -139,7 +139,9 @@ export async function runRound(
         "Content-Type": "application/json",
         ...(token.trim() ? { Authorization: `Bearer ${token.trim()}` } : {}),
       },
-      body: JSON.stringify(completionBody(model, messages, sampling, tools, toolChoice)),
+      body: JSON.stringify(
+        completionBody(model, messages, sampling, tools, toolChoice, options.thinking ?? null),
+      ),
       signal: linked.signal,
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
-import { available, invoke } from "../lib/tauri";
+import { Openable } from "./Openable";
 import type { ToolRun } from "../lib/types";
 
 /**
@@ -63,37 +63,6 @@ function ToolRow({ run }: { run: ToolRun }) {
         ) : null}
       </div>
     </details>
-  );
-}
-
-/**
- * Something the reader can open in this computer's browser.
- *
- * A button, not an `href`: a Tauri webview does not reach the system browser on
- * its own, so the anchor this used to be was underlined, changed the cursor,
- * and did nothing at all when clicked. The page does not open anything itself —
- * it asks a command, which checks the address again in Rust and only then hands
- * it to the operating system. Outside the app (a plain browser) there is no
- * command, and the browser can open it itself.
- */
-function Openable({ url, children }: { url: string; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className="tool-link"
-      onClick={() => {
-        if (available()) {
-          // The refusal is the command's sentence; the same gate has already
-          // refused such an address before this was offered, so there is
-          // nothing to show the reader here.
-          void invoke("brain_open_url", { url }).catch(() => {});
-          return;
-        }
-        window.open(url, "_blank", "noreferrer");
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
