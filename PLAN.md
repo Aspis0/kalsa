@@ -1476,7 +1476,17 @@ copia parziale non verificabile nel turno ripreso e' lo stesso rischio residuo c
 regime stazionario (`llama-kv-commit.cpp:340-343`), ereditato non introdotto, su un prefisso intero invece che
 incrementale: rischio con nome che l'owner accetta o no. Undici correzioni (C1-C11) a Luna in resume, paragrafo
 duplicato (righe 51/61) da CANCELLARE non riparafrasare; poi re-read di kalsa-93, rilettura intera del
-coordinatore, UN commit.
+coordinatore, UN commit. **CHIUSO (00:35 EDT):** `analysis/README-governor-kv-contract.md`, 269 righe, 21679 byte,
+sha `8d1f6ad3…`, percorso 278/20332 → 273/21919 → 269/21679 (−9 righe, +1347 byte: contenuto ordinato da noi, non
+gonfiatura), riletto per intero dal coordinatore e committato nel lab. Nomi proposti che l'owner deve accettare o
+cambiare: `governor_session_requires_decode_phase` (salvataggio di chat solo a `last_phase == Decode`, chiavato su
+`kind`), `governor_session_route_gate_violation` (Reject all'handoff dopo un load pulito = violazione, non ripiego),
+`kv_commit_unverifiable_copy` (residuo ereditato da ogni handoff, su un prefisso intero al ripristino). Per la lista
+del fork bump: superficie nativa `save_session`/`load_session`/`restore_session_state(...)` atomica al posto di
+`active_ctx()` come destinazione implicita; envelope con `kind`, versione, lato, `last_phase`, due watermark, tuple
+di compatibilita' attenzione+ricorrente (incluso `v_trans`, che `owner.params` clonato NON forza uguale), zero
+rotta. Domanda aperta al design: cosa fa l'app quando l'handoff entra in `fail` per frontiera o copia (governor
+latched per il resto del processo). Cosmetico: a-capo incoerente tra paragrafi, lasciato.
 
 **Anchored-floor, corsia aperta (kalsa-93, 00:0x EDT):** scrive deepseek `db1759ec` (Alternative Coder,
 pi/commandcode, thinking max), revisiona Luna dopo il contratto. Numeri di riga riverificati su disco prima del brief
