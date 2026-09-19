@@ -1840,3 +1840,58 @@ returned REFUTED.
 The test now asserts our contract. Stated plainly rather than sold: both
 `should_use_mtp()` calls in it are now constants, and what it still proves
 is that `reset()` clears `params` and both draft counters.
+
+### 27.5 The gate I set in §25.2 is not met yet: 4 of 7, and two more hidden breakages
+
+The falsifiable gate was "7 of 7 green with every branch guard removed". Run
+`35470060692` (sha `11cc0f9f`) came back **4 of 7**, with
+`grep -c "refs/heads/kalsa" .github/workflows/ci.yml` returning 0. So the
+guard half of the prediction holds and the green half does not. Recorded as a
+miss, not reinterpreted.
+
+What moved: `test` and `build-ios-from-source` went from red to green, closing
+the two causes of §27.2. What stayed red was **not** the same cause twice:
+
+| job | verdict | cause |
+|---|---|---|
+| `vendor`, `lint`, `test`, `build-ios-from-source` | green | — |
+| `build-android-from-source`, `build-android-libs` | red | OpenCL diag not compiled |
+| `build-ios-frameworks` | red | bare include, framework spelling |
+
+**Third cause — fifteen undefined `ggml_opencl_*` symbols at link.** They are
+defined in `ggml-opencl-kalsa-diag.cpp`, which `sync-vendor.sh` exports (it
+takes the whole `ggml/src/ggml-opencl` directory) and which the engine's own
+`ggml/src/ggml-opencl/CMakeLists.txt` builds. llama.rn does not use that
+CMakeLists: it carried a hand-written list naming `ggml-opencl.cpp` and
+`cl-program-cache.cpp` only, repeated verbatim at three call sites, so the
+third file was vendored and never compiled. Fixed in `bde3f975` by globbing
+the directory once in `cmake/rnllama-sources.cmake` — beside the Metal and
+BLAS lists, which already do exactly this — and having all three sites consume
+it. Adding the third name by hand would have left the drift class intact; this
+is the second time that list has gone stale.
+
+**Fourth cause — one include spelled for the wrong build.** With a prebuilt
+xcframework the pod compiles only `cpp/jsi/**` and every engine header comes
+from the framework, where the spelling is `<rnllama/name.h>`.
+`JSINativeHeaders.h` exists to carry both spellings behind
+`RNLLAMA_USE_FRAMEWORK_HEADERS`; `RNLlamaJSI.cpp:12` bypassed it with a bare
+`#include "rn-governor-params.h"`, which resolves from source and fails
+against the framework. Fixed in `739d7a54`.
+
+That one earned a gate, because it is invisible for thirty minutes:
+`assert-rnllama-sources.sh` now refuses any bare include of a `cpp/` root
+header from a `cpp/jsi` file other than `JSINativeHeaders.h`. Proven both
+ways — green on the fixed tree (17 sources), red on the mutation that puts the
+include back, naming the file and the header, with the file restored
+byte-identical afterwards (sha compared, no `git checkout`, since the fix was
+uncommitted at the time).
+
+**The pattern worth keeping.** Three rounds, four causes, and only one of them
+(`AHardwareBuffer_*`) was caused by the bmoe move. A job switched off with an
+`if:` reports nothing, and absence of red reads as green; these had been
+accumulating for months. Each round found exactly one layer because a
+compiler stops at the first fatal error — so "fixed the failure" and "fixed
+the job" are different claims, and only re-running distinguishes them.
+
+Run `35472151797` (sha `739d7a54`) carries both fixes and is the next attempt
+at the gate.
