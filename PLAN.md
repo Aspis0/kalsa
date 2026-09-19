@@ -1301,6 +1301,33 @@ sotto governor il commit ha un pavimento indipendente dai token nuovi, due volte
 codice va nella lista del fork bump di kalsa-2d (battery module, filtro DEBUG, HTP estratte solo se assenti, gate
 nativo della sessione sotto governor); la corsia codice passa poi ad anchored-floor (tutto JS).
 
+**anchored-floor, difetto ESEGUITO con una sonda (kalsa-93, Node 20, 23:45 EDT):** storia di 6 messaggi,
+nCtx 4096, nessun digest: turno corrente corto → confine 0 (tiene tutto); incolla da 9000 char → confine **6**: la
+storia sparisce intera. Meccanismo: `windowProfile.ts:289` addebita il turno corrente dentro ogni finestra
+candidata; `compactor.ts:544-558` `computeAnchoredBoundary` cammina all'indietro e si ferma al primo candidato
+sopra il bersaglio, quindi se il turno corrente da solo supera il bersaglio la rottura e' alla prima iterazione e
+`start` resta `n`; `:559` `Math.max(previous, start)` lo rende monotono. La gemella che DECIDE di ricostruire ha
+gia' la guardia (`windowProfile.ts:318`: un turno corrente sopra il budget non e' colpa della storia); chi ESEGUE
+non ce l'ha. Perimetro: budget 4608 → bersaglio 2880 a nCtx 4096; con il cap per messaggio a 4000 (`compactor.ts:387`)
+qualunque incolla sopra ~2880 char azzera la storia. Due rami con soglia diversa: (a) budget del profilo, solo a
+KV fredda (`windowKvInvariant.ts:34` sopprime la ricostruzione da budget mentre la KV tiene la chat); (b) tetto
+(`ceilingCrossed` sempre passato a `:33`, `ceilingBudgetChars` da `AppShell.tsx:6086-6092`, bersaglio ~3840 a
+system zero, calcolato non eseguito) che scatta a KV VIVA e scarta anche la cache (`:71`). **Decisione:** pavimento =
+ultimo scambio completo utente+assistente (mai confine dispari: con la KV rompe l'alternanza), dentro
+`computeAnchoredBoundary` (unico punto attraversato da entrambi i rami); puo' superare il bersaglio ma mai il
+budget duro contro nCtx: invariante con i numeri veri in un test col nome (cap 4000 + ultimo scambio ≤ nCtx −
+riserva al piu' piccolo nCtx supportato; se non regge scende il cap, non il pavimento). Mutazioni rosse richieste:
+`start = n` senza pavimento; pavimento a un solo messaggio; correzione applicata al solo ramo del profilo. Passo
+successivo al contratto governor.
+
+**Jelly T20C, decisione (23:50 EDT):** il Jelly e' al 70% (non 85): si parte lo stesso dopo l'anti-loop S23 con
+`CAMPAIGN_MIN_BATTERY_LEVEL=65` dichiarato, watchdog dell'operatore che uccide il run sotto il 25% (evidenza
+append-only: un run troncato al turno k e' il dato "k turni sostenuti dal 70%"). Ramo `t20c-jelly` da 7d607c8 in
+scrittura (Luna a mano, provider+modello dichiarati; audit deepseek dopo): seriale dal campo `device` del campaign
+json via `CAMPAIGN_CONFIG`, rifiuto exit 2 se manca o non coincide con ANDROID_SERIAL, `campaigns/t20c-jelly.json`,
+soglie termiche invariate, selftest 47/0 + un caso nuovo con prova rossa. Xiaomi: originali da ripristinare
+domattina `screen_brightness=44`, `screen_brightness_mode=1`, `screen_off_timeout=120000`.
+
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
 (niente DEBUG/CONT verso JS, filtro sull'enum e mai sul testo); stem via dai marker `KALSA_SESSION` in
 `log-privacy` (kalsa-93). LFM (default) non e' toccato da (A): non ha think.
