@@ -462,12 +462,17 @@ export async function getBenchDigestCadence(): Promise<number | null> {
   }
 }
 
-/** Ranking mode for the digest retriever. Absent / invalid → null ("bm25" wins). */
+/**
+ * Ranking mode for the digest retriever. Absent / invalid → null, which leaves
+ * the ciswire digest on its default mode ("hybrid").
+ */
 export type RankingMode = "bm25" | "hybrid";
 
 /**
- * Bench-only ranking mode override. Absent / invalid → null (production "bm25"
- * wins). "hybrid" fuses BM25 + char 3-gram cosine via RRF (no model download).
+ * Bench-only ranking mode override. Absent / invalid → null, and the ciswire
+ * digest then defaults to "hybrid". "bm25" applies only when this key
+ * explicitly asks for it. "hybrid" fuses BM25 + char 3-gram cosine via RRF (no
+ * model download).
  */
 export async function getBenchRanking(): Promise<RankingMode | null> {
   try {

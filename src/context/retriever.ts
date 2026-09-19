@@ -31,8 +31,11 @@ export type RetrieveOptions = {
    */
   userQuota?: boolean;
   /**
-   * Ranking mode: "bm25" (default) or "hybrid" (BM25 + char 3-gram fused via RRF).
-   * Default "bm25" preserves existing behavior.
+   * Ranking mode: "bm25" or "hybrid" (BM25 + char 3-gram fused via RRF).
+   * "hybrid" runs the char 3-gram leg over every indexed doc, so it is a recall
+   * leg, not just a reranker over the BM25 candidates.
+   * When omitted, THIS module ranks "bm25"; the ciswire conversation digest
+   * supplies "hybrid" by default (see resolveCiswireRanking in compactor.ts).
    */
   ranking?: RankingMode;
 };
@@ -49,7 +52,16 @@ const MIN_KEEP_LEN = 6;
 const MAX_SENTENCE_LEN = 300;
 const MAX_QUERY_LEN = 2000;
 export const JACCARD_DEDUP = 0.7;
-/** Privacy gate: require this many shared content n-grams AND BM25+ > 0. */
+/**
+ * BM25-leg relevance cutoff: a doc needs this many shared content n-grams AND
+ * BM25+ > 0 before the BM25 ranking considers it.
+ *
+ * Not a privacy boundary. Retrieval here is on-device: the query, the index and
+ * the ranking stay on the phone, so there is nothing to gate. A privacy gate
+ * belongs at the egress boundary (bridge / cloud), never on local recall.
+ * The hybrid char 3-gram leg ignores this cutoff on purpose. It is a relevance
+ * heuristic for BM25 only, and must not decide what can be recalled at all.
+ */
 export const MIN_SHARED_GRAMS = 3;
 
 export type RankingMode = "bm25" | "hybrid";
@@ -467,10 +479,17 @@ export class RetrieverIndex {
   private nextOrdinal = 0;
   /**
    * Cache of char 3-gram vectors keyed by normalized text.
-   * Incremental: computed once per document on append, reused across queries.
-   * Cost: 4 KB per document (Float32Array(1024)).
+   * Incremental: computed once per unique normalized text on append, reused
+   * across queries and shared by every doc carrying that text.
+   * Cost: 4 KB per unique text (Float32Array(1024)).
    */
   private ngramVecCache = new Map<string, Float32Array>();
+  /**
+   * Live-doc count per normalized text. Distinct docs (a repeated "ok", the
+   * same question twice) can share one cached vector, so eviction may only
+   * drop it when the last holder is gone.
+   */
+  private ngramVecRefs = new Map<string, number>();
 
   /** Append conversation units (tokenized + DF updated). */
   append(units: RetrievalUnit[] | null | undefined): void {
@@ -494,10 +513,15 @@ export class RetrieverIndex {
         if (!normalized) continue;
         const tf = ngramCounts(normalized);
         const dl = tokenCount(tf);
-        // Cache the ngram vector for hybrid ranking (computed once, reused).
+        // Cache the ngram vector for hybrid ranking (computed once per unique
+        // normalized text; shared by every doc that has it).
         if (!this.ngramVecCache.has(normalized)) {
           this.ngramVecCache.set(normalized, ngramVec(normalized));
         }
+        this.ngramVecRefs.set(
+          normalized,
+          (this.ngramVecRefs.get(normalized) ?? 0) + 1,
+        );
         const doc: SentenceDoc = {
           docOrdinal: this.nextOrdinal++,
           turnIndex,
@@ -539,8 +563,15 @@ export class RetrieverIndex {
           if (df <= 0) this.dfMap.delete(t);
           else this.dfMap.set(t, df);
         }
-        // Evict the ngram vector cache entry for this document.
-        this.ngramVecCache.delete(d.normalized);
+        // Release this doc's claim on the shared vector; keep the cache entry
+        // while any retained doc still carries the same normalized text.
+        const refs = (this.ngramVecRefs.get(d.normalized) ?? 1) - 1;
+        if (refs > 0) {
+          this.ngramVecRefs.set(d.normalized, refs);
+        } else {
+          this.ngramVecRefs.delete(d.normalized);
+          this.ngramVecCache.delete(d.normalized);
+        }
       } else {
         d.unitSlot -= n;
         kept.push(d);
@@ -556,7 +587,11 @@ export class RetrieverIndex {
 
   /**
    * Retrieve top snippets for a query against the indexed corpus.
-   * Privacy gate: only docs with BM25+ > 0 and ≥ MIN_SHARED_GRAMS shared n-grams.
+   *
+   * BM25 leg: docs with BM25+ > 0 and ≥ MIN_SHARED_GRAMS shared n-grams.
+   * Hybrid leg (ranking: "hybrid"): char 3-gram cosine over every indexed doc,
+   * RRF-fused with the BM25 leg as a union. MIN_SHARED_GRAMS is a BM25-leg
+   * relevance cutoff, not a privacy boundary.
    */
   retrieve(
     query: string | null | undefined,
@@ -576,7 +611,8 @@ export class RetrieverIndex {
     const queryGrams = ngramCounts(qNorm);
     if (queryGrams.size === 0) return [];
 
-    // Gate: only docs with enough lexical overlap and positive BM25+
+    // BM25 leg cutoff: enough lexical overlap and positive BM25+.
+    // A relevance heuristic, not a privacy boundary (all of this is on-device).
     const candidates: number[] = [];
     const bm25Scores = new Map<number, number>();
     for (let i = 0; i < N; i++) {
@@ -590,48 +626,69 @@ export class RetrieverIndex {
     }
 
     const C = candidates.length;
-    if (C === 0) return [];
-
-    // Rank only among gated candidates (salience cannot resurrect zero-overlap docs)
-    const candDocs = candidates.map((i) => this.docs[i]);
-
     const ranking = options?.ranking ?? "bm25";
+    /**
+     * Hybrid: the char 3-gram leg scores the whole index, so a doc the
+     * shared-gram cutoff dropped can still surface on hashed-bucket cosine
+     * overlap instead of never being ranked at all.
+     */
+    const denseRanksAll = ranking === "hybrid";
+    if (C === 0 && !denseRanksAll) return [];
+
+    // Output pool: gated BM25 candidates, or every doc in hybrid mode — the
+    // union of both legs. The BM25 leg is never narrowed by the dense leg.
+    const pool: number[] = denseRanksAll
+      ? Array.from({ length: N }, (_, i) => i)
+      : candidates.slice();
+    const candDocs = pool.map((i) => this.docs[i]);
+    const P = pool.length;
+    const poolPos = new Map<number, number>();
+    for (let p = 0; p < P; p++) poolPos.set(pool[p], p);
 
     let fused: Float64Array;
 
     if (ranking === "hybrid") {
-      // Hybrid mode: BM25 + ngram cosine fused via RRF
+      // BM25 leg: gated candidates only (unchanged).
       const bm25Ids = candidates
         .slice()
         .sort((a, b) => (bm25Scores.get(b) ?? 0) - (bm25Scores.get(a) ?? 0))
         .map(String);
 
-      // Compute ngram ranking: cosine similarity to query vector
+      // ngram leg: cosine similarity to query vector over the pool (every doc
+      // in hybrid mode). Vectors are cached per document, so this is CPU-only
+      // and never touches a model.
+      // Floor: a doc with cosine 0 shares no hashed bucket with the query, so it
+      // carries no recall signal — ranking it would only push noise into the
+      // fused top-N. Only cosine > 0 docs enter the ngram ranking.
       const qVec = ngramVec(qNorm);
       const ngramScores = new Map<number, number>();
-      for (let c = 0; c < C; c++) {
-        const d = candDocs[c];
+      const ngramPos: number[] = [];
+      for (let p = 0; p < P; p++) {
+        const d = candDocs[p];
         const dVec = this.ngramVecCache.get(d.normalized);
-        if (dVec) {
-          ngramScores.set(candidates[c], cosine(qVec, dVec));
-        }
+        if (!dVec) continue;
+        const sim = cosine(qVec, dVec);
+        if (sim <= 0) continue;
+        ngramScores.set(pool[p], sim);
+        ngramPos.push(p);
       }
-      const ngramIds = candidates
-        .slice()
-        .sort((a, b) => (ngramScores.get(b) ?? 0) - (ngramScores.get(a) ?? 0))
-        .map(String);
+      const ngramIds = stableSortIndices(ngramPos.length, (a, b) => {
+        const pa = ngramPos[a];
+        const pb = ngramPos[b];
+        const ds =
+          (ngramScores.get(pool[pb]) ?? 0) - (ngramScores.get(pool[pa]) ?? 0);
+        if (ds !== 0) return ds > 0 ? 1 : -1;
+        return tiebreakDocs(candDocs[pa], candDocs[pb]);
+      }).map((k) => String(pool[ngramPos[k]]));
 
       // Fuse via RRF
       const rrfResult = rrf([bm25Ids, ngramIds], RRF_K);
-      fused = new Float64Array(C);
-      let idx = 0;
+      fused = new Float64Array(P);
       for (const [idStr, score] of rrfResult) {
-        const id = Number(idStr);
-        const c = candidates.indexOf(id);
-        if (c >= 0) {
-          fused[c] = score;
+        const p = poolPos.get(Number(idStr));
+        if (p !== undefined) {
+          fused[p] = score;
         }
-        idx++;
       }
     } else {
       // BM25 mode: existing BM25 + salience fusion
@@ -653,19 +710,22 @@ export class RetrieverIndex {
       const salRank = new Int32Array(C);
       for (let r = 0; r < C; r++) salRank[salOrder[r]] = r + 1;
 
-      fused = new Float64Array(C);
-      for (let c = 0; c < C; c++) {
+      fused = new Float64Array(P);
+      for (let c = 0; c < P; c++) {
         fused[c] = 1 / (RRF_K + bm25Rank[c]) + 1 / (RRF_K + salRank[c]);
       }
     }
 
-    const order = stableSortIndices(C, (a, b) => {
+    // fused > 0 keeps only docs that scored in at least one leg. In hybrid mode
+    // a doc in neither leg has fused 0 (e.g. zero cosine to the query, so no
+    // recall signal) and must not fill leftover top-N slots as noise.
+    const order = stableSortIndices(P, (a, b) => {
       const ds = fused[b] - fused[a];
       if (ds !== 0) return ds > 0 ? 1 : -1;
       return tiebreakDocs(candDocs[a], candDocs[b]);
-    });
+    }).filter((p) => fused[p] > 0);
 
-    const selected: number[] = []; // indices into candidates[]
+    const selected: number[] = []; // indices into candDocs[] (the output pool)
     const isDup = (c: number): boolean => {
       for (const s of selected) {
         if (

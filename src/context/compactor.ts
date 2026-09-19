@@ -46,6 +46,7 @@
 
 import {
   RetrieverIndex,
+  type RankingMode,
   type RetrievalUnit,
   type RetrieveOptions,
   type RetrievedSnippet,
@@ -99,7 +100,7 @@ export interface CompactorConfig {
 export interface DigestIndex {
   retrieve(
     query: string | null | undefined,
-    options?: RetrieveOptions & { ranking?: "bm25" | "hybrid" },
+    options?: RetrieveOptions,
   ): RetrievedSnippet[];
   readonly documentCount?: number;
 }
@@ -232,7 +233,8 @@ export function shouldInjectOperativeBlock(
 
 /**
  * Defensive parser for the bench-only ranking mode override.
- * Absent / empty / unknown → null (no override, "bm25" wins).
+ * Absent / empty / unknown → null (no override; the ciswire conversation
+ * digest then defaults to "hybrid", see resolveCiswireRanking).
  * Accepts "bm25" or "hybrid" (case-insensitive). Returns lowercase.
  */
 export function parseBenchRanking(
@@ -244,6 +246,21 @@ export function parseBenchRanking(
   if (trimmed === "bm25") return "bm25";
   if (trimmed === "hybrid") return "hybrid";
   return null;
+}
+
+/**
+ * Resolve the ranking mode for the ciswire conversation digest.
+ *
+ * Default (no bench override): "hybrid", so the char 3-gram leg ranks every
+ * indexed doc instead of only reranking the BM25-gated candidates — pure CPU,
+ * no model call. The bench key still wins for A/B runs: "bm25" keeps the old
+ * BM25-gated leg.
+ * Document retrieval never calls this: it stays on its own BM25 cutoff.
+ */
+export function resolveCiswireRanking(
+  benchOverride?: string | null,
+): RankingMode {
+  return parseBenchRanking(benchOverride) === "bm25" ? "bm25" : "hybrid";
 }
 
 export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
@@ -743,6 +760,8 @@ export function truncateBudget(s: string, maxChars: number): string {
  * @param index Warm RetrieverIndex (or compatible) holding older turns.
  * @param oldTurns Turns before the boundary (retrieval corpus; fallback only).
  * @param currentQuery Current user message (retrieval query).
+ * @param ranking Bench override (kalsa.bench.ranking). Absent → resolver default
+ *   ("hybrid": the char 3-gram leg ranks every indexed doc).
  */
 export function buildDigest(
   index: DigestIndex | null | undefined,
@@ -750,10 +769,11 @@ export function buildDigest(
   currentQuery: string | null | undefined,
   config?: Partial<CompactorConfig> | null,
   onTelemetry?: (telemetry: DigestTelemetry) => void,
-  ranking?: "bm25" | "hybrid",
+  ranking?: RankingMode,
 ): string {
   const startTime = Date.now();
   const cfg = mergeConfig(config);
+  const rankingMode = resolveCiswireRanking(ranking);
   const q = typeof currentQuery === "string" ? currentQuery : "";
   if (!q.trim()) {
     if (onTelemetry) {
@@ -767,7 +787,7 @@ export function buildDigest(
     maxCharsPerSnippet: DEFAULT_DIGEST_SNIPPET_CHARS,
     // Spend digest slots on user-planted facts, not assistant hedging boilerplate.
     userQuota: true,
-    ranking: ranking ?? "bm25",
+    ranking: rankingMode,
   };
 
   let snippets: RetrievedSnippet[] = [];
@@ -1123,7 +1143,7 @@ export function refreshQueryDigest(
     currentQuery: string;
     config?: Partial<CompactorConfig> | null;
     onTelemetry?: (telemetry: DigestTelemetry) => void;
-    ranking?: "bm25" | "hybrid";
+    ranking?: RankingMode;
   },
 ): CompactorState {
   const base = prev ?? emptyCompactorState(args.chatId || DEFAULT_CHAT_ID);

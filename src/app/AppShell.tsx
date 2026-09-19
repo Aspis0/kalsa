@@ -335,6 +335,7 @@ import {
   parseContextMode,
   refreshQueryDigest,
   resolveBoundaryIndex,
+  resolveCiswireRanking,
   selectAnchoredBudget,
   serializeCompactorState,
   shouldRebuildAnchored,
@@ -6354,9 +6355,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // best-effort persistence
                 }
               } else {
-                // Bench-only: ranking mode for the digest retriever.
-                // Absent in production → null → "bm25" (existing behavior).
+                // Bench-only override for the digest ranking; absent → the pure
+                // resolver default ("hybrid": the char 3-gram leg ranks every doc).
                 const rankingOverride = await getBenchRanking();
+                const digestRanking = resolveCiswireRanking(rankingOverride);
 
                 // Corpus eligible for BM25 + rolling summary: everything
                 // outside ciswire's legacy sliding window.
@@ -6394,7 +6396,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                         ciswireFlags: turnCiswireFlags || undefined,
                       }),
                     ),
-                  ranking: rankingOverride ?? "bm25",
+                  ranking: digestRanking,
                 });
                 compactorStateByChat.set(chatId, state);
 

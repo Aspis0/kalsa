@@ -8,11 +8,13 @@ import {
   advanceCompactionBoundary,
   anchoredHistoryDropReason,
   assembleEngineHistory,
+  buildDigest,
   computeAnchoredBoundary,
   emptyCompactorState,
   lastCompleteExchangeStart,
   LEGACY_MAX_CHARS,
   parseBenchDigestCadence,
+  resolveCiswireRanking,
   shouldRebuildAnchored,
   shouldInjectOperativeBlock,
   LEGACY_MAX_HISTORY,
@@ -24,6 +26,7 @@ import {
   splitAtBoundary,
   type HistoryRoleMessage,
 } from "./compactor";
+import { RetrieverIndex } from "./retriever";
 import { resolveWindowProfile, anchoredWindowChars } from "./windowProfile";
 
 function makeHistory(n: number): HistoryRoleMessage[] {
@@ -694,5 +697,33 @@ describe("anchored boundary floor at the production per-message cap", () => {
       );
     });
     expect(kept).toEqual(rows.map(() => floorIndex));
+  });
+});
+
+// Vowel-only query vs consonant-only mark: no shared 3-/4-gram, non-zero
+// hashed-bucket cosine (same fixture rationale as retriever.test.ts).
+const GATE_QUERY = "eia oue aio uea oai eou uia oae eio uao aeu oiu eai uoe";
+const GATE_MARK = "klt bdf ghm npq stv wzc xkm bdg hln prs tvw zcf kmn bdf hlp rstv";
+
+describe("ciswire conversation digest ranking", () => {
+  test("resolveCiswireRanking defaults to hybrid without a bench key", () => {
+    expect(resolveCiswireRanking()).toBe("hybrid");
+    expect(resolveCiswireRanking(null)).toBe("hybrid");
+    expect(resolveCiswireRanking("")).toBe("hybrid");
+    // Idempotent: feeding back a resolved mode yields the same mode.
+    expect(resolveCiswireRanking("hybrid")).toBe("hybrid");
+    // The bench key still wins for A/B runs.
+    expect(resolveCiswireRanking("bm25")).toBe("bm25");
+    expect(resolveCiswireRanking("  BM25 ")).toBe("bm25");
+  });
+
+  test("buildDigest default uses the ungated dense leg", () => {
+    const idx = new RetrieverIndex();
+    idx.append([{ turnIndex: 0, role: "user", text: GATE_MARK }]);
+
+    // No ranking argument = no bench key: the default must recall the mark.
+    expect(buildDigest(idx, null, GATE_QUERY).length).toBeGreaterThan(0);
+    // The old BM25-gated behavior still returns nothing when asked for it.
+    expect(buildDigest(idx, null, GATE_QUERY, null, undefined, "bm25")).toBe("");
   });
 });
