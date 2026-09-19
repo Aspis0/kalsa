@@ -14,7 +14,7 @@ import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
-import { handoff } from "./app/handoff";
+import { arrivingIn, handoff, leavingGhost } from "./app/handoff";
 import { CrescentNav } from "./components/CrescentNav";
 import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -50,7 +50,7 @@ interface Refusal {
 }
 
 function surfaceLabel(surface: SurfaceKey): string {
-  if (surface === "brain") return "Brain";
+  if (surface === "brain") return "Home";
   return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
 }
 
@@ -529,6 +529,9 @@ export function App() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const bar = calm ? null : document.querySelector(".brain-bar");
     const before = bar ? bar.getBoundingClientRect() : null;
+    // The whole screen changes, and the bar's flight is part of that change:
+    // the room here leaves on a copy of itself while the next one arrives.
+    if (!calm) leavingGhost(document.querySelector(".stage"));
 
     let openedId: string | null = null;
     // The commit has to be in the DOM before the bubble can be measured, which
@@ -539,7 +542,12 @@ export function App() {
     if (openedId === null) return;
     // The bubble is in the DOM by now — flushSync committed it — and it is
     // found by its message id, so no state has to be held for the move.
+    // The flight is measured and started first: the room's own entrance shifts
+    // it down a few pixels, and the mover has to aim at where the bubble will
+    // really be, not at where it is passing through. Both start in the same
+    // task, so they are one movement on screen.
     handoff(before, document.querySelector(`[data-message-id="${openedId}"]`));
+    if (!calm) arrivingIn(document.querySelector(".stage > *"));
   }
 
   function stop(): void {
@@ -626,7 +634,7 @@ export function App() {
   // the component drops the page you are on and anything that page already
   // offers — see the rule in `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
-    { key: "brain", label: "Brain", onSelect: () => openSurface("brain") },
+    { key: "brain", label: "Home", onSelect: () => openSurface("brain") },
     { key: "settings", label: "Settings", onSelect: () => openSurface("settings") },
   ];
 
@@ -679,10 +687,25 @@ export function App() {
           {surface !== "settings" && surface !== "chat" ? (
             <button
               type="button"
-              className="topbar-btn"
+              className="topbar-btn topbar-settings"
               onClick={() => openSurface("settings")}
               aria-label="Settings"
             >
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                <path
+                  d="M8 10.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="M8 1.6v1.7M8 12.7v1.7M14.4 8h-1.7M3.3 8H1.6M12.5 3.5l-1.2 1.2M4.7 11.3l-1.2 1.2M12.5 12.5l-1.2-1.2M4.7 4.7 3.5 3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                />
+              </svg>
               Settings
             </button>
           ) : null}

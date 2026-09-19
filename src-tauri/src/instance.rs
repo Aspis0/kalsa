@@ -79,7 +79,7 @@ impl std::fmt::Display for LockFailure {
         match self {
             Self::AlreadyRunning => write!(
                 f,
-                "another Kalsa Brain instance already owns this account's credential store"
+                "another Kalsa instance already owns this account's credential store"
             ),
             Self::Io { path, source } => write!(
                 f,

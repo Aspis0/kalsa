@@ -5,7 +5,12 @@
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
 import { crescentEntriesFor } from "../src/app/crescentLayout.ts";
-import { HANDOFF_ATTRIBUTE as handoffAttribute, HANDOFF_MS as handoffMs } from "../src/app/handoff.ts";
+import {
+  ARRIVING_ATTRIBUTE as arrivingAttribute,
+  HANDOFF_ATTRIBUTE as handoffAttribute,
+  HANDOFF_MS as handoffMs,
+  LEAVING_ATTRIBUTE as leavingAttribute,
+} from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
 
 const APP = "http://localhost:5173";
@@ -792,7 +797,7 @@ const tests = {
   // again the moment somebody added the duplicate back under another name.
   async crescent() {
     const entries = [
-      { key: "brain", label: "Brain" },
+      { key: "brain", label: "Home" },
       { key: "chat", label: "Chat" },
       { key: "settings", label: "Settings" },
       { key: "history", label: "History" },
@@ -2241,7 +2246,7 @@ const tests = {
     // twenty-six of those carries no thinking control.
     await page.getByRole("button", { name: "Show menu" }).click();
     await page.waitForTimeout(300);
-    await page.getByRole("button", { name: "Open Brain" }).click();
+    await page.getByRole("button", { name: "Open Home" }).click();
     await page.waitForTimeout(500);
     await page.locator(".brain-settings").getByRole("button", { name: "Advanced" }).click();
     await page.waitForTimeout(800);
@@ -2290,6 +2295,30 @@ const tests = {
     await page.waitForTimeout(400);
     const chips = await page.locator(".brain-settings-item").allTextContents();
     check("door: the machine row stays four", chips.length === 4 && !chips.includes("Settings"), JSON.stringify(chips));
+
+    // The reader should be able to tell, without being told: what is in the page
+    // is about this computer, what is in the chrome is about the app. A chip in
+    // the page reads as important; a word in the corner that looks like a label
+    // reads as minor — and Settings is not less important than Advanced.
+    const doorSkin = await door.first().evaluate((el) => {
+      const skin = getComputedStyle(el);
+      return { border: skin.borderTopWidth, background: skin.backgroundColor, colour: skin.color };
+    });
+    check(
+      "door: it is drawn as a button, not a word",
+      doorSkin.border !== "0px" && doorSkin.background !== "rgba(0, 0, 0, 0)",
+      JSON.stringify(doorSkin),
+    );
+    const label = await page.locator(".brain-machine-label").first().evaluate((el) => {
+      const skin = getComputedStyle(el);
+      return { text: el.textContent ?? "", weight: Number(skin.fontWeight), size: parseFloat(skin.fontSize), colour: skin.color };
+    });
+    check("row: the machine's label says what the row is", label.text.includes("This computer"), JSON.stringify(label));
+    check(
+      "row: and reads as a heading, not as a quiet footnote",
+      label.weight >= 600 && label.size >= 15 && label.colour !== "rgb(128, 128, 128)",
+      JSON.stringify(label),
+    );
     await browser.close();
   },
 
@@ -2338,6 +2367,28 @@ const tests = {
       };
     }, handoffAttribute);
     check("handoff: the moving element exists", move !== null, "no element carried the move");
+    // The whole screen changes, and the bar is part of it: the room that is
+    // leaving and the room arriving are animated over the same beat, so nothing
+    // finishes before the bar lands or visibly after it.
+    const rooms = await page.evaluate(
+      ({ leaving, arriving }) => {
+        const read = (attribute) => {
+          const element = document.querySelector(`[${attribute}]`);
+          if (!element) return null;
+          const animation = element.getAnimations()[0];
+          return animation ? animation.effect?.getTiming().duration ?? null : null;
+        };
+        return { leaving: read(leaving), arriving: read(arriving) };
+      },
+      { leaving: leavingAttribute, arriving: arrivingAttribute },
+    );
+    check("handoff: the room that leaves is animated", rooms.leaving === handoffMs, JSON.stringify(rooms));
+    check("handoff: the room that arrives is animated", rooms.arriving === handoffMs, JSON.stringify(rooms));
+    check(
+      "handoff: one movement, one duration",
+      rooms.leaving === handoffMs && rooms.arriving === handoffMs && move?.duration === handoffMs,
+      JSON.stringify({ ...rooms, mover: move?.duration }),
+    );
     if (move && bar) {
       check(
         "handoff: it starts where the bar was",
@@ -2376,6 +2427,11 @@ const tests = {
         (await page.locator(`[${handoffAttribute}]`).count()) === 0,
         "the mover stayed on the page",
       );
+      check(
+        "handoff: so is the room that left",
+        (await page.locator(`[${leavingAttribute}]`).count()) === 0,
+        "the ghost of the last screen stayed on the page",
+      );
     }
     check("handoff: the message is in the thread", ((await page.locator(".thread").textContent()) ?? "").includes("First message from the bar."), "the message did not arrive");
 
@@ -2389,7 +2445,13 @@ const tests = {
     await calm.getByRole("textbox", { name: "Write to the brain" }).fill("No animation for me.");
     await calm.getByRole("textbox", { name: "Write to the brain" }).press("Enter");
     await calm.waitForTimeout(handoffMs + 200);
-    check("handoff: reduced motion moves nothing", (await calm.locator(`[${handoffAttribute}]`).count()) === 0, "a move ran under reduced motion");
+    check(
+      "handoff: reduced motion moves nothing",
+      (await calm.locator(`[${handoffAttribute}]`).count()) === 0 &&
+        (await calm.locator(`[${leavingAttribute}]`).count()) === 0 &&
+        (await calm.locator(`[${arrivingAttribute}]`).count()) === 0,
+      "a move ran under reduced motion",
+    );
     check("handoff: and the message still arrives", ((await calm.locator(".thread").textContent()) ?? "").includes("No animation for me."), "reduced motion lost the message");
     await browser.close();
   },

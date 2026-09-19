@@ -163,7 +163,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
               ? dto.running
                 ? "The current server stays as it is. Changes apply next time you turn on."
                 : "Changes apply next time you turn on."
-              : "These settings are available inside the Kalsa Brain app."}
+              : "These settings are available inside the Kalsa app."}
           </p>
           <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={32768} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>

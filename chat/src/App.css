@@ -80,6 +80,22 @@
   border-color: var(--border-strong);
 }
 
+/* The app's own door, in the app's own strip. Drawn as a control — a bordered
+   button with the word in it — because a word that looks like a label reads as
+   a footnote, and Settings is not less important than the chips in the page. */
+.topbar-settings {
+  gap: 0.3rem;
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--border-strong);
+  font-weight: 500;
+}
+
+.topbar-settings:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .topbar-btn-danger {
   color: var(--danger);
   border-color: var(--danger);

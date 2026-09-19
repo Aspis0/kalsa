@@ -950,7 +950,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let lock = match instance::acquire_dir_lock(parent) {
                 Ok(lock) => lock,
                 Err(instance::LockFailure::AlreadyRunning) => {
-                    eprintln!("Kalsa Brain is already running — its window is coming forward.");
+                    eprintln!("Kalsa is already running — its window is coming forward.");
                     for window in app.webview_windows().values() {
                         let _ = window.close();
                     }

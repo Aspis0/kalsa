@@ -32,6 +32,68 @@ export const HANDOFF_MS = 450;
 
 /** How a test finds the moving element while it is in flight. */
 export const HANDOFF_ATTRIBUTE = "data-brain-handoff";
+/** The room that is leaving, and the one arriving: the move is the whole
+    screen changing, with the bar's flight as part of it. */
+export const LEAVING_ATTRIBUTE = "data-brain-leaving";
+export const ARRIVING_ATTRIBUTE = "data-brain-arriving";
+
+/** The distance the rooms travel while they cross: a room changing, not a
+    slideshow. Small enough to read as one movement with the bar. */
+const ROOM_SHIFT_PX = 6;
+
+/**
+ * The screen that is here now, photographed so it can leave while the next one
+ * arrives. The real content is unmounted by the state change, so its motion has
+ * to travel on a copy: one element over the stage, fading out and rising a few
+ * pixels, gone when the move is over.
+ */
+export function leavingGhost(stage: Element | null): Animation | null {
+  if (!stage) return null;
+  const rect = stage.getBoundingClientRect();
+  const ghost = document.createElement("div");
+  ghost.setAttribute(LEAVING_ATTRIBUTE, "");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.append(...[...stage.childNodes].map((node) => node.cloneNode(true)));
+  Object.assign(ghost.style, {
+    position: "fixed",
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    overflow: "hidden",
+    background: "var(--page)",
+    zIndex: "30",
+    pointerEvents: "none",
+  });
+  document.body.append(ghost);
+  const animation = ghost.animate(
+    [
+      { opacity: 1, transform: "translateY(0px)" },
+      { opacity: 0, transform: `translateY(-${ROOM_SHIFT_PX}px)` },
+    ],
+    { duration: HANDOFF_MS, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "forwards" },
+  );
+  const remove = () => ghost.remove();
+  animation.finished.then(remove, remove);
+  return animation;
+}
+
+/**
+ * The screen that is arriving: it comes in over the same beat, from a few pixels
+ * down and from nothing, so it reads as the room the bar flew into rather than
+ * as a cut with an animation on top. Its own styles stand when the move ends.
+ */
+export function arrivingIn(element: Element | null): Animation | null {
+  if (!element) return null;
+  element.setAttribute(ARRIVING_ATTRIBUTE, "");
+  return element.animate(
+    [
+      { opacity: 0, transform: `translateY(${ROOM_SHIFT_PX}px)` },
+      { opacity: 1, transform: "translateY(0px)" },
+    ],
+    { duration: HANDOFF_MS, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+  );
+}
 
 /**
  * Fly `before` (the bar's rectangle) onto `bubble`, carrying its text, and take

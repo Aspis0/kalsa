@@ -148,7 +148,13 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
           row called "Settings" holding an entry called "Settings" said
           neither. */}
       <nav className="brain-settings" aria-label="This computer">
-        <p className="surface-eyebrow">This computer</p>
+        {/* The row says what it is, in its own voice: the chips under it are
+            the machine's, and that is what makes the word in the header legible
+            as the app's. It used to be the quiet uppercase eyebrow used for
+            section labels, which read as a footnote over four buttons. */}
+        <div className="brain-machine">
+          <p className="brain-machine-label">This computer</p>
+        </div>
         {SURFACES.filter((surface) => surface.group === "machine").map((surface) => (
           <button
             type="button"
