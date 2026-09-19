@@ -865,9 +865,22 @@ the re-point broke the build.
 Of the 15 files under `cpp/` that still carry prefixed identifiers, 12 are kalsa **engine** files
 (`llama-kv-staged`, `llama-memory-hybrid-idx`, `llama-kv-commit`, `llama-hybrid-commit`,
 `llama-kv-cache-dsa-iswa`, `llama-governor`, `llama-governor-runtime`) flattened into `cpp/` by
-the old sync. **No source list names any of them.** All seven pairs already exist in kalsallama
-under `src/`, so after step 7 they arrive through `vendor/` with plain names, and the `cpp/`
-copies are pure deletion.
+the old sync. All seven pairs already exist in kalsallama under `src/`, so after step 7 they
+arrive through `vendor/` with plain names, and the `cpp/` copies are pure deletion.
+
+**Correction, found by the delegate and verified on disk.** I first wrote that no source list
+names them. That is true only of the CMake path. `llama-rn.podspec:41` reads
+
+```ruby
+  if ENV["RNLLAMA_BUILD_FROM_SOURCE"] == "1"
+    s.source_files = "ios/*.{h,m,mm}", "cpp/**/*.{h,cpp,hpp,c}", ...
+```
+
+so the **iOS build-from-source path compiles every file under `cpp/`**, all 105 prefixed
+references included. Before the merge that resolved, because `cpp/` also held the prefixed ggml
+headers; it does not now. The merge therefore broke two build paths, not one, and the second is
+not repaired by de-prefixing — it is repaired by the deletion in step 8. That path is not
+currently exercised (iOS is parked), which is why it went unnoticed.
 
 The residue is therefore: one call (`rn-governor.cpp:77`), one comment (`rn-llama.cpp:770`,
 `lm_ggml_aligned_malloc`), and `cpp/ggml-version.h` — which has no consumer and asserts a **false**
@@ -893,7 +906,9 @@ rest are candidates: 17 kalsa engine files, `ggml-version.h`, `llama-version.h`,
 and `cpp/hash/**` — now duplicated by `vendor/llama.cpp/vendor/hash`, which is what
 `RNLLAMA_VENDOR_SOURCES` actually compiles.
 
-The hazard is **include-path shadowing**, not the source lists: `RNLLAMA_INCLUDE_DIRS` puts
+Two hazards, not one. The first is the podspec glob above: under `RNLLAMA_BUILD_FROM_SOURCE=1`
+nothing under `cpp/` is unnamed, so "absent from every source list" is not a safe reading of
+dead. The second is **include-path shadowing**: `RNLLAMA_INCLUDE_DIRS` puts
 `${RNLLAMA_CPP_DIR}` **first**, so a bare `#include "hash.h"` resolves to the stale `cpp/` copy
 before the vendored one. A file can be absent from every source list and still be live. Step 8's
 gate is a per-file consumer proof that covers both paths, not a source-list scan.
