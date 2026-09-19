@@ -492,12 +492,23 @@ async function main() {
       if (tiles.speeds.length !== expected.length) {
         problems.push(`${tiles.speeds.length} speeds for ${expected.length} options`);
       }
-      // The length every speed on the card is priced at. Without it the
-      // figures read as general claims, and the cache makes them false the
-      // moment a conversation starts.
-      const priced = `Predicted speeds are for a ${fixture.capability.model.speed_context_tokens.toLocaleString("en-US")}-token conversation`;
-      if (!tiles.text.includes(priced)) {
-        problems.push(`the card does not say what the speeds are priced at ("${priced}")`);
+      // The length every speed is priced at, in the drawer now rather than on
+      // the card. Without it the figures read as general claims, and the cache
+      // makes them false the moment a conversation starts; the reason it was
+      // written still holds, so the check moved with it. `textContent` reads
+      // the drawer closed, so no screenshot or geometry check moves with it.
+      const priced = `These speeds are for a conversation of about ${fixture.capability.model.speed_context_tokens.toLocaleString("en-US")} tokens`;
+      const working = await page.evaluate(() => {
+        const card = document.querySelector(".machine-card");
+        const drawer = card?.querySelector(".machine-working");
+        return drawer ? { drawer: drawer.textContent ?? "", card: card.innerText } : null;
+      });
+      if (working === null) {
+        problems.push("there is no drawer to hold the sentence the speeds are priced at");
+      } else if (!working.drawer.includes(priced)) {
+        problems.push(`the drawer does not say what the speeds are priced at ("${priced}")`);
+      } else if (working.card.includes("Predicted speeds are for a")) {
+        problems.push("the card still carries the priced-at footnote the drawer was given");
       }
       const showsContext = /up to [\d,]+ tokens of context/.test(tiles.text);
       if (fixture.noContext === true && showsContext) {

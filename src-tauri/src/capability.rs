@@ -258,7 +258,7 @@ pub(crate) fn dto(
                 speed_context_tokens: context,
                 speed: speed(&shown),
                 reason: QUICKER_REASON.to_string(),
-                details: phone_free_details(&row, &shown),
+                details: alternative_details(&row, &shown),
             }
         });
     CapabilityDto::Measured {
@@ -338,31 +338,55 @@ fn chosen_row(selection: &Selection) -> Option<&'static ModelEntry> {
     })
 }
 
-/// The full working for the phone-free pick: what was compared, what was
-/// not, and what the speed figure is. Numbers belong here — that is what
-/// this field is for — but nothing may pretend a comparison happened.
-fn phone_free_details(row: &RunnableRow, decode: &Prediction) -> String {
-    let speed = match *decode {
-        Prediction::Range { low, high } => format!("{low:.1}-{high:.1} tok/s"),
-        // The rate was measured on a slower path than the model will run
-        // on: a floor. Decode never carries `Estimate`; it would read the
-        // same way if it did.
+/// A row's speed, in the owner's words: the figure, where it comes from, and
+/// whether it was timed somewhere else. Written to be true of any row — the
+/// contradiction it replaces was "62.7 tok/s, measured on an M1 Max … The speed
+/// is a prediction, not a measurement on this machine", which said both things
+/// in one breath.
+fn speed_words(decode: &Prediction) -> String {
+    match *decode {
+        Prediction::Range { low, high } => format!(
+            "Predicted {low:.1}–{high:.1} tok/s, worked out from this computer's memory speed."
+        ),
+        // The rate was measured on a slower path than the model will run on:
+        // a floor, never printed as the rate the model will reach.
         Prediction::Floor(_) | Prediction::Estimate(_) => {
-            "a floor, to be measured on the path the model will run on".to_string()
+            "A floor: timed on a slower path than the model will run on.".to_string()
         }
+        // The full provenance is kept — this is the drawer, and which backend
+        // and cache produced the figure is what makes it worth quoting.
         Prediction::Measured {
             tokens_per_second,
             machine,
-        } => format!("{tokens_per_second:.1} tok/s, measured on {machine}"),
-    };
+        } => format!("{tokens_per_second:.1} tok/s, timed on {machine} — not on this machine."),
+    }
+}
+
+/// What one row is, for the drawer: its name, its weight, and where its speed
+/// figure comes from. No claim about being the largest — that belongs to the
+/// pick alone, and this is what the *second* option says, which exists because
+/// it is smaller.
+fn alternative_details(row: &RunnableRow, decode: &Prediction) -> String {
     format!(
-        "No phone is paired, so nothing here is compared to one. {} ({:.1} GiB of weights) \
-         is the largest row that fits this machine's {:.1} GiB budget, and its predicted \
-         decode speed is {}. The speed is a prediction, not a measurement on this machine.",
+        "{} — {:.1} GiB of weights. {}",
+        row.entry.display_name,
+        row.entry.weights_bytes as f64 / GIB as f64,
+        speed_words(decode)
+    )
+}
+
+/// The full working for the phone-free pick: what was compared, what was not,
+/// and where its speed figure comes from. Two things are said here and nowhere
+/// else — the machine's own "no phone" sentence, and the claim to be the largest
+/// that fits, which is true of this row only and was being said of both.
+fn phone_free_details(row: &RunnableRow, decode: &Prediction) -> String {
+    format!(
+        "No phone is paired, so nothing here is compared to one. {} — {:.1} GiB of weights, \
+         the largest that fits this machine's {:.1} GiB budget. {}",
         row.entry.display_name,
         row.entry.weights_bytes as f64 / GIB as f64,
         row.budget.usable_bytes as f64 / GIB as f64,
-        speed
+        speed_words(decode)
     )
 }
 
@@ -612,6 +636,49 @@ mod tests {
                         );
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn only_the_pick_claims_to_be_the_largest_and_no_speed_contradicts_itself() {
+        // Two defects in one string, both read off the screen on 2026-09-19: the
+        // working is written for the pick and was applied to both rows, so the
+        // second option — smaller, faster, and not the largest by definition —
+        // claimed the pick's ground; and a figure that was measured was called a
+        // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
+        // The speed is a prediction, not a measurement on this machine").
+        let CapabilityDto::Measured { model, quicker, .. } =
+            dto(&measured(Backend::Cpu), 32 * GIB, None)
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        let pick = model.expect("a 32 GiB machine runs something");
+        let second = quicker.expect("a 32 GiB machine has something faster");
+
+        assert!(
+            pick.details.contains("largest"),
+            "the pick claims its own ground: {}",
+            pick.details
+        );
+        assert!(
+            !second.details.contains("largest"),
+            "the alternative claims the pick's ground: {}",
+            second.details
+        );
+        assert!(
+            !second.details.contains("No phone is paired"),
+            "the machine's sentence is said once, not per row: {}",
+            second.details
+        );
+        for option in [&pick, &second] {
+            if matches!(&option.speed, SpeedDto::Measured { .. }) {
+                assert!(
+                    !option.details.contains("prediction"),
+                    "{} was timed and is called a prediction: {}",
+                    option.name,
+                    option.details
+                );
             }
         }
     }

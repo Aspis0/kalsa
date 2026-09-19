@@ -184,19 +184,18 @@ export function MachineCard({ capability }: { capability: Capability }) {
         <>
           <Option model={model} />
           {second ? <Option model={second} /> : null}
-          {/* Said once, under both: the cache is re-read on every token, so
-              the speeds above hold at the length they were priced at and
-              fall from there. Repeating it per option would double a
-              sentence that is about the machine, not about either model. */}
-          <p className="surface-quiet">
-            Predicted speeds are for a {model.speed_context_tokens.toLocaleString()}-token
-            conversation and fall as it grows. A measured one was taken on its own machine and
-            says so.
-          </p>
           <details className="machine-working">
             <summary>Show the working</summary>
             <p className="machine-working-body">{model.details}</p>
             {second ? <p className="machine-working-body">{second.details}</p> : null}
+            {/* Once, under both, and in the drawer rather than on the card:
+                the cache is re-read on every token, so the speeds hold at the
+                length they were priced at and fall from there. On the card it
+                was dev material in the middle of a choice. */}
+            <p className="machine-working-body">
+              These speeds are for a conversation of about{" "}
+              {model.speed_context_tokens.toLocaleString()} tokens, and they drop as it grows.
+            </p>
           </details>
         </>
       ) : (
