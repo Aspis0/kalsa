@@ -5,7 +5,8 @@
  * the seeded LFM think prefix.
  */
 
-import { THINK_CLOSE, THINK_OPEN } from "./thinkStream";
+import { THINK_OPEN } from "./thinkStream";
+import { qwenHistoryAssistantFields } from "./qwenHistoryFields";
 
 /** Named restore refusal: history cannot re-render the saved KV byte-for-byte. */
 export const HISTORY_NOT_REPRODUCIBLE = "history_not_reproducible";
@@ -77,10 +78,8 @@ function emissionAlreadySeeded(
  * - `reasoning_content`: LFM / `preserveThinking` history is replayed through
  *   `content` with the seeded `<think>` prefix restored explicitly.
  * - `content_span`: Qwen 3.5 history (`loop.index0 <= last_query_index`)
- *   emits `content` only. If `reasoning_content` is absent it splits
- *   `</think>` out of content and drops the KV think tokens (S23 9151f78
- *   t6: embd=8009 text_tokens=4438 n_common=0). An empty-string field
- *   skips that split so the raw span stays in `content`.
+ *   keeps older raw spans in `content` with a non-empty sentinel, while the
+ *   final assistant supplies its reasoning and answer separately.
  */
 export type HistoryThinkPlacement = "reasoning_content" | "content_span";
 
@@ -102,7 +101,7 @@ export function llamaHistoryAssistantFields(
     modelEmittedText?: string;
     emissionSource?: EmissionSource;
   },
-  opts?: { historyThink?: HistoryThinkPlacement },
+  opts?: { historyThink?: HistoryThinkPlacement; isFinal?: boolean },
 ): LlamaHistoryAssistantFields {
   if (message.role !== "assistant") {
     return { content: message.content };
@@ -113,9 +112,7 @@ export function llamaHistoryAssistantFields(
       : undefined;
   const source = emitted ?? message.content;
   if (opts?.historyThink === "content_span") {
-    const split = splitClosedLeadingThink(source);
-    if (!split) return { content: source };
-    return { content: source, reasoning_content: "" };
+    return qwenHistoryAssistantFields(message, opts.isFinal === true);
   }
   // The GGUF generation prompt seeds one `<think>` unconditionally (lines
   // 123–125), so the KV already holds exactly one opening tag. Whether the
@@ -167,20 +164,6 @@ export function historyReplayCharLength(
       : replayText.length + THINK_OPEN.length;
   }
   return replayText.length;
-}
-
-function splitClosedLeadingThink(
-  raw: string,
-): { inner: string; after: string } | null {
-  const leading = raw.match(/^[ \t\r\n]*<think>/);
-  if (!leading) return null;
-  const afterOpen = raw.slice(leading[0].length);
-  const closeIdx = afterOpen.indexOf(THINK_CLOSE);
-  if (closeIdx < 0) return null;
-  return {
-    inner: afterOpen.slice(0, closeIdx),
-    after: afterOpen.slice(closeIdx + THINK_CLOSE.length),
-  };
 }
 
 /**

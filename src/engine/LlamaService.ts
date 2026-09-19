@@ -4306,7 +4306,12 @@ export async function streamAssistantTurn(
         }
       | { role: "tool"; tool_call_id: string; content: string };
 
-    const userIndex = messages.length - 1;
+    const userIndex =
+      messages[messages.length - 1]?.role === "user" ? messages.length - 1 : -1;
+    const finalAssistantIndex =
+      userIndex < 0 && messages[messages.length - 1]?.role === "assistant"
+        ? messages.length - 1
+        : -1;
     // Current user turn's plain text — fed to executeTool (e.g. web_search
     // privacy guard) alongside the model-chosen query; never logged here.
     // Prefer the caller-supplied raw text so persona/format-B tails stay prompt-only.
@@ -4322,7 +4327,10 @@ export async function streamAssistantTurn(
       if (message.role === "assistant") {
         return {
           role: "assistant",
-          ...llamaHistoryAssistantFields(message, { historyThink }),
+          ...llamaHistoryAssistantFields(message, {
+            historyThink,
+            isFinal: index === finalAssistantIndex,
+          }),
         };
       }
       return {

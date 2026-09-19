@@ -218,14 +218,14 @@ describe("llamaHistoryAssistantFields", () => {
     expect(fields).toEqual({ content: `<think>${raw}` });
   });
 
-  test("content_span keeps the raw think span so Qwen history prefixes KV", () => {
+  test("content_span keeps the raw think span and supplies the older sentinel", () => {
     const raw = "<think>\nplan\n</think>\n\nLa memoria KV è una cache.";
     const fields = llamaHistoryAssistantFields(
       { role: "assistant", content: "La memoria KV è una cache.", modelEmittedText: raw },
       { historyThink: "content_span" },
     );
     expect(fields.content).toBe(raw);
-    expect(fields.reasoning_content).toBe("");
+    expect(fields.reasoning_content).toBe(" ");
   });
 
   test("content_span without a closed think omits reasoning_content", () => {
@@ -237,14 +237,27 @@ describe("llamaHistoryAssistantFields", () => {
     expect(fields.reasoning_content).toBeUndefined();
   });
 
-  test("content_span keeps an empty think span", () => {
-    const raw = "<think></think>ANSWER";
+  test("content_span final splits reasoning from the answer", () => {
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
     expect(
       llamaHistoryAssistantFields(
         { role: "assistant", content: raw, modelEmittedText: raw },
-        { historyThink: "content_span" },
+        { historyThink: "content_span", isFinal: true },
       ),
-    ).toEqual({ content: raw, reasoning_content: "" });
+    ).toEqual({ content: "ANSWER", reasoning_content: "plan" });
+  });
+
+  test("content_span changes final assistant to older after a user arrives", () => {
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
+    const message = { role: "assistant" as const, content: raw, modelEmittedText: raw };
+    expect(llamaHistoryAssistantFields(message, {
+      historyThink: "content_span",
+      isFinal: true,
+    })).toEqual({ content: "ANSWER", reasoning_content: "plan" });
+    expect(llamaHistoryAssistantFields(message, {
+      historyThink: "content_span",
+      isFinal: false,
+    })).toEqual({ content: raw, reasoning_content: " " });
   });
 });
 
@@ -347,7 +360,7 @@ describe("historyReplayCharLength", () => {
     );
     expect(a1.content).toBe(t1);
     expect(a2.content).toBe(t2);
-    expect(a1.reasoning_content).toBe("");
+    expect(a1.reasoning_content).toBe(" ");
     expect(assembled[0]?.content).toBe("u1");
   });
 });
