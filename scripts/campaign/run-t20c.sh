@@ -273,9 +273,16 @@ esac
 # phone leaves the serial check passing. The config names the model this
 # campaign must run on, and every enforcing branch records which physical
 # device produced the evidence.
+# A declared deviceModel that is empty, null, numeric or padded printed nothing
+# here and fell through to "not enforcing": a malformed declaration disabled the
+# very check it asks for. Declared means enforced, or the run refuses.
 CONFIG_DEVICE_MODEL="$(python3 -c 'import json,sys
-d=json.load(open(sys.argv[1], encoding="utf-8")).get("deviceModel")
-if isinstance(d, str) and d: print(d)' "$CONFIG" 2>/dev/null)"
+c=json.load(open(sys.argv[1], encoding="utf-8"))
+if "deviceModel" in c:
+    d=c["deviceModel"]
+    if not isinstance(d, str) or not d or d != d.strip(): sys.exit(3)
+    print(d)' "$CONFIG" 2>/dev/null)" ||
+  die "device identity: $CONFIG declares a deviceModel that is not a bare model string"
 if [ -n "$CONFIG_DEVICE_MODEL" ]; then
   [ "$_device_model" = "$CONFIG_DEVICE_MODEL" ] || die "device identity mismatch: $CONFIG declares deviceModel '$CONFIG_DEVICE_MODEL', got '$_device_model'"
   log "DEVICE IDENTITY: model=$_device_model serial=$SERIAL (matches config deviceModel '$CONFIG_DEVICE_MODEL')"

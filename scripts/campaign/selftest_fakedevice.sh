@@ -286,7 +286,9 @@ PY
       "cmd statusbar collapse"|"wm dismiss-keyguard") : ;;
       "uiautomator dump "*) : ;;
       "cat /data/local/tmp/ui.xml") cat "$F/ui.xml" ;;
-      "getprop ro.product.model") printf '%s\n' SM-S911B ;;
+      # A case that needs a model with a space in it (the real Jelly answers
+      # "Jelly Star") sets FAKE_DEVICE_MODEL; everything else keeps SM-S911B.
+      "getprop ro.product.model") printf '%s\n' "${FAKE_DEVICE_MODEL:-SM-S911B}" ;;
       "run-as $PKG test -f "*) exit 1 ;;
       "run-as $PKG cp "*)
         rest="${s#run-as $PKG cp }"

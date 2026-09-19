@@ -749,6 +749,7 @@ run_identity_config() {
   fake_reset marker-turn1
   env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
     FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
+    FAKE_DEVICE_MODEL="${FAKE_DEVICE_MODEL:-SM-S911B}" \
     CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
     CAMPAIGN_CONFIG="$dir/config.json" CAMPAIGN_METRO_BUNDLE_URL="$url" \
     ANDROID_SERIAL=10.0.0.3:9999 OUT="$out" \
@@ -788,8 +789,36 @@ matching_model_case() {
   fi
 }
 
+# (g2) The real model carries a SPACE. Both cases above compare a model without
+# one, so an unquoted comparison ships green: it dies with "too many arguments",
+# the mismatch case still sees its refusal, and the matching case still passes.
+# This case is the only one that fails when the comparison loses its quotes.
+spaced_model_case() {
+  local dir="$WORK/identity-spaced-model" rc
+  rc=$(FAKE_DEVICE_MODEL="Jelly Star" run_identity_config spaced-model '"Jelly Star"')
+  if [ "$rc" -eq 4 ] && grep -Fq "DEVICE IDENTITY: model=Jelly Star serial=10.0.0.3:9999 (matches config deviceModel 'Jelly Star')" "$dir/out/run.log"; then
+    ok "a model name with a space clears the gate, quoted end to end"
+  else
+    bad "spaced deviceModel did not clear the gate (rc=$rc; identity: $(grep -F 'DEVICE IDENTITY' "$dir/out/run.log" | tail -1); tail: $(tail -2 "$dir/out/run.log" | tr '\n' '|'))"
+  fi
+}
+
+# (g3) A declared-but-empty deviceModel must refuse. Falling through to "not
+# enforcing" would let a malformed declaration switch off the check it asks for.
+empty_model_case() {
+  local dir="$WORK/identity-empty-model" rc
+  rc=$(run_identity_config empty-model '""')
+  if grep -Fq "declares a deviceModel that is not a bare model string" "$dir/out/run.log"; then
+    ok "a declared-but-empty deviceModel is refused, not silently unenforced"
+  else
+    bad "empty deviceModel did not refuse (rc=$rc; identity: $(grep -F 'DEVICE IDENTITY' "$dir/out/run.log" | tail -1))"
+  fi
+}
+
 mismatched_model_case
 matching_model_case
+spaced_model_case
+empty_model_case
 
 # A throttled engine changes its progress fingerprint before its marker lands.
 # The late marker and the changing assistant text both come from the fake adb.
