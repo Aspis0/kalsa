@@ -7,9 +7,10 @@ use std::time::Duration;
 use ::url::Url;
 
 use crate::body::read_capped;
+use crate::failure;
 use crate::text::html_to_text;
 use crate::url;
-use crate::WebError;
+use crate::{WebError, REQUEST_BUDGET};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const READ_TIMEOUT: Duration = Duration::from_secs(20);
@@ -32,6 +33,10 @@ const USER_AGENT: &str = "kalsa-brain/0.0.1";
 pub fn fetch(url: &str, stop: &AtomicBool) -> Result<String, WebError> {
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(CONNECT_TIMEOUT)
+        // The whole request, body included: without it a server that trickles
+        // bytes is bounded only by the body cap, which at one byte a second is
+        // weeks. Takes precedence over the per-read timeout.
+        .timeout(REQUEST_BUDGET)
         .timeout_read(READ_TIMEOUT)
         // Redirects are followed here, not by ureq: every hop must pass the
         // address gate, and ureq would happily follow one to 127.0.0.1.
@@ -56,17 +61,14 @@ pub fn fetch(url: &str, stop: &AtomicBool) -> Result<String, WebError> {
             // ureq hands non-2xx back as an error carrying the response, so a
             // redirect arrives here rather than in the Ok arm.
             Err(ureq::Error::Status(_, response)) => response,
-            // A name that resolved to this machine or to a private network is
-            // a refusal, not a page that could not be reached.
-            Err(ureq::Error::Transport(transport)) => {
-                return Err(if url::resolver_refused(&transport) {
-                    WebError::Refused
-                } else {
-                    WebError::Network
-                });
-            }
+            Err(ureq::Error::Transport(transport)) => return Err(failure::classify(&transport)),
         };
 
+        // The switch can be turned off while the server is thinking; the
+        // answer is not worth having once the reader has gone.
+        if stop.load(Ordering::Relaxed) {
+            return Err(WebError::Stopped);
+        }
         let status = response.status();
         if (300..400).contains(&status) {
             let location = response.header("location").unwrap_or("").trim().to_string();

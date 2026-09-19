@@ -129,7 +129,23 @@ const THINK_SLOW = Array.from(
   (_, i) => `Slow thought ${i + 1}: patience first, conclusions later.`,
 ).join("\n");
 
+// The leaked answer, verbatim from the live run of 2026-09-19 (see
+// /tmp/kalsa-tool-live.md): a model forbidden a structured tool call wrote one
+// out as text, and the page showed it.
+const MARKUP_LEAK = [
+  "I need one more search to be sure.",
+  "",
+  "<tool_call>",
+  "<function=web_search>",
+  "<parameter=query>",
+  "weather in Tokyo today",
+  "</parameter>",
+  "</function>",
+  "</tool_call>",
+].join("\n");
+
 function scenarioFor(model) {
+  if (model.includes("markup-demo")) return { text: MARKUP_LEAK, delay: 8 };
   if (model.includes("code")) return { text: CODE_MD, delay: 12 };
   if (model.includes("heavy")) return { text: HEAVY_MD, delay: 8 };
   if (model.includes("slow")) return { text: LONG_MD, delay: 45 };

@@ -9,9 +9,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::body::read_capped;
+use crate::failure;
 use crate::exa;
 use crate::url;
-use crate::WebError;
+use crate::{WebError, REQUEST_BUDGET};
 
 const ENDPOINT: &str = "https://mcp.exa.ai/mcp";
 const PROTOCOL_VERSION: &str = "2025-03-26";
@@ -35,6 +36,8 @@ pub fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {
     }
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(CONNECT_TIMEOUT)
+        // One request, however slowly the service feeds it (see REQUEST_BUDGET).
+        .timeout(REQUEST_BUDGET)
         .timeout_read(READ_TIMEOUT)
         // The endpoint has no business redirecting, and a redirect would be a
         // request to an address the gate never saw. Any 3xx is a failed search.
@@ -112,7 +115,7 @@ fn post(
         // ureq reports anything outside 2xx as an error.
         Err(ureq::Error::Status(202, response)) => response,
         Err(ureq::Error::Status(code, _)) => return Err(WebError::Status(code)),
-        Err(ureq::Error::Transport(_)) => return Err(WebError::Network),
+        Err(ureq::Error::Transport(transport)) => return Err(failure::classify(&transport)),
     };
     let session = response.header("mcp-session-id").map(str::to_string);
     let (bytes, truncated) = read_capped(response.into_reader(), BODY_CAP, stop)?;

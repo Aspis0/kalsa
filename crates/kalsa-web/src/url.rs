@@ -94,16 +94,6 @@ pub(crate) fn resolver(netloc: &str) -> io::Result<Vec<SocketAddr>> {
     Ok(kept)
 }
 
-/// True when this transport failure was [`resolver`] refusing an address
-/// rather than the network failing. `ureq` reports a resolver failure as a DNS
-/// error and keeps the resolver's own error as its source, so the distinction
-/// survives; a page that simply could not be reached has no such source.
-pub(crate) fn resolver_refused(transport: &ureq::Transport) -> bool {
-    std::error::Error::source(transport)
-        .and_then(|source| source.downcast_ref::<io::Error>())
-        .is_some_and(|error| error.kind() == io::ErrorKind::PermissionDenied)
-}
-
 /// True when this address is on the public internet. The one list the spelling
 /// gate and the resolver both answer to.
 fn address_allowed(address: IpAddr) -> bool {

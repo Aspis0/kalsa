@@ -33,6 +33,8 @@ export async function loadApp() {
         export { accumulate, readArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
+        export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";
+        export { createToolMarkupStripper } from "../src/lib/toolMarkup.ts";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",

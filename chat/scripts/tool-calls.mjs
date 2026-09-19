@@ -8,7 +8,7 @@ import { rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
 
 const { dir, app } = await loadApp();
-const { accumulate, readArguments, MAX_ARGUMENTS } = app;
+const { accumulate, readArguments, MAX_ARGUMENTS, createToolMarkupStripper } = app;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -150,6 +150,36 @@ equal("and it runs with no arguments", floodRead.args, {});
 let long = [];
 for (let i = 0; i < 300; i += 1) long = accumulate(long, [{ index: 0, function: { arguments: "y".repeat(100) } }]);
 check("the cap holds across many chunks", long[0].arguments.length <= MAX_ARGUMENTS && long[0].cut === true, `${long[0].arguments.length}`);
+
+// --- tool-call markup that arrives as answer text (see src/lib/toolMarkup.ts)
+
+const LEAKED = [
+  "I need one more search to be sure.\n",
+  "<tool_call>\n<function=web_search>\n<parameter=query>\n",
+  "weather in Tokyo today\n</parameter>\n</function>\n</tool_call>",
+];
+function stripped(deltas) {
+  const stripper = createToolMarkupStripper();
+  let out = deltas.map((delta) => stripper.push(delta)).join("");
+  out += stripper.flush();
+  return out;
+}
+check("markup: nothing but the words around the call survives", stripped(LEAKED) === "I need one more search to be sure.\n", JSON.stringify(stripped(LEAKED)));
+check(
+  "markup: a tag split at every character is still hidden",
+  stripped([...LEAKED.join("")].map((ch) => ch)) === "I need one more search to be sure.\n",
+  JSON.stringify(stripped([...LEAKED.join("")].map((ch) => ch))),
+);
+check("markup: plain text is untouched", stripped(["Two ", "plain ", "words."]) === "Two plain words.", JSON.stringify(stripped(["Two ", "plain ", "words."])));
+check("markup: a half-typed tag is released at the end", stripped(["a <tool"]) === "a <tool", JSON.stringify(stripped(["a <tool"])));
+check(
+  "markup: ordinary text ending in a character like < is not held back",
+  stripped(["5 < ", "6"]) === "5 < 6",
+  JSON.stringify(stripped(["5 < ", "6"])),
+);
+check("markup: a tag split after one character is still hidden", stripped(["<", "tool_call>x</tool_call>y"]) === "y", JSON.stringify(stripped(["<", "tool_call>x</tool_call>y"])));
+check("markup: text after the block is kept", stripped(["<tool_call>x</tool_call>after"]) === "after", JSON.stringify(stripped(["<tool_call>x</tool_call>after"])));
+check("markup: an unclosed block swallows nothing visible", stripped(["before <tool_call> and then it stopped"]) === "before ", JSON.stringify(stripped(["before <tool_call> and then it stopped"])));
 
 await rm(dir, { recursive: true, force: true });
 console.log(fail ? `\n${fail} failed` : "\nall tool-call fragment cases passed");

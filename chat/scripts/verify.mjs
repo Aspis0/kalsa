@@ -1800,6 +1800,38 @@ const tests = {
     check("links: the address the model asked for is still shown as text", shown.includes("javascript:alert(1)"), shown.slice(0, 300));
     await browser.close();
   },
+  // A model forbidden a structured tool call can write one out as text. Live,
+  // on 2026-09-19, the page printed the markup to the reader as the answer.
+  // Both halves are asserted: the words around it arrive, the markup does not.
+  async markup() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("markup-demo") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "One more search?", "one more search");
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("markup: the words around the call are shown", thread.includes("I need one more search to be sure."), thread.slice(0, 200));
+    check("markup: no tool-call markup reaches the reader", !thread.includes("tool_call") && !thread.includes("web_search") && !thread.includes("parameter"), thread.slice(0, 300));
+    // The thread renders from the live buffer; what is stored trails it by the
+    // persist throttle, so wait for it rather than read it too early.
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) => k.startsWith("crescent-chat.msgs.") && (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => m.role === "assistant" && (m.content ?? "") !== ""),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("markup: the answer reached the disk", false, "never written"));
+    const stored = await page.evaluate(() => ({ ...localStorage }));
+    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
+    const saved = JSON.parse(stored[key] ?? "[]").find((m) => m.role === "assistant");
+    check("markup: what is stored is what was shown", (saved?.content ?? "").trim() === "I need one more search to be sure.", JSON.stringify(saved?.content));
+    await browser.close();
+  },
+
   async corrupt() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();

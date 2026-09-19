@@ -7,6 +7,7 @@
 use std::io::{self, Read};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::failure;
 use crate::WebError;
 
 /// One read at a time, so a stop is noticed within a chunk rather than after
@@ -32,7 +33,9 @@ pub(crate) fn read_capped(
             Ok(read) => buffer.extend_from_slice(&chunk[..read]),
             // A signal arriving mid-read is not a failed transfer.
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(_) => return Err(WebError::Network),
+            // A request that ran past its deadline arrives here, not as a
+            // transport error: it deserves its own sentence.
+            Err(error) => return Err(failure::from_read(&error)),
         }
     }
     let truncated = buffer.len() > cap;

@@ -6,6 +6,7 @@ import {
 } from "./chat";
 import type { StreamOptions, WireMessage } from "./chat";
 import { accumulate } from "./toolCalls";
+import { createToolMarkupStripper } from "./toolMarkup";
 import type { ToolCall } from "./toolCalls";
 import type { ToolDefinition } from "./tools/definitions";
 
@@ -201,8 +202,16 @@ export async function runRound(
   let sawDone = false;
   let toolCalls: ToolCall[] = [];
   let finishReason: string | null = null;
+  // A model that cannot make a structured call may write one out; it must not
+  // reach the reader as the answer. Fresh per round, like the phone.
+  const markup = createToolMarkupStripper();
 
   const round = (): Round => ({ gotContent: gotToken, gotReasoning, sawDone, finishReason, toolCalls });
+
+  function releaseMarkup(): void {
+    const tail = markup.flush();
+    if (tail) onToken(tail);
+  }
 
   function handleLine(line: string): void {
     const trimmed = line.trim();
@@ -231,9 +240,12 @@ export async function runRound(
       }
       const content = (choice.delta as { content?: unknown }).content;
       if (typeof content === "string" && content) {
+        // Text arrived, so this is not an empty stream — even when all of it
+        // turns out to be markup and nothing is shown.
         gotToken = true;
         poke();
-        onToken(content);
+        const visible = markup.push(content);
+        if (visible) onToken(visible);
       }
       const calls = accumulate(toolCalls, (choice.delta as { tool_calls?: unknown }).tool_calls);
       // With no tools offered, a tool call is a contradiction, not news: the
@@ -256,6 +268,7 @@ export async function runRound(
       buffer = lines.pop() ?? "";
       for (const line of lines) handleLine(line);
       if (sawDone) {
+        releaseMarkup();
         finish();
         return round();
       }
@@ -264,6 +277,7 @@ export async function runRound(
     buffer += decoder.decode();
     if (buffer.trim()) handleLine(buffer);
     if (sawDone) {
+      releaseMarkup();
       finish();
       return round();
     }

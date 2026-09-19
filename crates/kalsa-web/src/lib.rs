@@ -16,6 +16,7 @@
 
 mod body;
 mod exa;
+mod failure;
 mod fetch;
 mod search;
 mod text;
@@ -23,6 +24,13 @@ mod url;
 
 pub use fetch::fetch;
 pub use search::search;
+
+/// The most one request may take, however slowly the server feeds it. A read
+/// timeout alone is not a bound: `ureq` applies it per read, so a page that
+/// dribbles a byte at a time reaches it only on the first byte. Measured live
+/// 2026-09-19: a 20 kB trickle ran past sixty seconds with only per-read
+/// timeouts set.
+pub(crate) const REQUEST_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// Why a web request did not produce text. [`Display`](std::fmt::Display) is
 /// the sentence the user and the model read; it is the only place these are
@@ -36,6 +44,8 @@ pub enum WebError {
     Provider(String),
     /// The user stopped the call before it finished.
     Stopped,
+    /// The request ran past its deadline, whatever the server was doing.
+    Timeout,
     /// The response was larger than this crate reads at once, so it cannot be
     /// trusted to be whole.
     Oversize,
@@ -58,6 +68,10 @@ impl std::fmt::Display for WebError {
                 write!(f, "The search service refused the search: {message}")
             }
             WebError::Stopped => f.write_str("That was stopped before it finished."),
+            WebError::Timeout => f.write_str(
+                "That address took too long to answer. It may be slow or busy; try again, or try \
+                 another address.",
+            ),
             WebError::Oversize => {
                 f.write_str("The answer was larger than this app reads at once, so it was dropped.")
             }
