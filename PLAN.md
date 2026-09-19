@@ -1319,6 +1319,21 @@ budget duro contro nCtx: invariante con i numeri veri in un test col nome (cap 4
 riserva al piu' piccolo nCtx supportato; se non regge scende il cap, non il pavimento). Mutazioni rosse richieste:
 `start = n` senza pavimento; pavimento a un solo messaggio; correzione applicata al solo ramo del profilo. Passo
 successivo al contratto governor.
+*Sonda a quattro nCtx (kalsa-93, eseguita):* a nCtx **2048** (= `CTX_FLOOR`, `deviceTuning.ts:226`) il budget e'
+**zero** perche' `WINDOW_RESERVE_TOKENS` e' 2048 assoluto (`windowProfile.ts:43`, `:249-250`): il confine va a n
+anche con un turno da 120 caratteri, senza incolla — il difetto sotto il difetto e' la riserva assoluta uguale al
+pavimento del contesto; a 4096 il ramo del tetto azzera come quello del budget; da 6144 in su l'incolla da 9000
+tiene 4 messaggi, da 8192 tutto. **Decisioni del coordinatore (00:00 EDT, provvisorie, da confermare dall'owner):**
+(1) riserva proporzionale SOTTO 4096 e identica sopra: `min(2048, max(1024, nCtx/2))` (2048 → 1024, 3072 → 1536,
+≥ 4096 → 2048 come oggi); cap per messaggio 4000 invariato stanotte; (2) pavimento = ultimo scambio completo se
+entra in `charBudget − currentChars`, altrimenti l'ultimo messaggio utente se entra, altrimenti la storia cade con
+motivo con nome (`history_dropped_current_turn_exceeds_budget`), mai in silenzio e mai con confine dispari; (3)
+firma: aiutante puro `lastCompleteExchangeStart(roles)` e `computeAnchoredBoundary`/`advanceAnchoredBoundary` che
+ricevono `floorIndex` (le funzioni del confine restano cieche ai ruoli); cinque mutazioni rosse per nome e
+l'invariante numerico come test per nCtx 2048/3072/4096/6144/8192. **Serve all'owner (domattina):** confermare la
+riserva proporzionale a contesto piccolo; e decidere per 4096 (4608 − 4000 = 608 char restano per la storia con
+un incolla al cap): scende il cap dell'incolla o sale la riserva relativa — stanotte a 4096 un incolla al cap
+tiene al massimo l'ultimo messaggio utente.
 
 **Jelly T20C, decisione (23:50 EDT):** il Jelly e' al 70% (non 85): si parte lo stesso dopo l'anti-loop S23 con
 `CAMPAIGN_MIN_BATTERY_LEVEL=65` dichiarato, watchdog dell'operatore che uccide il run sotto il 25% (evidenza
