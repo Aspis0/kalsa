@@ -670,3 +670,68 @@ option must fail loudly at build time, and the comment must say what is true.
 - **New gate constraint:** upstream de-registered `test-backend-ops` from CTest, so a green
   `ctest` run can never cover it. Any gate that names it must invoke the binary directly, with
   `-b` naming the backend and an asserted executed-case count (§10.8 already requires this).
+
+---
+
+## 12. Measured: what a naive merge of `upstream/main` would cost, and why we are not doing it
+
+Measured non-destructively with `git merge-tree --write-tree --name-only 95c3493b upstream/main`
+in `llama.rn-kalsa`, against `upstream/main` = `2af674ad` (fetched 19/09; upstream is 37 commits
+ahead of our pin, we are 41 ahead of it).
+
+Read the output carefully: it emits the tree OID, then the conflicted-path list, then a **blank
+line**, then informational messages. The message block contains `Auto-merging` lines that are not
+conflicts. Counting the whole file gives 683, which is wrong; the conflicted-path list is lines
+2–224.
+
+| | count |
+|---|---|
+| Conflicted paths | **223** |
+| — `CONFLICT (content)` | 96 |
+| — `CONFLICT (file location)` | 75 |
+| — `CONFLICT (modify/delete)` | 47 |
+| — `CONFLICT (add/add)` | 30 |
+| — rename/rename + rename-in-collision | 3 |
+| Auto-merged cleanly | 209 |
+
+### 12.1 The number that decides the strategy
+
+**82 of the 96 content conflicts are under `vendor/llama.cpp/*`.**
+
+They exist only because upstream moved `cpp/X` → `vendor/llama.cpp/X` and we had edited `cpp/X`,
+so git's rename detection pairs our engine edits against their relocated copies. The 75
+`file location` conflicts are the same artefact.
+
+Under the strategy in §5 those conflicts **do not occur at all**: once `LLAMA_CPP_REPO` points at
+our kalsallama fork (step 7) and `cpp/` is deleted (step 8), the vendored engine arrives through
+`npm run sync:vendor` from a repo we control. There is nothing to merge, because we stop carrying
+a second copy of llama.cpp inside the binding.
+
+What is actually left to resolve by hand:
+
+| Area | content conflicts |
+|---|---|
+| `cpp/jsi/*` | 3 |
+| `cpp/` top level | 3 |
+| `src/*` | 2 |
+| `package.json`, `tsconfig.json`, `ios/CMakeLists.txt`, `android/*`, `AGENTS.md`, `.gitignore` | 1 each |
+| **total** | **14** |
+
+**14, not 96.** That is the binding — the part that is genuinely ours and that §1b already named
+as the real bottleneck. It is tractable in one sitting.
+
+### 12.2 What this measurement is and is not
+
+It is a lower bound on the naive path and a validation of the chosen one. It is **not** a claim
+that step 2 will produce exactly 14 conflicts: by the time we merge, `cpp/` will already have been
+reduced, so the shape of the merge changes. Re-run the same command immediately before step 2 and
+record the number; the before/after pair is the §1b gate.
+
+### 12.3 Deliberate divergences recorded (they cost us at every future rebase)
+
+- **`GGML_OPENCL_USE_ADRENO_BIN_KERNELS` is a hard `#error`** (`ggml-opencl.cpp:5101-5112`,
+  commit `754a96426`). Upstream ships it as a working build option; we refuse to build with it,
+  because the prebuilt ILA kernel keeps the 13-arg literal-mask ABI that E031.41.03.62
+  miscompiles. 12 lines against a silent-wrong-numbers path, in a file where we already carry
+  +3124 lines. Verified: preprocessor nesting depth at `:5101` is zero, so the guard is reachable,
+  not stranded in a dead branch. **Delete this when the ILA kernel is rebuilt on the 16-arg ABI.**
