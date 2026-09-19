@@ -855,8 +855,15 @@ e' l'ultimo a punti.** Se il ri-audit trova ancora rilievi nuovi nella superfici
 si ferma e il passo diventa l'estrazione (`save-wiring-coverage` anticipata e allargata): orchestrazione
 gate → sweep → UNA rilettura → deficit → regime → vittime fino al deficit → esito in un modulo .ts puro con
 letture e cancellazioni iniettate, testato sui confini e sulla matrice dropFailed × insufficient × need=0,
-chiamante ridotto a una chiamata, invarianti per nome verificati uno per uno. In ogni caso: sweep prima,
-UNA lettura dopo, per ENTRAMBI i percorsi (spazio e budget). Previsione rebasata su `0eaa090`: 86 suite /
+chiamante ridotto a una chiamata, invarianti per nome verificati uno per uno. In ogni caso il contratto ha DUE domande, e la
+formulazione "una sola lettura decide" era ambigua (Luna l'ha letta nella direzione che allentava; negata da
+kalsa-93 a meta' giro 7): **(1) AUTORIZZARE** — solo un `"short"` misurato dalla prima lettura apre il
+percorso di sfratto; `no_size` / `disk_unreadable` / `gate_error` → ritorno immediato, niente cancellato,
+nemmeno lo sweep dei sidecar (`LlamaService.ts:3223-3226` intoccato); **(2) DECIDERE QUANTO E A CHI** —
+deficit, regime, eleggibilita', guardia e numeri del marker da UNA sola lettura fatta dopo lo sweep, in
+ENTRAMBI i percorsi (spazio e budget), con l'evictor che controlla esplicitamente che anche quella sia un
+`"short"` misurato prima di cancellare (H6); se non lo e', lo sweep ha chiuso l'ammanco: nessuna vittima,
+esito "nulla da fare", mai `ok:true` come se avesse sfrattato. Previsione rebasata su `0eaa090`: 86 suite /
 1051 test (base `2ed2a88` = 82 / 971; +1/+22 persist-guard; +2/+30 boot-loop; +1/+28 evict-marker).
 
 **Fix privacy confermato dall'owner:** filtro di livello in `logToJsCallback` nel bump del fork di kalsa-2d
