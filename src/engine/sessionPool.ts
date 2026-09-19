@@ -383,8 +383,6 @@ export type SpaceEvictionStatus =
 
 export type SpaceEvictionResult = {
   status: SpaceEvictionStatus;
-  /** True when the caller must not proceed to the save. */
-  insufficient: boolean;
   /** Bytes counted for completed drops; a failed batch may be partial. */
   bytes: number;
   /** The post-sweep deficit, or null when the gate did not measure one. */
@@ -429,7 +427,6 @@ export async function evictSessionPoolForSpace(
   });
   const result: SpaceEvictionResult = {
     status: "evict_failed",
-    insufficient: true,
     requiredDeficitBytes: null,
     bytes: 0,
   };
@@ -448,7 +445,6 @@ export async function evictSessionPoolForSpace(
     let need: number | null;
     if (gate.ok) {
       result.status = "not_needed";
-      result.insufficient = false;
       result.requiredDeficitBytes = 0;
       need = 0;
       marker.set({ neededBytes: 0 });
@@ -481,7 +477,6 @@ export async function evictSessionPoolForSpace(
         need = null;
       } else {
         result.status = "covered";
-        result.insufficient = false;
         result.requiredDeficitBytes = measuredNeed;
         marker.set({ neededBytes: measuredNeed });
         need = measuredNeed;
@@ -502,7 +497,6 @@ export async function evictSessionPoolForSpace(
       // Post-sweep inventory cannot cover the post-sweep deficit: drop no
       // whole session cache and let the caller report this refusal.
       result.status = "uncoverable";
-      result.insufficient = true;
       marker.set({ ok: false, reason: EVICT_REASON_DEFICIT });
     } else {
       const stems = pickEvictionStemsForBytes(files, need, keepStem);
@@ -513,7 +507,6 @@ export async function evictSessionPoolForSpace(
         const drop = await dropStem(stem);
         if (!drop.artifactsDeleted) {
           result.status = "drop_failed";
-          result.insufficient = true;
           marker.set({
             ok: false,
             reason: EVICT_REASON_FAILED,
@@ -551,7 +544,6 @@ export async function evictSessionPoolForSpace(
     // Unexpected errors outside dropStem leave the run failed; ordinary drop
     // failures are returned and counted explicitly above.
     result.status = "evict_failed";
-    result.insufficient = true;
     marker.thrown(err);
   }
   marker.emit();
@@ -649,7 +641,6 @@ export async function deleteLegacyModelSession(modelId: string): Promise<void> {
 
 type DropResult = {
   artifactsDeleted: boolean;
-  usageForgotten: boolean;
   bookkeepingFailed: boolean;
 };
 
@@ -657,7 +648,6 @@ async function dropStem(stem: string): Promise<DropResult> {
   if (!stem) {
     return {
       artifactsDeleted: false,
-      usageForgotten: false,
       bookkeepingFailed: false,
     };
   }
@@ -668,7 +658,6 @@ async function dropStem(stem: string): Promise<DropResult> {
   const usageForgotten = await forgetSessionUse(stem);
   return {
     artifactsDeleted: deletion.cacheDeleted,
-    usageForgotten,
     bookkeepingFailed: deletion.bookkeepingFailed || !usageForgotten,
   };
 }
