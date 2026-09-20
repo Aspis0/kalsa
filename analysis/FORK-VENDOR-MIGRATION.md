@@ -2223,3 +2223,66 @@ real edits are that function, the two verdict parsers, and
 `device-ciswire-cache.sh` are comments and fixtures — its reuse verdict already
 treats `KALSA_KVPREFIX` as ground truth (`:950`), which is why tonight's Qwen
 measurement on the pre-bump APK is unaffected either way.
+
+## 30. The instrument, repaired and proven on a real run
+
+Closed the same night, on the owner's instruction, in three rounds: a writer
+(deepseek) wrote it, a different model (luna) audited it hostilely, and each
+round was verified on disk here before it moved.
+
+**Round 1 — the swap.** Six files moved from the retired `Input processed` to
+`KALSA_KVPREFIX`, with the field mapping read at the emitter. Proven by
+mutation, not by a green suite: reading `embd` instead of `n_common` — the
+exact trap — turns the harness red (207/3), and restoring it green (210/0).
+
+**Round 2 — the audit.** Eight findings, all reproduced here before being
+acted on. Two mattered:
+
+- **The prewarm steals the number.** `benchGrade` took the FIRST marker, but
+  the static-prefix prewarm emits its own before the chat turn's: 1832/1832 =
+  "100% reuse" where the truth is 1832/2000. The fix is not new thinking — the
+  device collector solved it long ago (`device-ciswire-cache.sh:1546`, *"The
+  LAST KVPREFIX wins (the prewarm line comes first)"*), and the new code cites
+  it.
+- **The verdicts claimed more than the data.** `KALSA_KVPREFIX` prints before
+  the load decision: it is the prefix that *can* be reused. The retired line
+  reported what *was* reused. The greppable prefixes stayed byte-identical so
+  cross-run comparisons still work; the parentheticals now say which number
+  it is.
+
+Plus three defects in the loud gate I had asked for: it could fire on a failed
+`adb logcat -d` (a gate that reddens at random is worse than the bug it
+closes), it could be tripped by the model's own reply text (the verdict was
+grepped out of a file that also holds the replies), and it could stay green
+while the instrument was dead (a missing turn-2 marker silently fell back to
+turn 1's numbers). And the finding that mattered most structurally: **four
+mutations that reintroduced the bug kept both suites green**, because nothing
+tested the shell collectors at all.
+
+**Round 3 — the real run corrected me.** The first green CI run of the new
+code printed `KV_CACHE: UNKNOWN` while holding three perfectly good markers.
+Cause: in round 2 I had asked for the strict rule — no size match, no number —
+to kill the false green. That also killed the true positive, because
+`tokensEvaluated` and `text_tokens` are not the same quantity. The rule is now
+exact match → last line, *labelled* `unattributed` → BROKEN (dump had content,
+no marker) → UNKNOWN (dump empty). `benchGrade` keeps the strict rule, where a
+misattributed number poisons a grade silently.
+
+**Proven on the emulator, `5429799`, 20/20 steps green:**
+
+    KV_CACHE: WARM (turn2 2282/2304 prompt tokens; pre-decision marker, …)
+    SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable 2538/2560 …)
+
+Against the pre-bump run (`809d191`): 2288/2310 and 2474/2496. The numbers are
+back, in the same range, and now they say what they are.
+
+**What the suites are worth now.** Verified here by mutation, one at a time,
+each restored after: retired regex in `ci-lib.sh` → red; swapped `sed`
+backrefs in `ci-bench.sh` → red; old capture index in the embedded e2e parser
+→ red; broken `readPromptMeta` → red; removed last-line fallback → red;
+neutered BROKEN branch → red. Green state: harness 218/218, guards 82/82.
+
+**The lesson, one line:** a log line that an instrument parses is an API with
+none of an API's protections — no compiler, no lockfile, no version. The only
+defence is to parse a marker you own and to assert, in the gate itself, that
+it is still being emitted.
