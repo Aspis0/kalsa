@@ -341,7 +341,7 @@ describe("engine build id generator", () => {
     const { collectEngineBuildInputs } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, `git+ssh://git@github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      scaffoldForkRoot(tmp, `git+ssh://git@github.com/Aspis0/kalsa.rn.git#${FORK_SHA}`);
       expect(collectEngineBuildInputs(tmp).llamaRnCommit).toBe(FORK_SHA);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -352,7 +352,21 @@ describe("engine build id generator", () => {
     const { collectEngineBuildInputs } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/kalsa.rn.git#${FORK_SHA}`);
+      expect(collectEngineBuildInputs(tmp).llamaRnCommit).toBe(FORK_SHA);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  // The fork repo was renamed Aspis0/llama.rn -> Aspis0/kalsa.rn on GitHub. An
+  // old lockfile still naming the legacy path must keep building: GitHub
+  // redirects it to the same repository and the sha is unchanged.
+  test("accepts the legacy pre-rename Aspis0/llama.rn lockfile URL", () => {
+    const { collectEngineBuildInputs } = engineBuildIdModule;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
+    try {
+      scaffoldForkRoot(tmp, `git+ssh://git@github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
       expect(collectEngineBuildInputs(tmp).llamaRnCommit).toBe(FORK_SHA);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -363,7 +377,7 @@ describe("engine build id generator", () => {
     const { collectEngineBuildInputs } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, "git+https://github.com/Aspis0/llama.rn.git");
+      scaffoldForkRoot(tmp, "git+https://github.com/Aspis0/kalsa.rn.git");
       expect(() => collectEngineBuildInputs(tmp)).toThrow(/#<40-char sha>/);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -376,10 +390,10 @@ describe("engine build id generator", () => {
     try {
       scaffoldForkRoot(
         tmp,
-        `git+https://github.com/NotAspis0/llama.rn.git#${FORK_SHA}`,
+        `git+https://github.com/NotAspis0/kalsa.rn.git#${FORK_SHA}`,
       );
       expect(() => collectEngineBuildInputs(tmp)).toThrow(
-        /github\.com git URL for Aspis0\/llama\.rn/,
+        /github\.com git URL for Aspis0\/kalsa\.rn/,
       );
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -392,7 +406,7 @@ describe("engine build id generator", () => {
     try {
       scaffoldForkRoot(
         tmp,
-        `git+ssh://git@github.com/Aspis0/llama.rn.git#${"a".repeat(39)}`,
+        `git+ssh://git@github.com/Aspis0/kalsa.rn.git#${"a".repeat(39)}`,
       );
       expect(() => collectEngineBuildInputs(tmp)).toThrow(/#<40-char sha>/);
     } finally {
@@ -404,7 +418,7 @@ describe("engine build id generator", () => {
     const { computeEngineBuildId } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/kalsa.rn.git#${FORK_SHA}`);
       const pkg = path.join(tmp, "node_modules", "llama.rn");
       const baseline = computeEngineBuildId(tmp);
 
@@ -447,7 +461,7 @@ describe("engine build id generator", () => {
     const { computeEngineBuildId } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/kalsa.rn.git#${FORK_SHA}`);
       fs.rmSync(path.join(tmp, "node_modules", "llama.rn", "lib"), {
         recursive: true,
         force: true,
@@ -464,7 +478,7 @@ describe("engine build id generator", () => {
     const { computeEngineBuildId } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/llama.rn.git#${FORK_SHA}`);
+      scaffoldForkRoot(tmp, `git+https://github.com/Aspis0/kalsa.rn.git#${FORK_SHA}`);
       // An empty directory still exists: only the digest can tell it apart from
       // a complete one, and a subset of the engine must never mint an id.
       const lib = path.join(tmp, "node_modules", "llama.rn", "lib");
@@ -491,7 +505,7 @@ describe("engine build id generator", () => {
           packages: {
             "node_modules/llama.rn": {
               resolved:
-                "git+https://github.com/Aspis0/llama.rn.git#987799a1ccb6af4976d44e7825393346de0db49f",
+                "git+https://github.com/Aspis0/kalsa.rn.git#987799a1ccb6af4976d44e7825393346de0db49f",
             },
           },
         }),

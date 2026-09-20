@@ -14,10 +14,12 @@
 ## Engine assembly
 
 The Android engine comes from one source: `llama.rn` as a **git dependency on the fork
-`Aspis0/llama.rn`**, pinned by commit in `package.json` and `package-lock.json`. The fork's
-`cpp/` **is** kalsallama, flattened, with the `LM_`/`lm_` symbol prefixes already applied, plus
-the 36 `rn-*` / `jsi/` files kept as tracked source. `native/bmoe/` (the MoE streamer) is still
-compiled by the fork's CMake through `${RNLLAMA_LIB_DIR}/../../../native/bmoe` (`if(EXISTS)`).
+`Aspis0/kalsa.rn`**, pinned by commit in `package.json` and `package-lock.json`. The repository
+was renamed on GitHub from the `llama.rn` fork — the old URL redirects, and the npm package
+name is unchanged. The fork's `cpp/` **is** kalsallama, flattened, with the `LM_`/`lm_` symbol
+prefixes already applied, plus the 36 `rn-*` / `jsi/` files kept as tracked source. `native/bmoe/`
+(the MoE streamer) is still compiled by the fork's CMake through
+`${RNLLAMA_LIB_DIR}/../../../native/bmoe` (`if(EXISTS)`).
 
 There is no install step: `package.json` has no `postinstall`, no overlay runs, no patch is
 applied. `npm ci` unpacks the fork and that is the engine.
@@ -25,7 +27,7 @@ applied. `npm ci` unpacks the fork and that is the engine.
 Updating the engine is a fork-side operation:
 
 ```text
-# in Aspis0/llama.rn (branch kalsa) — usage is `pin <sha> | bump | verify`
+# in Aspis0/kalsa.rn (branch kalsa) — usage is `pin <sha> | bump | verify`
 scripts/sync-kalsallama.sh pin <kalsallama-sha>   # flatten + scripts/kalsa-patches/* -> cpp/
 scripts/sync-kalsallama.sh bump                   # same, following the pinned branch head
 scripts/sync-kalsallama.sh verify                 # the regenerated tree must match cpp/
@@ -43,7 +45,8 @@ both leave the real dependency on the old commit.
 re-flatten would overwrite: an engine change belongs in kalsallama and comes back through `bump`;
 a binding change belongs in the fork's `rn-*` / `jsi/` files, which the flatten never touches.
 `scripts/assert-engine-provenance.sh` compares the installed tree against
-`Aspis0/llama.rn@<sha>` as npm packs it, and exits 1 naming the first differing path.
+`Aspis0/kalsa.rn@<sha>` as npm packs it (the gate also accepts the pre-rename
+`Aspis0/llama.rn`, which GitHub redirects to it), and exits 1 naming the first differing path.
 
 ## What the old road guaranteed, and what replaces it
 
@@ -75,5 +78,5 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 `package.json` (the `llama.rn` git dependency, no `postinstall`); `package-lock.json`
 (`packages["node_modules/llama.rn"].resolved`); `node_modules/llama.rn/cpp/KALSALLAMA_SHA`;
 `scripts/engine-build-id.js`; `scripts/assert-engine-provenance.sh`;
-`plugins/withLlamaFromSource.js`; and, in `Aspis0/llama.rn`, `scripts/sync-kalsallama.sh` with
+`plugins/withLlamaFromSource.js`; and, in `Aspis0/kalsa.rn`, `scripts/sync-kalsallama.sh` with
 `scripts/kalsa-patches/`.

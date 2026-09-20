@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Every local #include in the assembled engine must resolve to a file on disk.
 #
-# The engine is installed from the fork Aspis0/llama.rn. It used to be a
+# The engine is installed from the fork Aspis0/kalsa.rn. It used to be a
 # FLATTENING of kalsallama through an explicit allow-list that did not learn:
 # upstream added a file, a source started including it, the header was simply
 # absent, and the NDK failed ~5 minutes into the APK build, far from the cause.
@@ -299,5 +299,5 @@ fi
 # vendor/llama.cpp/tools/mtmd/ and the rn-owned sources in cpp/ -- the drift
 # surface between the engine and the binding. The rest is covered by the fork's
 # own gates (assert-kalsa-vendor.sh and assert-rnllama-sources.sh in
-# Aspis0/llama.rn, run by its `vendor` CI job), which run there, not here.
+# Aspis0/kalsa.rn, run by its `vendor` CI job), which run there, not here.
 echo "[includes] OK [$CXX_TAG]: $parsed source(s) parse ($c_common common, $c_mtmd mtmd, $c_rn rn-* with -DLM_GGML_USE_OPENCL)"

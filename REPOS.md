@@ -1,6 +1,6 @@
 # REPOS — which repository holds what
 
-Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/llama.rn` came back —
+Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/kalsa.rn` came back —
 and one is archived read-only on GitHub.
 This file exists because the constellation is not obvious and guessing has cost real time:
 on 15/09 a directory named after one repo grew inside another and the two living documents
@@ -15,7 +15,7 @@ Written 2026-09-16. Every number below was read from the repositories, not remem
 | **`Aspis0/kalsa`** (public) | the React Native app — this repository | 4.033 | 15,76 MiB |
 | **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.570 | 525 MiB |
 | **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.869 | 530 MiB |
-| **`Aspis0/llama.rn`** (public) | the React Native binding fork — read its section before assuming it is dead | — | — |
+| **`Aspis0/kalsa.rn`** (public) | the React Native binding fork — renamed from `llama.rn` on GitHub; read its section before assuming it is dead | — | — |
 
 ### `kalsa` — the app
 
@@ -23,7 +23,7 @@ Branches: `main` and `remote-brain`. `remote-brain` is the other session's line 
 Kalsa Brain (PC↔phone) and is the one branch that is deliberately kept apart.
 
 The app does not vendor the engine and no longer assembles it: it takes `llama.rn` from the
-fork `Aspis0/llama.rn` as a git dependency pinned by commit in `package.json` /
+fork `Aspis0/kalsa.rn` as a git dependency pinned by commit in `package.json` /
 `package-lock.json`, and the fork's `cpp/` is `kalsallama` flattened. The pin is a commit, not a
 branch head — moving `kalsallama`'s `main`, or the fork's, does not change what the app builds.
 Only editing the sha in `package.json` and the lockfile does, and
@@ -74,9 +74,12 @@ They are read-only on GitHub, still cloneable, and nothing is lost. Un-archiving
   `third_party/llama.cpp` submodule already points at `kalsallama`: the consolidation was started
   and never finished. Its `main` now *is* the old `kalsa/kernel-s2-layer-fuse` tip, so building
   from `main` gives the `--moe-fused-*` flags the campaign harness passes.
-(`Aspis0/llama.rn` was listed here as dead. It is not — see its section above.)
+(`Aspis0/kalsa.rn`, the binding fork renamed from `llama.rn` on GitHub, was listed here as
+dead. It is not — see its section above.)
 
-### `llama.rn` — the binding fork (live again, 17/09)
+### `kalsa.rn` — the binding fork (live again, 17/09)
+
+Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 
 Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa` (the live one),
 `kalsa-step1`, `main`. Its `cpp/` is `kalsallama` at the pin plus the Kalsa patch set, so the
