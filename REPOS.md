@@ -1,6 +1,6 @@
 # REPOS — which repository holds what
 
-Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/llama.rn` came back —
+Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/kalsa.rn` came back —
 and one is archived read-only on GitHub.
 This file exists because the constellation is not obvious and guessing has cost real time:
 on 15/09 a directory named after one repo grew inside another and the two living documents
@@ -16,7 +16,7 @@ Written 2026-09-16; branch and file counts re-read 2026-09-20. The `tracked file
 | **`Aspis0/kalsa`** (public) | the React Native app — this repository | 3.425 | 15,76 MiB |
 | **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.664 | 525 MiB |
 | **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.900 | 530 MiB |
-| **`Aspis0/llama.rn`** (public) | the React Native binding fork — read its section before assuming it is dead | — | — |
+| **`Aspis0/kalsa.rn`** (public) | the React Native binding fork — renamed from `llama.rn` on GitHub; read its section before assuming it is dead | — | — |
 
 ### `kalsa` — the app
 
@@ -27,7 +27,7 @@ Branches: 27 local and 16 remote, counted on this checkout on 2026-09-20 —
 Kalsa Brain (PC↔phone) and is the one branch that is deliberately kept apart.
 
 The app does not vendor the engine and no longer assembles it: it takes `llama.rn` from the
-fork `Aspis0/llama.rn` as a git dependency pinned by commit in `package.json` /
+fork `Aspis0/kalsa.rn` as a git dependency pinned by commit in `package.json` /
 `package-lock.json`. The fork vendors the engine under `vendor/` — `vendor/VERSIONS` pins it and
 `vendor/llama.cpp/` is `kalsallama` — and its `cpp/` holds only the binding glue. The pin is a
 commit, not a branch head — moving `kalsallama`'s `main`, or the fork's, does not change what the
@@ -83,9 +83,12 @@ They are read-only on GitHub, still cloneable, and nothing is lost. Un-archiving
   `third_party/llama.cpp` submodule already points at `kalsallama`: the consolidation was started
   and never finished. Its `main` now *is* the old `kalsa/kernel-s2-layer-fuse` tip, so building
   from `main` gives the `--moe-fused-*` flags the campaign harness passes.
-(`Aspis0/llama.rn` was listed here as dead. It is not — see its section above.)
+(`Aspis0/kalsa.rn`, the binding fork renamed from `llama.rn` on GitHub, was listed here as
+dead. It is not — see its section above.)
 
-### `llama.rn` — the binding fork (live again, 17/09)
+### `kalsa.rn` — the binding fork (live again, 17/09)
+
+Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 
 Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa`, `kalsa-step1`, `main`,
 `vendor-migration`. `origin/kalsa` and `origin/vendor-migration` are both `0f313bab`, the app's
@@ -93,7 +96,7 @@ pin; the local `kalsa` branch is a stale pointer at `485519fe`. The fork's `vend
 `kalsallama` at the pin plus the Kalsa patch set, so the binding and the engine stop being
 assembled from three sources at build time.
 
-**The app builds from it since `16f6ce9` on `main` (2026-09-18).** `patches/`, `vendor/`,
+**The app builds from it since `16f6ce9` on `main` (2026-09-18).** `patches/`, the app's `vendor/`,
 `native/kalsallama.pin`, `scripts/sync-kalsallama.sh` and the `patch-package` devDependency were
 deleted in the cleanup that followed. The flatten script `scripts/sync-kalsallama.sh` is now
 retired: the fork re-vendors with `scripts/sync-vendor.sh` from the pins in `vendor/VERSIONS`. An
@@ -121,7 +124,7 @@ app's `main`. Push with the upstream name (`git push`), or check
 was deleted on 2026-09-16 survives as a tag `archive/<branch-name>` on its tip, pushed and
 verified *before* the delete, so any of them comes back with
 `git push origin <sha>:refs/heads/<name>`. Counts: `kalsa` 19, `kalsallama` 21,
-`kalsa-forkbigmoeonedge` 10, `llama.rn` 4.
+`kalsa-forkbigmoeonedge` 10, `llama.rn` 4 (the binding fork, renamed `kalsa.rn` on 17/09).
 
 **Never push to third-party remotes.** `kalsallama` has `upstream` → `ggml-org/llama.cpp` and
 `kalsa-forkbigmoeonedge` descends from BigMoeOnEdge. We pull from them; we never push, and we

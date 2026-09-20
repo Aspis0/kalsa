@@ -147,8 +147,12 @@ function digestTree(dir, exclude = null) {
 
 // Both npm serializations of the github.com git dependency (the ssh form is
 // npm's normal lockfile form; pacote clones it over https, no SSH key needed).
+// Canonical repo: Aspis0/kalsa.rn (the engine fork was renamed on GitHub from
+// Aspis0/llama.rn; the npm package name stays llama.rn and the sha is
+// unchanged). The legacy name is accepted on purpose: GitHub redirects it to
+// the same repository, so an old lockfile keeps building green.
 const LLAMA_RN_GIT_URL =
-  /^git\+(?:ssh|https):\/\/(?:git@)?github\.com\/Aspis0\/llama\.rn(?:\.git)?$/;
+  /^git\+(?:ssh|https):\/\/(?:git@)?github\.com\/Aspis0\/(?:kalsa\.rn|llama\.rn)(?:\.git)?$/;
 
 /** The fork commit: the sha after the last '#' of the lockfile resolved URL. */
 function llamaRnCommit(root) {
@@ -163,7 +167,9 @@ function llamaRnCommit(root) {
       `engine-build-id: package-lock.json packages["node_modules/llama.rn"].resolved ${why} (got ${JSON.stringify(resolved)})`,
     );
   if (!LLAMA_RN_GIT_URL.test(url)) {
-    throw fail("must be a github.com git URL for Aspis0/llama.rn");
+    // Names the canonical repo; the regex above also accepts the pre-rename
+    // Aspis0/llama.rn name, which GitHub redirects to it.
+    throw fail("must be a github.com git URL for Aspis0/kalsa.rn");
   }
   if (!/^[0-9a-f]{40}$/.test(commit)) {
     throw fail("must end in '#<40-char sha>'");
