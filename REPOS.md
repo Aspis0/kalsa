@@ -91,8 +91,9 @@ dead. It is not — see its section above.)
 Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 
 Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa`, `kalsa-step1`, `main`,
-`vendor-migration`. `origin/kalsa` and `origin/vendor-migration` are both `0f313bab`, the app's
-pin; the local `kalsa` branch is a stale pointer at `485519fe`. The fork's `vendor/` holds
+`vendor-migration`. `origin/kalsa` is `0f313bab`, the app's pin until 20/09; `origin/vendor-migration`
+is `0288dc27`, the pin since then, and it declares the engine at `4ccef2f85`; the local `kalsa` branch
+is a stale pointer at `485519fe`. The fork's `vendor/` holds
 `kalsallama` at the pin plus the Kalsa patch set, so the binding and the engine stop being
 assembled from three sources at build time.
 
