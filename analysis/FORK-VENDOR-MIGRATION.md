@@ -2112,3 +2112,27 @@ filenames compared one by one, not counted. `native/` keeps
 **The engine build id changes with this commit.** That is correct and
 unavoidable, but identity comparisons against any earlier APK — including the
 §10.9 same-engine proof — do not cross it.
+
+**The APK closes it.** Run `35481540345` on `50b8196`, arm64-v8a, debuggable:
+**16/16 steps green**, 01:30:01Z to 02:25:17Z (55 min, of which ~48 are the
+native build). APK 159214330 bytes, one ABI. Both native-patch markers —
+`kalsa-native-patches` and `q23k` — found in **all 7** release binaries, in
+`merged_native_libs` and again after `stripReleaseDebugSymbols`; `aapt2 dump
+badging` confirms `application-debuggable`.
+
+This is the step no gate could anticipate: the earlier evidence was that the
+sources *resolve*, this is that they *compile and link* on the toolchain that
+ships. And it is the proof that the moved bmoe is the one in the binary:
+`cpp/rn-llama.cpp:802` constructs `kalsa::MoeStream` with no guard around it,
+and the only definition is `cpp/bmoe_stream.cpp`, listed in
+`RNLLAMA_RN_SOURCES` (`cmake/rnllama-sources.cmake:134`). Had the deleted
+`native/bmoe` been the live copy, the link would have failed with an undefined
+symbol instead of producing seven libraries.
+
+**Merged.** `main` fast-forwarded `e7712de..50b8196`; no merge commit, nothing
+else was in flight. The app now builds from the vendored engine, and
+`native/bmoe` exists in exactly one place.
+
+Anyone with an older checkout must re-run `npm install` before any gate: the
+installed `llama.rn` predates the vendor layout, and `assert-overlay-includes.sh`
+stops with the message written for exactly that case.
