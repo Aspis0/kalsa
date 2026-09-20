@@ -6,13 +6,14 @@ This file exists because the constellation is not obvious and guessing has cost 
 on 15/09 a directory named after one repo grew inside another and the two living documents
 quietly became four.
 
-Written 2026-09-16; branch and file counts re-read 2026-09-20.
+Written 2026-09-16; branch and file counts re-read 2026-09-20. The `tracked files` column is
+`git ls-files | wc -l` in each repository.
 
 ## The four live ones
 
 | repo | what it is | tracked files | pack |
 |---|---|---|---|
-| **`Aspis0/kalsa`** (public) | the React Native app — this repository | 3.424 | 15,76 MiB |
+| **`Aspis0/kalsa`** (public) | the React Native app — this repository | 3.425 | 15,76 MiB |
 | **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.664 | 525 MiB |
 | **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.900 | 530 MiB |
 | **`Aspis0/llama.rn`** (public) | the React Native binding fork — read its section before assuming it is dead | — | — |
