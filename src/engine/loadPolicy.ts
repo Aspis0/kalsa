@@ -7,7 +7,7 @@
  *
  * - streaming is FIRST because it is a physical constraint, not a preference:
  *   when armed, native rebinds tensors to the file's byte layout and forces
- *   BOTH flags itself (native/bmoe/rn/bmoe_stream.cpp: no_extra_bufts=true,
+ *   BOTH flags itself (the engine's cpp/bmoe_stream.cpp: no_extra_bufts=true,
  *   use_mmap=true), regardless of what JS sent. The resolver mirrors that
  *   outcome so its answer matches what the engine will actually do.
  * - bench levers outrank the policy IN BOTH DIRECTIONS: kalsa.bench.norepack=1

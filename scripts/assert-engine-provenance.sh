@@ -75,7 +75,9 @@ manifest "$WORK/packed" "$WORK/packed.manifest"
 manifest "$INSTALLED"   "$WORK/installed.manifest"
 
 if diff -u "$WORK/packed.manifest" "$WORK/installed.manifest" > "$WORK/diff"; then
-  engine="$(tr -d '[:space:]' < "$INSTALLED/cpp/KALSALLAMA_SHA" 2>/dev/null || true)"
+  # Was cpp/KALSALLAMA_SHA while cpp/ was kalsallama flattened; after the
+  # vendor migration the pin is declarative in vendor/VERSIONS.
+  engine="$(sed -n 's/^LLAMA_CPP_COMMIT=//p' "$INSTALLED/vendor/VERSIONS" 2>/dev/null | tr -d '[:space:]' || true)"
   note "OK: $(wc -l < "$WORK/installed.manifest" | tr -d ' ') files match Aspis0/llama.rn@${SHA:0:12}"
   # The app pins the fork, and the fork pins the engine: nothing here declares
   # an expected kalsallama sha, so print the one that is installed.

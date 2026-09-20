@@ -164,7 +164,7 @@ describe("engine build id generator", () => {
     ).not.toBe(engineBuildIdFromInputs(baseInputs));
   });
 
-  test("changes when KALSALLAMA_SHA changes", () => {
+  test("changes when the vendored engine pin changes", () => {
     const { engineBuildIdFromInputs } = engineBuildIdModule;
     expect(
       engineBuildIdFromInputs({
@@ -269,12 +269,15 @@ describe("engine build id generator", () => {
     const resolved = lock.packages["node_modules/llama.rn"].resolved ?? "";
     const match = resolved.match(/#([0-9a-f]{40})$/);
     expect(match).not.toBeNull();
-    const kalsallamaSha = fs
-      .readFileSync(
-        path.join(PROJECT_ROOT, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA"),
-        "utf8",
-      )
-      .trim();
+    // The pin moved from cpp/KALSALLAMA_SHA to vendor/VERSIONS when the fork
+    // stopped flattening kalsallama into cpp/.
+    const kalsallamaSha = /^LLAMA_CPP_COMMIT=([0-9a-f]{40})$/m
+      .exec(
+        fs.readFileSync(
+          path.join(PROJECT_ROOT, "node_modules", "llama.rn", "vendor", "VERSIONS"),
+          "utf8",
+        ),
+      )![1];
 
     const inputs = collectEngineBuildInputs(PROJECT_ROOT);
     expect(inputs.llamaRnCommit).toBe(match![1]);
@@ -312,7 +315,7 @@ describe("engine build id generator", () => {
       "package.json",
       JSON.stringify({ name: "llama.rn", version: "0.12.8" }),
     );
-    addPkgFile(pkg, "cpp/KALSALLAMA_SHA", `${"1".repeat(40)}\n`);
+    addPkgFile(pkg, "vendor/VERSIONS", `LLAMA_CPP_COMMIT=${"1".repeat(40)}\n`);
     addPkgFile(pkg, "cpp/rnllama.cpp", "int rnllama_main();\n");
     addPkgFile(pkg, "android/build.gradle", "android { }\n");
     addPkgFile(pkg, "ios/llama-rn.podspec", "s.name = 'llama.rn'\n");
@@ -321,7 +324,7 @@ describe("engine build id generator", () => {
     addPkgFile(pkg, "bin/arm64-v8a/libggml-htp.so", "elf\n");
     addPkgFile(
       pkg,
-      "third_party/OpenCL-Headers/CL/cl.h",
+      "vendor/OpenCL-Headers/CL/cl.h",
       "#define CL_VERSION_TARGET 300\n",
     );
     addPkgFile(root, "native/GovernorBatteryModule.kt", "class GovernorBatteryModule\n");
@@ -427,7 +430,7 @@ describe("engine build id generator", () => {
         "src/extra.ts",
         "lib/extra.js",
         "bin/arm64-v8a/another.so",
-        "third_party/OpenCL-Headers/CL/cl_platform.h",
+        "vendor/OpenCL-Headers/CL/cl_platform.h",
         "cpp/node_modules/x.js",
       ]) {
         addPkgFile(pkg, rel, "real\n");
@@ -475,7 +478,7 @@ describe("engine build id generator", () => {
     }
   });
 
-  test("throws when the installed tree is not the fork (no KALSALLAMA_SHA)", () => {
+  test("throws when the installed tree is not the fork (no vendor/VERSIONS)", () => {
     const { collectEngineBuildInputs } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
@@ -497,7 +500,7 @@ describe("engine build id generator", () => {
         path.join(tmp, "node_modules", "llama.rn", "package.json"),
         JSON.stringify({ name: "llama.rn", version: "0.12.8" }),
       );
-      expect(() => collectEngineBuildInputs(tmp)).toThrow(/KALSALLAMA_SHA/);
+      expect(() => collectEngineBuildInputs(tmp)).toThrow(/vendor\/VERSIONS/);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

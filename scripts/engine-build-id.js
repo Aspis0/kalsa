@@ -4,10 +4,11 @@
  * sidecar must be invalidated when the compiled engine changes, and a bare
  * runtime marker cannot tell two builds apart (audit of e2e09f5, 2026-09-10).
  *
- * llama.rn is a git dependency on the fork; its installed cpp/ IS the engine
- * tree. The id binds CONTENT, not pointers: the fork commit from
- * package-lock.json; cpp/KALSALLAMA_SHA as fail-closed proof the tree is the
- * fork; the digested engine subtrees {android,bin,cpp,ios,lib,src,third_party}
+ * llama.rn is a git dependency on the fork; the engine it vendors under
+ * vendor/llama.cpp IS the engine tree, and cpp/ is the binding on top of it.
+ * The id binds CONTENT, not pointers: the fork commit from package-lock.json;
+ * LLAMA_CPP_COMMIT in vendor/VERSIONS as fail-closed proof the tree is the
+ * fork; the digested engine subtrees {android,bin,cpp,ios,lib,src,vendor}
  * — the native sources, JS bridge, and bin/ binaries the Android build reads,
  * minus build output, the prebuilt xcframework, the package-top node_modules
  * artifact (deeper node_modules components are digested), and npm's
@@ -35,15 +36,33 @@ const IGNORED_BASENAMES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 // Engine-tree subtrees the Android engine build actually reads, evaluated on
 // PACKAGE-relative paths. bin/ IS an input: gradle copies bin/arm64-v8a/
 // libggml-htp-*.so into the APK assets and CMake links bin/${ANDROID_ABI}/
-// libOpenCL.so; third_party/ supplies OpenCL-Headers; src/ and lib/ carry the
-// JS bridge the app bundles.
-const ENGINE_TREE_DIRS = new Set(["android", "bin", "cpp", "ios", "lib", "src", "third_party"]);
+// libOpenCL.so; src/ and lib/ carry the JS bridge the app bundles.
+//
+// vendor/ REPLACED third_party/ in the fork's vendor migration, and it is not
+// a cosmetic rename: the engine itself now lives in vendor/llama.cpp, and the
+// OpenCL headers under vendor/OpenCL-Headers. isEngineTreeExcluded() drops any
+// top-level component missing from this set, so leaving vendor/ out would mint
+// an engine build id that does not cover the engine -- two different engines,
+// one id.
+const ENGINE_TREE_DIRS = new Set(["android", "bin", "cpp", "ios", "lib", "src", "vendor"]);
 
 // Not engine input: in-place build output, the prebuilt xcframework (npm's
 // files field excludes it too — it is why the commit tree and the npm-packed
 // tree differ), and the package-top node_modules install artifact. A deeper
 // node_modules component is NOT excluded: the rule is top-level only.
 const ENGINE_TREE_EXCLUDED = ["android/.cxx", "android/build", "ios/build", "ios/rnllama.xcframework"];
+
+/** The package's own "files" negations, for the components npm never ships.
+ * Read from the installed package.json rather than copied here: the fork
+ * excludes four vendor/ backends it does not build, and a second hand-written
+ * copy of that list is what drifts. Only plain prefixes are taken; the glob
+ * forms are already covered above and by NPM_PACK_IGNORED. */
+function packNegatedPrefixes(pkg) {
+  const files = Array.isArray(pkg.files) ? pkg.files : [];
+  return files
+    .filter((f) => typeof f === "string" && f.startsWith("!") && !f.includes("*"))
+    .map((f) => f.slice(1).replace(/\/+$/, ""));
+}
 
 // npm pack never ships these components (package.json files negations).
 const NPM_PACK_IGNORED = new Set(["__tests__", "__fixtures__", "__mocks__"]);
@@ -155,22 +174,26 @@ function llamaRnCommit(root) {
 /** The kalsallama commit stamped into the installed tree: without it the
  * tree is upstream llama.rn, not our fork, and must not be identified. */
 function kalsallamaSha(root) {
-  const file = path.join(root, "node_modules", "llama.rn", "cpp", "KALSALLAMA_SHA");
+  // Was cpp/KALSALLAMA_SHA, a stamp that made sense while cpp/ WAS kalsallama
+  // flattened. After the vendor migration the pin is declarative and lives in
+  // vendor/VERSIONS, which sync-vendor.sh rewrites; the fail-closed contract
+  // is unchanged -- no pin, no identity.
+  const file = path.join(root, "node_modules", "llama.rn", "vendor", "VERSIONS");
   let raw;
   try {
     raw = fs.readFileSync(file, "utf8");
   } catch (error) {
     throw new Error(
-      `engine-build-id: cannot read node_modules/llama.rn/cpp/KALSALLAMA_SHA: ${error.message} (a tree without it is upstream llama.rn, not the kalsallama fork)`,
+      `engine-build-id: cannot read node_modules/llama.rn/vendor/VERSIONS: ${error.message} (a tree without it is not the migrated kalsa fork)`,
     );
   }
-  const sha = raw.trim();
-  if (!/^[0-9a-f]{40}$/.test(sha)) {
+  const match = /^LLAMA_CPP_COMMIT=([0-9a-f]{40})$/m.exec(raw);
+  if (!match) {
     throw new Error(
-      `engine-build-id: node_modules/llama.rn/cpp/KALSALLAMA_SHA must be a 40-char sha (got ${JSON.stringify(raw)})`,
+      "engine-build-id: vendor/VERSIONS must carry LLAMA_CPP_COMMIT=<40-char sha>",
     );
   }
-  return sha;
+  return match[1];
 }
 
 /** Read the committed build inputs; throws so the build fails closed. */
@@ -185,7 +208,11 @@ function collectEngineBuildInputs(root = path.resolve(__dirname, "..")) {
   const commit = llamaRnCommit(root);
   const kalsallama = kalsallamaSha(root);
   // Walked from packageDir so exclusions see package-relative paths.
-  const engineTree = digestTree(packageDir, isEngineTreeExcluded);
+  const negated = packNegatedPrefixes(llamaRnPkg);
+  const engineTree = digestTree(
+    packageDir,
+    (rel) => isEngineTreeExcluded(rel) || negated.some((d) => rel === d || rel.startsWith(`${d}/`)),
+  );
   // Only after the tree is proven to be the fork does completeness matter.
   requireEveryEngineTreeDir(engineTree);
   return {
