@@ -106,7 +106,7 @@ a separate question, and the governor numbers are under re-verification below.
   facts are read from `origin/main` of the app.
 - The device plan is `analysis/GOVERNOR-DEVICE-PLAN.md`. Its own header says the body cannot be
   used as a source without first re-reading the audit appendix. The plan is parked per the owner
-  order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:9`; no document on disk records an un-park.
+  order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:19`; no document on disk records an un-park.
   Whether it is re-opened is an open owner decision.
 - The plan's numbers are under re-verification. That work is a separate cell; its record goes to
   `scratchpad/agents/governor-audit-recheck/REPORT.md`. Do not cite a plan number as established
