@@ -518,11 +518,12 @@ die() {
   # in device-restore-out/run-20260918-161000-kvland (fatal.png, 292633 B) and
   # in ten older fatal*/fatal_state* pairs since 14/09 written by every harness
   # that sources this file, not just the restore protocol. Bounded, and the
-  # bound is worth stating: every one of those OUT dirs is gitignored, so this
-  # is "the conversation touched disk", never "the conversation left the
-  # machine". Measurement runs now gate only this unexpected-death capture;
-  # diagnostic runs opt in with MEASUREMENT_RUN=0. Deliberate named captures
-  # remain available to collect run evidence.
+  # bound is worth stating: gitignore does not prevent upload. CI artifact
+  # jobs run on ubuntu-latest and upload emulator OUT dirs with seeded prompts;
+  # real-device lanes run locally and are not uploaded by those workflows.
+  # Measurement runs now gate only this unexpected-death capture; diagnostic
+  # runs opt in with MEASUREMENT_RUN=0. Deliberate named captures remain
+  # available to collect run evidence.
   fatal_shot
   capture_death_evidence
   exit 1

@@ -3,7 +3,6 @@
 # assert_engine_ran) from scripts/ci-lib.sh with fake inputs — no emulator needed.
 # A guard nobody has seen fire is not a guard.
 set -uo pipefail
-MEASUREMENT_RUN=0
 
 OUT=$(mktemp -d)
 PKG=com.kalsa.app
@@ -610,12 +609,18 @@ _PROTO_SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # helper itself resolves the id inside another command substitution. The
 # caller must own the fatal die. Ten active-key substitutions are checked:
 # six in ci-e2e and four in ci-bench (messages, compactor, and summary).
-# The child re-implements _active_messages_key because ci-e2e.sh is not
-# sourceable; its behavioral half proves the shell shape, while the ten-site
-# guard count is the explicit link back to production.
+# Extracted production function text is evaluated below because ci-e2e.sh is
+# not sourceable; the three child cases exercise the functions on disk, while
+# the ten-site guard count is the explicit caller-coverage check.
 _A_OUT="$OUT/proof-a"
 mkdir -p "$_A_OUT"
-_A_LOG="$OUT/proof-a.log"
+_A_MESSAGES_BODY=$(sed -n '/^_active_messages_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-e2e.sh")
+_A_COMPACTOR_BODY=$(sed -n '/^_active_compactor_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-bench.sh")
+_A_SUMMARY_BODY=$(sed -n '/^_active_summary_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-bench.sh")
+_A_BODY_OK=1
+[ -n "$_A_MESSAGES_BODY" ] || _A_BODY_OK=0
+[ -n "$_A_COMPACTOR_BODY" ] || _A_BODY_OK=0
+[ -n "$_A_SUMMARY_BODY" ] || _A_BODY_OK=0
 _A_GUARDS=$((
   $(grep -cF 'if ! key=$(_active_messages_key); then' "$_PROTO_SCRIPTS_DIR/ci-e2e.sh") +
   $(grep -cF 'if ! key=$(_active_messages_key); then' "$_PROTO_SCRIPTS_DIR/ci-bench.sh") +
@@ -629,39 +634,62 @@ if grep -qF "key='\$(_active_compactor_key)'" "$_PROTO_SCRIPTS_DIR/ci-bench.sh" 
 else
   _A_NESTED=0
 fi
-CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_A_OUT" \
-  bash -c '
-    set -uo pipefail
-    OUT="$TEST_OUT"
-    export OUT
-    source "$CI_LIB"
-    ui_texts() { :; }
-    capture_death_evidence() { :; }
-    _active_messages_key() {
-      local index_raw id
-      index_raw="{not-json}"
-      if ! id=$(resolve_active_conversation_id "$index_raw"); then
-        return 1
+_run_a_production_helper() {
+  local body="$1" function_name="$2" out_dir="$3" log_path="$4"
+  TEST_BODY="$body" TEST_FUNCTION="$function_name" TEST_OUT="$out_dir" \
+    CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" \
+    bash -c '
+      set -uo pipefail
+      OUT="$TEST_OUT"
+      export OUT
+      MEASUREMENT_RUN=1
+      source "$CI_LIB"
+      ui_texts() { :; }
+      capture_death_evidence() { :; }
+      sql() { printf "%s\n" "{not-json}"; }
+      eval "$TEST_BODY"
+      if ! key=$("$TEST_FUNCTION"); then
+        die "parent caught active conversation failure"
       fi
-      messages_storage_key "$id"
-    }
-    if ! key=$(_active_messages_key); then
-      die "parent caught active conversation failure"
-    fi
-    printf "ASSERTION_A_PARENT_ABORT: FAIL — nested helper returned unexpectedly\n"
-    exit 9
-  ' > "$_A_LOG" 2>&1
-_A_RC=$?
-if [ "$_A_RC" -eq 1 ] \
+      printf "ASSERTION_A_PARENT_ABORT: FAIL — nested helper returned unexpectedly\n"
+      exit 9
+    ' > "$log_path" 2>&1
+}
+
+_A_MESSAGES_OUT="$_A_OUT/messages"
+_A_COMPACTOR_OUT="$_A_OUT/compactor"
+_A_SUMMARY_OUT="$_A_OUT/summary"
+mkdir -p "$_A_MESSAGES_OUT" "$_A_COMPACTOR_OUT" "$_A_SUMMARY_OUT"
+_A_MESSAGES_LOG="$_A_OUT/messages.log"
+_A_COMPACTOR_LOG="$_A_OUT/compactor.log"
+_A_SUMMARY_LOG="$_A_OUT/summary.log"
+_run_a_production_helper "$_A_MESSAGES_BODY" _active_messages_key "$_A_MESSAGES_OUT" "$_A_MESSAGES_LOG"
+_A_MESSAGES_RC=$?
+_run_a_production_helper "$_A_COMPACTOR_BODY" _active_compactor_key "$_A_COMPACTOR_OUT" "$_A_COMPACTOR_LOG"
+_A_COMPACTOR_RC=$?
+_run_a_production_helper "$_A_SUMMARY_BODY" _active_summary_key "$_A_SUMMARY_OUT" "$_A_SUMMARY_LOG"
+_A_SUMMARY_RC=$?
+_A_LOGS_OK=1
+for _a_log in "$_A_MESSAGES_LOG" "$_A_COMPACTOR_LOG" "$_A_SUMMARY_LOG"; do
+  if ! grep -qF "FATAL: parent caught active conversation failure" "$_a_log" \
+    || grep -qF "returned unexpectedly" "$_a_log"; then
+    _A_LOGS_OK=0
+  fi
+done
+if [ "$_A_MESSAGES_RC" -eq 1 ] \
+  && [ "$_A_COMPACTOR_RC" -eq 1 ] \
+  && [ "$_A_SUMMARY_RC" -eq 1 ] \
+  && [ "$_A_BODY_OK" -eq 1 ] \
   && [ "$_A_GUARDS" -eq 10 ] \
   && [ "$_A_NESTED" -eq 0 ] \
-  && grep -qF "FATAL: parent caught active conversation failure" "$_A_LOG" \
-  && ! grep -qF "returned unexpectedly" "$_A_LOG"; then
-  echo "PASS: ASSERTION_A_PARENT_ABORT — real nested chain aborts in parent (rc=$_A_RC, guards=$_A_GUARDS)"
+  && [ "$_A_LOGS_OK" -eq 1 ]; then
+  echo "PASS: ASSERTION_A_PARENT_ABORT — production helper text aborts in parent (rc=1, guards=$_A_GUARDS)"
   pass=$((pass + 1))
 else
-  echo "FAIL: ASSERTION_A_PARENT_ABORT — rc=$_A_RC guards=$_A_GUARDS nested=$_A_NESTED"
-  sed -n '1,20p' "$_A_LOG"
+  echo "FAIL: ASSERTION_A_PARENT_ABORT — messages=$_A_MESSAGES_RC compactor=$_A_COMPACTOR_RC summary=$_A_SUMMARY_RC bodies=$_A_BODY_OK guards=$_A_GUARDS nested=$_A_NESTED logs=$_A_LOGS_OK"
+  sed -n '1,20p' "$_A_MESSAGES_LOG"
+  sed -n '1,20p' "$_A_COMPACTOR_LOG"
+  sed -n '1,20p' "$_A_SUMMARY_LOG"
   fail=$((fail + 1))
 fi
 
@@ -726,7 +754,7 @@ for _entrypoint in \
   ci-e2e.sh ci-bench.sh ci-dflash-ab.sh \
   device-restore-protocol.sh device-energy-sweep.sh \
   device-decode-lineup.sh device-ngram-spec.sh device-prefill-threads.sh; do
-  if ! grep -qF 'MEASUREMENT_RUN=1' "$_PROTO_SCRIPTS_DIR/$_entrypoint"; then
+  if ! grep -qE '^[[:space:]]*MEASUREMENT_RUN=1[[:space:]]*$' "$_PROTO_SCRIPTS_DIR/$_entrypoint"; then
     _C_WIRING=0
   fi
 done
