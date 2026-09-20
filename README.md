@@ -9,12 +9,12 @@ your conversations never leave the handset.
 
 ## What it does
 
-- **Local chat** with Qwen 3.5 (4B / 2B) or Gemma 4 E2B — you pick the model, it downloads once and stays on the device.
+- **Local chat** with Qwen 3.5 4B or LFM2.5 2.6B — you pick the model, it downloads once and stays on the device.
 - **Vision**: attach photos or PDFs (pages are rendered and fed to the model's vision projector).
 - **Voice**: on-device speech-to-text with Whisper, and text-to-speech for replies.
 - **Web search, opt-in**: an agentic tool loop that only leaves the device when *you* ask a question that needs the web. Default provider is keyless; API keys, if you add any, live in the OS keystore.
 - **Memory, opt-in and filtered**: short facts about you, kept on the device. Passwords, cards, IDs, addresses and health data are refused automatically.
-- **Smart conversation memory** (experimental): long chats are compacted into a frozen digest instead of a blunt sliding window, so older facts survive. Off by default until the benchmark says otherwise — see [`docs/RESEARCH_CONTEXT_LOSS.md`](docs/RESEARCH_CONTEXT_LOSS.md).
+- **Smart conversation memory** (experimental): long chats are compacted into a frozen digest instead of a blunt sliding window, so older facts survive. Off by default until the benchmark says otherwise — see [`archived/docs/RESEARCH_CONTEXT_LOSS.md`](archived/docs/RESEARCH_CONTEXT_LOSS.md).
 - **In-chat mini-apps**: quizzes, tables and small interactive blocks the model can emit, rendered in a sandbox.
 - English and Italian throughout.
 
@@ -22,9 +22,8 @@ your conversations never leave the handset.
 
 | Model | Device RAM | Download | Notes |
 |---|---|---|---|
-| **Qwen 3.5 4B** (default) | **8 GB+** | ~3.5 GB | Best quality, understands images, 16k context |
-| Qwen 3.5 4B-Q3 | 6–8 GB | ~2.4 GB | Same model, lighter quantization |
-| Qwen 3.5 2B | under 6 GB | ~1.3 GB | Fast fallback, text only |
+| **LFM2.5 2.6B** (default) | under 6 GB | ~1.6 GB | Fast fallback, text only |
+| Qwen 3.5 4B | **8 GB+** | ~3.5 GB | Best quality, understands images, 16k context |
 
 Android 8+ (arm64 recommended). The app shows your detected RAM and flags the model that fits.
 
@@ -57,7 +56,7 @@ On-device energy tests read power at the battery terminal at about 1 Hz on a phy
 separate prompt processing from generation and publish coverage and bias instead of one flattering
 number. So far they show two negative results: n-gram speculation has no reliable latency or energy
 win, and moving decode onto the little cores costs about five times the time with no measurable energy gain.
-See [`docs/ENERGY-FRAMEWORK-STATUS.md`](docs/ENERGY-FRAMEWORK-STATUS.md).
+See [`archived/docs/ENERGY-FRAMEWORK-STATUS.md`](archived/docs/ENERGY-FRAMEWORK-STATUS.md).
 
 ## Architecture at a glance
 

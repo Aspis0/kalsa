@@ -6,32 +6,36 @@ This file exists because the constellation is not obvious and guessing has cost 
 on 15/09 a directory named after one repo grew inside another and the two living documents
 quietly became four.
 
-Written 2026-09-16. Every number below was read from the repositories, not remembered.
+Written 2026-09-16; branch and file counts re-read 2026-09-20.
 
 ## The three live ones
 
 | repo | what it is | tracked files | pack |
 |---|---|---|---|
-| **`Aspis0/kalsa`** (public) | the React Native app — this repository | 4.033 | 15,76 MiB |
-| **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.570 | 525 MiB |
-| **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.869 | 530 MiB |
+| **`Aspis0/kalsa`** (public) | the React Native app — this repository | 3.424 | 15,76 MiB |
+| **`Aspis0/kalsallama`** (private) | the engine: our fork of `ggml-org/llama.cpp` | 3.664 | 525 MiB |
+| **`Aspis0/kalsa-moe-experiments`** (private) | the lab: the two living docs, measurements, device evidence | 50.900 | 530 MiB |
 | **`Aspis0/llama.rn`** (public) | the React Native binding fork — read its section before assuming it is dead | — | — |
 
 ### `kalsa` — the app
 
-Branches: `main` and `remote-brain`. `remote-brain` is the other session's line of work on
+Branches: 26 local and 17 remote. `remote-brain` is the other session's line of work on
 Kalsa Brain (PC↔phone) and is the one branch that is deliberately kept apart.
 
 The app does not vendor the engine and no longer assembles it: it takes `llama.rn` from the
 fork `Aspis0/llama.rn` as a git dependency pinned by commit in `package.json` /
-`package-lock.json`, and the fork's `cpp/` is `kalsallama` flattened. The pin is a commit, not a
-branch head — moving `kalsallama`'s `main`, or the fork's, does not change what the app builds.
+`package-lock.json`. The fork vendors the engine under `vendor/` — `vendor/VERSIONS` pins it and
+`vendor/llama.cpp/` is `kalsallama` — and its `cpp/` holds only the binding glue. The pin is a
+commit, not a branch head — moving `kalsallama`'s `main`, or the fork's, does not change what the
+app builds.
 Only editing the sha in `package.json` and the lockfile does, and
 `scripts/assert-engine-provenance.sh` proves the installed tree is that commit.
 
 ### `kalsallama` — the engine
 
-One branch, `main`. It has a live `upstream` remote on `ggml-org/llama.cpp`, and that is the
+Five local branches. `main` is `2361be359`, the same as `origin/main`; HEAD is `b11010-merge` at
+`8537d097c`, the shipped pin, 210 commits ahead of `origin/main`. It has a live `upstream` remote
+on `ggml-org/llama.cpp`, and that is the
 reason this cannot be folded into a monorepo: upstream's tree owns the repository root
 (`ggml/`, `src/`, `tools/`, `tests/`), so every future `git merge upstream/master` would become
 a subtree merge. 844 upstream commits were merged on 2026-09-16 with per-file conflict
@@ -78,20 +82,24 @@ They are read-only on GitHub, still cloneable, and nothing is lost. Un-archiving
 
 ### `llama.rn` — the binding fork (live again, 17/09)
 
-Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa` (the live one),
-`kalsa-step1`, `main`. Its `cpp/` is `kalsallama` at the pin plus the Kalsa patch set, so the
-binding and the engine stop being assembled from three sources at build time.
+Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa`, `kalsa-step1`, `main`,
+`vendor-migration`. `origin/kalsa` and `origin/vendor-migration` are both `0f313bab`, the app's
+pin; the local `kalsa` branch is a stale pointer at `485519fe`. The fork's `vendor/` holds
+`kalsallama` at the pin plus the Kalsa patch set, so the binding and the engine stop being
+assembled from three sources at build time.
 
 **The app builds from it since `16f6ce9` on `main` (2026-09-18).** `patches/`, `vendor/`,
 `native/kalsallama.pin`, `scripts/sync-kalsallama.sh` and the `patch-package` devDependency were
-deleted in the cleanup that followed; the fork's own `scripts/sync-kalsallama.sh` is where the
-engine is re-flattened now. An engine update is: `bump` in the fork, push, then the new sha in
+deleted in the cleanup that followed. The flatten script `scripts/sync-kalsallama.sh` is now
+retired: the fork re-vendors with `scripts/sync-vendor.sh` from the pins in `vendor/VERSIONS`. An
+engine update is: edit the pin in the fork, run `npm run sync:vendor`, push, then the new sha in
 the app's `package.json` and lockfile.
 
 ## Two conventions that make this navigable
 
-**One branch per repository — no longer true for the app.** `Aspis0/kalsa` carries six:
-`main`, `remote-brain`, `brain`, `chat`, `llama-rn-fork`, `baseline-67c73d26c`.
+**One branch per repository — no longer true for the app.** `Aspis0/kalsa` carries 17 remote
+branches; the six it carried when this file was written were `main`, `remote-brain`, `brain`,
+`chat`, `llama-rn-fork`, `baseline-67c73d26c`.
 
 ⚠️ **Three local clones point at `Aspis0/kalsa`, and all three call their local branch `main`.**
 That is the trap this file exists for:
