@@ -30,7 +30,7 @@ const DEFAULT_CONTEXT = {
       id: "chat-model",
       label: "Which model am I using?",
       response:
-        "The local engine (llama.cpp) runs on this device. Phase 1 ships Qwen3.5-4B by default, with Gemma 4 E2B as an alternative.",
+        "The local engine (llama.cpp) runs on this device. Phase 1 ships LFM2.5 2.6B by default, with Qwen 3.5 4B as an alternative.",
     },
   ],
 };

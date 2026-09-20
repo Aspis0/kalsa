@@ -53,7 +53,8 @@ because it is not one of the seven.
 
 ### `kalsa-moe-experiments` — the lab
 
-One branch, `main`. It holds the **two living documents**:
+One long-lived branch, `main`; short-lived worktree branches are created beside it (both local
+`main` and `origin/main` are at `e495dbe5`). It holds the **two living documents**:
 
 - `PLAN.md` — the long-term plan, plus the product-suite execution track.
 - `docs/ALIVE.md` — measured state and the diary.
