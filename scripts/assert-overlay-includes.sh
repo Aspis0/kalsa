@@ -292,7 +292,7 @@ if [ "$c_rn" -lt 7 ] || [ "$c_common" -lt 18 ] || [ "$c_mtmd" -lt 5 ]; then
 fi
 if [ "$fails" -gt 0 ]; then
   echo "[includes] $fails source(s) do not parse against the assembled tree."
-  echo "[includes] An API the engine moved, or a header the flatten did not bring."
+  echo "[includes] An API the engine moved, or a header the vendor manifest did not bring."
   exit 1
 fi
 # Not "everything the build compiles": this parses vendor/llama.cpp/common/,
