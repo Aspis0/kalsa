@@ -2193,3 +2193,33 @@ CI stayed green, the harness tests stayed green, only the numbers quietly went
 missing. The measurement gates should assert their own markers are still being
 emitted, the same way `requireEveryEngineTreeDir` asserts the digest still
 covers every tree.
+
+**The replacement, mapped at the emitter** (`cpp/rn-completion.cpp:534`, read
+there rather than inferred from a sample line), because the field names do not
+line up the way they look:
+
+| retired line | replacement | note |
+|---|---|---|
+| `n_past=` (tokens reused) | `n_common=` | shared prefix with the live cache |
+| `embd.size=` (prompt total) | `text_tokens=` | **not** `embd=`: `embd` is the *cache's* token vector, and `n_common == embd` is how "whole cache reused" is detected |
+
+Two properties of the swap that an audit has to weigh, not wave through:
+
+- `KALSA_KVPREFIX` is logged **before** the load decision — it is the prefix the
+  engine *may* reuse. The retired line reported `n_past` **after** loadPrompt,
+  i.e. what was reused. They usually agree; when a checkpoint restore fails they
+  do not, and a verdict named WARM would be making the weaker claim silently.
+  `KALSA_KVREUSE checkpoint n_past=%d prompt=%zu n_common=%zu` (`:640`) carries
+  the post-facto numbers with the old semantics, but only fires on the
+  checkpoint path, so it is a corroborator and not a drop-in.
+- `KALSA_KVPREFIX` is WARNING-level. A filtered capture drops it, and
+  `device-ciswire-cache.sh:1289` already fails loudly for exactly that reason —
+  any new consumer inherits that requirement.
+
+Scope when it is picked up: `ci-lib.sh:capture_kv_reuse()` is the shared
+collector (`ci-bench.sh` and `ci-e2e.sh` both read its `reuse_tN.txt`), so the
+real edits are that function, the two verdict parsers, and
+`benchGrade.mjs:219`. The `Input processed` hits in
+`device-ciswire-cache.sh` are comments and fixtures — its reuse verdict already
+treats `KALSA_KVPREFIX` as ground truth (`:950`), which is why tonight's Qwen
+measurement on the pre-bump APK is unaffected either way.
