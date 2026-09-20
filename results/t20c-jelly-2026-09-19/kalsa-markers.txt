@@ -1,0 +1,38 @@
+KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+KALSA_SESSION {"op":"init","no_extra_bufts":0}
+KALSA_SESSION {"op":"load","ms":21,"ok":false,"tokensOnDisk":0,"reason":"no_file","stemHash":"4119967737"}
+KALSA_KVRESUME n_tokens=2147 pos_max=2146 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+KALSA_PREFIX_MEASURED {"tokens":2147,"restored":true}
+KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":3832}
+KALSA_DIGEST {"durationMs":0,"corpusSize":0,"selectedCount":0,"ciswireFlags":1}
+KALSA_WINDOW {"kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":0,"textEst":345}
+KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+KALSA_KVPREFIX embd=0 text_tokens=2430 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d296e90
+KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2689,"tokensEvaluated":2430,"tokensPredicted":258,"draftTokens":0,"draftAccepted":0,"promptMs":94596.999,"predictedMs":41056.796,"predictedPerSecond":6.283977931448913,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":2430,"ciswireFlags":1}
+KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":1,"namesValid":true,"argsParsed":true,"toolNames":["web_search"]}
+KALSA_KVPREFIX embd=2689 text_tokens=2543 n_common=2429 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d296e90
+KALSA_KVDIVERGE n_common=2429 shared_lo=2421 embd_hi=2441 text_hi=2441
+KALSA_KVREUSE checkpoint n_past=2427 prompt=2543 n_common=2429
+KALSA_TELEMETRY {"turnId":"1","round":1,"tokensCached":2712,"tokensEvaluated":2543,"tokensPredicted":168,"draftTokens":0,"draftAccepted":0,"promptMs":6922.227,"predictedMs":28387.775999999998,"predictedPerSecond":5.918040215619568,"contextFull":false,"interrupted":false,"truncated":false,"tool":"web_search","prompt_n":116,"ciswireFlags":1}
+KALSA_TOOLCALL {"turnId":"1","round":1,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":1,"namesValid":true,"argsParsed":true,"toolNames":["web_search"]}
+KALSA_KVPREFIX embd=2712 text_tokens=2660 n_common=2542 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d296e90
+KALSA_KVDIVERGE n_common=2542 shared_lo=2534 embd_hi=2554 text_hi=2554
+KALSA_KVREUSE checkpoint n_past=2429 prompt=2660 n_common=2542
+KALSA_TELEMETRY {"turnId":"1","round":2,"tokensCached":3090,"tokensEvaluated":2660,"tokensPredicted":429,"draftTokens":0,"draftAccepted":0,"promptMs":12652.811,"predictedMs":74337.609,"predictedPerSecond":5.770968501287148,"contextFull":false,"interrupted":false,"truncated":false,"tool":"web_search","prompt_n":231,"ciswireFlags":1}
+KALSA_TOOLCALL {"turnId":"1","round":2,"toolChoice":"none","structuredCalls":0,"fallbackCalls":1,"fallbackDialect":"lfm","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":1,"namesValid":true,"argsParsed":true,"toolNames":["web_search"]}
+KALSA_KVPREFIX embd=3090 text_tokens=1706 n_common=1075 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d296e90
+KALSA_KVDIVERGE n_common=1075 shared_lo=1067 embd_hi=1087 text_hi=1087
+KALSA_KVDIAG n_common=1075 total=1706 search_max=1075 checkpoints=[2147,2148,2427,2429,2542,] keep_prefix=0
+KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1,"ciswireFlags":1}
+KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":-1,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":4,"ciswireFlags":1,"durationMs":0,"timeoutMs":20000,"stopReason":"skipped_no_snapshot"}
+KALSA_SESSION {"op":"mark_prefix","ms":37,"ok":false,"estimatedBytes":202867468,"usedTokens":3090,"reason":"kv_prefix_unavailable","stemHash":"4119967737"}
+KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":3784}
+KALSA_DIGEST {"durationMs":0,"corpusSize":0,"selectedCount":0,"ciswireFlags":1}
+KALSA_WINDOW {"kvHeld":true,"nPast":3090,"lastSaveTokens":null,"loadedB":0,"hasDigest":false,"legacyWindowStart":0,"textEst":1996}
+KALSA_THINKING {"turnId":"2","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+KALSA_KVPREFIX embd=2019 text_tokens=3871 n_common=1075 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d296e90
+KALSA_KVDIVERGE n_common=1075 shared_lo=1067 embd_hi=1087 text_hi=1087
+KALSA_KVDIAG n_common=1075 total=3871 search_max=1075 checkpoints=[2427,2429,2542,1079,1358,1471,1588,1703,] keep_prefix=0
