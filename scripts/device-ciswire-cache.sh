@@ -777,17 +777,41 @@ print("%d %d %d %d" % (len(s.strip()), len(d.strip()), num(b), num(x)))
 # condition the BM25 digest needs to select anything at all. Without it the digest
 # would be empty for a reason that has nothing to do with ciswire.
 cw_prompt() {
-  python3 - "$SEED" "$1" "$PROMPT_CHARS" <<'PY'
+  python3 - "$SEED" "$1" "$PROMPT_CHARS" "${CW_CORPUS:-dense}" <<'PY'
 import random, sys
-seed, turn, chars = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
+seed, turn, chars, corpus = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
 base = "n%d" % seed
 mine = "%s-w%d" % (base, turn)
 recall = "%s-w%d" % (base, max(1, turn - 3))
 rng = random.Random(seed * 1000003 + turn)
+# CW_CORPUS=prose: realistic ~4 chars/token English filler so the ciswire
+# char-budget (calibrated for prose) slides before the TOKEN count overflows
+# n_ctx. The dense `-fNN` ids are ~2 chars/token and defeat the char-budget on a
+# large-ctx model (measured: prompt_n 24697 > n_ctx 16384, window never slid).
+# The marker word is kept intact for the recall probe, diluted to 1/12 in prose
+# so it does not drag the ratio back down; dense mode is unchanged (1/7, -fNN).
+PROSE = ("the of and to in a is that for it as with was on are by this be at or from an "
+         "but not have has had they you we time year people way day thing life world "
+         "state family student group country problem hand part place case week company "
+         "system program question work number night point home water room area money "
+         "story fact month right study book job word business issue side head house "
+         "service friend power hour game line member law car city community name team "
+         "minute idea body information face level office door health person art history "
+         "result change morning reason research moment air force education policy process "
+         "music market sense nation plan college interest experience effect class control "
+         "field development role effort rate heart show leader light voice mind price "
+         "report decision view town road model season society director position record "
+         "paper space ground form event matter center couple site project activity table").split()
+marker_every = 12 if corpus == "prose" else 7
 body, n = [], 0
 while sum(len(w) + 1 for w in body) < chars:
     n += 1
-    body.append(mine if n % 7 == 0 else "%s-f%d" % (base, rng.randrange(97)))
+    if n % marker_every == 0:
+        body.append(mine)
+    elif corpus == "prose":
+        body.append(PROSE[rng.randrange(len(PROSE))])
+    else:
+        body.append("%s-f%d" % (base, rng.randrange(97)))
 text = " ".join(body)
 if turn == 1:
     q = ("Reply with one short sentence, the number only. Count how many times "
