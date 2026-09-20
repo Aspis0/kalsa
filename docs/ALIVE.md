@@ -25,14 +25,15 @@ document that produced them is named instead.
 | Xiaomi/Qwen: the fit-gate vision refusal, the ciswire char-vs-token overflow, and what did run | `analysis/XIAOMI-QWEN-FITGATE-AND-CISWIRE-TOKEN-OVERFLOW-2026-09-20.md` |
 | The governor KV session contract (deferred commit, watermark, invariants) | `analysis/README-governor-kv-contract.md`; the `file:line` pins in its header are stale, so re-pin before quoting |
 | How to run the Qwen `<think>` replay probe | `analysis/README-qwen-think-replay.md` |
-| The governor device plan, and why its body is not usable as a source | `analysis/GOVERNOR-DEVICE-PLAN.md`; re-verification pending at `scratchpad/agents/governor-audit-recheck/REPORT.md` |
+| The governor device plan, rewritten in English on 2026-09-20, and the audited Italian body | `analysis/GOVERNOR-DEVICE-PLAN.md`; `archived/GOVERNOR-DEVICE-PLAN-2026-09-audited.md`; re-verification at `scratchpad/agents/governor-audit-recheck/REPORT.md` |
 | Per-cell preregistration, raw evidence and reports | `scratchpad/agents/<cell>/` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 
 ## Standing cautions
 
-- The governor plan's numbers are under re-verification. Treat them as unmeasured until the
-  re-check report exists and has been read.
+- The governor plan was re-verified and rewritten on 2026-09-20. Every number in it now cites an
+  artefact or is marked UNSOURCED; the audited Italian body is archived byte-for-byte and is not a
+  current source.
 - The `README-governor-kv-contract.md` line pins were written against older trees and no longer
   match the current commits; re-pin before quoting a `file:line`.
 - A device number is only as good as the phone state it was read in. The archived diary carries

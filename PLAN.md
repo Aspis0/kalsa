@@ -114,13 +114,16 @@ a separate question, and the governor numbers are under re-verification below.
   (`src/screens/SettingsScreen.tsx:501`). A clean install is therefore off and stays off unless the
   toggle writes the key. The load path additionally requires `sensor_valid` before the governor is
   used (`src/engine/LlamaService.ts:2314`). Both facts are read from `origin/main` of the app.
-- The device plan is `analysis/GOVERNOR-DEVICE-PLAN.md`. Its own header says the body cannot be
-  used as a source without first re-reading the audit appendix. The plan is parked per the owner
-  order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:22`; no document on disk records an un-park.
-  Whether it is re-opened is an open owner decision.
-- The plan's numbers are under re-verification. That work is a separate cell; its record goes to
-  `scratchpad/agents/governor-audit-recheck/REPORT.md`. Do not cite a plan number as established
-  until that report exists and has been read.
+- The device plan is `analysis/GOVERNOR-DEVICE-PLAN.md`, in English. The 2026-09-19 audit of the
+  earlier Italian plan was re-read on the artefacts on 2026-09-20 and the plan was rewritten; the
+  audited Italian body is archived byte-for-byte at
+  `archived/GOVERNOR-DEVICE-PLAN-2026-09-audited.md`, and the re-verification is
+  `scratchpad/agents/governor-audit-recheck/REPORT.md`. The plan is parked per the owner order
+  quoted in the archived copy; no document on disk records an un-park, so re-opening it is an open
+  owner decision.
+- Every number in the rewritten plan cites an artefact or is marked UNSOURCED. The plan's design
+  shape (Rule 1: decisions contain no device identity; Rule 2: matrix as data; Rule 3: one
+  selector; probes fail closed) survived the audit unchanged.
 
 ## Roadmap and next steps
 
@@ -129,8 +132,9 @@ The order is the owner's to set. The committed near-term work is:
 1. Finish the device measurement of ciswire recall-after-eviction on Qwen (Xiaomi), using the
    `CW_CORPUS=prose` variant committed in `745bf82`. The dense filler trips the char-vs-token
    overflow and never reaches the slide point.
-2. Re-verify the governor plan's numbers against the artefacts, cell by cell, before any governor
-   code is built from the plan.
+2. Governor plan: the numbers were re-verified against the artefacts on 2026-09-20 and the plan
+   was rewritten in English; the rewritten plan is the reference for any governor code built from
+   it.
 3. Publish or drop the app's local `main` commit. `~/Projects/kalsa` `main` is `745bf82`, one
    commit ahead of `origin/main` (`5429799`) and unpushed; the commit is the `CW_CORPUS` knob and
    was rebased onto `origin/main` at 2026-09-20 08:23:03 EDT (`git reflog show main --date=iso`),
@@ -159,7 +163,8 @@ These are owner-scope. No agent should act on them without a new owner decision:
 
 ### Agent work
 
-- The governor number re-verification cell, `scratchpad/agents/governor-audit-recheck/`.
+- The governor number re-verification cell, `scratchpad/agents/governor-audit-recheck/` (complete
+  2026-09-20; all seven audit findings held, with one correction to the audit itself).
 - The Qwen ciswire recall measurement on the Xiaomi.
 - Corrections to these two living docs, to the `analysis/` records and to the affected memories
   whenever a disk check contradicts them.
