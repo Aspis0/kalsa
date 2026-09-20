@@ -80,9 +80,10 @@ disabled so multi-GB models and conversations are not copied off the phone. The 
 traffic is a web search you explicitly trigger, and the model download from Hugging Face.
 
 **Telemetry** is off by default and opt-in. A release/store build **must** set
-`TELEMETRY_WORKER_URL` in `src/telemetry/config.ts` to the deployed Worker
-origin (see `workers/telemetry/README.md`). Leaving it empty silently disables
-network send — correct for local/dev, not for production.
+`TELEMETRY_WORKER_URL` in `src/telemetry/config.ts` to the production Worker
+origin `https://telemetry.kalsa.io` (see `workers/telemetry/README.md`).
+Leaving it empty silently disables network send — correct for local/dev, not
+for production.
 
 **Egress privacy filter (fail-closed).** The only user-triggered outbound traffic that can carry
 private data is `web_search` (its query) and `web_fetch` (its URL **and** query). Before either

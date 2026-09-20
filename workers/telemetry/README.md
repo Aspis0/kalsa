@@ -63,8 +63,11 @@ Inventing hex strings will bind the Worker to a namespace you do not own.
    npx wrangler deploy
    ```
 
-   Bind a custom domain in the CF dashboard (`workers_dev = false`). Record
-   the origin; that is `TELEMETRY_WORKER_URL`.
+   The production origin is the `telemetry.kalsa.io` custom domain, and the
+   route is declared in `wrangler.toml`, so the deploy binds it. `workers_dev`
+   is `false`: the custom domain is the only origin, and the previous
+   `*.workers.dev` host is retired because no released build ever used it.
+   That custom-domain origin is the production `TELEMETRY_WORKER_URL`.
 
 6. **Flush**:
 
@@ -79,7 +82,7 @@ Inventing hex strings will bind the Worker to a namespace you do not own.
 Point the app at the Worker:
 
 1. Production / release APK: **must** set `TELEMETRY_WORKER_URL` in
-   `src/telemetry/config.ts` to the custom domain (keep `workers_dev = false`).
+   `src/telemetry/config.ts` to `https://telemetry.kalsa.io`.
    An empty URL silently disables all network send — correct for local/dev,
    **not** for a store build.
 2. Device tests: AsyncStorage override

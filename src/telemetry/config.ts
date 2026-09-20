@@ -6,14 +6,17 @@
 /**
  * Production Worker base URL.
  *
- * RELEASE BUILD REQUIREMENT: a store/release APK MUST set this to the
- * deployed Worker origin (see workers/telemetry/README.md and the README
- * "Telemetry" note). Empty string is correct for local/dev/staging until
- * deploy; it silently disables network send (no unknown-endpoint fallback).
+ * The production origin is the Kalsa-owned custom domain `telemetry.kalsa.io`
+ * (zone `kalsa.io`; route declared in workers/telemetry/wrangler.toml). It is
+ * the only origin: `workers_dev` is disabled there because no released build
+ * ever used a `*.workers.dev` host.
+ * See workers/telemetry/README.md and the README "Telemetry" note.
+ * Empty string is correct for local/dev/staging until deploy; it silently
+ * disables network send (no unknown-endpoint fallback).
  * Device tests may override via AsyncStorage `kalsa.telemetry.url`.
  */
 export const TELEMETRY_WORKER_URL: string =
-  "https://kalsa-telemetry.aspislauncher.workers.dev";
+  "https://telemetry.kalsa.io";
 
 /** AsyncStorage key for local mock / staging URL override (device tests). */
 export const TELEMETRY_URL_OVERRIDE_KEY = "kalsa.telemetry.url";
