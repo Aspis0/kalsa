@@ -8,7 +8,7 @@ quietly became four.
 
 Written 2026-09-16. Every number below was read from the repositories, not remembered.
 
-## The three live ones
+## The four live ones
 
 | repo | what it is | tracked files | pack |
 |---|---|---|---|

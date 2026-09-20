@@ -384,14 +384,17 @@ describe("engine build id generator", () => {
     }
   });
 
-  test("throws on a wrong host/owner/repo", () => {
+  // The URL gate pins owner, repository and host: only the Aspis0 fork, under
+  // either its current or its pre-rename name, may supply the engine.
+  test.each([
+    ["owner", "git+https://github.com/NotAspis0/kalsa.rn.git"],
+    ["repository", "git+https://github.com/Aspis0/kalsallama.git"],
+    ["host", "git+https://gitlab.com/Aspis0/kalsa.rn.git"],
+  ])("throws on a wrong %s", (_what, url) => {
     const { collectEngineBuildInputs } = engineBuildIdModule;
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "engine-build-id-"));
     try {
-      scaffoldForkRoot(
-        tmp,
-        `git+https://github.com/NotAspis0/kalsa.rn.git#${FORK_SHA}`,
-      );
+      scaffoldForkRoot(tmp, `${url}#${FORK_SHA}`);
       expect(() => collectEngineBuildInputs(tmp)).toThrow(
         /github\.com git URL for Aspis0\/kalsa\.rn/,
       );

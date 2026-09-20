@@ -58,7 +58,7 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 |---|---|---|
 | `patch-package` shouts when upstream moves under us | nothing moves under us: the fork is pinned by sha | a fork merge shows conflicts instead of resolving them in silence |
 | `assert-vendor-pristine.sh` (installed == npm + patch) | no longer meaningful | `scripts/assert-engine-provenance.sh` (installed == `fork@sha`) |
-| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | partial — `assert-engine-provenance.sh` prints the installed `cpp/KALSALLAMA_SHA`, but nothing compares it to an expected value |
+| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | partial — `assert-engine-provenance.sh` prints the `LLAMA_CPP_COMMIT` the installed `vendor/VERSIONS` declares, but nothing compares it to an expected value |
 | `patch-package` exits 0 after printing "1 error(s)" — CI green on an unpatched engine | gone; this is the real gain | — |
 | an overlay that wins every conflict silently | gone | git, in the fork |
 | lockfile `integrity` sha512 and an offline `npm ci` from cache | a git dep: the sha40 is the identity, GitHub must be reachable, and the lockfile `integrity` of a git dep is verified by nobody | `assert-engine-provenance.sh`, which refetches the commit and compares file by file — run by hand, not in CI |
@@ -76,7 +76,8 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 ## Evidence read
 
 `package.json` (the `llama.rn` git dependency, no `postinstall`); `package-lock.json`
-(`packages["node_modules/llama.rn"].resolved`); `node_modules/llama.rn/cpp/KALSALLAMA_SHA`;
+(`packages["node_modules/llama.rn"].resolved`); `node_modules/llama.rn/vendor/VERSIONS`
+(the `LLAMA_CPP_COMMIT=` line, the engine sha the installed tree declares);
 `scripts/engine-build-id.js`; `scripts/assert-engine-provenance.sh`;
 `plugins/withLlamaFromSource.js`; and, in `Aspis0/kalsa.rn`, `scripts/sync-kalsallama.sh` with
 `scripts/kalsa-patches/`.
