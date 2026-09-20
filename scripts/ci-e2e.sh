@@ -143,6 +143,11 @@ sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='$key';" > 
   echo "$REPLY"
   echo ">>>"
 } > "$OUT/RESULT.txt"
+# verdicts.txt carries ONLY the node verdict lines (KV_CACHE / SESSION_RESTORE),
+# never model prose: the shell checks below read it instead of RESULT.txt, which
+# also holds the assistant's replies. Truncated here, with RESULT.txt, so a
+# previous run in the same $OUT cannot leave a verdict behind for this one.
+: > "$OUT/verdicts.txt"
 cat "$OUT/RESULT.txt"
 
 [ -n "$REPLY" ] || { log "FAIL: no assistant reply captured"; exit 1; }
@@ -157,7 +162,8 @@ fi
 log "OK: current-turn REPLY contains no think markup"
 
 # ---------------------------------------------------------------------------
-# TURN 2 — same conversation; measures KV prefix-reuse via native n_past.
+# TURN 2 — same conversation; measures KV prefix reuse via native n_common.
+# n_common is a pre-decision figure: the prefix that COULD be reused.
 # ---------------------------------------------------------------------------
 log "type message (turn 2)"
 # Alphanumeric for adb `input text` (same constraint as MSG / turn 1).
@@ -218,7 +224,8 @@ sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';" > 
 
 # Telemetry capture — KV-cache health probe (data first; COLD does not fail the job).
 # tokensCached in KALSA_TELEMETRY is n_past at END of completion (total context),
-# NOT tokens reused — warm/cold uses native loadPrompt n_past from reuse_t2.txt.
+# NOT tokens reused — warm/cold uses native loadPrompt n_common from reuse_t2.txt
+# (the reusable prefix, printed before the load decision).
 log "capturing KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry.txt" || true
 # Static-prefix prewarm: did it restore the on-disk snapshot, prefill, or skip —
@@ -230,6 +237,7 @@ node -e '
 const fs = require("fs");
 const path = process.argv[1];
 const reusePath = process.argv[2];
+const dumpPath = process.argv[3];
 let raw = "";
 try { raw = fs.readFileSync(path, "utf8"); } catch (_) {}
 const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -250,41 +258,74 @@ const fmt = (label, o) => {
 const t1 = payloads.length ? payloads[0] : null;
 const t2 = payloads.length ? payloads[payloads.length - 1] : null;
 const linesOut = [fmt("turn1", t1), fmt("turn2", t2)];
-// tokensCached is n_past at end of turn (not reuse). Use native Input processed line.
+// tokensCached is n_past at end of turn (not reuse). Warm/cold reads the
+// engine-printed KALSA_KVPREFIX line: n_common is the reusable prefix (the
+// retired n_past) and text_tokens the total prompt tokens (the retired
+// embd.size). embd is the token vector already in the live cache, NOT a prompt
+// size — reading it as one would make this fraction wrong by construction.
+// The marker is printed BEFORE the load decision, so n_common is the prefix
+// that CAN be reused, not a count of what was; every verdict below says so.
 let reuseRaw = "";
 try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
-// reuse_tN.txt holds EVERY prompt load of the turn (newest last): pick the
-// one whose embd.size equals the tokensEvaluated of this turn, so a
-// background summarize load cannot be mistaken for the chat turn.
-const pickReuse = (raw, evaluated) => {
-  const all = [...raw.matchAll(/n_past=(\d+),\s*embd\.size=(\d+)/g)];
-  if (!all.length) return null;
-  const exact = all.filter((m) => Number(m[2]) === evaluated);
-  return exact.length ? exact[exact.length - 1] : all[all.length - 1];
-};
-const rm = pickReuse(reuseRaw, t2 ? n(t2, "tokensEvaluated") : -1);
+// Did the logcat dump carry anything at all? A dead marker and an empty/failed
+// `adb logcat -d` both leave reuse_tN.txt empty, and only the first is a red
+// job. reuse_tN.dump is written by capture_kv_reuse next to the reuse file.
+let dump = "";
+try { dump = fs.readFileSync(dumpPath, "utf8").trim(); } catch (_) {}
+const dumpHadContent = /^dump=content/.test(dump);
+// reuse_tN.txt holds EVERY prompt load since the first logcat clear of the run
+// (newest last). Attribute by prompt size — the same rule the KV_PREFIX reader
+// uses — because a static-prefix prewarm emits its own KALSA_KVPREFIX BEFORE
+// the chat turn, so the first line is the prewarm (device-ciswire-cache.sh:1546:
+// "The LAST KVPREFIX wins (the prewarm line comes first)").
+const all = [...reuseRaw.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)];
+// 0/absent means the size is unknown, not that the prompt was empty.
+const evaluated = t2 ? n(t2, "tokensEvaluated") : 0;
+const sizeKnown = evaluated > 0;
+const exact = sizeKnown ? all.filter((m) => Number(m[2]) === evaluated) : [];
+const rm = sizeKnown
+  ? (exact.length ? exact[exact.length - 1] : null)
+  : (all.length ? all[all.length - 1] : null);
 let kv;
-if (!rm) {
-  kv = "KV_CACHE: UNKNOWN (no native Input processed line)";
+if (!reuseRaw && dumpHadContent) {
+  // The dump had lines and turn 2 produced a reply, so a prompt load happened
+  // and the marker must exist: the instrument is dead, not the phenomenon
+  // absent. The shell turns this into a hard failure.
+  kv = "KV_CACHE: BROKEN (no KALSA_KVPREFIX line in the whole run — reuse instrument dead)";
+} else if (!reuseRaw) {
+  // The dump itself was empty/failed: a transient capture problem, never a red
+  // job — a gate that fires at random is worse than the bug it closes.
+  kv = "KV_CACHE: UNKNOWN (logcat dump carried nothing — reuse instrument not exercised)";
+} else if (!rm) {
+  // A marker exists but none carries this turn's prompt size: report no number
+  // at all rather than some other load's (prewarm, background summarize).
+  kv = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines exist but none has text_tokens=" + evaluated + " — no line belongs to turn 2)";
 } else {
-  const nPast = Number(rm[1]);
-  const embd = Number(rm[2]);
-  if (nPast > 0) {
-    kv = "KV_CACHE: WARM (turn2 reused " + nPast + "/" + embd + " prompt tokens)";
+  const reused = Number(rm[3]);
+  const total = Number(rm[2]);
+  const why = " prompt tokens; pre-decision marker, the prefix that could be reused";
+  const who = sizeKnown ? "" : ", unattributed: turn size unknown, last load used";
+  if (reused > 0) {
+    kv = "KV_CACHE: WARM (turn2 " + reused + "/" + total + why + who + ")";
   } else {
-    kv = "KV_CACHE: COLD (turn2 reused 0/" + embd + " — full re-prefill)";
+    kv = "KV_CACHE: COLD (turn2 0/" + total + why + who + ")";
   }
 }
 linesOut.push(kv);
 process.stdout.write(linesOut.join("\n") + "\n");
-' "$OUT/telemetry.txt" "$OUT/reuse_t2.txt" | tee -a "$OUT/RESULT.txt"
+' "$OUT/telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" | tee -a "$OUT/RESULT.txt" "$OUT/verdicts.txt"
 
-if grep -qF "KV_CACHE: COLD" "$OUT/RESULT.txt"; then
-  log "KV_CACHE: COLD (turn2 full re-prefill) — logged, not failing job"
-elif grep -qF "KV_CACHE: WARM" "$OUT/RESULT.txt"; then
-  log "KV_CACHE: WARM — native n_past > 0 (prefix reuse observed)"
+# Read the verdicts from their own file, never from RESULT.txt: RESULT.txt also
+# holds the assistant's replies, and a reply containing these literal strings
+# would otherwise fake a verdict (or trip the die below).
+if grep -qF "KV_CACHE: BROKEN" "$OUT/verdicts.txt"; then
+  die "FAIL: the logcat dump had content but carried no KALSA_KVPREFIX line — reuse instrument dead (a quiet engine bump can retire the marker; see reuse_t2.txt)"
+elif grep -qF "KV_CACHE: COLD" "$OUT/verdicts.txt"; then
+  log "KV_CACHE: COLD (turn2 reusable prefix 0 — logged, not failing job)"
+elif grep -qF "KV_CACHE: WARM" "$OUT/verdicts.txt"; then
+  log "KV_CACHE: WARM — native n_common > 0 (reusable prefix observed, pre-decision)"
 else
-  log "KV_CACHE: UNKNOWN — no native Input processed line"
+  log "KV_CACHE: UNKNOWN — no KALSA_KVPREFIX line attributable to turn 2"
 fi
 
 # ---------------------------------------------------------------------------
@@ -385,7 +426,7 @@ sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';" >
 
 # Session + turn-3 telemetry (logcat was cleared at restart; only this process).
 # tokensCached is n_past at END of completion — not reuse. Warm/cold uses
-# native loadPrompt n_past from reuse_t3.txt (HIT/MISS still from KALSA_SESSION).
+# native loadPrompt n_common from reuse_t3.txt (HIT/MISS still from KALSA_SESSION).
 log "capturing KALSA_SESSION + post-restart KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_SESSION" | sed 's/.*KALSA_SESSION /KALSA_SESSION /' > "$OUT/session_telemetry.txt" || true
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry_restart.txt" || true
@@ -444,41 +485,50 @@ const turn3Line = t3
   ? ("turn3(restart): cached=" + cached + " evaluated=" + evaluated + " promptMs=" + promptMs)
   : "turn3(restart): cached=? evaluated=? promptMs=? (missing)";
 
-// tokensCached is n_past at end of turn (not reuse). Warm requires native n_past > 0.
+// tokensCached is n_past at end of turn (not reuse). Warm requires native
+// n_common > 0 — a pre-decision prefix, so the verdict says reusable, not reused.
 let reuseRaw = "";
 try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
 // Same attribution rule as the turn-2 verdict: among every prompt load
-// captured for this turn, take the one whose embd.size matches what the chat
-// turn evaluated. ALSO report how many loads ran — more than one after a
-// restore means a utility completion replaced embd before the chat turn,
-// which is itself the explanation for a zero-reuse restart.
-const allLoads = [...reuseRaw.matchAll(/n_past=(\d+),\s*embd\.size=(\d+)/g)];
-const exact = allLoads.filter((m) => Number(m[2]) === evaluated);
-const rm = exact.length ? exact[exact.length - 1] : (allLoads.length ? allLoads[allLoads.length - 1] : null);
-const nPast = rm ? Number(rm[1]) : null;
-const embd = rm ? Number(rm[2]) : null;
+// captured for this turn, take the one whose text_tokens matches what the chat
+// turn evaluated (a prewarm line can sit in front of it). ALSO report how many
+// loads ran — more than one after a restore means a utility completion replaced
+// embd before the chat turn, which is itself the explanation for a zero-reuse
+// restart.
+const allLoads = [...reuseRaw.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)];
+const sizeKnown = evaluated > 0;
+const exact = sizeKnown ? allLoads.filter((m) => Number(m[2]) === evaluated) : [];
+const rm = sizeKnown
+  ? (exact.length ? exact[exact.length - 1] : null)
+  : (allLoads.length ? allLoads[allLoads.length - 1] : null);
+const nCommon = rm ? Number(rm[3]) : null;
+const textTokens = rm ? Number(rm[2]) : null;
 const loadsBefore = rm ? allLoads.indexOf(rm) : -1;
 const loadOk = loads.some(o => o && o.ok === true);
+const who = (rm != null && sizeKnown) ? "" : "; unattributed: turn size unknown, last load used";
 let verdict;
-if (loadOk && nPast != null && nPast > 0) {
-  verdict = "SESSION_RESTORE: WARM RESTART CONFIRMED (reused " + nPast + "/" + embd + ")";
-} else if (loadOk && nPast != null && nPast === 0) {
+if (loadOk && nCommon != null && nCommon > 0) {
+  verdict = "SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable "
+    + nCommon + "/" + textTokens + " prompt tokens; pre-decision marker" + who + ")";
+} else if (loadOk && nCommon != null && nCommon === 0) {
   // Load gate ok but binding discarded restored KV (full re-prefill).
-  verdict = "SESSION_RESTORE: LOADED BUT COLD (reused 0/" + embd
-    + "; prompt loads before the chat turn: " + loadsBefore + ")";
+  verdict = "SESSION_RESTORE: LOADED BUT COLD (restored prefix reusable 0/" + textTokens
+    + "; prompt loads before the chat turn: " + loadsBefore + who + ")";
 } else {
-  // Load itself failed / missing, or no native line when load claimed ok.
+  // Load itself failed / missing, or no KALSA_KVPREFIX line belongs to this turn.
   verdict = "SESSION_RESTORE: COLD (see reasons)";
 }
 
 process.stdout.write([sessionLine, turn3Line, verdict].join("\n") + "\n");
-' "$OUT/session_telemetry.txt" "$OUT/telemetry_restart.txt" "$OUT/reuse_t3.txt" | tee -a "$OUT/RESULT.txt"
+' "$OUT/session_telemetry.txt" "$OUT/telemetry_restart.txt" "$OUT/reuse_t3.txt" | tee -a "$OUT/RESULT.txt" "$OUT/verdicts.txt"
 
-if grep -qF "SESSION_RESTORE: WARM RESTART CONFIRMED" "$OUT/RESULT.txt"; then
-  log "SESSION_RESTORE: WARM RESTART CONFIRMED (native n_past > 0)"
-elif grep -qF "SESSION_RESTORE: LOADED BUT COLD" "$OUT/RESULT.txt"; then
+# Verdicts are read from verdicts.txt, not RESULT.txt: RESULT.txt also holds the
+# assistant's replies, so a reply quoting a verdict string could fake one.
+if grep -qF "SESSION_RESTORE: WARM RESTART CONFIRMED" "$OUT/verdicts.txt"; then
+  log "SESSION_RESTORE: WARM RESTART CONFIRMED (native n_common > 0, pre-decision prefix)"
+elif grep -qF "SESSION_RESTORE: LOADED BUT COLD" "$OUT/verdicts.txt"; then
   log "SESSION_RESTORE: LOADED BUT COLD (gate ok, native discarded KV — logged, not failing job)"
-elif grep -qF "SESSION_RESTORE: HIT" "$OUT/RESULT.txt"; then
+elif grep -qF "SESSION_RESTORE: HIT" "$OUT/verdicts.txt"; then
   log "SESSION_RESTORE: HIT but COLD/UNKNOWN native reuse (logged, not failing job)"
 else
   log "SESSION_RESTORE: COLD/MISS (logged, not failing job — data first)"

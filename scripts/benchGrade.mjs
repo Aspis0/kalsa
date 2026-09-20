@@ -74,6 +74,9 @@ function sumPositive(values) {
   let sum = 0;
   let any = false;
   for (const v of values) {
+    // Assumes the emitter writes JSON numbers (it does). A string "999" is
+    // ignored rather than coerced, so it never joins a sum and never matches a
+    // turn by size — attribution then falls back to the lowest turnId.
     if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
       sum += v;
       any = true;
@@ -85,8 +88,9 @@ function sumPositive(values) {
 /**
  * Group telemetry lines by turnId and pick the group that belongs to the chat
  * turn. Matching rule (same idea as capture_kv_reuse in ci-lib.sh): summed
- * tokensEvaluated of a group equals embd.size of the FIRST "Input processed"
- * line in this turn's loadprompt.txt. Fallback: first group (lowest turnId)
+ * tokensEvaluated of a group equals text_tokens of the KALSA_KVPREFIX line
+ * attributed to the chat turn (see readLoadpromptMetrics: size match when the
+ * size is known, last line otherwise). Fallback: first group (lowest turnId)
  * plus a note — caller merges attributionNote.
  *
  * WHY not "first group wins": settle_turn_reply no longer waits for the
@@ -96,10 +100,10 @@ function sumPositive(values) {
  * attribution key.
  *
  * @param {string} turnDir
- * @param {number|null} targetEmbSize - embd.size of first Input processed, or null
+ * @param {number|null} targetPromptTokens - text_tokens of the attributed KALSA_KVPREFIX line, or null
  * @returns {{ metrics: object, attributionNote: string|null } | null}
  */
-function readTelemetryMetrics(turnDir, targetEmbSize) {
+function readTelemetryMetrics(turnDir, targetPromptTokens) {
   const file = path.join(turnDir, "telemetry.jsonl");
   if (!existsSync(file)) return null;
   let raw;
@@ -139,13 +143,13 @@ function readTelemetryMetrics(turnDir, targetEmbSize) {
 
   let chatKey = keys[0];
   let attributionNote = null;
-  if (typeof targetEmbSize === "number" && Number.isFinite(targetEmbSize)) {
+  if (typeof targetPromptTokens === "number" && Number.isFinite(targetPromptTokens)) {
     let matched = null;
     for (const k of keys) {
       const sum = sumPositive(
         (byTurnId.get(k) ?? []).map((r) => r.tokensEvaluated),
       );
-      if (sum === targetEmbSize) {
+      if (sum === targetPromptTokens) {
         matched = k;
         break;
       }
@@ -193,7 +197,28 @@ function readTelemetryMetrics(turnDir, targetEmbSize) {
   };
 }
 
-function readLoadpromptMetrics(turnDir) {
+/**
+ * Read this turn's KALSA_KVPREFIX lines and attribute one to the chat turn.
+ *
+ * WHY not the first line: a device run emits a static-prefix prewarm whose own
+ * KALSA_KVPREFIX lands BEFORE the chat turn's, so matches[0] is the prewarm and
+ * reporting it would call 1832/1832 (100%) what is really 1832/2000. The
+ * collector that already solved this is scripts/device-ciswire-cache.sh:1546
+ * ("The LAST KVPREFIX wins (the prewarm line comes first)"), and :1293 fails a
+ * run whose winning line is not tied to the turn's prompt size.
+ *
+ * Attribution order:
+ *   1. targetPromptTokens known AND a line matches it by text_tokens → that
+ *      line (last of the matches; the same rule as ci-e2e.sh's KV_CACHE verdict,
+ *      which compares text_tokens to the turn's tokensEvaluated).
+ *   2. targetPromptTokens unknown → the LAST line, unverified.
+ * A known size with no matching line yields nulls: another load's numbers are
+ * never reported as this turn's.
+ *
+ * @param {string} turnDir
+ * @param {number|null} targetPromptTokens - prompt size to match, or null
+ */
+function readLoadpromptMetrics(turnDir, targetPromptTokens) {
   const file = path.join(turnDir, "loadprompt.txt");
   if (!existsSync(file)) {
     return {
@@ -214,9 +239,13 @@ function readLoadpromptMetrics(turnDir) {
       completions: null,
     };
   }
-  // All "Input processed" lines: first = chat turn (logcat -c between turns);
-  // later lines are background jobs (summarize). completions counts them.
-  const re = /Input processed:\s*n_past=(\d+),\s*embd\.size=(\d+)/g;
+  // All KALSA_KVPREFIX lines: the chat turn plus a prewarm in front and
+  // background jobs (summarize) behind. completions counts them all.
+  // n_common is the reusable prefix (the retired n_past) and text_tokens the
+  // total prompt tokens (the retired embd.size). embd is the token vector
+  // already in the live cache, not a prompt size — using it as the
+  // denominator would distort every reuseFrac.
+  const re = /embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g;
   const matches = [...raw.matchAll(re)];
   if (matches.length === 0) {
     return {
@@ -226,8 +255,24 @@ function readLoadpromptMetrics(turnDir) {
       completions: null,
     };
   }
-  const reusedTokens = Number(matches[0][1]);
-  const promptTokens = Number(matches[0][2]);
+  const last = matches[matches.length - 1];
+  let pick = last;
+  if (typeof targetPromptTokens === "number" && Number.isFinite(targetPromptTokens)) {
+    const exact = matches.filter((m) => Number(m[2]) === targetPromptTokens);
+    if (exact.length === 0) {
+      // Size known, no line carries it: report nothing rather than a prewarm or
+      // background load's figure.
+      return {
+        reusedTokens: null,
+        promptTokens: null,
+        reuseFrac: null,
+        completions: matches.length,
+      };
+    }
+    pick = exact[exact.length - 1];
+  }
+  const reusedTokens = Number(pick[3]);
+  const promptTokens = Number(pick[2]);
   const reuseFrac =
     Number.isFinite(promptTokens) && promptTokens > 0
       ? reusedTokens / promptTokens
@@ -242,9 +287,13 @@ function readLoadpromptMetrics(turnDir) {
 
 /**
  * prompt_meta.txt format after smoke run 31358530713 fix:
- *   reused=<n_past> total=<embd.size>
- * one line per Input processed. Older tokens=/sha256= lines are ignored
- * (that hash was constant by construction — see ci-bench.sh).
+ *   reused=<n_common> total=<text_tokens>
+ * one line per KALSA_KVPREFIX line, in the same order. Older tokens=/sha256=
+ * lines are ignored (that hash was constant by construction — see ci-bench.sh).
+ * The LAST line wins for the same reason as readLoadpromptMetrics: a prewarm
+ * emits its KALSA_KVPREFIX before the chat turn's (device-ciswire-cache.sh:1546),
+ * so the first line describes the static prefix, not the turn. This reader is a
+ * fallback only — loadprompt.txt carries text_tokens and can be matched by size.
  */
 function readPromptMeta(turnDir) {
   const empty = {
@@ -266,9 +315,10 @@ function readPromptMeta(turnDir) {
     if (m) lines.push({ reused: Number(m[1]), total: Number(m[2]) });
   }
   if (lines.length === 0) return empty;
+  const last = lines[lines.length - 1];
   return {
-    reusedTokens: lines[0].reused,
-    promptTokens: lines[0].total,
+    reusedTokens: last.reused,
+    promptTokens: last.total,
     completions: lines.length,
   };
 }
@@ -294,10 +344,16 @@ function metricsForTurn(baseDir, turnIndex) {
   };
   if (!existsSync(turnDir)) return empty;
 
-  const load = readLoadpromptMetrics(turnDir);
+  // Pass 1 reads telemetry with no size hint to recover this turn's evaluated
+  // token total; that total is the prompt size a loadprompt line must match
+  // (the prewarm emits its own KALSA_KVPREFIX first, so first-match is wrong).
+  // Pass 2 re-attributes telemetry with the size the loadprompt line confirms.
+  const sizeHint =
+    readTelemetryMetrics(turnDir, null)?.metrics?.tokensEvaluated ?? null;
+  const load = readLoadpromptMetrics(turnDir, sizeHint);
   const meta = readPromptMeta(turnDir);
-  // Prefer loadprompt for the chat-turn embd.size (same first-line rule);
-  // fall back to prompt_meta if loadprompt is missing.
+  // Prefer loadprompt for the chat-turn text_tokens (same size-attribution
+  // rule); fall back to prompt_meta if loadprompt is missing or unattributable.
   const promptTokens = load.promptTokens ?? meta.promptTokens;
   const reusedTokens = load.reusedTokens ?? meta.reusedTokens;
   const completions = load.completions ?? meta.completions;

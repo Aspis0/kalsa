@@ -891,9 +891,9 @@ async function main() {
       writeRaw(sideDir, raw);
 
       // turn1: two telemetry rounds same turnId; promptMs -1 on first, positive
-      // on second. tokensEvaluated sum (100+50=150) is intentionally ≠ embd.size
-      // so this case exercises the fallback path when loadprompt has no match
-      // group — wait, better: make sum match embd.size=150 so attribution is clean.
+      // on second. tokensEvaluated sum (100+50=150) matches text_tokens=150 of
+      // the attributed KALSA_KVPREFIX line, so telemetry attribution is clean
+      // (no fallback note).
       writeSidecar(sideDir, 1, {
         telemetry: [
           {
@@ -925,11 +925,13 @@ async function main() {
             interrupted: false,
           },
         ],
-        // Two Input processed lines → completions=2 (chat + background job).
-        // First embd.size=150 matches tokensEvaluated sum above.
+        // Two KALSA_KVPREFIX lines → completions=2 (chat + background job).
+        // First text_tokens=150 matches tokensEvaluated sum above; its embd=110
+        // is deliberately ≠ 150 so a parser that reads embd as the prompt size
+        // fails this case instead of passing with 110/150.
         loadprompt:
-          "foo Input processed: n_past=40, embd.size=150, bar\n" +
-          "Input processed: n_past=40, embd.size=999\n" +
+          "foo KALSA_KVPREFIX embd=110 text_tokens=150 n_common=40 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1 bar\n" +
+          "KALSA_KVPREFIX embd=40 text_tokens=999 n_common=40 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x2\n" +
           "restored state checkpoint: reusing 40/150 prompt tokens\n",
         promptMeta: "reused=40 total=150\nreused=40 total=999\n",
       });
@@ -992,7 +994,7 @@ async function main() {
         `got ${t1?.reuseFrac}`,
       );
       check(
-        "sidecar: completions === 2 (two Input processed lines)",
+        "sidecar: completions === 2 (two KALSA_KVPREFIX lines)",
         t1?.completions === 2,
         `got ${t1?.completions}`,
       );
@@ -1049,13 +1051,13 @@ async function main() {
       );
     }
 
-    // ── 8b. telemetry attribution by embd.size match (not first group) ─
+    // ── 8b. telemetry attribution by text_tokens match (not first group) ─
     {
       const d = path.join(tmp, "tid");
       mkdirSync(d, { recursive: true });
       const raw = baseRaw({ turns: [turn(1, "plant_a", "ok")] });
       // First group (lowest turnId=5) has tokensEvaluated=10; chat is turnId=99
-      // with tokensEvaluated=999 matching embd.size. Attribution must pick 99.
+      // with tokensEvaluated=999 matching text_tokens. Attribution must pick 99.
       writeSidecar(d, 1, {
         telemetry: [
           {
@@ -1077,13 +1079,13 @@ async function main() {
             predictedPerSecond: 1,
           },
         ],
-        loadprompt: "Input processed: n_past=0, embd.size=999\n",
+        loadprompt: "KALSA_KVPREFIX embd=0 text_tokens=999 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
         promptMeta: "reused=0 total=999\n",
       });
       const result = gradeRaw(raw, d);
       const t1 = result.turns[0];
       check(
-        "telemetry attr: picks group matching embd.size, not lowest turnId",
+        "telemetry attr: picks group matching text_tokens, not lowest turnId",
         t1.promptMs === 9999,
         `got ${t1.promptMs}`,
       );
@@ -1125,7 +1127,7 @@ async function main() {
             predictedPerSecond: 8,
           },
         ],
-        loadprompt: "Input processed: n_past=0, embd.size=777\n",
+        loadprompt: "KALSA_KVPREFIX embd=0 text_tokens=777 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
         promptMeta: "reused=0 total=777\n",
       });
       const result = gradeRaw(raw, d);
@@ -1154,7 +1156,7 @@ async function main() {
         compactorState: { compactorChars: 420, summaryChars: 88 },
       });
       writeSidecar(d, 1, {
-        loadprompt: "Input processed: n_past=0, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=0 text_tokens=100 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
         promptMeta: "reused=0 total=100\n",
       });
       const result = gradeRaw(raw, d);
@@ -1163,6 +1165,155 @@ async function main() {
         result.positiveControl?.compactorChars === 420 &&
           result.positiveControl?.summaryChars === 88,
         `pc=${JSON.stringify(result.positiveControl)}`,
+      );
+    }
+
+    // ── 8e. loadprompt marker is KALSA_KVPREFIX; the retired "Input
+    // processed" line must parse to nothing ────────────────────────────
+    {
+      const dNew = path.join(tmp, "kvprefix-new");
+      mkdirSync(dNew, { recursive: true });
+      // Real CI shape (whole cache reused): n_common == embd == 2540 and
+      // text_tokens 2562. reusedTokens must be n_common and promptTokens
+      // text_tokens; a parser that read embd as the prompt size would report
+      // reuseFrac 2540/2540 = 1 instead of 2540/2562.
+      writeSidecar(dNew, 1, {
+        loadprompt:
+          "08-16 12:00:01.000  1234  5678 W llama-rn: KALSA_KVPREFIX embd=2540 text_tokens=2562 n_common=2540 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
+      });
+      const newShape = gradeRaw(
+        baseRaw({ turns: [turn(1, "filler_1", "ok")] }),
+        dNew,
+      );
+      const t1n = newShape.turns[0];
+      check(
+        "KALSA_KVPREFIX: reusedTokens=n_common, promptTokens=text_tokens",
+        t1n.reusedTokens === 2540 && t1n.promptTokens === 2562,
+        `got reused=${t1n.reusedTokens} prompt=${t1n.promptTokens}`,
+      );
+      check(
+        "KALSA_KVPREFIX: reuseFrac = n_common/text_tokens, not n_common/embd",
+        t1n.reuseFrac === 2540 / 2562,
+        `got ${t1n.reuseFrac}`,
+      );
+
+      // The retired line no longer exists in any build, so reading it can only
+      // pretend to measure. It must yield nulls, not a silent partial number.
+      const dOld = path.join(tmp, "input-processed-old");
+      mkdirSync(dOld, { recursive: true });
+      writeSidecar(dOld, 1, {
+        loadprompt: "Input processed: n_past=2540, embd.size=2562\n",
+      });
+      const oldShape = gradeRaw(
+        baseRaw({ turns: [turn(1, "filler_1", "ok")] }),
+        dOld,
+      );
+      const t1o = oldShape.turns[0];
+      check(
+        "retired Input processed line parses to null (no dependence on the old spelling)",
+        t1o.reusedTokens === null &&
+          t1o.promptTokens === null &&
+          t1o.reuseFrac === null,
+        `got reused=${t1o.reusedTokens} prompt=${t1o.promptTokens} frac=${t1o.reuseFrac}`,
+      );
+    }
+
+    // ── 8f. a prewarm line BEFORE the chat line must not be attributed to
+    // the turn (device-ciswire-cache.sh:1546: the LAST KVPREFIX wins) ───
+    {
+      const dPre = path.join(tmp, "kvprefix-prewarm");
+      mkdirSync(dPre, { recursive: true });
+      // Static-prefix prewarm first (a full hit on ITS OWN 1832-token prompt),
+      // chat turn second. Reporting the first line would call this 1832/1832 =
+      // 100%; the turn reused 1832 of 2000.
+      const prewarmThenChat =
+        "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n" +
+        "KALSA_KVPREFIX embd=1600 text_tokens=2000 n_common=1832 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n";
+      writeSidecar(dPre, 1, {
+        telemetry: [
+          {
+            turnId: 7,
+            round: 1,
+            tokensEvaluated: 2000,
+            tokensPredicted: 40,
+            promptMs: 500,
+            predictedMs: 100,
+            predictedPerSecond: 10,
+          },
+        ],
+        loadprompt: prewarmThenChat,
+      });
+      const pre = gradeRaw(
+        baseRaw({ turns: [turn(1, "filler_1", "ok")] }),
+        dPre,
+      );
+      const t1p = pre.turns[0];
+      check(
+        "prewarm fixture: chat line wins by text_tokens (not the first line)",
+        t1p.reusedTokens === 1832 && t1p.promptTokens === 2000,
+        `got reused=${t1p.reusedTokens} prompt=${t1p.promptTokens}`,
+      );
+      check(
+        "prewarm fixture: reuseFrac = 1832/2000, not 1832/1832",
+        t1p.reuseFrac === 1832 / 2000,
+        `got ${t1p.reuseFrac}`,
+      );
+      check(
+        "prewarm fixture: both lines still counted as completions",
+        t1p.completions === 2,
+        `got ${t1p.completions}`,
+      );
+      check(
+        "prewarm fixture: telemetry attributed by size (promptMs 500)",
+        t1p.promptMs === 500,
+        `got ${t1p.promptMs}`,
+      );
+
+      // Same buffer without telemetry: the size is unknown, so the LAST line is
+      // the only usable pick — still not the prewarm.
+      const dNoTel = path.join(tmp, "kvprefix-prewarm-notel");
+      mkdirSync(dNoTel, { recursive: true });
+      writeSidecar(dNoTel, 1, { loadprompt: prewarmThenChat });
+      const noTel = gradeRaw(
+        baseRaw({ turns: [turn(1, "filler_1", "ok")] }),
+        dNoTel,
+      );
+      const t1nt = noTel.turns[0];
+      check(
+        "prewarm fixture, no telemetry: last line wins",
+        t1nt.reusedTokens === 1832 && t1nt.promptTokens === 2000,
+        `got reused=${t1nt.reusedTokens} prompt=${t1nt.promptTokens}`,
+      );
+    }
+
+    // ── 8g. prompt_meta.txt alone (no loadprompt) — the fallback reader ──
+    {
+      const dMeta = path.join(tmp, "prompt-meta-only");
+      mkdirSync(dMeta, { recursive: true });
+      // No loadprompt.txt: loadprompt cannot answer, so readPromptMeta is the
+      // only source. Its LAST line is the chat turn (prewarm line comes first).
+      writeSidecar(dMeta, 1, {
+        promptMeta: "reused=1832 total=1832\nreused=1832 total=2000\n",
+      });
+      const meta = gradeRaw(
+        baseRaw({ turns: [turn(1, "filler_1", "ok")] }),
+        dMeta,
+      );
+      const t1m = meta.turns[0];
+      check(
+        "prompt_meta fallback: reused/total from the LAST line",
+        t1m.reusedTokens === 1832 && t1m.promptTokens === 2000,
+        `got reused=${t1m.reusedTokens} prompt=${t1m.promptTokens}`,
+      );
+      check(
+        "prompt_meta fallback: reuseFrac = 1832/2000",
+        t1m.reuseFrac === 1832 / 2000,
+        `got ${t1m.reuseFrac}`,
+      );
+      check(
+        "prompt_meta fallback: completions counts both lines",
+        t1m.completions === 2,
+        `got ${t1m.completions}`,
       );
     }
 
@@ -1958,13 +2109,13 @@ async function main() {
       const dDrop = path.join(tmp, "reuse-drop");
       mkdirSync(dDrop, { recursive: true });
       writeSidecar(dDrop, 1, {
-        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=90 text_tokens=100 n_common=90 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       writeSidecar(dDrop, 2, {
-        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=90 text_tokens=100 n_common=90 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       writeSidecar(dDrop, 3, {
-        loadprompt: "Input processed: n_past=50, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=50 text_tokens=100 n_common=50 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       const drop = gradeRaw(
         baseRaw({
@@ -1985,10 +2136,10 @@ async function main() {
       const dFlat = path.join(tmp, "reuse-flat");
       mkdirSync(dFlat, { recursive: true });
       writeSidecar(dFlat, 1, {
-        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=90 text_tokens=100 n_common=90 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       writeSidecar(dFlat, 2, {
-        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=90 text_tokens=100 n_common=90 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       const flat = gradeRaw(
         baseRaw({
@@ -2005,11 +2156,11 @@ async function main() {
       const dSkip = path.join(tmp, "reuse-skip");
       mkdirSync(dSkip, { recursive: true });
       writeSidecar(dSkip, 1, {
-        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=90 text_tokens=100 n_common=90 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       // turn 2: no loadprompt → reuseFrac null, skipped
       writeSidecar(dSkip, 3, {
-        loadprompt: "Input processed: n_past=50, embd.size=100\n",
+        loadprompt: "KALSA_KVPREFIX embd=50 text_tokens=100 n_common=50 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       const skip = gradeRaw(
         baseRaw({
@@ -2054,7 +2205,7 @@ async function main() {
             contextFull: true,
           },
         ],
-        loadprompt: "Input processed: n_past=0, embd.size=50\n",
+        loadprompt: "KALSA_KVPREFIX embd=0 text_tokens=50 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1\n",
       });
       const result = gradeRaw(raw, d);
       const t5 = result.turns.find((t) => t.index === 5);

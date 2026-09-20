@@ -559,33 +559,71 @@ wait_ui_idle() {
   return 0
 }
 
-# Capture the last native loadPrompt reuse line for turn N into $OUT/reuse_tN.txt.
-# Ground truth for prefix reuse: "Input processed: n_past=<REUSED>, embd.size=<TOTAL>".
-# Do NOT use KALSA_TELEMETRY tokensCached — that field is n_past at END of completion
-# (total context length), not tokens reused from the KV cache.
-# Attribution: `tail -1` is the chat turn's line because no utility completion
-# runs after it in CI (memory extract is opt-in and unseeded). If a background
-# summarize ever lands between the reply and this call, its own (cold) line wins
-# and the verdict under-reports warm — conservative, never a false WARM.
+# Capture the native prefix-reuse lines for turn N into $OUT/reuse_tN.txt. The
+# file holds the marker substring as the engine prints it: `grep -oE` strips the
+# logcat timestamp/pid prefix, so the retained text is verbatim from
+# KALSA_KVPREFIX onward — which is what a reader greps the engine for:
+#   KALSA_KVPREFIX embd=<CACHE> text_tokens=<TOTAL> n_common=<REUSED> …
+# Only these three fields are matched on purpose: a logcat line truncated, or
+# stripped of its trailing mtp_draft_mem_shared/is_enc_dec/this fields, must not
+# read as "marker absent".
+# Ground truth for prefix reuse is n_common, against text_tokens as the prompt
+# size. Field mapping read at the emitter (engine cpp/rn-completion.cpp:534):
+#   n_common    = prefix reusable from the KV cache (the retired n_past)
+#   text_tokens = total prompt tokens               (the retired embd.size)
+# embd is NOT the prompt size — it is the token vector already in the live
+# cache, which is exactly why n_common == embd is how "the whole cache was
+# reused" is detected. Mapping embd.size onto embd would invalidate every reuse
+# fraction computed from this file.
+# KALSA_KVPREFIX is emitted BEFORE the load decision, so it reports the prefix
+# that CAN be reused; the retired line reported what WAS reused, after the fact.
+# The two agree unless a checkpoint restore fails; KALSA_KVREUSE is the
+# after-the-fact corroborator on the checkpoint path only.
+# Do NOT use KALSA_TELEMETRY tokensCached — that field is n_past at END of
+# completion (total context length), not tokens reused from the KV cache.
+# Attribution (done by the consumers): every load of the run so far is kept,
+# newest last, and the verdict picks the line whose text_tokens equals the
+# turn's tokensEvaluated. WHY every line and not `tail -1`: a static-prefix
+# prewarm and a background summarize both emit KALSA_KVPREFIX, and the prewarm's
+# line comes FIRST (device-ciswire-cache.sh:1546). `tail -20` bounds the file, it
+# does not select the chat line, so a consumer that cannot match by size is
+# guessing and says so. A pre-decision marker also cannot promise "conservative,
+# never a false WARM" — the prewarm's own line can report a full static-prefix
+# hit for a turn that reused none of it. Attribution by text_tokens is what
+# prevents that, which is why only an attributed number is trustworthy.
 #   capture_kv_reuse <turn_number>
 capture_kv_reuse() {
   local turn="$1"
   local dest="$OUT/reuse_t${turn}.txt"
+  # Sidecar recording whether the logcat dump carried anything. An empty
+  # reuse_tN.txt has two causes — the marker is gone, or `adb logcat -d` returned
+  # nothing — and only the first is a verdict-level failure. The e2e verdict
+  # reads this file to tell them apart.
+  local dumpfile="$OUT/reuse_t${turn}.dump"
+  local buf="$OUT/.logcat_kv_buf.txt"
   # ALL prompt loads since the last logcat clear, newest last — not just the
   # tail: with compaction on, a background summarize runs after the chat turn
   # and its own (longer) prompt would otherwise be read as the turn's. The
-  # verdict picks the line whose embd.size matches the turn's tokensEvaluated.
+  # verdict picks the line whose text_tokens matches the turn's tokensEvaluated.
   # Keeping every line also exposes utility completions that run BETWEEN a
   # session restore and the chat turn — they replace embd and would explain an
   # n_common of 0 after a successful restore.
-  adb logcat -d 2>/dev/null \
-    | grep -oE "Input processed: n_past=[0-9]+, embd\.size=[0-9]+" \
+  local dump_ok=1
+  adb logcat -d 2>/dev/null > "$buf" || dump_ok=0
+  grep -oE "KALSA_KVPREFIX embd=[0-9]+ text_tokens=[0-9]+ n_common=[0-9]+" "$buf" \
     | tail -20 > "$dest" || true
   [ -f "$dest" ] || : > "$dest"
+  # A failed dump is recorded as empty even when it left partial bytes: the
+  # verdict must never fail a job over a flaky capture.
+  if [ "$dump_ok" = "1" ] && [ -s "$buf" ]; then
+    printf 'dump=content bytes=%s\n' "$(wc -c < "$buf" | tr -d ' ')" > "$dumpfile" 2>/dev/null || : > "$dumpfile"
+  else
+    printf 'dump=empty\n' > "$dumpfile" 2>/dev/null || : > "$dumpfile"
+  fi
   if [ -s "$dest" ]; then
     log "kv_reuse turn${turn}: $(tr -d '\r\n' < "$dest")"
   else
-    log "kv_reuse turn${turn}: (no Input processed line)"
+    log "kv_reuse turn${turn}: (no KALSA_KVPREFIX line)"
   fi
   # When checkpoint recovery failed, the patched binding names WHY (n_common vs
   # the snapshot lengths it holds) — capture it next to the reuse line.

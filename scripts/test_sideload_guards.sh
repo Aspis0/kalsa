@@ -619,14 +619,14 @@ _KV_LINE='08-16 12:00:01.000  1234  5678 W llama-rn: KALSA_KVDIAG0 cache_len=171
 {
   echo "08-16 12:00:00.000  1234  5678 W llama-rn: some unrelated warning"
   echo "$_KV_LINE"
-  echo "08-16 12:00:02.000  1234  5678 I llama-rn: Input processed: n_past=0, embd.size=1840"
+  echo "08-16 12:00:02.000  1234  5678 I llama-rn: KALSA_KVPREFIX embd=0 text_tokens=1840 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1"
 } > "$_KV_BUF"
 
 capture_kvdiag_from_buf "$_KV_BUF" "$_KV_DEST"
 if [ -f "$_KV_DEST" ] \
   && grep -qF "KALSA_KVDIAG0 cache_len=1713 prompt_len=1840" "$_KV_DEST" \
   && ! grep -qF "unrelated warning" "$_KV_DEST" \
-  && ! grep -qF "Input processed" "$_KV_DEST"; then
+  && ! grep -qF "KALSA_KVPREFIX" "$_KV_DEST"; then
   echo "PASS: kvdiag capture — diagnostic lands, noise excluded"
   pass=$((pass + 1))
 else
@@ -634,15 +634,15 @@ else
   fail=$((fail + 1))
 fi
 
-# Existing loadprompt greps unchanged: still see Input processed from same buf.
+# Existing loadprompt greps unchanged: still see KALSA_KVPREFIX from same buf.
 _LP_DEST="$OUT/loadprompt.txt"
 {
-  grep -F "Input processed: n_past=" "$_KV_BUF" 2>/dev/null || true
+  grep -F "KALSA_KVPREFIX" "$_KV_BUF" 2>/dev/null || true
   grep -F "restored state checkpoint: reusing" "$_KV_BUF" 2>/dev/null || true
 } > "$_LP_DEST" 2>/dev/null || : > "$_LP_DEST"
-if grep -qF "Input processed: n_past=0, embd.size=1840" "$_LP_DEST" \
+if grep -qF "KALSA_KVPREFIX embd=0 text_tokens=1840 n_common=0" "$_LP_DEST" \
   && ! grep -qF "KALSA_KVDIAG0" "$_LP_DEST"; then
-  echo "PASS: loadprompt greps unchanged — Input processed only, no KVDIAG bleed"
+  echo "PASS: loadprompt greps unchanged — KALSA_KVPREFIX only, no KVDIAG bleed"
   pass=$((pass + 1))
 else
   echo "FAIL: loadprompt greps — got: '$(tr '\n' '|' < "$_LP_DEST" 2>/dev/null)'"
@@ -678,6 +678,170 @@ if grep -qF 'capture_kvdiag_from_buf "$buf" "$tdir/kvdiag.txt"' "$(dirname "$0")
   pass=$((pass + 1))
 else
   echo "FAIL: ci-bench.sh missing capture_kvdiag_from_buf / kvdiag_meta_lines wire-up"
+  fail=$((fail + 1))
+fi
+
+# ── capture_kv_reuse: the shipped shell collector on synthetic logcat ───
+# capture_kv_reuse calls `adb logcat -d`; stub adb so the test exercises the
+# shipped grep/tail/dump-sidecar path instead of a copy of it.
+
+_FAKE_LOGCAT="$OUT/fake_logcat.txt"
+adb() { cat "$_FAKE_LOGCAT"; }
+
+_KVP_PREWARM='09-19 12:00:00.100  1  1 W rnllama: KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1'
+_KVP_CHAT='09-19 12:00:00.200  1  1 W rnllama: KALSA_KVPREFIX embd=1600 text_tokens=4800 n_common=2865 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1'
+{
+  echo "09-19 12:00:00.000  1  1 I ReactNativeJS: unrelated line that must not be captured"
+  echo "$_KVP_PREWARM"
+  echo "$_KVP_CHAT"
+} > "$_FAKE_LOGCAT"
+capture_kv_reuse 9
+
+_REUSE_T9="$OUT/reuse_t9.txt"
+_REUSE_LINES=$(wc -l < "$_REUSE_T9" 2>/dev/null | tr -d ' ')
+# Two marker-only lines (logcat prefix stripped), newest last.
+if [ "$_REUSE_LINES" = "2" ] \
+  && grep -qF "KALSA_KVPREFIX embd=1832 text_tokens=1832 n_common=1832" "$_REUSE_T9" \
+  && grep -qF "KALSA_KVPREFIX embd=1600 text_tokens=4800 n_common=2865" "$_REUSE_T9" \
+  && [ "$(tail -1 "$_REUSE_T9" | grep -c '^KALSA_KVPREFIX')" = "1" ]; then
+  echo "PASS: capture_kv_reuse extracts KALSA_KVPREFIX lines (old-regex mutation dies here)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: capture_kv_reuse extraction — got: '$(tr '\n' '|' < "$_REUSE_T9" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+if grep -qF "dump=content" "$OUT/reuse_t9.dump" 2>/dev/null; then
+  echo "PASS: capture_kv_reuse records dump=content when logcat returned lines"
+  pass=$((pass + 1))
+else
+  echo "FAIL: reuse_t9.dump — got '$(cat "$OUT/reuse_t9.dump" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# Content but no marker: empty reuse file, sidecar still says content (BROKEN).
+echo "09-19 12:00:01.000  1  1 I ReactNativeJS: nothing useful here" > "$_FAKE_LOGCAT"
+rm -f "$_REUSE_T9" "$OUT/reuse_t9.dump"
+capture_kv_reuse 9
+if [ -f "$_REUSE_T9" ] && [ ! -s "$_REUSE_T9" ] \
+  && grep -qF "dump=content" "$OUT/reuse_t9.dump" 2>/dev/null; then
+  echo "PASS: content-but-no-marker → empty reuse file, dump=content (BROKEN case)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: content-but-no-marker — reuse size=$(wc -c < "$_REUSE_T9" 2>/dev/null) dump='$(cat "$OUT/reuse_t9.dump" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# Failed/empty dump: empty reuse file, sidecar says empty (soft UNKNOWN).
+: > "$_FAKE_LOGCAT"
+rm -f "$_REUSE_T9" "$OUT/reuse_t9.dump"
+capture_kv_reuse 9
+if [ -f "$_REUSE_T9" ] && [ ! -s "$_REUSE_T9" ] \
+  && grep -qF "dump=empty" "$OUT/reuse_t9.dump" 2>/dev/null; then
+  echo "PASS: empty dump → empty reuse file, dump=empty (soft UNKNOWN case)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: empty dump — reuse size=$(wc -c < "$_REUSE_T9" 2>/dev/null) dump='$(cat "$OUT/reuse_t9.dump" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# ── ci-bench prompt_meta mapping: run the shipped two-line pipeline ─────
+# Extracted from ci-bench.sh, never copied: swapping the sed indexes back
+# (reused=\1 total=\2) renames the columns and fails this case.
+_bench_pipe() {
+  awk '
+    /grep -oE "KALSA_KVPREFIX embd=/ { p = 1 }
+    p { print }
+    p && /\|\| true/ { exit }
+  ' "$(dirname "$0")/ci-bench.sh"
+}
+_BENCH_PIPE=$(_bench_pipe)
+printf '%s\n' "$_KVP_CHAT" > "$OUT/loadprompt.txt"
+_GOT_META=$(tdir="$OUT"; eval "$_BENCH_PIPE")
+if [ "$_GOT_META" = "reused=2865 total=4800" ]; then
+  echo "PASS: ci-bench prompt_meta maps n_common→reused, text_tokens→total (swap mutation dies here)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-bench prompt_meta pipeline — got '$_GOT_META'"
+  fail=$((fail + 1))
+fi
+
+# ── ci-e2e embedded node parsers: run the shipped JS on fixtures ───────
+# Both blocks are extracted from ci-e2e.sh (never copied), so reintroducing the
+# old capture-group indexes (rm[1]/rm[2]) turns these red. The block ends at the
+# terminator line, which is the only line starting with a quote; matching on
+# `reuse_tN.txt` alone would stop at a comment outside the block.
+_e2e_node() {
+  local q
+  q=$(printf '\047')
+  awk -v want="$1" -v q="$q" '
+    /^node -e / { inblock = 1; buf = ""; next }
+    inblock && substr($0, 1, 1) == q && index($0, want) > 0 { print buf; exit }
+    inblock { buf = buf $0 "\n" }
+  ' "$(dirname "$0")/ci-e2e.sh"
+}
+printf '%s\n' '{"tokensEvaluated":4800}' > "$OUT/e2e_telemetry.txt"
+printf '%s\n' '{"op":"load","ok":true}' > "$OUT/e2e_session.txt"
+printf '%s\n' '{"tokensEvaluated":4800,"promptMs":123}' > "$OUT/e2e_telemetry_restart.txt"
+printf '%s\n' "$_KVP_PREWARM" "$_KVP_CHAT" > "$OUT/reuse_t2.txt"
+printf 'dump=content bytes=1234\n' > "$OUT/reuse_t2.dump"
+
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+if [ "$_KV_LAST" = "KV_CACHE: WARM (turn2 2865/4800 prompt tokens; pre-decision marker, the prefix that could be reused)" ]; then
+  echo "PASS: ci-e2e KV_CACHE parser reads n_common/text_tokens (index mutation dies here)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e KV_CACHE parser — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+# Empty dump → soft UNKNOWN naming the cause, never BROKEN.
+: > "$OUT/reuse_t2.txt"
+printf 'dump=empty\n' > "$OUT/reuse_t2.dump"
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+if [ "$_KV_LAST" = "KV_CACHE: UNKNOWN (logcat dump carried nothing — reuse instrument not exercised)" ]; then
+  echo "PASS: ci-e2e empty dump → soft UNKNOWN, not BROKEN"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e empty dump — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+# Content but no marker → BROKEN (the only die path).
+printf 'dump=content bytes=9\n' > "$OUT/reuse_t2.dump"
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+if [ "$_KV_LAST" = "KV_CACHE: BROKEN (no KALSA_KVPREFIX line in the whole run — reuse instrument dead)" ]; then
+  echo "PASS: ci-e2e content-but-no-marker → BROKEN (die path)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e content-but-no-marker — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+# A marker exists but for another load: soft UNKNOWN, no number.
+printf '%s\n' "$_KVP_PREWARM" > "$OUT/reuse_t2.txt"
+printf 'dump=content bytes=9\n' > "$OUT/reuse_t2.dump"
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+if [ "$_KV_LAST" = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines exist but none has text_tokens=4800 — no line belongs to turn 2)" ]; then
+  echo "PASS: ci-e2e unmatched marker → soft UNKNOWN, no number from another load"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e unmatched marker — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+printf '%s\n' "$_KVP_PREWARM" "$_KVP_CHAT" > "$OUT/reuse_t3.txt"
+_R3_VERDICT=$(node -e "$(_e2e_node reuse_t3.txt)" "$OUT/e2e_session.txt" "$OUT/e2e_telemetry_restart.txt" "$OUT/reuse_t3.txt" 2>&1)
+_R3_LAST=$(printf '%s\n' "$_R3_VERDICT" | tail -1)
+if [ "$_R3_LAST" = "SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable 2865/4800 prompt tokens; pre-decision marker)" ]; then
+  echo "PASS: ci-e2e SESSION_RESTORE parser reads n_common/text_tokens (index mutation dies here)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e SESSION_RESTORE parser — got '$_R3_LAST'"
   fail=$((fail + 1))
 fi
 
