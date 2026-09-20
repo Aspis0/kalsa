@@ -1,8 +1,18 @@
 # Il governor deve sapere in che telefono sta — piano
 
-> ## PARCHEGGIATO — 19/09/2026 — e sotto audit: 6 REFUTED, 2 non verificabili, 6 derive di citazione
+> ## SOTTO AUDIT — 19/09/2026 — 7 REFUTED, 2 non verificabili, 6 derive di citazione
 >
 > **Non usare questo documento come fonte senza leggere prima l'[Appendice A](#appendice-a--audit-puntiglioso-del-19092026-deepseek-v41-verbatim).**
+>
+> **Park status: open owner decision.** This document records the 19/09 owner order to set the
+> governor aside. A memory dated 20/09 claims the condition for that order has fallen and the
+> work can resume, but no document on disk records an un-park. Whether the governor stays parked
+> is the owner's to decide; this header does not assert it.
+>
+> **Pending re-verification.** The audit's findings below have not been re-read on the artefacts.
+> That work is a separate cell; its record goes to
+> `scratchpad/agents/governor-audit-recheck/REPORT.md`. Until that report exists, do not cite a
+> number from this document as established.
 >
 > Due cose sono successe il 19/09.
 >
