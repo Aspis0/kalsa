@@ -1,0 +1,81 @@
+/* The web-call ask. Shape follows the banners that already live in the stage
+   (storage-banner, refusal-banner): a card in the flow, not a modal, so the
+   turn behind it stays readable and Stop stays clickable. */
+
+.webgate {
+  flex: none;
+  margin: 0 auto 0.5rem;
+  width: 100%;
+  max-width: calc(var(--measure) + 4rem);
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.webgate h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.webgate-why,
+.webgate-label {
+  margin: 0 0 0.5rem;
+  color: var(--ink-soft);
+}
+
+.webgate-outgoing {
+  margin: 0 0 0.6rem;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: rgba(var(--surface-muted-rgb), 0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  user-select: text;
+}
+
+.webgate-findings {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+}
+
+.webgate-findings li {
+  margin-bottom: 0.25rem;
+}
+
+.webgate-matched {
+  overflow-wrap: anywhere;
+}
+
+.webgate-clean {
+  margin: 0 0 0.6rem;
+  color: var(--ink-soft);
+}
+
+.webgate-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.webgate-actions button {
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.webgate-allow {
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+}
+
+.webgate-refuse {
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+}

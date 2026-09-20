@@ -23,6 +23,7 @@
 use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use ignore::WalkBuilder;
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
@@ -51,25 +52,32 @@ pub struct SearchHit {
 
 /// How a search ended. `skipped` counts the entries the OS would not show
 /// us — a permission-denied directory is the machine saying no, not a bug,
-/// so the search reports it and carries on.
+/// so the search reports it and carries on. `via_index` says the answer
+/// came from Spotlight: the index is fast and blind at once (dotfiles,
+/// `.git`, `~/Library`, unindexed volumes), so the page must be able to say
+/// that fewer results here means less was searched, not that nothing else
+/// exists.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SearchOutcome {
     pub hits: u64,
     pub skipped: u64,
     pub limited: bool,
     pub cancelled: bool,
+    pub via_index: bool,
 }
 
 pub trait NameSearch {
     /// Every hit goes to `sink` the moment it is found — nothing is
     /// collected and returned at the end. `stop` is checked between
-    /// entries; a set flag ends the walk and says so in `cancelled`.
+    /// entries; a set flag ends the walk and says so in `cancelled`. The
+    /// flag is shared (`Arc`), not borrowed: a backend may need to watch it
+    /// from a thread of its own while its reader is blocked in a syscall.
     fn search(
         &self,
         query: &str,
         scope: &Path,
         sink: &mut dyn FnMut(SearchHit),
-        stop: &AtomicBool,
+        stop: &Arc<AtomicBool>,
     ) -> SearchOutcome;
 }
 
@@ -87,7 +95,7 @@ impl NameSearch for Searcher {
         query: &str,
         scope: &Path,
         sink: &mut dyn FnMut(SearchHit),
-        stop: &AtomicBool,
+        stop: &Arc<AtomicBool>,
     ) -> SearchOutcome {
         match self {
             Self::Walker(walker) => walker.search(query, scope, sink, stop),
@@ -153,7 +161,7 @@ impl NameSearch for WalkerSearch {
         query: &str,
         scope: &Path,
         sink: &mut dyn FnMut(SearchHit),
-        stop: &AtomicBool,
+        stop: &Arc<AtomicBool>,
     ) -> SearchOutcome {
         let mut outcome = SearchOutcome::default();
         if query.is_empty() {

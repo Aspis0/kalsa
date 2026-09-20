@@ -12,6 +12,7 @@ import { loadThinking, saveThinking, thinkingSupport } from "./lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
+import { filesRead } from "./lib/files";
 import type { SurfaceKey } from "./app/surfaces";
 import { SURFACES } from "./app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "./app/handoff";
@@ -33,6 +34,8 @@ import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { AdvancedSurface } from "./surfaces/AdvancedSurface";
 import { EmptyState } from "./components/EmptyState";
 import { executeToolCall, offeredTools } from "./lib/tools/registry";
+import type { GateCheck } from "./lib/tools/registry";
+import { WebGateDialog } from "./components/WebGateDialog";
 import "./App.css";
 
 const store = createStore();
@@ -47,6 +50,16 @@ interface Refusal {
   historyTokens: number;
   need: number;
   have: number;
+}
+
+/** One held web call and the one function that ends its wait. The id is the
+    ask's identity on screen: an answer carries it back, and settles only the
+    ask it names — never whatever happens to be at the queue's head when the
+    click lands. */
+interface GateAsk {
+  id: string;
+  check: GateCheck;
+  settle: (allow: boolean) => void;
 }
 
 function surfaceLabel(surface: SurfaceKey): string {
@@ -78,6 +91,23 @@ export function App() {
   const [dragging, setDragging] = useState(false);
   const [attachStatus, setAttachStatus] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
+  // The web-call gate: while documents are pinned, every outgoing web call is
+  // held here until the owner sends it or refuses it. Streams in different
+  // conversations run at once, so asks can too: they queue in arrival order
+  // and the dialog shows the head alone — one clean question at a time rather
+  // than a batch that invites a careless yes, with a line saying more are
+  // waiting and each taking the screen the moment the one before it is
+  // answered or stopped. Every ask settles exactly once, by its own dialog
+  // answer or its own turn's Stop — never by another conversation's — so no
+  // turn is left waiting on a promise nobody holds. And an answer names the
+  // ask it was shown: the queue mutates the moment an ask settles, while the
+  // dialog re-renders on React's schedule, so a click on a dialog whose ask
+  // is already gone must do nothing rather than approve whatever took its
+  // place — for this feature, "the owner approved something they were not
+  // shown" is the worst failure available, and identity removes the question.
+  const [gateShown, setGateShown] = useState<GateAsk | null>(null);
+  const [gateWaiting, setGateWaiting] = useState(0);
+  const gateAsks = useRef<GateAsk[]>([]);
   const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
   const nctxCache = useRef(new Map<string, number | null>());
   // In-flight stream buffers, keyed by assistant message id. Text lives here
@@ -287,6 +317,61 @@ export function App() {
     }
   }
 
+  // The files panel's Attach: Rust reads the bytes, the page wraps them in a
+  // File with the row's name, and everything downstream — extraction, token
+  // accounting, the store — is the composer's clip path, shared not copied.
+  async function attachFromDisk(path: string, name: string): Promise<void> {
+    setRefusal(null);
+    setAttachStatus(`Reading ${name}…`);
+    try {
+      const bytes = await filesRead(path);
+      await attachFiles([new File([bytes], name)]);
+    } catch (error) {
+      setAttachStatus(
+        error instanceof AttachmentError
+          ? error.message
+          : `${name} could not be read from this computer.`,
+      );
+    }
+  }
+
+  // Hold one web call for the owner. The ask joins the queue's tail; whatever
+  // is at the head is what the dialog shows. Stop ends that conversation's
+  // own wait as a refusal — the turn is gone, so the call must not leave
+  // after it — and advances the queue to the next ask, if any.
+  function askOwner(check: GateCheck, signal: AbortSignal): Promise<boolean> {
+    return new Promise((resolve) => {
+      let ask: GateAsk;
+      const settle = (allow: boolean) => {
+        signal.removeEventListener("abort", onAbort);
+        const at = gateAsks.current.indexOf(ask);
+        if (at !== -1) gateAsks.current.splice(at, 1);
+        setGateShown(gateAsks.current[0] ?? null);
+        setGateWaiting(Math.max(0, gateAsks.current.length - 1));
+        resolve(allow);
+      };
+      const onAbort = () => settle(false);
+      ask = { id: uid(), check, settle };
+      gateAsks.current.push(ask);
+      setGateShown(gateAsks.current[0] ?? null);
+      setGateWaiting(Math.max(0, gateAsks.current.length - 1));
+      setLiveMessage("A web call is waiting for your say-so.");
+      if (signal.aborted) {
+        settle(false);
+        return;
+      }
+      signal.addEventListener("abort", onAbort);
+    });
+  }
+
+  // Answers the ask it names — the one the dialog was showing. If that ask is
+  // already gone, settled by another path between render and click, the
+  // answer finds nothing and does nothing; falling through to the head would
+  // approve a call the owner may never have been shown.
+  function answerGate(id: string, allow: boolean): void {
+    gateAsks.current.find((ask) => ask.id === id)?.settle(allow);
+  }
+
   const runAssistant = useCallback(
     async (conversationId: string, assistantId: string, currentSettings: ChatSettings) => {
       const conv = store.get(conversationId);
@@ -410,7 +495,20 @@ export function App() {
           // Read at send time, so the control takes effect on the very next
           // message with no reload.
           thinking: loadThinking(currentSettings.model),
-          runTool: executeToolCall,
+          // The gate is armed per turn, on the documents the wire pinned at
+          // send time — exactly the set this turn's model can quote, and the
+          // read `runAssistant` already made, so no web call re-parses the
+          // attachment store. A document detached mid-turn still gates the
+          // turn's later calls (it was in context); one attached mid-turn
+          // does not (the model first sees it next turn). Per conversation
+          // for the same reason: B's model was never sent A's document, so
+          // A's attachment must not put a question into B's turn — noise is
+          // what teaches the owner to click through.
+          runTool: (name, args, runSignal) =>
+            executeToolCall(name, args, runSignal, {
+              documents: () => docs,
+              confirm: (check) => askOwner(check, runSignal),
+            }),
           onToolRun: ingestToolRun,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
@@ -643,7 +741,10 @@ export function App() {
       className={`shell${streamingAny ? " is-streaming" : ""}`}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
-          if (navOpen) setNavOpen(false);
+          // Escape over a held call refuses it: the safest reading of a slam
+          // on Escape is "no", never "send it".
+          if (gateShown) answerGate(gateShown.id, false);
+          else if (navOpen) setNavOpen(false);
           else if (drawerOpen) setDrawerOpen(false);
           else if (surface === "chat") openSurface("brain");
         }
@@ -725,7 +826,7 @@ export function App() {
               className="topbar-btn"
               onClick={() => setPanelOpen((o) => !o)}
               aria-expanded={panelOpen}
-              aria-label="Toggle attachments panel"
+              aria-label="Toggle the files panel"
             >
               Files
             </button>
@@ -741,6 +842,12 @@ export function App() {
               Dismiss
             </button>
           </div>
+        ) : null}
+        {/* The ask lives at the stage's level, not inside the chat layout: a
+            call can still be held after the owner navigates home, and the ask
+            must stay on screen and answerable until it is answered. */}
+        {gateShown ? (
+          <WebGateDialog id={gateShown.id} check={gateShown.check} waiting={gateWaiting} onAnswer={answerGate} />
         ) : null}
         <ErrorBoundary>
           {surface === "brain" ? (
@@ -840,6 +947,7 @@ export function App() {
                   const found = store.getAttachments(activeId).find((a) => a.id === id);
                   if (found) store.putAttachment(activeId, { ...found, active: true });
                 }}
+                onAttachFile={(path, name) => void attachFromDisk(path, name)}
                 onClose={() => setPanelOpen(false)}
               />
             </div>

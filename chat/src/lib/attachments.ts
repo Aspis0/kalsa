@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import type { ChatMessage } from "./types";
 import type { WireMessage } from "./chat";
 
-export type AttachmentKind = "txt" | "md" | "pdf" | "docx" | "pptx";
+export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
 
 export interface Attachment {
   id: string;
@@ -56,10 +56,22 @@ export function historyTokens(messages: ChatMessage[]): number {
   return messages.reduce((sum, m) => sum + messageTokens(m), 0);
 }
 
+/** The pre-2007 binary Office formats, by extension: not worth a parser,
+ *  but worth a sentence that names the way out. Same detection idea as the
+ *  phone app's documentKinds (`src/documents/documentKinds.ts`). */
+const LEGACY_OFFICE: Record<string, { app: string; modern: string }> = {
+  doc: { app: "Word", modern: "docx" },
+  dot: { app: "Word", modern: "docx" },
+  ppt: { app: "PowerPoint", modern: "pptx" },
+  pps: { app: "PowerPoint", modern: "pptx" },
+};
+
 export function kindFor(name: string): AttachmentKind | null {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "txt") return "txt";
-  if (ext === "md") return "md";
+  if (ext === "txt" || ext === "log") return "txt";
+  if (ext === "md" || ext === "markdown") return "md";
+  if (ext === "csv") return "csv";
+  if (ext === "json") return "txt";
   if (ext === "pdf") return "pdf";
   if (ext === "docx") return "docx";
   if (ext === "pptx") return "pptx";
@@ -177,9 +189,20 @@ async function extractPptx(file: File): Promise<{ text: string; pages: number }>
 export async function extractAttachment(file: File): Promise<Attachment> {
   const kind = kindFor(file.name);
   if (!kind) {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const legacy = LEGACY_OFFICE[ext];
+    if (legacy) {
+      // The honest refusal: name the era and the way out, rather than
+      // letting it fall into "not a readable kind", which says nothing
+      // the owner can act on.
+      throw new AttachmentError(
+        "unsupported",
+        `“${file.name}” is in ${legacy.app}’s older format (before 2007). Saving it as .${legacy.modern} and attaching that copy works.`,
+      );
+    }
     throw new AttachmentError(
       "unsupported",
-      `“${file.name}” is not a readable kind. Text, markdown, PDF, Word and PowerPoint files work.`,
+      `“${file.name}” is not a readable kind. Text, markdown, CSV, PDF, Word and PowerPoint files work.`,
     );
   }
   if (file.size > MAX_FILE_BYTES) {
@@ -194,6 +217,7 @@ export async function extractAttachment(file: File): Promise<Attachment> {
     switch (kind) {
       case "txt":
       case "md":
+      case "csv":
         text = await file.text();
         break;
       case "pdf": {

@@ -30,10 +30,28 @@ use std::path::{Path, PathBuf};
 
 /// The filesystem's roots: the place a browser starts. One root on unix,
 /// the drive letters that exist on Windows.
+///
+/// The Windows half asks the OS for its drive-letter bitmap rather than
+/// probing `is_dir`, because a MAPPED network drive that happens to be
+/// disconnected still owns its letter: `Z:\` fails `is_dir` while it is
+/// unreachable, and a roots list that omits it makes the drive unbrowsable
+/// for no better reason than a dropped connection. Listing the letter is
+/// honest — opening it while disconnected fails with a real error, which
+/// the listing already knows how to show.
+///
+/// The known limit, on the record: UNC shares (`\\server\share`) have no
+/// drive letter and cannot be listed without the WNet enumeration API,
+/// which is Windows-only work this crate has not been able to test on any
+/// machine. They are absent until that lands; the home directory is
+/// always offered alongside the roots, so a profile on a UNC path is
+/// still reachable.
 pub fn roots() -> Vec<PathBuf> {
     #[cfg(windows)]
     {
-        roots_from(|letter| PathBuf::from(format!("{letter}:\\")).is_dir())
+        // SAFETY: GetLogicalDrives takes no arguments and returns a bitmask
+        // of the 26 letters; there is nothing to get wrong on either side.
+        let mask = unsafe { windows_sys::Win32::Storage::FileSystem::GetLogicalDrives() };
+        roots_from(|letter| mask & (1 << (letter as u8 - b'A')) != 0)
     }
     #[cfg(not(windows))]
     {

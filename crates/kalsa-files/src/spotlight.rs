@@ -5,8 +5,10 @@
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::entry::Kind;
 use crate::search::{
@@ -27,7 +29,7 @@ impl NameSearch for SpotlightSearch {
         query: &str,
         scope: &Path,
         sink: &mut dyn FnMut(SearchHit),
-        stop: &AtomicBool,
+        stop: &Arc<AtomicBool>,
     ) -> SearchOutcome {
         #[cfg(target_os = "macos")]
         return self.search_with_mdfind(query, scope, sink, stop);
@@ -43,7 +45,7 @@ impl SpotlightSearch {
         query: &str,
         scope: &Path,
         sink: &mut dyn FnMut(SearchHit),
-        stop: &AtomicBool,
+        stop: &Arc<AtomicBool>,
     ) -> SearchOutcome {
         let mut outcome = SearchOutcome::default();
         if query.is_empty() {
@@ -71,6 +73,19 @@ impl SpotlightSearch {
             let _ = child.wait();
             return WalkerSearch.search(query, scope, sink, stop);
         };
+        outcome.via_index = true;
+
+        // The stop flag is checked between records, but a quiet mdfind pipe
+        // delivers no records: the read below would block forever with the
+        // flag set and the child alive. The watcher kills the child the
+        // moment the flag lands, which closes the pipe, which unblocks the
+        // read, which reaches the cleanup. A cancelled search leaves
+        // nothing running. The watcher also exits when the search simply
+        // finishes — a completed run must not leave a thread polling a
+        // flag nobody will ever set.
+        let shared = Arc::new(Mutex::new(child));
+        let finished = Arc::new(AtomicBool::new(false));
+        let watcher = watch_stop(stop, &finished, Arc::clone(&shared));
 
         let reader = BufReader::new(stdout);
         let mut seen: HashSet<String> = HashSet::new();
@@ -106,9 +121,13 @@ impl SpotlightSearch {
         }
         // Whether it finished, was drained, or was stopped: the child is
         // killed if still alive and reaped either way, so no zombie outlives
-        // the search.
-        let _ = child.kill();
-        let _ = child.wait();
+        // the search. The watcher has usually done it already.
+        if let Ok(mut child) = shared.lock() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        finished.store(true, Ordering::Relaxed);
+        let _ = watcher.join();
         outcome
     }
 
@@ -123,4 +142,28 @@ impl SpotlightSearch {
             score,
         }
     }
+}
+
+/// Kill `child` as soon as `stop` is set — on its own thread, because the
+/// reader it protects is blocked in a syscall and cannot help. Polled
+/// rather than condvar'd: the flag is the only signal, 50 ms is far below
+/// a person's perception, and the alternative — a blocking read with no
+/// timeout — is the hang this exists to prevent.
+pub(crate) fn watch_stop(
+    stop: &Arc<AtomicBool>,
+    finished: &Arc<AtomicBool>,
+    child: Arc<Mutex<Child>>,
+) -> std::thread::JoinHandle<()> {
+    let stop = Arc::clone(stop);
+    let finished = Arc::clone(finished);
+    std::thread::spawn(move || {
+        while !stop.load(Ordering::Relaxed) && !finished.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        if !finished.load(Ordering::Relaxed) {
+            if let Ok(mut child) = child.lock() {
+                let _ = child.kill();
+            }
+        }
+    })
 }

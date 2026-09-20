@@ -68,12 +68,15 @@ pub(crate) fn brain_files_roots() -> RootsDto {
 }
 
 /// One folder's contents, folders first, capped at `MAX_ROWS` with
-/// `truncated` telling the truth about the rest.
+/// `truncated` telling the truth about the rest and `skipped` counting the
+/// children the OS would not let us read — a folder that quietly lost rows
+/// reads as complete, which it is not.
 #[derive(Serialize)]
 pub(crate) struct ListingDto {
     path: String,
     entries: Vec<kalsa_files::Entry>,
     truncated: bool,
+    skipped: u64,
 }
 
 #[tauri::command]
@@ -84,6 +87,7 @@ pub(crate) async fn brain_files_list(path: String) -> Result<ListingDto, String>
             path: path_to_string(&listing.path),
             entries: listing.entries,
             truncated: listing.truncated,
+            skipped: listing.skipped,
         })
     })
     .await
@@ -98,10 +102,12 @@ pub(crate) async fn brain_files_read(path: String) -> Result<tauri::ipc::Respons
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-/// Resolve, refuse a folder, refuse over the cap — naming the sizes, both
-/// the file's and the limit's, because "too big" without a number sends
-/// the user to guess. The length is re-checked after the read: a file can
-/// grow between the two.
+/// Resolve, refuse a folder, refuse anything that is not a regular file —
+/// the whole disk is in scope now, and a FIFO named `notes.txt` would other-
+/// wise hold the read open forever waiting for a writer that never comes.
+/// Then read through [`read_bounded`], so the cap bounds the WORK, not just
+/// the answer: a file that grows after the metadata check is still read to
+/// at most `max_bytes + 1`, never to whatever it has become.
 fn read_capped(path: &Path, max_bytes: u64) -> Result<Vec<u8>, String> {
     let real = kalsa_files::resolve(path).map_err(|error| {
         format!("{}: {}", path_to_string(path), error)
@@ -111,6 +117,12 @@ fn read_capped(path: &Path, max_bytes: u64) -> Result<Vec<u8>, String> {
     if meta.is_dir() {
         return Err(format!(
             "{} is a folder — pick a file inside it.",
+            path_to_string(&real)
+        ));
+    }
+    if !meta.is_file() {
+        return Err(format!(
+            "{} is not a regular file — pipes and devices never end, so it is not read.",
             path_to_string(&real)
         ));
     }
@@ -124,11 +136,24 @@ fn read_capped(path: &Path, max_bytes: u64) -> Result<Vec<u8>, String> {
     if size > max_bytes {
         return Err(over(size));
     }
-    let bytes = std::fs::read(&real).map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
+    let file = std::fs::File::open(&real).map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
+    let bytes = read_bounded(file, max_bytes).map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
     let read_len = bytes.len() as u64;
     if read_len > max_bytes {
         return Err(over(read_len));
     }
+    Ok(bytes)
+}
+
+/// `Read::take` does the bounding: at most `max_bytes + 1` bytes are ever
+/// allocated or moved, so a file racing past the cap between the metadata
+/// check and the read costs one byte over the limit, not the file's new
+/// size. The `+ 1` is what lets the caller's over-cap check distinguish
+/// "grew past the cap" from "exactly at it".
+fn read_bounded(file: std::fs::File, max_bytes: u64) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    file.take(max_bytes.saturating_add(1)).read_to_end(&mut bytes)?;
     Ok(bytes)
 }
 
@@ -186,19 +211,33 @@ impl HitBatcher {
 
 #[derive(Serialize, Clone)]
 pub(crate) struct SearchEvent {
+    /// The page-chosen generation of this search. The query string alone
+    /// cannot tell two runs of the same words apart, and a late batch from
+    /// a replaced run must be recognisable as stale even when the words
+    /// are identical.
+    id: u64,
     query: String,
     matches: Vec<SearchHit>,
     skipped: u64,
     limited: bool,
     done: bool,
+    /// Meaningful on the done event only: the answer came from the index.
+    /// Carried on the event (not just the invoke's summary) because the
+    /// event can be the last word to arrive.
+    via_index: bool,
 }
 
 #[derive(Serialize)]
 pub(crate) struct SearchSummary {
+    id: u64,
     hits: u64,
     skipped: u64,
     limited: bool,
     cancelled: bool,
+    /// The answer came from the Spotlight index, which is fast and blind at
+    /// once — the page says so, because fewer results must never read as
+    /// "nothing else exists".
+    via_index: bool,
 }
 
 /// Search file names under `scope`, streaming matches on `brain_files_search`.
@@ -207,6 +246,7 @@ pub(crate) struct SearchSummary {
 #[tauri::command]
 pub(crate) async fn brain_files_search(
     app: AppHandle,
+    id: u64,
     query: String,
     scope: String,
     searches: State<'_, Searches>,
@@ -220,7 +260,9 @@ pub(crate) async fn brain_files_search(
             let _ = app.emit(SEARCH_EVENT, event);
         };
         let outcome = if query.is_empty() {
-            kalsa_files::SearchOutcome::default()
+            let mut stopped = kalsa_files::SearchOutcome::default();
+            stopped.cancelled = true;
+            stopped
         } else {
             kalsa_files::searcher_for(&real).search(
                 &query,
@@ -228,11 +270,13 @@ pub(crate) async fn brain_files_search(
                 &mut |hit| {
                     if let Some(batch) = batcher.push(hit) {
                         emit(SearchEvent {
+                            id,
                             query: query.clone(),
                             matches: batch,
                             skipped: 0,
                             limited: false,
                             done: false,
+                            via_index: false,
                         });
                     }
                 },
@@ -240,20 +284,24 @@ pub(crate) async fn brain_files_search(
             )
         };
         emit(SearchEvent {
+            id,
             query,
             matches: batcher.take(),
             skipped: outcome.skipped,
             limited: outcome.limited,
             done: true,
+            via_index: outcome.via_index,
         });
         Ok(outcome)
     })
     .await?;
     Ok(SearchSummary {
+        id,
         hits: outcome.hits,
         skipped: outcome.skipped,
         limited: outcome.limited,
         cancelled: outcome.cancelled,
+        via_index: outcome.via_index,
     })
 }
 
@@ -378,6 +426,88 @@ mod tests {
         let small = tree.write("small.pdf", b"%PDF-1.4 not really");
         let bytes = read_capped(&small, MAX_FILE_BYTES).expect("under the cap");
         assert_eq!(bytes, b"%PDF-1.4 not really");
+    }
+
+    /// A FIFO the page could name, inside the temp dir as required. Removed
+    /// by name in its Drop — `remove_dir_all` alone would hang on it.
+    #[cfg(unix)]
+    struct Fifo(std::path::PathBuf);
+
+    #[cfg(unix)]
+    impl Fifo {
+        fn new(dir: &std::path::Path, name: &str) -> Self {
+            use std::os::unix::process::ExitStatusExt;
+            let path = dir.join(name);
+            let made = std::process::Command::new("mkfifo")
+                .arg(&path)
+                .status()
+                .expect("mkfifo runs");
+            assert!(
+                made.success() && made.code().is_some_and(|code| code == 0),
+                "mkfifo made the pipe"
+            );
+            Self(path)
+        }
+    }
+
+    #[cfg(unix)]
+    impl Drop for Fifo {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_fifo_is_refused_without_reading_it() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        let tree = TempDir::new("fifo");
+        let fifo = Fifo::new(&tree.0, "notes.txt");
+
+        // The watchdog is the point: an unguarded read of a FIFO blocks
+        // forever waiting for a writer, and a test without a deadline
+        // would pass by hanging. The refusal itself is fast; five seconds
+        // is a hundred lifetimes of it and an instant next to the hang it
+        // detects.
+        let path = fifo.0.clone();
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(read_capped(&path, MAX_FILE_BYTES));
+        });
+        let answer = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the refusal is immediate — a timeout means the read blocked");
+        let error = answer.expect_err("a FIFO is not a readable file");
+        assert!(
+            error.contains("not a regular file"),
+            "the refusal names what it refused: {error}"
+        );
+    }
+
+    #[test]
+    fn a_boundless_file_cannot_outgrow_the_read_budget() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        // /dev/zero is endless and fast: the perfect stand-in for a file
+        // that races past the cap while being read. A bounded reader stops
+        // at max+1 bytes and refuses; an unbounded one never comes back,
+        // and the watchdog turns that hang into this test's failure.
+        let file = std::fs::File::open("/dev/zero").expect("dev zero exists");
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(read_bounded(file, 1024));
+        });
+        let bytes = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the bounded read returns — a timeout means it read without a bound")
+            .expect("reading /dev/zero does not error");
+        assert_eq!(
+            bytes.len(),
+            1025,
+            "exactly the cap plus the sentinel byte: the bound held, and the sentinel is what lets the caller see it crossed"
+        );
     }
 
     #[test]

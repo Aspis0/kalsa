@@ -20,6 +20,15 @@ Derived in `crates/kalsa-supervisor/src/child.rs`:
     `spawn` function;
   * the SIGTERM-then-SIGKILL escalation shape, from Jan's `src/process.rs`.
 
+Derived in `chat/src/lib/webgate/secretRules.ts`:
+
+  * twenty secret-format patterns (AWS, GitHub, Slack, Stripe, Google,
+    OpenAI, Anthropic, SendGrid, Twilio, npm, Telegram, Hugging Face, JWT,
+    the PEM private-key header), ported from gitleaks' `config/gitleaks.toml`,
+    MIT, https://github.com/gitleaks/gitleaks. The boundary lookahead that
+    follows each pattern is widened for queries and URLs; the port is noted
+    in that file's header comment as well.
+
 Everything else in this repository was written here. No code was taken from
 Jan's TypeScript packages (`core/`, `extensions/`), which are AGPL-3.0.
 

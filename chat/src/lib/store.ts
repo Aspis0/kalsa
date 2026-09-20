@@ -51,7 +51,10 @@ function attachKey(convId: string): string {
   return `crescent-chat.attach.${convId}.v2`;
 }
 
-const ATTACH_KINDS: AttachmentKind[] = ["txt", "md", "pdf", "docx", "pptx"];
+// The kinds cleanAttachment admits on reload. This list must hold every
+// AttachmentKind or the attachment silently fails to come back — csv was
+// the one that proved the rule.
+const ATTACH_KINDS: AttachmentKind[] = ["txt", "md", "csv", "pdf", "docx", "pptx"];
 
 function cleanAttachment(value: unknown): Attachment | null {
   if (typeof value !== "object" || value === null) return null;

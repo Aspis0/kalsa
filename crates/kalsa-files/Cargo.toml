@@ -16,3 +16,9 @@ ignore = "0.4"
 # brain for every backend — the walker, mdfind, and whatever index comes
 # next — so a match means the same thing whichever ran.
 nucleo-matcher = "0.3"
+
+# Windows roots come from the OS drive-letter bitmap, so a disconnected
+# mapped drive keeps its letter instead of vanishing from the browser.
+# Unix builds never link it.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }

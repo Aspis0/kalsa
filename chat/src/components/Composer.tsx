@@ -80,7 +80,7 @@ export function Composer({
           type="file"
           className="visually-hidden"
           multiple
-          accept=".txt,.md,.pdf,.docx,.pptx"
+          accept=".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx"
           aria-hidden="true"
           tabIndex={-1}
           onChange={(event) => {
@@ -108,7 +108,7 @@ export function Composer({
           type="button"
           className="composer-action composer-attach"
           aria-label="Attach a file"
-          title="Attach a file (text, markdown, PDF, Word, PowerPoint)"
+          title="Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)"
           onClick={() => fileRef.current?.click()}
         >
           <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

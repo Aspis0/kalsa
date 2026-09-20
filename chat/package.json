@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
+    "ibantools": "^4.5.4",
+    "libphonenumber-js": "^1.13.13",
     "pdfjs-dist": "^6.3.289",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

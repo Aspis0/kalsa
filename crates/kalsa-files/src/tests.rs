@@ -350,3 +350,35 @@ fn a_windows_shaped_path_behaves_where_it_cannot_exist() {
     // And a POSIX shape labels the same way.
     assert_eq!(Kind::of(Path::new("/etc/hosts.json")), Kind::Text);
 }
+
+#[test]
+fn the_first_500_are_the_alphabetically_first_500() {
+    // Which 500 survive the cap is a product answer, and this is it: the
+    // order the page shows. The filesystem's readdir order is a hash, so
+    // "whatever came first in the scan" hides `a.txt` whenever the hash
+    // puts it late — and lies about it with a sorted-looking list.
+    let tree = TempTree::new("member");
+    let root = tree.dir("root");
+    let mut names: Vec<String> = Vec::new();
+    for index in 0..(MAX_ROWS + 100) {
+        // Names whose insertion order and alphabetical order disagree hard:
+        // the late-created `aaa-*` files must still win their places.
+        let name = if index % 2 == 0 {
+            format!("zzz-{index:04}.txt")
+        } else {
+            format!("aaa-{index:04}.txt")
+        };
+        tree.file(&format!("root/{name}"), "x");
+        names.push(name);
+    }
+    names.sort();
+
+    let listing = list_dir(&root).expect("listing");
+    assert!(listing.truncated, "600 files, 500 kept");
+    let shown: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
+    let want: Vec<&str> = names.iter().take(MAX_ROWS).map(|s| s.as_str()).collect();
+    assert_eq!(
+        shown, want,
+        "the kept rows are the alphabetically first 500, whatever order readdir produced"
+    );
+}

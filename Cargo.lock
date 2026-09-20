@@ -2627,6 +2627,7 @@ dependencies = [
  "ignore",
  "nucleo-matcher",
  "serde",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

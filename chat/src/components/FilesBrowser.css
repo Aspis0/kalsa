@@ -1,0 +1,168 @@
+.files {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.files-search {
+  display: flex;
+  flex: none;
+  gap: 0.4rem;
+}
+
+.files-input {
+  min-width: 0;
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.files-go {
+  flex: none;
+  min-height: 30px;
+  padding: 0 0.7rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.files-go:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.files-scope-line,
+.files-notes,
+.files-note,
+.files-empty {
+  flex: none;
+  margin: 0;
+  color: var(--silence);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.files-empty {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.files-tree,
+.files-children,
+.files-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.files-results {
+  flex: none;
+  max-height: 40%;
+  padding: 0.4rem;
+  overflow-y: auto;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.files-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.files-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.2rem 0.2rem 0.2rem 0.35rem;
+  border-radius: 7px;
+}
+
+.files-line:hover {
+  background: var(--surface-muted);
+}
+
+.files-open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.files-caret {
+  flex: none;
+  width: 0.8rem;
+  color: var(--silence);
+  font-size: 0.7rem;
+}
+
+.files-name {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  color: var(--ink);
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-size {
+  flex: none;
+  color: var(--silence);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.files-here,
+.files-attach {
+  flex: none;
+  min-height: 24px;
+  padding: 0 0.55rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* The quiet per-folder control appears under the pointer; Attach is a
+   primary action and never hides. */
+.files-here {
+  visibility: hidden;
+}
+
+.files-here:focus-visible {
+  visibility: visible;
+}
+
+.files-line:hover .files-here {
+  visibility: visible;
+}
+
+.files-here:hover,
+.files-attach:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}

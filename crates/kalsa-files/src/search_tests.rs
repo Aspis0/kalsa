@@ -34,7 +34,7 @@ impl Drop for ChmodGuard<'_> {
 
 /// Runs one walker search, collecting hits.
 fn walk_collect(query: &str, scope: &Path) -> (crate::search::SearchOutcome, Vec<crate::search::SearchHit>) {
-    let stop = AtomicBool::new(false);
+    let stop = Arc::new(AtomicBool::new(false));
     let mut hits = Vec::new();
     let outcome = WalkerSearch.search(query, scope, &mut |hit| hits.push(hit), &stop);
     (outcome, hits)
@@ -258,13 +258,77 @@ fn spotlight_really_answers_when_the_scope_is_indexed() {
     let scope = home.join("Projects/kalsa-brain");
     assert!(scope.is_dir(), "run this where the kalsa-brain checkout lives");
 
-    let stop = AtomicBool::new(false);
+    let stop = Arc::new(AtomicBool::new(false));
     let mut collected = Vec::new();
     let outcome =
         SpotlightSearch.search("cargo.toml", &scope, &mut |hit| collected.push(hit), &stop);
     assert!(outcome.hits >= 1, "the repo's manifests are indexed; got {outcome:?}");
     assert!(
+        outcome.via_index,
+        "an mdfind answer must say it came from the index — that is the caveat the page shows"
+    );
+    assert!(
         collected.iter().any(|hit| hit.name.eq_ignore_ascii_case("cargo.toml")),
         "the mdfind stream was parsed into named hits; got {collected:?}"
+    );
+}
+
+#[test]
+fn a_walker_answer_never_claims_it_came_from_the_index() {
+    // The honesty flag: only Spotlight may set it, because only Spotlight
+    // answers from less than the whole scope. A walker that claimed the
+    // index would hide the fact that nothing was missed.
+    let tree = TempTree::new("via-index");
+    tree.file("needle.txt", "x");
+    let (outcome, _) = walk_collect("needle", tree.path());
+    assert!(
+        !outcome.via_index,
+        "a walked answer is the complete answer — it must not wear the index caveat"
+    );
+}
+
+#[test]
+fn a_stopped_child_is_killed_rather_than_left_running() {
+    use std::process::{Command, Stdio};
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    // The watcher this proves live is the one that saves a blocked mdfind
+    // read: it cannot be tested against mdfind itself (a quiet pipe is not
+    // ours to conjure), so it is tested against any child. `sleep` is not
+    // the real workload, but the contract — flag set, child dead — is the
+    // same one.
+    let child = Command::new("sleep")
+        .arg("30")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("sleep spawns");
+    let shared = Arc::new(Mutex::new(child));
+    let stop = Arc::new(AtomicBool::new(false));
+    let finished = Arc::new(AtomicBool::new(false));
+    let watcher = crate::spotlight::watch_stop(&stop, &finished, Arc::clone(&shared));
+
+    std::thread::sleep(Duration::from_millis(100));
+    let started = Instant::now();
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut exited = None;
+    while Instant::now() < deadline {
+        if let Ok(mut child) = shared.lock() {
+            if child.try_wait().ok().flatten().is_some() {
+                exited = Some(started.elapsed());
+                break;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let _ = watcher.join();
+    let elapsed = exited.unwrap_or_else(|| panic!("the child outlived the stop flag by 5 s"));
+    assert!(
+        elapsed < Duration::from_secs(5),
+        "killed within the watcher's budget: {elapsed:?}"
     );
 }

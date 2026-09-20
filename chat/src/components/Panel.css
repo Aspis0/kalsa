@@ -28,6 +28,33 @@
   font-weight: 600;
 }
 
+/* The two halves of the panel: the computer, and this conversation. */
+.panel-tabs {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.panel-tab {
+  min-height: 28px;
+  padding: 0 0.65rem;
+  color: var(--silence);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.panel-tab:hover {
+  color: var(--ink);
+  background: var(--surface-muted);
+}
+
+.panel-tab.is-on {
+  color: var(--ink);
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+
 .panel-close {
   display: grid;
   width: 28px;
