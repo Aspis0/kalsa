@@ -6,18 +6,18 @@
 
 | Branch | Reference | Status |
 |---|---|---|
-| `origin/main` | `16ba535` | Current main head; energy framework merge line |
-| `main` | `0bfe985` | Stale local checkout, 42 commits behind `origin/main`; no silent fast-forward |
-| `feat/moe-stream` | `74531a8` at verification | Active development |
-| `chore/repo-reorg-v2` | `6b6c69c` | Six reorganization commits above `feat/moe-stream`; published as `origin/chore/repo-reorg-v2`; not adopted |
+| `origin/main` | `5429799` | Current main head; the vendored-engine line |
+| `main` | `745bf82` | Local checkout, 1 commit ahead of `origin/main`; no silent fast-forward |
 
 ## Engine assembly
 
 The Android engine comes from one source: `llama.rn` as a **git dependency on the fork
-`Aspis0/llama.rn`**, pinned by commit in `package.json` and `package-lock.json`. The fork's
-`cpp/` **is** kalsallama, flattened, with the `LM_`/`lm_` symbol prefixes already applied, plus
-the 36 `rn-*` / `jsi/` files kept as tracked source. `native/bmoe/` (the MoE streamer) is still
-compiled by the fork's CMake through `${RNLLAMA_LIB_DIR}/../../../native/bmoe` (`if(EXISTS)`).
+`Aspis0/llama.rn`**, pinned by commit in `package.json` and `package-lock.json`. The fork no
+longer flattens the engine into `cpp/`: the vendored upstream trees live in `vendor/`, where
+`vendor/VERSIONS` pins each commit, `vendor/llama.cpp/` carries the engine (beside
+`vendor/codec.cpp/` and the OpenCL headers/loader), and `cpp/` holds only the binding glue
+(`rn-*`, `jsi/`, `bmoe_stream.*`). `native/bmoe/` is gone from `origin/main`: that tree keeps
+only `native/GovernorBatteryModule.kt`.
 
 There is no install step: `package.json` has no `postinstall`, no overlay runs, no patch is
 applied. `npm ci` unpacks the fork and that is the engine.
@@ -25,10 +25,10 @@ applied. `npm ci` unpacks the fork and that is the engine.
 Updating the engine is a fork-side operation:
 
 ```text
-# in Aspis0/llama.rn (branch kalsa) — usage is `pin <sha> | bump | verify`
-scripts/sync-kalsallama.sh pin <kalsallama-sha>   # flatten + scripts/kalsa-patches/* -> cpp/
-scripts/sync-kalsallama.sh bump                   # same, following the pinned branch head
-scripts/sync-kalsallama.sh verify                 # the regenerated tree must match cpp/
+# in Aspis0/llama.rn (branch vendor-migration) — edit the pin, then re-vendor
+$EDITOR vendor/VERSIONS          # set LLAMA_CPP_REF (tag, branch or commit)
+npm run sync:vendor              # fetch, export the subset, apply scripts/patches/, write *_COMMIT
+scripts/assert-kalsa-vendor.sh   # grade the result, not the patch application
 # in the app, after pushing the fork
 sed -i '' 's/<old-sha40>/<new-sha40>/' package.json package-lock.json && npm install
 ```
@@ -39,9 +39,9 @@ The sha is edited in place because `npm pkg set` cannot address a dotted key:
 `dependencies.llama.rn=` nests an object and `dependencies["llama.rn"]=` writes a quoted string —
 both leave the real dependency on the old commit.
 
-⛔ Never edit `node_modules/llama.rn` by hand, and never commit into the fork's `cpp/` what a
-re-flatten would overwrite: an engine change belongs in kalsallama and comes back through `bump`;
-a binding change belongs in the fork's `rn-*` / `jsi/` files, which the flatten never touches.
+⛔ Never edit `node_modules/llama.rn` by hand, and never hand-edit `vendor/`: an engine change
+belongs in kalsallama and comes back through `npm run sync:vendor`; a binding change belongs in
+the fork's `rn-*` / `jsi/` files, which the sync never touches.
 `scripts/assert-engine-provenance.sh` compares the installed tree against
 `Aspis0/llama.rn@<sha>` as npm packs it, and exits 1 naming the first differing path.
 
@@ -55,7 +55,7 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 |---|---|---|
 | `patch-package` shouts when upstream moves under us | nothing moves under us: the fork is pinned by sha | a fork merge shows conflicts instead of resolving them in silence |
 | `assert-vendor-pristine.sh` (installed == npm + patch) | no longer meaningful | `scripts/assert-engine-provenance.sh` (installed == `fork@sha`) |
-| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | partial — `assert-engine-provenance.sh` prints the installed `cpp/KALSALLAMA_SHA`, but nothing compares it to an expected value |
+| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | partial — `assert-engine-provenance.sh` prints the installed `LLAMA_CPP_COMMIT` from `vendor/VERSIONS`, but nothing compares it to an expected value |
 | `patch-package` exits 0 after printing "1 error(s)" — CI green on an unpatched engine | gone; this is the real gain | — |
 | an overlay that wins every conflict silently | gone | git, in the fork |
 | lockfile `integrity` sha512 and an offline `npm ci` from cache | a git dep: the sha40 is the identity, GitHub must be reachable, and the lockfile `integrity` of a git dep is verified by nobody | `assert-engine-provenance.sh`, which refetches the commit and compares file by file — run by hand, not in CI |
@@ -65,15 +65,15 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 
 ## Entry points
 
-- `docs/KALSA.md`: current application and harness state.
-- `docs/HARNESS_FINDINGS.md`: findings register and evidence record.
-- `docs/KNOWN_ISSUES.md`: known issues.
 - `scripts/campaign/`: on-device measurement campaign harness.
+- `docs/`: dated findings; `docs/README.md` names the living documents, which are in the lab repo.
+- `archived/docs/`: frozen history, including `KALSA.md`, `HARNESS_FINDINGS.md` and
+  `KNOWN_ISSUES.md`. These are **not** current entry points.
 
 ## Evidence read
 
 `package.json` (the `llama.rn` git dependency, no `postinstall`); `package-lock.json`
-(`packages["node_modules/llama.rn"].resolved`); `node_modules/llama.rn/cpp/KALSALLAMA_SHA`;
+(`packages["node_modules/llama.rn"].resolved`); `node_modules/llama.rn/vendor/VERSIONS`;
 `scripts/engine-build-id.js`; `scripts/assert-engine-provenance.sh`;
-`plugins/withLlamaFromSource.js`; and, in `Aspis0/llama.rn`, `scripts/sync-kalsallama.sh` with
-`scripts/kalsa-patches/`.
+`plugins/withLlamaFromSource.js`; and, in `Aspis0/llama.rn`, `vendor/VERSIONS`, `scripts/sync-vendor.sh`
+and `scripts/patches/`.
