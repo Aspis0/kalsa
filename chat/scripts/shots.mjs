@@ -4,6 +4,7 @@
 // then: node scripts/shots.mjs [name ...]  (default: all)
 // States assert their markers (must()) — a missing state FAILS, never a PNG.
 import { chromium } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -130,7 +131,11 @@ async function must(page, selector, label) {
 
 async function shot(page, path) {
   await page.waitForTimeout(600);
-  await page.screenshot({ path });
+  // Anchored to this script, not to the process's working directory: npm
+  // resolves `npm run` from chat/, but `node scripts/shots.mjs` from the
+  // repo root let Playwright resolve "shots/..." against the root and grow
+  // a stray shots/ tree there.
+  await page.screenshot({ path: fileURLToPath(new URL(`../${path}`, import.meta.url)) });
   console.log("saved", path);
 }
 
@@ -507,7 +512,7 @@ async function main() {
     await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
-    await page.getByRole("button", { name: "Toggle attachments panel" }).click();
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
     await must(page, ".panel-open", "empty panel");
     await shot(page, "shots/60-panel-empty.png");
     await page.close();

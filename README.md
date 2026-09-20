@@ -29,7 +29,39 @@ crates/kalsa-download/     getting a model file here once, safely: resumable,
                            final name, and refusing rather than filling a disk
 crates/kalsa-runtime/      which server build this machine needs, and proving it
                            runs before any weights are fetched
-src-tauri/                 the app shell: commands + config, no logic
+crates/kalsa-door/         the authenticated door in front of the local server:
+                           one bearer credential per paired device, bounded
+                           head patience, and an SSE answer that survives the
+                           phone vanishing and coming back
+crates/kalsa-files/        the user's own files for the picker: read-only
+                           listing and search over the whole disk - names,
+                           sizes, dates - and never a write
+crates/kalsa-iroh/         the second road to the door: a hole-punched QUIC
+                           tunnel with a relay of last resort, every wait
+                           bounded, an upstream API change a compile error in
+                           one file
+crates/kalsa-launch/       the exact arguments llama-server gets: context sized
+                           to what the KV cache fits after the weights, threads
+                           at the measured plateau, offload all or nothing
+crates/kalsa-pairing/      the ceremony behind the pairing square: one-time
+                           codes, the completion handshake, the offered /
+                           claimed / paired machine, and the credential that
+                           is the phone's only way in
+crates/kalsa-reuse/        whether the weights are already on this machine: a
+                           digest-verified look inside the ollama, LM Studio
+                           and Hugging Face stores, an optimization allowed to
+                           fail into "not found"
+crates/kalsa-sentinel/     the sustainability guard: it reads throughput decay
+                           because temperature needs a driver it cannot sign
+                           or license, and answers decay with a ladder of
+                           gentler settings, each announced, each reversible
+crates/kalsa-web/          the assistant's search and page fetch: text bounded
+                           and truncated for a model to read, and no address
+                           opened that the webview's CSP exists to keep out
+src-tauri/                 the Tauri shell, where the crates meet the screen:
+                           the commands the pages poll, the turn-on walk that
+                           measures and starts, the pairing desk, the road's
+                           switch, and the words every failure is shown in
 chat/                      the Vite + React + TypeScript desktop frontend
 NOTICE                     what came from Jan (MIT) and what did not
 ```
@@ -37,9 +69,18 @@ NOTICE                     what came from Jan (MIT) and what did not
 ## Build and test
 
 ```sh
-cargo test -p kalsa-supervisor      # the supervisor: fast, no network, no model
-cargo check -p kalsa-brain          # the app shell
-cargo run -p kalsa-brain            # opens the window
+cargo test -p kalsa-supervisor               # the supervisor: fast, no network, no model
+cargo test -p kalsa-brain --bin kalsa-brain  # the app shell's own tests
+cargo check -p kalsa-brain                   # the app shell
+cargo run -p kalsa-brain                     # opens the window
+```
+
+The frontend type-checks and keeps its Tauri command vocabulary honest:
+
+```sh
+cd chat
+npx tsc --noEmit                   # the frontend type-checks
+node scripts/command-contract.mjs  # every command either side names, the other names too
 ```
 
 Running the app needs a server binary and a model, because model selection and

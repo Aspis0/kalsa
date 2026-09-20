@@ -17,6 +17,7 @@
 // fixture that drifts from the backend's shape fails here rather than in a
 // picture.
 import { readFileSync, rmSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { LAUNCH_KNOBS } from "../src/lib/knobs/launch.ts";
 
@@ -364,8 +365,13 @@ function installStub({ advanced, brain }) {
   };
 }
 
+// The destination anchored to this script, not to the process's working
+// directory: `node scripts/advanced-shots.mjs` from the repo root resolved
+// "shots/..." against the root and grew the stray shots/ tree there.
+const shotFile = (path) => fileURLToPath(new URL(`../${path}`, import.meta.url));
+
 async function shot(page, path) {
-  await page.screenshot({ path });
+  await page.screenshot({ path: shotFile(path) });
   console.log("  saved", path);
 }
 
@@ -431,7 +437,7 @@ async function main() {
     } else {
       // The same convention brain-shots uses: a stale failure picture must not
       // survive the run that proves it fixed.
-      rmSync(fixture.file.replace(/\.png$/, "-FAILED.png"), { force: true });
+      rmSync(shotFile(fixture.file.replace(/\.png$/, "-FAILED.png")), { force: true });
     }
 
     // The popover is the one state whose bug only appears when the window is
@@ -453,7 +459,7 @@ async function main() {
         if (frameProblems.length > 0) {
           failures.push(`${fixture.name} (${label}): ${frameProblems.join("; ")}`);
         } else {
-          rmSync(frameFile.replace(/\.png$/, "-FAILED.png"), { force: true });
+          rmSync(shotFile(frameFile.replace(/\.png$/, "-FAILED.png")), { force: true });
         }
       }
     }

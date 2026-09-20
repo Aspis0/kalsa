@@ -14,6 +14,7 @@
 // Rust serde contract test prints — before any shot is taken, so a fixture that
 // drifts from the backend's shape fails here rather than in a picture.
 import { readFileSync, rmSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const CONTRACT = JSON.parse(readFileSync(new URL("./capability-contract.json", import.meta.url), "utf8"));
@@ -393,8 +394,13 @@ async function layout(page) {
   }, MACHINE);
 }
 
+// The destination anchored to this script, not to the process's working
+// directory: `node scripts/brain-shots.mjs` from the repo root resolved
+// "shots/..." against the root and grew the stray shots/ tree there.
+const shotFile = (path) => fileURLToPath(new URL(`../${path}`, import.meta.url));
+
 async function shot(page, path) {
-  await page.screenshot({ path });
+  await page.screenshot({ path: shotFile(path) });
   console.log("  saved", path);
 }
 
@@ -584,7 +590,7 @@ async function main() {
     const file = problems.length === 0 ? fixture.file : fixture.file.replace(/\.png$/, "-FAILED.png");
     await shot(page, file);
     if (problems.length > 0) failures.push(`${fixture.name}: ${problems.join("; ")}`);
-    else rmSync(fixture.file.replace(/\.png$/, "-FAILED.png"), { force: true });
+    else rmSync(shotFile(fixture.file.replace(/\.png$/, "-FAILED.png")), { force: true });
 
     // The same state in a taller frame, so the whole card can be read.
     await page.setViewportSize(TALL);
