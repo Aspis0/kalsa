@@ -181,7 +181,7 @@ not the problem we have.
 
 ## 7. The Governor: one lever is already refuted, one is untouched
 
-`docs/CORE-PLACEMENT-PILOT-2026-09-16.md` measured core placement on the Jelly
+`archived/docs/CORE-PLACEMENT-PILOT-2026-09-16.md` measured core placement on the Jelly
 Star: restricting **decode** to the A55 cores costs **5.0–5.3x** decode time
 (+402 % against a rule that tolerates +25 %). The energy win it reported is not
 trustworthy either — the device dozed during the long arms. Conclusion recorded
