@@ -1,6 +1,6 @@
 # Il governor deve sapere in che telefono sta — piano
 
-> ## SOTTO AUDIT — 19/09/2026 — 7 REFUTED, 2 non verificabili, 6 derive di citazione
+> ## UNDER AUDIT — 19/09/2026 — 7 REFUTED, 2 unverifiable, 6 citation drifts
 >
 > **Non usare questo documento come fonte senza leggere prima l'[Appendice A](#appendice-a--audit-puntiglioso-del-19092026-deepseek-v41-verbatim).**
 >
@@ -13,6 +13,9 @@
 > That work is a separate cell; its record goes to
 > `scratchpad/agents/governor-audit-recheck/REPORT.md`. Until that report exists, do not cite a
 > number from this document as established.
+>
+> **Body language.** The body of this document is still Italian and is left as-is pending the
+> re-verification rewrite by agent `719eb904`; only the header above has been corrected to English.
 >
 > Due cose sono successe il 19/09.
 >

@@ -1,5 +1,7 @@
 # Docs & repo cleanup — inventory and contradiction register
 
+> Narrative is English; verbatim historical quotations in Italian are preserved for evidence fidelity.
+
 **Agent:** Explorer (read-only). **Working dir:** `/Users/marco/.paseo/worktrees/0dh4675z/gov-audit-recheck`
 (worktree of `kalsa-moe-experiments`, HEAD `e495dbe5`).
 **Method:** every statement below was read off the disk with the command shown; nothing was

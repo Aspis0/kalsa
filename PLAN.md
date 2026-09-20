@@ -2,18 +2,21 @@
 
 # Kalsa: PLAN (living)
 
-Owner decision 2026-09-09: two living documents only, this PLAN and `docs/ALIVE.md`. Everything
-older is frozen under `archived/`. This file replaces the Italian PLAN as the living document;
+Owner decision 2026-09-09 (recorded at `archived/PLAN-2026-09-full.md:1`): two living documents
+only, this PLAN and `docs/ALIVE.md`. Everything older is frozen under `archived/`. This file
+replaces the Italian PLAN as the living document;
 the full history (the dated decision diary and the register of banked measurements) is in
 `archived/PLAN-2026-09-full.md`.
 
 ## What Kalsa is
 
 Kalsa is an Android chat app that runs language models on the phone itself, with no server in
-the loop. The standing goal (owner, repeated 2026-09-04) is a kernel that uses NPU, GPU and CPU
-**per phase** according to temperature, battery and device profile, optimised for Snapdragon and
-for MediaTek/Jelly where possible. The missing piece is not the engine: it is that the app does
-not use it yet.
+the loop. The standing goal (owner; recorded at `archived/PLAN-2026-09-full.md:9`) is a kernel
+that uses NPU, GPU and CPU **per phase** according to temperature, battery and device profile,
+optimised for Snapdragon and for MediaTek/Jelly where possible. The app already imports the
+forked `llama.rn` binding (`src/engine/LlamaService.ts:13`,
+`src/engine/EmbeddingService.ts:35`). What is not in use is the per-phase governor, which is off
+by default; see "Governor" below.
 
 The app is React Native. The engine is our fork of llama.cpp, consumed through our fork of the
 `llama.rn` binding as a git dependency pinned by commit. Device measurements are the arbiter; the
@@ -24,7 +27,7 @@ lab repo holds the method, the raw evidence and the audits.
 The authoritative map, with the canonical role and status of each repository, is `REPOS.md` in
 the app repo (`Aspis0/kalsa`, file `REPOS.md`). Defer to it; do not restate it here.
 
-At 2026-09-20 the four live checkouts on this Mac are:
+The four live checkouts named in the repo map exist on this Mac (checked with `ls -d`):
 
 | repo | local checkout | role |
 |---|---|---|
@@ -38,18 +41,21 @@ the lab for provenance of the PC campaign binary. `REPOS.md` records that status
 
 ## The two-living-docs rule
 
-`PLAN.md` and `docs/ALIVE.md` are the only living documents. Every other `.md` is frozen under
-`archived/`, with its date in the filename or its own header. Dated findings that must stay
-checkable live under `analysis/` as one-document records; agent work lives under
-`scratchpad/agents/<cell>/`. The rule exists because duplicate living docs have twice cost real
-time: two files that both claim to be current always drift, and a reader cannot tell which one is
-stale.
+`PLAN.md` and `docs/ALIVE.md` are the only two living documents. Two classes of live record sit
+outside `archived/` on purpose: the dated findings and contracts under `analysis/`, and the
+per-cell evidence under `scratchpad/agents/`. Every other `.md` is frozen, either under
+`archived/` or in place where it was produced (the campaign material under `results/`,
+`reports/`, `ops/` and `scratchpad/`). At 2026-09-20 that is 1112 tracked `.md` files outside
+`archived/`, `PLAN.md` and `docs/ALIVE.md`. Preserved archive blobs are byte-fidelity copies:
+they keep their original language, Italian included, and are not translated. The rule exists
+because duplicate living docs have twice cost real time: two files that both claim to be current
+always drift, and a reader cannot tell which one is stale.
 
 ## Verified state, 2026-09-20
 
-Everything in this section was read off the disk on 2026-09-20 from the checkouts in the table
-above. Where a number can move under concurrent work, the command that produced it is named so
-the reader can repeat it.
+Each item in this section names the command or file that proves it. Run the command to get the
+current value; values that move under concurrent work are not restated as if frozen, because a
+reader cannot tell how old a copy is.
 
 ### The app and its engine pin
 
@@ -106,7 +112,7 @@ a separate question, and the governor numbers are under re-verification below.
   facts are read from `origin/main` of the app.
 - The device plan is `analysis/GOVERNOR-DEVICE-PLAN.md`. Its own header says the body cannot be
   used as a source without first re-reading the audit appendix. The plan is parked per the owner
-  order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:19`; no document on disk records an un-park.
+  order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:22`; no document on disk records an un-park.
   Whether it is re-opened is an open owner decision.
 - The plan's numbers are under re-verification. That work is a separate cell; its record goes to
   `scratchpad/agents/governor-audit-recheck/REPORT.md`. Do not cite a plan number as established
@@ -140,9 +146,12 @@ These are owner-scope. No agent should act on them without a new owner decision:
 - **Ciswire window counted in characters, not tokens.** The window budget projects tokens as
   `chars/3`, so dense content overflows `n_ctx` without sliding. The direction is real token
   counting in the slide predicate. Same record as above.
-- **Catalog gate threshold.** The prefill-cost admission threshold for the catalog is deferred;
-  the owner writes it.
-- **S23 cable.** The S23 measurement lane is blocked on a cable/host decision.
+- **Catalog gate threshold.** The prefill-cost admission threshold for the catalog is deferred
+  (owner, 17/09). Record: memory `catalog-gate-threshold-deferred.md`; also
+  `archived/PLAN-2026-09-full.md:682`, `:1660`, `:2634`.
+- **S23 cable.** The owner was asked to unplug the S23 and keep it off the charger for the
+  thermal runs (`archived/PLAN-2026-09-full.md:1659`). Owner-stated; no separate decision
+  document exists on disk.
 
 ### Agent work
 
@@ -153,7 +162,9 @@ These are owner-scope. No agent should act on them without a new owner decision:
 
 ## Where the record lives
 
-- `analysis/*.md`: one document per dated session, with provenance and verdicts.
+- `analysis/*.md`: dated session records with provenance and verdicts, plus two standing
+  reference documents, `README-governor-kv-contract.md` (contract) and
+  `README-qwen-think-replay.md` (procedure).
 - `scratchpad/agents/<cell>/`: one folder per measurement cell, `PREREG.md` where relevant,
   driver scripts, `raw/`, `REPORT.md`.
 - `archived/PLAN-2026-09-full.md`: the full Italian history to 2026-09-20.

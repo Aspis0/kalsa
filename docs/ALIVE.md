@@ -2,7 +2,8 @@
 
 # Kalsa: ALIVE (living measured state)
 
-Owner decision 2026-09-09: two living documents only, `PLAN.md` and this one. The full diary
+Owner decision 2026-09-09 (recorded at `archived/PLAN-2026-09-full.md:1`): two living documents
+only, `PLAN.md` and this one. The full diary
 (every dated cell, table row and verdict to 2026-09-20) is in
 `archived/ALIVE-2026-09-full.md`. This file keeps only the short measured state and the pointers
 to the records.
