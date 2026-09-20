@@ -45,8 +45,9 @@ the lab for provenance of the PC campaign binary. `REPOS.md` records that status
 outside `archived/` on purpose: the dated findings and contracts under `analysis/`, and the
 per-cell evidence under `scratchpad/agents/`. Every other `.md` is frozen, either under
 `archived/` or in place where it was produced (the campaign material under `results/`,
-`reports/`, `ops/` and `scratchpad/`). At 2026-09-20 that is 1112 tracked `.md` files outside
-`archived/`, `PLAN.md` and `docs/ALIVE.md`. Preserved archive blobs are byte-fidelity copies:
+`reports/`, `ops/` and `scratchpad/`). The count is whatever this command prints, so it cannot go
+stale: `git ls-files '*.md' | rg -v '^(archived/|PLAN\.md$|docs/ALIVE\.md$)' | wc -l`. Preserved archive
+blobs are byte-fidelity copies:
 they keep their original language, Italian included, and are not translated. The rule exists
 because duplicate living docs have twice cost real time: two files that both claim to be current
 always drift, and a reader cannot tell which one is stale.
@@ -105,11 +106,14 @@ a separate question, and the governor numbers are under re-verification below.
 
 ### Governor
 
-- The governor does not turn itself on. `readGovernorEnabled()` reads the `kalsa.governor.enabled`
-  key from `AsyncStorage` (`src/engine/governorRuntime.ts`), and nothing in the shipped
-  configuration writes that key, so a clean install reads false. The load path additionally
-  requires `sensor_valid` before the governor is used (`src/engine/LlamaService.ts:2314`). Both
-  facts are read from `origin/main` of the app.
+- The governor is off by default. `readGovernorEnabled()` reads the `kalsa.governor.enabled` key
+  from `AsyncStorage` (`src/engine/governorRuntime.ts:15-21`) and returns false while the key is
+  absent. The key is written only when the user flips the Settings toggle: `writeGovernorEnabled()`
+  persists it with `AsyncStorage.setItem(GOVERNOR_ENABLED_KEY, …)` (`src/engine/governorRuntime.ts:27`),
+  and `handleToggleGovernor` in the shipped Settings screen calls it
+  (`src/screens/SettingsScreen.tsx:501`). A clean install is therefore off and stays off unless the
+  toggle writes the key. The load path additionally requires `sensor_valid` before the governor is
+  used (`src/engine/LlamaService.ts:2314`). Both facts are read from `origin/main` of the app.
 - The device plan is `analysis/GOVERNOR-DEVICE-PLAN.md`. Its own header says the body cannot be
   used as a source without first re-reading the audit appendix. The plan is parked per the owner
   order quoted at `analysis/GOVERNOR-DEVICE-PLAN.md:22`; no document on disk records an un-park.
@@ -162,9 +166,11 @@ These are owner-scope. No agent should act on them without a new owner decision:
 
 ## Where the record lives
 
-- `analysis/*.md`: dated session records with provenance and verdicts, plus two standing
-  reference documents, `README-governor-kv-contract.md` (contract) and
-  `README-qwen-think-replay.md` (procedure).
+- `analysis/`: six documents by kind. Dated session records:
+  `CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md` (S23/Jelly) and
+  `XIAOMI-QWEN-FITGATE-AND-CISWIRE-TOKEN-OVERFLOW-2026-09-20.md` (Xiaomi/Qwen). Migration record:
+  `FORK-VENDOR-MIGRATION.md`. Plan/audit document: `GOVERNOR-DEVICE-PLAN.md`. Standing references:
+  `README-governor-kv-contract.md` (contract) and `README-qwen-think-replay.md` (procedure).
 - `scratchpad/agents/<cell>/`: one folder per measurement cell, `PREREG.md` where relevant,
   driver scripts, `raw/`, `REPORT.md`.
 - `archived/PLAN-2026-09-full.md`: the full Italian history to 2026-09-20.

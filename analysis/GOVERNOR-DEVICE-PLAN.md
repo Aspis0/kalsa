@@ -1,8 +1,8 @@
-# Il governor deve sapere in che telefono sta — piano
+# The governor must know which phone it is on: plan
 
 > ## UNDER AUDIT — 19/09/2026 — 7 REFUTED, 2 unverifiable, 6 citation drifts
 >
-> **Non usare questo documento come fonte senza leggere prima l'[Appendice A](#appendice-a--audit-puntiglioso-del-19092026-deepseek-v41-verbatim).**
+> **Do not use this document as a source without first reading [Appendix A](#appendice-a--audit-puntiglioso-del-19092026-deepseek-v41-verbatim).**
 >
 > **Park status: open owner decision.** This document records the 19/09 owner order to set the
 > governor aside. A memory dated 20/09 claims the condition for that order has fallen and the
@@ -14,8 +14,8 @@
 > `scratchpad/agents/governor-audit-recheck/REPORT.md`. Until that report exists, do not cite a
 > number from this document as established.
 >
-> **Body language.** The body of this document is still Italian and is left as-is pending the
-> re-verification rewrite by agent `719eb904`; only the header above has been corrected to English.
+> **Body language.** The title, the warning above and this audit header are English. The plan body
+> is still Italian and is left as-is pending the re-verification rewrite by agent `719eb904`.
 >
 > Due cose sono successe il 19/09.
 >
