@@ -45,7 +45,9 @@ impl std::fmt::Display for StoreError {
                 "the release assets are not verified yet: nothing downloads until their \
                  sizes and sha256 digests are filled in"
             ),
-            StoreError::NoExecutable => write!(f, "the archive contained no llama-server"),
+            StoreError::NoExecutable => {
+                write!(f, "the archive contained no llama-server or kalsa-server")
+            }
             StoreError::ExeMismatch => write!(
                 f,
                 "the executable in the saved build does not match the release digest in \
@@ -484,7 +486,11 @@ mod tests {
         let dir = builds_dir(&root, ServerBackend::Cpu);
         // An old build from another release sits in the way.
         std::fs::create_dir_all(&dir).expect("old build");
-        std::fs::write(dir.join("llama-server"), b"an old, stale binary").expect("old exe");
+        std::fs::write(
+            dir.join(crate::extract::SERVER_NAMES[0]),
+            b"an old, stale binary",
+        )
+        .expect("old exe");
         let bytes = make_fake_zip(b"a stand-in binary");
         let archive = place_archive(&root, "real.zip", &bytes);
         let sha = digest_of(&bytes);
@@ -533,7 +539,7 @@ mod tests {
     ) -> PathBuf {
         let dir = builds_dir(root, backend);
         std::fs::create_dir_all(&dir).expect("mkdirs");
-        std::fs::write(dir.join("llama-server"), exe_bytes).expect("exe");
+        std::fs::write(dir.join(crate::extract::SERVER_NAMES[0]), exe_bytes).expect("exe");
         marker::write(&dir, runtime, exe_sha).expect("marker");
         dir
     }
@@ -568,7 +574,7 @@ mod tests {
                 "the refusal must not fetch anything"
             );
             assert_eq!(
-                std::fs::read(dir.join("llama-server")).expect("exe"),
+                std::fs::read(dir.join(crate::extract::SERVER_NAMES[0])).expect("exe"),
                 exe_bytes,
                 "the build is left alone, not repaired"
             );
@@ -655,7 +661,8 @@ mod tests {
         let options: zip::write::SimpleFileOptions =
             zip::write::FileOptions::default().unix_permissions(0o755);
         zip.add_directory("bin", options).expect("dir");
-        zip.start_file("bin/llama-server", options).expect("entry");
+        zip.start_file(format!("bin/{}", crate::extract::SERVER_NAMES[0]), options)
+            .expect("entry");
         zip.write_all(body).expect("bytes");
         zip.finish().expect("finish");
         let bytes = std::fs::read(&path).expect("read");

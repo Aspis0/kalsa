@@ -242,7 +242,7 @@ mod tests {
         let exe = root
             .join("builds")
             .join(backend.name())
-            .join("llama-server");
+            .join(crate::extract::SERVER_NAMES[0]);
         std::fs::create_dir_all(exe.parent().expect("parent")).expect("mkdirs");
         std::fs::write(&exe, server_bytes).expect("exe");
         let exe_sha = marker::sha256_file(&exe).expect("hash");

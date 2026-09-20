@@ -182,7 +182,7 @@ mod tests {
     /// marker written the way extraction writes it.
     fn proven_build(name: &str, exe_bytes: &[u8]) -> (PathBuf, PathBuf, String, String) {
         let dir = scratch(name);
-        let exe = dir.join("llama-server");
+        let exe = dir.join(crate::extract::SERVER_NAMES[0]);
         std::fs::write(&exe, exe_bytes).expect("exe");
         let runtime_sha = "0".repeat(64);
         let runtime = [("fake.zip", runtime_sha.as_str())];
@@ -215,7 +215,7 @@ mod tests {
         // then in sorted order — both must pass, or a CUDA machine
         // re-acquires 645 MB on every launch.
         let dir = scratch("two-archives");
-        let exe = dir.join("llama-server");
+        let exe = dir.join(crate::extract::SERVER_NAMES[0]);
         std::fs::write(&exe, b"a two-archive build").expect("exe");
         let exe_sha = sha256_file(&exe).expect("hash");
         let engine_sha = "1".repeat(64);
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn an_unmarked_directory_is_not_a_build() {
         let dir = scratch("unmarked");
-        std::fs::write(dir.join("llama-server"), b"who made this?").expect("exe");
+        std::fs::write(dir.join(crate::extract::SERVER_NAMES[0]), b"who made this?").expect("exe");
         let sha = "0".repeat(64);
         let runtime = [("fake.zip", sha.as_str())];
         assert_eq!(validate(&dir, &runtime, None), None);
@@ -305,19 +305,23 @@ mod tests {
         let runtime = [("fake.zip", runtime_sha.as_str())];
         // The marker names these archives but records another build's exe.
         let dir = scratch("recorded-other");
-        std::fs::write(dir.join("llama-server"), b"whatever was here").expect("exe");
+        std::fs::write(
+            dir.join(crate::extract::SERVER_NAMES[0]),
+            b"whatever was here",
+        )
+        .expect("exe");
         write(&dir, &runtime, &"b".repeat(64)).expect("marker");
         assert!(exe_contradicts_table(&dir, &runtime, &table));
         let _ = std::fs::remove_dir_all(&dir);
         // The marker records the table's exe, but the bytes were flipped.
         let dir = scratch("measured-other");
-        std::fs::write(dir.join("llama-server"), b"a proven build").expect("exe");
+        std::fs::write(dir.join(crate::extract::SERVER_NAMES[0]), b"a proven build").expect("exe");
         let table = digest_of(b"a proven build");
         write(&dir, &runtime, &table).expect("marker");
         assert!(!exe_contradicts_table(&dir, &runtime, &table));
         let mut bytes = b"a proven build".to_vec();
         bytes[0] ^= 0xff;
-        std::fs::write(dir.join("llama-server"), bytes).expect("tamper");
+        std::fs::write(dir.join(crate::extract::SERVER_NAMES[0]), bytes).expect("tamper");
         assert!(exe_contradicts_table(&dir, &runtime, &table));
         let _ = std::fs::remove_dir_all(&dir);
         // A stale build, an unmarked directory and a missing executable are
@@ -328,7 +332,7 @@ mod tests {
         assert!(!exe_contradicts_table(&dir, &wrong, &table));
         let _ = std::fs::remove_dir_all(&dir);
         let dir = scratch("unmarked-table");
-        std::fs::write(dir.join("llama-server"), b"who made this?").expect("exe");
+        std::fs::write(dir.join(crate::extract::SERVER_NAMES[0]), b"who made this?").expect("exe");
         assert!(!exe_contradicts_table(&dir, &runtime, &table));
         let _ = std::fs::remove_dir_all(&dir);
         let dir = scratch("missing-exe");
