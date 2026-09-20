@@ -2136,3 +2136,60 @@ else was in flight. The app now builds from the vendored engine, and
 Anyone with an older checkout must re-run `npm install` before any gate: the
 installed `llama.rn` predates the vendor layout, and `assert-overlay-includes.sh`
 stops with the message written for exactly that case.
+
+## 29. The e2e is green, and it found a dead instrument
+
+Pushing to `main` auto-triggered the emulator e2e: run `35483990916` on
+`50b8196`, **20/20 steps green**, including an **x86_64** build (a second
+architecture for the vendored engine) and `[ci] PASS: real on-device inference
+completed (3 turns + telemetry + session restore leg)`. The engine is not just
+built, it generates.
+
+**But two lines in that log say less than they used to.** Same run:
+
+    KV_CACHE: UNKNOWN (no native Input processed line)
+    SESSION_RESTORE: HIT but COLD/UNKNOWN native reuse (logged, not failing job)
+
+The last green e2e before the bump (`809d191`, run `35463404191`) said:
+
+    KV_CACHE: WARM (turn2 reused 2288/2310 prompt tokens)
+    SESSION_RESTORE: WARM RESTART CONFIRMED (reused 2474/2496)
+
+**The KV reuse still happens.** The same new run prints, from our own native
+marker, `KV_PREFIX: best n_common=2540 embd=2540 text_tokens=2562
+whole_cache_reused=YES`. What changed is the instrument, not the subject.
+
+**Cause, read on disk.** Between the two pins the line the classifier greps was
+replaced:
+
+    -    LOG_INFO("[DEBUG] Input processed: n_past=%d, embd.size=%zu, ...")
+    +    LOG_VERBOSE("loadPrompt: n_past=%d embd.size=%zu ...")
+
+by **upstream** llama.rn `70fdbac7` (2026-08-06, "feat: use codec.cpp as vocoder
+(experimental) (#300)") — not by our log-privacy work. And `LOG_VERBOSE` is not
+merely quiet: `cpp/rn-llama.h:286` is `#if RNLLAMA_VERBOSE != 1`, and
+`RNLLAMA_VERBOSE` is **defined nowhere in the fork**, so the statement is
+compiled out of every build. No grep can be fixed by renaming it.
+
+**Blast radius: six app files key on the dead marker** —
+`scripts/benchGrade.mjs:219` (the regex), `ci-e2e.sh`, `ci-bench.sh`,
+`ci-lib.sh`, `device-ciswire-cache.sh`, `test_sideload_guards.sh`. Plus
+`benchGradeHarness.mjs`, which feeds the *old* string to its own fixtures: its
+tests stay green forever regardless of what the engine prints — the subject
+rebuilt by its test, again.
+
+**Not fixed tonight, and here is the honest reason.** `benchGrade.mjs` returns
+nulls when the regex matches nothing, so the failure mode is *lost data*, not a
+wrong number: bench grading reports no KV-reuse figure instead of a false one.
+That makes it safe to defer past a milestone, but not safe to forget — every
+APK built from this pin onward grades without reuse data. The replacement signal
+already exists and is ours (`KALSA_KVPREFIX`, which carries n_common, embd,
+text_tokens and whole_cache_reused — strictly more than the retired line).
+Moving six consumers onto it is its own step with its own audit.
+
+**The general shape, which is the part worth keeping:** a bump can retire a
+*log line*, and a log line is an API when instruments parse it. Nothing failed —
+CI stayed green, the harness tests stayed green, only the numbers quietly went
+missing. The measurement gates should assert their own markers are still being
+emitted, the same way `requireEveryEngineTreeDir` asserts the digest still
+covers every tree.
