@@ -121,7 +121,8 @@ a separate question, and the governor numbers are under re-verification below.
   `scratchpad/agents/governor-audit-recheck/REPORT.md`. The plan is parked per the owner order
   quoted in the archived copy; no document on disk records an un-park, so re-opening it is an open
   owner decision.
-- Every number in the rewritten plan cites an artefact or is marked UNSOURCED. The plan's design
+- The rewritten plan states its own sourcing rule and applies it: every number carries an artefact
+  citation or an explicit UNSOURCED label with what would settle it. The design
   shape (Rule 1: decisions contain no device identity; Rule 2: matrix as data; Rule 3: one
   selector; probes fail closed) survived the audit unchanged.
 
@@ -164,7 +165,9 @@ These are owner-scope. No agent should act on them without a new owner decision:
 ### Agent work
 
 - The governor number re-verification cell, `scratchpad/agents/governor-audit-recheck/` (complete
-  2026-09-20; all seven audit findings held, with one correction to the audit itself).
+  2026-09-20; nine entries: the seven audit findings plus the two formerly-unsourced values. All
+  seven findings held, and the audit's own `cpu7 1824000` claim was refuted: the value has an
+  archived narrative source).
 - The Qwen ciswire recall measurement on the Xiaomi.
 - Corrections to these two living docs, to the `analysis/` records and to the affected memories
   whenever a disk check contradicts them.

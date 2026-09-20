@@ -31,9 +31,9 @@ document that produced them is named instead.
 
 ## Standing cautions
 
-- The governor plan was re-verified and rewritten on 2026-09-20. Every number in it now cites an
-  artefact or is marked UNSOURCED; the audited Italian body is archived byte-for-byte and is not a
-  current source.
+- The governor plan was re-verified and rewritten on 2026-09-20. It states its sourcing rule and
+  applies it: every number carries an artefact citation or an explicit UNSOURCED label. The audited
+  Italian body is archived byte-for-byte and is not a current source.
 - The `README-governor-kv-contract.md` line pins were written against older trees and no longer
   match the current commits; re-pin before quoting a `file:line`.
 - A device number is only as good as the phone state it was read in. The archived diary carries

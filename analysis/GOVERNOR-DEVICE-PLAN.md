@@ -22,8 +22,9 @@ heat up.
 ## Scope
 
 **In: Android.** Three phones (Xiaomi 14, Galaxy S23, Jelly Star), three engines (CPU, GPU, NPU),
-two phases (prefill, decode). That is 3 x 3 x 2 = 18 cells today and the count grows; that is the
-reason for Part 2b.
+two phases (prefill, decode): 3 x 3 x 2 = 18 cells today, counted over the sets named here (a
+definition of the design space, not a measurement). The count grows, which is the reason for
+Part 2b.
 
 **In as a shape constraint, even with no device in hand: non-Qualcomm vendors.** The capability
 record must be able to describe a MediaTek or an Exynos without inventing a Qualcomm identity for
@@ -202,12 +203,18 @@ Four probes, each producing a **measurement** rather than a table entry, and eac
 | DVFS governor | `cpufreq/scaling_governor` | diagnostic |
 
 **Why this is the most important probe.** On the Xiaomi, `scaling_max_freq` is the only place
-throttling is visible. `dumpsys thermalservice` is **not** a reliable signal: a tracked-file census
-gives 1252 samples reading `Thermal Status: 0`, 6 reading `1`, 4 reading `2` and **29 reading `3`**
-(`git grep -I -h "Thermal Status: N"`). The audit's `1263 / 28 / 11 / 9` reproduces only from the
-main working tree including gitignored files, not from tracked files or a fresh worktree
-(`scratchpad/agents/governor-audit-recheck/REPORT.md`, Finding 4). A governor that reads the OS
-thermal state on this phone is blind.
+throttling is visible. `dumpsys thermalservice` is **not** a reliable signal. The 2026-09-20
+re-verification recorded a tracked-file census of **1252 samples reading `Thermal Status: 0`, 6
+reading `1`, 4 reading `2` and 29 reading `3`**
+(`scratchpad/agents/governor-audit-recheck/REPORT.md:146,150`; scope as recorded there: `git grep`
+over tracked `*.md *.txt *.log *.csv` in the lab repo at that time, excluding the plan's own
+self-quoting census lines, taken before the rewritten plan, the frozen archive and the review
+reports existed). It is a **dated census, not a reproducible current command**: a re-run now also
+matches the documents that quote it, so the ones/twos/threes split moves. The audit's
+`1263 / 28 / 11 / 9` reproduces only from the main working tree including gitignored files
+(`REPORT.md:146-150`, Finding 4). What matters here is only that `Thermal Status: 3` is not rare;
+what would settle the exact current split is a scoped re-count over tracked measurement artifacts
+with the plan, the archive and the review reports excluded.
 
 The Xiaomi frequency the earlier draft used, `cpu7 scaling_max 1824000` against `hw_max 3302400`, is
 recorded in the diary (`archived/PLAN-2026-09-full.md:1573`), **narratively sourced, not
@@ -225,11 +232,14 @@ between turns.
 ### 1.2 GPU probe
 
 **The right question is not "is there a GPU" but "does our kernel set compile on this driver".**
-The lesson of the kernel incident: the crash was not a hardware-capacity problem, it was
-`gemv_moe_q4_k_f32_ns.cl:216` calling a 7-parameter helper with 4 arguments; the build failed and
-`build_program_from_source_ex` called `exit(1)`. The E031 miscompile that forced the masks to
-become kernel arguments depends on the **driver version** (`E031.41.03.62`, Adreno 740), not on the
-chip model.
+The lesson of the kernel incident: the failure was not a hardware-capacity problem. In the pre-fix
+blob, `kernel_gemv_moe_q4_k_f32_ns_wimg` (in
+`26c7affb7^:ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl:216`) called the shared
+7-parameter `get_scale_min_k4` with 4 arguments, so the OpenCL program failed to build and
+`build_program_from_source_ex` called `exit(1)`. The fix is `26c7affb7` (that kernel) and
+`2361be359` (the int8 dp4a sibling); the current file has the 7-argument call at `:219`. The E031
+miscompile that forced the masks to become kernel arguments depends on the **driver version**
+(`E031.41.03.62`, Adreno 740), not on the chip model.
 
 | datum | source |
 |---|---|
@@ -277,12 +287,13 @@ parsing layer `cpp/rn-governor-params.cpp:150-151` throws
 `std::invalid_argument("Governor NPU lane is not supported")` if anyone turns it on. The NPU is
 **out of the governor by construction**.
 
-**Corrected numbers.** On the Xiaomi, the HTP prefill cell (`results/htp_prefill/xiaomi_v75/cell1/`)
-gives HTP pp512 median **165.42 t/s** against CPU **51.90 t/s** = **3.19×**, unplugged
-(`NOTES.txt`). The thermal delta in that cell is **not** per-engine: `battery_series.csv:2-6` gives
-`htp1_pre 32.9`, `htp2_pre 33.3`, `htp3_pre 33.3`, `cpu_pre 33.3`, `end 34.2`, so the whole cell
-rose **+1.3 °C**, of which the three HTP reps account for **+0.4** and the single CPU rep for
-**+0.9**. The earlier draft attributed the whole +1.3 °C to the NPU; that was wrong.
+**Corrected numbers.** On the Xiaomi, the HTP prefill cell gives HTP pp512 median **165.42 t/s**
+(`results/htp_prefill/xiaomi_v75/cell1/NOTES.txt:35,:36`) against CPU **51.90 t/s** (`:44`) =
+**3.19×** (`:45`), unplugged. The thermal delta in that cell is **not** per-engine:
+`results/htp_prefill/xiaomi_v75/cell1/battery_series.csv:2-6` gives `htp1_pre 32.9`,
+`htp2_pre 33.3`, `htp3_pre 33.3`, `cpu_pre 33.3`, `end 34.2`, so the whole cell rose **+1.3 °C**, of
+which the three HTP reps account for **+0.4** and the single CPU rep for **+0.9**. The earlier draft
+attributed the whole +1.3 °C to the NPU; that was wrong.
 **UNSOURCED:** the earlier draft's NPU decode figures (4.47 vs 11.94 t/s) have no artefact located
 in the re-check; what would settle them is a decode cell on the same harness.
 
@@ -388,33 +399,35 @@ refactor produces more lines than it replaces, it has slipped into speculative a
 ### 3.1 Xiaomi 14: `houji`, SM8650, Adreno 750, Hexagon v75
 
 **Thermal, paired unplugged pairs**: `results/xiaomi_ab/task_a/battery_notes.txt` (2B cells only;
-the 2B battery pairs in this file are correct: `279→290`, `290→290`, `290→318`, `322→319`,
-`319→355`, `355→356`):
+values are the `temperature:` lines, in tenths of a degree):
 
-| load | engine | battery temperature |
-|---|---|---|
-| 2B pp512 | CPU | 279 → 290 (+1.1 °C) |
-| 2B pp512 | GPU | 290 → 290 (0.0) |
-| 2B pp1024 | CPU | 290 → 318 (+2.8) |
-| 2B pp1024 | GPU | 322 → 319 (−0.3) |
-| 2B pp2048 | CPU | 319 → 355 (+3.6) |
-| 2B pp2048 | GPU | 355 → 356 (+0.1) |
+| load | engine | battery temperature | lines |
+|---|---|---|---|
+| 2B pp512 | CPU | 279 → 290 (+1.1 °C) | :17, :26 |
+| 2B pp512 | GPU | 290 → 290 (0.0) | :35, :44 |
+| 2B pp1024 | CPU | 290 → 318 (+2.8) | :53, :62 |
+| 2B pp1024 | GPU | 322 → 319 (−0.3) | :71, :80 |
+| 2B pp2048 | CPU | 319 → 355 (+3.6) | :89, :98 |
+| 2B pp2048 | GPU | 355 → 356 (+0.1) | :107, :116 |
 
 (Sources are tenths of a degree; converted to °C in the last column.) SoC-zone peak for the same
 cells: **UNSOURCED**, not in the cited file; needs the SoC-zone series from that run.
 
-**4B thermal deltas**: `results/xiaomi_ab/task_a_4b_clean/battery_notes.txt`, a clean run started
-`2026-08-13T05:32:25`: CPU **+2.4 / +3.5 / +1.7 °C** at pp512 / 1024 / 2048, GPU **+0.4 / −0.7 /
-−0.3 °C**. The file the earlier draft cited, `results/xiaomi_ab/task_a/battery_notes.txt`, has no 4B
-pp1024 cell at all and its whole 4B block is marked contaminated
+**4B thermal deltas**: `results/xiaomi_ab/task_a_4b_clean/battery_notes.txt` (clean run, start
+recorded at `:1`): CPU **+2.4 / +3.5 / +1.7 °C** at pp512 / 1024 / 2048, GPU **+0.4 / −0.7 /
+−0.3 °C**, from the `temperature:` lines `289→313` (`:17, :26`), `313→317` (`:35, :44`),
+`317→352` (`:53, :62`), `354→347` (`:71, :80`), `351→368` (`:89, :98`), `368→365` (`:107, :116`).
+The file the earlier draft cited, `results/xiaomi_ab/task_a/battery_notes.txt`, has no 4B pp1024
+cell at all and its whole 4B block is marked contaminated
 (`results/xiaomi_ab/task_a/CONTAMINATED_4B.md`).
 
-**Speed**: `results/xiaomi_ab/phase3_baseline/bench_{cpu,gpu_faoff}.json`, Qwen3.5-2B Q4_K_M:
+**Speed**: `results/xiaomi_ab/phase3_baseline/bench_{cpu,gpu_faoff}.json`, Qwen3.5-2B Q4_K_M, read
+from the `avg_ts` fields:
 
-| phase | CPU | GPU | ratio |
-|---|---|---|---|
-| prefill pp128 | 31.459 | 181.652 | GPU 5.77× faster |
-| decode tg256 | 16.149 | 7.066 | GPU 2.3× slower |
+| phase | CPU | GPU | ratio | lines (CPU / GPU) |
+|---|---|---|---|---|
+| prefill pp128 | 31.459 | 181.652 | GPU 5.77× faster | `bench_cpu.json:42` / `bench_gpu_faoff.json:42` |
+| decode tg256 | 16.149 | 7.066 | GPU 2.3× slower | `bench_cpu.json:87` / `bench_gpu_faoff.json:87` |
 
 The interleaved re-run of 18/08 (`results/gpu_prefill_recheck_xiaomi/report.md`) confirms the
 decode direction and **revises the prefill to 3.18×** on a better CPU baseline: all ten interleaved
@@ -466,10 +479,10 @@ the re-check; what would settle them is the frequency series and the decode curv
 (`adreno-f16-gemm-is-the-culprit`) is the known risk. Until measured it is **unproven** and must be
 treated as such.
 
-**Contaminant to subtract from every S23 number:** `adsprpcd` / `cdsprpcd` spin at 100% of a core
-with the app closed, 33 h of CPU each (`kalsa-s23` memory
-`~/.claude/projects/-Users-marco-Projects-kalsa/memory/s23-dsp-daemons-spin-at-100-percent.md`).
-Every thermal number on this phone carries that background.
+**Contaminant to subtract from every S23 number:** `adsprpcd` / `cdsprpcd` spin at ~100% of a core
+each with the app closed, 33 h of CPU each over 4 days of uptime (memory
+`s23-dsp-daemons-spin-at-100-percent.md:3`, with the 99.6% sample at `:12`). Every thermal number on
+this phone carries that background.
 
 **Today:** governor off by table (`V73: false`), not by measurement.
 
@@ -539,8 +552,9 @@ Three roads, with their price:
 runtime cost. It covers only the phones we hold; the conservative default means "CPU only" for the
 rest of the world.
 
-**(b) First-run calibration.** A short prefill per engine, measure ΔT, save. Cost: tens of seconds
-and some heat the first time. Risk: measured in one condition, used in all of them.
+**(b) First-run calibration.** A short prefill per engine, measure ΔT, save. **UNSOURCED** cost
+estimate: "tens of seconds and some heat" has no timing cell; what would settle it is measuring one
+calibration run per engine on the Xiaomi. Risk: measured in one condition, used in all of them.
 
 **(c) Continuous learning.** Every real turn is a measurement: tokens, engine, ΔT; update a moving
 average per `(device, engine, phase)`. Near-zero cost, and the only road that survives a system
@@ -589,8 +603,10 @@ no error.
 recovery branch at `llama-governor-policy.cpp:118-121` is reachable *as policy* but useless once
 `fail()` sets `failed = true` (`llama-governor.cpp:152, :164`). The first **prefill** aborts
 identically, since under CRITICAL `admit_prefill` returns `Abort` (`llama-governor-policy.cpp:188-192`).
-Also `critical_exit = 34.0 °C` is **colder** than `warm_exit = 36.0`: leaving the worst state
-requires a colder phone than leaving the mild one; `k_kill_c = 43.0` is dead by construction.
+Also `critical_exit = 34.0 °C` is **colder** than `warm_exit = 36.0` in the unplugged threshold
+tuple (`src/llama-governor-policy.cpp:42-49`; `k_warn_c` / `k_limit_c` / `k_kill_c` at `:10-12`):
+leaving the worst state requires a colder phone than leaving the mild one; `k_kill_c = 43.0` is dead
+by construction.
 
 ## Part 6: The measurement plan
 
@@ -607,8 +623,9 @@ Criteria deposited before measuring, per lab rule.
 | engine native log (`graph splits`, buft) | where the tensors are | the engine describes itself |
 | `KALSA_GOVERNOR` | *why* it decided that | the app talking about itself: the weakest evidence |
 
-**`dumpsys thermalservice` is not an instrument on these phones:** 29 tracked samples read
-`Thermal Status: 3` while the earlier draft claimed zero (Part 1.1).
+**`dumpsys thermalservice` is not an instrument on these phones:** the 2026-09-20 census records 29
+tracked samples reading `Thermal Status: 3` (`scratchpad/agents/governor-audit-recheck/REPORT.md:146,150`)
+while the earlier draft claimed zero (scope and reproducibility caveat in Part 1.1).
 
 ### 6.2 The cells, in order
 
@@ -617,17 +634,19 @@ Criteria deposited before measuring, per lab rule.
    baseline inside the prefill window. If `gpubusy` stays flat while telemetry says "governor
    active", the conclusion is "it engages but does not use the GPU", a different result to write
    differently.
-2. **Xiaomi, ΔT per isolated cell** at 128 / 512 / 1024 / 2048 tokens, per engine, each starting
-   from the same idle temperature. This is the missing measurement that must replace the S23
-   constant.
+2. **Xiaomi, ΔT per isolated cell** at 128 / 512 / 1024 / 2048 tokens (the engine's table sizes,
+   `src/llama-governor-policy.cpp:14`), per engine, each starting from the same idle temperature.
+   This is the missing measurement that must replace the S23 constant.
 3. **Xiaomi, paired plugged / unplugged at equal work.** Never done on any phone.
 4. **S23, GPU prefill on the 740**, with the `adsprpcd` background declared alongside.
 5. **Jelly**, only after the research: do not burn battery rediscovering something known.
 
 ### 6.3 Stop rules, unchanged
 
-Thermal status >= 3, or battery >= 43 °C unplugged, or level < 25%. On the Xiaomi: never turn the
-screen off (it has a password), never reboot, stop if `mWakefulness=Asleep`.
+Thermal status >= 3, or battery >= 43 °C unplugged, or level < 25% (lab stop rules, recorded in
+`archived/PLAN-2026-09-full.md:1273` for the 43 °C / status line and `:1319` for the 25% level). On
+the Xiaomi: never turn the screen off (it has a password), never reboot, stop if
+`mWakefulness=Asleep`.
 
 ## Part 7: The empty boxes, said before filling them
 
@@ -706,7 +725,7 @@ The 2026-09-19 audit's accusations were re-read on the artefacts on 2026-09-20. 
 | old claim in the audited draft | status now |
 |---|---|
 | NPU prefill `ΔT +1,3 °C` | corrected: whole cell +1.3 °C = HTP +0.4 + CPU +0.9 |
-| `Thermal Status 0 in ogni campione`, `12/12`, `15/15`, `results/htp_*` | deleted; replaced by the tracked census `1252 / 6 / 4 / 29` |
+| "Thermal Status 0 in every sample", `12/12`, `15/15`, `results/htp_*` | deleted; replaced by the tracked census `1252 / 6 / 4 / 29` |
 | 4B deltas from `task_a/battery_notes.txt` | moved to `task_a_4b_clean/battery_notes.txt`; values +2.4 / +3.5 / +1.7 (CPU) and +0.4 / −0.7 / −0.3 (GPU) |
 | 18/08 decode "10 repetitions per direction" | corrected to 2 interleaved pairs; ratio 0.66× (n=2) |
 | Mali `1100 MHz` | deleted; local corpus says `1.0e9 assumed max`, NotebookCheck range 680–1100 MHz |
