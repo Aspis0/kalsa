@@ -8,7 +8,7 @@ quietly became four.
 
 Written 2026-09-16; branch and file counts re-read 2026-09-20.
 
-## The three live ones
+## The four live ones
 
 | repo | what it is | tracked files | pack |
 |---|---|---|---|
@@ -19,7 +19,10 @@ Written 2026-09-16; branch and file counts re-read 2026-09-20.
 
 ### `kalsa` — the app
 
-Branches: 26 local and 17 remote. `remote-brain` is the other session's line of work on
+Branches: 27 local and 16 remote, counted on this checkout on 2026-09-20 —
+`git for-each-ref refs/heads` = 27 (the local count includes ephemeral worktree branches);
+`git for-each-ref refs/remotes/origin | rg -v '/HEAD$'` = 16 (17 refs only with the symbolic
+`origin/HEAD`). `remote-brain` is the other session's line of work on
 Kalsa Brain (PC↔phone) and is the one branch that is deliberately kept apart.
 
 The app does not vendor the engine and no longer assembles it: it takes `llama.rn` from the
@@ -98,7 +101,7 @@ the app's `package.json` and lockfile.
 
 ## Two conventions that make this navigable
 
-**One branch per repository — no longer true for the app.** `Aspis0/kalsa` carries 17 remote
+**One branch per repository — no longer true for the app.** `Aspis0/kalsa` carries 16 remote
 branches; the six it carried when this file was written were `main`, `remote-brain`, `brain`,
 `chat`, `llama-rn-fork`, `baseline-67c73d26c`.
 
