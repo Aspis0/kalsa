@@ -274,18 +274,30 @@ let dump = "";
 try { dump = fs.readFileSync(dumpPath, "utf8").trim(); } catch (_) {}
 const dumpHadContent = /^dump=content/.test(dump);
 // reuse_tN.txt holds EVERY prompt load since the first logcat clear of the run
-// (newest last). Attribute by prompt size — the same rule the KV_PREFIX reader
-// uses — because a static-prefix prewarm emits its own KALSA_KVPREFIX BEFORE
-// the chat turn, so the first line is the prewarm (device-ciswire-cache.sh:1546:
-// "The LAST KVPREFIX wins (the prewarm line comes first)").
+// (newest last). Prefer the line whose text_tokens equals tokensEvaluated for
+// this turn, the same size rule the KV_PREFIX reader uses. WHY fall back to the
+// LAST line when nothing matches: tokensEvaluated and text_tokens are
+// not the same quantity in general (the e2e run of be1696a captured 2068/2083
+// and 2217/2239 for a turn whose tokensEvaluated matched neither), so an exact
+// match cannot be a precondition. The chat turn load is the last one in the
+// window — a static-prefix prewarm emits its own KALSA_KVPREFIX BEFORE it
+// (device-ciswire-cache.sh:1546: "The LAST KVPREFIX wins (the prewarm line comes
+// first)"). A fallback number is never presented as verified: every verdict
+// that did not come from a size match carries the `unattributed` suffix.
 const all = [...reuseRaw.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)];
 // 0/absent means the size is unknown, not that the prompt was empty.
 const evaluated = t2 ? n(t2, "tokensEvaluated") : 0;
 const sizeKnown = evaluated > 0;
 const exact = sizeKnown ? all.filter((m) => Number(m[2]) === evaluated) : [];
-const rm = sizeKnown
-  ? (exact.length ? exact[exact.length - 1] : null)
-  : (all.length ? all[all.length - 1] : null);
+const matched = exact.length > 0;
+const rm = matched ? exact[exact.length - 1] : (all.length ? all[all.length - 1] : null);
+// Printed when the number did not come from a size match. It is still worth
+// printing: the chat turn load is the last one in the capture window, and an
+// earlier line may belong to the prewarm or to a background summarize.
+const WHY_LAST = " — last load used; the chat turn loads last in the window, an earlier line may be a prewarm or a summarize";
+const unattributed = ", unattributed: "
+  + (sizeKnown ? "no line has text_tokens=" + evaluated : "turn size unknown")
+  + WHY_LAST;
 let kv;
 if (!reuseRaw && dumpHadContent) {
   // The dump had lines and turn 2 produced a reply, so a prompt load happened
@@ -297,14 +309,14 @@ if (!reuseRaw && dumpHadContent) {
   // job — a gate that fires at random is worse than the bug it closes.
   kv = "KV_CACHE: UNKNOWN (logcat dump carried nothing — reuse instrument not exercised)";
 } else if (!rm) {
-  // A marker exists but none carries this turn's prompt size: report no number
-  // at all rather than some other load's (prewarm, background summarize).
-  kv = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines exist but none has text_tokens=" + evaluated + " — no line belongs to turn 2)";
+  // Markers were captured but none is a well-formed KALSA_KVPREFIX: a capture
+  // problem, not an absent marker, and nothing to print a number from.
+  kv = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines captured but none is well-formed — no attribution possible)";
 } else {
   const reused = Number(rm[3]);
   const total = Number(rm[2]);
   const why = " prompt tokens; pre-decision marker, the prefix that could be reused";
-  const who = sizeKnown ? "" : ", unattributed: turn size unknown, last load used";
+  const who = matched ? "" : unattributed;
   if (reused > 0) {
     kv = "KV_CACHE: WARM (turn2 " + reused + "/" + total + why + who + ")";
   } else {
@@ -489,23 +501,27 @@ const turn3Line = t3
 // n_common > 0 — a pre-decision prefix, so the verdict says reusable, not reused.
 let reuseRaw = "";
 try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
-// Same attribution rule as the turn-2 verdict: among every prompt load
-// captured for this turn, take the one whose text_tokens matches what the chat
-// turn evaluated (a prewarm line can sit in front of it). ALSO report how many
-// loads ran — more than one after a restore means a utility completion replaced
-// embd before the chat turn, which is itself the explanation for a zero-reuse
-// restart.
+// Same attribution rule as the turn-2 verdict: among every prompt load captured
+// for this turn, prefer the one whose text_tokens matches what the chat turn
+// evaluated, and fall back to the LAST line when none does — the chat turn load
+// is the last one in the window and an earlier line may be a prewarm
+// (device-ciswire-cache.sh:1546) or a background summarize. A fallback number
+// carries `unattributed`. ALSO report how many loads ran — more than one after a
+// restore means a utility completion replaced embd before the chat turn, which
+// is itself the explanation for a zero-reuse restart.
 const allLoads = [...reuseRaw.matchAll(/embd=(\d+) text_tokens=(\d+) n_common=(\d+)/g)];
 const sizeKnown = evaluated > 0;
 const exact = sizeKnown ? allLoads.filter((m) => Number(m[2]) === evaluated) : [];
-const rm = sizeKnown
-  ? (exact.length ? exact[exact.length - 1] : null)
-  : (allLoads.length ? allLoads[allLoads.length - 1] : null);
+const matched = exact.length > 0;
+const rm = matched ? exact[exact.length - 1] : (allLoads.length ? allLoads[allLoads.length - 1] : null);
 const nCommon = rm ? Number(rm[3]) : null;
 const textTokens = rm ? Number(rm[2]) : null;
 const loadsBefore = rm ? allLoads.indexOf(rm) : -1;
 const loadOk = loads.some(o => o && o.ok === true);
-const who = (rm != null && sizeKnown) ? "" : "; unattributed: turn size unknown, last load used";
+const who = matched
+  ? ""
+  : "; unattributed: " + (sizeKnown ? "no line has text_tokens=" + evaluated : "turn size unknown")
+    + " — last load used; the chat turn loads last in the window, an earlier line may be a prewarm or a summarize";
 let verdict;
 if (loadOk && nCommon != null && nCommon > 0) {
   verdict = "SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable "
@@ -515,7 +531,7 @@ if (loadOk && nCommon != null && nCommon > 0) {
   verdict = "SESSION_RESTORE: LOADED BUT COLD (restored prefix reusable 0/" + textTokens
     + "; prompt loads before the chat turn: " + loadsBefore + who + ")";
 } else {
-  // Load itself failed / missing, or no KALSA_KVPREFIX line belongs to this turn.
+  // Load itself failed / missing, or no well-formed KALSA_KVPREFIX line.
   verdict = "SESSION_RESTORE: COLD (see reasons)";
 }
 

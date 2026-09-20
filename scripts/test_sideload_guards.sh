@@ -783,33 +783,66 @@ _e2e_node() {
 printf '%s\n' '{"tokensEvaluated":4800}' > "$OUT/e2e_telemetry.txt"
 printf '%s\n' '{"op":"load","ok":true}' > "$OUT/e2e_session.txt"
 printf '%s\n' '{"tokensEvaluated":4800,"promptMs":123}' > "$OUT/e2e_telemetry_restart.txt"
+
+# (a) one line matches the turn size → attributed number, no `unattributed`.
 printf '%s\n' "$_KVP_PREWARM" "$_KVP_CHAT" > "$OUT/reuse_t2.txt"
 printf 'dump=content bytes=1234\n' > "$OUT/reuse_t2.dump"
-
 _KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
 _KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
 if [ "$_KV_LAST" = "KV_CACHE: WARM (turn2 2865/4800 prompt tokens; pre-decision marker, the prefix that could be reused)" ]; then
-  echo "PASS: ci-e2e KV_CACHE parser reads n_common/text_tokens (index mutation dies here)"
+  echo "PASS: ci-e2e size match → attributed number, no unattributed suffix (index mutation dies here)"
   pass=$((pass + 1))
 else
-  echo "FAIL: ci-e2e KV_CACHE parser — got '$_KV_LAST'"
+  echo "FAIL: ci-e2e size match — got '$_KV_LAST'"
   fail=$((fail + 1))
 fi
 
-# Empty dump → soft UNKNOWN naming the cause, never BROKEN.
+# (b) no line matches the turn size: the LAST line is still reported and flagged
+# `unattributed`. Dropping that fallback is what lost the number in the real
+# be1696a e2e run (2068/2083 then 2217/2239, turn evaluated 2310).
+printf '%s\n' \
+  'KALSA_KVPREFIX embd=0 text_tokens=2068 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1' \
+  'KALSA_KVPREFIX embd=2068 text_tokens=2083 n_common=2068 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1' \
+  'KALSA_KVPREFIX embd=2217 text_tokens=2239 n_common=2217 mtp_draft_mem_shared=0 is_enc_dec=0 this=0x1' > "$OUT/reuse_t2.txt"
+printf '%s\n' '{"tokensEvaluated":2310}' > "$OUT/e2e_telemetry.txt"
+printf 'dump=content bytes=1234\n' > "$OUT/reuse_t2.dump"
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+_KV_EXPECT="KV_CACHE: WARM (turn2 2217/2239 prompt tokens; pre-decision marker, the prefix that could be reused, unattributed: no line has text_tokens=2310 — last load used; the chat turn loads last in the window, an earlier line may be a prewarm or a summarize)"
+if [ "$_KV_LAST" = "$_KV_EXPECT" ]; then
+  echo "PASS: ci-e2e no size match → last line used, unattributed suffix present"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e no size match — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+# (c) markers captured but none well-formed → UNKNOWN, never a number.
+printf '%s\n' 'restored state checkpoint: reusing 40/150 prompt tokens' > "$OUT/reuse_t2.txt"
+_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
+_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
+if [ "$_KV_LAST" = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines captured but none is well-formed — no attribution possible)" ]; then
+  echo "PASS: ci-e2e malformed capture → UNKNOWN, no number"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e malformed capture — got '$_KV_LAST'"
+  fail=$((fail + 1))
+fi
+
+# (d) zero markers with an empty dump → soft UNKNOWN naming the cause, not BROKEN.
 : > "$OUT/reuse_t2.txt"
 printf 'dump=empty\n' > "$OUT/reuse_t2.dump"
 _KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
 _KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
 if [ "$_KV_LAST" = "KV_CACHE: UNKNOWN (logcat dump carried nothing — reuse instrument not exercised)" ]; then
-  echo "PASS: ci-e2e empty dump → soft UNKNOWN, not BROKEN"
+  echo "PASS: ci-e2e empty dump → UNKNOWN, not BROKEN"
   pass=$((pass + 1))
 else
   echo "FAIL: ci-e2e empty dump — got '$_KV_LAST'"
   fail=$((fail + 1))
 fi
 
-# Content but no marker → BROKEN (the only die path).
+# (e) zero markers with dump content → BROKEN (the only die path).
 printf 'dump=content bytes=9\n' > "$OUT/reuse_t2.dump"
 _KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
 _KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
@@ -821,20 +854,9 @@ else
   fail=$((fail + 1))
 fi
 
-# A marker exists but for another load: soft UNKNOWN, no number.
-printf '%s\n' "$_KVP_PREWARM" > "$OUT/reuse_t2.txt"
-printf 'dump=content bytes=9\n' > "$OUT/reuse_t2.dump"
-_KV_VERDICT=$(node -e "$(_e2e_node reuse_t2.txt)" "$OUT/e2e_telemetry.txt" "$OUT/reuse_t2.txt" "$OUT/reuse_t2.dump" 2>&1)
-_KV_LAST=$(printf '%s\n' "$_KV_VERDICT" | tail -1)
-if [ "$_KV_LAST" = "KV_CACHE: UNKNOWN (KALSA_KVPREFIX lines exist but none has text_tokens=4800 — no line belongs to turn 2)" ]; then
-  echo "PASS: ci-e2e unmatched marker → soft UNKNOWN, no number from another load"
-  pass=$((pass + 1))
-else
-  echo "FAIL: ci-e2e unmatched marker — got '$_KV_LAST'"
-  fail=$((fail + 1))
-fi
-
+# Restart leg: size match → attributed; no match → last line, unattributed.
 printf '%s\n' "$_KVP_PREWARM" "$_KVP_CHAT" > "$OUT/reuse_t3.txt"
+printf '%s\n' '{"tokensEvaluated":4800,"promptMs":123}' > "$OUT/e2e_telemetry_restart.txt"
 _R3_VERDICT=$(node -e "$(_e2e_node reuse_t3.txt)" "$OUT/e2e_session.txt" "$OUT/e2e_telemetry_restart.txt" "$OUT/reuse_t3.txt" 2>&1)
 _R3_LAST=$(printf '%s\n' "$_R3_VERDICT" | tail -1)
 if [ "$_R3_LAST" = "SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable 2865/4800 prompt tokens; pre-decision marker)" ]; then
@@ -842,6 +864,19 @@ if [ "$_R3_LAST" = "SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reu
   pass=$((pass + 1))
 else
   echo "FAIL: ci-e2e SESSION_RESTORE parser — got '$_R3_LAST'"
+  fail=$((fail + 1))
+fi
+
+printf '%s\n' "$_KVP_PREWARM" > "$OUT/reuse_t3.txt"
+printf '%s\n' '{"tokensEvaluated":2310,"promptMs":123}' > "$OUT/e2e_telemetry_restart.txt"
+_R3_VERDICT=$(node -e "$(_e2e_node reuse_t3.txt)" "$OUT/e2e_session.txt" "$OUT/e2e_telemetry_restart.txt" "$OUT/reuse_t3.txt" 2>&1)
+_R3_LAST=$(printf '%s\n' "$_R3_VERDICT" | tail -1)
+_R3_EXPECT="SESSION_RESTORE: WARM RESTART CONFIRMED (restored prefix reusable 1832/1832 prompt tokens; pre-decision marker; unattributed: no line has text_tokens=2310 — last load used; the chat turn loads last in the window, an earlier line may be a prewarm or a summarize)"
+if [ "$_R3_LAST" = "$_R3_EXPECT" ]; then
+  echo "PASS: ci-e2e SESSION_RESTORE no size match → last line used, unattributed suffix present"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-e2e SESSION_RESTORE no size match — got '$_R3_LAST'"
   fail=$((fail + 1))
 fi
 
