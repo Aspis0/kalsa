@@ -126,8 +126,7 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
     // says so itself, in its own voice, instead of relaying whatever
     // keep-alive promise the two ends made to each other: a phone must
     // never be handed a socket the door has already scheduled to close.
-    forwarded.extend_from_slice(request_line);
-    forwarded.extend_from_slice(b"\r\n");
+    // The request line is already in `forwarded` from above.
     for (lower, line) in &candidates {
         let kept = !named.contains(lower)
             && !HOP_BY_HOP.contains(&lower.as_slice())
@@ -257,5 +256,36 @@ mod tests {
             );
             assert!(forwarded.contains("Connection: close\r\n"));
         }
+    }
+
+    /// The request line opens the forwarded head exactly once. A second
+    /// copy turns the head into a malformed message: the upstream reads
+    /// the first line as the request and the second as a bogus header.
+    #[test]
+    fn the_request_line_is_forwarded_exactly_once() {
+        const REQUEST_LINE: &str = "GET /v1/models HTTP/1.1";
+        let head = parse(
+            b"GET /v1/models HTTP/1.1\r\nHost: localhost\r\n\
+               Accept: application/json\r\n\
+               Connection: keep-alive\r\n\r\n",
+        )
+        .expect("a well-formed head parses");
+        let forwarded = String::from_utf8(head.forwarded).unwrap();
+
+        let matches: Vec<usize> = forwarded
+            .split("\r\n")
+            .enumerate()
+            .filter(|(_, line)| *line == REQUEST_LINE)
+            .map(|(index, _)| index)
+            .collect();
+        assert_eq!(
+            matches,
+            vec![0],
+            "the request line must appear exactly once, as the first line: {forwarded}"
+        );
+        assert!(
+            !forwarded[REQUEST_LINE.len() + 2..].contains(REQUEST_LINE),
+            "the request line was repeated later in the head: {forwarded}"
+        );
     }
 }
