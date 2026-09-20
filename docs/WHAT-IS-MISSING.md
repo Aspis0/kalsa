@@ -250,56 +250,57 @@ owes a waiting device do not.
 
 ## 12. The brain's own screen — the fields are CLOSED, the pairing moved, and the PC is still not a device
 
-`docs/THE-BRAIN-IS-THE-HOME.md` puts the brain on the home surface: which model is loaded,
-whether it is warm, how many of the four seats are taken and by whom. The two fields that
-first blocked that screen are closed. `ModelDto` carries `display_name` and `reason`
-(`src-tauri/src/main.rs:636-640`), and runtime metrics carry
-`active_devices: Option<Vec<ActiveDeviceDto>>` (`src-tauri/src/metrics.rs:40-46`), not the
-old `phone_connected` yes/no. The screen is drawn and says what it would run, how fast, and
-at what conversation length even with no phone paired (`79e391c`, `e162187`, `dc0979c`,
-`b361eb6`).
+`docs/THE-BRAIN-IS-THE-HOME.md` sets the design intent: which model is loaded, whether it
+is warm, how many of the four seats are taken and by whom. The two fields that first blocked
+that screen are wired into state (`src-tauri/src/main.rs:545-553`), not merely declared.
 
-**Both fields closed, 2026-09-18.** The model's name ships in the brain's own state
-(`src-tauri/src/main.rs:500`, `model: Option<String>`, filled from
-`brain.model_dto().display_name`), and the seats are countable — `active_devices()`
-returns a list, not the old single `phone_connected` yes/no. The screen is drawn: it
-names the machine, what it would run, how fast, and at what conversation length, and it
-does it with no phone paired at all (`79e391c`, `e162187`, `dc0979c`, `b361eb6`).
+**Both fields closed, 2026-09-18. The seats are not.** The model's name ships in the
+brain's own state (`model: Option<String>` declared at `src-tauri/src/main.rs:500`,
+assigned from `brain.model_dto().display_name` at `main.rs:546-550`), and `active_devices()`
+returns a list the door keeps current: an authenticated request enters presence
+(`crates/kalsa-door/src/proxy.rs:94`). The screen draws the machine, what it would run,
+speed and context length, with no phone paired (`79e391c`, `e162187`, `dc0979c`, `b361eb6`).
+It does not draw occupancy:
+`ServerSurface.tsx:45-49` renders `{connectedText(deviceCount > 0)}` under the label
+"Devices", and `useBrain.ts:233-234` says "Your phone is using this computer right now."
+The first screen shows a boolean, not four seats; the open item is drawing them, not
+reporting them. `THE-BRAIN-IS-THE-HOME.md:162-165` still has it open, and
+its "today it does not" predates `proxy.rs:94`.
 
 **The monogamy is gone too, found while re-reading on 2026-09-20.** The store holds
-several devices (`crates/kalsa-pairing/src/store.rs:150`; `add_device` at `:289`,
-`load_devices` at `:593`) and the DTO carries the whole list —
-`devices: Vec<PairedDeviceDto>` (`src-tauri/src/pairing.rs:141`) — beside the older
-singular `phone: Option<String>` (`pairing.rs:138`), which is still there.
+several devices (`crates/kalsa-pairing/src/store.rs:150`; production adds go through
+`add_device_with_delivery` at `:302`, `load_devices` at `:593`) and the DTO carries the list
+— `devices: Vec<PairedDeviceDto>` (`src-tauri/src/pairing.rs:141`) — beside the older
+singular `phone: Option<String>` (`pairing.rs:138`).
 `brain_pairing_replace` and `brain_pairing_keep` are gone, replaced by
 `brain_pairing_forget_device` (`src-tauri/src/main.rs:856`) and `brain_pairing_forget`
-(`main.rs:867`): a second phone is no longer a conflict the app asks the owner to
-settle, it is a member of the house that can be dismissed one at a time. `ModelDto`
-is no longer `{ chosen: bool }` — it carries `display_name` and `reason`
-(`main.rs:636-640`) — and `phone_connected: Option<bool>` is gone in favour of
-`active_devices: Option<Vec<ActiveDeviceDto>>` (`src-tauri/src/metrics.rs:45`). The
-old monogamy is history now; it stays in this record because the decision that was
-meant to replace it is still only half-true in the code.
+(`main.rs:867`): a second phone is no longer a conflict to settle; it can be dismissed one
+at a time. `ModelDto`
+is no longer only `{ chosen: bool }` — `chosen` is still there at `main.rs:637`, beside
+`display_name` and `reason` (`main.rs:636-640`) — and `phone_connected: Option<bool>` is
+gone in favour of `active_devices: Option<Vec<ActiveDeviceDto>>`
+(`src-tauri/src/metrics.rs:45`). The
+old monogamy is history; it stays in this record because its replacement is still
+half-true in the code.
 
-What is NOT closed is the decision this section recorded, and it is still the
-larger half: **the PC does not register itself as a device.** The only caller of
-the store's add path in the whole tree, outside the store's own tests, is the phone
-ceremony (`src-tauri/src/pairing.rs:418`). Every device the house holds arrived by
-QR; the machine running the server walked in nowhere. So the screen can honestly
-draw one occupied seat per *phone* and not four, and installing Kalsa desktop still
-leaves the house empty until a phone pairs — the exact opposite of what was
-decided.
+What is NOT closed is the decision this section recorded, still the larger half:
+**the PC does not register itself as a device.** Outside the store's own tests, the only
+caller of the add path is the phone ceremony (`src-tauri/src/pairing.rs:418`). Every device
+arrived by QR; the machine running the server walked in nowhere. So the screen draws no
+seats at all — one boolean, not four — even though the door reports authenticated presence
+(`proxy.rs:94`); `DevicesSurface.tsx:211-214` lists who is *paired*, not who is busy.
+Installing Kalsa desktop still leaves the house empty until a phone pairs — the exact
+opposite of what was decided.
 
 **Decided 2026-09-17, and it reorders the work.** The desktop chat will reach the model
-*through the door*, like the phones, rather than talking to `127.0.0.1` directly — one place
-that knows who is speaking, instead of two counters that must agree. Which means the PC is a
-device of the household, so pairing must hold several devices first: the decisions are one
-job, in that order. The first half of that order has since happened — the store holds
-several devices, and the page can list them — and it was the easy half. **Installing Kalsa
-desktop registers the PC as the first device automatically** — no QR for the machine the
-server runs on, so the house is never empty and "four seats, one of them yours" is true
-from first launch — is still entirely unbuilt, and so is the desktop chat's road through
-the door.
+*through the door*, like the phones, not `127.0.0.1` directly — one place that knows who is
+speaking, instead of two counters that must agree. So the PC is a device of the household,
+and pairing must hold several devices first: one job, in that order. The first half has
+happened — the store holds several devices, and the page can list them — and it was the
+easy half. **Installing Kalsa desktop registers the PC as the first device automatically** —
+no QR for the machine the server runs on, so the house is never empty and "four seats, one
+of them yours" is true from first launch — is still entirely unbuilt, and so is the desktop
+chat's road through the door.
 
 Two things to get right while doing it, both easy to get silently wrong:
 
