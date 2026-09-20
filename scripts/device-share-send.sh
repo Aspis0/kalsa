@@ -215,9 +215,28 @@ device_share_send() {
 
   for send_attempt in 1 2 3; do
     log "share-send: Send attempt ${send_attempt}/3"
-    if ! device_tap_send; then
-      log "share-send: Send node not found"
-      sleep 2
+    # While the previous turn is still generating, the Send/Invia control is a stop
+    # button and no send node exists; on a slow device (Jelly ~300-400s/turn) that
+    # outlasts a short retry and the turn washes (turn 5: both Send and Invia gone).
+    # The text is already shared and held in the composer, so wait for the affordance
+    # to return, up to SHARE_SEND_NODE_WAIT s (default 6 preserves the old fast path).
+    # SHARE_SEND_ABORT_FILE lets a caller's thermal watchdog break a long wait.
+    local node_wait=0 tapped=0
+    while : ; do
+      if device_tap_send; then tapped=1; break; fi
+      if [ -n "${SHARE_SEND_ABORT_FILE:-}" ] && [ -f "$SHARE_SEND_ABORT_FILE" ]; then
+        log "share-send: abort file present during send-node wait (${node_wait}s)"
+        return 1
+      fi
+      [ "$node_wait" -ge "${SHARE_SEND_NODE_WAIT:-6}" ] && break
+      sleep 3
+      node_wait=$((node_wait + 3))
+    done
+    if [ "$tapped" -ne 1 ]; then
+      log "share-send: Send node not found after ${node_wait}s"
+      # A full-timeout miss means the affordance is truly gone (crash/hang), not a
+      # transient between generation and idle; another full wait only hangs longer.
+      [ "$node_wait" -ge "${SHARE_SEND_NODE_WAIT:-6}" ] && break
       continue
     fi
     sub_t=0

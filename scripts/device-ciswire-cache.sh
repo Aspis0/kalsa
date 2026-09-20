@@ -2133,6 +2133,22 @@ DELETE FROM catalystLocalStorage WHERE key='kalsa.conversations.migrated';
     return 1
   fi
 
+  # cw_wait_ready matches the "Ready"/"Pronto" status label, which the app can
+  # render BEFORE it has created and persisted the fresh conversation: observed as
+  # "ready after 0s" on a warm boot, racing ahead of conversation creation and
+  # tripping the FATAL below (genuine cold boots reported 5-10s and did not). The
+  # label is not a reliable precondition; gate on the real state instead. The app
+  # writes kalsa.conversations.v1 within ~5s of a cold boot (measured on the S23).
+  local conv_wait=0 conv_rows
+  while [ "$conv_wait" -lt "${CW_CONV_TIMEOUT:-40}" ]; do
+    conv_rows=$(sql "SELECT count(*) FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || printf 0)
+    case "$conv_rows" in ''|*[!0-9]*) conv_rows=0 ;; esac
+    [ "$conv_rows" -ge 1 ] && break
+    sleep 5
+    conv_wait=$((conv_wait + 5))
+  done
+  log "conversation index wait: ${conv_wait}s (rows=${conv_rows:-0})"
+
   # ── the conversation this run measures ────────────────────────────
   local index_raw start_count
   index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
