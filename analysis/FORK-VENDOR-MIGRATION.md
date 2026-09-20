@@ -2047,3 +2047,68 @@ One consequence worth deciding before it lands, not after:
 `native/bmoe` **changes the engine build id**. That is correct — the engine did
 change — but it breaks identity comparisons with every APK built before it,
 including the §10.9 same-engine proof.
+
+## 28. Step 25b done: the app moved to the vendored engine
+
+Branch `pin-bump-vendor-migration` in the app (`bad7b89` + `50b8196`).
+
+**The target was made, not waited for.** `kalsa` was 0 ahead / 61 behind
+`vendor-migration`, so it fast-forwarded to `0f313bab`. Nothing resolves the
+branch by name — package.json, package-lock.json twice, and
+`assert-engine-provenance.sh` all key on a sha — so moving it changed no build.
+
+**The lockfile is a trap worth naming.** Editing the sha by hand left `version`
+at `0.12.9` and `integrity` describing the old commit, and
+`npm install --package-lock-only` did **not** refresh them. Only naming the
+dependency explicitly did: `npm install "llama.rn@git+…#<sha>" --package-lock-only`.
+A hand-edited lock would have failed `npm ci` in CI, or installed the wrong tree.
+
+**Four things in the app encoded the pre-migration layout.** This is the real
+content of step 25b; the deletion is its last line.
+
+| | was | now |
+|---|---|---|
+| `assert-overlay-includes.sh` | globs `$CPP/common`, `$CPP/tools/mtmd`; floors 18 / 5 | scans `cpp/` for the binding and `vendor/llama.cpp` for the engine |
+| `engine-build-id.js` | `ENGINE_TREE_DIRS` had `third_party`, not `vendor` | `vendor` in the set; pin read from `vendor/VERSIONS` |
+| `assert-engine-provenance.sh` | read `cpp/KALSALLAMA_SHA` | reads `LLAMA_CPP_COMMIT` |
+| `engineIdentity.test.ts` | synthetic trees in the old shape | ported |
+
+Two of these were not cosmetic:
+
+- **The overlay gate failed wholesale**, and it runs in `apk.yml` *and*
+  `e2e-emulator.yml`. At the new pin `cpp/common` and `cpp/tools/mtmd` hold
+  **0 entries** against floors of 18 and 5.
+- **`engine-build-id.js` would have stopped covering the engine.**
+  `isEngineTreeExcluded()` drops any top-level component outside
+  `ENGINE_TREE_DIRS`, and `vendor/` was outside it. Two different engines,
+  one id — a silent identity collision, in the machinery whose whole job is
+  telling builds apart.
+
+**A third case the migration created.** `rnllama-sources.cmake` filters nine
+sources out of `common/`; `llguidance.cpp` needs a crate header that is
+deliberately absent. Under the old flatten those files were never copied, so
+the gate never saw them; now the directory is vendored whole and they are
+there. The gate learns the exclusion by **reading it out of the installed
+cmake** rather than carrying a copy — the same reasoning that produced the
+OpenCL glob in §27.5, applied before the second list could drift instead of
+after.
+
+**Evidence, on a real tree at the new pin with the NDK's own clang:** overlay
+gate green — 114 files scanned, 34 sources parse (21 common, 6 mtmd, 7 rn-*) —
+and red on both new failure modes, a pre-migration pin and an unresolved
+include, each naming its cause. Engine build id computes, `vendor/`
+contributing **1013** digested files and `native/` 1.
+
+Then CI, which is the stronger subject because it runs against the
+**npm-installed** tree, where the package's `files` negations apply and the
+hand-regenerated lock must satisfy `npm ci`: install, provenance, overlay
+includes, typecheck and the logic harnesses all green.
+
+**`native/bmoe` is deleted** — 25 files. 22 are in the engine at `src/bmoe/`,
+2 are `cpp/bmoe_stream.{h,cpp}`, and `bmoe_lmggml_compat.h` is dead by design;
+filenames compared one by one, not counted. `native/` keeps
+`GovernorBatteryModule.kt`, so the digest stays non-empty.
+
+**The engine build id changes with this commit.** That is correct and
+unavoidable, but identity comparisons against any earlier APK — including the
+§10.9 same-engine proof — do not cross it.
