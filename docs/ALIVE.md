@@ -28,6 +28,7 @@ document that produced them is named instead.
 | The governor device plan, rewritten in English on 2026-09-20, and the audited Italian body | `analysis/GOVERNOR-DEVICE-PLAN.md`; `archived/GOVERNOR-DEVICE-PLAN-2026-09-audited.md`; re-verification at `scratchpad/agents/governor-audit-recheck/REPORT.md` |
 | Per-cell preregistration, raw evidence and reports | `scratchpad/agents/<cell>/` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
+| The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
 ## Standing cautions
 
@@ -39,6 +40,124 @@ document that produced them is named instead.
 - A device number is only as good as the phone state it was read in. The archived diary carries
   the per-run provenance, including the thermal and DSP-daemon caveats that travel with every S23
   number.
+
+## Engine release pipeline (`kalsa-server`)
+
+The macOS engine binary. How it works and how to do it again; current position, decisions and the
+open items are in `PLAN.md`, "Engine release: current position and next steps".
+
+### Source and release identity
+
+| item | value |
+|---|---|
+| Source of truth | `Aspis0/kalsallama` (private), integration branch `b11010-merge` |
+| Branch tip at last read | `635ea0ed25988fb8bf1cc9b3b75d2fbc1a6c1acc` plus a pending fix commit (not pushed) |
+| Release tag | `kalsa-server-v1.0.0`, annotated |
+| Tag object | `d30c8d475d5eb47a544304ba592138d066bbc2e3` |
+| Tag target commit | `4ccef2f85dbc27e095e11ffcbad4628be9961790` |
+
+The tag is IMMUTABLE: never moved, never forced, never re-created.
+
+### Workflow
+
+`.github/workflows/kalsa-server.yml`, self-contained. No workflow artifacts and no caches; job
+permissions are read-only, so the path needs no write access to the repository.
+
+| trigger | behaviour |
+|---|---|
+| `workflow_dispatch` | input `release_tag` (required); release-only |
+| `push` to `b11010-merge` | branch build, no publish |
+| `push` on tags `kalsa-server-*` | tag build |
+
+macOS job steps, in order:
+
+1. Checkout `refs/tags/<tag>`.
+2. Assert `HEAD == $(git rev-parse refs/tags/<tag>^{commit})`.
+3. Build the web UI INSIDE the job: `actions/setup-node@v6`, node 24, `npm ci` and `npm run build`
+   in `tools/ui`.
+4. cmake with `-DLLAMA_USE_PREBUILT_UI=OFF`, so the UI can never be fetched from Hugging Face.
+5. Rename the binary to `kalsa-server` (the CMake target stays `llama-server`).
+6. Pack TWICE and compare the two sha256 values.
+7. Verify every Mach-O's `@rpath` closure inside the archive.
+8. Run `kalsa-server --version`; probe `/health`.
+9. Publish.
+
+### Publish target and immutability
+
+- Cloudflare R2 bucket `kalsa-downloads`, prefix `kalsa-server/v<version>/`, three objects: the
+  `.tar.gz`, its `.sha256`, and `manifest.json`.
+- Public URL:
+  `https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz`.
+- Secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`
+  (= `https://8a991014729a52a958cef2c5cbf0de50.r2.cloudflarestorage.com`) are passed ONLY as
+  environment variables, never as command-line arguments. The token is scoped to the single bucket
+  and can only write objects; it cannot touch any repository.
+- Before upload the step lists the version prefix and refuses to publish if anything is there,
+  unless the `force` dispatch input is true (which prints a loud warning that every pinned URL will
+  start serving different bytes). ANY nonzero status from the listing is a fatal abort, and `force`
+  never bypasses a FAILED check.
+- After upload a recount asserts all three objects exist and that the archive size equals the local
+  one.
+
+### Releasing a new version
+
+Create and push an annotated tag `kalsa-server-vX.Y.Z`, then dispatch:
+
+```
+gh workflow run kalsa-server.yml --ref b11010-merge -f release_tag=kalsa-server-vX.Y.Z
+```
+
+### Manifest contract (the desktop consumes this)
+
+One manifest per version, published at
+`https://dl.kalsa.io/kalsa-server/v<version>/manifest.json`. It holds a LIST of artifacts because
+platforms and backends will grow; today it holds exactly one entry. All values are computed in the
+run, never typed by hand.
+
+```json
+{
+  "version": "v1.0.0",
+  "tag": "kalsa-server-v1.0.0",
+  "tag_object": "d30c8d475d5eb47a544304ba592138d066bbc2e3",
+  "commit": "4ccef2f85dbc27e095e11ffcbad4628be9961790",
+  "ref": "refs/tags/kalsa-server-v1.0.0",
+  "trigger": "workflow_dispatch with release_tag",
+  "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/<id>",
+  "built_at": "<UTC ISO-8601>",
+  "reproducible": true,
+  "pack_sha256": "<64 hex>",
+  "artifacts": [
+    {
+      "platform": "macos-arm64",
+      "backend": "metal",
+      "home": "https://dl.kalsa.io/kalsa-server/v1.0.0",
+      "file": "kalsa-server-v1.0.0-bin-macos-arm64.tar.gz",
+      "url": "https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz",
+      "format": "tar.gz",
+      "top_dir": "kalsa-server-v1.0.0",
+      "exe": "kalsa-server",
+      "size_bytes": 11203436,
+      "sha256": "ad9f8b0cebccbce046ef0b76eaf3140242f77431703800cfa99e7d2717f7aa10",
+      "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
+    }
+  ]
+}
+```
+
+`<id>`, `<UTC ISO-8601>` and `<64 hex>` mark values computed in the run and not reproduced here.
+
+Notes:
+
+- `exe` exists because the shipped binary is `kalsa-server` while the CMake target remains
+  `llama-server`.
+- The filename carries no backend because it is part of the desktop contract. A uniqueness
+  invariant asserts that no two matrix entries share an architecture. If a future backend needs the
+  same architecture, the filename must gain a backend suffix and the manifest must change in the
+  same commit.
+- A fresh CI build of the same tag does NOT reproduce an earlier archive byte-for-byte (linker
+  UUIDs and similar differ): the executable hash matched (`327fb363…`) while the archive size and
+  digest changed. The manifest published with each artefact is therefore the authoritative record
+  for THAT object; never read a digest as a claim about a different build.
 
 ## The full diary
 

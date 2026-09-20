@@ -71,13 +71,16 @@ reader cannot tell how old a copy is.
 
 ### The engine fork and the `vendor/` layout
 
-- The binding fork `Aspis0/llama.rn` works on upstream's `vendor/` layout. The engine tree is
+- The binding fork `Aspis0/kalsa.rn` (recorded as `Aspis0/llama.rn` in older notes) works on
+  upstream's `vendor/` layout. The engine tree is
   `vendor/llama.cpp/`, and the pin lives in `vendor/VERSIONS`, not in the retired
   `native/kalsallama.pin`.
 - At the shipped binding pin `0f313bab`, `vendor/VERSIONS` names
   `LLAMA_CPP_REPO=https://github.com/Aspis0/kalsallama` and
-  `LLAMA_CPP_COMMIT=8537d097c32e7307d82540b6da8eb448d7e07107`. That commit is the tip of
-  `b11010-merge` in `Aspis0/kalsallama`.
+  `LLAMA_CPP_COMMIT=8537d097c32e7307d82540b6da8eb448d7e07107`. That commit was the tip of
+  `b11010-merge` at that pin; the branch has since moved past it. The engine release tag points at
+  `4ccef2f8`, and the current branch tip is `635ea0ed2` plus a pending fix commit (see "Engine
+  release: current position and next steps").
 - The migration away from the flattened `cpp/` tree and its symbol-rename scheme is recorded in
   `analysis/FORK-VENDOR-MIGRATION.md`, together with the measured upstream bump and the list of
   app-side consumers repaired with it.
@@ -142,6 +145,97 @@ The order is the owner's to set. The committed near-term work is:
    so a push is a fast-forward. Whether to push it is the owner's.
 4. Update the living docs and the record of each measurement in the same commit as the
    measurement.
+
+## Engine release: current position and next steps
+
+The engine binary ships inside the desktop app. The operational procedure and the manifest contract
+are in `docs/ALIVE.md`, "Engine release pipeline". This section records where the path stands and
+what is left.
+
+### Position, 2026-09-20
+
+- Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`, currently
+  `635ea0ed25988fb8bf1cc9b3b75d2fbc1a6c1acc` plus a pending fix commit (not pushed).
+- Release tag `kalsa-server-v1.0.0`, annotated, tag object
+  `d30c8d475d5eb47a544304ba592138d066bbc2e3`, pointing at commit
+  `4ccef2f85dbc27e095e11ffcbad4628be9961790`. Immutable; never moved.
+- Distribution moved off GitHub to Cloudflare R2 (`dl.kalsa.io`). The R2 publish is currently
+  blocked by the `None` bug below; the fix is committed locally and not yet pushed. The bucket is
+  empty, because the failing run stopped before any upload.
+
+### Decisions
+
+| decision | reason |
+|---|---|
+| Bundle the engine INSIDE the desktop app, exactly as the phone already bundles it in the APK | The app and the engine are coupled: `X-Kalsa-Cache-Salt` is a header the app must send and the engine must accept, so a runtime engine download creates a silent version-skew failure mode. Users download ONE app that contains the tested pair. For macOS, R2 is a BUILD-TIME source of the binary (fetch, verify size/sha256/exe_sha256, embed in the bundle), not a runtime download. |
+| Keep the R2 runtime download for Windows/x64 and future backends | One executable cannot cover CUDA/Vulkan/CPU; the `assets.rs` rows still point at `dl.kalsa.io`. |
+| Distribution on Cloudflare R2; the AI MODELS stay on Hugging Face | Models are gigabytes. |
+
+The first-launch capability probe stays even for a bundled binary, because it decides whether the
+engine can actually run on that machine.
+
+### Cloudflare inventory
+
+| item | identifier |
+|---|---|
+| Account id | `8a991014729a52a958cef2c5cbf0de50` |
+| Zone `kalsa.io` | `3dbf75d1d2cf42e2e8c2dba0d950f3fa` |
+| Bucket `kalsa-downloads` | public, served on custom domain `dl.kalsa.io`; the `r2.dev` URL is for testing only |
+| R2 API token | scoped to that single bucket (object read and write plus listing); stored in the engine repo as `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` |
+| Telemetry Worker `kalsa-telemetry` | Durable Object `TelemetryBuffer` + KV `DEDUPE_KV`, served on `telemetry.kalsa.io`; its `workers_dev` host is DISABLED because no released build ever used it |
+
+Telemetry is ERROR/CRASH diagnostics only, explicitly OPT-IN with default OFF, no analytics, and
+per its design document no chat or document content and no API keys in any form, not even hashed.
+Nothing leaves the device unless the user opted in. The app's telemetry constant lives in
+`src/telemetry/config.ts` in `Aspis0/kalsa`; the repo-side change is branch `telemetry-kalsa-io`,
+commit `213850e1b617831586e9b9c18b0144ea74664efb` (pushed).
+
+### Dead ends, so nobody repeats them
+
+- A GitHub Release in the PRIVATE engine repo is unreachable for an unauthenticated client: the
+  asset URL answers `404`. That is what forced distribution off GitHub.
+- The account's Actions artifact storage quota (private repos, ~500 MB, enforced from usage GitHub
+  RECALCULATES every 6-12 hours) blocked CI twice. About 4.8 GiB was freed by deleting 11 stale
+  `pubvia-macos` artifacts (2.45 GiB) in the `PubVia` repo and 8 upstream CI caches in
+  `kalsallama` (2.33 GiB). Enforcement stayed "full" until the recalculation: freeing space is not
+  an immediate fix.
+- The upstream reusable UI workflow hardcodes `runs-on: ubuntu-slim`, a HARD 15-minute job limit,
+  and does not cache npm. One attempt spent 12m53s in the build step and was cancelled, which
+  killed the whole pipeline because the macOS job depended on it. Building the UI inside the macOS
+  job removed both the 15-minute ceiling and the artifact hand-off.
+- `--clobber` on release assets was rejected outright: an immutable tag must never have its bytes
+  replaced. The GitHub-release publishing path was removed entirely rather than patched.
+- A `workflow_dispatch` input reaches shell and CLI arguments, so a tag beginning with a dash could
+  act as an option (`--help`) instead of a value. Closed with a namespace allowlist
+  `^kalsa-server-[A-Za-z0-9._-]+$` at read time AND immediately before use, plus an option
+  terminator `--` before positional arguments.
+- Two AWS/R2 traps, both encoded in the step as comments and guards: `aws s3 ls` exits NONZERO on
+  an empty prefix (aws/aws-cli#5544), so with "any nonzero is fatal" it would block the first
+  publish of every new version; and a JMESPath `Contents[]` projection prints the literal string
+  `None` for an empty result, which made an empty prefix look non-empty. The check therefore uses
+  `list-objects-v2 --query KeyCount` with a numeric guard. The second trap is the bug that failed
+  run `35544933700`, before any upload, leaving the bucket empty.
+
+### Open items and debts
+
+Ordered next steps:
+
+1. Push the `KeyCount` fix and re-run the R2 publish for `kalsa-server-v1.0.0`. The fix is committed
+   locally and not yet pushed; the bucket is empty, so the first publish has nothing to overwrite.
+2. Bundle the engine into a signed, notarised macOS `.app`. This reintroduces the codesign
+   obligation for the engine's dylibs (56 Mach-O in this build), same team and hardened runtime,
+   with `@rpath` resolving inside the bundle. The runtime download was dodging that; if nothing is
+   signed today it is a recorded debt.
+3. Exercise the declared engine ship gates (none exercised yet): the full preset-backed
+   `test_slot_save.py` (multimodal, legacy token list, erase, oversized media, no-mmproj);
+   real-model recurrent/SWA and speculative save/restore; write fault-injection (short write,
+   flush/close, file_size, rename, prior-file preservation); `fsync`/directory durability;
+   cross-backend restore; the residual TOCTOU between the exclusive create and the core save
+   reopening the temp; 32-bit portability of the `ckpt_read_buf` length conversion.
+4. Phone: the fork `Aspis0/kalsa.rn` was bumped to
+   `0288dc2786911d9b7dda6b2961cb3f0afa1e0ee2` (only version files changed, no C++), and the app pin
+   bump to that commit is prepared and awaiting review. The S23 repack timing run still waits for
+   the device to be unplugged.
 
 ## Open decisions
 
