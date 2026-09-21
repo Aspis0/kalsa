@@ -23,12 +23,14 @@
  * being lifted (`docs/DESIGN.md` §2.7).
  */
 
+import { spacing, type } from "../../theme/design";
+
 export type Insets = { top: number; bottom: number };
 
 /** A band in container coordinates: `top` is from the container's top edge. */
 export type Band = { top: number; height: number };
 
-/** A real box, never a hitSlop. Both axes are checked by the test. */
+/** A real box, never a `hitSlop`. Both axes are checked by the test. */
 export type TouchBox = { width: number; height: number };
 
 /** Real boxes, never hitSlop (DESIGN.md Part 3, rows 2 and 5). */
@@ -56,6 +58,25 @@ export const STRIP_MARK_SIZE = 28;
 export const COMPOSER_HEIGHT = 78;
 export const COMPOSER_SIDE_PADDING = 12;
 export const COMPOSER_FIELD_HEIGHT = 56;
+
+/**
+ * The source chip, in its two sizes (DESIGN.md §2.5).
+ *
+ * The painted chip stays small: `type.meta`'s line inside `spacing.xs` above and
+ * below, which is the mock's `.src` and about 28 dp. A row of 48 dp pills under
+ * every answer would out-weigh the answer it stands under.
+ *
+ * The box the finger lands on is a different thing from the paint, and it is a
+ * real 48 dp on both axes: a tappable thing under 48 dp is an accessibility
+ * defect, and this project forbids buying the size back with `hitSlop`. So the
+ * painted chip is centred inside a real box, and `SOURCE_CHIP_BOX_COST` is what
+ * that costs per row of chips — accepted on purpose rather than discovered
+ * later, because "small chip" and "48 dp" read like a contradiction and are not.
+ */
+export const SOURCE_CHIP_PAINTED_HEIGHT = type.meta.lineHeight + 2 * spacing.xs;
+export const SOURCE_CHIP_TOUCH_BOX = MIN_TOUCH_TARGET;
+/** What the box costs over the paint, per row of chips: 48 - 28 = 20 dp. */
+export const SOURCE_CHIP_BOX_COST = SOURCE_CHIP_TOUCH_BOX - SOURCE_CHIP_PAINTED_HEIGHT;
 
 /**
  * The preview's mismatch notice: ONE line of `type.meta` under the strip, drawn

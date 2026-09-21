@@ -86,28 +86,38 @@ function SourceChip({
   // anything pointing at this machine or its network stays text.
   const decision = sourceChipDecision(source.url, source.title);
   const label = t("shell.transcript.a11y.source", { index: cite, text: decision.text });
-  const body = (
-    <>
+  // The paint, and only the paint. It keeps the mock's ~28 dp height; the 48 dp
+  // box the finger lands on is `sourceChipBox` below, and the two are separate on
+  // purpose (§2.5): a chip that grew to the box would out-weigh the answer.
+  const pill = (
+    <View
+      style={[
+        styles.sourceChip,
+        decision.tappable ? styles.sourceChipLink : styles.sourceChipStatic,
+      ]}
+    >
       <Text style={[styles.sourceIndex, decision.tappable ? null : styles.sourceIndexStatic]}>
         {cite}
       </Text>
       <Text style={[styles.sourceHost, decision.tappable ? null : styles.sourceHostStatic]}>
         {decision.text}
       </Text>
-    </>
+    </View>
   );
 
   if (!decision.tappable) {
     // Reduced emphasis, no lift: a chip that cannot be opened must not look like
-    // the ones that can (§2.5).
+    // the ones that can (§2.5). It wears the same box as the tappable kind all the
+    // same, and not for a 48 dp reason — it has nothing to press — but so that a
+    // row holding both forms keeps one baseline instead of one pill riding high.
     return (
       <View
         accessibilityLabel={label}
         accessibilityRole="text"
-        style={[styles.sourceChip, styles.sourceChipStatic]}
+        style={styles.sourceChipBox}
         testID={`transcript.source.${cite}`}
       >
-        {body}
+        {pill}
       </View>
     );
   }
@@ -121,10 +131,10 @@ function SourceChip({
         // fetched here (§2.5), and the address was already cleared by the policy.
         void Linking.openURL(source.url.trim()).catch(() => undefined);
       }}
-      style={[styles.sourceChip, styles.sourceChipLink]}
+      style={styles.sourceChipBox}
       testID={`transcript.source.${cite}`}
     >
-      {body}
+      {pill}
     </Pressable>
   );
 }

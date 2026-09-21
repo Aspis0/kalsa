@@ -15,6 +15,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
+import { SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
 import {
   PARAGRAPH_GAP,
   TRANSCRIPT_LAST_ITEM_GAP,
@@ -193,6 +194,19 @@ export function createTranscriptStyles(colors: DesignColors) {
       // held to, deliberately: §2.5 asks for small text chips, and the mock
       // draws exactly this.
       paddingVertical: spacing.xs,
+    },
+    // The box the finger lands on, which is NOT the paint above (§2.5): 48 dp on
+    // both axes, with the chip centred inside it, because the project requires a
+    // real box and forbids `hitSlop`. This is where `SOURCE_CHIP_BOX_COST` — the
+    // 20 dp per row of chips the design accepts — actually goes. It is also what
+    // keeps a row that mixes a tappable chip with a static one on one baseline:
+    // the box is invisible on both, so the two pills line up.
+    sourceChipBox: {
+      alignItems: "center",
+      justifyContent: "center",
+      maxWidth: "100%",
+      minHeight: SOURCE_CHIP_TOUCH_BOX,
+      minWidth: SOURCE_CHIP_TOUCH_BOX,
     },
     // A chip that can be opened gets a surface and a lift, because the palette
     // cannot tell a surface from the page by a border (§1.2).
