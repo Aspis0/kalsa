@@ -21,7 +21,11 @@ export function ServerSurface() {
   const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
 
   const metrics = state?.metrics ?? {};
-  const deviceCount = metrics.active_devices?.length ?? 0;
+  // A phone, not this computer: the host's own chat runs through the same
+  // door, and "Connected" must not light up because the owner is typing here.
+  const deviceCount = (metrics.active_devices ?? []).filter(
+    (device) => device.kind !== "host",
+  ).length;
   const words = brainWords(state, heldFailure, busy);
 
   return (

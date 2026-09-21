@@ -173,6 +173,7 @@ pub(crate) fn run(
     server_override: Option<PathBuf>,
     machine: Machine,
     phone: Option<PhoneModel>,
+    devices: u32,
     model_override: Option<PathBuf>,
     state_file: PathBuf,
     root: &Path,
@@ -209,11 +210,11 @@ pub(crate) fn run(
                 choose_model(backend, &machine, phone, overrides.model.as_deref())?;
             let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
-                backend, exe, path, row, reason, &machine, state_file, overrides,
+                backend, exe, path, row, reason, &machine, devices, state_file, overrides,
             );
         }
     };
-    dev_config_with_overrides(exe, model, state_file, &machine, overrides)
+    dev_config_with_overrides(exe, model, devices, state_file, &machine, overrides)
 }
 
 /// The model step's answer: what to fetch, the row it belongs to, and the
@@ -488,6 +489,9 @@ fn planned_config(
         row,
         TEST_REASON.to_string(),
         machine,
+        // The single-slot default: these tests are about the model and the
+        // budget, and the capacity rule has its own tests below.
+        1,
         state_file,
         LaunchOverrides::default(),
     )
@@ -504,10 +508,28 @@ fn planned_config(
 /// [`LaunchInput`] is built, because the build decision runs first.
 fn planned_parallel(exe: &Path, requested: u32) -> u32 {
     if kalsa_runtime::engine_consumes_private_headers(exe) {
-        requested
+        requested.max(1)
     } else {
         1
     }
+}
+
+/// The largest slot count in `1..=requested` the machine actually funds,
+/// asked of [`kalsa_launch::plan`] itself so the number the door serves is the
+/// number the plan divided by — one source, never two. The enrolled device
+/// count is what the machine is asked for, and this is what it can pay for.
+///
+/// The walk order is the honest one: each slot replicates whatever the model
+/// keeps per slot, so more slots buy smaller windows, and the first count from
+/// the top that funds is the answer. `requested` is the store's device count,
+/// not a constant, so a family of three gets three seats and a lone install
+/// gets one.
+///
+/// One when nothing funds more — including when the model funds nothing at
+/// all, where the caller's own [`kalsa_launch::plan`] then refuses at one slot
+/// exactly as it did before.
+fn funded_parallel(requested: u32, funds: impl Fn(u32) -> bool) -> u32 {
+    (1..=requested.max(1)).rev().find(|slots| funds(*slots)).unwrap_or(1)
 }
 
 fn planned_config_with_overrides(
@@ -517,6 +539,7 @@ fn planned_config_with_overrides(
     row: &ModelEntry,
     reason: String,
     machine: &Machine,
+    devices: u32,
     state_file: PathBuf,
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
@@ -528,20 +551,7 @@ fn planned_config_with_overrides(
         budget_backend(backend, machine.measurement.will_run_on),
         machine.ram_bytes,
     );
-    // The engine's path is known here, before any `LaunchInput` exists: the
-    // walk decides the build first and hands its exe in. Probe it now, so the
-    // number the plan divides by is the number the door will serve.
-    let requested_parallel = kalsa_launch::DEFAULT_PARALLEL;
-    let parallel = planned_parallel(&exe, requested_parallel);
-    if parallel != requested_parallel {
-        eprintln!(
-            "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; the plan is \
-             for {parallel} device with one slot's context, not the requested \
-             {requested_parallel} slots",
-            exe.display()
-        );
-    }
-    let build = |cache: KvCache, context_limit: Option<u64>| LaunchInput {
+    let build = |cache: KvCache, context_limit: Option<u64>, parallel: u32| LaunchInput {
         backend,
         model: row,
         budget,
@@ -554,6 +564,39 @@ fn planned_config_with_overrides(
         kv_cache: cache,
         parallel,
     };
+    // The requested count is the ENROLLED devices — this computer and every
+    // paired phone — because the door reserves a slot per stored device for
+    // as long as the device is stored. A phone that is away still holds its
+    // seat, so a plan sized for whoever happened to be talking would refuse
+    // the next device that pairs. Taken down to what this machine funds: with
+    // the host enrolled, one seat is the one conversation that used to have
+    // no seat at all, and a machine that cannot fund the whole family keeps
+    // the smaller number rather than refusing to start.
+    let requested_parallel = devices.max(1);
+    let affordable = funded_parallel(requested_parallel, |slots| {
+        kalsa_launch::plan(&build(kv_cache, overrides.context_tokens, slots)).is_some()
+    });
+    // The engine's path is known here, before any `LaunchInput` exists: the
+    // walk decides the build first and hands its exe in. Probe it now, so the
+    // number the plan divides by is the number the door will serve.
+    let parallel = planned_parallel(&exe, affordable);
+    if affordable < requested_parallel {
+        eprintln!(
+            "kalsa-brain: {requested_parallel} devices are enrolled on this computer, but the \
+             plan funds only {affordable} of them at once; the plan is for {affordable} devices, \
+             and the door will refuse the rest with a sentence saying the seats are full and \
+             naming no device. Change the context in Advanced, or forget a device on the \
+             Devices page."
+        );
+    }
+    if parallel < affordable {
+        eprintln!(
+            "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; the plan is \
+             for {parallel} device with one slot's context, not the requested \
+             {affordable} slots",
+            exe.display()
+        );
+    }
     // A zero trained length is a header we could not read, not a machine
     // that cannot fund the model: `plan` refuses both with a bare `None`,
     // so the honest answer is decided before the arithmetic runs.
@@ -568,8 +611,8 @@ fn planned_config_with_overrides(
     // choice answers the smaller chat default where the machine funds it, so
     // the guards and the panel read the ceiling from `funded_maximum`.
     let maxima = ContextMaxima {
-        q8_0: kalsa_launch::funded_maximum(&build(KvCache::Q8_0, None)),
-        f16: kalsa_launch::funded_maximum(&build(KvCache::F16, None)),
+        q8_0: kalsa_launch::funded_maximum(&build(KvCache::Q8_0, None, parallel)),
+        f16: kalsa_launch::funded_maximum(&build(KvCache::F16, None, parallel)),
     };
     if let (Some(context), Some(maximum)) = (overrides.context_tokens, maxima.for_cache(kv_cache)) {
         // The guard reads the maximum FOR THE CHOSEN CACHE TYPE: a context
@@ -581,7 +624,7 @@ fn planned_config_with_overrides(
             });
         }
     }
-    let mut plan = kalsa_launch::plan(&build(kv_cache, overrides.context_tokens))
+    let mut plan = kalsa_launch::plan(&build(kv_cache, overrides.context_tokens, parallel))
         .ok_or(StartupFailure::ChosenModelUnfundable)?;
     if let Some(seconds) = overrides.idle_unload_seconds {
         plan.args.idle_unload_seconds = seconds;
@@ -592,8 +635,10 @@ fn planned_config_with_overrides(
     // terms for pricing any length the owner types. All of it is the
     // launcher's arithmetic, computed here where the row is known.
     let automatic_context = ContextMaxima {
-        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None)).map(|plan| plan.args.context_tokens),
-        f16: kalsa_launch::plan(&build(KvCache::F16, None)).map(|plan| plan.args.context_tokens),
+        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None, parallel))
+            .map(|plan| plan.args.context_tokens),
+        f16: kalsa_launch::plan(&build(KvCache::F16, None, parallel))
+            .map(|plan| plan.args.context_tokens),
     };
     let context_prices = ContextPrices {
         q8_0: kalsa_launch::context_price(row, KvCache::Q8_0, u64::from(ubatch_size), parallel),
@@ -629,19 +674,24 @@ fn planned_config_with_overrides(
 fn dev_config_with_overrides(
     exe: PathBuf,
     model: PathBuf,
+    devices: u32,
     state_file: PathBuf,
     machine: &Machine,
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
-    // A pinned development model has no catalog budget. Its conservative
-    // default is therefore the maximum this path will promise; Advanced may
-    // lower it, but cannot silently ask an unbudgeted run for more.
-    if overrides
-        .context_tokens
-        .is_some_and(|context| context > DEV_CONTEXT_TOKENS)
-    {
+    // The dev path is unbudgeted, so the funding cap has nothing to say here:
+    // the seat count is the enrolled devices, taken down only when the engine
+    // cannot isolate. `DEV_CONTEXT_TOKENS` is PER SLOT, so the total rides the
+    // seat count exactly as the engine divides `--ctx-size`.
+    let parallel = planned_parallel(&exe, devices.max(1));
+    let maximum = DEV_CONTEXT_TOKENS.saturating_mul(u64::from(parallel));
+    // A pinned development model has no catalog budget. This per-slot default
+    // times the seats is therefore the maximum this path will promise;
+    // Advanced may lower it, but cannot silently ask an unbudgeted run for
+    // more.
+    if overrides.context_tokens.is_some_and(|context| context > maximum) {
         return Err(StartupFailure::ContextTooLarge {
-            maximum_tokens: DEV_CONTEXT_TOKENS,
+            maximum_tokens: maximum,
             cache: None,
         });
     }
@@ -650,14 +700,14 @@ fn dev_config_with_overrides(
     let mut args = ServerArgs {
         model_path: model,
         port: PORT,
-        context_tokens: DEV_CONTEXT_TOKENS,
+        context_tokens: maximum,
         // No catalog budget here to carve the roof from; one chat
-        // reservation at the dev context keeps the behavior honest. Like the
-        // budgeted roof it is priced at the cache the run will use: an f16
-        // chat is bigger, and the server skips one that does not fit.
+        // reservation per seat at the dev context keeps the behavior honest.
+        // Like the budgeted roof it is priced at the cache the run will use:
+        // an f16 chat is bigger, and the server skips one that does not fit.
         cache_ram_mib: kalsa_catalog::footprint::ASSUMED_KV_BYTES_PER_TOKEN
             .saturating_mul(kv_cache.bytes_per_element())
-            .saturating_mul(DEV_CONTEXT_TOKENS)
+            .saturating_mul(maximum)
             / kalsa_catalog::footprint::MIB,
         threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
         offload: offload_of_build(&dev_backend()),
@@ -665,11 +715,10 @@ fn dev_config_with_overrides(
         batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
         ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
         kv_cache,
-        // The dev path takes the same clamp as the budgeted one: it knows
-        // its engine, so it must not claim slots the engine cannot isolate -
-        // the door would serve one device and that device would get `1/N` of
-        // this context.
-        parallel: planned_parallel(&exe, kalsa_launch::DEFAULT_PARALLEL),
+        // The dev path takes the same seat rule as the budgeted one: the
+        // door builds one seat per enrolled device, and an engine that cannot
+        // isolate is planned and served for one.
+        parallel,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -1218,6 +1267,7 @@ mod tests {
             Some(PathBuf::from("/server/llama-server")),
             machine,
             None,
+            1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/server.state"),
             &root,
@@ -1254,6 +1304,7 @@ mod tests {
                 ram_bytes: 16 * 1024 * 1024 * 1024,
             },
             None,
+            1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/server.state"),
             &root,
@@ -1509,6 +1560,112 @@ mod tests {
         }
     }
 
+    /// The seat count is discovered from the plan, never from a constant:
+    /// the first count from the top that funds. This is the rule that lets a
+    /// machine which cannot pay for the whole family keep the smaller number
+    /// instead of refusing to start at all.
+    #[test]
+    fn the_funded_seat_count_is_the_first_one_from_the_top_that_funds() {
+        assert_eq!(funded_parallel(4, |slots| slots <= 2), 2);
+        assert_eq!(
+            funded_parallel(1, |_| false),
+            1,
+            "a model that funds nothing is still asked at one seat, and the \
+             caller's own plan refuses it there exactly as before"
+        );
+        assert_eq!(
+            funded_parallel(0, |_| true),
+            1,
+            "an unreadable store answers zero devices; the seat count stays one"
+        );
+    }
+
+    /// A family of three on a machine that funds the big row four ways: the
+    /// plan must divide the window three ways and the door reads the same
+    /// number from `args.parallel`. The same three devices against an engine
+    /// that cannot isolate must be planned and served for one — more than one
+    /// would wrap onto somebody else's slot.
+    #[test]
+    fn enrolled_devices_size_the_slots_and_an_engine_that_cannot_isolate_drops_to_one() {
+        let row = rows()
+            .find(|entry| entry.display_name == "Alibaba Qwen 3.6")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Metal),
+            ram_bytes: 64 * 1024 * 1024 * 1024,
+        };
+        let run_three = |exe: PathBuf| {
+            planned_config_with_overrides(
+                ServerBackend::Metal,
+                exe,
+                PathBuf::from("/models/chosen.gguf"),
+                row,
+                TEST_REASON.to_string(),
+                &machine,
+                3,
+                PathBuf::from("/state/server.state"),
+                LaunchOverrides::default(),
+            )
+        };
+
+        let fork = engine_dir("seats-inlet", Some(b"a module carrying x-kalsa-slot inside"));
+        let three = run_three(fork.clone()).expect("three seats of the big row are fundable");
+        assert_eq!(three.info.args.parallel, 3, "three devices, three seats");
+        assert!(
+            three.server.argv.join(" ").contains("--parallel 3"),
+            "the engine must run the seats the door serves: {}",
+            three.server.argv.join(" ")
+        );
+
+        let blind = engine_dir("seats-no-inlet", Some(b"a module that never heard of the door"));
+        let one = run_three(blind.clone()).expect("one seat is fundable");
+        assert_eq!(
+            one.info.args.parallel, 1,
+            "an engine that cannot isolate must not be planned for three devices"
+        );
+
+        for exe in [&fork, &blind] {
+            if let Some(dir) = exe.parent() {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+        }
+    }
+
+    /// A machine that cannot fund the enrolled family keeps the smaller
+    /// number and says so: Granite 4 Tiny on 8 GiB funds one 3993-token slot,
+    /// and two slots would each land below the 4096-token floor. The plan
+    /// stays at one seat; the door then refuses the second device with words.
+    #[test]
+    fn a_machine_that_cannot_fund_the_family_keeps_the_smaller_number() {
+        let row = rows()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let fork = engine_dir("seats-unfunded", Some(b"a module carrying x-kalsa-slot inside"));
+        let config = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            fork.clone(),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            TEST_REASON.to_string(),
+            &machine,
+            2,
+            PathBuf::from("/state/server.state"),
+            LaunchOverrides::default(),
+        )
+        .expect("one seat is fundable even when two are not");
+        assert_eq!(
+            config.info.args.parallel, 1,
+            "two seats would starve both slots; the machine keeps one"
+        );
+        if let Some(dir) = fork.parent() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
     #[test]
     fn persisted_advanced_overrides_reach_the_supervisor_argv() {
         let root = scratch("advanced");
@@ -1531,6 +1688,7 @@ mod tests {
             Some(PathBuf::from("/server/llama-server")),
             machine,
             None,
+            1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
             &root,
@@ -1564,6 +1722,7 @@ mod tests {
                 ram_bytes: 0,
             },
             None,
+            1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
             &root,
@@ -1602,6 +1761,7 @@ mod tests {
                 ram_bytes: 0,
             },
             None,
+            1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
             &root,
@@ -1628,6 +1788,9 @@ mod tests {
             row,
             TEST_REASON.to_string(),
             &machine,
+            // One seat: this test is about the context guard, not the
+            // capacity rule.
+            1,
             PathBuf::from("/state/server.state"),
             LaunchOverrides {
                 context_tokens: Some(8192),
@@ -1662,6 +1825,9 @@ mod tests {
                 row,
                 TEST_REASON.to_string(),
                 &machine,
+                // One seat: the maximum this test pins is the per-slot
+                // ceiling, not a family's worth of them.
+                1,
                 PathBuf::from("/state/server.state"),
                 LaunchOverrides {
                     context_tokens: context,
@@ -1716,6 +1882,8 @@ mod tests {
             row,
             TEST_REASON.to_string(),
             &machine,
+            // One seat: f16's funded maximum is a per-slot figure here.
+            1,
             PathBuf::from("/state/server.state"),
             LaunchOverrides {
                 context_tokens: Some(4096),
@@ -1862,6 +2030,7 @@ mod tests {
             Some(PathBuf::from("/server/llama-server")),
             machine,
             None,
+            1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/dev.state"),
             &root,

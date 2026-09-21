@@ -32,6 +32,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
+use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
 use serde::Serialize;
@@ -78,6 +79,10 @@ struct ActiveDoor {
     /// poll can tell "the store still holds what the door serves" from "the
     /// store changed and the door must be rebuilt".
     devices: kalsa_door::Devices,
+    /// This computer's own seat, when the store holds one. Kept beside the
+    /// set because the door answers only ids and labels, and the page must
+    /// not read this computer's own traffic as a phone's.
+    host: Option<kalsa_door::DeviceId>,
     address: SocketAddr,
     door: kalsa_door::RunningDoor,
 }
@@ -253,6 +258,11 @@ impl Brain {
                         // its label left with the set, so the honest name is
                         // the fact, not a placeholder that reads like a bug.
                         .unwrap_or_else(|| "Removed device".to_string()),
+                    kind: if Some(id) == active.host {
+                        "host"
+                    } else {
+                        "phone"
+                    },
                 })
                 .collect(),
         )
@@ -294,6 +304,13 @@ impl Brain {
                 return Ok(());
             }
         };
+        // The host's id, before the set is consumed: the door reports ids
+        // only, so the app is the one place that can still say which id is
+        // this computer's own.
+        let host = stored_devices
+            .iter()
+            .find(|device| device.kind == DeviceKind::Host)
+            .map(|device| kalsa_door::DeviceId::new(device.id));
         let entries = stored_devices
             .into_iter()
             .map(|device| {
@@ -346,6 +363,7 @@ impl Brain {
                 // switch still governs it, as on the fast path.
                 active.door.set_devices(devices.clone());
                 active.devices = devices;
+                active.host = host;
                 let address = active.address;
                 self.reconcile_road(internet_road, Some(address), file, false);
             }
@@ -389,6 +407,7 @@ impl Brain {
                 let address = running.address();
                 *stored = Some(ActiveDoor {
                     devices,
+                    host,
                     address,
                     door: running,
                 });
@@ -566,10 +585,14 @@ enum StateDto {
     Starting,
     Running {
         port: u16,
-        /// Where an OpenAI-style client on this machine reaches the local
-        /// server. Loopback, not the door: the desktop is the host, not a
-        /// guest with a credential.
-        endpoint: String,
+        /// The door's OpenAI-style address, and the only road this page
+        /// takes: the desktop is a device with its own credential, exactly
+        /// like a phone, so its own conversation gets its own slot and its
+        /// own cache. `None` while the door is not up. The engine's own port
+        /// is deliberately not offered as a fallback — forwarding there
+        /// would be the one conversation in the system with no credential,
+        /// no slot and no salt.
+        endpoint: Option<String>,
         /// The catalog's own name for what launched — the one model
         /// identity the user is shown. Absent on the development path,
         /// where the developer pinned a file no catalog choice named.
@@ -622,7 +645,9 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             let model = brain.model_dto();
             StateDto::Running {
                 port,
-                endpoint: format!("http://127.0.0.1:{port}/v1"),
+                endpoint: brain
+                    .door_port()
+                    .map(|door_port| format!("http://127.0.0.1:{door_port}/v1")),
                 model: model.display_name,
                 reason: model.reason,
                 asleep: brain.supervisor.model_asleep(),
@@ -778,6 +803,10 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     let phone = phone(&app)?;
+    // How many seats the door must hold: this computer and every paired
+    // phone. A seat is reserved per stored device for as long as it is
+    // stored, so this is the enrolled set, not who is talking right now.
+    let devices = enrolled_devices(&pairing_file(&app)?);
     let emitter = app.clone();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
@@ -813,6 +842,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             server_override,
             machine,
             phone,
+            devices,
             model_override,
             state_file,
             &runtime_root,
@@ -896,6 +926,28 @@ fn pairing_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(PAIRING_FILE))
 }
 
+/// How many devices this computer has taken in — its own record and every
+/// paired phone. The door reserves one slot per stored device for as long as
+/// the device is stored, so this is a count of seats, not of who is talking:
+/// a phone that is away still holds its seat. An unreadable store answers
+/// zero, and the plan then keeps the one-slot default rather than promising
+/// seats nothing can be built from.
+fn enrolled_devices(file: &Path) -> u32 {
+    kalsa_pairing::store::load_devices(file)
+        .map(|devices| u32::try_from(devices.len()).unwrap_or(u32::MAX))
+        .unwrap_or(0)
+}
+
+/// This computer's own seat, taken in the same store as the phones. The
+/// setup hook calls it before the desk reads the store; the hatch calls it
+/// again after emptying the store, so the store is never left host-less.
+/// `enrol_host` is idempotent, so every call after the first writes nothing
+/// and changes no credential. Split out of the setup hook so the one wiring
+/// line a launch runs is the function its tests drive.
+fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
+    kalsa_pairing::store::enrol_host(file).map(|_| ())
+}
+
 #[tauri::command]
 fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
     brain.stop_door();
@@ -935,10 +987,66 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
 /// their credentials and their ids.
 #[tauri::command]
 fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String> {
+    // This computer's own record has no Forget. The page does not draw the
+    // button, and this refuses the call anyway: forgetting the host would
+    // take the app's own credential out of the store while the running door
+    // still holds it, so the local chat would answer 401 until the next
+    // launch minted a fresh key — and with it a fresh cache salt and a cold
+    // model. The store can still forget a host (its escape hatch must empty
+    // any file); this page's one-device gesture may not.
+    if desk.desk.is_host(id) {
+        return Err(
+            "This computer's own connection cannot be forgotten; it is the key this app uses on this computer."
+                .to_string(),
+        );
+    }
     desk.desk.forget_device(id).map_err(|_| {
         "This device could not be forgotten. Fixing permissions and trying again may help."
             .to_string()
     })
+}
+
+/// This computer's own credential, for the page's own chat to present at the
+/// door. The value is a secret and stays one: it is the command's own answer,
+/// never a field of an object some log might render, and it comes from the
+/// same store the door was built from, so the page and the door cannot hold
+/// two different keys for one machine. The page keeps it in memory for the
+/// life of the window; nothing here writes it to settings, and no sentence
+/// below echoes it.
+///
+/// There is deliberately no way to rotate this key alone. The host's row on
+/// the Devices page offers no Forget, because forgetting it would take away
+/// this app's own way in to its own door; the store-level hatch re-mints it
+/// along with every phone, and that is the recovery path if a key is ever
+/// suspected of leaking.
+#[tauri::command]
+fn brain_host_credential(app: tauri::AppHandle) -> Result<String, String> {
+    let file = pairing_file(&app)?;
+    let devices = kalsa_pairing::store::load_devices(&file)
+        .map_err(|_| "This computer could not read its own connection key.".to_string())?;
+    devices
+        .into_iter()
+        .find(|device| device.kind == DeviceKind::Host)
+        .map(|device| device.handshake.credential_hex())
+        .ok_or_else(|| "This computer has not made its own connection key yet.".to_string())
+}
+
+/// The whole store goes, and this computer takes its own seat back in the
+/// same breath. Without the re-enrolment the store is host-less afterwards:
+/// this computer stops being a device even after a phone is paired again,
+/// and the credential the running door held for it exists in no store. A
+/// failure to take the seat back is logged, not fatal, for the same reason
+/// the startup one is: the store's problem must not become an app that
+/// cannot run a model.
+fn forget_store_and_keep_own_seat(desk: &pairing::Desk) -> Result<(), String> {
+    desk.forget().map_err(|_| {
+        "This computer could not forget the old phone connection. Check its permissions and try again."
+            .to_string()
+    })?;
+    if let Err(error) = take_own_seat(desk.file()) {
+        eprintln!("kalsa-brain: this computer could not take its own seat back: {error}");
+    }
+    Ok(())
 }
 
 /// The owner explicitly discards an unreadable pairing file. This is the only
@@ -947,10 +1055,7 @@ fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String>
 #[tauri::command]
 fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), String> {
     brain.stop_door();
-    desk.desk.forget().map_err(|_| {
-        "This computer could not forget the old phone connection. Check its permissions and try again."
-            .to_string()
-    })
+    forget_store_and_keep_own_seat(&desk.desk)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -980,6 +1085,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_retry,
             brain_pairing_forget_device,
             brain_pairing_forget,
+            brain_host_credential,
             web::brain_web_search,
             web::brain_web_fetch,
             web::brain_web_stop,
@@ -1030,6 +1136,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // programming error, and it fails loudly.
             if !app.manage(lock) {
                 return Err(io::Error::other("the instance lock was already managed").into());
+            }
+            // This computer takes its own seat before the desk reads the
+            // store: the host is the first device, its own conversation gets
+            // a slot and a cache salt like a phone's, and a store that holds
+            // the host is never empty — which is what lets the door start on
+            // a machine with no phones yet. The desk ignores the host when it
+            // asks paired-or-not, so the square still appears for a second
+            // device. `enrol_host` is idempotent, so this runs every launch
+            // and mints nothing new.
+            //
+            // A failure here is the store's problem, not a reason to refuse
+            // to start: the brain still runs, and the door serves only what
+            // is actually stored. What the owner sees depends on the store.
+            // An EXISTING file this app cannot read is the desk's
+            // StoreUnavailable, whose Devices page carries the one escape
+            // hatch, "Forget and pair again". No file at all plus a data
+            // directory that cannot be written is the ordinary unpaired
+            // computer: the desk reads no file as Idle, the square appears,
+            // and the missing host seat has no visible trace anywhere.
+            // Refusing to launch would turn a store this app cannot write
+            // into a computer whose owner cannot run a model at all.
+            if let Err(error) = take_own_seat(&file) {
+                eprintln!("kalsa-brain: this computer could not take its own seat: {error}");
             }
             // A pairing-side loopback bind failure is a startup failure,
             // not an empty pairing state: `?` aborts the hook, and tauri

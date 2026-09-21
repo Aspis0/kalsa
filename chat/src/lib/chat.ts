@@ -108,12 +108,25 @@ export function serverBase(endpoint: string): string {
  * Ask the server for its real context size (llama.cpp serves /props with
  * n_ctx). Anything missing, non-numeric or unreachable means UNKNOWN —
  * never an invented limit.
+ *
+ * The token is required when the caller's server is the local door: /props is
+ * a request like any other there, and an unauthenticated one gets the 401 the
+ * door gives strangers. A remote server that wants no token is served by an
+ * empty string, which sends no Authorization header at all.
  */
-export async function fetchContextSize(base: string, timeoutMs = 8000): Promise<number | null> {
+export async function fetchContextSize(
+  base: string,
+  timeoutMs = 8000,
+  token = "",
+): Promise<number | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${base}/props`, { signal: controller.signal });
+    const cleanToken = token.trim();
+    const response = await fetch(`${base}/props`, {
+      signal: controller.signal,
+      ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
+    });
     if (!response.ok) return null;
     const data = (await response.json()) as { n_ctx?: unknown };
     return typeof data.n_ctx === "number" && Number.isFinite(data.n_ctx) && data.n_ctx > 0

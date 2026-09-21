@@ -128,16 +128,36 @@ pub(crate) fn busy_response(origin: Option<&[u8]>) -> Vec<u8> {
 }
 
 /// The answer for an authenticated device with no slot left: the engine runs
-/// a fixed number of slots, so this computer is already serving as many
-/// devices as it can hold at once. It is the door's own 503, with the count
-/// and one honest sentence — deliberately not [`BUSY_RESPONSE`] (which
+/// a fixed number of slots, so this computer is already holding as many
+/// devices as the launch planned for. It is the door's own 503, with the
+/// count and one honest sentence — deliberately not [`BUSY_RESPONSE`] (which
 /// carries no body and means pressure) and deliberately not `refuse` (which
 /// is 401-only, for a credential the door does not know). Like the refusal,
 /// it names the browser's origin when there is one.
+///
+/// The words name BOTH causes, because the door cannot tell them apart: the
+/// set stored on disk may hold more devices than the launch funded seats for,
+/// or a device may have been stored after the launch, so the engine's slot
+/// count is behind the store. Restarting re-plans the seats from the devices
+/// stored NOW, which answers the second cause and not the first; the first is
+/// answered only by funding more seats (a lower context in Advanced) or by
+/// storing fewer devices. "This computer is one of them" is in the count
+/// rather than apart from it, because the host is a device now and a sentence
+/// that forgot it would tell the owner to forget a phone when the seat this
+/// computer holds is the one in question.
 pub(crate) fn no_slot_response(capacity: u32, origin: Option<&[u8]>) -> Vec<u8> {
+    // "1 devices" is the kind of thing that makes a sentence read like a
+    // machine wrote it, and this one is the whole answer a phone will see.
+    let seats = if capacity == 1 {
+        "1 device".to_string()
+    } else {
+        format!("{capacity} devices")
+    };
     let words = format!(
-        "This computer is already serving {capacity} devices. \
-         Forget one on the Devices page before pairing another."
+        "This computer is set up for {seats} at once, and one of them is this computer. Every \
+         seat is taken. Turning the assistant off and on again re-plans the seats from the \
+         devices stored now; if it still cannot fund one seat per stored device, lower the \
+         context in Advanced, or forget a device on the Devices page."
     );
     let origin_headers = cors::origin_headers(origin);
     format!(

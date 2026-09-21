@@ -67,11 +67,11 @@ fn a_fifth_device_is_refused_without_touching_the_upstream() {
         "the fifth device was not refused with the door's own 503: {text}"
     );
     assert!(
-        text.contains("This computer is already serving 4 devices."),
-        "the refusal does not say the count: {text}"
+        text.contains("This computer is set up for 4 devices at once, and one of them is this computer."),
+        "the refusal does not say the count or that the host is one of them: {text}"
     );
     assert!(
-        text.contains("Forget one on the Devices page before pairing another."),
+        text.contains("Turning the assistant off and on again re-plans the seats from the devices stored now; if it still cannot fund one seat per stored device, lower the context in Advanced, or forget a device on the Devices page."),
         "the refusal does not say what to do: {text}"
     );
     // `Content-Length` must be exactly the body written, or the client hangs.

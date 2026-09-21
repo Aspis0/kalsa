@@ -242,7 +242,7 @@ export function App() {
       return cached;
     }
     setAttachStatus("Checking context size…");
-    const nctx = await fetchContextSize(serverBase(endpoint));
+    const nctx = await fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token);
     nctxCache.current.set(endpoint, nctx);
     setCtxInfo({ endpoint, nctx });
     setAttachStatus(null);

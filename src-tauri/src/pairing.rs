@@ -21,7 +21,7 @@
 //!   asks the owner anything; it consumes the ceremony and reports that
 //!   the connection could not be saved.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
@@ -148,7 +148,7 @@ pub(crate) struct PairingDto {
 /// One stored device, as the page may see it: the store's id and label, what
 /// it is, and the capability sentence the page has always shown for a phone.
 /// A host carries no capability sentence — it has no phone fields — and the
-/// row's rendering of that is a later commit's decision.
+/// page renders its row as "This computer" with no Forget.
 #[derive(Serialize)]
 pub(crate) struct PairedDeviceDto {
     id: u32,
@@ -305,6 +305,26 @@ impl Desk {
                 phone: device.handshake.phone.map_or_else(String::new, phone_label),
             })
             .collect()
+    }
+
+    /// The store this desk reads and writes. The shell needs the path to put
+    /// this computer back in its seat after the hatch has emptied the store.
+    pub(crate) fn file(&self) -> &Path {
+        &self.file
+    }
+
+    /// Whether this stored device is this computer's own record. The page's
+    /// Forget is a gesture about a paired phone, and the host's row has none
+    /// — the command asks this before it can be reached by one, so the
+    /// decision is not the rendering's alone. A store this app cannot read
+    /// answers false: the caller then runs the ordinary forget, whose own
+    /// error says what happened.
+    pub(crate) fn is_host(&self, id: u32) -> bool {
+        kalsa_pairing::store::load_devices(&self.file).is_ok_and(|devices| {
+            devices
+                .iter()
+                .any(|device| device.id == id && device.kind == DeviceKind::Host)
+        })
     }
 
     /// The owner removes ONE device from the house. The others keep their
@@ -1103,6 +1123,38 @@ mod tests {
                 .unwrap();
         assert_eq!(dto["state"], "waiting", "the square still appears");
         assert!(dto["qr_svg"].as_str().is_some_and(|qr| !qr.is_empty()));
+    }
+
+    /// The command's pre-check: the host's row is recognisable, so the
+    /// Forget call can refuse it even though the page does not draw the
+    /// button. The store itself can still forget a host; this is the page's
+    /// one-device gesture that may not.
+    #[test]
+    fn the_host_is_recognised_and_a_phone_is_not() {
+        let file = scratch("host-is-host");
+        let host = kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        assert!(desk.is_host(host.id), "the host's own id is the host");
+        assert!(
+            !desk.is_host(host.id + 1),
+            "an id the store does not hold is not the host"
+        );
+
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now)
+            .expect("a phone pairs beside the host");
+        let phones = kalsa_pairing::store::load_devices(&file)
+            .unwrap()
+            .into_iter()
+            .filter(|device| device.kind == DeviceKind::Phone)
+            .map(|device| device.id)
+            .collect::<Vec<_>>();
+        assert_eq!(phones.len(), 1);
+        assert!(
+            !desk.is_host(phones[0]),
+            "a paired phone is not this computer"
+        );
     }
 
     /// A host and a phone: the PHONE decides the state, and the catalog gets

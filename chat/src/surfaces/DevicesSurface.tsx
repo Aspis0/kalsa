@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { available, invoke } from "../lib/tauri";
+import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
@@ -20,6 +21,9 @@ interface PairedDevice {
   id: number;
   label?: string;
   phone?: string;
+  // The store's kind. "host" is this computer's own record; a phone is a
+  // pairing result. Absent reads as a phone, the reading this page always had.
+  kind?: "phone" | "host";
 }
 
 /** What `brain_pairing` answers: one read, polled; two decisions and a retry. */
@@ -34,26 +38,30 @@ interface PairingState {
   failure?: "could-not-save" | "could-not-read" | "service-unavailable" | null;
 }
 
-// The paired sentence must be true for whatever the house holds: one device
+// The paired sentence must be true for whatever the house holds: one phone
 // is named — naming it IS naming the house — while several are counted,
-// because naming one of many reads as if the others were not real.
+// because naming one of many reads as if the others were not real. This
+// computer's own row is not a phone and is never part of the count: "now
+// works with This computer" is not a sentence about a pairing.
 function pairedSentence(dto: PairingState): string {
-  const devices = Array.isArray(dto.devices) ? dto.devices : [];
+  const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
+    (device) => device.kind !== "host",
+  );
   const pending = dto.delivery_pending === true;
-  if (devices.length === 0) {
+  if (phones.length === 0) {
     return pending
       ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
       : `This computer now works with ${dto.phone ?? "your phone"}.`;
   }
-  if (devices.length === 1) {
-    const name = devices[0].phone ?? devices[0].label ?? dto.phone ?? "your phone";
+  if (phones.length === 1) {
+    const name = phones[0].phone ?? phones[0].label ?? dto.phone ?? "your phone";
     return pending
       ? `This computer saved the connection for ${name}; the phone still needs to receive it.`
       : `This computer now works with ${name}.`;
   }
   return pending
-    ? `This computer now works with ${devices.length} paired devices; the newest is still waiting to receive its connection.`
-    : `This computer now works with ${devices.length} paired devices.`;
+    ? `This computer now works with ${phones.length} paired phones; the newest is still waiting to receive its connection.`
+    : `This computer now works with ${phones.length} paired phones.`;
 }
 
 function doorNote(port: number | null | undefined): string | null {
@@ -101,7 +109,14 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
 
   function forgetAndRefresh(): void {
     invoke("brain_pairing_forget")
-      .then(() => void refresh())
+      .then(() => {
+        // The hatch deleted the whole store, host record included: the key
+        // this window cached is dead, and the door the next poll rebuilds
+        // holds the replacement. Dropping it here is what lets that poll
+        // fetch it instead of the page answering 401 until a reload.
+        forgetLocalCredential();
+        void refresh();
+      })
       .catch(() => {});
   }
 
@@ -208,15 +223,28 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       ) : null}
       {devices.length > 0 ? (
         <div className="surface-devices">
-          {devices.map((device) => (
-            <div key={device.id} className="surface-device">
-              <span className="surface-device-name">{device.label ?? `device ${device.id}`}</span>
-              <span className="surface-device-detail">{device.phone ?? ""}</span>
-              <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
-                Forget
-              </button>
-            </div>
-          ))}
+          {devices.map((device) => {
+            // This computer's own record: named as it names itself, and with
+            // no Forget. The button would take the app's own key to its own
+            // door out of the store while the running door still holds it, so
+            // the local chat would answer 401 until the next launch minted a
+            // fresh one. The command refuses it too; the row simply does not
+            // offer it.
+            const host = device.kind === "host";
+            return (
+              <div key={device.id} className="surface-device">
+                <span className="surface-device-name">
+                  {device.label ?? (host ? "This computer" : `device ${device.id}`)}
+                </span>
+                <span className="surface-device-detail">{device.phone ?? ""}</span>
+                {host ? null : (
+                  <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
+                    Forget
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>

@@ -29,12 +29,16 @@ struct MetricState {
 }
 
 /// One currently-busy device, as the page may see it: the owner's label for
-/// it and its id. A credential, a prompt, a path, any content — none of
-/// that is here, because none of it may cross this boundary.
+/// it, its id, and whether it is a phone or this computer itself. A
+/// credential, a prompt, a path, any content — none of that is here, because
+/// none of it may cross this boundary. The kind is public: the host's label
+/// already says "This computer", and the page must not read this computer's
+/// own traffic as a phone's.
 #[derive(Clone, Serialize)]
 pub(crate) struct ActiveDeviceDto {
     pub(crate) id: u32,
     pub(crate) label: String,
+    pub(crate) kind: &'static str,
 }
 
 #[derive(Clone, Serialize)]

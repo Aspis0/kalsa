@@ -22,10 +22,12 @@ export const STOP_FAILURE = "The assistant did not turn off. Closing this window
 export interface BrainState {
   kind: "stopped" | "starting" | "running" | "failed";
   reason?: string;
-  // Only on `running`: where an OpenAI-style client on this machine
-  // reaches the local server, and the catalog's own name for what
-  // launched (absent on the development path).
-  endpoint?: string;
+  // Only on `running`: the DOOR's OpenAI-style address, and `null` while
+  // the door is not up. The engine's own port is deliberately not offered
+  // as a fallback — the page's own chat is a device at the door, and the
+  // engine port has no credential and no slot. The catalog's own name for
+  // what launched rides along (absent on the development path).
+  endpoint?: string | null;
   model?: string;
   // Only on `running`: whether the model is in memory right now, as the
   // server's own announcement on stderr. `null` (and an absent field) is "not
@@ -34,15 +36,22 @@ export interface BrainState {
   asleep?: boolean | null;
   metrics?: {
     decode_tokens_per_second?: number;
-    active_devices?: unknown[];
+    // Who the door is serving right now, with the kind that tells this
+    // computer's own traffic from a phone's.
+    active_devices?: { kind?: string }[];
     throttled?: boolean;
   };
 }
 
-/** Where the local server answers and what it loaded, while it is running. */
+/** The local server as the page reaches it, while it runs: the door's
+    endpoint, the model it launched, and this computer's own credential. The
+    credential is a secret and lives only here, in memory, for the life of
+    the window — never in settings, never in localStorage, never in a
+    sentence. */
 export interface BrainServer {
   endpoint: string;
   model: string;
+  credential: string;
 }
 
 // One read of `brain_state` runs for the whole app: the command itself
@@ -58,6 +67,12 @@ let currentState: BrainState | null = null;
 let currentStep: ProgressStep | null = null;
 let readSnapshot: BrainRead = { state: null, step: null };
 let serverSnapshot: BrainServer | null = null;
+// This computer's own credential, fetched from Rust while the door is up.
+// Memory only, on purpose: it is a bearer secret, and the one place it must
+// never be is somewhere it outlives the process or can be read back. It is
+// re-fetched rather than kept forever, because forgetting the store mints a
+// new one: see `forgetLocalCredential`.
+let hostCredential: string | null = null;
 const listeners = new Set<() => void>();
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let offProgress: (() => void) | null = null;
@@ -73,14 +88,15 @@ function publish(): void {
     readSnapshot = next;
   }
   const server =
-    currentState?.kind === "running" && currentState.endpoint
-      ? { endpoint: currentState.endpoint, model: currentState.model ?? "" }
+    currentState?.kind === "running" && currentState.endpoint && hostCredential
+      ? { endpoint: currentState.endpoint, model: currentState.model ?? "", credential: hostCredential }
       : null;
   if (
     server === null ||
     serverSnapshot === null ||
     server.endpoint !== serverSnapshot.endpoint ||
-    server.model !== serverSnapshot.model
+    server.model !== serverSnapshot.model ||
+    server.credential !== serverSnapshot.credential
   ) {
     serverSnapshot = server;
   }
@@ -97,6 +113,24 @@ async function poll(): Promise<void> {
     }
   }
   currentState = next;
+  // The credential is fetched through its own command, never through
+  // `brain_state`: the state is polled and logged-about everywhere, and the
+  // secret belongs in exactly one IPC answer. Cached, but it CAN change under
+  // a running window: the Devices page's hatch deletes the whole store — host
+  // record included — so the door rebuilt beside it holds a key this cache
+  // does not. `forgetLocalCredential` is that hatch's call, and the next poll
+  // then fetches the replacement. A failed read leaves it null and the next
+  // poll asks again — what must not happen is an empty string standing in for
+  // a key, which the door answers with 401.
+  if (next?.kind === "running" && next.endpoint && hostCredential === null) {
+    try {
+      const value = await invoke<string>("brain_host_credential");
+      if (typeof value === "string" && value.trim()) hostCredential = value.trim();
+    } catch {
+      // No key yet: the page then has no local connection to offer, which is
+      // the honest state, and the next poll tries again.
+    }
+  }
   publish();
 }
 
@@ -139,12 +173,27 @@ function getBrainServer(): BrainServer | null {
   return serverSnapshot;
 }
 
-/** The brain's server facts, for the shell: filled blanks, never overrides. */
+/** The brain's server facts, for the shell. */
 export function useBrainServer(): BrainServer | null {
   return useSyncExternalStore(subscribeBrainRead, getBrainServer, getBrainServer);
 }
 
-/** The owner's settings win; the brain's own server fills their blanks. */
+/** Drops this computer's cached key. The Devices page's hatch deletes the
+    whole store, host record included, so the door rebuilt beside it holds a
+    different key — every message the page signed with the cached one would
+    answer 401. Clearing it here makes the next poll fetch the replacement;
+    without it the window keeps a dead credential until a reload. */
+export function forgetLocalCredential(): void {
+  hostCredential = null;
+  publish();
+}
+
+/** The brain's own connection WINS while it runs: its door endpoint, its
+    model and this computer's credential. The owner's saved values describe
+    their own remote server, and are used only while the brain is not
+    serving — letting a saved endpoint win would send this computer's
+    credential to a remote host, or a remote key to the door, which is the
+    one pairing of secret and address that must not happen. */
 export function withBrainDefaults(
   settings: ChatSettings,
   server: BrainServer | null,
@@ -152,8 +201,13 @@ export function withBrainDefaults(
   if (!server) return settings;
   return {
     ...settings,
-    endpoint: settings.endpoint.trim() ? settings.endpoint : server.endpoint,
-    model: settings.model.trim() ? settings.model : server.model,
+    endpoint: server.endpoint,
+    token: server.credential,
+    // The model name is the one thing the brain may not have: the
+    // development path pins a file no catalog choice named, and the page
+    // then keeps whatever the owner typed. An empty brain model is the
+    // absence of a name, not a name to send.
+    model: server.model.trim() ? server.model : settings.model,
   };
 }
 
@@ -217,12 +271,20 @@ export function brainWords(
         running,
       };
     case "running": {
-      // A connected device is real information, so it keeps its own sentence.
+      // A connected PHONE is real information, so it keeps its own sentence.
       // It wins over the sleeping model below: a release cannot cut a live job
       // (the server releases its weights only when idle), so a phone using this
       // computer right now is the fresher of the two facts and the one the
       // owner can see for themselves.
-      const deviceCount = state.metrics?.active_devices?.length ?? 0;
+      //
+      // The host is a device now and its own chat runs through the same door,
+      // so it is counted out here: this computer's traffic must not produce a
+      // sentence about a phone, and the kind is what tells them apart. A
+      // device without a kind is counted as a phone — an older backend, and
+      // the reading the sentence always had.
+      const deviceCount = (state.metrics?.active_devices ?? []).filter(
+        (device) => device.kind !== "host",
+      ).length;
       // Only `true` changes the words. `false` is a model in memory, and `null`
       // is a residency nothing could announce — an adopted server, whose
       // stderr this app never held. `null` is not guessed into either answer.

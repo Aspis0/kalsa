@@ -186,7 +186,7 @@ fn a_development_override_counts_as_chosen_without_a_catalog_name() {
 fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
     let dto = StateDto::Running {
         port: startup::PORT,
-        endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
+        endpoint: Some(format!("http://127.0.0.1:{}/v1", startup::PORT)),
         model: Some("IBM Granite 4 Tiny".to_string()),
         reason: Some("It is the more capable of the two.".to_string()),
         asleep: Some(true),
@@ -201,7 +201,7 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
     assert_eq!(
         json["endpoint"],
         format!("http://127.0.0.1:{}/v1", startup::PORT),
-        "the local server's own OpenAI-style address, loopback, not the door"
+        "the door's own OpenAI-style address, loopback, is the only one the page takes"
     );
     assert_eq!(
         json["model"], "IBM Granite 4 Tiny",
@@ -217,6 +217,32 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
     );
 }
 
+/// A running engine whose door is not up publishes no endpoint at all. The
+/// engine's own port is deliberately not offered as a fallback: forwarding
+/// there would be the one conversation in the system with no credential, no
+/// slot and no cache of its own — the thing this change exists to end.
+#[test]
+fn a_running_engine_without_a_door_publishes_no_endpoint() {
+    let dto = StateDto::Running {
+        port: startup::PORT,
+        endpoint: None,
+        model: Some("IBM Granite 4 Tiny".to_string()),
+        reason: None,
+        asleep: None,
+        metrics: metrics::RuntimeMetricsDto {
+            decode_tokens_per_second: None,
+            active_devices: None,
+            throttled: None,
+        },
+    };
+    let json = serde_json::to_value(&dto).expect("a running state serialises");
+    assert_eq!(json["kind"], "running");
+    assert!(
+        json["endpoint"].is_null(),
+        "no door, no endpoint: the engine port is not the page's road: {json}"
+    );
+}
+
 #[test]
 fn an_unknown_residency_crosses_as_an_absence_not_as_a_fact() {
     // What `brain_state` answers for a server this app adopted on startup:
@@ -227,7 +253,7 @@ fn an_unknown_residency_crosses_as_an_absence_not_as_a_fact() {
     // in memory on no evidence.
     let dto = StateDto::Running {
         port: startup::PORT,
-        endpoint: format!("http://127.0.0.1:{}/v1", startup::PORT),
+        endpoint: Some(format!("http://127.0.0.1:{}/v1", startup::PORT)),
         model: None,
         reason: None,
         asleep: None,
@@ -791,7 +817,8 @@ fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device(
         String::from_utf8_lossy(&newcomer_response)
     );
     assert!(
-        String::from_utf8_lossy(&newcomer_response).contains("already serving 1 devices"),
+        String::from_utf8_lossy(&newcomer_response)
+            .contains("This computer is set up for 1 device at once"),
         "the refusal did not say why: {}",
         String::from_utf8_lossy(&newcomer_response)
     );
@@ -962,4 +989,233 @@ fn an_engine_that_cannot_isolate_is_given_one_device_not_a_refusal() {
         4,
         "an engine that reads the inlet keeps the capacity it was asked for"
     );
+}
+
+#[test]
+fn a_store_holding_only_the_host_starts_the_door() {
+    // PROVES: the host's own record is enough for the door to stand up on a
+    // machine that has never paired a phone, so this computer's own
+    // conversation has a credential at the door instead of none. The host's
+    // stored credential passes the door's credential check and reaches the
+    // forward step — the upstream port here is dead, so an accepted request
+    // ends in the door's 502 rather than its 401 — while a credential nobody
+    // stored is still refused with 401.
+    //
+    // DOES NOT PROVE anything about slots: no upstream exists here to observe
+    // the sealed headers, so nothing is asserted about `X-Kalsa-Slot` or
+    // `X-Kalsa-Cache-Salt`, and a host-only store never reaches the no-slot
+    // 503. Slot placement and the sealed headers are covered where the
+    // upstream IS recorded, in kalsa-door's own tests.
+    //
+    // The capacity is carried the way the walk carries it — the store's own
+    // device count into the launch record's `parallel`, never a literal.
+    let root = std::env::temp_dir().join(format!("kalsa-brain-host-door-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    take_own_seat(&file).expect("this computer takes its own seat");
+    assert_eq!(enrolled_devices(&file), 1, "the host is one seat");
+    let host = kalsa_pairing::store::load_devices(&file)
+        .expect("the store reloads")
+        .remove(0);
+
+    let brain = Brain::new();
+    brain.record_launch(
+        startup::LaunchInfo {
+            args: kalsa_launch::ServerArgs {
+                parallel: enrolled_devices(&file),
+                ..launch_args("/models/host-only.gguf", startup::PORT)
+            },
+            maximum_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            automatic_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            context_prices: Default::default(),
+            display_name: None,
+            reason: None,
+        },
+        StartOutcome::Accepted,
+    );
+    brain.start_door_if_paired(1, &file, false).unwrap();
+    let port = brain
+        .door_port()
+        .expect("the host's own seat is enough to build the door");
+
+    // The key the page gets from `brain_host_credential` is the key the door
+    // authenticates.
+    let with_key = door_response(port, &host.handshake.credential_hex());
+    assert!(
+        with_key.starts_with(b"HTTP/1.1 502") || with_key.starts_with(b"HTTP/1.1 200"),
+        "the host's own credential did not open the door: {}",
+        String::from_utf8_lossy(&with_key)
+    );
+    let stranger = door_response(port, &"00".repeat(32));
+    assert!(
+        stranger.starts_with(b"HTTP/1.1 401"),
+        "a credential nobody stored is still refused: {}",
+        String::from_utf8_lossy(&stranger)
+    );
+    brain.stop_door();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_missing_store_is_no_seat_and_no_door() {
+    // The enrolment failure path: with nothing written the count is zero,
+    // the plan keeps its one-seat default, and the door stands down rather
+    // than promising a seat no credential backs.
+    let root = std::env::temp_dir().join(format!("kalsa-brain-no-store-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    assert_eq!(enrolled_devices(&file), 0);
+
+    let brain = Brain::new();
+    brain.start_door_if_paired(1, &file, false).unwrap();
+    assert!(brain.door_port().is_none(), "an empty store builds no door");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn enrolled_devices_counts_this_computer_and_every_phone() {
+    // Two phones written by a build that had no `kind` key, then the host the
+    // next launch enrols: the count is the whole store, because each stored
+    // device holds a seat whether or not it is talking.
+    let root = std::env::temp_dir().join(format!("kalsa-brain-enrolled-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    let first = "11".repeat(32);
+    let second = "22".repeat(32);
+    std::fs::write(
+        &file,
+        format!(
+            r#"{{"v":2,"devices":[
+                {{"id":0,"label":"Paired phone","credential_hex":"{first}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}},
+                {{"id":1,"label":"Paired phone 2","credential_hex":"{second}","phone":{{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+    assert_eq!(enrolled_devices(&file), 2, "two phones, two seats");
+    kalsa_pairing::store::enrol_host(&file).unwrap();
+    assert_eq!(enrolled_devices(&file), 3, "the host is a seat too");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn taking_our_own_seat_writes_exactly_one_host_record() {
+    // The flagship wiring, driven directly: the setup hook's step, called on a
+    // store that does not exist yet. Exactly one record appears — id 0, kind
+    // Host, and no phone fields, because this computer declared none.
+    let root = std::env::temp_dir().join(format!("kalsa-brain-seat-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    take_own_seat(&file).expect("a fresh store takes this computer's seat");
+
+    let stored = kalsa_pairing::store::load_devices(&file).expect("the host reloads");
+    assert_eq!(stored.len(), 1, "one seat, the host's");
+    assert_eq!(stored[0].id, 0, "the host takes the first seat");
+    assert_eq!(stored[0].kind, DeviceKind::Host);
+    assert_eq!(stored[0].label, kalsa_pairing::store::HOST_LABEL);
+    assert!(
+        stored[0].handshake.phone.is_none(),
+        "a host carries no phone fields"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn taking_our_own_seat_twice_changes_nothing() {
+    // `enrol_host` runs on EVERY launch, so a second call must answer the
+    // first record again: one record, the same id, the same credential. A new
+    // key here would mean a new cache salt and a cold model on every start.
+    let root = std::env::temp_dir().join(format!("kalsa-brain-seat-twice-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    take_own_seat(&file).expect("the first launch takes the seat");
+    let first = kalsa_pairing::store::load_devices(&file).expect("the host reloads");
+    assert_eq!(first.len(), 1);
+    let credential = first[0].handshake.credential_hex();
+
+    take_own_seat(&file).expect("the second launch takes the same seat");
+    let second = kalsa_pairing::store::load_devices(&file).expect("the host still reloads");
+    assert_eq!(second.len(), 1, "the second launch added a second record");
+    assert_eq!(second[0].id, first[0].id, "the host's id changed");
+    // Compared, never printed: both values are secrets.
+    assert!(
+        second[0].handshake.credential_hex() == credential,
+        "the second launch minted a fresh credential"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_store_that_cannot_be_written_is_an_error_not_a_panic() {
+    // The startup hook prints the error and starts anyway, so this must answer
+    // Err, not panic. The path's parent is a FILE, so nothing can be written
+    // below it; nothing half-written may be left pretending to be a seat.
+    let root = std::env::temp_dir().join(format!(
+        "kalsa-brain-seat-unwritable-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocker = root.join("not-a-directory");
+    std::fs::write(&blocker, b"a file, so nothing can be created below it").unwrap();
+    let file = blocker.join(PAIRING_FILE);
+
+    let outcome = take_own_seat(&file);
+    assert!(
+        outcome.is_err(),
+        "an unwritable store must answer Err, not panic"
+    );
+    assert_eq!(
+        enrolled_devices(&file),
+        0,
+        "a failed enrolment leaves no seat behind"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn forgetting_the_store_gives_this_computer_its_seat_back() {
+    // The Devices page's escape hatch deletes the WHOLE store, host record
+    // included. The command puts this computer back in the same breath, so
+    // the store is never left host-less: this computer stays a device, and
+    // the door rebuilt from the store keeps a credential for its own chat.
+    let root = std::env::temp_dir().join(format!(
+        "kalsa-brain-forget-seat-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    // A store nothing can read is exactly when the hatch is offered.
+    std::fs::write(&file, b"\x00\x01 neither json nor ours").unwrap();
+    let desk = pairing::Desk::new(file.clone());
+    forget_store_and_keep_own_seat(&desk).expect("the hatch clears an unreadable store");
+
+    let stored = kalsa_pairing::store::load_devices(&file).expect("the store reloads");
+    assert_eq!(stored.len(), 1, "the store is never left host-less");
+    assert_eq!(stored[0].kind, DeviceKind::Host, "the survivor is this computer");
+    assert_eq!(stored[0].id, 0, "a fresh store gives the host seat 0 again");
+
+    // Ids are minted by the store, never re-densified: a phone paired after
+    // the hatch takes the next id rather than the host's seat.
+    let phone_file = root.join("phone.json");
+    persist_pairing(&phone_file);
+    let phone = kalsa_pairing::store::load(&phone_file).expect("the phone reloads");
+    let added = kalsa_pairing::store::add_device(&file, "Paired phone", &phone)
+        .expect("a phone pairs beside the host");
+    assert_eq!(
+        added.id, 1,
+        "the phone's id was re-densified onto the host's seat"
+    );
+    let _ = std::fs::remove_dir_all(root);
 }

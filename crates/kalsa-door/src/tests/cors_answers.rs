@@ -129,7 +129,8 @@ fn the_no_slot_refusal_names_the_origin_that_asked() {
     );
     assert_origin_aware(&refused, Some(ORIGIN), "the no-slot refusal");
     assert!(
-        String::from_utf8_lossy(&refused).contains("This computer is already serving 1 devices."),
+        String::from_utf8_lossy(&refused)
+            .contains("This computer is set up for 1 device at once, and one of them is this computer."),
         "the refusal stopped saying what it says: {}",
         String::from_utf8_lossy(&refused)
     );

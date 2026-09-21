@@ -591,8 +591,11 @@ try {
     if (heading.includes("saved here; the phone still needs the response") && !sentence.includes("the phone still needs to receive it")) {
       problems.push(`a pending delivery must say that the phone still needs the response: ${heading}`);
     }
-    if (deviceNames.length >= 2 && !sentence.includes("paired devices")) {
-      problems.push(`a several-device house must be described as a house, not by one of its devices: ${heading}`);
+    // The host row is one of the stored devices now, and it is not a phone:
+    // the house sentence counts phones, so the check must count them too.
+    const phoneNames = deviceNames.filter((name) => name !== "This computer");
+    if (phoneNames.length >= 2 && !sentence.includes("paired phones")) {
+      problems.push(`a several-phone house must be described as a house, not by one of its phones: ${heading}`);
     }
     if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
   }

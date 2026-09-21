@@ -40,12 +40,17 @@ const STUB_SQUARE =
   '<path fill="#000000" d="M4 4h2v2H4zM8 4h1v1H8zM4 8h1v1H4zM10 10h3v3h-3zM6 12h1v1H6zM12 6h2v1h-2z"/>' +
   "</svg> (stub square)";
 
+// The host is a stored device now: every real `brain_pairing` answer carries
+// it, and the page must render "This computer" with no Forget. The phone is
+// what the paired sentence counts.
+const HOST_DEVICE = { id: 0, label: "This computer", phone: "", kind: "host" };
 const ONE_DEVICE = [
-  { id: 0, label: "Paired phone", phone: "phone with 2 GB of model weights" },
+  HOST_DEVICE,
+  { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone" },
 ];
 const MANY_DEVICES = [
   ...ONE_DEVICE,
-  { id: 1, label: "Paired phone 2", phone: "phone with 3 GB of model weights" },
+  { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone" },
 ];
 
 function advancedDto(extra = {}) {
@@ -200,6 +205,9 @@ function installBridge() {
             if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
             if (command === "brain_pairing") return Promise.resolve(bridgeState.pairing ?? null);
             if (command === "brain_advanced") return Promise.resolve(bridgeState.advanced ?? null);
+            // The host's credential the page keeps in memory. A stub value:
+            // nothing in these states talks to a door.
+            if (command === "brain_host_credential") return Promise.resolve("ab".repeat(32));
             if (command === "brain_start" && bridgeState.startFailure) return Promise.reject(new Error(bridgeState.startFailure));
             if (command === "brain_set_advanced") return Promise.resolve(bridgeState.advanced ?? null);
             return Promise.resolve(null);
