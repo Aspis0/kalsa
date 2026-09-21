@@ -5,7 +5,6 @@ import type { ModelInfo } from "./ModelRegistry";
 import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
 
 const MIB = 1024 * 1024;
-const EIGHT_GIB = 8 * 1024 * MIB;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
 export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
 
@@ -22,7 +21,7 @@ const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
    * same-top is 94.8%; evidence is n=1 pair on one board (ALIVE 60).
    */
   V75: true,
-  V73: false, // never measured in-app; bench runs use kalsa.bench.governor_force
+  V73: true, // owner decision 2026-09-21: enabled in production, never measured in-app; kalsa.bench.governor_force still exists for the other paths
   Unknown: false,
 };
 
@@ -86,10 +85,8 @@ function gpuFit(
   profile: DeviceProfile,
   memory: MemorySnapshot,
 ) {
-  const total = profile.totalMemoryBytes ?? memory.totalMemoryBytes;
   const kv = model.kvBytesPerToken;
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
-  if (typeof total !== "number" || total <= EIGHT_GIB) return "NoFit" as const;
   if (generationFor(profile) === "Unknown") return "NoFit" as const;
 
   const estimate = estimateMemory({
@@ -134,7 +131,10 @@ export function buildGovernorParams(
     generation,
     model_kind: modelKind(modelEntry),
     gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
-    gpu_prefill_measured: generation === "V75" || generation === "V79",
+    // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
+    // The generation list is duplicated in the engine; the form refactor should carry it once.
+    gpu_prefill_measured:
+      generation === "V73" || generation === "V75" || generation === "V79",
     bench_force_gpu_prefill: force,
     npu_lane_enabled: false,
     reload_budget_available: false,

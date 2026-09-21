@@ -101,10 +101,9 @@ describe("governor inputs", () => {
       gpu_prefill_measured: true,
     });
     expect(buildGovernorParams(model, device("SM8550"), memory)).toMatchObject({
-      enabled: false,
+      enabled: true,
       generation: "V73",
-      gpu_prefill_measured: false,
-      reason: "gpu-prefill-incorrect-V73",
+      gpu_prefill_measured: true,
     });
     expect(
       buildGovernorParams(
@@ -123,8 +122,7 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("SM7675"), memory)).toMatchObject({
       generation: "V73",
       bench_force_gpu_prefill: false,
-      enabled: false,
-      reason: "gpu-prefill-incorrect-V73",
+      enabled: true,
     });
     expect(buildGovernorParams(model, device("SM8635"), memory).generation).toBe("V73");
     expect(buildGovernorParams(model, device("QRD7675"), memory).generation).toBe("V73");
@@ -141,8 +139,7 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("SM7675"), memory, false)).toMatchObject({
       generation: "V73",
       bench_force_gpu_prefill: false,
-      enabled: false,
-      reason: "gpu-prefill-incorrect-V73",
+      enabled: true,
     });
   });
 
@@ -165,13 +162,14 @@ describe("governor inputs", () => {
     });
   });
 
-  test("refuses unknown KV and 8 GiB devices", () => {
+  test("refuses unknown KV and no longer gates on total RAM", () => {
     expect(
       buildGovernorParams({ sizeBytes: model.sizeBytes }, device("SM8650"), memory).gpu_fit,
     ).toBe("NoFit");
+    // Total RAM is not a gate; the memory estimate against availableMemoryBytes decides.
     expect(
       buildGovernorParams(model, device("SM8650", 8 * 1024 ** 3), memory).gpu_fit,
-    ).toBe("NoFit");
+    ).toBe("Fit");
   });
 
   test("prices two contexts with the measured LFM KV", () => {
@@ -186,7 +184,7 @@ describe("governor inputs", () => {
     ).toBe("Fit");
     expect(
       buildGovernorParams(lfm!, device("QRD8650", 8 * 1024 ** 3), memory).gpu_fit,
-    ).toBe("NoFit");
+    ).toBe("Fit");
   });
 
   test("bench thermo wins over BatteryManager", async () => {
