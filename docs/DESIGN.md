@@ -274,6 +274,39 @@ Two defects to fix while porting, both found in the inventory:
 - The attachment is an explicit chip — *"Legge da fisica.pdf"* — never a bare filename, because a
   chip with no label is a rebus.
 
+**The keyboard, and why the shell cannot ignore it.** This app ships `targetSdk=36` with
+`edgeToEdgeEnabled`, so on Android 15+ `windowSoftInputMode="adjustResize"` **no longer shrinks the
+window**: the IME draws over the app and `useWindowDimensions()` keeps reporting the full height. That
+was read from the installed React Native 0.86 sources rather than assumed — `DeviceInfoModule.kt`
+computes the window from `computeCurrentWindowMetrics` with no IME term; `ReactRootView.java` treats the
+keyboard as an **inset** (`WindowInsetsCompat.Type.ime()`) and never resizes the root; and
+`safe-area-context`'s bottom inset sums status bars, cutout, navigation bars and caption bar with **no**
+`ime()`. The emulator then confirmed it: `mInputShown=true`, window still 621 dp, which is why the 325 dp
+case had to be pinned by hand. A shell that lays its bands out from the window height alone therefore
+puts the composer **under the keyboard**, and no capture would have caught it, because the capture was
+pinning the height itself.
+
+Decision, taken before mounting the shell:
+
+- `shellGeometry` gains a **fourth input, the keyboard height**, and the available height becomes
+  `height - keyboardHeight`. The 349x325 dp case stops being a simulation and becomes the geometry of an
+  open keyboard — which is what this document has claimed it was all along.
+- The height is fed as **discrete state**, set when the keyboard settles (`keyboardDidShow` /
+  `keyboardDidHide`) and never per frame: a per-frame React value would re-render the whole shell at
+  animation rate. The visual transition belongs to Reanimated on the UI thread — the same split the
+  existing chat already uses (`kbPad` over the root, chosen there because its frame-diff formula
+  under-lifted by a constant, `AiChatPage.tsx:3936-3940`) and the same reason the cloud's own animation
+  never touches React state.
+- The height comes from `react-native-keyboard-controller`, which the app already ships (1.21.9) and
+  which reads the IME from native insets. **The safe-area bottom inset must never be used for this**:
+  it excludes the IME, and stacking the two double-counts — a trap the existing composer's comment
+already records.
+- The transcript's pin re-decides when the keyboard settles, through the `resize` cause it already
+  has.
+- `scripts/ci-screens.sh:647` and `:690-693` already assert "composer bottom ≤ IME top" for the old
+  app. **That assertion must be extended to the new shell before it is mounted**, because it is the only
+  check in the project that would fail when this breaks.
+
 ### 2.8 Stop, and its four outcomes
 
 | outcome | what the user sees |
