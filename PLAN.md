@@ -375,6 +375,41 @@ Cache caveats, standing (source of truth is the Cloudflare docs, not folklore):
   bucket through the S3 API, which bypasses the cache entirely; a client-side 404 must be
   re-checked with a cache-busting query before it is believed.
 
+### Owner decision 2026-09-21: the app interface is redone FROM SCRATCH; only the palette survives
+
+Owner, 2026-09-21, in correction of an earlier reading of the task that treated it as a restyle:
+the whole app interface is redone from scratch, and the ONLY asset that carries over is the
+PALETTE - the notebook colours already in the app's `src/theme/tokens.ts` (warm cream paper, deep
+blue-grey chrome, blue-black ink, teal accent, with their dim and variant values).
+
+What that disposes of: the current screens, the information architecture, the components, the
+layout, the composer, the navigation, the presentation of a conversation, and where documents and
+voice live. None of it is a constraint to preserve.
+
+Consequences recorded with the decision:
+
+- The structural refactor of the current monoliths (extracting presentation units with tests) is
+  CANCELLED: extracting units from screens that are being replaced is work thrown away.
+- `labbook-v2.css`, which `src/theme/tokens.ts:21-24` cites as the source the palette was
+  converted from, DOES NOT EXIST: not on disk, not anywhere in the app repo's entire history
+  (`git log --all`), not in the lab. It lived only in a chat. The values in `tokens.ts` are
+  therefore the source of truth and the comment above them is wrong.
+- The fixed contract for the new interface is what the app must DO (the flows in this PLAN and in
+  `docs/ALIVE.md`) and the services it calls: the engine, the governor, the session/KV code, the
+  pins and the Meter are NOT part of the redesign. The shell is replaced, not the machine.
+- Two defects found while mapping the old interface become REQUIREMENTS of the new one rather
+  than patches to the old: the composer showed "Fai una domanda..." while `editable` was false, so
+  it invited typing and refused it silently (`AiChatPage.tsx:4337-4339`; same on the three composer
+  chips at `:4196-4219`, including the document-library entry point); and the UI is barely
+  automatable (`testID` appears 16 times in all of `src/`, and the accessibility dump of the Jelly
+  shows an empty `resource-id` on every node), which is why the interface tests are fragile.
+- The two real viewports the new design must serve, measured on the handsets: Jelly Star
+  480x854 at 220 dpi = 349x621 dp on a 3-inch screen (the hard case, and the app area can shrink to
+  480x447 px with the system bars), Galaxy S23 1080x2340 at 480 dpi = 360x780 dp. Design for the
+  Jelly first: the logical width is nearly identical (349 against 360 dp), so a layout that breaks
+  only on width looks fine on both and hides its bug, while the height and the physical legibility
+  differ by far more.
+
 ## Open decisions
 
 ### Owner-suspended
