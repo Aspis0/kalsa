@@ -33,6 +33,7 @@ import json
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -131,6 +132,30 @@ def wait_health(port, timeout=180):
     return False
 
 
+def port_is_held(port):
+    """True when something already listens on the port.
+
+    A stale engine left by an interrupted run answers /health exactly like the
+    one about to start. The harness would then measure the wrong process in the
+    wrong work directory, and every number would look plausible: this happened,
+    and a whole arm of a run was read from an engine writing into the previous
+    run's directory. Binding is the exact test, and it costs nothing.
+    """
+    probe = socket.socket()
+    # SO_REUSEADDR, because the engine sets it: a port left in TIME_WAIT by the
+    # engine we just stopped is one cpp-httplib binds happily, and without this
+    # the guard refuses a port that was never occupied. It still refuses a real
+    # listener, which is the case it exists for.
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        probe.bind(("127.0.0.1", port))
+        return False
+    except OSError:
+        return True
+    finally:
+        probe.close()
+
+
 def sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -148,6 +173,11 @@ class Server:
         self._fh = None
 
     def start(self, port):
+        if port_is_held(port):
+            raise RuntimeError(
+                f"port {port} already answers: an engine from an earlier run is "
+                f"still up, and this run would read ITS directory, not ours"
+            )
         self._fh = open(self.log_path, "wb")
         env = dict(os.environ)
         env.pop("LLAMA_SERVER_SLOTS_DEBUG", None)
@@ -158,6 +188,12 @@ class Server:
         if not wait_health(port):
             self.stop()
             raise RuntimeError("engine did not become healthy")
+        if self.proc.poll() is not None:
+            self.stop()
+            raise RuntimeError(
+                f"the engine exited during boot and something else answered the "
+                f"health check; see {self.log_path}"
+            )
 
     def stop(self):
         if self.proc is not None:
@@ -227,10 +263,15 @@ def send(port, prompt, salt_hex, n_predict, slot, server):
     }
 
 
-def slot_action(port, slot, action, filename=None):
+def slot_action(port, slot, action, filename=None, salt_hex=None):
+    # The salt rides the slot actions too, because the door's own call to the
+    # engine carries it (`engine.rs: private_headers`). Leaving it out here made
+    # the "salted" arm mean "completion salted, slot actions unsalted" - a path
+    # no client produces - so the restore stamped the empty namespace and the
+    # next request wiped it. That read cold and said nothing about the fix.
     payload = {} if filename is None else {"filename": filename}
     t0 = time.perf_counter()
-    st, body = post(port, f"/slots/{slot}?action={action}", payload)
+    st, body = post(port, f"/slots/{slot}?action={action}", payload, salt_hex)
     wall = round((time.perf_counter() - t0) * 1000, 2)
     return {"status": st, "wall_ms": wall, "body": body}
 
@@ -239,10 +280,10 @@ def sequence(port, slot, chat, salt_hex, n_predict, server, slot_dir, tag):
     """cold send -> save -> erase -> restore -> the same send again."""
     cold = send(port, chat, salt_hex, n_predict, slot, server)
     before = len(server.lines())
-    save = slot_action(port, slot, "save", f"{tag}.bin")
+    save = slot_action(port, slot, "save", f"{tag}.bin", salt_hex)
     size = (slot_dir / f"{tag}.bin").stat().st_size if (slot_dir / f"{tag}.bin").exists() else None
-    erase = slot_action(port, slot, "erase")
-    restore = slot_action(port, slot, "restore", f"{tag}.bin")
+    erase = slot_action(port, slot, "erase", None, salt_hex)
+    restore = slot_action(port, slot, "restore", f"{tag}.bin", salt_hex)
     action_lines = watched(server.lines()[before:])
     after = send(port, chat, salt_hex, n_predict, slot, server)
     sb = save["body"] if isinstance(save["body"], dict) else {}
@@ -517,9 +558,13 @@ def main():
             "swa_full_off_1900_unsalted"]["warm"],
         "saltless_next_request_warm_with_swa_full": derived[
             "swa_full_on_1900_unsalted"]["warm"],
-        "blocking_mechanism": ("the restore wipes slot.prompt.cache_salt, so the "
-                               "next request with the same salt logs `different "
-                               "cache namespace - clearing cached prompt`"),
+        # Derived, never asserted: an artifact that states a defect is present
+        # when every arm comes back warm is worse than no field at all. This run
+        # is the one that proved that.
+        "cold_arms": sorted(name for name, rec in derived.items() if not rec["warm"]),
+        "mechanism_if_cold": ("the restore clears slot.prompt.cache_salt; a cold arm carrying a salt "
+                              "means the namespace was not stamped back, and the engine's own log says "
+                              "`different cache namespace - clearing cached prompt`"),
         "derived": derived,
     }
 
