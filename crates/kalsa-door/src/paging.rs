@@ -21,15 +21,14 @@
 //! switch is refused with it. An engine that never answered may not have run
 //! anything, and the slot is then `Unknown`, never called empty.
 //!
-//! Not here: *invalidating* the resident map when the engine sleeps, crashes
-//! or is replaced. That is T5. The map is what the door last did, and the
-//! staging file [`io`] writes is what keeps a stale map from destroying a file
-//! that is still good.
+//! The map is what the door last did, and the staging file [`io`] writes
+//! keeps a stale map from destroying a file that is still good.
 //!
 //! This module owns *which chat* a slot holds. The *when* of writing one out on
 //! a timer — where the switch never runs — is [`cadence`].
 
 mod cadence;
+mod invalidate;
 mod io;
 
 use std::fs;
@@ -102,7 +101,8 @@ struct Slot {
 /// reached the engine may not have run, so the slot holds what it held, and
 /// nothing is written out of it. [`io::restore`] records the two branches of a
 /// save and what each can leave behind, which is as far as the unknown's safety
-/// reaches.
+/// reaches. A slot is born unknown as well: a door built against an engine
+/// already holding state cannot call a slot it never saw `Empty`.
 enum Residency {
     Empty,
     Unknown,
@@ -140,7 +140,7 @@ impl Chats {
         idle_save: Option<Duration>,
     ) -> Self {
         let slots = (0..capacity)
-            .map(|_| Mutex::new(Slot { resident: Residency::Empty, dirty_at: None, retry_after: None }))
+            .map(|_| Mutex::new(Slot { resident: Residency::Unknown, dirty_at: None, retry_after: None }))
             .collect();
         Self { slots, model, dir, idle_save }
     }

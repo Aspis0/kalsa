@@ -363,3 +363,43 @@ fn an_interrupted_generation_still_marks_the_slot() {
     drop(client);
     door.shutdown();
 }
+
+#[test]
+fn a_dirty_unknown_slot_is_never_saved() {
+    let slot_dir = temp_dir("cadence-unknown");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+
+    // Nobody has looked at this slot: it is born `Unknown`, exactly as a door
+    // built against an engine that may already hold state in it.
+    let (dirty, claim) = door.chats.observed(0);
+    assert_eq!(claim, "unknown", "the door was born claiming a sight it never had");
+    assert!(dirty.is_none(), "a new slot came out dirty");
+
+    // A turn writes into it all the same: the mark records the turn and does
+    // not consult the map — `cadence::note_activity` carries the reason.
+    let before = Instant::now();
+    complete(address, &token);
+    let (dirty, claim) = door.chats.observed(0);
+    assert_eq!(claim, "unknown", "the completion moved the map");
+    assert!(dirty.is_some(), "the turn through the slot was not marked");
+
+    // And the save refuses it: nothing leaves a slot whose chat the door
+    // cannot name — no request to the engine, no file, no staging file.
+    assert_eq!(
+        door.save_idle(quiet_since(before)),
+        0,
+        "the tick saved a slot the door cannot name"
+    );
+    assert!(
+        engine.sent().iter().all(|sent| sent.action != "save"),
+        "the tick asked the engine to write an unknown slot: {:?}",
+        engine.sent()
+    );
+    assert!(
+        fs::read_dir(&slot_dir).unwrap().next().is_none(),
+        "a file appeared for a slot nobody could name"
+    );
+    door.shutdown();
+}

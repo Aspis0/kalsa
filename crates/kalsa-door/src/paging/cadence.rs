@@ -29,6 +29,18 @@ use crate::DeviceSet;
 /// Stamps the slot at the moment a completion passed through it: the state it
 /// now holds is not on disk, and the quiet it has to earn starts here. The one
 /// writer of `dirty_at`, so a dirty slot with no instant does not exist.
+///
+/// The mark does NOT consult the residency, and that is deliberate. It comes
+/// from `SlotTurn::drop`, and its fact is "a turn wrote into this slot" — true
+/// whether or not the door can name the chat in it: the map is born `Unknown`
+/// (a door can be built against an engine already holding state) and is
+/// relaxed to `Unknown` whenever the engine stops holding what it claimed
+/// (`Chats::invalidate_residency`). Gating the mark on the map would make
+/// "clean" mean "the map said so" instead of "the file holds this slot's
+/// state" — and the map is the one part of the tier that is allowed to not
+/// know. Consulting the map is the SAVE's job: `save_idle` refuses every slot
+/// it cannot name, and a test pins that a marked `Unknown` slot is never
+/// written out.
 pub(super) fn note_activity(state: &mut Slot) {
     state.dirty_at = Some(Instant::now());
 }

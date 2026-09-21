@@ -499,6 +499,19 @@ impl RunningDoor {
         self.chats.save_idle(&self.devices, self.upstream_port, now)
     }
 
+    /// What the app's tick calls when the supervisor says the engine no longer
+    /// holds what the map may claim: its model was released, or the server
+    /// died announcing nothing. Every `Resident` slot becomes `Unknown`, and
+    /// that is what makes the next activation restore from disk instead of
+    /// no-oping against a released model.
+    ///
+    /// Observed on the ticker's thread, not by `brain_state`: that command is
+    /// polled by the webview, and with no poll nobody would ever invalidate —
+    /// the door, the map and the timer would outlive the engine.
+    pub fn invalidate_residency(&self) {
+        self.chats.invalidate_residency();
+    }
+
     /// Replaces the credential set without stopping anything: the listener
     /// stays bound, the workers keep serving, the road never notices.
     ///

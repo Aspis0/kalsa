@@ -1496,3 +1496,261 @@ fn forgetting_the_store_gives_this_computer_its_seat_back() {
     );
     let _ = std::fs::remove_dir_all(root);
 }
+
+use std::io::{Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
+
+/// What the tick's predicate may read off the supervisor, pinned decision by
+/// decision. The predicate is the whole policy of the invalidation hook; the
+/// observation behind it is `Supervisor::watch`, which no command mediates.
+#[test]
+fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
+    let running = ServerState::Running { pid: 1, port: 8123 };
+    let failed = ServerState::Failed {
+        reason: kalsa_supervisor::Failure::ServerExited {
+            detail: "gone".into(),
+        },
+    };
+    // Released: the model is out of memory, every `Resident` claim is a lie,
+    // and the no-op on a resident chat would skip the restore from disk.
+    assert!(
+        engine_lost_its_state(&running, Some(true)),
+        "a released model left the map believed"
+    );
+    // A crash announces nothing on stderr — no release line, no residency —
+    // so only the state can say it, and it must be enough.
+    assert!(
+        engine_lost_its_state(&failed, None),
+        "a crash did not count as lost: nobody polls for it either"
+    );
+    assert!(engine_lost_its_state(&failed, Some(true)));
+    // In memory: nothing is lost, and invalidating here would burn a restore
+    // on every mount of an otherwise resident chat.
+    assert!(
+        !engine_lost_its_state(&running, Some(false)),
+        "a model in memory was read as lost"
+    );
+    // `None` is a server with no pipe of ours (adopted): nothing has said its
+    // state is gone, and a door born against one starts `Unknown` anyway —
+    // invalidating on `None` would cost every mount a full restore.
+    assert!(
+        !engine_lost_its_state(&running, None),
+        "an unanswered residency was read as a release"
+    );
+    // Stopped and Starting never meet a live door: every path that stops or
+    // starts the supervisor calls `stop_door` first (`brain_stop`, the turn-on
+    // walk, the exit handler), and the state changes that reach an unpolled
+    // app are exactly the two above — a release, or a death.
+    assert!(!engine_lost_its_state(&ServerState::Starting, None));
+    assert!(!engine_lost_its_state(&ServerState::Stopped, None));
+}
+
+/// A stand-in engine for the door: records the action of every slot request
+/// and answers 200 with the field the door parses. The tick's test only ever
+/// restores and erases, so nothing here writes files — the chat's file is on
+/// disk before the test starts.
+fn stand_in_engine() -> (
+    u16,
+    Arc<Mutex<Vec<String>>>,
+    std::thread::JoinHandle<()>,
+    Arc<AtomicBool>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    listener.set_nonblocking(true).unwrap();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let stop = Arc::new(AtomicBool::new(false));
+    let handle = {
+        let log = Arc::clone(&log);
+        let stop = Arc::clone(&stop);
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+                        let mut head = Vec::new();
+                        while !head.ends_with(b"\r\n\r\n") {
+                            let mut byte = [0u8; 1];
+                            if stream.read(&mut byte).unwrap_or_default() == 0 {
+                                break;
+                            }
+                            head.push(byte[0]);
+                        }
+                        let text = String::from_utf8_lossy(&head).to_string();
+                        let length = text
+                            .split("\r\n")
+                            .filter_map(|line| line.split_once(':'))
+                            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                            .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+                            .unwrap_or(0);
+                        let mut body = vec![0u8; length];
+                        let _ = stream.read_exact(&mut body);
+                        let action = text
+                            .split_whitespace()
+                            .nth(1)
+                            .and_then(|target| target.split("action=").nth(1))
+                            .unwrap_or("none")
+                            .to_string();
+                        log.lock().unwrap().push(action);
+                        let reply_body = "{\"id_slot\":0,\"n_saved\":1}";
+                        let reply = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                             Content-Length: {}\r\nConnection: close\r\n\r\n{reply_body}",
+                            reply_body.len()
+                        );
+                        let _ = stream.write_all(reply.as_bytes());
+                    }
+                    Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(2))
+                    }
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+    (port, log, handle, stop)
+}
+
+/// One activate of the door's own route, the way a client sends it.
+fn activate_chat(address: std::net::SocketAddr, token: &str, id: &str) -> u16 {
+    let body = format!("{{\"id\":\"{id}\"}}");
+    let mut client = TcpStream::connect(address).unwrap();
+    client.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    write!(
+        client,
+        "POST /kalsa/chat/activate HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: Bearer {token}\r\nOrigin: tauri://localhost\r\n\
+         Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+    client.shutdown(Shutdown::Write).unwrap();
+    let mut response = Vec::new();
+    client.read_to_end(&mut response).unwrap();
+    String::from_utf8_lossy(&response)
+        .split(' ')
+        .nth(1)
+        .and_then(|code| code.parse().ok())
+        .unwrap_or(0)
+}
+
+/// THE property of T5a's hook, asserted at the Rust level: the supervisor
+/// moves to `Failed` on its own, and it is the tick — a thread that runs with
+/// no window behind it — that invalidates the door's map. `brain_state`, the
+/// only other observer of `ServerState` and a command the webview polls, is
+/// never called in this test; if the invalidation were routed through the
+/// poll, nothing here would move and the second activation would no-op.
+#[test]
+fn the_tick_invalidates_a_failed_servers_map_with_nobody_polling() {
+    // A start that fails by itself: the exe does not exist, so the worker
+    // walks Starting → Failed with no poll watching it.
+    let supervisor = Supervisor::new();
+    let port = {
+        let probe = TcpListener::bind("127.0.0.1:0").unwrap();
+        probe.local_addr().unwrap().port()
+    };
+    let state_file =
+        std::env::temp_dir().join(format!("kalsa-brain-t5a-{}.state", std::process::id()));
+    let _ = std::fs::remove_file(&state_file);
+    let _ = supervisor.start(kalsa_supervisor::ServerConfig {
+        exe: PathBuf::from("/nonexistent/kalsa-t5a-server"),
+        argv: vec![
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            port.to_string(),
+        ],
+        state_file: state_file.clone(),
+        port,
+        ready_timeout: Duration::from_secs(1),
+        stop_grace: Duration::from_millis(50),
+    });
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match supervisor.state() {
+            ServerState::Failed { .. } => break,
+            _ if Instant::now() >= deadline => panic!("the broken start never reported Failed"),
+            _ => std::thread::sleep(Duration::from_millis(5)),
+        }
+    }
+    let watch = supervisor.watch();
+
+    // A door against a stand-in engine, and a chat with a file on disk, so
+    // activating it is a real restore.
+    let (upstream, log, engine_thread, engine_stop) = stand_in_engine();
+    let slot_dir =
+        std::env::temp_dir().join(format!("kalsa-brain-t5a-slots-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&slot_dir);
+    std::fs::create_dir_all(&slot_dir).unwrap();
+    let token = "a".repeat(64);
+    let devices = kalsa_door::Devices::new(vec![kalsa_door::DeviceEntry::new(
+        kalsa_door::DeviceId::new(0),
+        "Host",
+        token.clone(),
+    )
+    .unwrap()])
+    .unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let door = kalsa_door::Door::new_with_engine(
+        listener,
+        upstream,
+        devices.clone(),
+        4,
+        kalsa_door::EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .with_model_hash("a1b2c3d4")
+    .unwrap()
+    .with_slot_dir(slot_dir.clone());
+    let door = Arc::new(door.start().unwrap());
+    let chat = "aaaa1111";
+    std::fs::write(slot_dir.join(format!("d0-ma1b2c3d4-c{chat}.bin")), b"state").unwrap();
+
+    // The chat is resident — one restore — and asking for it again is the
+    // no-op. Both facts are recorded before anything is torn down.
+    assert_eq!(
+        activate_chat(address, &token, chat),
+        204,
+        "the first activation of a stored chat is a restore"
+    );
+    assert_eq!(activate_chat(address, &token, chat), 204);
+    let baseline = log.lock().unwrap().clone();
+    assert_eq!(baseline, ["restore"], "the resident chat was not a no-op: {baseline:?}");
+
+    // The tick, exactly as the ticker's thread calls it: the supervisor's own
+    // watch in, the door's map out — no command, no webview, no poll.
+    let doors = Mutex::new(Some(ActiveDoor {
+        devices,
+        host: None,
+        address,
+        door: Arc::clone(&door),
+    }));
+    tick(&doors, &watch);
+    assert_eq!(
+        activate_chat(address, &token, chat),
+        204,
+        "the activation after the tick failed"
+    );
+    let actions = log.lock().unwrap().clone();
+
+    // Teardown before the verdicts, so a failing assertion leaves nothing
+    // behind: the stand-in thread, the door's workers and both directories.
+    engine_stop.store(true, Ordering::SeqCst);
+    let _ = engine_thread.join();
+    drop(door);
+    let _ = std::fs::remove_dir_all(&slot_dir);
+    let _ = std::fs::remove_file(&state_file);
+
+    assert_eq!(
+        actions.len(),
+        baseline.len() + 1,
+        "the tick did not take the map's claim away: the activation after it \
+         touched no engine, {actions:?}"
+    );
+    assert_eq!(
+        actions.last().unwrap(),
+        "restore",
+        "the tick's invalidation did not drive a restore from the file: {actions:?}"
+    );
+}

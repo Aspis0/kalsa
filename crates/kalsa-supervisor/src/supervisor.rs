@@ -142,6 +142,38 @@ pub struct Supervisor {
     residency: Residency,
 }
 
+/// Read-only, `Clone`able view of the two facts the supervisor owns: the
+/// server's state, and whether its model is in memory. Built for a watcher
+/// that must not hold the supervisor — the disk tier's tick thread reads it
+/// every second with no command and no webview behind it.
+///
+/// **Trap: two types, one name.** The `residency` behind `model_asleep` is
+/// `child::Residency`: whether the SERVER holds the MODEL. The door's
+/// `kalsa_door::paging::Residency` says which CHAT lives in one SLOT. Same
+/// word, two facts, no conversion between them — a released model is the
+/// *reason* the door's map may be believed no more, never a reading of it.
+#[derive(Clone)]
+pub struct Watch {
+    state: Arc<Mutex<ServerState>>,
+    residency: Residency,
+}
+
+impl Watch {
+    /// The server's state, answered exactly as `Supervisor::state` answers it.
+    pub fn state(&self) -> ServerState {
+        self.state
+            .lock()
+            .map(|state| state.clone())
+            .unwrap_or(ServerState::Stopped)
+    }
+
+    /// `model_asleep`'s answer: `Some(true)` released, `Some(false)` in
+    /// memory, `None` nothing has said (a server with no pipe of ours).
+    pub fn model_asleep(&self) -> Option<bool> {
+        self.residency.asleep()
+    }
+}
+
 impl Supervisor {
     pub fn new() -> Self {
         let (commands, inbox) = mpsc::channel();
@@ -180,6 +212,16 @@ impl Supervisor {
     /// answers about the model, never about whether the server counts as up.
     pub fn model_asleep(&self) -> Option<bool> {
         self.residency.asleep()
+    }
+
+    /// A cheap handle on the two facts above, for a watcher that outlives or
+    /// never holds the supervisor: the disk tier's tick thread carries one
+    /// so an engine release or death is acted on without any poll.
+    pub fn watch(&self) -> Watch {
+        Watch {
+            state: Arc::clone(&self.state),
+            residency: self.residency.clone(),
+        }
     }
 
     pub fn state(&self) -> ServerState {

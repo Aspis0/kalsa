@@ -35,7 +35,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
-use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
+use kalsa_supervisor::{ServerState, StartOutcome, Supervisor, Watch};
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
 
@@ -99,12 +99,29 @@ struct ActiveDoor {
     door: Arc<kalsa_door::RunningDoor>,
 }
 
-/// One tick of the disk tier's clock: writes out every slot a completion changed
-/// that has been quiet long enough. Called by the ticker's thread, never by a
-/// command — the save can wait on the engine for `PATIENCE`, and the webview's
-/// `brain_state` reads this same lock. The door is taken out of the lock and the
-/// lock is released before the call, which is the whole reason it is an `Arc`.
-fn save_idle(door: &Mutex<Option<ActiveDoor>>) {
+/// What makes the door's resident map a possible lie: the engine released its
+/// model (`--sleep-idle-seconds`, announced on its stderr) or the server
+/// FAILED — a crash announces nothing, and this is the observer that acts on
+/// it without a poll. `None` is a server with no pipe of ours, and is NOT
+/// this: nothing has said its state is gone, and a door born against one
+/// starts every slot `Unknown` anyway.
+fn engine_lost_its_state(state: &ServerState, asleep: Option<bool>) -> bool {
+    matches!(state, ServerState::Failed { .. }) || asleep == Some(true)
+}
+
+/// One tick of the disk tier's clock: first what the supervisor says the door
+/// may no longer claim — observed HERE, on the ticker's thread, so the
+/// invalidation happens whether or not any webview ever polled. `brain_state`
+/// reads the same facts, but it is a command the window asks for: with no
+/// poll the door, the map and this timer would outlive a dead engine, and
+/// `save_idle` would keep writing against it. Then every slot a completion
+/// changed that has been quiet long enough. Called by the ticker's thread,
+/// never by a command — the save can wait on the engine for `PATIENCE`, and
+/// the webview's `brain_state` reads this same lock. The door is taken out of
+/// the lock and the lock is released before the call, which is the whole
+/// reason it is an `Arc`.
+fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
+    let lost = engine_lost_its_state(&watch.state(), watch.model_asleep());
     let active = match door.lock() {
         Ok(stored) => stored.as_ref().map(|active| Arc::clone(&active.door)),
         // A panic with the lock in hand poisons it, and `.ok()` used to
@@ -124,6 +141,12 @@ fn save_idle(door: &Mutex<Option<ActiveDoor>>) {
         }
     };
     if let Some(active) = active {
+        // Before the save of this same tick: an engine that released its
+        // model or died must not be asked to write anything, and no slot it
+        // no longer holds may keep claiming a chat.
+        if lost {
+            active.invalidate_residency();
+        }
         active.save_idle(Instant::now());
     }
 }
@@ -1331,11 +1354,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // the door slot: it runs while this window is an icon — the phone's
             // case, and the one the webview's poll degraded in — and it holds no
             // app alive to do it. A thread that will not start costs the timer
-            // and not the tier: a switch still saves.
+            // and not the tier: a switch still saves. The `Watch` it carries is
+            // the supervisor's own state, so a released or dead engine is acted
+            // on here whether or not any window ever polls.
             let doors = Arc::downgrade(&app.state::<Brain>().door);
+            let watch = app.state::<Brain>().supervisor.watch();
             match ticker::Ticker::start(ticker::PERIOD, move || {
                 if let Some(doors) = doors.upgrade() {
-                    save_idle(&doors);
+                    tick(&doors, &watch);
                 }
             }) {
                 Ok(ticker) => {
