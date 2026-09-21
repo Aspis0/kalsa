@@ -127,9 +127,23 @@ Engine paths are relative to `/Users/marco/Projects/kalsallama` @ `5c96b18dd`; a
   deferred (§6) with the reason now correct: the appendix may not exist (§2).
 
 Filenames are **flat**: the engine validates with `fs_validate_filename`, which rejects path
-separators, so the scheme is one name — `d<device_id>-m<first 8 hex of the model file's sha256>-c<chat_id>.bin`.
-The chat id is the app's own chat identity, allocated by the chat store before the first save;
-the model hash is the sha256 of the model file, which the app already computes for provenance.
+separators, so the scheme is one name —
+`d<device_id>-m<8 hex of the model's pinned sha256>-c<conversation id>.bin`.
+
+All three components already exist, and none of them costs work at save time:
+
+- the **device id** is the door's own (`crates/kalsa-door/src/slots.rs:51`);
+- the **model identity is the catalog row's pinned sha256** (`crates/kalsa-catalog/src/manifest.rs:51`,
+  carried into `RunnableRow` at `choice.rs:284`, `:570`, `:752`) — the digest the download already
+  verified. **Do not re-hash the model file**: `manifest.rs:56-59` records that the identity was
+  verified once by hand for exactly that reason, and a pass over a 22 GB file at every launch is not
+  a plan;
+- the **conversation id** is the webview store's `uid()` (`chat/src/lib/store.ts:38-43`) —
+  `crypto.randomUUID()`, with a base36 fallback. Conversations live **only** in that store, in
+  `localStorage` (`store.ts:104`, `:280-336`), which declares itself the only module that knows where
+  they live and a seam a future backend replaces (`store.ts:5-11`). The door therefore cannot
+  enumerate them: the client names the conversation, and **the door validates the shape and builds
+  the name itself** — never a filename, never a path, from the client.
 
 ## 4. The tasks, in order
 
@@ -204,6 +218,11 @@ rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on t
   the door's own listener on 8130 (`src-tauri/src/startup.rs:38-41`). Hard-coding 8130 would
   make the door call itself. The port is read from the same record the door already holds, never
   from a constant at the call site.
+- **The client supplies a conversation id, never a name.** Validate it against a conservative
+  shape — lowercase letters, digits and dashes, 8 to 64 characters, no dot, no separator, no
+  leading dash — which is what both `uid()` branches produce, and then build
+  `d<device>-m<hash8>-c<id>.bin` in the door. A `.` or a `/` in an id is a refusal, not a
+  sanitisation: sanitising accepts malicious input and makes it work.
 - **Exclusivity over the pair, not the call.** The engine serialises actions to one slot but not
   a sequence, so two overlapping switches of one device's chats can invert (save A → save B →
   restore B → restore A ends with A in the slot). A per-slot gate in the door serialises the
