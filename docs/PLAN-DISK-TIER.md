@@ -188,6 +188,11 @@ All three components already exist, and none of them costs work at save time:
 
 ### T2 — app: the launch flag set this tier needs
 
+**Landed** (`a367bdd`, `3d74cce`, `81fd36b`): `--slot-save-path` and `--ctx-checkpoints 1` reach the
+line, `--swa-full` does not, the field is a non-optional `PathBuf` so the compiler forces every
+construction site, and the directory is created 0700 with a refusal. The pin now asserts the exact
+pair exactly once, and the doctrine above is reconciled.
+
 Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
 
 - `--slot-save-path` → a directory the app creates under its data directory before launch. If it
@@ -241,6 +246,30 @@ rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on t
 - **Acceptance**, both red first: (a) a restore whose file name does not carry the caller's
   device is refused; (b) file names sent in the client payload are ignored; (c) a restore that
   fails leaves the previous chat's state in the slot and the UI's active chat unchanged.
+
+**Landed as T3a** — `7834556`, the door's side, one commit, 13 files: `paging.rs` (393 lines),
+`engine.rs` (131), `payload.rs` (152), and their tests. What the code settles, and what the
+review then corrected:
+
+- The two routes are served **by the door, on its own port**: `POST /kalsa/chat/activate` and
+  `POST /kalsa/chat/erase`, body `{"id": …}`, handled after the credential, under the slot's
+  lease and **before any upstream socket**, never forwarded. A phone therefore reaches them over
+  the tunnel without the app being in the path, which is why this is a route and not an in-process
+  method.
+- **The residency map is the door's own**, keyed by slot: the caller never says which chat was
+  resident, because whoever says that decides **which file the slot's state is written into**.
+- **The staging rename closes the sleeping-engine hole**: the save goes to `<name>.staging`, and the
+  real file is replaced **only when the engine reports `n_saved > 0`**; a reply without that field is
+  treated as unreachable, never as a success.
+- **Two corrections the review demanded, and they are not cosmetic:** (i) `restore()` collapses
+  `Unreachable` and `Refused` into one error, and the code then tells the client "the slot is now
+  empty" and drops the map record — but on `Unreachable` the engine may never have processed the
+  restore, so the slot may still hold the previous chat. The sentence must be "unknown", not
+  "empty". (ii) A `.staging` file survives an `Unreachable` save, and `erase` does not remove the
+  sibling, so they accumulate. Both are bounded (no data loss was demonstrated), and both are lies
+  the tier should not tell.
+- The fake engine in the tests can only answer and refuse: **there is no `Unreachable` variant**, so
+  the state-unknown path has no test. That is the first thing the fix adds.
 
 ### T4 — app: cadence, so an unload cannot lose a turn
 
@@ -347,6 +376,15 @@ saturating part of the disk curve is not a number this plan may carry.
 - **No number reaches the user interface before it is committed in a stripped artifact.** The
   ~1.4 GiB in §2 is derived from committed cell counts and is labelled as derived, not measured.
 - Coders and reviewers on different models; an errored review is a lead, never a pass.
+- **A pin asserts the exact pair, and exactly once.** `contains("--ctx-checkpoints 1")` is true of
+  `--ctx-checkpoints 12`, and a helper that reads the first occurrence lets a duplicated flag
+  through. Measured both ways: a mutation to `"12"` left 49 plus 151 tests green before, and the
+  converted pair turns red on it; the same for `HOST` → `127.0.0.10`.
+- **A neutral failure sentence must be *declared*, not omitted.** `every_failure_says_what_the_user_can_do`
+  (`src-tauri/src/failure.rs:347-360`) requires an action word in every sentence; a cause the user
+  cannot act on joins the named `unrecoverable()` list, and the same test asserts an exemption does
+  **not** also give advice, so the list cannot become a drawer. Leaving the variant out of
+  `every_failure()` instead is what made the invariant accidental.
 - **One branch per repo, and it is the working branch: the app on `brain`, the engine on `main`.**
   Do not create another one. **A branch is not an artifact — delegate and review by commit hash.**
   The app's trap, stated exactly, because it is the one that eats work: its remote is
