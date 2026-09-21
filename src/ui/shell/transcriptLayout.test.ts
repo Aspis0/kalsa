@@ -1,9 +1,10 @@
 /**
  * The transcript's arithmetic, at the sizes that decide it: the Jelly Star's
- * two cases (621 dp, and 325 with the keyboard open) and the S23's 780.
+ * three cases (621 dp with the keyboard down, 325 dp with it open as the app
+ * area, and the live keyboard case the two are simulations of) and the S23's 780.
  *
- * This is the real proof of step 3 (DESIGN.md, "proof regime"): the pixels go
- * to screenshots, and everything that must be true regardless of pixels is
+ * This is the real proof of steps 3 and 4 (DESIGN.md, "proof regime"): the pixels
+ * go to screenshots, and everything that must be true regardless of pixels is
  * asserted here.
  */
 import {
@@ -15,8 +16,7 @@ import {
   PARAGRAPH_GAP_MAX,
   PARAGRAPH_GAP_MIN,
   TABLE_MIN_COLUMN_WIDTH,
-  TRANSCRIPT_BOTTOM_PADDING,
-  TRANSCRIPT_MIN_BOTTOM_AIR,
+  TRANSCRIPT_LAST_ITEM_GAP,
   TURN_GAP,
   USER_TO_ANSWER_GAP,
   USER_TO_CLOUD_GAP,
@@ -32,6 +32,8 @@ import {
 } from "./transcriptLayout";
 import { CLOUD_COLLAPSED_HEIGHT_DP } from "../thinking/thoughtMotion";
 import { shellGeometry, type Insets } from "./shellGeometry";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 type Case = { name: string; width: number; height: number; insets: Insets };
 
@@ -50,7 +52,24 @@ const S23: Case = {
 /** The keyboard-open app area: the case the shell already collapses the strip for. */
 const JELLY_KEYBOARD: Case = { name: "Jelly keyboard 349x325", width: 349, height: 325, insets: { top: 0, bottom: 0 } };
 
-const CASES: Case[] = [JELLY, S23, JELLY_KEYBOARD];
+/**
+ * The same keyboard on the live window instead of a pinned app area, and the
+ * band the clearance correction is argued from.
+ *
+ * 349x621 dp with a 296 dp IME and the status bar's 24 leaves 301 dp usable, so
+ * 301 - 52 (collapsed strip) - 78 (composer) = **171 dp of transcript**. That is
+ * shorter than the pinned 325 case above, because the pin replaces the whole
+ * window with the app area while this case keeps the window and subtracts the
+ * keyboard from it — and it is the real one when the IME is up.
+ */
+const JELLY_KEYBOARD_LIVE: Case = {
+  name: "Jelly keyboard (live) 349x621, 296 dp IME",
+  width: 349,
+  height: 621,
+  insets: { top: 24, bottom: 296 },
+};
+
+const CASES: Case[] = [JELLY, S23, JELLY_KEYBOARD, JELLY_KEYBOARD_LIVE];
 
 const layoutFor = (c: Case): TranscriptLayout => transcriptLayout(c.width, c.height, c.insets);
 
@@ -95,44 +114,56 @@ describe("the turn rhythm", () => {
 });
 
 describe("the clearance under the last item", () => {
-  it("is at least the cloud's collapsed height, so the cloud can be last", () => {
-    expect(TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
-    expect(Number.isInteger(TRANSCRIPT_BOTTOM_PADDING)).toBe(true);
-    // The two bands with room keep the full clearance: 443 dp and 590 dp are
-    // far above the cloud plus the chosen air. The 195 dp band no longer does —
-    // that is the change DEFECT 2 made, asserted in the next test.
-    expect(layoutFor(JELLY).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
-    expect(layoutFor(S23).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
+  it("is a CHOSEN gap, and the module no longer reads the cloud's height", () => {
+    // Pinned so moving it is a decision rather than a drift, the way
+    // `DAY_MARKER_MIN_TRANSCRIPT_HEIGHT` is.
+    expect(TRANSCRIPT_LAST_ITEM_GAP).toBe(24);
+    expect(Number.isInteger(TRANSCRIPT_LAST_ITEM_GAP)).toBe(true);
+    // The rejected reasoning, made checkable rather than argued: the number this
+    // replaced was `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`, and the argument was
+    // that the tallest thing that can be last must fit inside the gap. The cloud
+    // has to be visible and scrollable, not to fit — so the module no longer
+    // reads the cloud at all, and changing the cloud cannot move this gap.
+    const source = readFileSync(join(__dirname, "transcriptLayout.ts"), "utf8");
+    expect(source).not.toMatch(/from\s+"[^"]*thoughtMotion"/);
   });
 
-  it("does not eat the 195 dp short band, so the first turn stays above the fold", () => {
-    const short = layoutFor(JELLY_KEYBOARD).availableHeight; // 195
-    expect(short).toBe(195);
-    expect(TRANSCRIPT_BOTTOM_PADDING).toBeLessThan(short);
-    // Once the clearance is reserved there is still room for the very cloud the
-    // clearance exists for: the padding is a clearance, not the whole band.
-    expect(short - TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
-  });
-
-  it("yields to the 195 dp band instead of pushing the last item out of it", () => {
-    const short = layoutFor(JELLY_KEYBOARD);
-    const clearance = short.bottomPadding;
-    expect(clearance).toBeLessThan(TRANSCRIPT_BOTTOM_PADDING);
-    // The stated constraint in full: the clearance plus the tallest thing that
-    // can be last plus the chosen air all fit inside the band.
-    expect(clearance + CLOUD_COLLAPSED_HEIGHT_DP + TRANSCRIPT_MIN_BOTTOM_AIR).toBeLessThanOrEqual(
-      short.availableHeight,
+  it("leaves the last item visible on the 171 dp keyboard band", () => {
+    const live = layoutFor(JELLY_KEYBOARD_LIVE);
+    // The band the whole correction is argued from, and it is the shell's number
+    // rather than a constant restated here.
+    expect(live.availableHeight).toBe(171);
+    expect(live.bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+    // 24 of 171 is 14 %: the gap costs the shortest band a seventh of itself and
+    // leaves 147 dp for the answer's own text, which is more than a turn (a
+    // capsule, a two-line answer and their 6 dp is about 104). This is a
+    // consequence of the chosen number, not the rule that sizes it.
+    expect(live.bottomPadding / live.availableHeight).toBeLessThan(0.2);
+    expect(live.availableHeight - live.bottomPadding).toBeGreaterThanOrEqual(
+      CLOUD_COLLAPSED_HEIGHT_DP,
     );
   });
 
-  it("clamps at 0 on a degenerate band and stays usable there", () => {
+  it("is the same gap on a wide band, so no band pays for the cloud", () => {
+    // The defect this replaced: 96 dp at 443 and 590, 75 at 195, 51 at 171 — a
+    // different clearance per band, all of them the cloud's height. Now the four
+    // bands get one number, and the two measured viewports carry it too.
+    for (const band of [171, 195, 443, 590]) {
+      expect(transcriptBottomPadding(band)).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+    }
+    expect(layoutFor(JELLY).bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+    expect(layoutFor(S23).bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+  });
+
+  it("clamps at 0 on a degenerate band and never hands back a negative padding", () => {
     expect(transcriptBottomPadding(0)).toBe(0);
     expect(transcriptBottomPadding(-40)).toBe(0);
     expect(transcriptBottomPadding(Number.NaN)).toBe(0);
-    // Exactly the band the constraint leaves no room in.
-    expect(transcriptBottomPadding(TRANSCRIPT_BOTTOM_PADDING + TRANSCRIPT_MIN_BOTTOM_AIR)).toBe(0);
-    // One dp above it the clearance is one dp, never a negative padding.
-    expect(transcriptBottomPadding(TRANSCRIPT_BOTTOM_PADDING + TRANSCRIPT_MIN_BOTTOM_AIR + 1)).toBe(1);
+    // Capped by the band: a band shorter than the gap gets the band's height,
+    // never a padding that overflows it.
+    expect(transcriptBottomPadding(TRANSCRIPT_LAST_ITEM_GAP)).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+    expect(transcriptBottomPadding(TRANSCRIPT_LAST_ITEM_GAP + 1)).toBe(TRANSCRIPT_LAST_ITEM_GAP);
+    expect(transcriptBottomPadding(TRANSCRIPT_LAST_ITEM_GAP - 1)).toBe(TRANSCRIPT_LAST_ITEM_GAP - 1);
   });
 });
 
@@ -184,6 +215,14 @@ describe("the two measured viewports, in numbers", () => {
     const layout = layoutFor(JELLY_KEYBOARD);
     expect(layout.contentWidth).toBe(321);
     expect(layout.availableHeight).toBe(195);
+    expect(layout.capsuleMaxWidth).toBe(250);
+    expect(layout.showDayMarker).toBe(false);
+  });
+
+  it("is 321 x 171 with a 250 dp capsule on the live window, 296 dp IME", () => {
+    const layout = layoutFor(JELLY_KEYBOARD_LIVE);
+    expect(layout.contentWidth).toBe(321);
+    expect(layout.availableHeight).toBe(171);
     expect(layout.capsuleMaxWidth).toBe(250);
     expect(layout.showDayMarker).toBe(false);
   });

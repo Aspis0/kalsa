@@ -1,5 +1,5 @@
 /**
- * TEMPORARY (steps 2–3 of the interface rebuild): renders the shell with a demo
+ * TEMPORARY (steps 2–4 of the interface rebuild): renders the shell with a demo
  * transcript, alone, so it can be screenshotted without the engine, a session
  * or a conversation. Removed when the shell is mounted inside the real
  * conversation.
@@ -123,7 +123,10 @@ const MINUTE = 60_000;
  */
 const PREVIEW_EARLIER_AT = PREVIEW_NOW - 26 * 60 * MINUTE;
 
-/** Sample data. The day marker needs a turn on an earlier day to be visible. */
+/** Sample data. The day marker needs a turn on an earlier day to be visible,
+ *  and step 4's evidence needs both of its shapes on screen: tool rows above an
+ *  answer, source chips below it, plus one chip that is NOT tappable (a local
+ *  file) so the reduced-emphasis form is in the picture too. */
 const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
   {
     id: "preview-1",
@@ -138,6 +141,15 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
       "It compares three methods and reports the largest error each one produced.\n\n" +
       "The third method is the steadiest across the whole series, but it is the slowest to run.",
     createdAt: PREVIEW_EARLIER_AT + MINUTE,
+    tools: [{ name: "document_chat" }, { name: "write_note" }],
+    sources: [
+      { url: "https://en.wikipedia.org/wiki/Observational_error", title: "Observational error" },
+      { url: "https://www.nist.gov/pml/nist-technical-note-1297", title: "NIST TN 1297" },
+      {
+        url: "file:///data/user/0/com.kalsa.app/files/measurement-error.pdf",
+        title: "measurement-error.pdf",
+      },
+    ],
   },
   {
     id: "preview-3",
@@ -150,6 +162,9 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
     role: "assistant",
     text: "",
     createdAt: PREVIEW_NOW,
+    // The live case: the row is already there while the answer is still being
+    // thought about, above the cloud.
+    tools: [{ name: "web_search" }],
     thinking: {
       reasoning:
         "Weighing the three methods against the scatter in the series. The second one overfits the noisiest points; the third holds its error flat across the range.",

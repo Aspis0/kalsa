@@ -90,10 +90,12 @@ export const CLOUD_TRAIL_HEIGHT_DP =
 
 /**
  * What the cloud occupies with the disclosure shut: its two borders, its two
- * paddings, the 48 dp head row and the trail. The transcript reserves this much
- * bottom clearance so the cloud can be the last thing on screen and still be
- * read — and, when opened, still have room to open into. See
- * `transcriptLayout.ts` `TRANSCRIPT_BOTTOM_PADDING`.
+ * paddings, the 48 dp head row and the trail. It is the component's own height
+ * and NOT a clearance the transcript owes it: `transcriptLayout.ts` used to size
+ * its bottom gap from this number, on the argument that the tallest thing that
+ * can be last must fit, and that argument was wrong — the cloud has to be
+ * visible and scrollable, not to fit in a gap. See `TRANSCRIPT_LAST_ITEM_GAP`
+ * there for why.
  */
 export const CLOUD_COLLAPSED_HEIGHT_DP =
   2 * CLOUD_BOX.border +

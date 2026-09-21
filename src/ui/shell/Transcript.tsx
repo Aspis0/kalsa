@@ -1,8 +1,10 @@
 /**
  * The transcript band: the conversation, and nothing else.
  *
- * Step 3 of the rebuild. A leaf: it takes messages as props, reads no storage,
- * fetches nothing, subscribes to nothing, and knows nothing about a
+ * Step 3 of the rebuild, with step 4's tool rows and source chips arriving as
+ * two optional fields on the message (drawn inside the same entry, by
+ * `TranscriptEvidence.tsx`). A leaf: it takes messages as props, reads no
+ * storage, fetches nothing, subscribes to nothing, and knows nothing about a
  * conversation store, the engine or the governor. The message shape below is
  * LOCAL on purpose — the real model belongs to another layer and guessing at it
  * here would bind this file to a decision it does not own. Step 3b turns the
@@ -32,7 +34,9 @@ export type {
   TranscriptMessage,
   TranscriptProps,
   TranscriptRole,
+  TranscriptSource,
   TranscriptThinking,
+  TranscriptToolCall,
 } from "./transcriptTypes";
 import type { TranscriptProps } from "./transcriptTypes";
 
@@ -220,9 +224,11 @@ export function Transcript({
                 colors={colors}
                 id={message.id}
                 labels={cloudLabels}
+                sources={message.sources}
                 styles={styles}
                 text={message.text}
                 thinking={message.thinking}
+                tools={message.tools}
               />
             )}
           </View>

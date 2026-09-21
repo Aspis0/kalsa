@@ -4,22 +4,29 @@
  * crossed the line budget. They hold no state of their own — the cloud, the
  * markdown and the day marker are the band's business, not theirs.
  *
- * The stylesheet stays whole here, including the band's own jump control, because
- * one table of styles read in one place beats two that can drift.
+ * The stylesheet stays whole here, including the band's own jump control AND the
+ * tool rows and source chips, because one table of styles read in one place
+ * beats two that can drift. `TranscriptEvidence.tsx` draws those two and takes
+ * this table as a prop rather than keeping a second one.
  */
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
+import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import {
   PARAGRAPH_GAP,
-  TRANSCRIPT_BOTTOM_PADDING,
+  TRANSCRIPT_LAST_ITEM_GAP,
   TURN_GAP,
   splitParagraphs,
   type TranscriptLayout,
 } from "./transcriptLayout";
-import type { TranscriptThinking } from "./transcriptTypes";
+import type { TranscriptSource, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
+
+/** The one stylesheet, as a named type: `TranscriptEvidence.tsx` draws the tool
+ *  rows and the source chips with it rather than carrying a second table. */
+export type TranscriptStyles = ReturnType<typeof createTranscriptStyles>;
 
 /** The only boxed turn: tinted, right-aligned, no border, no tail, one radius. */
 export function UserTurn({
@@ -30,7 +37,7 @@ export function UserTurn({
 }: {
   id: string;
   layout: TranscriptLayout;
-  styles: ReturnType<typeof createTranscriptStyles>;
+  styles: TranscriptStyles;
   text: string;
 }) {
   return (
@@ -44,21 +51,27 @@ export function UserTurn({
 }
 
 /** The answer is bare: serif ink on the page, full measure, no container. The
- *  cloud sits above it while that answer is still thinking. */
+ *  cloud sits above it while that answer is still thinking, the tool rows sit
+ *  between the two (what the answer stands on, §2.4), and the source chips
+ *  close the entry below the text (§2.5). */
 export function Answer({
   colors,
   id,
   labels,
+  sources,
   styles,
   text,
   thinking,
+  tools,
 }: {
   colors: DesignColors;
   id: string;
   labels: { show: string; hide: string; region: string };
-  styles: ReturnType<typeof createTranscriptStyles>;
+  sources?: readonly TranscriptSource[];
+  styles: TranscriptStyles;
   text: string;
   thinking?: TranscriptThinking;
+  tools?: readonly TranscriptToolCall[];
 }) {
   const paragraphs = splitParagraphs(text);
   return (
@@ -75,11 +88,13 @@ export function Answer({
           working={thinking.working}
         />
       ) : null}
+      {tools ? <ToolRows styles={styles} tools={tools} /> : null}
       {paragraphs.map((paragraph, index) => (
         <Text key={index} style={[styles.answer, index > 0 ? styles.paragraphGap : null]}>
           {paragraph}
         </Text>
       ))}
+      {sources ? <SourceChips sources={sources} styles={styles} /> : null}
     </View>
   );
 }
@@ -115,10 +130,11 @@ export function createTranscriptStyles(colors: DesignColors) {
       lineHeight: type.meta.lineHeight,
     },
     content: {
-      // The clearance that lets the last item — the cloud above all — sit clear
-      // of the composer band and, when its disclosure opens, have room to open
-      // into. Without it the newest element is crushed against the band's edge.
-      paddingBottom: TRANSCRIPT_BOTTOM_PADDING,
+      // The gap that keeps the last item — the cloud above all — off the
+      // composer band's edge. One chosen number, not the cloud's own height:
+      // the cloud has to be visible and scrollable, not to fit in the gap
+      // (`transcriptLayout.ts` `TRANSCRIPT_LAST_ITEM_GAP`).
+      paddingBottom: TRANSCRIPT_LAST_ITEM_GAP,
     },
     userCapsule: {
       alignSelf: "flex-end",
@@ -143,6 +159,73 @@ export function createTranscriptStyles(colors: DesignColors) {
     },
     paragraphGap: {
       marginTop: PARAGRAPH_GAP,
+    },
+    // One quiet line per tool call, above the answer (§2.4). No icon, no
+    // container, no lift: the rows state what the answer stands on and must not
+    // compete with it for attention.
+    toolRows: {
+      gap: spacing.xxs,
+      marginBottom: spacing.xs,
+    },
+    toolRow: {
+      color: colors.silence,
+      fontFamily: families.sansMedium,
+      fontSize: type.meta.fontSize,
+      lineHeight: type.meta.lineHeight,
+    },
+    // The source chips below the answer (§2.5): small text, wrapped, the
+    // citation index and the host.
+    sourceChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    sourceChip: {
+      alignItems: "center",
+      borderRadius: radius.pill,
+      flexDirection: "row",
+      gap: spacing.xs,
+      maxWidth: "100%",
+      paddingHorizontal: spacing.sm,
+      // The mock's `.src` padding: 6 dp above and below, so the chip is about
+      // 28 dp tall. Smaller than the 48 dp floor the shell's own controls are
+      // held to, deliberately: §2.5 asks for small text chips, and the mock
+      // draws exactly this.
+      paddingVertical: spacing.xs,
+    },
+    // A chip that can be opened gets a surface and a lift, because the palette
+    // cannot tell a surface from the page by a border (§1.2).
+    sourceChipLink: {
+      backgroundColor: colors.surface,
+      ...elevation.raised,
+    },
+    // A chip that cannot is text with reduced emphasis, and the dashed hairline
+    // is the mock's `.src.off`: it is the difference between the two kinds of
+    // chip, not an attempt to separate a surface from the page.
+    sourceChipStatic: {
+      borderColor: colors.border,
+      borderStyle: "dashed",
+      borderWidth: 1,
+    },
+    sourceIndex: {
+      color: colors.accent,
+      fontFamily: families.sansSemi,
+      fontSize: type.meta.fontSize,
+      lineHeight: type.meta.lineHeight,
+    },
+    sourceIndexStatic: {
+      color: colors.silence,
+    },
+    sourceHost: {
+      color: colors.inkSoft,
+      flexShrink: 1,
+      fontFamily: families.sansMedium,
+      fontSize: type.meta.fontSize,
+      lineHeight: type.meta.lineHeight,
+    },
+    sourceHostStatic: {
+      color: colors.silence,
     },
     dayMarker: {
       alignItems: "center",

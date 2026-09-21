@@ -1232,6 +1232,24 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       hide: "Hide thinking ▲",
       thoughtFor: "Thought for {seconds}s",
     },
+    /**
+     * The transcript's tool rows: one quiet line per tool call the engine made,
+     * above the answer (§2.4). Three of the eight names are deliberately NOT
+     * here — `web_search`, `web_fetch` and `document_chat` reuse the desktop's
+     * own labels (`chat.searching`, `chat.fetching`, `chat.readingDocument`),
+     * so the two products cannot drift apart on the same call. `unknown` is the
+     * honest row for a name this catalogue does not know: it keeps the engine's
+     * own spelling instead of an invented friendly one, and the row is never
+     * dropped.
+     */
+    tools: {
+      writeNote: "Saving a note…",
+      deviceInfo: "Checking this device…",
+      deviceCalc: "Calculating…",
+      calendarAgenda: "Reading your calendar…",
+      createMiniapp: "Building an interactive view…",
+      unknown: "Tool: {name}",
+    },
     transcript: {
       today: "Today",
       yesterday: "Yesterday",
@@ -1255,6 +1273,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       },
       a11y: {
         day: "Day marker: {label}",
+        /** One source chip: its citation index and the host it prints. */
+        source: "Source {index}: {text}",
       },
     },
     context: {

@@ -9,7 +9,7 @@
  *  1. **whose is the last message** -> while pinned the view always shows the
  *     end, and the view follows an append and a growth; the clearance that keeps
  *     the composer band off the last line belongs to `transcriptLayout.ts`
- *     (`TRANSCRIPT_BOTTOM_PADDING`, which yields to a short band), because it is
+ *     (`TRANSCRIPT_LAST_ITEM_GAP`, one chosen gap at every band), because it is
  *     a layout fact rather than a scroll one, and this module moves offsets and
  *     nothing else;
  *  2. **the answer writing above itself and then below** -> that failure starts

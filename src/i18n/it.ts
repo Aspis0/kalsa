@@ -1190,6 +1190,19 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       hide: "Nascondi il pensiero ▲",
       thoughtFor: "Ha pensato per {seconds}s",
     },
+    /**
+     * The transcript's tool rows (§2.4). The five names the old UI never
+     * labelled; the other three reuse the desktop's own `chat.*` labels. The
+     * unknown row keeps the engine's spelling, as in English.
+     */
+    tools: {
+      writeNote: "Salvo una nota…",
+      deviceInfo: "Controllo il telefono…",
+      deviceCalc: "Calcolo…",
+      calendarAgenda: "Leggo il calendario…",
+      createMiniapp: "Costruisco una vista interattiva…",
+      unknown: "Strumento: {name}",
+    },
     transcript: {
       today: "Oggi",
       yesterday: "Ieri",
@@ -1211,6 +1224,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       },
       a11y: {
         day: "Separatore di giorno: {label}",
+        /** One source chip: its citation index and the host it prints. */
+        source: "Fonte {index}: {text}",
       },
     },
     context: {

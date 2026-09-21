@@ -14,7 +14,6 @@
  * both tests stayed green.
  */
 import { measure } from "../../theme/design";
-import { CLOUD_COLLAPSED_HEIGHT_DP } from "../thinking/thoughtMotion";
 import { shellGeometry, type Insets } from "./shellGeometry";
 
 /** A turn is the user's capsule plus its own answer. Inside it: 6 dp. */
@@ -61,51 +60,42 @@ export const DAY_MARKER_HEIGHT = 42;
 export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
 
 /**
- * The FULL clearance under the transcript's last item. The transcript scrolls
- * under the composer band, so without it the newest element is pinned to the
- * band's bottom edge; when that element is the cloud, the disclosure has nowhere
- * to open into — measured on the Jelly, the body dumped to 0 dp (y716-714) and
- * "Show thinking" had nothing to reveal.
+ * The gap under the transcript's last item, in dp. The transcript scrolls under
+ * the composer band, so without it the newest element sits on the band's bottom
+ * edge.
  *
- * The floor is the cloud's own collapsed height (`CLOUD_COLLAPSED_HEIGHT_DP`,
- * shared with the component that draws it): a clearance smaller than the tallest
- * thing that can be last does not clear it. `Math.ceil` keeps it a whole dp and
- * keeps the two from drifting.
+ * 24 is a CHOSEN number, and it is labelled the way
+ * `DAY_MARKER_MIN_TRANSCRIPT_HEIGHT` is so a reviewer can move it: nothing in
+ * the arithmetic derives it. The number it replaced was not chosen either — it
+ * was `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`, 96 dp, on the argument that the
+ * tallest thing that can be last must fit inside the gap. **That argument is
+ * wrong and the constant is gone with it.** The cloud does not have to FIT in
+ * the gap: it has to be visible and scrollable, and when its disclosure opens
+ * the content grows and the pin follows the content. Sizing a gap from one
+ * element's collapsed height charged every band for that element: on the Jelly's
+ * keyboard band (171 dp: 349x621 with a 296 dp IME) the old function shrank it
+ * to 51 dp and still spent 30 % of the band on it, and the clearance read as a
+ * hole under the last item rather than as a gap under it.
  *
- * It is not reserved at every size — that is what emptied the 195 dp keyboard
- * band, because 96 of 195 dp is half the band. `transcriptBottomPadding` yields
- * this clearance back to a short band; this constant stays the full amount.
+ * 24 dp is about one and a half answer lines at the reading size: enough that
+ * the clearance reads as a clearance rather than as the last line sitting on the
+ * band's edge, and small enough that the last item is never what pays for it.
+ * It is NOT a function of the cloud: `thoughtMotion.ts` still owns that height
+ * for the component that draws the cloud, and `transcript` no longer reads it.
  */
-export const TRANSCRIPT_BOTTOM_PADDING = Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP);
+export const TRANSCRIPT_LAST_ITEM_GAP = 24;
 
 /**
- * The air that must be left under the last item once the clearance is taken.
- *
- * 24 is a CHOSEN estimate, not a derived number, and it is labelled the way
- * `DAY_MARKER_MIN_TRANSCRIPT_HEIGHT` is so a reviewer can move it: the
- * arithmetic fixes only the cap the clearance may take, never how much air the
- * item the reader is reading should keep. 24 dp is about one and a half answer
- * lines at the reading size — enough that the clearance reads as a clearance
- * rather than as the last line sitting on the band's edge.
- */
-export const TRANSCRIPT_MIN_BOTTOM_AIR = 24;
-
-/**
- * The clearance for a band of this height. The full clearance clears the cloud,
- * but reserving it on a band that cannot afford it is the other half of the
- * failure: on the 195 dp keyboard band it pushed the last item up and left the
- * band showing padding and no content, which is what the 325 capture shows.
- *
- * So the clearance yields to the band. It stays `TRANSCRIPT_BOTTOM_PADDING`
- * while the tallest thing that can be last — the collapsed cloud — plus
- * `TRANSCRIPT_MIN_BOTTOM_AIR` still fits, and shrinks to whatever is left when
- * it does not. A degenerate band clamps to 0 rather than handing the layout a
- * negative padding, so the function stays usable at any height.
+ * The clearance for a band of this height. A gap, not a share of the band: every
+ * band that can hold it gets the same 24 dp — the keyboard-short one included —
+ * so the last item is never pushed out by a number derived from something else.
+ * It is capped by the band and floored at 0, so a degenerate band yields a
+ * smaller gap instead of a negative padding the layout would have to defend
+ * against, and the function stays usable at any height.
  */
 export function transcriptBottomPadding(availableHeight: number): number {
   const band = Number.isFinite(availableHeight) ? Math.max(0, availableHeight) : 0;
-  const room = band - TRANSCRIPT_BOTTOM_PADDING - TRANSCRIPT_MIN_BOTTOM_AIR;
-  return Math.max(0, Math.min(TRANSCRIPT_BOTTOM_PADDING, Math.floor(room)));
+  return Math.max(0, Math.min(TRANSCRIPT_LAST_ITEM_GAP, Math.floor(band)));
 }
 
 /** A cell's own left+right padding, and the narrowest a cell's content may be
@@ -133,8 +123,8 @@ export type TranscriptLayout = {
    *  a line. It is capped by `measure.readingMaxWidth` on a wide screen only. */
   readingMeasure: number;
   showDayMarker: boolean;
-  /** The clearance under the last item, so it can sit clear of the composer.
-   *  Yields to a short band instead of eating it; see `transcriptBottomPadding`. */
+  /** The clearance under the last item: one chosen gap, the same at every band
+   *  that can hold it; see `transcriptBottomPadding`. */
   bottomPadding: number;
   rhythm: {
     userToAnswer: number;
