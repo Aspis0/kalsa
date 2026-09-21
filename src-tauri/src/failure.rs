@@ -155,8 +155,7 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::MeasurementUnreliable(notes) => measurement_unreliable_words(notes),
         StartupFailure::SlotSavePathUnwritable => {
             "The assistant could not prepare the place on this computer where chats are \
-             kept, so it did not start. Freeing some space and trying again usually \
-             works."
+             kept, so it did not start."
                 .into()
         }
         StartupFailure::WeightsUnverified => {

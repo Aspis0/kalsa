@@ -1071,6 +1071,20 @@ mod tests {
         assert!(!line.contains("0.0.0.0"), "{line}");
     }
 
+    /// What a flag renders is the element that follows it, compared whole:
+    /// `contains("--ctx-checkpoints 1")` is true of `--ctx-checkpoints 12`
+    /// too, and a saved chat twelve times the size is the failure this
+    /// guards.
+    fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
+        let at = argv
+            .iter()
+            .position(|arg| arg == flag)
+            .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        argv.get(at + 1)
+            .map(String::as_str)
+            .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
+    }
+
     /// The disk tier's two launch flags, pinned the way the unload clock
     /// above is, and the one flag the measurement kept out.
     ///
@@ -1093,9 +1107,16 @@ mod tests {
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        let line = launched.args.argv().join(" ");
-        assert!(line.contains("--slot-save-path /slots"), "{line}");
-        assert!(line.contains("--ctx-checkpoints 1"), "{line}");
+        let argv = launched.args.argv();
+        let line = argv.join(" ");
+        assert_eq!(
+            rendered_value(&argv, "--slot-save-path"),
+            "/slots",
+            "{argv:?}"
+        );
+        // The literal `"1"`, not the constant: the pair is what the plan
+        // pins, and asserting the constant would follow it into `"12"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{argv:?}");
         assert!(
             !line.contains("--swa-full"),
             "the measurement took this flag out; see dev/results/slot-restore-swa/summary.md: {line}"

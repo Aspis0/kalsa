@@ -229,6 +229,20 @@ mod tests {
         );
     }
 
+    /// What a flag renders is the whole element that follows it. The joined
+    /// line is not the artifact to assert on: `contains("--ctx-checkpoints
+    /// 1")` is also true of `--ctx-checkpoints 12`, and a saved chat twelve
+    /// times the size is exactly what the constant exists to prevent.
+    fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
+        let at = argv
+            .iter()
+            .position(|arg| arg == flag)
+            .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        argv.get(at + 1)
+            .map(String::as_str)
+            .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
+    }
+
     /// The save folder is data, not a literal: whatever the app resolved is
     /// what reaches the engine, and the checkpoint count rides the named
     /// constant under the spelling the engine registers.
@@ -238,12 +252,15 @@ mod tests {
             slot_save_path: PathBuf::from("/somewhere/private/slots"),
             ..some_args()
         };
-        let line = args.argv().join(" ");
-        assert!(
-            line.contains("--slot-save-path /somewhere/private/slots"),
-            "{line}"
+        let argv = args.argv();
+        assert_eq!(
+            rendered_value(&argv, "--slot-save-path"),
+            "/somewhere/private/slots",
+            "{argv:?}"
         );
-        assert!(line.contains("--ctx-checkpoints 1"), "{line}");
+        // The literal `"1"`, not `CTX_CHECKPOINTS`: asserting the constant
+        // is a tautology that stays green when it becomes `"12"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{argv:?}");
     }
 
     /// The slot count is data now: whatever the field holds is what the

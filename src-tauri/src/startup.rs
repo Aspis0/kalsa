@@ -954,6 +954,20 @@ mod tests {
         dir
     }
 
+    /// What a flag renders is the whole element that follows it. The joined
+    /// line is not the artifact to assert on: `contains("--ctx-checkpoints
+    /// 1")` is also true of `--ctx-checkpoints 12`, and a saved chat twelve
+    /// times the size is exactly what the constant exists to prevent.
+    fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
+        let at = argv
+            .iter()
+            .position(|arg| arg == flag)
+            .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        argv.get(at + 1)
+            .map(String::as_str)
+            .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
+    }
+
     fn digest_of(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))
     }
@@ -1370,10 +1384,16 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & 0o777, 0o700, "a saved chat is private: {mode:o}");
-        let joined = config.server.argv.join(" ");
-        let named = format!("--slot-save-path {}", slots.display());
-        assert!(joined.contains(&named), "{joined}");
-        assert!(joined.contains("--ctx-checkpoints 1"), "{joined}");
+        let argv = config.server.argv;
+        let joined = argv.join(" ");
+        assert_eq!(
+            rendered_value(&argv, "--slot-save-path"),
+            slots.display().to_string(),
+            "{joined}"
+        );
+        // The literal `"1"`, not the constant: the pair is what the plan
+        // pins, and asserting the constant would follow it into `"12"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{joined}");
         assert!(!joined.contains("--swa-full"), "{joined}");
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -1409,9 +1429,14 @@ mod tests {
             "{err:?}"
         );
         let spoken = crate::failure::words(&err);
-        assert!(
-            spoken.starts_with("The assistant could not prepare"),
-            "{spoken}"
+        // The whole sentence, pinned once: the place could not be made for
+        // reasons this walk cannot tell apart, and freeing disk space is not
+        // among the ones that help (a file where the folder belongs is
+        // `NotADirectory`).
+        assert_eq!(
+            spoken,
+            "The assistant could not prepare the place on this computer where chats are \
+             kept, so it did not start."
         );
         let _ = std::fs::remove_dir_all(&root);
     }
