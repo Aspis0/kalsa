@@ -4,44 +4,20 @@
 
 use std::fs;
 use std::io::Write;
-use std::net::{Shutdown, SocketAddr, TcpStream};
+use std::net::{Shutdown, TcpStream};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use super::paging_support::{
-    activate, body_text, door_of_with_save, file_name, salt_of, status_of, temp_dir, wait_for, Engine,
-    Reply, HASH,
+    activate, body_text, complete, door_of_with_save, file_name, quiet_since, salt_of, status_of,
+    temp_dir, wait_for, Engine, Reply, QUIET, HASH,
 };
-use super::support::{chat_post, exchanged, ORIGIN};
+use super::support::ORIGIN;
 use super::*;
-
-/// The quiet the tests let a slot have. Nothing sleeps through it: every tick
-/// is given its instant, so a loaded machine cannot turn "not yet" into "long
-/// enough" between a completion and the assertion.
-const QUIET: Duration = Duration::from_millis(300);
 
 /// How long the fake engine holds a completion before answering it, when a
 /// test needs the generation to be caught in flight.
 const GENERATION: Duration = Duration::from_millis(1500);
-
-/// An instant the slot is provably quiet by: captured *after* the completion
-/// and moved one interval on, so at least the interval has passed whatever the
-/// machine did in between. The mirror image is used for the negative — an
-/// instant captured *before* the completion, from which the elapsed quiet is
-/// zero by construction.
-fn quiet_since(moment: Instant) -> Instant {
-    moment + QUIET
-}
-
-/// One completion through the door, the way a client sends it: this is what
-/// marks the slot, and the only thing in the product that does.
-fn complete(address: SocketAddr, token: &str) {
-    let answer = exchanged(
-        address,
-        &chat_post(ORIGIN, Some(&format!("Bearer {token}")), None),
-    );
-    assert_eq!(status_of(&answer), 200, "{}", body_text(&answer));
-}
 
 #[test]
 fn a_dirty_slot_is_saved_once_the_quiet_lasts_and_the_flag_clears() {

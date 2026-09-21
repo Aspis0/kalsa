@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use crate::RunningDoor;
 
-use super::support::header_values;
+use super::support::{chat_post, exchanged, header_values, ORIGIN};
 use super::*;
 
 /// The pin the app hands the door, and the id a chat is opened by.
@@ -336,5 +336,29 @@ pub(super) fn wait_for(engine: &Engine, count: usize) {
         thread::sleep(Duration::from_millis(2));
     }
     assert_eq!(engine.sent().len(), count, "the engine never saw the request");
+}
+
+/// The quiet the tests let a slot have. Nothing sleeps through it: every tick
+/// is given its instant, so a loaded machine cannot turn "not yet" into "long
+/// enough" between a completion and the assertion.
+pub(super) const QUIET: Duration = Duration::from_millis(300);
+
+/// An instant the slot is provably quiet by: captured *after* the completion
+/// and moved one interval on, so at least the interval has passed whatever
+/// the machine did in between. The mirror image is used for the negative — an
+/// instant captured *before* the completion, from which the elapsed quiet is
+/// zero by construction.
+pub(super) fn quiet_since(moment: Instant) -> Instant {
+    moment + QUIET
+}
+
+/// One completion through the door, the way a client sends it: this is what
+/// marks the slot, and the only thing in the product that does.
+pub(super) fn complete(address: SocketAddr, token: &str) {
+    let answer = exchanged(
+        address,
+        &chat_post(ORIGIN, Some(&format!("Bearer {token}")), None),
+    );
+    assert_eq!(status_of(&answer), 200, "{}", body_text(&answer));
 }
 

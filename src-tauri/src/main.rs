@@ -105,10 +105,24 @@ struct ActiveDoor {
 /// `brain_state` reads this same lock. The door is taken out of the lock and the
 /// lock is released before the call, which is the whole reason it is an `Arc`.
 fn save_idle(door: &Mutex<Option<ActiveDoor>>) {
-    let active = door
-        .lock()
-        .ok()
-        .and_then(|stored| stored.as_ref().map(|active| Arc::clone(&active.door)));
+    let active = match door.lock() {
+        Ok(stored) => stored.as_ref().map(|active| Arc::clone(&active.door)),
+        // A panic with the lock in hand poisons it, and `.ok()` used to
+        // swallow that and stop the timer in silence, for good. One line, and
+        // once: the tick would otherwise print it every second until the app
+        // rebuilds the door. Recovering the lock is not this thread's call to
+        // make — the state a panic left behind is not known to be whole.
+        Err(_) => {
+            static POISONED: std::sync::Once = std::sync::Once::new();
+            POISONED.call_once(|| {
+                eprintln!(
+                    "kalsa-brain: the disk tier's timer lost the door to a panicked \
+                     thread, so a chat is now saved only when it is switched"
+                );
+            });
+            None
+        }
+    };
     if let Some(active) = active {
         active.save_idle(Instant::now());
     }

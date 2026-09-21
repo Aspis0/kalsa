@@ -15,6 +15,7 @@ mod cors;
 mod cors_answers;
 mod paging;
 mod paging_cadence;
+mod paging_cadence_tick;
 mod paging_route;
 mod paging_support;
 mod revocation;

@@ -56,11 +56,39 @@ impl ChatError {
     }
 }
 
+/// What a save left behind, and how the caller counts it. The idle tick does
+/// not hold the slot's lock across the engine call — `mark_dirty` takes that
+/// lock at the end of every turn — so the slot can be handed to another chat
+/// while the engine writes, and the rename is the step that has to notice.
+pub(super) enum Saved {
+    /// Renamed into place: the chat's file on disk is this save.
+    InPlace,
+    /// The engine answered `n_saved` 0: the slot held nothing to write, so
+    /// nothing was renamed. See `restore` above for what that branch does and
+    /// does not promise.
+    Nothing,
+    /// The slot is another chat's now, so the staging file was dropped rather
+    /// than renamed: its state may not land under a name it does not belong
+    /// to. What is owed belongs to whoever holds the slot now.
+    Superseded,
+}
+
 /// Saves the slot under `real`, and renames it into place only when the engine
-/// wrote something. An empty slot writes an empty state, and renaming that
-/// over a real file is how a sleeping engine destroys a chat it still has on
-/// disk.
-pub(super) fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), ChatError> {
+/// wrote something and the slot still holds the chat the name carries.
+///
+/// `still_resident` is the commit check, run only when there is something to
+/// rename. A caller that already holds the slot's lock passes `&|| true` —
+/// the residency cannot move under it — and the idle tick passes a closure
+/// that takes the lock back, because its own engine call ran without it.
+///
+/// An empty slot writes an empty state, and renaming that over a real file is
+/// how a sleeping engine destroys a chat it still has on disk.
+pub(super) fn save(
+    dir: &Path,
+    real: &str,
+    engine: &Engine<'_>,
+    still_resident: &dyn Fn() -> bool,
+) -> Result<Saved, ChatError> {
     let staging = format!("{real}{STAGING}");
     let staged = dir.join(&staging);
     let written = engine
@@ -74,7 +102,15 @@ pub(super) fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), Ch
                 Call::Refused => ChatError::Save,
             }
         })?;
-    let renamed = if written > 0 {
+    let resident = written > 0 && still_resident();
+    let outcome = if resident {
+        Saved::InPlace
+    } else if written > 0 {
+        Saved::Superseded
+    } else {
+        Saved::Nothing
+    };
+    let renamed = if resident {
         fs::rename(&staged, dir.join(real))
     } else {
         Ok(())
@@ -85,7 +121,8 @@ pub(super) fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), Ch
     // `?` that used to sit here skipped it on the one path that fails — a
     // rename the filesystem refuses left the staging file behind.
     let _ = fs::remove_file(&staged);
-    renamed.map_err(|_| ChatError::Files)
+    renamed.map_err(|_| ChatError::Files)?;
+    Ok(outcome)
 }
 
 /// Restores `name`, and records on the slot what a failure means for it. An

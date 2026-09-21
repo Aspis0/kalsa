@@ -241,7 +241,7 @@ impl Chats {
             // A save the engine refused leaves the slot as it was, so the
             // switch is refused with it: restoring over that slot would lose
             // the only copy of the chat that is open.
-            save(dir, &file_name(model, device, previous), engine)?;
+            save(dir, &file_name(model, device, previous), engine, &|| true)?;
         }
         if !dir.join(&target).exists() {
             // The one branch that is not a restore; the doc above says why it
