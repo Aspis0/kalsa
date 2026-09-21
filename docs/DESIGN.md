@@ -194,7 +194,7 @@ line on the smallest screen.
 - **Where the conversation sits** — owner's decision 2026-09-21: **it grows from the top while it
   fits, and sticks to the bottom once it overflows.** A short conversation begins at the top, exactly
   as the desktop app does, with no void shoving it down; the moment the content is taller than the
-  band the view stays at the end, so the newest turn sits one thumb above the composer. The owner
+  band the view stays at the end, so the newest turn sits one thumb above the composer. **The owner confirmed the consequence on 2026-09-21 after seeing it on the S23: the desktop behaviour wins, so a short conversation keeps its empty space below and is NOT glued to the composer.** The owner
   chose bottom-anchoring and named the three failures it is known for; they are requirements here,
   and none of them can be proven by a screenshot:
   1. **Not knowing which message is last.** While pinned, the band always shows the end: bottom
@@ -300,7 +300,18 @@ Decision, taken before mounting the shell:
 - The height comes from `react-native-keyboard-controller`, which the app already ships (1.21.9) and
   which reads the IME from native insets. **The safe-area bottom inset must never be used for this**:
   it excludes the IME, and stacking the two double-counts — a trap the existing composer's comment
-already records.
+  already records. The two are combined by **one named rule** rather than by hand at each call site:
+  the bottom inset becomes the **larger** of the safe-area inset and the keyboard, because when the
+  keyboard is up it covers the navigation bar rather than sitting above it.
+- **The transition is not smoothed in this step, and that is a listed gap rather than an oversight.**
+  The bands re-partition when the keyboard settles, so the composer arrives in one step instead of
+  travelling with the keyboard. Animating it properly means driving the transcript's height and the
+  composer's offset from one shared value on the UI thread, with the JS-side heights updated on settle
+  so the pin stays right - a step of its own, not something to smuggle in.
+- Note what this rules out: lifting the **whole shell** with bottom padding, the way the existing chat
+  does it (`AiChatPage.tsx:858-862, 3941`), cannot work here. That lift is fine for a scrolling column,
+  but lifting a three-band shell pushes the strip off the top of the screen, so the bands must
+  genuinely re-partition.
 - The transcript's pin re-decides when the keyboard settles, through the `resize` cause it already
   has.
 - `scripts/ci-screens.sh:647` and `:690-693` already assert "composer bottom ≤ IME top" for the old
