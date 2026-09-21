@@ -14,25 +14,29 @@ for somebody else's.
 That last clause is the whole reason the form is not negotiable, and it is committed:
 
 - Under unified KV the engine gains an idle-slot clearing path, hard-gated on the flag
-  (`server-context.cpp:1671-1673`) and fired as the retry after *"failed to find free space
-  in the KV cache"* (`:3980`). Its pressure valve is another device's warm slot.
+  (`server-context.cpp:1685-1690`) and fired as the retry after *"failed to find free space
+  in the KV cache"* (`:3984`). Its pressure valve is another device's warm slot.
   Measured: the unified four-phone run had **2 cold turns of 8 (TTFT 2.54 s against
-  0.32 s warm)** where the non-unified run had **0 of 8** (`MULTI-DEVICE-SHAPE.md:34-35`,
-  `57`, `61-63`), and the recommendation it produced is explicit — *"keep `kv_unified` out
-  of the launch"* (`§8.1`).
+  0.32 s warm)** (`MULTI-DEVICE-SHAPE.md:57`, `61-63`) where the non-unified four-phone
+  run had **0 of 8** (`:55`), and the recommendation it produced is explicit — *"keep
+  `kv_unified` out of the launch"* (`§8.1`).
 - The saving that would buy is **33.5 MiB at four slots** (`§7`: unified SWA pool
   189.66 MiB against 223.12 MiB replicated). Buying a 33.5 MiB saving with a measured
   cold-turn regression on the thing the plan promises is not a trade, it is a mistake.
 - Under unified the per-slot cap is also **conditional**: `n_ctx_slot()` is
-  `min(llama_n_ctx_seq, kv_unified_per_slot, n_ctx_train)` (`server-context.cpp:4276-4283`),
-  so the cap binds only when the pool is at least `N × cap`; otherwise the engine warns
-  that *"cap has no effect, slots are limited to …"* and every slot believes it owns the
-  pool, which is how two 14.7k prompts racing for 16 384 cells ended with one of them
+  `min(llama_n_ctx_seq, kv_unified_per_slot, n_ctx_train)` (`server-context.cpp:4277-4286`),
+  and under unified the per-slot limit *is* the whole pool (`llama-context.cpp:291-292`), so
+  the cap binds whenever it sits below that. The invariant that keeps the promise is a
+  **no-oversubscription precondition**: the pool must be at least `N × cap`. Miss it and
+  the engine warns that *"cap has no effect, slots are limited to …"*, every slot believes
+  it owns the pool, and two 14.7k prompts racing for 16 384 cells ended with one of them
   **cut mid-generation at 2 200 tokens** (`MULTI-DEVICE-SHAPE.md:163`). If unified is ever
-  revisited, that invariant is its precondition, not a detail.
+  revisited, that precondition is its first check, not a detail.
+  *Citations in this section are to the fork's checkout (`v1.1.0` + 4), not to the release
+  tag: there the two lines are `:3969` and `:4266-4275`.*
 
 **What one extra device costs, correctly derived:** the sliding-window layers replicate per
-stream, `55.78 MiB` each — `§7`'s `+167.34 MiB` is `55.78 × 3` for four slots. Version 2
+stream, `55.78 MiB` each — `§7`'s `+167 MiB` (`:211`) is `55.78 × 3` for four slots. Version 2
 divided by four and printed 42; the marginal figure is **55.78 MiB per device**, and it is
 the number the panel should carry.
 
@@ -44,14 +48,14 @@ seats, and how big is each".
 ## 2. What is not settled, and must be measured before anything is promised
 
 1. **What two devices talking at once costs, per stream.** The only committed solo figure is
-   **62.7 tokens/s at context 4096** (`WHAT-IS-MISSING.md:337`). The paired figure is *not*
+   **62.7 tokens/s at context 4096** (`WHAT-IS-MISSING.md:337`; Gemma's 20.44 token/s at `:338`
+   is the other). The paired figure is *not*
    committed anywhere: `dev/results/multi-device-shape/*/results.json` records prefill rates
    only, and this repo deliberately does not commit server logs
    (`MULTI-DEVICE-SHAPE.md:243-246`). The number that would go in the panel — "each device
    keeps X % of its speed when you both talk" — **does not exist yet**, and version 2's
    39 % was a ratio between two different runs at two different decode lengths. Task 1 below
-   produces it and commits a stripped artifact so anyone can check it.
-2. **Whether a chat switch comes back warm without `--swa-full`.** Two committed
+   produces it and commits a stripped artifact so anyone can check it.2. **Whether a chat switch comes back warm without `--swa-full`.** Two committed
    experiments disagree: the paging spike's single-slot run reports `n_restored=613` and
    then `cached=0` — *"paging gives nothing back"* (`dev/results/kv-paging-spike/summary.md`)
    — while the shape run's switch-back at ~2k restored **1862 of 1867 tokens for −2 ms** on
@@ -73,10 +77,14 @@ seats, and how big is each".
 2. **Re-audit the five launch gates** in `crates/kalsa-launch/src/args.rs:79-126` before
    treating any of them as work. Their real state today: gate 1 (the engine carries the
    inlet) is **closed** on this platform; gate 4 (`funded_context` per slot) is **closed in
-   code** — `policy.rs:196` takes the slot count and a committed test pins
-   `preview == maximum / slots` for N = 1..=8 — but still **declared open** in the list;
-   gate 2 is **half closed**, the per-slot KV term is in place while the per-token figure is
-   still the conservative 96 KiB/token and Gemma 4 E2B is unpriced; gate 3 (the prompt-cache
+   **closed in the arithmetic** — `policy.rs:196` takes the slot count and a committed test
+   pins `preview == maximum / slots` for N = 1..=8 — but **the gate is not closed**, and v3's
+   own earlier reading of it was too generous: its text also demands *"and the callers must
+   pass it"* (`args.rs:118`), and a production caller does not — `capability.rs:216` builds
+   the Brain page's user-visible `context_tokens` with `DEFAULT_PARALLEL` baked in. That is a
+   real code change waiting, not bookkeeping, and it is user-visible the moment the number
+   rises above one; gate 2 is **half closed**, the per-slot KV term is in place while the
+   per-token figure is still the conservative 96 KiB/token and Gemma 4 E2B is unpriced; gate 3 (the prompt-cache
    roof) is **open** and slot-blind (`policy.rs:467-477`); gate 5 (the panel's grid, which
    must step in `256 × N` multiples) is **open**. Four real streams of work, one of them UI,
    one an arithmetic replacement — each with its own acceptance test, not one sentence.
@@ -85,6 +93,18 @@ seats, and how big is each".
    1. The **disk** figure stays absent and the plan says so out loud: the disk tier is
    deferred (§4), and until it lands the panel says nothing about disk rather than a number
    without a mechanism.
+   Note: task 1's rule — nothing reaches the panel before its measurement is committed —
+   scopes to the numbers that do **not** yet have an artifact (the concurrency figure), not
+   to the ones that already do.
+
+**And one engine bug in the primary path, independent of the disk tier.** The context shift
+calls `slot.prompt.clear()` and re-inserts the kept tokens (`server-context.cpp:3199`),
+which wipes `cache_salt` the same way the restore does and never re-stamps it — so a
+conversation that grows into a shift loses its own namespace and the device's next request
+clears it. A one-line re-stamp from `slot.task->params.cache_salt` closes it. Under this
+plan's shape — one long-lived conversation resident per slot — that path is **more**
+reachable than it was under the version-1 swap design, which is why it belongs here and not
+in §5.
 4. **The isolation test the household rules already mandate**, under this shape: device A
    sends a prompt carrying a unique marker, device B sends a prompt sharing a long identical
    preamble; assert that B's answer never carries A's marker and that B's reused tokens never
