@@ -67,20 +67,14 @@ Engine paths are relative to `/Users/marco/Projects/kalsallama` @ `5c96b18dd`; a
   FULL term is not excluded a priori, and this fork's target model is not named in this document.
   **Therefore: the identity cannot ride in the appendix, because the appendix may not exist —
   not because `--swa-full` guarantees its absence.**
-- **`--swa-full` has a price, and it is large.** `size_swa = GGML_PAD(min(size_base, n_swa +
-  n_ubatch), 256)` (`src/llama-kv-cache-iswa.cpp:84`), overridden to `size_base` by `swa_full`
-  (`:91`), and that value drives the SWA cache allocation (`:109`, `:113`). The committed runs
-  print **2560 SWA cells in every shape** while the non-SWA cache is the pool divided per slot
-  (`dev/results/multi-device-shape/*/memory.txt`). At the app's current single-slot 64k launch
-  that is 2560 → 65536 cells, **25.6×**, i.e. ~1.4 GiB of SWA KV for that one slot against
-  55.78 MiB today. At four slots on a 16k pool it is 2560 → 4096, **1.6×**. The figure is
-  *derived from committed cells, not measured*: the memory arithmetic must price it before any
-  window per device is promised.
-- **The two committed runs that "disagree" measure different mechanisms.** The paging spike
-  exercised the save/restore route (`n_restored=613`, then `cached=0`); the shape run's cheap
-  switch-back at ~2k was the RAM prompt cache restoring 1862 of 1867 tokens
-  (`docs/MULTI-DEVICE-SHAPE.md:149`). They answer different questions, and the tier's question
-  is the first one.
+- **`--swa-full` was the plan's red herring, and it is settled by measurement.** The paging
+  spike's `cached=0` was never a sliding-window limitation: it is the namespace hole below.
+  `dev/results/slot-restore-swa/summary.md` runs the save/restore round-trip with the flag off
+  **and** on, at ~600 and ~1900 tokens, salted and unsalted, and the reused-token count is 0 with
+  a salt and ~1895 without it **in both settings** — the tokens come back (`n_restored` is the
+  whole conversation in all eight rows) and are then destroyed by the next request only when the
+  caller carries a salt. The flag moves the file size, not the warmth.
+  **So the tier does not render it**, and the ~1.4 GiB price below is moot.
 - **The door already strips and injects.** The client's `X-Kalsa-Slot` and `X-Kalsa-Cache-Salt`
   are recognised and discarded (`crates/kalsa-door/src/request.rs:174-185`), and the door writes
   its own into the sealed head, the only path to the wire (`:55-62`). `/slots/*` is refused
@@ -167,12 +161,18 @@ Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
 - `--ctx-checkpoints 1` → the default is 32 (`common/common.h:630`) and v1 left this out, which
   would let one chat's save file reach the size the handoff records. One record is enough:
   the reader trims to `n_ctx_checkpoints` anyway (`server-context.cpp:2581-2583`).
-- `--swa-full` → **rendered only if §5's measurement says the file round-trip needs it**, and only
-  for a model that reports SWA layers. T6 owns the decision; this task owns the rendering.
+- `--swa-full` → **not rendered.** The measurement in §5 settles it: the flag changes the save
+  file's size, not whether a restore comes back warm. Were it ever adopted it would also take the
+  SWA cache from `min(size_base, n_swa + n_ubatch)` to `size_base`
+  (`src/llama-kv-cache-iswa.cpp:84`, `:91`), which at a single 64k slot is 25.6× the SWA KV —
+  measured on this engine as 2560 → 16384 cells in the run log. Recorded so the reasoning is not
+  re-derived from scratch.
 
 **Acceptance**: committed tests pin each rendered flag in the same manner as the existing test
 that pins `--sleep-idle-seconds 300` (`crates/kalsa-launch/src/policy.rs:1062`), plus a test that
-a launch fails when the save directory cannot be created.
+a launch fails when the save directory cannot be created, plus a test that `--swa-full` is **not**
+rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on the measured model,
+≈ 218 MB per chat at the 4 096 floor — is committed in the same artifact as the warmth result.
 
 ### T3 — app: the save/restore client in the door
 
@@ -241,25 +241,35 @@ Resident count, window per device, **55.78 MiB** per extra resident, and the con
 
 - The live window number must come from the engine's per-slot value, not `n_ctx`
   (`chat/src/lib/chat.ts:117-140`).
-- If §5 adopts `--swa-full`, the panel's memory line must carry its price (§2), because that flag
-  changes what an extra resident costs on a sliding-window model. Until the memory arithmetic
-  prices it, the panel says nothing about disk.
+- The live window number must come from the engine's per-slot value, not `n_ctx`
+  (`chat/src/lib/chat.ts:117-140`).
+- The disk line comes from the measured footprint in §5 — ≈ 53 KB per token on the measured model,
+  ≈ 218 MB per chat at the 4 096-token floor — and is linear there; the saturating part of the
+  curve is not measured and the panel must not extend the line past it.
 
-## 5. The measurement that decides the tier's shape
+## 5. The measurement that decided the tier's shape — done
 
-**Does the save/restore file round-trip come back warm without `--swa-full`?** This is not a
-disagreement between two runs (§2): it is a mechanism question, and the paging spike already
-answers it negatively — `n_restored=613`, then `cached=0`, "paging gives nothing back". If that
-holds, the tier's only working path on a sliding-window model is `--swa-full` at the price in §2,
-or no disk tier for that model.
+**Does the save/restore file round-trip come back warm without `--swa-full`? Yes, and `--swa-full`
+was never the variable.** Run 2026-09-21, committed as `dev/results/slot-restore-swa/`
+(`results.json` + `summary.md`): three engines, `--cache-ram 0` on the two that exercise the file
+so the RAM cache cannot answer for it, ~600 and ~1900 tokens, salted and unsalted, flag off and on.
+The tokens are restored in all eight rows; the next request reuses **0** of them when the caller
+carries a salt and ~1895 when it does not — in **both** flag settings. The mechanism is named in
+the artifact: the restore wipes `slot.prompt.cache_salt`, and `server-context.cpp:3432-3434`
+then clears what was restored. That is exactly T1's fix, now measured rather than argued.
 
-The verdict is a **count**, `bool(s["next_cache_n"] and s["next_cache_n"] > 32)`
-(`dev/measure-slot-restore.py:509`), so it is load-invariant and may run on a busy machine; its
-`wall_ms` and `prompt_ms` columns are not, and must not reach the panel. The two-device
-concurrency figure is a rate and still needs an idle machine.
+Consequences, all of them recorded above:
 
-**Nothing in T1–T5 is blocked by either measurement.** T1 can land first; T2's third flag is the
-only line that waits.
+- `--swa-full` is **not** a launch flag of this tier, and the ~1.4 GiB it would have cost is not
+  paid (§2, T2).
+- The disk footprint is measured and linear at these sizes: ≈ 31 KB/token with the flag, ≈ 53 KB
+  without it — so the tier's normal path, without the flag, writes the larger file, because the
+  save carries one context checkpoint the flag's absence requires.
+- T1 is the only blocking task, and its acceptance test is the mirror of this run.
+
+**Still open**: the two-device concurrency figure is a **rate** and still needs an idle machine,
+and it gates only T6's number, not any task. Nothing above ~1900 tokens is measured, so the
+saturating part of the disk curve is not a number this plan may carry.
 
 ## 6. Out of scope, with the reason written down
 
@@ -312,7 +322,13 @@ again by the next author who reasons from lines they did not open.
    which is what the auditor found when it searched for one.
 5. **The `--swa-full` claim was overclaimed.** It drops one term of a three-term disjunct, not the
    whole condition; the appendix is conditional for the reasons in §2, not because the flag
-   guarantees its absence.
+   guarantees its absence. **And the flag was never the tier's question at all.** v1 inherited
+   that framing from `MULTI-DEVICE-SHAPE.md` §9 and `PLAN-CHAT-ON-DISK.md` §5, both of which make
+   `--swa-full` a tested precondition on the strength of the paging spike's `cached=0`. The run
+   in §5 shows the spike measured the namespace hole, not the flag, and that the two documents'
+   framing is superseded. They are not rewritten: they record what was believed, and this plan
+   records what was measured. **The general lesson, worth more than the correction: a negative
+   result that is never varied one variable at a time is an attribution, not a finding.**
 6. **The cross-slot prompt-cache sentence was wrong**, and is corrected in §6.
 7. **Gaps the coder would have had to invent**: the failure UX of a restore, the filename scheme's
    authorship, chat deletion, the sleep case, salt rotation across a re-pair, the resident map's
