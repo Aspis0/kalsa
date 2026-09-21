@@ -10,9 +10,9 @@
  * ./thoughtMotion.ts, what is here is the drawing.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
-  cancelAnimation, useAnimatedStyle, useFrameCallback, useSharedValue,
+  Easing, cancelAnimation, useAnimatedStyle, useFrameCallback, useSharedValue,
   withDelay, withRepeat, withTiming, type FrameInfo, type SharedValue,
 } from "react-native-reanimated";
 import {
@@ -48,7 +48,11 @@ export type ThoughtCloudProps = {
 
 /** The desktop stylesheet is rem-based; one rem is what the browser used. */
 const REM = 16;
-/** CSS `ease-out`, which is not `Easing.out(Easing.cubic)`. */
+/** CSS `ease-out`, which is not `Easing.out(Easing.cubic)`.
+ *  It MUST come from reanimated: `withTiming` runs its easing on the UI runtime,
+ *  and React Native's own `Easing` is a plain JavaScript closure, so taking it
+ *  from `react-native` kills the app on mount with "Tried to synchronously call
+ *  a Remote Function" (Worklets). `thoughtCloudWorklets.test.ts` guards this. */
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 const BODY_MAX_HEIGHT = 320;
 const BUBBLES = [{ size: 9, inset: 0 }, { size: 7, inset: 2 }, { size: 5, inset: 5 }] as const;
