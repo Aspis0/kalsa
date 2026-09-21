@@ -232,3 +232,24 @@ describe("native trace CSV schema", () => {
     expect(columnsWrite).toBeGreaterThan(schemaWrite);
   });
 });
+
+describe("readThermo plugged idle latch", () => {
+  const start = KOTLIN_SOURCE.indexOf("fun readThermo(");
+  const end = KOTLIN_SOURCE.indexOf("fun readSoc(");
+  const readThermo = KOTLIN_SOURCE.slice(start, end);
+
+  it("latches the idle baseline on the plug-in edge and clears it on unplug", () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(readThermo).toMatch(
+      /if \(plugged\) \{[\s\S]*idleBaselineTenthsC = temperature[\s\S]*\} else \{[\s\S]*idleBaselineTenthsC = null/,
+    );
+  });
+
+  it("reports the latch in tenths and leaves the degrees conversion to the app", () => {
+    expect(readThermo).toContain('putBoolean("t_idle_valid", idleTenths != null)');
+    expect(readThermo).toContain('putInt("t_idle_tenths_c", idleTenths)');
+    // The tenths-to-degrees conversion happens exactly once, in profileFrom.
+    expect(readThermo).not.toContain('"t_idle_c"');
+  });
+});

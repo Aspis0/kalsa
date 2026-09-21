@@ -223,15 +223,54 @@ describe("governor inputs", () => {
     });
   });
 
-  test("forwards plugged source validity without a JS idle gate", async () => {
+  test("lifts the latched plugged idle from tenths to degrees", async () => {
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 370,
+      battLevelPct: 90,
+      plugged: true,
+      sensorValid: true,
+      t_idle_valid: true,
+      t_idle_tenths_c: 350,
+    });
+    // The engine reads t_idle_c in whole degrees C and offsets every plugged
+    // threshold from it; a tenths value here would read 350 "degrees".
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      sensor_valid: true,
+      plugged: true,
+      t_idle_valid: true,
+      t_idle_c: 35,
+      thermo_source: "battery",
+    });
+  });
+
+  test("refuses a tenths value that leaks into the degrees field", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 350,
+        batt_level_pct: 80,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 350,
+      }),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      plugged: true,
+      t_idle_valid: false,
+      thermo_source: "bench-skin",
+    });
+  });
+
+  test("keeps an unplugged poll without an idle reference valid", async () => {
     (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
       battTempTenthsC: 320,
       battLevelPct: 90,
-      plugged: true,
+      plugged: false,
       sensorValid: true,
     });
     await expect(readGovernorThermo()).resolves.toMatchObject({
       sensor_valid: true,
+      plugged: false,
       thermo_source: "battery",
     });
   });
