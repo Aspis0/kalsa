@@ -344,12 +344,20 @@ saturating part of the disk curve is not a number this plan may carry.
   ~1.4 GiB in §2 is derived from committed cell counts and is labelled as derived, not measured.
 - Coders and reviewers on different models; an errored review is a lead, never a pass.
 - **One branch per repo, and it is the working branch: the app on `brain`, the engine on `main`.**
-  Nobody creates another, nobody renames one, nobody pushes either. The app's `origin/main` is the
-  phone app and the engine's `upstream` is read-only: those two are not branches to be careful with,
-  they are branches that do not exist for this work. **A branch is not an artifact — delegate and
-  review by commit hash.** The rule is this one because the previous one failed: work landed on
-  delegate branches (`disk-tier-salt-restore`, `disk-tier-t2-argv`) and folding it back is work that
-  buys nothing, while a branch zoo makes nobody able to say what is where.
+  Do not create another one. **A branch is not an artifact — delegate and review by commit hash.**
+  The app's trap, stated exactly, because it is the one that eats work: its remote is
+  `github.com/Aspis0/kalsa.git`, the **phone** app's remote, and that remote holds two lineages —
+  `origin/brain`, ours, which `brain` tracks, and `origin/main`, which is **not ours**: the phone
+  app. They are not close. Measured today: `brain` is 257 commits ahead of the merge base and
+  `origin/main` is 911, and `origin/main`'s most recent commits are `scripts/ci-e2e.sh` and
+  `scripts/test_sideload_guards.sh`. **There is no local `main`**, so the only way to reach that
+  lineage is to name it on purpose: never check it out, never fetch into it, never make it a push
+  target, never `checkout -b main`. The three other local branches (`catalog-downloadable`,
+  `iroh-door`, `resumable-answers`) are pre-existing and are left alone: this rule forbids **new**
+  branches, not other people's.
+- **Say which branch you are on before every commit.** `git branch --show-current` must print
+  `brain` in the app and `main` in the engine. A commit is cheap to lose and expensive to find when
+  it sat on a branch nobody named.
 - **Stage by name: `git add <file>`, never `-A` and never `.`** The engine tree carries 465 lines of
   unrelated work in progress and the app tree carries three untracked measurement scripts; a blanket
   add commits both. A delegate commits only the files it touched, and says which ones.
