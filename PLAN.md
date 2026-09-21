@@ -179,6 +179,29 @@ Two riders carried with the same table, because both were later misread:
   `:2045`, `:2488`) and the archived diary stops at 2026-09-20. No document records a G2 claim
   after that, so the answer to "is M1 finished?" is no by the gate it depends on.
 
+### Owner decision 2026-09-21: bring the Governor forward
+
+Owner, 2026-09-21: the Governor work is anticipated. The reason is a measurement
+fact: after a certain number of CPU turns the phone enters Android's severe thermal mode and
+everything stops, so the 20-30 turn sessions G2 asks for cannot be run at all until something
+controls the thermals while the session runs.
+
+What this changes:
+
+- **G2's long-session criterion is unreachable as written.** It is not a test to re-run; it is a
+test that cannot exist until the governor is in the loop. The first three steps of the governor
+order of work (`analysis/GOVERNOR-DEVICE-PLAN.md`, Part 9: fixes 5.1/5.2/5.3, then the GPU probe,
+then the runtime probe with `gpubusy`) move AHEAD of G2's closure.
+- **The app-side energy measurement (the "consumption" item) and the governor are the same work.**
+  Defect 5.2 IS the battery path: `GovernorBatteryModule.kt:62-66` sends `plugged` and
+  `sensorValid` but not `t_idle_valid`, the parser defaults it to `false`, and with the cable
+  plugged the profile is `Invalid` → `Abort`. The measurement cannot be built beside the governor;
+  it is the governor's input.
+- **The governor lives in the engine, so this is a cross-repo pipeline, not an app-only change:**
+  engine commit → binding fork bump (`Aspis0/kalsa.rn`) → app pin → APK CI → device verification.
+- The device plan itself is re-opened by this decision. It was parked per an earlier owner order
+  (`analysis/GOVERNOR-DEVICE-PLAN.md`, "Governor"), and this is the un-park.
+
 ## Roadmap and next steps
 
 The order is the owner's to set. The committed near-term work is:
