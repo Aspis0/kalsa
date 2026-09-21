@@ -8,6 +8,23 @@ replaces the Italian PLAN as the living document;
 the full history (the dated decision diary and the register of banked measurements) is in
 `archived/PLAN-2026-09-full.md`.
 
+## STANDING RULE (owner, 2026-09-21, permanent and absolute): NOTHING GOES UPSTREAM
+
+Nothing goes upstream. Ever. No pull requests, no issues, no comments on issues or PRs, no reviews,
+no patches, no discussion posts, no mailing list, no Discord, nothing.
+
+Reading upstream is allowed and useful: `git fetch upstream`, `git log`, `git grep`, reading the
+GitHub pages of issues and PRs for our own information. Writing anything upstream is forbidden, by
+us and by any agent acting for us, whoever the account is. We do not contribute back, we do not
+comment, we do not announce, we do not coordinate. The fork is ours and stays ours.
+
+Where an earlier record says "push this as a PR", "comment on issue X" or "review patch on PR Y",
+the fork-only equivalent applies: keep it in the branch, or delete it. The checkpoint-appendix work
+that overlaps upstream PR #26004 is simply OUR code, kept as it is; we do not touch their PR.
+
+This rule sits ABOVE the standing push/tag/release rule: push, tag and release additionally require
+the owner's explicit OK.
+
 ## What Kalsa is
 
 Kalsa is an Android chat app that runs language models on the phone itself, with no server in
