@@ -389,6 +389,30 @@ from `RNLlamaModule.install` inside a `try/catch`, and `NativeRNLlama.ts:8` uses
 `TurboModuleRegistry.get`. And the Hexagon landmine stays for anyone who builds the engine:
 `~/.hexagon-sdk` present makes `llama.rn` auto-enable a DSP build that fails for missing QAIC artifacts.
 
+**The capture is gated on the machine, not just on the tree.** A build plus an emulator is the
+heaviest thing this project does, and the Mac is shared with another session that owns it for its own
+work; while that is true, no gradle and no AVD. The pixels wait, and nothing else does: everything above
+can be written, tested and reviewed without compiling.
+
+**The recipe, for when the machine is free.** `SHELL_PREVIEW = true` in `App.tsx` (and back to `false`
+afterwards), then one build — `--console=plain --no-daemon --max-workers=2
+-PreactNativeArchitectures=arm64-v8a -PrnllamaBuildFromSource=false`, which measured 47 s with zero C++
+compilers — on the `jelly480` AVD (480x854 at 220 dpi = 349x621 dp). Tapping goes through the harness in
+`scripts/ci-lib.sh`, which finds nodes by their accessible name instead of fixed coordinates. The three
+cases, and the rule that makes a capture trustworthy:
+
+1. the live window (349x621 dp), keyboard down;
+2. **325 dp only with the keyboard really up** — focus the composer field, then assert the IME is shown
+   (`dumpsys input_method`); if it is not, the picture is of a shell sitting in the top third of an empty
+   screen and it must not be shipped as evidence;
+3. 780 dp belongs to the S23's window (360x780 dp), on an AVD built from the same system image.
+
+`ShellPreview`'s size bar prints the window's own height, so each PNG says which case it is, and it adds a
+warning line whenever the pinned height differs from the live window — a misleading capture now carries its
+own indictment in the image. And `ShellPreview.tsx` was supposed to be removed in step 3, which did not
+happen: the shell is still not mounted inside the running app, so the preview is the only consumer and
+stays until that mount is a step of its own.
+
 **Verification for every step**: `npx tsc --noEmit`, `npx jest --silent`, emulator screenshots at
 both real viewports. **A screenshot needs no C++ build** — see above — and the emulator capture has
 one more requirement worth writing down: Reanimated's animations are checked by the UI runtime, so a
