@@ -223,6 +223,24 @@ come from the desktop source: window 2000 ms, write throttle 350 ms, period 1.8 
 0.7–2.4 s, rate = arrivals/2, rise 14 px with scale 0.7 → 0.45, settle 900 ms with 0/120/240 ms
 stagger, breathe 2.6 s to scale 1.012, cloud radii 24/28/26/18, puffs 26×26 and 15×15, trail 9/7/5.
 
+**What the element is, because three agents have now mis-read its name.** It is a boxed card, not a
+field of drifting words: a lumpy top edge (the two puffs), **one** italic ticker line clipped to a
+single line, the disclosure toggle, and a **trail of three bubbles** (9/7/5 dp, insets 0/2/5) that
+rises and fades while the model works. "Arrivals" are the reasoning tokens; they set the **pace of
+that rise** and nothing else — rate = arrivals/2, so the trail's period is the whole of what they
+control. There is no word-level drift to see, and there never was: the desktop source says the same
+in its own words — *"a lumpy cloud, a trail of bubbles between the cloud and the first line of the
+reply"*, *"bubbles rise from the answer into the cloud"* (`kalsa-brain/chat/src/components/
+ThoughtCloud.tsx:29-39`), and its trail is the same three bubbles with the same 9/7/5 px, the same
+1 px `--border-strong` ring on a `--surface` fill, and the same rise (`ThoughtCloud.css:95-131`).
+
+Two consequences worth writing down. **A still frame cannot prove this animation**: the whole
+gesture is three rings ≤ 9 dp travelling 14 px, so the honest evidence is a pair of frames a
+fraction of a period apart, not one picture. And **the trail is visible when nothing is arriving**,
+in both implementations, because the rings are drawn at rest — the 1 px ring is the only thing that
+reads against the card's own `surface` fill, which is why a settled cloud shows one faint grey
+circle rather than three bubbles.
+
 One deliberate deviation, kept and commented: the rise rides 12 px higher than the desktop, because
 the reference's animation uses `backwards` fill only and **snaps visibly** when the settle ends.
 
