@@ -4,7 +4,7 @@ import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
-import { ChatRequestError, fetchContextSize, serverBase } from "./lib/chat";
+import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
@@ -77,6 +77,14 @@ export function App() {
   const [path, setPath] = useState<SurfaceKey[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
   const [writeError, setWriteError] = useState<string | null>(null);
+  // What the door answered about a slot, when the answer is not a plain
+  // success. `failed` is the difference between a warning and a refusal: a door
+  // built without the disk tier (501) leaves the chat open and only says so,
+  // while a refusal means the chat was NOT opened and the sentence it came with
+  // must be read as the door wrote it — never softened, and never turned into
+  // "the slot is empty", which the door reserves for the one case it knows
+  // that about.
+  const [slotNotice, setSlotNotice] = useState<{ failed: boolean; message: string } | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const [navOpen, setNavOpen] = useState(false);
@@ -192,6 +200,15 @@ export function App() {
     [settings, brainServer],
   );
   const configured = isConfigured(effectiveSettings);
+  // The disk tier's door, when this window is talking to one: `withBrainDefaults`
+  // puts this computer's own door in front of the owner's saved server while the
+  // brain runs, so a running brain is the fact that makes the endpoint the door
+  // and the token this device's credential. With no door there is no tier to
+  // ask: `/kalsa/chat/activate` on somebody else's server is not a request that
+  // server ever agreed to read.
+  const door = brainServer
+    ? { endpoint: brainServer.endpoint, token: brainServer.credential }
+    : null;
   // The model's own chat template decides whether a thinking switch may be
   // offered at all, and it is read from the one road to `/props`
   // (`useServerFacts`) — the sampler panel reads the same fact the same way.
@@ -577,11 +594,15 @@ export function App() {
   // Creates the turn and starts the stream, configured or not — the bubble
   // belongs to the person, and an answer with nowhere to go fails under it
   // with the error and a way to Settings. Returns the user message's id.
-  function sendMessage(text: string): string | null {
+  //
+  // `fresh` is the id of a conversation that does not exist yet, made by the
+  // caller and offered to the door first (`openInSlot`): a chat that is already
+  // open never takes this path, because it was offered when it was selected.
+  function sendMessage(text: string, fresh: string | null = null): string | null {
     let conv = active;
     if (!conv) {
       conv = {
-        id: uid(),
+        id: fresh ?? uid(),
         title: titleFor(text),
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -612,7 +633,21 @@ export function App() {
   // A stream in ANOTHER conversation never blocks this one; the composer
   // shows Stop (not Send) while its own conversation is generating.
   function send(text: string): boolean {
-    return sendMessage(text) !== null;
+    if (active) return sendMessage(text) !== null;
+    // The first message of a chat that does not exist yet waits for the door,
+    // and the words stay in the box until it answers: a refusal has to leave
+    // them where the person wrote them, not swallow them. `false` is "do not
+    // clear the box" — this path clears it itself, on the one answer that opens
+    // the chat.
+    const id = uid();
+    void (async () => {
+      if (!(await openInSlot(id))) return;
+      // Only if the box still holds what was sent: the wait is a round trip,
+      // and the next message may already be in it.
+      setDraft((current) => (current.trim() === text ? "" : current));
+      sendMessage(text, id);
+    })();
+    return false;
   }
 
   // Enter in the brain's bar: the chat opens with the text as the first
@@ -625,6 +660,23 @@ export function App() {
     const calm =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The chat this becomes does not exist yet, so the door is asked before the
+    // bar is measured or moved: the flight aims at where the bar really stands,
+    // and the first message must not reach the engine ahead of the slot.
+    const fresh = active === null ? uid() : null;
+    if (fresh !== null) {
+      void (async () => {
+        if (!(await openInSlot(fresh))) return;
+        flyBarInto(text, fresh, calm);
+      })();
+      return;
+    }
+    flyBarInto(text, null, calm);
+  }
+
+  /** The rest of `writeFromBrain`, once the door has taken the chat: measure the
+      bar, start the room's change, commit the bubble, aim the flight at it. */
+  function flyBarInto(text: string, fresh: string | null, calm: boolean): void {
     const bar = calm ? null : document.querySelector(".brain-bar");
     const before = bar ? bar.getBoundingClientRect() : null;
     // The whole screen changes, and the bar's flight is part of that change:
@@ -635,7 +687,7 @@ export function App() {
     // The commit has to be in the DOM before the bubble can be measured, which
     // is what flushSync is for: not the animation, the measurement.
     flushSync(() => {
-      openedId = sendMessage(text);
+      openedId = sendMessage(text, fresh);
     });
     if (openedId === null) return;
     // The bubble is in the DOM by now — flushSync committed it — and it is
@@ -682,6 +734,14 @@ export function App() {
     if (assistantId) controllers.current.get(assistantId)?.abort();
     store.remove(id);
     if (activeId === id) setActiveId(null);
+    // A chat the door kept leaves two things behind — its file, and the state
+    // in the slot when that slot holds it — and this is the one call that takes
+    // them. `no-tier` says nothing here: a door without the tier kept no file,
+    // so there is nothing of this chat left to remove.
+    if (!door) return;
+    void eraseChat(door.endpoint, door.token, id).then((answer) => {
+      if (answer.kind === "refused") setSlotNotice({ failed: true, message: answer.message });
+    });
   }
 
   function newConversation(): void {
@@ -717,10 +777,51 @@ export function App() {
     setPath(path.slice(0, -1));
   }
 
+  // The disk tier's one seam: the door is told which chat this device is
+  // opening, and the chat becomes the active one only once the door has
+  // answered. The order is the point, not a formality — the door serialises the
+  // actions of one slot but not a completion against them, so a message that
+  // reached the engine first would build the new chat's state and have an erase
+  // or a restore thrown over it: the warmth this tier exists for, spent for
+  // nothing. Cost, accepted and named: a switch waits for a save and a restore,
+  // and the save writes the resident chat's whole state even when nothing has
+  // changed since the last one. That save can be skipped later — the door knows
+  // the token count it wrote and would only need the slot's current count,
+  // which nothing reports yet.
+  async function openInSlot(id: string): Promise<boolean> {
+    if (!door) return true;
+    const answer = await activateChat(door.endpoint, door.token, id);
+    // Committed here and not on React's schedule: the caller measures the
+    // brain's bar straight after this and aims the flight at where it stands,
+    // and this banner sits above that bar. A 501 is a warning, not a refusal —
+    // a door built without the tier is a configuration the app serves, and the
+    // chat opens as it always did.
+    flushSync(() =>
+      setSlotNotice(
+        answer.kind === "ok" ? null : { failed: answer.kind === "refused", message: answer.message },
+      ),
+    );
+    return answer.kind !== "refused";
+  }
+
   function selectConversation(id: string): void {
-    setActiveId(id);
-    openSurface("chat");
-    setDrawerOpen(false);
+    // The chat that is already active is not asked about again: the door would
+    // no-op it, and nothing on screen changes either way.
+    if (id === activeId) {
+      openSurface("chat");
+      setDrawerOpen(false);
+      return;
+    }
+    void (async () => {
+      // A chat the door refused to open does not become the active one: the
+      // door has already put back what its slot held, and a UI that moved on
+      // anyway would be showing a chat the slot does not hold while the next
+      // switch saves that slot under this chat's name.
+      if (!(await openInSlot(id))) return;
+      setActiveId(id);
+      openSurface("chat");
+      setDrawerOpen(false);
+    })();
   }
 
   const empty = !active || active.messages.length === 0;
@@ -839,6 +940,23 @@ export function App() {
           <div className="storage-banner" role="alert">
             <span>{writeError}</span>
             <button type="button" onClick={() => store.clearWriteError()}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+        {/* The door's own sentence about this device's slot, where it arrived.
+            A refusal is an alert — the chat it names did not open — while a
+            door built without the tier is a status: the chat opened, and the
+            sentence only says what the door cannot do. Neither is rewritten
+            here: the door distinguishes a slot that is empty from one whose
+            state is unknown, and a friendlier sentence would lose that. */}
+        {slotNotice ? (
+          <div
+            className={slotNotice.failed ? "storage-banner" : "refusal-banner"}
+            role={slotNotice.failed ? "alert" : "status"}
+          >
+            <span>{slotNotice.message}</span>
+            <button type="button" onClick={() => setSlotNotice(null)}>
               Dismiss
             </button>
           </div>

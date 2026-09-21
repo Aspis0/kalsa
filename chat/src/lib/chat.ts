@@ -139,6 +139,83 @@ export async function fetchContextSize(
   }
 }
 
+/**
+ * What the door answered about a chat's slot. Three answers, and the app must
+ * not flatten them into two:
+ * - `ok` — the slot took the chat (204);
+ * - `no-tier` — this door was built without the disk tier (501), and it says
+ *   which half is missing. The chat opens exactly as it did before the tier;
+ *   a pinned development model has no catalog identity, and that is a
+ *   configuration the app serves, not a fault;
+ * - `refused` — the door refused, or nothing answered, and `message` is the
+ *   door's own sentence, shown as it arrived. It distinguishes what must stay
+ *   distinguished: a slot the door only refuses to fill, one it repaired, and
+ *   one whose state is **unknown**. Unknown is never "empty".
+ */
+export type SlotAnswer =
+  | { kind: "ok" }
+  | { kind: "no-tier"; message: string }
+  | { kind: "refused"; message: string };
+
+/**
+ * The one sentence the app owns. It exists for the case the door sent none:
+ * a fetch that never reached it, or an answer with no body. Nothing at all is
+ * known about the slot then, so the sentence says unknown — the door's own
+ * word — and never empty.
+ */
+export const DOOR_SILENT =
+  "The door did not answer, so the state of this device's slot is unknown.";
+
+/**
+ * One of the door's two slot routes, on the door's own port, with the
+ * credential this window holds as a device of that door.
+ *
+ * The body carries the conversation's id and nothing else: the door builds the
+ * file name, because the device and the model identity are its own, and a name
+ * from here would put a client's bytes in the slot's path. No timer either:
+ * the door closes a connection on its own 300 s lifetime
+ * (`crates/kalsa-door/src/lib.rs:93`), and a restore that follows a model
+ * unload has to outlive any client patience a UI would pick.
+ */
+async function slotRoute(
+  endpoint: string,
+  token: string,
+  route: "activate" | "erase",
+  id: string,
+): Promise<SlotAnswer> {
+  const cleanToken = token.trim();
+  try {
+    const response = await fetch(`${serverBase(endpoint)}/kalsa/chat/${route}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(cleanToken ? { Authorization: `Bearer ${cleanToken}` } : {}),
+      },
+      body: JSON.stringify({ id }),
+    });
+    if (response.status === 204) return { kind: "ok" };
+    const message = (await response.text()).trim();
+    if (response.status === 501) return { kind: "no-tier", message: message || DOOR_SILENT };
+    return { kind: "refused", message: message || DOOR_SILENT };
+  } catch {
+    // The door never answered. The chat's own requests say the server is
+    // unreachable; this one says what that leaves behind for the slot.
+    return { kind: "refused", message: DOOR_SILENT };
+  }
+}
+
+/** Opens a chat on the disk tier: the door saves what is in this device's slot
+    and restores the file of the chat asked for. */
+export function activateChat(endpoint: string, token: string, id: string): Promise<SlotAnswer> {
+  return slotRoute(endpoint, token, "activate", id);
+}
+
+/** Removes one chat: its file on disk, and the state in the slot when that slot
+    holds it. */
+export function eraseChat(endpoint: string, token: string, id: string): Promise<SlotAnswer> {
+  return slotRoute(endpoint, token, "erase", id);
+}
+
 /** Read only the sampler defaults this build actually reports through /props. */
 export type SamplingDefaultsStatus = "reported" | "unavailable" | "refused" | "invalid";
 

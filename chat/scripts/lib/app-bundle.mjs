@@ -28,7 +28,7 @@ export async function loadApp() {
     stdin: {
       contents: `
         export { samplingWire } from "../src/lib/sampling.ts";
-        export { completionBody, completionsUrl } from "../src/lib/chat.ts";
+        export { completionBody, completionsUrl, activateChat, eraseChat, DOOR_SILENT } from "../src/lib/chat.ts";
         export { SAMPLING_KNOBS } from "../src/lib/knobs/sampling.ts";
         export { accumulate, readArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
