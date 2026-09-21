@@ -1265,6 +1265,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       mic: "Dictate",
       attach: "Add a document",
       thinking: "Model thinking",
+      previewSize: "Preview size",
     },
   },
 };

@@ -1224,6 +1224,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       mic: "Detta",
       attach: "Aggiungi un documento",
       thinking: "Pensiero del modello",
+      previewSize: "Dimensione dell'anteprima",
     },
   },
 };

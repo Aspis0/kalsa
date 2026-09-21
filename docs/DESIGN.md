@@ -295,6 +295,7 @@ step, plus emulator screenshots at **480×854/220** and **1080×2340/480**, and 
 | 1 | **The type layer**: Inter installed, `typography.ts` repointed, the italic defect closed, faces 12 loaded → 10 (9 referenced by a role) | the boot gate is green; **the contrast/scale test this step promised was never written — it is step 1b** | done, except 1b |
 | 1b | **The type-layer test**: every role's family is in the loaded set, the scale is monotone, and the italic face's family equals the body's | three assertions, each of which fails on one of the two defects step 1 actually had: the missing reading face, and the italic that jumped family | coder |
 | 2 | **The shell**: three bands, no content, no engine calls, edge-to-edge with the gesture bar | `shellGeometry.test.ts` at 349×621, 360×780 and 349×325: the bands sum to the available height, every interactive box is ≥48 dp, the composer never overlaps the gesture inset, the strip collapses to one line at 325 dp. Screenshots at all three, per the proof regime below | coder |
+| 2b | **The three sizes in one capture**: `ShellPreview` cycles 621 / 325 / 780 on a tap | `ShellPreview` no longer holds a height constant; the proof regime fixes the native-build cost at one | coder |
 | 3 | **The transcript**: user capsule, bare serif answer, markdown incl. equations and tables, day marker, the cloud mounted | a long answer, a three-column table and a code block at 349 dp, each with a screenshot; the cloud's 50 tests stay green | coder + explorer |
 | 4 | **Tool rows and sources chips**: render the tool names that already arrive; chips with no network fetch; the rows stay **volatile** (§2.4) | a test per tool name rendering; a test that no image is fetched; a reopen test asserting the rows are **absent** while the **sources are present** | coder |
 | 5 | **The composer**: type-while-generating, send/stop/stopping, the held-reason invariant, the attach chip | one test per held state; the 48 dp check in the geometry module (not a render sweep — the stack cannot sweep a render); the "no invite without a reason" test | coder |
@@ -327,7 +328,18 @@ file rewritten is my own `design.test.ts` from earlier in the day, because it wa
 wrong palette. Any replacement is reported, never a deletion to make a build go green.
 
 **Verification for every step**: `npx tsc --noEmit`, `npx jest --silent`, emulator screenshots at
-both real viewports. The Jelly is confirmed by screencap when the coordinator releases it;
+both real viewports. **And the pixel proof must not cost a native build per iteration.** That rule
+exists because it was broken once: step 2's first capture attempt built the **release** APK (which
+the CI harness uses) twice — once for 349x621 and again for 349x325 — because the preview's screen
+height was a **compile-time constant**. Each build ran the NDK with ~8 parallel `clang` jobs and
+flattened the machine for minutes, for a change of one number.
+
+So: a JS-only change must never require a compilation. In development the bundle comes from Metro
+and reloads on save; a **debug** build is the right one to look at pixels, and the release APK is
+for CI evidence. Anything that must be compared at more than one size is switched **at runtime**,
+not by editing a constant — `ShellPreview` cycles 621 / 325 / 780 on a tap for exactly this reason.
+If a native build is genuinely needed, cap its workers so the machine stays usable. A screenshot
+costs one build, once, and then only reloads. The Jelly is confirmed by screencap when the coordinator releases it;
 **installing on a phone happens only when he says the phone is free, `adb install -r` only, never
 uninstall, and I report the sha256 of what I left on it.** The S23 is off-limits. Audits go to the
 Reviewer profile before anything is reported as done.
