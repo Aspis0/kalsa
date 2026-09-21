@@ -224,6 +224,7 @@ export function Transcript({
                 colors={colors}
                 id={message.id}
                 labels={cloudLabels}
+                readingMeasure={layout.readingMeasure}
                 sources={message.sources}
                 styles={styles}
                 text={message.text}

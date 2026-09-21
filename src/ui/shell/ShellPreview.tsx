@@ -126,7 +126,25 @@ const PREVIEW_EARLIER_AT = PREVIEW_NOW - 26 * 60 * MINUTE;
 /** Sample data. The day marker needs a turn on an earlier day to be visible,
  *  and step 4's evidence needs both of its shapes on screen: tool rows above an
  *  answer, source chips below it, plus one chip that is NOT tappable (a local
- *  file) so the reduced-emphasis form is in the picture too. */
+ *  file) so the reduced-emphasis form is in the picture too.
+ *
+ *  The last two entries are step 3b's, and their SHAPE is the fixture, not
+ *  decoration. The answer carries all five things a capture has to show — a
+ *  heading, a two-item bullet list, a blockquote, a three-column table (which
+ *  always scrolls at 349 dp: 3 x 117 = 351 > 321) and a fenced code block — and it
+ *  is sized to fit the 443 dp transcript band with room to spare, so the pinned
+ *  view shows all five without a gesture. It is last because the view is pinned to
+ *  the end, so whatever is last is what a plain capture photographs.
+ *
+ *  The user turn above it is there for the frame's TOP edge. The transcript is
+ *  pinned, so the capture's top edge lands inside whatever is tall enough to
+ *  reach it; the 56-character capsule sits between the answer and the previous
+ *  answer's thinking cloud, so the edge falls inside the capsule (a message
+ *  scrolled half out of view, which is what a scrolled conversation looks like)
+ *  or inside the 26 dp gap above it — never halfway through the cloud, and never
+ *  inside this answer. An answer on its own here would put the previous turn's
+ *  cloud across the top of the frame instead.
+ */
 const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
   {
     id: "preview-1",
@@ -171,6 +189,28 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
       working: true,
       answered: false,
     },
+  },
+  {
+    id: "preview-5",
+    role: "user",
+    text: "Can you put that in a table for the note I am writing?",
+    createdAt: PREVIEW_NOW + MINUTE,
+  },
+  {
+    id: "preview-6",
+    role: "assistant",
+    text:
+      "## What the document says\n\n" +
+      "- The third method is the steadiest.\n" +
+      "- It is the slowest: 1.8 s.\n\n" +
+      "> The second method was the noisiest.\n\n" +
+      "| method | error | time |\n" +
+      "|---|---|---|\n" +
+      "| one | 0.41 | 1.2 |\n" +
+      "| two | 6.90 | 0.6 |\n" +
+      "| three | 0.12 | 1.8 |\n\n" +
+      '```json\n{ "pick": "three" }\n```',
+    createdAt: PREVIEW_NOW + 2 * MINUTE,
   },
 ];
 

@@ -24,12 +24,17 @@ import { join } from "path";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
-/** Every file the transcript band is made of. */
+/** Every file the transcript band is made of. Step 3b added the answer's own
+ *  renderer, its inline spans and their styles to this list, so the no-request rule
+ *  covers the new files too rather than starting at the old edge of the band. */
 const BAND_FILES = [
   "Transcript.tsx",
   "TranscriptParts.tsx",
   "TranscriptEvidence.tsx",
+  "TranscriptMarkdown.tsx",
+  "TranscriptInline.tsx",
   "transcriptTypes.ts",
+  "transcriptMarkdownStyles.ts",
   "toolLabels.ts",
   "sourceLinkPolicy.ts",
 ];

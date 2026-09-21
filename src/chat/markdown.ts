@@ -4,7 +4,10 @@
  * Streaming-safe: unclosed inline markers render as literal text; complete
  * constructs only consume their delimiters. O(n) left-to-right scan.
  *
- * Fenced code blocks are handled upstream (AiChatPage segment splitter).
+ * Fenced code blocks and GFM pipe tables are NOT here: the old interface splits
+ * fences out itself (`AiChatPage`), and the new shell's transcript reads them
+ * through `markdownDocument.ts`, which consumes this parser for everything below
+ * the document level.
  *
  * Emphasis uses CommonMark flanking rules for `*` and the stricter `_` rule
  * (no intraword underscore emphasis). Backslash escapes are honored for the
