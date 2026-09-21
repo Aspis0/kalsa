@@ -133,6 +133,46 @@ fn a_switch_saves_the_chat_in_the_slot_before_it_restores_the_target() {
 }
 
 #[test]
+fn activating_the_chat_already_in_the_slot_touches_nothing() {
+    let slot_dir = temp_dir("paging-noop");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second) = ("aaaa1111", "bbbb2222");
+    // Both chats have a file, so both halves of a switch are real requests:
+    // a restore of the target, and a save of the chat that was in the slot.
+    for chat in [first, second] {
+        fs::write(slot_dir.join(file_name(chat)), b"state").unwrap();
+    }
+    assert_eq!(status_of(&activate(address, Some(&token), first)), 204);
+    let opened = engine.sent();
+    assert_eq!(opened.len(), 1, "the first activation of a stored chat is a restore: {opened:?}");
+
+    // The chat asked for is the one the slot already holds, so the sequence
+    // would be this chat's state written out and read back into the slot it
+    // never left. The engine is not touched for that: the UI asks on every
+    // mount, and a mount is not a reason to move hundreds of MB.
+    let again = activate(address, Some(&token), first);
+    assert_eq!(status_of(&again), 204, "{}", body_text(&again));
+    assert_eq!(
+        engine.sent().len(),
+        opened.len(),
+        "activating the resident chat reached the engine: {:?}",
+        &engine.sent()[opened.len()..]
+    );
+
+    // A different chat is still a switch, and the sequence is the one it
+    // always was: the chat in the slot is saved, the target restored.
+    assert_eq!(status_of(&activate(address, Some(&token), second)), 204);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent[opened.len()..].iter().map(|sent| sent.action.as_str()).collect();
+    assert_eq!(actions, ["save", "restore"], "{sent:?}");
+    assert_eq!(sent[opened.len()].filename, format!("{}.staging", file_name(first)));
+    assert_eq!(sent[opened.len() + 1].filename, file_name(second));
+    door.shutdown();
+}
+
+#[test]
 fn two_switches_of_one_slot_do_not_interleave() {
     let slot_dir = temp_dir("paging-gate");
     let engine = Engine::start(&slot_dir);

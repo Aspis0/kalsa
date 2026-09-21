@@ -187,6 +187,14 @@ impl Chats {
         if matches!(&state.resident, Residency::Resident(owner, _) if *owner != device) {
             state.resident = Residency::Empty;
         }
+        // The chat asked for is the one this device already has in the slot, so
+        // the sequence would be its own state written out and read back into
+        // the slot it never left. The client asks on every mount, and a mount
+        // is not a reason to move hundreds of MB: nothing is sent, and the
+        // residency already says what the slot holds.
+        if matches!(&state.resident, Residency::Resident(owner, chat) if *owner == device && chat == id) {
+            return Ok(());
+        }
         let target = file_name(model, device, id);
         // `Unknown` is the one residency with no previous chat to save: what is
         // in the slot cannot be named, so nothing is written out of it.
