@@ -129,6 +129,56 @@ a separate question, and the governor numbers are under re-verification below.
   shape (Rule 1: decisions contain no device identity; Rule 2: matrix as data; Rule 3: one
   selector; probes fail closed) survived the audit unchanged.
 
+## Gates and dates (recovered 2026-09-21)
+
+The concise rewrite of this file dropped the dated register. It is recovered here from
+`archived/PLAN-2026-09-full.md:408-431` ("Primo modello: 9 settembre – 9 ottobre", its table) and
+the timeline rows at `:69-71`. The dates are 2026 and were planning estimates subordinate to the
+gates, not publication promises.
+
+Critical path: **G0 baseline → G1 model → G2 complete chat → G3 correct profiles → G4 sustained
+quality → M1**.
+
+| date | gate or step | what it requires |
+|---|---|---|
+| 9 Sep, Wed | **G0** | a reproducible baseline, the real device matrix, schedulable slots; no booking in the dark |
+| 10–11 Sep | — | MiniCPM entry; two comparable candidates |
+| 14–15 Sep | **G1**, 15 Sep | the model chosen, and the baseline with absolute per-phone targets written BEFORE tuning |
+| 16–18 Sep | — | authoritative session and restore contract; checkpoint on the 18th (correct recovery, observable reused tokens) |
+| 21–23 Sep | **G2**, 23 Sep | complete chat on the CPU path, governor tests where the path is admitted, recovery without corruption |
+| 24–25 Sep | — | profiles identified by artefact/driver, cache cost, measured static alternatives |
+| 28–29 Sep | **G3**, 29 Sep | every phone has at least one correct path, and every ENABLED path passes its tests; NPU without evidence stays out |
+| 30 Sep – 2 Oct | **G4**, 2 Oct | sustained quality and performance; consumption measured or measurement limits declared; regression causes explained |
+| 5–6 Oct | — | candidate frozen on the 6th; no dependency on hidden debug flags |
+| 7–8 Oct | — | M1 dossier with raw results, limits and reproduction instructions |
+| 9 Oct, Fri | **M1** | the first model complete and banked on the three phones, or a precise list of the missing gates |
+| 12–16 Oct | reserve | if a gate stays red, replan; never promote an incomplete build |
+
+After M1: **M2** 30 Oct (the second dense model, on validated devices only, and it must add useful
+capability rather than being the automatic loser of the first comparison), **M3** 20 Nov (the first
+large MoE within the declared perimeter), reserve to 27 Nov. A separate gate on 12 Oct reopens the
+MiniCPM5 fine-tuning decision, with the LFM licence revenue threshold as one input.
+
+Two riders carried with the same table, because both were later misread:
+
+- GPU/V75/q4_K, the other generations, the NPU and the governor are evidence-gated in the
+  **24–29 Sep** window and are explicitly NOT "after M1" (`archived/PLAN-2026-09-full.md:1813`,
+  `:1825`). Only the NPU was left as a time-boxed decision.
+- Physical-device availability inside 14 Sep was a CALENDAR ASSUMPTION, not a confirmed
+  connection: if the phones arrive late, code, corpus and CI advance while G1 and its dependent
+  milestones move with them (`:431`).
+
+### Where the schedule stands on 2026-09-21
+
+- **G1 closed early, on 10 Sep**, with LFM2.5-2.6B (Q4_0 QAD) as the single main model; the
+  MiniCPM5 arm was stopped (Xiaomi arm cancelled, S23 stopped at 16/24).
+- **M1 is NOT done.** It is due **9 Oct** with a 16 Oct reserve, and it sits behind G2 (23 Sep),
+  G3 (29 Sep) and G4 (2 Oct). Today is the first day of the G2 window.
+- **G2 is not claimed.** The record that carries the G1 closure and the device sessions through
+  mid-September ends with "G2 not claimed" (`archived/PLAN-2026-09-full.md:1965`, `:2003`,
+  `:2045`, `:2488`) and the archived diary stops at 2026-09-20. No document records a G2 claim
+  after that, so the answer to "is M1 finished?" is no by the gate it depends on.
+
 ## Roadmap and next steps
 
 The order is the owner's to set. The committed near-term work is:
