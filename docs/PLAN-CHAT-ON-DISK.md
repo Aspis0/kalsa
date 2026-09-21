@@ -1,154 +1,121 @@
-# PLAN — one chat resident per device, the rest on disk
+# PLAN — one slot per device, full window each; disk later and only for survival
 
-Written to be attacked. Every number here was measured on this machine against the
-published engine (`kalsa-server-v1.1.0`, `2a290390d`), not read off a document.
-Nothing in this plan is sent upstream; see the last section.
+**Version 2. Version 1 of this file proposed one resident slot plus a disk swap, and a
+hostile audit refuted it from this repo's own committed measurements.** The correction is
+in §1; the shape that survives is §2. Nothing here is sent upstream.
 
-## 1. What we now know, measured
+## 1. Why version 1 was wrong
 
-| question | answer | evidence |
-|---|---|---|
-| One chat on disk, at 16k, q8_0 | **407 MB** with one checkpoint; 473 MB with the default two; **319 MB** with none | `appended 1 context checkpoint(s) (84.024 MiB)` |
-| Save / restore | **0.55 s / 0.08 s** for 16k; 0.10 s / 0.013 s for a 485-token chat | `save_ms`, `restore_ms` |
-| Is the restore warm? | **Yes.** A save taken after a turn's prefill carries a checkpoint at 16 117; restoring reuses **16 117 tokens and re-evaluates 10** (0.21 s) | `cache_n 14106`, `restored context checkpoint` |
-| Does it survive an engine restart? | **Yes.** SIGTERM, fresh process, restore into it, continuation 15 tokens | `n_restored 2042`, `restore_ms 57.9` |
-| With **0** checkpoints | **Not a restore**: the SWA/recurrent memory cannot be rewound, `cache_n 0`, full 16 122-token re-prefill (10.5 s) | `forcing full prompt re-processing due to lack of cache data` |
-| **BLOCKER** — what happens after a restore | The restore **wipes the cache salt**, so the device's own next request is read as another namespace and **deletes the restored KV**: `cache_n 0`, `memory_seq_rm [0, end)`. The rescued copy in the RAM cache is quarantined under the empty namespace and unreachable. **Nothing on disk is usable until this is fixed.** | `different cache namespace - clearing cached prompt` |
-| Two devices talking at once | No turns, and no free lunch: both decode in **one batched step**, in lockstep, and **each stream runs at 39 % of its solo speed** (58.7 → 22.7 tok/s); together 77 % of one | four `ptimings` lines |
-| Idle devices | **They hold their full KV.** Allocated at load for every slot (`2/2 seqs`, `3/3 seqs`), never freed: **+56/+60 MiB per idle slot**, RSS +58 MiB each | `llama_kv_cache: size = …` at load |
-| Different context window per slot | **Impossible in one process.** `n_ctx_seq = n_ctx / n_seq_max`, uniform: 16384/8192/5632 at `-np 1/2/3`. No header, request field or route changes it | `src/llama-context.cpp:292-294` |
-| A save during generation | Legal but **deferred**: the call blocks until the answer finishes (3.6 s measured), and the file is the state *after* the turn | `if (slot->is_processing()) queue_tasks.defer(...)` |
-| The save file's identity | **None.** Magic, version, token count, tokens, KV bytes, optional checkpoint appendix. No device, no salt, no model hash. A dimension-compatible foreign file restores **silently** | `state_seq_save_file`, `src/llama-context.cpp:3300-3315` |
-| What the loader validates | `--parallel` (`n_stream`), layer count, fit in the cache, K/V types and row sizes — all **loud errors**. It does **not** validate the model | `n_stream mismatch` |
+- **One resident slot is not forced.** `MULTI-DEVICE-SHAPE.md` §8.1 measured the two
+  shapes with the committed scripts: with `--parallel N` and one slot per device, at two
+  people wall 4.9 s against 7.0 s, TTFT 0.93 s against 1.67 s, cache reuse 0.98 against
+  0.49; at four people 9.7 s against 17.8 s and reuse 0.97 against 0.00. Serialising every
+  device through one slot is the *losing* design, and version 1 proposed exactly that and
+  called it forced.
+- **The per-device cost of the winning shape is small.** The sliding-window layers
+  replicate per stream: **+167 MiB for four slots** (`MULTI-DEVICE-SHAPE.md` §7, the
+  pinned row), about **42 MiB per extra device**. Version 1 spent an engine format change,
+  a door rewrite, a filename scheme and a disk budget to buy that back.
+- **Per-slot windows are expressible.** `src/llama-context.cpp:291` —
+  `if (cparams.kv_unified) { cparams.n_ctx_seq = cparams.n_ctx; }` — under unified KV every
+  slot's window *is* the pool, and this fork added **`--kv-unified-per-slot`**
+  (`common/arg.cpp:1647-1651`, enforced at `server-context.cpp:1220-1235`) precisely to cap
+  a slot's window over a shared pool. Version 1 quoted the line *below* that one to claim
+  the opposite.
+- **`--swa-full` was missing, and without it the whole disk idea is a no-op.** Our own
+  `dev/results/kv-paging-spike/summary.md` E3: with the default (`--swa-full` off) a
+  restore reports `n_restored=613` and the next request still has `cached=0` —
+  *"RESTORE IS A NO-OP FOR CACHING"*; with `--swa-full` it is `cached=605`, `prompt_ms=13.7`.
+  On a sliding-window model the restored window cells are unusable without it.
+- **The engine already swaps conversations in RAM** — but not for us. The prompt cache
+  behind `--cache-ram` is a size-capped LRU of whole conversation states keyed by
+  `{tokens, checkpoints, cache_salt}` (`server-task.cpp:1698-1830`, the salt check at
+  `:1802-1813`) — the triple version 1 wanted to invent for a file. Its cross-slot load
+  runs only when the engine itself chose the slot by similarity; the door names the slot
+  on every request, so that path is not exercised under our shape and the funded 6 GiB is
+  mostly idle. Which means a device's **other** chats are not warm today either: they are
+  lost when another chat takes the slot. That is the disk tier's real value, and it is
+  worth stating plainly rather than selling the prompt cache as a substitute.
+
+Version 1's Phase 1 (the salt fix) survives this correction and is still worth landing:
+the checkpoint appendix and the prompt cache's own salt handling show the engine's intended
+pattern is *the state travels with its namespace*.
 
 ## 2. The shape
 
-**One slot holds one chat. A device's other chats live on disk and are swapped into
-that slot when the device asks.** This is forced by the measurements above: per-slot
-windows do not exist, and N resident slots each cost their full KV and slow every
-stream to 39 % when they run together. One resident slot is the only arrangement in
-which **every device can use the whole context window** — one at a time.
+**One slot per device, each with the full context window, all resident.** The door's
+shipped model — a stable slot per device under a per-device cache salt — stays exactly as
+it is, because it is the component the household isolation property rests on and the shape
+the measurements recommend. Nothing about the request path changes.
 
-So the two numbers the owner asked to see in the UI are the two axes of the same
-trade, and both are computed by the launcher's own arithmetic, not estimated:
+Two ways to fund a full window per slot; the second is cheaper and is the reason to prefer
+it:
 
-- **how many chats stay resident** (`--parallel`, default **1**),
-- **the context window each resident chat gets** (`n_ctx / residents`),
-- and, on the disk side, **what a chat costs to keep**: context × the catalog's own
-  per-token KV figure + one checkpoint (~84 MiB at 16k).
+- **Non-unified**, pool `= N × window`: simple, no engine change, and the sliding-window
+  layers replicate per stream (+167 MiB at four slots on the pinned row).
+- **Unified** with `--kv-unified --kv-unified-per-slot <window>`: one pool, every slot
+  capped at the full window. **Verify before choosing it**: unified save/restore and the
+  pool-ceiling behaviour were measured before this cap existed, so the combination is
+  untested. That verification is the first task.
 
-With one resident: each device gets up to the whole pool, and a switch costs
-**0.1–0.35 s** (save + restore) against a **10–32 s** full re-prefill. With two
-resident: two devices answer at once, each with half the window and 39 % of its solo
-speed. The app picks the default; the owner changes it in Advanced.
+What this retires from version 1: no swap, no chat-id on the wire, no filenames, no salt
+fix on the primary path, no per-model disk table, and no door rewrite.
 
-**A device's chat is identified by a client-supplied id** (the desktop's chat id, the
-phone's conversation id). Without it, two chats of one device would overwrite each
-other in the same slot — which is what happens today and is why the id is not optional.
+**The window per device** is the launcher's own arithmetic (the same `plan` that launches),
+so the panel shows a number that is true: with N residents each gets `pool / N` under the
+non-unified form, or the cap under the unified form.
 
-## 3. The work, in order
+## 3. The tasks, in order
 
-### Phase 1 — the engine fix, in the fork (blocks everything)
+1. **Verify the unified per-slot cap end to end** on the pinned model: `--kv-unified
+   --kv-unified-per-slot <window>` with `-np N`, checking that each slot really holds a
+   full window, that the pool ceiling behaves when every slot fills, and that a device's
+   second message is warm. If it does not hold, take the non-unified form and pay the
+   replication. This decides which launch shape the app ships, so it comes first.
+2. **Close the launch gates** in `crates/kalsa-launch/src/args.rs` (the five preconditions
+   already written there) with the per-slot KV term and the honest per-slot window, then
+   raise the number to the enrolled device count, capped by what the machine funds. The
+   clamp for an engine with no inlet already exists and stays.
+3. **Make the panel say the truth**: how many slots are resident, the window each gets,
+   and — from the measured numbers, not intuition — what concurrency costs. Two devices
+   decoding together each run at **39 % of their solo speed** (58.7 → 22.7 tokens/s on the
+   pinned model, measured), together 77 % of one, and they finish in lockstep. One device
+   alone keeps its full speed.
+4. **The isolation test the household rules already mandate**, under this shape: device A
+   sends a prompt carrying a unique marker, device B sends a prompt sharing a long
+   identical preamble; assert that B's answer never contains A's marker and that B's reused
+   tokens never exceed the true shared prefix. Version 1 proposed only warmth tests.
 
-Everything above is worthless until a restored slot keeps its namespace.
+## 4. The disk tier, later and much smaller
 
-1. **The salt survives a restore.** Preferred form: **carry it in the file** —
-   bump the appendix to version 2 and always write a header record containing the
-   salt and a device label, read back on restore and re-stamped after
-   `server-context.cpp:2868`'s `slot->prompt.clear()`. This is the only form that also
-   gives the door the **attribution** the security rule needs: a file that names its
-   owner can be refused when it is not the owner's. The cheap alternative (the restore
-   takes the salt from the caller's header) fixes the switch but leaves the file
-   unattributable; take it only if the first is refused.
-   The appendix is currently skipped entirely when a slot holds no checkpoint
-   (`save_slot_checkpoints` returns 0 early), so the record must be written
-   unconditionally.
-2. **The salt survives a context shift.** Same hole, same two lines
-   (`server-context.cpp:3199`): re-stamp from `slot.task->params.cache_salt` after the
-   insert. One line, and it is the difference between losing the prefix and poisoning
-   what lands on disk.
+Only for what RAM genuinely cannot do: **surviving a restart and the idle unload**, and
+holding more than the funded prompt cache can. As a separate plan, with these as
+preconditions rather than details:
 
-Fork only. No upstream interaction of any kind.
+- `--swa-full` (or a guaranteed checkpoint per save) is a **tested precondition** of
+  warmth; without it the restore is a measured no-op.
+- The save/restore pair runs under the door's **slot-exclusive lease**, so two devices'
+  requests cannot interleave a save and a restore — the corruption mode is real: with two
+  handlers racing, one device's save writes the *resident* chat into the other's file.
+- The resident map must know when the engine's generation changed. `--sleep-idle-seconds
+  (300 today)` destroys the contexts, so every idle timeout empties the slots while the map
+  still believes otherwise. The supervisor already learns of sleeps
+  (`kalsa-supervisor/src/child.rs`), so the map can be invalidated rather than guessed.
+- The salt travels **both** in the file (audit) and on the restore call (enforcement); the
+  file-borne stamp alone enforces nothing, because nobody reads it. A version bump
+  invalidates every earlier save, and a missing stamp needs defined behaviour, not just a
+  wrong one.
+- A revoked device's files need an explicit sweep: re-pairing mints a new id, so the old
+  files become unreachable garbage.
+- The files are the owner's conversations on disk: per-device encryption was already built
+  and verified in the paging spike, and backup exclusion has to be decided.
+- The disk figure comes from the catalog's per-model geometry — the full-attention layers
+  are linear in context and the sliding-window layers **saturate** — never from one
+  number measured on one model.
 
-### Phase 2 — the app drives the swap
-
-3. **Launch flags**: `--slot-save-path <dir>` (today never passed, so the engine
-   answers `not supported`) and **`--ctx-checkpoints 1`** — the default is **32**, which
-   would grow one chat's file to ~2.7 GB. Note the flag's spelling: `--ctx-checkpoints`
-   or `-ctxcp`; the single-dash `-ctx-checkpoints` is **rejected** by the engine. The
-   save directory is the app's own, under the runtime store it already owns.
-4. **The door owns the swap.** It must not forward a guest to `/slots/*` — it refuses
-   those today, correctly, because they let a caller name another slot. Instead the door
-   performs save/restore **itself** on its own connection, driven by what only it knows:
-   which device a request belongs to, which chat the slot currently holds, and which
-   chat the request asks for. Before forwarding a completion, if the resident chat is
-   not the requested one, the door **saves the resident chat and restores the requested
-   one**, then forwards with the device's salt. The engine's admin route stays closed to
-   guests, and the door remains the only client that names a file.
-5. **Filenames are the door's, not the client's.** The door mints
-   `d<device>-<hash>.slot` from the parts that must match or the restore is invalid or
-   silently wrong: the device, the chat id, the **KV cache type**, the **context size**,
-   and a **model fingerprint**. The file itself carries none of that, and a
-   dimension-compatible foreign model restores silently wrong, so the name is the only
-   place that check can live without an engine format change.
-6. **A switch happens only when the slot is idle.** A save during generation blocks
-   until the turn finishes; the app must not swap under a live answer.
-7. **Two requests at once serialise on one resident slot.** The door queues the second
-   until the first releases; the honest limit of one resident chat is that two devices
-   take turns, and the UI must say so rather than let a request hang.
-
-### Phase 3 — the UI says the truth
-
-8. **Seats, window and disk together.** Show the resident count, the window per
-   resident, and the per-chat disk cost — all from the launcher's arithmetic. The
-   disk figure is the same per-token number the RAM figure already uses, plus one
-   checkpoint.
-9. **The honest cost sentence**, from the measurements, not from intuition:
-   - one resident: *"when you switch chat, the first answer takes a moment — the
-     conversation is reloaded, then it is as fast as before"* (0.1–0.35 s);
-   - two or more resident, two devices talking at once: *"each device's words per
-     second drop to about four in ten while both are answering"* (39 % measured);
-   - and the one that is already true today and must not be blamed on this feature:
-     the engine unloads after the idle timeout, and the next message pays a model load.
-10. **A disk budget.** A cap, and eviction of the least recently used chat files, with
-    the count and the total size visible. Nothing here is optional: 407 MB per 16k chat
-    means a household with a few chats per device is into the gigabytes.
-
-## 4. What proves it
-
-- Phase 1: the existing slot-save harness, extended — a restore followed by the **same
-  device's** next request keeps `cache_n > 0` and re-evaluates only the tail. Today that
-  test would fail at the `different cache namespace` line.
-- Phase 2: `crates/kalsa-door/tests/real_engine.rs`, extended to three exchanges —
-  device A's chat, device B's chat, then device A again **with the same chat id** —
-  asserting A is warm on return (a small `prompt_n` on its second turn) and that no
-  exchange re-evaluated the other's prompt. This is the real-engine test that exists and
-  runs on this machine; it is the one that must grow.
-- Phase 3: the UI numbers come from the launcher, so they are pinned by the launcher's
-  own tests plus a contract check that the panel renders what the DTO carries.
-
-## 5. Risks, and what would make this wrong
-
-- **Attribution**: with the cheap engine fix the file stays unattributable, and a
-  locally planted file with a correct-looking name restores another chat. Only the
-  file-borne stamp closes that; the filename rule closes the accidental half.
-- **The engine's own defaults are hostile to this design** (`--ctx-checkpoints 32`,
-  `--slot-save-path` off). Both must be set explicitly, and the app must own them, or a
-  future default change silently changes the disk cost.
-- **Model swap**: nothing in the file identifies the model. If the app changes model
-  while chats are on disk, the only safe move is to invalidate them, and the filename
-  must make that automatic.
-- **`get_slot_by_id` wraps** (`id_slot % slots.size()`): deliberate upstream, unreachable
-  from the door because the door always names ids it minted. Do not rely on the engine
-  to refuse a wrong id; scope it in the door.
-- **Not in this plan**: per-device *different* window sizes in one process (impossible
-  without an engine change), more than one chat resident without paying the measured
-  39 % per stream, and any upstream contribution.
-
-## 6. Standing rules this plan obeys
+## 5. Rules this plan obeys
 
 - **Nothing goes upstream.** No PRs, issues, comments, reviews, patches or discussion.
   Upstream is read, never written.
-- The engine change is ours, in the fork, and the checkpoint appendix that came from
-  someone else's design stays credited in the code.
+- The checkpoint appendix that follows someone else's design stays credited in the code.
 - No secret value in code, tests, logs or error strings.
