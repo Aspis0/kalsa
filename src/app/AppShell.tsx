@@ -353,6 +353,7 @@ import {
 } from "../context/compactor";
 import {
   anchoredWindowChars,
+  conservativeWindowTokens,
   projectedWindowTokens,
   resolveWindowProfile,
   shouldSlideWindowAtCeiling,
@@ -5985,6 +5986,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
             // promptFacts is declared at the char-budget walk above: the
             // ceiling guard and this send price the same facts.
+            // Ceiling-guard diagnostics: assigned inside the block below and
+            // read by the KALSA_WINDOW telemetry after it (which is outside
+            // the block, so these must be declared here). Off mode never runs
+            // the guard, and null is the honest log there.
+            let measuredCharsPerToken: number | undefined;
+            let windowTokens: number | undefined;
             if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
@@ -6131,9 +6138,42 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               );
               const promptTokensBefore =
                 projectedWindowTokens(pinnedWindowChars);
+              // Measured chars/token from the live KV (sync reals only — no
+              // await, TOCTOU). The current turn is not yet in the KV, so
+              // exclude it from the chars side. An imperfect ratio stays
+              // bounded: conservativeWindowTokens clamps its result to
+              // [chars/3, chars] and ignores ratios >= 3, so the guard can
+              // only slide EARLIER than the chars/3 projection, never later.
+              // The KV delta counts non-window tokens too (injected
+              // digest/template overhead the char budget never sees), so the
+              // ratio is biased toward sliding EARLIER — safe, because the
+              // clamp keeps the projection in [chars/3, chars].
+              const windowKvChars = pinnedWindowChars - currentTurnChars;
+              const windowKvTokens = (nPast ?? 0) - systemPromptTokens;
+              measuredCharsPerToken =
+                windowKvChars > 0 && windowKvTokens > 0
+                  ? windowKvChars / windowKvTokens
+                  : undefined;
+              windowTokens = conservativeWindowTokens(
+                pinnedWindowChars,
+                measuredCharsPerToken,
+              );
+              // The same ratio the guard effectively used
+              // (conservativeWindowTokens only honours a ratio < 3). The
+              // ceiling rebuild below must convert with this and not the
+              // default, or it would re-grow a window that crosses the
+              // ceiling again and slide in a loop.
+              const effectiveCharsPerToken =
+                Number.isFinite(measuredCharsPerToken) &&
+                measuredCharsPerToken !== undefined &&
+                measuredCharsPerToken > 0 &&
+                measuredCharsPerToken < WINDOW_CHARS_PER_TOKEN
+                  ? measuredCharsPerToken
+                  : WINDOW_CHARS_PER_TOKEN;
               const ceilingCrossed = shouldSlideWindowAtCeiling({
                 nCtx: activeNCtx,
                 windowChars: pinnedWindowChars,
+                windowTokens,
                 kvHeld,
                 reservedPromptTokens: systemPromptTokens,
               });
@@ -6189,7 +6229,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   ? Math.max(
                       0,
                       windowCeilingTokens(activeNCtx, systemPromptTokens) *
-                        WINDOW_CHARS_PER_TOKEN *
+                        effectiveCharsPerToken *
                         (anchoredOn ? 1 : WINDOW_SHARE_WITH_DIGEST),
                     )
                   : undefined;
@@ -6495,6 +6535,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   rebuildBudgetChars: anchoredRebuildBudget?.chars,
                   rebuildBudgetSource: anchoredRebuildBudget?.source,
                   textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
+                  measuredCharsPerToken: measuredCharsPerToken ?? null,
+                  windowTokens: windowTokens ?? null,
                 })}`,
               );
             } catch {

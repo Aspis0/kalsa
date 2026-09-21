@@ -524,6 +524,34 @@ describe("promptTokensExceedNCtx with a real token count", () => {
     ).toBe(false);
   });
 
+  it("mirrors the windowTokens dense dual: chars/3 passes, the real count exceeds", () => {
+    // The same chars in both directions, so a revert of the dense branch
+    // cannot leave this passing: at the ceiling chars/3 lets the prompt
+    // through while the measured count exceeds it, and just above the ceiling
+    // the two swap.
+    expect(denseTokens).toBeGreaterThan(CEILING);
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: charsAtCeiling }),
+    ).toBe(false);
+    expect(
+      promptTokensExceedNCtx({
+        nCtx: 8192,
+        promptChars: charsAtCeiling,
+        promptTokens: denseTokens,
+      }),
+    ).toBe(true);
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: charsAtCeiling + 3 }),
+    ).toBe(true);
+    expect(
+      promptTokensExceedNCtx({
+        nCtx: 8192,
+        promptChars: charsAtCeiling + 3,
+        promptTokens: CEILING,
+      }),
+    ).toBe(false);
+  });
+
   it("is identical to the chars/3 path when promptTokens is absent", () => {
     for (const promptChars of [0, 1, charsAtCeiling, charsAtCeiling + 1, 1_000_000]) {
       expect(
@@ -582,6 +610,15 @@ describe("conservativeWindowTokens", () => {
     // 100 / 0.5 would project 200 tokens from 100 chars, which no tokenizer
     // can emit.
     expect(conservativeWindowTokens(100, 0.5)).toBe(100);
+  });
+
+  it("returns an integer for a fractional char count", () => {
+    // A token count is an integer; ceil of a fractional ratio must not leak a
+    // float into the guard's arithmetic.
+    const dense = conservativeWindowTokens(100.5, 1.12);
+    expect(Number.isInteger(dense)).toBe(true);
+    expect(dense).toBe(Math.ceil(100.5 / 1.12));
+    expect(Number.isInteger(conservativeWindowTokens(100.5))).toBe(true);
   });
 
   it("falls back to chars/3 without a usable measured ratio", () => {

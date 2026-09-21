@@ -136,12 +136,15 @@ export function projectedWindowTokens(windowChars: number): number {
 }
 
 /**
- * Conservative window-token estimate. When a measured chars/token ratio from
- * real prefills is available it is used, but ONLY when it is SMALLER than the
- * default WINDOW_CHARS_PER_TOKEN — so this never projects FEWER tokens than
- * chars/3, only more (it can make the ceiling guard slide EARLIER, never
- * later). Fixes the dense-content undercount (code/JSON/IDs/CJK) that let a
- * prompt overflow n_ctx without sliding.
+ * Conservative window-token estimate. When the caller can derive a measured
+ * chars/token ratio (from a live-KV token/char delta) it is honoured, but ONLY
+ * when it is SMALLER than the default WINDOW_CHARS_PER_TOKEN — so this never
+ * projects FEWER tokens than chars/3, only more (it can make the ceiling guard
+ * slide EARLIER, never later). Corrects the token undercount for anything the
+ * char budget prices too cheaply — dense text (code/JSON/IDs/CJK) and any KV
+ * content the char budget does not see (injected digest/summary blocks,
+ * per-message template overhead) — that let a prompt overflow n_ctx without
+ * sliding.
  */
 export function conservativeWindowTokens(
   windowChars: number,
