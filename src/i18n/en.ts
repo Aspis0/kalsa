@@ -1246,6 +1246,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       warm: "Running warm",
       idle: "Idle",
     },
+    where: {
+      thisPhone: "On this phone",
+    },
     composer: {
       placeholder: "Ask anything",
       typingAllowed: "You can write the next question while it answers",
@@ -1253,6 +1256,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11y: {
       band: "Machine status",
       transcript: "Conversation",
+      menu: "Open menu",
+      newChat: "New chat",
+      modelSwitcher: "Model and where it runs: {model}, {where}",
+      field: "Message",
       send: "Send",
       stop: "Stop generating",
       mic: "Dictate",

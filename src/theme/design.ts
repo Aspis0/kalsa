@@ -135,6 +135,40 @@ export const type = {
 
 export type TypeRole = keyof typeof type;
 
+/**
+ * The mock's three elevation levels, ink-tinted rather than black. A surface is
+ * told from the page by its lift and its whitespace and never by a border:
+ * white on the page measures 1.07:1 (design.test.ts), so a hairline cannot
+ * separate a card. Android's `elevation` carries the same step on a dark page,
+ * where a shadow would vanish.
+ */
+export const elevation = {
+  /** A pill or a round icon button. */
+  raised: {
+    shadowColor: "#17201c",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  /** A card. */
+  float: {
+    shadowColor: "#17201c",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  /** The composer field, the one object that floats over everything. */
+  dock: {
+    shadowColor: "#17201c",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.09,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+} as const;
+
 export const measure = {
   /** The Jelly Star is 349 dp wide and the S23 is 360: the widths are nearly
    *  identical, so the layout is tuned on HEIGHT and on the compact gutter. */

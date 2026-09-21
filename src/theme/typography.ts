@@ -2,44 +2,28 @@ import { Platform, TextStyle } from "react-native";
 
 import { useLabTheme } from "../ui/labTheme";
 
+import { baseTypeScale, typeFaces } from "./typeData";
+
 // Font family resolves to the loaded @expo-google-fonts/* family name:
 // Inter for the interface, Source Serif 4 for the answer, IBM Plex Mono for
 // code and figures. useFonts is wired in App.tsx; until it resolves, App renders null.
 // On Android, fontWeight is NOT synthesized for custom families — weight MUST
 // come from the fontFamily name (never pair a custom family with numeric fontWeight).
-const display = Platform.select({
-  default: "SourceSerif4_600SemiBold",
-});
-const displayBold = Platform.select({
-  default: "SourceSerif4_600SemiBold",
-});
-const displayExtra = Platform.select({
-  default: "SourceSerif4_600SemiBold",
-});
-const body = Platform.select({
-  default: "Inter_400Regular",
-});
+// The names live in typeData.ts (react-native-free) so typography.test.ts can
+// read them; this file only projects them onto the current platform.
+const display = Platform.select({ default: typeFaces.display });
+const displayBold = Platform.select({ default: typeFaces.displayBold });
+const displayExtra = Platform.select({ default: typeFaces.displayExtra });
+const body = Platform.select({ default: typeFaces.body });
 // Inter ships its own italic, so UI italic stays inside the UI family. It used
 // to point at SourceSerif4_400Regular_Italic, which made an italic word inside
-// sans UI text jump to another family's serif.
-const bodyItalic = Platform.select({
-  default: "Inter_400Regular_Italic",
-});
-const bodyMedium = Platform.select({
-  default: "Inter_500Medium",
-});
-const bodySemi = Platform.select({
-  default: "Inter_600SemiBold",
-});
-const chatBody = Platform.select({
-  default: "SourceSerif4_400Regular",
-});
-const mono = Platform.select({
-  default: "IBMPlexMono_400Regular",
-});
-const monoBold = Platform.select({
-  default: "IBMPlexMono_700Bold",
-});
+// sans UI text jump to another family's serif. `typeFaces` pins that pairing.
+const bodyItalic = Platform.select({ default: typeFaces.bodyItalic });
+const bodyMedium = Platform.select({ default: typeFaces.bodyMedium });
+const bodySemi = Platform.select({ default: typeFaces.bodySemi });
+const chatBody = Platform.select({ default: typeFaces.chatBody });
+const mono = Platform.select({ default: typeFaces.mono });
+const monoBold = Platform.select({ default: typeFaces.monoBold });
 
 export const fontFamilies = {
   display,
@@ -83,74 +67,12 @@ function roundSize(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** Base type scale at scale=1. Components should not import this for rendering. */
-export const baseTypography: Record<string, TextStyle> = {
-  displayXl: {
-    fontFamily: displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.4,
-  },
-  displayLg: {
-    fontFamily: displayExtra,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: -0.3,
-  },
-  displayMd: {
-    fontFamily: displayBold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.2,
-  },
-  displaySm: {
-    fontFamily: displayBold,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.1,
-  },
-  chatBody: {
-    fontFamily: chatBody,
-    fontSize: 16,
-    lineHeight: 25,
-  },
-  bodyLg: {
-    fontFamily: body,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  bodyMd: {
-    fontFamily: body,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  bodySm: {
-    fontFamily: bodyMedium,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  label: {
-    fontFamily: bodySemi,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  bodyXs: {
-    fontFamily: bodySemi,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  monoSm: {
-    fontFamily: mono,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  monoXs: {
-    fontFamily: monoBold,
-    fontSize: 11,
-    lineHeight: 15,
-    letterSpacing: 0.4,
-  },
-};
+/**
+ * Base type scale at scale=1. Components should not import this for rendering.
+ * The numbers live in typeData.ts so typography.test.ts can assert the ladder
+ * without importing Platform or the theme context.
+ */
+export const baseTypography: Record<string, TextStyle> = baseTypeScale;
 
 function cloneScaled(scale: number): Record<string, TextStyle> {
   const out: Record<string, TextStyle> = {};

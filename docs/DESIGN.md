@@ -126,6 +126,14 @@ and it refuses.
 - **Permissions are scattered and three tools have none.** Web search toggles only in the chat
   header; device and calendar only in Settings; `write_note`, `document_chat` and `create_miniapp`
   have no toggle at all.
+- **Two component files carry the old palette and nothing imports them.**
+  `src/theme/components/Surface.tsx` and `Button.tsx` are imported by no file in `src/` or `App.tsx`,
+  and `Button.tsx:51` uses `shadows.accent`, whose colour is the stale orange `#f07a3f`
+  (`tokens.ts:47`). Dead today, a trap tomorrow: the first person who reaches for a ready-made
+  button gets an orange shadow in a green app. Found while adding `elevation` to `design.ts` — this
+  plan's step-2 brief assumed shadow tokens already lived in the design layer, and they did not;
+  the only ones were these. **Deletion proposed, awaiting the owner's word**, as with the dead
+  `notebook` palette, and subject to the same check: nothing imports them.
 
 ---
 

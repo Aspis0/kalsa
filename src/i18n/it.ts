@@ -1205,6 +1205,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       warm: "Caldo",
       idle: "Fermo",
     },
+    where: {
+      thisPhone: "Su questo telefono",
+    },
     composer: {
       placeholder: "Chiedi qualcosa",
       typingAllowed: "Puoi scrivere la prossima domanda mentre risponde",
@@ -1212,6 +1215,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11y: {
       band: "Stato della macchina",
       transcript: "Conversazione",
+      menu: "Apri il menu",
+      newChat: "Nuova chat",
+      modelSwitcher: "Modello e dove gira: {model}, {where}",
+      field: "Messaggio",
       send: "Invia",
       stop: "Ferma la generazione",
       mic: "Detta",

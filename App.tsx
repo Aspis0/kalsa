@@ -30,6 +30,7 @@ import {
   type FontScaleId,
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
+import { ShellPreview } from "./src/ui/shell/ShellPreview";
 import { AppShell } from "./src/app/AppShell";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
@@ -44,6 +45,11 @@ import { LocaleProvider, useLocale } from "./src/i18n";
 // string with no user content -- the opposite of the logcat leaks closed in
 // 4553062, which removed the user's words while keeping the counters.
 console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
+
+// TEMPORARY (step 2 of the interface rebuild): when true, the app renders the
+// bare shell preview instead of AppShell, so it can be screenshotted alone.
+// Removed in step 3, when the shell is mounted inside the real transcript.
+const SHELL_PREVIEW = false;
 
 type ThemeContextValue = {
   colors: ThemeColors;
@@ -153,6 +159,8 @@ function AppContent() {
 
 function ThemedApp() {
   const { colors, palette } = useLabTheme<ThemeContextValue>();
+  // TEMPORARY: the step-2 shell preview, before the real app mounts.
+  if (SHELL_PREVIEW) return <ShellPreview />;
   return (
     <>
       <StatusBar barStyle={palette.statusBar} backgroundColor={colors.shell} />
