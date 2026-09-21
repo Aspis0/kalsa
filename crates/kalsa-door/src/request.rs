@@ -25,6 +25,14 @@ pub(super) struct UnsealedHead {
     forwarded: Vec<u8>,
     pub(super) body_length: usize,
     pub(super) authorization: Option<Vec<u8>>,
+    /// The client's `Origin`, taken once. `None` when it was absent — and
+    /// when a second copy arrived, which is an ambiguity rather than an
+    /// origin, and never a header the door should reflect.
+    pub(super) origin: Option<Vec<u8>>,
+    /// A CORS preflight: `OPTIONS` with both the `Origin` and the
+    /// `Access-Control-Request-Method` a browser always sends. `OPTIONS`
+    /// without those two is some other request and takes the ordinary path.
+    pub(super) preflight: bool,
     /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
     /// id namespace belongs to the door, and the upstream must never see it.
     pub(super) last_event_id: Option<Vec<u8>>,
@@ -102,6 +110,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     }
     let request_line = lines.next().ok_or(())?.strip_suffix(b"\r").ok_or(())?;
     valid_request_line(request_line)?;
+    let is_options = request_line.split(|byte| *byte == b' ').next() == Some(&b"OPTIONS"[..]);
 
     let mut forwarded = Vec::with_capacity(end + 2);
     forwarded.extend_from_slice(request_line);
@@ -113,6 +122,9 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     // same.
     let mut authorization = None;
     let mut last_event_id = None;
+    let mut origin: Option<Vec<u8>> = None;
+    let mut origin_twice = false;
+    let mut asks_for_method = false;
     let mut slot_seen = false;
     let mut salt_seen = false;
     let mut body_length = None;
@@ -140,6 +152,15 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
                 }
                 last_event_id = Some(trim_ows(value).to_vec());
             }
+            // Kept in `origin` and forwarded: the upstream echoes this back as
+            // its own `Access-Control-Allow-Origin`, which is the header the
+            // browser needs on the answer. Stripping it here would take the
+            // answer's CORS header away with it.
+            b"origin" => {
+                origin_twice |= origin.is_some();
+                origin = Some(trim_ows(value).to_vec());
+            }
+            b"access-control-request-method" => asks_for_method = true,
             // The door's own private names. The client's value is never
             // kept and never forwarded: the engine consumes the FIRST
             // matching salt header, so a client copy arriving before the
@@ -200,11 +221,15 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
             forwarded.extend_from_slice(b"\r\n");
         }
     }
+    let origin = origin.filter(|_| !origin_twice);
+    let preflight = is_options && asks_for_method && origin.is_some();
     forwarded.extend_from_slice(b"Connection: close\r\n");
     Ok(UnsealedHead {
         forwarded,
         body_length: body_length.unwrap_or(0),
         authorization,
+        origin,
+        preflight,
         last_event_id,
     })
 }

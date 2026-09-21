@@ -11,6 +11,8 @@ use super::{proxy, Door, DoorError, ActiveDevices, DeviceSet, EnginePrivateHeade
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
+mod cors;
+mod cors_answers;
 mod revocation;
 mod slots;
 mod support;
@@ -503,7 +505,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
     client.read_to_end(&mut response).expect("answer arrives");
     assert_eq!(
         response,
-        super::UNAUTHORIZED_RESPONSE.to_vec(),
+        super::unauthorized_response(None),
         "a complete head on a stale stamp was not read and answered"
     );
     server.join().unwrap();
@@ -670,7 +672,7 @@ fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
     let response = request(address, Some(&format!("Bearer {token}")));
     assert_eq!(
         response,
-        b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        b"HTTP/1.1 502 Bad Gateway\r\nVary: Origin\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );
     door.shutdown();
 }

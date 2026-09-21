@@ -44,6 +44,7 @@
 //! returning phone is told the truth instead of being kept waiting.
 
 mod chunk;
+mod cors;
 mod devices;
 mod jobs;
 mod proxy;
@@ -93,33 +94,68 @@ const MAX_JOBS: usize = 64;
 const MAX_JOB_BYTES: usize = 2 * 1024 * 1024;
 /// How often the reaper looks for kept answers past their retention.
 const REAP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
-const UNAUTHORIZED_RESPONSE: &[u8] =
-    b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+/// The refusal: an empty body whose length says so, and the origin headers
+/// for the origin it was asked from when that origin is one the desktop can
+/// have — a browser that cannot read the refusal is told the request failed
+/// at the network, which is not what happened and is not something the app
+/// can act on.
+pub(crate) fn unauthorized_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 401 Unauthorized\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
 /// The answer for a connection the door never got to read: pressure, not
-/// authentication, and the words must not say "unauthorized".
+/// authentication, and the words must not say "unauthorized". It is the one
+/// answer that stays a constant, because it is written before any head exists
+/// — there is no origin to name and nothing in it can vary by one. The same
+/// answer for a request whose head WAS read is [`busy_response`].
 pub(crate) const BUSY_RESPONSE: &[u8] =
     b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+/// The same answer as [`BUSY_RESPONSE`] for a request the door has already
+/// read: every job slot holds an answer that has not finished, so no answer
+/// can start. The same status and the same empty body; the origin headers are
+/// on it because this one is written with the request's head in hand.
+pub(crate) fn busy_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 503 Service Unavailable\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
 
 /// The answer for an authenticated device with no slot left: the engine runs
 /// a fixed number of slots, so this computer is already serving as many
 /// devices as it can hold at once. It is the door's own 503, with the count
 /// and one honest sentence — deliberately not [`BUSY_RESPONSE`] (which
 /// carries no body and means pressure) and deliberately not `refuse` (which
-/// is 401-only, for a credential the door does not know).
-pub(crate) fn no_slot_response(capacity: u32) -> Vec<u8> {
+/// is 401-only, for a credential the door does not know). Like the refusal,
+/// it names the browser's origin when there is one.
+pub(crate) fn no_slot_response(capacity: u32, origin: Option<&[u8]>) -> Vec<u8> {
     let words = format!(
         "This computer is already serving {capacity} devices. \
          Forget one on the Devices page before pairing another."
     );
+    let origin_headers = cors::origin_headers(origin);
     format!(
-        "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\n\
+        "HTTP/1.1 503 Service Unavailable\r\n{origin_headers}\
+         Content-Type: text/plain; charset=utf-8\r\n\
          Content-Length: {}\r\nConnection: close\r\n\r\n{words}",
         words.len()
     )
     .into_bytes()
 }
-const UPSTREAM_FAILURE_RESPONSE: &[u8] =
-    b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+/// The upstream the door could not reach, answered rather than left hanging —
+/// and answered after the head was read, so this one names the origin too.
+pub(crate) fn upstream_failure_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 502 Bad Gateway\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
 
 type ResponseObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
 type ResponseObserverFactory = Arc<dyn Fn() -> ResponseObserver + Send + Sync>;

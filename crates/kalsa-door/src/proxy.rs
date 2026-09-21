@@ -3,6 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
 use crate::registry::{Registry, StartRefused};
@@ -10,7 +11,7 @@ use crate::token::parse_resume;
 use crate::request;
 use crate::response;
 use crate::stream;
-use crate::{no_slot_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
+use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -59,7 +60,7 @@ pub(super) fn handle(
     // queue is not punished for the wait. The session lifetime, though, is
     // the connection's own, and keeps counting from accept.
     let started = Instant::now();
-    let head = {
+    let mut head = {
         let head_deadline = deadline.min(started + head_patience);
         // A connection past its lifetime is dead on arrival: it is closed
         // rather than read, whatever the head patience would say.
@@ -77,12 +78,27 @@ pub(super) fn handle(
                 if Instant::now() >= head_deadline {
                     let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
                 } else {
-                    let _ = refuse(&mut client, deadline);
+                    // No head was parsed, so there is no origin to name.
+                    let _ = refuse(&mut client, None, deadline);
                 }
                 return;
             }
         }
     };
+    // A CORS preflight is answered here, before the credential scan: the
+    // browser sends it WITHOUT the credential it is asking permission to
+    // send, so authenticating it would answer `401` and the real request
+    // would never leave the webview. This answer grants nothing — no
+    // credential is read, no slot is leased, nothing is counted against the
+    // capacity, and the upstream is never contacted — which is why it is
+    // safe to give without one.
+    if head.preflight {
+        // The 204 must be readable: an unread body resets the socket on
+        // close and erases it, the same trap the refusal path exists for.
+        let _ = discard_request_body(&mut client, head.body_length, deadline);
+        let _ = write_with_deadline(&mut client, &cors::preflight(head.origin.as_deref()), deadline);
+        return;
+    }
     // Authentication reads the CURRENT set, as a short-lived Arc: the lock
     // is gone by the time the credential scan runs, and the scan sees
     // either the whole old set or the whole new one.
@@ -94,7 +110,7 @@ pub(super) fn handle(
             // socket on close and erase it. The body is bounded and the read is
             // deadline-bound; the request still goes nowhere.
             let _ = discard_request_body(&mut client, head.body_length, deadline);
-            let _ = refuse(&mut client, deadline);
+            let _ = refuse(&mut client, head.origin.as_deref(), deadline);
             return;
         }
     };
@@ -109,12 +125,12 @@ pub(super) fn handle(
         Ok(lease) => lease,
         Err(LeaseError::NotHeld) => {
             let _ = discard_request_body(&mut client, head.body_length, deadline);
-            let _ = refuse(&mut client, deadline);
+            let _ = refuse(&mut client, head.origin.as_deref(), deadline);
             return;
         }
         Err(LeaseError::NoRoom) => {
             let _ = discard_request_body(&mut client, head.body_length, deadline);
-            let _ = write_with_deadline(&mut client, &no_slot_response(capacity), deadline);
+            let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
             return;
         }
     };
@@ -135,7 +151,16 @@ pub(super) fn handle(
         if discard_request_body(&mut client, head.body_length, deadline).is_err() {
             return;
         }
-        resume(&mut client, registry, last_event_id, device, observer, deadline, &cancel);
+        resume(
+            &mut client,
+            registry,
+            last_event_id,
+            head.origin.as_deref(),
+            device,
+            observer,
+            deadline,
+            &cancel,
+        );
         return;
     }
     // The salt is fetched BEFORE any upstream socket exists: a device
@@ -144,10 +169,14 @@ pub(super) fn handle(
     // hand that slot to anybody else.
     let Some(salt) = devices.cache_salt(device) else {
         let _ = discard_request_body(&mut client, head.body_length, deadline);
-        let _ = refuse(&mut client, deadline);
+        let _ = refuse(&mut client, head.origin.as_deref(), deadline);
         return;
     };
     let body_length = head.body_length;
+    // `seal` consumes the head, and the answers after it — the revocation
+    // refusal, the upstream-failure 502, the busy 503 — are written with the
+    // request's origin still in hand, so it leaves the head here.
+    let origin = head.origin.take();
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {
         Some(timeout) => timeout,
@@ -156,7 +185,8 @@ pub(super) fn handle(
     let mut upstream = match TcpStream::connect_timeout(&address, timeout) {
         Ok(stream) => stream,
         Err(_) => {
-            let _ = write_with_deadline(&mut client, UPSTREAM_FAILURE_RESPONSE, deadline);
+            let answer = upstream_failure_response(origin.as_deref());
+            let _ = write_with_deadline(&mut client, &answer, deadline);
             return;
         }
     };
@@ -168,7 +198,7 @@ pub(super) fn handle(
         if !lease.holds() {
             drop(gate);
             let _ = discard_request_body(&mut client, body_length, deadline);
-            let _ = refuse(&mut client, deadline);
+            let _ = refuse(&mut client, origin.as_deref(), deadline);
             return;
         }
         // Test seam: a request can be parked here, holding the shared guard,
@@ -197,14 +227,15 @@ pub(super) fn handle(
             return;
         }
         if !upstream_head.event_stream {
-            // Everything the door does not take custody of moves through as
-            // it always has: the upstream's own bytes, untouched.
-            if write_with_deadline(&mut client, &upstream_head.raw, deadline).is_err() {
+            // The upstream's own bytes, plus the vary a browser needs and
+            // the upstream does not send; nothing else is added to them.
+            let relayed = response::with_origin_vary(&upstream_head.raw);
+            if write_with_deadline(&mut client, &relayed, deadline).is_err() {
                 return;
             }
             drop(gate);
             if let Some(observer) = observer {
-                observer(&upstream_head.raw);
+                observer(&relayed);
             }
             let _ = relay_response(&mut upstream, &mut client, deadline, &cancel, observer);
             return;
@@ -214,11 +245,13 @@ pub(super) fn handle(
         Ok(job) => job,
         Err(StartRefused::Entropy) => {
             eprintln!("kalsa door could not mint a job id");
-            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+            let answer = busy_response(origin.as_deref());
+            let _ = write_with_deadline(&mut client, &answer, deadline);
             return;
         }
         Err(StartRefused::Busy) => {
-            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+            let answer = busy_response(origin.as_deref());
+            let _ = write_with_deadline(&mut client, &answer, deadline);
             return;
         }
     };
@@ -240,6 +273,7 @@ fn resume(
     client: &mut TcpStream,
     registry: &Registry,
     last_event_id: &[u8],
+    origin: Option<&[u8]>,
     device: DeviceId,
     observer: Option<&Observed>,
     deadline: Instant,
@@ -260,7 +294,7 @@ fn resume(
         },
         None => "The door cannot resume an answer from that id.",
     };
-    let gone = gone_response(words);
+    let gone = gone_response(words, origin);
     // One step with the check: a revoked device does not learn whether the
     // answer it names still exists.
     let gate = cancel.revocation_gate();
@@ -271,9 +305,11 @@ fn resume(
     drop(gate);
 }
 
-fn gone_response(words: &str) -> Vec<u8> {
+fn gone_response(words: &str, origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
     format!(
-        "HTTP/1.1 410 Gone\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{words}",
+        "HTTP/1.1 410 Gone\r\n{origin_headers}Content-Type: text/plain; charset=utf-8\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{words}",
         words.len()
     )
     .into_bytes()
@@ -371,8 +407,8 @@ fn relay_response(
     }
 }
 
-fn refuse(stream: &mut TcpStream, deadline: Instant) -> io::Result<()> {
-    write_with_deadline(stream, UNAUTHORIZED_RESPONSE, deadline)
+fn refuse(stream: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) -> io::Result<()> {
+    write_with_deadline(stream, &unauthorized_response(origin), deadline)
 }
 
 pub(super) fn write_with_deadline(
@@ -443,10 +479,17 @@ mod tests {
 
     #[test]
     fn the_gone_response_carries_its_words_and_their_length() {
-        let response = super::gone_response("It is gone.");
+        let response = super::gone_response("It is gone.", None);
         let text = String::from_utf8(response).unwrap();
         assert!(text.starts_with("HTTP/1.1 410 Gone\r\n"));
         assert!(text.contains("Content-Length: 11\r\n"));
         assert!(text.ends_with("\r\n\r\nIt is gone."));
+        assert!(!text.to_ascii_lowercase().contains("access-control-allow-origin"));
+
+        let webview = super::gone_response("It is gone.", Some(b"tauri://localhost"));
+        let text = String::from_utf8(webview).unwrap();
+        assert!(text.contains("Access-Control-Allow-Origin: tauri://localhost\r\n"));
+        assert!(text.ends_with("\r\n\r\nIt is gone."), "the words still end it: {text}");
+        assert_eq!(text.matches("Access-Control-Allow-Origin").count(), 1);
     }
 }
