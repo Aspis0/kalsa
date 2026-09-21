@@ -106,6 +106,63 @@ fn door_capacity(capacity: u32, engine: kalsa_door::EnginePrivateHeaders) -> u32
     }
 }
 
+/// How many hex characters of the model's pinned sha256 name a saved chat's
+/// file. The door refuses any other length or case (`Door::with_model_hash`),
+/// so this is the app's one truncation and the door is the one validator.
+const MODEL_HASH_CHARS: usize = 8;
+
+/// Why the door cannot be given a disk tier, when it is a state the door
+/// serves through rather than refuses: the sentence goes on the record.
+const NO_LAUNCH_RECORD: &str =
+    "the disk tier was not wired: no launch record, so the door cannot name a saved chat";
+const NO_MODEL_IDENTITY: &str =
+    "the disk tier was not wired: the running model has no catalog identity (a pinned \
+     development model), so the door cannot name a saved chat";
+
+/// Why the door is not given a disk tier.
+enum DiskTierRefusal {
+    /// No launch record, or a model with no catalog identity (the pinned
+    /// development path): the door serves WITHOUT the tier, and this sentence
+    /// goes on the record. A door without the tier answers both chat routes
+    /// with 501, which is exactly why the sentence exists.
+    NoIdentity(&'static str),
+    /// A digest the door's own constructor refuses. The record is the app's
+    /// own, so this is a bug: no door is built rather than one whose chat
+    /// routes answer 501 unnamed.
+    Malformed,
+}
+
+/// The disk tier's two halves, from the record of what was launched.
+struct DiskTier {
+    /// The first [`MODEL_HASH_CHARS`] hex characters of the catalog row's
+    /// pinned sha256.
+    model_hash: String,
+    /// `--slot-save-path` exactly as the engine received it.
+    slot_dir: PathBuf,
+}
+
+/// The disk tier the door must be built with, from the launch record.
+///
+/// Both values come from the same record, and neither is derived now: the
+/// digest is the catalog row's pinned sha256 as the walk that launched this
+/// engine recorded it — the one the download already verified, never the
+/// weights re-hashed here — and the directory is the `--slot-save-path` the
+/// engine itself received, so the door reads where the engine writes. `Err`
+/// carries why a chat cannot be named; the caller does not then build a door
+/// whose two chat routes answer 501 with nobody told.
+fn disk_tier(launch: Option<&startup::LaunchInfo>) -> Result<DiskTier, DiskTierRefusal> {
+    let info = launch.ok_or(DiskTierRefusal::NoIdentity(NO_LAUNCH_RECORD))?;
+    let digest = info
+        .model_sha256
+        .as_deref()
+        .ok_or(DiskTierRefusal::NoIdentity(NO_MODEL_IDENTITY))?;
+    let model_hash = digest.get(..MODEL_HASH_CHARS).ok_or(DiskTierRefusal::Malformed)?;
+    Ok(DiskTier {
+        model_hash: model_hash.to_string(),
+        slot_dir: info.args.slot_save_path.clone(),
+    })
+}
+
 impl Brain {
     fn new() -> Self {
         let supervisor = Supervisor::new();
@@ -391,20 +448,58 @@ impl Brain {
                     capacity,
                     engine,
                 )
-                .map_err(|_| "The authenticated door could not start.".to_string())?
-                    .with_response_observer(move || {
-                        let metrics = Arc::clone(&metrics);
-                        let scanner = Mutex::new(metrics::TimingScanner::new());
-                        move |bytes| {
-                            let rate = scanner
-                                .lock()
-                                .ok()
-                                .and_then(|mut scanner| scanner.feed(bytes));
-                            if let Some(rate) = rate {
-                                metrics.observe_decode(rate);
-                            }
+                .map_err(|_| "The authenticated door could not start.".to_string())?;
+                // The disk tier's two halves, from the record of the engine
+                // this door forwards to. A record that cannot name a chat
+                // leaves the door serving WITHOUT the tier — the two chat
+                // routes then answer 501 — and the line below is why, never
+                // silence. The door's own refusal stays as the last line.
+                let tier = {
+                    let launch = self.launch.lock().ok();
+                    disk_tier(launch.as_deref().and_then(|stored| stored.as_ref()))
+                };
+                let door = match tier {
+                    Ok(tier) => match door
+                        .with_slot_dir(tier.slot_dir)
+                        .with_model_hash(&tier.model_hash)
+                    {
+                        Ok(door) => door,
+                        // The digest is the app's own record, so one the door
+                        // refuses is a bug: no door is built rather than one
+                        // that answers a chat route with 501 unnamed.
+                        Err(_) => {
+                            eprintln!(
+                                "kalsa-brain: the launch record's model digest is not eight \
+                                 lowercase hex characters; the door was not built"
+                            );
+                            return Err("The authenticated door could not start.".to_string());
                         }
-                    });
+                    },
+                    Err(DiskTierRefusal::NoIdentity(reason)) => {
+                        eprintln!("kalsa-brain: {reason}");
+                        door
+                    }
+                    Err(DiskTierRefusal::Malformed) => {
+                        eprintln!(
+                            "kalsa-brain: the launch record's model digest is shorter than \
+                             eight characters; the door was not built"
+                        );
+                        return Err("The authenticated door could not start.".to_string());
+                    }
+                };
+                let door = door.with_response_observer(move || {
+                    let metrics = Arc::clone(&metrics);
+                    let scanner = Mutex::new(metrics::TimingScanner::new());
+                    move |bytes| {
+                        let rate = scanner
+                            .lock()
+                            .ok()
+                            .and_then(|mut scanner| scanner.feed(bytes));
+                        if let Some(rate) = rate {
+                            metrics.observe_decode(rate);
+                        }
+                    }
+                });
                 let running = door
                     .start()
                     .map_err(|_| "The authenticated door could not start.".to_string())?;

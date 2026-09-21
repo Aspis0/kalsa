@@ -155,6 +155,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
             context_prices: Default::default(),
             display_name: Some("IBM Granite 4 Tiny".to_string()),
             reason: Some("It is the more capable of the two.".to_string()),
+            model_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -309,6 +310,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
             context_prices: Default::default(),
             display_name: None,
             reason: None,
+            model_sha256: None,
         });
     }
     brain.clear_launch_for_state(&ServerState::Starting);
@@ -336,6 +338,7 @@ fn a_refused_start_never_publishes_its_record() {
         context_prices: Default::default(),
         display_name: None,
         reason: None,
+        model_sha256: None,
     };
     let rejected = startup::LaunchInfo {
         args: launch_args("/models/rejected.gguf", 8138),
@@ -350,6 +353,7 @@ fn a_refused_start_never_publishes_its_record() {
         context_prices: Default::default(),
         display_name: None,
         reason: None,
+        model_sha256: None,
     };
     brain.record_launch(running, StartOutcome::Accepted);
     brain.record_launch(rejected, StartOutcome::Refused);
@@ -431,6 +435,46 @@ impl TestUpstream {
     fn start() -> (Self, u16) {
         Self::serve(|mut stream| {
             let _ = std::io::Write::write_all(&mut stream, &UPSTREAM_RESPONSE);
+        })
+    }
+
+    /// A slot engine that writes down the name the door asked it to restore,
+    /// so a test can read back the file name the door built — the only place
+    /// the model hash and directory the app handed it become visible. The head
+    /// was consumed by `serve`; what is left on the socket is the json body.
+    fn recording_slot(seen: Arc<Mutex<Vec<String>>>) -> (Self, u16) {
+        Self::serve(move |mut stream| {
+            use std::io::Read;
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut body = Vec::new();
+            let mut buffer = [0u8; 512];
+            while !body.ends_with(b"}") {
+                match stream.read(&mut buffer) {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => body.extend_from_slice(&buffer[..read]),
+                }
+            }
+            let body = String::from_utf8_lossy(&body).to_string();
+            let name = body
+                .split("\"filename\":\"")
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .unwrap_or_default()
+                .to_string();
+            seen.lock().unwrap().push(name);
+            let reply = br#"{"id_slot":0,"n_restored":1}"#;
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                     Content-Length: {}\r\nConnection: close\r\n\r\n",
+                    reply.len()
+                )
+                .as_bytes(),
+            );
+            let _ = std::io::Write::write_all(&mut stream, reply);
         })
     }
 
@@ -756,6 +800,41 @@ fn door_response(port: u16, credential: &str) -> Vec<u8> {
     response
 }
 
+/// Opens one of the door's own chat routes, the way the chat page does: an id
+/// and nothing else. The name is never the client's.
+fn chat_route(port: u16, credential: &str, route: &str, id: &str) -> Vec<u8> {
+    use std::io::{Read, Write};
+    let body = format!("{{\"id\":\"{id}\"}}");
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    write!(
+        stream,
+        "POST {route} HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: Bearer {credential}\r\nContent-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).unwrap();
+    response
+}
+
+fn status_of(response: &[u8]) -> u16 {
+    String::from_utf8_lossy(response)
+        .split(' ')
+        .nth(1)
+        .and_then(|code| code.parse().ok())
+        .unwrap_or_default()
+}
+
+fn body_of(response: &[u8]) -> String {
+    let text = String::from_utf8_lossy(response).to_string();
+    text.split_once("\r\n\r\n")
+        .map(|(_, body)| body.to_string())
+        .unwrap_or_default()
+}
+
 #[test]
 fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device() {
     // The swap must not kill the door: an answer IN FLIGHT across the
@@ -1039,6 +1118,7 @@ fn a_store_holding_only_the_host_starts_the_door() {
             context_prices: Default::default(),
             display_name: None,
             reason: None,
+            model_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -1063,6 +1143,201 @@ fn a_store_holding_only_the_host_starts_the_door() {
     );
     brain.stop_door();
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// A computer that has taken its own seat, ready for `start_door_if_paired`.
+/// The slot directory is the engine's own `--slot-save-path`, created the way
+/// the walk creates it. Returns the root to clean up, the pairing file, the
+/// host record, and the slot directory.
+fn launched_brain(
+    name: &str,
+) -> (PathBuf, PathBuf, kalsa_pairing::store::StoredDevice, PathBuf) {
+    let root = std::env::temp_dir().join(format!("kalsa-brain-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join(PAIRING_FILE);
+    take_own_seat(&file).expect("this computer takes its own seat");
+    let host = kalsa_pairing::store::load_devices(&file)
+        .expect("the store reloads")
+        .remove(0);
+    let slot_dir = root.join(SLOTS_DIR);
+    std::fs::create_dir_all(&slot_dir).unwrap();
+    (root, file, host, slot_dir)
+}
+
+#[test]
+fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
+    // PROVES: the door the app builds from a launch record has BOTH halves of
+    // the disk tier pinned — the catalog row's digest at eight hex characters
+    // and the `--slot-save-path` the engine was launched with — so
+    // `POST /kalsa/chat/activate` reaches the engine instead of answering 501.
+    // The digest is read from the catalog itself and the file is planted under
+    // the name only that digest produces, so a wiring that carried another
+    // row's digest, re-hashed the weights, or dropped the value would ask the
+    // engine for a name that is not there.
+    //
+    // DOES NOT PROVE a restore's semantics: the engine answers every action,
+    // and the door's own policy is covered in kalsa-door's tests.
+    let sha256 = kalsa_catalog::usable()
+        .next()
+        .expect("the catalog carries a downloadable row")
+        .source()
+        .sha256;
+    let (root, file, host, slot_dir) = launched_brain("disk-tier");
+
+    let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+    let (engine, upstream) = TestUpstream::recording_slot(Arc::clone(&seen));
+    let brain = Brain::new();
+    brain.record_launch(
+        startup::LaunchInfo {
+            args: kalsa_launch::ServerArgs {
+                slot_save_path: slot_dir.clone(),
+                ..launch_args("/models/chosen.gguf", startup::PORT)
+            },
+            maximum_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            automatic_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            context_prices: Default::default(),
+            display_name: Some("IBM Granite 4 Tiny".to_string()),
+            reason: None,
+            model_sha256: Some(sha256.to_string()),
+        },
+        StartOutcome::Accepted,
+    );
+    brain
+        .start_door_if_paired(upstream, &file, false)
+        .expect("the door starts with the tier wired");
+    let port = brain.door_port().expect("the host's seat builds the door");
+
+    // The chat's file, under the name the door must build from the row's
+    // digest and the slot directory it was given: `d<device>-m<hash8>-c<id>`.
+    let id = "0f1e2d3c-5a6b";
+    let name = format!("d0-m{}-c{id}.bin", &sha256[..MODEL_HASH_CHARS]);
+    std::fs::write(slot_dir.join(&name), b"state").unwrap();
+
+    let response = chat_route(
+        port,
+        &host.handshake.credential_hex(),
+        "/kalsa/chat/activate",
+        id,
+    );
+    assert_eq!(
+        status_of(&response),
+        204,
+        "the app-built door did not reach the engine: {}",
+        body_of(&response)
+    );
+    assert_eq!(
+        seen.lock().unwrap().as_slice(),
+        &[name.clone()],
+        "the door asked the engine for a name that is not the row's digest in the engine's directory"
+    );
+    drop(engine);
+    brain.stop_door();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_why() {
+    // The development path pins a file no catalog row named, so there is no
+    // pinned digest to build a chat's name from. The app does not invent one —
+    // hashing the weights is a pass over tens of gigabytes — and does not
+    // pretend the tier is wired: the door stands up for everything else, the
+    // chat route refuses with its own sentence, and a line on the record says
+    // why. This is the one degraded state, and it is never silence.
+    let (root, file, host, slot_dir) = launched_brain("no-identity");
+    let brain = Brain::new();
+    brain.record_launch(
+        startup::LaunchInfo {
+            args: kalsa_launch::ServerArgs {
+                slot_save_path: slot_dir,
+                ..launch_args("/models/pinned.gguf", startup::PORT)
+            },
+            maximum_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            automatic_context: startup::ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            context_prices: Default::default(),
+            display_name: None,
+            reason: None,
+            model_sha256: None,
+        },
+        StartOutcome::Accepted,
+    );
+    brain
+        .start_door_if_paired(1, &file, false)
+        .expect("a missing model identity must not take the phone door down");
+    let port = brain.door_port().expect("the door still serves");
+
+    let response = chat_route(
+        port,
+        &host.handshake.credential_hex(),
+        "/kalsa/chat/activate",
+        "aaaa1111",
+    );
+    assert_eq!(status_of(&response), 501);
+    assert!(
+        body_of(&response).contains("no model identity"),
+        "the refusal does not say what is missing: {}",
+        body_of(&response)
+    );
+    brain.stop_door();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_chat() {
+    // The record is the app's own, so a digest the door's constructor refuses
+    // is a bug and not a degraded state: the door is not built at all, rather
+    // than standing with two chat routes that answer 501 unnamed. All three
+    // forms the door refuses are driven through the app's path: eight
+    // uppercase characters and eight non-hex characters reach
+    // `with_model_hash`, and seven characters are refused before it.
+    for digest in ["A1B2C3D4", "a1b2c3dg", "a1b2c3d"] {
+        let (root, file, _host, slot_dir) = launched_brain("refused-digest");
+        let brain = Brain::new();
+        brain.record_launch(
+            startup::LaunchInfo {
+                args: kalsa_launch::ServerArgs {
+                    slot_save_path: slot_dir,
+                    ..launch_args("/models/chosen.gguf", startup::PORT)
+                },
+                maximum_context: startup::ContextMaxima {
+                    q8_0: None,
+                    f16: None,
+                },
+                automatic_context: startup::ContextMaxima {
+                    q8_0: None,
+                    f16: None,
+                },
+                context_prices: Default::default(),
+                display_name: None,
+                reason: None,
+                model_sha256: Some(digest.to_string()),
+            },
+            StartOutcome::Accepted,
+        );
+        let started = brain.start_door_if_paired(1, &file, false);
+        assert!(
+            started.is_err(),
+            "the door stood with a digest it should refuse: {digest:?}"
+        );
+        assert!(
+            brain.door_port().is_none(),
+            "a door that cannot name a chat was built anyway: {digest:?}"
+        );
+        brain.stop_door();
+        let _ = std::fs::remove_dir_all(root);
+    }
 }
 
 #[test]

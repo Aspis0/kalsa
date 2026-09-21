@@ -616,6 +616,7 @@ mod tests {
                 },
                 display_name: Some("Alibaba Qwen 3.6".to_string()),
                 reason: Some("It is the more capable of the two.".to_string()),
+                model_sha256: None,
             }),
             Some(8130),
             "The internet road is open.".to_string(),

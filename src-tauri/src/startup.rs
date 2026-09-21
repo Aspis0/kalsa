@@ -158,6 +158,14 @@ pub(crate) struct LaunchInfo {
     /// shown as-is. `None` on the development path: the developer pinned a
     /// file and owns its bytes, and no catalog choice was made to explain.
     pub(crate) reason: Option<String>,
+    /// The chosen row's pinned sha256, recorded where the row was chosen. The
+    /// disk tier names a saved chat's file by its first eight hex characters,
+    /// and this digest is the one the download already verified
+    /// (`manifest.rs:51`), never the weights re-hashed here: a pass over tens
+    /// of gigabytes at every launch is what the pin exists to avoid. `None` on
+    /// the development path, where the developer pinned a file no catalog row
+    /// named, so there is no digest to carry.
+    pub(crate) model_sha256: Option<String>,
 }
 
 #[derive(Debug)]
@@ -220,6 +228,9 @@ pub(crate) fn run(
                 path,
                 row,
                 reason,
+                // The digest of the row whose file was just placed: the
+                // model identity a saved chat's name carries.
+                plan.sha256,
                 &machine,
                 devices,
                 state_file,
@@ -512,6 +523,12 @@ fn acquire_model(
 #[cfg(test)]
 const TEST_REASON: &str = "the catalog chose this row for the test";
 
+/// The digest a test's launch record carries. Of the right shape — a sha256 is
+/// 64 lowercase hex characters — because the door reads its first eight. The
+/// tests that compare against the catalog read the catalog, not this.
+#[cfg(test)]
+const TEST_SHA256: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 /// The server's configuration, from the launch decision: the context is
 /// derived from the chosen row's cache geometry against this machine's real
 /// budget, the thread count is the measured plateau, the offload follows the
@@ -533,6 +550,7 @@ fn planned_config(
         model,
         row,
         TEST_REASON.to_string(),
+        TEST_SHA256,
         machine,
         // The single-slot default: these tests are about the model and the
         // budget, and the capacity rule has its own tests below.
@@ -586,6 +604,7 @@ fn planned_config_with_overrides(
     model: PathBuf,
     row: &ModelEntry,
     reason: String,
+    model_sha256: &str,
     machine: &Machine,
     devices: u32,
     state_file: PathBuf,
@@ -711,6 +730,7 @@ fn planned_config_with_overrides(
             context_prices,
             display_name: Some(row.display_name.to_owned()),
             reason: Some(reason),
+            model_sha256: Some(model_sha256.to_string()),
         },
     })
 }
@@ -805,6 +825,9 @@ fn dev_config_with_overrides(
             context_prices: ContextPrices::default(),
             display_name: None,
             reason: None,
+            // A pinned file no catalog row named: there is no pinned digest
+            // to carry, and none is computed from the file.
+            model_sha256: None,
         },
     })
 }
@@ -1162,6 +1185,55 @@ mod tests {
         assert_eq!(plan.bytes, automatic.download.bytes);
         assert_eq!(plan.sha256, automatic.download.sha256);
         assert_eq!(reason, PHONE_FREE_REASON, "and the same sentence");
+    }
+
+    #[test]
+    fn the_record_carries_the_chosen_row_s_pinned_digest_not_a_rehash() {
+        // The model identity a saved chat's name carries is the CATALOG ROW's
+        // pinned sha256 — the digest the download already verified — read into
+        // the record where the row is chosen. `digest_of(PLAN_BODY)` stands in
+        // for the digest of some other bytes, which is what a pass over the
+        // weights would produce: the record must not carry it.
+        let machine = machine(Backend::Cpu);
+        let (plan, row, reason) =
+            choose_model(ServerBackend::Cpu, &machine, None, None).expect("today's walk");
+        let from_catalog = kalsa_catalog::usable()
+            .find(|entry| entry.entry().repo == row.repo && entry.entry().quant == row.quant)
+            .expect("the chosen row is on the menu")
+            .source()
+            .sha256;
+        assert_eq!(
+            plan.sha256, from_catalog,
+            "the plan's digest is the catalog row's own"
+        );
+        let config = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            reason,
+            plan.sha256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("the automatic row is fundable on the test machine");
+        assert_eq!(
+            config.info.model_sha256.as_deref(),
+            Some(plan.sha256),
+            "the record dropped or replaced the row's pinned digest"
+        );
+        // The door takes the first eight characters; a launch record carrying
+        // a digest computed from the weights would name every chat by a hash
+        // no later launch could find again.
+        let file_digest = digest_of(PLAN_BODY);
+        assert_ne!(
+            &config.info.model_sha256.as_deref().expect("carried")[..8],
+            &file_digest[..8],
+            "the weights were re-hashed instead of the row's pin"
+        );
     }
 
     #[test]
@@ -1795,6 +1867,7 @@ mod tests {
                 PathBuf::from("/models/chosen.gguf"),
                 row,
                 TEST_REASON.to_string(),
+                TEST_SHA256,
                 &machine,
                 3,
                 PathBuf::from("/state/server.state"),
@@ -1846,6 +1919,7 @@ mod tests {
             PathBuf::from("/models/chosen.gguf"),
             row,
             TEST_REASON.to_string(),
+            TEST_SHA256,
             &machine,
             2,
             PathBuf::from("/state/server.state"),
@@ -1999,6 +2073,7 @@ mod tests {
             PathBuf::from("/models/chosen.gguf"),
             row,
             TEST_REASON.to_string(),
+            TEST_SHA256,
             &machine,
             // One seat: this test is about the context guard, not the
             // capacity rule.
@@ -2037,6 +2112,7 @@ mod tests {
                 PathBuf::from("/models/chosen.gguf"),
                 row,
                 TEST_REASON.to_string(),
+                TEST_SHA256,
                 &machine,
                 // One seat: the maximum this test pins is the per-slot
                 // ceiling, not a family's worth of them.
@@ -2095,6 +2171,7 @@ mod tests {
             PathBuf::from("/models/chosen.gguf"),
             row,
             TEST_REASON.to_string(),
+            TEST_SHA256,
             &machine,
             // One seat: f16's funded maximum is a per-slot figure here.
             1,
