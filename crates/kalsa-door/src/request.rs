@@ -33,6 +33,11 @@ pub(super) struct UnsealedHead {
     /// `Access-Control-Request-Method` a browser always sends. `OPTIONS`
     /// without those two is some other request and takes the ordinary path.
     pub(super) preflight: bool,
+    /// The request target, kept because the door's own routing decision — the
+    /// refusal of the engine's slot routes — is made on the path, not on a
+    /// header. The upstream never sees this copy; it is already in the
+    /// forwarded request line when it is forwarded at all.
+    pub(super) target: Vec<u8>,
     /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
     /// id namespace belongs to the door, and the upstream must never see it.
     pub(super) last_event_id: Option<Vec<u8>>,
@@ -109,7 +114,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
         return Err(());
     }
     let request_line = lines.next().ok_or(())?.strip_suffix(b"\r").ok_or(())?;
-    valid_request_line(request_line)?;
+    let target = request_target(request_line)?;
     let is_options = request_line.split(|byte| *byte == b' ').next() == Some(&b"OPTIONS"[..]);
 
     let mut forwarded = Vec::with_capacity(end + 2);
@@ -230,11 +235,16 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
         authorization,
         origin,
         preflight,
+        target: target.to_vec(),
         last_event_id,
     })
 }
 
-fn valid_request_line(line: &[u8]) -> Result<(), ()> {
+/// The request line's target, once the line is known to be one: method, target,
+/// HTTP/1.1, and nothing else. It returns the target because the door's own
+/// routing decision reads it, and one parse is one place for a bad line to be
+/// refused.
+fn request_target(line: &[u8]) -> Result<&[u8], ()> {
     let mut parts = line.split(|byte| *byte == b' ');
     let method = parts.next().ok_or(())?;
     let target = parts.next().ok_or(())?;
@@ -248,7 +258,7 @@ fn valid_request_line(line: &[u8]) -> Result<(), ()> {
     {
         return Err(());
     }
-    Ok(())
+    Ok(target)
 }
 
 fn valid_name(name: &[u8]) -> bool {

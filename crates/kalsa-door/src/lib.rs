@@ -52,6 +52,7 @@ mod request;
 mod response;
 mod registry;
 mod server;
+mod slot_routes;
 mod slots;
 mod sse;
 mod stream;

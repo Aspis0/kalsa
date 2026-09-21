@@ -10,6 +10,7 @@ use crate::registry::{Registry, StartRefused};
 use crate::token::parse_resume;
 use crate::request;
 use crate::response;
+use crate::slot_routes;
 use crate::stream;
 use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
 
@@ -114,6 +115,19 @@ pub(super) fn handle(
             return;
         }
     };
+    // The engine's own slot routes are addressed by URL and never consult the
+    // slot header, so a paired device that reaches them reads or changes a
+    // slot the door did not give it — `GET /slots` reports every slot's
+    // prompt. Refused here, after the credential and before any lease: an
+    // unauthenticated stranger still gets the 401 alone, and an authenticated
+    // device spends no capacity, opens no upstream socket and forwards no
+    // byte for a route the door will not serve.
+    if slot_routes::is_slot_route(&head.target) {
+        let _ = discard_request_body(&mut client, head.body_length, deadline);
+        let answer = slot_routes::refusal_response(head.origin.as_deref());
+        let _ = write_with_deadline(&mut client, &answer, deadline);
+        return;
+    }
     // The device's engine slot, under a lease that lasts the whole request.
     // Membership and allocation are one critical section: a device revoked
     // in the window between authentication and here is refused with the 401
