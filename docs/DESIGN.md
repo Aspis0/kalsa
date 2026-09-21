@@ -123,6 +123,11 @@ and it refuses.
   (web_search sources, web_fetch card + PDF pages, `[N]` citations, the miniapp); `document_chat`
   passages, `write_note`, `device_info`, `device_calc` and `calendar_agenda` exist only as
   `role: "tool"` engine messages that never reach `Message[]`.
+- **The answer's renderer already exists and its only consumer is in the forbidden layer**:
+  `src/chat/MarkdownText.tsx` over the pure parser `src/chat/markdown.ts`, used by
+  `AiChatPage.tsx:5573` and by nothing else. It takes the old `ThemeColors` through
+  `useLabTheme`/`useTypography` rather than `design.ts`, and the new shell mounts no theme
+  provider, so reuse is an adapter plus the three block kinds §2.2 lists.
 - **Permissions are scattered and three tools have none.** Web search toggles only in the chat
   header; device and calendar only in Settings; `write_note`, `document_chat` and `create_miniapp`
   have no toggle at all.
@@ -166,10 +171,26 @@ line on the smallest screen.
 - **Rhythm**: 6 dp between the user's turn and its own answer (they are one turn), **26 dp between
   turns**, 12–16 dp between paragraphs. Grouping is by proximity; separators are never used between
   turns.
-- **Markdown is real**: numbered lists, bullet lists, **display equations with stacked fractions**,
-  tables with a shaded header and hairlines that scroll horizontally with an edge fade, code in
-  mono on `surfaceMuted`. At 349 dp a three-column table cannot fit and must not be silently cut.
-- A day marker sits between two hairlines, and is dropped when the transcript area is small.
+- **Markdown is real for what the renderer already does, and only that.** *Corrected by step 3's
+  inventory, which found this section claiming more than the repository can do.* What exists:
+  `src/chat/MarkdownText.tsx` (404 lines) over a pure parser `src/chat/markdown.ts` (677 lines),
+  supporting paragraphs, H1–H3, ordered and unordered lists with depth, blockquotes, thematic
+  rules, inline bold/italic/code, links (non-http downgraded to text) and the `[N]` citation
+  chips. **What does not exist anywhere in the repository: tables, display equations, fenced code
+  and images.** Fenced blocks are split out upstream and drawn by `CodeFenceBlock`, which lives
+  inside `AiChatPage`, not in the renderer; and stacked fractions have no React Native
+  implementation at all — the only "formula" anywhere is a plain string in the miniapp renderer.
+  So tables and equations are **work, not a port**, and step 3b is a build. The renderer's single
+  consumer is `AiChatPage.tsx:5573`, so reusing it means adapting its colour contract (it takes the
+  old `ThemeColors`, not `design.ts`) rather than moving a file.
+- **The rhythm, as numbers the layout module owns**: 6 dp between the user's capsule and its own
+  answer, 26 dp between turns, 14 dp between the paragraphs of one answer (band 12–16), and the
+  capsule capped at 78 % of the reading column. A three-column table needs 351 dp at the minimum
+  readable cell width, so at 349 dp it **always** scrolls — a property of a pure function
+  (`tableScrollDecision`), not of a stylesheet someone has to remember to read.
+- A day marker sits between two hairlines: a 42 dp box, kept while the transcript band has at
+  least 320 dp and dropped below that. The 320 is a **chosen** floor, labelled as chosen in the
+  code, because the arithmetic fixes only the band it must sit inside.
 
 ### 2.3 The thinking cloud
 

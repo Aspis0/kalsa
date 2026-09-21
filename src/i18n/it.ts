@@ -1156,9 +1156,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). " +
     "Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. " +
     "Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura.",
-  // ── Interfaccia rifatta (2026-09). Vedi docs/DESIGN.md ────────────────
-  // Ogni parola che la nuova shell può mostrare sta qui, così una stringa
-  // mancante è un errore di tipo e non un controllo vuoto nel momento peggiore.
+  // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
+  // Every word the new shell can put on screen lives here, so a missing
+  // string is a type error rather than a blank control at the worst moment.
+  // (Translated from Italian; comments are English throughout.)
   shell: {
     phase: {
       idle: "Pronto",
@@ -1173,7 +1174,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       unloaded: "Modello scaricato",
       failed: "Fermato da un errore",
     },
-    /** Mostrata ogni volta che il composer rifiuta l'input. Mai vuota allora. */
+    /** Shown whenever the composer refuses input. Never empty then. */
     held: {
       loading: "In attesa mentre carico il modello",
       prefill: "In attesa che parta la risposta",
@@ -1185,9 +1186,32 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       converting: "In attesa: sto ancora leggendo il documento",
     },
     thinking: {
-      show: "Mostra il pensiero",
-      hide: "Nascondi il pensiero",
+      show: "Mostra il pensiero ▼",
+      hide: "Nascondi il pensiero ▲",
       thoughtFor: "Ha pensato per {seconds}s",
+    },
+    transcript: {
+      today: "Oggi",
+      yesterday: "Ieri",
+      onDate: "{day} {month}",
+      onDateYear: "{day} {month} {year}",
+      months: {
+        jan: "gen",
+        feb: "feb",
+        mar: "mar",
+        apr: "apr",
+        may: "mag",
+        jun: "giu",
+        jul: "lug",
+        aug: "ago",
+        sep: "set",
+        oct: "ott",
+        nov: "nov",
+        dec: "dic",
+      },
+      a11y: {
+        day: "Separatore di giorno: {label}",
+      },
     },
     context: {
       fromDocument: "Rispondo da {name}",

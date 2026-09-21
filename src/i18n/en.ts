@@ -1226,9 +1226,36 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       converting: "Held: still reading your document",
     },
     thinking: {
-      show: "Show thinking",
-      hide: "Hide thinking",
+      // The arrows are part of the label, as in the mock: the disclosure is a
+      // text control, and a bare word does not say which way it will move.
+      show: "Show thinking ▼",
+      hide: "Hide thinking ▲",
       thoughtFor: "Thought for {seconds}s",
+    },
+    transcript: {
+      today: "Today",
+      yesterday: "Yesterday",
+      /** The day marker's date, in the order this language writes it. */
+      onDate: "{month} {day}",
+      onDateYear: "{month} {day}, {year}",
+      /** Abbreviations, because a day marker is a hairline and a small label. */
+      months: {
+        jan: "Jan",
+        feb: "Feb",
+        mar: "Mar",
+        apr: "Apr",
+        may: "May",
+        jun: "Jun",
+        jul: "Jul",
+        aug: "Aug",
+        sep: "Sep",
+        oct: "Oct",
+        nov: "Nov",
+        dec: "Dec",
+      },
+      a11y: {
+        day: "Day marker: {label}",
+      },
     },
     context: {
       fromDocument: "Answering from {name}",

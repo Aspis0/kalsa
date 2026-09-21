@@ -1,11 +1,11 @@
 /**
  * The shell: three bands, static chrome, no engine calls.
  *
- * Step 2 of the rebuild. This file places the boxes `shellGeometry.ts` returns
- * and nothing else — it holds no data, fetches nothing, and imports nothing
- * from `src/engine`, `src/app`, `src/screens` or `src/conversations`. The
- * transcript band is an empty slot for step 3. The composer is non-functional
- * chrome until step 5; the send and attach controls deliberately do nothing.
+ * Step 2 of the rebuild, with step 3's transcript arriving as `children`. This
+ * file places the boxes `shellGeometry.ts` returns and nothing else — it holds
+ * no data, fetches nothing, and imports nothing from `src/engine`, `src/app`,
+ * `src/screens` or `src/conversations`. The composer is non-functional chrome
+ * until step 5; the send and attach controls deliberately do nothing.
  *
  * Insets arrive as a prop so `shellGeometry.ts` stays pure and its test honest;
  * width and height default to the live window so the preview can render at any
@@ -54,7 +54,7 @@ export type ShellProps = {
   width?: number;
   height?: number;
   mode?: ThemeMode;
-  /** The transcript band. Empty in step 2. */
+  /** The transcript band's content. The shell does not know what it is. */
   children?: React.ReactNode;
   onMenuPress?: () => void;
   onModelPress?: () => void;
