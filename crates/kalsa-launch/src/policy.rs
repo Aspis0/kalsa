@@ -41,6 +41,11 @@ pub struct LaunchInput<'a> {
     /// the door as its capacity. The plan divides the funded total by it,
     /// because the engine divides `--ctx-size` exactly so.
     pub parallel: u32,
+    /// Where the engine may save a chat's KV state on disk, rendered as
+    /// `--slot-save-path`. Resolved by the app (its data directory's
+    /// `slots`), created and permissioned there; [`plan`] only carries it
+    /// into the argv, so a launch without the folder is impossible by type.
+    pub slot_save_path: PathBuf,
 }
 
 /// The funded ceiling for one input, and the roof it was carved after: the
@@ -101,6 +106,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         ubatch_size: input.ubatch_size,
         kv_cache: input.kv_cache,
         parallel,
+        slot_save_path: input.slot_save_path.clone(),
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
@@ -593,6 +599,7 @@ mod tests {
             ubatch_size: 512,
             kv_cache: KvCache::Q8_0,
             parallel: crate::args::DEFAULT_PARALLEL,
+            slot_save_path: PathBuf::from("/slots"),
         }
     }
 
@@ -1062,6 +1069,37 @@ mod tests {
         assert!(line.contains("--sleep-idle-seconds 300"), "{line}");
         assert!(line.contains("--no-webui"), "{line}");
         assert!(!line.contains("0.0.0.0"), "{line}");
+    }
+
+    /// The disk tier's two launch flags, pinned the way the unload clock
+    /// above is, and the one flag the measurement kept out.
+    ///
+    /// `--slot-save-path` is the folder the app created before this launch.
+    /// Without it the engine answers every slot save with `not supported`,
+    /// so a plan that drops it loses the tier in silence.
+    /// `--ctx-checkpoints 1` is the size of a saved chat, not a preference:
+    /// the engine's default is 32 (`common/common.h:630`) and one chat under
+    /// it grew to roughly 2.7 GB.
+    ///
+    /// `--swa-full` is the negative that matters. The committed round-trip
+    /// (`dev/results/slot-restore-swa/summary.md`) runs it off and on and
+    /// finds the restored file warm exactly when the caller drops its salt,
+    /// in both settings: the flag moves the file's size, not the warmth, and
+    /// it would take the SWA cache 25.6×. If someone renders it, this is the
+    /// test that goes red.
+    #[test]
+    fn the_disk_tier_flags_reach_the_line_and_swa_full_stays_out() {
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Cpu, 16 * GIB);
+        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the model is fundable");
+        let line = launched.args.argv().join(" ");
+        assert!(line.contains("--slot-save-path /slots"), "{line}");
+        assert!(line.contains("--ctx-checkpoints 1"), "{line}");
+        assert!(
+            !line.contains("--swa-full"),
+            "the measurement took this flag out; see dev/results/slot-restore-swa/summary.md: {line}"
+        );
     }
 
     /// A machine with memory to spare, so only the trained cap can bind.

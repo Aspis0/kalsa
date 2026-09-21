@@ -264,6 +264,15 @@ impl KvCache {
 /// legal under, so it is the value rendered.
 pub(crate) const FLASH_ATTN: &str = "on";
 
+/// One context checkpoint per slot. The engine's default is **32**
+/// (`common/common.h:630`; the flag is at `common/arg.cpp:1695-1701`), and one
+/// saved conversation under it grew to roughly 2.7 GB. One record is what the
+/// reader keeps anyway (`server-context.cpp:2581-2583`).
+///
+/// The double dash is the registered spelling: `-ctx-checkpoints` is not a
+/// name the parser knows (the short form is `-ctxcp`) and is refused.
+pub(crate) const CTX_CHECKPOINTS: &str = "1";
+
 /// How many layers go to the GPU. Three states, because the rendered
 /// arguments differ in kind, not degree:
 ///
@@ -326,6 +335,14 @@ pub struct ServerArgs {
     /// and the door refuses it rather than let the engine wrap `id_slot`
     /// onto somebody else's cache.
     pub parallel: u32,
+    /// Where the engine writes a chat's saved KV state, rendered as
+    /// `--slot-save-path`. The app owns the directory: it creates it 0700 and
+    /// refuses the launch when it cannot, because the engine treats a path
+    /// that is not a directory as an invalid argument
+    /// (`common/arg.cpp:3612-3615`), and no path at all answers `not
+    /// supported` in silence. Never optional, so no site can leave the tier
+    /// behind.
+    pub slot_save_path: PathBuf,
 }
 
 /// The settings the UI may show after the command line has been built.

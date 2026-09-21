@@ -293,6 +293,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
         ubatch_size: 512,
         kv_cache: kalsa_launch::KvCache::Q8_0,
         parallel: kalsa_launch::DEFAULT_PARALLEL,
+        slot_save_path: PathBuf::from("/slots"),
     };
     if let Ok(mut launch) = brain.launch.lock() {
         *launch = Some(startup::LaunchInfo {
@@ -374,6 +375,7 @@ fn launch_args(model: &str, port: u16) -> kalsa_launch::ServerArgs {
         ubatch_size: 512,
         kv_cache: kalsa_launch::KvCache::Q8_0,
         parallel: kalsa_launch::DEFAULT_PARALLEL,
+        slot_save_path: PathBuf::from("/slots"),
     }
 }
 

@@ -58,6 +58,12 @@ pub(crate) enum StartupFailure {
     /// probe's own words for what its checks saw on the last attempt —
     /// written for the user, with the numbers in them.
     MeasurementUnreliable(Vec<String>),
+    // — the disk tier —
+    /// The directory the engine saves a chat's KV state into could not be
+    /// created or permissioned. The engine refuses a `--slot-save-path` that
+    /// is not a directory, so the walk stops here rather than fetching a
+    /// model for an engine that cannot start.
+    SlotSavePathUnwritable,
     // — placing the model on disk —
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
@@ -147,6 +153,12 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
                 .into()
         }
         StartupFailure::MeasurementUnreliable(notes) => measurement_unreliable_words(notes),
+        StartupFailure::SlotSavePathUnwritable => {
+            "The assistant could not prepare the place on this computer where chats are \
+             kept, so it did not start. Freeing some space and trying again usually \
+             works."
+                .into()
+        }
         StartupFailure::WeightsUnverified => {
             "The model chosen for this computer cannot yet be verified against its \
              publisher, so it was not downloaded. A future app update finishes this."

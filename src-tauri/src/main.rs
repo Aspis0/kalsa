@@ -47,6 +47,10 @@ const MODEL_ENV: &str = "KALSA_BRAIN_MODEL";
 /// Where the pairing handshake is kept, so the catalog knows what the phone
 /// runs. The pairing crate persists and loads it; this is its path.
 const PAIRING_FILE: &str = "pairing.json";
+/// The directory, under the data directory, the engine saves a chat's KV
+/// state into. The walk creates it (0700) before the launch; the flag is
+/// rendered from the path resolved here.
+const SLOTS_DIR: &str = "slots";
 /// The one window, declared with this label in tauri.conf.json. Lookups
 /// go through this constant, so the two can never drift apart silently.
 const MAIN_WINDOW_LABEL: &str = "main";
@@ -800,6 +804,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let ram_bytes = startup::ram_bytes();
     let runtime_root = kalsa_runtime::runtime_root();
     let state_file = state_file(&app)?;
+    let slot_save_path = slots_dir(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     let phone = phone(&app)?;
@@ -845,6 +850,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             devices,
             model_override,
             state_file,
+            slot_save_path,
             &runtime_root,
             &mut progress,
         )
@@ -915,6 +921,16 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
             "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".to_string()
         })?;
     Ok(dir.join("server.state"))
+}
+
+/// Where the engine writes a chat's saved KV state. Resolved here, under the
+/// same data directory as the pairing store; `startup::run` creates and
+/// permissions it before the launch, so this function never touches the disk.
+fn slots_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|_| {
+        "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".to_string()
+    })?;
+    Ok(dir.join(SLOTS_DIR))
 }
 
 /// Where the pairing handshake is kept — the same directory the road's

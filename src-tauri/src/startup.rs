@@ -176,6 +176,7 @@ pub(crate) fn run(
     devices: u32,
     model_override: Option<PathBuf>,
     state_file: PathBuf,
+    slot_save_path: PathBuf,
     root: &Path,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PreparedStart, StartupFailure> {
@@ -183,6 +184,10 @@ pub(crate) fn run(
     // its checks — would decide a real model on noise. The walk stops; the
     // next turn-on measures again.
     require_reliable(&machine.measurement)?;
+    // Before any download or model work: an engine whose disk route cannot be
+    // prepared must not be fetched for, because the engine would refuse to
+    // start and the tier would never exist.
+    prepare_slot_save_dir(&slot_save_path)?;
     let overrides = crate::options::load(&state_file);
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
@@ -210,11 +215,51 @@ pub(crate) fn run(
                 choose_model(backend, &machine, phone, overrides.model.as_deref())?;
             let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
-                backend, exe, path, row, reason, &machine, devices, state_file, overrides,
+                backend,
+                exe,
+                path,
+                row,
+                reason,
+                &machine,
+                devices,
+                state_file,
+                slot_save_path,
+                overrides,
             );
         }
     };
-    dev_config_with_overrides(exe, model, devices, state_file, &machine, overrides)
+    dev_config_with_overrides(
+        exe,
+        model,
+        devices,
+        state_file,
+        slot_save_path,
+        &machine,
+        overrides,
+    )
+}
+
+/// The directory the engine saves a chat's KV state into, made ready before
+/// the engine is launched.
+///
+/// The engine treats a `--slot-save-path` that is not an existing directory
+/// as an invalid argument (`common/arg.cpp:3612-3615`), so an engine started
+/// without this would die in its own argument parsing; and an engine started
+/// with no path at all answers every save with `not supported`. Both are the
+/// silence this exists to prevent.
+///
+/// 0700, stated rather than left to the umask: a saved state is a whole
+/// conversation, and the data directory's own permissions are not the
+/// boundary.
+fn prepare_slot_save_dir(path: &Path) -> Result<(), StartupFailure> {
+    std::fs::create_dir_all(path).map_err(|_| StartupFailure::SlotSavePathUnwritable)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|_| StartupFailure::SlotSavePathUnwritable)?;
+    }
+    Ok(())
 }
 
 /// The model step's answer: what to fetch, the row it belongs to, and the
@@ -493,6 +538,9 @@ fn planned_config(
         // budget, and the capacity rule has its own tests below.
         1,
         state_file,
+        // No I/O under `planned_config_with_overrides`: the directory itself
+        // is exercised through `run`, where the app's own path arrives.
+        PathBuf::from("/slots"),
         LaunchOverrides::default(),
     )
 }
@@ -541,6 +589,7 @@ fn planned_config_with_overrides(
     machine: &Machine,
     devices: u32,
     state_file: PathBuf,
+    slot_save_path: PathBuf,
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
     let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
@@ -563,6 +612,7 @@ fn planned_config_with_overrides(
         ubatch_size,
         kv_cache: cache,
         parallel,
+        slot_save_path: slot_save_path.clone(),
     };
     // The requested count is the ENROLLED devices — this computer and every
     // paired phone — because the door reserves a slot per stored device for
@@ -676,6 +726,7 @@ fn dev_config_with_overrides(
     model: PathBuf,
     devices: u32,
     state_file: PathBuf,
+    slot_save_path: PathBuf,
     machine: &Machine,
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
@@ -719,6 +770,9 @@ fn dev_config_with_overrides(
         // door builds one seat per enrolled device, and an engine that cannot
         // isolate is planned and served for one.
         parallel,
+        // The dev path carries the disk tier too: the engine would refuse to
+        // start without a directory for `--slot-save-path`.
+        slot_save_path,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -1270,6 +1324,7 @@ mod tests {
             1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/server.state"),
+            root.join("slots"),
             &root,
             &mut |_| {},
         )
@@ -1282,6 +1337,82 @@ mod tests {
         // The machine was never measured, so the thread count is omitted
         // rather than guessed.
         assert!(!joined.contains("--threads"), "{joined}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The disk tier's folder exists, private, before the engine starts — and
+    /// the argv names it. `--slot-save-path` is the only route to the save and
+    /// restore functions: an engine launched without it answers `not
+    /// supported`, which is the silence the tier exists to avoid.
+    #[cfg(unix)]
+    #[test]
+    fn the_saved_chats_directory_is_created_private_and_named_on_the_line() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = scratch("slots-private");
+        let slots = root.join("slots");
+        let config = run(
+            Some(PathBuf::from("/server/llama-server")),
+            Machine {
+                measurement: measured(0.0, Backend::Cpu),
+                ram_bytes: 0,
+            },
+            None,
+            1,
+            Some(PathBuf::from("/dev/model.gguf")),
+            PathBuf::from("/state/server.state"),
+            slots.clone(),
+            &root,
+            &mut |_| {},
+        )
+        .expect("the dev override is the answer");
+        let mode = std::fs::metadata(&slots)
+            .expect("the walk made the folder")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700, "a saved chat is private: {mode:o}");
+        let joined = config.server.argv.join(" ");
+        let named = format!("--slot-save-path {}", slots.display());
+        assert!(joined.contains(&named), "{joined}");
+        assert!(joined.contains("--ctx-checkpoints 1"), "{joined}");
+        assert!(!joined.contains("--swa-full"), "{joined}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A folder that cannot be made stops the walk. The engine treats a
+    /// `--slot-save-path` that is not a directory as an invalid argument, so
+    /// starting anyway would fetch a model for an engine that cannot start.
+    ///
+    /// The blocker is a regular file where the folder's parent should be:
+    /// `create_dir_all` fails with `NotADirectory` on every filesystem.
+    #[test]
+    fn a_launch_without_a_place_for_saved_chats_is_refused() {
+        let root = scratch("slots-unwritable");
+        let blocker = root.join("not-a-directory");
+        std::fs::write(&blocker, b"a file, not a folder").expect("the blocker");
+        let err = run(
+            Some(PathBuf::from("/server/llama-server")),
+            Machine {
+                measurement: measured(0.0, Backend::Cpu),
+                ram_bytes: 0,
+            },
+            None,
+            1,
+            Some(PathBuf::from("/dev/model.gguf")),
+            PathBuf::from("/state/server.state"),
+            blocker.join("slots"),
+            &root,
+            &mut |_| {},
+        )
+        .expect_err("a folder that cannot be made must stop the walk");
+        assert!(
+            matches!(err, StartupFailure::SlotSavePathUnwritable),
+            "{err:?}"
+        );
+        let spoken = crate::failure::words(&err);
+        assert!(
+            spoken.starts_with("The assistant could not prepare"),
+            "{spoken}"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1307,6 +1438,7 @@ mod tests {
             1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/server.state"),
+            root.join("slots"),
             &root,
             &mut |_| {},
         )
@@ -1521,6 +1653,7 @@ mod tests {
             ubatch_size: 512,
             kv_cache: KvCache::Q8_0,
             parallel,
+            slot_save_path: PathBuf::from("/slots"),
         };
 
         // No inlet: the requested four slots must not reach the plan, and the
@@ -1604,6 +1737,7 @@ mod tests {
                 &machine,
                 3,
                 PathBuf::from("/state/server.state"),
+                PathBuf::from("/slots"),
                 LaunchOverrides::default(),
             )
         };
@@ -1654,6 +1788,7 @@ mod tests {
             &machine,
             2,
             PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
             LaunchOverrides::default(),
         )
         .expect("one seat is fundable even when two are not");
@@ -1691,6 +1826,7 @@ mod tests {
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
+            root.join("slots"),
             &root,
             &mut |_| {},
         )
@@ -1725,6 +1861,7 @@ mod tests {
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
+            root.join("slots"),
             &root,
             &mut |_| {},
         )
@@ -1764,6 +1901,7 @@ mod tests {
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
             state_file,
+            root.join("slots"),
             &root,
             &mut |_| {},
         )
@@ -1792,6 +1930,7 @@ mod tests {
             // capacity rule.
             1,
             PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
             LaunchOverrides {
                 context_tokens: Some(8192),
                 idle_unload_seconds: Some(600),
@@ -1829,6 +1968,7 @@ mod tests {
                 // ceiling, not a family's worth of them.
                 1,
                 PathBuf::from("/state/server.state"),
+                PathBuf::from("/slots"),
                 LaunchOverrides {
                     context_tokens: context,
                     ..LaunchOverrides::default()
@@ -1885,6 +2025,7 @@ mod tests {
             // One seat: f16's funded maximum is a per-slot figure here.
             1,
             PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
             LaunchOverrides {
                 context_tokens: Some(4096),
                 idle_unload_seconds: Some(600),
@@ -2033,6 +2174,7 @@ mod tests {
             1,
             Some(PathBuf::from("/dev/model.gguf")),
             PathBuf::from("/state/dev.state"),
+            root.join("slots"),
             &root,
             &mut |_| {},
         )

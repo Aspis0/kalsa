@@ -109,6 +109,9 @@ fn launch_args(
         ubatch_size: ubatch,
         kv_cache: cache,
         parallel: kalsa_launch::DEFAULT_PARALLEL,
+        // A real directory: the engine throws on a `--slot-save-path` that is
+        // not one, and this harness exercises the launch, not the tier.
+        slot_save_path: std::env::temp_dir(),
     }
 }
 
@@ -255,6 +258,9 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         ubatch_size: 512,
         kv_cache: KvCache::Q8_0,
         parallel: kalsa_launch::DEFAULT_PARALLEL,
+        // A real directory: the engine throws on a `--slot-save-path` that is
+        // not one, and this harness exercises the launch, not the tier.
+        slot_save_path: std::env::temp_dir(),
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

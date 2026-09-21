@@ -4,7 +4,7 @@
 //! nothing itself, so the flags cannot drift between the decision and the
 //! process that runs it.
 
-use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, FLASH_ATTN, HOST};
+use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, CTX_CHECKPOINTS, FLASH_ATTN, HOST};
 
 impl ServerArgs {
     /// The argv for `llama-server`, in the supervisor's order.
@@ -93,6 +93,20 @@ impl ServerArgs {
             "--cache-ram".to_string(),
             self.cache_ram_mib.to_string(),
         ]);
+        // The disk tier. The folder is created by the app before this argv is
+        // built (see `ServerArgs::slot_save_path`); the engine refuses a path
+        // that is not a directory, so rendering it is what makes the save and
+        // restore routes exist at all. The checkpoint count is the size of a
+        // saved chat: the engine's default is 32, and one record is what a
+        // restore reads. `--swa-full` is deliberately absent — the committed
+        // round-trip (`dev/results/slot-restore-swa/summary.md`) shows it
+        // moves the file's size, not whether a restore comes back warm.
+        argv.extend([
+            "--slot-save-path".to_string(),
+            self.slot_save_path.display().to_string(),
+            "--ctx-checkpoints".to_string(),
+            CTX_CHECKPOINTS.to_string(),
+        ]);
         argv
     }
 
@@ -149,6 +163,7 @@ mod tests {
             ubatch_size: 512,
             kv_cache: crate::args::KvCache::Q8_0,
             parallel: crate::args::DEFAULT_PARALLEL,
+            slot_save_path: PathBuf::from("/slots"),
         }
     }
 
@@ -198,6 +213,37 @@ mod tests {
         assert_eq!(settings.batch_size, 1024);
         assert_eq!(settings.ubatch_size, 256);
         assert_eq!(settings.kv_cache_type, "f16");
+    }
+
+    /// `--swa-full` is not this tier's flag. The committed round-trip
+    /// (`dev/results/slot-restore-swa/summary.md`) shows it moves a save
+    /// file's size and not whether a restore comes back warm, and it would
+    /// take the SWA cache 25.6×. Rendering it here is the mistake this
+    /// refuses.
+    #[test]
+    fn the_argv_never_asks_for_the_full_sliding_window_cache() {
+        let argv = some_args().argv();
+        assert!(
+            !argv.iter().any(|arg| arg == "--swa-full"),
+            "--swa-full is not the disk tier's flag: {argv:?}"
+        );
+    }
+
+    /// The save folder is data, not a literal: whatever the app resolved is
+    /// what reaches the engine, and the checkpoint count rides the named
+    /// constant under the spelling the engine registers.
+    #[test]
+    fn the_disk_tier_path_renders_from_the_field() {
+        let args = ServerArgs {
+            slot_save_path: PathBuf::from("/somewhere/private/slots"),
+            ..some_args()
+        };
+        let line = args.argv().join(" ");
+        assert!(
+            line.contains("--slot-save-path /somewhere/private/slots"),
+            "{line}"
+        );
+        assert!(line.contains("--ctx-checkpoints 1"), "{line}");
     }
 
     /// The slot count is data now: whatever the field holds is what the

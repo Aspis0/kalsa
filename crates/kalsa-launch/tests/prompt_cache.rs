@@ -113,6 +113,10 @@ fn the_second_turn_is_measured_against_the_first() {
         ubatch_size: 512,
         kv_cache: KvCache::Q8_0,
         parallel: kalsa_launch::DEFAULT_PARALLEL,
+        // A real directory, because the engine refuses a `--slot-save-path`
+        // that is not one. This harness exercises the RAM prompt cache, not
+        // the save routes, so the shared temp directory is enough.
+        slot_save_path: std::env::temp_dir(),
     };
     let mut argv = args.argv();
     // Harness-only variants, appended after the plan: what a changed launch
