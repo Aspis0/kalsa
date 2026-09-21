@@ -40,10 +40,17 @@ pub(super) fn note_activity(state: &mut Slot) {
 /// whose residency is `Unknown`: the first is being used, the second's file
 /// already holds its state, and the last two cannot be named — writing one out
 /// would be writing a state under a chat's name on the strength of a guess,
-/// which is the same guess `activate` refuses. A save the engine refuses
-/// leaves the slot dirty, and the next tick is another chance, not a retry
-/// loop: the tick is the app's.
-pub(super) fn save_idle(chats: &Chats, devices: &DeviceSet, upstream_port: u16) -> usize {
+/// which is the same guess `activate` refuses.
+///
+/// `now` is the tick's instant. The quiet is measured against it and not
+/// against a clock read here, so a caller that knows when the slot went quiet
+/// — every test, and the app's own ticker — decides with the instant it holds.
+pub(super) fn save_idle(
+    chats: &Chats,
+    devices: &DeviceSet,
+    upstream_port: u16,
+    now: Instant,
+) -> usize {
     let (Some(idle_save), Some(model), Some(dir)) = (
         chats.idle_save,
         chats.model.as_deref(),
@@ -60,7 +67,17 @@ pub(super) fn save_idle(chats: &Chats, devices: &DeviceSet, upstream_port: u16) 
         let Some(at) = state.dirty_at else {
             continue;
         };
-        if at.elapsed() < idle_save {
+        if now.saturating_duration_since(at) < idle_save {
+            continue;
+        }
+        // One failed save is owed, not owed *now*: the slot is offered to the
+        // engine again only after another interval, so an engine that refuses or
+        // cannot answer is asked once per interval and not once per tick. Reusing
+        // the interval is also what keeps this retry inside the unload clock —
+        // the first attempt is one interval after the last activity and the first
+        // retry is two, pinned in `kalsa_launch` — where a longer backoff would
+        // ask the engine to keep a slot it has already released.
+        if state.retry_after.is_some_and(|retry| now < retry) {
             continue;
         }
         let Residency::Resident(device, chat) = &state.resident else {
@@ -77,11 +94,23 @@ pub(super) fn save_idle(chats: &Chats, devices: &DeviceSet, upstream_port: u16) 
             port: upstream_port,
             slot: index as u32,
             salt: &salt,
-            deadline: Instant::now() + crate::PATIENCE,
+            deadline: now + crate::PATIENCE,
         };
-        if save(dir, &file_name(model, device, &chat), &engine).is_ok() {
-            state.dirty_at = None;
-            saved += 1;
+        match save(dir, &file_name(model, device, &chat), &engine) {
+            Ok(()) => {
+                state.dirty_at = None;
+                state.retry_after = None;
+                saved += 1;
+            }
+            // Still dirty. A failure is not permanent: a save issued while the
+            // slot is generating is deferred by the engine and answered at the
+            // end of the turn, so one that outlasts the door's patience reads
+            // here as unanswered while the engine is really writing the file
+            // (`dev/results/save-on-busy-slot`: a save sent 3 s into a 34 s turn
+            // was answered 31 s later with the whole turn, `n_saved` 2529). The
+            // retry is what persists it, and the backoff is one interval from
+            // this attempt's own start.
+            Err(_) => state.retry_after = Some(now + idle_save),
         }
     }
     saved

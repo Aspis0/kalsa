@@ -3,22 +3,35 @@
 //! when it is clean, and never when the door cannot name what it holds.
 
 use std::fs;
-use std::net::SocketAddr;
+use std::io::Write;
+use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::paging_support::{
-    activate, body_text, door_of_with_save, file_name, salt_of, status_of, temp_dir, Engine, Reply,
-    HASH,
+    activate, body_text, door_of_with_save, file_name, salt_of, status_of, temp_dir, wait_for, Engine,
+    Reply, HASH,
 };
 use super::support::{chat_post, exchanged, ORIGIN};
 use super::*;
 
-/// The quiet the tests let a slot have. Long enough that the call right after a
-/// completion is unambiguously "still active" on a loaded machine, short enough
-/// to sleep through.
+/// The quiet the tests let a slot have. Nothing sleeps through it: every tick
+/// is given its instant, so a loaded machine cannot turn "not yet" into "long
+/// enough" between a completion and the assertion.
 const QUIET: Duration = Duration::from_millis(300);
-const PAST_QUIET: Duration = Duration::from_millis(500);
+
+/// How long the fake engine holds a completion before answering it, when a
+/// test needs the generation to be caught in flight.
+const GENERATION: Duration = Duration::from_millis(1500);
+
+/// An instant the slot is provably quiet by: captured *after* the completion
+/// and moved one interval on, so at least the interval has passed whatever the
+/// machine did in between. The mirror image is used for the negative — an
+/// instant captured *before* the completion, from which the elapsed quiet is
+/// zero by construction.
+fn quiet_since(moment: Instant) -> Instant {
+    moment + QUIET
+}
 
 /// One completion through the door, the way a client sends it: this is what
 /// marks the slot, and the only thing in the product that does.
@@ -40,10 +53,15 @@ fn a_dirty_slot_is_saved_once_the_quiet_lasts_and_the_flag_clears() {
     assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
     let opened = engine.sent().len();
 
+    let before = Instant::now();
     complete(address, &token);
-    thread::sleep(PAST_QUIET);
+    let after = Instant::now();
+
+    // The instant from before the completion, on purpose: the slot has not been
+    // quiet at all, and no sleep decides that.
+    assert_eq!(door.save_idle(before), 0, "a slot that just changed was written out");
     assert_eq!(
-        door.save_idle(),
+        door.save_idle(quiet_since(after)),
         1,
         "the tick did not save the chat a completion changed"
     );
@@ -62,7 +80,7 @@ fn a_dirty_slot_is_saved_once_the_quiet_lasts_and_the_flag_clears() {
     );
 
     // The flag is clean now: nothing is written until a completion arrives.
-    assert_eq!(door.save_idle(), 0);
+    assert_eq!(door.save_idle(quiet_since(after)), 0);
     assert_eq!(engine.sent().len(), opened + 2, "a clean slot was saved again");
     door.shutdown();
 }
@@ -74,13 +92,16 @@ fn a_dirty_slot_that_is_still_being_used_is_not_saved() {
     let token = credential();
     let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
     assert_eq!(status_of(&activate(address, Some(&token), "aaaa1111")), 204);
+    let before = Instant::now();
     complete(address, &token);
+    let after = Instant::now();
     let after_completion = engine.sent().len();
 
     // The slot is dirty, and the user is still here: the engine will not
     // release a slot that is being talked to, and a save now would put a state
-    // on disk that the next token invalidates.
-    assert_eq!(door.save_idle(), 0, "a slot still in use was saved");
+    // on disk that the next token invalidates. The tick's instant is the one
+    // from before the completion, so this is a fact and not a race.
+    assert_eq!(door.save_idle(before), 0, "a slot still in use was saved");
     assert_eq!(
         engine.sent().len(),
         after_completion,
@@ -88,8 +109,11 @@ fn a_dirty_slot_that_is_still_being_used_is_not_saved() {
     );
 
     // The clock was what was missing, not the flag.
-    thread::sleep(PAST_QUIET);
-    assert_eq!(door.save_idle(), 1, "the slot went quiet and was still not saved");
+    assert_eq!(
+        door.save_idle(quiet_since(after)),
+        1,
+        "the slot went quiet and was still not saved"
+    );
     door.shutdown();
 }
 
@@ -101,15 +125,14 @@ fn a_clean_slot_is_not_sent_to_the_engine() {
     let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
 
     // Nothing has ever been in the slot...
-    assert_eq!(door.save_idle(), 0, "an empty slot was written out");
+    assert_eq!(door.save_idle(Instant::now()), 0, "an empty slot was written out");
     // ...and a chat restored into it and then left alone is the file it came
     // from, so a tick after the quiet has run out has nothing to write.
     let chat = "aaaa1111";
     fs::write(slot_dir.join(file_name(chat)), b"state").unwrap();
     assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
     let opened = engine.sent().len();
-    thread::sleep(PAST_QUIET);
-    assert_eq!(door.save_idle(), 0, "a clean slot was saved");
+    assert_eq!(door.save_idle(quiet_since(Instant::now())), 0, "a clean slot was saved");
     assert_eq!(engine.sent().len(), opened, "a clean slot reached the engine");
     assert!(
         engine.sent().iter().all(|sent| sent.action == "restore"),
@@ -139,9 +162,12 @@ fn an_unknown_slot_is_never_saved() {
     // A completion then passes through the same slot, which marks it dirty
     // again: the timer must still refuse to write out what it cannot name.
     complete(address, &token);
-    thread::sleep(PAST_QUIET);
     let before = engine.sent().len();
-    assert_eq!(door.save_idle(), 0, "an unknown slot was written out");
+    assert_eq!(
+        door.save_idle(quiet_since(Instant::now())),
+        0,
+        "an unknown slot was written out"
+    );
     assert_eq!(
         engine.sent().len(),
         before,
@@ -160,8 +186,7 @@ fn the_timed_save_writes_the_name_and_headers_an_activate_writes() {
     let (first, second) = ("aaaa1111", "bbbb2222");
     assert_eq!(status_of(&activate(address, Some(&token), first)), 204);
     complete(address, &token);
-    thread::sleep(PAST_QUIET);
-    assert_eq!(door.save_idle(), 1);
+    assert_eq!(door.save_idle(quiet_since(Instant::now())), 1);
     let tick = engine
         .sent()
         .into_iter()
@@ -183,5 +208,182 @@ fn the_timed_save_writes_the_name_and_headers_an_activate_writes() {
     assert_eq!(tick.slot, "0");
     assert_eq!(tick.salt, salt_of(&token));
     assert_eq!(tick.filename, format!("{}.staging", file_name(first)));
+    door.shutdown();
+}
+
+#[test]
+fn a_refused_save_is_not_retried_before_the_interval() {
+    let slot_dir = temp_dir("cadence-refused");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    assert_eq!(status_of(&activate(address, Some(&token), "aaaa1111")), 204);
+    complete(address, &token);
+
+    // The first tick's save is refused. The slot is still dirty afterwards:
+    // the state is owed, and refusing it does not make it written.
+    engine.reply([Reply::Refused]);
+    let failed_at = Instant::now() + QUIET;
+    assert_eq!(door.save_idle(failed_at), 0, "a refused save was counted as written");
+    let after_failure = engine.sent().len();
+    assert_eq!(engine.sent()[after_failure - 1].action, "save");
+
+    // A tick a hair before another full interval has passed does not ask again:
+    // an engine that refuses would otherwise be asked once a second, each ask
+    // held for the engine's own patience.
+    assert_eq!(
+        door.save_idle(failed_at + QUIET - Duration::from_millis(1)),
+        0,
+        "a refused save was retried at the next tick"
+    );
+    assert_eq!(
+        engine.sent().len(),
+        after_failure,
+        "a refused save reached the engine again: {:?}",
+        &engine.sent()[after_failure..]
+    );
+
+    // The interval passed, and the slot is still dirty: the retry is owed and
+    // this time it is written.
+    assert_eq!(
+        door.save_idle(failed_at + QUIET),
+        1,
+        "a dirty slot was never retried"
+    );
+    assert!(
+        slot_dir.join(file_name("aaaa1111")).exists(),
+        "the retry wrote nothing"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_save_the_engine_never_answered_is_retried_and_the_retry_writes_the_turn() {
+    let slot_dir = temp_dir("cadence-deferred");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    let chat = "aaaa1111";
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    complete(address, &token);
+
+    // A save the engine never answered: the shape a deferred save leaves when it
+    // outlasts the door's patience. It is not a lost turn — the flag stays — and
+    // nothing may be renamed on it: an engine that is still writing has written
+    // nothing the door can name yet.
+    engine.reply([Reply::Unreachable]);
+    let failed_at = Instant::now() + QUIET;
+    assert_eq!(
+        door.save_idle(failed_at),
+        0,
+        "an unanswered save was counted as written"
+    );
+    assert!(
+        !slot_dir.join(file_name(chat)).exists(),
+        "an unanswered save put a state in place"
+    );
+    assert!(
+        !slot_dir.join(format!("{}.staging", file_name(chat))).exists(),
+        "the unanswered save's staging file survived the door"
+    );
+
+    // The retry is owed, and it is the one that writes the turn.
+    assert_eq!(
+        door.save_idle(failed_at + QUIET - Duration::from_millis(1)),
+        0,
+        "an unanswered save was retried at the next tick"
+    );
+    assert_eq!(
+        door.save_idle(failed_at + QUIET),
+        1,
+        "the retry did not write the turn the first attempt was owed"
+    );
+    assert!(
+        slot_dir.join(file_name(chat)).exists(),
+        "the retry renamed nothing into place"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_generation_in_flight_is_not_quiet_and_the_end_of_the_relay_is() {
+    let slot_dir = temp_dir("cadence-inflight");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    let chat = "aaaa1111";
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    let opened = engine.sent().len();
+
+    engine.delay(GENERATION);
+    let completing = {
+        let token = token.clone();
+        thread::spawn(move || complete(address, &token))
+    };
+    // The request reached the engine. Its answer has not.
+    wait_for(&engine, opened + 1);
+
+    // The slot is not quiet, and that is not a statement about how much time has
+    // passed: the turn has not ended, so no instant at all can make this slot
+    // writable. An hour of it is the same answer as a millisecond.
+    let far = Instant::now() + Duration::from_secs(3600);
+    assert_eq!(door.save_idle(far), 0, "a generation in flight was written out");
+    assert_eq!(
+        engine.sent().len(),
+        opened + 1,
+        "a generation in flight reached the engine with a save: {:?}",
+        &engine.sent()[opened..]
+    );
+
+    // The generation ends, its last byte relayed to the client. The quiet
+    // starts here: the file the tick writes holds the answer, not its prefix.
+    completing.join().unwrap();
+    let after = Instant::now();
+    assert_eq!(
+        door.save_idle(quiet_since(after)),
+        1,
+        "the end of the relay did not mark the slot"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn an_interrupted_generation_still_marks_the_slot() {
+    let slot_dir = temp_dir("cadence-interrupted");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    assert_eq!(status_of(&activate(address, Some(&token), "aaaa1111")), 204);
+    let opened = engine.sent().len();
+
+    // The client announces a body and never sends it, then closes. The door's
+    // relay of the request ends in an error — the branch a client that hangs up
+    // or a door that stops leaves by — and the engine may have read a partial
+    // request and started a turn, so the slot cannot be called clean.
+    let mut client = TcpStream::connect(address).unwrap();
+    write!(
+        client,
+        "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\nOrigin: {ORIGIN}\r\n\
+         Authorization: Bearer {token}\r\nContent-Type: application/json\r\n\
+         Content-Length: 32\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    client.shutdown(Shutdown::Write).unwrap();
+
+    // This waits for the mark to exist, not for a clock: the tick's instant is
+    // injected, so a loaded machine cannot decide the outcome — only whether
+    // the wait had to loop.
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while door.save_idle(quiet_since(Instant::now())) == 0 {
+        assert!(Instant::now() < deadline, "an interrupted generation left the slot clean");
+        thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(
+        engine.sent().len(),
+        opened + 1,
+        "the interrupted turn was not written out exactly once: {:?}",
+        &engine.sent()[opened..]
+    );
+    drop(client);
     door.shutdown();
 }

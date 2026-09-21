@@ -83,18 +83,19 @@ pub(crate) struct Chats {
 }
 
 struct Slot {
-    /// The chat the door last put in this slot, and the device it belongs to.
-    /// The device is here because the name carries it and because a slot is
-    /// handed to another device when its owner is revoked (`slots.rs`): a
-    /// record whose device is not the caller's describes a slot that is no
-    /// longer that chat's, and saving under the caller's name would move one
-    /// device's state into another device's chat.
+    /// The chat the door last put in this slot, and the device it belongs to,
+    /// because the name carries the device and a slot is handed on when its
+    /// owner is revoked (`slots.rs`): saving a record that is not the caller's
+    /// would move one device's state into another device's chat.
     resident: Residency,
-    /// The moment the last completion passed through this slot, and `None`
-    /// when its state is on disk. One field for both facts, because "dirty
-    /// with no instant" has no meaning and a second field could only make one
-    /// up. [`cadence`] is the only reader, and it writes it on both counts.
+    /// The moment the last completion passed through this slot, `None` when its
+    /// state is on disk: one field for both, because "dirty with no instant"
+    /// has no meaning. Every path that renames or empties the slot clears it.
     dirty_at: Option<Instant>,
+    /// When a save that failed may be tried again, `None` when nothing is owed.
+    /// The flag above stays set across a failure — the state is still not on
+    /// disk — and this is what keeps the next tick from asking again at once.
+    retry_after: Option<Instant>,
 }
 
 /// A slot is empty, resident with one chat, or unknown: an action that never
@@ -139,7 +140,7 @@ impl Chats {
         idle_save: Option<Duration>,
     ) -> Self {
         let slots = (0..capacity)
-            .map(|_| Mutex::new(Slot { resident: Residency::Empty, dirty_at: None }))
+            .map(|_| Mutex::new(Slot { resident: Residency::Empty, dirty_at: None, retry_after: None }))
             .collect();
         Self { slots, model, dir, idle_save }
     }
@@ -322,9 +323,10 @@ impl Chats {
     }
 
     /// Writes out every slot that changed and has been quiet long enough, and
-    /// answers how many were written. The whole decision is [`cadence`]'s.
-    pub(crate) fn save_idle(&self, devices: &DeviceSet, upstream_port: u16) -> usize {
-        cadence::save_idle(self, devices, upstream_port)
+    /// answers how many were written. The whole decision is [`cadence`]'s; `now`
+    /// is the tick's own instant, so the caller's clock is the only one read.
+    pub(crate) fn save_idle(&self, devices: &DeviceSet, upstream_port: u16, now: Instant) -> usize {
+        cadence::save_idle(self, devices, upstream_port, now)
     }
 
     fn lock(&self, slot: u32) -> Result<std::sync::MutexGuard<'_, Slot>, ChatError> {

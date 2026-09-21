@@ -56,6 +56,28 @@ fn is_completion(target: &[u8]) -> bool {
     path.ends_with(b"/completions") || path.ends_with(b"/completion")
 }
 
+/// The disk tier's mark, and the reason it is a guard and not a step at the
+/// end: what the tier clocks is the slot's *silence*, and the silence of a turn
+/// starts when its last byte reached the client, not when its request went out.
+/// A slot whose completion is still generating is not quiet — a tick would write
+/// out a prefix of the answer the engine is still making — and one whose client
+/// hung up mid-answer, or whose request only half reached the engine, has still
+/// had a turn write into it. Every way out of the request from the relay on is
+/// one of those, which is what `Drop` gets and a call at the end does not.
+struct SlotTurn<'a> {
+    chats: &'a paging::Chats,
+    slot: u32,
+    generating: bool,
+}
+
+impl Drop for SlotTurn<'_> {
+    fn drop(&mut self) {
+        if self.generating {
+            self.chats.mark_dirty(self.slot);
+        }
+    }
+}
+
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
@@ -269,15 +291,16 @@ pub(super) fn handle(
             return;
         }
     }
+    // The tier's mark, armed before the request is relayed and dropped on every
+    // way out of this function after that — including the ones that do not reach
+    // the answer.
+    let _turn = SlotTurn {
+        chats,
+        slot: lease.slot(),
+        generating: completion,
+    };
     if relay_exact(&mut client, &mut upstream, body_length, deadline, &cancel).is_err() {
         return;
-    }
-    // The disk tier's clock. The engine releases the slot after
-    // `--sleep-idle-seconds` idle, and a switch after that release has nothing
-    // left to save, so the door marks the slot here and the app's tick writes
-    // it out. Marked once the whole request has reached the engine.
-    if completion {
-        chats.mark_dirty(lease.slot());
     }
     let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
         Ok(head) => head,

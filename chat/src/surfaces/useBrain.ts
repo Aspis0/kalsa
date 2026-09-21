@@ -55,9 +55,9 @@ export interface BrainServer {
 }
 
 // One read of `brain_state` runs for the whole app: the command itself
-// reconciles the pairing door on every answer, so a second poller would
-// double its side effects. The surfaces and the shell subscribe to the
-// same poll instead of each owning one.
+// reconciles the pairing door on every answer, and a second poller asks the
+// same question twice — `ModelsSurface` already owns one of its own. The
+// surfaces and the shell subscribe to the same poll instead of each owning one.
 interface BrainRead {
   state: BrainState | null;
   step: ProgressStep | null;

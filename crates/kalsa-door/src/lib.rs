@@ -78,7 +78,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -491,8 +491,12 @@ impl RunningDoor {
     /// head carries it, and the residency — which the caller never says — is
     /// the door's own map. A slot that is clean, empty or `Unknown` is not
     /// touched, and a save the engine refuses is simply still owed.
-    pub fn save_idle(&self) -> usize {
-        self.chats.save_idle(&self.devices, self.upstream_port)
+    ///
+    /// `now` is the tick's own instant. It is passed in rather than read here
+    /// so the caller's clock is the only one that decides, which is what lets
+    /// a test prove "the quiet has not lasted" without sleeping.
+    pub fn save_idle(&self, now: Instant) -> usize {
+        self.chats.save_idle(&self.devices, self.upstream_port, now)
     }
 
     /// Replaces the credential set without stopping anything: the listener

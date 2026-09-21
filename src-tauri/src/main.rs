@@ -21,6 +21,7 @@ mod options;
 mod pairing;
 mod road;
 mod startup;
+mod ticker;
 mod transport;
 mod web;
 
@@ -30,7 +31,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
@@ -57,7 +58,11 @@ const MAIN_WINDOW_LABEL: &str = "main";
 
 struct Brain {
     supervisor: Supervisor,
-    door: Mutex<Option<ActiveDoor>>,
+    /// The door slot, an `Arc` because the disk tier's timer holds it weakly: the
+    /// tick runs on its own thread ([`ticker`]) and must not read a door through
+    /// the webview's command. Weak on purpose — the thread watches this slot and
+    /// ends with it, and it keeps no app alive to do it.
+    door: Arc<Mutex<Option<ActiveDoor>>>,
     launch: Mutex<Option<startup::LaunchInfo>>,
     /// Whether the engine the walk mounted consumes the door's private
     /// headers, read from that engine's own bytes when the start was
@@ -88,7 +93,25 @@ struct ActiveDoor {
     /// not read this computer's own traffic as a phone's.
     host: Option<kalsa_door::DeviceId>,
     address: SocketAddr,
-    door: kalsa_door::RunningDoor,
+    /// An `Arc` because the timer's thread takes it out of the lock and calls the
+    /// door on its own: a save can wait on the engine for ten seconds, and a
+    /// synchronous command holding the same lock would freeze the window.
+    door: Arc<kalsa_door::RunningDoor>,
+}
+
+/// One tick of the disk tier's clock: writes out every slot a completion changed
+/// that has been quiet long enough. Called by the ticker's thread, never by a
+/// command — the save can wait on the engine for `PATIENCE`, and the webview's
+/// `brain_state` reads this same lock. The door is taken out of the lock and the
+/// lock is released before the call, which is the whole reason it is an `Arc`.
+fn save_idle(door: &Mutex<Option<ActiveDoor>>) {
+    let active = door
+        .lock()
+        .ok()
+        .and_then(|stored| stored.as_ref().map(|active| Arc::clone(&active.door)));
+    if let Some(active) = active {
+        active.save_idle(Instant::now());
+    }
 }
 
 /// The capacity the door is built with, given the engine it will forward to.
@@ -179,7 +202,7 @@ impl Brain {
         let metrics = Arc::new(metrics::RuntimeMetrics::new(supervisor.release_watcher()));
         Self {
             supervisor,
-            door: Mutex::new(None),
+            door: Arc::new(Mutex::new(None)),
             launch: Mutex::new(None),
             engine: Mutex::new(None),
             metrics,
@@ -519,7 +542,7 @@ impl Brain {
                     devices,
                     host,
                     address,
-                    door: running,
+                    door: Arc::new(running),
                 });
                 // The road opens only while the owner's switch has it on, and
                 // toward the address the running door itself reported — never
@@ -530,14 +553,9 @@ impl Brain {
                 }
             }
         }
-        // The tier's clock, on the app's own tick: the store poll runs once a
-        // second, and the door decides per slot whether the quiet has lasted
-        // long enough to write it out. It is the one thing the app asks of the
-        // door with no client request behind it, which is why the save is a
-        // method on the door and not a route.
-        if let Some(active) = stored.as_ref() {
-            active.door.save_idle();
-        }
+        // No tick in this command: a save can wait on the engine for ten
+        // seconds, and this command is the webview's. The tier's clock is
+        // [`ticker`]'s own thread.
         Ok(())
     }
 
@@ -1295,6 +1313,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // turns that into a loud panic on the event loop rather than a
             // QR that cannot work.
             app.manage(pairing_desk(file)?);
+            // The disk tier's tick, on a thread of its own and with a `Weak` to
+            // the door slot: it runs while this window is an icon — the phone's
+            // case, and the one the webview's poll degraded in — and it holds no
+            // app alive to do it. A thread that will not start costs the timer
+            // and not the tier: a switch still saves.
+            let doors = Arc::downgrade(&app.state::<Brain>().door);
+            match ticker::Ticker::start(ticker::PERIOD, move || {
+                if let Some(doors) = doors.upgrade() {
+                    save_idle(&doors);
+                }
+            }) {
+                Ok(ticker) => {
+                    app.manage(ticker);
+                }
+                Err(error) => eprintln!(
+                    "kalsa-brain: the disk tier's timer did not start, so a chat is saved \
+                     only when it is switched: {error}"
+                ),
+            }
             // A knock means a second instance was launched: bring this
             // window forward, so the owner sees the app they already have.
             let handle = app.handle().clone();

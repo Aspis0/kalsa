@@ -1090,6 +1090,20 @@ mod tests {
                 "an unload clock of {clock} s releases the slot before a save after {quiet} s of quiet"
             );
             assert!(quiet > 0, "an unload clock of {clock} s saves on every tick");
+            // And the *retry* is still inside the clock. A save can fail and
+            // still be owed: a save issued while the slot is generating is
+            // deferred by the engine and answered when the turn ends, so one
+            // that outlasts the door's patience reads as a failure while the
+            // engine is writing the file, and the retry is what persists the
+            // turn. The door waits one interval after a failure, so the first
+            // retry is two intervals after the last activity — and this is the
+            // line that says asking for a longer backoff than that would cost
+            // the turn the backoff exists to protect.
+            assert!(
+                2 * quiet < clock,
+                "an unload clock of {clock} s releases the slot before a failed save's first retry, {retry} s after the last activity",
+                retry = 2 * quiet
+            );
         }
         // The two ends, named, because they are the numbers the plan and the
         // door's builders talk about.
