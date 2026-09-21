@@ -337,6 +337,7 @@ function main() {
   try {
     compile();
     const {
+      historyBudgetCharge,
       historyReplayCharLength,
       llamaHistoryAssistantFields,
       normalizeModelEmittedTextForSave,
@@ -673,6 +674,86 @@ function main() {
       "Qwen budget remains raw length",
     );
     console.log("PASS history budget placement");
+
+    // ── The window budget charges what assembly builds ──────────────────────
+    // Assembly caps the stored text but never the replay field (byte-identity
+    // with the KV). The budget must therefore charge a long emission at its
+    // full replay length: an under-charge hides chars from the window walk AND
+    // from the ceiling guard, which is how a held-KV send crosses n_ctx.
+    const longEmission = `REASONING</think>${"x".repeat(5000)}`;
+    const baseOpts = { historyThink: "reasoning_content", baseMessageCap: 4000 };
+    assert.equal(
+      historyBudgetCharge(
+        { role: "assistant", text: "short ui", modelEmittedText: longEmission },
+        baseOpts,
+      ),
+      longEmission.length + 7,
+      "long emission is charged uncapped — capping hides it from the ceiling guard",
+    );
+    assert.equal(
+      historyBudgetCharge(
+        { role: "assistant", text: "ui", modelEmittedText: "RAW" },
+        baseOpts,
+      ),
+      3 + 7,
+      "short emission keeps the seeded-prefix charge",
+    );
+    assert.equal(
+      historyBudgetCharge({ role: "user", text: "u".repeat(9000) }, baseOpts),
+      4000,
+      "user stored text is charged capped — assembly caps it",
+    );
+    assert.equal(
+      historyBudgetCharge(
+        { role: "user", text: "hello" },
+        { ...baseOpts, userTailChars: 120 },
+      ),
+      125,
+      "user tail rides the charge exactly as assembly applies it",
+    );
+    assert.equal(
+      historyBudgetCharge(
+        { role: "assistant", text: "hello", modelEmittedText: "hello" },
+        { ...baseOpts, userTailChars: 120 },
+      ),
+      12,
+      "assistant never carries the user tail",
+    );
+    console.log("PASS history budget charge matches assembly");
+
+    // The AppShell wiring: the map must use historyBudgetCharge (the capped
+    // form under-counted by emission.length - cap) and every budget consumer
+    // must pass the no-cap marker, or messageCost re-shaves a long emission
+    // back off behind the budget's back.
+    {
+      const appShellPath = path.join(projectRoot, "src/app/AppShell.tsx");
+      const src = readFileSync(appShellPath, "utf8");
+      if (src.includes("Math.min(historyReplayCharLength")) {
+        throw new Error(
+          "AppShell caps the window-budget charge with baseMessageCap again " +
+            "(Math.min(historyReplayCharLength…)) — for any emission longer " +
+            "than the cap the prompt carries more chars than the budget " +
+            "believes, and the ceiling guard clears a window it thought was " +
+            "inside n_ctx. Charge with historyBudgetCharge.",
+        );
+      }
+      if (!src.includes("historyBudgetCharge(m, { historyThink, baseMessageCap, userTailChars })")) {
+        throw new Error(
+          "AppShell's historyLengths walk must price each message with " +
+            "historyBudgetCharge — the per-message budget charge lives there",
+        );
+      }
+      const noCapCount = (src.match(/noPerMessageCap/g) ?? []).length;
+      if (noCapCount !== 6) {
+        throw new Error(
+          `AppShell must declare noPerMessageCap once and pass it to all five ` +
+            `budget consumers (windowStartIndex, anchoredWindowChars, ` +
+            `shouldRebuildAnchored, advanceAnchoredBoundary, ` +
+            `advanceCompactionBoundary) — found ${noCapCount} of 6 occurrences`,
+        );
+      }
+      console.log("PASS AppShell budget consumers do not re-cap the replay field");
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.stack : error);
     process.exitCode = 1;

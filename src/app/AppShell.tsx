@@ -309,7 +309,7 @@ import {
   windowHasDigest,
 } from "../engine/windowKvInvariant";
 import {
-  historyReplayCharLength,
+  historyBudgetCharge,
   historyThinkPlacementForModel,
   readModelEmittedText,
 } from "../engine/modelEmittedText";
@@ -5875,7 +5875,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // The turn being sent is appended to the prompt AFTER this walk, so
             // it must be charged here or a long message would ride entirely
             // outside the budget — exactly the overflow the budget exists to
-            // stop. Charged at the same per-message cap the history pays.
+            // stop. The built turn carries promptText whole (last-user
+            // composition below never slices it), so the charge is uncapped.
             //
             // Assembly also adds tails on top of stored text, and they ride in
             // the budget too (audit FAIL 2026-09-14 — until a run proved
@@ -5884,9 +5885,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // content-independent, so applyPersonaTail("") prices it exactly.
             // The bounded facts block (boundMemoryFacts, inside
             // buildMemoryFactsBlock) rides the last user and — baked — prior
-            // user turns while memory is on. baseMessageCap prices the stored
-            // text; perMessageCap adds the tail so the budget walk never
-            // shaves it back off.
+            // user turns while memory is on.
             const promptFacts = memoryEnabledRef.current
               ? memoryFactsRef.current
               : [];
@@ -5905,15 +5904,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const baseMessageCap = hasImages
               ? LEGACY_MAX_CHARS_IMAGES
               : LEGACY_MAX_CHARS;
-            const perMessageCap = baseMessageCap + userTailChars;
-            const currentTurnChars =
-              Math.min(promptText.length, baseMessageCap) + userTailChars;
+            const currentTurnChars = promptText.length + userTailChars;
             const historyThink = historyThinkPlacementForModel(
               currentModel.preserveThinking,
             );
+            // historyBudgetCharge prices each message as its BUILT length:
+            // uncapped replay for assistant emissions (assembly keeps the
+            // field whole — byte-identity), capped stored text everywhere
+            // else. Because the array already carries the only legitimate
+            // cap, every budget consumer below passes Infinity as the
+            // per-message cap: re-capping here would re-shave a long emission
+            // back under the ceiling guard's eyes.
+            const noPerMessageCap = Number.POSITIVE_INFINITY;
             const historyLengths = validatedHistory.map((m) =>
-              Math.min(historyReplayCharLength(m, { historyThink }), baseMessageCap) +
-                (m.role === "user" ? userTailChars : 0),
+              historyBudgetCharge(m, { historyThink, baseMessageCap, userTailChars }),
             );
             let legacyWindowStart = legacyWindowMode
               ? windowStartIndex(
@@ -5925,7 +5929,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       windowProfile.charBudget - currentTurnChars,
                     ),
                   },
-                  perMessageCap,
+                  noPerMessageCap,
                 )
               : 0;
             if (!anchoredOn) {
@@ -6133,7 +6137,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               const pinnedWindowChars = anchoredWindowChars(
                 historyLengths,
                 windowStartForCeiling,
-                perMessageCap,
+                noPerMessageCap,
                 currentTurnChars,
               );
               const promptTokensBefore =
@@ -6184,7 +6188,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       historyLengths,
                       currentTurnLength: currentTurnChars,
                       profile: windowProfile,
-                      maxCharsPerMessage: perMessageCap,
+                      maxCharsPerMessage: noPerMessageCap,
                     })
                   : shouldRebuild(
                       state,
@@ -6240,7 +6244,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       historyLengths,
                       currentTurnLength: currentTurnChars,
                       profile: windowProfile,
-                      maxCharsPerMessage: perMessageCap,
+                      maxCharsPerMessage: noPerMessageCap,
                       ceilingBudgetChars,
                       // The last complete exchange is kept even when the turn
                       // being sent plus the newest history message exceed the
@@ -6257,7 +6261,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       hasImages,
                       ceilingBudgetChars,
                       historyLengths,
-                      maxCharsPerMessage: perMessageCap,
+                      maxCharsPerMessage: noPerMessageCap,
                       currentTurnLength: currentTurnChars,
                     });
                 let nextStart = resolveBoundaryIndex(
@@ -6516,8 +6520,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               const windowChars =
                 historyLengths
                   .slice(legacyWindowStart)
-                  .reduce((sum, n) => sum + Math.min(n, perMessageCap), 0) +
-                currentTurnChars;
+                  .reduce((sum, n) => sum + n, 0) + currentTurnChars;
               console.log(
                 `KALSA_WINDOW ${JSON.stringify({
                   kvHeld,

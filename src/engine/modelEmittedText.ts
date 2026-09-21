@@ -182,6 +182,45 @@ export function historyReplayCharLength(
 }
 
 /**
+ * What the window budget books for one history message: the chars assembly
+ * will actually put in the prompt.
+ *
+ * Assembly caps the stored text (toEngineHistoryMessage) but deliberately
+ * never the replay field — it must stay byte-identical to what fed the KV —
+ * so an assistant turn replaying modelEmittedText is charged at its FULL
+ * replay length. Capping the charge would hide `emission - cap` chars from
+ * the window walk AND from the ceiling guard, and a guard that under-counts
+ * is how a held-KV send crosses n_ctx on a hybrid: ctx_shift then discards
+ * the oldest KV instead of sliding cleanly. The cap keeps the job it still
+ * has: everything assembly DOES cap (user turns, fallback content) is charged
+ * capped here, matching the built string exactly.
+ */
+export function historyBudgetCharge(
+  message: {
+    role?: string;
+    text?: string;
+    content?: string;
+    modelEmittedText?: string;
+    emissionSource?: EmissionSource;
+  },
+  opts: {
+    historyThink: HistoryThinkPlacement;
+    baseMessageCap: number;
+    userTailChars?: number;
+  },
+): number {
+  const replay = historyReplayCharLength(message, {
+    historyThink: opts.historyThink,
+  });
+  const replaysEmitted =
+    message.role === "assistant" &&
+    typeof message.modelEmittedText === "string" &&
+    message.modelEmittedText.length > 0;
+  const charged = replaysEmitted ? replay : Math.min(replay, opts.baseMessageCap);
+  return charged + (message.role === "user" ? (opts.userTailChars ?? 0) : 0);
+}
+
+/**
  * Restore modelEmittedText from a persisted/history record.
  * Assistant-only; empty/whitespace strings are treated as absent.
  */

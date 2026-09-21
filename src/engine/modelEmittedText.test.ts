@@ -5,6 +5,7 @@
 
 import {
   HISTORY_NOT_REPRODUCIBLE,
+  historyBudgetCharge,
   historyReplayCharLength,
   historyThinkPlacementForModel,
   historyWindowReproducesKv,
@@ -409,6 +410,56 @@ describe("historyReplayCharLength", () => {
     expect(a2.content).toBe(t2);
     expect(a1.reasoning_content).toBe(QWEN_HISTORY_OLDER_REASONING_SENTINEL);
     expect(assembled[0]?.content).toBe("u1");
+  });
+});
+
+describe("historyBudgetCharge", () => {
+  const base = { historyThink: "reasoning_content" as const, baseMessageCap: 4000 };
+
+  test("an emission longer than the cap is charged at its FULL replay length", () => {
+    // Assembly never caps the replay field (toEngineHistoryMessage: it must
+    // stay byte-identical to what fed the KV), so the budget must not cap its
+    // charge either. LFM2.5 declares nPredict 2048 tokens (~7k chars, think
+    // span included) — crossing the 4000-char cap is reachable, not theory.
+    const emission = `REASONING</think>${"x".repeat(5000)}`;
+    const charge = historyBudgetCharge(
+      { role: "assistant", text: "short ui", modelEmittedText: emission },
+      base,
+    );
+    expect(charge).toBe(emission.length + "<think>".length);
+    expect(charge).toBeGreaterThan(4000);
+  });
+
+  test("a short emission and fallback content are charged capped, as assembly builds them", () => {
+    const short = "answer";
+    expect(
+      historyBudgetCharge(
+        { role: "assistant", text: "ui", modelEmittedText: short },
+        base,
+      ),
+    ).toBe(short.length + "<think>".length);
+    // Stored text IS capped by assembly, so the charge is capped too — the
+    // cap keeps the job it still has.
+    const longUser = "u".repeat(9000);
+    expect(
+      historyBudgetCharge({ role: "user", text: longUser }, base),
+    ).toBe(4000);
+    expect(
+      historyBudgetCharge({ role: "user", text: longUser }, { ...base, userTailChars: 180 }),
+    ).toBe(4180);
+  });
+
+  test("user tail rides only user messages, exactly as assembly applies it", () => {
+    const opts = { ...base, userTailChars: 120 };
+    expect(
+      historyBudgetCharge({ role: "user", text: "hello" }, opts),
+    ).toBe(5 + 120);
+    expect(
+      historyBudgetCharge(
+        { role: "assistant", text: "hello", modelEmittedText: "hello" },
+        opts,
+      ),
+    ).toBe(5 + "<think>".length);
   });
 });
 
