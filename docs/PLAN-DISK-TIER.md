@@ -343,6 +343,12 @@ saturating part of the disk curve is not a number this plan may carry.
 - **No number reaches the user interface before it is committed in a stripped artifact.** The
   ~1.4 GiB in §2 is derived from committed cell counts and is labelled as derived, not measured.
 - Coders and reviewers on different models; an errored review is a lead, never a pass.
+- **One working tree per agent.** A delegate that runs `git checkout -b` moves the orchestrator's
+  HEAD with it. This already happened: the commit that pinned T3's filename scheme landed on the
+  coder's `disk-tier-t2-argv` instead of on `brain`, and had to be cherry-picked back through a
+  temporary worktree while the coder was working. Delegated work goes in its own workspace, or the
+  orchestrator holds its commits until the delegate has finished. Never resolve it by switching the
+  shared tree's branch: that is the delegate's work in flight.
 - Files under ~400 lines; pre-existing excess declared, not refactored. Comments only for WHY or a
   trap. No secret **values** anywhere — names are fine.
 - On the released engine commit `2a290390d` — tagged **`kalsa-server-v1.1.0`** — the same lines
