@@ -61,19 +61,52 @@ export const DAY_MARKER_HEIGHT = 42;
 export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
 
 /**
- * The clearance under the transcript's last item. The transcript scrolls under
- * the composer band, so without it the newest element is pinned to the band's
- * bottom edge; when that element is the cloud, the disclosure has nowhere to
- * open into — measured on the Jelly, the body dumped to 0 dp (y716-714) and
+ * The FULL clearance under the transcript's last item. The transcript scrolls
+ * under the composer band, so without it the newest element is pinned to the
+ * band's bottom edge; when that element is the cloud, the disclosure has nowhere
+ * to open into — measured on the Jelly, the body dumped to 0 dp (y716-714) and
  * "Show thinking" had nothing to reveal.
  *
  * The floor is the cloud's own collapsed height (`CLOUD_COLLAPSED_HEIGHT_DP`,
  * shared with the component that draws it): a clearance smaller than the tallest
  * thing that can be last does not clear it. `Math.ceil` keeps it a whole dp and
- * keeps the two from drifting. It stays under the 195 dp keyboard band with
- * room to spare, so it is a clearance and not a band of its own.
+ * keeps the two from drifting.
+ *
+ * It is not reserved at every size — that is what emptied the 195 dp keyboard
+ * band, because 96 of 195 dp is half the band. `transcriptBottomPadding` yields
+ * this clearance back to a short band; this constant stays the full amount.
  */
 export const TRANSCRIPT_BOTTOM_PADDING = Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP);
+
+/**
+ * The air that must be left under the last item once the clearance is taken.
+ *
+ * 24 is a CHOSEN estimate, not a derived number, and it is labelled the way
+ * `DAY_MARKER_MIN_TRANSCRIPT_HEIGHT` is so a reviewer can move it: the
+ * arithmetic fixes only the cap the clearance may take, never how much air the
+ * item the reader is reading should keep. 24 dp is about one and a half answer
+ * lines at the reading size — enough that the clearance reads as a clearance
+ * rather than as the last line sitting on the band's edge.
+ */
+export const TRANSCRIPT_MIN_BOTTOM_AIR = 24;
+
+/**
+ * The clearance for a band of this height. The full clearance clears the cloud,
+ * but reserving it on a band that cannot afford it is the other half of the
+ * failure: on the 195 dp keyboard band it pushed the last item up and left the
+ * band showing padding and no content, which is what the 325 capture shows.
+ *
+ * So the clearance yields to the band. It stays `TRANSCRIPT_BOTTOM_PADDING`
+ * while the tallest thing that can be last — the collapsed cloud — plus
+ * `TRANSCRIPT_MIN_BOTTOM_AIR` still fits, and shrinks to whatever is left when
+ * it does not. A degenerate band clamps to 0 rather than handing the layout a
+ * negative padding, so the function stays usable at any height.
+ */
+export function transcriptBottomPadding(availableHeight: number): number {
+  const band = Number.isFinite(availableHeight) ? Math.max(0, availableHeight) : 0;
+  const room = band - TRANSCRIPT_BOTTOM_PADDING - TRANSCRIPT_MIN_BOTTOM_AIR;
+  return Math.max(0, Math.min(TRANSCRIPT_BOTTOM_PADDING, Math.floor(room)));
+}
 
 /** A cell's own left+right padding, and the narrowest a cell's content may be
  *  before a label and its number start to collide. */
@@ -100,7 +133,8 @@ export type TranscriptLayout = {
    *  a line. It is capped by `measure.readingMaxWidth` on a wide screen only. */
   readingMeasure: number;
   showDayMarker: boolean;
-  /** The clearance under the last item, so it can sit clear of the composer. */
+  /** The clearance under the last item, so it can sit clear of the composer.
+   *  Yields to a short band instead of eating it; see `transcriptBottomPadding`. */
   bottomPadding: number;
   rhythm: {
     userToAnswer: number;
@@ -187,7 +221,7 @@ export function transcriptLayout(width: number, height: number, insets: Insets):
     capsuleMaxWidth,
     readingMeasure: Math.min(contentWidth, measure.readingMaxWidth),
     showDayMarker: showsDayMarker(availableHeight),
-    bottomPadding: TRANSCRIPT_BOTTOM_PADDING,
+    bottomPadding: transcriptBottomPadding(availableHeight),
     rhythm: {
       userToAnswer: USER_TO_ANSWER_GAP,
       userToCloud: USER_TO_CLOUD_GAP,

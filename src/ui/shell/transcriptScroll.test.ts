@@ -9,6 +9,7 @@
  */
 import {
   PIN_THRESHOLD_DP,
+  PROGRAMMATIC_SCROLL_GRACE_MS,
   duplicateMessageIds,
   endOffset,
   transcriptScroll,
@@ -140,5 +141,18 @@ describe("failure 3 — the view fighting the reader", () => {
 
   it("pins again by itself when the reader scrolls back to the end", () => {
     expect(transcriptScroll(input({ cause: "user-scroll", offsetY: CONTENT - JELLY_VIEWPORT })).pinned).toBe(true);
+  });
+});
+
+describe("the programmatic-scroll grace", () => {
+  it("outlasts the longest scroll animation the design names", () => {
+    // DESIGN.md §2.11: the sheet is 250-300 ms, the longest scroll motion in the
+    // table. A programmatic scroll must be allowed to finish before its own
+    // events are read as the reader's, so the grace is asserted against that
+    // value. Keeping the literal here — rather than importing a constant — is
+    // deliberate: the test must fail if the design's longest animation grows
+    // past the grace, whatever the motion table is called.
+    const LONGEST_DESIGNED_SCROLL_ANIMATION_MS = 300;
+    expect(PROGRAMMATIC_SCROLL_GRACE_MS).toBeGreaterThan(LONGEST_DESIGNED_SCROLL_ANIMATION_MS);
   });
 });

@@ -20,7 +20,12 @@ import { useLocale, type TranslateFn, type TranslationKey } from "../../i18n";
 import { elevation, families, modes, radius, spacing, type } from "../../theme/design";
 import { type Insets } from "./shellGeometry";
 import { Answer, UserTurn, createTranscriptStyles } from "./TranscriptParts";
-import { duplicateMessageIds, transcriptScroll, type ScrollCause } from "./transcriptScroll";
+import {
+  PROGRAMMATIC_SCROLL_GRACE_MS,
+  duplicateMessageIds,
+  transcriptScroll,
+  type ScrollCause,
+} from "./transcriptScroll";
 import { isSameDay, rhythmGap, shouldShowDayMarker, transcriptLayout } from "./transcriptLayout";
 
 export type {
@@ -92,6 +97,10 @@ export function Transcript({
   const offsetRef = useRef(0);
   const countRef = useRef(messages.length);
   const pinnedRef = useRef(true);
+  // When this component last issued a `scrollTo`. A programmatic scroll emits
+  // `onScroll` events too, so they are ignored for a grace window rather than
+  // read as the reader moving the view (see `PROGRAMMATIC_SCROLL_GRACE_MS`).
+  const programmaticScrollAtRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState(true);
   const [overflows, setOverflows] = useState(false);
 
@@ -109,6 +118,7 @@ export function Transcript({
       if (decision.scrollTo !== null) {
         // The first placement must not animate: a conversation that scrolls
         // itself on open looks like the bug this design is written against.
+        programmaticScrollAtRef.current = Date.now();
         scrollRef.current?.scrollTo({ y: decision.scrollTo, animated: cause !== "first-layout" });
       }
     },
@@ -146,7 +156,7 @@ export function Transcript({
     <View style={styles.root}>
       <ScrollView
         accessibilityLabel={t("shell.a11y.transcript")}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: layout.bottomPadding }]}
         onContentSizeChange={(_width, contentHeight) => {
           const appended = messages.length !== countRef.current;
           countRef.current = messages.length;
@@ -158,6 +168,12 @@ export function Transcript({
         onLayout={() => decide("first-layout")}
         onScroll={(event) => {
           offsetRef.current = event.nativeEvent.contentOffset.y;
+          // A programmatic scroll emits scroll events too. While one is still
+          // in flight the offset is not the reader's opinion, so these events
+          // are ignored — not obeyed and not re-pinned. Reading them as a
+          // `user-scroll` here would unpin the transcript mid-animation.
+          const since = programmaticScrollAtRef.current;
+          if (since !== null && Date.now() - since < PROGRAMMATIC_SCROLL_GRACE_MS) return;
           decide("user-scroll");
         }}
         ref={scrollRef}

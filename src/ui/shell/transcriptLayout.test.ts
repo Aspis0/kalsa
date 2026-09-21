@@ -16,6 +16,7 @@ import {
   PARAGRAPH_GAP_MIN,
   TABLE_MIN_COLUMN_WIDTH,
   TRANSCRIPT_BOTTOM_PADDING,
+  TRANSCRIPT_MIN_BOTTOM_AIR,
   TURN_GAP,
   USER_TO_ANSWER_GAP,
   USER_TO_CLOUD_GAP,
@@ -25,6 +26,7 @@ import {
   showsDayMarker,
   splitParagraphs,
   tableScrollDecision,
+  transcriptBottomPadding,
   transcriptLayout,
   type TranscriptLayout,
 } from "./transcriptLayout";
@@ -96,7 +98,11 @@ describe("the clearance under the last item", () => {
   it("is at least the cloud's collapsed height, so the cloud can be last", () => {
     expect(TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
     expect(Number.isInteger(TRANSCRIPT_BOTTOM_PADDING)).toBe(true);
-    for (const c of CASES) expect(layoutFor(c).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
+    // The two bands with room keep the full clearance: 443 dp and 590 dp are
+    // far above the cloud plus the chosen air. The 195 dp band no longer does —
+    // that is the change DEFECT 2 made, asserted in the next test.
+    expect(layoutFor(JELLY).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
+    expect(layoutFor(S23).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
   });
 
   it("does not eat the 195 dp short band, so the first turn stays above the fold", () => {
@@ -106,6 +112,27 @@ describe("the clearance under the last item", () => {
     // Once the clearance is reserved there is still room for the very cloud the
     // clearance exists for: the padding is a clearance, not the whole band.
     expect(short - TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
+  });
+
+  it("yields to the 195 dp band instead of pushing the last item out of it", () => {
+    const short = layoutFor(JELLY_KEYBOARD);
+    const clearance = short.bottomPadding;
+    expect(clearance).toBeLessThan(TRANSCRIPT_BOTTOM_PADDING);
+    // The stated constraint in full: the clearance plus the tallest thing that
+    // can be last plus the chosen air all fit inside the band.
+    expect(clearance + CLOUD_COLLAPSED_HEIGHT_DP + TRANSCRIPT_MIN_BOTTOM_AIR).toBeLessThanOrEqual(
+      short.availableHeight,
+    );
+  });
+
+  it("clamps at 0 on a degenerate band and stays usable there", () => {
+    expect(transcriptBottomPadding(0)).toBe(0);
+    expect(transcriptBottomPadding(-40)).toBe(0);
+    expect(transcriptBottomPadding(Number.NaN)).toBe(0);
+    // Exactly the band the constraint leaves no room in.
+    expect(transcriptBottomPadding(TRANSCRIPT_BOTTOM_PADDING + TRANSCRIPT_MIN_BOTTOM_AIR)).toBe(0);
+    // One dp above it the clearance is one dp, never a negative padding.
+    expect(transcriptBottomPadding(TRANSCRIPT_BOTTOM_PADDING + TRANSCRIPT_MIN_BOTTOM_AIR + 1)).toBe(1);
   });
 });
 

@@ -9,8 +9,9 @@
  *  1. **whose is the last message** -> while pinned the view always shows the
  *     end, and the view follows an append and a growth; the clearance that keeps
  *     the composer band off the last line belongs to `transcriptLayout.ts`
- *     (`TRANSCRIPT_BOTTOM_PADDING`), because it is a layout fact rather than a
- *     scroll one, and this module moves offsets and nothing else;
+ *     (`TRANSCRIPT_BOTTOM_PADDING`, which yields to a short band), because it is
+ *     a layout fact rather than a scroll one, and this module moves offsets and
+ *     nothing else;
  *  2. **the answer writing above itself and then below** -> that failure starts
  *     as a rendering rule, not a scroll rule, and `duplicateMessageIds` is the
  *     checkable half of it: a list holding the same answer twice is how it begins;
@@ -29,6 +30,24 @@
  * the same number unpins and re-pins, so there is no hysteresis to reason about.
  */
 export const PIN_THRESHOLD_DP = 10;
+
+/**
+ * How long after issuing a programmatic scroll the view ignores `user-scroll`
+ * events.
+ *
+ * A programmatic `scrollTo` emits scroll events of its own in React Native, so
+ * following the end — or placing the view at the end on first layout — fires
+ * events that read as "the reader scrolled away". Obeying them unpins the
+ * transcript while it is still moving, and the run can end parked somewhere
+ * other than the end, showing the bottom clearance and no content.
+ *
+ * 400 ms, chosen to outlast the longest scroll animation the design names: the
+ * sheet's 300 ms (DESIGN.md §2.11). `transcriptScroll.test.ts` asserts that
+ * relation, so shortening a motion value cannot silently turn a programmatic
+ * scroll into an opinion of the reader's. The value is a grace, not a pin: the
+ * events inside the window are ignored, not obeyed and not re-pinned.
+ */
+export const PROGRAMMATIC_SCROLL_GRACE_MS = 400;
 
 export type ScrollCause =
   /** A message was added. */

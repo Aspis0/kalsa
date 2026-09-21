@@ -17,24 +17,29 @@
  * constant comes back, because that is the shape that made one number cost a
  * rebuild.
  *
- * ── Why the switch is where it is (2026-09-21) ─────────────────────────────
- * It used to be an invisible tap zone in the top inset (`top: 0`, height
- * `max(insets.top, 24)`), justified by the claim that the preview "leaves the
- * top inset empty because it draws no status bar". On this device that claim is
- * false: the top inset belongs to the STATUS BAR, whose touchable region sits
- * above the app window, so taps in it are dropped before the app sees them.
- * Measured on the Jelly Star emulator: taps at y = 3, 12, 16 and 30 px in adb
- * coordinates (all inside the 24 dp status bar) did nothing, and
- * the only reason a 325 dp capture exists at all is that a D-pad focused the
- * old zone — `KEYCODE_TAB` nine times, then `KEYCODE_ENTER`. A control that
- * needs a keyboard is not a control. The switch is now three visible segments
- * at the top of the TRANSCRIPT band: below the status bar, below the shell's
- * own strip, above the composer, clear of all of them, and it works under a
- * thumb. It covers the transcript's first 48 dp; that is the price of a
- * reachable affordance, and it is preview chrome, not the shell. Each segment
- * is `MIN_TOUCH_TARGET` tall and, at 349 dp wide, 103 dp wide; nothing in the
- * node test stack can measure a rendered tree (DESIGN.md, "proof regime"), so
- * that is a claim the screenshot has to carry, not a test.
+ * ── Where the switch is now (2026-09-21, second move) ──────────────────────
+ * It is the strip's `+` control (`shell.strip.newChat`), inert in the preview:
+ * a tap cycles live -> 325 -> 780 -> live. Binding a real app control to the
+ * preview is a PREVIEW-ONLY choice, and it is the honest one here because the
+ * control already exists inside a box the shell draws, so the switch costs the
+ * transcript nothing. Every earlier placement drew preview chrome over the
+ * transcript, which is why it was wrong: first an invisible tap zone in the top
+ * inset, whose touchable region sits under the status bar and drops taps (a 325
+ * capture needed nine TABs and an ENTER — a control that needs a keyboard is not
+ * a control); then a three-segment bar at the top of the transcript band, which
+ * by its own docstring covered the band's first 48 dp. That is the defect the
+ * captures show: at 621 dp the bar cut off a line of the answer, and at 325 dp
+ * the bar plus its warning chip ate the top of a band that then had nothing left
+ * to show. Both are gone from the transcript.
+ *
+ * The one piece worth keeping is the warning: when the pinned height differs
+ * from the live window height, the pill's second line says so in place of the
+ * where-label, so a misleading PNG still carries its own indictment inside the
+ * strip rather than in a chip over the conversation. (At 325 dp the strip is
+ * collapsed to one line, so there is no second line to carry it — but 325 dp
+ * only reaches 325 dp with the IME up, and the keyboard in the image is then its
+ * own label; the notice fires when a capture is taken at a pinned size the live
+ * window does not have.)
  *
  * ── How a capture is taken, so the next one is scriptable ──────────────────
  * 325 dp IS THE APP AREA WITH THE SOFT KEYBOARD UP (Jelly Star: 480x854 px at
@@ -43,16 +48,15 @@
  * window's 621 dp, the rest is blank, and the PNG reads as a broken half-empty
  * screen — which is how the last one was read. The keyboard comes from focusing
  * the composer field; nothing is drawn to imitate it. When the pinned case and
- * the live window disagree the bar says so on screen, so a misleading PNG
+ * the live window disagree the pill's second line says so, so a misleading PNG
  * carries its own warning instead of waiting for a reviewer to notice.
  *
  * The sequence, with `SHELL_PREVIEW = true` in `App.tsx`. `tap_node`,
  * `tap_editable`, `shot` and `OUT` are `scripts/ci-lib.sh`'s: they read a node's
  * live bounds, because fixed coordinates break as soon as the IME moves the
- * layout. The strings tapped are the segments' accessibility labels, which
- * follow the app's locale — English below (`DEFAULT_LOCALE`), «Anteprima a
- * 621 dp» under the Italian catalogue; the live segment prints the window's own
- * height.
+ * layout. The node tapped is the `+` control's accessibility label, which
+ * follows the app's locale — "New chat" below (`DEFAULT_LOCALE`), «Nuova chat»
+ * under the Italian catalogue. A reload (Metro) resets the cycle to live.
  *
  *   adb shell input keyevent KEYCODE_WAKEUP                      # screen on
  *   adb shell wm size; adb shell wm density                      # 480x854, 220
@@ -60,11 +64,11 @@
  *   adb shell input keyevent 111                                 # ESC: IME down
  *   OUT=mock
  *
- *   # (1) the live window, 621 dp on the Jelly, keyboard down
- *   tap_node "Preview at 621 dp"; sleep 1; shot shell-jelly-621
+ *   # (1) the live window, 621 dp on the Jelly, keyboard down — the reload state
+ *   shot shell-jelly-621
  *
- *   # (2) 325 dp — ONLY with the keyboard up
- *   tap_node "Preview at 325 dp"
+ *   # (2) 325 dp — one tap cycles live -> 325, and ONLY with the keyboard up
+ *   tap_node "New chat"
  *   tap_editable                    # focuses the composer field, raises the IME
  *   adb shell dumpsys input_method | tr -d '\r' \
  *     | grep -qE 'mInputShown=true|isInputViewShown=true|mIsInputViewShown=true' \
@@ -73,34 +77,23 @@
  *
  *   # (3) 780 dp is the S23's window, not the emulator's: on a 621 dp window
  *   # the shell overflows it and the composer leaves the screen.
- *   adb shell input keyevent 111; tap_node "Preview at 780 dp"
- *   sleep 1; shot shell-s23-780
+ *   adb shell input keyevent 111; tap_node "New chat"; sleep 1; shot shell-s23-780
  */
-import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { useState } from "react";
+import { View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLocale } from "../../i18n";
-import {
-  elevation,
-  families,
-  measure,
-  modes,
-  radius,
-  spacing,
-  type,
-  type DesignColors,
-  type ThemeMode,
-} from "../../theme/design";
+import { type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../labTheme";
 import { Shell } from "./Shell";
 import { Transcript, type TranscriptMessage } from "./Transcript";
-import { MIN_TOUCH_TARGET, shellGeometry, type Insets } from "./shellGeometry";
+import { type Insets } from "./shellGeometry";
 
 /**
- * The three measured cases, as data. `live` follows the window, so its segment
- * prints whatever height the emulator is running at — 621 on the Jelly, 780 on
- * the S23 — and the capture names its own case.
+ * The three measured cases, as data. `live` follows the window, so it prints
+ * whatever height the emulator is running at — 621 on the Jelly, 780 on the
+ * S23 — and the cycle names its own case.
  */
 const PREVIEW_CASES: ReadonlyArray<{ id: string; height: number | undefined }> = [
   { id: "live", height: undefined },
@@ -114,11 +107,15 @@ const PREVIEW_MODEL_NAME = "LFM2.5 2.6B";
 const PREVIEW_NOW = Date.now();
 const MINUTE = 60_000;
 
-function daysAgo(days: number): number {
-  const date = new Date(PREVIEW_NOW);
-  date.setDate(date.getDate() - days);
-  return date.getTime();
-}
+/**
+ * The earlier turn sits 26 h back, so it is ALWAYS a different calendar day from
+ * `PREVIEW_NOW`, whatever hour the app launches. `daysAgo(1) + 9h` looked
+ * equivalent but is not: launched at or after 15:00 it lands on the same
+ * calendar day as now, `shouldShowDayMarker` correctly returns false, and a
+ * capture taken that afternoon shows no marker at all. The layout is right about
+ * the 443 dp band; the fixture was undercutting it.
+ */
+const PREVIEW_EARLIER_AT = PREVIEW_NOW - 26 * 60 * MINUTE;
 
 /** Sample data. The day marker needs a turn on an earlier day to be visible. */
 const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
@@ -126,7 +123,7 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
     id: "preview-1",
     role: "user",
     text: "What does the document say about measurement error?",
-    createdAt: daysAgo(1) + 9 * 60 * MINUTE,
+    createdAt: PREVIEW_EARLIER_AT,
   },
   {
     id: "preview-2",
@@ -134,7 +131,7 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
     text:
       "It compares three methods and reports the largest error each one produced.\n\n" +
       "The third method is the steadiest across the whole series, but it is the slowest to run.",
-    createdAt: daysAgo(1) + 9 * 60 * MINUTE + MINUTE,
+    createdAt: PREVIEW_EARLIER_AT + MINUTE,
   },
   {
     id: "preview-3",
@@ -162,24 +159,30 @@ export function ShellPreview() {
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const window = useWindowDimensions();
   const [caseIndex, setCaseIndex] = useState(0);
-  const styles = useMemo(() => createPreviewStyles(modes[mode]), [mode]);
 
   const liveHeight = Math.round(window.height);
   const pinned = PREVIEW_CASES[caseIndex].height;
   const size: Insets = { top: insets.top, bottom: insets.bottom };
-  // The same inputs the `Shell` below gets, so the switch lands exactly on the
-  // transcript band's top edge and moves with the case instead of guessing.
-  const geometry = shellGeometry(window.width, pinned ?? window.height, size);
   const mismatched = pinned !== undefined && pinned !== liveHeight;
+  // The switch rides the strip's own `+` control. Preview-only binding: the
+  // control is inert in the app, and it is inside a box the shell already
+  // draws, so nothing is added over the transcript.
+  const cycleSize = () => setCaseIndex((index) => (index + 1) % PREVIEW_CASES.length);
+  // The mismatch notice takes the where-label's place on the pill's second
+  // line, inside the strip, so no capture artifact sits over the transcript.
+  const whereLabel = mismatched
+    ? t("shell.preview.sizeNotLive", { pinned: String(pinned), live: String(liveHeight) })
+    : t("shell.where.thisPhone");
 
   return (
     <View style={{ flex: 1 }}>
       <Shell
         insets={size}
         modelName={PREVIEW_MODEL_NAME}
-        whereLabel={t("shell.where.thisPhone")}
+        whereLabel={whereLabel}
         height={pinned}
         mode={mode}
+        onNewChatPress={cycleSize}
       >
         <Transcript
           insets={size}
@@ -189,87 +192,6 @@ export function ShellPreview() {
           now={PREVIEW_NOW}
         />
       </Shell>
-
-      <View
-        testID="shell.preview.sizeSwitch"
-        accessibilityLabel={t("shell.a11y.previewSize")}
-        style={[styles.switchBar, { top: geometry.transcript.top }]}
-      >
-        <View style={styles.segmentRow}>
-          {PREVIEW_CASES.map((previewCase, index) => {
-            const active = index === caseIndex;
-            const shown = String(previewCase.height ?? liveHeight);
-            return (
-              <Pressable
-                key={previewCase.id}
-                testID={`shell.preview.size.${previewCase.id}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={t("shell.a11y.previewSizeOption", { height: shown })}
-                onPress={() => setCaseIndex(index)}
-                style={[styles.segment, active && styles.segmentActive]}
-              >
-                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{shown}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {mismatched ? (
-          <Text testID="shell.preview.sizeWarning" style={styles.warning}>
-            {t("shell.preview.sizeNotLive", { pinned: String(pinned), live: String(liveHeight) })}
-          </Text>
-        ) : null}
-      </View>
     </View>
   );
-}
-
-function createPreviewStyles(colors: DesignColors) {
-  return StyleSheet.create({
-    switchBar: {
-      gap: spacing.xxs,
-      left: 0,
-      paddingHorizontal: measure.gutterCompact,
-      position: "absolute",
-      right: 0,
-    },
-    segmentRow: {
-      flexDirection: "row",
-      gap: spacing.xs,
-      height: MIN_TOUCH_TARGET,
-    },
-    segment: {
-      alignItems: "center",
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      flex: 1,
-      height: MIN_TOUCH_TARGET,
-      justifyContent: "center",
-      ...elevation.raised,
-    },
-    segmentActive: {
-      backgroundColor: colors.accent,
-    },
-    segmentText: {
-      color: colors.inkSoft,
-      fontFamily: families.mono,
-      fontSize: type.mono.fontSize,
-      lineHeight: type.mono.lineHeight,
-    },
-    segmentTextActive: {
-      color: colors.onAccent,
-    },
-    warning: {
-      alignSelf: "flex-start",
-      backgroundColor: colors.surfaceMuted,
-      borderRadius: radius.xs,
-      color: colors.inkSoft,
-      fontFamily: families.sansMedium,
-      fontSize: type.meta.fontSize,
-      lineHeight: type.meta.lineHeight,
-      overflow: "hidden",
-      paddingHorizontal: spacing.xs,
-      paddingVertical: spacing.xxs,
-    },
-  });
 }
