@@ -248,3 +248,44 @@ in `dev/test-isolation.py` is a harness fixture, like the questions.
 Files: the seven scripts named above, plus
 `dev/results/multi-device-shape/{summary.md,manifest.txt,*/results.json,*/memory.txt,*/argv.txt,*/sim.out,isolation/}`
 — results dir intentionally excludes the server logs.
+
+## 9. Chats on disk — one in RAM per device, many on disk
+
+**Decision (owner, 2026-09-21).** Isolation is per **device**, not per chat. A device
+holds one slot, and a slot holds one chat's KV cache in RAM at a time. Several chats
+per device live on disk, each under its own id, and are recalled on demand: switching
+chat is a **save** of the current chat's state out of the device's slot and a
+**restore** of the target chat's state into the same slot.
+
+Two chats on one device therefore share a slot and a salt. They cannot mix with
+another device's text, but they do overwrite each other's prefix in that slot while
+both are in RAM — which is why only one is resident, and why the switch is explicit.
+
+**Mechanism.** The engine's own `POST /slots/:id_slot?action=save|restore&filename=`,
+with `--slot-save-path`. The fork hardened it (`51b9e6a7f` and follow-ups: context
+checkpoints appended to the slot save file, `SCKP` appendix, atomic writes, exclusive
+temp files), so the primitive exists in `kalsa-server-v1.1.0`.
+
+**Two things stand in the way, and neither is one of the six audit findings:**
+
+1. **The app passes no `--slot-save-path`** and never calls save/restore. Without the
+   flag the engine answers `not supported`. App-side, small, and worthless until (2).
+2. **BLOCKING, engine-side: the restore erases the cache salt.**
+   `server-context.cpp:2868` runs `slot->prompt.clear()` before writing the restored
+   tokens, which clears `cache_salt` (`server-task.h:580`), so a restored slot sits in
+   the empty namespace. The device's next request carries its own salt, the engine sees
+   a mismatch at `server-context.cpp:3418-3421`, and answers `different cache namespace
+   - clearing cached prompt` — destroying the state that was just restored. Nothing on
+   disk is usable until the restore preserves or re-stamps the salt. The context shift
+   at `server-context.cpp:3199` has the same hole; one fix may cover both.
+
+**Security requirement, not negotiable.** The filename must never be chosen freely by a
+device. A `restore` of another device's file would pull **another device's KV cache
+into the caller's slot** — precisely the leak this design exists to prevent. Therefore:
+the endpoint belongs to the app's door, not to the engine's URL route; filenames are
+scoped per device; and the door keeps refusing `/slots/*` to guests (it does today, and
+the engine being fixed does not change that rule).
+
+**Consequence.** `--sleep-idle-seconds 3600` unloads the engine after an hour and takes
+every conversation with it. With a chat on disk that loss becomes a restore, not a
+re-read from zero.
