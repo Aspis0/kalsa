@@ -51,11 +51,16 @@ for code and figures. Source Serif 4 and Plex Mono are already bundled; **Inter 
 dependency**. The reading serif is not taste: Claude ships serif response body with a sans chrome,
 and the app already reached for a serif in the chat body — the instinct was right, the pairing was
 not (`typography.ts` declared `body = Bricolage` but `bodyItalic = SourceSerif4_400Regular_Italic`,
-so an italic word jumped to another family's serif). Faces go from **12 to 10**, measured after the
-change rather than estimated: `IBMPlexMono_700Bold` stays, because `monoXs` is consumed by
-`AppShell.tsx:6959`, `RecentCard.tsx:71`, `MetricCard.tsx:19`, `Pill.tsx:96`,
-`WizardStepper.tsx:78` and `MetricRow.tsx:29`, and dropping it would have silently un-bolded real
-UI. The boot gate (`App.tsx:142` blocks the first paint until the fonts load) still gets shorter.
+so an italic word jumped to another family's serif). Faces go from **12 loaded to 10 loaded**,
+measured after the change rather than estimated — and **9 of those 10 are referenced by a role**:
+`Inter_700Bold` is loaded and referenced by none. An audit caught this document saying 10 in one
+place and 9 in another without either number saying what it counted.
+`IBMPlexMono_700Bold` stays, because `monoXs` is consumed by `AppShell.tsx:6959`, `RecentCard.tsx:71`,
+`MetricCard.tsx:19`, `Pill.tsx:96` and `WizardStepper.tsx:78`, and dropping it would have silently
+un-bolded real UI. (`MetricRow.tsx:29` was the sixth consumer an earlier version of this document
+cited; it uses `monoSm` plus an explicit `fontFamilies.monoBold` override, so the conclusion holds
+through a different mechanism.) The boot gate (`App.tsx:142` blocks the first paint until the fonts
+load) still gets shorter.
 
 The Android trap, already documented in the repo and encoded as a test: **weight lives in the face
 name**; a numeric `fontWeight` beside a custom family is silently ignored on device.
@@ -71,18 +76,27 @@ Read from the code, not assumed. The interface may show only what is observable.
 | streaming | **yes** | the SSE stream *is* the state |
 | model loading | **partial** | the engine's `/health` answers until ready; nothing polls it |
 | **server busy with a named device** | **NO** | the fact exists in four pieces on the PC (`lib.rs:127-180` `ActiveDevices`, `devices.rs:179-184` `label(id)`, the join at `main.rs:243-265`, the DTO at `metrics.rs:37-42`) but **none is on a socket a phone can open** — they travel over Tauri IPC only. One route away. |
-| **queue position / "you are next"** | **NO — THERE IS NO QUEUE** | the door **refuses** on overflow (`server.rs:154-161`) instead of enqueueing; the job registry has no ordering and no waiter list; `docs/WHAT-IS-MISSING.md:670-673` says so outright |
+| **queue position / "you are next"** | **NO** | the door runs a bounded in-process wait — `mpsc::sync_channel(QUEUE)` with `QUEUE = 8` (`crates/kalsa-door/src/lib.rs:79-80`) — and refuses with `reject_busy` only when that fills (`server.rs:154-161`). So a wait exists and is bounded; what does not exist is a **position**: the registry is an unordered map with no waiter list, and `docs/WHAT-IS-MISSING.md:670-673` says exactly that — *"the waiting queue exists in the same process"*, while there is "no 'busy with X', no 'you are next', no per-device queue position anywhere in the code" |
+| **waiting, with no answer yet** | **yes, as elapsed time** | the request is outstanding, so the phone can say it is still waiting — and cannot say what for, or how much longer |
 
-**Consequence for the design**: the "server busy — you are next" card exists in the mock as an
-**intention, not a promise**. It ships only if the PC exposes the active-device set, and the queue
-ships only if a queue is built. Both are PC-side work, not mine.
+**Consequence for the design**: the "server busy — you are next" card **is removed from the mock**,
+because it printed a sentence the machine has no data for. What replaces it is only what is
+observable: the PC is busy, and the request is still outstanding. The card returns if the PC ever
+exposes the active-device set or a position — PC-side work, not mine. An earlier version of this row
+said "there is no queue", which the very lines it cited contradicted: there is one, it is bounded,
+and it refuses.
 
 ### 1.5 What already exists, and what is a trap
 
 - **The real remote client exists on the branch `remote-brain`** (not mine, kept apart on purpose):
-  `src/engine/remote/` (19 files), `src/screens/RemoteBrainSettings.tsx`, the PC modelled as a
+  `src/engine/remote/` (**30 files, 16 of them non-test** — this document said 19 until an audit
+  counted; the branch tip is five days older than the claim), `src/screens/RemoteBrainSettings.tsx`, the PC modelled as a
   **virtual catalog row** (`kalsa-remote-mac`, `listed: false`), a global backend switch
-  (`kalsa.engine.backend` = `"local" | "remote"`) with a single-writer gate.
+  (`kalsa.engine.backend` = `"local" | "remote"`) with a single-writer gate
+  (`beginBackendSwitch`, `backendWriteIntent`). The two branches have diverged:
+  `git rev-list --left-right --count ux-2026-09-21...remote-brain` = **408 / 189**, with two merge
+  bases. **The switcher must adopt that gate, not duplicate it** — two switches over one key would
+  collide, and this is the dependency Part 4 now lists.
 - **`src/mobile/*.js` is a trap**: four real committed modules, imported by **nothing**, and they
   speak to a **Cloudflare AI gateway**, not to Kalsa Brain. Foreign code from another project.
 - **A conversation has no model identity.** `ConversationMeta` is six fields with no model, on both
@@ -130,7 +144,9 @@ ships only if a queue is built. Both are PC-side work, not mine.
 ```
 
 The strip is the machine's voice and the only place allowed to say what the phone is doing. It is
-also the switcher: name of the model, where it runs, the state, a chevron. Tapping it opens a sheet
+also the switcher: name of the model, where it runs, the state, a chevron — **once the remote client
+lands** (§1.5, Part 4.5). Until then the strip reports and does not switch, because a switch with
+nothing behind it is a control that lies. Tapping it opens a sheet
 listing **this phone** and the paired PCs, each with its state and its models. It collapses to one
 line on the smallest screen.
 
@@ -268,17 +284,34 @@ step, plus emulator screenshots at **480×854/220** and **1080×2340/480**, and 
 | # | what is built | what proves it | who |
 |---|---|---|---|
 | 0 | **The design layer**, already written: `src/theme/design.ts` + `design.test.ts` (green palette, measured, with the role constraints as tests) | 25+ test cases, incl. the negative ones that pin why a value is confined to a role | done |
-| 1 | **The type layer**: Inter installed, `typography.ts` repointed, the italic defect closed, faces 12 → 9 | the boot gate still green; a contrast/scale test; a visual check of an italic inside answer text | coder |
-| 2 | **The shell**: three bands, no content, no engine calls, edge-to-edge with the gesture bar | renders at 349×621, 360×780 and **349×325**; every control clears 48 dp with an accessibility-bounds test; screenshots at all three | coder |
+| 1 | **The type layer**: Inter installed, `typography.ts` repointed, the italic defect closed, faces 12 loaded → 10 (9 referenced by a role) | the boot gate is green; **the contrast/scale test this step promised was never written — it is step 1b** | done, except 1b |
+| 1b | **The type-layer test**: every role's family is in the loaded set, the scale is monotone, and the italic face's family equals the body's | three assertions, each of which fails on one of the two defects step 1 actually had: the missing reading face, and the italic that jumped family | coder |
+| 2 | **The shell**: three bands, no content, no engine calls, edge-to-edge with the gesture bar | `shellGeometry.test.ts` at 349×621, 360×780 and 349×325: the bands sum to the available height, every interactive box is ≥48 dp, the composer never overlaps the gesture inset, the strip collapses to one line at 325 dp. Screenshots at all three, per the proof regime below | coder |
 | 3 | **The transcript**: user capsule, bare serif answer, markdown incl. equations and tables, day marker, the cloud mounted | a long answer, a three-column table and a code block at 349 dp, each with a screenshot; the cloud's 50 tests stay green | coder + explorer |
 | 4 | **Tool rows and sources chips**: render the tool names that already arrive; chips with no network fetch; the rows stay **volatile** (§2.4) | a test per tool name rendering; a test that no image is fetched; a reopen test asserting the rows are **absent** while the **sources are present** | coder |
-| 5 | **The composer**: type-while-generating, send/stop/stopping, the held-reason invariant, the attach chip | one test per held state; a 48 dp sweep; the "no invite without a reason" test | coder |
+| 5 | **The composer**: type-while-generating, send/stop/stopping, the held-reason invariant, the attach chip | one test per held state; the 48 dp check in the geometry module (not a render sweep — the stack cannot sweep a render); the "no invite without a reason" test | coder |
 | 6 | **Stop's four outcomes** | one test each, including stopped-before-any-token | coder |
 | 7 | **Mini apps**: the transcript card + the full-screen sheet, the 39 block kinds ported without the registry's false interactivity | one screenshot per block family at 349 dp; the `editable_table` lie removed and reported | coder |
-| 8 | **Local vs remote**: the strip as a switcher, the endpoint sheet, the states that are honestly observable; the queue card **held back** until the PC exposes the device set | a test per observable state; a test proving the unobservable ones are not drawn | coder + explorer |
+| 8 | **Local vs remote**: the strip as a switcher, the endpoint sheet, the states that are honestly observable; the queue card **held back** until the PC exposes the device set | a test per observable state, at the **data layer**; and a test proving the state layer never produces a device-set or a queue-position value at all — "not drawn" is a rendering property this stack cannot assert | coder + explorer |
 | 9 | **Permissions in one place**, with the privacy classification built rather than borrowed | a test per tool × mode; the scattered toggles retired and reported | coder |
 | 10 | **Settings**, split into preferences and a device/engine surface, internal jargon out of the user path | the accessibility sweep over both surfaces | coder |
-| 11 | **The `testID` + a11y sweep** across everything built | a test that walks every screen and fails on an unnamed interactive node | coder |
+| 11 | **The `testID` + a11y sweep** across everything built | a **source-level check**, not a render check: a test asserting every interactive node in the new UI carries a `testID` and an accessible name. A test that *walks a screen* needs a harness this repository does not have | coder |
+
+**The proof regime, and why it is written down.** The first version of this table promised proofs
+this stack cannot execute. `jest.config.js` runs `testEnvironment: "node"` with
+`testMatch: ["**/*.test.ts"]` — no `.tsx` — and the project has neither `react-test-renderer` nor
+`@testing-library/react-native`. All 97 suites are pure logic, including the two nearest a screen
+(`sheetCopyVisible.test.ts`, `regenTarget.test.ts`), which assert plain functions and mocked
+handlers, never a rendered tree. So "every control clears 48 dp with an accessibility-bounds test"
+and "a test that walks every screen" were unexecutable as written.
+
+The decision, and it is reversible: **no component-render harness is added.** The arithmetic the
+sizes and the 48 dp rule depend on lives in **pure `.ts` modules** — the pattern the thought cloud
+already uses (`thinkingTiming.ts`, `thoughtMotion.ts`) — where a real test in the existing node
+stack can prove it. The pixels are proven by **screenshots** at the three sizes. Neither pretends to
+prove the other. If a later step genuinely needs a rendered assertion, that becomes its own step
+with its own dependency (`react-test-renderer` or `@testing-library/react-native`, plus a jest
+preset that is not `node`), and adding it is the owner's decision rather than a quiet import.
 
 **Tests replaced.** Today **no test in the suite asserts a screen layout** — the entire UI is
 untested, which is itself a finding. So nothing needs replacing yet; the work adds coverage. The one
@@ -300,6 +333,10 @@ Reviewer profile before anything is reported as done.
 3. **A conversation needs a model identity** in storage before a chat can remember that it runs on
    the PC.
 4. **The fit gate must be translated or bypassed in remote mode**, since it prices the phone's RAM.
+5. **The remote client must land in this tree.** `src/engine/remote/` does not exist on
+   `ux-2026-09-21`; it lives on `remote-brain`, 408 commits from this branch's merge base with two
+   merge bases of its own. Steps 8 and 9 assume it, and the switcher must adopt that branch's gated
+   switch instead of building a second one over the same key.
 
-The fifth dependency this list used to carry — persisting the per-message tool list — is **closed by
+The dependency this list used to carry — persisting the per-message tool list — is **closed by
 decision: not persisted** (§2.4).
