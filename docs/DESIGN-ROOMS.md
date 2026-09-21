@@ -62,7 +62,10 @@ Generation can take tens of seconds. People keep writing.
   and a jump.
 - The marker on the original message becomes *answered*, tappable, jumping to the answer.
 - If generation fails the marker becomes an error with a retry, attached to the same message.
-  It never disappears silently.
+  It never disappears silently — and that promise has a cost recorded in §8.17: the marker's
+  state and its link to the answer are new fields, and §8.10's trap is exactly that new fields
+  are written and dropped on restore unless the loader's whitelist is extended. Without that
+  row, this bullet is a promise the storage layer will break silently.
 
 ### 2.2 Who generates, and whose battery
 
@@ -117,9 +120,20 @@ That contradicts the hub's design, which is not a lock but a **rotation**:
 - **The order is visible to everyone**: whose turn is running, who is next, how many are
   waiting. **Names only.** "Kalsa sta rispondendo a papà, sei il prossimo" is allowed; one
   word about what papà asked is not.
-- **Stopping**: you may withdraw your own pending prompt, and stop an answer being generated
-  for you. Nobody stops someone else's turn: a room where a brother can cut you off
-  mid-answer is worse than one where you wait. The machine's owner can always stop the machine.
+- **Stopping, in two states, because the hub makes them different.** `HOUSEHOLD-RULES.md`
+  §5.5 gives you two rights: withdraw your own pending prompt, and stop an answer being
+  generated for you. They are not the same act, and the difference is the handover. §5.1
+  hands the model everything said since the last addressing **at the instant somebody
+  addresses it**, as one batch. So a queued prompt may already ride inside the batch that is
+  being prefilled before its own turn starts:
+  - **While your prompt is still queued behind someone else's**, withdrawing really recalls
+    it: it leaves the rotation and nobody is served on it. The action reads **Ritira**.
+  - **Once your turn is being served**, the text is already in the model's context and
+    cannot be taken back. The action reads **Ferma** and stops the generation. The interface
+    must not use one word for both, and must not imply a recall it cannot perform at the
+    moment the batch has already gone.
+  Nobody stops someone else's turn: a room where a brother can cut you off mid-answer is
+  worse than one where you wait. The machine's owner can always stop the machine.
 
 So the summon control is **enabled while someone else is being served** — pressing it puts you
 in line, which is useful information — and **refused when you already have one pending**, which
@@ -215,8 +229,11 @@ One component, used by both features, so a room answer and a one-to-one reply lo
 - The author reads as the person's name in a room, as *Tu* or *Kalsa* in a one-to-one chat.
 - In a one-to-one chat the quotation is given to the model as part of the normal turn, saying
   that the user is answering that message — not as a separate generation. There is no
-  non-destructive way to generate from an arbitrary context: the only entry points that start
-  without a user turn clear the chat KV (`LlamaService.ts:6110`, `:6130`).
+  non-destructive way to generate from an arbitrary context. Three functions can start a
+  generation without a user turn, and all three disturb the chat's context: `completeOnce`
+  (declared at `LlamaService.ts:6059`, clears the chat KV at `:6102`), `extractMemory`
+  (`:5754`, whose clearing is conditional on `!EXTRACT_MEMORY_PRESERVE_CHAT_KV`) and
+  `translateText` (`:5982`). None of them returns a normal chat turn.
 
 ## 5. Anatomy of the room screen
 
@@ -275,7 +292,7 @@ is reachable right now*. Visible in the header, phrased as a delay rather than a
 | state | where it shows | what the user reads |
 |---|---|---|
 | invited | invite screen | what the room is, who is in it, the three facts of §7, accept, decline |
-| declined | nowhere | the room does not exist for the user again |
+| declined | the room list | *Non ora* is a deferral, not a refusal: the room stays in the list as a suspended invitation, and nobody is told. It never reappears on its own |
 | joined, others present | header | name, members, presence |
 | joined, nobody reachable | header | the delay, not an error |
 | summoned, waiting, you are next in line | floor + under the message | whose turn, who is next, names only |
@@ -293,23 +310,41 @@ The strings that carry honesty. They go into `src/i18n/it.ts` with English count
 
 | where | Italian |
 |---|---|
-| invite screen, where it runs | Le risposte arrivano dal PC di casa. Niente esce da qui. |
-| invite screen, the window | La stanza ricorda gli ultimi messaggi, non tutto. Quando finisce lo spazio, i vecchi escono. |
+| invite screen, where it runs | Le risposte arrivano dal PC di casa. |
+| invite screen, the window | La stanza ricorda una finestra di messaggi, non tutto. Quando lo spazio finisce, i più vecchi escono. |
+| invite screen, the third fact | In stanza vedi sempre da quando Kalsa ricorda. |
 | invite screen, the action | Entra nella stanza |
 | invite screen, declining | Non ora |
 | composer, the summon control | Chiedi a Kalsa |
-| floor, turn running | Kalsa sta rispondendo a {nome} |
-| floor, you are next | Sei il prossimo |
-| floor, others waiting | {n} in attesa |
+| floor, nobody waiting | {n} presenti |
+| floor, a turn running | risponde a {nome} |
+| floor, you are next | sei il prossimo |
+| floor, someone waiting | {nome} in attesa |
+| floor, the window shortened | ricorda dalle {ora} |
+| marker, my prompt is being served | Risponde a {nome}… |
+| marker, my prompt is queued | In attesa · sei il prossimo |
+| marker, withdraw a queued prompt | Ritira |
+| marker, stop my own answer | Ferma |
+| marker, answered | Kalsa ha risposto |
+| marker, failed | Kalsa non ha risposto |
 | second prompt refused | Hai già una domanda in attesa: ritirala o aspetta |
-| pending marker | Kalsa sta rispondendo a {nome}… |
-| marker, withdraw | Ritira |
-| answered marker | Kalsa ha risposto |
-| failed marker | Kalsa non ha risposto |
-| window, shortened | Questa stanza ricorda da {quando}: i messaggi più vecchi sono usciti |
+| window, shortened | Questa stanza ricorda dalle {ora}: i messaggi più vecchi sono usciti |
 | nobody reachable | Sei l'unico raggiungibile: i messaggi arrivano quando tornano |
 | hub missing, where the control would be | Per chiamare Kalsa serve Kalsa Brain sul PC |
 | quote bar, your own message | Tu |
+
+Two entries were **removed** by an audit and are recorded here so they do not come back:
+
+- "Niente esce da qui." was the first draft's line for where the answers run. It is too broad
+  to be true: the hub ships an outgoing gate precisely because web search and fetched pages
+  leave the machine (`WHAT-IS-MISSING.md` §19). What is true and stays is where the answers
+  come from. A tool that reaches outside still owes its own gate, stated per call, as the
+  desktop already does.
+- The running state had two different phrasings ("Kalsa sta rispondendo a…" for the marker and
+  "risponde a…" for the floor). One state, one vocabulary: `risponde a {nome}`.
+
+Every string is a key/value pair so it can be written into `src/i18n/it.ts` and mapped one to
+one onto `en.ts`. The placeholders `{nome}`, `{n}` and `{ora}` are the only substitutions.
 
 ## 8. What must be built, and what the reconnaissance found
 
@@ -319,28 +354,32 @@ scheduled, and this table is where it is recorded.
 
 | # | piece | found |
 |---|---|---|
-| 8.1 | a room as an object: creation, membership, accept, decline, leave | **designed and not built** (`WHAT-IS-MISSING.md:221`, rules in `HOUSEHOLD-RULES.md` §4–§5). Phone: a conversation has one implicit owner and no member list (`ConversationsStore.ts:26`) |
+| 8.1 | a room as an object: creation, membership, accept, decline, leave | **designed and not built** (`WHAT-IS-MISSING.md:221`, rules in `HOUSEHOLD-RULES.md` §4–§5). Phone: a conversation has one implicit owner and no member list (`ConversationsStore.ts:23`) |
 | 8.2 | an author on a message | **absent**: `role: "user" | "assistant"` only (`AiChatPage.tsx:242`), `userName` is greeting-only and passed `null` (`AppShell.tsx:7014`). The hub demands it (`HOUSEHOLD-RULES.md:95`) |
-| 8.3 | an inbound channel for other people's messages | **absent**: no server or socket on the phone (zero hits for websocket/EventSource/createServer in `src`), and the remote path is request→response only, refusing a second concurrent turn (`RemoteEngine.ts:236`) |
-| 8.4 | fan-out: the hub relays one client's message to all members | **absent**: each door job has exactly one `owner: DeviceId` (`crates/kalsa-door/src/jobs.rs:50-55`); per-device identity exists (`devices.rs:43`, `active_devices()` at `lib.rs:407`) but presence is per-device, not per-person |
+| 8.3 | an inbound channel for other people's messages | **absent**: no server or socket on the phone (zero hits for websocket/EventSource/createServer in `src`), and the remote path is request→response only, refusing a second concurrent turn (`RemoteEngine.ts:236`, **on `remote-brain` only**) |
+| 8.4 | fan-out: the hub relays one client's message to all members | **absent**: each door job has exactly one `owner: DeviceId` (`crates/kalsa-door/src/jobs.rs:53-59`); per-device identity exists (`devices.rs:43`, `active_devices()` at `lib.rs:407`) but presence is per-device, not per-person |
 | 8.5 | generation on the hub from a room message, streamed to all members, carrying the invoking id | **absent**. One turn at a time is a designed rule (`§5.2`); nothing implements it |
 | 8.6 | per-person turn order: one pending each, least-recently-served tie-break on the door's monotonic clock, visible names only | **absent**, and it is the piece the first draft of this document did not know existed (`§5.3`, `§5.4`) |
-| 8.7 | the room bypasses the fit gate, which prices the local phone | **absent by inspection**: the fit gate prices the phone's RAM (`AiChatPage.tsx:2039`) |
-| 8.8 | the network a room is scoped to | **half built on the PC, absent on the phone.** The door is a loopback HTTP/1.1 listener on port 8131 that refuses any non-loopback address (`crates/kalsa-door/src/door.rs:15,44`, `crates/kalsa-door/src/lib.rs:4-5`), with an iroh QUIC tunnel that terminates on the same loopback door (`crates/kalsa-iroh/src/lib.rs:1-2`, `src-tauri/src/road.rs`). On the phone's `ux-2026-09-21` branch there is **no client of any kind**: `src/engine/remote/` is absent and the tree has zero hits for websocket, ws://, tailscale or iroh |
+| 8.7 | the room bypasses the fit gate, which prices the local phone | **absent by inspection**: the fit gate reads the phone's RAM (`AiChatPage.tsx:2031`) |
+| 8.8 | the network a room is scoped to | **half built on the PC, absent on the phone.** The door is a loopback HTTP/1.1 listener on port 8131 that refuses any non-loopback address (`src-tauri/src/door.rs:15,44`, `crates/kalsa-door/src/lib.rs:4-5`), with an iroh QUIC tunnel that terminates on the same loopback door (`crates/kalsa-iroh/src/lib.rs:1-2`, `src-tauri/src/road.rs`). On the phone's `ux-2026-09-21` branch there is **no client of any kind**: `src/engine/remote/` is absent and the tree has zero hits for websocket, ws://, tailscale or iroh |
 | 8.9 | an id-addressed append, to place a reply beside the message it answers | **absent**: appends are end-of-array only (`AiChatPage.tsx:2511-2526`), there is no insert by id. §2.1's choice to put the answer at the tail with a quotation is therefore the only shape the code supports |
-| 8.10 | a quote field that survives the storage round trip | **absent, and a trap**: the writer spreads unknown fields, but the loader re-whitelists them explicitly (`sanitizeHistoryMessages`, `AiChatPage.tsx:660-830`), so a new field is written and silently dropped on restore unless added there. `sources` is the model to copy (`:713`) |
-| 8.11 | a stable message id | **absent**: ids are unique per session only, seeded from wall-clock, and the restore path repairs collisions by rewriting them (`AiChatPage.tsx:559, 670-673`) |
-| 8.12 | cancellation, which §2.4's stopping rules need | **exists and is reachable**: the send button becomes stop (`AiChatPage.tsx:3664, 4899`), `handleStop` aborts (`:3141`), the signal reaches the engine (`LlamaService.ts:4186`), with a 3 s watchdog for a native completion that never settles (`:3145`) |
-| 8.13 | a phone client for the hub at all | **absent on this branch.** It exists on `remote-brain` (`src/engine/remote/`, 30 files, 16 non-test), and it speaks OpenAI-compatible HTTP + SSE over XHR, which is a *different, earlier* server generation: its SSE parser carries `mtplx_stats` / `mtplx_progress` metadata for the old mac-brain server (`openaiSse.ts:26-30`). The two branches diverged: `git rev-list --left-right --count ux-2026-09-21...remote-brain` = **407 / 189**, multiple merge bases |
-| 8.14 | a server-side store for room messages | **absent**: messages are phone-local AsyncStorage (`ConversationsStore.ts:76`), the hub's chat store is a separate `localStorage` (`chat/src/lib/store.ts:44`), and the remote path persists nothing (`RemoteEngine.ts:458`) |
+| 8.10 | a quote field that survives the storage round trip | **absent, and a trap**: the writer spreads unknown fields, but the loader re-whitelists them explicitly (`sanitizeHistoryMessages`, `AiChatPage.tsx:656-817`), so a new field is written and silently dropped on restore unless added there. `sources` is the model to copy (`:713`) |
+| 8.11 | a stable message id | **absent**: ids are unique per session only, seeded from wall-clock, and the restore path repairs collisions by rewriting them (`AiChatPage.tsx:558, 670-673`) |
+| 8.12 | cancellation, which §2.4's stopping rules need | **exists and is reachable**: the send button becomes stop (`AiChatPage.tsx:3664, 4899`), `handleStop` aborts (`:3141`), the signal reaches the engine (`LlamaService.ts:4186`), with a 3 s watchdog for a native completion that never settles (`:3151`) |
+| 8.13 | a phone client for the hub at all | **absent on this branch.** It exists on `remote-brain` (`src/engine/remote/`, 30 files, 16 non-test), and it speaks OpenAI-compatible HTTP + SSE over XHR, which is a *different, earlier* server generation: its SSE parser carries `mtplx_stats` / `mtplx_progress` metadata for the old mac-brain server (`openaiSse.ts:26-30`). The two branches diverged: `git rev-list --left-right --count ux-2026-09-21...remote-brain` = **408 / 189** at this commit (407 / 189 at its parent `6778713`), multiple merge bases |
+| 8.14 | a server-side store for room messages | **absent**: messages are phone-local AsyncStorage (`ConversationsStore.ts:76`), the hub's chat store is a separate `localStorage` (`chat/src/lib/store.ts:44`), and the remote path persists nothing (`RemoteEngine.ts:458`, **on `remote-brain` only**) |
 | 8.15 | per-person identity and consent | **absent**: the phone's remembered decisions are per-install booleans (`toolToggles.ts:3-5`, `MemoryStore.ts:50`); the hub's identity is per-device (`devices.rs:1`) |
+| 8.16 | the mention: parsing `@Kalsa` as a summon, and the composer control that writes it | **absent**. No mention or `@` parsing exists anywhere, and the message menu exposes only copy, read-aloud and more (`AiChatPage.tsx:5457` ff). Without this row the list admitted a build that cannot call the AI |
+| 8.17 | the mention stored on a message — and equally the marker's state and its link to the answer | **absent, and it inherits 8.10's trap**: a new field is written and silently dropped on restore unless the loader whitelist is extended (`AiChatPage.tsx:656-817`). This row exists because an audit caught §2.1 promising a marker that never disappears while nothing recorded the field that would keep it |
+| 8.18 | the mention in the prompt contract: which message is the question, and a rule so the model never re-parses `@Kalsa` as content | **absent**: the batch is assembled as plain text (`compactor.ts:933`, `AppShell.tsx:6597-6612`) and nothing marks a message as the addressed one. The same rule must also settle what happens when someone types `@Kalsa` literally without pressing anything: one rule, not two |
+| 8.19 | the hub→phone signal reporting when the window edge fell, so the floor's window line has a producer | **absent**, and it depends on §10.4 |
 
 **Consequence, stated plainly.** The room cannot be built on this branch. It is a new object
 type on the hub, a turn policy, a fan-out, an inbound channel, per-person identity, and a
 phone client that does not exist here — and the phone client that does exist, on the other
 branch, targets a server generation the door has already moved past. What this document
 contributes is the phone's face on the hub's design: the floor, the quotation, the window,
-and the states in §6 — all of which can be designed and mocked now, and built when 8.1–8.15
+and the states in §6 — all of which can be designed and mocked now, and built when 8.1–8.19
 are.
 
 ## 9. What this feature will not do
