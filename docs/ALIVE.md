@@ -158,9 +158,9 @@ run, never typed by hand.
   "ref": "refs/tags/kalsa-server-v1.0.0",
   "trigger": "workflow_dispatch with release_tag",
   "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35549848243",
-  "built_at": "<UTC ISO-8601>",
+  "built_at": "2026-09-21T01:16:13Z",
   "reproducible": true,
-  "pack_sha256": "<64 hex>",
+  "pack_sha256": "3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7",
   "artifacts": [
     {
       "platform": "macos-arm64",
@@ -178,8 +178,6 @@ run, never typed by hand.
   ]
 }
 ```
-
-`<UTC ISO-8601>` and `<64 hex>` mark values computed in the run and not reproduced here.
 
 Notes:
 
