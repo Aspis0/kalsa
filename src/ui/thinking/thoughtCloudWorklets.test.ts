@@ -8,7 +8,7 @@
  *
  * because `Easing` was imported from `react-native` instead of
  * `react-native-reanimated`. Fifty timing tests passed while that was true: they
- * cover the pure modules, and the trap lives in the import line.
+ * cover the pure modules, and the trap lived in the import line.
  *
  * This is a source check, not a render test, and it says so: the node jest stack
  * cannot import this component (it pulls in react-native and reanimated), and the
@@ -20,31 +20,40 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const SOURCE = readFileSync(join(__dirname, "ThoughtCloud.tsx"), "utf8");
-const LINES = SOURCE.split("\n");
+
+/**
+ * The whole text of the import statement that ends in `from "<module>";`,
+ * starting at its `import`. Reading the file line by line does not work here:
+ * this file's imports span several lines, and the line that carries the module
+ * name is the closing one.
+ */
+function importFrom(source: string, module: string): string | null {
+  const marker = `from "${module}";`;
+  const end = source.indexOf(marker);
+  if (end < 0) return null;
+  const start = source.lastIndexOf("import", end);
+  return start < 0 ? null : source.slice(start, end + marker.length);
+}
 
 describe("the cloud's animation easings", () => {
   it("takes Easing from react-native-reanimated, where it is a worklet", () => {
-    const reanimatedImport = LINES.find((line) => line.includes('from "react-native-reanimated"'));
-    expect(reanimatedImport).toBeDefined();
-    expect(reanimatedImport).toContain("Easing");
+    const imported = importFrom(SOURCE, "react-native-reanimated");
+    expect(imported).not.toBeNull();
+    expect(imported).toContain("Easing");
   });
 
   it("never takes Easing from react-native, whose easings cannot run on the UI thread", () => {
-    const reactNativeImports = LINES.filter(
-      (line) => line.includes('from "react-native"') && !line.includes("react-native-reanimated"),
-    );
-    expect(reactNativeImports.length).toBeGreaterThan(0);
-    for (const line of reactNativeImports) {
-      expect(line).not.toContain("Easing");
-    }
+    const imported = importFrom(SOURCE, "react-native");
+    expect(imported).not.toBeNull();
+    expect(imported).not.toContain("Easing");
   });
 
   it("hands withTiming only a named easing, never a closure built on the spot", () => {
-    const easings = LINES.filter((line) => line.includes("easing:"));
+    const easings = SOURCE.split("\n").filter((line) => line.includes("easing:"));
     expect(easings.length).toBeGreaterThan(0);
     for (const line of easings) {
-      // An identifier or a member expression. A function literal would start
-      // with `(` or `function` and would crash exactly like the wrong import.
+      // An identifier or a member expression. A function literal starts with `(`
+      // or `function` and would crash exactly like the wrong import did.
       expect(line).toMatch(/easing:\s*[A-Za-z_$][\w$]*(?:\.[\w$]+)*/);
     }
   });

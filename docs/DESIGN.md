@@ -348,8 +348,37 @@ untested, which is itself a finding. So nothing needs replacing yet; the work ad
 file rewritten is my own `design.test.ts` from earlier in the day, because it was written against the
 wrong palette. Any replacement is reported, never a deletion to make a build go green.
 
+**And the pixels must not compile an engine.** The first capture attempt did exactly that: it compiled
+`llama.cpp` — 2661 translation units — to photograph a React layout, and the NDK's `ninja` spawned
+**21 concurrent `clang`** at 43–53 % each, load average 36, because `--max-workers=2` does not reach
+that layer: AGP invokes `ninja -C <dir> <targets>` with **no `-j`**, the bundled ninja reads only
+`NINJA_STATUS` from the environment, and no gradle property bounds it. The CI recipe's
+`CMAKE_BUILD_PARALLEL_LEVEL: "2"` and `NINJAFLAGS: "-j2"` are no-ops for the same reason; CI only
+survives because its runner has four cores. The preview never initialises the engine — `SHELL_PREVIEW`
+returns before `ModelCatalogBoot` — so the C++ build can simply be turned off: pass
+`-PrnllamaBuildFromSource=false` on the command line, because a command-line `-P` outranks
+`android/gradle.properties`. Three claims an earlier version of this paragraph made were false and
+are corrected here: the property is **not** false by default (**`android/gradle.properties:65` sets it
+true**, written by the Expo plugin `plugins/withLlamaFromSource.js`); the package ships **no prebuilt
+engine** (`node_modules/llama.rn/bin/arm64-v8a/` holds only OpenCL and Hexagon blobs — the
+`librnllama*.so` in the tree are outputs of an earlier from-source build); and `-PrnllamaHexagon=false`
+has **zero consumers** in the installed `llama.rn`, so it is decorative. `KALSA_LLAMA_FROM_SOURCE=0`
+throws at prebuild, which means it can only ever turn the source build on. The recipe that works,
+measured: `--console=plain --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a
+-PrnllamaBuildFromSource=false`, **47 s, zero C++ compilers, load peaking at 9 instead of 36** — and an
+APK with no `librnllama*.so` is harmless for a preview, because `RNLlama.loadNative` is called only
+from `RNLlamaModule.install` inside a `try/catch`, and `NativeRNLlama.ts:8` uses the non-throwing
+`TurboModuleRegistry.get`. And the Hexagon landmine stays for anyone who builds the engine:
+`~/.hexagon-sdk` present makes `llama.rn` auto-enable a DSP build that fails for missing QAIC artifacts.
+
 **Verification for every step**: `npx tsc --noEmit`, `npx jest --silent`, emulator screenshots at
-both real viewports. **And the pixel proof must not cost a native build per iteration.** That rule
+both real viewports. **A screenshot needs no C++ build** — see above — and the emulator capture has
+one more requirement worth writing down: Reanimated's animations are checked by the UI runtime, so a
+plain JavaScript easing (React Native's `Easing`) **crashes the app on mount** with "Tried to
+synchronously call a Remote Function". The cloud hit exactly that, and the only reason any screenshot
+exists is that the capture set `transition_animation_scale 0`, which Android reports as reduce-motion;
+that suppresses the three animated paths, so **the rise, the settle and the breathe remain unproven by
+pixels** until a capture runs with motion on. **And the pixel proof must not cost a native build per iteration.** That rule
 exists because it was broken once: step 2's first capture attempt built the **release** APK (which
 the CI harness uses) twice — once for 349x621 and again for 349x325 — because the preview's screen
 height was a **compile-time constant**. Each build ran the NDK with ~8 parallel `clang` jobs and
