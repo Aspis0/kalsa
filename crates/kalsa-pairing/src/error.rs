@@ -102,6 +102,10 @@ pub enum StoreError {
     /// reader refuses a set whose devices share one: one saturation would
     /// cost every pairing the user has, so the refusal is explicit.
     StoreFull,
+    /// The host's own credential could not be minted, so self-enrolment
+    /// wrote nothing. Nothing the owner did caused it; the same answer the
+    /// ceremony gives when entropy is unavailable.
+    Entropy,
     /// The store's own JSON failed to encode or parse.
     Serde(serde_json::Error),
     /// The file violates its own structure: an unknown version, a credential
@@ -125,6 +129,9 @@ impl fmt::Display for StoreError {
                 "credential store: every device id is in use, \
                  so no further device can be paired",
             ),
+            Self::Entropy => {
+                f.write_str("credential store: the operating system would not provide entropy")
+            }
             Self::Serde(e) => write!(f, "credential store: {e}"),
             Self::Corrupt(tag) => write!(f, "credential store is corrupt: {tag}"),
         }
@@ -139,6 +146,7 @@ impl Error for StoreError {
             Self::AlreadyPaired
             | Self::CredentialAlreadyStored
             | Self::StoreFull
+            | Self::Entropy
             | Self::Corrupt(_) => None,
         }
     }

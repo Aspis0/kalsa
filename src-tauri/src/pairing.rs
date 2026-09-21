@@ -27,6 +27,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use kalsa_catalog::PhoneModel;
+use kalsa_pairing::store::DeviceKind;
 use kalsa_pairing::{Pairing, PairingSeal, PhoneDeclaration, StoreError};
 use serde::Serialize;
 
@@ -144,12 +145,15 @@ pub(crate) struct PairingDto {
     door_port: Option<u16>,
 }
 
-/// One stored device, as the page may see it: the store's id and label, and
-/// the capability sentence the page has always shown for a phone.
+/// One stored device, as the page may see it: the store's id and label, what
+/// it is, and the capability sentence the page has always shown for a phone.
+/// A host carries no capability sentence — it has no phone fields — and the
+/// row's rendering of that is a later commit's decision.
 #[derive(Serialize)]
 pub(crate) struct PairedDeviceDto {
     id: u32,
     label: String,
+    kind: &'static str,
     phone: String,
 }
 
@@ -165,29 +169,29 @@ impl Desk {
     /// is the paired state: the owner sees who this computer works with
     /// without any ceremony running.
     pub(crate) fn new(file: PathBuf) -> Self {
-        let state = match kalsa_pairing::store::load_with_delivery(&file) {
-            Ok((handshake, delivery)) => {
-                // Record 0 alone loading is not the store being readable:
-                // the door answers to the whole SET, and this desk's verdict
-                // must be the door's. A set with an un-realizable record
-                // stops the door on every poll, so the panel says the store
-                // is unavailable — the one state whose escape hatch is open
-                // — instead of promising a pairing the door refuses.
-                if kalsa_pairing::store::load_devices(&file).is_err() {
-                    State::StoreUnavailable
-                } else {
+        // The WHOLE set decides, and only a phone counts as a pairing. A
+        // host is this machine's own record, not a phone it is paired with:
+        // a store holding only a host is an unpaired computer, and the
+        // square still appears. The first record alone cannot say whether
+        // the set holds a phone, so the kind-bearing set reader decides.
+        let state = match kalsa_pairing::store::load_devices(&file) {
+            Ok(devices) => match devices
+                .iter()
+                .find(|device| device.kind == DeviceKind::Phone)
+                .and_then(|device| {
+                    device
+                        .handshake
+                        .phone
+                        .map(|phone| (phone, device.delivery.clone()))
+                }) {
+                Some((phone, delivery)) => {
                     let pending = delivery
                         .and_then(PendingDelivery::from_store)
                         .filter(|pending| SystemTime::now() < pending.expires_at);
-                    State::Paired {
-                        phone: handshake.phone,
-                        pending,
-                    }
+                    State::Paired { phone, pending }
                 }
-            }
-            Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-                State::Idle
-            }
+                None => State::Idle,
+            },
             Err(_) => State::StoreUnavailable,
         };
         Self {
@@ -206,11 +210,15 @@ impl Desk {
         // published, but this lock also keeps the in-memory state and the
         // catalog's observation from crossing the owner's decision.
         let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        match kalsa_pairing::store::load(&self.file) {
-            Ok(handshake) => Ok(Some(handshake.phone)),
-            Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(error),
-        }
+        // The catalog is handed a PHONE or nothing. The host is skipped, not
+        // converted: a zero-weight guest would be a phone this computer
+        // invented, and inventing one is the thing this function must never
+        // do. The host has no phone fields to return.
+        let devices = kalsa_pairing::store::load_devices(&self.file)?;
+        Ok(devices.into_iter().find_map(|device| match device.kind {
+            DeviceKind::Phone => device.handshake.phone,
+            DeviceKind::Host => None,
+        }))
     }
 
     /// Stop pairing immediately when the inference server stops. The listener
@@ -291,7 +299,10 @@ impl Desk {
             .map(|device| PairedDeviceDto {
                 id: device.id,
                 label: device.label,
-                phone: phone_label(device.handshake.phone),
+                kind: device.kind.word(),
+                // The capability sentence is a phone's; a host has none to
+                // give, and the row's rendering is a later commit's decision.
+                phone: device.handshake.phone.map_or_else(String::new, phone_label),
             })
             .collect()
     }
@@ -422,8 +433,15 @@ impl Desk {
             delivery,
         ) {
             Ok(_) => {
+                let Some(phone) = handshake.phone else {
+                    // A completed ceremony always declares a phone, and a
+                    // host never completes one; the impossible is answered
+                    // as a save failure, not a panic on the serving thread.
+                    *state = State::CouldNotSave;
+                    return None;
+                };
                 *state = State::Paired {
-                    phone: handshake.phone,
+                    phone,
                     pending: Some(pending),
                 };
                 Some(seal)
@@ -1064,5 +1082,64 @@ mod tests {
         assert_eq!(dto["state"], "failed");
         assert_eq!(dto["failure"], "service-unavailable");
         assert_eq!(dto["qr_svg"], serde_json::Value::Null);
+    }
+
+    /// A host is the machine's own record, not a phone it is paired with:
+    /// the desk stays Idle, the square still appears, and the catalog gets
+    /// no phone model — never a zero-weight guest.
+    #[test]
+    fn a_host_alone_is_not_a_pairing() {
+        let file = scratch("host-only");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
+        assert!(
+            desk.phone().unwrap().is_none(),
+            "the host is no phone to hand the catalog"
+        );
+
+        let dto =
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now()))
+                .unwrap();
+        assert_eq!(dto["state"], "waiting", "the square still appears");
+        assert!(dto["qr_svg"].as_str().is_some_and(|qr| !qr.is_empty()));
+    }
+
+    /// A host and a phone: the PHONE decides the state, and the catalog gets
+    /// the phone's model. The host rides in the device list with its kind.
+    #[test]
+    fn the_phone_still_decides_when_a_host_is_present() {
+        let file = scratch("host-and-phone");
+        // The host is enrolled first, as a fresh install would: id 0.
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now)
+            .expect("the phone pairs beside the host");
+
+        // A fresh desk reads the store back: Paired, with the phone's model.
+        let desk = Desk::new(file.clone());
+        assert!(matches!(*desk.state.lock().unwrap(), State::Paired { .. }));
+        let phone = desk.phone().unwrap().expect("the phone is still the phone");
+        assert_eq!(phone.weights_bytes, 2_000_000_000);
+
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert_eq!(dto["devices"][0]["kind"], "host");
+        assert_eq!(dto["devices"][1]["kind"], "phone");
+    }
+
+    /// Forgetting the host from a host-only store leaves the desk where it
+    /// already was — Idle — because a host never made it Paired.
+    #[test]
+    fn forgetting_the_host_leaves_the_desk_idle() {
+        let file = scratch("forget-host-desk");
+        let host = kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
+
+        desk.forget_device(host.id).unwrap();
+        assert!(!file.exists(), "the host was the whole store");
+        assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
     }
 }

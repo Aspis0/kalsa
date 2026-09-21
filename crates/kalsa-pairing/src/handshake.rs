@@ -56,17 +56,33 @@ impl fmt::Debug for Credential {
 /// The handshake result: a paired phone and its credential. `Clone` because
 /// the store hands back what it was given; the credential hides inside, and
 /// no formatting of a `Handshake` ever prints it.
+///
+/// A host — this machine's own record — also has a credential, and no phone
+/// at all, so `phone` is `None` for it. The ceremony never produces one.
 #[derive(Clone)]
 pub struct Handshake {
     /// The phone, as it declared itself. Optional fields stay optional: the
-    /// rest of the app branches on what the phone actually said.
-    pub phone: PhoneModel,
+    /// rest of the app branches on what the phone actually said. `None` for
+    /// the host, which declared nothing because it is not a phone.
+    pub phone: Option<PhoneModel>,
     credential: Credential,
 }
 
 impl Handshake {
     pub(crate) fn new(phone: PhoneModel, credential: Credential) -> Self {
-        Self { phone, credential }
+        Self {
+            phone: Some(phone),
+            credential,
+        }
+    }
+
+    /// The host's own handshake: this machine's credential and no phone
+    /// fields. Built by the store's self-enrolment, never by a ceremony.
+    pub(crate) fn host(credential: Credential) -> Self {
+        Self {
+            phone: None,
+            credential,
+        }
     }
 
     /// The credential's rendering — the one delivery path: sent to the phone

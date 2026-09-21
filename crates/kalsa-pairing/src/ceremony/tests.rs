@@ -182,8 +182,11 @@ fn a_valid_proof_completes_the_pairing() {
     let (handshake, seal) = session
         .complete(declaration, start + Duration::from_secs(2))
         .unwrap();
-    assert_eq!(handshake.phone.weights_bytes, 2_200_000_000);
-    let parameters = handshake.phone.parameters.unwrap();
+    let phone = handshake
+        .phone
+        .expect("a completed ceremony declares a phone");
+    assert_eq!(phone.weights_bytes, 2_200_000_000);
+    let parameters = phone.parameters.unwrap();
     assert!(parameters.is_mixture());
     assert_eq!(parameters.total().count(), 7_600_000_000);
     assert!(matches!(session, Pairing::Paired));
@@ -297,7 +300,13 @@ fn the_honest_node_id_completes_the_pairing() {
     let (handshake, _seal) = session
         .complete(honest, start + Duration::from_secs(2))
         .unwrap();
-    assert_eq!(handshake.phone.weights_bytes, 2_200_000_000);
+    assert_eq!(
+        handshake
+            .phone
+            .expect("a completed ceremony declares a phone")
+            .weights_bytes,
+        2_200_000_000
+    );
     assert!(matches!(session, Pairing::Paired));
 }
 
@@ -309,10 +318,13 @@ fn a_declining_phone_is_taken_at_its_word() {
     let (handshake, _seal) = session
         .complete(declaration, start + Duration::from_secs(2))
         .unwrap();
-    assert!(handshake.phone.parameters.is_none());
-    assert!(handshake.phone.measured_tokens_per_second.is_none());
-    assert!(handshake.phone.battery_powered.is_none());
-    assert_eq!(handshake.phone.weights_bytes, 2_200_000_000);
+    let phone = handshake
+        .phone
+        .expect("a completed ceremony declares a phone");
+    assert!(phone.parameters.is_none());
+    assert!(phone.measured_tokens_per_second.is_none());
+    assert!(phone.battery_powered.is_none());
+    assert_eq!(phone.weights_bytes, 2_200_000_000);
     assert!(matches!(session, Pairing::Paired));
 }
 

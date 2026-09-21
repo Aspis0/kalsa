@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use kalsa_catalog::{Parameters, PhoneModel};
 
 use super::{
-    add_device, clear_delivery, forget, forget_device, load, load_devices, load_with_delivery,
-    persist, persist_with_delivery, replace, temp_path, Delivery, StoreError,
+    add_device, clear_delivery, enrol_host, forget, forget_device, load, load_devices,
+    load_with_delivery, persist, persist_with_delivery, replace, temp_path, Delivery, DeviceKind,
+    StoreError, HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -59,8 +60,9 @@ fn a_v1_file_loads_intact_and_is_not_rewritten_by_reading() {
     // always answered the file.
     let loaded = load(&path).unwrap();
     assert_eq!(loaded.credential_hex(), credential);
-    assert_eq!(loaded.phone.weights_bytes, 2_200_000_000);
-    assert_eq!(loaded.phone.parameters.unwrap().total().count(), 7_600_000_000);
+    let phone = loaded.phone.expect("a stored phone lives on");
+    assert_eq!(phone.weights_bytes, 2_200_000_000);
+    assert_eq!(phone.parameters.unwrap().total().count(), 7_600_000_000);
 
     // The set view: one device, with the id and label the app has always
     // given the phone.
@@ -274,13 +276,14 @@ fn the_handshake_survives_the_store() {
     let loaded = load(&path).unwrap();
 
     assert_eq!(loaded.credential_hex(), credential_hex);
-    assert_eq!(loaded.phone.weights_bytes, 2_200_000_000);
-    let parameters = loaded.phone.parameters.unwrap();
+    let phone = loaded.phone.expect("a stored phone lives on");
+    assert_eq!(phone.weights_bytes, 2_200_000_000);
+    let parameters = phone.parameters.unwrap();
     assert!(parameters.is_mixture());
     assert_eq!(parameters.total().count(), 7_600_000_000);
     assert_eq!(parameters.active().count(), 2_400_000_000);
-    assert_eq!(loaded.phone.measured_tokens_per_second, Some(9.5));
-    assert_eq!(loaded.phone.battery_powered, Some(true));
+    assert_eq!(phone.measured_tokens_per_second, Some(9.5));
+    assert_eq!(phone.battery_powered, Some(true));
     fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -303,10 +306,11 @@ fn a_phone_that_declined_its_parameters_stays_declined() {
     let loaded = load(&path).unwrap();
 
     // Absent stays absent: not a zero, not a default, not a guess.
-    assert!(loaded.phone.parameters.is_none());
-    assert!(loaded.phone.measured_tokens_per_second.is_none());
-    assert!(loaded.phone.battery_powered.is_none());
-    assert_eq!(loaded.phone.weights_bytes, 2_200_000_000);
+    let phone = loaded.phone.expect("a stored phone lives on");
+    assert!(phone.parameters.is_none());
+    assert!(phone.measured_tokens_per_second.is_none());
+    assert!(phone.battery_powered.is_none());
+    assert_eq!(phone.weights_bytes, 2_200_000_000);
     fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -491,6 +495,156 @@ fn a_corrupt_store_is_an_error_not_a_crash() {
             matches!(load(&path), Err(StoreError::Corrupt(_))),
             "expected Corrupt for {template}"
         );
+        fs::remove_file(&path).unwrap();
+    }
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A host round-trips: a credential, an id, a label — and no phone fields,
+/// on disk or after `realize`.
+#[test]
+fn a_host_round_trips_without_phone_fields() {
+    let dir = scratch("host-roundtrip");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+    assert_eq!(host.id, 0);
+    assert_eq!(host.label, HOST_LABEL);
+    assert_eq!(host.kind, DeviceKind::Host);
+    assert!(host.handshake.phone.is_none());
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices[0].kind, DeviceKind::Host);
+    assert!(devices[0].handshake.phone.is_none());
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        host.handshake.credential_hex()
+    );
+
+    // The file itself: a credential and no phone field at all.
+    let stored: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert!(stored["devices"][0]["credential_hex"].is_string());
+    assert!(
+        stored["devices"][0]["phone"].is_null(),
+        "a host has no phone fields to write"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Every record written before the kind existed reads back as a phone: the
+/// v2 file the previous build wrote, and the v1 file every install has.
+#[test]
+fn a_record_written_before_kinds_reads_back_as_a_phone() {
+    let dir = scratch("kind-default");
+    let credential = "12".repeat(32);
+
+    // Version 2, no `kind` key — the previous build's shape, unchanged.
+    let v2 = dir.join("v2.json");
+    fs::write(
+        &v2,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"Paired phone","credential_hex":"{credential}","phone":{{"weights_bytes":2200000000,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+    let devices = load_devices(&v2).unwrap();
+    assert_eq!(devices[0].kind, DeviceKind::Phone);
+    assert_eq!(
+        devices[0].handshake.phone.unwrap().weights_bytes,
+        2_200_000_000
+    );
+
+    // Version 1, the single-device file, lifted by the same reader.
+    let v1 = dir.join("v1.json");
+    write_v1_file(&v1, &credential);
+    let devices = load_devices(&v1).unwrap();
+    assert_eq!(devices[0].kind, DeviceKind::Phone);
+    assert!(devices[0].handshake.phone.is_some());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn enrolling_the_host_twice_answers_with_the_same_host() {
+    let dir = scratch("host-idempotent");
+    let path = dir.join("credential.json");
+    let first = enrol_host(&path).unwrap();
+    let second = enrol_host(&path).unwrap();
+    assert_eq!(second.id, first.id);
+    assert_eq!(second.kind, DeviceKind::Host);
+    assert_eq!(
+        second.handshake.credential_hex(),
+        first.handshake.credential_hex()
+    );
+    assert_eq!(
+        load_devices(&path).unwrap().len(),
+        1,
+        "one host, one record"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_hosts_id_follows_the_never_re_densify_rule() {
+    let dir = scratch("host-ids");
+
+    // An empty store: the host is device 0.
+    let empty = dir.join("empty.json");
+    assert_eq!(enrol_host(&empty).unwrap().id, 0);
+
+    // A v1 phone already holds id 0; the host takes the next id and the
+    // phone keeps its own, credential and all.
+    let path = dir.join("credential.json");
+    let credential = "ab".repeat(32);
+    write_v1_file(&path, &credential);
+    assert_eq!(enrol_host(&path).unwrap().id, 1);
+    assert_eq!(
+        enrol_host(&path).unwrap().id,
+        1,
+        "enrolling again re-densifies nothing"
+    );
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!((devices[0].id, devices[1].id), (0, 1));
+    assert_eq!(devices[0].kind, DeviceKind::Phone);
+    assert_eq!(devices[0].handshake.credential_hex(), credential);
+    assert_eq!(devices[1].kind, DeviceKind::Host);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Forgetting the host from a host-only store leaves no file and no
+/// credential — the postcondition forgetting a phone leaves.
+#[test]
+fn forgetting_the_host_empties_a_host_only_store() {
+    let dir = scratch("forget-host");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+    forget_device(&path, host.id).unwrap();
+    assert!(!path.exists(), "the last device leaving empties the store");
+    assert!(load_devices(&path).unwrap().is_empty());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The kind and the fields must agree: a host with phone fields and a phone
+/// with none are both corrupt, never silently repaired into a phone.
+#[test]
+fn a_kind_that_disagrees_with_its_fields_is_corrupt() {
+    let dir = scratch("kind-mismatch");
+    let credential = "34".repeat(32);
+    let fields = r#"{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}"#;
+    let cases = [
+        // A host carrying phone fields.
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"x","kind":"Host","credential_hex":"{credential}","phone":{fields}}}]}}"#
+        ),
+        // A phone that declares no phone fields.
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"x","kind":"Phone","credential_hex":"{credential}"}}]}}"#
+        ),
+    ];
+    for json in cases {
+        let path = dir.join("credential.json");
+        fs::write(&path, json).unwrap();
+        assert!(matches!(load_devices(&path), Err(StoreError::Corrupt(_))));
         fs::remove_file(&path).unwrap();
     }
     fs::remove_dir_all(&dir).unwrap();

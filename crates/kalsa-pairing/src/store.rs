@@ -39,6 +39,17 @@
 //! the v1 bytes stay exactly where they are until the next legitimate
 //! write publishes the set as v2.
 //!
+//! A record carries a [`DeviceKind`]. A phone is a pairing result and holds
+//! the phone's fields; a host is this machine's own record — a credential,
+//! an id, a label, and no phone fields at all. The reader stays at version
+//! 2: the kind is defaulted to `Phone` on read, so every file written
+//! before the kind existed (v1 and v2 alike) reads back unchanged, and an
+//! older build ignores the added field. A store that holds a HOST is a
+//! different matter, and it is fine that it is: that record has no `phone`
+//! field, so the old build's serde refuses the whole set — it refuses,
+//! deletes nothing, and pairing returns when this build runs again, exactly
+//! the behaviour the v1/v2 probe already has.
+//!
 //! What an older build does with a v2 file is measured, not guessed. The
 //! old build deserializes its whole single-device record BEFORE it ever
 //! reaches its version check, and a set file has no top-level
@@ -87,6 +98,32 @@ const V1_VERSION: u8 = 1;
 /// The label a device gets when its caller does not name one: the name the
 /// app has always shown for the phone it was paired with.
 const DEFAULT_LABEL: &str = "Paired phone";
+/// The label the host gives its own record. Neutral on purpose: the hostname
+/// is what the owner recognises, but on a Mac it usually contains their own
+/// name, and labels cross into the page.
+pub const HOST_LABEL: &str = "This computer";
+
+/// What a stored device is. A phone is a pairing result; a host is the
+/// machine this store lives on, holding its own credential and no phone
+/// fields. Defaulted to `Phone` so a record written before kinds existed
+/// reads back as the phone it was.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeviceKind {
+    #[default]
+    Phone,
+    Host,
+}
+
+impl DeviceKind {
+    /// The page's word for the kind, lowercase like the rest of the DTO's
+    /// vocabulary.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Phone => "phone",
+            Self::Host => "host",
+        }
+    }
+}
 
 /// A sealed completion kept beside the credential until the phone confirms it
 /// received the response. It is private-by-construction: callers can create
@@ -155,8 +192,17 @@ struct StoredV2 {
 struct StoredDeviceRecord {
     id: u32,
     label: String,
+    /// Absent in every file written before kinds existed; serde's `Default`
+    /// reads those records as phones. This is the whole kind migration — no
+    /// version branch, because the reader stays at version 2.
+    #[serde(default)]
+    kind: DeviceKind,
     credential_hex: String,
-    phone: PhoneFields,
+    /// The phone's fields. A host has none, and the field is then absent
+    /// from the file rather than a placeholder; a phone record always
+    /// carries them, as it always did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    phone: Option<PhoneFields>,
     #[serde(default)]
     delivery: Option<Delivery>,
 }
@@ -174,11 +220,15 @@ struct StoredHandshake {
 }
 
 /// One paired device, as the store hands it back: its stable id, the label
-/// the owner sees, and the handshake it paired with.
+/// the owner sees, what it is, and the handshake it paired with — the
+/// credential alone when the device is the host.
 pub struct StoredDevice {
     pub id: u32,
     pub label: String,
+    pub kind: DeviceKind,
     pub handshake: Handshake,
+    /// The sealed response still awaiting this device's confirmation, if any.
+    pub delivery: Option<Delivery>,
 }
 
 /// Write the handshake result as the store's first device. The parent
@@ -250,8 +300,9 @@ fn replace_record(
         // the seat does. How a many-device desk scopes a replacement is
         // that job's decision, not this function's.
         Some(record) => {
+            record.kind = kind_of(handshake);
             record.credential_hex = handshake.credential_hex();
-            record.phone = PhoneFields::of(handshake.phone);
+            record.phone = handshake.phone.map(PhoneFields::of);
             record.delivery = delivery;
         }
         None => records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery)),
@@ -268,9 +319,19 @@ fn record_from(
     StoredDeviceRecord {
         id,
         label,
+        kind: kind_of(handshake),
         credential_hex: handshake.credential_hex(),
-        phone: PhoneFields::of(handshake.phone),
+        phone: handshake.phone.map(PhoneFields::of),
         delivery,
+    }
+}
+
+/// A handshake without a phone is the host's: the only handshake with no
+/// phone is the one [`Handshake::host`] builds.
+fn kind_of(handshake: &Handshake) -> DeviceKind {
+    match handshake.phone {
+        Some(_) => DeviceKind::Phone,
+        None => DeviceKind::Host,
     }
 }
 
@@ -322,20 +383,67 @@ fn add_device_record(
     {
         return Err(StoreError::CredentialAlreadyStored);
     }
-    let id = match records.iter().map(|record| record.id).max() {
-        None => 0,
-        // A silent saturation at u32::MAX would mint a DUPLICATE id, and the
-        // reader refuses a set whose devices share one — one saturation
-        // would cost every pairing the user has. Refusing this one add is
-        // the cheap direction.
-        Some(highest) => highest.checked_add(1).ok_or(StoreError::StoreFull)?,
-    };
-    records.push(record_from(handshake, id, label.to_owned(), delivery));
+    let id = next_id(&records)?;
+    records.push(record_from(
+        handshake,
+        id,
+        label.to_owned(),
+        delivery.clone(),
+    ));
     write_records(&records, path)?;
     Ok(StoredDevice {
         id,
         label: label.to_owned(),
+        kind: kind_of(handshake),
         handshake: handshake.clone(),
+        delivery,
+    })
+}
+
+/// One above every id in the set. Ids are minted once and never reused, so a
+/// forgotten device's id is never handed to a different device later.
+fn next_id(records: &[StoredDeviceRecord]) -> Result<u32, StoreError> {
+    match records.iter().map(|record| record.id).max() {
+        None => Ok(0),
+        // A silent saturation at u32::MAX would mint a DUPLICATE id, and the
+        // reader refuses a set whose devices share one — one saturation
+        // would cost every pairing the user has. Refusing this one add is
+        // the cheap direction.
+        Some(highest) => highest.checked_add(1).ok_or(StoreError::StoreFull),
+    }
+}
+
+/// Mints and persists this machine's own record: its credential, its label,
+/// its seat in the same store as the phones. The credential comes from the
+/// pairing credential's one generator and is written by the same atomic,
+/// owner-only publication every other credential uses — it lives in this
+/// file, in the `credential_hex` field of its record, and nowhere else.
+///
+/// Idempotent: a store that already holds a host answers with that host and
+/// writes nothing, because the caller may run this on every launch. The
+/// first host takes the id the set's rule mints — 0 in an empty store, one
+/// above the highest id when a phone is already there — and that id never
+/// changes. A host is not a pairing: it displaces nobody and adds no phone
+/// fields.
+pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    if let Some(existing) = records
+        .iter()
+        .find(|record| record.kind == DeviceKind::Host)
+    {
+        return realize(existing.clone()).map(|(device, _)| device);
+    }
+    let credential = Credential::generate().map_err(|_| StoreError::Entropy)?;
+    let handshake = Handshake::host(credential);
+    let id = next_id(&records)?;
+    records.push(record_from(&handshake, id, HOST_LABEL.to_owned(), None));
+    write_records(&records, path)?;
+    Ok(StoredDevice {
+        id,
+        label: HOST_LABEL.to_owned(),
+        kind: DeviceKind::Host,
+        handshake,
+        delivery: None,
     })
 }
 
@@ -584,7 +692,9 @@ pub fn load_with_delivery(path: &Path) -> Result<(Handshake, Option<Delivery>), 
 
 /// Every paired device, oldest first — a migrated v1 file reads back as its
 /// one device. An absent file is an empty set, not an error: that is the
-/// same "unpaired" the single-device readers report as not-found.
+/// same "unpaired" the single-device readers report as not-found. Every
+/// device carries its retained delivery, so a reader that must find the
+/// phone in a set can also find what the phone still awaits.
 ///
 /// Every record is realized: one bad record fails the whole set, unlike
 /// [`load_with_delivery`], which answers from the first record alone and
@@ -613,10 +723,25 @@ fn empty_store() -> StoreError {
 fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>), StoreError> {
     let credential = Credential::from_hex(&record.credential_hex)
         .ok_or(StoreError::Corrupt("credential is not 64 hex characters"))?;
-    let phone = record
-        .phone
-        .into_phone()
-        .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?;
+    // The kind decides which fields must be there, and the two never mix: a
+    // phone without its fields and a host with them are both corrupt, not
+    // silently repaired.
+    let phone = match (record.kind, record.phone) {
+        (DeviceKind::Phone, Some(fields)) => Some(
+            fields
+                .into_phone()
+                .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?,
+        ),
+        (DeviceKind::Phone, None) => {
+            return Err(StoreError::Corrupt(
+                "a phone record carries no phone fields",
+            ))
+        }
+        (DeviceKind::Host, None) => None,
+        (DeviceKind::Host, Some(_)) => {
+            return Err(StoreError::Corrupt("a host record carries phone fields"))
+        }
+    };
     if record
         .delivery
         .as_ref()
@@ -624,11 +749,19 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
     {
         return Err(StoreError::Corrupt("stored delivery is invalid"));
     }
+    // What a host gets: its credential and nothing a phone would have. What
+    // a phone keeps getting: its declaration, taken as given.
+    let handshake = match phone {
+        Some(phone) => Handshake::new(phone, credential),
+        None => Handshake::host(credential),
+    };
     Ok((
         StoredDevice {
             id: record.id,
             label: record.label,
-            handshake: Handshake::new(phone, credential),
+            kind: record.kind,
+            handshake,
+            delivery: record.delivery.clone(),
         },
         record.delivery,
     ))
@@ -653,8 +786,9 @@ fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
             vec![StoredDeviceRecord {
                 id: 0,
                 label: DEFAULT_LABEL.to_owned(),
+                kind: DeviceKind::Phone,
                 credential_hex: stored.credential_hex,
-                phone: stored.phone,
+                phone: Some(stored.phone),
                 delivery: stored.delivery,
             }]
         }
