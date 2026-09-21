@@ -1,0 +1,318 @@
+# PLAN — the disk tier, version 2
+
+Version 1 was hostile-audited by the Reviewer (`zcode-acp/builtin:zai-coding-plan\GLM-5.3-Flash`,
+thinking high, 2026-09-21) against the standard "fit to become code". Verdict: **FIT CON
+CORREZIONI**. Every correction is applied below and listed in §8, so the round stays auditable.
+Two of them change the shape rather than the wording: the price of `--swa-full` (§2), and the
+reason the identity cannot ride in the checkpoint appendix (§2), which v1 overclaimed.
+
+The disk tier stops being deferred. Owner decision, 2026-09-21: build it now. This document
+replaces §5 of `PLAN-CHAT-ON-DISK.md`, whose precondition list is still the source for what must
+be true before the tier ships.
+
+Nothing here goes upstream: no PR, issue, comment, review, patch or discussion.
+
+## 1. What the tier is
+
+**Isolation is per device.** A device holds a slot; a slot holds one chat's KV cache in RAM.
+Several chats per device live on disk, each under its own id, and are recalled on demand:
+switching chat is a **save** of the current chat out of the device's slot and a **restore** of
+the target chat into the same slot. Two chats of one device share a slot and a namespace; they
+overwrite each other's prefix in that slot, which is why only one is resident and why the switch
+is explicit.
+
+Two mechanisms can make a switch warm, and they are not the same one:
+
+- the **RAM prompt cache** — a global LRU of conversation states, keyed by `cache_salt`
+  (`tools/server/server-task.cpp:1811-1813`), which is what made the shape run's switch-back
+  cheap;
+- the **save/restore file round-trip** — what this tier adds, and what the paging spike measured
+  as a no-op without `--swa-full`.
+
+The tier exists for exactly what RAM cannot do: surviving a restart, surviving
+`--sleep-idle-seconds` (the app ships **300** today, `crates/kalsa-launch/src/args.rs:70`), and
+holding more chats than the RAM prompt cache can.
+
+**It is not** cross-device warming, per-device encryption, or a backup story. §6 says what is
+out and why, so nobody re-derives these as one-liners.
+
+## 2. What reconnaissance settled
+
+Engine paths are relative to `/Users/marco/Projects/kalsallama` @ `5c96b18dd`; app paths to
+`/Users/marco/Projects/kalsa-brain` @ `295200c`. Every line below was opened, not remembered.
+
+- **The restore drops the namespace.** `slot->prompt.clear()` at `tools/server/server-context.cpp:2879`,
+  before `slot->prompt.tokens = std::move(restored)` at `:2880`, with no re-stamp between.
+  `server_prompt::clear()` clears `cache_salt` (`tools/server/server-task.h:577-581`). The
+  device's next request then mismatches at `:3432` and `slot.prompt_clear()` at `:3434`
+  destroys the state just restored. The shift had the same hole and was fixed by `5c96b18dd` at
+  `:3214`; the commit body leaves the restore open.
+- **A coder must not think an earlier check protects this.** There *is* a namespace check before
+  the wipe — at `:1587-1590` — but it *skips* the slot instead of wiping it, and it is bypassed
+  from both sides: the door pins the slot (`:4648-4651` sets `task.id_slot`, and the picker
+  returns the pinned slot at `:1564-1568`), and the LRU fallback (`:1633-1649`) does not check
+  the salt at all. The request reaches `:3432-3434` either way.
+- **The salt does not reach the slot routes.** `slot_action` carries `{id_slot, filename, filepath}`
+  and nothing else (`tools/server/server-task.h:167-172`). `get_cache_salt` is *defined* at
+  `:4517`; its single read is `:4592` inside `handle_completions_impl` (`:4579`), assigned at
+  `:4645`. `post_slots` (`:5099-5138`) never reads it.
+- **`post_slots` already validates one header against the URL slot** — `get_slot_from_header`
+  at `:5118-5123` refuses a mismatch. The salt header follows an existing pattern.
+- **The appendix is conditional by construction, and `--swa-full` does not rescue it.**
+  `save_slot_checkpoints` returns 0 bytes when the slot has no checkpoints (`:2486-2487`), and
+  checkpoints are gated by `n_ctx_checkpoints > 0` (`:3714`), by COMPLETION-only tasks
+  (`:3717`), by `pos_min >= 0` (`:3871-3872`) and by `!has_mtmd` (`:3876`); a legacy file has no
+  appendix at all (`:2550`). Under `--swa-full`, `n_swa = 0` (`:1209`) drops only the SWA term
+  of `do_checkpoint`'s disjunct `(RM_TYPE_FULL || RM_TYPE_RS || n_swa > 0)` (`:3724-3727`) — the
+  FULL term is not excluded a priori, and this fork's target model is not named in this document.
+  **Therefore: the identity cannot ride in the appendix, because the appendix may not exist —
+  not because `--swa-full` guarantees its absence.**
+- **`--swa-full` has a price, and it is large.** `size_swa = GGML_PAD(min(size_base, n_swa +
+  n_ubatch), 256)` (`src/llama-kv-cache-iswa.cpp:84`), overridden to `size_base` by `swa_full`
+  (`:91`), and that value drives the SWA cache allocation (`:109`, `:113`). The committed runs
+  print **2560 SWA cells in every shape** while the non-SWA cache is the pool divided per slot
+  (`dev/results/multi-device-shape/*/memory.txt`). At the app's current single-slot 64k launch
+  that is 2560 → 65536 cells, **25.6×**, i.e. ~1.4 GiB of SWA KV for that one slot against
+  55.78 MiB today. At four slots on a 16k pool it is 2560 → 4096, **1.6×**. The figure is
+  *derived from committed cells, not measured*: the memory arithmetic must price it before any
+  window per device is promised.
+- **The two committed runs that "disagree" measure different mechanisms.** The paging spike
+  exercised the save/restore route (`n_restored=613`, then `cached=0`); the shape run's cheap
+  switch-back at ~2k was the RAM prompt cache restoring 1862 of 1867 tokens
+  (`docs/MULTI-DEVICE-SHAPE.md:149`). They answer different questions, and the tier's question
+  is the first one.
+- **The door already strips and injects.** The client's `X-Kalsa-Slot` and `X-Kalsa-Cache-Salt`
+  are recognised and discarded (`crates/kalsa-door/src/request.rs:174-185`), and the door writes
+  its own into the sealed head, the only path to the wire (`:55-62`). `/slots/*` is refused
+  after authentication and **before any lease** (`crates/kalsa-door/src/proxy.rs:119-131`).
+- **The salt is a labelled hash of the device credential.** `CACHE_SALT_LABEL` and the one
+  labelled hash are at `crates/kalsa-door/src/devices.rs:34`, `:88`, `:191`; the credential is
+  persisted in `pairing.json`, so the salt is stable across restarts and changes only when the
+  credential does — a re-pair.
+- **The door's lease is not an exclusion.** `leases: HashMap<u32, u32>` is a refcount for
+  pruning (`crates/kalsa-door/src/slots.rs:56`, `:170-176`); several requests of one device hold
+  the same slot at once. The nearest atomic check-then-write is `revocation_gate()`
+  (`:108-116`), taken around `{holds; seal; write}` in `proxy.rs:211-226`. The device→slot map is
+  `assigned: HashMap<DeviceId, u32>` at `slots.rs:51`.
+- **The engine defers one action while the slot is busy** — save at `server-context.cpp:2768-2771`,
+  restore at `:2842-2845` — so actions to one slot are serialised in arrival order. It does not
+  serialise a *pair*.
+- **A failed restore empties the slot.** The catch at `:2884-2889` calls `slot->prompt_clear()`.
+  This is why T3 must re-restore the previous chat rather than leave the user with a dead slot.
+- **A freed seat is already reusable without a relaunch** (`slots.rs:239-268`, `:308-323`); the
+  launched count does not change. This closes the lifecycle question in `PLAN-CHAT-ON-DISK.md` §4.
+- **No engine generation and no residents map exist** — checked across every `.rs`. The
+  invalidation anchors are `Residency::forget()` (`crates/kalsa-supervisor/src/supervisor.rs:245-252`),
+  the release/reload event (`crates/kalsa-supervisor/src/child.rs:379-383`), and — not used by
+  v1 — the supervisor's exit detection (`crates/kalsa-supervisor/src/supervisor.rs:299-303`),
+  which is the only thing that fires when the engine **crashes** and never announces a release.
+  It detects and moves the state to `Failed`; it does not restart.
+- **The app renders none of the flags this tier needs.** The whole `argv()` function
+  (`crates/kalsa-launch/src/argv.rs`) emits no `--slot-save-path`, no `--swa-full`, no
+  `--ctx-checkpoints`. The last one matters: the default is **32** (`common/common.h:630`), and
+  the handoff records that default growing one chat's file to roughly 2.7 GB.
+- **The panel's live window number is the pool, not the slot.** `chat/src/lib/chat.ts:117-140`
+  reads `n_ctx` and never `n_ctx_slot`, so with N > 1 the page shows a number no device has.
+
+## 3. Who owns identity
+
+**The door, by construction; and the engine stamps the namespace.**
+
+- The engine must never accept a device-chosen filename. The door builds it, because the door
+  already owns the device→slot map, already strips the client's slot and salt, and already
+  refuses `/slots/*` to guests.
+- The engine must put the restored slot back into the caller's namespace. Only the engine can,
+  and without it the restore is dead on arrival. This is the blocking change and it is small.
+- **The name does not carry the salt, and must not.** The salt is a function of the credential;
+  a re-pair changes it, and a name carrying it would turn a re-pair into silent data loss. The
+  name carries the device id, which is what the app's pairing store treats as stable, and T1
+  re-labels whatever it restores. A re-paired device therefore keeps its own chats: they are its
+  own text under a new label, which is correct. If the owner prefers a re-pair to orphan them,
+  that is the sweep's job (T5), and it is a decision, not a side effect.
+- **Salt and model hash inside the file** remain defense in depth, not the boundary, and stay
+  deferred (§6) with the reason now correct: the appendix may not exist (§2).
+
+Filenames are **flat**: the engine validates with `fs_validate_filename`, which rejects path
+separators, so the scheme is one name — `d<device_id>-m<first 8 hex of the model file's sha256>-c<chat_id>.bin`.
+The chat id is the app's own chat identity, allocated by the chat store before the first save;
+the model hash is the sha256 of the model file, which the app already computes for provenance.
+
+## 4. The tasks, in order
+
+### T1 — engine: carry the salt to the slot actions and stamp it on restore (blocking)
+
+- `slot_action` gains a `std::string cache_salt` (`tools/server/server-task.h:167-172`).
+- `post_slots` reads `X-Kalsa-Cache-Salt` beside `get_slot_from_header` (`:5118-5123`) and sets
+  it on the task.
+- The restore stamps it **from the action's own task** — `task` is in scope in that case (used at
+  `:2845`, `:2857`, `:2870-2873`) — and **not** from `slot->task`, which at `:2879-2880` is the
+  slot's launch task, not this action (`:3432` reads `slot.task`). Always stamp what the caller
+  sent, so an unsalted caller keeps today's behaviour and the dev harnesses keep working.
+- **Acceptance**: a new test in `tools/server/tests/unit/test_cache_salt.py`, shaped like
+  `test_cache_salt_survives_context_shift` (`:54`) but on the restore path — save under salt A,
+  restore under salt A, then one request: `cache_n > 0` and no `different cache namespace` line;
+  and the negative: a restore under salt B leaves the state in B, so B is warm and a request
+  under A is not handed B's state. **Red first.** Command from `tools/server/tests`:
+  `./tests.sh unit/test_cache_salt.py`.
+- Touches `server-context.cpp` (5895 lines) and `server-task.h` (652) — both pre-existing
+  excess, declared and not refactored.
+
+### T2 — app: the launch flag set this tier needs
+
+Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
+
+- `--slot-save-path` → a directory the app creates under its data directory before launch. If it
+  cannot be created, the launch refuses rather than starting an engine whose disk tier silently
+  answers `not supported`.
+- `--ctx-checkpoints 1` → the default is 32 (`common/common.h:630`) and v1 left this out, which
+  would let one chat's save file reach the size the handoff records. One record is enough:
+  the reader trims to `n_ctx_checkpoints` anyway (`server-context.cpp:2581-2583`).
+- `--swa-full` → **rendered only if §5's measurement says the file round-trip needs it**, and only
+  for a model that reports SWA layers. T6 owns the decision; this task owns the rendering.
+
+**Acceptance**: committed tests pin each rendered flag in the same manner as the existing test
+that pins `--sleep-idle-seconds 300` (`crates/kalsa-launch/src/policy.rs:1062`), plus a test that
+a launch fails when the save directory cannot be created.
+
+### T3 — app: the save/restore client in the door
+
+- A door-internal action, **not** a passthrough: the chat UI asks the app, the app asks the door,
+  the door resolves device→slot (`slots.rs:51`), builds the filename per §3, holds exclusivity,
+  and calls the engine **on the `upstream_port` the door was constructed with**
+  (`src-tauri/src/main.rs:383-388`) — today 8123 (`crates/kalsa-launch/src/policy.rs:590`), not
+  the door's own listener on 8130 (`src-tauri/src/startup.rs:38-41`). Hard-coding 8130 would
+  make the door call itself. The port is read from the same record the door already holds, never
+  from a constant at the call site.
+- **Exclusivity over the pair, not the call.** The engine serialises actions to one slot but not
+  a sequence, so two overlapping switches of one device's chats can invert (save A → save B →
+  restore B → restore A ends with A in the slot). A per-slot gate in the door serialises the
+  sequence, built on the `revocation_gate` shape (`slots.rs:108-116`). **`erase` is part of the
+  sequence**, not an outside action: a chat deleted while a switch is in flight must not be
+  restored by that switch.
+- **Failure the user can see.** A failed restore leaves the slot *empty* (`server-context.cpp:2884-2889`),
+  so the door must then re-restore the previous chat's file — saved moments earlier by the same
+  switch — and leave the active chat unchanged in the UI. If that also fails, the slot stays
+  empty and the UI says the chat could not be opened; it never shows an empty conversation as if
+  the chat had no history.
+- **Acceptance**, both red first: (a) a restore whose file name does not carry the caller's
+  device is refused; (b) file names sent in the client payload are ignored; (c) a restore that
+  fails leaves the previous chat's state in the slot and the UI's active chat unchanged.
+
+### T4 — app: cadence, so an unload cannot lose a turn
+
+Save-on-switch alone is **lossy**: `--sleep-idle-seconds 300` destroys the slot's state, and the
+switch that follows has nothing left to save. The tier therefore saves on two triggers:
+
+- every chat switch, before the restore;
+- an idle timer **shorter than the unload clock** (the unload clock is 300 s, so the timer is a
+  stated constant, 120 s, pinned by a test), so the file is never more than the timer behind when
+  the engine unloads.
+
+A restore after a genuine unload is therefore a **restore plus a model load**, and the UI says so
+during the load — the engine's readiness budget is 600 s (`src-tauri/src/startup.rs:42`), so the
+sentence is not optional. v1 left this as an undeclared "refused or re-driven"; it is now decided:
+**re-driven**, never refused, because the user asked to open a chat and the state exists.
+
+**Acceptance**: a test that the idle timer fires before the unload clock and that a switch after
+an unload restores from disk instead of returning an empty conversation.
+
+### T5 — app: resident map, sweep, crash invalidation
+
+- **The resident map is new and lives in the door**, keyed by slot, because the door owns the
+  slot and is the only component that knows which chat is in it. Its consumer is the door itself:
+  a restore of a chat already resident is a no-op, and a save of a chat that is not resident must
+  not overwrite that chat's file with another chat's state.
+- **Invalidation**: `Residency::forget()` (`supervisor.rs:245-252`), the release/reload event
+  (`child.rs:379-383`), and — the case v1 missed — **a crash, which announces nothing** and would
+  otherwise leave residency reading `in_memory` while the engine holds no state. The supervisor's
+  exit detection (`supervisor.rs:299-303`, `ServerState::Failed`) is the hook; it detects, it does
+  not restart. A server adopted from a previous run has no pipe and stays `unknown`
+  forever (`child.rs:50-57`); `unknown` is treated as *not resident*, and the restore is driven.
+- **Sweep**: a revoked device's files, when the store polls and the door prunes
+  (`src-tauri/src/main.rs:346`, `:364`; the slot side is `slots.rs:239-268`). A **deleted chat's**
+  file is removed with the chat, not left orphaned — the sweep covers devices, this covers chats.
+- **Acceptance**: a test that a crash does not leave the map claiming residency; a test that a
+  revoked device's files are gone; a test that deleting a chat removes its file.
+
+### T6 — the panel
+
+Resident count, window per device, **55.78 MiB** per extra resident, and the concurrency figure
+**only once its measurement is committed**. Two corrections the tier owes:
+
+- The live window number must come from the engine's per-slot value, not `n_ctx`
+  (`chat/src/lib/chat.ts:117-140`).
+- If §5 adopts `--swa-full`, the panel's memory line must carry its price (§2), because that flag
+  changes what an extra resident costs on a sliding-window model. Until the memory arithmetic
+  prices it, the panel says nothing about disk.
+
+## 5. The measurement that decides the tier's shape
+
+**Does the save/restore file round-trip come back warm without `--swa-full`?** This is not a
+disagreement between two runs (§2): it is a mechanism question, and the paging spike already
+answers it negatively — `n_restored=613`, then `cached=0`, "paging gives nothing back". If that
+holds, the tier's only working path on a sliding-window model is `--swa-full` at the price in §2,
+or no disk tier for that model.
+
+The verdict is a **count**, `bool(s["next_cache_n"] and s["next_cache_n"] > 32)`
+(`dev/measure-slot-restore.py:509`), so it is load-invariant and may run on a busy machine; its
+`wall_ms` and `prompt_ms` columns are not, and must not reach the panel. The two-device
+concurrency figure is a rate and still needs an idle machine.
+
+**Nothing in T1–T5 is blocked by either measurement.** T1 can land first; T2's third flag is the
+only line that waits.
+
+## 6. Out of scope, with the reason written down
+
+- **Salt and model hash inside the file.** Defense in depth, not the boundary (§3), and the
+  appendix cannot carry them reliably (§2). A trailer with its own magic, written
+  unconditionally and walked before the optional checkpoint appendix, is its own change with its
+  own version handling. This is the sentence that was wrong in `MULTI-DEVICE-SHAPE.md` §9 ("one
+  fix may cover both").
+- **Per-device encryption.** v1 relies on the file living inside the user's data directory with
+  restrictive permissions, plus disk encryption. Per-device keys would travel on the save/restore
+  call and be applied by the engine, which writes the file. **Owner decision needed** before the
+  tier ships.
+- **Backup.** A decision, not code.
+- **A device's other chats being warm without a restore.** Corrected from v1: the prompt cache is
+  global (`server-task.cpp:1798-1866`) and its `load()` filters on `cache_salt` (`:1811-1813`),
+  with `id_slot` only the destination (`:1845`, `:1863`). So the load path *does* run under pinned
+  slots; what the salt prevents is loading another device's state. Warmth without a restore stays
+  confined to entries the same slot itself saved — a different and sufficient reason to leave it out.
+- **The 4 096 per-device floor** and the refusal of a device beyond the launched count stay where
+  they are (`PLAN-CHAT-ON-DISK.md`, `MULTI-DEVICE-SHAPE.md` §4). This tier does not change the
+  window per device.
+
+## 7. Rules this plan obeys
+
+- **Nothing goes upstream.** No PRs, issues, comments, reviews, patches or discussion. Upstream is
+  read, never written. The appendix keeps its attribution to upstream PR #26004; any fork
+  divergence is stated in the code comment, not filed anywhere.
+- **No push, tag or release without the owner's explicit OK.**
+- **No number reaches the user interface before it is committed in a stripped artifact.** The
+  ~1.4 GiB in §2 is derived from committed cell counts and is labelled as derived, not measured.
+- Coders and reviewers on different models; an errored review is a lead, never a pass.
+- Files under ~400 lines; pre-existing excess declared, not refactored. Comments only for WHY or a
+  trap. No secret **values** anywhere — names are fine.
+- On the released engine commit `2a290390d` — tagged **`kalsa-server-v1.1.0`** — the same lines
+  are `:2868`, `:3199`, `:3418-3421`, and the older documents cite that numbering.
+
+## 8. What version 1 got wrong
+
+Kept because the audit round is part of the artifact, and because the same mistakes will be made
+again by the next author who reasons from lines they did not open.
+
+1. **The deferral citations** (`:2761-2765`, `:2836-2840`) pointed at the case entry and the
+   "Invalid slot ID" error. The deferral is `:2768-2771` and `:2842-2845`.
+2. **The engine's port in T3 was 8130 — the door's own listener.** A door-internal action calling
+   it would call itself. The engine is the `upstream_port` the door was built with, today 8123.
+3. **`slots.rs:53`** pointed at a comment about `leases`; the device→slot map is `:51`.
+4. **The tag was named `v1.1.0`.** It is `kalsa-server-v1.1.0` — the bare name matches no tag,
+   which is what the auditor found when it searched for one.
+5. **The `--swa-full` claim was overclaimed.** It drops one term of a three-term disjunct, not the
+   whole condition; the appendix is conditional for the reasons in §2, not because the flag
+   guarantees its absence.
+6. **The cross-slot prompt-cache sentence was wrong**, and is corrected in §6.
+7. **Gaps the coder would have had to invent**: the failure UX of a restore, the filename scheme's
+   authorship, chat deletion, the sleep case, salt rotation across a re-pair, the resident map's
+   interface, crash invalidation, who renders `--swa-full`, and whether the tier passes
+   `--ctx-checkpoints`. Each is now decided in T1–T6 or declared in §6.
