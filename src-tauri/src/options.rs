@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use crate::startup::ContextMaxima;
 
 pub(crate) const MIN_CONTEXT_TOKENS: u64 = 512;
-pub(crate) const MAX_CONTEXT_TOKENS: u64 = 32_768;
 
 /// Reads the saved cache name, treating anything this build does not know as
 /// "automatic". Only this field is forgiving: a cache type a future or older
@@ -150,8 +149,17 @@ impl LaunchOverrides {
     /// while this took `self`.
     pub(crate) fn validate(&self) -> Result<(), String> {
         if let Some(context) = self.context_tokens {
-            if !(MIN_CONTEXT_TOKENS..=MAX_CONTEXT_TOKENS).contains(&context) {
-                return Err("Context must be between 512 and 32768 tokens.".to_string());
+            // Only the floor is fixed here: the ceiling is the machine's
+            // funded maximum — 262_144 for the row on disk on this Mac — and
+            // this value cannot know it. A fixed ceiling must not come back,
+            // because the machine funds far more than any constant would
+            // admit. The ceiling is enforced where the maximum is known:
+            // `startup`'s `ContextTooLarge` guard on the launch path and the
+            // save guard in `main`, both of which name the real number.
+            if context < MIN_CONTEXT_TOKENS {
+                return Err(format!(
+                    "Context must be at least {MIN_CONTEXT_TOKENS} tokens."
+                ));
             }
         }
         if let Some(seconds) = self.idle_unload_seconds {
@@ -410,6 +418,28 @@ mod tests {
         assert!(spoken.contains("512"), "{spoken}");
     }
 
+    /// The regression lock on the fixed 32768 ceiling: a value above it must
+    /// be accepted here — it is an eighth of the 262144 this machine funds
+    /// for the row on disk — because only the floor is fixed. The ceiling
+    /// belongs to the guards that know the machine's funded maximum.
+    #[test]
+    fn a_context_above_the_old_panel_cap_is_accepted_here_and_left_to_the_machines_guard() {
+        let high = LaunchOverrides {
+            context_tokens: Some(262_144),
+            ..LaunchOverrides::default()
+        };
+        assert!(
+            high.validate().is_ok(),
+            "the fixed 32768 cap must not come back: {}",
+            high.validate().unwrap_err()
+        );
+        let below = LaunchOverrides {
+            context_tokens: Some(super::MIN_CONTEXT_TOKENS - 1),
+            ..LaunchOverrides::default()
+        };
+        assert!(below.validate().is_err(), "the floor still holds");
+    }
+
     #[test]
     fn atomic_write_keeps_the_old_file_until_the_new_one_is_ready() {
         let state_file = scratch("atomic");
@@ -532,8 +562,11 @@ mod tests {
             parallel: kalsa_launch::DEFAULT_PARALLEL,
         };
         let maxima = ContextMaxima {
-            q8_0: Some(8192),
-            f16: Some(4096),
+            // The real machine's figures for the row on disk: a maximum well
+            // above the 32768 the panel used to refuse at, so the pinned
+            // sample shows that the ceiling is the machine's.
+            q8_0: Some(262_144),
+            f16: Some(131_072),
         };
         let sample = dto(
             LaunchOverrides {

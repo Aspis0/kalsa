@@ -35,6 +35,12 @@ pub struct LaunchInput<'a> {
     /// The owner's KV cache precision: it scales the per-token figure the
     /// context is sized against, so the arithmetic follows the choice.
     pub kv_cache: KvCache,
+    /// How many engine slots the total context is divided across, and
+    /// therefore how many devices may talk at once. It is the same number
+    /// `DEFAULT_PARALLEL` carries into `--parallel` and `src-tauri` hands to
+    /// the door as its capacity. The plan divides the funded total by it,
+    /// because the engine divides `--ctx-size` exactly so.
+    pub parallel: u32,
 }
 
 /// The start command for this machine and model, with the memory it implies.
@@ -42,15 +48,29 @@ pub struct LaunchInput<'a> {
 /// None when the machine cannot fund the model at all: the weights, mmproj
 /// and compute buffers alone already exceed the budget, or the row's measured
 /// per-token figure is garbage — a model that cannot be given even one token
-/// of context must not be started smaller, it must not be started.
+/// of context must not be started smaller, it must not be started. None also
+/// when the slots cannot each reach `MIN_CONTEXT_TOKENS_PER_SLOT`.
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
-    let (maximum_context, prompt_cache_roof) =
+    // One slot minimum, clamped once so the arithmetic and the rendered flag
+    // cannot disagree: the engine clamps `n_seq_max` the same way
+    // (`src/llama-context.cpp`: `std::max(1u, params.n_seq_max)`) and the door
+    // refuses a capacity of zero, so a raw field holding 0 would otherwise
+    // render `--parallel 0` beside a one-slot plan.
+    let parallel = input.parallel.max(1);
+    let slots = u64::from(parallel);
+    let (funded, prompt_cache_roof) =
         context_and_prompt_cache_roof(input.model, input.budget.usable_bytes, input.kv_cache)?;
-    let context_tokens = match input.context_limit {
-        Some(limit) if limit > 0 && limit <= maximum_context => limit,
+    let ceiling = per_slot_ceiling(funded, input.model.trained_context_tokens, slots)?;
+    // The owner's request is a TOTAL, the meaning the panel's bounds already
+    // carry, so it is divided by the slots exactly as the engine will divide
+    // the flag.
+    let requested = match input.context_limit {
+        Some(limit) if limit > 0 && limit <= ceiling.saturating_mul(slots) => limit / slots,
         Some(_) => return None,
-        None => maximum_context,
+        None => ceiling,
     };
+    let per_slot = slot_context(requested, slots)?;
+    let context_tokens = per_slot * slots;
     let args = ServerArgs {
         model_path: input.model_path.clone(),
         port: input.port,
@@ -62,7 +82,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         batch_size: input.batch_size,
         ubatch_size: input.ubatch_size,
         kv_cache: input.kv_cache,
-        parallel: crate::args::DEFAULT_PARALLEL,
+        parallel,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
@@ -85,15 +105,54 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     Some(LaunchPlan { args, memory })
 }
 
+/// What one slot may be given before the engine's own alignment: the
+/// funded total divided by the slots, capped by the length the model was
+/// trained for. That cap bounds ONE sequence — what a slot is — so it is
+/// applied per slot, never to the total: a 4096-trained model serves four
+/// slots of 4096 if the memory funds them, and its total is 16384, which is
+/// not a figure the training length ever enters.
+fn per_slot_ceiling(funded_total: u64, trained: Option<u64>, slots: u64) -> Option<u64> {
+    let shared = funded_total / slots;
+    match trained {
+        // A header that was there and read as zero is broken data about the
+        // model, not a model with no context: refused, as before.
+        Some(0) => None,
+        Some(trained) => Some(shared.min(trained)),
+        None => Some(shared),
+    }
+}
+
+/// The engine pads a slot's context up to this multiple
+/// (`src/llama-context.cpp`: `GGML_PAD(cparams.n_ctx_seq, 256)`), so a
+/// per-slot figure that is not a multiple inflates the KV allocation by up
+/// to 255 tokens per slot without the budget ever paying for it.
+const SLOT_CONTEXT_ALIGNMENT: u64 = 256;
+
+/// The per-slot size the server is given, or `None` below the floor. With
+/// one slot this is the pre-slot arithmetic untouched: the engine's division
+/// by one is exact, so alignment has nothing to fix, and rounding down would
+/// trade tokens the engine pads back anyway (`GGML_PAD(n_ctx, 256)`) for no
+/// memory saved — a change to today's argv that buys nothing. Above one slot
+/// the total is aligned per slot so the division and the padding are exact.
+fn slot_context(requested: u64, slots: u64) -> Option<u64> {
+    if slots == 1 {
+        return (requested > 0).then_some(requested);
+    }
+    let aligned = requested - requested % SLOT_CONTEXT_ALIGNMENT;
+    (aligned >= crate::args::MIN_CONTEXT_TOKENS_PER_SLOT).then_some(aligned)
+}
+
 /// The context this budget funds for this row — the same arithmetic `plan`
 /// sizes the server with, roof carved out first — or `None` when it cannot
 /// fund even one token. The narrow question a caller asks before any plan
 /// exists (a preview has no downloaded file to point at and no port), answered
 /// from the one copy of the arithmetic rather than a recomputation beside it.
-/// It previews under the automatic q8_0 cache; the owner's f16 choice scales
-/// the per-token figure and travels through [`plan`].
+/// It previews under the automatic q8_0 cache and a single slot; the owner's
+/// f16 choice scales the per-token figure and travels through [`plan`].
 pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
-    context_and_prompt_cache_roof(model, usable_bytes, KvCache::Q8_0).map(|(tokens, _roof)| tokens)
+    let (funded, _roof) = context_and_prompt_cache_roof(model, usable_bytes, KvCache::Q8_0)?;
+    let ceiling = per_slot_ceiling(funded, model.trained_context_tokens, 1)?;
+    slot_context(ceiling, 1)
 }
 
 /// THE BUDGET ARITHMETIC, AMENDED — this function now splits what is left
@@ -157,24 +216,12 @@ fn context_and_prompt_cache_roof(
     let leftover = usable_bytes.checked_sub(fixed)?;
     let prompt_cache_roof = prompt_cache_roof_bytes(leftover, kv_cache);
     let funded = (leftover - prompt_cache_roof) / per_token;
-    // The memory is not the only limit, and it is not the binding one on a
-    // large machine: a model attends over the positions it was trained for,
-    // and past them it answers worse, not better. A 48 GiB budget funds
-    // 547,503 tokens for a row whose header says 262,144 (measured
-    // 2026-09-18), so the smaller of the two is the answer. A row with no
-    // header read — the research rows — keeps the memory figure, because a
+    // The memory-funded ceiling, before the length the model was trained for
+    // is applied: that cap bounds one sequence, so it belongs to the per-slot
+    // arithmetic ([`per_slot_ceiling`]), not here where only the total is
+    // known. A row with no header read keeps the memory figure, because a
     // guessed limit is worse than none.
-    let tokens = match model.trained_context_tokens {
-        // A header that says zero was there and read as nothing: broken data
-        // about the model. It is refused here exactly as an unfundable
-        // machine is — a plan needs a context — which is why the start path
-        // asks [`trained_context_unreadable`] first and gives the zero its
-        // own words.
-        Some(0) => 0,
-        Some(trained) => funded.min(trained),
-        None => funded,
-    };
-    (tokens > 0).then_some((tokens, prompt_cache_roof))
+    (funded > 0).then_some((funded, prompt_cache_roof))
 }
 
 /// Is this row's trained context a header we could not read? `None` on the
@@ -256,6 +303,12 @@ fn offload(input: &LaunchInput) -> Offload {
 }
 
 #[cfg(test)]
+mod menu;
+
+#[cfg(test)]
+mod slots;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB, MIB};
@@ -272,7 +325,7 @@ mod tests {
     /// A real, usable catalog row, so the compiler — not this file — notices
     /// when the row's shape changes, and the tests exercise something the
     /// product actually ships.
-    fn shipped_row(name: &str) -> &'static ModelEntry {
+    pub(super) fn shipped_row(name: &str) -> &'static ModelEntry {
         rows()
             .find(|entry| entry.display_name == name)
             .unwrap_or_else(|| {
@@ -314,7 +367,7 @@ mod tests {
             .unwrap_or_else(|| panic!("the plan must always state a cache roof: {line}"))
     }
 
-    fn input<'a>(
+    pub(super) fn input<'a>(
         backend: ServerBackend,
         budget: MemoryBudget,
         model: &'a ModelEntry,
@@ -331,12 +384,14 @@ mod tests {
             batch_size: 2048,
             ubatch_size: 512,
             kv_cache: KvCache::Q8_0,
+            parallel: crate::args::DEFAULT_PARALLEL,
         }
     }
 
     /// The ramp the plan measured on the M1 Max: flat after eight threads,
     /// and five threads (cores / 2) was 21% short of the ceiling.
-    const M1_MAX_RAMP: &[(usize, f64)] = &[(1, 55.8), (4, 88.0), (8, 112.2), (12, 105.1)];
+    pub(super) const M1_MAX_RAMP: &[(usize, f64)] =
+        &[(1, 55.8), (4, 88.0), (8, 112.2), (12, 105.1)];
     /// A four-core machine whose plateau is two threads.
     const QUAD_CORE_RAMP: &[(usize, f64)] = &[(1, 20.0), (2, 35.0), (4, 36.0)];
 

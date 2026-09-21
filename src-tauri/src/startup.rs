@@ -483,6 +483,7 @@ fn planned_config_with_overrides(
         batch_size,
         ubatch_size,
         kv_cache: cache,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     };
     // A zero trained length is a header we could not read, not a machine
     // that cannot fund the model: `plan` refuses both with a bare `None`,

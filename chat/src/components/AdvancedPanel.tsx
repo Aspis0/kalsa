@@ -97,11 +97,15 @@ function automaticNumber(value: number | null | undefined, label: string): strin
     ? `Automatic is ${value}.`
     : `The app will read the machine before choosing a ${label}.`;
 }
-function contextHelp(dto: AdvancedDto | null, cache: CacheChoice): string {
-  if (!dto) return "The app reads the machine before choosing a context. The bigger f16 cache roughly halves it.";
+function contextMaximum(dto: AdvancedDto | null, cache: CacheChoice): number | null {
+  if (!dto) return null;
   const selected = cache || dto.kv_cache_automatic;
   const maximum = selected === "f16" ? dto.context_max_f16 : dto.context_max;
-  return typeof maximum === "number" && Number.isFinite(maximum)
+  return typeof maximum === "number" && Number.isFinite(maximum) ? maximum : null;
+}
+function contextHelp(dto: AdvancedDto | null, cache: CacheChoice): string {
+  const maximum = contextMaximum(dto, cache);
+  return maximum !== null
     ? `Automatic is up to ${maximum}. A smaller value uses less memory.`
     : "The app reads the machine before choosing a context. The bigger f16 cache roughly halves it.";
 }
@@ -211,7 +215,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
                 : "Changes apply next time you turn on."
               : "These settings are available inside the Kalsa app."}
           </p>
-          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={32768} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
+          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={contextMaximum(dto, cache) ?? undefined} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
           <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
           <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>

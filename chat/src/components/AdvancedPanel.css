@@ -86,8 +86,10 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-/* A field is as wide as what it holds: 32768 and 600 are five digits at most,
-   so they do not get a paragraph's width. The checkbox keeps its own
+/* A field is as wide as what it holds: the machine's funded maximum is five
+   or six digits on every machine this ships on (the largest figure in the
+   catalogue is 410250), and 600 is three, so they do not get a paragraph's
+   width. The cap holds at seven digits anyway. The checkbox keeps its own
    `width: auto`. */
 .advanced-field input:not([type="checkbox"]) {
   max-width: min(100%, 9rem);

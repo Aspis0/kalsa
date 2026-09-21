@@ -75,7 +75,51 @@ pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 /// app passes the same number to `kalsa_door::Door::new` as the door's
 /// capacity. There is deliberately no second constant for the door, so the
 /// two can never drift apart.
+///
+/// **Raising this above 1 is gated on five things, none of them done.** The
+/// value is one number, but it is not the whole change; read all five before
+/// touching it, and read `docs/MULTI-DEVICE-SHAPE.md` §7 for the measured
+/// numbers behind points 2 and 3.
+///
+/// 1. **The engine must consume the door's private headers.** At capacity
+///    above 1 the door refuses to build unless `EnginePrivateHeaders` is
+///    `Consumed` (`kalsa_door`'s `new_with_engine`, `CapacityWithoutHeaderSupport`).
+///    It is `NotConsumed` today; the fork beside llama-server reads
+///    `X-Kalsa-Cache-Salt` at v1.0.0 and will not read `X-Kalsa-Slot` until
+///    v1.1.0 is bundled.
+/// 2. **The sliding-window KV replicates per slot, and this arithmetic has no
+///    `np` term.** §7 measured the 14 full-attention layers dividing their
+///    pool by the slot count while the 42 sliding-window layers replicated:
+///    55.78 MiB at np=1 against 223.12 MiB at np=4 — **+167 MiB** for the
+///    same total context. The plan prices one flat per-token cache, so where
+///    the plan's slack is thinner than that replication the real allocation
+///    can exceed `usable_bytes`. Price the per-slot term, or carry an
+///    explicit per-slot reserve, before raising this.
+/// 3. **The prompt-cache roof is sized for one warm conversation.** `--cache-ram`
+///    is a single global limit (`docs/MULTI-DEVICE-SHAPE.md` §5, the eviction
+///    at ~4k); with N slots the roof must hold N histories or the warm-start
+///    promise stops holding. Reconsider `PROMPT_CACHE_CHAT_TOKENS` and its
+///    share with the slot count in hand.
+/// 4. **`funded_context` is a single-slot contract.** The panel previews
+///    through it; it must take the slot count — and the callers must pass it —
+///    before the preview and the plan can agree at N > 1.
+/// 5. **The UI must quantise the total.** Two bounds are fixed, and both are
+///    floors: `MIN_CONTEXT_TOKENS` for the knob and `MIN_CONTEXT_TOKENS_PER_SLOT`
+///    in the plan. The ceiling is neither — it is the plan's funded maximum,
+///    handed to the panel as `context_max`. The plan divides the total by N,
+///    so at N > 1 the panel must step in multiples of the slot alignment
+///    (256 × N) so the accepted boundary is visible rather than a one-token
+///    cliff.
 pub const DEFAULT_PARALLEL: u32 = 1;
+
+/// The smallest context a slot may be given, in tokens. Below it a slot
+/// refuses real conversations instead of serving a short one:
+/// `docs/MULTI-DEVICE-SHAPE.md` §4 measured a 4096-token slot serving a
+/// 3878-token conversation warm, and the same conversation one turn longer
+/// was answered with **HTTP 400** ("request (4225 tokens) exceeds the
+/// available context size (4096 tokens)"), never a truncation. A plan whose
+/// per-slot share lands below this is refused outright.
+pub const MIN_CONTEXT_TOKENS_PER_SLOT: u64 = 4096;
 
 /// The user-facing idle range. Below a minute the model churns during normal
 /// pauses; above an hour an unattended machine keeps the model resident for
