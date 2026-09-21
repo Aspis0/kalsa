@@ -1,11 +1,14 @@
 name = "kalsa-telemetry"
 main = "index.ts"
 compatibility_date = "2024-11-01"
-# First deploy uses workers.dev so we get a public origin without touching
-# other Workers' custom domains / routes. Flip to false + bind a route later.
-workers_dev = true
+# The Kalsa-owned custom domain below is the ONLY origin. workers.dev is
+# intentionally disabled: the project has no released build, so no install ever
+# used the previous *.workers.dev host and there is nothing left to keep alive.
+workers_dev = false
 
-# Production URL is set via custom domain / routes in the CF dashboard.
+# Production route is declared here (not in the CF dashboard), so every future
+# deploy keeps it. Disabling workers_dev above removes the legacy host entirely.
+routes = [ { pattern = "telemetry.kalsa.io", custom_domain = true } ]
 # Client constant: TELEMETRY_WORKER_URL in src/telemetry/config.ts
 # Dev override: AsyncStorage key kalsa.telemetry.url
 #

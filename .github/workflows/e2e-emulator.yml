@@ -67,10 +67,11 @@ jobs:
       - name: Assert the installed engine is the pinned fork commit
         run: bash scripts/assert-engine-provenance.sh
 
-      # The fork's cpp/ is kalsallama flattened through an allow-list (the
-      # fork's own scripts/sync-kalsallama.sh), so an upstream file a source
-      # starts including can be simply absent and the NDK fails ~5 min into
-      # the build. This catches it right after install, in seconds.
+      # The fork vendors whole directories into vendor/llama.cpp (its own
+      # scripts/sync-vendor.sh), but a directory the vendor manifest never names
+      # is still absent, so a file a source starts including can be simply
+      # missing and the NDK fails ~5 min into the build. This catches it right
+      # after install, in seconds.
       - name: Assert the assembled engine's includes all resolve
         # The runner has an NDK, so the syntax pass must use it: the host clang
         # accepts constructs the NDK rejects, and a silent fallback would be a

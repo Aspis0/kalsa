@@ -11,6 +11,9 @@ main = "index.ts"
 compatibility_date = "2024-11-01"
 workers_dev = false
 
+# Production origin (Kalsa-owned custom domain; the only origin).
+routes = [ { pattern = "telemetry.kalsa.io", custom_domain = true } ]
+
 [[durable_objects.bindings]]
 name = "TELEMETRY_BUFFER"
 class_name = "TelemetryBuffer"

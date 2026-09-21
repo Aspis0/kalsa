@@ -2,7 +2,7 @@
 # Prove the installed engine is the fork commit the lockfile names, file for file.
 #
 # `npm ci` already binds the install to one tarball through the lockfile's integrity
-# hash. This gate answers the other half: that the tarball is what Aspis0/llama.rn
+# hash. This gate answers the other half: that the tarball is what Aspis0/kalsa.rn
 # holds at that commit, and that nothing has edited node_modules/llama.rn since.
 # It is a manual gate — the old road's assert-vendor-pristine.sh in its new shape.
 #
@@ -48,18 +48,26 @@ process.stdout.write(entry.resolved);
 ' "$LOCKFILE")" || fatal "no resolved URL for node_modules/llama.rn in $LOCKFILE"
 
 case "$resolved" in
+  git+ssh://git@github.com/Aspis0/kalsa.rn.git#*  | \
+  git+https://github.com/Aspis0/kalsa.rn.git#*    | \
+  https://github.com/Aspis0/kalsa.rn.git#*        ) ;;
+  # LEGACY-REDIRECT-ALLOWANCE: the fork repo was renamed on GitHub from
+  # Aspis0/llama.rn to Aspis0/kalsa.rn (the old URL redirects). A lockfile
+  # written before the rename still names the old path, so accept it here
+  # rather than failing an old lock. It is the same repository and the same
+  # sha, and the tarball is fetched from the canonical name below either way.
   git+ssh://git@github.com/Aspis0/llama.rn.git#*  | \
   git+https://github.com/Aspis0/llama.rn.git#*    | \
   https://github.com/Aspis0/llama.rn.git#*        ) ;;
-  *) fatal "the engine does not come from Aspis0/llama.rn: $resolved" ;;
+  *) fatal "the engine does not come from Aspis0/kalsa.rn: $resolved" ;;
 esac
 
 SHA="${resolved##*#}"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || fatal "no 40-hex commit in $resolved"
-note "lockfile pins Aspis0/llama.rn@${SHA:0:12}"
+note "lockfile pins Aspis0/kalsa.rn@${SHA:0:12}"
 
-curl -fsSL "https://codeload.github.com/Aspis0/llama.rn/tar.gz/$SHA" -o "$WORK/fork.tgz" \
-  || fatal "cannot fetch Aspis0/llama.rn@${SHA:0:12} from codeload"
+curl -fsSL "https://codeload.github.com/Aspis0/kalsa.rn/tar.gz/$SHA" -o "$WORK/fork.tgz" \
+  || fatal "cannot fetch Aspis0/kalsa.rn@${SHA:0:12} from codeload"
 mkdir -p "$WORK/fork" "$WORK/packed"
 tar -xzf "$WORK/fork.tgz" -C "$WORK/fork" --strip-components=1 || fatal "cannot unpack the fork tarball"
 
@@ -78,7 +86,7 @@ if diff -u "$WORK/packed.manifest" "$WORK/installed.manifest" > "$WORK/diff"; th
   # Was cpp/KALSALLAMA_SHA while cpp/ was kalsallama flattened; after the
   # vendor migration the pin is declarative in vendor/VERSIONS.
   engine="$(sed -n 's/^LLAMA_CPP_COMMIT=//p' "$INSTALLED/vendor/VERSIONS" 2>/dev/null | tr -d '[:space:]' || true)"
-  note "OK: $(wc -l < "$WORK/installed.manifest" | tr -d ' ') files match Aspis0/llama.rn@${SHA:0:12}"
+  note "OK: $(wc -l < "$WORK/installed.manifest" | tr -d ' ') files match Aspis0/kalsa.rn@${SHA:0:12}"
   # The app pins the fork, and the fork pins the engine: nothing here declares
   # an expected kalsallama sha, so print the one that is installed.
   note "engine inside it: kalsallama@${engine:0:12}"
@@ -86,7 +94,7 @@ if diff -u "$WORK/packed.manifest" "$WORK/installed.manifest" > "$WORK/diff"; th
 fi
 
 FIRST="$(grep -m1 -E '^[+-]\./|^[+-][0-9a-f]{64}' "$WORK/diff" | awk '{print $NF}' || true)"
-echo "[provenance] DIVERGENT: the installed engine is not Aspis0/llama.rn@${SHA:0:12}" >&2
+echo "[provenance] DIVERGENT: the installed engine is not Aspis0/kalsa.rn@${SHA:0:12}" >&2
 echo "[provenance] first differing path: ${FIRST:-<unknown>}" >&2
 grep -c -E '^[+-][0-9a-f]{64}' "$WORK/diff" | xargs -I{} echo "[provenance] differing entries: {}" >&2
 exit 1

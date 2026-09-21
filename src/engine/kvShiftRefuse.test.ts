@@ -6,7 +6,7 @@ import path from "path";
  * ctx_shift seq_add. S23 2bbef14 T20C t4: K-shift then tokensCached=4304.
  *
  * The behaviour used to be asserted on patches/llama.rn+0.12.8.patch. Since the
- * engine is a git dependency on Aspis0/llama.rn there is no patch to read: the
+ * engine is a git dependency on Aspis0/kalsa.rn there is no patch to read: the
  * subject is the installed source itself, which is a stronger check — a patch
  * can be correct and never applied.
  */

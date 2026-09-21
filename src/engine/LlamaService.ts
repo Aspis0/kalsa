@@ -56,6 +56,10 @@ import {
   readGovernorThermo,
 } from "./governorInputs";
 import {
+  startGovernorBatteryTrace,
+  stopGovernorBatteryTrace,
+} from "./governorBatterySampler";
+import {
   applyBenchSampling,
   readBenchOracleParams,
   readBenchSampling,
@@ -2472,7 +2476,7 @@ export function initEngine(
       // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash".
       // The 0.12.8 binding's MTP-only gates are extended to draft-dflash in the
       // engine fork: draft loader in cpp/rn-llama.cpp, spec init in
-      // cpp/rn-completion.cpp (Aspis0/llama.rn) — before that,
+      // cpp/rn-completion.cpp (Aspis0/kalsa.rn) — before that,
       // a pure draft-dflash config silently never loaded the draft
       // (run 31270817640: draftTokens=0) and the dual-types workaround hung
       // the native turn (run 31274549105). Empirical gate: dflash-ab with
@@ -4564,6 +4568,13 @@ export async function streamAssistantTurn(
       ? strings.chat.rereadingConversation
       : strings.chat.thinkingStatus;
 
+    // Bench-only energy series: one CSV per turn so the host can join the
+    // (t, current, charge_counter, voltage) rows with the turn's token counts.
+    const energyTraceOn = await startGovernorBatteryTrace(
+      FileSystem.documentDirectory ?? "",
+      turnId,
+    );
+
     try {
       callbacks.onStatus?.({ label: statusLabel });
 
@@ -5387,6 +5398,7 @@ export async function streamAssistantTurn(
         emitEngineError(callbacks, finishOnce, error);
       }
     } finally {
+      if (energyTraceOn) await stopGovernorBatteryTrace();
       stopStallWatchdog();
       signal?.removeEventListener("abort", onAbort);
       // Chat completions leave conversation tokens in the native KV — eligible
