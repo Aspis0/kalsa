@@ -89,7 +89,8 @@ struct Slot {
     resident: Residency,
     /// The moment the last completion passed through this slot, `None` when its
     /// state is on disk: one field for both, because "dirty with no instant"
-    /// has no meaning. Every path that renames or empties the slot clears it.
+    /// has no meaning. Every path that empties the slot clears it; the save's
+    /// rename clears only the mark it saved, so a newer mark survives that save.
     dirty_at: Option<Instant>,
     /// When a save that failed may be tried again, `None` when nothing is owed.
     /// The flag above stays set across a failure — the state is still not on

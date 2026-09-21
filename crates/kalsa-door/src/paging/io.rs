@@ -64,12 +64,13 @@ pub(super) enum Saved {
     /// Renamed into place: the chat's file on disk is this save.
     InPlace,
     /// The engine answered `n_saved` 0: the slot held nothing to write, so
-    /// nothing was renamed. See `restore` above for what that branch does and
+    /// nothing was renamed. See `restore` below for what that branch does and
     /// does not promise.
     Nothing,
     /// The slot is another chat's now, so the staging file was dropped rather
-    /// than renamed: its state may not land under a name it does not belong
-    /// to. What is owed belongs to whoever holds the slot now.
+    /// than renamed: no state may land under a name whose chat no longer holds
+    /// the slot, and nothing this save learned is counted or cleared — what is
+    /// owed (mark and backoff) belongs to whoever holds the slot now.
     Superseded,
 }
 

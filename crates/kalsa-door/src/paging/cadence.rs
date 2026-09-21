@@ -97,15 +97,32 @@ pub(super) fn save_idle(
             // retry is two, pinned in `kalsa_launch` — where a longer backoff would
             // ask the engine to keep a slot it has already released.
             //
-            // The backoff restarts from each attempt's own start, so **two
-            // consecutive failures are the ceiling; the third attempt
-            // coincides with the release**: attempt three falls three
-            // intervals after the mark — plus the ticker's second — and three
-            // intervals IS the unload clock (`idle_save_seconds`), which the
-            // engine began counting no later than that mark. What spends those
-            // two failures without costing the turn: the failure this backoff
-            // is built for is a save deferred by a turn in flight, a turn in
-            // flight keeps the slot busy, and the engine's unload clock has
+            // The backoff restarts from each attempt's own start, and every attempt
+            // is the first tick at or after its bound, so attempt k is offered no
+            // earlier than mark+k·interval, each bound rounded UP by the ticker,
+            // never down. Two consecutive failures are the ceiling, and both sit
+            // inside the unload clock measured from the mark: attempt two is out at
+            // worst mark+2Q+two tick periods — 2 s at the shipped 1 s tick — and
+            // 2Q+2 s < 3Q already at Q = 20 s, the interval the panel's 60 s unload
+            // clock derives (`idle_save_seconds`), which the engine counts from the
+            // turn this mark ends. The engine grants that clock anew after every
+            // task it sees — `server_queue` stamps `time_last_task` on each one,
+            // `defer` included — so attempts that arrive push the release further
+            // out again: no release falls between two attempts the engine answered.
+            //
+            // What attempt three does NOT do is "coincide with the release" (the
+            // claim the comment this replaces carried): its bound IS mark+3Q,
+            // rounded up like every other attempt's — it is held back by a release
+            // an earlier attempt re-stamped, and only races one that nothing ever
+            // reached. And if the relay of the final token let a release beat every
+            // attempt, the save that comes after finds `n_saved` 0 — the unload
+            // took what the slot held — and the arm below keeps that turn's mark
+            // instead of booking it, because a mark is kept at the price of one
+            // attempt and lost at the price of the turn.
+            //
+            // What spends those two failures without costing the turn: the failure
+            // this backoff is built for is a save deferred by a turn in flight, a
+            // turn in flight keeps the slot busy, and the engine's unload clock has
             // not started while they are spent.
             if state.retry_after.is_some_and(|retry| now < retry) {
                 continue;
@@ -134,10 +151,15 @@ pub(super) fn save_idle(
             deadline: Instant::now() + crate::PATIENCE,
         };
         // The lock was free while the engine wrote, so the slot may have been
-        // switched to another chat in that window — and the staging file then
-        // holds that chat's state. Renaming it over THIS chat's name is the
-        // loss the tier exists to prevent, so `save` takes the lock back and
-        // re-reads the residency before anything is put in place.
+        // handed to another chat before this save comes back. `save` takes the
+        // lock again for the commit check, and what the check buys here: no
+        // state lands under a chat's name that no longer holds the slot, and
+        // below — nothing is counted and nothing is cleared (mark or backoff)
+        // for that slot, because both now belong to its new holder. The staging
+        // file itself is named for the chat this tick read, and the engine's
+        // write into a name is whole or absent — a temp file created
+        // exclusively and renamed over that name only once the write finished
+        // — never a partial state.
         let outcome = save(
             dir,
             &file_name(model, device, &chat),
@@ -154,23 +176,41 @@ pub(super) fn save_idle(
         );
         let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         match outcome {
-            // `Superseded` is not counted: nothing reached a chat's name,
-            // and what is owed now belongs to whoever holds the slot.
-            Ok(outcome) => {
-                if !matches!(outcome, Saved::Superseded) {
-                    saved += 1;
-                }
+            // The chat's file on disk IS this save: count it, and clear what
+            // was owed. The mark goes only if it is still the instant this
+            // save left with — a completion that arrived while the engine was
+            // writing stamped a NEWER one, a turn this save cannot contain,
+            // and erasing it would be the loss this timer exists to prevent.
+            Ok(Saved::InPlace) => {
+                saved += 1;
                 state.retry_after = None;
-                // The mark is cleared only if it is still the instant this
-                // save left with. A completion that arrived while the engine
-                // was writing stamped a NEWER one — a turn this save cannot
-                // contain — and erasing it would be the loss this timer
-                // exists to prevent, so the newer mark survives the save it
-                // interrupted.
                 if state.dirty_at == Some(at) {
                     state.dirty_at = None;
                 }
             }
+            // `n_saved` 0 for a slot this tick holds and had marked: the
+            // engine wrote nothing, so the turn is NOT on disk, and neither
+            // the count nor the mark may say it is. The door cannot tell an
+            // engine that lost the slot (the unload ran, the map is stale)
+            // from any other zero, and a slot it truly owed nothing to never
+            // reaches this call — the mark stays and the backoff bounds what
+            // keeping it costs: one attempt per interval, where clearing it
+            // would cost the turn. A slot handed on meanwhile is touched not
+            // at all: its mark and its backoff belong to the new holder, as
+            // under `Superseded`.
+            Ok(Saved::Nothing) => {
+                if matches!(
+                    &state.resident,
+                    Residency::Resident(owner, held) if *owner == device && *held == chat
+                ) {
+                    state.retry_after = Some(now + idle_save);
+                }
+            }
+            // Nothing reached a chat's name and the slot is another chat's
+            // now: not counted, not cleared, not un-backed-off. Every field
+            // left here belongs to whoever holds the slot, and this arm
+            // touches none of them.
+            Ok(Saved::Superseded) => {}
             // Still dirty. A failure is not permanent: a save issued while the
             // slot is generating is deferred by the engine and answered at the
             // end of the turn, so one that outlasts the door's patience reads
