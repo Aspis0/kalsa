@@ -251,7 +251,7 @@ fn every_offered_row_keeps_the_invariants_at_every_slot_count() {
         assert_eq!(one.args.parallel, 1);
         assert_eq!(
             one.args.context_tokens,
-            funded_context(entry, budget.usable_bytes)
+            funded_context(entry, budget.usable_bytes, 1)
                 .unwrap_or_else(|| panic!("{name}: the preview must have a window"))
                 .min(DEFAULT_CONTEXT_TOKENS),
             "{name}: the one-slot plan must be the panel's preview, lowered by the chat default"
@@ -398,4 +398,53 @@ fn the_sliding_window_rows_carry_their_per_slot_term() {
         4,
         "the non-window set on the menu changed (three recurrent + Phi Mini)"
     );
+}
+
+/// The panel's preview and the plan the launcher builds price one device the
+/// same at every slot count, N = 1..=8, for every row the menu can offer.
+/// `funded_context` is the per-slot funded MAXIMUM, so the plan it must equal
+/// is the one asked for that maximum; `plan`'s automatic answer is the smaller
+/// chat default wherever the machine funds more, and the card's "up to N
+/// tokens" is the maximum, not that default. Driving the real `plan` rather
+/// than re-deriving the arithmetic is the point.
+#[test]
+fn the_preview_is_the_per_slot_window_the_plan_gives_a_device() {
+    let budget = memory_budget(Backend::Metal, 64 * GIB);
+    for (name, entry) in menu() {
+        for parallel in 1u32..=8 {
+            let input = device_input(ServerBackend::Metal, budget, entry, parallel);
+            let slots = u64::from(parallel);
+            let Some(preview) = funded_context(entry, budget.usable_bytes, parallel) else {
+                assert_eq!(funded_maximum(&input), None, "{name} at N={parallel}");
+                continue; // no slot is funded, so there is no window to promise
+            };
+            let maximum = funded_maximum(&input).expect("a preview with a window has a ceiling");
+            assert_eq!(preview, maximum / slots, "{name} at N={parallel}");
+            assert!(preview <= maximum / slots, "{name} at N={parallel}");
+
+            // A plan asked for exactly the funded maximum gives each device
+            // the preview, not a figure of its own.
+            let at_maximum = plan(&LaunchInput {
+                context_limit: Some(maximum),
+                ..device_input(ServerBackend::Metal, budget, entry, parallel)
+            })
+            .expect("the funded total is honoured");
+            assert_eq!(
+                at_maximum.args.context_tokens / slots,
+                preview,
+                "{name} at N={parallel}: the plan and the preview price one device apart"
+            );
+
+            // The default is a cap, never a promise: where the machine funds
+            // no more than it, the automatic launch is the preview too.
+            if preview <= DEFAULT_CONTEXT_TOKENS {
+                let automatic = plan(&input).expect("the machine funds a slot");
+                assert_eq!(
+                    automatic.args.context_tokens / slots,
+                    preview,
+                    "{name} at N={parallel}: the automatic launch is not the preview"
+                );
+            }
+        }
+    }
 }

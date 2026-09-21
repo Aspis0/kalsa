@@ -77,7 +77,7 @@ fn one_slot_is_still_todays_number() {
     assert_eq!(one.args.context_tokens, 3_993);
     assert_eq!(one.args.parallel, 1);
     assert_eq!(
-        funded_context(granite, small.usable_bytes),
+        funded_context(granite, small.usable_bytes, 1),
         Some(3_993),
         "the preview reads the same window as the one-slot plan"
     );
@@ -89,7 +89,7 @@ fn one_slot_is_still_todays_number() {
     assert_eq!(one.memory.context_tokens, 65_536);
     // The maximum is still the machine's, and still offered: the guards and
     // the panel read it from here, not from the automatic answer.
-    assert_eq!(funded_context(big, mac.usable_bytes), Some(262_144));
+    assert_eq!(funded_context(big, mac.usable_bytes, 1), Some(262_144));
     assert_eq!(
         funded_maximum(&device_input(ServerBackend::Metal, mac, big, 1)),
         Some(262_144)

@@ -17,7 +17,7 @@ use kalsa_catalog::{
     usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction, RefusalReason,
     RunnableRow, Selection,
 };
-use kalsa_launch::funded_context;
+use kalsa_launch::{funded_context, DEFAULT_PARALLEL};
 use kalsa_probe::{Backend, Measurement};
 
 use crate::startup::CHOOSER_CONTEXT_TOKENS;
@@ -71,10 +71,12 @@ const SPEED_CONTEXT_TOKENS: u64 = 8192;
 /// [`SPEED_CONTEXT_TOKENS`] where the memory funds it, the whole funded
 /// window where it does not. `funded_context` already stops at the length the
 /// model was trained for, so this cannot label a row with a window it never
-/// had. `None` there means the row fits with nothing left for a cache at all;
-/// the chooser's own one token is then the only context there is.
-fn shown_context(entry: &ModelEntry, usable_bytes: u64) -> u64 {
-    funded_context(entry, usable_bytes)
+/// had, and it answers PER SLOT: the card prices one device, and the engine
+/// gives one device `1/parallel` of the flag. `None` there means the row fits
+/// with nothing left for a cache at all; the chooser's own one token is then
+/// the only context there is.
+fn shown_context(entry: &ModelEntry, usable_bytes: u64, parallel: u32) -> u64 {
+    funded_context(entry, usable_bytes, parallel)
         .map_or(CHOOSER_CONTEXT_TOKENS, |funded| funded.min(SPEED_CONTEXT_TOKENS))
 }
 
@@ -199,7 +201,7 @@ pub(crate) fn dto(
         Decision::Pick(selection) => {
             let row = chosen_row(&selection);
             let context = row.map_or(CHOOSER_CONTEXT_TOKENS, |row| {
-                shown_context(row, budget.usable_bytes)
+                shown_context(row, budget.usable_bytes, DEFAULT_PARALLEL)
             });
             let shown = row
                 .and_then(|row| shown_decode(row, &input, context))
@@ -210,7 +212,8 @@ pub(crate) fn dto(
                     name: selection.display_name.to_string(),
                     quant: selection.quant.to_string(),
                     weights_bytes: selection.weights_bytes,
-                    context_tokens: row.and_then(|row| funded_context(row, budget.usable_bytes)),
+                    context_tokens: row
+                        .and_then(|row| funded_context(row, budget.usable_bytes, DEFAULT_PARALLEL)),
                     speed_context_tokens: context,
                     speed: speed(&shown),
                     reason: selection.plain_reason,
@@ -228,16 +231,19 @@ pub(crate) fn dto(
             // Every other refusal is a real one and keeps its own words.
             RefusalReason::PhoneUnknown => match largest_that_runs_well(&input) {
                 Ok(row) => {
-                    let context = shown_context(row.entry, budget.usable_bytes);
-                    let shown =
-                        shown_decode(row.entry, &input, context).unwrap_or(row.decode);
+                    let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
+                    let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
                     (
                         Some(ModelChoiceDto {
                             id: Some(crate::startup::model_token(row.entry)),
                             name: row.entry.display_name.to_string(),
                             quant: row.entry.quant.to_string(),
                             weights_bytes: row.entry.weights_bytes,
-                            context_tokens: funded_context(row.entry, budget.usable_bytes),
+                            context_tokens: funded_context(
+                                row.entry,
+                                budget.usable_bytes,
+                                DEFAULT_PARALLEL,
+                            ),
                             speed_context_tokens: context,
                             speed: speed(&shown),
                             reason: PHONE_FREE_REASON.to_string(),
@@ -270,14 +276,14 @@ pub(crate) fn dto(
     let quicker = decode
         .and_then(|prediction| quicker_alternative(&shown_input, &prediction))
         .map(|row| {
-            let context = shown_context(row.entry, budget.usable_bytes);
+            let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
             let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
             ModelChoiceDto {
                 id: Some(crate::startup::model_token(row.entry)),
                 name: row.entry.display_name.to_string(),
                 quant: row.entry.quant.to_string(),
                 weights_bytes: row.entry.weights_bytes,
-                context_tokens: funded_context(row.entry, budget.usable_bytes),
+                context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
                 speed_context_tokens: context,
                 speed: speed(&shown),
                 reason: QUICKER_REASON.to_string(),

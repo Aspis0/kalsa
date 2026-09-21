@@ -493,6 +493,23 @@ fn planned_config(
     )
 }
 
+/// The slot count the plan may divide by: the requested capacity, taken down
+/// to one when the engine at `exe` carries no `x-kalsa-slot` inlet. The door
+/// makes the same clamp when it binds (`main.rs`'s `door_capacity`), but only
+/// after the plan is built, so a plan that kept the requested number would
+/// divide the context by slots the door will never serve: one device would
+/// get `1/N` of the window while the machine paid N per-slot KV terms for the
+/// other N-1. The probe reads the mounted bytes, so the answer describes the
+/// engine this walk chose — and the walk knows that engine before any
+/// [`LaunchInput`] is built, because the build decision runs first.
+fn planned_parallel(exe: &Path, requested: u32) -> u32 {
+    if kalsa_runtime::engine_consumes_private_headers(exe) {
+        requested
+    } else {
+        1
+    }
+}
+
 fn planned_config_with_overrides(
     backend: ServerBackend,
     exe: PathBuf,
@@ -511,6 +528,19 @@ fn planned_config_with_overrides(
         budget_backend(backend, machine.measurement.will_run_on),
         machine.ram_bytes,
     );
+    // The engine's path is known here, before any `LaunchInput` exists: the
+    // walk decides the build first and hands its exe in. Probe it now, so the
+    // number the plan divides by is the number the door will serve.
+    let requested_parallel = kalsa_launch::DEFAULT_PARALLEL;
+    let parallel = planned_parallel(&exe, requested_parallel);
+    if parallel != requested_parallel {
+        eprintln!(
+            "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; the plan is \
+             for {parallel} device with one slot's context, not the requested \
+             {requested_parallel} slots",
+            exe.display()
+        );
+    }
     let build = |cache: KvCache, context_limit: Option<u64>| LaunchInput {
         backend,
         model: row,
@@ -522,7 +552,7 @@ fn planned_config_with_overrides(
         batch_size,
         ubatch_size,
         kv_cache: cache,
-        parallel: kalsa_launch::DEFAULT_PARALLEL,
+        parallel,
     };
     // A zero trained length is a header we could not read, not a machine
     // that cannot fund the model: `plan` refuses both with a bare `None`,
@@ -566,18 +596,8 @@ fn planned_config_with_overrides(
         f16: kalsa_launch::plan(&build(KvCache::F16, None)).map(|plan| plan.args.context_tokens),
     };
     let context_prices = ContextPrices {
-        q8_0: kalsa_launch::context_price(
-            row,
-            KvCache::Q8_0,
-            u64::from(ubatch_size),
-            kalsa_launch::DEFAULT_PARALLEL,
-        ),
-        f16: kalsa_launch::context_price(
-            row,
-            KvCache::F16,
-            u64::from(ubatch_size),
-            kalsa_launch::DEFAULT_PARALLEL,
-        ),
+        q8_0: kalsa_launch::context_price(row, KvCache::Q8_0, u64::from(ubatch_size), parallel),
+        f16: kalsa_launch::context_price(row, KvCache::F16, u64::from(ubatch_size), parallel),
     };
     let server = ServerConfig {
         exe,
@@ -645,7 +665,11 @@ fn dev_config_with_overrides(
         batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
         ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
         kv_cache,
-        parallel: kalsa_launch::DEFAULT_PARALLEL,
+        // The dev path takes the same clamp as the budgeted one: it knows
+        // its engine, so it must not claim slots the engine cannot isolate -
+        // the door would serve one device and that device would get `1/N` of
+        // this context.
+        parallel: planned_parallel(&exe, kalsa_launch::DEFAULT_PARALLEL),
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -1405,6 +1429,84 @@ mod tests {
         assert!(joined.contains("--cache-type-k q8_0"), "{joined}");
         assert!(joined.contains("--flash-attn on"), "{joined}");
         assert!(!joined.contains("n-gpu-layers"), "{joined}");
+    }
+
+    /// A mounted engine the way the walk leaves it: a launcher beside a module
+    /// whose bytes are the test's own. `None` is the honest `NotConsumed` case
+    /// — an upstream archive, an Intel row, a Windows build — and the fork's
+    /// inlet is the lowercase literal the engine matches.
+    fn engine_dir(name: &str, module: Option<&[u8]>) -> PathBuf {
+        let dir = scratch(name);
+        let exe = dir.join("kalsa-server");
+        std::fs::write(&exe, b"a thin launcher").expect("launcher");
+        if let Some(bytes) = module {
+            std::fs::write(dir.join(kalsa_runtime::ENGINE_MODULE_FILE), bytes).expect("module");
+        }
+        exe
+    }
+
+    #[test]
+    fn a_clamped_capacity_reaches_the_plan() {
+        // The door clamps its capacity to one when the engine carries no
+        // `x-kalsa-slot` inlet. The plan divides the context by the slots, so a
+        // plan that kept the requested number would give one device `1/N` of
+        // the window while the machine paid N per-slot KV terms for the rest.
+        // The build decision runs before the model step, so the exe is known
+        // when every `LaunchInput` is built and the clamp lands before the plan.
+        let row = rows()
+            .find(|entry| entry.display_name == "Alibaba Qwen 3.6")
+            .expect("the test row left the catalog");
+        let budget = memory_budget(Backend::Metal, 64 * 1024 * 1024 * 1024);
+        let ramp = &[(1usize, 55.8), (8, 112.2)][..];
+        let input = |parallel: u32| LaunchInput {
+            backend: ServerBackend::Metal,
+            model: row,
+            budget,
+            thread_ramp: ramp,
+            model_path: PathBuf::from("/models/chosen.gguf"),
+            port: PORT,
+            context_limit: None,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: KvCache::Q8_0,
+            parallel,
+        };
+
+        // No inlet: the requested four slots must not reach the plan, and the
+        // context must be the one-slot window, not a quarter of it.
+        let blind = engine_dir("no-inlet", Some(b"a module that never heard of the door"));
+        let requested = 4;
+        assert_eq!(
+            planned_parallel(&blind, requested),
+            1,
+            "an engine that cannot isolate must not be planned for four devices"
+        );
+        let clamped = kalsa_launch::plan(&input(planned_parallel(&blind, requested)))
+            .expect("the big row is fundable on 64 GiB");
+        let one = kalsa_launch::plan(&input(1)).expect("one slot is fundable");
+        assert_eq!(clamped.args.parallel, 1);
+        assert_eq!(
+            clamped.args.context_tokens, one.args.context_tokens,
+            "the clamp must hand the plan the one-slot context, not a divided one"
+        );
+
+        // The fork's module carries the inlet: the requested slots stand and
+        // the total is what the engine will divide.
+        let fork = engine_dir("inlet", Some(b"a module carrying x-kalsa-slot inside"));
+        assert_eq!(planned_parallel(&fork, requested), requested);
+        let four = kalsa_launch::plan(&input(planned_parallel(&fork, requested)))
+            .expect("four slots of the big row are fundable");
+        assert_eq!(four.args.parallel, requested);
+        assert!(
+            four.args.context_tokens > clamped.args.context_tokens,
+            "the four-slot total must be the four one-slot windows, not one"
+        );
+
+        for exe in [&blind, &fork] {
+            if let Some(dir) = exe.parent() {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+        }
     }
 
     #[test]

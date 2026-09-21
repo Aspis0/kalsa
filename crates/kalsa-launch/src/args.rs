@@ -84,9 +84,17 @@ pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 /// 1. **The engine must consume the door's private headers.** At capacity
 ///    above 1 the door refuses to build unless `EnginePrivateHeaders` is
 ///    `Consumed` (`kalsa_door`'s `new_with_engine`, `CapacityWithoutHeaderSupport`).
-///    It is `NotConsumed` today; the fork beside llama-server reads
-///    `X-Kalsa-Cache-Salt` at v1.0.0 and will not read `X-Kalsa-Slot` until
-///    v1.1.0 is bundled.
+///    That declaration is a runtime fact, never a constant here:
+///    `kalsa-runtime`'s `engine_consumes_private_headers` streams the module
+///    file for the lowercase `x-kalsa-slot` the engine matches, and
+///    `kalsa-runtime::assets` pins the fork that carries it — so the macOS
+///    arm64 rows are `Consumed`. An upstream archive, an Intel row, or any
+///    future build that drops the inlet reads `NotConsumed`, and the app then
+///    clamps BOTH its plan and the door to one device rather than refuse. The
+///    clamp is the app's (`startup.rs`'s `planned_parallel` and `main.rs`'s
+///    `door_capacity`), not this crate's: `plan` will split N slots for any row
+///    it is handed, inlet or not, so an engine that cannot isolate must never
+///    be handed more than one.
 /// 2. **The sliding-window KV replicates per slot — now priced for every
 ///    pinned row.** §7 measured the 14 full-attention layers dividing their
 ///    pool by the slot count while the 42 sliding-window layers replicated:

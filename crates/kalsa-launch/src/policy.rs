@@ -180,32 +180,36 @@ fn slot_context(requested: u64, slots: u64) -> Option<u64> {
     (aligned >= crate::args::MIN_CONTEXT_TOKENS_PER_SLOT).then_some(aligned)
 }
 
-/// The machine's funded MAXIMUM for this row at one slot — the ceiling the
-/// guards refuse a larger request against, and the figure the panel shows as
-/// the top of the range — or `None` when it cannot fund even one token. This
-/// is NOT the automatic launch: [`plan`] lowers the ceiling to
+/// The machine's funded MAXIMUM per slot at `parallel` slots — the ceiling
+/// the guards refuse a larger request against, and the figure the panel shows
+/// as the top of the range — or `None` when it cannot fund even one token.
+/// This is NOT the automatic launch: [`plan`] lowers the ceiling to
 /// [`DEFAULT_CONTEXT_TOKENS`] when the owner has not chosen, and that smaller
 /// answer is `min` of this and the chat default. The narrow question a caller
 /// asks before any plan exists (a preview has no downloaded file to point at
 /// and no port), answered from the one copy of the arithmetic rather than a
-/// recomputation beside it. It previews under the automatic q8_0 cache and a
-/// single slot; the owner's f16 choice scales the per-token figure and
-/// travels through [`plan`].
-pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
-    // One slot and the shipped micro-batch: the preview carries no owner
-    // override, and the default is what the plan is built with when the
-    // panel has not asked for another. The per-slot term is included through
-    // the same arithmetic `plan` funds with, so a preview cannot offer a
-    // window the launch would refuse.
+/// recomputation beside it. It previews under the automatic q8_0 cache at the
+/// caller's slot count, and its answer is PER SLOT: the engine divides
+/// `--ctx-size` by `--parallel`, so a preview that kept one slot's figure
+/// while the plan ran N would promise one device the window of N. The owner's
+/// f16 choice scales the per-token figure and travels through [`plan`].
+pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> Option<u64> {
+    // The shipped micro-batch: the preview carries no owner override, and the
+    // default is what the plan is built with when the panel has not asked for
+    // another. The per-slot term is included through the same arithmetic
+    // `plan` funds with, so a preview cannot offer a window the launch would
+    // refuse. One slot is clamped once, as [`funded_ceiling`] does, so a raw
+    // zero cannot ask the arithmetic about no slots.
+    let slots = u64::from(parallel.max(1));
     let (funded, _roof) = context_and_prompt_cache_roof(
         model,
         usable_bytes,
         KvCache::Q8_0,
-        1,
+        slots,
         u64::from(crate::args::UBATCH),
     )?;
-    let ceiling = per_slot_ceiling(funded, model.trained_context_tokens, 1)?;
-    slot_context(ceiling, 1)
+    let ceiling = per_slot_ceiling(funded, model.trained_context_tokens, slots)?;
+    slot_context(ceiling, slots)
 }
 
 /// THE BUDGET ARITHMETIC, AMENDED — this function now splits what is left
@@ -1068,7 +1072,7 @@ mod tests {
         let mut model = *shipped_row(GRANITE);
         model.trained_context_tokens = Some(8_192);
         assert_eq!(
-            funded_context(&model, ROOMY_BYTES),
+            funded_context(&model, ROOMY_BYTES, 1),
             Some(8_192),
             "the memory funded a window past what the model was trained for"
         );
@@ -1080,7 +1084,7 @@ mod tests {
         // the model was trained for, the memory still decides.
         let mut model = *shipped_row(GRANITE);
         model.trained_context_tokens = Some(1_000_000);
-        let funded = funded_context(&model, ROOMY_BYTES).expect("a window");
+        let funded = funded_context(&model, ROOMY_BYTES, 1).expect("a window");
         assert!(
             funded < 1_000_000,
             "the trained figure became a promise the memory cannot keep: {funded}"
@@ -1091,9 +1095,9 @@ mod tests {
     fn a_row_with_no_header_read_keeps_the_memory_figure() {
         let mut model = *shipped_row(GRANITE);
         model.trained_context_tokens = None;
-        let uncapped = funded_context(&model, ROOMY_BYTES).expect("a window");
+        let uncapped = funded_context(&model, ROOMY_BYTES, 1).expect("a window");
         model.trained_context_tokens = Some(u64::MAX);
-        assert_eq!(uncapped, funded_context(&model, ROOMY_BYTES).expect("a window"));
+        assert_eq!(uncapped, funded_context(&model, ROOMY_BYTES, 1).expect("a window"));
     }
 
     #[test]
@@ -1104,9 +1108,9 @@ mod tests {
         let mut model = *shipped_row(GRANITE);
         model.trained_context_tokens = None;
         assert!(!trained_context_unreadable(&model));
-        assert!(funded_context(&model, ROOMY_BYTES).is_some());
+        assert!(funded_context(&model, ROOMY_BYTES, 1).is_some());
         model.trained_context_tokens = Some(0);
         assert!(trained_context_unreadable(&model));
-        assert_eq!(funded_context(&model, ROOMY_BYTES), None);
+        assert_eq!(funded_context(&model, ROOMY_BYTES, 1), None);
     }
 }
