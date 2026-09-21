@@ -187,6 +187,12 @@ All three components already exist, and none of them costs work at save time:
 - `chat/src/App.tsx` is 1147 lines and was 1109 before T3c (`acfe4f7`) — pre-existing excess,
   declared here and not refactored. What T3c added is the wire-up to `slotGate`; the ordering logic
   it used to hold was **moved out** into a pure module, not left in place.
+- `crates/kalsa-door/src/proxy.rs` is 563 lines before T4a-fix (`0cbb719`) and 586 after — also
+  pre-existing excess, declared here and not refactored. It is the door's request path, where every
+  way out of a request has to be reasoned about, so the growth is the guard that makes the slot's
+  mark survive each of them.
+- `chat/src/App.tsx` and `src-tauri/src/main.rs` (1371) are the two files this plan keeps adding to.
+  When either next needs more than a wire-up, the answer is a module, not a longer file.
 
 ### T2 — app: the launch flag set this tier needs
 
