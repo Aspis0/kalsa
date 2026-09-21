@@ -1,0 +1,60 @@
+{
+ "init": {
+  "op": "init",
+  "no_extra_bufts": 1
+ },
+ "load_wall_s": 0.839,
+ "send_fit": {
+  "phase": "fit",
+  "liveness": "alive",
+  "alreadyResident": true,
+  "recoverLost": false,
+  "allow": true,
+  "reasonKey": null,
+  "availableMb": 3138
+ },
+ "loadprompts": [
+  {
+   "t": 1789957589.836,
+   "prompt_n": 1853,
+   "n_ctx": 8192,
+   "embd": 0
+  },
+  {
+   "t": 1789957701.563,
+   "prompt_n": 1907,
+   "n_ctx": 8192,
+   "embd": 1947
+  }
+ ],
+ "rounds": [
+  {
+   "turnId": "1",
+   "round": 0,
+   "tokensCached": 1947,
+   "tokensEvaluated": 1853,
+   "tokensPredicted": 93,
+   "promptMs": 102191.634,
+   "prompt_n": 1853,
+   "promptN": null,
+   "predictedMs": 9411.086,
+   "predictedPerSecond": 9.881962613028932
+  },
+  {
+   "turnId": "1",
+   "round": 1,
+   "tokensCached": 1987,
+   "tokensEvaluated": 1907,
+   "tokensPredicted": 79,
+   "promptMs": 4127.146,
+   "prompt_n": 57,
+   "promptN": null,
+   "predictedMs": 7071.128,
+   "predictedPerSecond": 11.172192046304351
+  }
+ ],
+ "native_variant": {
+  "androidLib": "rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl",
+  "nGpuLayers": 0
+ }
+}
