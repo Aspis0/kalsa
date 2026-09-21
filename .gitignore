@@ -145,3 +145,7 @@ modules/*/android/build/
 /KV-REUSE-PATCH-AUDIT-2026-09-11.md
 /P0-P1-KV-EMA-AUDIT-2026-09-11.md
 archived/docs/
+
+# Design mocks: throwaway HTML renders of the new interface, iterated with
+# headless Chrome at the exact Jelly Star viewport. Not source, not shipped.
+mock/

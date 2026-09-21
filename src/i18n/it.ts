@@ -1156,4 +1156,67 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). " +
     "Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. " +
     "Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura.",
+  // ── Interfaccia rifatta (2026-09). Vedi docs/DESIGN.md ────────────────
+  // Ogni parola che la nuova shell può mostrare sta qui, così una stringa
+  // mancante è un errore di tipo e non un controllo vuoto nel momento peggiore.
+  shell: {
+    phase: {
+      idle: "Pronto",
+      loading: "Carico {model}",
+      prefill: "Leggo la domanda",
+      thinking: "Sto pensando",
+      writing: "Sto scrivendo",
+      stopping: "Mi fermo",
+      stoppedByUser: "Fermato da te",
+      stoppedEmpty: "Fermato prima di qualsiasi risposta",
+      tooHot: "Troppo caldo — in pausa",
+      unloaded: "Modello scaricato",
+      failed: "Fermato da un errore",
+    },
+    /** Mostrata ogni volta che il composer rifiuta l'input. Mai vuota allora. */
+    held: {
+      loading: "In attesa mentre carico il modello",
+      prefill: "In attesa che parta la risposta",
+      thinking: "In attesa mentre pensa",
+      writing: "In attesa mentre scrive",
+      stopping: "In attesa che la macchina confermi di essersi fermata",
+      tooHot: "In attesa: il telefono è troppo caldo",
+      unloaded: "In attesa: il modello va caricato di nuovo",
+      converting: "In attesa: sto ancora leggendo il documento",
+    },
+    thinking: {
+      show: "Mostra il pensiero",
+      hide: "Nascondi il pensiero",
+      thoughtFor: "Ha pensato per {seconds}s",
+    },
+    context: {
+      fromDocument: "Rispondo da {name}",
+      noneSelected: "Nessun documento selezionato",
+      noneButLibrary: "Nessun documento selezionato — il modello non vedrà la tua libreria",
+    },
+    action: {
+      wait: "Aspetta",
+      stop: "Ferma",
+      retry: "Riprova",
+      loadModel: "Carica il modello",
+    },
+    device: {
+      charging: "In carica",
+      warm: "Caldo",
+      idle: "Fermo",
+    },
+    composer: {
+      placeholder: "Chiedi qualcosa",
+      typingAllowed: "Puoi scrivere la prossima domanda mentre risponde",
+    },
+    a11y: {
+      band: "Stato della macchina",
+      transcript: "Conversazione",
+      send: "Invia",
+      stop: "Ferma la generazione",
+      mic: "Detta",
+      attach: "Aggiungi un documento",
+      thinking: "Pensiero del modello",
+    },
+  },
 };

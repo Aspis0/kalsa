@@ -2,31 +2,34 @@ import { Platform, TextStyle } from "react-native";
 
 import { useLabTheme } from "../ui/labTheme";
 
-// Font family resolves to the loaded @expo-google-fonts/* family name.
-// useFonts is wired in App.tsx; until it resolves, App renders null.
+// Font family resolves to the loaded @expo-google-fonts/* family name:
+// Inter for the interface, Source Serif 4 for the answer, IBM Plex Mono for
+// code and figures. useFonts is wired in App.tsx; until it resolves, App renders null.
 // On Android, fontWeight is NOT synthesized for custom families — weight MUST
 // come from the fontFamily name (never pair a custom family with numeric fontWeight).
 const display = Platform.select({
-  default: "Fraunces_600SemiBold",
+  default: "SourceSerif4_600SemiBold",
 });
 const displayBold = Platform.select({
-  default: "Fraunces_700Bold",
+  default: "SourceSerif4_600SemiBold",
 });
 const displayExtra = Platform.select({
-  default: "Fraunces_800ExtraBold",
+  default: "SourceSerif4_600SemiBold",
 });
 const body = Platform.select({
-  default: "BricolageGrotesque_400Regular",
+  default: "Inter_400Regular",
 });
-// Bricolage Grotesque ships no italic face; chat/markdown italic uses Source Serif 4.
+// Inter ships its own italic, so UI italic stays inside the UI family. It used
+// to point at SourceSerif4_400Regular_Italic, which made an italic word inside
+// sans UI text jump to another family's serif.
 const bodyItalic = Platform.select({
-  default: "SourceSerif4_400Regular_Italic",
+  default: "Inter_400Regular_Italic",
 });
 const bodyMedium = Platform.select({
-  default: "BricolageGrotesque_500Medium",
+  default: "Inter_500Medium",
 });
 const bodySemi = Platform.select({
-  default: "BricolageGrotesque_600SemiBold",
+  default: "Inter_600SemiBold",
 });
 const chatBody = Platform.select({
   default: "SourceSerif4_400Regular",

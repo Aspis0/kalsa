@@ -20,6 +20,7 @@
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
     "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/source-serif-4": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@fugood/react-native-audio-pcm-stream": "^1.1.4",

@@ -4,18 +4,16 @@ import { glass } from "./glass";
 import type { ThemeColors } from "./palettes";
 import { DEFAULT_RESPONSIVE_METRICS } from "./responsiveMetrics";
 import { radius, spacing } from "./tokens";
+import { fontFamilies } from "./typography";
 
 export type ResponsiveMetrics = typeof DEFAULT_RESPONSIVE_METRICS;
 
 export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = DEFAULT_RESPONSIVE_METRICS) {
-  // Bricolage Grotesque for UI body, Fraunces for display. On Android RN does
-  // NOT synthesize weight for custom families — the face name encodes weight
-  // (…_400Regular, …_600SemiBold, …_700Bold). Do NOT also set a numeric weight
-  // property on these faces. Loaded via useAgoraFonts (App.tsx blocks render
-  // until ready). Falls back to System if the load somehow bypassed the gate.
-  const fontBody = "BricolageGrotesque_400Regular";
-  const fontSemi = "BricolageGrotesque_600SemiBold";
-  const fontDisplay = "Fraunces_700Bold";
+  // Face names come from typography.ts, the single place that names a font.
+  // On Android RN does NOT synthesize weight for custom families — the face
+  // name encodes weight (…_400Regular, …_600SemiBold). Do NOT also set a numeric
+  // weight property on these faces. Loaded via useAgoraFonts (App.tsx blocks
+  // render until ready). Falls back to System if the load bypassed the gate.
   const textClear = { includeFontPadding: false };
   const androidGlassSurface = Platform.OS === "android" ? colors.panelSolid : "transparent";
   return StyleSheet.create({
@@ -64,7 +62,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.sm,
   },
   errorText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.danger,
     flex: 1,
     fontSize: 13,
@@ -79,12 +77,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   statusNoticeTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     fontSize: 13,
   },
   statusNoticeDetail: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
@@ -107,7 +105,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 3,
   },
   retryButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
@@ -161,7 +159,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   askAssistantTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 16,
   },
   askAssistantSubtitle: {
@@ -181,7 +179,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   askAssistantModeText: {
     ...textClear,
     color: colors.accent,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
     textTransform: "uppercase",
   },
@@ -242,7 +240,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     lineHeight: 18,
   },
   askAssistantBubbleUserText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,
@@ -261,7 +259,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: 7,
   },
   askAssistantSourceTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 11,
@@ -448,7 +446,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 44,
   },
   miniappEyebrow: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -456,14 +454,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     textTransform: "uppercase",
   },
   miniappTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 17,
     lineHeight: 22,
   },
   miniappSubtitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
@@ -473,7 +471,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappBlockTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 13,
@@ -502,14 +500,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.sm,
   },
   miniappMetricLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
     textTransform: "uppercase",
   },
   miniappMetricValue: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 25,
@@ -517,7 +515,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginTop: 2,
   },
   miniappQualityText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 18,
@@ -534,14 +532,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.sm,
   },
   miniappInputLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
     marginBottom: 4,
   },
   miniappInput: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 18,
@@ -555,14 +553,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.sm,
   },
   miniappFormulaLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
     textTransform: "uppercase",
   },
   miniappFormulaText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 13,
@@ -590,7 +588,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: "84%",
   },
   miniappPlotText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
@@ -613,7 +611,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappTableCell: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     flex: 1,
@@ -621,11 +619,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minWidth: 40,
   },
   miniappTableHeaderCell: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.muted,
   },
   miniappTableOverflowNotice: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -689,14 +687,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderLeftWidth: 3,
   },
   miniappPathwayNodeLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
     marginTop: 2,
   },
   miniappPathwayNodeKind: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -746,7 +744,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 10,
   },
   miniappPathwayEdgeLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
@@ -809,13 +807,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.md,
   },
   miniappPathwayEditorLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
   },
   miniappPathwayEditorSmallLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -823,7 +821,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     textTransform: "uppercase",
   },
   miniappPathwayEditorInput: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     backgroundColor: colors.panelSolid,
     borderColor: colors.line,
@@ -909,7 +907,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.sm,
   },
   miniappHypothesisStatement: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 13,
@@ -922,7 +920,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     maxWidth: "100%",
   },
   miniappExperimentMatrixHeader: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -1001,7 +999,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: 4,
   },
   miniappPlateAxisLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -1009,7 +1007,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 20,
   },
   miniappPlateColumnHeader: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -1060,14 +1058,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   miniappSegmentText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 11,
   },
   miniappSegmentTextActive: {
     color: colors.primaryText,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     fontSize: 11,
   },
@@ -1120,7 +1118,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     transform: [{ scale: 0.98 }],
   },
   miniappPrimaryActionText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
@@ -1160,12 +1158,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   miniappQuizFeedbackCorrect: {
     color: colors.good,
-    fontFamily: fontSemi,
+    fontFamily: fontFamilies.bodySemi,
   },
   miniappQuizFeedbackWrong: {
     // plotUp is the WCAG-safe error red on dark panel surfaces (bad is 4.3:1 there).
     color: colors.plotUp,
-    fontFamily: fontSemi,
+    fontFamily: fontFamilies.bodySemi,
   },
   askAssistantThinkingText: {
     color: colors.muted,
@@ -1207,7 +1205,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   askAssistantQuickText: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
   },
   askAssistantInputRow: {
@@ -1271,7 +1269,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   askAssistantHeaderButtonText: {
     ...textClear,
     color: colors.primaryText,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 12,
     includeFontPadding: false,
     lineHeight: 16,
@@ -1307,13 +1305,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.lg,
   },
   labBookDate: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
   },
   labBookTitleInput: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 20,
   },
   labBookBodyInput: {
@@ -1346,7 +1344,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.sm,
   },
   labBookAttachmentText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     flexShrink: 1,
@@ -1383,13 +1381,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   labBookQuickNoteTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontSemi,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 14,
   },
   labBookQuickNoteHint: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 12,
     marginTop: 2,
   },
@@ -1450,7 +1448,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.md,
   },
   labBookReaderSearchText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
@@ -1485,14 +1483,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   labBookReaderTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 30,
     lineHeight: 34,
   },
   labBookReaderExcerpt: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 15,
     lineHeight: 23,
     opacity: 0.76,
@@ -1542,20 +1540,20 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 8,
   },
   labBookMiniDate: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.accent,
     fontSize: 11,
     textTransform: "uppercase",
   },
   labBookMiniTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 17,
   },
   labBookMiniExcerpt: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
@@ -1647,7 +1645,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     justifyContent: "flex-end",
   },
   labBookFanLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     backgroundColor: androidGlassSurface,
     borderColor: colors.line,
@@ -1852,7 +1850,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   navText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
   },
   navTextActive: {
@@ -1864,7 +1862,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   kicker: {
     ...textClear,
     color: colors.accent,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
@@ -1872,7 +1870,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   heroTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 22,
     letterSpacing: 0,
   },
@@ -1888,7 +1886,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   heroBody: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.sm,
@@ -1920,7 +1918,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   glassPillText: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
   },
   section: {
@@ -1929,7 +1927,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   sectionTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 16,
   },
   organismGrid: {
@@ -1962,13 +1960,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   cardTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 16,
   },
   cardMeta: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
@@ -1976,7 +1974,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   cardSmall: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 13,
     lineHeight: 18,
     marginTop: spacing.xs,
@@ -2030,7 +2028,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderRadius: radius.lg,
     borderWidth: 0,
     color: colors.ink,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 15,
     minHeight: 50,
     paddingHorizontal: spacing.md,
@@ -2093,13 +2091,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   qpcrMetricValue: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 15,
   },
   qpcrMetricLabel: {
     ...textClear,
     color: colors.quiet,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
     marginTop: 2,
     textTransform: "uppercase",
@@ -2150,7 +2148,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 5,
   },
   qpcrQuickPickText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2187,7 +2185,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 4,
   },
   columnChipText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2226,7 +2224,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.md,
   },
   issueText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.amber,
     fontSize: 13,
     lineHeight: 18,
@@ -2291,7 +2289,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     shadowColor: colors.compute,
   },
   primaryButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.primaryText,
     fontSize: 15,
   },
@@ -2315,7 +2313,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   statusBadgeText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     fontSize: 11,
   },
@@ -2330,11 +2328,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaAnalysisTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 24,
   },
   rnaAnalysisBody: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
@@ -2373,11 +2371,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaAnalysisStatValue: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 18,
   },
   rnaAnalysisStatLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
@@ -2414,11 +2412,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaActionTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 15,
   },
   rnaActionBody: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2427,7 +2425,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaActionCount: {
     ...textClear,
     color: colors.accent,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 18,
     minWidth: 24,
     textAlign: "right",
@@ -2436,7 +2434,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.sm,
   },
   analysisDate: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.quiet,
     fontSize: 12,
@@ -2463,7 +2461,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minHeight: 44,
   },
   textButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 13,
   },
   deletePanel: {
@@ -2492,7 +2490,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   analysisTabText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2536,7 +2534,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   privacyBadgeLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     fontSize: 11,
     textTransform: "uppercase",
@@ -2585,11 +2583,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   disclosureCardTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 13,
   },
   disclosureCardSummary: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2619,7 +2617,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   rnaSourceStatusText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -2645,11 +2643,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaCompactStatValue: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 15,
   },
   rnaCompactStatLabel: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
@@ -2672,11 +2670,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaSubmitReviewTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 16,
   },
   rnaSubmitReviewBody: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -2737,7 +2735,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaWizardStepIndexText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
   },
   rnaWizardStepIndexTextActive: {
@@ -2747,7 +2745,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     ...textClear,
     color: colors.ink,
     flexShrink: 1,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 12,
   },
   rnaWizardStepLabelActive: {
@@ -2799,7 +2797,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaCoachAskButtonText: {
     ...textClear,
     color: colors.primaryText,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 12,
   },
   rnaSampleRow: {
@@ -2829,7 +2827,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaSampleIndexText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
   },
   rnaSampleRowActions: {
@@ -2853,7 +2851,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaSampleStatusText: {
     ...textClear,
     color: colors.amber,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
     textTransform: "uppercase",
   },
@@ -2893,7 +2891,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   rnaConditionChipText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
     textTransform: "uppercase",
   },
@@ -2910,7 +2908,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     ...textClear,
     color: colors.muted,
     flex: 1,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
     textAlign: "center",
     textTransform: "uppercase",
@@ -2932,7 +2930,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   qcBadgeText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
     textTransform: "uppercase",
   },
@@ -2994,7 +2992,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     top: 7,
   },
   qpcrDotText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.primaryText,
     fontSize: 10,
   },
@@ -3082,13 +3080,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   rnaLiveStepIndex: {
     ...textClear,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
   },
   rnaLiveStepText: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 11,
     maxWidth: 58,
   },
@@ -3110,7 +3108,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   metricValue: {
     ...textClear,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 23,
     marginTop: spacing.xs,
   },
@@ -3150,14 +3148,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   toolHeroTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 22,
     letterSpacing: 0,
   },
   toolHeroBody: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.xs,
@@ -3189,13 +3187,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   toolStatValue: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 17,
   },
   toolStatLabel: {
     ...textClear,
     color: colors.quiet,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
     marginTop: 3,
     textTransform: "uppercase",
@@ -3243,14 +3241,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   benchToolbarTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 28,
     letterSpacing: 0,
   },
   benchToolbarMeta: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 2,
@@ -3346,7 +3344,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     backgroundColor: "rgba(232,234,231,0.28)",
   },
   benchToolTitle: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 10,
@@ -3356,7 +3354,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.primaryText,
   },
   benchToolMeta: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     flexShrink: 1,
@@ -3407,7 +3405,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   benchCalcInputLabel: {
     ...textClear,
     color: colors.quiet,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 10,
     textTransform: "uppercase",
   },
@@ -3418,7 +3416,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minHeight: 86,
   },
   benchCalcInputSuffix: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     bottom: 12,
     color: colors.quiet,
@@ -3452,7 +3450,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 5,
   },
   plateTypeChipText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
@@ -3473,7 +3471,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginBottom: 4,
   },
   plateAxisCell: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.quiet,
     fontSize: 10,
@@ -3505,7 +3503,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   plateWellText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.quiet,
     fontSize: 10,
@@ -3543,7 +3541,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     backgroundColor: "#8DD8FF",
   },
   benchCalcPrimary: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 22,
@@ -3555,7 +3553,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingTop: spacing.xs,
   },
   benchCalcValue: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 14,
@@ -3591,7 +3589,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   monoBadgeText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.ink,
     fontSize: 11,
@@ -3670,7 +3668,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   askAiUsagePieValue: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 12,
   },
   askAiUsageBudgetLine: {
@@ -3720,7 +3718,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     flex: 1,
     fontSize: 11,
     minHeight: 30,
@@ -3728,13 +3726,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   csvHeader: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     color: colors.ink,
   },
   bodyText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -3750,7 +3748,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   fileName: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 14,
   },
   openButton: {
@@ -3815,7 +3813,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   themeOptionText: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     fontSize: 13,
   },
   themeOptionTextActive: {
@@ -3849,7 +3847,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     opacity: 0.42,
   },
   primaryMiniButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,
@@ -3875,7 +3873,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 4,
   },
   secondaryMiniButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
@@ -3895,7 +3893,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.md,
   },
   disabledMiniButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.quiet,
     fontSize: 13,
@@ -3919,7 +3917,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 7,
   },
   dangerButtonText: {
-    fontFamily: fontDisplay,
+    fontFamily: fontFamilies.displayBold,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,

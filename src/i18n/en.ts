@@ -1197,4 +1197,67 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "You are a small on-device model: keep answers short (under 200 words unless asked for more). " +
     "If a task is too long or complex, break it down or suggest how to proceed. " +
     "If asked for harmful content (violence, illegal acts, hate, personal data of others), decline briefly and offer a safe alternative.",
+  // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
+  // Every word the new shell can put on screen lives here, so a missing
+  // string is a type error rather than a blank control at the worst moment.
+  shell: {
+    phase: {
+      idle: "Ready",
+      loading: "Loading {model}",
+      prefill: "Reading your question",
+      thinking: "Thinking",
+      writing: "Writing",
+      stopping: "Stopping",
+      stoppedByUser: "Stopped by you",
+      stoppedEmpty: "Stopped before any reply",
+      tooHot: "Too hot — paused",
+      unloaded: "Model unloaded",
+      failed: "Stopped by an error",
+    },
+    /** Shown whenever the composer refuses input. It is never empty then. */
+    held: {
+      loading: "Held while the model loads",
+      prefill: "Held until the reply starts",
+      thinking: "Held while it thinks",
+      writing: "Held while it writes",
+      stopping: "Held until the machine confirms it has stopped",
+      tooHot: "Held: the phone is too hot",
+      unloaded: "Held: the model has to be loaded again",
+      converting: "Held: still reading your document",
+    },
+    thinking: {
+      show: "Show thinking",
+      hide: "Hide thinking",
+      thoughtFor: "Thought for {seconds}s",
+    },
+    context: {
+      fromDocument: "Answering from {name}",
+      noneSelected: "No document selected",
+      noneButLibrary: "No document selected — the model will not see your library",
+    },
+    action: {
+      wait: "Wait",
+      stop: "Stop",
+      retry: "Try again",
+      loadModel: "Load the model",
+    },
+    device: {
+      charging: "Charging",
+      warm: "Running warm",
+      idle: "Idle",
+    },
+    composer: {
+      placeholder: "Ask anything",
+      typingAllowed: "You can write the next question while it answers",
+    },
+    a11y: {
+      band: "Machine status",
+      transcript: "Conversation",
+      send: "Send",
+      stop: "Stop generating",
+      mic: "Dictate",
+      attach: "Add a document",
+      thinking: "Model thinking",
+    },
+  },
 };

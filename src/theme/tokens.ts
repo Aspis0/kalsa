@@ -17,34 +17,14 @@ export const radius = {
   pill: 999,
 };
 
-// Lab Book "notebook" palette — Claude design (web v2 parity).
-// The notebook is INTENTIONALLY always a dark blue-grey "chrome" shell wrapping
-// warm cream paper pages with deep blue-black ink and a teal accent, regardless
-// of the app's light/dark theme. Values are converted from the web reference
-// oklch() tokens (labbook-v2.css :root) to HEX/RGBA so they render natively.
-export const notebook = {
-  // ink (pen on paper)
-  ink: "#0b1c2c",
-  inkDim: "#607489",
-  inkFaint: "#91a0b1",
-  // paper (warm cream)
-  paper: "#f7f3eb",
-  paperEdge: "#eae4d7",
-  paperDeep: "#dfd6c8",
-  paperShadow: "#c1b5a6",
-  // teal accent
-  teal: "#008889",
-  tealStrong: "#00a2a4",
-  // chrome (workspace shell around the book)
-  chromeBg: "#0a0f13",
-  chromePanel: "#13181d",
-  chromeRaised: "#1b2127",
-  chromeBorder: "#292e34",
-  chromeText: "#f1f4f7",
-  chromeMuted: "#81878d",
-  // on-teal foreground (matches web --teal-strong button text)
-  onTeal: "#061417",
-} as const;
+// The old "Lab Book / notebook" palette used to live here. It was dead code —
+// no file in src/ ever imported it — and it contradicted the brand: it claimed a
+// warm cream paper, a blue-grey chrome and a teal accent, while the app actually
+// ships the green family (palettes.js, accent #1f5f4e) and so does the desktop
+// (Kalsa Brain, chat/src/styles/tokens.css, --accent: #1f5f4e). It also cited a
+// web reference, labbook-v2.css, that was never in this repository's history.
+// The live palette is now `src/theme/design.ts`; the brand pair green #1F5F4E
+// and cream #F4EFE4 is the one BrandIcon.tsx already encoded.
 
 // React Native shadows are platform-split. These tokens encode (iOS) shadow*
 // and (Android) elevation in one place so primitives can spread them.
