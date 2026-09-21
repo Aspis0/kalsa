@@ -136,6 +136,37 @@ export function projectedWindowTokens(windowChars: number): number {
 }
 
 /**
+ * Conservative window-token estimate. When a measured chars/token ratio from
+ * real prefills is available it is used, but ONLY when it is SMALLER than the
+ * default WINDOW_CHARS_PER_TOKEN — so this never projects FEWER tokens than
+ * chars/3, only more (it can make the ceiling guard slide EARLIER, never
+ * later). Fixes the dense-content undercount (code/JSON/IDs/CJK) that let a
+ * prompt overflow n_ctx without sliding.
+ */
+export function conservativeWindowTokens(
+  windowChars: number,
+  measuredCharsPerToken?: number,
+): number {
+  if (
+    typeof windowChars !== "number" ||
+    !Number.isFinite(windowChars) ||
+    windowChars <= 0
+  ) {
+    return 0;
+  }
+  const ratio =
+    typeof measuredCharsPerToken === "number" &&
+    Number.isFinite(measuredCharsPerToken) &&
+    measuredCharsPerToken > 0 &&
+    measuredCharsPerToken < WINDOW_CHARS_PER_TOKEN
+      ? measuredCharsPerToken
+      : WINDOW_CHARS_PER_TOKEN;
+  // tokens can't exceed chars (max density ~1 token/char); also guards
+  // against overflow when ratio is tiny.
+  return Math.min(Math.ceil(windowChars / ratio), windowChars);
+}
+
+/**
  * Whether the send about to be assembled would cross the ceiling while the
  * live KV still pins the assemble start.
  *
@@ -152,6 +183,11 @@ export function shouldSlideWindowAtCeiling(args: {
   kvHeld: boolean;
   /** Non-window prompt tokens (the system prompt) the ceiling must also pay. */
   reservedPromptTokens?: number;
+  /**
+   * A real/conservative token count for the window; when provided it overrides
+   * the chars/3 projection.
+   */
+  windowTokens?: number;
 }): boolean {
   if (!args.kvHeld) return false;
   // Inert ONLY without an engine: no nCtx, nothing to protect. A VALID n_ctx
@@ -167,7 +203,13 @@ export function shouldSlideWindowAtCeiling(args: {
     return false;
   }
   const ceiling = windowCeilingTokens(args.nCtx, args.reservedPromptTokens);
-  return projectedWindowTokens(args.windowChars) > ceiling;
+  const windowTok =
+    typeof args.windowTokens === "number" &&
+    Number.isFinite(args.windowTokens) &&
+    args.windowTokens >= 0
+      ? args.windowTokens
+      : projectedWindowTokens(args.windowChars);
+  return windowTok > ceiling;
 }
 
 /**
@@ -186,6 +228,11 @@ export function promptTokensExceedNCtx(args: {
   nCtx: number | null | undefined;
   promptChars: number;
   reservedPromptTokens?: number;
+  /**
+   * A real/conservative token count for the prompt; when provided it overrides
+   * the chars/3 projection.
+   */
+  promptTokens?: number;
 }): boolean {
   // Same semantics as shouldSlideWindowAtCeiling: inert only without an
   // engine; a valid n_ctx with a fully-consumed ceiling means every prompt
@@ -198,7 +245,13 @@ export function promptTokensExceedNCtx(args: {
     return false;
   }
   const ceiling = windowCeilingTokens(args.nCtx, args.reservedPromptTokens);
-  return projectedWindowTokens(args.promptChars) > ceiling;
+  const promptTok =
+    typeof args.promptTokens === "number" &&
+    Number.isFinite(args.promptTokens) &&
+    args.promptTokens >= 0
+      ? args.promptTokens
+      : projectedWindowTokens(args.promptChars);
+  return promptTok > ceiling;
 }
 
 export type WindowProfile = {

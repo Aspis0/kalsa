@@ -13,6 +13,7 @@ import {
   WINDOW_MIN_MESSAGES,
   WINDOW_RESERVE_TOKENS,
   charBudgetReserveTokens,
+  conservativeWindowTokens,
   projectedWindowTokens,
   promptTokensExceedNCtx,
   resolveWindowProfile,
@@ -372,5 +373,236 @@ describe("windowStartIndex", () => {
     expect(lengths.length - windowStartIndex(lengths, zero, 4000)).toBe(
       WINDOW_MIN_MESSAGES,
     );
+  });
+});
+
+describe("shouldSlideWindowAtCeiling with a real token count", () => {
+  // Ceiling at 8192 is 6144. The same 18432 chars is 6144 tokens at the
+  // chars/3 projection but ~16 458 tokens at the measured dense ratio.
+  const CEILING = windowCeilingTokens(8192);
+  const charsAtCeiling = CEILING * WINDOW_CHARS_PER_TOKEN;
+  const denseTokens = conservativeWindowTokens(charsAtCeiling, 1.12);
+
+  it("slides a dense window chars/3 would have let pass (measured 1.12 chars/token)", () => {
+    // Qwen@16384 with dense Latin filler measured ~1.12 chars/token; code and
+    // JSON run in the same band. chars/3 sees exactly the ceiling and stays
+    // put; the real prefills do not fit.
+    expect(projectedWindowTokens(charsAtCeiling)).toBe(CEILING);
+    expect(denseTokens).toBeGreaterThan(CEILING);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling,
+        kvHeld: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling,
+        kvHeld: true,
+        windowTokens: denseTokens,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not slide when the measured count is at or below the ceiling", () => {
+    // chars/3 would flag this send; the real count says it fits.
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 3,
+        kvHeld: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 3,
+        kvHeld: true,
+        windowTokens: CEILING,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 3,
+        kvHeld: true,
+        windowTokens: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("is identical to the chars/3 path when windowTokens is absent", () => {
+    // The concrete booleans come first: without them this test only compares
+    // two calls of the same function and would still pass if the projection
+    // were reverted to a different ratio.
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling + 3,
+        kvHeld: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling,
+        kvHeld: true,
+      }),
+    ).toBe(false);
+    for (const windowChars of [0, 1, charsAtCeiling, charsAtCeiling + 1, 1_000_000]) {
+      expect(
+        shouldSlideWindowAtCeiling({
+          nCtx: 8192,
+          windowChars,
+          kvHeld: true,
+          windowTokens: undefined,
+        }),
+      ).toBe(
+        shouldSlideWindowAtCeiling({ nCtx: 8192, windowChars, kvHeld: true }),
+      );
+    }
+  });
+
+  it("falls back to chars/3 for a non-finite or negative windowTokens", () => {
+    const fallback = projectedWindowTokens(charsAtCeiling + 3) > CEILING;
+    for (const windowTokens of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      -1,
+      "6144",
+    ] as unknown as number[]) {
+      expect(
+        shouldSlideWindowAtCeiling({
+          nCtx: 8192,
+          windowChars: charsAtCeiling + 3,
+          kvHeld: true,
+          windowTokens,
+        }),
+      ).toBe(fallback);
+    }
+  });
+
+  it("never slides when the KV is not held, whatever the token count", () => {
+    expect(
+      shouldSlideWindowAtCeiling({
+        nCtx: 8192,
+        windowChars: charsAtCeiling,
+        kvHeld: false,
+        windowTokens: denseTokens,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("promptTokensExceedNCtx with a real token count", () => {
+  const CEILING = windowCeilingTokens(8192);
+  const charsAtCeiling = CEILING * WINDOW_CHARS_PER_TOKEN;
+  const denseTokens = conservativeWindowTokens(charsAtCeiling, 1.12);
+
+  it("flags a dense prompt chars/3 would have let through", () => {
+    expect(
+      promptTokensExceedNCtx({ nCtx: 8192, promptChars: charsAtCeiling }),
+    ).toBe(false);
+    expect(
+      promptTokensExceedNCtx({
+        nCtx: 8192,
+        promptChars: charsAtCeiling,
+        promptTokens: denseTokens,
+      }),
+    ).toBe(true);
+  });
+
+  it("stands down when the real count fits", () => {
+    expect(
+      promptTokensExceedNCtx({
+        nCtx: 8192,
+        promptChars: charsAtCeiling + 3,
+        promptTokens: CEILING,
+      }),
+    ).toBe(false);
+  });
+
+  it("is identical to the chars/3 path when promptTokens is absent", () => {
+    for (const promptChars of [0, 1, charsAtCeiling, charsAtCeiling + 1, 1_000_000]) {
+      expect(
+        promptTokensExceedNCtx({
+          nCtx: 8192,
+          promptChars,
+          promptTokens: undefined,
+        }),
+      ).toBe(promptTokensExceedNCtx({ nCtx: 8192, promptChars }));
+    }
+  });
+
+  it("falls back to chars/3 for an invalid promptTokens", () => {
+    const fallback = projectedWindowTokens(charsAtCeiling + 3) > CEILING;
+    for (const promptTokens of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      -1,
+      "6144",
+    ] as unknown as number[]) {
+      expect(
+        promptTokensExceedNCtx({
+          nCtx: 8192,
+          promptChars: charsAtCeiling + 3,
+          promptTokens,
+        }),
+      ).toBe(fallback);
+    }
+  });
+});
+
+describe("conservativeWindowTokens", () => {
+  it("caps a sparse measured ratio at the chars/3 default", () => {
+    // 3.5 chars/token is the multilingual band; using it would project FEWER
+    // tokens than chars/3, which is the direction that loses the bound.
+    expect(conservativeWindowTokens(1000, 3.5)).toBe(
+      projectedWindowTokens(1000),
+    );
+    expect(conservativeWindowTokens(1000, 3.5)).toBe(Math.ceil(1000 / 3));
+  });
+
+  it("uses a dense measured ratio and projects strictly more than chars/3", () => {
+    const dense = conservativeWindowTokens(1000, 1.12);
+    expect(dense).toBe(Math.ceil(1000 / 1.12));
+    expect(dense).toBeGreaterThan(projectedWindowTokens(1000));
+  });
+
+  it("caps at one token per char instead of overflowing to Infinity", () => {
+    // MAX_VALUE / 0.0001 is Infinity in doubles; tokens never exceed chars.
+    const huge = conservativeWindowTokens(Number.MAX_VALUE, 0.0001);
+    expect(Number.isFinite(huge)).toBe(true);
+    expect(huge).toBe(Number.MAX_VALUE);
+  });
+
+  it("caps a sub-1 ratio at the char count", () => {
+    // 100 / 0.5 would project 200 tokens from 100 chars, which no tokenizer
+    // can emit.
+    expect(conservativeWindowTokens(100, 0.5)).toBe(100);
+  });
+
+  it("falls back to chars/3 without a usable measured ratio", () => {
+    for (const measured of [
+      undefined,
+      0,
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(conservativeWindowTokens(1000, measured)).toBe(
+        projectedWindowTokens(1000),
+      );
+    }
+    expect(conservativeWindowTokens(1000)).toBe(projectedWindowTokens(1000));
+  });
+
+  it("returns 0 for an unusable window size", () => {
+    for (const windowChars of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(conservativeWindowTokens(windowChars, 1.12)).toBe(0);
+      expect(conservativeWindowTokens(windowChars)).toBe(0);
+    }
   });
 });
