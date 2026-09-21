@@ -160,8 +160,11 @@ async function main() {
 
   // 4B GGUF ≈ 2.82 GB file; REPACK_FRACTION ≈ 0.895 → repack term ≈ 2.4–2.5 GiB.
   // This case exercises estimateMemory({ repack: false }) directly — the term
-  // that no_extra_bufts removes at engine load. UI gates always estimate with
-  // repack:true (conservative); they do not take a repack parameter.
+  // that no_extra_bufts removes at engine load. The UI gate is policy-aware:
+  // deviceProfile.decidePreSendFit resolves the model's own loadPolicy via
+  // resolveGateLoadPolicy and prices repack:false for an entry that disables it.
+  // Only a model without an entry gets the conservative repack:true default; no
+  // repack parameter is threaded in from the UI.
   await test("4B repack-off drops non-evictable by ~2.5 GB", () => {
     const fileBytes = 2_834_975_040; // 4B Q4_K_M anchor
     const on = estimateMemory({

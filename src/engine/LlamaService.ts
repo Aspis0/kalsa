@@ -2220,9 +2220,6 @@ export function initEngine(
     // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
     // repacking). Resolved here so the skip-reload key and the init params share
     // one value; flipping the pref must force a real reload + KALSA_SESSION init.
-    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
-    // repacking). Resolved here so the skip-reload key and the init params share
-    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     // Every estimate in this function prices KV at the profile the engine is
     // about to load, not at the catalog's. The catalog numbers (LFM 6656,
@@ -2246,14 +2243,15 @@ export function initEngine(
         contextTokens: engineCtx,
         availableMemoryBytes: deviceProfile.availableMemoryBytes,
       });
-    // Per-model load policy (ModelRegistry.loadPolicy → loadPolicy.ts), folded
-    // with the levers that outrank it: bench levers > streaming > policy >
-    // llama.cpp default ({mmap:true, repack:true}). Resolved WITHOUT the
-    // streaming term (streamExperts:false): the force lands in the block below
-    // and in the re-force after applyEngineOverride, so a bench arm that vetoes
-    // moe_stream falls back to exactly this value — the non-streamed config it
-    // means to measure. Tuning therefore sees the policy-honest repack term,
-    // same shape as when only the norepack knob existed.
+    // Per-model load policy (ModelRegistry.loadPolicy → loadPolicy.ts). The
+    // resolver there states the one precedence (streaming forces both flags; the
+    // bench levers decide the non-streamed load); this call resolves WITHOUT the
+    // streaming term (streamExperts:false), i.e. bench levers over policy. The
+    // streaming force lands in the block below and in the re-force after
+    // applyEngineOverride, so a bench arm that vetoes moe_stream falls back to
+    // exactly this value — the non-streamed config it means to measure. Tuning
+    // therefore sees the policy-honest repack term, same shape as when only the
+    // norepack knob existed.
     const load = resolveLoadPolicy({
       policy: modelInfo?.loadPolicy,
       streamExperts: false,
@@ -2415,10 +2413,11 @@ export function initEngine(
 
     // Bench-only engineOverride is applied after production defaults.
     applyEngineOverride(params, options.engineOverride, Platform.OS);
-    // Streaming forces no_extra_bufts and outranks the per-model policy. If a
-    // bench arm disabled moe_stream after the gate said yes, fall back to the
-    // resolved base (bench levers > policy > default) so that arm measures the
-    // non-streamed configuration faithfully rather than inheriting streaming's.
+    // Streaming forces no_extra_bufts and outranks the per-model policy (the
+    // one precedence is stated in loadPolicy.ts). If a bench arm disabled
+    // moe_stream after the gate said yes, fall back to the resolved base
+    // (bench levers > policy > default) so that arm measures the non-streamed
+    // configuration faithfully rather than inheriting streaming's.
     params.no_extra_bufts =
       params.moe_stream?.enabled === true ? true : load.noExtraBufts;
     if (governorFeatureEnabled && !governorLoad) {

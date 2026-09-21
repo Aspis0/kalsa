@@ -142,9 +142,57 @@ describe("resolveGateLoadPolicy — gate-side pricing input", () => {
 });
 
 describe("MODEL_REGISTRY — loadPolicy entries", () => {
-  it("all listed catalog models use the default policy", () => {
-    for (const model of MODEL_REGISTRY.filter((entry) => entry.listed !== false)) {
+  const qwen = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b");
+  const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b");
+
+  it("qwen3.5-4b is the one curated entry: mmap kept, repack off", () => {
+    expect(qwen?.loadPolicy).toEqual({ mmap: true, repack: false });
+  });
+
+  it("lfm2.5-2.6b keeps the default policy: repack stays on", () => {
+    expect(lfm?.loadPolicy).toBeUndefined();
+    expect(resolveGateLoadPolicy({ policy: lfm?.loadPolicy })).toEqual({
+      mmap: true,
+      repack: true,
+    });
+  });
+
+  it("every listed entry other than qwen3.5-4b uses the default policy", () => {
+    for (const model of MODEL_REGISTRY.filter(
+      (entry) => entry.listed !== false && entry.id !== "qwen3.5-4b",
+    )) {
       expect(model.loadPolicy).toBeUndefined();
     }
+  });
+
+  it("resolveLoadPolicy: qwen3.5-4b noExtraBufts, lfm2.5-2.6b repack on", () => {
+    expect(
+      resolveLoadPolicy({ policy: qwen?.loadPolicy, streamExperts: false }),
+    ).toEqual({ useMmap: true, noExtraBufts: true });
+    expect(
+      resolveLoadPolicy({ policy: lfm?.loadPolicy, streamExperts: false }),
+    ).toEqual({ useMmap: true, noExtraBufts: false });
+  });
+
+  it("resolveGateLoadPolicy: qwen repack false, LFM repack true", () => {
+    expect(resolveGateLoadPolicy({ policy: qwen?.loadPolicy })).toEqual({
+      mmap: true,
+      repack: false,
+    });
+    expect(resolveGateLoadPolicy({ policy: lfm?.loadPolicy })).toEqual({
+      mmap: true,
+      repack: true,
+    });
+  });
+
+  it("kalsa.bench.norepack overrides a registry entry both ways", () => {
+    // "1" removes repack even where the entry (LFM) keeps the default on.
+    expect(
+      resolveGateLoadPolicy({ policy: lfm?.loadPolicy, benchNoRepack: true }),
+    ).toEqual({ mmap: true, repack: false });
+    // "0" forces repack ON even on the curated repack-off entry (qwen).
+    expect(
+      resolveGateLoadPolicy({ policy: qwen?.loadPolicy, benchNoRepack: false }),
+    ).toEqual({ mmap: true, repack: true });
   });
 });

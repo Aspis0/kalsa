@@ -1,7 +1,9 @@
 /**
  * Weight-load policy for one model: mmap and repack, each a plain boolean.
  *
- * Precedence, explicit and enforced here plus at the initEngine call site:
+ * Precedence, explicit and enforced here plus at the initEngine call site.
+ * This module is the ONE place that states the order; ModelRegistry.loadPolicy
+ * and LlamaService.initEngine point back here instead of restating it:
  *
  *   expert streaming > bench levers > per-model policy > default
  *
@@ -10,11 +12,13 @@
  *   BOTH flags itself (the engine's cpp/bmoe_stream.cpp: no_extra_bufts=true,
  *   use_mmap=true), regardless of what JS sent. The resolver mirrors that
  *   outcome so its answer matches what the engine will actually do.
- * - bench levers outrank the policy IN BOTH DIRECTIONS: kalsa.bench.norepack=1
- *   forces repack off, =0 forces repack ON (absent → policy decides), and the
- *   bench:engine useMmap override wins over the policy either way. Without the
- *   "=0" arm, no bench could ever measure repack-on on the models whose policy
- *   disables it — exactly the A/B this change needs to be validated with.
+ * - the bench levers apply to the NON-streamed load only, since streaming
+ *   forces both flags above. They outrank the policy IN BOTH DIRECTIONS:
+ *   kalsa.bench.norepack=1 forces repack off, =0 forces repack ON (absent →
+ *   policy decides), and the bench:engine useMmap override wins over the
+ *   policy either way. Without the "=0" arm, no bench could ever measure
+ *   repack-on on the models whose policy disables it — exactly the A/B this
+ *   change needs to be validated with.
  * - default: llama.cpp's own normal behaviour (common/common.h:574
  *   use_mmap = true): weights stay mapped on the GGUF file — page-cache backed,
  *   reclaimable by the kernel under pressure. This is the CORRECT
