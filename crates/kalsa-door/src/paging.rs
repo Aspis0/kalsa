@@ -13,11 +13,13 @@
 //! but not a sequence, so two overlapping switches of one device's chats
 //! invert (save A, save B, restore B, restore A ends with A in the slot), and
 //! one lock per slot is held across the whole sequence, `erase` included. And
-//! the **closure of a failure**: a refused action means the engine wiped the
-//! slot on its own error path (`server-context.cpp:2884-2889`), so the chat
-//! that was open is put back before the door answers; an engine that never
-//! answered may not have run anything, and the slot is then `Unknown`, never
-//! called empty.
+//! the **closure of a failure**: a refused *restore* means the engine emptied
+//! the slot on its own error path (`server-context.cpp:2885-2889`), so the
+//! chat that was open is put back before the door answers. Only the restore
+//! empties: the save's catch (`:2812-2819`) sends the error and leaves the
+//! slot alone, which is why a refused save keeps `Resident(previous)` and the
+//! switch is refused with it. An engine that never answered may not have run
+//! anything, and the slot is then `Unknown`, never called empty.
 //!
 //! Not here: *invalidating* the resident map when the engine sleeps, crashes
 //! or is replaced. That is T5. The map is what the door last did, and the
@@ -82,7 +84,8 @@ struct Slot {
 /// A slot is empty, resident with one chat, or unknown: an action that never
 /// reached the engine may not have run, so the slot holds what it held, and
 /// nothing is written out of it. [`io::restore`] records the two branches of a
-/// save that make that safe.
+/// save and what each can leave behind, which is as far as the unknown's safety
+/// reaches.
 enum Residency {
     Empty,
     Unknown,
@@ -175,6 +178,15 @@ impl Chats {
     /// Saves the chat in the slot, then restores the one asked for. The lock
     /// is held across both: the pair is the unit, and the engine's own
     /// ordering is per action.
+    ///
+    /// The branch with no file for the target is the exception, and it is not
+    /// a restore: the slot is *erased* and the residency records the new chat.
+    /// A chat with no file is one the engine has not held on this device, so
+    /// there is nothing to bring back; the conversation itself lives in the
+    /// app's store, which is why answering 204 is true and not a lost chat.
+    /// The erase is required, not incidental: what is in the slot is another
+    /// chat's state, and leaving it there would let the next save write it
+    /// into this chat's file.
     fn activate(
         &self,
         model: &str,
@@ -209,11 +221,9 @@ impl Chats {
             save(dir, &file_name(model, device, previous), engine)?;
         }
         if !dir.join(&target).exists() {
-            // The chat has no file: the slot has never held it, and what is in
-            // the slot now is another chat's state. It must not stay there —
-            // the next switch saves the slot, and that save would land in this
-            // chat's file. The conversation itself lives in the app's store,
-            // which is why an empty slot is not a lost chat.
+            // The one branch that is not a restore; the doc above says why it
+            // is safe. The erase is what keeps the next save, which writes
+            // whatever the slot holds, out of this chat's file.
             erase_slot(engine)?;
             state.resident = Residency::Resident(device, id.to_string());
             return Ok(());

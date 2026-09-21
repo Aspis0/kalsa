@@ -74,13 +74,18 @@ pub(super) fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), Ch
                 Call::Refused => ChatError::Save,
             }
         })?;
-    if written > 0 {
-        fs::rename(&staged, dir.join(real)).map_err(|_| ChatError::Files)?;
-    }
+    let renamed = if written > 0 {
+        fs::rename(&staged, dir.join(real))
+    } else {
+        Ok(())
+    };
     // Every path out, including a rename that just consumed it: no staging
-    // file is kept, because nothing but this call ever names one.
+    // file is kept, because nothing but this call ever names one. The single
+    // cleanup runs after the rename instead of in its error arm, because the
+    // `?` that used to sit here skipped it on the one path that fails — a
+    // rename the filesystem refuses left the staging file behind.
     let _ = fs::remove_file(&staged);
-    Ok(())
+    renamed.map_err(|_| ChatError::Files)
 }
 
 /// Restores `name`, and records on the slot what a failure means for it. An
@@ -88,15 +93,27 @@ pub(super) fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), Ch
 /// slot holds what it held and the door says so instead of calling it empty. A
 /// refusal did process the action, and the engine's own catch cleared the slot.
 ///
-/// `Unknown` loses nothing, and for two branches rather than one, because the
-/// caller's save can end either way — this is the premise the next reader must
-/// be able to check:
+/// `Unknown` never writes out of the slot, and for two branches rather than
+/// one, because the caller's save can end either way — this is the premise the
+/// next reader must be able to check:
+///
 /// - the save reported `n_saved > 0`: the chat that was in the slot was
 ///   renamed into place, so its file is fresh;
-/// - the save reported `n_saved == 0`: nothing was renamed, and there is
-///   nothing to lose, because the slot held no state of that chat.
-/// Neither branch leaves unsaved state behind, which is what makes the unknown
-/// safe to carry instead of guessing between empty and the old record.
+/// - the save reported `n_saved == 0`: nothing was renamed, and no
+///   conversational state that is not already on disk is lost — the slot held
+///   nothing the door could have written out. That is narrower than "nothing
+///   to lose", and the countercase is real: the slot holds a chat whose file
+///   on disk is an *earlier* session, the engine reports 0, no rename happens,
+///   and the fact that the chat is now empty is lost — the next restore reads
+///   the old file and revives messages the user deleted. That behaviour
+///   predates this record; what the record must not do is call the branch
+///   safe.
+///
+/// The count is the engine's (`n_saved`), and the door cannot tell an empty
+/// slot from a chat with a zero-length transcript; that distinction, if it is
+/// ever needed, is the engine's to make. Neither branch lets the door write
+/// over a file with state it cannot name, which is what makes the unknown
+/// safer than guessing between empty and the old record.
 pub(super) fn restore(state: &mut Slot, engine: &Engine<'_>, name: &str) -> Result<(), ChatError> {
     match engine.call("restore", Some(name), None) {
         Ok(_) => Ok(()),

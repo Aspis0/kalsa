@@ -270,6 +270,35 @@ fn a_save_that_wrote_nothing_creates_no_file() {
 }
 
 #[test]
+fn a_rename_the_filesystem_refuses_leaves_no_staging_file() {
+    let slot_dir = temp_dir("paging-rename-refused");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second) = ("aaaa1111", "bbbb2222");
+
+    // The first activation has no file to bring back, so the slot leaves it
+    // without writing anything out...
+    assert_eq!(status_of(&activate(address, Some(&token), first)), 204);
+    // ...and the name the next save renames onto is a directory, which the
+    // filesystem refuses. The fake engine cannot fail a rename; this can.
+    fs::create_dir(slot_dir.join(file_name(first))).unwrap();
+    let response = activate(address, Some(&token), second);
+    assert_eq!(status_of(&response), 502, "{}", body_text(&response));
+    assert!(
+        body_text(&response).contains("nothing changed"),
+        "the refusal does not say the file is untouched: {}",
+        body_text(&response)
+    );
+    assert!(
+        !slot_dir.join(format!("{}.staging", file_name(first))).exists(),
+        "a rename the filesystem refused left its staging file behind"
+    );
+    assert!(slot_dir.join(file_name(first)).is_dir(), "the refused rename replaced the directory");
+    door.shutdown();
+}
+
+#[test]
 fn a_save_the_engine_never_answered_leaves_no_staging_file() {
     let slot_dir = temp_dir("paging-save-unreachable");
     let engine = Engine::start(&slot_dir);
