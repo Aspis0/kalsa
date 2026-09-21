@@ -247,9 +247,7 @@ rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on t
   device is refused; (b) file names sent in the client payload are ignored; (c) a restore that
   fails leaves the previous chat's state in the slot and the UI's active chat unchanged.
 
-**Landed as T3a** — `7834556`, the door's side, one commit, 13 files: `paging.rs` (393 lines),
-`engine.rs` (131), `payload.rs` (152), and their tests. What the code settles, and what the
-review then corrected:
+**Landed: T3a** `7834556` and **T3a-fix** `ea35829`, the door's side. What the code settles:
 
 - The two routes are served **by the door, on its own port**: `POST /kalsa/chat/activate` and
   `POST /kalsa/chat/erase`, body `{"id": …}`, handled after the credential, under the slot's
@@ -261,15 +259,22 @@ review then corrected:
 - **The staging rename closes the sleeping-engine hole**: the save goes to `<name>.staging`, and the
   real file is replaced **only when the engine reports `n_saved > 0`**; a reply without that field is
   treated as unreachable, never as a success.
-- **Two corrections the review demanded, and they are not cosmetic:** (i) `restore()` collapses
-  `Unreachable` and `Refused` into one error, and the code then tells the client "the slot is now
-  empty" and drops the map record — but on `Unreachable` the engine may never have processed the
-  restore, so the slot may still hold the previous chat. The sentence must be "unknown", not
-  "empty". (ii) A `.staging` file survives an `Unreachable` save, and `erase` does not remove the
-  sibling, so they accumulate. Both are bounded (no data loss was demonstrated), and both are lies
-  the tier should not tell.
-- The fake engine in the tests can only answer and refuse: **there is no `Unreachable` variant**, so
-  the state-unknown path has no test. That is the first thing the fix adds.
+- **Two lies the review caught, now fixed** (`ea35829`): the door called the slot "empty" when the
+  engine had never answered, and a `.staging` file survived an unanswered save and accumulated. The
+  slot now has a third state, `Unknown`: `Unreachable` says unknown and never "empty", an unanswered
+  restore is not repaired (nothing is known to be missing) while a refusal still is, and on `Unknown`
+  the next activation **does not save** — it will not write a slot's content it cannot name.
+- **T3b landed** (`5db9ee2`): both halves reach the door from the launch record. The digest was
+  already in `run`'s hand and being discarded — `choose_model`'s `plan.sha256` (`startup.rs:232`) is
+  the catalog row's pinned digest (`manifest.rs:61` → `choice.rs:284`), so **no model file is ever
+  re-hashed**. The directory comes from the `--slot-save-path` the engine actually received, not
+  re-resolved, so the door reads where the engine writes. A model with no catalog identity leaves the
+  door up without the tier — 501, with one stderr line — and a malformed digest builds no door.
+  **Gap, stated:** in a packaged `.app` stderr is not user-visible, so the client gets the door's 501
+  sentence and the operator trace goes nowhere. A UI surface is a follow-up, not invented here.
+- **T3c, still open, and it is what makes any of this happen:** nothing calls the two routes yet.
+  Until the webview issues `/kalsa/chat/activate` on a chat switch (and `/kalsa/chat/erase` on a
+  delete), the tier exists and no user action reaches it.
 
 ### T4 — app: cadence, so an unload cannot lose a turn
 
