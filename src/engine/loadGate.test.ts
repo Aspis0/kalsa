@@ -5,6 +5,8 @@ import {
   smallerModelExists,
 } from "./loadGate";
 import { estimateMemory } from "./memoryEstimate";
+import { MODEL_REGISTRY, type ModelInfo } from "./ModelRegistry";
+import { resolveLoadPolicy } from "./loadPolicy";
 import { gateNonEvictableMiB } from "./modelGateRAM";
 
 /** Qwen-class 4B: ~3.5 GB bundle, KV-heavy at catalog ctx. */
@@ -307,5 +309,101 @@ describe("loadGateFitModel — expert streaming", () => {
         availableMemoryBytes: 3_000 * MiB,
       }),
     ).toBe(1_000);
+  });
+});
+
+/**
+ * End-to-end guard: the load path must consume ModelInfo.loadPolicy, not only
+ * the pure resolver. gateModelLoad → decidePreSendFit is the deepest
+ * node-loadable part of that path (LlamaService.initEngine pulls llama.rn and
+ * AsyncStorage, so it cannot run here), and it is exactly where the wiring can
+ * silently drop the policy while loadPolicy.test.ts stays green. The real qwen
+ * registry entry is used, so a registry edit or a gate change shows up as a
+ * failure here.
+ */
+describe("gateModelLoad — consumes ModelInfo.loadPolicy (qwen3.5-4b)", () => {
+  const qwenEntry = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b");
+  if (!qwenEntry) throw new Error("qwen3.5-4b missing from MODEL_REGISTRY");
+  const qwen: ModelInfo = qwenEntry;
+
+  // Bundle = main GGUF + mmproj, exactly what the gate prices.
+  const bundleBytes = qwen.sizeBytes + (qwen.mmproj?.sizeBytes ?? 0);
+  // Park MemAvailable just above the repack-ON non-evictable footprint. With
+  // the entry's repack:false that budget leaves ample headroom; with the default
+  // it is the tight-refuse regime. The margin is expressed in the estimator's
+  // own terms, so the test carries no invented device constant.
+  const repackOn = estimateMemory({
+    fileBytes: bundleBytes,
+    contextTokens: qwen.engineCtx,
+    kvBytesPerToken: qwen.kvBytesPerToken ?? 0,
+    ubatch: 256,
+    repack: true,
+    mmap: true,
+  });
+  const budgetBytes = (repackOn.nonEvictableMiB + 1) * 1024 * 1024;
+
+  const loadInput = (model: ModelInfo, benchNoRepack?: boolean) => ({
+    model,
+    markerPresent: false,
+    residentModelId: null as string | null,
+    lostModelId: null as string | null,
+    benchNoRepack,
+    disposeResident: jest.fn(async () => true),
+    getAvailableBytes: jest.fn(async () => budgetBytes),
+  });
+
+  test("qwen entry (repack:false) allows where the default policy refuses", async () => {
+    const withEntry = await gateModelLoad(loadInput(qwen));
+    expect(withEntry.allow).toBe(true);
+
+    // Same bytes, entry policy stripped → default repack:true → tightNow. This
+    // assertion fails if gateModelLoad stops forwarding model.loadPolicy into
+    // decidePreSendFit.
+    const defaultPolicy = await gateModelLoad(
+      loadInput({ ...qwen, loadPolicy: undefined }),
+    );
+    expect(defaultPolicy.allow).toBe(false);
+    expect(defaultPolicy.refusedBy).toBe("fit");
+    expect(defaultPolicy.reasonKey).toBe("model.tightNow");
+  });
+
+  test("loadGateFitModel forwards the entry's policy to the gate", () => {
+    // Production (AppShell) builds the gate model with loadGateFitModel before
+    // handing it to gateModelLoad; a dropped field there is the same regression
+    // class, so assert the hop directly.
+    const fit = loadGateFitModel({
+      model: qwen,
+      profile: {
+        brand: "test",
+        cpuCoreCount: 8,
+        availableMemoryBytes: budgetBytes,
+        totalMemoryBytes: 12_000_000_000,
+      },
+      requestedContextTokens: qwen.engineCtx,
+    });
+    expect(fit.loadPolicy).toEqual({ mmap: true, repack: false });
+  });
+
+  test("kalsa.bench.norepack=0 re-arms repack on the entry → refusal returns", async () => {
+    // The bench lever overrides the registry policy on a non-streamed load, so
+    // the repack-priced refusal comes back even though the entry disables it.
+    const verdict = await gateModelLoad(loadInput(qwen, false));
+    expect(verdict.allow).toBe(false);
+    expect(verdict.refusedBy).toBe("fit");
+    expect(verdict.reasonKey).toBe("model.tightNow");
+  });
+
+  test("streaming still wins over the entry and the bench lever", () => {
+    // The gate prices the resident, non-streamed load; the load-time streaming
+    // force lives in the resolver. Assert it against the real entry so the
+    // qwen-shaped policy cannot silently lose the physical override.
+    expect(
+      resolveLoadPolicy({
+        policy: qwen.loadPolicy,
+        streamExperts: true,
+        benchNoRepack: false,
+        benchUseMmap: false,
+      }),
+    ).toEqual({ useMmap: true, noExtraBufts: true });
   });
 });

@@ -161,8 +161,11 @@ export type ModelInfo = {
   canStreamExperts?: boolean;
   /**
    * Weight-load policy for THIS model: mmap and repack, resolved by
-   * loadPolicy.resolveLoadPolicy. Precedence: bench levers (kalsa.bench.norepack,
-   * bench:engine useMmap) > expert streaming > this entry > DEFAULT_LOAD_POLICY.
+   * loadPolicy.resolveLoadPolicy. That module states and enforces the precedence
+   * once — expert streaming forces both flags, the bench levers decide the
+   * non-streamed load, absent levers leave this entry, an absent entry leaves
+   * DEFAULT_LOAD_POLICY — so this field supplies only the per-model term and
+   * its doc must not restate the order.
    *
    * The default ({mmap:true, repack:true}) is llama.cpp's own normal behaviour
    * (common/common.h:574): weights stay mapped on the GGUF file — page-cache
@@ -170,17 +173,22 @@ export type ModelInfo = {
    * configuration, not a trade-off; an entry deviates only on a measure, and
    * the entry names the measure.
    *
-   * qwen3.5-4b turns repack off, on the Xiaomi fit-gate refusal: the ARM repack
-   * copy (memoryEstimate.ts REPACK_FRACTION 0.8951 x the 3344.9 MiB bundle ≈
-   * 2994 MiB anonymous, on top of compute and KV) pushed the gate's nonEvictable
-   * term to 3451 MiB against 3640 MiB MemAvailable, so the 1.5x rule refused the
-   * load (model.tightNow). With repack off that term drops to ~457 MiB and the
-   * gate allows the load. The price is real and not yet measured: repack is the
-   * ARM mul_mat-optimised path, so decode speed and major faults must be
-   * measured on device — kalsa.bench.norepack=0 re-enables repack for that A/B.
-   * Resolving the flag from device pressure inside resolveGateLoadPolicy is the
-   * intended future form; until that measurement exists, one per-model entry is
-   * the conservative form.
+   * qwen3.5-4b turns repack off, on the Xiaomi fit-gate refusal. These are
+   * ESTIMATOR OUTPUTS, not device measurements: memoryEstimate.ts
+   * REPACK_FRACTION 0.8951 x the 3344.9 MiB bundle ≈ 2994 MiB anonymous, on top
+   * of compute and KV, puts the gate's nonEvictable term at 3451 MiB against
+   * 3640 MiB MemAvailable, so the 1.5x rule refuses the load (model.tightNow);
+   * with repack off the same term estimates ~457 MiB and the gate allows the
+   * load. memoryEstimate.ts warns that fraction is under-calibrated — it is
+   * anchored on one 2B load, and a Q3 4B log shows CPU_REPACK at 1.00x the
+   * file, not 0.895x — so this entry rests on a functional gate outcome, not a
+   * fitted measurement. Real S23 numbers are recorded separately when that run
+   * reports; they are not anticipated here. The price is real and not yet
+   * measured: repack is the ARM mul_mat-optimised path, so decode speed and
+   * major faults must be measured on device — kalsa.bench.norepack=0 re-enables
+   * repack for that A/B. Resolving the flag from device pressure inside
+   * resolveGateLoadPolicy is the intended future form; until that measurement
+   * exists, one per-model entry is the conservative form.
    *
    * Adding the policy CHANGES THE LOAD BEHAVIOUR OF EVERY MODEL: measured device
    * logs until now show `load_tensors ... (mmap = false)` — anonymous,
@@ -219,9 +227,9 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     kvUnified: true,
     sizeClass: "4B",
-    // Xiaomi fit-gate refusal: the ~2994 MiB anonymous repack copy is the term
-    // that made nonEvictable exceed MemAvailable. repack:false removes it; see
-    // the field doc above for the measure and the unmeasured decode cost.
+    // Xiaomi fit-gate refusal: the estimator's ~2994 MiB anonymous repack copy
+    // is the term that made nonEvictable exceed MemAvailable. repack:false
+    // removes it; the field doc above carries the estimator caveat and cost.
     loadPolicy: { mmap: true, repack: false },
     // Derived, not measured, and not guessed: the six numbers below come from
     // the GGUF metadata of the shipped file (Qwen3.5-4B-Q4_K_M.gguf):
