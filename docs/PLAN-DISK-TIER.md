@@ -268,10 +268,12 @@ only line that waits.
   unconditionally and walked before the optional checkpoint appendix, is its own change with its
   own version handling. This is the sentence that was wrong in `MULTI-DEVICE-SHAPE.md` §9 ("one
   fix may cover both").
-- **Per-device encryption.** v1 relies on the file living inside the user's data directory with
-  restrictive permissions, plus disk encryption. Per-device keys would travel on the save/restore
-  call and be applied by the engine, which writes the file. **Owner decision needed** before the
-  tier ships.
+- **Per-device encryption.** Not a task and not a question to ask now: the tier does not run yet.
+  What v1 does is what an app does — the files live inside the user's data directory with
+  restrictive permissions, on a disk the user already encrypts. Per-device keys would travel on
+  the save/restore call and be applied by the engine, which writes the file; that is a change to
+  T1 and it waits until a restore round-trips at all. Recorded here so it is not rediscovered as
+  an oversight, and not before.
 - **Backup.** A decision, not code.
 - **A device's other chats being warm without a restore.** Corrected from v1: the prompt cache is
   global (`server-task.cpp:1798-1866`) and its `load()` filters on `cache_salt` (`:1811-1813`),
