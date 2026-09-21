@@ -184,9 +184,11 @@ All three components already exist, and none of them costs work at save time:
   `git add -A` in that repo would commit it. Stage files by name.
 - Touches `server-context.cpp` (5895 lines) and `server-task.h` (652) — both pre-existing
   excess, declared and not refactored.
-- `chat/src/App.tsx` is 1147 lines and was 1109 before T3c (`acfe4f7`) — pre-existing excess,
+- `chat/src/App.tsx` is 1181 lines and was 1147 before T3c-fix2 (`acfe4f7` was 1109 before T3c) — pre-existing excess,
   declared here and not refactored. What T3c added is the wire-up to `slotGate`; the ordering logic
-  it used to hold was **moved out** into a pure module, not left in place.
+  it used to hold was **moved out** into a pure module, not left in place. T3c-fix2 adds the
+  standing effect and the gate's own sentence, and keeps every decision in `slotGate.ts`
+  (386 lines) and its harness (392).
 - `crates/kalsa-door/src/proxy.rs` is 563 lines before T4a-fix (`0cbb719`) and 586 after — also
   pre-existing excess, declared here and not refactored. It is the door's request path, where every
   way out of a request has to be reasoned about, so the growth is the guard that makes the slot's
@@ -275,6 +277,23 @@ session handoff. What the code settles, and what is still missing:
   directory is the `--slot-save-path` the engine actually received, not a second resolution. A model
   with no catalog identity leaves the door up without the tier (501, one stderr line); a malformed
   digest builds no door.
+- **T3c-fix2: the fifth way, closed.** `acfe4f7` was audited **NON FIT**: the invariant "the
+  UI's active chat never diverges from the slot's resident" is absolute only if *this window
+  cannot call the door yet* is a different fact from *there is no door*. It was not.
+  `Activate | null` read a failed poll — and the window between a running engine and this
+  window's credential — as "no door", and a chat minted there is one the door never took: the
+  completion builds its state in the slot, and the next switch writes that state into the
+  resident chat's file. So: a poll that does not answer keeps what the window knew
+  (`lastKnown`, `useBrain.ts`); the door's state is explicit and three-valued (`DoorAccess`:
+  `absent | unready | ready`, `slotGate.ts`), with `unready` **holding** the open — pending,
+  no request, no mint — instead of opening locally; and a door that becomes callable hands the
+  locally minted active chat over through itself. A local mint stays possible for the client
+  that has no door at all: a remote server, or the plain browser (`standingOf`). Same commit:
+  `sendMessage` refuses an `ActiveChat` the gate has moved past instead of ignoring it, the
+  already-open fast path reads the gate (`isSettled`) and not the rendered active id, deleting
+  a chat clears the gate's own active chat and refuses a late mint of that id (`clearIf`), and
+  the harness asserts the request's method, path, bearer and exact body keys, where a
+  `slotRoute` regression used to leave it green.
 - **Gap, stated:** in a packaged `.app` stderr is not user-visible, so a client sees the 501 and the
   operator trace goes nowhere. A UI surface is a follow-up, not invented here.
 

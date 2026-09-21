@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { available, invoke, listen } from "../lib/tauri";
+import { lastKnown, standingOf } from "../lib/slotGate";
+import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
 import type { ChatSettings } from "../lib/types";
 
@@ -73,6 +75,10 @@ let serverSnapshot: BrainServer | null = null;
 // re-fetched rather than kept forever, because forgetting the store mints a
 // new one: see `forgetLocalCredential`.
 let hostCredential: string | null = null;
+// What the shell is allowed to do with a slot, derived in `publish` from the
+// facts above. `unready` until the first answer: a window that has not heard
+// from its own brain does not know whether there is a door to diverge from.
+let standingSnapshot: DoorStanding = "unready";
 const listeners = new Set<() => void>();
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let offProgress: (() => void) | null = null;
@@ -100,19 +106,27 @@ function publish(): void {
   ) {
     serverSnapshot = server;
   }
+  // Outside the Tauri webview there is no backend, so no door can exist and the
+  // window is one of the two clients whose `absent` is certain. Everywhere else
+  // the standing comes from the poll's own facts.
+  standingSnapshot = available() ? standingOf(currentState, hostCredential !== null) : "absent";
   for (const listener of listeners) listener();
 }
 
 async function poll(): Promise<void> {
-  let next: BrainState | null = null;
+  // A poll that does not answer keeps what this window already knows. Writing
+  // `null` here — "not known" flattened into "no brain" — threw away exactly
+  // the information that a door exists, and the next open in that second was
+  // minted locally against the live slot the door was holding: the fifth way.
   if (available()) {
     try {
-      next = await invoke<BrainState>("brain_state");
+      currentState = lastKnown(currentState, await invoke<BrainState>("brain_state"));
     } catch {
-      next = null;
+      // The command rejected: the previous answer stands.
     }
+  } else {
+    currentState = null;
   }
-  currentState = next;
   // The credential is fetched through its own command, never through
   // `brain_state`: the state is polled and logged-about everywhere, and the
   // secret belongs in exactly one IPC answer. Cached, but it CAN change under
@@ -122,7 +136,7 @@ async function poll(): Promise<void> {
   // then fetches the replacement. A failed read leaves it null and the next
   // poll asks again — what must not happen is an empty string standing in for
   // a key, which the door answers with 401.
-  if (next?.kind === "running" && next.endpoint && hostCredential === null) {
+  if (currentState?.kind === "running" && currentState.endpoint && hostCredential === null) {
     try {
       const value = await invoke<string>("brain_host_credential");
       if (typeof value === "string" && value.trim()) hostCredential = value.trim();
@@ -173,9 +187,21 @@ function getBrainServer(): BrainServer | null {
   return serverSnapshot;
 }
 
+function getDoorStanding(): DoorStanding {
+  return standingSnapshot;
+}
+
 /** The brain's server facts, for the shell. */
 export function useBrainServer(): BrainServer | null {
   return useSyncExternalStore(subscribeBrainRead, getBrainServer, getBrainServer);
+}
+
+/** What this window knows about its own door, for the shell: `absent` — the one
+    standing where an open may settle locally — is not the same fact as "a door
+    exists and this window cannot call it yet". The gate acts on the difference
+    (`lib/slotGate.ts`). */
+export function useDoorStanding(): DoorStanding {
+  return useSyncExternalStore(subscribeBrainRead, getDoorStanding, getDoorStanding);
 }
 
 /** Drops this computer's cached key. The Devices page's hatch deletes the

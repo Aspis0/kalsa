@@ -6,7 +6,7 @@ import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeCh
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
 import { createSlotGate } from "./lib/slotGate";
-import type { ActiveChat } from "./lib/slotGate";
+import type { ActiveChat, DoorAccess } from "./lib/slotGate";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
@@ -28,7 +28,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
-import { useBrainServer, withBrainDefaults } from "./surfaces/useBrain";
+import { useBrainServer, useDoorStanding, withBrainDefaults } from "./surfaces/useBrain";
 import { useServerFacts } from "./surfaces/useServerFacts";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
@@ -217,15 +217,28 @@ export function App() {
   // and the token this device's credential. With no door there is no tier to
   // ask: `/kalsa/chat/activate` on somebody else's server is not a request that
   // server ever agreed to read.
-  const door = brainServer
-    ? { endpoint: brainServer.endpoint, token: brainServer.credential }
-    : null;
-  // The door call the gate makes, or null when there is no door: a window on a
-  // remote server has no slot to open, so an open succeeds locally and there is
-  // nothing to diverge from.
-  const activate = door
-    ? (id: string) => activateChat(door.endpoint, door.token, id)
-    : null;
+  const door = useMemo(
+    () =>
+      brainServer ? { endpoint: brainServer.endpoint, token: brainServer.credential } : null,
+    [brainServer],
+  );
+  // The door's own standing, from the same poll: `absent` is the only one in
+  // which an open may settle locally, and "this window cannot call the door
+  // yet" is a different fact that holds the open instead.
+  const standing = useDoorStanding();
+  // What the gate is allowed to do, in one place, told to the gate whenever it
+  // changes. It is the gate's own state and not a parameter of each open: the
+  // open that is held has to be retried when the door becomes callable, and
+  // only the gate can see that happen.
+  useEffect(() => {
+    const next: DoorAccess =
+      standing === "ready" && door
+        ? { kind: "ready", activate: (id: string) => activateChat(door.endpoint, door.token, id) }
+        : standing === "unready"
+          ? { kind: "unready" }
+          : { kind: "absent" };
+    void gate.setAccess(next);
+  }, [standing, door]);
   // The model's own chat template decides whether a thinking switch may be
   // offered at all, and it is read from the one road to `/props`
   // (`useServerFacts`) — the sampler panel reads the same fact the same way.
@@ -311,7 +324,7 @@ export function App() {
       // stays, with the attachment on it below, so nothing the person chose is
       // lost and the warning says why.
       store.put(fresh);
-      const result = await gate.create(fresh.id, activate);
+      const result = await gate.create(fresh.id);
       if (result === null) {
         // A creation is already in flight; this one never reached the door.
         store.remove(fresh.id);
@@ -627,7 +640,12 @@ export function App() {
   // gate can mint one: a chat that is already open never takes this path,
   // because it was offered when it was selected.
   function sendMessage(text: string, opened: ActiveChat | null = null): string | null {
-    let conv = active;
+    // The brand bites here. An `ActiveChat` is the door's answer for one chat,
+    // so it is used for that chat or refused — never passed over in favour of
+    // whatever this render happened to call active. The render's chat is
+    // trusted only when it *is* the chat the door minted.
+    if (opened !== null && !gate.isCurrent(opened)) return null;
+    let conv = opened !== null && active?.id !== opened.id ? null : active;
     if (!conv) {
       conv = {
         id: opened ? opened.id : uid(),
@@ -672,7 +690,7 @@ export function App() {
     // the chat.
     const id = uid();
     void (async () => {
-      const result = await gate.create(id, activate);
+      const result = await gate.create(id);
       // A creation already in flight: this Enter is ignored, not a second chat.
       if (result === null) return;
       setSlotNotice(result.notice);
@@ -707,7 +725,7 @@ export function App() {
     const fresh = active === null ? uid() : null;
     if (fresh !== null) {
       void (async () => {
-        const result = await gate.create(fresh, activate);
+        const result = await gate.create(fresh);
         if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
         // Committed before the measurement below: the slot sentence sits above
         // the bar the flight aims at.
@@ -781,7 +799,9 @@ export function App() {
     const assistantId = streamingByConv[id];
     if (assistantId) controllers.current.get(assistantId)?.abort();
     store.remove(id);
-    if (activeId === id) gate.clear();
+    // The gate's own active chat, not the rendered one: an open of this chat can
+    // be in flight, and the render still names the previous chat while it is.
+    gate.clearIf(id);
     // A chat the door kept leaves two things behind — its file, and the state
     // in the slot when that slot holds it — and this is the one call that takes
     // them. `no-tier` says nothing here: a door without the tier kept no file,
@@ -842,8 +862,11 @@ export function App() {
   // answer and puts the door's own sentence on screen.
   function selectConversation(id: string): void {
     // The chat that is already active is not asked about again: the door would
-    // no-op it, and nothing on screen changes either way.
-    if (id === activeId) {
+    // no-op it, and nothing on screen changes either way. The question is asked
+    // of the gate and not of the rendered active id, because during a switch
+    // that id is the outgoing chat: swallowing a click on that basis is how the
+    // first of two quick switches wins.
+    if (gate.isSettled(id)) {
       openSurface("chat");
       setDrawerOpen(false);
       return;
@@ -853,7 +876,7 @@ export function App() {
       // door has already put back what its slot held, and a UI that moved on
       // anyway would be showing a chat the slot does not hold while the next
       // switch saves that slot under this chat's name.
-      const result = await gate.open(id, activate);
+      const result = await gate.open(id);
       setSlotNotice(result.notice);
       if (!result.opened || !gate.isCurrent(result.opened)) return;
       openSurface("chat");
@@ -865,6 +888,11 @@ export function App() {
   const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
+
+  // The gate's own sentence, when it owes one: only a hand-over the door
+  // refused, which has no caller to return its answer to. Shown through the same
+  // banner as the opens this shell asked for.
+  const notice = slotNotice ?? slot.notice;
 
   // The crescent lives in the chat alone. Its entries are destinations, and
   // the component drops the page you are on and anything that page already
@@ -987,13 +1015,19 @@ export function App() {
             sentence only says what the door cannot do. Neither is rewritten
             here: the door distinguishes a slot that is empty from one whose
             state is unknown, and a friendlier sentence would lose that. */}
-        {slotNotice ? (
+        {notice ? (
           <div
-            className={slotNotice.failed ? "storage-banner" : "refusal-banner"}
-            role={slotNotice.failed ? "alert" : "status"}
+            className={notice.failed ? "storage-banner" : "refusal-banner"}
+            role={notice.failed ? "alert" : "status"}
           >
-            <span>{slotNotice.message}</span>
-            <button type="button" onClick={() => setSlotNotice(null)}>
+            <span>{notice.message}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSlotNotice(null);
+                gate.dismissNotice();
+              }}
+            >
               Dismiss
             </button>
           </div>
