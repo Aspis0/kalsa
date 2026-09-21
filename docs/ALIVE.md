@@ -51,30 +51,63 @@ open items are in `PLAN.md`, "Engine release: current position and next steps".
 | item | value |
 |---|---|
 | Source of truth | `Aspis0/kalsallama` (private), integration branch `b11010-merge` |
-| Branch tip (`origin/b11010-merge`) | `916b8f0bcfcb829011f129b4dff8acfd01ab7814` (`ci(server): decide the R2 existence check with head-object`) |
-| Release tag | `kalsa-server-v1.0.0`, annotated |
-| Tag object | `d30c8d475d5eb47a544304ba592138d066bbc2e3` |
-| Tag target commit | `4ccef2f85dbc27e095e11ffcbad4628be9961790` |
+| Branch tip (`origin/b11010-merge`) | `2a290390d67311b580ef398fd545e6d060b39897` (`ci : drop the Metal packaging work from the kalsa-server release path`) |
+| Release tag (current) | `kalsa-server-v1.1.0`, annotated |
+| Tag object | `c105c218236799f2f651517f5a0aeabcf4a8d8a1` |
+| Tag target commit | `2a290390d67311b580ef398fd545e6d060b39897` |
+| Release tag (previous) | `kalsa-server-v1.0.0`, annotated; tag object `d30c8d475d5eb47a544304ba592138d066bbc2e3`, commit `4ccef2f85dbc27e095e11ffcbad4628be9961790` |
 
-The tag is IMMUTABLE: never moved, never forced, never re-created.
+The tags are IMMUTABLE: never moved, never forced, never re-created. A tag is a
+snapshot of the release path, not of the code: the workflow file inside a tag is frozen, which
+is why a rebuild of an existing tag is done by dispatching with `release_tag` against
+`b11010-merge`. For v1.1.0 the tagged tree already carries the current workflow, so the tag push
+itself publishes.
 
-### Published state (v1.0.0, live)
+### Published state (v1.1.0 is current, v1.0.0 stays available)
 
-All three objects serve HTTP 200 anonymously and were verified consumer-side:
+Both versions serve HTTP 200 anonymously and were verified consumer-side by downloading from the
+public URL, not by reading the run log.
 
-| check | value |
-|---|---|
-| Home | `https://dl.kalsa.io/kalsa-server/v1.0.0` |
-| Archive | `https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz` |
-| `.sha256` sibling | `https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz.sha256` |
-| Manifest | `https://dl.kalsa.io/kalsa-server/v1.0.0/manifest.json` |
-| Archive size | 11203439 bytes |
-| Archive sha256 | `3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7` |
-| `.sha256` sibling | agrees with the archive digest |
-| Extracted `exe_sha256` | `327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde` |
-| Archive top directory | `kalsa-server-v1.0.0` |
-| `kalsa-server --version` | prints `commit 4ccef2f85` |
-| Producing run | `https://github.com/Aspis0/kalsallama/actions/runs/35549848243` |
+| check | v1.1.0 (current) | v1.0.0 |
+|---|---|---|
+| Home | `https://dl.kalsa.io/kalsa-server/v1.1.0` | `https://dl.kalsa.io/kalsa-server/v1.0.0` |
+| Archive | `kalsa-server-v1.1.0-bin-macos-arm64.tar.gz` | `kalsa-server-v1.0.0-bin-macos-arm64.tar.gz` |
+| Archive size | 11205316 bytes | 11203439 bytes |
+| Archive sha256 | `9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034` | `3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7` |
+| `.sha256` sibling | agrees | agrees |
+| Archive top directory | `kalsa-server-v1.1.0` | `kalsa-server-v1.0.0` |
+| Producing run | run `35565687271` | run `35549848243` |
+| Cached slot inlet in the shipped dylib | yes | no |
+
+Shape is the same in both: no `default.metallib`, no `ggml-tensor.metallib`, no `kernels/`
+entries; the metallib is embedded in `libggml-metal.*.dylib`; the manifest records
+`backend: metal`.
+
+The archive holds **58 tar entries: 1 directory plus 57 file entries**, and the file entries are
+**41 regular files** (40 Mach-O binaries — the executables and their dylibs — plus `LICENSE`) and
+**16 symlinks** (the unversioned and `.0` aliases of the versioned dylibs). v1.0.0 measures the
+same 58/1-57/41/16. These are MEASURED counts: an earlier report of "57 entries, 56 files" was a
+transcription error, and pinning a transcribed count is how a bundler comes to reject a correct
+archive. Every Mach-O's dependency resolves through `@rpath`, `@loader_path` or a system path.
+
+### Where the code actually lives (two traps found on 2026-09-21)
+
+1. **`exe_sha256` cannot tell two versions apart.** `kalsa-server` is a thin LAUNCHER and is
+   byte-identical in v1.0.0 and v1.1.0, so the manifest's `exe_sha256` is the same
+   (`327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde`) in both. The server
+   implementation is `libllama-server-impl.dylib`, and that DID change
+   (`d7491bbf96d895c7a3680cfe710e3cf12f57ca240b20b4ee51ea0f19a01742fc` at v1.0.0 →
+   `4b7d69fbb8505bb06a5a3b713bafe0d614883361c7d3ad0c4b5137e5809773fd` at v1.1.0). Version
+   identity is therefore the ARCHIVE sha256 (or `tag_object`/`commit`), never `exe_sha256`. The
+   desktop's first-launch marker re-check stays as a secondary integrity check on the launcher
+   only.
+2. **The port header literal in the binary is LOWERCASE.** The wire header is `X-Kalsa-Slot`
+   (HTTP header names are case-insensitive) but the compiled key is `x-kalsa-slot`, because the
+   code lowercases the received name before matching (`tools/server/server-context.cpp:4538`;
+   the salt one is `x-kalsa-cache-salt` at line 4504). So a display of presence must be
+   case-insensitive or lowercase: `strings -a <top>/libllama-server-impl.dylib | grep -c
+   'x-kalsa-slot'` returns 1 for v1.1.0 and 0 for v1.0.0. A capitalised grep returns 0 on a GOOD
+   build, which is the worst class of check: one that fails the correct artifact.
 
 ### Workflow
 
@@ -138,11 +171,18 @@ re-checked with a cache-busting query before it is believed.
 
 ### Releasing a new version
 
-Create and push an annotated tag `kalsa-server-vX.Y.Z`, then dispatch:
+Push an annotated tag `kalsa-server-vX.Y.Z`; the tag trigger builds, verifies and publishes, and
+the tag's own workflow file is what runs. To rebuild or republish an EXISTING tag (whose workflow
+file is frozen), dispatch against the branch instead:
 
 ```
 gh workflow run kalsa-server.yml --ref b11010-merge -f release_tag=kalsa-server-vX.Y.Z
 ```
+
+v1.1.0 was published by the first path (run `35565687271`, `trigger: push on a tag`); v1.0.0 by the
+second (run `35549848243`, `trigger: workflow_dispatch with release_tag`). Before any tag: the branch
+must have a GREEN `push` run at the commit being tagged, because a branch run exercises build, pack,
+reproducibility and verification without touching the bucket.
 
 ### Manifest contract (the desktop consumes this)
 
@@ -153,33 +193,37 @@ run, never typed by hand.
 
 ```json
 {
-  "version": "v1.0.0",
-  "tag": "kalsa-server-v1.0.0",
-  "tag_object": "d30c8d475d5eb47a544304ba592138d066bbc2e3",
-  "commit": "4ccef2f85dbc27e095e11ffcbad4628be9961790",
-  "ref": "refs/tags/kalsa-server-v1.0.0",
-  "trigger": "workflow_dispatch with release_tag",
-  "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35549848243",
-  "built_at": "2026-09-21T01:16:13Z",
+  "version": "v1.1.0",
+  "tag": "kalsa-server-v1.1.0",
+  "tag_object": "c105c218236799f2f651517f5a0aeabcf4a8d8a1",
+  "commit": "2a290390d67311b580ef398fd545e6d060b39897",
+  "ref": "refs/tags/kalsa-server-v1.1.0",
+  "trigger": "push on a tag",
+  "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35565687271",
+  "built_at": "2026-09-21T05:49:19Z",
   "reproducible": true,
-  "pack_sha256": "3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7",
+  "pack_sha256": "9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034",
   "artifacts": [
     {
       "platform": "macos-arm64",
       "backend": "metal",
-      "home": "https://dl.kalsa.io/kalsa-server/v1.0.0",
-      "file": "kalsa-server-v1.0.0-bin-macos-arm64.tar.gz",
-      "url": "https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz",
+      "home": "https://dl.kalsa.io/kalsa-server/v1.1.0",
+      "file": "kalsa-server-v1.1.0-bin-macos-arm64.tar.gz",
+      "url": "https://dl.kalsa.io/kalsa-server/v1.1.0/kalsa-server-v1.1.0-bin-macos-arm64.tar.gz",
       "format": "tar.gz",
-      "top_dir": "kalsa-server-v1.0.0",
+      "top_dir": "kalsa-server-v1.1.0",
       "exe": "kalsa-server",
-      "size_bytes": 11203439,
-      "sha256": "3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7",
+      "size_bytes": 11205316,
+      "sha256": "9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034",
       "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
     }
   ]
 }
 ```
+
+v1.0.0's manifest differs only in the version, tag, tag object, commit, trigger, run URL,
+`built_at`, the `v1.0.0` home/file/url/top_dir, `size_bytes` 11203439 and `sha256`
+`3fe62ebf…88a7`.
 
 Notes:
 
@@ -189,10 +233,16 @@ Notes:
   invariant asserts that no two matrix entries share an architecture. If a future backend needs the
   same architecture, the filename must gain a backend suffix and the manifest must change in the
   same commit.
-- A fresh CI build of the same tag does NOT reproduce an earlier archive byte-for-byte (linker
-  UUIDs and similar differ): the executable hash matched (`327fb363…`) while the archive size and
-  digest changed. The manifest published with each artefact is therefore the authoritative record
-  for THAT object; never read a digest as a claim about a different build.
+- A fresh CI build of the same tag does NOT reproduce an earlier archive byte-for-byte: the UI
+  assets are rebuilt and the archive size and digest change. The manifest published with each
+  artefact is therefore the authoritative record for THAT object; never read a digest as a claim
+  about a different build. Note the asymmetry: the ARCHIVE differs between two builds, while the
+  launcher executable hash does not change even between DIFFERENT versions (see "Where the code
+  actually lives" above), so the executable hash is neither a version nor a build identifier.
+- The release path has exactly one build-time network fetch, the BoringSSL `FetchContent` clone in
+  `vendor/cpp-httplib/CMakeLists.txt:45-68`. It is inherited unchanged from the v1.0.0 path and is
+  a build-time fetch in a pipeline the desktop does not run; it is recorded here and was
+deliberately NOT changed in the v1.1.0 tag.
 
 ## The full diary
 
