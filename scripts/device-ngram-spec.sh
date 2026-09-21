@@ -25,6 +25,7 @@
 #   ANDROID_SERIAL=<serial> scripts/device-ngram-spec.sh
 #   ARMS="none ngram-simple" MODELS="LFM2.5-1.2B-Instruct-Q4_K_M.gguf" REPS=3 …
 set -uo pipefail
+MEASUREMENT_RUN=1
 
 _NGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_NGS_DIR/device-share-send.sh"

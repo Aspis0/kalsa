@@ -599,6 +599,242 @@ else
   fail=$((fail + 1))
 fi
 
+# ── Fatal-path regression proofs (protocol-abc) ─────────────────────
+# These child shells use the real die/log/shot functions and fake only adb/UI
+# evidence. Keeping them isolated prevents the fatal exit and test env from
+# changing this suite's shell.
+_PROTO_SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# A: the real production nesting is key=$(_active_messages_key), where the
+# helper itself resolves the id inside another command substitution. The
+# caller must own the fatal die. Ten active-key substitutions are checked:
+# six in ci-e2e and four in ci-bench (messages, compactor, and summary).
+# Extracted production function text is evaluated below because ci-e2e.sh is
+# not sourceable; the three child cases exercise the functions on disk, while
+# the ten-site guard count is the explicit caller-coverage check.
+_A_OUT="$OUT/proof-a"
+mkdir -p "$_A_OUT"
+_A_MESSAGES_BODY=$(sed -n '/^_active_messages_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-e2e.sh")
+_A_COMPACTOR_BODY=$(sed -n '/^_active_compactor_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-bench.sh")
+_A_SUMMARY_BODY=$(sed -n '/^_active_summary_key()/,/^}/p' "$_PROTO_SCRIPTS_DIR/ci-bench.sh")
+_A_BODY_OK=1
+[ -n "$_A_MESSAGES_BODY" ] || _A_BODY_OK=0
+[ -n "$_A_COMPACTOR_BODY" ] || _A_BODY_OK=0
+[ -n "$_A_SUMMARY_BODY" ] || _A_BODY_OK=0
+_A_GUARDS=$((
+  $(grep -cF 'if ! key=$(_active_messages_key); then' "$_PROTO_SCRIPTS_DIR/ci-e2e.sh") +
+  $(grep -cF 'if ! key=$(_active_messages_key); then' "$_PROTO_SCRIPTS_DIR/ci-bench.sh") +
+  $(grep -cF 'if ! ckey=$(_active_compactor_key); then' "$_PROTO_SCRIPTS_DIR/ci-bench.sh") +
+  $(grep -cF 'if ! _compactor_key=$(_active_compactor_key); then' "$_PROTO_SCRIPTS_DIR/ci-bench.sh") +
+  $(grep -cF 'if ! _summary_key=$(_active_summary_key); then' "$_PROTO_SCRIPTS_DIR/ci-bench.sh")
+))
+if grep -qF "key='\$(_active_compactor_key)'" "$_PROTO_SCRIPTS_DIR/ci-bench.sh" \
+  || grep -qF "key='\$(_active_summary_key)'" "$_PROTO_SCRIPTS_DIR/ci-bench.sh"; then
+  _A_NESTED=1
+else
+  _A_NESTED=0
+fi
+_run_a_production_helper() {
+  local body="$1" function_name="$2" out_dir="$3" log_path="$4"
+  TEST_BODY="$body" TEST_FUNCTION="$function_name" TEST_OUT="$out_dir" \
+    CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" \
+    bash -c '
+      set -uo pipefail
+      OUT="$TEST_OUT"
+      export OUT
+      MEASUREMENT_RUN=1
+      source "$CI_LIB"
+      ui_texts() { :; }
+      capture_death_evidence() { :; }
+      sql() { printf "%s\n" "{not-json}"; }
+      eval "$TEST_BODY"
+      if ! key=$("$TEST_FUNCTION"); then
+        die "parent caught active conversation failure"
+      fi
+      printf "ASSERTION_A_PARENT_ABORT: FAIL — nested helper returned unexpectedly\n"
+      exit 9
+    ' > "$log_path" 2>&1
+}
+
+_A_MESSAGES_OUT="$_A_OUT/messages"
+_A_COMPACTOR_OUT="$_A_OUT/compactor"
+_A_SUMMARY_OUT="$_A_OUT/summary"
+mkdir -p "$_A_MESSAGES_OUT" "$_A_COMPACTOR_OUT" "$_A_SUMMARY_OUT"
+_A_MESSAGES_LOG="$_A_OUT/messages.log"
+_A_COMPACTOR_LOG="$_A_OUT/compactor.log"
+_A_SUMMARY_LOG="$_A_OUT/summary.log"
+_run_a_production_helper "$_A_MESSAGES_BODY" _active_messages_key "$_A_MESSAGES_OUT" "$_A_MESSAGES_LOG"
+_A_MESSAGES_RC=$?
+_run_a_production_helper "$_A_COMPACTOR_BODY" _active_compactor_key "$_A_COMPACTOR_OUT" "$_A_COMPACTOR_LOG"
+_A_COMPACTOR_RC=$?
+_run_a_production_helper "$_A_SUMMARY_BODY" _active_summary_key "$_A_SUMMARY_OUT" "$_A_SUMMARY_LOG"
+_A_SUMMARY_RC=$?
+_A_LOGS_OK=1
+for _a_log in "$_A_MESSAGES_LOG" "$_A_COMPACTOR_LOG" "$_A_SUMMARY_LOG"; do
+  if ! grep -qF "FATAL: parent caught active conversation failure" "$_a_log" \
+    || grep -qF "returned unexpectedly" "$_a_log"; then
+    _A_LOGS_OK=0
+  fi
+done
+if [ "$_A_MESSAGES_RC" -eq 1 ] \
+  && [ "$_A_COMPACTOR_RC" -eq 1 ] \
+  && [ "$_A_SUMMARY_RC" -eq 1 ] \
+  && [ "$_A_BODY_OK" -eq 1 ] \
+  && [ "$_A_GUARDS" -eq 10 ] \
+  && [ "$_A_NESTED" -eq 0 ] \
+  && [ "$_A_LOGS_OK" -eq 1 ]; then
+  echo "PASS: ASSERTION_A_PARENT_ABORT — production helper text aborts in parent (rc=1, guards=$_A_GUARDS)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_A_PARENT_ABORT — messages=$_A_MESSAGES_RC compactor=$_A_COMPACTOR_RC summary=$_A_SUMMARY_RC bodies=$_A_BODY_OK guards=$_A_GUARDS nested=$_A_NESTED logs=$_A_LOGS_OK"
+  sed -n '1,20p' "$_A_MESSAGES_LOG"
+  sed -n '1,20p' "$_A_COMPACTOR_LOG"
+  sed -n '1,20p' "$_A_SUMMARY_LOG"
+  fail=$((fail + 1))
+fi
+
+# B: fatal output from resolve inside $(...) must be visible on stderr while
+# the captured stdout stays free of the fatal text. Ordinary log output stays
+# stdout as a separate check.
+_B_OUT="$OUT/proof-b"
+mkdir -p "$_B_OUT"
+_B_CAPTURE="$_B_OUT/captured.txt"
+_B_ERR="$_B_OUT/stderr.txt"
+_B_NORMAL_ERR="$_B_OUT/normal-stderr.txt"
+_B_NORMAL="$_B_OUT/normal.txt"
+CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_B_OUT" TEST_CAPTURE="$_B_CAPTURE" \
+  TEST_ERR="$_B_ERR" TEST_NORMAL_ERR="$_B_NORMAL_ERR" TEST_NORMAL="$_B_NORMAL" \
+  bash -c '
+    set -uo pipefail
+    OUT="$TEST_OUT"
+    export OUT
+    source "$CI_LIB"
+    ui_texts() { :; }
+    shot() { :; }
+    capture_death_evidence() { :; }
+    captured=$(resolve_active_conversation_id "{not-json}" 2>"$TEST_ERR")
+    printf "%s" "$captured" > "$TEST_CAPTURE"
+    normal=$(log "ordinary" 2>"$TEST_NORMAL_ERR")
+    printf "%s" "$normal" > "$TEST_NORMAL"
+  ' > "$OUT/proof-b.log" 2>&1
+_B_RC=$?
+if [ "$_B_RC" -eq 0 ] \
+  && grep -qF "[ci] FATAL:" "$_B_ERR" \
+  && ! grep -qF "FATAL:" "$_B_CAPTURE" \
+  && [ "$(tr -d '\n' < "$_B_NORMAL")" = "[ci] ordinary" ] \
+  && [ ! -s "$_B_NORMAL_ERR" ]; then
+  echo "PASS: ASSERTION_B_FATAL_STDERR — fatal is stderr-only; ordinary log remains stdout"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_B_FATAL_STDERR — rc=$_B_RC captured='$(tr '\n' '|' < "$_B_CAPTURE" 2>/dev/null)' stderr='$(tr '\n' '|' < "$_B_ERR" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# C: measurement runs suppress only the unexpected-death PNG, and every
+# owned measurement entry point sets the marker itself. Campaign launchers and
+# shared helpers are intentionally outside this assertion and this patch.
+_C_OUT="$OUT/proof-c"
+mkdir -p "$_C_OUT"
+_C_LOG="$OUT/proof-c.log"
+CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_C_OUT" \
+  bash -c '
+    set -uo pipefail
+    OUT="$TEST_OUT"
+    export OUT
+    MEASUREMENT_RUN=1
+    source "$CI_LIB"
+    ui_texts() { :; }
+    capture_death_evidence() { :; }
+    adb() { printf PNG; }
+    die "measurement fatal"
+  ' > "$_C_LOG" 2>&1
+_C_RC=$?
+_C_WIRING=1
+for _entrypoint in \
+  ci-e2e.sh ci-bench.sh ci-dflash-ab.sh \
+  device-restore-protocol.sh device-energy-sweep.sh \
+  device-decode-lineup.sh device-ngram-spec.sh device-prefill-threads.sh; do
+  if ! grep -qE '^[[:space:]]*MEASUREMENT_RUN=1[[:space:]]*$' "$_PROTO_SCRIPTS_DIR/$_entrypoint"; then
+    _C_WIRING=0
+  fi
+done
+if [ "$_C_RC" -eq 1 ] && [ ! -e "$_C_OUT/fatal.png" ] && [ "$_C_WIRING" -eq 1 ]; then
+  echo "PASS: ASSERTION_C_NO_MEASUREMENT_FATAL_PNG — fatal.png absent (rc=$_C_RC), owned measurement paths wired"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_C_NO_MEASUREMENT_FATAL_PNG — rc=$_C_RC fatal_png=$([ -e "$_C_OUT/fatal.png" ] && echo yes || echo no) wiring=$_C_WIRING"
+  fail=$((fail + 1))
+fi
+
+_C_DIAG_OUT="$OUT/proof-c-diagnostic"
+mkdir -p "$_C_DIAG_OUT"
+CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_C_DIAG_OUT" \
+  bash -c '
+    set -uo pipefail
+    OUT="$TEST_OUT"
+    export OUT
+    MEASUREMENT_RUN=0
+    source "$CI_LIB"
+    ui_texts() { :; }
+    capture_death_evidence() { :; }
+    adb() { printf PNG; }
+    die "diagnostic fatal"
+  ' > "$OUT/proof-c-diagnostic.log" 2>&1
+_C_DIAG_RC=$?
+if [ "$_C_DIAG_RC" -eq 1 ] && [ -e "$_C_DIAG_OUT/fatal.png" ]; then
+  echo "PASS: ASSERTION_C_DIAGNOSTIC_FATAL_PNG — diagnostic fatal.png exists (rc=$_C_DIAG_RC)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_C_DIAGNOSTIC_FATAL_PNG — rc=$_C_DIAG_RC exists=$([ -e "$_C_DIAG_OUT/fatal.png" ] && echo yes || echo no)"
+  fail=$((fail + 1))
+fi
+
+_C_DEFAULT_OUT="$OUT/proof-c-default"
+mkdir -p "$_C_DEFAULT_OUT"
+CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_C_DEFAULT_OUT" \
+  bash -c '
+    set -uo pipefail
+    unset MEASUREMENT_RUN
+    OUT="$TEST_OUT"
+    export OUT
+    source "$CI_LIB"
+    ui_texts() { :; }
+    capture_death_evidence() { :; }
+    adb() { printf PNG; }
+    die "default fatal"
+  ' > "$OUT/proof-c-default.log" 2>&1
+_C_DEFAULT_RC=$?
+if [ "$_C_DEFAULT_RC" -eq 1 ] && [ ! -e "$_C_DEFAULT_OUT/fatal.png" ]; then
+  echo "PASS: ASSERTION_C_DEFAULT_FATAL_PNG — unset marker is fail-closed (rc=$_C_DEFAULT_RC)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_C_DEFAULT_FATAL_PNG — rc=$_C_DEFAULT_RC exists=$([ -e "$_C_DEFAULT_OUT/fatal.png" ] && echo yes || echo no)"
+  fail=$((fail + 1))
+fi
+
+# D: deliberate named screenshots must continue to write evidence even under
+# the default fail-closed measurement setting.
+_D_OUT="$OUT/proof-d"
+mkdir -p "$_D_OUT"
+CI_LIB="$_PROTO_SCRIPTS_DIR/ci-lib.sh" TEST_OUT="$_D_OUT" \
+  bash -c '
+    set -uo pipefail
+    unset MEASUREMENT_RUN
+    OUT="$TEST_OUT"
+    export OUT
+    source "$CI_LIB"
+    adb() { printf PNG; }
+    shot deliberate
+  ' > "$OUT/proof-d.log" 2>&1
+_D_RC=$?
+if [ "$_D_RC" -eq 0 ] && [ -e "$_D_OUT/deliberate.png" ]; then
+  echo "PASS: ASSERTION_D_DELIBERATE_SHOT_WRITES_PNG — deliberate shot preserved (rc=$_D_RC)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ASSERTION_D_DELIBERATE_SHOT_WRITES_PNG — rc=$_D_RC exists=$([ -e "$_D_OUT/deliberate.png" ] && echo yes || echo no)"
+  fail=$((fail + 1))
+fi
+
 # list_conversation_ids: both ids, one per line (reset wipe target)
 _ids=$(list_conversation_ids "$_multi" | tr '\n' ' ')
 if echo "$_ids" | grep -q "conv-old" && echo "$_ids" | grep -q "conv-new"; then

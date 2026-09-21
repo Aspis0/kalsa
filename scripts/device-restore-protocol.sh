@@ -17,6 +17,7 @@
 #
 #   ANDROID_SERIAL=<serial> scripts/device-restore-protocol.sh [cycles]
 set -uo pipefail
+MEASUREMENT_RUN=1
 
 _RP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh

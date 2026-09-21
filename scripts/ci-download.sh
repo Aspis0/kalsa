@@ -14,6 +14,7 @@
 # Evidence (screenshots, UI dumps, logcat, verdict) lands in ./download-out.
 set -uo pipefail
 OUT="download-out"; mkdir -p "$OUT"
+MEASUREMENT_RUN=0
 PKG=com.kalsa.app
 
 # shellcheck source=ci-lib.sh

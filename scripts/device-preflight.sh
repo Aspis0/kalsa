@@ -5,6 +5,7 @@
 # serial and never `adb disconnect`/`adb kill-server` — in a multi-device lab
 # that would tear down another session's work.
 set -uo pipefail
+MEASUREMENT_RUN=0
 
 OUT="${OUT:-device-preflight-out}"
 mkdir -p "$OUT"
