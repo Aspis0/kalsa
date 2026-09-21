@@ -4,6 +4,10 @@ import "./Composer.css";
 
 interface ComposerProps {
   streaming: boolean;
+  // A chat is being opened at the door. Send and retry are frozen while it is
+  // true, and the line below says why: the freeze costs a second of typing and
+  // a missing signal costs a second chat.
+  opening: boolean;
   // The unsent text lives above this component: going home and back
   // unmounts the composer, and a draft must survive the round trip.
   draft: string;
@@ -22,6 +26,7 @@ const MAX_HEIGHT = 200;
 
 export function Composer({
   streaming,
+  opening,
   draft,
   onDraftChange,
   onSend,
@@ -33,7 +38,7 @@ export function Composer({
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const text = draft;
-  const canSend = text.trim().length > 0 && !streaming;
+  const canSend = text.trim().length > 0 && !streaming && !opening;
 
   // Grow with the text up to MAX_HEIGHT, then scroll. Height only ever
   // derives from scrollHeight so the box never jumps while typing.
@@ -47,7 +52,7 @@ export function Composer({
 
   function send(): void {
     const value = text.trim();
-    if (!value || streaming) return;
+    if (!value || streaming || opening) return;
     if (onSend(value)) onDraftChange("");
   }
 
@@ -56,7 +61,7 @@ export function Composer({
       event.preventDefault();
       if (streaming) {
         onStop();
-      } else {
+      } else if (!opening) {
         send();
       }
     }
@@ -149,7 +154,9 @@ export function Composer({
           </button>
         )}
       </div>
-      <p className="composer-hint">Enter sends · Shift+Enter adds a line</p>
+      <p className="composer-hint">
+        {opening ? "Opening the chat…" : "Enter sends · Shift+Enter adds a line"}
+      </p>
     </div>
   );
 }

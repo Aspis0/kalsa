@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
+import { createSlotGate } from "./lib/slotGate";
+import type { ActiveChat } from "./lib/slotGate";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
@@ -39,6 +41,9 @@ import { WebGateDialog } from "./components/WebGateDialog";
 import "./App.css";
 
 const store = createStore();
+// One gate for the window, beside the one store: it holds which chat is active,
+// so it must outlive every render. A `useMemo` would let React discard it.
+const gate = createSlotGate();
 
 // How far the settings path may grow before the oldest step falls off. The
 // surfaces' own hops are shallow; the bound is for the general case.
@@ -85,7 +90,13 @@ export function App() {
   // "the slot is empty", which the door reserves for the one case it knows
   // that about.
   const [slotNotice, setSlotNotice] = useState<{ failed: boolean; message: string } | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // The disk tier's one road to an active chat: the gate owns which chat is
+  // active, and it changes only after the door has answered.
+  // `useSyncExternalStore` is what removes the setter — there is no state here
+  // for another path to bypass the door with. See `lib/slotGate.ts` for the
+  // four races this closes.
+  const slot = useSyncExternalStore(gate.subscribe, gate.getSnapshot);
+  const activeId = slot.active?.id ?? null;
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const [navOpen, setNavOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -209,6 +220,12 @@ export function App() {
   const door = brainServer
     ? { endpoint: brainServer.endpoint, token: brainServer.credential }
     : null;
+  // The door call the gate makes, or null when there is no door: a window on a
+  // remote server has no slot to open, so an open succeeds locally and there is
+  // nothing to diverge from.
+  const activate = door
+    ? (id: string) => activateChat(door.endpoint, door.token, id)
+    : null;
   // The model's own chat template decides whether a thinking switch may be
   // offered at all, and it is read from the one road to `/props`
   // (`useServerFacts`) — the sampler panel reads the same fact the same way.
@@ -288,9 +305,20 @@ export function App() {
         updatedAt: Date.now(),
         messages: [],
       };
+      // The conversation exists before the door answers, so the moment the gate
+      // makes it active there is something to show. The door decides whether it
+      // becomes active, and on a refusal it must not — but the conversation
+      // stays, with the attachment on it below, so nothing the person chose is
+      // lost and the warning says why.
       store.put(fresh);
+      const result = await gate.create(fresh.id, activate);
+      if (result === null) {
+        // A creation is already in flight; this one never reached the door.
+        store.remove(fresh.id);
+        return;
+      }
+      setSlotNotice(result.notice);
       convId = fresh.id;
-      setActiveId(convId);
     }
     const target = convId;
     setAttachStatus(
@@ -595,14 +623,14 @@ export function App() {
   // belongs to the person, and an answer with nowhere to go fails under it
   // with the error and a way to Settings. Returns the user message's id.
   //
-  // `fresh` is the id of a conversation that does not exist yet, made by the
-  // caller and offered to the door first (`openInSlot`): a chat that is already
-  // open never takes this path, because it was offered when it was selected.
-  function sendMessage(text: string, fresh: string | null = null): string | null {
+  // `opened` is the chat the gate has just taken from the door, and only the
+  // gate can mint one: a chat that is already open never takes this path,
+  // because it was offered when it was selected.
+  function sendMessage(text: string, opened: ActiveChat | null = null): string | null {
     let conv = active;
     if (!conv) {
       conv = {
-        id: fresh ?? uid(),
+        id: opened ? opened.id : uid(),
         title: titleFor(text),
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -622,7 +650,6 @@ export function App() {
       ],
     };
     store.put(updated);
-    setActiveId(updated.id);
     // Writing from the brain's bar lands here too: the chat opens with the
     // text already in the thread.
     openSurface("chat");
@@ -633,6 +660,10 @@ export function App() {
   // A stream in ANOTHER conversation never blocks this one; the composer
   // shows Stop (not Send) while its own conversation is generating.
   function send(text: string): boolean {
+    // The freeze is the gate's `pending`, applied here as well as in the
+    // composer: a send into the outgoing chat during a switch is the race C4
+    // closes, whichever control produced it.
+    if (slot.pending) return false;
     if (active) return sendMessage(text) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
@@ -641,11 +672,17 @@ export function App() {
     // the chat.
     const id = uid();
     void (async () => {
-      if (!(await openInSlot(id))) return;
+      const result = await gate.create(id, activate);
+      // A creation already in flight: this Enter is ignored, not a second chat.
+      if (result === null) return;
+      setSlotNotice(result.notice);
+      // The task can land after the person chose another chat, and a chat that
+      // is no longer current must not be sent into.
+      if (!result.opened || !gate.isCurrent(result.opened)) return;
       // Only if the box still holds what was sent: the wait is a round trip,
       // and the next message may already be in it.
       setDraft((current) => (current.trim() === text ? "" : current));
-      sendMessage(text, id);
+      sendMessage(text, result.opened);
     })();
     return false;
   }
@@ -657,6 +694,10 @@ export function App() {
   // not become the message, so there is no fallback here on that account; under
   // reduced motion the same state change happens plainly and nothing moves.
   function writeFromBrain(text: string): void {
+    // The outgoing chat is frozen while a switch is in flight, and the brain's
+    // bar is one more way into it. The words stay in the bar — this returns
+    // before the surface changes — so the freeze costs nothing here.
+    if (slot.pending) return;
     const calm =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -666,8 +707,12 @@ export function App() {
     const fresh = active === null ? uid() : null;
     if (fresh !== null) {
       void (async () => {
-        if (!(await openInSlot(fresh))) return;
-        flyBarInto(text, fresh, calm);
+        const result = await gate.create(fresh, activate);
+        if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
+        // Committed before the measurement below: the slot sentence sits above
+        // the bar the flight aims at.
+        flushSync(() => setSlotNotice(result.notice));
+        flyBarInto(text, result.opened, calm);
       })();
       return;
     }
@@ -676,7 +721,7 @@ export function App() {
 
   /** The rest of `writeFromBrain`, once the door has taken the chat: measure the
       bar, start the room's change, commit the bubble, aim the flight at it. */
-  function flyBarInto(text: string, fresh: string | null, calm: boolean): void {
+  function flyBarInto(text: string, opened: ActiveChat | null, calm: boolean): void {
     const bar = calm ? null : document.querySelector(".brain-bar");
     const before = bar ? bar.getBoundingClientRect() : null;
     // The whole screen changes, and the bar's flight is part of that change:
@@ -687,7 +732,7 @@ export function App() {
     // The commit has to be in the DOM before the bubble can be measured, which
     // is what flushSync is for: not the animation, the measurement.
     flushSync(() => {
-      openedId = sendMessage(text, fresh);
+      openedId = sendMessage(text, opened);
     });
     if (openedId === null) return;
     // The bubble is in the DOM by now — flushSync committed it — and it is
@@ -708,6 +753,9 @@ export function App() {
 
   function retry(messageId: string): void {
     if (!active) return;
+    // The outgoing chat is frozen while a switch is in flight: a completion
+    // here would not pass the door's gate — the same race, from the other side.
+    if (slot.pending) return;
     if (streamingByConv[active.id] !== undefined) return;
     const latest = store.get(active.id);
     if (!latest) return;
@@ -733,7 +781,7 @@ export function App() {
     const assistantId = streamingByConv[id];
     if (assistantId) controllers.current.get(assistantId)?.abort();
     store.remove(id);
-    if (activeId === id) setActiveId(null);
+    if (activeId === id) gate.clear();
     // A chat the door kept leaves two things behind — its file, and the state
     // in the slot when that slot holds it — and this is the one call that takes
     // them. `no-tier` says nothing here: a door without the tier kept no file,
@@ -745,7 +793,7 @@ export function App() {
   }
 
   function newConversation(): void {
-    setActiveId(null);
+    gate.clear();
     setDrawerOpen(false);
   }
 
@@ -788,22 +836,10 @@ export function App() {
   // changed since the last one. That save can be skipped later — the door knows
   // the token count it wrote and would only need the slot's current count,
   // which nothing reports yet.
-  async function openInSlot(id: string): Promise<boolean> {
-    if (!door) return true;
-    const answer = await activateChat(door.endpoint, door.token, id);
-    // Committed here and not on React's schedule: the caller measures the
-    // brain's bar straight after this and aims the flight at where it stands,
-    // and this banner sits above that bar. A 501 is a warning, not a refusal —
-    // a door built without the tier is a configuration the app serves, and the
-    // chat opens as it always did.
-    flushSync(() =>
-      setSlotNotice(
-        answer.kind === "ok" ? null : { failed: answer.kind === "refused", message: answer.message },
-      ),
-    );
-    return answer.kind !== "refused";
-  }
-
+  //
+  // The ordering, the single flight and the late-resolver guard are the gate's
+  // (`lib/slotGate.ts`), so a fake door can test them; this only reads the
+  // answer and puts the door's own sentence on screen.
   function selectConversation(id: string): void {
     // The chat that is already active is not asked about again: the door would
     // no-op it, and nothing on screen changes either way.
@@ -817,8 +853,9 @@ export function App() {
       // door has already put back what its slot held, and a UI that moved on
       // anyway would be showing a chat the slot does not hold while the next
       // switch saves that slot under this chat's name.
-      if (!(await openInSlot(id))) return;
-      setActiveId(id);
+      const result = await gate.open(id, activate);
+      setSlotNotice(result.notice);
+      if (!result.opened || !gate.isCurrent(result.opened)) return;
       openSurface("chat");
       setDrawerOpen(false);
     })();
@@ -1047,6 +1084,7 @@ export function App() {
                     setThinking(enabled);
                   }}
                   streaming={streaming}
+                  opening={slot.pending || slot.creating}
                   draft={draft}
                   onDraftChange={setDraft}
                   onSend={send}
