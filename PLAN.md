@@ -152,18 +152,55 @@ The engine binary ships inside the desktop app. The operational procedure and th
 are in `docs/ALIVE.md`, "Engine release pipeline". This section records where the path stands and
 what is left.
 
-### Position, 2026-09-20
+### Position, 2026-09-21
 
-- Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`; current
-  `origin/b11010-merge` tip `916b8f0bcfcb829011f129b4dff8acfd01ab7814` (`ci(server): decide the R2
-  existence check with head-object`, parent `f404d9180445772b6c857e0444f1f3fb3de5b19c`).
-- Release tag `kalsa-server-v1.0.0`, annotated, tag object
-  `d30c8d475d5eb47a544304ba592138d066bbc2e3`, pointing at commit
-  `4ccef2f85dbc27e095e11ffcbad4628be9961790`. Immutable; never moved.
-- Distribution moved off GitHub to Cloudflare R2 (`dl.kalsa.io`). The publish is LIVE: run
-  `35549848243` pushed `kalsa-server-v1.0.0` and all three objects serve HTTP 200 anonymously. The
-  GitHub-release publishing path is gone; the artefact lives only on R2. Published state and the
-  cache caveats: `docs/ALIVE.md`, "Engine release pipeline".
+- Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`, tip
+  `2a290390d67311b580ef398fd545e6d060b39897` (`ci : drop the Metal packaging work from the
+  kalsa-server release path`).
+- CURRENT release `kalsa-server-v1.1.0`, annotated, tag object
+  `c105c218236799f2f651517f5a0aeabcf4a8d8a1`, pointing at `2a290390d`. Published by run
+  `35565687271` (`push on a tag`) and verified consumer-side from the CDN. It carries the
+  `X-Kalsa-Slot` inlet. Immutable; never moved.
+- PREVIOUS release `kalsa-server-v1.0.0` stays published and unchanged (tag object
+  `d30c8d475d5eb47a544304ba592138d066bbc2e3`, commit `4ccef2f85dbc27e095e11ffcbad4628be9961790`,
+  run `35549848243`).
+- Distribution is on Cloudflare R2 (`dl.kalsa.io`); the GitHub-release path is gone. Published
+  state, the manifest contract, the cache caveats and the two measured consumer traps
+  (`exe_sha256` is the launcher and is version-invariant; the port header literal in the binary is
+  lowercase) are in `docs/ALIVE.md`, "Engine release pipeline".
+- The tagged commit's workflow is byte-identical (blob `26ce5d05a`) to the one that produced the
+  published v1.0.0, which is why this tag's release path needed no new validation: it is the path
+  already proven in production, plus the slot code in `tools/server/`.
+
+### Position, 2026-09-20 (history)
+
+- `origin/b11010-merge` tip was `916b8f0bcfcb829011f129b4dff8acfd01ab7814` and the only release was
+  `kalsa-server-v1.0.0`, published by run `35549848243`.
+
+### The Metal packaging half is OUT of v1.1.0, and why
+
+The precompiled-metallib work (`c71977809` plus the Metal hunk of `ac9a09dc6`) is NOT part of the
+v1.1.0 tag. It stays in the branch history and returns in its own tag.
+
+What decided it was the first run of that work on a REAL macOS runner (run `35560962409`), not an
+opinion: the METAL BUILD SUCCEEDED - the metallib was produced, the server loaded the model on the
+MTL0 device and listened on its port - and the failure was in the new fail-closed health probe,
+which could not classify the loader's real message and exited 1. Two defects must be fixed before
+that half can be tagged:
+
+1. The probe must classify the loader's ACTUAL message rather than an expected one, and on an
+   unclassified message it must fail closed AND print the child's stderr tail, so the next person
+   is not left with the same puzzle.
+2. The probe model must be a committed fixture in the engine repo, not a Hugging Face fetch on the
+   release path. Owner of the fixture: the engine repo (decided with the desktop on 2026-09-21),
+   carried in the tar at a fixed relative path, named in the tar list the desktop receives; the
+   desktop bundler FAILS ITS BUILD if the tag's tar does not contain it, and disables the runtime
+   asset fetch for the probe model on the bundled path.
+
+Splitting cost nothing in capability: v1.0.0 and v1.1.0 both ship Metal with the metallib embedded
+in `libggml-metal`, and the archive keeps the v1.0.0 shape, so no consumer learns a new shape. The
+reverted commit is `2a290390d`, a workflow-only revert (+4/-179, `tools/` untouched), audited
+PUSH-SAFE 9/9 before it was pushed.
 
 ### Decisions
 
@@ -224,9 +261,12 @@ commit `213850e1b617831586e9b9c18b0144ea74664efb` (pushed).
 
 Ordered next steps:
 
-1. R2 publish for `kalsa-server-v1.0.0` is done and LIVE (run `35549848243`); nothing to re-run. The
-   published digests and the consumer-side verification are in `docs/ALIVE.md`, "Published state
-   (v1.0.0, live)". The cache caveats below are standing debts, not blockers.
+1. `kalsa-server-v1.1.0` is published and LIVE (run `35565687271`): slot inlet included, archive
+   shape identical to v1.0.0, consumer verification in `docs/ALIVE.md`, "Published state". v1.0.0
+   stays available. Remaining for this tag: nothing.
+1b. Metal packaging (the item above): fix the probe classifier and move the probe model into the
+   repo as a fixture, then cut its own tag. Until then the Metal upgrade is not shippable - the
+   embedded metallib of v1.0.0/v1.1.0 is what users run.
 2. Bundle the engine into a signed, notarised macOS `.app`. This reintroduces the codesign
    obligation for the engine's dylibs (56 Mach-O in this build), same team and hardened runtime,
    with `@rpath` resolving inside the bundle. The runtime download was dodging that; if nothing is
