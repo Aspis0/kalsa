@@ -79,8 +79,8 @@ reader cannot tell how old a copy is.
   `LLAMA_CPP_REPO=https://github.com/Aspis0/kalsallama` and
   `LLAMA_CPP_COMMIT=8537d097c32e7307d82540b6da8eb448d7e07107`. That commit was the tip of
   `b11010-merge` at that pin; the branch has since moved past it. The engine release tag points at
-  `4ccef2f8`, and the current branch tip is `635ea0ed2` plus a pending fix commit (see "Engine
-  release: current position and next steps").
+  `4ccef2f8`, and the current `origin/b11010-merge` tip is `916b8f0bcfcb829011f129b4dff8acfd01ab7814`
+  (see "Engine release: current position and next steps").
 - The migration away from the flattened `cpp/` tree and its symbol-rename scheme is recorded in
   `analysis/FORK-VENDOR-MIGRATION.md`, together with the measured upstream bump and the list of
   app-side consumers repaired with it.
@@ -154,8 +154,9 @@ what is left.
 
 ### Position, 2026-09-20
 
-- Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`, currently
-  `635ea0ed25988fb8bf1cc9b3b75d2fbc1a6c1acc` plus a pending fix commit (not pushed).
+- Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`; current
+  `origin/b11010-merge` tip `916b8f0bcfcb829011f129b4dff8acfd01ab7814` (`ci(server): decide the R2
+  existence check with head-object`, parent `f404d9180445772b6c857e0444f1f3fb3de5b19c`).
 - Release tag `kalsa-server-v1.0.0`, annotated, tag object
   `d30c8d475d5eb47a544304ba592138d066bbc2e3`, pointing at commit
   `4ccef2f85dbc27e095e11ffcbad4628be9961790`. Immutable; never moved.
@@ -182,7 +183,7 @@ engine can actually run on that machine.
 | Account id | `8a991014729a52a958cef2c5cbf0de50` |
 | Zone `kalsa.io` | `3dbf75d1d2cf42e2e8c2dba0d950f3fa` |
 | Bucket `kalsa-downloads` | public, served on custom domain `dl.kalsa.io`; the `r2.dev` URL is for testing only |
-| R2 API token | scoped to that single bucket (object read and write plus listing); stored in the engine repo as `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` |
+| R2 API token | scoped to that single bucket only (object read/head plus write, plus listing for the advisory check); NO repository permission; stored in the engine repo as `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` |
 | Telemetry Worker `kalsa-telemetry` | Durable Object `TelemetryBuffer` + KV `DEDUPE_KV`, served on `telemetry.kalsa.io`; its `workers_dev` host is DISABLED because no released build ever used it |
 
 Telemetry is ERROR/CRASH diagnostics only, explicitly OPT-IN with default OFF, no analytics, and

@@ -51,7 +51,7 @@ open items are in `PLAN.md`, "Engine release: current position and next steps".
 | item | value |
 |---|---|
 | Source of truth | `Aspis0/kalsallama` (private), integration branch `b11010-merge` |
-| Branch tip at last read | `635ea0ed25988fb8bf1cc9b3b75d2fbc1a6c1acc` plus a pending fix commit (not pushed) |
+| Branch tip (`origin/b11010-merge`) | `916b8f0bcfcb829011f129b4dff8acfd01ab7814` (`ci(server): decide the R2 existence check with head-object`) |
 | Release tag | `kalsa-server-v1.0.0`, annotated |
 | Tag object | `d30c8d475d5eb47a544304ba592138d066bbc2e3` |
 | Tag target commit | `4ccef2f85dbc27e095e11ffcbad4628be9961790` |
@@ -109,7 +109,9 @@ macOS job steps, in order:
 - Secrets `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`
   (= `https://8a991014729a52a958cef2c5cbf0de50.r2.cloudflarestorage.com`) are passed ONLY as
   environment variables, never as command-line arguments. The token is scoped to the single bucket
-  and can only write objects; it cannot touch any repository.
+  `kalsa-downloads` only: object read/head plus write, plus listing for the advisory check, and NO
+  repository permission of any kind. The `head-object` gate needs the read/head permission; without
+  it every check aborts.
 - Before upload the step checks that the version prefix is empty and refuses to publish if anything
   is there, unless the `force` dispatch input is true (which prints a loud warning that every pinned
   URL will start serving different bytes). `force` never bypasses a FAILED check.
