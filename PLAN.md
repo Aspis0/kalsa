@@ -202,6 +202,16 @@ then the runtime probe with `gpubusy`) move AHEAD of G2's closure.
 - The device plan itself is re-opened by this decision. It was parked per an earlier owner order
   (`analysis/GOVERNOR-DEVICE-PLAN.md`, "Governor"), and this is the un-park.
 
+### Owner decision 2026-09-21: defect 5.2 is fixed by SUPPLYING the data, not by dropping the requirement
+
+Asked whether the app should measure the missing `t_idle` reference or the engine should stop
+requiring it on the `plugged` branch, the owner chose to MEASURE IT, with the reason stated:
+users keep using the app while the phone is charging, so the plugged case is a real usage case
+and not an error to be tolerated. Consequence: the app-side state reader must be able to fill
+`t_idle_c` / `t_idle_valid` honestly; what those fields mean in the engine's terms and what the
+app can observe to fill them is reconnaissance, not a guess, and is being mapped before any code
+is written.
+
 ## Roadmap and next steps
 
 The order is the owner's to set. The committed near-term work is:
