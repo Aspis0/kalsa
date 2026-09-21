@@ -40,10 +40,7 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
     @com.facebook.react.bridge.ReactMethod
     fun readThermo(promise: Promise) {
         try {
-            val intent = reactApplicationContext.registerReceiver(
-                null,
-                IntentFilter(Intent.ACTION_BATTERY_CHANGED),
-            )
+            val intent = stickyBatteryIntent()
             val result = Arguments.createMap()
             if (intent == null) {
                 result.putInt("battTempTenthsC", 0)
@@ -198,6 +195,23 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
         }
     }
 
+    private fun stickyBatteryIntent(): Intent? = reactApplicationContext.registerReceiver(
+        null,
+        IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+    )
+
+    /** EXTRA_VOLTAGE is the only voltage route: BatteryManager has no voltage property. */
+    private fun readVoltageMv(): PropertyRead = try {
+        val intent = stickyBatteryIntent()
+        if (intent?.hasExtra(BatteryManager.EXTRA_VOLTAGE) == true) {
+            PropertyRead(intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0), STATUS_OK)
+        } else {
+            PropertyRead(null, STATUS_UNAVAILABLE)
+        }
+    } catch (_: Exception) {
+        PropertyRead(null, STATUS_ERROR)
+    }
+
     private fun sampleOnce(thread: HandlerThread, handler: Handler, intervalMs: Long) {
         synchronized(samplerLock) {
             if (!samplerRunning || samplerThread !== thread || samplerWriter == null) return
@@ -208,7 +222,7 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
         val uptimeMs = SystemClock.elapsedRealtime()
         val wallClockMs = System.currentTimeMillis()
         val reading = readHighRateValues()
-        val row = sampleRow(uptimeMs, wallClockMs, reading)
+        val row = sampleRow(uptimeMs, wallClockMs, reading, readVoltageMv())
 
         synchronized(samplerLock) {
             if (!samplerRunning || samplerThread !== thread) return
@@ -238,6 +252,7 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
         uptimeMs: Long,
         wallClockMs: Long,
         reading: HighRateRead,
+        voltageMv: PropertyRead,
     ): String {
         val uptimeSeconds = uptimeMs / 1000.0
         return listOf(
@@ -246,8 +261,10 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
             wallClockMs.toString(),
             propertyCsvValue(reading.current),
             propertyCsvValue(reading.chargeCounter),
+            propertyCsvValue(voltageMv),
             reading.current.status,
             reading.chargeCounter.status,
+            voltageMv.status,
         ).joinToString(",")
     }
 
@@ -307,11 +324,14 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
         private const val STATUS_UNAVAILABLE = "unavailable"
         private const val STATUS_ERROR = "error"
         private const val TRACE_SCHEMA_HEADER =
-            "# schema=kalsa-governor-battery-trace-v1; " +
-                "t_s=SystemClock.elapsedRealtime()/1000; INVALID=invalid reading"
+            "# schema=kalsa-governor-battery-trace-v2; " +
+                "t_s=SystemClock.elapsedRealtime()/1000; " +
+                "voltage_mV=BatteryManager.EXTRA_VOLTAGE, millivolts; " +
+                "current_uA=property-documented unit, calibrate per device; " +
+                "INVALID=invalid reading"
         private const val TRACE_COLUMNS =
-            "t_s,elapsed_realtime_ms,wall_clock_ms,current_uA,charge_counter_uAh," +
-                "current_status,charge_counter_status"
+            "t_s,elapsed_realtime_ms,wall_clock_ms,current_uA,charge_counter_uAh,voltage_mV," +
+                "current_status,charge_counter_status,voltage_status"
     }
 }
 

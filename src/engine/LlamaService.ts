@@ -56,6 +56,10 @@ import {
   readGovernorThermo,
 } from "./governorInputs";
 import {
+  startGovernorBatteryTrace,
+  stopGovernorBatteryTrace,
+} from "./governorBatterySampler";
+import {
   applyBenchSampling,
   readBenchOracleParams,
   readBenchSampling,
@@ -4565,6 +4569,13 @@ export async function streamAssistantTurn(
       ? strings.chat.rereadingConversation
       : strings.chat.thinkingStatus;
 
+    // Bench-only energy series: one CSV per turn so the host can join the
+    // (t, current, charge_counter, voltage) rows with the turn's token counts.
+    const energyTraceOn = await startGovernorBatteryTrace(
+      FileSystem.documentDirectory ?? "",
+      turnId,
+    );
+
     try {
       callbacks.onStatus?.({ label: statusLabel });
 
@@ -5388,6 +5399,7 @@ export async function streamAssistantTurn(
         emitEngineError(callbacks, finishOnce, error);
       }
     } finally {
+      if (energyTraceOn) await stopGovernorBatteryTrace();
       stopStallWatchdog();
       signal?.removeEventListener("abort", onAbort);
       // Chat completions leave conversation tokens in the native KV — eligible
