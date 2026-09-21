@@ -9,14 +9,21 @@
 //! the scan, therefore — it carries no credential and no data, so answering
 //! it grants nothing.
 
-/// The origins the desktop webview can have: exactly one. Tauri serves the
-/// bundled frontend through its own scheme, and `src-tauri/tauri.conf.json`
-/// declares no `devUrl`, so a dev build loads that same scheme rather than a
-/// `localhost` dev server. The comparison is byte for byte: an origin that
-/// merely starts with an allowed one, or spells it in different case, is a
-/// different origin. A second entry is the one-line change if the app ever
-/// gains a real dev server or a build for a platform with another scheme.
-const ORIGINS: &[&str] = &["tauri://localhost"];
+/// The origins the desktop webview can have, one entry per platform. Tauri
+/// serves the bundled frontend through a custom scheme, and
+/// `src-tauri/tauri.conf.json` declares no `devUrl`, so a dev build loads that
+/// same scheme rather than a `localhost` dev server. The origin that scheme
+/// reports is the platform's: `tauri://localhost` is WebKit's, on macOS and
+/// Linux, and `http://tauri.localhost` is what Tauri builds on BOTH Windows and
+/// Android - its `tauri_protocol_url` branches on exactly those two. That
+/// second origin is `http://` only because `tauri.conf.json` leaves
+/// `useHttpsScheme` at its default of false: flipping it spells the origin
+/// `https://tauri.localhost`, which this byte-exact list does not carry, and
+/// the door would then refuse the webview's every request. The comparison is
+/// byte for byte: an origin that merely starts with an allowed one, or spells
+/// it in different case, is a different origin. A further entry is the
+/// one-line change if the app ever gains a real dev server.
+const ORIGINS: &[&str] = &["tauri://localhost", "http://tauri.localhost"];
 
 /// How long a browser may reuse one preflight answer. The permissions cannot
 /// change while the door runs, and every preflight is a round trip paid for on
@@ -38,14 +45,17 @@ pub(super) fn origin_headers(origin: Option<&[u8]>) -> String {
     }
 }
 
-/// The answer to a genuine preflight. An origin the desktop cannot have is
-/// answered with no permission rather than with a refusal: the answer grants
-/// nothing either way, so the carve-out must not become an authenticator that
-/// tells a stranger which origins are known.
+/// The answer to a genuine preflight. `GET` is permitted because the
+/// webview's reads are credentialed GETs too, and a read the browser blocks
+/// is a read the door never sees: the chat's context size and sampling
+/// defaults would fall back to their unknown values without a word. An origin
+/// the desktop cannot have is answered with no permission rather than with a
+/// refusal: the answer grants nothing either way, so the carve-out must not
+/// become an authenticator that tells a stranger which origins are known.
 pub(super) fn preflight(origin: Option<&[u8]>) -> Vec<u8> {
     format!(
         "HTTP/1.1 204 No Content\r\n{}\
-         Access-Control-Allow-Methods: POST, OPTIONS\r\n\
+         Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n\
          Access-Control-Allow-Headers: Authorization, Content-Type\r\n\
          Access-Control-Max-Age: {MAX_AGE_SECONDS}\r\n\
          Content-Length: 0\r\n\
@@ -64,24 +74,31 @@ mod tests {
     /// allowed one is a different origin.
     #[test]
     fn only_the_webviews_own_origin_is_ever_reflected() {
-        assert_eq!(ORIGINS, &["tauri://localhost"]);
+        assert_eq!(ORIGINS, &["tauri://localhost", "http://tauri.localhost"]);
+        // Counting, not containing: a second permission line for one origin
+        // would be as wrong as granting a stranger.
         let reflected = |origin: &str| {
-            origin_headers(Some(origin.as_bytes())).contains("Access-Control-Allow-Origin")
+            origin_headers(Some(origin.as_bytes()))
+                .matches("Access-Control-Allow-Origin:")
+                .count()
         };
-        assert!(reflected("tauri://localhost"));
+        assert_eq!(reflected("tauri://localhost"), 1, "the WebKit origin");
+        assert_eq!(reflected("http://tauri.localhost"), 1, "the WebView2 origin");
         for stranger in [
             "tauri://localhost.evil.example",
+            "http://tauri.localhost.evil.com",
             "tauri://localhost/",
             "tauri://localhost ",
             "TAURI://localhost",
-            "http://tauri.localhost",
+            "http://tauri.localhost:5173",
             "http://localhost:5173",
             "https://localhost",
             "null",
             "",
         ] {
-            assert!(
-                !reflected(stranger),
+            assert_eq!(
+                reflected(stranger),
+                0,
                 "{stranger} was reflected as the webview's origin"
             );
         }
@@ -113,7 +130,11 @@ mod tests {
         let answer = String::from_utf8(preflight(Some(b"tauri://localhost"))).unwrap();
         assert!(answer.starts_with("HTTP/1.1 204 No Content\r\n"));
         assert!(answer.contains("Access-Control-Allow-Origin: tauri://localhost\r\n"));
-        assert!(answer.contains("Access-Control-Allow-Methods: POST, OPTIONS\r\n"));
+        assert!(answer.contains("Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"));
+        assert!(
+            !answer.contains("DELETE"),
+            "a method the door does not serve is advertised: {answer}"
+        );
         assert!(answer.contains("Access-Control-Allow-Headers: Authorization, Content-Type\r\n"));
         assert!(answer.contains("Access-Control-Max-Age: 600\r\n"));
         assert!(answer.contains("Vary: Origin\r\n"));

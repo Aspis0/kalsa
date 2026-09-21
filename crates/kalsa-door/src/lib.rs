@@ -174,6 +174,11 @@ pub enum DoorError {
     /// door's private headers. Fail loudly: silently serving more devices
     /// than the engine can keep apart is the wrap this door exists to stop.
     CapacityWithoutHeaderSupport { capacity: u32 },
+    /// The upstream the door was told to forward to is the port it listens
+    /// on: every request would forward to itself, with no error line, until
+    /// the worker and queue budgets saturate. Refused where the argument is
+    /// still in hand.
+    UpstreamIsListener { port: u16 },
     Thread(io::Error),
 }
 
@@ -188,6 +193,10 @@ impl fmt::Display for DoorError {
                 f,
                 "door capacity {capacity} needs an engine that reads \
                  X-Kalsa-Slot and X-Kalsa-Cache-Salt"
+            ),
+            Self::UpstreamIsListener { port } => write!(
+                f,
+                "door upstream port {port} is the port the door listens on"
             ),
             Self::Thread(error) => write!(f, "door thread: {error}"),
         }
@@ -320,6 +329,9 @@ impl Door {
         let address = listener.local_addr().map_err(DoorError::Listener)?;
         if !address.ip().is_loopback() {
             return Err(DoorError::NonLoopback(address));
+        }
+        if upstream_port == address.port() {
+            return Err(DoorError::UpstreamIsListener { port: upstream_port });
         }
         listener
             .set_nonblocking(true)

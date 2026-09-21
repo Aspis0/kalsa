@@ -20,7 +20,7 @@ fn a_preflight_is_answered_before_authentication_and_reaches_no_upstream() {
     assert_eq!(allowed_origins(&response), vec![ORIGIN.to_string()]);
     assert_eq!(
         header_values(head, "access-control-allow-methods"),
-        vec!["POST, OPTIONS".to_string()]
+        vec!["POST, GET, OPTIONS".to_string()]
     );
     assert_eq!(
         header_values(head, "access-control-allow-headers"),
@@ -189,11 +189,61 @@ fn a_hostile_requested_method_is_never_echoed() {
         if expected.is_some() {
             assert_eq!(
                 header_values(response_head(&response), "access-control-allow-methods"),
-                vec!["POST, OPTIONS".to_string()],
+                vec!["POST, GET, OPTIONS".to_string()],
                 "the preflight answered with something other than the door's list: {text}"
             );
         }
     }
+    no_upstream_connection(&upstream);
+    door.shutdown();
+}
+
+#[test]
+fn a_preflight_for_a_read_is_answered_with_get_permitted() {
+    let upstream = RecordingUpstream::start();
+    let (door, address) = door(upstream.port, &[&credential()]);
+
+    // The webview's reads are credentialed GETs, so the browser preflights
+    // them exactly as it preflights the chat POST. A preflight that does not
+    // permit GET blocks the read before the door can answer it, and the
+    // chat's context size and sampling defaults stay unknown in silence.
+    let read_preflight = |method: &str| {
+        format!(
+            "OPTIONS /props HTTP/1.1\r\nHost: localhost\r\nOrigin: {ORIGIN}\r\n\
+             Access-Control-Request-Method: {method}\r\nConnection: close\r\n\r\n"
+        )
+    };
+
+    let response = exchanged(address, &read_preflight("GET"));
+    let text = String::from_utf8_lossy(&response);
+    assert!(
+        text.starts_with("HTTP/1.1 204 No Content\r\n"),
+        "the preflight for a read was not answered: {text}"
+    );
+    assert_origin_aware(&response, Some(ORIGIN), "the preflight for a read");
+    assert_eq!(
+        header_values(response_head(&response), "access-control-allow-methods"),
+        vec!["POST, GET, OPTIONS".to_string()],
+        "the preflight for a read does not permit it: {text}"
+    );
+
+    // A method the door does not serve is still not on its list, however the
+    // preflight spells it: the list is the door's, never the client's.
+    let response = exchanged(address, &read_preflight("DELETE"));
+    let text = String::from_utf8_lossy(&response);
+    assert!(
+        text.starts_with("HTTP/1.1 204 No Content\r\n"),
+        "a preflight is answered whatever it asks for: {text}"
+    );
+    assert_eq!(
+        header_values(response_head(&response), "access-control-allow-methods"),
+        vec!["POST, GET, OPTIONS".to_string()]
+    );
+    assert!(
+        !text.contains("DELETE"),
+        "a method the door does not serve reached the answer: {text}"
+    );
+
     no_upstream_connection(&upstream);
     door.shutdown();
 }

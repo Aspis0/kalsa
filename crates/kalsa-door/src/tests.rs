@@ -99,6 +99,27 @@ fn a_non_loopback_listener_is_refused_at_construction() {
     assert!(matches!(result, Err(DoorError::NonLoopback(_))));
 }
 
+/// The door must never forward to itself: once the webview's endpoint is
+/// derived from the door's own port, one mistaken argument would make every
+/// request forward to itself, with no error line, until the worker and queue
+/// budgets saturate.
+#[test]
+fn an_upstream_on_the_listening_port_is_refused_at_construction() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let refused = Door::new_with_engine(
+        listener,
+        port,
+        door_devices(&[&credential()]),
+        2,
+        EnginePrivateHeaders::Consumed,
+    );
+    assert!(
+        matches!(refused, Err(DoorError::UpstreamIsListener { port: named }) if named == port),
+        "an upstream on the listening port was accepted"
+    );
+}
+
 #[test]
 fn the_running_door_reports_the_address_it_serves() {
     let upstream = TcpListener::bind("127.0.0.1:0").unwrap();
