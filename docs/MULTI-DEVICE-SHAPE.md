@@ -266,6 +266,14 @@ with `--slot-save-path`. The fork hardened it (`51b9e6a7f` and follow-ups: conte
 checkpoints appended to the slot save file, `SCKP` appendix, atomic writes, exclusive
 temp files), so the primitive exists in `kalsa-server-v1.1.0`.
 
+The checkpoint appendix follows the design of upstream pull request
+[`ggml-org/llama.cpp#26004`](https://github.com/ggml-org/llama.cpp/pull/26004)
+(`Tough-Respawn`, 2026-07-22, fixing `#25913`, unmerged): the same appendix, the same
+private magic, the same helper names. The fork keeps that design and hardens it — a
+size assertion on the save, an error instead of a warning on an unknown or truncated
+trailer, reads bounded by the bytes remaining plus a total budget, and the whole save
+wrapped in the atomic temp-file-and-rename path.
+
 **Two things stand in the way, and neither is one of the six audit findings:**
 
 1. **The app passes no `--slot-save-path`** and never calls save/restore. Without the
