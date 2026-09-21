@@ -148,6 +148,27 @@ the model hash is the sha256 of the model file, which the app already computes f
   and the negative: a restore under salt B leaves the state in B, so B is warm and a request
   under A is not handed B's state. **Red first.** Command from `tools/server/tests`:
   `./tests.sh unit/test_cache_salt.py`.
+- **Landed**: `833cde99b` on the local branch `disk-tier-salt-restore`, off `main` = `5c96b18dd`.
+  Red first (`2 failed, 10 passed`, `assert 0 > 0`), green verified independently (`12 passed`),
+  review FIT on a different model. Not pushed.
+- **Two traps the review found, both environmental and both real.** (a) **Do not run this suite in
+  parallel while Kalsa Brain is running.** `conftest.py:7-13` sets each xdist worker's port to
+  `8080 + worker*10`, so worker 5 wants **8130** — the port the app's own engine holds (verified
+  live: `kalsa-ser` PID 86320 in LISTEN). The suite then reports a red that has nothing to do with
+  the code. Run it with `PYTEST_WORKERS=1`, or with the app closed. (b) The asserted string
+  `different cache namespace` **also appears in the picker's skip line** (`server-context.cpp:1589`,
+  reachable because `slot_prompt_similarity` defaults to 0.1, `common/common.h:696`), so an edit that
+  adds a differently-salted completion to the same log breaks the assertion without a real defect.
+  Assert on the reuse count, not only on the absence of that line.
+- **Not covered, and owned by later tasks**: restore through the router (it forwards the header, but
+  requires a `model` field in the body first — `tools/server/server-models.cpp:1965-1969`, and
+  nothing tests that), the salt in the failed-restore path (the catch at `:2886-2889` clears it
+  again, which is why T3 re-restores), and the fact that **T1 alone changes nothing for the user**:
+  the door still refuses every `/slots` (`crates/kalsa-door/src/proxy.rs:119-131`). T1 unblocks T3;
+  it does not ship.
+- The engine tree is **dirty with unrelated work in progress** (`ggml/src/ggml-opencl/*`,
+  `src/llama-governor-policy.cpp`, `tests/*`, 465 insertions) that belongs to nobody in this plan.
+  `git add -A` in that repo would commit it. Stage files by name.
 - Touches `server-context.cpp` (5895 lines) and `server-task.h` (652) — both pre-existing
   excess, declared and not refactored.
 
