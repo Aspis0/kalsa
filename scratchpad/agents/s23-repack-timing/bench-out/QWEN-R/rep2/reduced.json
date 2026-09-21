@@ -1,0 +1,38 @@
+{
+ "init": {
+  "op": "init",
+  "no_extra_bufts": 0
+ },
+ "load_wall_s": 12.882,
+ "send_fit": {
+  "phase": "fit",
+  "liveness": "alive",
+  "alreadyResident": true,
+  "recoverLost": false,
+  "allow": true,
+  "reasonKey": null,
+  "availableMb": 2296
+ },
+ "loadprompts": [
+  {
+   "t": 1789958832.615,
+   "prompt_n": 1853,
+   "n_ctx": 8192,
+   "embd": 0
+  }
+ ],
+ "native_variant": {
+  "androidLib": "rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl",
+  "nGpuLayers": 0
+ },
+ "kalsa_load": [
+  {
+   "phase": "fitGate",
+   "modelId": "qwen3.5-4b",
+   "refusedBy": "fit",
+   "reasonKey": "model.tightNow",
+   "disposedResident": false,
+   "source": "ensure"
+  }
+ ]
+}

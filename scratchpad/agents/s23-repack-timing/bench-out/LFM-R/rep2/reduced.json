@@ -1,0 +1,42 @@
+{
+ "init": {
+  "op": "init",
+  "no_extra_bufts": 0
+ },
+ "load_wall_s": 3.646,
+ "send_fit": {
+  "phase": "fit",
+  "liveness": "alive",
+  "alreadyResident": true,
+  "recoverLost": false,
+  "allow": true,
+  "reasonKey": null,
+  "availableMb": 2395
+ },
+ "loadprompts": [
+  {
+   "t": 1789959849.313,
+   "prompt_n": 1853,
+   "n_ctx": 8192,
+   "embd": 0
+  }
+ ],
+ "rounds": [
+  {
+   "turnId": "1",
+   "round": 0,
+   "tokensCached": 1967,
+   "tokensEvaluated": 1853,
+   "tokensPredicted": 113,
+   "promptMs": 39729.417,
+   "prompt_n": 1853,
+   "promptN": null,
+   "predictedMs": 8119.1539999999995,
+   "predictedPerSecond": 13.917706204365627
+  }
+ ],
+ "native_variant": {
+  "androidLib": "rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl",
+  "nGpuLayers": 0
+ }
+}
