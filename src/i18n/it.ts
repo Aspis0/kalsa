@@ -1184,6 +1184,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       tooHot: "In attesa: il telefono è troppo caldo",
       unloaded: "In attesa: il modello va caricato di nuovo",
       converting: "In attesa: sto ancora leggendo il documento",
+      /** A phase the composer does not know: held with this line, never
+       *  defaulted to ready — an unknown wire value must not read as idle. */
+      unknown: "In attesa: l'app non riconosce questo stato",
     },
     thinking: {
       show: "Mostra il pensiero ▼",
@@ -1250,6 +1253,15 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     composer: {
       placeholder: "Chiedi qualcosa",
       typingAllowed: "Puoi scrivere la prossima domanda mentre risponde",
+      /** The one face of the send control that is text instead of an icon:
+       *  §2.8 requires Stopping… to be visible until the engine releases. */
+      stopping: "Mi fermo…",
+      /** The attach chip: a label with the file's name inside it, never the
+       *  bare filename (§2.7 — a chip with no label is a rebus). */
+      attachment: "Legge da {name}",
+      /** A failed stop, carrying the engine's own reason: §2.8 forbids a
+       *  generic apology in this row. */
+      stopFailed: "Fermato da un errore: {reason}",
     },
     a11y: {
       band: "Stato della macchina",

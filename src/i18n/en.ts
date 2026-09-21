@@ -1224,6 +1224,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       tooHot: "Held: the phone is too hot",
       unloaded: "Held: the model has to be loaded again",
       converting: "Held: still reading your document",
+      /** A phase the composer does not know: held with this line, never
+       *  defaulted to ready — an unknown wire value must not read as idle. */
+      unknown: "Held: the app does not recognize this state",
     },
     thinking: {
       // The arrows are part of the label, as in the mock: the disclosure is a
@@ -1299,6 +1302,15 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     composer: {
       placeholder: "Ask anything",
       typingAllowed: "You can write the next question while it answers",
+      /** The one face of the send control that is text instead of an icon:
+       *  §2.8 requires Stopping… to be visible until the engine releases. */
+      stopping: "Stopping…",
+      /** The attach chip: a label with the file's name inside it, never the
+       *  bare filename (§2.7 — a chip with no label is a rebus). */
+      attachment: "Reading from {name}",
+      /** A failed stop, carrying the engine's own reason: §2.8 forbids a
+       *  generic apology in this row. */
+      stopFailed: "Stopped by an error: {reason}",
     },
     a11y: {
       band: "Machine status",
