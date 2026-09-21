@@ -315,6 +315,8 @@ mod tests {
             StartupFailure::NothingBetter,
             StartupFailure::NothingFastEnough,
             StartupFailure::ChosenModelContextUnreadable,
+            StartupFailure::ChosenModelUnresolved,
+            StartupFailure::SlotSavePathUnwritable,
             StartupFailure::WeightsUnverified,
             StartupFailure::NotEnoughDisk,
             StartupFailure::DownloadCorrupted,
@@ -334,16 +336,30 @@ mod tests {
         }
     }
 
+    /// The causes the user cannot act on, named one by one. A failure joins this
+    /// list only by an edit here, and that edit is the claim that no true
+    /// instruction exists to give. `SlotSavePathUnwritable` is the app
+    /// failing to prepare its own directory under the data directory it was
+    /// given: a fact about the filesystem, not about what the user typed.
+    fn unrecoverable(failure: &StartupFailure) -> bool {
+        matches!(failure, StartupFailure::SlotSavePathUnwritable)
+    }
+
     #[test]
     fn every_failure_says_what_the_user_can_do() {
         // Each sentence points somewhere: again, an update, a restart, the
-        // Model page or the phone. A dead end is not a sentence.
+        // Model page, the phone. A dead end is not a sentence — unless it is
+        // declared, and a declared one must not also hand out advice.
         for failure in every_failure() {
             let spoken = words(&failure);
             let actionable = ["again", "update", "restart", "measure", "pair", "space"]
                 .iter()
                 .any(|word| spoken.to_ascii_lowercase().contains(word));
-            assert!(actionable, "{failure:?} is a dead end: {spoken}");
+            assert!(actionable || unrecoverable(&failure), "{failure:?} is a dead end: {spoken}");
+            assert!(
+                !(actionable && unrecoverable(&failure)),
+                "{failure:?} is declared a dead end but still advises: {spoken}"
+            );
         }
     }
 

@@ -229,15 +229,23 @@ mod tests {
         );
     }
 
-    /// What a flag renders is the whole element that follows it. The joined
-    /// line is not the artifact to assert on: `contains("--ctx-checkpoints
-    /// 1")` is also true of `--ctx-checkpoints 12`, and a saved chat twelve
-    /// times the size is exactly what the constant exists to prevent.
+    /// What a flag renders is the whole element that follows it, and the
+    /// flag is rendered exactly once. The joined line is not the artifact to
+    /// assert on: `contains("--ctx-checkpoints 1")` is also true of
+    /// `--ctx-checkpoints 12`, and a saved chat twelve times the size is
+    /// exactly what the constant exists to prevent. `position` alone is not
+    /// enough either: it reads the first of two renderings and the second
+    /// passes in silence, so two occurrences are a fault in the renderer,
+    /// not a value to pick between.
     fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
-        let at = argv
-            .iter()
-            .position(|arg| arg == flag)
+        let mut hits = argv.iter().enumerate().filter(|(_, arg)| *arg == flag);
+        let (at, _) = hits
+            .next()
             .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        assert!(
+            hits.next().is_none(),
+            "{flag} is rendered more than once: {argv:?}"
+        );
         argv.get(at + 1)
             .map(String::as_str)
             .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
@@ -273,8 +281,23 @@ mod tests {
             parallel: 4,
             ..some_args()
         };
-        let line = args.argv().join(" ");
-        assert!(line.contains("--parallel 4"), "{line}");
-        assert!(!line.contains("--parallel 1"), "{line}");
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--parallel"), "4", "{argv:?}");
+    }
+
+    /// A duplicated flag is a fault in the renderer, not a value to pick
+    /// between: reading the first occurrence and asserting on it lets the
+    /// second — `44` where the field said `4` — through in silence, which is
+    /// the same silence the substring assertions were removed for.
+    #[test]
+    #[should_panic(expected = "is rendered more than once")]
+    fn a_duplicated_flag_is_a_fault_not_the_first_occurrence() {
+        let argv = vec![
+            "--parallel".to_string(),
+            "4".to_string(),
+            "--parallel".to_string(),
+            "44".to_string(),
+        ];
+        let _ = rendered_value(&argv, "--parallel");
     }
 }

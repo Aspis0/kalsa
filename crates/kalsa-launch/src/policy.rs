@@ -1071,15 +1071,21 @@ mod tests {
         assert!(!line.contains("0.0.0.0"), "{line}");
     }
 
-    /// What a flag renders is the element that follows it, compared whole:
-    /// `contains("--ctx-checkpoints 1")` is true of `--ctx-checkpoints 12`
-    /// too, and a saved chat twelve times the size is the failure this
-    /// guards.
+    /// What a flag renders is the element that follows it, compared whole,
+    /// and the flag is rendered exactly once: `contains("--ctx-checkpoints
+    /// 1")` is true of `--ctx-checkpoints 12` too, and a saved chat twelve
+    /// times the size is the failure this guards. Reading the first of two
+    /// occurrences would let the second through in silence, so two are a
+    /// fault in the renderer, not a value to pick between.
     fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
-        let at = argv
-            .iter()
-            .position(|arg| arg == flag)
+        let mut hits = argv.iter().enumerate().filter(|(_, arg)| *arg == flag);
+        let (at, _) = hits
+            .next()
             .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        assert!(
+            hits.next().is_none(),
+            "{flag} is rendered more than once: {argv:?}"
+        );
         argv.get(at + 1)
             .map(String::as_str)
             .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))

@@ -954,15 +954,23 @@ mod tests {
         dir
     }
 
-    /// What a flag renders is the whole element that follows it. The joined
-    /// line is not the artifact to assert on: `contains("--ctx-checkpoints
-    /// 1")` is also true of `--ctx-checkpoints 12`, and a saved chat twelve
-    /// times the size is exactly what the constant exists to prevent.
+    /// What a flag renders is the whole element that follows it, and the
+    /// flag is rendered exactly once. The joined line is not the artifact to
+    /// assert on: `contains("--ctx-checkpoints 1")` is also true of
+    /// `--ctx-checkpoints 12`, and a saved chat twelve times the size is
+    /// exactly what the constant exists to prevent. `position` alone is not
+    /// enough either: it reads the first of two renderings and the second
+    /// passes in silence, so two occurrences are a fault in the renderer,
+    /// not a value to pick between.
     fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
-        let at = argv
-            .iter()
-            .position(|arg| arg == flag)
+        let mut hits = argv.iter().enumerate().filter(|(_, arg)| *arg == flag);
+        let (at, _) = hits
+            .next()
             .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        assert!(
+            hits.next().is_none(),
+            "{flag} is rendered more than once: {argv:?}"
+        );
         argv.get(at + 1)
             .map(String::as_str)
             .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
@@ -1346,8 +1354,16 @@ mod tests {
         assert_eq!(config.server.exe, PathBuf::from("/server/llama-server"));
         assert_eq!(config.server.port, PORT);
         let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--host 127.0.0.1"), "{joined}");
-        assert!(joined.contains("--model /dev/model.gguf"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--host"),
+            "127.0.0.1",
+            "{joined}"
+        );
+        assert_eq!(
+            rendered_value(&config.server.argv, "--model"),
+            "/dev/model.gguf",
+            "{joined}"
+        );
         // The machine was never measured, so the thread count is omitted
         // rather than guessed.
         assert!(!joined.contains("--threads"), "{joined}");
@@ -1630,12 +1646,32 @@ mod tests {
         )
         .expect("the model is fundable");
         let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--ctx-size 3993"), "{joined}");
-        assert!(joined.contains("--cache-ram 143"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--ctx-size"),
+            "3993",
+            "{joined}"
+        );
+        assert_eq!(
+            rendered_value(&config.server.argv, "--cache-ram"),
+            "143",
+            "{joined}"
+        );
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
-        assert!(joined.contains("--threads 2"), "{joined}");
-        assert!(joined.contains("--cache-type-k q8_0"), "{joined}");
-        assert!(joined.contains("--flash-attn on"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--threads"),
+            "2",
+            "{joined}"
+        );
+        assert_eq!(
+            rendered_value(&config.server.argv, "--cache-type-k"),
+            "q8_0",
+            "{joined}"
+        );
+        assert_eq!(
+            rendered_value(&config.server.argv, "--flash-attn"),
+            "on",
+            "{joined}"
+        );
         assert!(!joined.contains("n-gpu-layers"), "{joined}");
     }
 
@@ -1856,9 +1892,18 @@ mod tests {
             &mut |_| {},
         )
         .expect("the saved values are within the machine's bounds");
-        let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--ctx-size 1024"), "{joined}");
-        assert!(joined.contains("--sleep-idle-seconds 600"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--ctx-size"),
+            "1024",
+            "{:?}",
+            config.server.argv
+        );
+        assert_eq!(
+            rendered_value(&config.server.argv, "--sleep-idle-seconds"),
+            "600",
+            "{:?}",
+            config.server.argv
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1931,8 +1976,12 @@ mod tests {
             &mut |_| {},
         )
         .expect("the dev override is the answer");
-        let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--cache-ram 768"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--cache-ram"),
+            "768",
+            "{:?}",
+            config.server.argv
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -2149,8 +2198,12 @@ mod tests {
             PathBuf::from("/state/server.state"),
         )
         .expect("the model is fundable");
-        let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--n-gpu-layers all"), "{joined}");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--n-gpu-layers"),
+            "all",
+            "{:?}",
+            config.server.argv
+        );
     }
 
     #[test]
