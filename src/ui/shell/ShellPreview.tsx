@@ -5,9 +5,11 @@
  * conversation.
  *
  * This is the only consumer of `Shell` today. It holds no state but the size
- * switch, and calls no service: the strip's text and the messages below are
- * literal preview DATA, not interface copy, which is why they do not go through
- * `t()` — the same reason the model name does not.
+ * switch, reads the keyboard through the shell's own `useKeyboardHeight` (the
+ * one thing that is not a pinned number), and calls no service: the strip's text
+ * and the messages below are literal preview DATA, not interface copy, which is
+ * why they do not go through `t()` — the same reason the model name does not.
+ * The mismatch notice IS interface copy and does go through `t()`.
  *
  * The size is switched AT RUNTIME on purpose. It used to be a compile-time
  * constant, so capturing 349x621 and the 349x325 keyboard case cost two native
@@ -33,13 +35,12 @@
  * to show. Both are gone from the transcript.
  *
  * The one piece worth keeping is the warning: when the pinned height differs
- * from the live window height, the pill's second line says so in place of the
- * where-label, so a misleading PNG still carries its own indictment inside the
- * strip rather than in a chip over the conversation. (At 325 dp the strip is
- * collapsed to one line, so there is no second line to carry it — but 325 dp
- * only reaches 325 dp with the IME up, and the keyboard in the image is then its
- * own label; the notice fires when a capture is taken at a pinned size the live
- * window does not have.)
+ * from the live window height, one short line under the strip says so. It used
+ * to be the pill's second line, and that could not work: at 325 dp the strip is
+ * collapsed to one line, so the string had nowhere to be drawn and smeared.
+ * The line is now a row of its own — full width, one line tall, between the
+ * strip and the transcript — so a misleading PNG carries its own indictment
+ * over nothing, and the pill keeps saying where the model runs.
  *
  * ── How a capture is taken, so the next one is scriptable ──────────────────
  * 325 dp IS THE APP AREA WITH THE SOFT KEYBOARD UP (Jelly Star: 480x854 px at
@@ -47,9 +48,13 @@
  * of 325 WITHOUT the keyboard is not evidence: the shell then fills 325 of the
  * window's 621 dp, the rest is blank, and the PNG reads as a broken half-empty
  * screen — which is how the last one was read. The keyboard comes from focusing
- * the composer field; nothing is drawn to imitate it. When the pinned case and
- * the live window disagree the pill's second line says so, so a misleading PNG
- * carries its own warning instead of waiting for a reviewer to notice.
+ * the composer field; nothing is drawn to imitate it, and the LIVE case no
+ * longer needs the pin at all: the shell's own `useKeyboardHeight` re-partitions
+ * the bands when the IME settles, so 621 dp with the keyboard up is now the real
+ * 325 dp geometry instead of a simulation. The pinned case stays for the layout
+ * capture and for the S23's 780, and when the pinned case and the live window
+ * disagree the line under the strip says so, so a misleading PNG carries its own
+ * warning instead of waiting for a reviewer to notice.
  *
  * The sequence, with `SHELL_PREVIEW = true` in `App.tsx`. `tap_node`,
  * `tap_editable`, `shot` and `OUT` are `scripts/ci-lib.sh`'s: they read a node's
@@ -88,7 +93,8 @@ import { type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../labTheme";
 import { Shell } from "./Shell";
 import { Transcript, type TranscriptMessage } from "./Transcript";
-import { type Insets } from "./shellGeometry";
+import { SHELL_NOTICE_HEIGHT, bottomInsetFor, type Insets } from "./shellGeometry";
+import { useKeyboardHeight } from "./useKeyboardHeight";
 
 /**
  * The three measured cases, as data. `live` follows the window, so it prints
@@ -158,36 +164,55 @@ export function ShellPreview() {
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const window = useWindowDimensions();
+  const keyboardHeight = useKeyboardHeight();
   const [caseIndex, setCaseIndex] = useState(0);
 
   const liveHeight = Math.round(window.height);
   const pinned = PREVIEW_CASES[caseIndex].height;
   const size: Insets = { top: insets.top, bottom: insets.bottom };
   const mismatched = pinned !== undefined && pinned !== liveHeight;
+  // A pinned case is a height the harness dictates, so the IME must not add a
+  // second bottom term on top of it: at the 325 pin the two together would
+  // leave 5 dp of content. The live case is where the hook speaks, and there it
+  // IS the keyboard case (DESIGN.md §2.7).
+  const keyboard = pinned === undefined ? keyboardHeight : 0;
+  // One bottom obstruction, two consumers. `Shell` combines the safe area and
+  // the keyboard itself; the transcript has no keyboard prop and derives its
+  // band from `shellGeometry` with the insets it is given, so it is handed the
+  // combined value. Same numbers, or the band the transcript believes it has
+  // drifts from the band the shell drew — the drift `transcriptLayout.ts` warns
+  // about.
+  const bandInsets = bottomInsetFor(size, keyboard);
   // The switch rides the strip's own `+` control. Preview-only binding: the
   // control is inert in the app, and it is inside a box the shell already
   // draws, so nothing is added over the transcript.
   const cycleSize = () => setCaseIndex((index) => (index + 1) % PREVIEW_CASES.length);
-  // The mismatch notice takes the where-label's place on the pill's second
-  // line, inside the strip, so no capture artifact sits over the transcript.
-  const whereLabel = mismatched
+  // The mismatch notice: one short line of its own between the strip and the
+  // transcript, drawn only while a pinned case lies about the window. It takes
+  // its height out of the layout, so the transcript is handed the same reduced
+  // height the shell lays its bands out in.
+  const notice = mismatched
     ? t("shell.preview.sizeNotLive", { pinned: String(pinned), live: String(liveHeight) })
-    : t("shell.where.thisPhone");
+    : undefined;
+  const layoutHeight =
+    pinned === undefined ? undefined : pinned - (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT);
 
   return (
     <View style={{ flex: 1 }}>
       <Shell
         insets={size}
         modelName={PREVIEW_MODEL_NAME}
-        whereLabel={whereLabel}
+        whereLabel={t("shell.where.thisPhone")}
+        keyboardHeight={keyboard}
+        notice={notice}
         height={pinned}
         mode={mode}
         onNewChatPress={cycleSize}
       >
         <Transcript
-          insets={size}
+          insets={bandInsets}
           messages={PREVIEW_TRANSCRIPT}
-          height={pinned}
+          height={layoutHeight}
           mode={mode}
           now={PREVIEW_NOW}
         />

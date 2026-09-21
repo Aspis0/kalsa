@@ -17,7 +17,10 @@
  *
  * `height` is the edge-to-edge container height; the safe-area insets are
  * subtracted from it, so the bands never drift under the status bar or the
- * gesture bar.
+ * gesture bar. The keyboard arrives through those same insets, built by
+ * `bottomInsetFor`, because with edge-to-edge the window itself never shrinks:
+ * the IME is an inset, and the bands must re-partition rather than the shell
+ * being lifted (`docs/DESIGN.md` §2.7).
  */
 
 export type Insets = { top: number; bottom: number };
@@ -54,8 +57,48 @@ export const COMPOSER_HEIGHT = 78;
 export const COMPOSER_SIDE_PADDING = 12;
 export const COMPOSER_FIELD_HEIGHT = 56;
 
+/**
+ * The preview's mismatch notice: ONE line of `type.meta` under the strip, drawn
+ * only while the harness is pinned to a height the live window does not have.
+ *
+ * It is a band like the other three, which is why it is written here and not in
+ * the component: it is taken out of the usable height before the bands are
+ * partitioned, so the transcript yields the line instead of being covered by it.
+ * 22 dp is the 16 dp line plus 3 dp above and below; two lines do not fit, on
+ * purpose — a notice that wraps is the defect this replaced.
+ */
+export const SHELL_NOTICE_HEIGHT = 22;
+
 function clamp(value: number): number {
   return value > 0 ? value : 0;
+}
+
+/**
+ * The bottom obstruction the bands must clear, from the two numbers JS has:
+ * the safe-area inset and the keyboard height.
+ *
+ * **The larger, never the sum.** When the keyboard is up it covers the
+ * navigation bar instead of sitting above it, and `safe-area-context`'s bottom
+ * inset excludes the IME by construction (`SafeAreaUtils.kt` sums status bars,
+ * cutout, navigation bars and caption bar, with no `ime()`), so adding the two
+ * would reserve the gesture bar twice and lift the composer a bar too high. The
+ * existing composer records the same trap (`AiChatPage.tsx:4166-4169`).
+ *
+ * `keyboardHeight` must be the FULL IME height, which is what
+ * `react-native-keyboard-controller` reports under edge-to-edge: its event
+ * height is the IME inset minus the navigation bar ONLY when the bar is not
+ * translucent (`KeyboardAnimationCallback.kt`), and the provider sets that flag
+ * from the app's edge-to-edge mode. React Native's own `Keyboard` event is not a
+ * drop-in substitute: `ReactRootView.java` always subtracts the system bars from
+ * the IME inset, so pairing that number with this rule would leave the composer
+ * one gesture bar under the keyboard.
+ *
+ * A negative or non-finite height is "no keyboard", not a value to arithmetic
+ * on: a bad number would otherwise push the bands off the window.
+ */
+export function bottomInsetFor(insets: Insets, keyboardHeight: number = 0): Insets {
+  const keyboard = Number.isFinite(keyboardHeight) && keyboardHeight > 0 ? keyboardHeight : 0;
+  return { top: insets.top, bottom: Math.max(insets.bottom, keyboard) };
 }
 
 export type ShellGeometry = {
@@ -69,8 +112,11 @@ export type ShellGeometry = {
   composer: Band;
   /** The transcript's whole band is usable: its content is clipped to it. */
   transcriptUsableHeight: number;
-  /** Container bottom to the composer band's bottom edge: equals the bottom
-   *  inset, so the composer stops exactly at the top of the gesture bar. */
+  /** Container bottom to the composer band's bottom edge: the bottom inset the
+   *  bands were partitioned with, so the composer stops exactly at the top of
+   *  the gesture bar — or, with the keyboard up, at the IME's top edge (`621`
+   *  minus a 296 dp keyboard is the 325 dp app area, and this field is the
+   *  296). */
   composerBottomOffset: number;
   minTouchTarget: number;
   /** True at 325 dp, where the strip drops its second line. */

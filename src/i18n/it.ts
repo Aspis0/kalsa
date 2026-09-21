@@ -1252,9 +1252,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       jumpToEnd: "Vai in fondo",
       previewSizeOption: "Anteprima a {height} dp",
     },
-    /** ShellPreview only: the switch's mismatch warning, never shown in the app. */
+    /** ShellPreview only: the notice under the strip, never shown in the app.
+     *  One line at 349 dp: "Fisso 325 in 621 dp" is 19 characters. */
     preview: {
-      sizeNotLive: "Mostro {pinned} dp in una finestra di {live} dp",
+      sizeNotLive: "Fisso {pinned} in {live} dp",
     },
   },
 };
