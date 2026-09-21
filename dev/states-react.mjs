@@ -53,6 +53,15 @@ function advancedDto(extra = {}) {
     context_tokens: 4096,
     context_max: 8192,
     context_max_f16: 4096,
+    // The launcher's automatic pick under each cache, and its own two KV
+    // terms: the panel shows "Automatic — 8k" and prices the choice with
+    // these, so a fixture that omits them shows no memory line at all.
+    context_automatic: 8192,
+    context_automatic_f16: 4096,
+    kv_bytes_per_token: 131072,
+    kv_bytes_per_token_f16: 262144,
+    kv_bytes_fixed: 0,
+    kv_bytes_fixed_f16: 0,
     context_override: null,
     idle_unload_seconds: 300,
     idle_override: null,

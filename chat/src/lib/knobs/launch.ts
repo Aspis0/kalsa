@@ -9,7 +9,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
     kind: "integer",
     whatItIs: "Context size is how much of the conversation the model can hold while answering.",
     whatItsFor: "A larger context can keep more earlier conversation available but uses more memory; this app calculates the safe automatic value for the chosen model and computer.",
-    usualValues: "Automatic is usual here: the app funds the largest safe value for this model and computer.",
+    usualValues: "A chat-sized default is usual here — 64k where this computer funds it. The panel shows what the KV cache costs for the value chosen, and the machine's maximum is one click away.",
   },
   {
     wire: "batch-size",

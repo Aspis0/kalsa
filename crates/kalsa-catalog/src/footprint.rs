@@ -145,7 +145,7 @@ pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::rows;
+    use crate::manifest::{rows, SlotCache};
 
     fn dense_row(weights_bytes: u64) -> ModelEntry {
         ModelEntry {
@@ -158,6 +158,7 @@ mod tests {
             weights_bytes,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
             dense_equivalent: None,
             measured_decode: None,

@@ -88,7 +88,7 @@
 
 /* A field is as wide as what it holds: the machine's funded maximum is five
    or six digits on every machine this ships on (the largest figure in the
-   catalogue is 410250), and 600 is three, so they do not get a paragraph's
+   catalogue is 409660), and 600 is three, so they do not get a paragraph's
    width. The cap holds at seven digits anyway. The checkbox keeps its own
    `width: auto`. */
 .advanced-field input:not([type="checkbox"]) {
@@ -97,6 +97,40 @@
 
 .advanced-field select {
   max-width: min(100%, 15rem);
+}
+
+/* The context presets: one click per size, beside the number that stays
+   editable. Chips rather than a select, because the point is the comparison —
+   the sizes sit next to each other, and the chip that is on says which one is
+   chosen. */
+.advanced-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.advanced-preset {
+  padding: 0.3rem 0.6rem;
+  color: var(--ink-soft);
+  background: var(--page);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.advanced-preset:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.advanced-preset-on {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .advanced-field-check {

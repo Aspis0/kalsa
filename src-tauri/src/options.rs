@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalsa_launch::{
-    KvCache, ServerArgs, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH,
-    MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
+    KvCache, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH, MAX_IDLE_UNLOAD_SECONDS,
+    MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::startup::ContextMaxima;
+use crate::startup::LaunchInfo;
 
 pub(crate) const MIN_CONTEXT_TOKENS: u64 = 512;
 
@@ -203,6 +203,20 @@ pub(crate) struct AdvancedDto {
     /// the panel recomputes the context from Rust's arithmetic instead of
     /// inventing its own.
     pub(crate) context_max_f16: Option<u64>,
+    /// What the launcher picks with no owner choice, under the cache in force
+    /// and under f16: the panel shows this beside the control, so "Automatic"
+    /// names the figure it will actually use rather than a blank.
+    pub(crate) context_automatic: Option<u64>,
+    pub(crate) context_automatic_f16: Option<u64>,
+    /// The launcher's own KV price for the running row, per cache type: bytes
+    /// per token of context, and the fixed per-slot term already summed over
+    /// the slots. The panel multiplies the first by the length the owner is
+    /// showing and adds the second, so the memory it displays is the
+    /// launcher's arithmetic and never a second one.
+    pub(crate) kv_bytes_per_token: Option<u64>,
+    pub(crate) kv_bytes_per_token_f16: Option<u64>,
+    pub(crate) kv_bytes_fixed: Option<u64>,
+    pub(crate) kv_bytes_fixed_f16: Option<u64>,
     pub(crate) context_override: Option<u64>,
     pub(crate) idle_unload_seconds: u32,
     pub(crate) idle_override: Option<u32>,
@@ -229,7 +243,7 @@ pub(crate) struct AdvancedDto {
 
 pub(crate) fn dto(
     overrides: LaunchOverrides,
-    active: Option<(&ServerArgs, &ContextMaxima)>,
+    active: Option<&LaunchInfo>,
     door_port: Option<u16>,
     iroh_sentence: String,
 ) -> AdvancedDto {
@@ -239,20 +253,12 @@ pub(crate) fn dto(
     // The automatic values are the shipped defaults, shown as themselves: the
     // panel must not become a second source of truth for 2048/512/q8_0.
     let automatic = ServerSettings::defaults(idle);
-    let (settings, context_tokens, context_max, context_max_f16, running) = match active {
-        Some((args, maxima)) => (
-            args.settings(),
-            Some(args.context_tokens),
-            // The maximum in force is the one for the cache type the running
-            // args carry: the guard and the panel must read the same number.
-            maxima.for_cache(args.kv_cache),
-            maxima.f16,
-            true,
-        ),
+    let (settings, context_tokens, running) = match active {
+        Some(info) => (info.args.settings(), Some(info.args.context_tokens), true),
+        // "Next start": the owner's saved overrides on top of the automatic
+        // values, or the panel would report 2048/512/q8_0 while the file says
+        // otherwise.
         None => (
-            // "Next start": the owner's saved overrides on top of the
-            // automatic values, or the panel would report 2048/512/q8_0
-            // while the file says otherwise.
             ServerSettings {
                 batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
                 ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
@@ -260,15 +266,26 @@ pub(crate) fn dto(
                 ..automatic
             },
             overrides.context_tokens,
-            None,
-            None,
             false,
         ),
     };
+    // The maximum, the automatic figure and the price each follow the cache
+    // type the running args carry — the guard and the panel must read the
+    // same number — with the f16 copy beside them for the cache knob.
+    let running_cache = active.map(|info| info.args.kv_cache).unwrap_or_default();
+    let price = active.and_then(|info| info.context_prices.for_cache(running_cache));
+    let price_f16 = active.and_then(|info| info.context_prices.f16);
     AdvancedDto {
         context_tokens,
-        context_max,
-        context_max_f16,
+        context_max: active.and_then(|info| info.maximum_context.for_cache(running_cache)),
+        context_max_f16: active.and_then(|info| info.maximum_context.f16),
+        context_automatic: active
+            .and_then(|info| info.automatic_context.for_cache(running_cache)),
+        context_automatic_f16: active.and_then(|info| info.automatic_context.f16),
+        kv_bytes_per_token: price.map(|price| price.bytes_per_token),
+        kv_bytes_per_token_f16: price_f16.map(|price| price.bytes_per_token),
+        kv_bytes_fixed: price.map(|price| price.bytes_fixed),
+        kv_bytes_fixed_f16: price_f16.map(|price| price.bytes_fixed),
         context_override: overrides.context_tokens,
         idle_unload_seconds: settings.idle_unload_seconds,
         idle_override: overrides.idle_unload_seconds,
@@ -294,10 +311,9 @@ pub(crate) fn dto(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        dto, load, path_for, save, write_atomic, ContextMaxima, KvCache, LaunchOverrides,
-        ServerArgs,
-    };
+    use super::{dto, load, path_for, save, write_atomic, KvCache, LaunchOverrides};
+    use crate::startup::{ContextMaxima, ContextPrices, LaunchInfo};
+    use kalsa_launch::{ContextPrice, ServerArgs};
     use std::fs;
     use std::path::PathBuf;
 
@@ -578,7 +594,28 @@ mod tests {
                 kv_cache: Some(KvCache::F16),
                 internet_road: true,
             },
-            Some((&args, &maxima)),
+            Some(&LaunchInfo {
+                args,
+                maximum_context: maxima,
+                // The automatic figures the panel will show as "Automatic":
+                // the chat default where the machine funds it.
+                automatic_context: ContextMaxima {
+                    q8_0: Some(65_536),
+                    f16: Some(65_536),
+                },
+                context_prices: ContextPrices {
+                    q8_0: Some(ContextPrice {
+                        bytes_per_token: 40_960,
+                        bytes_fixed: 65_863_680,
+                    }),
+                    f16: Some(ContextPrice {
+                        bytes_per_token: 81_920,
+                        bytes_fixed: 65_863_680,
+                    }),
+                },
+                display_name: Some("Alibaba Qwen 3.6".to_string()),
+                reason: Some("It is the more capable of the two.".to_string()),
+            }),
             Some(8130),
             "The internet road is open.".to_string(),
         );

@@ -60,29 +60,116 @@ fn a_zero_slot_count_is_clamped_to_one_slot() {
     assert!(!line.contains("--parallel 0"), "{line}");
 }
 
-/// One slot is today's plan, untouched: the engine's division by one is
-/// exact, so aligning would trade tokens the engine pads back for nothing.
-/// These two numbers are the regression lock — Granite on 8 GiB is the small
-/// machine the existing suite already pins, and the on-disk big row is what
-/// the app actually runs.
+/// One slot is today's plan, untouched, except for the one intended change:
+/// with no owner choice the context is the chat default where the machine
+/// funds it ([`DEFAULT_CONTEXT_TOKENS`]), and still the machine's own figure
+/// where it does not. The engine's division by one is exact, so aligning
+/// would trade tokens the engine pads back for nothing. Granite on 8 GiB is
+/// the small machine the existing suite already pins — its 3993 tokens (after
+/// its 55.371 MiB per-slot recurrent state) are below the default, so they
+/// stay 3993 — and the on-disk big row is what the app actually runs, where
+/// the automatic figure moves 262 144 → 65 536.
 #[test]
 fn one_slot_is_still_todays_number() {
     let granite = shipped_row("IBM Granite 4 Tiny");
     let small = memory_budget(Backend::Cpu, 8 * GIB);
     let one = plan(&device_input(ServerBackend::Cpu, small, granite, 1)).expect("fundable");
-    assert_eq!(one.args.context_tokens, 4_584);
+    assert_eq!(one.args.context_tokens, 3_993);
     assert_eq!(one.args.parallel, 1);
     assert_eq!(
         funded_context(granite, small.usable_bytes),
-        Some(4_584),
+        Some(3_993),
         "the preview reads the same window as the one-slot plan"
     );
 
     let big = shipped_row(BIG);
     let mac = memory_budget(Backend::Metal, 64 * GIB);
     let one = plan(&device_input(ServerBackend::Metal, mac, big, 1)).expect("fundable");
-    assert_eq!(one.args.context_tokens, 262_144);
+    assert_eq!(one.args.context_tokens, 65_536, "the chat default, not the funded maximum");
+    assert_eq!(one.memory.context_tokens, 65_536);
+    // The maximum is still the machine's, and still offered: the guards and
+    // the panel read it from here, not from the automatic answer.
     assert_eq!(funded_context(big, mac.usable_bytes), Some(262_144));
+    assert_eq!(
+        funded_maximum(&device_input(ServerBackend::Metal, mac, big, 1)),
+        Some(262_144)
+    );
+}
+
+/// The automatic figure is the chat default where the machine funds it, and
+/// the machine's own smaller figure where it does not: a machine that cannot
+/// fund 65 536 must keep its own number, never a promise of the default.
+#[test]
+fn the_automatic_context_is_the_chat_default_or_the_machines_own_figure() {
+    let big = shipped_row(BIG);
+    let mac = memory_budget(Backend::Metal, 64 * GIB);
+    let automatic =
+        plan(&device_input(ServerBackend::Metal, mac, big, 1)).expect("fundable");
+    assert_eq!(automatic.args.context_tokens, 65_536, "the chat default");
+    let line = automatic.args.argv().join(" ");
+    assert!(
+        line.contains("--ctx-size 65536"),
+        "the intended change: this argv used to say 262144\n{line}"
+    );
+
+    // An 8 GiB machine funds 3993 and must keep getting 3993: the default is
+    // a cap, never a promise the memory cannot keep.
+    let granite = shipped_row("IBM Granite 4 Tiny");
+    let small = memory_budget(Backend::Cpu, 8 * GIB);
+    let automatic =
+        plan(&device_input(ServerBackend::Cpu, small, granite, 1)).expect("fundable");
+    assert_eq!(automatic.args.context_tokens, 3_993);
+    assert_eq!(
+        funded_maximum(&device_input(ServerBackend::Cpu, small, granite, 1)),
+        Some(3_993),
+        "the maximum is the machine's own figure, not the default"
+    );
+}
+
+/// An owner's explicit choice wins at and below the machine's funded maximum
+/// and is refused above it — refused by `plan` here, and by the app's
+/// `ContextTooLarge` guard, which reads the same maximum through
+/// [`funded_maximum`].
+#[test]
+fn the_owners_choice_wins_up_to_the_machines_maximum_and_is_refused_above_it() {
+    let model = shipped_row(BIG);
+    let budget = memory_budget(Backend::Metal, 64 * GIB);
+    let maximum = funded_maximum(&device_input(ServerBackend::Metal, budget, model, 1))
+        .expect("a funded maximum");
+    assert_eq!(maximum, 262_144);
+
+    // Above the chat default and below the maximum: honoured as asked.
+    let raised = plan(&limited_input(
+        ServerBackend::Metal,
+        budget,
+        model,
+        1,
+        Some(131_072),
+    ))
+    .expect("a choice between the default and the maximum is honoured");
+    assert_eq!(raised.args.context_tokens, 131_072);
+    // Exactly the maximum: honoured, not rounded down.
+    let at_max = plan(&limited_input(
+        ServerBackend::Metal,
+        budget,
+        model,
+        1,
+        Some(maximum),
+    ))
+    .expect("the funded maximum is honoured");
+    assert_eq!(at_max.args.context_tokens, maximum);
+    // One token above the maximum: refused.
+    assert!(
+        plan(&limited_input(
+            ServerBackend::Metal,
+            budget,
+            model,
+            1,
+            Some(maximum + 1)
+        ))
+        .is_none(),
+        "a request above the machine's maximum must be refused, never capped"
+    );
 }
 
 /// The total the plan hands the server must divide exactly by the slot count
@@ -118,19 +205,25 @@ fn the_total_divides_exactly_across_the_slots() {
 fn the_owners_total_is_divided_the_way_the_engine_divides_it() {
     let model = shipped_row(BIG);
     let budget = memory_budget(Backend::Metal, 64 * GIB);
-    let funded = plan(&device_input(ServerBackend::Metal, budget, model, 4)).expect("fundable");
-    assert_eq!(funded.args.context_tokens, 546_816);
+    // The funded MAXIMUM, not the automatic launch: this is the figure the
+    // owner's total is compared against, and the one the guards know. The
+    // automatic context is the smaller chat default (65 536 a slot).
+    let funded = funded_maximum(&device_input(ServerBackend::Metal, budget, model, 4));
+    // The recurrent state's 62.8 MiB a slot is subtracted before the context
+    // is bought, so the funded total is the flat per-token one less that
+    // term — and the owner's request over it is divided exactly as before.
+    assert_eq!(funded, Some(540_672));
 
     let asked = plan(&limited_input(
         ServerBackend::Metal,
         budget,
         model,
         4,
-        Some(546_816),
+        Some(540_672),
     ))
     .expect("the funded total is accepted");
-    assert_eq!(asked.args.context_tokens, 546_816);
-    assert_eq!(asked.args.context_tokens / 4, 136_704);
+    assert_eq!(asked.args.context_tokens, 540_672);
+    assert_eq!(asked.args.context_tokens / 4, 135_168);
 
     // A request for less is divided and aligned the same way: 131072 over
     // four slots is 32768 each, already a multiple of 256.
@@ -159,8 +252,8 @@ fn a_zero_trained_length_is_refused_at_every_slot_count() {
 
 /// THE floor refusal, and the only test of the floor: a machine that cannot
 /// give every slot 4096 tokens refuses rather than serving a smaller slot.
-/// Granite on 8 GiB funds 4584 in total, so four slots would get 1146, cut by
-/// the engine's 256 alignment to 1024 — below the 4096 a slot needs for a
+/// Granite on 8 GiB funds 3993 in total, so four slots would get 998, cut by
+/// the engine's 256 alignment to 768 — below the 4096 a slot needs for a
 /// real conversation (`docs/MULTI-DEVICE-SHAPE.md` §4). The accept boundary,
 /// Phi Mini landing exactly on 4096 a slot at N=4, is in `menu.rs`.
 #[test]
@@ -168,7 +261,7 @@ fn a_budget_that_cannot_floor_four_slots_is_refused() {
     let model = shipped_row("IBM Granite 4 Tiny");
     let budget = memory_budget(Backend::Cpu, 8 * GIB);
     let one = plan(&device_input(ServerBackend::Cpu, budget, model, 1)).expect("one slot fits");
-    assert_eq!(one.args.context_tokens, 4_584);
+    assert_eq!(one.args.context_tokens, 3_993);
     assert!(
         one.args.context_tokens / 4 < MIN_CONTEXT_TOKENS_PER_SLOT,
         "the budget must be short of the floor for four slots"

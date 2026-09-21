@@ -250,6 +250,7 @@ pub(crate) fn too_slow_to_use(
 mod tests {
     use super::*;
     use crate::footprint::GIB;
+    use crate::manifest::SlotCache;
 
     fn entry(weights_gib: f64, total: u64, active: u64) -> ModelEntry {
         ModelEntry {
@@ -266,6 +267,7 @@ mod tests {
             weights_bytes: (weights_gib * GIB as f64) as u64,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
             dense_equivalent: None,
             measured_decode: None,

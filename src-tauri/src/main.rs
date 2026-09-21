@@ -50,19 +50,15 @@ const PAIRING_FILE: &str = "pairing.json";
 /// go through this constant, so the two can never drift apart silently.
 const MAIN_WINDOW_LABEL: &str = "main";
 
-/// Whether the engine this app mounts consumes the door's private headers.
-/// The fork beside llama-server reads `X-Kalsa-Cache-Salt` at v1.0.0 and
-/// will read `X-Kalsa-Slot` at v1.1.0; until that build is mounted, the app
-/// declares no support, so the door refuses to be built for more than one
-/// device. Fail loudly — the alternative is several devices auto-scheduled
-/// into one slot by an engine that never said it could keep them apart.
-const ENGINE_PRIVATE_HEADERS: kalsa_door::EnginePrivateHeaders =
-    kalsa_door::EnginePrivateHeaders::NotConsumed;
-
 struct Brain {
     supervisor: Supervisor,
     door: Mutex<Option<ActiveDoor>>,
     launch: Mutex<Option<startup::LaunchInfo>>,
+    /// Whether the engine the walk mounted consumes the door's private
+    /// headers, read from that engine's own bytes when the start was
+    /// accepted. `None` before any start and after a stop: a door built with
+    /// no mounted engine declares no support and serves one device.
+    engine: Mutex<Option<kalsa_door::EnginePrivateHeaders>>,
     metrics: Arc<metrics::RuntimeMetrics>,
     /// The measurement of this machine, kept so a turn-on does not measure
     /// again and the Model page can say whether numbers exist. Memory only:
@@ -86,6 +82,21 @@ struct ActiveDoor {
     door: kalsa_door::RunningDoor,
 }
 
+/// The capacity the door is built with, given the engine it will forward to.
+/// An engine that cannot isolate is not asked to: the door serves ONE device
+/// rather than refusing to build, so a machine whose engine ignores
+/// `X-Kalsa-Slot` (upstream archives, and the Windows rows today) keeps a
+/// working single-device door. Clamping here rather than letting the
+/// constructor refuse also removes a race: a poll that lands before the
+/// inlet probe has finished sees `NotConsumed` and builds a one-device door
+/// instead of failing.
+fn door_capacity(capacity: u32, engine: kalsa_door::EnginePrivateHeaders) -> u32 {
+    match engine {
+        kalsa_door::EnginePrivateHeaders::Consumed => capacity,
+        kalsa_door::EnginePrivateHeaders::NotConsumed => 1,
+    }
+}
+
 impl Brain {
     fn new() -> Self {
         let supervisor = Supervisor::new();
@@ -94,6 +105,7 @@ impl Brain {
             supervisor,
             door: Mutex::new(None),
             launch: Mutex::new(None),
+            engine: Mutex::new(None),
             metrics,
             road: Arc::new(road::Road::new()),
             measurement: Mutex::new(None),
@@ -147,9 +159,44 @@ impl Brain {
         }
     }
 
+    /// Keeps what the walk mounted, beside the launch record it explains:
+    /// the door's declaration is read from that engine's own bytes, and those
+    /// bytes arrived as a download. Gated on the same outcome as
+    /// `record_launch` for the same reason — a refused start leaves another
+    /// server running, and the record of that server must keep describing
+    /// the engine the door is talking to.
+    fn record_engine(&self, exe: &Path, outcome: StartOutcome) {
+        if outcome == StartOutcome::Accepted {
+            if let Ok(mut engine) = self.engine.lock() {
+                *engine = Some(door::engine_declaration(exe));
+            }
+        }
+    }
+
+    /// The declaration for the door built now. No mounted engine, or one
+    /// whose bytes carry no inlet, means one device: against an engine that
+    /// ignores `X-Kalsa-Slot`, several devices are auto-scheduled into the
+    /// same slot and the engine's `id_slot % slots.size()` hides it. The door
+    /// does not merely refuse that combination — [`door_capacity`] takes the
+    /// capacity down to one — so a machine whose engine cannot isolate keeps
+    /// working with one device instead of failing to build a door.
+    fn engine_headers(&self) -> kalsa_door::EnginePrivateHeaders {
+        self.engine
+            .lock()
+            .ok()
+            .and_then(|stored| *stored)
+            .unwrap_or(kalsa_door::EnginePrivateHeaders::NotConsumed)
+    }
+
     fn clear_launch(&self) {
         if let Ok(mut launch) = self.launch.lock() {
             *launch = None;
+        }
+        // The engine goes with it: a stopped server has no mounted engine to
+        // read a capability from, and a stale declaration must not outlive
+        // the record it belongs to.
+        if let Ok(mut engine) = self.engine.lock() {
+            *engine = None;
         }
     }
 
@@ -309,13 +356,18 @@ impl Brain {
                 let listener = door::bind(file).map_err(|_| {
                     "The authenticated door could not bind.".to_string()
                 })?;
+                // The declaration follows the engine actually mounted, never
+                // a constant: this app downloads its engine, so what it can
+                // do is a runtime fact.
+                let engine = self.engine_headers();
+                let capacity = door_capacity(capacity, engine);
                 let metrics = Arc::clone(&self.metrics);
                 let door = kalsa_door::Door::new_with_engine(
                     listener,
                     upstream_port,
                     devices.clone(),
                     capacity,
-                    ENGINE_PRIVATE_HEADERS,
+                    engine,
                 )
                 .map_err(|_| "The authenticated door could not start.".to_string())?
                     .with_response_observer(move || {
@@ -355,10 +407,7 @@ impl Brain {
     fn advanced(&self, state_file: &Path) -> options::AdvancedDto {
         let overrides = options::load(state_file);
         let launch = self.launch.lock().ok();
-        let active = launch
-            .as_ref()
-            .and_then(|stored| stored.as_ref())
-            .map(|info| (&info.args, &info.maximum_context));
+        let active = launch.as_ref().and_then(|stored| stored.as_ref());
         let iroh_sentence = if overrides.internet_road {
             self.road.sentence()
         } else {
@@ -811,8 +860,13 @@ fn settle_walk(brain: &Brain, walked: Walk) -> Result<(), String> {
     }
     match walked.0 {
         Ok(prepared) => {
+            // Read the mounted engine's own bytes before the supervisor takes
+            // the config: the door's declaration is a property of that
+            // binary, not of this build of the shell.
+            let engine = prepared.server.exe.clone();
             let outcome = brain.supervisor.start(prepared.server).outcome();
             brain.record_launch(prepared.info, outcome);
+            brain.record_engine(&engine, outcome);
             Ok(())
         }
         Err(sentence) => Err(sentence),

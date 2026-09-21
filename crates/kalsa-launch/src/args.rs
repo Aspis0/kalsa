@@ -76,10 +76,10 @@ pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 /// capacity. There is deliberately no second constant for the door, so the
 /// two can never drift apart.
 ///
-/// **Raising this above 1 is gated on five things, none of them done.** The
-/// value is one number, but it is not the whole change; read all five before
-/// touching it, and read `docs/MULTI-DEVICE-SHAPE.md` §7 for the measured
-/// numbers behind points 2 and 3.
+/// **Raising this above 1 is gated on five things, and only point 2 is now
+/// priced.** The value is one number, but it is not the whole change; read
+/// all five before touching it, and read `docs/MULTI-DEVICE-SHAPE.md` §7 for
+/// the measured numbers behind points 2 and 3.
 ///
 /// 1. **The engine must consume the door's private headers.** At capacity
 ///    above 1 the door refuses to build unless `EnginePrivateHeaders` is
@@ -87,14 +87,20 @@ pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 ///    It is `NotConsumed` today; the fork beside llama-server reads
 ///    `X-Kalsa-Cache-Salt` at v1.0.0 and will not read `X-Kalsa-Slot` until
 ///    v1.1.0 is bundled.
-/// 2. **The sliding-window KV replicates per slot, and this arithmetic has no
-///    `np` term.** §7 measured the 14 full-attention layers dividing their
+/// 2. **The sliding-window KV replicates per slot — now priced for every
+///    pinned row.** §7 measured the 14 full-attention layers dividing their
 ///    pool by the slot count while the 42 sliding-window layers replicated:
-///    55.78 MiB at np=1 against 223.12 MiB at np=4 — **+167 MiB** for the
-///    same total context. The plan prices one flat per-token cache, so where
-///    the plan's slack is thinner than that replication the real allocation
-///    can exceed `usable_bytes`. Price the per-slot term, or carry an
-///    explicit per-slot reserve, before raising this.
+///    55.78 MiB at np=1 against 223.12 MiB at np=4 — **+167 MiB** for the same
+///    total context. `kalsa_catalog::manifest::SlotCache` carries each pinned
+///    row's window geometry (or its recurrent state: Qwen 3.6, Granite 4
+///    Tiny, LFM 2.5), and `plan` subtracts the per-slot term before it buys
+///    context, so the funded total pays the replication. Two things stay
+///    open here. The per-token half is not yet honest: the sliding-window
+///    rows still price the conservative 96 KiB/token (too few tokens, never
+///    too much memory), and that replacement must land together with the
+///    per-slot term, which is in place. And Gemma 4 E2B, a `gemma4` row in
+///    the research table, has no pinned file to read a geometry from, so it
+///    is not priced at all.
 /// 3. **The prompt-cache roof is sized for one warm conversation.** `--cache-ram`
 ///    is a single global limit (`docs/MULTI-DEVICE-SHAPE.md` §5, the eviction
 ///    at ~4k); with N slots the roof must hold N histories or the warm-start
@@ -111,6 +117,25 @@ pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 ///    (256 × N) so the accepted boundary is visible rather than a one-token
 ///    cliff.
 pub const DEFAULT_PARALLEL: u32 = 1;
+
+/// The context one chat gets when the owner has not chosen, in tokens, PER
+/// SLOT — a slot is one conversation, and a conversation is what this figure
+/// is about. The automatic path is `min(this, the machine's funded maximum)`
+/// ([`crate::plan`]), so a machine that cannot fund it keeps its own smaller
+/// figure: an 8 GiB machine's 3993 tokens stay 3993, never a promise of 64k.
+/// An explicit owner choice still wins, up to the machine's maximum.
+///
+/// **A starting value, not a discovered one.** The panel used to cap the
+/// context at a fixed 32 768, and the ceiling this replaces was the machine's
+/// funded maximum — 262 144 tokens for the row on disk on a 64 GiB Mac, which
+/// costs about 10 GiB of KV on top of 22 GiB of weights. Neither is a chat
+/// figure: 32 768 is below what the trained length allows and the funded
+/// maximum is above what a conversation reaches. A chatbot needs the
+/// conversation plus the system prompt, and 65 536 is a round figure in that
+/// range. Nothing measured it — a real chat's turn lengths would, and until
+/// one is measured this number is stated here, once, instead of hidden in a
+/// panel. The maximum stays available for whoever asks for it.
+pub const DEFAULT_CONTEXT_TOKENS: u64 = 65_536;
 
 /// The smallest context a slot may be given, in tokens. Below it a slot
 /// refuses real conversations instead of serving a short one:
@@ -187,6 +212,25 @@ impl KvCache {
         match self {
             Self::Q8_0 => 1,
             Self::F16 => 2,
+        }
+    }
+
+    /// The bytes the engine's own block layout gives `elements` cache
+    /// elements, for arithmetic derived from a GGUF header's shape — the
+    /// per-slot sliding-window pool and recurrent state. This is NOT
+    /// [`Self::bytes_per_element`]: the catalogue's per-token figures are
+    /// stated in that one-byte-per-element unit, so scaling them here would
+    /// move every measured row. For geometry the real block cost is exact:
+    /// q8_0 is `block_q8_0` at 34 bytes per 32 elements
+    /// (`ggml/src/ggml-common.h:251-255`), and f16 is two bytes.
+    ///
+    /// `elements` is `width x cells`, and the tensor's first dimension is
+    /// the cache width, so it is a multiple of 32 whenever the engine can
+    /// build the tensor at all.
+    pub fn geometry_bytes(self, elements: u64) -> u64 {
+        match self {
+            Self::Q8_0 => elements.saturating_mul(34) / 32,
+            Self::F16 => elements.saturating_mul(2),
         }
     }
 
@@ -315,8 +359,12 @@ pub struct MemoryAssumption {
     pub context_tokens: u64,
     /// The KV cache at the chosen context, under the cache type the server
     /// will actually run: the catalog's per-token figure scaled by
-    /// [`KvCache::bytes_per_element`], so an f16 plan reports twice the q8_0
-    /// figure and a total that carries the difference. When
+    /// [`KvCache::bytes_per_element`] over the total context, PLUS the
+    /// engine's per-slot allocation (a sliding-window pool or a recurrent
+    /// state) at the funded per-slot context. The per-slot half is what the
+    /// per-token figure cannot carry and what makes this the cache the
+    /// server will actually allocate rather than a per-token prediction of
+    /// it. When
     /// `kv_per_token_assumed` is true this is the *budget* the context was
     /// sized against, not a prediction of the allocation: the server sizes
     /// its cache from the GGUF's own geometry and never consults this

@@ -8,13 +8,24 @@
 //! bytes onto their final name only when size and sha256 both hold, so every
 //! row must carry both before it is allowed to move.
 //!
-//! Sizes and digests below were read from the release's own asset list on
-//! 2026-09-14 (GitHub publishes a sha256 digest per asset) and are exact.
+//! Sizes and digests below are exact, and each came from the publisher that
+//! serves it: upstream's rows from the GitHub release's own asset list on
+//! 2026-09-14 (GitHub publishes a sha256 digest per asset), the macOS arm64
+//! engine from Kalsa's own CDN on 2026-09-21 by fetching the archive and
+//! hashing it. Two publishers share one table because the table describes
+//! what this app may run, not who built it.
+//!
 //! Note the macOS builds ship as `.tar.gz`, not `.zip`, unlike every
 //! Windows row.
 
-/// Where the release assets live. One place, so a release bump is one edit.
+/// Where upstream's release assets live. One place, so a release bump is
+/// one edit.
 const RELEASE_BASE: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b10950";
+
+/// Where Kalsa's own fork of the engine is published: the app's CDN, not
+/// GitHub. The fork is the only engine that reads the door's private
+/// headers, so it is the only one this app may mount.
+const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.0";
 
 /// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
 /// to a commit so the bytes cannot move under us.
@@ -130,9 +141,10 @@ pub(crate) struct Asset {
     pub(crate) role: Role,
     pub(crate) backend: Option<ServerBackend>,
     pub(crate) platform: Option<Platform>,
-    /// Where this asset is published. A fact about the asset: every row in
-    /// the llama.cpp release shares one home, the probe model does not, and
-    /// `url` special-cases neither.
+    /// Where this asset is published. A fact about the asset: upstream's
+    /// rows share [`RELEASE_BASE`], the macOS arm64 engine lives at the
+    /// fork's own CDN home, the probe model shares neither, and `url`
+    /// special-cases none of them.
     pub(crate) home: &'static str,
     /// The file name at its home; the URL is home plus this.
     pub(crate) file: &'static str,
@@ -143,11 +155,16 @@ pub(crate) struct Asset {
     pub(crate) size_bytes: Option<u64>,
     /// sha256 over the archive, exactly as published. None until verified.
     pub(crate) sha256: Option<&'static str>,
-    /// sha256 of the extracted `llama-server` inside the engine archive: the
-    /// identity of what we execute, re-checked on every start, because
-    /// nothing under the user's directory is trusted by provenance alone.
-    /// Engine rows only: the CUDA runtime archives and the probe model hold
-    /// no server, so theirs stays None with no further comment needed.
+    /// sha256 of the extracted server inside the engine archive, re-checked
+    /// on every start, because nothing under the user's directory is
+    /// trusted by provenance alone. Engine rows only: the CUDA runtime
+    /// archives and the probe model hold no server, so theirs stays None
+    /// with no further comment needed.
+    ///
+    /// On the fork's rows this is the thin launcher `kalsa-server`, NOT the
+    /// version identity: the launcher's bytes do not change between the
+    /// fork's releases (see the comment at that row). The ARCHIVE `sha256`
+    /// is what tells versions apart.
     pub(crate) exe_sha256: Option<&'static str>,
 }
 
@@ -164,46 +181,62 @@ impl Asset {
     }
 }
 
-// Sizes and sha256 digests below are the release's own published figures,
-// read from the GitHub release asset list on 2026-09-14 and transcribed
-// verbatim. The digest is what makes a download provably the build we meant:
-// `kalsa-download` renames bytes onto their final name only when size and
-// sha256 both hold.
-// The engine rows' exe_sha256 was measured on 2026-09-15 on a macOS arm64
-// machine: each archive downloaded through `kalsa-download` (which refuses
-// to rename bytes whose size and digest do not hold), extracted with this
-// crate's own extractor, and the server executable hashed — `llama-server`
-// under `llama-b10950/` for the macOS tarballs, `llama-server.exe` at the
-// archive root for the Windows zips. Nothing was executed to learn them: a
-// digest is over bytes, and the archive digest already proves whose bytes.
+// Upstream's sizes and sha256 digests below are the release's own published
+// figures, read from the GitHub release asset list on 2026-09-14 and
+// transcribed verbatim. The digest is what makes a download provably the
+// build we meant: `kalsa-download` renames bytes onto their final name only
+// when size and sha256 both hold.
+// The upstream engine rows' exe_sha256 was measured on 2026-09-15 on a
+// macOS arm64 machine: each archive downloaded through `kalsa-download`
+// (which refuses to rename bytes whose size and digest do not hold),
+// extracted with this crate's own extractor, and the server executable
+// hashed — `llama-server` under `llama-b10950/` for the upstream macOS
+// tarballs, `llama-server.exe` at the archive root for the Windows zips.
+// Nothing was executed to learn them: a digest is over bytes, and the
+// archive digest already proves whose bytes.
 // The four Windows engine archives ship the byte-identical server; only
 // their backend libraries differ. Non-engine rows carry no server, so
 // theirs stays None: there is nothing to hash.
+//
+// The fork row's numbers were measured on 2026-09-21 by fetching the
+// archive from the CDN named on the row, hashing the archive, and hashing
+// the `kalsa-server` under `kalsa-server-v1.1.0/` after this crate's own
+// extractor unpacked it. The v1.0.0 archive was fetched the same way to
+// settle the one question the row's comment answers: the two archives
+// differ in size and digest, and their launchers do not.
 const ASSETS: &[Asset] = &[
-    // macOS ships one archive per architecture with Metal and CPU inside,
-    // and ships it as a tar.gz.
+    // The macOS arm64 engine is Kalsa's own fork of llama.cpp, not upstream.
+    // Upstream ignores `X-Kalsa-Cache-Salt` and `X-Kalsa-Slot`, so mounting
+    // it would make the door's per-device cache isolation decorative; the
+    // fork reads both. One archive per architecture the fork publishes, and
+    // today that is Apple Silicon only.
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
-        home: RELEASE_BASE,
-        file: "llama-b10950-bin-macos-arm64.tar.gz",
+        home: FORK_BASE,
+        file: "kalsa-server-v1.1.0-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
-        exe_sha256: Some("858a1e5d8f37751479ba9b23db5f6a3c47aef4cb148c25b7ffdfea76bbc67a4f"),
-        size_bytes: Some(11_145_395),
-        sha256: Some("6e15e4b6e6646f247dcac1d1de056366b32a1cf73ae747874df9f84bb822e54b"),
+        // `exe_sha256` is the thin launcher `kalsa-server`, the binary the
+        // archive's `libllama-server-impl.dylib` is loaded by. Its bytes do
+        // NOT change between v1.0.0 and v1.1.0 (measured: identical), so it
+        // is NOT the version identity — the ARCHIVE `sha256` is, and it is
+        // the only number that tells the two releases apart.
+        // `crates/kalsa-runtime/src/marker.rs` keeps using this digest only
+        // as an integrity check on the launcher, never to tell versions
+        // apart.
+        exe_sha256: Some("327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"),
+        size_bytes: Some(11_205_316),
+        sha256: Some("9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034"),
     },
-    Asset {
-        role: Role::Engine,
-        backend: Some(ServerBackend::Metal),
-        platform: Some(Platform::MacX64),
-        home: RELEASE_BASE,
-        file: "llama-b10950-bin-macos-x64.tar.gz",
-        format: Some(ArchiveFormat::TarGz),
-        exe_sha256: Some("6a8e01dc4a888709308eb30fe8aad78b238ee90c10fd48705c1e2d6113e6f1a7"),
-        size_bytes: Some(11_194_463),
-        sha256: Some("e4ba7d0c11ebb5bdf0279aa5b2e26c8efb28d9694fe8c0a45d12a37437831c75"),
-    },
+    // No Intel macOS engine row, on purpose. `Platform::MacX64` stays so an
+    // Intel Mac is identified honestly, but the fork publishes no x64
+    // archive, and mounting upstream's x64 engine would serve several
+    // devices with no per-device cache isolation — worse than refusing.
+    // `candidates_for` therefore offers an Intel Mac no build at all and
+    // `decide` refuses it in the user's words. Intel support is a deliberate
+    // future decision (publish the fork for x64, add a row here), not an
+    // oversight.
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Cpu),
@@ -319,12 +352,15 @@ mod tests {
 
     #[test]
     fn the_table_matches_the_published_release_shape() {
-        // One macOS archive per architecture, all carrying Metal+CPU.
+        // The one macOS archive we publish carries Metal+CPU together.
         assert_eq!(
             assets_for(Platform::MacArm64, ServerBackend::Metal).len(),
             1
         );
-        assert_eq!(assets_for(Platform::MacX64, ServerBackend::Metal).len(), 1);
+        // No Intel macOS engine row: see the table's comment. A machine we
+        // identify but publish nothing for must have no assets, never a
+        // fallback that runs and isolates nothing.
+        assert!(assets_for(Platform::MacX64, ServerBackend::Metal).is_empty());
         // CPU and Vulkan are single archives.
         assert_eq!(
             assets_for(Platform::WindowsX64, ServerBackend::Cpu).len(),
@@ -407,6 +443,71 @@ mod tests {
                 None => {}
             }
         }
+    }
+
+    #[test]
+    fn the_macos_arm64_engine_is_the_fork_archive_pinned_by_its_own_numbers() {
+        // This row is the one thing between the door's cache salt and an
+        // engine that ignores it, so its identity is pinned exactly: the
+        // fork's CDN home, the versioned file name, and the three numbers
+        // measured from the CDN. One wrong digit is a download that either
+        // fails verification or mounts the wrong engine.
+        let rows = assets_for(Platform::MacArm64, ServerBackend::Metal);
+        assert_eq!(rows.len(), 1);
+        let row = rows[0];
+        assert_eq!(row.role, Role::Engine);
+        assert_eq!(row.home, FORK_BASE);
+        assert_eq!(row.file, "kalsa-server-v1.1.0-bin-macos-arm64.tar.gz");
+        assert_eq!(row.format, Some(ArchiveFormat::TarGz));
+        assert_eq!(row.size_bytes, Some(11_205_316));
+        assert_eq!(
+            row.sha256,
+            Some("9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034"),
+            "the archive digest is the version identity"
+        );
+        assert_eq!(
+            row.exe_sha256,
+            Some("327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"),
+            "the launcher digest: an integrity check, not a version"
+        );
+        assert!(
+            row.verified(),
+            "an unfilled row would refuse the whole macOS backend"
+        );
+    }
+
+    #[test]
+    fn engine_rows_are_unique_per_machine_and_intel_has_none() {
+        let mut engines = Vec::new();
+        for asset in ASSETS.iter().filter(|asset| asset.role == Role::Engine) {
+            // One engine per (platform, backend): a second row for the same
+            // key would make which build runs depend on table order.
+            let key = (asset.platform, asset.backend);
+            assert!(
+                !engines.contains(&key),
+                "{} is a second engine row for {key:?}",
+                asset.file
+            );
+            engines.push(key);
+            // Every engine row is whole: an unverified one fails the store
+            // for its backend, and a row with no launcher digest skips the
+            // birth check that proves the archive produced our binary.
+            assert!(asset.verified(), "{} promises nothing", asset.file);
+            assert!(
+                asset.exe_sha256.is_some(),
+                "{} records no server digest",
+                asset.file
+            );
+        }
+        // An Intel Mac identified as one must find no engine at all: the
+        // only x64 engine we could mount ignores the cache inlet, and a
+        // build that runs without isolation is worse than a refusal.
+        assert!(
+            !engines
+                .iter()
+                .any(|(platform, _)| *platform == Some(Platform::MacX64)),
+            "an Intel Mac must have no engine row"
+        );
     }
 
     #[test]

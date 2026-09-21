@@ -16,12 +16,22 @@
 //! offers tens of thousands of tokens per device, and the floor appears only
 //! as a refusal (in `slots.rs`) and as Phi Mini's accept boundary.
 //!
-//! The three sliding-window rows — Trinity Nano, Gemma 4 26B, Gemma 4 12B —
-//! carry a PINNED under-budget: the plan prices one flat per-token cache with
-//! no `np` term, while `docs/MULTI-DEVICE-SHAPE.md` §7 measured the
-//! sliding-window layers replicating per slot (+167 MiB going np=1 → np=4 on
-//! Trinity-Nano). What the plan reports for those rows at N > 1 is a lower
-//! bound on the engine's allocation, not a prediction of it.
+//! The four sliding-window rows — Trinity Nano, Gemma 4 26B, Gemma 4 12B,
+//! Gemma 4 E4B — and the three recurrent rows (Qwen 3.6, Granite 4 Tiny,
+//! LFM 2.5) carry their per-slot geometry, so the plan prices the replication
+//! `docs/MULTI-DEVICE-SHAPE.md` §7 measured (+167 MiB going np=1 → np=4 on
+//! Trinity-Nano) instead of a flat per-token cache. The per-token half is
+//! still the conservative 96 KiB assumption on the sliding-window rows:
+//! making that figure honest is a separate step, and it must land together
+//! with the per-slot term, not before it.
+//!
+//! Every PINNED download row is priced. Gemma 4 E2B — the same `gemma4`
+//! family, in the research table above this menu — has no pinned file, so
+//! there is no header to read a window or a shared-KV count from and it stays
+//! [`SlotCache::None`]: said out loud, not papered over. The figures are
+//! still a conservative under-budget, and the reason is the flat half: a row
+//! whose real full-attention pool is narrower than 96 KiB/token buys fewer
+//! tokens here than the machine could hold.
 
 use super::slots::device_input;
 use super::tests::shipped_row;
@@ -68,8 +78,10 @@ struct Offer {
     n1: (u64, Bind),
     n2: (u64, Bind),
     n4: (u64, Bind),
-    /// Sliding-window hybrid: the plan's flat per-token figure excludes the
-    /// per-slot replication (see the SWA test below).
+    /// Sliding-window hybrid: carries a per-slot window pool, whose header
+    /// geometry `slot_cache.rs` pins. The recurrent rows (Qwen 3.6, Granite 4
+    /// Tiny, LFM 2.5) carry a per-slot state too but no window, so they are
+    /// not marked here; their terms are pinned in the same module.
     swa: bool,
     /// Carries a measured per-token cache figure rather than the assumption.
     measured_kv: bool,
@@ -77,12 +89,14 @@ struct Offer {
 
 const OFFERS: &[Offer] = &[
     // Measured KV, the row on disk. The trained length binds one device and
-    // still binds two; at four the memory binds.
+    // still binds two; at four the memory binds. RECURRENT: 62.8 MiB of F32
+    // R+S state per slot is subtracted before the context is bought, which is
+    // what moves its four-slot figure.
     Offer {
         name: "Alibaba Qwen 3.6",
         n1: (262_144, Bind::Trained),
         n2: (262_144, Bind::Trained),
-        n4: (136_704, Bind::Memory),
+        n4: (135_168, Bind::Memory),
         swa: false,
         measured_kv: true,
     },
@@ -91,7 +105,7 @@ const OFFERS: &[Offer] = &[
         name: "Arcee Trinity Nano",
         n1: (131_072, Bind::Trained),
         n2: (131_072, Bind::Trained),
-        n4: (103_680, Bind::Memory),
+        n4: (102_912, Bind::Memory),
         swa: true,
         measured_kv: false,
     },
@@ -99,8 +113,8 @@ const OFFERS: &[Offer] = &[
     Offer {
         name: "Google Gemma 4 26B",
         n1: (262_144, Bind::Trained),
-        n2: (153_088, Bind::Memory),
-        n4: (76_544, Bind::Memory),
+        n2: (151_296, Bind::Memory),
+        n4: (74_752, Bind::Memory),
         swa: true,
         measured_kv: false,
     },
@@ -109,7 +123,18 @@ const OFFERS: &[Offer] = &[
         name: "Google Gemma 4 12B",
         n1: (131_072, Bind::Trained),
         n2: (131_072, Bind::Trained),
-        n4: (93_696, Bind::Memory),
+        n4: (90_880, Bind::Memory),
+        swa: true,
+        measured_kv: false,
+    },
+    // SWA, assumed KV — and the row whose header alone over-states it by 75%:
+    // `shared_kv_layers 18` leaves 20 windowed layers holding KV, MEASURED at
+    // 21.25 MiB a slot on the v1.1.0 engine (`slot_cache.rs`).
+    Offer {
+        name: "Google Gemma 4 E4B",
+        n1: (131_072, Bind::Trained),
+        n2: (131_072, Bind::Trained),
+        n4: (100_352, Bind::Memory),
         swa: true,
         measured_kv: false,
     },
@@ -134,19 +159,15 @@ const OFFERS: &[Offer] = &[
         swa: false,
         measured_kv: false,
     },
-    Offer {
-        name: "Google Gemma 4 E4B",
-        n1: (131_072, Bind::Trained),
-        n2: (131_072, Bind::Trained),
-        n4: (100_608, Bind::Memory),
-        swa: false,
-        measured_kv: false,
-    },
+    // Not the plain control it used to be: `granitehybrid` is 4 attention +
+    // 36 recurrent layers, so 55.371 MiB of F32 R+S state a slot is paid
+    // before the context. Its three figures move; the other dense rows in this
+    // table (Phi Mini) do not.
     Offer {
         name: "IBM Granite 4 Tiny",
-        n1: (410_250, Bind::Memory),
-        n2: (205_056, Bind::Memory),
-        n4: (102_400, Bind::Memory),
+        n1: (409_660, Bind::Memory),
+        n2: (204_288, Bind::Memory),
+        n4: (101_888, Bind::Memory),
         swa: false,
         measured_kv: false,
     },
@@ -163,16 +184,18 @@ fn menu() -> Vec<(&'static str, &'static ModelEntry)> {
 
 /// THE OFFER TABLE: per device, on this 64 GiB Mac. Headline first — the row
 /// on disk keeps its full 262 144 for one device and for two, and still gives
-/// four devices 136 704 each.
+/// four devices 135 168 each. These are FUNDED MAXIMA, read through
+/// [`funded_maximum`]: the automatic launch is the smaller chat default where
+/// the machine funds it, and that smaller answer is pinned in `slots.rs`.
 #[test]
 fn the_offer_table_on_this_mac() {
     let budget = memory_budget(Backend::Metal, 64 * GIB);
     let qwen = shipped_row("Alibaba Qwen 3.6");
-    for (parallel, expected) in [(1u32, 262_144u64), (2, 262_144), (4, 136_704)] {
-        let planned = plan(&device_input(ServerBackend::Metal, budget, qwen, parallel))
+    for (parallel, expected) in [(1u32, 262_144u64), (2, 262_144), (4, 135_168)] {
+        let funded = funded_maximum(&device_input(ServerBackend::Metal, budget, qwen, parallel))
             .expect("the row on disk is fundable");
         assert_eq!(
-            planned.args.context_tokens / u64::from(parallel),
+            funded / u64::from(parallel),
             expected,
             "Qwen 3.6 at N={parallel}"
         );
@@ -192,9 +215,8 @@ fn the_offer_table_on_this_mac() {
         let mut cells = String::new();
         for (parallel, (expected, bind)) in [(1u32, offer.n1), (2, offer.n2), (4, offer.n4)] {
             let slots = u64::from(parallel);
-            let planned = plan(&device_input(ServerBackend::Metal, budget, entry, parallel))
+            let total = funded_maximum(&device_input(ServerBackend::Metal, budget, entry, parallel))
                 .unwrap_or_else(|| panic!("{}: N={parallel} must be fundable here", offer.name));
-            let total = planned.args.context_tokens;
             assert_eq!(total / slots, expected, "{} at N={parallel}", offer.name);
             assert_eq!(
                 total,
@@ -217,7 +239,8 @@ fn the_offer_table_on_this_mac() {
 
 /// Every invariant, for every row the menu can offer, at slot counts the
 /// panel does not pin: a plan that exists is aligned, exact and inside the
-/// budget, and its one-slot figure is the one the panel previews.
+/// budget, and its one-slot figure is the funded maximum lowered by the chat
+/// default where the machine funds more than a conversation needs.
 #[test]
 fn every_offered_row_keeps_the_invariants_at_every_slot_count() {
     let budget = memory_budget(Backend::Metal, 64 * GIB);
@@ -229,8 +252,9 @@ fn every_offered_row_keeps_the_invariants_at_every_slot_count() {
         assert_eq!(
             one.args.context_tokens,
             funded_context(entry, budget.usable_bytes)
-                .unwrap_or_else(|| panic!("{name}: the preview must have a window")),
-            "{name}: the one-slot plan must be the figure the panel previews"
+                .unwrap_or_else(|| panic!("{name}: the preview must have a window"))
+                .min(DEFAULT_CONTEXT_TOKENS),
+            "{name}: the one-slot plan must be the panel's preview, lowered by the chat default"
         );
         for parallel in [2u32, 3, 4, 8] {
             let Some(planned) = plan(&device_input(ServerBackend::Metal, budget, entry, parallel))
@@ -304,9 +328,15 @@ fn the_menu_rows_price_their_cache_and_the_4096_row_lands_on_the_floor() {
         } else {
             ASSUMED_KV_BYTES_PER_TOKEN
         };
+        let slot_term = slot_cache_bytes(
+            entry,
+            planned.args.context_tokens / 4,
+            KvCache::Q8_0,
+            u64::from(crate::args::UBATCH),
+        );
         assert_eq!(
             planned.memory.kv_cache_bytes,
-            planned.args.context_tokens * per_token,
+            planned.args.context_tokens * per_token + slot_term * 4,
             "{}: the plan did not price the cache it claims",
             offer.name
         );
@@ -326,13 +356,14 @@ fn the_menu_rows_price_their_cache_and_the_4096_row_lands_on_the_floor() {
     );
 }
 
-/// The sliding-window rows are a PINNED under-budget at N > 1, not an unknown
-/// one: the plan reports a flat `total tokens × 96 KiB`, with no term for the
-/// sliding-window layers that §7 measured replicating per slot (+167 MiB,
-/// np=1 → np=4). The figures above are what the launcher will SAY, and a
-/// lower bound on what the engine will allocate.
+/// The sliding-window rows carry the per-slot term the plan used to omit:
+/// `docs/MULTI-DEVICE-SHAPE.md` §7 measured 55.78 MiB of sliding-window KV at
+/// np=1 against 223.12 MiB at np=4 for Trinity-Nano — replicated, not divided.
+/// The reported cache is now the flat per-token figure PLUS the replication,
+/// so the number the panel prints is what the engine will allocate. The exact
+/// per-row geometry is pinned in `slot_cache.rs`.
 #[test]
-fn the_sliding_window_rows_carry_no_per_slot_term() {
+fn the_sliding_window_rows_carry_their_per_slot_term() {
     let budget = memory_budget(Backend::Metal, 64 * GIB);
     for offer in OFFERS.iter().filter(|offer| offer.swa) {
         let entry = shipped_row(offer.name);
@@ -343,16 +374,28 @@ fn the_sliding_window_rows_carry_no_per_slot_term() {
             "{}: the SWA rows are priced on the assumption",
             offer.name
         );
+        let term = slot_cache_bytes(
+            entry,
+            planned.args.context_tokens / 4,
+            KvCache::Q8_0,
+            u64::from(crate::args::UBATCH),
+        );
+        assert!(term > 0, "{}: the per-slot term vanished", offer.name);
         assert_eq!(
             planned.memory.kv_cache_bytes,
-            planned.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN,
-            "{}: the plan priced something other than one flat cache",
+            planned.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN + term * 4,
+            "{}: the flat cache plus the replication is not what was reported",
             offer.name
         );
     }
     assert_eq!(
         OFFERS.iter().filter(|offer| offer.swa).count(),
-        3,
+        4,
         "the sliding-window set on the menu changed"
+    );
+    assert_eq!(
+        OFFERS.iter().filter(|offer| !offer.swa).count(),
+        4,
+        "the non-window set on the menu changed (three recurrent + Phi Mini)"
     );
 }

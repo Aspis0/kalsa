@@ -46,8 +46,9 @@ const READY_TIMEOUT: Duration = Duration::from_secs(600);
 const STOP_GRACE: Duration = Duration::from_secs(2);
 /// The context the chooser prices each candidate's cache at. It must exclude
 /// nothing: priced at 8192 it refused rows the machine funds at a smaller
-/// context — Granite 4 Tiny funds 4584 tokens on an 8 GiB machine (6112
-/// before the sleeping-chat reserve was carved out), and at
+/// context — Granite 4 Tiny funds 3993 tokens on an 8 GiB machine (6112
+/// before the sleeping-chat reserve was carved out, 4584 before its own
+/// per-slot recurrent state was priced), and at
 /// 8192 the tier was handed to a smaller row. The context that actually runs
 /// is `kalsa_launch::plan`'s, derived for the chosen row from the same
 /// budget and re-checked against it; a row that cannot fund even one token
@@ -105,12 +106,50 @@ impl ContextMaxima {
     }
 }
 
+/// The launcher's KV price per cache type, for the number the panel shows
+/// beside the context control. The pair mirrors [`ContextMaxima`], so the
+/// panel reads the price for the cache type it is showing and never does the
+/// cache arithmetic itself. `None` under a cache type means the row's
+/// per-token figure is unreadable — the same condition that refuses a plan.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ContextPrices {
+    pub(crate) q8_0: Option<kalsa_launch::ContextPrice>,
+    pub(crate) f16: Option<kalsa_launch::ContextPrice>,
+}
+
+impl ContextPrices {
+    pub(crate) fn for_cache(&self, cache: KvCache) -> Option<kalsa_launch::ContextPrice> {
+        match cache {
+            KvCache::Q8_0 => self.q8_0,
+            KvCache::F16 => self.f16,
+        }
+    }
+}
+
+/// No price to show before a model is chosen (the development path), and the
+/// funded maximum is absent there too: both pairs share the same story.
+impl Default for ContextPrices {
+    fn default() -> Self {
+        Self {
+            q8_0: None,
+            f16: None,
+        }
+    }
+}
+
 /// The exact launch data kept by the shell after the supervisor receives it.
 /// The UI reads this rather than reconstructing values from argv strings.
 #[derive(Debug)]
 pub(crate) struct LaunchInfo {
     pub(crate) args: ServerArgs,
     pub(crate) maximum_context: ContextMaxima,
+    /// The context the launcher picks with no owner choice, per cache type:
+    /// the panel shows this instead of a blank, so "Automatic" names the
+    /// figure it will actually use.
+    pub(crate) automatic_context: ContextMaxima,
+    /// The launcher's per-token and per-slot KV terms, per cache type, for
+    /// the panel's memory line. Absent on a path with no catalog row.
+    pub(crate) context_prices: ContextPrices,
     /// The catalog's own name for what launched — the one model identity the
     /// user is shown. `None` on the development path: the developer pinned a
     /// file and owns its bytes, and no catalog choice was made to name.
@@ -494,10 +533,13 @@ fn planned_config_with_overrides(
     // The funded maximum for each cache type: f16 costs twice per token and
     // therefore funds a smaller context. Either may be absent — the row can
     // be unfundable under one cache and fine under the other — so this is not
-    // an error until the cache actually being launched has no maximum.
+    // an error until the cache actually being launched has no maximum. The
+    // maximum is NOT the automatic context any more: `plan` with no owner
+    // choice answers the smaller chat default where the machine funds it, so
+    // the guards and the panel read the ceiling from `funded_maximum`.
     let maxima = ContextMaxima {
-        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None)).map(|plan| plan.args.context_tokens),
-        f16: kalsa_launch::plan(&build(KvCache::F16, None)).map(|plan| plan.args.context_tokens),
+        q8_0: kalsa_launch::funded_maximum(&build(KvCache::Q8_0, None)),
+        f16: kalsa_launch::funded_maximum(&build(KvCache::F16, None)),
     };
     if let (Some(context), Some(maximum)) = (overrides.context_tokens, maxima.for_cache(kv_cache)) {
         // The guard reads the maximum FOR THE CHOSEN CACHE TYPE: a context
@@ -515,6 +557,28 @@ fn planned_config_with_overrides(
         plan.args.idle_unload_seconds = seconds;
     }
     let args = plan.args;
+    // What the panel shows beside the context control: the context the
+    // launcher picks with no owner choice, and the launcher's own two KV
+    // terms for pricing any length the owner types. All of it is the
+    // launcher's arithmetic, computed here where the row is known.
+    let automatic_context = ContextMaxima {
+        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None)).map(|plan| plan.args.context_tokens),
+        f16: kalsa_launch::plan(&build(KvCache::F16, None)).map(|plan| plan.args.context_tokens),
+    };
+    let context_prices = ContextPrices {
+        q8_0: kalsa_launch::context_price(
+            row,
+            KvCache::Q8_0,
+            u64::from(ubatch_size),
+            kalsa_launch::DEFAULT_PARALLEL,
+        ),
+        f16: kalsa_launch::context_price(
+            row,
+            KvCache::F16,
+            u64::from(ubatch_size),
+            kalsa_launch::DEFAULT_PARALLEL,
+        ),
+    };
     let server = ServerConfig {
         exe,
         argv: args.argv(),
@@ -528,6 +592,8 @@ fn planned_config_with_overrides(
         info: LaunchInfo {
             args,
             maximum_context: maxima,
+            automatic_context,
+            context_prices,
             display_name: Some(row.display_name.to_owned()),
             reason: Some(reason),
         },
@@ -599,12 +665,17 @@ fn dev_config_with_overrides(
         server,
         info: LaunchInfo {
             args,
-            // No budget on the dev path, so there is no funded maximum for
-            // either cache type to report.
+            // No budget on the dev path, so there is no funded maximum, no
+            // automatic figure and no price for either cache type to report.
             maximum_context: ContextMaxima {
                 q8_0: None,
                 f16: None,
             },
+            automatic_context: ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            context_prices: ContextPrices::default(),
             display_name: None,
             reason: None,
         },
@@ -1305,9 +1376,10 @@ mod tests {
     fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
         // The product path: the context comes from the chosen row's cache
         // geometry against the real budget. Granite 4 Tiny on 8 GiB used to
-        // fund 6112 tokens; now the sleeping-chat reserve is carved out
-        // first (150_215_464 of the 600_861_856 bytes left) and the context
-        // funds the rest: 4584 tokens. The flags are still the launch
+        // fund 6112 tokens; now the sleeping-chat reserve is carved out first
+        // (150_215_464 of the 600_861_856 bytes left), then the row's own
+        // 58_060_800-byte recurrent state, and the context funds the rest:
+        // 3993 tokens. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
         let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
@@ -1326,7 +1398,7 @@ mod tests {
         )
         .expect("the model is fundable");
         let joined = config.server.argv.join(" ");
-        assert!(joined.contains("--ctx-size 4584"), "{joined}");
+        assert!(joined.contains("--ctx-size 3993"), "{joined}");
         assert!(joined.contains("--cache-ram 143"), "{joined}");
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
         assert!(joined.contains("--threads 2"), "{joined}");
@@ -1466,9 +1538,64 @@ mod tests {
         assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
     }
 
+    /// The automatic launch is the chat default, not the machine's funded
+    /// maximum: a 64 GiB Mac funds 262 144 for the row on disk but launches
+    /// 65 536 when the owner has not chosen. A choice above the default is
+    /// honoured right up to the maximum, and one token above it is refused by
+    /// the guard, which names the number.
+    #[test]
+    fn the_automatic_launch_is_the_chat_default_and_a_bigger_choice_is_honoured_to_the_maximum() {
+        let row = rows()
+            .find(|entry| entry.display_name == "Alibaba Qwen 3.6")
+            .expect("the row on disk left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Metal),
+            ram_bytes: 64 * 1024 * 1024 * 1024,
+        };
+        let run = |context: Option<u64>| {
+            planned_config_with_overrides(
+                ServerBackend::Metal,
+                PathBuf::from("/server/llama-server"),
+                PathBuf::from("/models/chosen.gguf"),
+                row,
+                TEST_REASON.to_string(),
+                &machine,
+                PathBuf::from("/state/server.state"),
+                LaunchOverrides {
+                    context_tokens: context,
+                    ..LaunchOverrides::default()
+                },
+            )
+        };
+        // No owner choice: the chat default, on a machine that funds four
+        // times as much.
+        let automatic = run(None).expect("the automatic launch is fundable");
+        assert_eq!(automatic.info.args.context_tokens, 65_536);
+        assert_eq!(
+            automatic.info.maximum_context.q8_0,
+            Some(262_144),
+            "the maximum the panel and the guard read is still the machine's"
+        );
+        assert_eq!(automatic.info.automatic_context.q8_0, Some(65_536));
+        // Above the default, still funded: honoured as asked.
+        let raised = run(Some(131_072)).expect("a choice above the default is honoured");
+        assert_eq!(raised.info.args.context_tokens, 131_072);
+        // Above the machine's maximum: refused, with the number in the words.
+        let err = run(Some(262_145)).expect_err("one token above the maximum is refused");
+        assert!(
+            matches!(err, StartupFailure::ContextTooLarge { .. }),
+            "{err:?}"
+        );
+        let spoken = crate::failure::words(&err);
+        assert!(
+            spoken.contains("262144"),
+            "the refusal must name the machine's maximum: {spoken}"
+        );
+    }
+
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
-        // Granite 4 Tiny on 8 GiB of CPU funds 4584 tokens at q8_0 and 2292
+        // Granite 4 Tiny on 8 GiB of CPU funds 3993 tokens at q8_0 and 1996
         // at f16. 4096 fits the q8_0 cache and not the f16 one: choosing f16
         // must refuse it, not start a server whose f16 cache would
         // oversubscribe the machine. If the guard read the q8_0 maximum
@@ -1495,7 +1622,7 @@ mod tests {
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("4096 is beyond the f16 funded maximum of 2292");
+        .expect_err("4096 is beyond the f16 funded maximum of 1996");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -1505,7 +1632,7 @@ mod tests {
         // request was too large.
         let spoken = crate::failure::words(&err);
         assert!(
-            spoken.contains("2292"),
+            spoken.contains("1996"),
             "the refusal must name the funded maximum: {spoken}"
         );
         assert!(

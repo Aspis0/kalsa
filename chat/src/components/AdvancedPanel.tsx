@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { available, invoke } from "../lib/tauri";
 import { LAUNCH_KNOBS } from "../lib/knobs/launch";
 import type { LaunchKnob } from "../lib/knobs/types";
+import { bytesText } from "../surfaces/MachineCard";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
 import "./AdvancedPanel.css";
@@ -13,6 +14,12 @@ export interface AdvancedDto {
   context_tokens: number | null;
   context_max: number | null;
   context_max_f16: number | null;
+  context_automatic: number | null;
+  context_automatic_f16: number | null;
+  kv_bytes_per_token: number | null;
+  kv_bytes_per_token_f16: number | null;
+  kv_bytes_fixed: number | null;
+  kv_bytes_fixed_f16: number | null;
   context_override: number | null;
   idle_unload_seconds: number;
   idle_override: number | null;
@@ -97,17 +104,82 @@ function automaticNumber(value: number | null | undefined, label: string): strin
     ? `Automatic is ${value}.`
     : `The app will read the machine before choosing a ${label}.`;
 }
+/** A number that came off the wire and is usable as one, or null. */
+function finite(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+/** The cache type the panel is showing: the owner's choice when they made one,
+    the automatic otherwise. One rule, so the maximum, the automatic figure
+    and the memory line cannot disagree about which cache they describe. */
+function shownCache(dto: AdvancedDto, cache: CacheChoice): string {
+  return cache || dto.kv_cache_automatic;
+}
 function contextMaximum(dto: AdvancedDto | null, cache: CacheChoice): number | null {
   if (!dto) return null;
-  const selected = cache || dto.kv_cache_automatic;
-  const maximum = selected === "f16" ? dto.context_max_f16 : dto.context_max;
-  return typeof maximum === "number" && Number.isFinite(maximum) ? maximum : null;
+  return finite(shownCache(dto, cache) === "f16" ? dto.context_max_f16 : dto.context_max);
 }
-function contextHelp(dto: AdvancedDto | null, cache: CacheChoice): string {
+/** What the launcher picks with no owner choice, under the cache being shown:
+    the panel names this instead of leaving "Automatic" blank. */
+function contextAutomatic(dto: AdvancedDto | null, cache: CacheChoice): number | null {
+  if (!dto) return null;
+  return finite(shownCache(dto, cache) === "f16" ? dto.context_automatic_f16 : dto.context_automatic);
+}
+/** The launcher's own two KV terms for the cache being shown — the per-token
+    price and the per-slot term it already summed over the slots. The panel
+    multiplies and adds; it never derives a cache cost of its own. */
+function contextPrice(dto: AdvancedDto | null, cache: CacheChoice): { perToken: number; fixed: number } | null {
+  if (!dto) return null;
+  const f16 = shownCache(dto, cache) === "f16";
+  const perToken = finite(f16 ? dto.kv_bytes_per_token_f16 : dto.kv_bytes_per_token);
+  const fixed = finite(f16 ? dto.kv_bytes_fixed_f16 : dto.kv_bytes_fixed);
+  return perToken === null || fixed === null ? null : { perToken, fixed };
+}
+/** The length the control is showing: what the owner typed, or the automatic
+    figure while the box is empty. */
+function shownContext(dto: AdvancedDto | null, cache: CacheChoice, typed: string): number | null {
+  if (typed !== "") return finite(Number(typed));
+  return contextAutomatic(dto, cache);
+}
+/** The KV cache the choice in front of the owner will use, in bytes. */
+function contextCost(dto: AdvancedDto | null, cache: CacheChoice, typed: string): number | null {
+  const price = contextPrice(dto, cache);
+  const tokens = shownContext(dto, cache, typed);
+  if (price === null || tokens === null || tokens <= 0) return null;
+  return tokens * price.perToken + price.fixed;
+}
+/** A context length as a chat figure: 65536 is "64k", 65315 is "63.8k". */
+function tokensText(tokens: number): string {
+  if (tokens < 1024) return String(tokens);
+  const thousands = tokens / 1024;
+  return `${Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+}
+/** How "Automatic" is written where a figure is expected: the launcher's own
+    pick when it is known, the bare word otherwise. */
+function automaticLabel(dto: AdvancedDto | null, cache: CacheChoice): string {
+  const automatic = contextAutomatic(dto, cache);
+  return automatic === null ? "automatic" : `Automatic — ${tokensText(automatic)}`;
+}
+/** The one-click context sizes. 64k is the launcher's own chat default
+    (`DEFAULT_CONTEXT_TOKENS` in kalsa-launch); 32k and 128k are the step
+    either side of it. Only the sizes this machine funds are offered, so a
+    button can never set a value the guards would refuse. */
+const CONTEXT_PRESETS: readonly number[] = [32 * 1024, 64 * 1024, 128 * 1024];
+function contextHelp(dto: AdvancedDto | null, cache: CacheChoice, typed: string): string {
+  const tokens = shownContext(dto, cache, typed);
+  const cost = contextCost(dto, cache, typed);
+  const costSentence =
+    cost !== null && tokens !== null
+      ? ` The KV cache for ${tokensText(tokens)} tokens uses ${bytesText(cost)}.`
+      : "";
   const maximum = contextMaximum(dto, cache);
-  return maximum !== null
-    ? `Automatic is up to ${maximum}. A smaller value uses less memory.`
-    : "The app reads the machine before choosing a context. The bigger f16 cache roughly halves it.";
+  const automatic = contextAutomatic(dto, cache);
+  if (maximum === null) {
+    return `The app reads the machine before choosing a context. The bigger f16 cache roughly halves it.${costSentence}`;
+  }
+  if (automatic === null) {
+    return `Up to ${tokensText(maximum)} on this computer. A smaller value uses less memory.${costSentence}`;
+  }
+  return `Automatic is ${tokensText(automatic)} (${automatic} tokens). Up to ${tokensText(maximum)} on this computer.${costSentence}`;
 }
 function cacheHelp(dto: AdvancedDto | null): string {
   return dto?.kv_cache_automatic
@@ -184,6 +256,12 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
       },
     };
   }
+  /** A preset, or Automatic, chosen with one click. Marked dirty so the next
+      poll does not take the choice back off the screen before it is saved. */
+  function chooseContext(value: string): void {
+    dirty.current = true;
+    setContext(value);
+  }
   async function saveEdits(): Promise<void> {
     setFeedback(null);
     setSaving(true);
@@ -198,6 +276,12 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
     }
     setSaving(false);
   }
+
+  // What the context control needs this render: the machine's ceiling, the
+  // launcher's automatic figure, and the presets this machine funds.
+  const maximum = contextMaximum(dto, cache);
+  const automatic = contextAutomatic(dto, cache);
+  const contextPresets = CONTEXT_PRESETS.filter((preset) => maximum === null || preset <= maximum);
 
   return (
     <div className="advanced-panel">
@@ -215,7 +299,24 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
                 : "Changes apply next time you turn on."
               : "These settings are available inside the Kalsa app."}
           </p>
-          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache)}><input id="advanced-context" type="number" min={512} max={contextMaximum(dto, cache) ?? undefined} step={512} placeholder="Automatic" value={context} {...trackText(setContext)} /></AdvancedField>
+          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache, context)}>
+            <div className="advanced-presets" role="group" aria-label="Context size">
+              <button type="button" className={context === "" ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext("")}>
+                {automatic === null ? "Automatic" : `Automatic — ${tokensText(automatic)}`}
+              </button>
+              {contextPresets.map((preset) => (
+                <button key={preset} type="button" className={context !== "" && Number(context) === preset ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext(String(preset))}>
+                  {tokensText(preset)}
+                </button>
+              ))}
+              {maximum !== null ? (
+                <button type="button" className={context !== "" && Number(context) === maximum ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext(String(maximum))}>
+                  Maximum — {tokensText(maximum)}
+                </button>
+              ) : null}
+            </div>
+            <input id="advanced-context" type="number" min={512} max={maximum ?? undefined} step={512} placeholder={automatic === null ? "Automatic" : `Automatic — ${tokensText(automatic)}`} value={context} {...trackText(setContext)} />
+          </AdvancedField>
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
           <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
           <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>
@@ -253,7 +354,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
           </AdvancedField>
           <p className="advanced-values">
             {dto
-              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? "automatic"}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.`
+              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? automaticLabel(dto, cache)}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.`
               : "The values in force will appear here when the app is open."}
           </p>
           <p className="advanced-help">

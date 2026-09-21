@@ -7,11 +7,11 @@ use std::path::PathBuf;
 use kalsa_catalog::footprint::{
     footprint_bytes, MemoryBudget, ASSUMED_KV_BYTES_PER_TOKEN, COMPUTE_BUFFER_BYTES, MIB,
 };
-use kalsa_catalog::manifest::ModelEntry;
+use kalsa_catalog::manifest::{ModelEntry, SlotCache};
 use kalsa_probe::plateau;
 use kalsa_runtime::ServerBackend;
 
-use crate::args::{KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs};
+use crate::args::{KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs, DEFAULT_CONTEXT_TOKENS};
 
 /// Everything the decision needs, already decided upstream: the build that
 /// won, the model that was chosen, the budget it was chosen against, and the
@@ -43,6 +43,29 @@ pub struct LaunchInput<'a> {
     pub parallel: u32,
 }
 
+/// The funded ceiling for one input, and the roof it was carved after: the
+/// one copy of the arithmetic shared by [`plan`], which lowers the ceiling to
+/// [`DEFAULT_CONTEXT_TOKENS`] on the automatic path, and [`funded_maximum`],
+/// which reports the ceiling itself. Returns (per-slot ceiling, roof bytes,
+/// slots).
+fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
+    // One slot minimum, clamped once so the arithmetic and the rendered flag
+    // cannot disagree: the engine clamps `n_seq_max` the same way
+    // (`src/llama-context.cpp`: `std::max(1u, params.n_seq_max)`) and the door
+    // refuses a capacity of zero, so a raw field holding 0 would otherwise
+    // render `--parallel 0` beside a one-slot plan.
+    let slots = u64::from(input.parallel.max(1));
+    let (funded, prompt_cache_roof) = context_and_prompt_cache_roof(
+        input.model,
+        input.budget.usable_bytes,
+        input.kv_cache,
+        slots,
+        u64::from(input.ubatch_size),
+    )?;
+    let ceiling = per_slot_ceiling(funded, input.model.trained_context_tokens, slots)?;
+    Some((ceiling, prompt_cache_roof, slots))
+}
+
 /// The start command for this machine and model, with the memory it implies.
 ///
 /// None when the machine cannot fund the model at all: the weights, mmproj
@@ -51,23 +74,18 @@ pub struct LaunchInput<'a> {
 /// of context must not be started smaller, it must not be started. None also
 /// when the slots cannot each reach `MIN_CONTEXT_TOKENS_PER_SLOT`.
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
-    // One slot minimum, clamped once so the arithmetic and the rendered flag
-    // cannot disagree: the engine clamps `n_seq_max` the same way
-    // (`src/llama-context.cpp`: `std::max(1u, params.n_seq_max)`) and the door
-    // refuses a capacity of zero, so a raw field holding 0 would otherwise
-    // render `--parallel 0` beside a one-slot plan.
+    let (ceiling, prompt_cache_roof, slots) = funded_ceiling(input)?;
     let parallel = input.parallel.max(1);
-    let slots = u64::from(parallel);
-    let (funded, prompt_cache_roof) =
-        context_and_prompt_cache_roof(input.model, input.budget.usable_bytes, input.kv_cache)?;
-    let ceiling = per_slot_ceiling(funded, input.model.trained_context_tokens, slots)?;
+    let ubatch = u64::from(input.ubatch_size);
     // The owner's request is a TOTAL, the meaning the panel's bounds already
     // carry, so it is divided by the slots exactly as the engine will divide
-    // the flag.
+    // the flag. With no request the answer is the chat default where the
+    // machine funds it and the machine's own smaller ceiling where it does
+    // not — never the funded maximum, which is not a conversation.
     let requested = match input.context_limit {
         Some(limit) if limit > 0 && limit <= ceiling.saturating_mul(slots) => limit / slots,
         Some(_) => return None,
-        None => ceiling,
+        None => ceiling.min(DEFAULT_CONTEXT_TOKENS),
     };
     let per_slot = slot_context(requested, slots)?;
     let context_tokens = per_slot * slots;
@@ -88,9 +106,18 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
     // actually run is the owner's choice, so the reported cache cost — and the
     // total that carries it — is scaled here, where the choice is known.
+    //
+    // On top of that per-token cost sits the engine's per-slot allocation,
+    // which no per-token figure can carry. The context was funded with this
+    // term already subtracted, so the report has to carry it too — otherwise
+    // `total_bytes` would understate the reservation by the whole per-slot
+    // term while the plan silently spent it.
     let kv_bytes = footprint
         .kv_bytes
-        .saturating_mul(input.kv_cache.bytes_per_element());
+        .saturating_mul(input.kv_cache.bytes_per_element())
+        .saturating_add(
+            slot_cache_bytes(input.model, per_slot, input.kv_cache, ubatch).saturating_mul(slots),
+        );
     let memory = MemoryAssumption {
         context_tokens,
         kv_cache_bytes: kv_bytes,
@@ -103,6 +130,17 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         budget_bytes: input.budget.usable_bytes,
     };
     Some(LaunchPlan { args, memory })
+}
+
+/// The machine's funded maximum as a TOTAL, for the guards that refuse a
+/// request above it and for the panel's ceiling. This is the figure the
+/// automatic launch used before the chat default lowered it: [`plan`] with no
+/// owner request answers `min(`[`DEFAULT_CONTEXT_TOKENS`]`, this)` per slot,
+/// so a caller that wants the ceiling rather than the default asks here.
+/// Shares its arithmetic with [`plan`] — one copy, never a second.
+pub fn funded_maximum(input: &LaunchInput) -> Option<u64> {
+    let (ceiling, _roof, slots) = funded_ceiling(input)?;
+    Some(slot_context(ceiling, slots)?.saturating_mul(slots))
 }
 
 /// What one slot may be given before the engine's own alignment: the
@@ -142,15 +180,30 @@ fn slot_context(requested: u64, slots: u64) -> Option<u64> {
     (aligned >= crate::args::MIN_CONTEXT_TOKENS_PER_SLOT).then_some(aligned)
 }
 
-/// The context this budget funds for this row — the same arithmetic `plan`
-/// sizes the server with, roof carved out first — or `None` when it cannot
-/// fund even one token. The narrow question a caller asks before any plan
-/// exists (a preview has no downloaded file to point at and no port), answered
-/// from the one copy of the arithmetic rather than a recomputation beside it.
-/// It previews under the automatic q8_0 cache and a single slot; the owner's
-/// f16 choice scales the per-token figure and travels through [`plan`].
+/// The machine's funded MAXIMUM for this row at one slot — the ceiling the
+/// guards refuse a larger request against, and the figure the panel shows as
+/// the top of the range — or `None` when it cannot fund even one token. This
+/// is NOT the automatic launch: [`plan`] lowers the ceiling to
+/// [`DEFAULT_CONTEXT_TOKENS`] when the owner has not chosen, and that smaller
+/// answer is `min` of this and the chat default. The narrow question a caller
+/// asks before any plan exists (a preview has no downloaded file to point at
+/// and no port), answered from the one copy of the arithmetic rather than a
+/// recomputation beside it. It previews under the automatic q8_0 cache and a
+/// single slot; the owner's f16 choice scales the per-token figure and
+/// travels through [`plan`].
 pub fn funded_context(model: &ModelEntry, usable_bytes: u64) -> Option<u64> {
-    let (funded, _roof) = context_and_prompt_cache_roof(model, usable_bytes, KvCache::Q8_0)?;
+    // One slot and the shipped micro-batch: the preview carries no owner
+    // override, and the default is what the plan is built with when the
+    // panel has not asked for another. The per-slot term is included through
+    // the same arithmetic `plan` funds with, so a preview cannot offer a
+    // window the launch would refuse.
+    let (funded, _roof) = context_and_prompt_cache_roof(
+        model,
+        usable_bytes,
+        KvCache::Q8_0,
+        1,
+        u64::from(crate::args::UBATCH),
+    )?;
     let ceiling = per_slot_ceiling(funded, model.trained_context_tokens, 1)?;
     slot_context(ceiling, 1)
 }
@@ -200,6 +253,8 @@ fn context_and_prompt_cache_roof(
     model: &ModelEntry,
     usable_bytes: u64,
     kv_cache: KvCache,
+    slots: u64,
+    ubatch_size: u64,
 ) -> Option<(u64, u64)> {
     let per_token = match model.kv_bytes_per_token {
         // A zero measurement is broken data: refuse it rather than silently
@@ -215,13 +270,155 @@ fn context_and_prompt_cache_roof(
         .saturating_add(COMPUTE_BUFFER_BYTES);
     let leftover = usable_bytes.checked_sub(fixed)?;
     let prompt_cache_roof = prompt_cache_roof_bytes(leftover, kv_cache);
-    let funded = (leftover - prompt_cache_roof) / per_token;
+    let kv_budget = leftover.checked_sub(prompt_cache_roof)?;
+    let funded = funded_cache_tokens(model, kv_budget, per_token, slots, kv_cache, ubatch_size)?;
     // The memory-funded ceiling, before the length the model was trained for
     // is applied: that cap bounds one sequence, so it belongs to the per-slot
     // arithmetic ([`per_slot_ceiling`]), not here where only the total is
     // known. A row with no header read keeps the memory figure, because a
     // guessed limit is worse than none.
     (funded > 0).then_some((funded, prompt_cache_roof))
+}
+
+/// The per-stream cell count of a sliding-window pool holding
+/// `per_slot_tokens` of context: `PAD(min(per_slot_tokens, n_swa + ubatch),
+/// 256)`, the engine's own expression (`src/llama-kv-cache-iswa.cpp:84`) with
+/// `unified` false — the explicit `-np N` shape this product ships. The
+/// `+ ubatch` is headroom for a micro-batch that runs past the window; the
+/// pad is the alignment the engine always applies. `u64::MAX` asks for the
+/// pool at its saturating size.
+fn sliding_window_cells(window_tokens: u64, ubatch_size: u64, per_slot_tokens: u64) -> u64 {
+    let want = per_slot_tokens.min(window_tokens.saturating_add(ubatch_size));
+    want.div_ceil(SLOT_CONTEXT_ALIGNMENT) * SLOT_CONTEXT_ALIGNMENT
+}
+
+/// Bytes the engine gives this row's PER-SLOT cache at a per-slot context of
+/// `per_slot_tokens`: the sliding-window pool replicated for one stream
+/// (`llama-kv-cache.cpp:88`: `n_stream = n_seq_max` when not unified), or the
+/// recurrent state, or nothing. [`SlotCache::None`] rows have one pool divided
+/// by the slot count and pay nothing extra (`docs/MULTI-DEVICE-SHAPE.md` §7).
+///
+/// The two variants are sized in the currency their tensor is made of: the
+/// window pool is q8_0/f16 cache elements, so [`KvCache::geometry_bytes`]
+/// gives the real block cost; the recurrent state is F32 whatever the cache
+/// knob says (`src/llama-model.cpp:2679-2680`), so it is already bytes.
+fn slot_cache_bytes(
+    model: &ModelEntry,
+    per_slot_tokens: u64,
+    kv_cache: KvCache,
+    ubatch_size: u64,
+) -> u64 {
+    match model.slot_cache {
+        SlotCache::None => 0,
+        SlotCache::SlidingWindow {
+            window_tokens,
+            width_per_cell,
+        } => {
+            let cells = sliding_window_cells(window_tokens, ubatch_size, per_slot_tokens);
+            kv_cache.geometry_bytes(width_per_cell.saturating_mul(cells))
+        }
+        SlotCache::Recurrent { bytes_per_slot } => bytes_per_slot,
+    }
+}
+
+/// What a context costs in KV cache, as the panel can price any length the
+/// owner types without doing the cache arithmetic itself. The two terms are
+/// the ones the engine actually charges: `bytes_per_token` is the
+/// context-wide pool's price under the chosen cache type, and `bytes_fixed`
+/// is every slot's own allocation — a sliding-window pool at its saturated
+/// size, or a recurrent state — summed over the slots.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContextPrice {
+    pub bytes_per_token: u64,
+    pub bytes_fixed: u64,
+}
+
+impl ContextPrice {
+    /// The cache the engine allocates for `context_tokens` (a TOTAL, the
+    /// meaning the panel's bounds carry). Exact at and above the window's
+    /// saturation, which is where every context the app offers sits; below
+    /// it the real pool is smaller, so the figure errs high — the safe
+    /// direction for a number shown before a choice is made.
+    pub fn at(self, context_tokens: u64) -> u64 {
+        self.bytes_per_token
+            .saturating_mul(context_tokens)
+            .saturating_add(self.bytes_fixed)
+    }
+}
+
+/// The price of a context for this row under `kv_cache`, with `slots` streams
+/// of `ubatch_size`. Built from the same two terms [`plan`]'s solve and
+/// report use — the per-token figure and [`slot_cache_bytes`] — so the panel's
+/// number is the launcher's arithmetic and not a second one. `None` for a row
+/// whose per-token figure is broken data, which [`plan`] refuses outright.
+pub fn context_price(
+    model: &ModelEntry,
+    kv_cache: KvCache,
+    ubatch_size: u64,
+    parallel: u32,
+) -> Option<ContextPrice> {
+    let per_token = match model.kv_bytes_per_token {
+        Some(0) => return None,
+        Some(per_token) => per_token,
+        None => ASSUMED_KV_BYTES_PER_TOKEN,
+    };
+    let slots = u64::from(parallel.max(1));
+    Some(ContextPrice {
+        bytes_per_token: per_token.saturating_mul(kv_cache.bytes_per_element()),
+        bytes_fixed: slot_cache_bytes(model, u64::MAX, kv_cache, ubatch_size).saturating_mul(slots),
+    })
+}
+
+/// The largest total context whose KV fits `kv_budget_bytes` across `slots`
+/// streams. The engine's explicit-`-np` shape is
+/// `kv_total = per_token * ctx + slots * per_slot_term(ctx / slots)`:
+/// the context-wide pool divides with the slot count, the sliding-window pool
+/// and the recurrent state do not (`src/llama-kv-cache-iswa.cpp:84,104-118`;
+/// `src/llama-kv-cache.cpp:88`). The money solve has two sides of one kink:
+///
+/// * **saturated** — pay `slots` saturated per-slot terms first, then buy the
+///   rest with the per-token figure. This is what "subtract N x the per-slot
+///   constant, then divide by N" means, and it is the whole story once
+///   `ctx / slots` reaches the pool's saturating size;
+/// * **growing** — below that size the window pool has NOT saturated, so
+///   every windowed layer holds the whole per-slot context and the per-token
+///   cost is the context-wide figure plus the windowed width. The saturated
+///   side priced cells the engine would not allocate.
+///
+/// The curve is continuous at the kink and the sides are the only two exact
+/// regimes, so the answer is the side the kink selects — never a blend. A
+/// hybrid (recurrent) row has no growing side: its per-slot term is constant
+/// from the first token.
+fn funded_cache_tokens(
+    model: &ModelEntry,
+    kv_budget_bytes: u64,
+    per_token: u64,
+    slots: u64,
+    kv_cache: KvCache,
+    ubatch_size: u64,
+) -> Option<u64> {
+    debug_assert!(per_token > 0);
+    let per_slot_constant = slot_cache_bytes(model, u64::MAX, kv_cache, ubatch_size);
+    let after_constant = kv_budget_bytes.checked_sub(per_slot_constant.checked_mul(slots)?)?;
+    let saturated = after_constant / per_token;
+    if let SlotCache::SlidingWindow {
+        window_tokens,
+        width_per_cell,
+    } = model.slot_cache
+    {
+        let saturating_cells = sliding_window_cells(window_tokens, ubatch_size, u64::MAX);
+        if saturated < slots.saturating_mul(saturating_cells) {
+            let growing_per_token =
+                per_token.saturating_add(kv_cache.geometry_bytes(width_per_cell));
+            // The window cell count is the per-slot context itself, so the
+            // solve is exact only on the engine's own 256 grid; a total off
+            // the grid would hand the engine padding cells the budget never
+            // paid for.
+            let raw = kv_budget_bytes / growing_per_token;
+            return Some(raw - raw % (SLOT_CONTEXT_ALIGNMENT.saturating_mul(slots)));
+        }
+    }
+    Some(saturated)
 }
 
 /// Is this row's trained context a header we could not read? `None` on the
@@ -306,7 +503,13 @@ fn offload(input: &LaunchInput) -> Offload {
 mod menu;
 
 #[cfg(test)]
+mod slot_cache;
+
+#[cfg(test)]
 mod slots;
+
+#[cfg(test)]
+mod solve;
 
 #[cfg(test)]
 mod tests {
@@ -347,6 +550,7 @@ mod tests {
             weights_bytes,
             mmproj_bytes: None,
             kv_bytes_per_token: Some(0),
+            slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
             measured_decode: None,
             // The fixture's limit is the memory's, so the trained cap never binds.
@@ -400,20 +604,26 @@ mod tests {
         // Granite 4 Tiny (4_230_976_352 bytes) on an 8 GiB CPU machine:
         // 5 GiB usable, minus the weights and 512 MiB of compute buffers,
         // leaves 600_861_856 bytes. The sleeping-chat reserve takes a
-        // quarter — 150_215_464 bytes — and the context funds the rest:
-        // 450_646_392 bytes at 96 KiB/token = 4584 whole tokens. The
-        // machine could fund a 4585th; the reserve is what stops it, and
-        // that boundary is what the last assertions pin.
+        // quarter — 150_215_464 bytes — and the row's own per-slot state
+        // (58_060_800 bytes of recurrent R+S, charged before a single token)
+        // comes out next: 392_585_592 bytes at 96 KiB/token = 3993 whole
+        // tokens. The machine could fund a 3994th; the reserve PLUS the state
+        // is what stops it, and that boundary is what the last assertions
+        // pin. `fits` prices only the flat per-token cache, so it cannot show
+        // this boundary; it is left as a weak sanity check only.
         let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 8 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 4584);
+        assert_eq!(launched.args.context_tokens, 3_993);
         assert!(fits(model, launched.args.context_tokens, &budget));
-        assert!(
-            fits(model, launched.args.context_tokens + 1, &budget),
-            "the machine could fund one more token: the reserve is what stops it"
+        let state = slot_cache_bytes(
+            model,
+            launched.args.context_tokens,
+            KvCache::Q8_0,
+            u64::from(crate::args::UBATCH),
         );
+        assert_eq!(state, 58_060_800, "Granite's recurrent state, per slot");
         let leftover = budget.usable_bytes
             - model
                 .weights_bytes
@@ -421,20 +631,24 @@ mod tests {
                 .saturating_add(COMPUTE_BUFFER_BYTES);
         let roof = leftover / PROMPT_CACHE_ROOF_SHARE;
         assert!(
-            roof + (launched.args.context_tokens + 1) * ASSUMED_KV_BYTES_PER_TOKEN > leftover,
+            roof + state + (launched.args.context_tokens + 1) * ASSUMED_KV_BYTES_PER_TOKEN
+                > leftover,
             "one more token would be taken from the sleeping chats' reserve"
         );
         assert!(
-            roof + launched.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN <= leftover,
+            roof + state + launched.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN <= leftover,
             "the funded context never reaches into the reserve"
         );
-        assert_eq!(launched.memory.kv_cache_bytes, 4584 * 96 * KIB);
+        assert_eq!(launched.memory.kv_cache_bytes, 3_993 * 96 * KIB + state);
         assert!(
             launched.memory.kv_per_token_assumed,
-            "no shipped row carries a measured KV figure"
+            "Granite still prices its context on the assumption"
         );
         // The roof the plan carries is the reserve, in whole MiB.
-        assert_eq!(launched.args.cache_ram_mib, (leftover / PROMPT_CACHE_ROOF_SHARE) / MIB);
+        assert_eq!(
+            launched.args.cache_ram_mib,
+            (leftover / PROMPT_CACHE_ROOF_SHARE) / MIB
+        );
     }
 
     #[test]
@@ -619,8 +833,11 @@ mod tests {
                 };
                 let line = launched.args.argv().join(" ");
                 let roof_mib = cache_ram_mib(&line);
-                let footprint = footprint_bytes(model, launched.args.context_tokens);
-                let reserved = footprint.total_bytes() + roof_mib * MIB;
+                // The plan's own total, not `footprint_bytes`: the latter is
+                // the flat per-token product and would leave a sliding-window
+                // row's per-slot replication out of the reservation it is
+                // checking.
+                let reserved = launched.memory.total_bytes + roof_mib * MIB;
                 assert!(
                     reserved <= budget.usable_bytes,
                     "{} on {gib} GiB: context {} tokens, roof {roof_mib} MiB, \
@@ -679,10 +896,12 @@ mod tests {
     /// the cache type stopped reaching the arithmetic, both plans would
     /// carry the same context and this goes RED.
     ///
-    /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 4584
+    /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 3993
     /// tokens at q8_0, four orders of magnitude below its 1_048_576-token
     /// trained cap, so the cap does not bind and the halving is visible. At
-    /// f16 the same leftover buys 2292, which is `4584 / 2`.
+    /// f16 the same leftover buys 1996, which is `3993 / 2`. The row's F32
+    /// per-slot state is charged first and does NOT double with the cache
+    /// type, so the equality is the floored one the assertion states.
     #[test]
     fn the_cache_type_halves_the_context_the_budget_funds() {
         let model = shipped_row(GRANITE);
@@ -696,8 +915,8 @@ mod tests {
         .expect("the model is fundable");
         assert_eq!(q8_0.args.kv_cache, KvCache::Q8_0);
         assert_eq!(f16.args.kv_cache, KvCache::F16);
-        assert_eq!(q8_0.args.context_tokens, 4584);
-        assert_eq!(f16.args.context_tokens, 2292);
+        assert_eq!(q8_0.args.context_tokens, 3_993);
+        assert_eq!(f16.args.context_tokens, 1_996);
         assert_eq!(
             f16.args.context_tokens,
             q8_0.args.context_tokens / 2,
@@ -713,19 +932,22 @@ mod tests {
     ///
     /// Granite 4 Tiny on 64 GiB of CPU: at q8_0 the two-long-chats term binds
     /// (6144 MiB); at f16 the same two chats are priced twice and the
-    /// quarter-of-the-leftover rule caps them (11_151 MiB). The context, carved
-    /// after the roof, drops from the unscaled 205_125 tokens to 178_420.
+    /// quarter-of-the-leftover rule caps them (11_151 MiB). The context the
+    /// budget funds, carved after the roof and after the row's 55.371 MiB
+    /// per-slot recurrent state, drops from 409_660 tokens to 178_124. Both
+    /// automatic contexts are the 65 536 chat default, so the
+    /// roof's effect is read from the FUNDED MAXIMA, where it still decides.
     #[test]
     fn the_prompt_cache_roof_keeps_its_two_chat_promise_at_f16() {
         let model = shipped_row(GRANITE);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
-        let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
-            .expect("the model is fundable");
-        let f16 = plan(&LaunchInput {
+        let q8_0_input = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
+        let f16_input = LaunchInput {
             kv_cache: KvCache::F16,
             ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
-        })
-        .expect("the model is fundable");
+        };
+        let q8_0 = plan(&q8_0_input).expect("the model is fundable");
+        let f16 = plan(&f16_input).expect("the model is fundable");
 
         assert_eq!(q8_0.args.cache_ram_mib, 6144);
         assert!(
@@ -734,11 +956,15 @@ mod tests {
             f16.args.cache_ram_mib,
             q8_0.args.cache_ram_mib,
         );
-        assert_eq!(q8_0.args.context_tokens, 410_250);
-        assert_eq!(f16.args.context_tokens, 178_420);
+        assert_eq!(q8_0.args.context_tokens, DEFAULT_CONTEXT_TOKENS);
+        assert_eq!(f16.args.context_tokens, DEFAULT_CONTEXT_TOKENS);
+        let q8_0_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
+        let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
+        assert_eq!(q8_0_funded, 409_660);
+        assert_eq!(f16_funded, 178_124);
         assert!(
-            f16.args.context_tokens < q8_0.args.context_tokens / 2,
-            "the bigger roof must make the f16 context smaller than half the q8_0 one"
+            f16_funded < q8_0_funded / 2,
+            "the bigger roof must make the f16 funded maximum smaller than half the q8_0 one"
         );
     }
 
@@ -758,14 +984,24 @@ mod tests {
         })
         .expect("the model is fundable");
 
+        let state = slot_cache_bytes(
+            model,
+            f16.memory.context_tokens,
+            KvCache::F16,
+            u64::from(crate::args::UBATCH),
+        );
+        assert_eq!(
+            state, 58_060_800,
+            "the recurrent state is F32: the cache type does not scale it"
+        );
         assert_eq!(
             q8_0.memory.kv_cache_bytes,
-            q8_0.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN
+            q8_0.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN + state
         );
         assert_eq!(
             f16.memory.kv_cache_bytes,
-            f16.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN * 2,
-            "the f16 cache cost must be the doubled per-token figure"
+            f16.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN * 2 + state,
+            "the f16 per-token half doubles; the F32 per-slot state does not"
         );
         assert_eq!(
             f16.memory.total_bytes,
@@ -777,6 +1013,38 @@ mod tests {
         );
     }
     
+    /// The panel's price is the launcher's own two terms — the per-token
+    /// figure the solve uses and the per-slot term at its saturated size — so
+    /// it must equal the plan's report at the context the plan carries, for a
+    /// recurrent row and for a sliding-window one alike. If it drifted, the
+    /// number beside the control would be a second arithmetic.
+    #[test]
+    fn the_panels_price_is_the_launchers_own_kv_arithmetic() {
+        for name in ["Alibaba Qwen 3.6", "Arcee Trinity Nano", GRANITE] {
+            let model = shipped_row(name);
+            let budget = memory_budget(Backend::Metal, 64 * GIB);
+            let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+                .unwrap_or_else(|| panic!("{name} must be fundable here"));
+            let price = context_price(
+                model,
+                KvCache::Q8_0,
+                u64::from(crate::args::UBATCH),
+                crate::args::DEFAULT_PARALLEL,
+            )
+            .unwrap_or_else(|| panic!("{name} must have a price"));
+            assert_eq!(
+                price.at(launched.args.context_tokens),
+                launched.memory.kv_cache_bytes,
+                "{name}: the panel's number must be the launcher's own report"
+            );
+            // And the broken row the plan refuses has no price to show.
+        }
+        assert_eq!(
+            context_price(&broken_row(4 * GIB), KvCache::Q8_0, 512, 1),
+            None
+        );
+    }
+
     #[test]
     fn the_server_stays_on_loopback_and_goes_cold_when_idle() {
         let model = shipped_row(GRANITE);

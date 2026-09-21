@@ -98,6 +98,16 @@ pub(crate) fn decide_in(
     let Some(platform) = platform else {
         return Err(DecideError::NoBuildForThisMachine);
     };
+    // What we publish decides before anything else. A machine we identify
+    // but publish no engine for — an Intel Mac today — is refused here, in
+    // words, before a probe model is fetched, a directory created or a build
+    // attempted. Without this the walk reaches the store with an empty asset
+    // set and reports "no build works" for a build that was never offered,
+    // after downloading the probe model to say it.
+    let candidates = candidates_for(Some(platform), detected);
+    if candidates.is_empty() {
+        return Err(DecideError::NoBuildForThisMachine);
+    }
     // A probe child left behind by a force-quit holds a port and a model we
     // will not reuse; the state file's inherited lock is what makes it ours
     // to kill. Done before anything else, so the machine starts clean.
@@ -122,7 +132,7 @@ pub(crate) fn decide_in(
     let params = ProbeParams::for_port(port);
 
     let mut attempts = Vec::new();
-    for backend in candidates_for(Some(platform), detected) {
+    for backend in candidates {
         let exe = match store::ensure_backend(root, platform, backend, progress) {
             Ok(exe) => exe,
             Err(e) => {
@@ -210,6 +220,24 @@ mod tests {
     }
 
     #[test]
+    fn an_intel_mac_is_refused_before_anything_is_fetched_or_touched() {
+        // The refusal comes before the probe model download and before any
+        // build is attempted: an Intel Mac is not a machine whose build
+        // failed, it is a machine we publish nothing for, and the difference
+        // is the sentence the user reads.
+        let root = scratch("intel-mac");
+        let err = decide_in(&root, Some(Platform::MacX64), Backend::Metal, &OsLaunch, &mut |_| {})
+            .expect_err("no engine is published for an Intel Mac");
+        assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
+        assert_eq!(
+            std::fs::read_dir(&root).expect("root").count(),
+            0,
+            "the refusal must not download the probe model or stage a build"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn a_verdict_that_still_describes_this_machine_skips_the_probe() {
         // The most expensive failure this crate can have is re-probing on
         // every launch: a machine that already knows its answer would
@@ -239,6 +267,11 @@ mod tests {
             .iter()
             .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))
             .collect();
+        let Some(expected) = assets.iter().find_map(|asset| asset.exe_sha256) else {
+            eprintln!("skipping: the table names no executable for this platform");
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        };
         let exe = root
             .join("builds")
             .join(backend.name())
@@ -246,6 +279,19 @@ mod tests {
         std::fs::create_dir_all(exe.parent().expect("parent")).expect("mkdirs");
         std::fs::write(&exe, server_bytes).expect("exe");
         let exe_sha = marker::sha256_file(&exe).expect("hash");
+        // A build of a DIFFERENT release is the one thing this fixture must
+        // not accept: the store refuses it and would replace it, so a
+        // short-circuit test over it would pin a behaviour no machine has.
+        // The bytes on disk come from whatever the app last installed, which
+        // is an older engine until the pinned one has been downloaded.
+        if !exe_sha.eq_ignore_ascii_case(expected) {
+            eprintln!(
+                "skipping: the build on this machine is not the release the table pins \
+                 ({exe_sha} is not {expected}); a previous release is on disk"
+            );
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        }
         marker::write(exe.parent().expect("parent"), &runtime, &exe_sha).expect("marker");
         verdict::save(
             &root,

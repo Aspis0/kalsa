@@ -66,7 +66,7 @@ type Speed = ModelOption["speed"];
 const GIB = 1024 ** 3;
 const MIB = 1024 ** 2;
 
-function bytesText(bytes: number): string {
+export function bytesText(bytes: number): string {
   if (bytes < GIB) return `${Math.round(bytes / MIB)} MiB`;
   const value = bytes / GIB;
   return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} GiB`;

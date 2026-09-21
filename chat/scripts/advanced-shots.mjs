@@ -42,6 +42,12 @@ const BASE = {
   context_tokens: null,
   context_max: null,
   context_max_f16: null,
+  context_automatic: null,
+  context_automatic_f16: null,
+  kv_bytes_per_token: null,
+  kv_bytes_per_token_f16: null,
+  kv_bytes_fixed: null,
+  kv_bytes_fixed_f16: null,
   context_override: null,
   idle_unload_seconds: 300,
   idle_override: null,
@@ -72,6 +78,15 @@ const RUNNING_Q8 = {
   context_tokens: 65315,
   context_max: 65315,
   context_max_f16: 32657,
+  // The launcher's automatic pick under each cache — the chat default capped
+  // by the machine's maximum — and its own two KV terms, so the help line can
+  // name the figure and price it.
+  context_automatic: 65315,
+  context_automatic_f16: 32657,
+  kv_bytes_per_token: 40960,
+  kv_bytes_per_token_f16: 81920,
+  kv_bytes_fixed: 65863680,
+  kv_bytes_fixed_f16: 65863680,
 };
 // f16 chosen for the next start while q8_0 is still in force: the same maxima
 // as above, and the context the server happens to run at (32657 — below the
@@ -114,7 +129,7 @@ const STATES = [
     showAdvanced: true,
     scrollTo: ".advanced-panel",
     marker: "In force: context 65315",
-    require: ["Automatic is up to 65315."],
+    require: ["Automatic is 63.8k (65315 tokens). Up to 63.8k on this computer."],
   },
   {
     name: "advanced-f16-chosen",
@@ -127,7 +142,7 @@ const STATES = [
     // context (stable across the mutation), so a wrong help line lands in the
     // problems list and writes a FAILED png instead of timing out the wait.
     marker: "In force: context 32657",
-    require: ["Automatic is up to 32657."],
+    require: ["Automatic is 31.9k (32657 tokens). Up to 31.9k on this computer."],
     forbid: ["65315"],
   },
   {

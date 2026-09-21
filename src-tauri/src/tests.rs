@@ -78,7 +78,11 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     // an unreliable one never replaces the reliable one already kept.
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
-    settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)));
+    let second = settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)));
+    assert!(
+        second.is_err(),
+        "an unreliable reading does not turn the refusal into a success"
+    );
     let stored = brain.measurement.lock().expect("lock");
     assert!(
         stored.as_ref().is_some_and(|kept| kept.is_reliable()),
@@ -144,6 +148,11 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
                 q8_0: Some(8192),
                 f16: Some(4096),
             },
+            automatic_context: startup::ContextMaxima {
+                q8_0: Some(8192),
+                f16: Some(4096),
+            },
+            context_prices: Default::default(),
             display_name: Some("IBM Granite 4 Tiny".to_string()),
             reason: Some("It is the more capable of the two.".to_string()),
         },
@@ -266,6 +275,11 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
                 q8_0: Some(8192),
                 f16: Some(4096),
             },
+            automatic_context: startup::ContextMaxima {
+                q8_0: Some(8192),
+                f16: Some(4096),
+            },
+            context_prices: Default::default(),
             display_name: None,
             reason: None,
         });
@@ -288,6 +302,11 @@ fn a_refused_start_never_publishes_its_record() {
             q8_0: Some(8192),
             f16: Some(4096),
         },
+        automatic_context: startup::ContextMaxima {
+            q8_0: Some(8192),
+            f16: Some(4096),
+        },
+        context_prices: Default::default(),
         display_name: None,
         reason: None,
     };
@@ -297,6 +316,11 @@ fn a_refused_start_never_publishes_its_record() {
             q8_0: Some(4096),
             f16: Some(2048),
         },
+        automatic_context: startup::ContextMaxima {
+            q8_0: Some(4096),
+            f16: Some(2048),
+        },
+        context_prices: Default::default(),
         display_name: None,
         reason: None,
     };
@@ -914,4 +938,28 @@ fn a_stopped_panel_reports_the_saved_launch_values_as_next_start() {
     assert_eq!(panel.batch_automatic, 2048);
     assert_eq!(panel.batch_size, 2048, "no batch override, so automatic");
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn an_engine_that_cannot_isolate_is_given_one_device_not_a_refusal() {
+    // The declaration is read from the mounted engine's bytes, so on a
+    // machine whose engine ignores `X-Kalsa-Slot` the honest answer is one
+    // device. The door used to enforce that by refusing to build at all,
+    // which turns "this engine cannot isolate" into "the app has no door":
+    // on Windows, whose engine row is still upstream, that would fail every
+    // poll once `--parallel` is ever raised above one. Clamping keeps the
+    // machine usable with the one device it can honour.
+    assert_eq!(
+        door_capacity(4, kalsa_door::EnginePrivateHeaders::NotConsumed),
+        1
+    );
+    assert_eq!(
+        door_capacity(1, kalsa_door::EnginePrivateHeaders::NotConsumed),
+        1
+    );
+    assert_eq!(
+        door_capacity(4, kalsa_door::EnginePrivateHeaders::Consumed),
+        4,
+        "an engine that reads the inlet keeps the capacity it was asked for"
+    );
 }

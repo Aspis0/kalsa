@@ -9,7 +9,35 @@ use std::io;
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::{Path, PathBuf};
 
+use kalsa_door::EnginePrivateHeaders;
+use kalsa_runtime::engine_consumes_private_headers;
+
 const DEFAULT_PORT: u16 = 8131;
+
+/// The door's declaration for the engine mounted at `exe`, read from the
+/// bytes on disk rather than declared for the life of this binary.
+///
+/// A capability check, not a version check: the version is the archive's
+/// sha256 in `kalsa-runtime`'s asset table, and an archive can gain or lose
+/// the inlet without that changing. The engine is a download, so a constant
+/// claiming it consumes the door's headers would be a claim about bytes
+/// nobody had fetched. On Intel Macs, on upstream archives and on any future
+/// archive that drops the inlet, the honest answer is `NotConsumed` and the
+/// door serves exactly one device.
+pub(crate) fn engine_declaration(exe: &Path) -> EnginePrivateHeaders {
+    if engine_consumes_private_headers(exe) {
+        return EnginePrivateHeaders::Consumed;
+    }
+    // Loud on purpose: a silent downgrade to one device reads as a bug in
+    // the door, and this line is the only trace of what the engine actually
+    // was.
+    eprintln!(
+        "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; \
+         the door will serve one device",
+        exe.display()
+    );
+    EnginePrivateHeaders::NotConsumed
+}
 
 pub(crate) fn bind(pairing_file: &Path) -> io::Result<TcpListener> {
     let preferred = preferred_port(pairing_file)?;
@@ -44,10 +72,10 @@ fn port_file(pairing_file: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{bind, port_file};
+    use super::{bind, engine_declaration, port_file, EnginePrivateHeaders};
     use std::fs;
     use std::net::{Ipv4Addr, TcpListener};
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn scratch(name: &str) -> PathBuf {
         let directory = std::env::temp_dir().join(format!(
@@ -57,6 +85,55 @@ mod tests {
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
         directory.join("pairing.json")
+    }
+
+    /// A directory holding a launcher, and optionally the module file the
+    /// inlet lives in. Returns the launcher's path.
+    fn engine(name: &str, module: Option<&[u8]>) -> PathBuf {
+        let directory = std::env::temp_dir().join(format!(
+            "kalsa-brain-engine-{}-{name}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory).unwrap();
+        let exe = directory.join("kalsa-server");
+        fs::write(&exe, b"a thin launcher").unwrap();
+        if let Some(bytes) = module {
+            fs::write(directory.join(kalsa_runtime::ENGINE_MODULE_FILE), bytes).unwrap();
+        }
+        exe
+    }
+
+    fn clean(exe: &Path) {
+        if let Some(directory) = exe.parent() {
+            let _ = fs::remove_dir_all(directory);
+        }
+    }
+
+    #[test]
+    fn the_declaration_is_read_from_the_mounted_bytes_not_declared_for_this_binary() {
+        // No module beside the launcher at all: an upstream archive, a
+        // Windows archive, an Intel machine. Nothing may claim a capability
+        // the bytes do not carry.
+        let exe = engine("no-module", None);
+        assert_eq!(engine_declaration(&exe), EnginePrivateHeaders::NotConsumed);
+        clean(&exe);
+
+        // A module that carries no inlet is the same answer.
+        let exe = engine("no-inlet", Some(b"a module that never heard of the door"));
+        assert_eq!(engine_declaration(&exe), EnginePrivateHeaders::NotConsumed);
+        clean(&exe);
+
+        // The capitalised spelling is not the inlet: the engine lowercases
+        // the header name before matching.
+        let exe = engine("capitalised", Some(b"a module naming X-Kalsa-Slot only"));
+        assert_eq!(engine_declaration(&exe), EnginePrivateHeaders::NotConsumed);
+        clean(&exe);
+
+        // Only the lowercase literal earns the declaration.
+        let exe = engine("inlet", Some(b"a module carrying x-kalsa-slot inside"));
+        assert_eq!(engine_declaration(&exe), EnginePrivateHeaders::Consumed);
+        clean(&exe);
     }
 
     #[test]

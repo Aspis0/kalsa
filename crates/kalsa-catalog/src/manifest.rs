@@ -116,6 +116,43 @@ const fn gigabytes(whole: u64, centi: u64) -> u64 {
     whole * GIB + GIB * centi / 100
 }
 
+/// What the engine allocates PER SLOT, over and above the context-wide pool.
+///
+/// With an explicit `-np N` the context-wide pool divides by the slot count,
+/// but these do not: a sliding-window pool is replicated once per stream
+/// (`src/llama-kv-cache-iswa.cpp:84,104-118` sizes it at `min(ctx/N, n_swa +
+/// ubatch)` cells and `src/llama-kv-cache.cpp:88` sets `n_stream = n_seq_max`
+/// for the 3-D `[dims, cells, n_stream]` tensors), and a recurrent state is
+/// one row per sequence (the hybrid constructors feed
+/// `recurrent_kv_size = max(1, n_seq_max)` — `src/llama-model.cpp:2681` — and
+/// `src/llama-memory-recurrent.cpp:101` allocates `mem_size * (1 + n_rs_seq)`
+/// rows). A per-token figure alone therefore
+/// under-counts the machine at more than one slot by the whole replication —
+/// measured `docs/MULTI-DEVICE-SHAPE.md` §7: 55.78 MiB at `np=1` against
+/// 223.12 MiB at `np=4` for the same 16384-token context.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotCache {
+    /// One context-wide pool; nothing replicates with the slot count.
+    None,
+    /// A sliding-window pool, sized per stream to
+    /// `PAD(min(ctx/N, window_tokens + ubatch), 256)` cells, each holding
+    /// `width_per_cell` K+V elements.
+    SlidingWindow {
+        /// `<arch>.attention.sliding_window` (`n_swa`), in tokens.
+        window_tokens: u64,
+        /// Summed K+V element width of this architecture's sliding-window
+        /// layers, per cell.
+        width_per_cell: u64,
+    },
+    /// A recurrent state that does not grow with the context at all: the
+    /// engine's F32 R+S tensors, one row per sequence.
+    Recurrent {
+        /// Bytes per slot, from the header's `ssm.*` keys and the recurrent
+        /// layer count.
+        bytes_per_slot: u64,
+    },
+}
+
 /// A researched row: everything a decision needs except a way to fetch it.
 /// There is deliberately no `source` field here — a row with an identified
 /// file is a [`DownloadableEntry`], and the types do not mix.
@@ -140,6 +177,12 @@ pub struct ModelEntry {
     /// Measured per the plan. None until it is measured: the chooser then says
     /// out loud that it assumed a figure.
     pub kv_bytes_per_token: Option<u64>,
+    /// What the engine allocates PER SLOT, over and above the context-wide
+    /// pool the per-token figure prices. [`SlotCache::None`] on a row whose
+    /// cache is one pool divided by the slot count; the plan pays this
+    /// before it sizes the context, so a row that copies at load time is not
+    /// funded as if it did not.
+    pub slot_cache: SlotCache,
     /// The publisher's own same-recipe dense comparison, where one exists.
     /// None on every row to which it does not apply.
     pub dense_equivalent: Option<DenseEquivalent>,
@@ -273,6 +316,13 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(3, 22),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        // Same `gemma4` family as E4B, so its cache is a sliding-window pool
+        // with a shared-KV pattern too — but this row has no pinned file, so
+        // there is no header to read `sliding_window`, the pattern or
+        // `shared_kv_layers` from. A guessed geometry is how a wrong
+        // allocation gets funded, so it stays `None`; the menu's "priced"
+        // claims are scoped to the pinned download rows for exactly this row.
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -291,6 +341,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(2, 81),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -307,6 +358,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(4, 84),
         mmproj_bytes: Some(gigabytes(0, 86)),
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -330,6 +382,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(19, 93),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -353,6 +406,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(9, 75),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -369,6 +423,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(11, 60),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -385,6 +440,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(17, 30),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        slot_cache: SlotCache::None,
         dense_equivalent: None,
         kv_assumption_undercounts: false,
         measured_decode: None,
@@ -435,6 +491,19 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 4_588_301_888,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            // `lfm2moe` is a hybrid: `head_count_kv` is an array with six
+            // non-zero entries (layers 2, 6, 10, 14, 18, 21), so 18 of the 24
+            // blocks are shortconv-recurrent (`lfm2moe.cpp:13` marks a layer
+            // recurrent when `n_head_kv == 0`; confirmed on THIS pinned
+            // file's header). The cached state is the conv history only:
+            // `n_embd_r() = n_embd x (l_cache - 1)` (`llama-hparams.cpp:216`),
+            // read as `embedding_length 2048` and `shortconv.l_cache 3`, and
+            // there is no S state (no `ssm.*` keys, so `n_embd_s()` is 0).
+            // F32 and one row per sequence (`llama-model.cpp:2681`):
+            // 18 x 4_096 x 4 = 294_912 B = 0.28 MiB per slot.
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 294_912,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -460,6 +529,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 4_616_170_016,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             // Microsoft's model card runs the same lm-evaluation-harness table for
             // this row and the dense Phi-3 models of the same lab: the published
             // place to put it is near Phi-3 mini, clearly below Phi-3 small.
@@ -493,6 +563,21 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 4_230_976_352,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            // `granitehybrid`, not a plain transformer: `head_count_kv` is an
+            // array whose four non-zero entries are layers 5, 15, 25, 35 of
+            // 40 (read from THIS pinned file's header on 2026-09-21), so 36
+            // blocks are Mamba-style recurrent (`granite-hybrid.cpp:24` marks
+            // a layer recurrent when `n_head_kv == 0`). Per recurrent layer
+            // the cached state is R+S = (conv_kernel - 1) x (inner + 2 x
+            // group x state) + state x inner (`llama-hparams.cpp:229,257`),
+            // header values `ssm.conv_kernel 4`, `ssm.inner_size 3072`,
+            // `ssm.group_count 1`, `ssm.state_size 128` — 3 x 3328 + 393_216
+            // = 403_200 F32 elements. One row per sequence
+            // (`llama-model.cpp:2681`): 36 x 403_200 x 4 = 58_060_800 B =
+            // 55.371 MiB per slot at every context.
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 58_060_800,
+            },
             // IBM's own documentation compares this row to their dense Granite
             // 4.0 H-Micro, trained on the same recipe — the strongest evidence
             // that exists for a MoE's class, and it exists only for this row.
@@ -530,6 +615,21 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 3_786_957_088,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            // Header, read from THIS pinned file on 2026-09-21:
+            // `afmoe.block_count 56`, `afmoe.attention.head_count_kv 2`,
+            // `afmoe.attention.key_length 128`,
+            // `afmoe.attention.value_length 128`,
+            // `afmoe.attention.sliding_window 2048`. The 42 sliding-window
+            // layers are NOT a header key: `afmoe.cpp` defaults
+            // `swa_period = 4` and `llama-hparams.cpp:15` marks
+            // `il % 4 < 3` windowed, so 42 of 56. Per cell:
+            // 42 x 2 x (128 + 128) = 21_504 K+V elements — the engine's own
+            // "42 layers" SWA pool: 55.78 MiB at 2560 cells, q8_0
+            // (`docs/MULTI-DEVICE-SHAPE.md` §7, A np=1).
+            slot_cache: SlotCache::SlidingWindow {
+                window_tokens: 2048,
+                width_per_cell: 21_504,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             // Measured tonight, 2026-09-14, on the machine this catalog is
@@ -570,6 +670,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 9_911_575_904,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             // Nothing published settles this row against a same-recipe dense
             // model: None is the honest value, and the chooser treats it as
             // expected-but-unmeasured, never as claimed capability.
@@ -602,6 +703,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 10_537_205_632,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -664,6 +766,18 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // out loud: "it over-counts, so it is safe" was true of the
             // growing half and silent about the other one.
             kv_bytes_per_token: None,
+            // The windowed pool this arithmetic prices, from the header read
+            // recorded in the comment above: 25 windowed layers x 8 KV heads
+            // x (256 + 256) = 102_400 K+V elements per cell, window 1024.
+            // The engine sizes it at `PAD(1024 + ubatch, 256)` = 1536 cells
+            // once the context saturates it, which at the real q8_0 block
+            // cost (34/32) is 159.4 MiB per slot — the fixed half the comment
+            // above estimates at 100 MiB using the window only (1024 cells)
+            // and one byte per element.
+            slot_cache: SlotCache::SlidingWindow {
+                window_tokens: 1024,
+                width_per_cell: 102_400,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -704,6 +818,27 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 4_977_171_584,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            // A FOURTH sliding-window row, and the one the header alone gets
+            // wrong. Header (`unsloth/gemma-4-E4B-it-GGUF@bfc15c38`, read
+            // 2026-09-21): `gemma4.block_count 42`,
+            // `sliding_window_pattern` five windowed then one full (35
+            // windowed, 7 full), `head_count_kv 2`, `key_length_swa 256`,
+            // `value_length_swa 256`, `sliding_window 512`. But it also
+            // carries `shared_kv_layers 18`, and `gemma4.cpp:10` sets
+            // `n_layer_kv_from_start = 42 - 18 = 24`: only layers 0..23 hold
+            // their own KV (`llama-kv-cache.cpp:189` skips the rest), which
+            // is 20 windowed and 4 full. MEASURED on the v1.1.0 engine, THIS
+            // pinned file, ctx 16384, ubatch 512, q8_0, `--parallel 1`:
+            // "creating SWA KV cache, size = 1024 cells" and
+            // "size = 21.25 MiB (1024 cells, 20 layers, 1/1 seqs)" — twenty
+            // layers, not thirty-five. Per cell: 20 x 2 x (256 + 256) =
+            // 20_480 K+V elements; the saturated pool is
+            // PAD(512 + 512, 256) = 1024 cells. The un-shared 35-layer figure
+            // (37.19 MiB) would over-charge this row by 75%.
+            slot_cache: SlotCache::SlidingWindow {
+                window_tokens: 512,
+                width_per_cell: 20_480,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -744,6 +879,31 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // traffic: the owner measures 25-30 tok/s at 150k context where
             // the constant predicts 10.4.
             kv_bytes_per_token: Some(40_960),
+            // The engine also allocates a recurrent state PER SLOT, which no
+            // per-token figure can carry. Read from THIS pinned file's header
+            // on 2026-09-21: `qwen35moe.ssm.conv_kernel 4`,
+            // `ssm.inner_size 4096`, `ssm.group_count 16`,
+            // `ssm.state_size 128`, `full_attention_interval 4`. The
+            // interval makes every fourth of the 40 blocks an attention
+            // layer, so 30 are gated-delta-net (`qwen35moe.cpp:21-29`), each
+            // with R+S = (conv_kernel - 1) x (inner + 2 x group x state) +
+            // state x inner = 24_576 + 524_288 F32 elements
+            // (`llama-hparams.cpp:229,257`). One row per sequence
+            // (`llama-model.cpp:2681` feeds `max(1, n_seq_max)` rows):
+            // 30 x 548_864 x 4 = 65_863_680 bytes = 62.8 MiB per slot at
+            // every context.
+            //
+            // LEFT UNCORRECTED, said out loud: `kv_bytes_per_token` above
+            // still bills all 40 layers as attention KV where only the 10
+            // attention layers hold a context (10 x 2 x (256 + 256) =
+            // 10_240), a 4x over-count of the attention half. That figure is
+            // also this row's measured decode-traffic calibration (25-30
+            // tok/s at 150k context), so re-deriving it belongs with a fresh
+            // measurement, not with this change. The over-count errs safe for
+            // memory; the state term is added because it was missing entirely.
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 65_863_680,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -769,6 +929,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             weights_bytes: 48_410_988_384,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            slot_cache: SlotCache::None,
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
@@ -811,6 +972,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // the launcher pins. The under-count flag stays true as the
             // record of why a measurement was required.
             kv_bytes_per_token: Some(163_840),
+            slot_cache: SlotCache::None,
             dense_equivalent: None,
             kv_assumption_undercounts: true,
             measured_decode: None,
@@ -860,6 +1022,19 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // false. "At the contexts the chooser funds (>= 4096)" was the
             // wrong reason: the chooser funds none of them.
             kv_bytes_per_token: None,
+            // The windowed pool this arithmetic prices, from THIS pinned
+            // file's header (read 2026-09-21): `gemma4.block_count 48`,
+            // `gemma4.attention.sliding_window_pattern` five windowed then
+            // one full (40 windowed, 8 full), `head_count_kv 8` on the
+            // windowed layers, `key_length_swa 256` / `value_length_swa 256`,
+            // `sliding_window 1024` — 40 x 8 x (256 + 256) = 163_840 K+V
+            // elements per cell. The engine's 1536-cell saturated pool at
+            // the real q8_0 block cost is 255 MiB, which is the fixed half
+            // of the measured "136+255 MiB at 16384" above.
+            slot_cache: SlotCache::SlidingWindow {
+                window_tokens: 1024,
+                width_per_cell: 163_840,
+            },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: Some(MeasuredDecode {

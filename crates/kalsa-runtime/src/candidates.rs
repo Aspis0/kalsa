@@ -26,7 +26,12 @@ pub fn candidates_for(platform: Option<Platform>, detected: Backend) -> Vec<Serv
     match platform {
         // One macOS archive carries Metal and CPU together; there is nothing
         // to choose, whatever detection said.
-        Some(Platform::MacArm64) | Some(Platform::MacX64) => vec![ServerBackend::Metal],
+        Some(Platform::MacArm64) => vec![ServerBackend::Metal],
+        // An Intel Mac has no engine row, so it has no candidate: the fork
+        // publishes no x64 archive and upstream's x64 build ignores the
+        // door's cache inlet. Reported, not improvised — see the asset
+        // table's comment. Intel support is a deliberate future decision.
+        Some(Platform::MacX64) => Vec::new(),
         Some(Platform::WindowsX64) => match detected {
             // No discrete GPU: CPU, full stop. Vulkan would only find the
             // same system RAM through a slower, heavier door.
@@ -68,10 +73,37 @@ mod tests {
             candidates_for(Some(Platform::MacArm64), Backend::Unknown),
             vec![ServerBackend::Metal]
         );
-        assert_eq!(
-            candidates_for(Some(Platform::MacX64), Backend::Unknown),
-            vec![ServerBackend::Metal]
-        );
+    }
+
+    #[test]
+    fn an_intel_mac_is_offered_nothing_rather_than_an_engine_with_no_inlet() {
+        assert!(candidates_for(Some(Platform::MacX64), Backend::Unknown).is_empty());
+        assert!(candidates_for(Some(Platform::MacX64), Backend::Metal).is_empty());
+        assert!(candidates_for(Some(Platform::MacX64), Backend::Cpu).is_empty());
+    }
+
+    #[test]
+    fn every_candidate_the_planner_names_has_an_engine_row() {
+        // The planner and the asset table are two statements of one fact,
+        // and a candidate with no row fails at the store ("no executable")
+        // instead of at the plan. Pinned here so deleting a row cannot leave
+        // a candidate behind.
+        for platform in [Platform::MacArm64, Platform::MacX64, Platform::WindowsX64] {
+            for detected in [
+                Backend::Cpu,
+                Backend::Metal,
+                Backend::Unknown,
+                Backend::DiscreteGpu { vram_bytes: None },
+            ] {
+                for backend in candidates_for(Some(platform), detected) {
+                    let rows = crate::assets::assets_for(platform, backend);
+                    assert!(
+                        rows.iter().any(|row| row.role == crate::assets::Role::Engine),
+                        "{platform:?}/{backend:?} is planned but has no engine row"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

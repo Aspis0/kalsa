@@ -628,8 +628,13 @@ try {
 
   try {
     const cacheProbe = await renderer.renderAdvancedCacheProbe({ advanced: renderer.advancedDto() });
-    const f16Help = "Automatic is up to 4096. A smaller value uses less memory.";
-    const q8Help = "Automatic is up to 8192. A smaller value uses less memory.";
+    // `help` is the list of `.advanced-help` paragraphs, so these are whole
+    // lines: the f16 line must be the one shown, cost included, and the q8_0
+    // line must appear nowhere.
+    const f16Help =
+      "Automatic is 4k (4096 tokens). Up to 4k on this computer. The KV cache for 4k tokens uses 1 GiB.";
+    const q8Help =
+      "Automatic is 8k (8192 tokens). Up to 8k on this computer. The KV cache for 8k tokens uses 1 GiB.";
     if (!cacheProbe.help.includes(f16Help) || cacheProbe.help.includes(q8Help)) {
       problems.push("f16 cache context help must use context_max_f16 and stop showing context_max");
     }
