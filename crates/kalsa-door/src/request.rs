@@ -33,11 +33,16 @@ pub(super) struct UnsealedHead {
     /// `Access-Control-Request-Method` a browser always sends. `OPTIONS`
     /// without those two is some other request and takes the ordinary path.
     pub(super) preflight: bool,
-    /// The request target, kept because the door's own routing decision — the
-    /// refusal of the engine's slot routes — is made on the path, not on a
-    /// header. The upstream never sees this copy; it is already in the
-    /// forwarded request line when it is forwarded at all.
+    /// The request target, kept because the door's own routing decisions —
+    /// the refusal of the engine's slot routes, the two chat routes the door
+    /// serves itself — are made on the path, not on a header. The upstream
+    /// never sees this copy; it is already in the forwarded request line when
+    /// it is forwarded at all.
     pub(super) target: Vec<u8>,
+    /// The method, kept for the same reason as the target: the door serves its
+    /// chat routes only as the spelling it defines, and `GET` on one of those
+    /// paths is a different request.
+    pub(super) method: Vec<u8>,
     /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
     /// id namespace belongs to the door, and the upstream must never see it.
     pub(super) last_event_id: Option<Vec<u8>>,
@@ -53,15 +58,22 @@ impl UnsealedHead {
     /// `parse` has already dropped any client copy, so the engine — which
     /// reads the FIRST match — reads exactly the door's. Not authentication.
     pub(super) fn seal(mut self, slot: u32, salt: &[u8; 32]) -> SealedHead {
-        self.forwarded
-            .extend_from_slice(format!("X-Kalsa-Slot: {slot}\r\n").as_bytes());
-        self.forwarded.extend_from_slice(b"X-Kalsa-Cache-Salt: ");
-        self.forwarded.extend_from_slice(hex(salt).as_bytes());
-        self.forwarded.extend_from_slice(b"\r\n\r\n");
+        private_headers(&mut self.forwarded, slot, salt);
+        self.forwarded.extend_from_slice(b"\r\n");
         SealedHead {
             bytes: self.forwarded,
         }
     }
+}
+
+/// The door's private headers, written in the one place the wire form is: the
+/// sealed completion and the door's own call to the engine both carry them, so
+/// the engine reads one device either way.
+pub(super) fn private_headers(head: &mut Vec<u8>, slot: u32, salt: &[u8; 32]) {
+    head.extend_from_slice(format!("X-Kalsa-Slot: {slot}\r\n").as_bytes());
+    head.extend_from_slice(b"X-Kalsa-Cache-Salt: ");
+    head.extend_from_slice(hex(salt).as_bytes());
+    head.extend_from_slice(b"\r\n");
 }
 
 impl SealedHead {
@@ -115,7 +127,12 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     }
     let request_line = lines.next().ok_or(())?.strip_suffix(b"\r").ok_or(())?;
     let target = request_target(request_line)?;
-    let is_options = request_line.split(|byte| *byte == b' ').next() == Some(&b"OPTIONS"[..]);
+    let method = request_line
+        .split(|byte| *byte == b' ')
+        .next()
+        .unwrap_or(&[])
+        .to_vec();
+    let is_options = method.as_slice() == b"OPTIONS";
 
     let mut forwarded = Vec::with_capacity(end + 2);
     forwarded.extend_from_slice(request_line);
@@ -236,6 +253,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
         origin,
         preflight,
         target: target.to_vec(),
+        method,
         last_event_id,
     })
 }

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
+use crate::paging;
 use crate::registry::{Registry, StartRefused};
 use crate::token::parse_resume;
 use crate::request;
@@ -50,6 +51,7 @@ pub(super) fn handle(
     upstream_port: u16,
     capacity: u32,
     devices: &DeviceSet,
+    chats: &paging::Chats,
     registry: &Registry,
     stop: &AtomicBool,
     active: &ActiveDevices,
@@ -156,6 +158,31 @@ pub(super) fn handle(
         devices,
         device,
     };
+    // The door's own disk tier. Served here — after the credential, under the
+    // slot's lease, and before any upstream socket is opened — and never
+    // forwarded: the two chat routes have no counterpart in the engine, and
+    // `/slots/*` above is refused for the same reason in the other direction.
+    // A device revoked in the window since authentication gets the 401 the
+    // rest of the door gives, because the salt is read before anything is
+    // written anywhere.
+    if paging::owns(&head.target) {
+        let Some(salt) = devices.cache_salt(device) else {
+            let _ = discard_request_body(&mut client, head.body_length, deadline);
+            let _ = refuse(&mut client, head.origin.as_deref(), deadline);
+            return;
+        };
+        let answer = chats.serve(
+            &mut client,
+            &head,
+            device,
+            salt,
+            lease.slot(),
+            upstream_port,
+            deadline,
+        );
+        let _ = write_with_deadline(&mut client, &answer, deadline);
+        return;
+    }
     if let Some(last_event_id) = head.last_event_id.as_deref() {
         // Resuming never reaches the upstream: the answer this request asks
         // for already exists in the door or it does not. The retried body is
@@ -329,7 +356,10 @@ fn gone_response(words: &str, origin: Option<&[u8]>) -> Vec<u8> {
     .into_bytes()
 }
 
-fn discard_request_body(
+/// Drains exactly the declared body. Shared with the disk tier's routes: a
+/// body left unread in the receive buffer makes the kernel reset the socket
+/// on close, and the reset erases the answer before the client reads it.
+pub(super) fn discard_request_body(
     client: &mut TcpStream,
     length: usize,
     deadline: Instant,

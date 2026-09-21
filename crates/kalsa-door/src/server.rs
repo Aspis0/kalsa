@@ -38,6 +38,15 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let active = Arc::new(ActiveDevices::new());
     let registry = Arc::new(Registry::new());
     let device_set = Arc::clone(&door.devices);
+    // The disk tier's state, built here where the capacity, the port and the
+    // two app-supplied halves are all in hand, and shared by every worker:
+    // the per-slot gates and the resident map must be one per slot, not one
+    // per worker.
+    let chats = Arc::new(crate::paging::Chats::new(
+        door.capacity,
+        door.model_hash.clone(),
+        door.slot_dir.clone(),
+    ));
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
     let mut threads = Vec::with_capacity(WORKERS + 2);
@@ -48,6 +57,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let worker_receiver = Arc::clone(&receiver);
         let worker_registry = Arc::clone(&registry);
         let worker_devices = Arc::clone(&door.devices);
+        let worker_chats = Arc::clone(&chats);
         let port = door.upstream_port;
         let capacity = door.capacity;
         let head_patience = door.head_patience;
@@ -61,6 +71,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_receiver,
                     worker_registry,
                     worker_devices,
+                    worker_chats,
                     port,
                     capacity,
                     head_patience,
@@ -184,6 +195,7 @@ fn worker(
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     registry: Arc<Registry>,
     devices: Arc<DeviceSet>,
+    chats: Arc<crate::paging::Chats>,
     upstream_port: u16,
     capacity: u32,
     head_patience: Duration,
@@ -205,6 +217,7 @@ fn worker(
                         upstream_port,
                         capacity,
                         &devices,
+                        &chats,
                         &registry,
                         &stop,
                         &active,

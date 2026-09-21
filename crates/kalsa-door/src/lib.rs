@@ -35,6 +35,12 @@
 //! the door that started it: no stopped server ever keeps a job promising
 //! that more of an answer is coming.
 //!
+//! The door also serves two routes of its own, under `/kalsa/`: opening one of
+//! a device's chats and erasing one. They are not a passthrough — the engine's
+//! own `/slots` routes stay refused to every client — so that a client names a
+//! conversation and the door, which owns the device-to-slot map, names the file
+//! and holds the slot for the whole save/restore (`paging`).
+//!
 //! The model being released while an answer is alive is not a door event:
 //! the server releases its weights only when idle, and a generating request
 //! is the opposite of idle, so a release can never cut a live job. What the
@@ -46,7 +52,10 @@
 mod chunk;
 mod cors;
 mod devices;
+mod engine;
 mod jobs;
+mod paging;
+mod payload;
 mod proxy;
 mod request;
 mod response;
@@ -68,6 +77,7 @@ pub(crate) use slots::{DeviceSet, LeaseError};
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
+use std::path::PathBuf;
 use std::time::Duration;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::AtomicBool;
@@ -199,6 +209,11 @@ pub enum DoorError {
     /// the worker and queue budgets saturate. Refused where the argument is
     /// still in hand.
     UpstreamIsListener { port: u16 },
+    /// The model identity the disk tier names its files by is not eight
+    /// lowercase hex characters. The value is deliberately not carried in the
+    /// error: the caller meant to hand over a digest, and a malformed one may
+    /// be something else entirely.
+    InvalidModelHash,
     Thread(io::Error),
 }
 
@@ -218,6 +233,7 @@ impl fmt::Display for DoorError {
                 f,
                 "door upstream port {port} is the port the door listens on"
             ),
+            Self::InvalidModelHash => f.write_str("door model hash is not 8 hex characters"),
             Self::Thread(error) => write!(f, "door thread: {error}"),
         }
     }
@@ -236,6 +252,13 @@ pub struct Door {
     /// never derives it from the set, the count, or anything else.
     capacity: u32,
     head_patience: Duration,
+    /// The disk tier's two halves, both the app's to supply and both absent
+    /// until it does: the model identity a saved chat's name carries and the
+    /// directory the engine writes into. A door without them serves every
+    /// route it always did and refuses the two chat routes with a spoken
+    /// reason, never in silence.
+    model_hash: Option<String>,
+    slot_dir: Option<PathBuf>,
     response_observer: Option<ResponseObserverFactory>,
 }
 
@@ -363,6 +386,8 @@ impl Door {
             devices: Arc::new(DeviceSet::new(devices, capacity)),
             capacity,
             head_patience: HEAD_PATIENCE,
+            model_hash: None,
+            slot_dir: None,
             response_observer: None,
         })
     }
@@ -372,6 +397,31 @@ impl Door {
     /// tests shrink it, the way they shrink the tunnel's deadlines.
     pub fn with_head_patience(mut self, head_patience: Duration) -> Self {
         self.head_patience = head_patience;
+        self
+    }
+
+    /// The model identity the disk tier names a chat's file by: the first
+    /// eight hex characters of the catalog row's pinned sha256, which the app
+    /// has — the digest the download verified — and the door does not, because
+    /// `kalsa-catalog` is a dev-dependency here. Refused unless it is exactly
+    /// that: a name built from a hash the app did not mean would be a name no
+    /// later launch could find again.
+    pub fn with_model_hash(mut self, hash8: &str) -> Result<Self, DoorError> {
+        let hex = |byte: u8| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte);
+        if hash8.len() != 8 || !hash8.bytes().all(hex) {
+            return Err(DoorError::InvalidModelHash);
+        }
+        self.model_hash = Some(hash8.to_string());
+        Ok(self)
+    }
+
+    /// The directory the engine was launched with (`--slot-save-path`), which
+    /// is where the disk tier keeps a chat and where the engine is told to
+    /// write one. The door does not create or check it: the app does, before
+    /// the launch, and a directory that is not there fails the first action
+    /// loudly rather than silently.
+    pub fn with_slot_dir(mut self, dir: PathBuf) -> Self {
+        self.slot_dir = Some(dir);
         self
     }
 
