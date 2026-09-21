@@ -74,14 +74,16 @@ impl ServerArgs {
         // ~0.2 s — at the price of one generation at a time, which one
         // phone does not exceed.
         //
-        // The slot count is about to become a product decision (one PC
-        // serving a family's phones): measured on the shipped build, four
-        // people at once cost +23% wall each and 40 tok/s per head instead
-        // of 72, an explicit `-np` keeps every chat's cache warm anyway,
-        // and the context divides by the slot count — the arithmetic above
-        // would carve per person. Not implemented; measured, so tomorrow
-        // starts from numbers.
-        argv.extend(["--parallel".to_string(), "1".to_string()]);
+        // The slot count is a product decision now (one PC serving a
+        // family's phones): measured on the shipped build, four people at
+        // once cost +23% wall each and 40 tok/s per head instead of 72, an
+        // explicit `-np` keeps every chat's cache warm anyway, and the
+        // context divides by the slot count — the arithmetic above would
+        // carve per person (a separate step, not this one). The value
+        // travels as data: `--parallel` is rendered from `self.parallel`,
+        // and the same number is the door's capacity, so the engine's slot
+        // count and the door's refusal cannot disagree.
+        argv.extend(["--parallel".to_string(), self.parallel.to_string()]);
         // The roof travels from the policy: it was carved out of the
         // budget before the context was sized, so it cannot be re-derived
         // from a context that already excludes it. `--cache-ram 0` — on an
@@ -146,6 +148,7 @@ mod tests {
             batch_size: 2048,
             ubatch_size: 512,
             kv_cache: crate::args::KvCache::Q8_0,
+            parallel: crate::args::DEFAULT_PARALLEL,
         }
     }
 
@@ -195,5 +198,20 @@ mod tests {
         assert_eq!(settings.batch_size, 1024);
         assert_eq!(settings.ubatch_size, 256);
         assert_eq!(settings.kv_cache_type, "f16");
+    }
+
+    /// The slot count is data now: whatever the field holds is what the
+    /// command line renders. A literal `"1"` left behind makes this red the
+    /// moment the door's capacity and the engine's slots are asked to be
+    /// the same number.
+    #[test]
+    fn the_slot_count_renders_from_the_field_not_a_literal() {
+        let args = ServerArgs {
+            parallel: 4,
+            ..some_args()
+        };
+        let line = args.argv().join(" ");
+        assert!(line.contains("--parallel 4"), "{line}");
+        assert!(!line.contains("--parallel 1"), "{line}");
     }
 }

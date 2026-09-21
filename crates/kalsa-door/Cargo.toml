@@ -10,6 +10,9 @@ license.workspace = true
 subtle = "2"
 # 128 random bits per job id: a resume id nobody can guess its way into.
 getrandom = "0.3"
+# The per-device cache salt: a labeled SHA-256 of the credential, derived
+# once when the entry is built and never stored or printed anywhere.
+sha2 = "0.10"
 
 [dev-dependencies]
 # The test mints the same public handshake credential the desktop stores.

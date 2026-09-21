@@ -51,6 +51,7 @@ mod request;
 mod response;
 mod registry;
 mod server;
+mod slots;
 mod sse;
 mod stream;
 mod token;
@@ -59,6 +60,8 @@ mod token;
 mod tests;
 
 pub use devices::{DeviceEntry, DeviceId, Devices};
+pub use slots::EnginePrivateHeaders;
+pub(crate) use slots::{DeviceSet, LeaseError};
 
 use std::collections::HashMap;
 use std::fmt;
@@ -66,7 +69,7 @@ use std::io;
 use std::time::Duration;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 const TOKEN_BYTES: usize = 64;
@@ -96,6 +99,25 @@ const UNAUTHORIZED_RESPONSE: &[u8] =
 /// authentication, and the words must not say "unauthorized".
 pub(crate) const BUSY_RESPONSE: &[u8] =
     b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+/// The answer for an authenticated device with no slot left: the engine runs
+/// a fixed number of slots, so this computer is already serving as many
+/// devices as it can hold at once. It is the door's own 503, with the count
+/// and one honest sentence — deliberately not [`BUSY_RESPONSE`] (which
+/// carries no body and means pressure) and deliberately not `refuse` (which
+/// is 401-only, for a credential the door does not know).
+pub(crate) fn no_slot_response(capacity: u32) -> Vec<u8> {
+    let words = format!(
+        "This computer is already serving {capacity} devices. \
+         Forget one on the Devices page before pairing another."
+    );
+    format!(
+        "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{words}",
+        words.len()
+    )
+    .into_bytes()
+}
 const UPSTREAM_FAILURE_RESPONSE: &[u8] =
     b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
@@ -109,6 +131,12 @@ pub enum DoorError {
     Listener(io::Error),
     NonLoopback(SocketAddr),
     InvalidCredential,
+    /// A door that can serve nobody: `capacity` was zero.
+    CapacityZero,
+    /// `capacity > 1` was asked for without an engine declared to read the
+    /// door's private headers. Fail loudly: silently serving more devices
+    /// than the engine can keep apart is the wrap this door exists to stop.
+    CapacityWithoutHeaderSupport { capacity: u32 },
     Thread(io::Error),
 }
 
@@ -118,6 +146,12 @@ impl fmt::Display for DoorError {
             Self::Listener(error) => write!(f, "door listener: {error}"),
             Self::NonLoopback(address) => write!(f, "door listener is not loopback: {address}"),
             Self::InvalidCredential => f.write_str("door credential is invalid"),
+            Self::CapacityZero => f.write_str("door capacity must be at least one"),
+            Self::CapacityWithoutHeaderSupport { capacity } => write!(
+                f,
+                "door capacity {capacity} needs an engine that reads \
+                 X-Kalsa-Slot and X-Kalsa-Cache-Salt"
+            ),
             Self::Thread(error) => write!(f, "door thread: {error}"),
         }
     }
@@ -131,48 +165,12 @@ pub struct Door {
     address: SocketAddr,
     upstream_port: u16,
     devices: Arc<DeviceSet>,
+    /// How many devices the engine can serve at once. The same value as the
+    /// `--parallel` the launcher renders, passed through as data: the door
+    /// never derives it from the set, the count, or anything else.
+    capacity: u32,
     head_patience: Duration,
     response_observer: Option<ResponseObserverFactory>,
-}
-
-/// The paired devices behind a door, swappable while it runs. Every
-/// authentication and every mid-stream revocation check takes the current
-/// set as a short-lived `Arc` — a lock is never held across a proxied
-/// response, which would serialize the whole house behind one streamed
-/// answer.
-pub(crate) struct DeviceSet {
-    current: RwLock<Arc<Devices>>,
-}
-
-impl DeviceSet {
-    pub(crate) fn new(devices: Devices) -> Self {
-        Self {
-            current: RwLock::new(Arc::new(devices)),
-        }
-    }
-
-    /// Replaces the set in place. Nothing is stopped and nothing is rebound:
-    /// the next authentication sees the new set, and a device it no longer
-    /// holds is cut at its next relay check.
-    pub(crate) fn swap(&self, devices: Devices) {
-        *self
-            .current
-            .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(devices);
-    }
-
-    fn current(&self) -> Arc<Devices> {
-        self.current
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
-    }
-
-    /// Whether the set still holds this device — the revocation check an
-    /// in-flight exchange makes between relay steps.
-    fn holds(&self, device: DeviceId) -> bool {
-        self.current().contains(device)
-    }
 }
 
 /// The devices with a connection currently being served. Presence, not
@@ -243,7 +241,45 @@ impl Door {
     /// devices. The set already validated itself when it was built; the
     /// door does not know where it came from, and the running door's set
     /// changes only through [`RunningDoor::set_devices`].
-    pub fn new(listener: TcpListener, upstream_port: u16, devices: Devices) -> Result<Self, DoorError> {
+    ///
+    /// No engine is declared, so this door serves exactly one device:
+    /// `capacity > 1` is refused loudly rather than served silently. A
+    /// caller whose engine reads the private headers uses
+    /// [`Door::new_with_engine`].
+    pub fn new(
+        listener: TcpListener,
+        upstream_port: u16,
+        devices: Devices,
+        capacity: u32,
+    ) -> Result<Self, DoorError> {
+        Self::new_with_engine(
+            listener,
+            upstream_port,
+            devices,
+            capacity,
+            EnginePrivateHeaders::NotConsumed,
+        )
+    }
+
+    /// The door with an explicit engine declaration. `capacity > 1` is
+    /// refused unless the engine is declared to read the door's private
+    /// headers: against an engine that ignores them, more than one device is
+    /// auto-scheduled into the same slot, and the door would be promising an
+    /// isolation the engine does not provide. The refusal is an error at
+    /// construction — fail loudly, never in silence.
+    pub fn new_with_engine(
+        listener: TcpListener,
+        upstream_port: u16,
+        devices: Devices,
+        capacity: u32,
+        engine: EnginePrivateHeaders,
+    ) -> Result<Self, DoorError> {
+        if capacity == 0 {
+            return Err(DoorError::CapacityZero);
+        }
+        if capacity > 1 && engine != EnginePrivateHeaders::Consumed {
+            return Err(DoorError::CapacityWithoutHeaderSupport { capacity });
+        }
         let address = listener.local_addr().map_err(DoorError::Listener)?;
         if !address.ip().is_loopback() {
             return Err(DoorError::NonLoopback(address));
@@ -255,7 +291,8 @@ impl Door {
             listener,
             address,
             upstream_port,
-            devices: Arc::new(DeviceSet::new(devices)),
+            devices: Arc::new(DeviceSet::new(devices, capacity)),
+            capacity,
             head_patience: HEAD_PATIENCE,
             response_observer: None,
         })

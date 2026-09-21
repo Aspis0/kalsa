@@ -108,6 +108,7 @@ fn launch_args(
         batch_size: batch,
         ubatch_size: ubatch,
         kv_cache: cache,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     }
 }
 
@@ -253,6 +254,7 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         batch_size: 2048,
         ubatch_size: 512,
         kv_cache: KvCache::Q8_0,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

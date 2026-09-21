@@ -123,6 +123,7 @@ async fn the_full_loop_carries_http_through_the_tunnel_and_the_door() {
         door_listener,
         _upstream.1.port(),
         one_device(CREDENTIAL),
+        1,
     )
     .expect("door builds")
     .start()
@@ -180,6 +181,7 @@ async fn the_n0_road_carries_http_by_node_id_alone() {
         door_listener,
         _upstream.1.port(),
         one_device(CREDENTIAL),
+        1,
     )
     .expect("door builds")
     .start()

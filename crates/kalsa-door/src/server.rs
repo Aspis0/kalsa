@@ -49,6 +49,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let worker_registry = Arc::clone(&registry);
         let worker_devices = Arc::clone(&door.devices);
         let port = door.upstream_port;
+        let capacity = door.capacity;
         let head_patience = door.head_patience;
         let observer = door.response_observer.clone();
         let result = thread::Builder::new()
@@ -61,6 +62,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_registry,
                     worker_devices,
                     port,
+                    capacity,
                     head_patience,
                     observer,
                 )
@@ -183,6 +185,7 @@ fn worker(
     registry: Arc<Registry>,
     devices: Arc<DeviceSet>,
     upstream_port: u16,
+    capacity: u32,
     head_patience: Duration,
     observer: Option<crate::ResponseObserverFactory>,
 ) {
@@ -200,6 +203,7 @@ fn worker(
                         work.accepted,
                         head_patience,
                         upstream_port,
+                        capacity,
                         &devices,
                         &registry,
                         &stop,

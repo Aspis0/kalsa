@@ -50,6 +50,15 @@ const PAIRING_FILE: &str = "pairing.json";
 /// go through this constant, so the two can never drift apart silently.
 const MAIN_WINDOW_LABEL: &str = "main";
 
+/// Whether the engine this app mounts consumes the door's private headers.
+/// The fork beside llama-server reads `X-Kalsa-Cache-Salt` at v1.0.0 and
+/// will read `X-Kalsa-Slot` at v1.1.0; until that build is mounted, the app
+/// declares no support, so the door refuses to be built for more than one
+/// device. Fail loudly — the alternative is several devices auto-scheduled
+/// into one slot by an engine that never said it could keep them apart.
+const ENGINE_PRIVATE_HEADERS: kalsa_door::EnginePrivateHeaders =
+    kalsa_door::EnginePrivateHeaders::NotConsumed;
+
 struct Brain {
     supervisor: Supervisor,
     door: Mutex<Option<ActiveDoor>>,
@@ -253,6 +262,18 @@ impl Brain {
             kalsa_door::Devices::new(entries).map_err(|_| {
                 "The authenticated door could not read its credential.".to_string()
             })?;
+        // The door's capacity is the engine's slot count: the same
+        // `--parallel` value the launcher rendered, read from the launch
+        // record as data. There is no second constant — if the server runs
+        // one slot, the door serves one device and refuses the rest rather
+        // than let the engine wrap an id onto somebody else's cache. Tests
+        // and any path with no launch record yet take the shared default.
+        let capacity = self
+            .launch
+            .lock()
+            .ok()
+            .and_then(|launch| launch.as_ref().map(|info| info.args.parallel))
+            .unwrap_or(kalsa_launch::DEFAULT_PARALLEL);
         let mut stored = self
             .door
             .lock()
@@ -289,8 +310,14 @@ impl Brain {
                     "The authenticated door could not bind.".to_string()
                 })?;
                 let metrics = Arc::clone(&self.metrics);
-                let door = kalsa_door::Door::new(listener, upstream_port, devices.clone())
-                    .map_err(|_| "The authenticated door could not start.".to_string())?
+                let door = kalsa_door::Door::new_with_engine(
+                    listener,
+                    upstream_port,
+                    devices.clone(),
+                    capacity,
+                    ENGINE_PRIVATE_HEADERS,
+                )
+                .map_err(|_| "The authenticated door could not start.".to_string())?
                     .with_response_observer(move || {
                         let metrics = Arc::clone(&metrics);
                         let scanner = Mutex::new(metrics::TimingScanner::new());

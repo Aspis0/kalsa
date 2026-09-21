@@ -7,9 +7,13 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::registry::Registry;
-use super::{proxy, Door, DoorError, ActiveDevices, DeviceSet, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
+use super::{proxy, Door, DoorError, ActiveDevices, DeviceSet, EnginePrivateHeaders, LeaseError, CONNECTION_LIFETIME, MAX_CONNECTIONS, Devices, DeviceEntry, DeviceId};
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
+
+mod revocation;
+mod slots;
+mod support;
 
 fn request(address: std::net::SocketAddr, authorization: Option<&str>) -> Vec<u8> {
     let auth = authorization
@@ -88,7 +92,7 @@ fn door_devices(credentials: &[&str]) -> Devices {
 #[test]
 fn a_non_loopback_listener_is_refused_at_construction() {
     let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    let result = Door::new(listener, 1, door_devices(&[&credential()]));
+    let result = Door::new(listener, 1, door_devices(&[&credential()]), 1);
     assert!(matches!(result, Err(DoorError::NonLoopback(_))));
 }
 
@@ -107,7 +111,7 @@ fn the_running_door_reports_the_address_it_serves() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let bound_address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -128,7 +132,7 @@ fn every_authentication_failure_has_the_same_refusal() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -160,7 +164,7 @@ fn every_authentication_failure_has_the_same_refusal() {
 fn an_unauthenticated_socket_is_not_an_active_phone() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, 1, door_devices(&[&credential()]))
+    let door = Door::new(listener, 1, door_devices(&[&credential()]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -248,7 +252,7 @@ fn an_authenticated_connection_is_active_as_its_device() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -366,7 +370,7 @@ fn an_added_device_disturbs_nobody_and_starts_authenticating() {
     let address = listener.local_addr().unwrap();
     let first = credential();
     let second = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&first]))
+    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&first]), 2, EnginePrivateHeaders::Consumed)
         .unwrap()
         .start()
         .unwrap();
@@ -413,7 +417,7 @@ fn a_removed_device_is_cut_mid_answer_and_refused_after() {
     let address = listener.local_addr().unwrap();
     let revoked = credential();
     let keeper = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&revoked, &keeper]))
+    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&revoked, &keeper]), 2, EnginePrivateHeaders::Consumed)
         .unwrap()
         .start()
         .unwrap();
@@ -473,7 +477,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
         let stop = AtomicBool::new(false);
         let active = ActiveDevices::new();
         let registry = Registry::new();
-        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]));
+        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]), 1);
         let accepted = Instant::now()
             .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(5))
             .unwrap();
@@ -482,6 +486,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
             accepted,
             super::HEAD_PATIENCE,
             upstream_port,
+            1,
             &devices,
             &registry,
             &stop,
@@ -585,7 +590,7 @@ fn a_queued_request_is_served_and_a_silent_one_answered_busy() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .with_head_patience(head_patience)
         .start()
@@ -658,7 +663,7 @@ fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -716,7 +721,7 @@ fn handled_requests_free_their_slot_so_the_door_stays_open() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]))
+    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -742,7 +747,7 @@ fn a_connection_past_its_lifetime_is_cut() {
         let (stream, _) = listener.accept().unwrap();
         let stop = AtomicBool::new(false);
         let active = ActiveDevices::new();
-        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]));
+        let devices = DeviceSet::new(door_devices(&[&"0".repeat(64)]), 1);
         let accepted = Instant::now()
             .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))
             .unwrap();
@@ -750,6 +755,7 @@ fn a_connection_past_its_lifetime_is_cut() {
             stream,
             accepted,
             super::HEAD_PATIENCE,
+            1,
             1,
             &devices,
             &registry,
@@ -800,7 +806,7 @@ fn an_sse_response_reaches_the_client_before_the_upstream_finishes() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -907,7 +913,7 @@ fn an_answer_survives_a_brutal_disconnect_and_resumes_from_the_last_event_id() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -991,7 +997,7 @@ fn a_returning_client_rejoins_an_answer_still_in_motion() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -1034,7 +1040,7 @@ fn a_resume_the_door_cannot_honor_is_refused_and_starts_nothing() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -1120,7 +1126,7 @@ fn the_generation_continues_after_its_client_dies() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]))
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
         .unwrap()
         .start()
         .unwrap();
@@ -1243,7 +1249,7 @@ fn two_devices_each_open_the_door_with_their_own_credential() {
     let address = listener.local_addr().unwrap();
     let (first, second) = (credential(), credential());
     assert_ne!(first, second, "pairing mints every device its own secret");
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&first, &second]))
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&first, &second]), 2, EnginePrivateHeaders::Consumed)
         .unwrap()
         .start()
         .unwrap();
@@ -1288,7 +1294,7 @@ fn device_b_cannot_resume_device_a_s_answer() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (mine, theirs) = (credential(), credential());
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&mine, &theirs]))
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&mine, &theirs]), 2, EnginePrivateHeaders::Consumed)
         .unwrap()
         .start()
         .unwrap();
@@ -1345,7 +1351,7 @@ fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
     let (upstream_address, upstream_stop, upstream_thread) = sse_upstream();
     let (leaving, staying) = (credential(), credential());
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&leaving, &staying]))
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&leaving, &staying]), 2, EnginePrivateHeaders::Consumed)
         .unwrap()
         .start()
         .unwrap();
@@ -1361,7 +1367,7 @@ fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let rebuilt = Door::new(listener, upstream_address.port(), door_devices(&[&staying]))
+    let rebuilt = Door::new(listener, upstream_address.port(), door_devices(&[&staying]), 1)
         .unwrap()
         .start()
         .unwrap();

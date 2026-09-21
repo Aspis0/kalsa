@@ -19,10 +19,23 @@
 //! that holds one, and no error carries one: a bad entry is
 //! `DoorError::InvalidCredential`, the same words however it was bad,
 //! never echoing the value.
+//!
+//! Each entry also carries a cache salt, derived once from the credential
+//! and reachable only through [`Devices::cache_salt`]. The salt labels this
+//! device's prompt cache in the engine; it is cache-key material, not a
+//! credential and not an authentication: nothing compares it, nothing
+//! accepts a client's.
 
+use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
 use crate::{DoorError, TOKEN_BYTES};
+
+/// The domain separator for the per-device cache salt. It is part of the
+/// hash input, so a digest computed for any other purpose cannot collide
+/// with this one. Changing the words changes every slot's warm cache, so
+/// the label is versioned (v1) and stated here once.
+const CACHE_SALT_LABEL: &[u8] = b"kalsa-cache-salt-v1";
 
 /// The device a credential belongs to. Opaque, small, not a secret: the app
 /// mints the ids, the app keeps them stable, and the owner may see them.
@@ -57,6 +70,10 @@ pub struct DeviceEntry {
     pub id: DeviceId,
     pub label: String,
     credential: [u8; TOKEN_BYTES],
+    /// Derived once, in `new`, from the credential. Kept so a request never
+    /// hashes anything on the hot path, and reachable only by id through
+    /// [`Devices::cache_salt`].
+    cache_salt: [u8; 32],
 }
 
 impl DeviceEntry {
@@ -68,10 +85,12 @@ impl DeviceEntry {
         credential: String,
     ) -> Result<Self, DoorError> {
         let credential = credential_bytes(&credential).ok_or(DoorError::InvalidCredential)?;
+        let cache_salt = cache_salt_of(&credential);
         Ok(Self {
             id,
             label: label.into(),
             credential,
+            cache_salt,
         })
     }
 }
@@ -135,6 +154,17 @@ impl Devices {
             .map(|entry| entry.label.as_str())
     }
 
+    /// The device's cache salt, if the set holds it. Mirrors [`Self::label`]:
+    /// a device the set does not hold has no salt here. The salt goes only
+    /// to the engine, as a private header the door seals; it is never
+    /// returned to a client and never compared against anything.
+    pub(crate) fn cache_salt(&self, id: DeviceId) -> Option<&[u8; 32]> {
+        self.entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map(|entry| &entry.cache_salt)
+    }
+
     /// Whether the set still holds this device — the check a streaming
     /// exchange makes between relay steps, so a revoked device is cut.
     pub(crate) fn contains(&self, id: DeviceId) -> bool {
@@ -152,6 +182,17 @@ fn credential_bytes(credential: &str) -> Option<[u8; TOKEN_BYTES]> {
     let mut bytes = [0u8; TOKEN_BYTES];
     bytes.copy_from_slice(credential.as_bytes());
     Some(bytes)
+}
+
+/// The labeled digest that becomes a device's cache salt. One labeled hash
+/// of the credential bytes, computed in `DeviceEntry::new` and nowhere on
+/// the request path. The label is hashed with the credential so this digest
+/// cannot be confused with a digest of the credential for any other use.
+fn cache_salt_of(credential: &[u8; TOKEN_BYTES]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(CACHE_SALT_LABEL);
+    hasher.update(credential);
+    hasher.finalize().into()
 }
 
 #[cfg(test)]

@@ -257,6 +257,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
         batch_size: 2048,
         ubatch_size: 512,
         kv_cache: kalsa_launch::KvCache::Q8_0,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     };
     if let Ok(mut launch) = brain.launch.lock() {
         *launch = Some(startup::LaunchInfo {
@@ -322,6 +323,7 @@ fn launch_args(model: &str, port: u16) -> kalsa_launch::ServerArgs {
         batch_size: 2048,
         ubatch_size: 512,
         kv_cache: kalsa_launch::KvCache::Q8_0,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     }
 }
 
@@ -703,12 +705,13 @@ fn door_response(port: u16, credential: &str) -> Vec<u8> {
 }
 
 #[test]
-fn a_set_change_takes_the_new_devices_in_place() {
-    // The whole point of the swap: pairing a second device must not
-    // kill the door. The proof is an answer IN FLIGHT across the
-    // device-set change — a rebuilt door would cut it mid-body, the
-    // swap must carry it to its last byte — and then both credentials
-    // working through the same listener.
+fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device() {
+    // The swap must not kill the door: an answer IN FLIGHT across the
+    // device-set change runs to its last byte, and the kept device still
+    // works afterwards. The app mounts no engine that reads the door's
+    // private headers yet, so the door is built for one device: the newly
+    // paired device is refused with the door's no-slot 503 rather than
+    // auto-scheduled into the first device's slot.
     let (_dir, file) = scratch_pairing("set-swap");
     let (upstream, port) = TestUpstream::slow_start();
     let brain = Brain::new();
@@ -754,12 +757,18 @@ fn a_set_change_takes_the_new_devices_in_place() {
         "the in-flight answer was cut by a set change: the door was rebuilt"
     );
 
-    // And both credentials open the same listener afterwards.
+    // The one-slot engine refuses the new device, and the kept device is
+    // undisturbed.
     let door_port = brain.door_port().unwrap();
     let newcomer_response = door_response(door_port, &newcomer);
     assert!(
-        newcomer_response.starts_with(b"HTTP/1.1 200 OK"),
-        "the added device's credential does not open the door: {}",
+        newcomer_response.starts_with(b"HTTP/1.1 503 Service Unavailable"),
+        "the one-slot engine did not refuse the new device: {}",
+        String::from_utf8_lossy(&newcomer_response)
+    );
+    assert!(
+        String::from_utf8_lossy(&newcomer_response).contains("already serving 1 devices"),
+        "the refusal did not say why: {}",
         String::from_utf8_lossy(&newcomer_response)
     );
     let original_response = door_response(door_port, &original);

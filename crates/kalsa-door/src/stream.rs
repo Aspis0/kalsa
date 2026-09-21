@@ -32,13 +32,27 @@ pub(super) fn produce_and_serve(
     cancel: &Cancel,
     observer: Option<&Observed>,
 ) {
-    // The response head is the last byte a revoked device may receive: the
-    // first content check is below, so this one guards the head itself.
-    if cancel.stopped() {
-        job.close(Status::Failed(Failure::Shutdown));
-        return;
+    // The revocation check and the head write are one step under the shared
+    // gate: a `swap` that lands here waits, so a head is never written for a
+    // device that was already revoked. The observer runs after the gate.
+    let head = job.head();
+    let mut attached = {
+        let gate = cancel.revocation_gate();
+        if cancel.stopped() {
+            drop(gate);
+            job.close(Status::Failed(Failure::Shutdown));
+            return;
+        }
+        let written = set_write_deadline(&mut client, deadline).is_ok()
+            && client.write_all(head).is_ok();
+        drop(gate);
+        written
+    };
+    if attached {
+        if let Some(observer) = observer {
+            observer(head);
+        }
     }
-    let mut attached = write_bytes(&mut client, job.head(), observer, deadline);
     let mut dechunker = Dechunker::new();
     let mut splitter = EventSplitter::new();
     let mut cursor = 0usize;
@@ -144,11 +158,20 @@ pub(super) fn serve_resume(
     deadline: Instant,
     cancel: &Cancel,
 ) {
-    if cancel.stopped() {
-        return;
+    // The revocation check and the head write are one step under the shared
+    // gate; the observer runs after it is released.
+    let head = job.head();
+    {
+        let _gate = cancel.revocation_gate();
+        if cancel.stopped() {
+            return;
+        }
+        if set_write_deadline(client, deadline).is_err() || client.write_all(head).is_err() {
+            return;
+        }
     }
-    if !write_bytes(client, job.head(), observer, deadline) {
-        return;
+    if let Some(observer) = observer {
+        observer(head);
     }
     let mut cursor = from;
     let mut out = Vec::new();

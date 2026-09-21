@@ -10,7 +10,7 @@ use crate::token::parse_resume;
 use crate::request;
 use crate::response;
 use crate::stream;
-use crate::{ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
+use crate::{no_slot_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES, UNAUTHORIZED_RESPONSE, UPSTREAM_FAILURE_RESPONSE};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -19,8 +19,10 @@ pub(super) type Observed = dyn Fn(&[u8]) + Send + Sync;
 /// The conditions under which an in-flight exchange stops: the door is
 /// shutting down, or the device it serves was revoked while the answer was
 /// streaming. Checked between relay steps. The revocation half takes a
-/// short read lock to look at an `Arc` — no lock is ever held for I/O, so
-/// one streamed answer cannot serialize the house.
+/// short read lock to look at an `Arc`; no lock is held across a streamed
+/// body, so one long answer cannot serialize the house. The revocation gate
+/// is the one deliberate exception: held across a head write, never across
+/// the stream that follows.
 pub(super) struct Cancel<'a> {
     stop: &'a AtomicBool,
     devices: &'a DeviceSet,
@@ -31,6 +33,12 @@ impl Cancel<'_> {
     pub(super) fn stopped(&self) -> bool {
         self.stop.load(Ordering::SeqCst) || !self.devices.holds(self.device)
     }
+
+    /// The shared guard for a head write: the revocation check and the write
+    /// are one step, so a `swap` that lands here waits for both.
+    pub(super) fn revocation_gate(&self) -> std::sync::RwLockReadGuard<'_, ()> {
+        self.devices.revocation_gate()
+    }
 }
 
 pub(super) fn handle(
@@ -38,6 +46,7 @@ pub(super) fn handle(
     accepted: Instant,
     head_patience: Duration,
     upstream_port: u16,
+    capacity: u32,
     devices: &DeviceSet,
     registry: &Registry,
     stop: &AtomicBool,
@@ -89,8 +98,28 @@ pub(super) fn handle(
             return;
         }
     };
+    // The device's engine slot, under a lease that lasts the whole request.
+    // Membership and allocation are one critical section: a device revoked
+    // in the window between authentication and here is refused with the 401
+    // rather than handed a slot it would keep forever, and a full house is
+    // refused with the no-slot 503. The engine does not refuse for us (it
+    // wraps `id_slot % slots.size()`), so the door is the only thing
+    // standing between a device and somebody else's slot.
+    let lease = match devices.lease(device) {
+        Ok(lease) => lease,
+        Err(LeaseError::NotHeld) => {
+            let _ = discard_request_body(&mut client, head.body_length, deadline);
+            let _ = refuse(&mut client, deadline);
+            return;
+        }
+        Err(LeaseError::NoRoom) => {
+            let _ = discard_request_body(&mut client, head.body_length, deadline);
+            let _ = write_with_deadline(&mut client, &no_slot_response(capacity), deadline);
+            return;
+        }
+    };
     // Presence for the running door: this device, exactly while the door is
-    // inside this request. Only an authenticated device is ever counted.
+    // inside this request. Only an authenticated, slotted device is counted.
     let _active = active.enter(device);
     let cancel = Cancel {
         stop,
@@ -109,6 +138,16 @@ pub(super) fn handle(
         resume(&mut client, registry, last_event_id, device, observer, deadline, &cancel);
         return;
     }
+    // The salt is fetched BEFORE any upstream socket exists: a device
+    // revoked by then gets the 401 without the door opening a connection for
+    // it. The lease holds its slot regardless, so a later revocation cannot
+    // hand that slot to anybody else.
+    let Some(salt) = devices.cache_salt(device) else {
+        let _ = discard_request_body(&mut client, head.body_length, deadline);
+        let _ = refuse(&mut client, deadline);
+        return;
+    };
+    let body_length = head.body_length;
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {
         Some(timeout) => timeout,
@@ -121,32 +160,55 @@ pub(super) fn handle(
             return;
         }
     };
-    if write_with_deadline(&mut upstream, &head.forwarded, deadline).is_err() {
-        return;
+    // The gate makes the check and the write one step: a `swap` that lands
+    // here waits, so at the instant of the write the device was not yet
+    // revoked; one that landed earlier was seen by `holds()`.
+    {
+        let gate = devices.revocation_gate();
+        if !lease.holds() {
+            drop(gate);
+            let _ = discard_request_body(&mut client, body_length, deadline);
+            let _ = refuse(&mut client, deadline);
+            return;
+        }
+        // Test seam: a request can be parked here, holding the shared guard,
+        // so a test can prove a `swap` waits for it.
+        #[cfg(test)]
+        devices.run_in_write_hook();
+        // The sealed bytes are the only thing ever written upstream.
+        let sealed = head.seal(lease.slot(), &salt);
+        if write_with_deadline(&mut upstream, sealed.bytes(), deadline).is_err() {
+            return;
+        }
     }
-    if relay_exact(&mut client, &mut upstream, head.body_length, deadline, &cancel).is_err() {
+    if relay_exact(&mut client, &mut upstream, body_length, deadline, &cancel).is_err() {
         return;
     }
     let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
         Ok(head) => head,
         Err(_) => return,
     };
-    // The response head is the last byte a revoked device may receive:
-    // everything after it is behind a relay check, so this write is too.
-    if cancel.stopped() {
-        return;
-    }
-    if !upstream_head.event_stream {
-        // Everything the door does not take custody of moves through as it
-        // always has: the upstream's own bytes, untouched.
-        if write_with_deadline(&mut client, &upstream_head.raw, deadline).is_err() {
+    {
+        // Same gate as the request write: the revocation check and the
+        // response-head write are one step, so a swap that lands here waits,
+        // and the device was not yet revoked at the instant of the write.
+        let gate = devices.revocation_gate();
+        if cancel.stopped() {
             return;
         }
-        if let Some(observer) = observer {
-            observer(&upstream_head.raw);
+        if !upstream_head.event_stream {
+            // Everything the door does not take custody of moves through as
+            // it always has: the upstream's own bytes, untouched.
+            if write_with_deadline(&mut client, &upstream_head.raw, deadline).is_err() {
+                return;
+            }
+            drop(gate);
+            if let Some(observer) = observer {
+                observer(&upstream_head.raw);
+            }
+            let _ = relay_response(&mut upstream, &mut client, deadline, &cancel, observer);
+            return;
         }
-        let _ = relay_response(&mut upstream, &mut client, deadline, &cancel, observer);
-        return;
     }
     let job = match registry.start(device, response::client_head(&upstream_head.raw)) {
         Ok(job) => job,
@@ -199,7 +261,14 @@ fn resume(
         None => "The door cannot resume an answer from that id.",
     };
     let gone = gone_response(words);
+    // One step with the check: a revoked device does not learn whether the
+    // answer it names still exists.
+    let gate = cancel.revocation_gate();
+    if cancel.stopped() {
+        return;
+    }
     let _ = write_with_deadline(client, &gone, deadline);
+    drop(gate);
 }
 
 fn gone_response(words: &str) -> Vec<u8> {

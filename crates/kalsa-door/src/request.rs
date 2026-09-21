@@ -18,8 +18,11 @@ const HOP_BY_HOP: &[&[u8]] = &[
     b"upgrade",
 ];
 
-pub(super) struct Head {
-    pub(super) forwarded: Vec<u8>,
+pub(super) struct UnsealedHead {
+    /// Private, not `pub(super)`: `seal` is the only path to wire bytes, so
+    /// no other module can append a header or write an unsealed head. The
+    /// child test module still reaches it; nothing outside this file can.
+    forwarded: Vec<u8>,
     pub(super) body_length: usize,
     pub(super) authorization: Option<Vec<u8>>,
     /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
@@ -27,7 +30,46 @@ pub(super) struct Head {
     pub(super) last_event_id: Option<Vec<u8>>,
 }
 
-pub(super) fn read_head(stream: &mut TcpStream, deadline: Instant) -> Result<Head, ()> {
+/// A head sealed with the door's private headers. Producing it consumes the
+/// `UnsealedHead`, so the seal cannot be skipped or done twice.
+pub(super) struct SealedHead {
+    bytes: Vec<u8>,
+}
+impl UnsealedHead {
+    /// Seals the head and hands back the only value that exposes wire bytes.
+    /// `parse` has already dropped any client copy, so the engine — which
+    /// reads the FIRST match — reads exactly the door's. Not authentication.
+    pub(super) fn seal(mut self, slot: u32, salt: &[u8; 32]) -> SealedHead {
+        self.forwarded
+            .extend_from_slice(format!("X-Kalsa-Slot: {slot}\r\n").as_bytes());
+        self.forwarded.extend_from_slice(b"X-Kalsa-Cache-Salt: ");
+        self.forwarded.extend_from_slice(hex(salt).as_bytes());
+        self.forwarded.extend_from_slice(b"\r\n\r\n");
+        SealedHead {
+            bytes: self.forwarded,
+        }
+    }
+}
+
+impl SealedHead {
+    /// The wire bytes of the sealed head, and the only way to reach them.
+    pub(super) fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+/// Lowercase hex, the form the engine reads.
+fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(DIGITS[(byte >> 4) as usize] as char);
+        out.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    out
+}
+
+pub(super) fn read_head(stream: &mut TcpStream, deadline: Instant) -> Result<UnsealedHead, ()> {
     let mut bytes = Vec::with_capacity(1024);
     loop {
         if bytes.len() == MAX_HEAD {
@@ -52,7 +94,7 @@ pub(super) fn read_head(stream: &mut TcpStream, deadline: Instant) -> Result<Hea
     }
 }
 
-fn parse(bytes: &[u8]) -> Result<Head, ()> {
+fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     let end = bytes.len().checked_sub(2).ok_or(())?;
     let mut lines = bytes[..end].split(|byte| *byte == b'\n');
     if !lines.next_back().ok_or(())?.is_empty() {
@@ -71,6 +113,8 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
     // same.
     let mut authorization = None;
     let mut last_event_id = None;
+    let mut slot_seen = false;
+    let mut salt_seen = false;
     let mut body_length = None;
     let mut named: Vec<Vec<u8>> = Vec::new();
     let mut candidates: Vec<(Vec<u8>, &[u8])> = Vec::new();
@@ -95,6 +139,23 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
                     return Err(());
                 }
                 last_event_id = Some(trim_ows(value).to_vec());
+            }
+            // The door's own private names. The client's value is never
+            // kept and never forwarded: the engine consumes the FIRST
+            // matching salt header, so a client copy arriving before the
+            // door's own would win. A second copy of either is ambiguous and
+            // refused like every other repeated private header.
+            b"x-kalsa-slot" => {
+                if slot_seen {
+                    return Err(());
+                }
+                slot_seen = true;
+            }
+            b"x-kalsa-cache-salt" => {
+                if salt_seen {
+                    return Err(());
+                }
+                salt_seen = true;
             }
             b"content-length" => {
                 if body_length.is_some() {
@@ -131,15 +192,16 @@ fn parse(bytes: &[u8]) -> Result<Head, ()> {
         let kept = !named.contains(lower)
             && !HOP_BY_HOP.contains(&lower.as_slice())
             && lower.as_slice() != b"authorization"
-            && lower.as_slice() != b"last-event-id";
+            && lower.as_slice() != b"last-event-id"
+            && lower.as_slice() != b"x-kalsa-slot"
+            && lower.as_slice() != b"x-kalsa-cache-salt";
         if kept {
             forwarded.extend_from_slice(line);
             forwarded.extend_from_slice(b"\r\n");
         }
     }
     forwarded.extend_from_slice(b"Connection: close\r\n");
-    forwarded.extend_from_slice(b"\r\n");
-    Ok(Head {
+    Ok(UnsealedHead {
         forwarded,
         body_length: body_length.unwrap_or(0),
         authorization,
@@ -287,5 +349,102 @@ mod tests {
             !forwarded[REQUEST_LINE.len() + 2..].contains(REQUEST_LINE),
             "the request line was repeated later in the head: {forwarded}"
         );
+    }
+
+    /// The sealed head is the only thing writable upstream: one blank line,
+    /// each private header exactly once.
+    #[test]
+    fn the_sealed_head_carries_the_private_headers_and_one_terminator() {
+        let head = parse(
+            b"POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+               Connection: close\r\n\r\n",
+        )
+        .expect("a well-formed head parses");
+        let sealed = head.seal(2, &[0xab; 32]);
+        let bytes = sealed.bytes();
+        let text = std::str::from_utf8(bytes).expect("the sealed head is ASCII");
+
+        assert!(
+            bytes.ends_with(b"\r\n\r\n"),
+            "the sealed head must end with its blank line: {text:?}"
+        );
+        assert!(
+            !bytes.ends_with(b"\r\n\r\n\r\n"),
+            "the sealed head carried more than one blank line: {text:?}"
+        );
+        assert_eq!(
+            text.matches("\r\n\r\n").count(),
+            1,
+            "the head must have exactly one terminator: {text:?}"
+        );
+        assert_eq!(
+            text.matches("X-Kalsa-Slot: 2\r\n").count(),
+            1,
+            "the slot header must be present exactly once: {text:?}"
+        );
+        assert_eq!(
+            text.matches("X-Kalsa-Cache-Salt: ").count(),
+            1,
+            "the salt header must be present exactly once: {text:?}"
+        );
+        assert!(
+            text.contains("X-Kalsa-Cache-Salt: abababababababababababababababababababababababababababababababab\r\n"),
+            "the salt is the lowercase hex of the bytes given: {text:?}"
+        );
+        // The request line still opens the head exactly once.
+        assert_eq!(text.matches("POST /v1/chat/completions HTTP/1.1").count(), 1);
+        assert!(text.starts_with("POST /v1/chat/completions HTTP/1.1\r\n"));
+    }
+
+    /// A client's copies of the door's private headers are stripped; a
+    /// repeated copy is refused (the engine reads the FIRST header).
+    #[test]
+    fn client_copies_of_the_private_headers_are_stripped() {
+        let head = parse(
+            b"POST / HTTP/1.1\r\nHost: x\r\n\
+               X-Kalsa-Slot: 999\r\n\
+               x-kalsa-cache-salt: deadbeef\r\n\r\n",
+        )
+        .expect("a well-formed head parses");
+        let forwarded = String::from_utf8(head.forwarded).unwrap();
+        let lower = forwarded.to_ascii_lowercase();
+        assert!(
+            !lower.contains("x-kalsa-slot") && !lower.contains("x-kalsa-cache-salt"),
+            "a client private header survived into the forwarded head: {forwarded}"
+        );
+        assert!(!forwarded.contains("999"), "the client slot value survived: {forwarded}");
+        assert!(
+            !forwarded.contains("deadbeef"),
+            "the client salt value survived: {forwarded}"
+        );
+
+        let duplicate = parse(
+            b"POST / HTTP/1.1\r\nHost: x\r\n\
+               X-Kalsa-Slot: 0\r\nX-Kalsa-Slot: 1\r\n\r\n",
+        );
+        assert!(duplicate.is_err(), "a repeated private header is ambiguous");
+        let duplicate_salt = parse(
+            b"POST / HTTP/1.1\r\nHost: x\r\n\
+               X-Kalsa-Cache-Salt: 0\r\nX-Kalsa-Cache-Salt: 1\r\n\r\n",
+        );
+        assert!(duplicate_salt.is_err(), "a repeated salt header is ambiguous");
+
+        // A private name the client puts in its own `Connection` line dies
+        // with the connection, value included.
+        let named = parse(
+            b"POST / HTTP/1.1\r\nHost: x\r\n\
+               Connection: x-kalsa-slot\r\n\
+               X-Kalsa-Slot: 777\r\n\r\n",
+        )
+        .expect("a well-formed head parses");
+        let forwarded = std::str::from_utf8(&named.forwarded).unwrap();
+        assert!(
+            !forwarded.contains("777") && !forwarded.to_ascii_lowercase().contains("x-kalsa-slot"),
+            "a private header named by the client's Connection line survived: {forwarded}"
+        );
+        let sealed = named.seal(3, &[0u8; 32]);
+        let text = std::str::from_utf8(sealed.bytes()).unwrap();
+        assert_eq!(text.matches("X-Kalsa-Slot: ").count(), 1);
+        assert!(text.contains("X-Kalsa-Slot: 3\r\n"));
     }
 }

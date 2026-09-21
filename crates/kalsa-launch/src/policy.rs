@@ -62,6 +62,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         batch_size: input.batch_size,
         ubatch_size: input.ubatch_size,
         kv_cache: input.kv_cache,
+        parallel: crate::args::DEFAULT_PARALLEL,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
@@ -530,7 +531,17 @@ mod tests {
         let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
         let line = launched.args.argv().join(" ");
-        assert!(line.contains("--parallel 1"), "{line}");
+        // The argv carries the args' own value, not a literal: if the field
+        // and the rendered flag ever drift, this assertion names the drift.
+        assert_eq!(
+            launched.args.parallel,
+            crate::args::DEFAULT_PARALLEL,
+            "the planned slot count is not the shared default"
+        );
+        assert!(
+            line.contains(&format!("--parallel {}", launched.args.parallel)),
+            "{line}"
+        );
     }
 
     #[test]

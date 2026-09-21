@@ -578,6 +578,7 @@ fn dev_config_with_overrides(
         batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
         ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
         kv_cache,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;

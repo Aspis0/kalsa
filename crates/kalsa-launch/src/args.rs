@@ -69,6 +69,14 @@ pub(crate) const ALL_LAYERS: &str = "all";
 /// `note_unload`); it never predicts one.
 pub const DEFAULT_IDLE_UNLOAD_SECONDS: u32 = 300;
 
+/// How many engine slots the server runs, and therefore how many devices the
+/// door can serve at once. This is the ONE value the launcher and the door
+/// share: [`ServerArgs::parallel`] is rendered into `--parallel`, and the
+/// app passes the same number to `kalsa_door::Door::new` as the door's
+/// capacity. There is deliberately no second constant for the door, so the
+/// two can never drift apart.
+pub const DEFAULT_PARALLEL: u32 = 1;
+
 /// The user-facing idle range. Below a minute the model churns during normal
 /// pauses; above an hour an unattended machine keeps the model resident for
 /// no useful reason. Both bounds are deliberately conservative.
@@ -217,6 +225,11 @@ pub struct ServerArgs {
     /// The KV cache precision. A decided value now, not a constant: it sets
     /// what the cache costs per token, and the arithmetic is told.
     pub kv_cache: KvCache,
+    /// The engine's slot count, rendered as `--parallel`. The same value is
+    /// the door's capacity: a device beyond this many has no engine slot,
+    /// and the door refuses it rather than let the engine wrap `id_slot`
+    /// onto somebody else's cache.
+    pub parallel: u32,
 }
 
 /// The settings the UI may show after the command line has been built.

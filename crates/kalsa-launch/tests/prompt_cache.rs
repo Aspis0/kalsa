@@ -112,6 +112,7 @@ fn the_second_turn_is_measured_against_the_first() {
         batch_size: 2048,
         ubatch_size: 512,
         kv_cache: KvCache::Q8_0,
+        parallel: kalsa_launch::DEFAULT_PARALLEL,
     };
     let mut argv = args.argv();
     // Harness-only variants, appended after the plan: what a changed launch
@@ -204,10 +205,15 @@ fn the_second_turn_is_measured_against_the_first() {
     )
     .expect("a valid test credential");
     let devices = kalsa_door::Devices::new(vec![entry]).expect("a valid device set");
-    let running = kalsa_door::Door::new(listener, PORT, devices)
-        .expect("the door accepts its credential")
-        .start()
-        .expect("the door starts");
+    let running = kalsa_door::Door::new(
+        listener,
+        PORT,
+        devices,
+        kalsa_launch::DEFAULT_PARALLEL,
+    )
+    .expect("the door accepts its credential")
+    .start()
+    .expect("the door starts");
     let d2 = chat(
         &addr,
         Some((&running.address(), &credential)),

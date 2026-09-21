@@ -529,6 +529,7 @@ mod tests {
             batch_size: 2048,
             ubatch_size: 1024,
             kv_cache: KvCache::F16,
+            parallel: kalsa_launch::DEFAULT_PARALLEL,
         };
         let maxima = ContextMaxima {
             q8_0: Some(8192),
