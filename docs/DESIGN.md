@@ -111,6 +111,10 @@ and it refuses.
 - **That trace does not survive a reopen, deliberately** (`AiChatPage.tsx:709-713`): after a reload,
   an answer that used four tools is indistinguishable from one that used none. Persisting it means
   writing a per-message tool list into the history path — a decision with a cost, taken in step 4.
+- **Half of step 4's promise is still open, and it is worth naming.** The leaf renders tool rows,
+  but **nothing populates them in the running app yet**: the shell is not mounted, so the old UI
+  still throws the tool name away (`AiChatPage.tsx:2623-2651`). Passing `onTool` names into this
+  field happens at the mount, which is a host step.
 - **Sources DO survive**: the source strip is persisted on the message
   (`AiChatPage.tsx:715-731`). So sources and tools must be treated as one family, and today only
   half of it persists.
@@ -247,6 +251,13 @@ out of the app and would leak the domains the user searched. Only a public `http
 tappable; `javascript:`, `data:`, `file:` and the machine's own server stay text with reduced
 emphasis.
 
+
+**The chip's touch box is not the chip.** The painted chip is small — 6 dp of vertical padding around
+meta text, about 28 dp — and this section wants exactly that. But a tappable thing smaller than 48 dp is
+a real accessibility defect, and this project forbids buying the size back with `hitSlop`. So the
+**pressable box is a real 48 dp box and the painted chip sits inside it**: the rule and the look both
+hold, at the cost of 20 dp of height per row of chips. Recorded because "small chip" and "48 dp" read
+like a contradiction and are not.
 ### 2.6 Mini apps
 
 A card in the transcript: title, a short metric row, an **Apri** affordance, and a line saying it is
@@ -380,7 +391,7 @@ step, plus emulator screenshots at **480×854/220** and **1080×2340/480**, and 
 | 2 | **The shell**: three bands, no content, no engine calls, edge-to-edge with the gesture bar | `shellGeometry.test.ts` at 349×621, 360×780 and 349×325: the bands sum to the available height, every interactive box is ≥48 dp, the composer never overlaps the gesture inset, the strip collapses to one line at 325 dp. Screenshots at all three, per the proof regime below | coder |
 | 2b | **The three sizes in one capture**: `ShellPreview` cycles 621 / 325 / 780 on a tap | `ShellPreview` no longer holds a height constant; the proof regime fixes the native-build cost at one | coder |
 | 3 | **The transcript**: user capsule, bare serif answer, markdown incl. equations and tables, day marker, the cloud mounted | a long answer, a three-column table and a code block at 349 dp, each with a screenshot; the cloud's 50 tests stay green | coder + explorer |
-| 4 | **Tool rows and sources chips**: render the tool names that already arrive; chips with no network fetch; the rows stay **volatile** (§2.4) | a test per tool name rendering; a test that no image is fetched; a reopen test asserting the rows are **absent** while the **sources are present** | coder |
+| 4 | **Tool rows and sources chips**: render the tool names that already arrive; chips with no network fetch; the rows stay **volatile** (§2.4) | a **pure mapping test** (the table equals the agent layer's own tool list, in order, and resolves in both catalogues), a **pure policy test** for tappability, and a **source check** that no request, image, asset or store is reachable from any band file, which also proves itself non-vacuous. The plan's original "test per tool name rendering" and "reopen test" were not executable here: the first needs a render harness this stack does not have, and the second is the host's business, not a leaf's | leaf done, host wiring pending |
 | 5 | **The composer**: type-while-generating, send/stop/stopping, the held-reason invariant, the attach chip | one test per held state; the 48 dp check in the geometry module (not a render sweep — the stack cannot sweep a render); the "no invite without a reason" test | coder |
 | 6 | **Stop's four outcomes** | one test each, including stopped-before-any-token | coder |
 | 7 | **Mini apps**: the transcript card + the full-screen sheet, the 39 block kinds ported without the registry's false interactivity | one screenshot per block family at 349 dp; the `editable_table` lie removed and reported | coder |
