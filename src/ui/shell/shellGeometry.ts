@@ -40,6 +40,13 @@ export const STRIP_HEIGHT_COLLAPSED = 52;
 export const STRIP_COLLAPSE_BELOW = 420;
 export const STRIP_SIDE_PADDING = 12;
 export const STRIP_GAP = 9;
+/**
+ * The strip pill's mark: the logo's circular clip, in dp. Kept well under the
+ * pill's `MIN_TOUCH_TARGET` height so the mark can never be the thing that
+ * makes the 48 dp pill grow — the pill is the touch target, the mark is the
+ * picture inside it (the mock's `.pick .mark`, same 28).
+ */
+export const STRIP_MARK_SIZE = 28;
 
 /** Composer: an 8 dp lift, a 56 dp field, and a 14 dp lift over the gesture
  *  bar — the mock's `.dock` and `.field`, re-measured in dp. */

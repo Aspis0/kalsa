@@ -8,7 +8,11 @@
  * silently wrong trail.
  */
 import {
+  CLOUD_BOX,
   CLOUD_BREATHE,
+  CLOUD_COLLAPSED_HEIGHT_DP,
+  CLOUD_TRAIL_BUBBLES,
+  CLOUD_TRAIL_HEIGHT_DP,
   MIN_TOUCH_TARGET_DP,
   POSE_RANGE,
   RISE,
@@ -313,5 +317,29 @@ describe("css easing", () => {
     expect(cubicBezier(0.42, 0, 0.58, 1, -1)).toBe(0);
     expect(cubicBezier(0.42, 0, 0.58, 1, 2)).toBe(1);
     expect(cssEaseInOut(Number.NaN)).toBe(0);
+  });
+});
+
+describe("the cloud's collapsed box", () => {
+  it("is the sum of the parts the component draws with", () => {
+    // 6 margin + (9 + 7 + 5) bubbles + 2 x 4 gap - 9 pulled back up.
+    expect(CLOUD_TRAIL_HEIGHT_DP).toBe(26);
+    expect(CLOUD_COLLAPSED_HEIGHT_DP).toBe(
+      2 * CLOUD_BOX.border +
+        CLOUD_BOX.paddingTop +
+        MIN_TOUCH_TARGET_DP +
+        CLOUD_BOX.paddingBottom +
+        CLOUD_TRAIL_HEIGHT_DP,
+    );
+    // 2 border + 8.8 + 48 head + 10.4 + 26 trail.
+    expect(CLOUD_COLLAPSED_HEIGHT_DP).toBeCloseTo(95.2, 6);
+    // Taller than the head row alone: the trail is part of what must clear.
+    expect(CLOUD_COLLAPSED_HEIGHT_DP).toBeGreaterThan(MIN_TOUCH_TARGET_DP);
+  });
+
+  it("keeps the trail widest to narrowest, each inset deeper than the last", () => {
+    expect(CLOUD_TRAIL_BUBBLES.map((bubble) => bubble.size)).toEqual([9, 7, 5]);
+    const insets = CLOUD_TRAIL_BUBBLES.map((bubble) => bubble.inset);
+    for (let i = 1; i < insets.length; i++) expect(insets[i]).toBeGreaterThan(insets[i - 1]);
   });
 });

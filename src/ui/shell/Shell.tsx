@@ -14,6 +14,7 @@
 import { ArrowUp, ChevronDown, Menu, Mic, Plus } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -39,10 +40,21 @@ import {
   COMPOSER_SIDE_PADDING,
   MIN_TOUCH_TARGET,
   STRIP_GAP,
+  STRIP_MARK_SIZE,
   STRIP_SIDE_PADDING,
   shellGeometry,
   type Insets,
 } from "./shellGeometry";
+
+/**
+ * The app's logo, and one of the three assets the rebuild keeps (DESIGN.md
+ * §1.2): the neural-leaf mark, the same file `app.config.js` ships as the
+ * launcher icon and the mock draws as `.pick .mark`. It is `require`d rather
+ * than drawn, because the strip's mark is the one place the brand is visible.
+ * `shellLogoAsset.test.ts` reads this file, pulls this path out and proves the
+ * file exists, so a typo cannot ship the blank disc again.
+ */
+const LOGO = require("../../../assets/icon.png");
 
 export type ShellProps = {
   /** Safe-area insets, in dp. */
@@ -116,7 +128,15 @@ export function Shell({
           onPress={onModelPress}
           style={styles.pill}
         >
-          <View style={styles.mark} />
+          <View
+            accessibilityElementsHidden
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
+            style={styles.mark}
+          >
+            <Image resizeMode="cover" source={LOGO} style={styles.markImage} />
+          </View>
           <View style={styles.pillText}>
             <Text style={styles.modelName} numberOfLines={1}>
               {modelName}
@@ -237,10 +257,19 @@ function createShellStyles(colors: DesignColors) {
       ...elevation.raised,
     },
     mark: {
-      backgroundColor: colors.accent,
-      borderRadius: 14,
-      height: 28,
-      width: 28,
+      // The mock's `.pick .mark`: a 28 dp circular clip with the raster filling
+      // it (`object-fit: cover`). `icon.png` is the full-bleed plate — unlike
+      // the composer's JPEGs it carries no sage margin — so cover needs no
+      // scale. The ground only shows while the image decodes.
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: STRIP_MARK_SIZE / 2,
+      height: STRIP_MARK_SIZE,
+      overflow: "hidden",
+      width: STRIP_MARK_SIZE,
+    },
+    markImage: {
+      height: STRIP_MARK_SIZE,
+      width: STRIP_MARK_SIZE,
     },
     pillText: {
       flex: 1,

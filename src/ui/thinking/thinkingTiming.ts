@@ -146,15 +146,45 @@ export function phaseAt(state: TimingState, now: number): ThinkingPhase {
   return "rest";
 }
 
-/** Last non-empty line, trimmed, capped at the ticker width. */
+/**
+ * Last non-empty line, trimmed. Clipping is `tailWithin`'s job and ONLY its job:
+ * a line clipped here would reach the ticker with its words already broken, and
+ * the ticker could no longer see where to cut or whether anything was dropped —
+ * which is how the face came to open on "ree methods" with no ellipsis.
+ */
 export function lastLine(reasoning: string): string {
   const lines = reasoning.split("\n").map((line) => line.trim()).filter(Boolean);
-  return (lines.at(-1) ?? "").slice(-TICKER_MAX_CHARS);
+  return lines.at(-1) ?? "";
+}
+
+/**
+ * The tail of `text`, at most `max` characters, cut on a word boundary, with an
+ * ellipsis prefixed when a beginning was actually dropped. The ellipsis is the
+ * whole signal: it says "this is a tail" instead of letting a fragment pass as
+ * the start of the sentence. It is part of the budget, so the result still fits
+ * the ticker; and a string that already fits is returned untouched, because an
+ * ellipsis on a whole string would make the signal a lie.
+ *
+ * If the visible window holds no whitespace there is no boundary to honour, so
+ * the tail is cut at a character — the one case where the cut cannot be a word.
+ */
+export function tailWithin(text: string, max: number = TICKER_MAX_CHARS): string {
+  // A caller that hands over 0, 1 or NaN must not get the whole string back:
+  // `slice(-0)` is `slice(0)`, and an ellipsis is the only honest answer when
+  // there is no room for a character beside it.
+  const cap = Number.isFinite(max) ? Math.max(1, Math.floor(max)) : TICKER_MAX_CHARS;
+  const clean = text.replace(/\s+$/, "");
+  if (clean.length <= cap) return clean;
+  if (cap === 1) return "…";
+  // One character of the window pays for the ellipsis, so `cap` stays the cap.
+  const window = clean.slice(-(cap - 1));
+  const space = window.search(/\s/);
+  return `…${space >= 0 ? window.slice(space + 1) : window}`;
 }
 
 /** The collapsed face while reasoning: the upstream tail when it has one. */
 export function tickerText(tail: string | undefined, reasoning: string): string {
-  return (tail ?? lastLine(reasoning)).replace(/\s+$/, "").slice(-TICKER_MAX_CHARS) || TICKER_FALLBACK;
+  return tailWithin(tail ?? lastLine(reasoning)) || TICKER_FALLBACK;
 }
 
 /** The collapsed face once reasoning stopped: `Math.round(ms / 100) / 10`. */

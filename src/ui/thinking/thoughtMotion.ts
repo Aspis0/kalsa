@@ -51,6 +51,57 @@ export const CLOUD_BREATHE = { cycleMs: 2 * BREATHE_HALF_MS, peak: 1.012 } as co
  */
 export const MIN_TOUCH_TARGET_DP = 48;
 
+/** The desktop stylesheet is rem-based; one rem is what the browser used. */
+export const REM_DP = 16;
+
+/**
+ * The cloud's own box, in dp, exactly as `ThoughtCloud.tsx` draws it. It lives
+ * here with the other cloud numbers because the node test stack cannot import
+ * that component (DESIGN.md, "proof regime"); the component builds its styles
+ * from these same fields, so the sum below cannot drift from the drawing.
+ */
+export const CLOUD_BOX = {
+  /** A 1 dp hairline, top and bottom. */
+  border: 1,
+  /** `padding-top: 0.55rem`, above the head row. */
+  paddingTop: 0.55 * REM_DP,
+  /** `padding-bottom: 0.65rem`, below it. */
+  paddingBottom: 0.65 * REM_DP,
+  /** The trail under the head row: `margin-top: 6`, three bubbles with a 4 dp
+   *  gap between each pair, and `margin-bottom: -9` pulled back up again. */
+  trailMarginTop: 6,
+  trailGap: 4,
+  trailMarginBottom: -9,
+} as const;
+
+/** Widest to narrowest, with the inset that offsets it in the trail. */
+export const CLOUD_TRAIL_BUBBLES = [
+  { size: 9, inset: 0 },
+  { size: 7, inset: 2 },
+  { size: 5, inset: 5 },
+] as const;
+
+/** The trail's net vertical cost: margin, bubbles, gaps, negative margin. */
+export const CLOUD_TRAIL_HEIGHT_DP =
+  CLOUD_BOX.trailMarginTop +
+  CLOUD_TRAIL_BUBBLES.reduce((total, bubble) => total + bubble.size, 0) +
+  CLOUD_BOX.trailGap * (CLOUD_TRAIL_BUBBLES.length - 1) +
+  CLOUD_BOX.trailMarginBottom;
+
+/**
+ * What the cloud occupies with the disclosure shut: its two borders, its two
+ * paddings, the 48 dp head row and the trail. The transcript reserves this much
+ * bottom clearance so the cloud can be the last thing on screen and still be
+ * read — and, when opened, still have room to open into. See
+ * `transcriptLayout.ts` `TRANSCRIPT_BOTTOM_PADDING`.
+ */
+export const CLOUD_COLLAPSED_HEIGHT_DP =
+  2 * CLOUD_BOX.border +
+  CLOUD_BOX.paddingTop +
+  MIN_TOUCH_TARGET_DP +
+  CLOUD_BOX.paddingBottom +
+  CLOUD_TRAIL_HEIGHT_DP;
+
 /** The documented envelope of each gesture. ./thoughtMotion.test.ts samples against it. */
 export const POSE_RANGE = {
   rise: { opacity: [0, 1], scale: [RISE.scaleTo, RISE.scaleFrom], translateY: [-TRAIL_TRAVEL_PX, 0] },

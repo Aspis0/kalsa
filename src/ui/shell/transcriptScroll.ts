@@ -7,8 +7,10 @@
  * them, and all three are decided here:
  *
  *  1. **whose is the last message** -> while pinned the view always shows the
- *     end, and `BOTTOM_KEEP_CLEAR_DP` of padding keeps the composer band off the
- *     last line; the view follows an append and a growth, but only while pinned;
+ *     end, and the view follows an append and a growth; the clearance that keeps
+ *     the composer band off the last line belongs to `transcriptLayout.ts`
+ *     (`TRANSCRIPT_BOTTOM_PADDING`), because it is a layout fact rather than a
+ *     scroll one, and this module moves offsets and nothing else;
  *  2. **the answer writing above itself and then below** -> that failure starts
  *     as a rendering rule, not a scroll rule, and `duplicateMessageIds` is the
  *     checkable half of it: a list holding the same answer twice is how it begins;
@@ -21,21 +23,12 @@
  * short conversation has an end offset of zero, which is the top — so both
  * statements are the same function rather than two behaviours to choose between.
  */
-import { type } from "../../theme/design";
 
 /**
  * Within this distance of the end the view counts as pinned, in both directions:
  * the same number unpins and re-pins, so there is no hysteresis to reason about.
  */
 export const PIN_THRESHOLD_DP = 10;
-
-/**
- * The scroll content's bottom padding: one line of the reading face so the
- * composer band can never sit on the last line's descenders, plus a little air.
- * Derived from the type scale rather than written down, so it follows the reading
- * face if that changes.
- */
-export const BOTTOM_KEEP_CLEAR_DP = Math.ceil(type.body.lineHeight) + 6;
 
 export type ScrollCause =
   /** A message was added. */

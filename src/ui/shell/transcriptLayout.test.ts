@@ -15,8 +15,10 @@ import {
   PARAGRAPH_GAP_MAX,
   PARAGRAPH_GAP_MIN,
   TABLE_MIN_COLUMN_WIDTH,
+  TRANSCRIPT_BOTTOM_PADDING,
   TURN_GAP,
   USER_TO_ANSWER_GAP,
+  USER_TO_CLOUD_GAP,
   isSameDay,
   rhythmGap,
   shouldShowDayMarker,
@@ -26,6 +28,7 @@ import {
   transcriptLayout,
   type TranscriptLayout,
 } from "./transcriptLayout";
+import { CLOUD_COLLAPSED_HEIGHT_DP } from "../thinking/thoughtMotion";
 import { shellGeometry, type Insets } from "./shellGeometry";
 
 type Case = { name: string; width: number; height: number; insets: Insets };
@@ -52,6 +55,7 @@ const layoutFor = (c: Case): TranscriptLayout => transcriptLayout(c.width, c.hei
 describe("the turn rhythm", () => {
   it("is the rhythm the design writes down", () => {
     expect(USER_TO_ANSWER_GAP).toBe(6);
+    expect(USER_TO_CLOUD_GAP).toBe(12);
     expect(TURN_GAP).toBe(26);
     expect(PARAGRAPH_GAP).toBeGreaterThanOrEqual(PARAGRAPH_GAP_MIN);
     expect(PARAGRAPH_GAP).toBeLessThanOrEqual(PARAGRAPH_GAP_MAX);
@@ -67,11 +71,41 @@ describe("the turn rhythm", () => {
     expect(rhythmGap("assistant", "assistant")).toBe(TURN_GAP);
   });
 
+  it("gives a cloud-opening answer the larger chosen gap, and only there", () => {
+    // The three shapes, side by side: bare answer 6, cloud answer 12, turns 26.
+    expect(rhythmGap("user", "assistant", false)).toBe(6);
+    expect(rhythmGap("user", "assistant", true)).toBe(12);
+    expect(rhythmGap("assistant", "user", true)).toBe(26);
+    // The flag only ever moves the user -> its own answer edge, and the first
+    // item still has nothing above it.
+    expect(rhythmGap(null, "assistant", true)).toBe(0);
+    expect(rhythmGap("user", "user", true)).toBe(TURN_GAP);
+    expect(rhythmGap("assistant", "assistant", true)).toBe(TURN_GAP);
+  });
+
   it("carries the same rhythm into the layout object", () => {
     const layout = layoutFor(JELLY);
     expect(layout.rhythm.userToAnswer).toBe(6);
+    expect(layout.rhythm.userToCloud).toBe(12);
     expect(layout.rhythm.betweenTurns).toBe(26);
     expect(layout.rhythm.paragraph).toBe(PARAGRAPH_GAP);
+  });
+});
+
+describe("the clearance under the last item", () => {
+  it("is at least the cloud's collapsed height, so the cloud can be last", () => {
+    expect(TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
+    expect(Number.isInteger(TRANSCRIPT_BOTTOM_PADDING)).toBe(true);
+    for (const c of CASES) expect(layoutFor(c).bottomPadding).toBe(TRANSCRIPT_BOTTOM_PADDING);
+  });
+
+  it("does not eat the 195 dp short band, so the first turn stays above the fold", () => {
+    const short = layoutFor(JELLY_KEYBOARD).availableHeight; // 195
+    expect(short).toBe(195);
+    expect(TRANSCRIPT_BOTTOM_PADDING).toBeLessThan(short);
+    // Once the clearance is reserved there is still room for the very cloud the
+    // clearance exists for: the padding is a clearance, not the whole band.
+    expect(short - TRANSCRIPT_BOTTOM_PADDING).toBeGreaterThanOrEqual(CLOUD_COLLAPSED_HEIGHT_DP);
   });
 });
 

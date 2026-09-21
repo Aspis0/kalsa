@@ -1249,6 +1249,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       attach: "Aggiungi un documento",
       thinking: "Pensiero del modello",
       previewSize: "Dimensione dell'anteprima",
+      jumpToEnd: "Vai in fondo",
+      previewSizeOption: "Anteprima a {height} dp",
+    },
+    /** ShellPreview only: the switch's mismatch warning, never shown in the app. */
+    preview: {
+      sizeNotLive: "Mostro {pinned} dp in una finestra di {live} dp",
     },
   },
 };

@@ -1293,6 +1293,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       attach: "Add a document",
       thinking: "Model thinking",
       previewSize: "Preview size",
+      jumpToEnd: "Go to the end",
+      previewSizeOption: "Preview at {height} dp",
+    },
+    /** ShellPreview only: the switch's mismatch warning, never shown in the app. */
+    preview: {
+      sizeNotLive: "Showing {pinned} dp in a {live} dp window",
     },
   },
 };

@@ -8,14 +8,12 @@
  * and 195 dp with the keyboard open.
  */
 import {
-  BOTTOM_KEEP_CLEAR_DP,
   PIN_THRESHOLD_DP,
   duplicateMessageIds,
   endOffset,
   transcriptScroll,
   type ScrollInput,
 } from "./transcriptScroll";
-import { type } from "../../theme/design";
 
 /** The Jelly's full-height transcript band, from the shell geometry. */
 const JELLY_VIEWPORT = 443;
@@ -86,10 +84,6 @@ describe("failure 1 — whose is the last message", () => {
       input({ cause: "append", contentHeight: CONTENT + 100, offsetY: CONTENT - JELLY_VIEWPORT, pinned: true }),
     );
     expect(decision).toEqual({ pinned: true, scrollTo: CONTENT + 100 - JELLY_VIEWPORT });
-  });
-
-  it("keeps at least one reading line clear of the composer band", () => {
-    expect(BOTTOM_KEEP_CLEAR_DP).toBeGreaterThan(type.body.lineHeight);
   });
 });
 

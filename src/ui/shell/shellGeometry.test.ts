@@ -12,6 +12,7 @@ import {
   MIN_TOUCH_TARGET,
   STRIP_HEIGHT,
   STRIP_HEIGHT_COLLAPSED,
+  STRIP_MARK_SIZE,
   shellGeometry,
   type Insets,
   type ShellGeometry,
@@ -87,6 +88,15 @@ describe.each(CASES)("$name", (c) => {
     expect(STRIP_HEIGHT).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
     expect(STRIP_HEIGHT_COLLAPSED).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
     expect(COMPOSER_HEIGHT).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+  });
+
+  it("keeps the logo mark inside the pill, so the pill stays the 48 dp target", () => {
+    // The mark is a picture, not a control: the pill around it is the target,
+    // and it is `MIN_TOUCH_TARGET` tall. A mark that reached that height would
+    // be the thing deciding the pill's size instead.
+    expect(STRIP_MARK_SIZE).toBeGreaterThan(0);
+    expect(STRIP_MARK_SIZE).toBeLessThan(MIN_TOUCH_TARGET);
+    expect(MIN_TOUCH_TARGET - STRIP_MARK_SIZE).toBeGreaterThanOrEqual(12);
   });
 
   it("agrees with the collapsed form the height implies", () => {

@@ -13,6 +13,7 @@ import {
   recordArrival,
   risingIn,
   shouldWriteTempo,
+  tailWithin,
   thinkingSummary,
   tickerText,
   tokenRatePerSecond,
@@ -188,25 +189,66 @@ describe("phase machine", () => {
 });
 
 describe("collapsed face", () => {
-  it("takes the last non-empty line, trimmed", () => {
+  it("takes the last non-empty line, trimmed, and does not clip it", () => {
     expect(lastLine("a\nb\nc")).toBe("c");
     expect(lastLine("a\n\n   b   \n")).toBe("b");
     expect(lastLine("\n\n")).toBe("");
     expect(lastLine("")).toBe("");
     expect(lastLine("only line")).toBe("only line");
+    // Clipping moved to tailWithin, and it moved on purpose: a line clipped here
+    // would reach the ticker pre-broken, so the ticker could not tell a whole
+    // word from a fragment. The line comes back whole.
+    const long = "x".repeat(200);
+    expect(lastLine(long)).toBe(long);
+    expect(lastLine(`a\n${long}`)).toBe(long);
   });
 
-  it("caps the line at the ticker width", () => {
+  it("caps the tail at the ticker width, on a word boundary", () => {
     const long = "x".repeat(200);
-    expect(lastLine(long)).toHaveLength(TICKER_MAX_CHARS);
-    expect(lastLine(long)).toBe("x".repeat(TICKER_MAX_CHARS));
-    expect(lastLine(`a\n${long}`)).toBe("x".repeat(TICKER_MAX_CHARS));
+    expect(tailWithin(long)).toHaveLength(TICKER_MAX_CHARS);
+    expect(tailWithin(long)).toBe(`…${"x".repeat(TICKER_MAX_CHARS - 1)}`);
+    // The cut happens at a space: the head stops there, so the first visible
+    // character is the start of a word and never the tail of one.
+    const words = Array.from({ length: 40 }, (_, i) => `word${i}`);
+    const line = words.join(" ");
+    const shown = tailWithin(line);
+    expect(shown.startsWith("…")).toBe(true);
+    expect(shown.length).toBeLessThanOrEqual(TICKER_MAX_CHARS);
+    const visible = shown.slice(1);
+    expect(line.endsWith(visible)).toBe(true);
+    const cutAt = line.length - visible.length;
+    expect(cutAt).toBeGreaterThan(0);
+    expect(line[cutAt - 1]).toBe(" ");
+    expect(words).toContain(visible.split(" ")[0]);
+  });
+
+  it("answers a degenerate cap without returning the whole string", () => {
+    expect(tailWithin("hello world", 1)).toBe("…");
+    expect(tailWithin("hello world", 0)).toBe("…");
+    expect(tailWithin("hello world", Number.NaN)).toBe("hello world");
+    expect(tailWithin("hello", 3)).toHaveLength(3);
   });
 
   it("prefers the upstream tail and falls back to the reasoning", () => {
     expect(tickerText("streaming tail", "a\nb")).toBe("streaming tail");
     expect(tickerText(undefined, "a\nb")).toBe("b");
     expect(tickerText("trailing spaces   ", "")).toBe("trailing spaces");
+  });
+
+  it("adds the ellipsis exactly when a beginning was dropped, and never otherwise", () => {
+    const short = "a short line of reasoning";
+    expect(tickerText(short, "")).toBe(short);
+    expect(tickerText(short, "")).not.toContain("…");
+    // Exactly at the cap still fits, so it comes back untouched.
+    const exact = "w".repeat(TICKER_MAX_CHARS);
+    expect(tickerText(exact, "")).toBe(exact);
+    // One character more is a drop, and the drop is signalled.
+    const over = `${exact}w`;
+    expect(tickerText(over, "")).toContain("…");
+    expect(tickerText(over, "").length).toBeLessThanOrEqual(TICKER_MAX_CHARS);
+    // The fallback path is clipped the same way: a long last line cannot reach
+    // the face raw, and cannot reach it headless either.
+    expect(tickerText(undefined, `line\n${over}`)).toContain("…");
   });
 
   it("falls back to the placeholder when there is nothing to show", () => {

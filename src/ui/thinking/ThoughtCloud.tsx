@@ -16,7 +16,8 @@ import Animated, {
   withDelay, withRepeat, withTiming, type FrameInfo, type SharedValue,
 } from "react-native-reanimated";
 import {
-  CLOUD_BREATHE, MIN_TOUCH_TARGET_DP, advancePhase, breatheActive, bubblePose, cloudBreathScale, riseFramesActive,
+  CLOUD_BOX, CLOUD_BREATHE, CLOUD_TRAIL_BUBBLES, MIN_TOUCH_TARGET_DP, advancePhase, breatheActive,
+  bubblePose, cloudBreathScale, riseFramesActive,
 } from "./thoughtMotion";
 import {
   BASE_PERIOD_S, SETTLE_DURATION_MS, SETTLE_STAGGER_MS, createTimingState,
@@ -55,7 +56,6 @@ const REM = 16;
  *  a Remote Function" (Worklets). `thoughtCloudWorklets.test.ts` guards this. */
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 const BODY_MAX_HEIGHT = 320;
-const BUBBLES = [{ size: 9, inset: 0 }, { size: 7, inset: 2 }, { size: 5, inset: 5 }] as const;
 
 /** A monotonic clock where the runtime has one; the window only reads deltas. */
 const clock = (): number =>
@@ -65,7 +65,7 @@ function makeStyles(colors: ThoughtCloudColors) {
     cloud: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderWidth: 1,
+      borderWidth: CLOUD_BOX.border,
       // The CSS radii are elliptical (`24px 28px 26px 18px / 20px 26px 18px
       // 28px`) and RN has no elliptical corners, so the horizontal set stands in.
       borderTopLeftRadius: 24,
@@ -73,9 +73,9 @@ function makeStyles(colors: ThoughtCloudColors) {
       borderBottomRightRadius: 26,
       borderBottomLeftRadius: 18,
       marginBottom: 0.35 * REM,
-      paddingBottom: 0.65 * REM,
+      paddingBottom: CLOUD_BOX.paddingBottom,
       paddingHorizontal: REM,
-      paddingTop: 0.55 * REM,
+      paddingTop: CLOUD_BOX.paddingTop,
       position: "relative",
     },
     // Puffs: background only, no border — a ring would cut across the bubble.
@@ -98,7 +98,7 @@ function makeStyles(colors: ThoughtCloudColors) {
       marginTop: 0.55 * REM, maxHeight: BODY_MAX_HEIGHT, paddingTop: 0.55 * REM,
     },
     bodyText: { color: colors.silence, fontSize: 0.86 * REM, lineHeight: 1.65 * 0.86 * REM },
-    trail: { flexDirection: "column", gap: 4, marginBottom: -9, marginLeft: 44, marginTop: 6 },
+    trail: { flexDirection: "column", gap: CLOUD_BOX.trailGap, marginBottom: CLOUD_BOX.trailMarginBottom, marginLeft: 44, marginTop: CLOUD_BOX.trailMarginTop },
     bubble: { backgroundColor: colors.surface, borderColor: colors.borderStrong, borderRadius: 999, borderWidth: 1 },
   });
 }
@@ -306,7 +306,7 @@ function ThoughtCloudView({
         style={styles.trail}
         testID={`thought-${messageId}-trail`}
       >
-        {BUBBLES.map((bubble, index) => (
+        {CLOUD_TRAIL_BUBBLES.map((bubble, index) => (
           <TrailBubble
             index={index}
             inset={bubble.inset}

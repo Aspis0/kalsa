@@ -1,6 +1,7 @@
 /**
  * The transcript's arithmetic: the turn rhythm, the capsule's ceiling, the day
- * marker's height rule, and the decision it takes to make a table scroll.
+ * marker's height rule, the clearance under the last item, and the decision it
+ * takes to make a table scroll.
  *
  * Pure, no React, and testable in the `node` jest stack (DESIGN.md, "proof
  * regime": there is no render harness, so every size the layout depends on is
@@ -13,10 +14,19 @@
  * both tests stayed green.
  */
 import { measure } from "../../theme/design";
+import { CLOUD_COLLAPSED_HEIGHT_DP } from "../thinking/thoughtMotion";
 import { shellGeometry, type Insets } from "./shellGeometry";
 
 /** A turn is the user's capsule plus its own answer. Inside it: 6 dp. */
 export const USER_TO_ANSWER_GAP = 6;
+/**
+ * The same gap when the answer opens with the cloud, and it is a CHOSEN 12, not
+ * a derived number: the layout's arithmetic produces only the bare answer's 6.
+ * The cloud is a filled white blob with two puffs on its top edge, so at 6 dp it
+ * reads as a bubble hanging off the green capsule; 12 separates the two shapes
+ * without inventing a new rhythm step. Written here so a reviewer can move it.
+ */
+export const USER_TO_CLOUD_GAP = 12;
 /** Between two turns: 26 dp. Grouping is by proximity; a separator between
  *  turns is never drawn (DESIGN.md §2.2). */
 export const TURN_GAP = 26;
@@ -50,6 +60,21 @@ export const DAY_MARKER_HEIGHT = 42;
  */
 export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
 
+/**
+ * The clearance under the transcript's last item. The transcript scrolls under
+ * the composer band, so without it the newest element is pinned to the band's
+ * bottom edge; when that element is the cloud, the disclosure has nowhere to
+ * open into — measured on the Jelly, the body dumped to 0 dp (y716-714) and
+ * "Show thinking" had nothing to reveal.
+ *
+ * The floor is the cloud's own collapsed height (`CLOUD_COLLAPSED_HEIGHT_DP`,
+ * shared with the component that draws it): a clearance smaller than the tallest
+ * thing that can be last does not clear it. `Math.ceil` keeps it a whole dp and
+ * keeps the two from drifting. It stays under the 195 dp keyboard band with
+ * room to spare, so it is a clearance and not a band of its own.
+ */
+export const TRANSCRIPT_BOTTOM_PADDING = Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP);
+
 /** A cell's own left+right padding, and the narrowest a cell's content may be
  *  before a label and its number start to collide. */
 export const TABLE_CELL_PADDING = 10;
@@ -75,8 +100,12 @@ export type TranscriptLayout = {
    *  a line. It is capped by `measure.readingMaxWidth` on a wide screen only. */
   readingMeasure: number;
   showDayMarker: boolean;
+  /** The clearance under the last item, so it can sit clear of the composer. */
+  bottomPadding: number;
   rhythm: {
     userToAnswer: number;
+    /** When the answer opens with the cloud, the chosen, larger gap. */
+    userToCloud: number;
     betweenTurns: number;
     paragraph: number;
   };
@@ -112,12 +141,20 @@ export function shouldShowDayMarker(
 
 /**
  * The gap above an item, from the item before it. A user turn and its own
- * answer are one turn and sit 6 dp apart; everything else is 26 dp. The first
- * item has no gap above it.
+ * answer are one turn and sit close together; everything else is 26 dp. The
+ * first item has no gap above it. `opensWithCloud` is the caller saying the
+ * answer starts with the thinking cloud, which takes the larger chosen gap.
  */
-export function rhythmGap(previous: TranscriptRole | null, current: TranscriptRole): number {
+export function rhythmGap(
+  previous: TranscriptRole | null,
+  current: TranscriptRole,
+  opensWithCloud = false,
+): number {
   if (previous === null) return 0;
-  return previous === "user" && current === "assistant" ? USER_TO_ANSWER_GAP : TURN_GAP;
+  if (previous === "user" && current === "assistant") {
+    return opensWithCloud ? USER_TO_CLOUD_GAP : USER_TO_ANSWER_GAP;
+  }
+  return TURN_GAP;
 }
 
 /** Blank-line separated paragraphs; a single newline stays inside one. */
@@ -150,8 +187,10 @@ export function transcriptLayout(width: number, height: number, insets: Insets):
     capsuleMaxWidth,
     readingMeasure: Math.min(contentWidth, measure.readingMaxWidth),
     showDayMarker: showsDayMarker(availableHeight),
+    bottomPadding: TRANSCRIPT_BOTTOM_PADDING,
     rhythm: {
       userToAnswer: USER_TO_ANSWER_GAP,
+      userToCloud: USER_TO_CLOUD_GAP,
       betweenTurns: TURN_GAP,
       paragraph: PARAGRAPH_GAP,
     },
