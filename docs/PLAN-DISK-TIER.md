@@ -67,14 +67,13 @@ Engine paths are relative to `/Users/marco/Projects/kalsallama` @ `5c96b18dd`; a
   FULL term is not excluded a priori, and this fork's target model is not named in this document.
   **Therefore: the identity cannot ride in the appendix, because the appendix may not exist —
   not because `--swa-full` guarantees its absence.**
-- **`--swa-full` was the plan's red herring, and it is settled by measurement.** The paging
-  spike's `cached=0` was never a sliding-window limitation: it is the namespace hole below.
-  `dev/results/slot-restore-swa/summary.md` runs the save/restore round-trip with the flag off
-  **and** on, at ~600 and ~1900 tokens, salted and unsalted, and the reused-token count is 0 with
-  a salt and ~1895 without it **in both settings** — the tokens come back (`n_restored` is the
-  whole conversation in all eight rows) and are then destroyed by the next request only when the
-  caller carries a salt. The flag moves the file size, not the warmth.
-  **So the tier does not render it**, and the ~1.4 GiB price below is moot.
+- **`--swa-full` was the plan's red herring, and two measurements settled it.** The paging
+  spike's `cached=0` was never a sliding-window limitation: it is the namespace hole below, read
+  through a harness that did not send the salt on the slot actions. With that fixed,
+  `dev/results/slot-restore-device-path/summary.md` reuses the conversation in **all eight** arms —
+  1895 of 1900 tokens with a full context, with and without a salt, with and without the flag — and
+  the flag moves the file size only. **So the tier does not render it**, and the ~1.4 GiB price
+  below is moot.
 - **The door already strips and injects.** The client's `X-Kalsa-Slot` and `X-Kalsa-Cache-Salt`
   are recognised and discarded (`crates/kalsa-door/src/request.rs:174-185`), and the door writes
   its own into the sealed head, the only path to the wire (`:55-62`). `/slots/*` is refused
@@ -162,9 +161,9 @@ All three components already exist, and none of them costs work at save time:
   and the negative: a restore under salt B leaves the state in B, so B is warm and a request
   under A is not handed B's state. **Red first.** Command from `tools/server/tests`:
   `./tests.sh unit/test_cache_salt.py`.
-- **Landed**: `833cde99b` on the local branch `disk-tier-salt-restore`, off `main` = `5c96b18dd`.
-  Red first (`2 failed, 10 passed`, `assert 0 > 0`), green verified independently (`12 passed`),
-  review FIT on a different model. Not pushed.
+- **Landed**: `833cde99b` on the engine's `main`. **Not on `b11010-merge`, therefore in no
+  release** — a shipped disk tier needs a new engine release carrying it. Red first, green verified
+  independently, review FIT; the state is in the session handoff.
 - **Two traps the review found, both environmental and both real.** (a) **Do not run this suite in
   parallel while Kalsa Brain is running.** `conftest.py:7-13` sets each xdist worker's port to
   `8080 + worker*10`, so worker 5 wants **8130** — the port the app's own engine holds (verified
@@ -188,12 +187,8 @@ All three components already exist, and none of them costs work at save time:
 
 ### T2 — app: the launch flag set this tier needs
 
-**Landed** (`a367bdd`, `3d74cce`, `81fd36b`): `--slot-save-path` and `--ctx-checkpoints 1` reach the
-line, `--swa-full` does not, the field is a non-optional `PathBuf` so the compiler forces every
-construction site, and the directory is created 0700 with a refusal. The pin now asserts the exact
-pair exactly once, and the doctrine above is reconciled.
-
-Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
+Landed (`a367bdd`, `3d74cce`, `81fd36b`); the state is in the session handoff, the rules it left
+behind are in §7. Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
 
 - `--slot-save-path` → a directory the app creates under its data directory before launch. If it
   cannot be created, the launch refuses rather than starting an engine whose disk tier silently
@@ -247,7 +242,8 @@ rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on t
   device is refused; (b) file names sent in the client payload are ignored; (c) a restore that
   fails leaves the previous chat's state in the slot and the UI's active chat unchanged.
 
-**Landed: T3a** `7834556` and **T3a-fix** `ea35829`, the door's side. What the code settles:
+Landed (`7834556`, `ea35829`, `fd919d5`, `5db9ee2`, `569d31e`, `c2ae295`); the state is in the
+session handoff. What the code settles, and what is still missing:
 
 - The two routes are served **by the door, on its own port**: `POST /kalsa/chat/activate` and
   `POST /kalsa/chat/erase`, body `{"id": …}`, handled after the credential, under the slot's
@@ -259,22 +255,19 @@ rendered. The measured disk footprint that T6 needs — ≈ 53 KB per token on t
 - **The staging rename closes the sleeping-engine hole**: the save goes to `<name>.staging`, and the
   real file is replaced **only when the engine reports `n_saved > 0`**; a reply without that field is
   treated as unreachable, never as a success.
-- **Two lies the review caught, now fixed** (`ea35829`): the door called the slot "empty" when the
-  engine had never answered, and a `.staging` file survived an unanswered save and accumulated. The
-  slot now has a third state, `Unknown`: `Unreachable` says unknown and never "empty", an unanswered
-  restore is not repaired (nothing is known to be missing) while a refusal still is, and on `Unknown`
-  the next activation **does not save** — it will not write a slot's content it cannot name.
-- **T3b landed** (`5db9ee2`): both halves reach the door from the launch record. The digest was
-  already in `run`'s hand and being discarded — `choose_model`'s `plan.sha256` (`startup.rs:232`) is
-  the catalog row's pinned digest (`manifest.rs:61` → `choice.rs:284`), so **no model file is ever
-  re-hashed**. The directory comes from the `--slot-save-path` the engine actually received, not
-  re-resolved, so the door reads where the engine writes. A model with no catalog identity leaves the
-  door up without the tier — 501, with one stderr line — and a malformed digest builds no door.
-  **Gap, stated:** in a packaged `.app` stderr is not user-visible, so the client gets the door's 501
-  sentence and the operator trace goes nowhere. A UI surface is a follow-up, not invented here.
-- **T3c, still open, and it is what makes any of this happen:** nothing calls the two routes yet.
-  Until the webview issues `/kalsa/chat/activate` on a chat switch (and `/kalsa/chat/erase` on a
-  delete), the tier exists and no user action reaches it.
+- **The door's side of the tier is complete**, including the two lies a review caught (the slot
+  called "empty" when the engine had never answered; a `.staging` file surviving an unanswered save)
+  and a **third state, `Unknown`**: an unanswered restore is not repaired, a refusal still is, and on
+  `Unknown` the next activation **does not save** — it will not write out a slot's content it cannot
+  name.
+- **T3b pinned the identity from the launch record**: the digest was already in `run`'s hand and
+  being discarded (`choose_model`'s `plan.sha256`, `startup.rs:232` = the catalog row's pinned
+  digest, `manifest.rs:61` → `choice.rs:284`), so **no model file is ever re-hashed**; and the
+  directory is the `--slot-save-path` the engine actually received, not a second resolution. A model
+  with no catalog identity leaves the door up without the tier (501, one stderr line); a malformed
+  digest builds no door.
+- **Gap, stated:** in a packaged `.app` stderr is not user-visible, so a client sees the 501 and the
+  operator trace goes nowhere. A UI surface is a follow-up, not invented here.
 
 ### T4 — app: cadence, so an unload cannot lose a turn
 
@@ -325,25 +318,27 @@ Resident count, window per device, **55.78 MiB** per extra resident, and the con
   ≈ 218 MB per chat at the 4 096-token floor — and is linear there; the saturating part of the
   curve is not measured and the panel must not extend the line past it.
 
-## 5. The measurement that decided the tier's shape — done
+## 5. The measurement that decided the tier's shape — done, twice
 
-**Does the save/restore file round-trip come back warm without `--swa-full`? Yes, and `--swa-full`
-was never the variable.** Run 2026-09-21, committed as `dev/results/slot-restore-swa/`
-(`results.json` + `summary.md`): three engines, `--cache-ram 0` on the two that exercise the file
-so the RAM cache cannot answer for it, ~600 and ~1900 tokens, salted and unsalted, flag off and on.
-The tokens are restored in all eight rows; the next request reuses **0** of them when the caller
-carries a salt and ~1895 when it does not — in **both** flag settings. The mechanism is named in
-the artifact: the restore wipes `slot.prompt.cache_salt`, and `server-context.cpp:3432-3434`
-then clears what was restored. That is exactly T1's fix, now measured rather than argued.
+**Does a chat saved to disk come back warm on the device's path? Yes, and `--swa-full` was never
+the variable.** The result that counts is `dev/results/slot-restore-device-path/` (`b3ded12`): all
+**eight** arms reuse the conversation — 1895 of 1900 tokens with a full context, with and without a
+salt, with and without the flag — and its own derived verdict field reads `cold_arms: []`.
+
+Before that fix, the same harness read 0 for its `salted` arms, and the reason was the harness: it
+sent the salt on the completion but **not** on `save`/`erase`/`restore`, so the "salted" arm was
+"completion salted, slot actions unsalted", a path no client produces, and the restore stamped the
+empty namespace. The door does send it (`engine.rs:67` → `private_headers`). The earlier artifact
+(`dev/results/slot-restore-swa/`) is kept as written, with its `salted` rows labelled for what they
+were; its conclusion — the namespace, not the flag — is what pointed at T1.
 
 Consequences, all of them recorded above:
 
 - `--swa-full` is **not** a launch flag of this tier, and the ~1.4 GiB it would have cost is not
-  paid (§2, T2).
-- The disk footprint is measured and linear at these sizes: ≈ 31 KB/token with the flag, ≈ 53 KB
-  without it — so the tier's normal path, without the flag, writes the larger file, because the
-  save carries one context checkpoint the flag's absence requires.
-- T1 is the only blocking task, and its acceptance test is the mirror of this run.
+  paid (§2, T2). It moves the file: ≈ 30.5 KB per token with it, ≈ 53 KB without, because a save
+  without the flag carries one context checkpoint.
+- The disk footprint at the 4 096-token floor is therefore ≈ 125 MB or ≈ 218 MB per chat.
+- T1 is closed and reachable only on `main`; **no release carries it yet** (§7 of the handoff).
 
 **Still open**: the two-device concurrency figure is a **rate** and still needs an idle machine,
 and it gates only T6's number, not any task. Nothing above ~1900 tokens is measured, so the
