@@ -243,8 +243,7 @@ export function Transcript({
           style={styles.jump}
           testID="transcript.jumpToEnd"
         >
-          <ArrowDown color={colors.inkSoft} size={15} strokeWidth={2.4} />
-          <Text style={styles.jumpLabel}>{t("shell.a11y.jumpToEnd")}</Text>
+          <ArrowDown color={colors.inkSoft} size={20} strokeWidth={2.4} />
         </Pressable>
       ) : null}
     </View>

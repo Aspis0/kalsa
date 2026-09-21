@@ -15,7 +15,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
-import { SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
+import { MIN_TOUCH_TARGET, SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
 import {
   PARAGRAPH_GAP,
   TRANSCRIPT_LAST_ITEM_GAP,
@@ -111,24 +111,26 @@ export function createTranscriptStyles(colors: DesignColors) {
     // Drawn only while the reader is away from the end. It is the only thing in
     // this file that moves the view on their behalf, and it is a real 48 dp box
     // rather than a hitSlop.
+    //
+    // It carries no visible label, and that is a fix rather than a preference. A
+    // hostile vision audit of the 621 capture found the labelled version — about
+    // 131 x 48 dp — floating over the transcript and hiding the reader's own word
+    // "trust?" behind it. Any control that floats over a scroll view covers
+    // something; the honest minimum is to cover as little as possible and never
+    // the middle of a line, so this became a 48 dp round icon in the bottom-right
+    // corner. The accessible name is unchanged (`shell.a11y.jumpToEnd`), and it is
+    // the only thing that names the control now.
     jump: {
       ...elevation.raised,
       alignItems: "center",
-      alignSelf: "center",
       backgroundColor: colors.surface,
-      borderRadius: radius.lg,
+      borderRadius: MIN_TOUCH_TARGET / 2,
       bottom: spacing.sm,
-      flexDirection: "row",
-      gap: spacing.sm,
-      minHeight: 48,
-      paddingHorizontal: spacing.md,
+      height: MIN_TOUCH_TARGET,
+      justifyContent: "center",
       position: "absolute",
-    },
-    jumpLabel: {
-      color: colors.inkSoft,
-      fontFamily: families.sansMedium,
-      fontSize: type.meta.fontSize,
-      lineHeight: type.meta.lineHeight,
+      right: spacing.md,
+      width: MIN_TOUCH_TARGET,
     },
     content: {
       // The gap that keeps the last item — the cloud above all — off the
