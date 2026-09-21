@@ -135,6 +135,11 @@ export function renderInline(
           );
         }
         const decision = sourceChipDecision(source.url, source.title);
+        // Unique per node: `<idPrefix>.cite.<sourceNumber>.<positionInRun>`.
+        // The source number alone (the audit's F4) gave `[2] … [2]` in one
+        // paragraph two nodes with one testID; the run position is appended,
+        // the same suffix the link above already uses, so the harness gets a
+        // name that is unique yet fully determined by the parsed document.
         return (
           <Text
             accessibilityLabel={t("shell.transcript.a11y.source", {
@@ -143,7 +148,7 @@ export function renderInline(
             })}
             key={index}
             style={styles.inlineCitation}
-            testID={`${idPrefix}.cite.${node.index}`}
+            testID={`${idPrefix}.cite.${node.index}.${index}`}
           >
             {"\u2009"}
             {String(node.index)}

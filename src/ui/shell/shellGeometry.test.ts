@@ -10,6 +10,7 @@
 import {
   COMPOSER_HEIGHT,
   MIN_TOUCH_TARGET,
+  SHELL_NOTICE_GAP,
   SHELL_NOTICE_HEIGHT,
   STRIP_HEIGHT,
   STRIP_HEIGHT_COLLAPSED,
@@ -238,12 +239,34 @@ describe("the bottom inset rule: the keyboard and the safe area", () => {
 });
 
 describe("the preview's notice line", () => {
-  it("is one line tall, so the warning string cannot smear the way the pill did", () => {
-    // The pill carried the warning on its SECOND line, and at 325 dp the strip
-    // collapses and hides that line: the string had nowhere to be drawn. One
-    // line of `type.meta` fits the notice by construction.
-    expect(SHELL_NOTICE_HEIGHT).toBeGreaterThanOrEqual(designType.meta.lineHeight);
+  it("holds one line plus the chosen gap below it, and still clips a wrap", () => {
+    // BEFORE this assertion read only ">= one line, < two" over a 22 dp band
+    // that left 3 dp under the caption; it now pins the gap the caption was
+    // given, keeps the ceiling that makes a long string clip instead of
+    // wrapping into the conversation, and states the band as its own arithmetic
+    // so the constant and the gap cannot drift apart.
+    expect(SHELL_NOTICE_HEIGHT).toBe(2 * SHELL_NOTICE_GAP + designType.meta.lineHeight);
+    expect(SHELL_NOTICE_HEIGHT).toBeGreaterThanOrEqual(
+      designType.meta.lineHeight + SHELL_NOTICE_GAP,
+    );
     expect(SHELL_NOTICE_HEIGHT).toBeLessThan(2 * designType.meta.lineHeight);
+  });
+
+  it("still lets the bands partition the available height exactly at all three sizes", () => {
+    // The notice is subtracted from the height BEFORE `shellGeometry` runs
+    // (`Shell.tsx`, `ShellPreview.tsx`), so the taller band must leave the
+    // partition invariant untouched at every measured size: 349x621,
+    // 349x325 (the pinned keyboard case) and 360x780.
+    for (const c of CASES) {
+      const available = c.height - SHELL_NOTICE_HEIGHT;
+      const geo = shellGeometry(c.width, available, c.insets);
+      expect(geo.usableHeight).toBe(available - c.insets.top - c.insets.bottom);
+      expect(geo.strip.height + geo.transcript.height + geo.composer.height).toBe(
+        geo.usableHeight,
+      );
+      expect(geo.strip.top).toBe(c.insets.top);
+      expect(geo.composer.top + geo.composer.height).toBe(available - c.insets.bottom);
+    }
   });
 });
 

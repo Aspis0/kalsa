@@ -85,10 +85,17 @@ export const SOURCE_CHIP_BOX_COST = SOURCE_CHIP_TOUCH_BOX - SOURCE_CHIP_PAINTED_
  * It is a band like the other three, which is why it is written here and not in
  * the component: it is taken out of the usable height before the bands are
  * partitioned, so the transcript yields the line instead of being covered by it.
- * 22 dp is the 16 dp line plus 3 dp above and below; two lines do not fit, on
- * purpose — a notice that wraps is the defect this replaced.
+ * The line is centred in the band, so `SHELL_NOTICE_GAP` is the clear space it
+ * keeps above and below itself. The 7 dp is CHOSEN, not derived: the band was
+ * 22 dp (3 dp above and below) and a vision audit found the caption sitting
+ * 3–6 px above a table row whose glyph tops the transcript's top edge was
+ * slicing in half — "the worst collision in the set, it reads like a rendering
+ * bug" — so the band buys the caption room below itself and no arithmetic
+ * requires that number. Two lines still do not fit, on purpose — a notice that
+ * wraps is the defect this replaced.
  */
-export const SHELL_NOTICE_HEIGHT = 22;
+export const SHELL_NOTICE_GAP = 7;
+export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
 
 function clamp(value: number): number {
   return value > 0 ? value : 0;

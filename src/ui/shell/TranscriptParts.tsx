@@ -140,10 +140,17 @@ export function createTranscriptStyles(colors: DesignColors) {
       // the middle of a line, so this became a 48 dp round icon in the bottom-right
       // corner. The accessible name is unchanged (`shell.a11y.jumpToEnd`), and it is
       // the only thing that names the control now.
+      // Deviation from §1.2, which forbids a border telling a SURFACE from
+      // the page (white on `#f4f8f3` is 1.07:1, so elevation carries
+      // surfaces): this ring says "this is a CONTROL", not "this is another
+      // surface" — a vision audit found the white circle's boundary faint on
+      // the pale page with the elevation not reading on the device.
       jump: {
         ...elevation.raised,
         alignItems: "center",
         backgroundColor: colors.surface,
+        borderColor: colors.borderStrong,
+        borderWidth: 1,
         borderRadius: MIN_TOUCH_TARGET / 2,
         bottom: spacing.sm,
         height: MIN_TOUCH_TARGET,

@@ -75,9 +75,61 @@ function tableFollowsTheDecision(source: string): boolean {
   );
 }
 
-/** The scroll view is built only when the decision says the table does not fit. */
+/**
+ * The `TableBlock` function's own text — the parameter list walked first (its
+ * destructured `{` closes before the body opens), then the body counted by
+ * braces like `styleBody`, so indentation and neighbours cannot matter. Null
+ * when the function is gone: a guard whose subject disappeared must fail, not
+ * pass.
+ *
+ * The scoping is the fix for the audit's F1: both regexes used to run over the
+ * whole file, so the second was satisfied by the CODE block's
+ * `<ScrollView horizontal>` and deleting the table's entire scrolling branch —
+ * the exact defect §2.2 forbids, a wide table clipped with its third column
+ * unreachable — left the suite 9/9 green.
+ */
+function tableBlockSliceOrNull(source: string): string | null {
+  const header = source.indexOf("function TableBlock(");
+  if (header < 0) return null;
+  const parenOpen = source.indexOf("(", header);
+  let parens = 0;
+  let body = -1;
+  for (let index = parenOpen; index < source.length; index += 1) {
+    if (source[index] === "(") parens += 1;
+    else if (source[index] === ")") {
+      parens -= 1;
+      if (parens === 0) {
+        body = source.indexOf("{", index);
+        break;
+      }
+    }
+  }
+  if (body < 0) return null;
+  let depth = 0;
+  for (let index = body; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(header, index + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * The scroll view is built only when the decision says the table does not fit,
+ * and BOTH halves are checked inside `TableBlock` itself, so a horizontal
+ * `ScrollView` anywhere else in the file cannot answer for the table's. The
+ * second regex also refuses to look past this tag's own `>`: `horizontal` has
+ * to be an attribute of the table's `ScrollView`, not a word further down.
+ */
 function scrollViewIsGatedOnTheDecision(source: string): boolean {
-  return /\{?\s*if \(!decision\.scrolls\)/.test(source) && /<ScrollView[\s\S]{0,200}horizontal/.test(source);
+  const table = tableBlockSliceOrNull(source);
+  if (table === null) return false;
+  return (
+    /\{?\s*if \(!decision\.scrolls\)/.test(table) &&
+    /<ScrollView[^>]*horizontal/.test(table)
+  );
 }
 
 /** The cell's own minimum is the constant, on the width axis, exactly once. */
@@ -136,6 +188,42 @@ describe("the table follows the pure decision (§2.2)", () => {
       tableFollowsTheDecision("const d = tableScrollDecision(n, w); if (d.scrolls) {}"),
     ).toBe(false);
     expect(scrollViewIsGatedOnTheDecision("if (columns > 2) {")).toBe(false);
+  });
+
+  it("would catch the auditor's own deletion: no scroll view in the table, one elsewhere", () => {
+    // F1 replayed as a sample. The table's scrolling branch is gone — the
+    // defect §2.2 forbids — but the CODE block still carries a horizontal
+    // `<ScrollView>` exactly where the old whole-file regex found it, and the
+    // gate strings and the `requiredWidth` pin are both still in the file, so
+    // only the `TableBlock` scoping can tell the two ScrollViews apart.
+    const auditorDeletion =
+      "function CodeBlock() { return <ScrollView horizontal>{code}</ScrollView>; } " +
+      "function TableBlock({ header }) { " +
+      "const decision = tableScrollDecision(header.length, w); " +
+      "if (!decision.scrolls) { return <View style={{ minWidth: decision.requiredWidth }}>{table}</View>; } " +
+      "return <View testID={testID}>{table}</View>; }";
+    expect(scrollViewIsGatedOnTheDecision(auditorDeletion)).toBe(false);
+
+    // Non-vacuity in both directions: the same shape with the table's own
+    // horizontal ScrollView restored passes, so the predicate can be true.
+    const intact = auditorDeletion.replace(
+      "return <View testID={testID}>{table}</View>; }",
+      "return <ScrollView horizontal>{table}</ScrollView>; }",
+    );
+    expect(scrollViewIsGatedOnTheDecision(intact)).toBe(true);
+
+    // A table that keeps a scroll view but loses the gate fails too: both
+    // halves of the claim are required, inside the table.
+    expect(
+      scrollViewIsGatedOnTheDecision(
+        "function TableBlock() { return <ScrollView horizontal>{table}</ScrollView>; }",
+      ),
+    ).toBe(false);
+    expect(
+      scrollViewIsGatedOnTheDecision(
+        "function TableBlock() { if (!decision.scrolls) { return <View>{t}</View>; } return <ScrollView>{t}</ScrollView>; }",
+      ),
+    ).toBe(false);
   });
 });
 

@@ -42,6 +42,12 @@
  * strip and the transcript — so a misleading PNG carries its own indictment
  * over nothing, and the pill keeps saying where the model runs.
  *
+ * The pinned case also gets a bottom seam — a one-dp hairline drawn at exactly
+ * `pinned` dp, here and nowhere else. The bands end there on the same page
+ * colour they start on, and a vision audit read the run-on as an application
+ * that failed to fill the screen. Preview chrome only; the comment on the
+ * element names the file that must never receive it (`Shell.tsx`).
+ *
  * ── How a capture is taken, so the next one is scriptable ──────────────────
  * 325 dp IS THE APP AREA WITH THE SOFT KEYBOARD UP (Jelly Star: 480x854 px at
  * 220 dpi = 349x621 dp down, 480x447 px = 349x325 dp with the IME). A capture
@@ -85,11 +91,11 @@
  *   adb shell input keyevent 111; tap_node "New chat"; sleep 1; shot shell-s23-780
  */
 import React, { useState } from "react";
-import { View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLocale } from "../../i18n";
-import { type ThemeMode } from "../../theme/design";
+import { modes, type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../labTheme";
 import { Shell } from "./Shell";
 import { Transcript, type TranscriptMessage } from "./Transcript";
@@ -108,6 +114,19 @@ const PREVIEW_CASES: ReadonlyArray<{ id: string; height: number | undefined }> =
 ];
 
 const PREVIEW_MODEL_NAME = "LFM2.5 2.6B";
+
+/** Preview-only chrome, kept out of `createShellStyles` so the app's own
+ *  stylesheet cannot even reference the seam: it exists for the pinned harness
+ *  case and for nothing else. Colour and offset are per-render (mode, pin) and
+ *  so they ride the element, not this table. */
+const previewStyles = StyleSheet.create({
+  seam: {
+    height: 1,
+    left: 0,
+    position: "absolute",
+    right: 0,
+  },
+});
 
 /** The demo's clock, frozen once so the day marker is stable across a capture. */
 const PREVIEW_NOW = Date.now();
@@ -218,6 +237,7 @@ export function ShellPreview() {
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
+  const colors = modes[mode];
   const window = useWindowDimensions();
   const keyboardHeight = useKeyboardHeight();
   const [caseIndex, setCaseIndex] = useState(0);
@@ -272,6 +292,24 @@ export function ShellPreview() {
           now={PREVIEW_NOW}
         />
       </Shell>
+      {/* PREVIEW CHROME, NOT APP CHROME: this seam gives the pinned shell its
+          bottom edge, and the pinned case exists nowhere but here, so the
+          running interface must not grow it — do not port this into
+          `Shell.tsx`. One dp of `colors.border` (the palette's own hairline,
+          1.26:1 on the light page, 1.51:1 on the dark one), inert via
+          `pointerEvents="none"`, and `importantForAccessibility="no"` keeps
+          it from becoming an accessibility node rather than describing one.
+          The shell's children sum to exactly `pinned` dp — insets, bands and
+          the notice — so `top: pinned` lands on the shell's real bottom edge;
+          without the line the page colour runs on and the half-empty screen
+          reads as an app that failed to fill it. */}
+      {pinned === undefined ? null : (
+        <View
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={[previewStyles.seam, { backgroundColor: colors.border, top: pinned }]}
+        />
+      )}
     </View>
   );
 }

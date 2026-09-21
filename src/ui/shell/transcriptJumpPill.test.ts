@@ -17,6 +17,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
+import { modes } from "../../theme/design";
+
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
 const PARTS = read("TranscriptParts.tsx");
@@ -73,6 +75,50 @@ function hasNoVisibleLabel(block: string): boolean {
 function namesTheControl(source: string): boolean {
   return source.includes('accessibilityLabel={t("shell.a11y.jumpToEnd")}');
 }
+
+/** WCAG 2.1 contrast, the same formula `design.test.ts` runs on the palette. */
+function contrast(a: string, b: string): number {
+  const channel = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const luminance = (hex: string): number => {
+    const parts = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return (
+      0.2126 * channel(parts[0]!) +
+      0.7152 * channel(parts[1]!) +
+      0.0722 * channel(parts[2]!)
+    );
+  };
+  const la = luminance(a);
+  const lb = luminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe("the jump control's boundary", () => {
+  it("rings the circle with the palette's strong hairline, elevation kept", () => {
+    const body = styleBody(stripComments(PARTS), "jump");
+    expect(body).toMatch(/borderColor:\s*colors\.borderStrong\b/);
+    expect(body).toMatch(/borderWidth:\s*1\b/);
+    // The ring is the boundary; the lift is still the surface's (§1.2).
+    expect(body).toContain("elevation.raised");
+  });
+
+  it("measures the ring against the page AND the control's own fill, both modes", () => {
+    // §1.2 forbids a border telling a SURFACE from the page (white on the page
+    // is 1.07:1); this ring's job is different — it says "control". The 1.5
+    // floor is CHOSEN: well above the 1.07 a borderless white circle gets and
+    // above design.test's 1.2 hairline floor, because an edge has to read.
+    // Light ring/page 1.53, ring/fill 1.64; dark 2.09 and 1.88.
+    for (const [mode, c] of Object.entries(modes)) {
+      const vsPage = contrast(c.borderStrong, c.page);
+      const vsFill = contrast(c.borderStrong, c.surface);
+      expect([mode, "page", vsPage >= 1.5]).toEqual([mode, "page", true]);
+      expect([mode, "fill", vsFill >= 1.5]).toEqual([mode, "fill", true]);
+    }
+  });
+});
 
 describe("the jump control covers as little as it can", () => {
   const body = styleBody(stripComments(PARTS), "jump");
