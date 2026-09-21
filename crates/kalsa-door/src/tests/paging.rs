@@ -5,7 +5,7 @@ use std::fs;
 use std::thread;
 use std::time::Duration;
 
-use super::paging_support::{activate, body_text, door_of, file_name, salt_of, status_of, temp_dir, wait_for, Engine, Reply, CHAT, HASH};
+use super::paging_support::{activate, body_text, door_of, erase, file_name, post, salt_of, status_of, temp_dir, wait_for, Engine, Reply, CHAT, HASH};
 use super::*;
 
 #[test]
@@ -226,5 +226,100 @@ fn a_save_that_wrote_nothing_creates_no_file() {
         "an empty state was written under the chat's name"
     );
     assert!(!slot_dir.join(format!("{}.staging", file_name(first))).exists());
+    door.shutdown();
+}
+
+#[test]
+fn a_save_the_engine_never_answered_leaves_no_staging_file() {
+    let slot_dir = temp_dir("paging-save-unreachable");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second) = ("aaaa1111", "bbbb2222");
+    assert_eq!(status_of(&activate(address, Some(&token), first)), 204);
+
+    // The engine writes the state and loses the answer: the staging file is on
+    // disk even though the door was never told anything was written.
+    engine.reply([Reply::Unreachable]);
+    let response = activate(address, Some(&token), second);
+    assert_eq!(status_of(&response), 502, "{}", body_text(&response));
+    assert!(
+        !slot_dir.join(format!("{}.staging", file_name(first))).exists(),
+        "a staging file survived a save whose answer was lost"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn erasing_a_chat_removes_its_staging_sibling_too() {
+    let slot_dir = temp_dir("paging-erase-staging");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let id = "aaaa1111";
+    fs::write(slot_dir.join(file_name(id)), b"state").unwrap();
+    fs::write(slot_dir.join(format!("{}.staging", file_name(id))), b"state").unwrap();
+
+    assert_eq!(status_of(&erase(address, Some(&token), id)), 204);
+    assert!(!slot_dir.join(file_name(id)).exists(), "the chat's file survived");
+    assert!(
+        !slot_dir.join(format!("{}.staging", file_name(id))).exists(),
+        "the staging sibling survived the erase"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_payload_nested_past_the_limit_is_refused_not_guessed() {
+    let slot_dir = temp_dir("paging-depth");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let nested = |depth: usize| {
+        format!(
+            "{{\"id\":\"{}\",\"n\":{}1{}}}",
+            CHAT,
+            "[".repeat(depth),
+            "]".repeat(depth)
+        )
+    };
+
+    // Eight is the deepest value the door steps over without reading it...
+    assert_eq!(
+        status_of(&post(address, Some(&token), "/kalsa/chat/activate", &nested(8))),
+        204
+    );
+    // ...and nine is refused rather than guessed at.
+    assert_eq!(
+        status_of(&post(address, Some(&token), "/kalsa/chat/activate", &nested(9))),
+        400
+    );
+    door.shutdown();
+}
+
+#[test]
+fn erasing_a_slot_that_holds_another_devices_record_drops_the_record_only() {
+    let slot_dir = temp_dir("paging-foreign");
+    let engine = Engine::start(&slot_dir);
+    let (first, second) = (credential(), credential());
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&first]);
+    let id = "aaaa1111";
+    assert_eq!(status_of(&activate(address, Some(&first), id)), 204);
+
+    // The first device is revoked and its id is handed to a second one, which
+    // therefore leases the slot the first left — a slot whose record still
+    // names the first device.
+    door.set_devices(
+        Devices::new(vec![DeviceEntry::new(DeviceId::new(1), "Second", second.clone()).unwrap()])
+            .unwrap(),
+    );
+    let before = engine.sent().len();
+    assert_eq!(status_of(&erase(address, Some(&second), id)), 204);
+    assert_eq!(
+        engine.sent().len(),
+        before,
+        "another device's slot was erased for this chat: {:?}",
+        &engine.sent()[before..]
+    );
     door.shutdown();
 }

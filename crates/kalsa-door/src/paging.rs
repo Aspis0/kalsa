@@ -13,14 +13,18 @@
 //! but not a sequence, so two overlapping switches of one device's chats
 //! invert (save A, save B, restore B, restore A ends with A in the slot), and
 //! one lock per slot is held across the whole sequence, `erase` included. And
-//! the **closure of a failure**: the engine wipes the slot on its own error
-//! path (`server-context.cpp:2884-2889`), so the chat that was open must be
-//! put back before the door answers at all.
+//! the **closure of a failure**: a refused action means the engine wiped the
+//! slot on its own error path (`server-context.cpp:2884-2889`), so the chat
+//! that was open is put back before the door answers; an engine that never
+//! answered may not have run anything, and the slot is then `Unknown`, never
+//! called empty.
 //!
 //! Not here: *invalidating* the resident map when the engine sleeps, crashes
 //! or is replaced. That is T5. The map is what the door last did, and the
-//! staging file below is what keeps a stale map from destroying a file that is
-//! still good.
+//! staging file [`io`] writes is what keeps a stale map from destroying a file
+//! that is still good.
+
+mod io;
 
 use std::fs;
 use std::io::Read;
@@ -29,9 +33,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Instant;
 
+use self::io::{erase_slot, restore, save, ChatError, STAGING};
 use crate::cors;
 use crate::devices::DeviceId;
-use crate::engine::{Call, Engine};
+use crate::engine::Engine;
 use crate::payload;
 use crate::proxy;
 use crate::request::UnsealedHead;
@@ -45,26 +50,12 @@ const ERASE: &[u8] = b"/kalsa/chat/erase";
 /// The largest body the door reads for its own route: one id.
 const MAX_PAYLOAD: usize = 4 * 1024;
 
-/// The suffix a save is written under until it is known to hold anything. The
-/// engine's own write is already atomic against a crash; this one is about not
-/// needing to be, because a rename over the real file is what would destroy a
-/// chat the slot no longer holds.
-const STAGING: &str = ".staging";
-
 /// One sentence per failure, and no more: this is all a client sees.
 const MALFORMED: &str = "The door reads a chat id from a json body of the shape {\"id\":\"...\"}.";
 const BAD_ID: &str = "A chat id is 8 to 64 lowercase letters, digits and dashes.";
 const UNKNOWN: &str = "The door serves /kalsa/chat/activate and /kalsa/chat/erase.";
 const NO_MODEL: &str = "This door has no model identity pinned, so it cannot name a saved chat.";
 const NO_DIR: &str = "This door has no save directory, so it cannot keep a chat on disk.";
-const ENGINE: &str = "The engine could not be reached for this chat.";
-const SLOT_REFUSED: &str = "The engine refused to clear this device's slot, so the chat was not opened.";
-const SAVE_REFUSED: &str = "The engine could not save the chat that is open, so it stays as it is.";
-const RESTORE_FAILED: &str =
-    "The chat could not be opened; the chat that was open is back in the slot.";
-const SLOT_EMPTY: &str = "The chat could not be opened; the slot is now empty.";
-const FILES: &str = "The door could not put the saved chat in place, so nothing changed.";
-const NO_SLOT: &str = "The door lost track of this device's slot.";
 
 /// The door's disk tier, one per running door. `capacity` is the engine's slot
 /// count, exactly as the device map uses it.
@@ -85,7 +76,17 @@ struct Slot {
     /// record whose device is not the caller's describes a slot that is no
     /// longer that chat's, and saving under the caller's name would move one
     /// device's state into another device's chat.
-    resident: Option<(DeviceId, String)>,
+    resident: Residency,
+}
+
+/// A slot is empty, resident with one chat, or unknown: an action that never
+/// reached the engine may not have run, so the slot holds what it held, and
+/// nothing is written out of it. [`io::restore`] records the two branches of a
+/// save that make that safe.
+enum Residency {
+    Empty,
+    Unknown,
+    Resident(DeviceId, String),
 }
 
 pub(crate) enum Route {
@@ -114,7 +115,7 @@ pub(crate) fn route(target: &[u8]) -> Option<Route> {
 impl Chats {
     pub(crate) fn new(capacity: u32, model: Option<String>, dir: Option<PathBuf>) -> Self {
         let slots = (0..capacity)
-            .map(|_| Mutex::new(Slot { resident: None }))
+            .map(|_| Mutex::new(Slot { resident: Residency::Empty }))
             .collect();
         Self { slots, model, dir }
     }
@@ -183,11 +184,16 @@ impl Chats {
         id: &str,
     ) -> Result<(), ChatError> {
         let mut state = self.lock(engine.slot)?;
-        if state.resident.as_ref().is_some_and(|(owner, _)| *owner != device) {
-            state.resident = None;
+        if matches!(&state.resident, Residency::Resident(owner, _) if *owner != device) {
+            state.resident = Residency::Empty;
         }
         let target = file_name(model, device, id);
-        let previous = state.resident.as_ref().map(|(_, chat)| chat.clone());
+        // `Unknown` is the one residency with no previous chat to save: what is
+        // in the slot cannot be named, so nothing is written out of it.
+        let previous = match &state.resident {
+            Residency::Resident(_, chat) => Some(chat.clone()),
+            _ => None,
+        };
         if let Some(previous) = previous.as_deref() {
             // A save the engine refused leaves the slot as it was, so the
             // switch is refused with it: restoring over that slot would lose
@@ -201,26 +207,32 @@ impl Chats {
             // chat's file. The conversation itself lives in the app's store,
             // which is why an empty slot is not a lost chat.
             erase_slot(engine)?;
-            state.resident = Some((device, id.to_string()));
+            state.resident = Residency::Resident(device, id.to_string());
             return Ok(());
         }
-        if restore(engine, &target).is_err() {
-            // The engine cleared the slot on its way out of the failure, so
-            // the chat that is open lives nowhere until this puts it back. The
-            // caller must not be told the switch failed while the slot holds
-            // nothing, and must not be told it succeeded.
-            let Some(previous) = previous.as_deref() else {
-                state.resident = None;
-                return Err(ChatError::Empty);
-            };
-            if restore(engine, &file_name(model, device, previous)).is_err() {
-                state.resident = None;
-                return Err(ChatError::Empty);
+        if let Err(error) = restore(&mut state, engine, &target) {
+            // An unanswered restore is not repaired: the engine may never have
+            // run it, so nothing is known to be missing, and the chat that was
+            // open is already saved and renamed on disk by the save above. The
+            // residency `restore` recorded is `Unknown`, and the sentence says
+            // so rather than calling the slot empty.
+            if matches!(error, ChatError::Unknown) {
+                return Err(error);
             }
-            state.resident = Some((device, previous.to_string()));
+            // A refusal did run, and the engine's catch cleared the slot: the
+            // chat that was open lives nowhere until this puts it back, and the
+            // caller must not be told the switch failed while the slot holds
+            // nothing, nor told that it succeeded.
+            let Some(previous) = previous.as_deref() else {
+                return Err(error);
+            };
+            if let Err(repair) = restore(&mut state, engine, &file_name(model, device, previous)) {
+                return Err(repair);
+            }
+            state.resident = Residency::Resident(device, previous.to_string());
             return Err(ChatError::Restore);
         }
-        state.resident = Some((device, id.to_string()));
+        state.resident = Residency::Resident(device, id.to_string());
         Ok(())
     }
 
@@ -235,17 +247,17 @@ impl Chats {
         id: &str,
     ) -> Result<(), ChatError> {
         let mut state = self.lock(engine.slot)?;
-        let resident = state
-            .resident
-            .as_ref()
-            .is_some_and(|(owner, chat)| *owner == device && chat == id);
-        if state.resident.as_ref().is_some_and(|(owner, _)| *owner != device) {
-            state.resident = None;
+        let resident = matches!(&state.resident, Residency::Resident(owner, chat) if *owner == device && chat == id);
+        if matches!(&state.resident, Residency::Resident(owner, _) if *owner != device) {
+            state.resident = Residency::Empty;
         }
         if resident {
             erase_slot(engine)?;
-            state.resident = None;
+            state.resident = Residency::Empty;
         }
+        // The staging sibling is the erased chat's too: left behind it is a
+        // file nothing will ever name again.
+        let _ = fs::remove_file(dir.join(format!("{}{STAGING}", file_name(model, device, id))));
         match fs::remove_file(dir.join(file_name(model, device, id))) {
             Ok(()) => Ok(()),
             // A chat that never reached the disk has no file, and that is not
@@ -265,34 +277,6 @@ impl Chats {
     }
 }
 
-/// What a failed action tells the client. The statuses are the door's own
-/// vocabulary — 400 for the client's request, 501 for a door the app never
-/// built the tier into, 502 for the engine — and the sentence is what a UI can
-/// show.
-enum ChatError {
-    Unreachable,
-    Save,
-    Restore,
-    Empty,
-    SlotRefused,
-    Files,
-    NoSlot,
-}
-
-impl ChatError {
-    fn answer(self, origin: Option<&[u8]>) -> Vec<u8> {
-        match self {
-            Self::Unreachable => answer(502, origin, ENGINE),
-            Self::Save => answer(502, origin, SAVE_REFUSED),
-            Self::Restore => answer(502, origin, RESTORE_FAILED),
-            Self::Empty => answer(502, origin, SLOT_EMPTY),
-            Self::SlotRefused => answer(502, origin, SLOT_REFUSED),
-            Self::Files => answer(502, origin, FILES),
-            Self::NoSlot => answer(500, origin, NO_SLOT),
-        }
-    }
-}
-
 /// The name, and the door builds it: flat, because `fs_validate_filename`
 /// rejects separators, and carrying the device and the model so a file can
 /// never be read back into another device's slot by accident.
@@ -309,46 +293,6 @@ fn valid_id(id: &str) -> bool {
         && id
             .bytes()
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-}
-
-/// Saves the slot under `real`, and renames it into place only when the engine
-/// wrote something. An empty slot writes an empty state, and renaming that
-/// over a real file is how a sleeping engine destroys a chat it still has on
-/// disk.
-fn save(dir: &Path, real: &str, engine: &Engine<'_>) -> Result<(), ChatError> {
-    let staging = format!("{real}{STAGING}");
-    let written = engine
-        .call("save", Some(&staging), Some("n_saved"))
-        .map_err(|call| match call {
-            Call::Unreachable => ChatError::Unreachable,
-            Call::Refused => ChatError::Save,
-        })?;
-    if written == 0 {
-        let _ = fs::remove_file(dir.join(&staging));
-        return Ok(());
-    }
-    let staged = dir.join(&staging);
-    fs::rename(&staged, dir.join(real)).map_err(|_| {
-        let _ = fs::remove_file(&staged);
-        ChatError::Files
-    })
-}
-
-/// A restore with no error of its own: the caller decides what a failure means
-/// (the chat is back, or the slot is empty) and that is the only thing a
-/// client may be told.
-fn restore(engine: &Engine<'_>, name: &str) -> Result<(), ()> {
-    engine.call("restore", Some(name), None).map(|_| ()).map_err(|_| ())
-}
-
-fn erase_slot(engine: &Engine<'_>) -> Result<(), ChatError> {
-    engine
-        .call("erase", None, None)
-        .map(|_| ())
-        .map_err(|call| match call {
-            Call::Unreachable => ChatError::Unreachable,
-            Call::Refused => ChatError::SlotRefused,
-        })
 }
 
 /// The client's body, bounded: this route carries one id, so a body beyond

@@ -37,6 +37,9 @@ pub(super) struct Sent {
 pub(super) enum Reply {
     Answered(u64),
     Refused,
+    /// The engine never answers: the connection closes with the request read,
+    /// which is what the door cannot tell apart from an action that ran.
+    Unreachable,
 }
 
 /// A fake engine: it records every request and answers from a queue. Without a
@@ -174,8 +177,14 @@ fn answer(
     }
     // A save writes the state it is reporting, and a refused save writes
     // nothing at all: an empty slot is a file whose state holds no token,
-    // which is why renaming it over a real one is destructive.
-    if let (Reply::Answered(tokens), false) = (reply, sent.filename.is_empty()) {
+    // which is why renaming it over a real one is destructive. `Unreachable`
+    // writes it too and then loses the answer: the save whose staging file is
+    // on disk with nobody told about it, which is the accumulation to catch.
+    if sent.action == "save" && !matches!(reply, Reply::Refused) {
+        let tokens = match reply {
+            Reply::Answered(tokens) => tokens,
+            _ => 1,
+        };
         let _ = fs::write(dir.join(&sent.filename), format!("state:{tokens}:{}", sent.filename));
     }
     let (status, body) = match reply {
@@ -190,6 +199,8 @@ fn answer(
             "400 Bad Request",
             "{\"error\":{\"message\":\"Unable to restore slot\"}}".to_string(),
         ),
+        // No answer at all: the door's call is `Unreachable`.
+        Reply::Unreachable => return,
     };
     let _ = stream.write_all(
         format!(

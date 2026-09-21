@@ -92,6 +92,47 @@ fn a_repair_that_fails_too_says_the_slot_is_empty() {
 }
 
 #[test]
+fn a_restore_the_engine_never_answered_leaves_the_slot_unknown_not_empty() {
+    let slot_dir = temp_dir("route-unknown");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second, third) = ("aaaa1111", "bbbb2222", "cccc3333");
+    prewired(&slot_dir, &[first, second, third]);
+    assert_eq!(status_of(&activate(address, Some(&token), second)), 204);
+
+    // The save of the open chat succeeds; the restore of the one asked for
+    // never gets an answer, so the engine may not have run it at all.
+    engine.reply([Reply::Answered(1), Reply::Unreachable]);
+    let response = activate(address, Some(&token), first);
+    assert_eq!(status_of(&response), 502, "{}", body_text(&response));
+    let words = body_text(&response);
+    assert!(
+        words.contains("unknown"),
+        "the door did not say the slot's state is unknown: {words}"
+    );
+    assert!(
+        !words.contains("empty"),
+        "the door called an unverified slot empty: {words}"
+    );
+
+    // The residency is `Unknown`, not the chat that was there: the next
+    // activation must not save a state it cannot name, and must restore the
+    // target instead.
+    let before = engine.sent().len();
+    assert_eq!(status_of(&activate(address, Some(&token), third)), 204);
+    let after = engine.sent();
+    assert!(
+        after[before..].iter().all(|sent| sent.action != "save"),
+        "the door saved out of a slot it had said was unknown: {:?}",
+        &after[before..]
+    );
+    assert_eq!(after.last().unwrap().action, "restore");
+    assert_eq!(after.last().unwrap().filename, file_name(third));
+    door.shutdown();
+}
+
+#[test]
 fn a_door_the_app_never_gave_an_identity_refuses_the_action_and_says_why() {
     let slot_dir = temp_dir("route-no-model");
     let engine = Engine::start(&slot_dir);
