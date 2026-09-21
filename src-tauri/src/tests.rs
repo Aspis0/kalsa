@@ -1754,3 +1754,138 @@ fn the_tick_invalidates_a_failed_servers_map_with_nobody_polling() {
         "the tick's invalidation did not drive a restore from the file: {actions:?}"
     );
 }
+
+/// The brace-matched block whose opening `{` sits at or after `from`: the
+/// whole of an `fn` or an `enum`, as source. Braces inside the blocks this
+/// reads are balanced (a `format!` interpolates closed pairs), and an
+/// unbalanced block panics here rather than slicing a lie.
+fn brace_block(source: &str, from: usize) -> &str {
+    let open = from + source[from..].find('{').expect("a block opens");
+    let mut depth = 0usize;
+    for i in open..source.len() {
+        match source.as_bytes()[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &source[open..=i];
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("unbalanced braces in the block at byte {from}");
+}
+
+/// The variant names of `ServerState`, read from the enum itself: a state added
+/// tomorrow must be pinned by the check below, not exempted from it.
+fn server_state_variants() -> Vec<String> {
+    let source = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../crates/kalsa-supervisor/src/supervisor.rs"
+    ))
+    .expect("supervisor.rs is readable");
+    let at = source
+        .find("pub enum ServerState")
+        .expect("the enum brain_state matches on");
+    let block = brace_block(&source, at);
+    let body: String = block[1..block.len() - 1]
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut names = Vec::new();
+    let mut depth = 0usize;
+    let mut i = 0;
+    while i < body.len() {
+        match body.as_bytes()[i] {
+            b'{' => depth += 1,
+            b'}' => depth -= 1,
+            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
+                let start = i;
+                while i < body.len()
+                    && (body.as_bytes()[i].is_ascii_alphanumeric() || body.as_bytes()[i] == b'_')
+                {
+                    i += 1;
+                }
+                let after = body[i..].trim_start();
+                if depth == 0 && (after.starts_with(',') || after.starts_with('{')) {
+                    names.push(body[start..i].to_string());
+                }
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    assert!(!names.is_empty(), "no variants parsed from {body}");
+    names
+}
+
+/// The pin under the fifth way, and the most important check this round adds.
+/// The cross-layer invariant nobody wrote down: a window that polls THIS
+/// command says `absent` only when `kind !== "running"` (`slotGate.ts`,
+/// `standingOf`), and `brain_state` — the very command that poll answers from
+/// — calls `stop_door()` in every non-`Running` arm. Together they make
+/// `absent` on the polling client imply the door is already down. Drop one
+/// `stop_door()` and the implication breaks in silence: the window calls a
+/// live door "no door", mints a chat against its slot, and the next switch
+/// writes that slot's state into another chat's file — the divergence
+/// `slotGate.ts` exists to prevent, re-entered from Rust. (A browser outside
+/// the webview never polls this command and says `absent` on an assumption
+/// instead — declared in `useBrain.ts`, not covered here.)
+fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
+    let at = source
+        .find("fn brain_state(")
+        .ok_or_else(|| "brain_state is the command the client polls".to_string())?;
+    let body = brace_block(source, at);
+    for variant in server_state_variants() {
+        if variant == "Running" {
+            continue;
+        }
+        let marker = format!("ServerState::{variant}");
+        let found = body
+            .find(&marker)
+            .ok_or_else(|| format!("brain_state grew no arm for {variant}"))?;
+        let rest = &body[found + marker.len()..];
+        let arm = &rest[..rest.find("ServerState::").unwrap_or(rest.len())];
+        if !arm.contains("stop_door()") {
+            return Err(format!(
+                "the {variant} arm of brain_state answers without stopping the door"
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn every_non_running_arm_of_brain_state_stops_the_door() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    if let Err(error) = non_running_arms_stop_the_door(&source) {
+        panic!("{error} — the client's `absent` would no longer imply a stopped door");
+    }
+}
+
+#[test]
+fn the_pin_bites_when_one_stop_door_is_taken_away() {
+    // The edit a future cleanup makes by accident, replayed on a COPY of the
+    // source: the Stopped arm keeps answering `stopped` and stops taking the
+    // door down. The pin must go red on exactly that copy...
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let start = source.find("fn brain_state(").expect("the command");
+    let stopped = start + source[start..].find("ServerState::Stopped").expect("the arm");
+    let mutated = format!(
+        "{}{}",
+        &source[..stopped],
+        source[stopped..].replacen("brain.stop_door();", "", 1)
+    );
+    assert!(
+        non_running_arms_stop_the_door(&mutated).is_err(),
+        "the pin passed on a brain_state whose Stopped arm no longer stops the door"
+    );
+    // ...and stay green on the untouched source, so the red above is the
+    // mutation's doing and not a checker that fails both ways.
+    assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
@@ -230,7 +230,13 @@ export function App() {
   // changes. It is the gate's own state and not a parameter of each open: the
   // open that is held has to be retried when the door becomes callable, and
   // only the gate can see that happen.
-  useEffect(() => {
+  // LAYOUT, not passive: the render that first sees the door's endpoint must
+  // not be observable by a queued send before the gate has been told. A
+  // passive effect is a scheduler task away, and in that task the composer is
+  // already pointed at the door while the gate still holds the chat as locally
+  // minted — the completion would reach the door before the hand-over is
+  // queued: the fifth way's shape, one task wide.
+  useLayoutEffect(() => {
     const next: DoorAccess =
       standing === "ready" && door
         ? { kind: "ready", activate: (id: string) => activateChat(door.endpoint, door.token, id) }
@@ -679,9 +685,11 @@ export function App() {
   // shows Stop (not Send) while its own conversation is generating.
   function send(text: string): boolean {
     // The freeze is the gate's `pending`, applied here as well as in the
-    // composer: a send into the outgoing chat during a switch is the race C4
-    // closes, whichever control produced it.
-    if (slot.pending) return false;
+    // composer — and reread from the gate, not taken from this render's
+    // snapshot: the freeze must be the gate's word at the moment Enter lands.
+    // A send into the outgoing chat during a switch is the race C4 closes,
+    // whichever control produced it.
+    if (gate.getSnapshot().pending) return false;
     if (active) return sendMessage(text) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
@@ -713,9 +721,10 @@ export function App() {
   // reduced motion the same state change happens plainly and nothing moves.
   function writeFromBrain(text: string): void {
     // The outgoing chat is frozen while a switch is in flight, and the brain's
-    // bar is one more way into it. The words stay in the bar — this returns
+    // bar is one more way into it — and the gate is reread, as in `send`, not
+    // the render's snapshot. The words stay in the bar — this returns
     // before the surface changes — so the freeze costs nothing here.
-    if (slot.pending) return;
+    if (gate.getSnapshot().pending) return;
     const calm =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -773,7 +782,8 @@ export function App() {
     if (!active) return;
     // The outgoing chat is frozen while a switch is in flight: a completion
     // here would not pass the door's gate — the same race, from the other side.
-    if (slot.pending) return;
+    // Reread from the gate, as in `send`.
+    if (gate.getSnapshot().pending) return;
     if (streamingByConv[active.id] !== undefined) return;
     const latest = store.get(active.id);
     if (!latest) return;

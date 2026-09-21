@@ -71,8 +71,8 @@ export interface SlotGateSnapshot {
   /** A chat that does not exist yet is being created. A second creation is
       ignored, never a second chat. */
   readonly creating: boolean;
-  /** A sentence the gate itself owes the window. Today exactly one: the refusal
-      of the hand-over below, which has no caller to return it to. */
+  /** A sentence the gate itself owes the window: a held open's wait, that
+      wait's end as an error, and the hand-over refusal, which has no caller. */
   readonly notice: SlotNotice | null;
 }
 
@@ -83,9 +83,9 @@ export type Activate = (id: string) => Promise<SlotAnswer>;
 /** What this window knows about the door. Three states, not `Activate | null`:
     `null` was two different facts at once, and only one of them is a licence to
     open a chat locally.
-    - `absent`: no door exists for this window. A remote server, or a plain
-      browser with no backend. An open here is local and honest — there is no
-      slot to diverge from.
+    - `absent`: no door this window can reach — a remote server, a plain
+      browser. An open settles locally on an assumption this client cannot
+      check: the configured endpoint is not itself a door. It can be.
     - `unready`: a door EXISTS and cannot be called yet — the engine is running
       and its address is known while this window's credential is not in hand, or
       the poll has not answered yet. Opening locally here is C5.
@@ -180,7 +180,11 @@ function mint(id: string): ActiveChat {
   return { id } as unknown as ActiveChat;
 }
 
-export function createSlotGate(): SlotGate {
+const HOLD_WAITING = "Waiting for this computer's door to become reachable…";
+const HOLD_EXPIRED = "This computer's door did not become reachable in time. Try again.";
+const HOLD_MS = 15000; // the poll's credential fetch lands well inside; no door is an error, not a freeze
+
+export function createSlotGate(holdMs = HOLD_MS): SlotGate {
   let active: ActiveChat | null = null;
   // Whether a door took the active chat. One this window minted has to be
   // handed over as soon as a door can be called, or the UI keeps showing a chat
@@ -213,16 +217,26 @@ export function createSlotGate(): SlotGate {
     for (const listener of listeners) listener();
   }
 
-  function changed(): Promise<void> {
-    return new Promise((resolve) => waiting.push(resolve));
+  function changed(ms: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const deadline = setTimeout(() => resolve(true), ms);
+      waiting.push(() => { clearTimeout(deadline); resolve(false); });
+    });
   }
 
   async function run(id: string): Promise<OpenResult> {
     // A door that exists and cannot be called yet holds the open here: no
-    // request, no slot, and above all no mint. Holding is not failing — the
-    // composer keeps its freeze — and this loop ends when the state changes,
-    // whichever way it changes.
-    while (access.kind === "unready") await changed();
+    // request, no slot, above all no mint; the wait speaks and a deadline
+    // ends it as an error — no address or no key is a wait forever otherwise.
+    while (access.kind === "unready") {
+      notice = { failed: false, message: HOLD_WAITING };
+      publish();
+      if (await changed(holdMs)) {
+        notice = { failed: true, message: HOLD_EXPIRED };
+        return { opened: null, notice };
+      }
+    }
+    if (notice?.message === HOLD_WAITING) { notice = null; publish(); }
     // The chat may have been deleted while this waited its turn: asking the
     // door for a conversation the window has removed would take the slot for it.
     if (gone.has(id)) return { opened: null, notice: null };
@@ -238,8 +252,8 @@ export function createSlotGate(): SlotGate {
         answer = { kind: "refused", message: DOOR_SILENT };
       }
     } else {
-      // No door at all: there is no slot to diverge from, so this is the one
-      // case an open may succeed locally.
+      // `absent`: the one case an open may settle locally — honest only on
+      // the assumption `DoorAccess` states, which this module cannot check.
       answer = { kind: "ok" };
     }
     if (answer.kind === "refused") {

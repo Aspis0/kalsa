@@ -132,8 +132,8 @@ async function readyGate() {
   await gate.setAccess({ kind: "ready", activate });
   return gate;
 }
-/// The faults the self-test provokes on purpose, subtracted from the total at the
-/// end so a malformed request from the app stands out.
+/// The faults this script provokes on purpose in B5 — counted as its own, so a
+/// malformed request from the app is a failure and never part of the arithmetic.
 let deliberate = 0;
 
 try {
@@ -364,6 +364,8 @@ try {
     check("...and the open that was taken from it opens nothing", result.opened === null, JSON.stringify(result.opened));
   }
 
+  // Every request the app sent is in by now; B5's provocations are its own.
+  const appFaults = door.faults.length;
   // B5 — the shape guard is itself checked, or a check that never fires would
   // look exactly like a shape that is right.
   {
@@ -379,10 +381,16 @@ try {
       body: JSON.stringify({ id: "x", filename: "d1-m2-c3.bin" }),
     });
     check("...and a body carrying a file name beside the id", withName.status === 400, `status ${withName.status}`);
-    deliberate += door.faults.length;
+    deliberate = door.faults.length - appFaults;
   }
 
-  check("every request the app sent was the door's own route and body", door.faults.length === deliberate, door.faults.slice(deliberate).join("; ") || "(none)");
+  const dims = [
+    requestFault({ method: "PUT", url: ROUTE, headers: { authorization: `Bearer ${TOKEN}` } }, `{"id":"x"}`),
+    requestFault({ method: "POST", url: `/v1${ROUTE}`, headers: { authorization: `Bearer ${TOKEN}` } }, `{"id":"x"}`),
+    requestFault({ method: "POST", url: ROUTE, headers: { authorization: "Bearer wrong" } }, `{"id":"x"}`),
+    requestFault({ method: "POST", url: ROUTE, headers: { authorization: `Bearer ${TOKEN}` } }, `{"id":"x","filename":"f"}`),
+  ];
+  check("every request the app sent passed method, path, bearer and exact body keys — and the guard fires on all four", appFaults === 0 && deliberate === 2 && dims.every((d, i) => String(d).startsWith(["method", "path", "authorization", "body keys"][i])), door.faults.slice(0, appFaults).join("; ") || JSON.stringify(dims));
 } finally {
   await rm(dir, { recursive: true, force: true });
   door.server.close();

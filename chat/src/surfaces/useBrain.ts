@@ -106,9 +106,12 @@ function publish(): void {
   ) {
     serverSnapshot = server;
   }
-  // Outside the Tauri webview there is no backend, so no door can exist and the
-  // window is one of the two clients whose `absent` is certain. Everywhere else
-  // the standing comes from the poll's own facts.
+  // Outside the Tauri webview this window defaults to `absent` on an
+  // assumption it cannot verify: that the configured endpoint is not itself a
+  // door. A remote server or a plain browser satisfies it; a browser reaching
+  // this machine's door — or saved settings pointing at another
+  // Kalsa-brain — does not, and a chat minted there is that door's
+  // divergence by another road. Everywhere else the standing is the poll's.
   standingSnapshot = available() ? standingOf(currentState, hostCredential !== null) : "absent";
   for (const listener of listeners) listener();
 }
