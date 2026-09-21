@@ -119,10 +119,12 @@ pub(super) fn restore(state: &mut Slot, engine: &Engine<'_>, name: &str) -> Resu
         Ok(_) => Ok(()),
         Err(Call::Unreachable) => {
             state.resident = Residency::Unknown;
+            state.dirty_at = None;
             Err(ChatError::Unknown)
         }
         Err(Call::Refused) => {
             state.resident = Residency::Empty;
+            state.dirty_at = None;
             Err(ChatError::Empty)
         }
     }

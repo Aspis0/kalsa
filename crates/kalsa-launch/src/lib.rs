@@ -45,6 +45,7 @@ pub use args::{
     KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs, ServerSettings,
     DEFAULT_CONTEXT_TOKENS, DEFAULT_IDLE_UNLOAD_SECONDS, DEFAULT_PARALLEL, MAX_BATCH,
     MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
+    idle_save_seconds,
 };
 pub use policy::{
     context_price, funded_context, funded_maximum, plan, trained_context_unreadable, ContextPrice,

@@ -160,6 +160,29 @@ pub const MIN_CONTEXT_TOKENS_PER_SLOT: u64 = 4096;
 pub const MIN_IDLE_UNLOAD_SECONDS: u32 = 60;
 pub const MAX_IDLE_UNLOAD_SECONDS: u32 = 3_600;
 
+/// The share of the unload clock a quiet slot may spend unsaved, so the
+/// interval is the clock divided by this: 300 s gives 100 s of silence before a
+/// dirty slot is written out, and the shortest clock the panel offers — 60 s —
+/// gives 20 s. A ratio rather than a number because the clock is the owner's: a
+/// fixed interval would be longer than the clock on any machine whose owner
+/// lowered it, and the save would then land after the release it exists to
+/// beat.
+const IDLE_SAVE_DIVISOR: u32 = 3;
+
+/// How long a slot must be **quiet** before a dirty one is written out, given
+/// the engine's own `--sleep-idle-seconds`.
+///
+/// An inactivity timer, not a flush period. The engine releases the slot only
+/// when it is idle, so the state worth keeping is the one after the last
+/// token: a save on a fixed period would write hundreds of megabytes during
+/// every busy minute and still hold a state the next token invalidates. What
+/// this interval has to beat is the release, and dividing the clock keeps that
+/// true for every value the panel can set (`MIN_IDLE_UNLOAD_SECONDS` is 60, not
+/// the shipped 300), which is the difference between a rule and a coincidence.
+pub fn idle_save_seconds(idle_unload_seconds: u32) -> u32 {
+    idle_unload_seconds / IDLE_SAVE_DIVISOR
+}
+
 /// How the KV cache is stored: q8_0 for both tensors at one byte per
 /// element, or f16 at two.
 ///

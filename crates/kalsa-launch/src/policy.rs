@@ -1071,6 +1071,32 @@ mod tests {
         assert!(!line.contains("0.0.0.0"), "{line}");
     }
 
+    /// The disk tier's inactivity timer has to fire before the engine releases
+    /// the slot, and the clock it has to beat is the owner's: the panel can set
+    /// any value from [`MIN_IDLE_UNLOAD_SECONDS`] up. Pinning the shipped pair
+    /// (300 / 100) would leave the shortest clock — 60 s — uncovered, and that
+    /// is exactly where a fixed interval loses the turn this timer exists to
+    /// save.
+    #[test]
+    fn the_save_cadence_stays_inside_the_unload_clock_for_every_clock_the_panel_can_set() {
+        use crate::{
+            idle_save_seconds, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_IDLE_UNLOAD_SECONDS,
+            MIN_IDLE_UNLOAD_SECONDS,
+        };
+        for clock in MIN_IDLE_UNLOAD_SECONDS..=MAX_IDLE_UNLOAD_SECONDS {
+            let quiet = idle_save_seconds(clock);
+            assert!(
+                quiet < clock,
+                "an unload clock of {clock} s releases the slot before a save after {quiet} s of quiet"
+            );
+            assert!(quiet > 0, "an unload clock of {clock} s saves on every tick");
+        }
+        // The two ends, named, because they are the numbers the plan and the
+        // door's builders talk about.
+        assert_eq!(idle_save_seconds(DEFAULT_IDLE_UNLOAD_SECONDS), 100);
+        assert_eq!(idle_save_seconds(MIN_IDLE_UNLOAD_SECONDS), 20);
+    }
+
     /// What a flag renders is the element that follows it, compared whole,
     /// and the flag is rendered exactly once: `contains("--ctx-checkpoints
     /// 1")` is true of `--ctx-checkpoints 12` too, and a saved chat twelve

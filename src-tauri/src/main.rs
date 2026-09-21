@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
@@ -132,24 +132,31 @@ enum DiskTierRefusal {
     Malformed,
 }
 
-/// The disk tier's two halves, from the record of what was launched.
+/// The disk tier's three parts, from the record of what was launched.
 struct DiskTier {
     /// The first [`MODEL_HASH_CHARS`] hex characters of the catalog row's
     /// pinned sha256.
     model_hash: String,
     /// `--slot-save-path` exactly as the engine received it.
     slot_dir: PathBuf,
+    /// How quiet a dirty slot has to be before the app's tick writes it out,
+    /// derived from the unload clock *this engine* was launched with — not from
+    /// a constant, because the panel can lower that clock to a minute, and an
+    /// interval longer than the clock saves a slot the engine has already
+    /// released.
+    idle_save: Duration,
 }
 
 /// The disk tier the door must be built with, from the launch record.
 ///
-/// Both values come from the same record, and neither is derived now: the
+/// All three values come from the same record, and none is invented now: the
 /// digest is the catalog row's pinned sha256 as the walk that launched this
 /// engine recorded it — the one the download already verified, never the
-/// weights re-hashed here — and the directory is the `--slot-save-path` the
-/// engine itself received, so the door reads where the engine writes. `Err`
-/// carries why a chat cannot be named; the caller does not then build a door
-/// whose two chat routes answer 501 with nobody told.
+/// weights re-hashed here — the directory is the `--slot-save-path` the engine
+/// itself received, so the door reads where the engine writes, and the clock is
+/// the `--sleep-idle-seconds` it itself received. `Err` carries why a chat
+/// cannot be named; the caller does not then build a door whose two chat routes
+/// answer 501 with nobody told.
 fn disk_tier(launch: Option<&startup::LaunchInfo>) -> Result<DiskTier, DiskTierRefusal> {
     let info = launch.ok_or(DiskTierRefusal::NoIdentity(NO_LAUNCH_RECORD))?;
     let digest = info
@@ -160,6 +167,9 @@ fn disk_tier(launch: Option<&startup::LaunchInfo>) -> Result<DiskTier, DiskTierR
     Ok(DiskTier {
         model_hash: model_hash.to_string(),
         slot_dir: info.args.slot_save_path.clone(),
+        idle_save: Duration::from_secs(
+            kalsa_launch::idle_save_seconds(info.args.idle_unload_seconds).into(),
+        ),
     })
 }
 
@@ -461,6 +471,7 @@ impl Brain {
                 let door = match tier {
                     Ok(tier) => match door
                         .with_slot_dir(tier.slot_dir)
+                        .with_idle_save(tier.idle_save)
                         .with_model_hash(&tier.model_hash)
                     {
                         Ok(door) => door,
@@ -518,6 +529,14 @@ impl Brain {
                     road::open(&self.road, address, road::key_path(file));
                 }
             }
+        }
+        // The tier's clock, on the app's own tick: the store poll runs once a
+        // second, and the door decides per slot whether the quiet has lasted
+        // long enough to write it out. It is the one thing the app asks of the
+        // door with no client request behind it, which is why the save is a
+        // method on the door and not a route.
+        if let Some(active) = stored.as_ref() {
+            active.door.save_idle();
         }
         Ok(())
     }

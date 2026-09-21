@@ -228,6 +228,29 @@ pub(super) fn door_of(
     hash: Option<&str>,
     tokens: &[&str],
 ) -> (RunningDoor, SocketAddr) {
+    door_with(engine_port, slot_dir, hash, tokens, None)
+}
+
+/// The same door with the tier's clock wired: the cadence tests need to sleep
+/// through the interval, and the shipped one is derived from a 300 s unload
+/// clock.
+pub(super) fn door_of_with_save(
+    engine_port: u16,
+    slot_dir: &Path,
+    hash: &str,
+    tokens: &[&str],
+    idle_save: Duration,
+) -> (RunningDoor, SocketAddr) {
+    door_with(engine_port, Some(slot_dir), Some(hash), tokens, Some(idle_save))
+}
+
+fn door_with(
+    engine_port: u16,
+    slot_dir: Option<&Path>,
+    hash: Option<&str>,
+    tokens: &[&str],
+    idle_save: Option<Duration>,
+) -> (RunningDoor, SocketAddr) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let mut door = Door::new_with_engine(
@@ -243,6 +266,9 @@ pub(super) fn door_of(
     }
     if let Some(slot_dir) = slot_dir {
         door = door.with_slot_dir(slot_dir.to_path_buf());
+    }
+    if let Some(idle_save) = idle_save {
+        door = door.with_idle_save(idle_save);
     }
     (door.start().unwrap(), address)
 }

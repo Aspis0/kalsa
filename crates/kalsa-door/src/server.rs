@@ -39,13 +39,14 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let registry = Arc::new(Registry::new());
     let device_set = Arc::clone(&door.devices);
     // The disk tier's state, built here where the capacity, the port and the
-    // two app-supplied halves are all in hand, and shared by every worker:
-    // the per-slot gates and the resident map must be one per slot, not one
-    // per worker.
+    // app-supplied halves are all in hand, and shared by every worker: the
+    // per-slot gates and the resident map must be one per slot, not one per
+    // worker.
     let chats = Arc::new(crate::paging::Chats::new(
         door.capacity,
         door.model_hash.clone(),
         door.slot_dir.clone(),
+        door.idle_save,
     ));
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
@@ -104,6 +105,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     }
 
     let address = door.address;
+    let upstream_port = door.upstream_port;
     let listener = door.listener;
     let accept_stop = Arc::clone(&stop);
     let accept_connections = Arc::clone(&connections);
@@ -123,6 +125,8 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         address,
         devices: device_set,
         active,
+        chats,
+        upstream_port,
         threads: Mutex::new(threads),
     })
 }

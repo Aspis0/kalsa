@@ -25,7 +25,11 @@
 //! or is replaced. That is T5. The map is what the door last did, and the
 //! staging file [`io`] writes is what keeps a stale map from destroying a file
 //! that is still good.
+//!
+//! This module owns *which chat* a slot holds. The *when* of writing one out on
+//! a timer — where the switch never runs — is [`cadence`].
 
+mod cadence;
 mod io;
 
 use std::fs;
@@ -33,7 +37,7 @@ use std::io::Read;
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use self::io::{erase_slot, restore, save, ChatError, STAGING};
 use crate::cors;
@@ -42,6 +46,7 @@ use crate::engine::Engine;
 use crate::payload;
 use crate::proxy;
 use crate::request::UnsealedHead;
+use crate::DeviceSet;
 
 /// The namespace the door owns. Nothing under it is ever forwarded, so a
 /// spelling the door does not route cannot become an upstream request.
@@ -69,6 +74,12 @@ pub(crate) struct Chats {
     model: Option<String>,
     /// The engine's `--slot-save-path`. `None` until the app names one.
     dir: Option<PathBuf>,
+    /// How quiet a dirty slot has to be before it is written out, derived by
+    /// the app from the unload clock it launched this engine with
+    /// (`kalsa_launch::idle_save_seconds`). `None` until the app names one:
+    /// the tier without its clock, which saves on a switch and never on a
+    /// timer.
+    idle_save: Option<Duration>,
 }
 
 struct Slot {
@@ -79,6 +90,11 @@ struct Slot {
     /// longer that chat's, and saving under the caller's name would move one
     /// device's state into another device's chat.
     resident: Residency,
+    /// The moment the last completion passed through this slot, and `None`
+    /// when its state is on disk. One field for both facts, because "dirty
+    /// with no instant" has no meaning and a second field could only make one
+    /// up. [`cadence`] is the only reader, and it writes it on both counts.
+    dirty_at: Option<Instant>,
 }
 
 /// A slot is empty, resident with one chat, or unknown: an action that never
@@ -116,11 +132,16 @@ pub(crate) fn route(target: &[u8]) -> Option<Route> {
 }
 
 impl Chats {
-    pub(crate) fn new(capacity: u32, model: Option<String>, dir: Option<PathBuf>) -> Self {
+    pub(crate) fn new(
+        capacity: u32,
+        model: Option<String>,
+        dir: Option<PathBuf>,
+        idle_save: Option<Duration>,
+    ) -> Self {
         let slots = (0..capacity)
-            .map(|_| Mutex::new(Slot { resident: Residency::Empty }))
+            .map(|_| Mutex::new(Slot { resident: Residency::Empty, dirty_at: None }))
             .collect();
-        Self { slots, model, dir }
+        Self { slots, model, dir, idle_save }
     }
 
     /// Serves one of the door's two routes and returns the bytes to write
@@ -198,6 +219,7 @@ impl Chats {
         let mut state = self.lock(engine.slot)?;
         if matches!(&state.resident, Residency::Resident(owner, _) if *owner != device) {
             state.resident = Residency::Empty;
+            state.dirty_at = None;
         }
         // The chat asked for is the one this device already has in the slot, so
         // the sequence would be its own state written out and read back into
@@ -226,6 +248,7 @@ impl Chats {
             // whatever the slot holds, out of this chat's file.
             erase_slot(engine)?;
             state.resident = Residency::Resident(device, id.to_string());
+            state.dirty_at = None;
             return Ok(());
         }
         if let Err(error) = restore(&mut state, engine, &target) {
@@ -248,9 +271,11 @@ impl Chats {
                 return Err(repair);
             }
             state.resident = Residency::Resident(device, previous.to_string());
+            state.dirty_at = None;
             return Err(ChatError::Restore);
         }
         state.resident = Residency::Resident(device, id.to_string());
+        state.dirty_at = None;
         Ok(())
     }
 
@@ -268,10 +293,12 @@ impl Chats {
         let resident = matches!(&state.resident, Residency::Resident(owner, chat) if *owner == device && chat == id);
         if matches!(&state.resident, Residency::Resident(owner, _) if *owner != device) {
             state.resident = Residency::Empty;
+            state.dirty_at = None;
         }
         if resident {
             erase_slot(engine)?;
             state.resident = Residency::Empty;
+            state.dirty_at = None;
         }
         // The staging sibling is the erased chat's too: left behind it is a
         // file nothing will ever name again.
@@ -283,6 +310,21 @@ impl Chats {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(_) => Err(ChatError::Files),
         }
+    }
+
+    /// Marks the slot as holding state its file does not: a completion passed
+    /// through it. The moment is the timer's, and the decision to write is
+    /// [`cadence`]'s — this is the door's handle on both, and the only way in.
+    pub(crate) fn mark_dirty(&self, slot: u32) {
+        if let Ok(mut state) = self.lock(slot) {
+            cadence::note_activity(&mut state);
+        }
+    }
+
+    /// Writes out every slot that changed and has been quiet long enough, and
+    /// answers how many were written. The whole decision is [`cadence`]'s.
+    pub(crate) fn save_idle(&self, devices: &DeviceSet, upstream_port: u16) -> usize {
+        cadence::save_idle(self, devices, upstream_port)
     }
 
     fn lock(&self, slot: u32) -> Result<std::sync::MutexGuard<'_, Slot>, ChatError> {

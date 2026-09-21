@@ -44,6 +44,18 @@ impl Cancel<'_> {
     }
 }
 
+/// Whether this request generates tokens into the slot, and so is the one
+/// kind that can make the slot's state differ from the file that holds it.
+/// A suffix, not an equality: the webview sends `/chat/completions` and a
+/// phone may send `/v1/chat/completions`, and either can carry a query string.
+/// `/props`, `/health`, `/tokenize` and the model listing are forwarded by the
+/// same path and change nothing; marking one of those would spend a save —
+/// hundreds of megabytes — on a slot the file already holds.
+fn is_completion(target: &[u8]) -> bool {
+    let path = target.split(|byte| *byte == b'?').next().unwrap_or(target);
+    path.ends_with(b"/completions") || path.ends_with(b"/completion")
+}
+
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
@@ -214,6 +226,11 @@ pub(super) fn handle(
         return;
     };
     let body_length = head.body_length;
+    // Read before `seal` consumes the head: the disk tier's clock marks this
+    // slot when a generation passes, and only a generation can make the
+    // slot's state differ from the file that holds it. `/props`, `/health` and
+    // the model listing are forwarded by the same path and change nothing.
+    let completion = is_completion(&head.target);
     // `seal` consumes the head, and the answers after it — the revocation
     // refusal, the upstream-failure 502, the busy 503 — are written with the
     // request's origin still in hand, so it leaves the head here.
@@ -254,6 +271,13 @@ pub(super) fn handle(
     }
     if relay_exact(&mut client, &mut upstream, body_length, deadline, &cancel).is_err() {
         return;
+    }
+    // The disk tier's clock. The engine releases the slot after
+    // `--sleep-idle-seconds` idle, and a switch after that release has nothing
+    // left to save, so the door marks the slot here and the app's tick writes
+    // it out. Marked once the whole request has reached the engine.
+    if completion {
+        chats.mark_dirty(lease.slot());
     }
     let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
         Ok(head) => head,

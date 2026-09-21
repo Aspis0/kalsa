@@ -259,6 +259,11 @@ pub struct Door {
     /// reason, never in silence.
     model_hash: Option<String>,
     slot_dir: Option<PathBuf>,
+    /// The tier's clock: how quiet a dirty slot has to be before the app's tick
+    /// writes it out, derived by the app from the unload clock the engine was
+    /// launched with (`kalsa_launch::idle_save_seconds`). Absent, the tier
+    /// saves on a switch and never on a timer.
+    idle_save: Option<Duration>,
     response_observer: Option<ResponseObserverFactory>,
 }
 
@@ -322,6 +327,11 @@ pub struct RunningDoor {
     address: SocketAddr,
     devices: Arc<DeviceSet>,
     active: Arc<ActiveDevices>,
+    /// The disk tier's own state, and the port the engine listens on: the
+    /// timed save calls the engine as the door does, so both come from the
+    /// door that was started, never from a caller and never from a constant.
+    chats: Arc<paging::Chats>,
+    upstream_port: u16,
     threads: Mutex<Vec<JoinHandle<()>>>,
 }
 
@@ -388,6 +398,7 @@ impl Door {
             head_patience: HEAD_PATIENCE,
             model_hash: None,
             slot_dir: None,
+            idle_save: None,
             response_observer: None,
         })
     }
@@ -425,6 +436,16 @@ impl Door {
         self
     }
 
+    /// The quiet a dirty slot is allowed before the tick writes it out. It is
+    /// the app's to derive, because the unload clock is the app's to set: a
+    /// fixed interval would lose the turn of every device whose owner lowered
+    /// the clock below it, and the point of this timer is that it always fires
+    /// first.
+    pub fn with_idle_save(mut self, idle_save: Duration) -> Self {
+        self.idle_save = Some(idle_save);
+        self
+    }
+
     /// Build a per-connection observer for response bytes after forwarding.
     /// Each observer must stay small and incremental: the door never buffers
     /// an SSE body and separate responses never share parser state.
@@ -456,6 +477,22 @@ impl RunningDoor {
     /// credential exists; who the devices are is the app's translation.
     pub fn active_devices(&self) -> Vec<DeviceId> {
         self.active.snapshot()
+    }
+
+    /// Writes out every slot that a completion has changed since it was last
+    /// saved, and answers how many were written. This is the tier's second
+    /// trigger, and it is what an unload cannot take away: the engine releases
+    /// the slot — and the state in it — after `--sleep-idle-seconds` idle, so
+    /// a turn that no switch ever saved would go with the release. The caller
+    /// owns the clock and it must be shorter than that one; the door owns the
+    /// save, because the door owns the slot, the device and the salt.
+    ///
+    /// The call is in-process, not a route: no client asks for it, no HTTP
+    /// head carries it, and the residency — which the caller never says — is
+    /// the door's own map. A slot that is clean, empty or `Unknown` is not
+    /// touched, and a save the engine refuses is simply still owed.
+    pub fn save_idle(&self) -> usize {
+        self.chats.save_idle(&self.devices, self.upstream_port)
     }
 
     /// Replaces the credential set without stopping anything: the listener

@@ -14,6 +14,7 @@ use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 mod cors;
 mod cors_answers;
 mod paging;
+mod paging_cadence;
 mod paging_route;
 mod paging_support;
 mod revocation;
@@ -515,7 +516,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
             upstream_port,
             1,
             &devices,
-            &crate::paging::Chats::new(1, None, None),
+            &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &stop,
             &active,
@@ -786,7 +787,7 @@ fn a_connection_past_its_lifetime_is_cut() {
             1,
             1,
             &devices,
-            &crate::paging::Chats::new(1, None, None),
+            &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &stop,
             &active,
