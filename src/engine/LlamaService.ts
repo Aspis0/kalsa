@@ -102,6 +102,7 @@ import {
 } from "./toolCallParser";
 import { createThinkStreamCleaner, decideTemplateOpensThink } from "./thinkStream";
 import { visibleTurnText } from "./truncatedTurnText";
+import { historyMessagePositions } from "./historyMessagePositions";
 import {
   historyThinkPlacementForModel,
   historyWindowReproducesKv,
@@ -4286,7 +4287,9 @@ export async function streamAssistantTurn(
         }
       | { role: "tool"; tool_call_id: string; content: string };
 
-    const userIndex = messages.length - 1;
+    const { userIndex, finalAssistantIndex } = historyMessagePositions(messages);
+    // Assistant-terminated history has no current user: keep its content out
+    // of document matching, auto-query and the web_search privacy guard.
     // Current user turn's plain text — fed to executeTool (e.g. web_search
     // privacy guard) alongside the model-chosen query; never logged here.
     // Prefer the caller-supplied raw text so persona/format-B tails stay prompt-only.
@@ -4302,7 +4305,10 @@ export async function streamAssistantTurn(
       if (message.role === "assistant") {
         return {
           role: "assistant",
-          ...llamaHistoryAssistantFields(message, { historyThink }),
+          ...llamaHistoryAssistantFields(message, {
+            historyThink,
+            isFinal: index === finalAssistantIndex,
+          }),
         };
       }
       return {

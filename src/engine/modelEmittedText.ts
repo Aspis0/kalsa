@@ -5,7 +5,8 @@
  * the seeded LFM think prefix or the Qwen older-turn sentinel.
  */
 
-import { THINK_CLOSE, THINK_OPEN } from "./thinkStream";
+import { THINK_OPEN } from "./thinkStream";
+import { qwenHistoryAssistantFields } from "./qwenHistoryFields";
 
 /** Named restore refusal: history cannot re-render the saved KV byte-for-byte. */
 export const HISTORY_NOT_REPRODUCIBLE = "history_not_reproducible";
@@ -30,11 +31,6 @@ export type LlamaHistoryAssistantFields = {
   content: string;
   reasoning_content?: string;
 };
-
-// Measured against the catalogue GGUF with --jinja --reasoning-format none on
-// 18/09/2026: non-empty reasoning_content is never rendered for an older turn.
-// It only stops the template from splitting </think> out of content.
-export const QWEN_HISTORY_OLDER_REASONING_SENTINEL = " ";
 
 /**
  * Where a stored modelEmittedText came from. It records the MECHANISM that
@@ -84,6 +80,10 @@ function emissionAlreadySeeded(
  * - `content_span`: Qwen 3.5 history (`loop.index0 <= last_query_index`)
  *   keeps the raw span in `content` and supplies the sentinel whenever the
  *   span contains `</think>`, including spans without a leading `<think>`.
+ *   The final assistant turn of an assistant-terminated history is handed to
+ *   qwenHistoryFields.ts, which splits its reasoning from its answer when the
+ *   span round-trips through the template exactly and keeps the older raw
+ *   shape otherwise.
  *   The old empty string never reached the template: the pinned `llama.rn`
  *   dependency's `cpp/common/chat.cpp` omits empty `reasoning_content`, so
  *   the template split `</think>` out of content and dropped the KV reasoning
@@ -114,7 +114,7 @@ export function llamaHistoryAssistantFields(
     modelEmittedText?: string;
     emissionSource?: EmissionSource;
   },
-  opts?: { historyThink?: HistoryThinkPlacement },
+  opts?: { historyThink?: HistoryThinkPlacement; isFinal?: boolean },
 ): LlamaHistoryAssistantFields {
   if (message.role !== "assistant") {
     return { content: message.content };
@@ -125,9 +125,7 @@ export function llamaHistoryAssistantFields(
       : undefined;
   const source = emitted ?? message.content;
   if (opts?.historyThink === "content_span") {
-    return source.includes(THINK_CLOSE)
-      ? { content: source, reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL }
-      : { content: source };
+    return qwenHistoryAssistantFields(message, opts.isFinal === true);
   }
   // The GGUF generation prompt seeds one `<think>` unconditionally (lines
   // 123–125), so the KV already holds exactly one opening tag. Whether the

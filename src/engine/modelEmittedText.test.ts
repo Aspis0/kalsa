@@ -14,8 +14,9 @@ import {
   normalizeModelEmittedTextForSave,
   promptContentForHistoryMessage,
   readModelEmittedText,
-  QWEN_HISTORY_OLDER_REASONING_SENTINEL,
 } from "./modelEmittedText";
+import { historyMessagePositions } from "./historyMessagePositions";
+import { QWEN_HISTORY_OLDER_REASONING_SENTINEL } from "./qwenHistoryFields";
 import {
   assembleEngineHistory,
   LEGACY_MAX_CHARS,
@@ -306,6 +307,65 @@ describe("llamaHistoryAssistantFields", () => {
     );
     expect(fields).toEqual({ content: "ANSWER" });
     expect(fields).not.toHaveProperty("reasoning_content");
+  });
+
+  test("content_span final splits reasoning from the answer", () => {
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
+    const fields = llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      { historyThink: "content_span", isFinal: true },
+    );
+    expect(fields).toEqual({ content: "ANSWER", reasoning_content: "plan" });
+    expect(`<think>\n${fields.reasoning_content}\n</think>\n\n${fields.content}`).toBe(raw);
+  });
+
+  test.each([
+    ["tight", "<think></think>ANSWER"],
+    ["leading whitespace", "\n<think>\nplan\n</think>\n\nANSWER"],
+    ["missing answer separator", "<think>\nplan\n</think>ANSWER"],
+    ["extra reasoning newline", "<think>\nplan\n\n</think>\n\nANSWER"],
+    ["missing reasoning newline", "<think>\nplan</think>\n\nANSWER"],
+    ["space-only reasoning", "<think>\n   </think>\n\nANSWER"],
+  ])("content_span final falls back for %s", (_name, raw) => {
+    expect(llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      { historyThink: "content_span", isFinal: true },
+    )).toEqual({
+      content: raw,
+      reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+    });
+  });
+
+  test("content_span changes final assistant to older after a user arrives", () => {
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
+    const message = { role: "assistant" as const, content: raw, modelEmittedText: raw };
+    expect(llamaHistoryAssistantFields(message, {
+      historyThink: "content_span",
+      isFinal: true,
+    })).toEqual({ content: "ANSWER", reasoning_content: "plan" });
+    expect(llamaHistoryAssistantFields(message, {
+      historyThink: "content_span",
+      isFinal: false,
+    })).toEqual({
+      content: raw,
+      reasoning_content: QWEN_HISTORY_OLDER_REASONING_SENTINEL,
+    });
+  });
+});
+
+describe("assistant-terminated history rendering", () => {
+  test("has no current user and renders its final assistant turn", () => {
+    const messages = [{ role: "user" }, { role: "assistant" }];
+    const positions = historyMessagePositions(messages);
+    expect(positions).toEqual({ userIndex: -1, finalAssistantIndex: 1 });
+    const raw = "<think>\nplan\n</think>\n\nANSWER";
+    expect(llamaHistoryAssistantFields(
+      { role: "assistant", content: raw, modelEmittedText: raw },
+      {
+        historyThink: "content_span",
+        isFinal: positions.finalAssistantIndex === 1,
+      },
+    )).toEqual({ content: "ANSWER", reasoning_content: "plan" });
   });
 });
 
