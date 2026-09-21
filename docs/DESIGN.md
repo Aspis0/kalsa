@@ -191,6 +191,24 @@ line on the smallest screen.
 - A day marker sits between two hairlines: a 42 dp box, kept while the transcript band has at
   least 320 dp and dropped below that. The 320 is a **chosen** floor, labelled as chosen in the
   code, because the arithmetic fixes only the band it must sit inside.
+- **Where the conversation sits** — owner's decision 2026-09-21: **it grows from the top while it
+  fits, and sticks to the bottom once it overflows.** A short conversation begins at the top, exactly
+  as the desktop app does, with no void shoving it down; the moment the content is taller than the
+  band the view stays at the end, so the newest turn sits one thumb above the composer. The owner
+  chose bottom-anchoring and named the three failures it is known for; they are requirements here,
+  and none of them can be proven by a screenshot:
+  1. **Not knowing which message is last.** While pinned, the band always shows the end: bottom
+     padding of at least one line so the composer never covers the last line, and the view follows
+     both an append and a growth — but only while it is pinned.
+  2. **The answer writing above itself and then below it.** One cause: a placeholder born in one
+     place and the real text arriving in another. So **one list entry per message**, created when the
+     answer starts and never re-created — the cloud, the tool rows and the text all render inside
+     that entry, and the cloud becomes text in place. An extra placeholder entry that is later
+     replaced is forbidden by this rule.
+  3. **The view fighting the reader.** It unpins after **10 dp** of upward scroll, nothing moves
+     while it is unpinned, and there is exactly one control to return to the end.
+  The decision is a **pure state machine** (`transcriptScroll.ts`) with those three rules as tests;
+  `Transcript.tsx` only obeys it.
 
 ### 2.3 The thinking cloud
 
