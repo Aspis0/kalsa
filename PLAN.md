@@ -159,9 +159,10 @@ what is left.
 - Release tag `kalsa-server-v1.0.0`, annotated, tag object
   `d30c8d475d5eb47a544304ba592138d066bbc2e3`, pointing at commit
   `4ccef2f85dbc27e095e11ffcbad4628be9961790`. Immutable; never moved.
-- Distribution moved off GitHub to Cloudflare R2 (`dl.kalsa.io`). The R2 publish is currently
-  blocked by the `None` bug below; the fix is committed locally and not yet pushed. The bucket is
-  empty, because the failing run stopped before any upload.
+- Distribution moved off GitHub to Cloudflare R2 (`dl.kalsa.io`). The publish is LIVE: run
+  `35549848243` pushed `kalsa-server-v1.0.0` and all three objects serve HTTP 200 anonymously. The
+  GitHub-release publishing path is gone; the artefact lives only on R2. Published state and the
+  cache caveats: `docs/ALIVE.md`, "Engine release pipeline".
 
 ### Decisions
 
@@ -209,19 +210,22 @@ commit `213850e1b617831586e9b9c18b0144ea74664efb` (pushed).
   act as an option (`--help`) instead of a value. Closed with a namespace allowlist
   `^kalsa-server-[A-Za-z0-9._-]+$` at read time AND immediately before use, plus an option
   terminator `--` before positional arguments.
-- Two AWS/R2 traps, both encoded in the step as comments and guards: `aws s3 ls` exits NONZERO on
+- Three AWS/R2 traps, all encoded in the step as comments and guards: `aws s3 ls` exits NONZERO on
   an empty prefix (aws/aws-cli#5544), so with "any nonzero is fatal" it would block the first
-  publish of every new version; and a JMESPath `Contents[]` projection prints the literal string
-  `None` for an empty result, which made an empty prefix look non-empty. The check therefore uses
-  `list-objects-v2 --query KeyCount` with a numeric guard. The second trap is the bug that failed
-  run `35544933700`, before any upload, leaving the bucket empty.
+  publish of every new version; a JMESPath `Contents[]` projection prints the literal string `None`
+  for an empty result, which made an empty prefix look non-empty; and Cloudflare R2's `ListObjectsV2`
+  omits `KeyCount`, unlike AWS. List-based existence checks are unusable here, so the decision comes
+  from three `head-object` calls on the exact keys. The `None` trap is the bug that failed run
+  `35544933700`, before any upload, leaving the bucket empty. Detail: `docs/ALIVE.md`, "Engine
+  release pipeline".
 
 ### Open items and debts
 
 Ordered next steps:
 
-1. Push the `KeyCount` fix and re-run the R2 publish for `kalsa-server-v1.0.0`. The fix is committed
-   locally and not yet pushed; the bucket is empty, so the first publish has nothing to overwrite.
+1. R2 publish for `kalsa-server-v1.0.0` is done and LIVE (run `35549848243`); nothing to re-run. The
+   published digests and the consumer-side verification are in `docs/ALIVE.md`, "Published state
+   (v1.0.0, live)". The cache caveats below are standing debts, not blockers.
 2. Bundle the engine into a signed, notarised macOS `.app`. This reintroduces the codesign
    obligation for the engine's dylibs (56 Mach-O in this build), same team and hardened runtime,
    with `@rpath` resolving inside the bundle. The runtime download was dodging that; if nothing is
@@ -236,6 +240,16 @@ Ordered next steps:
    `0288dc2786911d9b7dda6b2961cb3f0afa1e0ee2` (only version files changed, no C++), and the app pin
    bump to that commit is prepared and awaiting review. The S23 repack timing run still waits for
    the device to be unplugged.
+
+Cache caveats, standing (source of truth is the Cloudflare docs, not folklore):
+
+- Cloudflare's cache stores HTTP 404 responses automatically for a domain with caching enabled, and
+  an overwritten object keeps being served in its OLD form until TTL expiry or an explicit purge
+  (`https://developers.cloudflare.com/r2/reference/consistency/`).
+- Measured on `dl.kalsa.io`: a request to a not-yet-published path returns `cf-cache-status:
+  DYNAMIC`, so the 404 is NOT cached and no path is poisoned today. The publish step checks the
+  bucket through the S3 API, which bypasses the cache entirely; a client-side 404 must be
+  re-checked with a cache-busting query before it is believed.
 
 ## Open decisions
 

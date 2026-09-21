@@ -58,6 +58,24 @@ open items are in `PLAN.md`, "Engine release: current position and next steps".
 
 The tag is IMMUTABLE: never moved, never forced, never re-created.
 
+### Published state (v1.0.0, live)
+
+All three objects serve HTTP 200 anonymously and were verified consumer-side:
+
+| check | value |
+|---|---|
+| Home | `https://dl.kalsa.io/kalsa-server/v1.0.0` |
+| Archive | `https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz` |
+| `.sha256` sibling | `https://dl.kalsa.io/kalsa-server/v1.0.0/kalsa-server-v1.0.0-bin-macos-arm64.tar.gz.sha256` |
+| Manifest | `https://dl.kalsa.io/kalsa-server/v1.0.0/manifest.json` |
+| Archive size | 11203439 bytes |
+| Archive sha256 | `3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7` |
+| `.sha256` sibling | agrees with the archive digest |
+| Extracted `exe_sha256` | `327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde` |
+| Archive top directory | `kalsa-server-v1.0.0` |
+| `kalsa-server --version` | prints `commit 4ccef2f85` |
+| Producing run | `https://github.com/Aspis0/kalsallama/actions/runs/35549848243` |
+
 ### Workflow
 
 `.github/workflows/kalsa-server.yml`, self-contained. No workflow artifacts and no caches; job
@@ -92,12 +110,29 @@ macOS job steps, in order:
   (= `https://8a991014729a52a958cef2c5cbf0de50.r2.cloudflarestorage.com`) are passed ONLY as
   environment variables, never as command-line arguments. The token is scoped to the single bucket
   and can only write objects; it cannot touch any repository.
-- Before upload the step lists the version prefix and refuses to publish if anything is there,
-  unless the `force` dispatch input is true (which prints a loud warning that every pinned URL will
-  start serving different bytes). ANY nonzero status from the listing is a fatal abort, and `force`
-  never bypasses a FAILED check.
+- Before upload the step checks that the version prefix is empty and refuses to publish if anything
+  is there, unless the `force` dispatch input is true (which prints a loud warning that every pinned
+  URL will start serving different bytes). `force` never bypasses a FAILED check.
+- The existence check does NOT list. Three traps make list-based checks unusable here: `aws s3 ls`
+  exits NONZERO on an empty prefix (aws/aws-cli#5544); a JMESPath `Contents[]` projection prints the
+  literal string `None` for an absent array; and Cloudflare R2's `ListObjectsV2` omits `KeyCount`,
+  unlike AWS. The decision therefore comes from three `head-object` calls on the exact keys: a clean
+  `404`/`NoSuchKey` means absent, exit 0 means present, and any other failure aborts and is never
+  bypassed by `force`. R2 documents a missing key as HTTP 404 / `NoSuchKey` / error 10007
+  (`https://developers.cloudflare.com/r2/api/error-codes/`).
 - After upload a recount asserts all three objects exist and that the archive size equals the local
   one.
+
+### Cache behaviour
+
+Cloudflare's cache stores HTTP 404 responses automatically for a domain with caching enabled, and
+an overwritten object keeps being served in its OLD form until TTL expiry or an explicit purge.
+Source: `https://developers.cloudflare.com/r2/reference/consistency/`.
+
+Measured on `dl.kalsa.io`: a request to a not-yet-published path returns `cf-cache-status:
+DYNAMIC`, so the 404 is NOT cached and no path is poisoned today. The publish step checks the bucket
+through the S3 API, which bypasses the cache entirely; a client-side 404 must therefore be
+re-checked with a cache-busting query before it is believed.
 
 ### Releasing a new version
 
@@ -122,7 +157,7 @@ run, never typed by hand.
   "commit": "4ccef2f85dbc27e095e11ffcbad4628be9961790",
   "ref": "refs/tags/kalsa-server-v1.0.0",
   "trigger": "workflow_dispatch with release_tag",
-  "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/<id>",
+  "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35549848243",
   "built_at": "<UTC ISO-8601>",
   "reproducible": true,
   "pack_sha256": "<64 hex>",
@@ -136,15 +171,15 @@ run, never typed by hand.
       "format": "tar.gz",
       "top_dir": "kalsa-server-v1.0.0",
       "exe": "kalsa-server",
-      "size_bytes": 11203436,
-      "sha256": "ad9f8b0cebccbce046ef0b76eaf3140242f77431703800cfa99e7d2717f7aa10",
+      "size_bytes": 11203439,
+      "sha256": "3fe62ebfe7fd9ddd21fa8857f68f2c34bfc8557fb1811b54f89012260c5c88a7",
       "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
     }
   ]
 }
 ```
 
-`<id>`, `<UTC ISO-8601>` and `<64 hex>` mark values computed in the run and not reproduced here.
+`<UTC ISO-8601>` and `<64 hex>` mark values computed in the run and not reproduced here.
 
 Notes:
 
