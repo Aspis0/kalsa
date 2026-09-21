@@ -194,8 +194,12 @@ Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
   cannot be created, the launch refuses rather than starting an engine whose disk tier silently
   answers `not supported`.
 - `--ctx-checkpoints 1` → the default is 32 (`common/common.h:630`) and v1 left this out, which
-  would let one chat's save file reach the size the handoff records. One record is enough:
-  the reader trims to `n_ctx_checkpoints` anyway (`server-context.cpp:2581-2583`).
+  would let one chat's save file reach the size the handoff records. One is the point, not a
+  convenience: the appendix carries the checkpoint blobs, so the flag multiplies the save file, and
+  the reader trimming to `n_ctx_checkpoints` (`server-context.cpp:2581-2583`) is a **bound, not a
+  licence to ask for more**. The test must pin the exact pair `["--ctx-checkpoints", "1"]`: a
+  substring assertion passes for `"12"` and `"16"` as well, and a mutation to `"12"` left all 49
+  plus 151 tests green when this was checked.
 - `--swa-full` → **not rendered.** The measurement in §5 settles it: the flag changes the save
   file's size, not whether a restore comes back warm. Were it ever adopted it would also take the
   SWA cache from `min(size_base, n_swa + n_ubatch)` to `size_base`
