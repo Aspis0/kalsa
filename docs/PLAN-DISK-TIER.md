@@ -184,6 +184,9 @@ All three components already exist, and none of them costs work at save time:
   `git add -A` in that repo would commit it. Stage files by name.
 - Touches `server-context.cpp` (5895 lines) and `server-task.h` (652) — both pre-existing
   excess, declared and not refactored.
+- `chat/src/App.tsx` is 1147 lines and was 1109 before T3c (`acfe4f7`) — pre-existing excess,
+  declared here and not refactored. What T3c added is the wire-up to `slotGate`; the ordering logic
+  it used to hold was **moved out** into a pure module, not left in place.
 
 ### T2 — app: the launch flag set this tier needs
 
@@ -275,17 +278,43 @@ Save-on-switch alone is **lossy**: `--sleep-idle-seconds 300` destroys the slot'
 switch that follows has nothing left to save. The tier therefore saves on two triggers:
 
 - every chat switch, before the restore;
-- an idle timer **shorter than the unload clock** (the unload clock is 300 s, so the timer is a
-  stated constant, 120 s, pinned by a test), so the file is never more than the timer behind when
-  the engine unloads.
+- an idle timer **shorter than the unload clock**, so the file is never more than the timer behind
+  when the engine unloads.
+
+The interval is **derived from the clock the engine actually received**, not a constant: the unload
+clock is settable from the panel down to 60 s (`MIN_IDLE_UNLOAD_SECONDS`,
+`crates/kalsa-launch/src/args.rs:160`) and a fixed interval above the shortest clock reproduces the
+loss this task exists to close. The derivation lives with the clock (`idle_save_seconds`,
+`args.rs:182`), and the pin holds over the whole legal range, not at two named points.
+
+What the timer clocks is **silence, not the tick**. The engine does not release a slot the user is
+talking to, so the state worth saving is the one after the last token: a fixed-period save would
+write hundreds of megabytes under every busy minute and still hold the wrong state. A slot is
+written out once it is dirty *and* quiet for the interval.
+
+Two things the T4a review settled, and both are part of this task rather than follow-ups:
+
+- **The silence starts when the last token reaches the client, not when the request left.** Marking a
+  slot at the top of a turn stamps an instant before the generation exists; the timer then saves a
+  prefix, clears the mark, and nothing re-marks that turn. The mark belongs after the response has
+  fully relayed, and on the cancellation branch too — an interrupted generation has already written
+  into the cache. This is invisible to a fake engine that answers instantly, so the acceptance test
+  needs one that answers slowly.
+- **The tick is Rust's, not the webview's.** A timer driven by the frontend's poll stops when the
+  last listener unsubscribes (`chat/src/surfaces/useBrain.ts:155-157`) and is throttled when the
+  window is occluded — and the phone chatting while the desktop window is minimized is this door's
+  primary case. The save must not ride a synchronous command either: an engine that accepts and stays
+  silent would freeze that command for the patience budget per slot.
 
 A restore after a genuine unload is therefore a **restore plus a model load**, and the UI says so
 during the load — the engine's readiness budget is 600 s (`src-tauri/src/startup.rs:42`), so the
 sentence is not optional. v1 left this as an undeclared "refused or re-driven"; it is now decided:
 **re-driven**, never refused, because the user asked to open a chat and the state exists.
 
-**Acceptance**: a test that the idle timer fires before the unload clock and that a switch after
-an unload restores from disk instead of returning an empty conversation.
+**Acceptance**: a test that the idle interval holds below the unload clock across its whole legal
+range; a test that a slow generation is not marked until it finishes; a test that a save the engine
+refuses is retried no sooner than the interval; and a switch after an unload restores from disk
+instead of returning an empty conversation.
 
 ### T5 — app: resident map, sweep, crash invalidation
 
@@ -299,19 +328,39 @@ an unload restores from disk instead of returning an empty conversation.
   exit detection (`supervisor.rs:299-303`, `ServerState::Failed`) is the hook; it detects, it does
   not restart. A server adopted from a previous run has no pipe and stays `unknown`
   forever (`child.rs:50-57`); `unknown` is treated as *not resident*, and the restore is driven.
+- **This task is load-bearing for warmth, not hygiene** (the T3c review's finding, and it is the
+  reason T5 comes before T6). `569d31e` made activating the already-resident chat a no-op, which
+  removed the self-healing the path used to have: with the engine asleep but the map still reading
+  `Resident`, the no-op skips the very restore that would have brought the cache back from the file.
+  A stale map therefore does not merely lie in the panel — it costs the warm start the tier exists
+  for. The map must be wrong as little as possible, and `Unknown` must be reached whenever the
+  engine's state is not known.
+- **A rebuilt door must not start at `Empty`.** `stop_door` (`src-tauri/src/main.rs:210-224`) drops
+  the map with the door, reachable with the engine still alive (an unreadable pairing store,
+  `:363-376`). The rebuilt door has every slot at `Empty`, so the first activate takes
+  `previous = None`, saves nothing, and erases/restores over state the engine still holds. The
+  honest initial state for a door built against an engine that is already running is `Unknown`,
+  which the design already defines as "do not save, and say unknown".
 - **Sweep**: a revoked device's files, when the store polls and the door prunes
   (`src-tauri/src/main.rs:346`, `:364`; the slot side is `slots.rs:239-268`). A **deleted chat's**
   file is removed with the chat, not left orphaned — the sweep covers devices, this covers chats.
+  An `erase` the door *refuses* leaves an orphan file and the UI offers only Dismiss today; decide
+  whether the user gets a retry or the next activation repairs it.
+- **Declared loss, not fixed**: a slot stolen from a device that has left the set clears its
+  residency and its `dirty_at` without a save (`paging.rs:221-222`, and the same shape in `erase` at
+  `:295-296`), reachable because `DeviceSet::swap` frees a removed device's slot without touching the
+  map (`slots.rs:239-262`). The bound is real — only a departed holder, only the last interval of
+  its state, and the tick would skip a salt-less device anyway — so it is written down rather than
+  given a mechanism.
 - **Acceptance**: a test that a crash does not leave the map claiming residency; a test that a
-  revoked device's files are gone; a test that deleting a chat removes its file.
+  rebuilt door does not report `Empty` for a slot it has never looked at; a test that a revoked
+  device's files are gone; a test that deleting a chat removes its file.
 
 ### T6 — the panel
 
 Resident count, window per device, **55.78 MiB** per extra resident, and the concurrency figure
 **only once its measurement is committed**. Two corrections the tier owes:
 
-- The live window number must come from the engine's per-slot value, not `n_ctx`
-  (`chat/src/lib/chat.ts:117-140`).
 - The live window number must come from the engine's per-slot value, not `n_ctx`
   (`chat/src/lib/chat.ts:117-140`).
 - The disk line comes from the measured footprint in §5 — ≈ 53 KB per token on the measured model,
