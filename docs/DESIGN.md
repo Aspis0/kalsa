@@ -6,7 +6,10 @@ palette that survives is the **green** one — the app's `palettes.js` (`accent 
 Brain's `chat/src/styles/tokens.css` (`--accent: #1f5f4e`), the same family as `BrandIcon.tsx`
 (`#1F5F4E` + cream `#F4EFE4`). The "notebook" cream/teal palette that `tokens.ts` used to carry was
 **dead code that nothing imported, citing a file that never existed in this repository's history**;
-it has been deleted. Three assets survive: **the palette, the empty-state photograph, the logo.**
+it has been deleted. Three assets survive: **the palette, the empty-state photograph, the logo** — and the
+logo's only home is the launcher icon (`app.config.js`), because the shell stopped drawing it in the
+strip when the model pill needed its width for the model's name. That is a change of home, not a
+retirement: `shellLogoAsset.test.ts` pins the launcher line so the asset cannot be orphaned silently.
 
 The engine, the governor, the session/KV code, the pins and the Meter are **not mine**. The new
 interface calls the same services. It replaces the shell, not the machine.
