@@ -1537,25 +1537,37 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
         !engine_lost_its_state(&running, None),
         "an unanswered residency was read as a release"
     );
-    // Stopped and Starting never meet a live door — and NOT because every
-    // path calls `stop_door` first: `brain_start` (the turn-on walk) never
-    // calls it, and neither does `startup.rs`. What makes the invariant true
-    // is the chain, each link read from the code: the door is raised only in
-    // this command's own Running arm (`start_door_if_paired`, the single
-    // caller), and `Stopped` is set only by `Supervisor::stop`/`shutdown`,
-    // whose two senders take the door down BEFORE them — `brain_stop`
-    // (`main.rs:1138` before `:1141`) and the exit handler (`:1402` before
-    // `:1403`). `Starting` is entered only by a start the supervisor
-    // accepted, and it refuses one while it still owns a server
-    // (`supervisor.rs:278-281`), so `Running` — the one state whose door may
-    // be up — is never recycled through it. And the window asks for a start
-    // either off a state this very command last answered — whose non-`Running`
-    // arms all drop the door
+    // `Stopped` is only ever set with the door already down, and `Starting`
+    // only by a start the supervisor accepted — and NOT because every path
+    // calls `stop_door` first: `brain_start` (the turn-on walk) never calls
+    // it, and neither does `startup.rs`. What holds is the chain, each link
+    // read from the code: the door is raised only in `brain_state`'s own
+    // Running arm (`start_door_if_paired`, the single caller), and `Stopped`
+    // is set only by `Supervisor::stop`/`shutdown`, whose two senders take
+    // the door down BEFORE them — `brain_stop` (`stop_door` before
+    // `supervisor.stop`) and the exit handler (`stop_door` before
+    // `supervisor.shutdown`). `Starting` is entered only by a start the
+    // supervisor accepted, and it refuses one while it still owns a server
+    // (`StartOutcome::Refused`: "already on"), so `Running` — the one state
+    // whose door may be up — is never recycled through it. And the window
+    // asks for a start either off a state `brain_state` last answered — whose
+    // non-`Running` arms all drop the door
     // (`every_non_running_arm_of_brain_state_stops_the_door`, below) — or
-    // after a `brain_stop` it sends itself, while a state it never polled
-    // means the Running arm never raised a door either (`useBrain.ts`,
-    // `act`/`chooseModel`). What reaches an app nobody polled is therefore
-    // exactly the two above — a release, or a death.
+    // after a `brain_stop` it sends itself. Never polled, though, is not
+    // never raised: the door goes up inside `brain_state`, not in the page,
+    // and an answer that never lands — or a window that loaded after the
+    // door did — leaves `state === null` (the `COULD_NOT_TELL` read of
+    // `useBrain.ts`) in front of a door that is up. `act` returns on that
+    // null — it only re-polls; `chooseModel` does not: its guard needs
+    // `state !== null`, so it skips `brain_stop` and sends `brain_start`
+    // anyway. What closes that hole is not the page's state but the
+    // supervisor's refusal while it already owns a server: the request
+    // starts nothing, so no `Starting` is entered over the live door. If the
+    // engine died in the meantime, though, the start is accepted and
+    // `Starting` does meet the door the Running arm left up — until the next
+    // poll's `Starting` arm takes it down, at most a second later (`POLL_MS`).
+    // What reaches an app nobody polled is therefore exactly the two above —
+    // a release, or a death.
     assert!(!engine_lost_its_state(&ServerState::Starting, None));
     assert!(!engine_lost_its_state(&ServerState::Stopped, None));
 }
