@@ -1,0 +1,66 @@
+import { hostComposerPhase, type ComposerPhaseInput } from "./composerPhase";
+
+const base: ComposerPhaseInput = {
+  historyLoaded: true,
+  thermalGated: false,
+  sending: false,
+  stopping: false,
+  hasTokens: false,
+  thinkingStatus: "Thinking",
+  modelState: "ready",
+  engineResident: true,
+};
+
+const phase = (over: Partial<ComposerPhaseInput>) => hostComposerPhase({ ...base, ...over });
+
+describe("hostComposerPhase", () => {
+  test("ready machine → idle", () => {
+    expect(phase({})).toBe("idle");
+  });
+
+  test("history still settling → loading, not ready (a switch's first renders)", () => {
+    expect(phase({ historyLoaded: false })).toBe("loading");
+  });
+
+  test("thermal CRITICAL wins over every other state", () => {
+    expect(phase({ thermalGated: true, sending: true, modelState: "ready" })).toBe("tooHot");
+  });
+
+  test("prefill: sending before the first token", () => {
+    expect(phase({ sending: true })).toBe("prefill");
+  });
+
+  test("thinking: sending while the engine reports the thinking status", () => {
+    expect(phase({ sending: true, hasTokens: true, statusLabel: "Thinking" })).toBe("thinking");
+  });
+
+  test("writing: sending with a non-thinking status after tokens", () => {
+    expect(phase({ sending: true, hasTokens: true, statusLabel: "Searching the web…" })).toBe(
+      "writing",
+    );
+  });
+
+  test("stopping outranks the status line (§2.8: visible until the engine releases)", () => {
+    expect(phase({ sending: true, stopping: true, hasTokens: true, statusLabel: "Thinking" })).toBe(
+      "stopping",
+    );
+  });
+
+  test("bundle on disk but engine not resident → unloaded (the pill's tap loads it)", () => {
+    expect(phase({ engineResident: false })).toBe("unloaded");
+  });
+
+  test("missing and error are both 'not loaded' for the composer", () => {
+    expect(phase({ modelState: "missing" })).toBe("unloaded");
+    expect(phase({ modelState: "error" })).toBe("unloaded");
+  });
+
+  test("checking / loading → loading", () => {
+    expect(phase({ modelState: "checking" })).toBe("loading");
+    expect(phase({ modelState: "loading" })).toBe("loading");
+  });
+
+  test("sending outranks a not-yet-resident model (the run holds the engine)", () => {
+    expect(phase({ sending: true, hasTokens: true, engineResident: false, modelState: "loading" })).not.toBe("unloaded");
+  });
+});

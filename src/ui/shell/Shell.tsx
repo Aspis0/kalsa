@@ -4,8 +4,11 @@
  * Step 2 of the rebuild, with step 3's transcript arriving as `children`. This
  * file places the boxes `shellGeometry.ts` returns and nothing else — it holds
  * no data, fetches nothing, and imports nothing from `src/engine`, `src/app`,
- * `src/screens` or `src/conversations`. The composer is non-functional chrome
- * until step 5; the send and attach controls deliberately do nothing.
+ * `src/screens` or `src/conversations`. The composer is DRAW-ONLY: every
+ * decision (draft, hold, face, enabled) arrives through optional props from
+ * the host; with none passed the old inert chrome is what renders, which is
+ * the preview's contract. Mounting the shell was blocked on exactly this —
+ * the draft used to live in component-local state, unreadable by any host.
  *
  * Insets arrive as a prop so `shellGeometry.ts` stays pure and its test honest;
  * width and height default to the live window so the preview can render at any
@@ -16,12 +19,12 @@
  * plus the keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
-import { ArrowUp, ChevronDown, Menu, Mic, Plus } from "lucide-react-native";
+import { ArrowUp, ChevronDown, Menu, Mic, Plus, Square } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, Text, TextInput, View, useWindowDimensions } from "react-native";
 
-import { useLocale } from "../../i18n";
-import { modes, type ThemeMode } from "../../theme/design";
+import { useLocale, type TranslationKey } from "../../i18n";
+import { families, modes, type ThemeMode } from "../../theme/design";
 import {
   SHELL_NOTICE_HEIGHT,
   bottomInsetFor,
@@ -64,6 +67,29 @@ export type ShellProps = {
   notice?: string;
   /** The transcript band's content. The shell does not know what it is. */
   children?: React.ReactNode;
+  /**
+   * The composer, as decided by the host (`composerState.ts` decides holds
+   * and faces; this file only draws them). Every prop below is OPTIONAL and
+   * defaults to the old non-functional chrome, which is what the preview
+   * still passes — the controlled form is the mount fix: the draft lived in
+   * component-local state (old Shell:113), so no host could ever read what
+   * the user typed or swap the send face for stop.
+   */
+  draft?: string;
+  onDraftChange?: (text: string) => void;
+  /** False while the machine refuses input — the field then shows no invite. */
+  editable?: boolean;
+  /** The invite's catalogue key; only drawn while `editable`. */
+  placeholderKey?: TranslationKey;
+  /** One translated line of reason between transcript and composer (§2.7). */
+  holdReason?: string | null;
+  face?: "send" | "stop" | "stopping";
+  /** The send control's accessible name (and its visible text when stopping). */
+  faceLabel?: string;
+  /** False exactly where a tap must do nothing (§2.11). */
+  faceEnabled?: boolean;
+  /** Machine-yes/no: dims the `send` face while an empty draft cannot go. */
+  sendEnabled?: boolean;
   onMenuPress?: () => void;
   onModelPress?: () => void;
   onNewChatPress?: () => void;
@@ -82,6 +108,15 @@ export function Shell({
   mode = "light",
   notice,
   children,
+  draft: draftProp,
+  onDraftChange: onDraftChangeProp,
+  editable = true,
+  placeholderKey,
+  holdReason = null,
+  face = "send",
+  faceLabel,
+  faceEnabled = true,
+  sendEnabled = true,
   onMenuPress,
   onModelPress,
   onNewChatPress,
@@ -93,10 +128,12 @@ export function Shell({
   const window = useWindowDimensions();
   const colors = modes[mode];
   const styles = useMemo(() => createShellStyles(colors), [colors]);
-  // The notice is a row of its own, so it comes out of the height the bands
-  // partition rather than being drawn over the transcript.
-  const layoutHeight =
-    (height ?? window.height) - (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT);
+  // The notice and the hold line are rows of their own, so they come out of
+  // the height the bands partition rather than being drawn over the transcript.
+  const extraRows =
+    (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT) +
+    (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT);
+  const layoutHeight = (height ?? window.height) - extraRows;
   // One combined inset for BOTH uses. The geometry partitions the height with it
   // and the composer's own bottom offset uses it: computing it for the geometry
   // and then anchoring the composer to the raw safe-area inset puts the composer
@@ -110,7 +147,12 @@ export function Shell({
     () => shellGeometry(width ?? window.width, layoutHeight, layoutInsets),
     [width, window.width, layoutHeight, layoutInsets],
   );
-  const [draft, setDraft] = useState("");
+  const [internalDraft, setInternalDraft] = useState("");
+  const draft = draftProp ?? internalDraft;
+  const changeDraft = (text: string) => {
+    if (onDraftChangeProp) onDraftChangeProp(text);
+    else setInternalDraft(text);
+  };
 
   const iconColor = colors.inkSoft;
 
@@ -196,6 +238,14 @@ export function Shell({
         {children}
       </View>
 
+      {holdReason === null ? null : (
+        <View style={styles.notice} testID="shell.composer.hold">
+          <Text numberOfLines={1} style={[styles.noticeLabel, { color: colors.accent }]}>
+            {holdReason}
+          </Text>
+        </View>
+      )}
+
       <View
         style={[
           styles.composerBand,
@@ -217,10 +267,11 @@ export function Shell({
           <TextInput
             testID="shell.composer.field"
             accessibilityLabel={t("shell.a11y.field")}
-            placeholder={t("shell.composer.placeholder")}
+            placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
             placeholderTextColor={colors.silence}
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={changeDraft}
+            editable={editable}
             style={styles.input}
             returnKeyType="send"
           />
@@ -238,11 +289,28 @@ export function Shell({
           <Pressable
             testID="shell.composer.send"
             accessibilityRole="button"
-            accessibilityLabel={t("shell.a11y.send")}
+            accessibilityLabel={faceLabel ?? t(face === "send" ? "shell.a11y.send" : "shell.a11y.stop")}
+            accessibilityState={{ disabled: !(faceEnabled && (face !== "send" || sendEnabled)) }}
             onPress={onSendPress}
-            style={styles.send}
+            disabled={!(faceEnabled && (face !== "send" || sendEnabled))}
+            style={[
+              styles.send,
+              face === "send" && !sendEnabled ? { opacity: 0.45 } : null,
+              face === "stopping" ? { width: 96, borderRadius: 24 } : null,
+            ]}
           >
-            <ArrowUp size={18} color={colors.onAccent} strokeWidth={2.6} />
+            {face === "stopping" ? (
+              <Text
+                numberOfLines={1}
+                style={{ color: colors.onAccent, fontFamily: families.sansSemi, fontSize: 13 }}
+              >
+                {faceLabel ?? t("shell.composer.stopping")}
+              </Text>
+            ) : face === "stop" ? (
+              <Square size={16} color={colors.onAccent} strokeWidth={2.6} fill={colors.onAccent} />
+            ) : (
+              <ArrowUp size={18} color={colors.onAccent} strokeWidth={2.6} />
+            )}
           </Pressable>
         </View>
       </View>

@@ -58,6 +58,17 @@ describe("turnGuards — run fencing", () => {
     expect(queued(afterClear)).toBe(afterClear);
   });
 
+  it("retire() bumps both counters and hands back the post-retire owner (prevents: the stop watchdog acting without owning the state it mutates)", () => {
+    const fence = createTurnFence();
+    const live = fence.beginRun();
+    const post = fence.retire();
+
+    expect(fence.owns(live)).toBe(false);
+    expect(fence.owns(post)).toBe(true);
+    expect(fence.apply(live, ["a"], (p) => [...p, "stale"])).toEqual(["a"]);
+    expect(fence.apply(post, ["a"], (p) => [...p, "marked"])).toEqual(["a", "marked"]);
+  });
+
   it("a fresh token applies and a new run survives a prior invalidation (prevents: reset counters short-circuiting the fence)", () => {
     const fence = createTurnFence();
     const stale: TurnToken = fence.beginRun();

@@ -1228,6 +1228,19 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
        *  defaulted to ready — an unknown wire value must not read as idle. */
       unknown: "Held: the app does not recognize this state",
     },
+    /**
+     * The one-line reasons the notice toast shows for controls this build
+     * does not wire yet (§2.7: a control that cannot be used says why —
+     * these are the whys, as full sentences because they ride the toast).
+     */
+    notice: {
+      attach: "Attaching files is not available in this build yet.",
+      mic: "Dictation is not available in this build yet.",
+      download: "Downloading models is not available in this build yet.",
+      voiceDownload: "Downloading the voice model is not available in this build yet.",
+      embeddingDownload: "Downloading the embedding model is not available in this build yet.",
+      semanticRebuild: "Rebuilding the semantic index is not available in this build yet.",
+    },
     thinking: {
       // The arrows are part of the label, as in the mock: the disclosure is a
       // text control, and a bare word does not say which way it will move.

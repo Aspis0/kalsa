@@ -1188,6 +1188,19 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
        *  defaulted to ready — an unknown wire value must not read as idle. */
       unknown: "In attesa: l'app non riconosce questo stato",
     },
+    /**
+     * The one-line reasons the notice toast shows for controls this build
+     * does not wire yet (§2.7: a control that cannot be used says why —
+     * these are the whys, as full sentences because they ride the toast).
+     */
+    notice: {
+      attach: "Allegare file non è ancora disponibile in questa build.",
+      mic: "Il dettato non è ancora disponibile in questa build.",
+      download: "Il download dei modelli non è ancora disponibile in questa build.",
+      voiceDownload: "Il download del modello vocale non è ancora disponibile in questa build.",
+      embeddingDownload: "Il download del modello di embedding non è ancora disponibile in questa build.",
+      semanticRebuild: "La ricostruzione dell'indice semantico non è ancora disponibile in questa build.",
+    },
     thinking: {
       show: "Mostra il pensiero ▼",
       hide: "Nascondi il pensiero ▲",

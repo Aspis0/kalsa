@@ -43,6 +43,14 @@ export interface TurnFence {
    * be presented alone.
    */
   invalidate(): void;
+  /**
+   * Retire the live turn AND issue the post-retire token in one step: both
+   * counters move (owner transfer — a stale send's finally can no longer
+   * validate) and the caller walks away owning the post-bump state. This is
+   * the stop watchdog's shape: bump first, then act exactly once as the new
+   * owner (AiChatPage:3161-3199).
+   */
+  retire(): TurnToken;
   /** True while the token still owns the turn. */
   owns(token: TurnToken): boolean;
   /**
@@ -75,6 +83,11 @@ export function createTurnFence(): TurnFence {
     invalidate() {
       runId += 1;
       generation += 1;
+    },
+    retire() {
+      runId += 1;
+      generation += 1;
+      return issue();
     },
     owns,
     apply(token, state, update) {

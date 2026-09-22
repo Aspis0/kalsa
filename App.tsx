@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-// Mostra le notifiche locali anche con l'app in foreground.
+// Show local notifications while the app is in the foreground.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -32,6 +32,7 @@ import {
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { ShellPreview } from "./src/ui/shell/ShellPreview";
 import { AppShell } from "./src/app/AppShell";
+import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
 import { configureModelRegistry } from "./src/engine/ModelRegistry";
@@ -46,9 +47,16 @@ import { LocaleProvider, useLocale } from "./src/i18n";
 // 4553062, which removed the user's words while keeping the counters.
 console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
 
+// TEMPORARY (interface rebuild): boots the NEW host root (`src/host`) with
+// the real conversation and a real send behind the owner's shell. The flag
+// AND the old branch exist only so `AppShell` can still boot as the
+// CONTROLLER — both files stay runnable and untouched while
+// `docs/PARITY.md` tracks what the rewrite still has to reproduce. Remove
+// the flag and the AppShell branch only when the parity document says so.
+const NEW_SHELL = true;
+
 // TEMPORARY (step 2 of the interface rebuild): when true, the app renders the
-// bare shell preview instead of AppShell, so it can be screenshotted alone.
-// Removed in step 3, when the shell is mounted inside the real transcript.
+// bare shell preview instead of the root, so it can be screenshotted alone.
 const SHELL_PREVIEW = false;
 
 type ThemeContextValue = {
@@ -185,7 +193,13 @@ function ModelCatalogBoot() {
     };
   }, []);
 
-  return ready ? <AppShell /> : null;
+  return ready ? (
+    NEW_SHELL ? (
+      <HostRoot />
+    ) : (
+      <AppShell />
+    )
+  ) : null;
 }
 
 export default function App() {
