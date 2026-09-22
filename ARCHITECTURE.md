@@ -32,6 +32,8 @@ npm run sync:vendor              # fetch, export the subset, apply scripts/patch
 scripts/assert-kalsa-vendor.sh   # grade the result, not the patch application
 # in the app, after pushing the fork
 sed -i '' 's/<old-sha40>/<new-sha40>/' package.json package-lock.json && npm install
+# and record the engine the new fork commit carries (the gate fails without it)
+printf '%s\n' <engine-sha40> > native/kalsallama.pin
 ```
 Say which kalsallama sha the new fork commit carries in the app's bump commit message: the
 app's diff shows a fork sha and nothing about the engine inside it.
@@ -46,6 +48,10 @@ the fork's `rn-*` / `jsi/` files, which the sync never touches.
 `scripts/assert-engine-provenance.sh` compares the installed tree against
 `Aspis0/kalsa.rn@<sha>` as npm packs it (the gate also accepts the pre-rename
 `Aspis0/llama.rn`, which GitHub redirects to it), and exits 1 naming the first differing path.
+It also fails if `package.json` and `package-lock.json` name different fork shas, and on the
+success path it compares the installed `vendor/VERSIONS` `LLAMA_CPP_COMMIT` against
+`native/kalsallama.pin` (one line, the engine sha the app expects): missing pin, empty or
+malformed commit line, or a differing sha is a fatal.
 
 ## What the old road guaranteed, and what replaces it
 
@@ -57,10 +63,10 @@ rsync overlay from `vendor/kalsallama-cpp/`, and `patches/llama.rn+0.12.8.patch`
 |---|---|---|
 | `patch-package` shouts when upstream moves under us | nothing moves under us: the fork is pinned by sha | a fork merge shows conflicts instead of resolving them in silence |
 | `assert-vendor-pristine.sh` (installed == npm + patch) | no longer meaningful | `scripts/assert-engine-provenance.sh` (installed == `fork@sha`) |
-| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | partial — `assert-engine-provenance.sh` prints the `LLAMA_CPP_COMMIT` the installed `vendor/VERSIONS` declares, but nothing compares it to an expected value |
+| `native/kalsallama.pin`: the app declared which ENGINE commit it wanted, and the sync refused to build otherwise | the app declares a fork commit; which engine that fork commit carries is the fork's business | `native/kalsallama.pin` is back as one line, and `assert-engine-provenance.sh` compares it against the `LLAMA_CPP_COMMIT` the installed `vendor/VERSIONS` declares: missing, empty or differing values are fatal, both shas printed |
 | `patch-package` exits 0 after printing "1 error(s)" — CI green on an unpatched engine | gone; this is the real gain | — |
 | an overlay that wins every conflict silently | gone | git, in the fork |
-| lockfile `integrity` sha512 and an offline `npm ci` from cache | a git dep: the sha40 is the identity, GitHub must be reachable, and the lockfile `integrity` of a git dep is verified by nobody | `assert-engine-provenance.sh`, which refetches the commit and compares file by file — run by hand, not in CI |
+| lockfile `integrity` sha512 and an offline `npm ci` from cache | a git dep: the sha40 is the identity, GitHub must be reachable, and the lockfile `integrity` of a git dep is verified by nobody | `assert-engine-provenance.sh`, which refetches the commit and compares file by file — run after `npm ci` in apk.yml, e2e-emulator.yml and build-kalsa-apk.yml |
 | `KALSA_LLAMA_FROM_SOURCE=0` (prebuilt jniLibs) | the fork publishes no binaries | none — `plugins/withLlamaFromSource.js` throws on opt-out |
 | iOS: the upstream `rnllama.xcframework` | the fork does not carry it | `RNLLAMA_BUILD_FROM_SOURCE=1`, built from source (not done yet) |
 | an engine build id that never moved | moves whenever the engine does | intended: the KV sidecars regenerate once |
