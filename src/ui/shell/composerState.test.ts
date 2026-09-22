@@ -2,11 +2,11 @@
  * The composer's decision layer, proved against DESIGN.md §2.7 (two answers,
  * one reason line, the chip) and §2.8 (three faces, four outcomes). The
  * proofs are the refusals, not the happy paths: a refusing field that still
- * shows the invite (the old `Fai una domanda…` over `editable={false}`,
- * AiChatPage.tsx:4339), a held state with no reason or with a reason the
- * catalogues do not hold, `stopping` falling back to `send`, and a key added
- * to the module but not to `en.ts`/`it.ts`. Every guard is run against a
- * sample that must make it fail — a guard that cannot fail is worse than none.
+ * shows the invite (the old `Fai una domanda…` over `editable={false}`), a
+ * held state with no reason or with a reason the catalogues do not hold,
+ * `stopping` falling back to `send`, and a key added to the module but not to
+ * `en.ts`/`it.ts`. Every guard is run against a sample that must make it fail
+ * — a guard that cannot fail is worse than none.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -50,8 +50,7 @@ function assertKeyInBoth(key: string): void {
 
 /**
  * Throws on either shape the design forbids: a refusal with no single reason
- * line, or a reason the catalogues do not hold. Every real state goes through
- * this, and the samples below prove it can fail.
+ * line, or a reason the catalogues do not hold. The samples prove it can fail.
  */
 function assertHonest(state: ComposerState): void {
   const refusing = (state.field as { editable: boolean }).editable === false;
@@ -126,7 +125,7 @@ describe("§2.7 — the field and the send are two different answers", () => {
 
   it("takes typing in every phase the table knows; only an unknown wire value refuses", () => {
     // The ratchet: a future row cannot smuggle the old single `disabled` back
-    // in — refusal is `UNKNOWN_PHASE_RULE`'s alone (fully pinned below).
+    // in — refusal is `UNKNOWN_PHASE_RULE`'s alone.
     for (const phase of COMPOSER_PHASES) expect(state(phase).field.editable).toBe(true);
     expect(composerState({ phase: "repairing" as ComposerPhase }).field).toEqual({ editable: false, placeholder: null });
   });
@@ -158,7 +157,7 @@ describe("one test per held state: the reason line", () => {
   it("never lets a phase drift from the union the module exports", () => {
     // Exact, not "contains": a phase added to the union must join this table
     // and the catalogues before anything can decide it — the same ratchet
-    // `toolLabels.test.ts` applies against the registry's own list.
+    // `toolLabels.test.ts` applies to the registry's list.
     expect([...COMPOSER_PHASES].sort()).toEqual(Object.keys(EXPECTED_HOLD).sort());
   });
 
@@ -269,8 +268,8 @@ describe("the module itself: every key, and no clock, no engine, no React", () =
 
   it("holds no clock: stopping ends when the phase says the engine released", () => {
     // §2.8: the release is an input, not a duration. The 3 s watchdog the old
-    // UI skipped is the bug this check exists to keep out — so the module
-    // source itself must contain no way to wait.
+    // UI skipped is the bug this check keeps out — the module source itself
+    // must contain no way to wait.
     const code = MODULE_SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
     expect(code).not.toMatch(/setTimeout|setInterval|Date\.now|performance\.now|new Date\b/);
     expect(state("stopping")).toEqual(state("stopping"));

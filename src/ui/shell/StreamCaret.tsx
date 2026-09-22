@@ -1,8 +1,7 @@
 /**
  * The streaming caret (DESIGN.md §2.11): a thin accent bar after the last
- * segment of an answer that is still arriving. Its decision and its motion
- * values are data in `./caretSpec`, pinned by `caretSpec.test.ts`; this
- * file only draws them.
+ * segment of an answer that is still arriving. Its decision and motion values
+ * are data in `./caretSpec`, pinned by `caretSpec.test.ts`; this file draws them.
  *
  * Three rules it keeps:
  *
@@ -10,12 +9,11 @@
  *   restarts from solid on every text change — "frozen solid as text arrives";
  * - reduce-motion is honoured (§2.11): while the system asks for it the caret
  *   is solid and still, never blinking;
- * - the glyph is hidden from assistive tech, as the controller's caret was
- *   (`src/chat/StreamCaret.tsx`): a bar inside the reading flow would be
- *   announced mid-sentence and re-read on every token. The answer's text
- *   itself stays selectable copy — the design's requirement for a partial.
+ * - the glyph is hidden from assistive tech: a bar inside the reading flow
+ *   would be announced mid-sentence and re-read on every token. The answer's
+ *   text itself stays selectable copy — the design's requirement for a partial.
  */
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Text } from "react-native";
 
 import { CARET_BLINK, CARET_GLYPH } from "./caretSpec";

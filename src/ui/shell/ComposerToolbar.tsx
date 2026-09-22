@@ -1,24 +1,21 @@
 /**
  * The composer's toolbar row: the templates ✦ entry and the one-shot mode
- * chips. Lifted from `AiChatPage.tsx:4189-4221` (the chips), `:3642-3653`
- * (the toggles) and `:4821-4837` (the ✦ entry into `QuickActionSheet`, D1 row
- * 13); the sheet itself is CALLED by the host (`HostChatSurface`), never rebuilt.
+ * chips, lifted from the old screen; the quick-actions sheet itself is CALLED
+ * by the host (`HostChatSurface`), never rebuilt.
  *
  * Paint vs box, the source-chip doctrine (`shellGeometry.ts`): the painted pill
- * stays small (~28 dp) and is centred in the row's real `COMPOSER_TOOLBAR_HEIGHT`
- * box; every node the finger lands on is 48 dp tall on both axes — never `hitSlop`.
+ * stays small (~28 dp), centred in the row's real `COMPOSER_TOOLBAR_HEIGHT`
+ * box; every node the finger lands on is 48 dp on both axes — never `hitSlop`.
  *
- * The library-document chip is GONE from this row (vision audit: clipped by the
- * right edge in 4 of 4 shots, its Notes sibling pushed ENTIRELY out of 349 dp —
- * `composerToolbarWidth.test.ts` holds the arithmetic). It was a §2.7 stub that
- * could not do its job (`attachedItems` and the picker do not exist, D1 row 43),
- * so it was the worst of both: undiscoverable behind a scroller, inert when
- * found. **It returns with the attachment flow**; until then the composer's own
- * attach button keeps saying why (`shell.notice.attach`). What remains —
- * templates, research, notes — fits 349 dp without scrolling, which is why the
- * row still scrolls but never has to.
+ * The library-document chip is GONE from this row — a §2.7 stub that could not
+ * do its job, undiscoverable behind a scroller and inert when found (the story
+ * and the arithmetic: `composerToolbarWidth.test.ts`, PARITY-STATUS). **It
+ * returns with the attachment flow**; until then the composer's own attach
+ * button keeps saying why (`shell.notice.attach`). What remains — templates,
+ * research, notes — fits 349 dp without scrolling, which is why the row still
+ * scrolls but never has to.
  */
-import React from "react";
+import type React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ClipboardList, Search, Sparkles } from "lucide-react-native";
 
@@ -37,8 +34,8 @@ export type ComposerToolbarProps = {
   onResearchPress: () => void;
   notesActive: boolean;
   onNotesPress: () => void;
-  /** The machine's answer (the controller's rule at `AiChatPage:4203`): the
-   *  chips cannot flip an arm while the face says stop. */
+  /** The machine's answer: the chips cannot flip an arm while the face says
+   *  stop. */
   disabled?: boolean;
 };
 

@@ -1,19 +1,17 @@
 /**
- * The strip's Web permission switch (D1 row 5 / §2.9), as source: the strip's
- * JSX cannot be rendered here (DESIGN.md, "proof regime"), and the three facts
- * a diff would hide are all textual — the control is a real 48 dp box (the old
- * one was 36×22 on `hitSlop`, `AppShell:6926-6959`, which this project forbids),
- * it carries the controller's own switch role, name and both hints from the
- * shipped catalogue, and the geometry beside it budgets THREE icon buttons.
+ * The strip's Web permission switch (D1 row 5 / §2.9), as source: the three
+ * facts a diff would hide are all textual — the control is a real 48 dp box
+ * (the old one was 36×22 on `hitSlop`, which this project forbids), it carries
+ * the controller's own switch role, name and both hints from the shipped
+ * catalogue, and the geometry beside it budgets THREE icon buttons.
  *
  * BEFORE the export row left for the drawer this read FOUR buttons and pinned
  * `… - 4*full - 4*STRIP_GAP`, because the switch had joined the strip and
- * squeezed the pill to 97 dp (a 14 dp text column — no legible model name, the
- * dots a vision pass saw were both lines' ellipses). The strip contract changed
- * by decision, not by drift: export moved to the drawer (`HostDrawer.tsx`),
- * three buttons give the pill 154 dp (`shellGeometry.ts`, pinned on its side by
- * `shellGeometry.test.ts`). Everything else in this file is unchanged: the
- * switch itself, its 48 dp box, its hints, both catalogues.
+ * squeezed the pill to 97 dp (a 14 dp text column — no legible model name).
+ * The strip contract changed by decision, not by drift: export moved to the
+ * drawer, three buttons give the pill 154 dp (`shellGeometry.ts`, pinned on
+ * its side by `shellGeometry.test.ts`). Everything else in this file is
+ * unchanged: the switch itself, its 48 dp box, its hints, both catalogues.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -37,7 +35,7 @@ describe("the switch itself", () => {
     expect(CODE).toContain('accessibilityLabel={t("common.web")}');
   });
 
-  it("carries BOTH hints the controller shipped (AppShell:6935-6940)", () => {
+  it("carries BOTH hints the controller shipped", () => {
     expect(CODE).toContain('t("common.webOnHint")');
     expect(CODE).toContain('t("common.webOffHint")');
     expect(CODE).toMatch(/accessibilityHint=\{webEnabled \? t\("common\.webOnHint"\) : t\("common\.webOffHint"\)\}/);
@@ -49,7 +47,7 @@ describe("the switch itself", () => {
     expect(CODE).not.toContain("hitSlop");
   });
 
-  it("shows its state while off with the controller's own line-through (AppShell:6952)", () => {
+  it("shows its state while off with the controller's own line-through", () => {
     expect(CODE).toMatch(/textDecorationLine: webEnabled \? "none" : "line-through"/);
   });
 

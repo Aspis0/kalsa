@@ -1,10 +1,9 @@
 /**
  * The exclusive overlay union, mounted exactly as the old shell mounted
- * them (`AppShell.tsx:7111-7213`): Settings (NOT keyed — it owns its
- * draft), Account, Pro, Documents, Notes, Personas, Help (keyed on
- * fontScaleId with the drawer), and the same back wiring (Help returns to
- * Settings; Settings' back refreshes memory facts, tool flags and the
- * context-size preview).
+ * them: Settings (NOT keyed — it owns its draft), Account, Pro, Documents,
+ * Notes, Personas, Help (keyed on fontScaleId with the drawer), and the same
+ * back wiring (Help returns to Settings; Settings' back refreshes memory
+ * facts, tool flags and the context-size preview).
  *
  * Adaptations (reported): the mini-app sheet is not mounted (no opener in
  * the new transcript — held, see `hostOverlay.ts`); model SELECT and retry
@@ -106,8 +105,7 @@ export function HostOverlays(props: OverlaysProps) {
   const { fontScaleId } = useLabTheme<{ fontScaleId: string }>();
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
-  // When Settings opens, scan which models are fully on disk (once per open)
-  // — lifted from `AppShell.tsx:7157+`.
+  // When Settings opens, scan which models are fully on disk (once per open).
   useEffect(() => {
     if (overlay?.kind !== "settings") return;
     let mounted = true;
@@ -131,7 +129,7 @@ export function HostOverlays(props: OverlaysProps) {
 
   // Extra guidance for connectivity-shaped failures (keep-open hint), plus the
   // raw download error as an untranslated diagnostic when it differs from the
-  // friendly message (lifted `AppShell.tsx:6726-6746`).
+  // friendly message.
   const modelErrorHint = (() => {
     if (modelState !== "error") return null;
     const isConnectivity =

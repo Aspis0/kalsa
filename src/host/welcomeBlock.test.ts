@@ -1,19 +1,16 @@
 /**
- * The welcome block as SOURCE, because this stack cannot render it (DESIGN.md,
- * "proof regime") — the same technique `shellLogoAsset.test.ts` uses for the
- * strip's raster. Three things would be invisible in a diff and fatal to the
- * user:
+ * The welcome block as SOURCE, because this stack cannot render it — the same
+ * technique `shellLogoAsset.test.ts` uses for the strip's raster. Three things
+ * would be invisible in a diff and fatal to the user:
  *
- * 1. a wrong `require` path fails only at Metro's bundle time, and the block
- *    would ship without its picture (or with a broken one) — so the asset path
- *    is pulled out of the component and proven to exist, non-empty, with a
- *    JPEG signature;
+ * 1. a wrong `require` path fails only at Metro's bundle time, so the asset
+ *    path is pulled out of the component and proven to exist, non-empty, with
+ *    a JPEG signature;
  * 2. a card whose `onPress` does not reach the real send path would be the
- *    fake chip the owner forbade — so both halves of the wiring (block →
- *    `onSend`, surface → `sendHost.send`) are asserted;
- * 3. the gate must NOT live in the block (the host owns it) — if `historyLoaded`
- *    ever appears here, someone has moved the controller's gate to the wrong
- *    side of the seam.
+ *    fake chip the owner forbade — both halves of the wiring are asserted;
+ * 3. the gate must NOT live in the block (the host owns it) — if
+ *    `historyLoaded` ever appears here, someone moved the controller's gate to
+ *    the wrong side of the seam.
  */
 import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
@@ -110,24 +107,19 @@ describe("a suggestion card sends for real (not into the field)", () => {
 });
 
 /**
- * The plate's geometry, as source — because both defects that shaped it were
- * measured against pixels this stack cannot render, and each one is a layout
- * ENGINE behaviour no reader of the JSX would guess:
+ * The plate's geometry, as source — both defects that shaped it are layout
+ * ENGINE behaviours no reader of the JSX would guess:
  *
- * 1. Yoga (the copy React Native 0.86 vendors, compiled standalone) resolves
- *    a `marginBottom` on an `aspectRatio` node BELOW its column: a 441.49 px
- *    column lays out a 430.67 px box, aspect intact — 8 dp of the card column
- *    gone from the box's right edge.
- * 2. React Native paints an absolutely-positioned image at the box's CONTENT
- *    size, anchored at the box origin, so padding on the box pulled another
- *    38.5 px (28 dp) off the photograph — right AND bottom.
+ * 1. Yoga resolves a `marginBottom` on an `aspectRatio` node BELOW its column
+ *    (441.49 px column → 430.67 px box): 8 dp of the card column gone;
+ * 2. RN paints an absolutely-positioned image at the box's CONTENT size, so
+ *    padding on the box pulled 38.5 px (28 dp) off the photograph.
  *
- * Stacked, they are the capture's 36 dp ragged edge (`host3-firstopen.png`:
- * the plate's paint ends at x=410 px, the cards reach x=460 px). So the box
- * carries neither margin nor padding, while the controller's composition
- * (AiChatPage:4033-4047) — 4:3, md inset, lg radius, xs gap, 70% cap — lives
- * on in the moved insets. These pins fail if anyone "restores" the original
- * style object and the ragged edge with it.
+ * Stacked, they are the capture's 36 dp ragged edge (`host3-firstopen.png`).
+ * So the box carries neither margin nor padding, while the controller's
+ * composition — 4:3, md inset, lg radius, xs gap, 70% cap — lives on in the
+ * moved insets. These pins fail if anyone "restores" the original style
+ * object and the ragged edge with it.
  */
 describe("the plate's geometry: the controller's composition without the engine's traps", () => {
   const code = stripComments(BLOCK);

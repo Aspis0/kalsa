@@ -185,13 +185,12 @@ describe("what did NOT fit: the removed library-document chip", () => {
     const used = toolbarChipsWidth(widths);
     expect(used).toBeGreaterThan(toolbarChipsAvailable(JELLY_WIDTH));
     // The overflow is the LAST chip falling out, not a hairline: Notes leaves
-    // the row entirely (the vision audit's second finding), so the missing
-    // width must exceed a whole notes chip's width.
+    // the row entirely (the audit's second finding), so the missing width must
+    // exceed a whole notes chip's width.
     const notesChip = toolbarChipWidth(labelDp(sheet.notes));
     expect(used - toolbarChipsAvailable(JELLY_WIDTH)).toBeGreaterThan(notesChip);
     // And the FIRST finding — the document chip clipped by the right edge in
-    // 4 of 4 shots: research + document alone already exceed the scroller, so
-    // that chip's own padding and border sat past 349 dp.
+    // 4 of 4 shots: research + document alone already exceed the scroller.
     expect(toolbarChipsWidth([labelDp(sheet.research), labelDp(sheet.document)])).toBeGreaterThan(
       toolbarChipsAvailable(JELLY_WIDTH),
     );

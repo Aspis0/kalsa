@@ -1,12 +1,12 @@
 /**
- * The engine half of a send — `handleSendStream`, lifted from
- * `AppShell.tsx:5363-6719` (1357 lines, D2 row 11), moved not re-thought and
- * split at the block's own seams: engineTurnMemory (extract + afterSessionSave),
+ * The engine half of a send — `handleSendStream`, lifted and split at the
+ * block's own seams: engineTurnMemory (extract + afterSessionSave),
  * engineTurnWindow (frame locals), engineTurnCompactor (state load + ceiling
  * guard), engineTurnSlide (slide/reconcile/digest), engineTurnStream
- * (prewarm → assemble → the single streamAssistantTurn, bridge at the
- * original :6630). Gate order preserved: thermal backstop → prior-extract
- * wait → ensure → research/notes → window/compactor → stream → arm extract;
+ * (prewarm → assemble → the single streamAssistantTurn).
+ *
+ * Gate order preserved: thermal backstop → prior-extract wait → ensure →
+ * research/notes → window/compactor → stream → arm extract; the
  * `afterSessionSave` is released by the chat side after saveEngineSession.
  * Left behind (outside this function in the old app too): the
  * background/foreground discard effect, the pre-send fit gate, downloads.
@@ -108,7 +108,7 @@ export function handleSendStream(
           streamInFlightRef.current = false;
           setStreaming(false);
           // Clear the create_miniapp hook so a stale turn can never route into
-          // a newer turn's onMiniapp (defence for F7; sends are serial anyway).
+          // a newer turn's onMiniapp (sends are serial anyway).
           onMiniappRef.current = () => {};
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
@@ -124,7 +124,7 @@ export function handleSendStream(
         };
 
         // Synchronous backstop for a CRITICAL event that lands after
-        // AiChatPage's pre-send guard but before this callback runs.
+        // the pre-send guard but before this callback runs.
         if (thermalHardGateRef.current || thermalHardGated) {
           fail(t("chat.thermalHardGateBody"), "chat.thermalHardGateBody");
           return;
@@ -134,7 +134,8 @@ export function handleSendStream(
         bumpForegroundIdleRef.current();
         setStreaming(true);
         lastUserRawRef.current = typeof text === "string" ? text : "";
-        // Fresh web_fetch allowlist for every send (F5), even if text matches the previous turn.
+        // Fresh web_fetch allowlist for every send, even if text matches the
+        // previous turn.
         bumpFetchAllowlistTurnSeq();
 
         void (async () => {
@@ -153,10 +154,10 @@ export function handleSendStream(
           const armMemoryExtract = memoryExtract.arm;
           afterSessionSave = memoryExtract.afterSessionSave;
           try {
-            // Wait out a pending memory extract so we never dual-complete on the engine.
+            // Wait out a pending memory extract so we never dual-complete on
+            // the engine: a new send owns it now — stop the extraction and let
+            // its checkpoint-restore finally run before this turn proceeds.
             if (memoryExtractRef.current) {
-              // A new send owns the engine now: stop extraction and let its
-              // checkpoint-restore finally run before this turn proceeds.
               memoryExtractCancelRef.current?.();
               try {
                 await memoryExtractRef.current;
@@ -166,9 +167,9 @@ export function handleSendStream(
               memoryExtractRef.current = null;
             }
             if (!(await ensureEngineForModel(currentModel))) {
-              // Bundle missing → download prompt; engine error → load-failed + Settings retry.
-              // ensureEngineForModel early-returns false when bundle is missing without setting
-              // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
+              // ensureEngineForModel early-returns false when the bundle is
+              // missing without setting modelErrorKind, so re-check disk
+              // rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
               if (downloaded) {
                 fail(
@@ -233,10 +234,9 @@ export function handleSendStream(
                 },
               });
               if (outcome.kind !== "aborted" && !signal.aborted) {
-                // Research completions ran clearCache on the native KV; the
-                // pre-research .kvs on disk is now stale (historyHash no
-                // longer matches). Drop it instead of letting the next boot
-                // pay a cold meta_mismatch.
+                // Research ran clearCache on the native KV; the pre-research
+                // .kvs on disk is now stale (historyHash no longer matches).
+                // Drop it instead of a cold meta_mismatch at the next boot.
                 void invalidateEngineSession(getActiveModelId() ?? currentModel.id);
               }
               finish();
@@ -262,8 +262,8 @@ export function handleSendStream(
             // Resolved BEFORE any state capture below (chatId, kvHeld,
             // loadedB): the ceiling guard consumes it synchronously, and an
             // await between capture and use let a chat switch invalidate the
-            // captured state — clearing the wrong session on slide (TOCTOU,
-            // audit FAIL 2026-09-14). Absent key → "auto" (tools on).
+            // captured state — clearing the wrong session on slide (TOCTOU).
+            // Absent key → "auto" (tools on).
             const toolChoiceMode = await getToolChoiceMode();
 
             const chatId = conversationsRef.current.activeId || DEFAULT_CHAT_ID;
@@ -305,7 +305,7 @@ export function handleSendStream(
             }
 
             const contextMode = contextModeRef.current;
-            // Telemetry bitmask only — no gating behavior here (S4 consumes it).
+            // Telemetry bitmask only — no gating behavior here.
             // bit0=compaction-ciswire, bit1=memory, bit2=toolhelp.
             turnCiswireFlags =
               (contextMode === "ciswire" ? CISWIRE_FLAG_COMPACTION : 0) |

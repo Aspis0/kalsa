@@ -1,11 +1,11 @@
 /**
  * The chat surface: the strip, the composer band and the transcript, wired to
  * the host — extracted from `HostRoot.tsx` under the owner's rule that the
- * root may only COMPOSE (`src/host/fileSize.test.ts`). This is the same JSX
- * the root used to render, moved not re-thought:
+ * root may only COMPOSE. This is the same JSX the root used to render, moved
+ * not re-thought:
  *
- * - the strip's model-pill tap semantics (old `AppShell.tsx:6879-6911`), with
- *   the missing-download path serving `shell.notice.download` (§2.7);
+ * - the strip's model-pill tap semantics, with the missing-download path
+ *   serving `shell.notice.download` (§2.7);
  * - the attach / mic stubs, which answer with their toast (§2.7);
  * - the send ⇄ stop wiring of §2.8's one control: `stop` while the face says
  *   stop, otherwise a send of the draft the root owns.
@@ -84,10 +84,10 @@ export function HostChatSurface({
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
 
-  // Strip pill, old chip semantics (AppShell:6879-6911): load when the bundle
-  // is on disk but unloaded, retry an engine error, no-op while busy or
-  // already resident (the old chip was disabled there); a missing bundle has
-  // no download path in this build and says so (§2.7).
+  // Strip pill semantics: load when the bundle is on disk but unloaded, retry
+  // an engine error, no-op while busy or already resident (the old chip was
+  // disabled there); a missing bundle has no download path in this build and
+  // says so (§2.7).
   const onModelPress = () => {
     if (isEmbedderHung()) return;
     const resident = isEngineReady() && getActiveModelId() === modelHost.currentModel.id;
@@ -102,10 +102,9 @@ export function HostChatSurface({
 
   const bandInsets = bottomInsetFor(insets, keyboardHeight);
 
-  // D1 rows 13/14: the toolbar's chips arm the NEXT send (one-shot; the arms
-  // clear on send, on an emptied draft and on conversation change — see
-  // `composerArms.ts`). The machine's own answer gates the chips: while the
-  // face says stop no arm may flip (old `AiChatPage:4203`).
+  // The toolbar's chips arm the NEXT send (one-shot; the arms clear on send,
+  // on an emptied draft and on conversation change — `composerArms.ts`). The
+  // machine's own answer gates them: while the face says stop no arm flips.
   const toolbar: ComposerToolbarProps = {
     onTemplatesPress: () => setQuickSheetVisible(true),
     researchActive: arms.research,
@@ -113,14 +112,14 @@ export function HostChatSurface({
     notesActive: arms.notes,
     onNotesPress: arms.toggleNotes,
     // The library-document chip is GONE from the row (it could not do its job
-    // without the attachment flow and was clipped/pushed out of 349 dp) — see
-    // `ComposerToolbar.tsx`'s header. The attach BUTTON still carries the
-    // same hold sentence (`shell.notice.attach`), which is why that key stays.
+    // without the attachment flow — see `ComposerToolbar.tsx`'s header). The
+    // attach BUTTON still carries the same hold sentence
+    // (`shell.notice.attach`), which is why that key stays.
     disabled: view.composer.face !== "send",
   };
-  // The controller's gate (`AiChatPage:4015-4016`): nothing shows until the
-  // history load has settled; then, on an empty conversation, the welcome
-  // block rides INSIDE the transcript's own scrolling content (D1 row 12).
+  // Nothing shows until the history load has settled; then, on an empty
+  // conversation, the welcome block rides INSIDE the transcript's own
+  // scrolling content (D1 row 12).
   const empty = welcomeVisible(view.historyLoaded, view.transcript.length) ? (
     <WelcomeBlock mode={mode} onSend={(text) => void sendHost.send(text)} />
   ) : undefined;
@@ -164,10 +163,10 @@ export function HostChatSurface({
         onCopy={actions.onCopy}
       />
     </Shell>
-    {/* D1 rows 15/16/20/21: the controller's message sheet, CALLED with the
-        rows the host's pure builder allows (`messageMenuRows.ts`); translate,
-        edit and read-aloud are absent until their systems exist, not rows that
-        do nothing. Android back and the backdrop both cancel. */}
+    {/* The controller's message sheet, CALLED with the rows the host's pure
+        builder allows (`messageMenuRows.ts`); translate, edit and read-aloud
+        are absent until their systems exist, not rows that do nothing.
+        Android back and the backdrop both cancel. */}
     <MessageMenu
       mode={mode}
       visible={actions.menu !== null}
@@ -177,11 +176,10 @@ export function HostChatSurface({
       onRowPress={actions.onMenuRow}
       onRequestClose={actions.closeMenu}
     />
-    {/* D1 row 13: the controller's sheet, CALLED not rebuilt
-        (old entry `AiChatPage:4375-4381`); choosing a template replaces the
-        draft the same way `handleChooseTemplate` did (`:3633-3641`). The
-        focus() half of that handler needs an inputRef the shell does not have
-        yet (D1 row 46, its own gap) — reported, not faked. */}
+    {/* The controller's template sheet, CALLED not rebuilt; choosing one
+        replaces the draft the same way the old handler did. The focus() half
+        of that handler needs an inputRef the shell does not have yet (its own
+        gap) — reported, not faked. */}
     <QuickActionSheet
       onlyTemplates
       visible={quickSheetVisible}

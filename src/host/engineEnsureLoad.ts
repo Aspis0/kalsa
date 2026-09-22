@@ -1,31 +1,27 @@
 /**
  * The load attempt itself: gate verdict → refusal + fallback → final RAM
  * gate → co-residency release → guarded native init → ready. Lifted from
- * `ensureEngineForModel` (`AppShell.tsx:4193-4417`), which keeps its own
- * thermal/generation preamble and its catch.
+ * `ensureEngineForModel`, which keeps its thermal/generation preamble and
+ * its catch.
  *
  * Adaptations (reported): `acquiredChatGen` becomes a holder object shared
- * with the catch in `ensureEngineForModel` (the old code shared a `let`
- * through one closure); the 38-line refusal fallback is one call to
- * `runLoadFallback`; `modelIs2B` / `totalMemKnown` / the init-time choices
- * cross the seam through `initInputs`. The background-embed bump the old
- * comment carried went with the embed pipeline this host does not mount.
+ * with the caller's catch; the 38-line refusal fallback is one call to
+ * `runLoadFallback`; the init-time choices cross the seam through
+ * `initInputs`. The background-embed bump the old comment carried went with
+ * the embed pipeline this host does not mount.
  */
 import type { ModelInfo } from "../engine/ModelRegistry";
 import { getCachedDeviceProfile } from "../engine/deviceProfile";
 import { modelLocalPath } from "../engine/ModelDownloader";
-import { readUserContextSize } from "../engine/contextSizePref";
-import { readKvCacheChoice } from "../engine/kvCachePref";
+import type { readUserContextSize } from "../engine/contextSizePref";
+import type { readKvCacheChoice } from "../engine/kvCachePref";
 import {
-  getBenchNCtx,
   getBlockFormat,
-  getEngineOverride,
   getSpeculativeOverride,
+  type getBenchNCtx,
+  type getEngineOverride,
 } from "../bench/benchConfig";
-import {
-  initEngine,
-  type EngineTurnOptions,
-} from "../engine/LlamaService";
+import { initEngine } from "../engine/LlamaService";
 import { computeSessionPromptEnvHash } from "../engine/sessionPromptEnv";
 import { getBootHistoryHash } from "../engine/sessionPersistence";
 import {
@@ -78,7 +74,6 @@ export async function performEngineLoad(
     locale,
     agentOptions,
     conversationsRef,
-    deviceBandwidth,
     thermalHardGateRef,
     modelStateRef,
     chatGateGenRef,
@@ -102,9 +97,8 @@ export async function performEngineLoad(
         acquiredChatGen.value = null;
         await reportLoadRefusal(model, gateVerdict, "ensure");
         // Fallback once: last good load, else the default — never the model
-        // that just failed, never a marked one (a fallback passes the same
-        // marker check as the primary), never a second hop. Null → the
-        // refusal message above stands alone; nothing loads.
+        // that just failed, never a marked one, never a second hop. Null →
+        // the refusal message stands alone; nothing loads.
         await runLoadFallback(deps, model);
         return false;
       }
@@ -136,8 +130,8 @@ export async function performEngineLoad(
       });
 
       // §5 co-residency: release embedder before chat init ONLY when
-      // (totalMemoryBytes ≤ 6e9) OR (chat model is 4B-class).
-      // FIX 2 / round 7 BLOCK: on timeout, refuse chat init (hung holds barrier).
+      // (totalMemoryBytes ≤ 6e9) OR (chat model is 4B-class). On timeout,
+      // refuse chat init (the hung op holds the barrier).
       const mustReleaseEmbed =
         totalMem <= 0 ||
         totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
@@ -162,9 +156,9 @@ export async function performEngineLoad(
       }
 
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
-      // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
-      // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
-      // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      // Resolve once here: catalog n_ctx (no silent downgrade) + optional
+      // high-RAM upgrade for hybrids + catalog-authoritative KV. initEngine
+      // does not re-resolve — nCtx and cache types are passed explicitly.
       // Bench nctx still outranks the Settings choice.
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
@@ -174,11 +168,11 @@ export async function performEngineLoad(
       });
       const speculativeOverride = await getSpeculativeOverride();
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
-      // engine init would otherwise hash after the user turn is already persisted).
+      // engine init would otherwise hash after the user turn is persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      // Tool names + blockFormat must match streamAssistantTurn (F6).
-      // Facts on the user tail must not enter this hash or a new fact
-      // cold-starts the entire KV prefix (MEMORY_FACTS_ON_USER_TAIL).
+      // Tool names + blockFormat must match streamAssistantTurn. Facts on the
+      // user tail must not enter this hash or a new fact cold-starts the
+      // entire KV prefix.
       const blockFormat = await getBlockFormat();
       const sessionPromptEnvHash = await computeSessionPromptEnvHash({
         locale,
@@ -191,9 +185,9 @@ export async function performEngineLoad(
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
-      // Round 9: atomic check-and-submit (runNativeOpBounded). Emptiness check
-      // and enqueue run in one synchronous block under the JS event loop — never
-      // observe free then separately submit (race that could append behind a
+      // Atomic check-and-submit (runNativeOpBounded): emptiness check and
+      // enqueue run in one synchronous block under the JS event loop — never
+      // observe free then separately submit (that could append behind a
       // newly-hung foreign op). Timeout refuses WITHOUT enqueueing.
       // Re-check hung + stillCurrent first (cheap; no enqueue risk).
       if (isEmbedderHung()) {
@@ -265,20 +259,19 @@ export async function performEngineLoad(
       }
       // Propagate effective n_ctx (post memory-clamp) so document strategy and
       // long-chat UI budget match the loaded engine — not the pre-clamp catalog.
-      // Single source: engine init → chatEngineCtxRef / chatEngineCtx state →
-      // getCtxTokens + AiChatPage engineCtx prop.
+      // Single source: engine init → chatEngineCtxRef → getCtxTokens + UI prop.
       const effective = initResult.effectiveNCtx;
       chatEngineCtxRef.current = effective;
       setChatEngineCtx(effective);
       warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
       modelStateRef.current = "ready";
-      // FIX B / FIX 1: chat context resident — only if we still own this gen.
+      // Chat context resident — only if we still own this gen.
       markChatReady(chatGen);
       // The gen is consumed: the catch below must never release a READY gen —
       // that would drive the gate chat_ready → idle with the native context
-      // alive. Nothing between here and return is known to throw today, so
-      // this closes the shape; it does not fix a witnessed crash.
+      // alive. Nothing here is known to throw, so this closes a shape, not a
+      // witnessed crash.
       acquiredChatGen.value = null;
   return true;
 }

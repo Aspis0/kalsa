@@ -1,18 +1,18 @@
 /**
  * The root's engine-turn ref cluster and its thermal gate, extracted from
- * `HostRoot.tsx` under the file-size rule (`src/host/fileSize.test.ts`: the
- * root may only compose, and the Web switch, the composer arms and the welcome
- * wiring needed the lines — the seam this file IS, reported with the slice).
+ * `HostRoot.tsx` under the file-size rule (the root may only compose, and
+ * the Web switch, the composer arms and the welcome wiring needed the lines —
+ * the seam this file IS, reported with the slice).
  *
- * It is a MOVE, not a redesign: every ref, its type and its initial value are
- * the ones the root declared when this file was cut, and `HostEngineParams`
+ * A MOVE, not a redesign: every ref, its type and its initial value are the
+ * ones the root declared when this file was cut, and `HostEngineParams`
  * (`useHostEngine.ts`) still names the same shapes — the root spreads `refs`
  * back into that call, so the composition reads as it did before with one
  * object instead of thirteen declarations.
  *
  * The thermal gate rides along because it is a hook (it subscribes): the
  * imperative ref is updated by the native event BEFORE React paints the gate,
- * which is the property the lifted engine half depends on, unchanged here.
+ * which is the property the engine half depends on, unchanged here.
  */
 import { useCallback, useRef } from "react";
 import { useThermalHardGate } from "../hooks/useThermalHardGate";

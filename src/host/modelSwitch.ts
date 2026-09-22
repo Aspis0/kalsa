@@ -1,21 +1,19 @@
 /**
- * Model selection: `selectModel` + `selectModelById`, lifted from
- * `AppShell.tsx:4448-4655` as a factory over injected state. The two inner
- * functions keep their original names so their mutual calls stay verbatim.
+ * Model selection: `selectModel` + `selectModelById`, lifted from the old
+ * controller as a factory over injected state. The two inner functions keep
+ * their original names so their mutual calls stay verbatim.
  *
- * Adaptations (reported): the render-captured `modelIndex` / `modelState`
- * guards read `modelIndexRef` / `modelStateRef` (same values, sync read);
- * `downloadInFlight` is gone with the download paths; the chat-side
- * `sendingInFlightRef` / `sendClaimRef` / regen locks are `regenState`'s own
- * module refs, which this host maintains at the same points the old screen
- * did. `MODEL_STORAGE_KEY` is the parity doc's class-(a) const, lifted.
+ * Adaptations (reported): the render-captured guards read `modelIndexRef` /
+ * `modelStateRef` (same values, sync read); `downloadInFlight` is gone with
+ * the download paths; the chat-side locks are `regenState`'s module refs,
+ * maintained at the same points the old screen did. `MODEL_STORAGE_KEY` is the
+ * parity doc's class-(a) const, lifted.
  */
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   deferModelSwitchIfSendClaimed,
   drainPendingModelSwitch,
-  regenHandleSendPassRef,
   regenInFlightRef,
   sendClaimRef,
   sendingInFlightRef,
@@ -87,9 +85,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
       // not one storage round-trip later. modelIndexRef moves with them: it is
       // invalidation, not the flip, and triggers no render. The flip itself
       // stays after the clear (the kick it triggers reads the marker through
-      // the load gate, and a fire-and-forget clear could lose that race and
-      // refuse the freshly re-asserted model — same reason userReloadModel
-      // awaits its clear).
+      // the load gate, and a fire-and-forget clear could lose that race).
       modelSwitchInFlightRef.current = true;
       engineGenerationRef.current += 1;
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
@@ -125,9 +121,8 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         void (async () => {
           // The outer try arms at the TOP of the body, so the memory-extract
           // block below runs inside it: the body can no longer end without
-          // releasing what the switch captured (gen + lock). Nothing in here
-          // is known to throw — clearTimeout never does for a live or
-          // undefined handle — so this closes a shape, not a witnessed crash.
+          // releasing what the switch captured (gen + lock). Nothing in here is
+          // known to throw, so this closes a shape, not a witnessed crash.
           try {
             if (memoryExtractRef.current) {
               let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
@@ -161,12 +156,11 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
                 }
               }
             }
-            // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
-            // overlap an in-flight embed op (never-overlap invariant).
-            // Bounded: a hung native completion (the case handleStop's 3s watchdog
-            // recovers from) must not hold the FIFO forever and leave the UI stuck
-            // on "checking". Emptiness check + enqueue are atomic; on timeout we
-            // refuse WITHOUT enqueueing behind the possibly-hung op.
+            // Dispose inside runNativeOp so chat release cannot overlap an
+            // in-flight embed op (never-overlap invariant). Bounded: a hung
+            // native completion must not hold the FIFO forever and leave the
+            // UI stuck on "checking"; on timeout we refuse WITHOUT enqueueing
+            // behind the possibly-hung op.
             const disposeResult = await runNativeOpBounded(
               () => disposeEngine(),
               MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
@@ -183,7 +177,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
           } catch {
             // ignore
           } finally {
-            // FIX B / FIX 1: dispose → free only the gen captured at switch time.
+            // Dispose → free only the gen captured at switch time.
             if (releasedGen !== null) markChatReleased(releasedGen);
             modelSwitchInFlightRef.current = false;
           }
@@ -197,9 +191,9 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
         // The rethrow below reaches no handler — this app has no global
-        // rejection handler and all callers discard the returned promise — so
-        // without this line a failed switch is invisible on a release build.
-        // Name and message only: these logs ride on public CI artifacts.
+        // rejection handler and callers discard the promise — so without this
+        // line a failed switch is invisible on a release build. Name and
+        // message only: these logs ride on public CI artifacts.
         console.warn(
           `[kalsa] model switch failed before dispose: ${(error as Error)?.name ?? "Error"}: ${(error as Error)?.message ?? String(error)}`,
         );

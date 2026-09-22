@@ -1,26 +1,12 @@
 /**
  * The shell's vertical arithmetic: three bands that partition the usable height
- * exactly, and the tap targets they must hold.
+ * exactly, plus the tap targets they hold.
  *
- * Pure on purpose. The test stack is `jest` on `node` with `.ts` only and no
- * render harness (DESIGN.md, "proof regime"), so every size the layout depends
- * on is written here where a real test can assert it; Shell.tsx only places the
- * boxes this module returns.
- *
- * Measured facts this is built on, DESIGN.md §1.1:
- * - Jelly Star: 349 x 621 dp logical (480 x 854 px @ 220 dpi). With the
- *   keyboard open the app area is 349 x 325 dp (480 x 447 px @ 220 dpi) — the
- *   case that decides the strip's collapsed form.
- * - Galaxy S23: 360 x 780 dp logical (1080 x 2340 px @ 480 dpi).
- * The two widths are nearly identical (349 vs 360), so the layout is tuned on
- * HEIGHT; a bug that only shows in height would be invisible on width.
- *
- * `height` is the edge-to-edge container height; the safe-area insets are
- * subtracted from it, so the bands never drift under the status bar or the
- * gesture bar. The keyboard arrives through those same insets, built by
- * `bottomInsetFor`, because with edge-to-edge the window itself never shrinks:
- * the IME is an inset, and the bands must re-partition rather than the shell
- * being lifted (`docs/DESIGN.md` §2.7).
+ * Pure on purpose: the test stack has no render harness (DESIGN.md, "proof
+ * regime"), so every size the layout depends on lives here where a test can
+ * assert it; Shell.tsx only places the boxes this module returns. Device facts
+ * are DESIGN.md §1.1; the keyboard-as-inset rule is §2.7. The layout is tuned
+ * on HEIGHT, because the two device widths (349/360 dp) nearly agree.
  */
 
 import { spacing, type } from "../../theme/design";
@@ -33,53 +19,33 @@ export type Band = { top: number; height: number };
 /** A real box, never a `hitSlop`. Both axes are checked by the test. */
 export type TouchBox = { width: number; height: number };
 
-/** Real boxes, never hitSlop (DESIGN.md Part 3, rows 2 and 5). */
+/** The 48 dp floor: a real box, never a `hitSlop`. */
 export const MIN_TOUCH_TARGET = 48;
 
-/** Strip: one 48 dp control plus 6 dp above and below. Two lines when it can
- *  afford them (model name over where it runs), one when the keyboard is up. */
+/** Strip: one 48 dp control plus 6 dp above and below; two lines (model name
+ *  over where it runs) while there is room, one when the keyboard is up. */
 export const STRIP_HEIGHT = 60;
 export const STRIP_HEIGHT_COLLAPSED = 52;
-/** Below this usable height the strip gives up its second line. 621 and 780
- *  are well above it; the 325 dp keyboard case is well below. */
+/** Below this the strip drops its second line: the 325 dp keyboard case. */
 export const STRIP_COLLAPSE_BELOW = 420;
 export const STRIP_SIDE_PADDING = 12;
 export const STRIP_GAP = 9;
 /**
- * What the strip pill spends OUTSIDE its text column, in dp — the whole budget
- * of a 154 dp pill whose one job is to paint the model's name.
- *
- * The pill used to spend 28 dp on the logo's circular clip, 20 dp on two 10 dp
- * gaps, 20 dp of padding and (on the second line) 6+4 dp on an accent dot, and
- * the name — the only information in there — was left a 71 dp column against
- * the ~105 dp `LFM2.5 2.6B` measures (device capture: `LFM2.5 …` over `On this
- * ph…`, both lines cut, the second one mid-word). The mark and the dot are GONE
- * (the logo still ships as the launcher icon, `app.config.js`), the padding is
- * `spacing.xs`, and one gap remains at `spacing.xs`. The pill's height (48 dp),
- * its width (154 dp) and its chevron are untouched: the chevron says the pill
- * is tappable, and `stripPillTextColumn` below is what a test can hold the rest
- * against.
+ * What the strip pill spends OUTSIDE its text column, dp — the whole budget of
+ * a pill whose one job is the model's name (DESIGN.md §2.1). The mark, the dot
+ * and the 20 dp of padding are gone because a capture cut the name to
+ * `LFM2.5 …`; the 48/154 dp frame and chevron are untouched.
  */
 export const STRIP_PILL_PADDING_X = spacing.xs;
 export const STRIP_PILL_GAP = spacing.xs;
 export const STRIP_CHEVRON_SIZE = 15;
 
-/**
- * The column the model's name must have to paint in full, in dp. The capture
- * measured `LFM2.5 2.6B` at ~145 px = 105 dp at `type.label` on the Jelly
- * (1.375 px/dp); the shipped Inter 600 file puts the string at 84.6 dp, and
- * the DEVICE's figure is the one kept, because it is the one a capture can
- * see. `shellGeometry.test.ts` holds `stripPillTextColumn(154)` at or above
- * it; `stripTextBudget.test.ts` measures the real strings in the real TTFs
- * against the same column, in both catalogues.
- */
+/** The column the name must have to paint in full, dp: the device capture's
+ *  105, not the shipped font's 84.6 — only the capture sees the real screen. */
 export const MODEL_NAME_COLUMN_NEED_DP = 105;
 
-/**
- * What is left of the pill's width for the model's name (and the line under
- * it): everything the pill draws between its padding and its chevron is
- * chrome, and chrome is what took the room last time.
- */
+/** What is left of the name between padding and chevron: everything in there
+ *  is chrome, and chrome is what starved the name last time. */
 export function stripPillTextColumn(pillWidth: number): number {
   return clamp(pillWidth - 2 * STRIP_PILL_PADDING_X - STRIP_PILL_GAP - STRIP_CHEVRON_SIZE);
 }
@@ -91,18 +57,9 @@ export const COMPOSER_SIDE_PADDING = 12;
 export const COMPOSER_FIELD_HEIGHT = 56;
 
 /**
- * The source chip, in its two sizes (DESIGN.md §2.5).
- *
- * The painted chip stays small: `type.meta`'s line inside `spacing.xs` above and
- * below, which is the mock's `.src` and about 28 dp. A row of 48 dp pills under
- * every answer would out-weigh the answer it stands under.
- *
- * The box the finger lands on is a different thing from the paint, and it is a
- * real 48 dp on both axes: a tappable thing under 48 dp is an accessibility
- * defect, and this project forbids buying the size back with `hitSlop`. So the
- * painted chip is centred inside a real box, and `SOURCE_CHIP_BOX_COST` is what
- * that costs per row of chips — accepted on purpose rather than discovered
- * later, because "small chip" and "48 dp" read like a contradiction and are not.
+ * The source chip's two sizes (DESIGN.md §2.5): the painted chip stays ~28 dp —
+ * a row of 48 dp pills would out-weigh the answer — but the box the finger
+ * lands on is a real 48 dp on both axes; hitSlop cannot buy that back.
  */
 export const SOURCE_CHIP_PAINTED_HEIGHT = type.meta.lineHeight + 2 * spacing.xs;
 export const SOURCE_CHIP_TOUCH_BOX = MIN_TOUCH_TARGET;
@@ -110,69 +67,43 @@ export const SOURCE_CHIP_TOUCH_BOX = MIN_TOUCH_TARGET;
 export const SOURCE_CHIP_BOX_COST = SOURCE_CHIP_TOUCH_BOX - SOURCE_CHIP_PAINTED_HEIGHT;
 
 /**
- * The preview's mismatch notice: ONE line of `type.meta` under the strip, drawn
- * only while the harness is pinned to a height the live window does not have.
- *
- * It is a band like the other three, which is why it is written here and not in
- * the component: it is taken out of the usable height before the bands are
- * partitioned, so the transcript yields the line instead of being covered by it.
- * The line is centred in the band, so `SHELL_NOTICE_GAP` is the clear space it
- * keeps above and below itself. The 7 dp is CHOSEN, not derived: the band was
- * 22 dp (3 dp above and below) and a vision audit found the caption sitting
- * 3–6 px above a table row whose glyph tops the transcript's top edge was
- * slicing in half — "the worst collision in the set, it reads like a rendering
- * bug" — so the band buys the caption room below itself and no arithmetic
- * requires that number. Two lines still do not fit, on purpose — a notice that
- * wraps is the defect this replaced.
+ * The preview's mismatch notice: ONE line of `type.meta` under the strip — a
+ * band carved out of the usable height before the bands partition, so the
+ * transcript yields the line instead of being covered by it. The 7 dp is
+ * CHOSEN, not derived (HANDOFF, "what the vision pass added", item 2); two
+ * lines never fit — a wrapping notice is the defect this replaced.
  */
 export const SHELL_NOTICE_GAP = 7;
 export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
 
 /**
- * The composer's toolbar row — the templates ✦ entry and the one-shot mode
- * chips (D1 rows 13/14), drawn by `ComposerToolbar.tsx` between the hold line
- * and the field. Like `SHELL_NOTICE_HEIGHT` it is a row the shell draws OUTSIDE
- * the three bands: `Shell.tsx` adds it to `extraRows` and subtracts it from the
- * height BEFORE `shellGeometry` partitions it, so the contract below stands
- * untouched — strip + transcript + composer still sum to whatever height this
- * function is given. It is a real `MIN_TOUCH_TARGET` row on the axis the finger
- * lands on; the pills it carries are painted small inside it, the source chip's
- * own split (`SOURCE_CHIP_BOX_COST`).
+ * The composer's toolbar row (templates ✦ and mode chips), drawn OUTSIDE the
+ * three bands: Shell.tsx adds it to `extraRows` and subtracts it BEFORE
+ * `shellGeometry` partitions, so strip + transcript + composer still sum to
+ * the given height. A real 48 dp row on the finger's axis; its pills paint
+ * small inside it, like the source chip's box.
  */
 export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
 
 /**
- * The toolbar row's HORIZONTAL arithmetic — the strip's pill budget one band
- * down, for the same reason: 349 dp cannot hold everything a designer would
- * like on one line, so what fits is decided by numbers a test can read.
- *
- * The row spends, left to right: `2 * spacing.md` of row padding, the 48 dp
- * templates ✦ target, one `spacing.xs` gap, then the chips scroller — which
- * gets `toolbarChipsAvailable(width)` (349 - 28 - 48 - 6 = 267 dp). Each chip
- * spends `toolbarChipWidth(label)`: `2 * spacing.sm` of pill padding, the
- * 15 dp icon, the 4 dp icon↔label gap, and the label's own measured width.
- * Chips are separated by `spacing.xs` (`toolbarChipsWidth`).
- *
- * These constants are the ones `ComposerToolbar.tsx` binds, so the budget and
- * the component cannot drift; `composerToolbarWidth.test.ts` measures the real
- * labels in the real font files against them and is what proved the
- * library-document chip had to go (research + document + notes = ~331 dp > 267
- * on 349 — the Notes chip sat ENTIRELY outside the row).
+ * The toolbar row's horizontal arithmetic: 349 dp cannot hold everything on one
+ * line, so what fits is decided by numbers a test can read. The row spends
+ * `2 * spacing.md` padding, the 48 dp ✦ target, one `spacing.xs` gap, then the
+ * scroller; each chip spends pill padding, the 15 dp icon, the 4 dp gap and its
+ * measured label. ComposerToolbar binds exactly these, and
+ * composerToolbarWidth.test measures the real labels in the real fonts.
  */
 export const TOOLBAR_CHIP_ICON = 15;
 export const TOOLBAR_CHIP_LABEL_GAP = 4;
 
-/** What the chips scroller may use, at the given screen width. */
 export function toolbarChipsAvailable(width: number): number {
   return width - 2 * spacing.md - MIN_TOUCH_TARGET - spacing.xs;
 }
 
-/** One chip's width from its label's measured width. */
 export function toolbarChipWidth(labelWidth: number): number {
   return 2 * spacing.sm + TOOLBAR_CHIP_ICON + TOOLBAR_CHIP_LABEL_GAP + labelWidth;
 }
 
-/** A run of chips side by side: every chip plus the gaps between them. */
 export function toolbarChipsWidth(labelWidths: readonly number[]): number {
   if (labelWidths.length === 0) return 0;
   return (
@@ -186,27 +117,11 @@ function clamp(value: number): number {
 }
 
 /**
- * The bottom obstruction the bands must clear, from the two numbers JS has:
- * the safe-area inset and the keyboard height.
- *
- * **The larger, never the sum.** When the keyboard is up it covers the
- * navigation bar instead of sitting above it, and `safe-area-context`'s bottom
- * inset excludes the IME by construction (`SafeAreaUtils.kt` sums status bars,
- * cutout, navigation bars and caption bar, with no `ime()`), so adding the two
- * would reserve the gesture bar twice and lift the composer a bar too high. The
- * existing composer records the same trap (`AiChatPage.tsx:4166-4169`).
- *
- * `keyboardHeight` must be the FULL IME height, which is what
- * `react-native-keyboard-controller` reports under edge-to-edge: its event
- * height is the IME inset minus the navigation bar ONLY when the bar is not
- * translucent (`KeyboardAnimationCallback.kt`), and the provider sets that flag
- * from the app's edge-to-edge mode. React Native's own `Keyboard` event is not a
- * drop-in substitute: `ReactRootView.java` always subtracts the system bars from
- * the IME inset, so pairing that number with this rule would leave the composer
- * one gesture bar under the keyboard.
- *
- * A negative or non-finite height is "no keyboard", not a value to arithmetic
- * on: a bad number would otherwise push the bands off the window.
+ * The bottom obstruction the bands must clear: **the larger of the safe-area
+ * inset and the keyboard height, never the sum** — the IME covers the nav bar
+ * and the safe-area inset excludes it (DESIGN.md §2.7). `keyboardHeight` must
+ * be the FULL IME height, which rules out RN's own `Keyboard` event. A
+ * negative or non-finite height is "no keyboard", not something to arithmetic on.
  */
 export function bottomInsetFor(insets: Insets, keyboardHeight: number = 0): Insets {
   const keyboard = Number.isFinite(keyboardHeight) && keyboardHeight > 0 ? keyboardHeight : 0;
@@ -217,7 +132,6 @@ export type ShellGeometry = {
   /** Echo of the inputs, so a caller cannot lose them. */
   width: number;
   height: number;
-  /** height - insets.top - insets.bottom, floored at 0. */
   usableHeight: number;
   strip: Band;
   transcript: Band;
@@ -225,13 +139,10 @@ export type ShellGeometry = {
   /** The transcript's whole band is usable: its content is clipped to it. */
   transcriptUsableHeight: number;
   /** Container bottom to the composer band's bottom edge: the bottom inset the
-   *  bands were partitioned with, so the composer stops exactly at the top of
-   *  the gesture bar — or, with the keyboard up, at the IME's top edge (`621`
-   *  minus a 296 dp keyboard is the 325 dp app area, and this field is the
-   *  296). */
+   *  bands were partitioned with, so the composer stops at the top of the
+   *  gesture bar — or, with the keyboard up, at the IME's top edge. */
   composerBottomOffset: number;
   minTouchTarget: number;
-  /** True at 325 dp, where the strip drops its second line. */
   stripCollapsed: boolean;
   /** Every tap target the shell draws, in dp. The 48 dp floor is a property of
    *  the geometry, because the stack cannot measure a rendered tree. */
@@ -246,14 +157,11 @@ export type ShellGeometry = {
 };
 
 /**
- * Lay out the three bands. `width` is used only for the horizontal tap targets;
- * height is what the layout is tuned on.
- *
- * Degenerate heights are squeezed, not overflowed: the composer keeps its space
- * first (it is the band the user must reach), the strip shrinks to a sliver,
- * and the transcript yields last. In every branch
- * `strip.height + transcript.height + composer.height === usableHeight`, so the
- * partition invariant survives the short case instead of being waived there.
+ * Lay out the three bands (`width` only sizes the horizontal tap targets).
+ * Degenerate heights squeeze, never overflow — composer keeps its space first,
+ * the strip shrinks to a sliver, the transcript yields last — and in every
+ * branch the three heights sum to `usableHeight`: the partition invariant
+ * survives the short case instead of being waived there.
  */
 export function shellGeometry(width: number, height: number, insets: Insets): ShellGeometry {
   const usableHeight = clamp(height - insets.top - insets.bottom);
@@ -275,18 +183,10 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   };
 
   const full = MIN_TOUCH_TARGET;
-  // The pill's remaining width: the strip holds THREE icon buttons (menu, Web,
-  // new chat) and the pill takes what is left of the row. Export moved to the
-  // drawer — it is a chat-level action and the drawer already exists — because
-  // five controls cannot fit 349 dp with a legible pill: at FOUR buttons the
-  // pill was 97 dp and its whole text column 14 dp, so the model name and
-  // "On this phone" both collapsed to ellipses (the vision pass read the
-  // remnants as "a row of tiny dots"). Three buttons give the pill 154 dp
-  // again: 349 - 2*12 - 3*48 - 3*9 = 154. What the pill then SPENDS inside
-  // those 154 dp is `stripPillTextColumn`'s business: 121 dp for the name today
-  // (it was 71 with the 28 dp mark, the dot and two 10 dp gaps in the way — a
-  // capture read both lines as ellipses, the second cut mid-word). Reversible
-  // in one edit; nothing below the 48 dp floor was shrunk to get there.
+  // The pill takes what the strip leaves: THREE icon buttons (menu, Web,
+  // new chat) — Export moved to the drawer as a chat-level action. Four buttons
+  // left the pill 97 dp with a 14 dp text column and ellipsised the model name
+  // (DESIGN.md §2.1); three restore 154: 349 - 2*12 - 3*48 - 3*9 = 154.
   const stripPillWidth = clamp(
     width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
   );

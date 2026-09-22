@@ -1,10 +1,10 @@
 /**
- * The export action's two halves (D1 row 2, lifted AiChatPage:3206-3218):
- * the Markdown format, pinned exactly, and the sheet itself — empty out, one
- * sheet per call, dismissal swallowed. `react-native` is mocked so the node
- * environment never loads the real framework; the mock's own shape is
- * asserted first, because every `Share` expectation below is vacuous if the
- * mock silently stopped intercepting.
+ * The export action's two halves (D1 row 2): the Markdown format, pinned
+ * exactly, and the sheet itself — empty out, one sheet per call, dismissal
+ * swallowed. `react-native` is mocked so the node environment never loads the
+ * real framework; the mock's own shape is asserted first, because every
+ * `Share` expectation below is vacuous if the mock silently stopped
+ * intercepting.
  */
 import { Share } from "react-native";
 import { readFileSync } from "fs";
@@ -89,13 +89,11 @@ describe("shareConversation — one sheet, or none", () => {
 /**
  * Where export LIVES, as source — the strip's width arithmetic forced a move
  * and a moved action is exactly the kind of promise a test must keep honest.
- * BEFORE: `shell.strip.export` sat in the strip (a real 48 dp box, D1 row 2),
- * wired `HostRoot -> HostChatSurface -> Shell`. WITH five controls the pill's
- * text column was 14 dp and the model name rendered as a bare ellipsis — so
- * export, the RARE control, moved to the drawer (`HostDrawer.tsx`), three
- * strip buttons give the pill 154 dp, and NOTHING was shrunk below 48 dp.
- * These four assertions fail if the row, the wiring, or the old button comes
- * back on its own.
+ * WITH five strip controls the pill's text column was 14 dp and the model name
+ * rendered as a bare ellipsis — so export, the RARE control, moved to the
+ * drawer, three strip buttons give the pill 154 dp, and NOTHING was shrunk
+ * below 48 dp. These assertions fail if the row, the wiring, or the old button
+ * comes back on its own.
  */
 describe("export's home: the drawer, since the strip needed the width", () => {
   const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
@@ -114,8 +112,7 @@ describe("export's home: the drawer, since the strip needed the width", () => {
   it("the root wires the same shareConversation it once handed the strip", () => {
     const root = stripComments(read("HostRoot.tsx"));
     expect(root).toContain("onExportPress={() => shareConversation(history.messages, t)}");
-    // …to the DRAWER, and the chat surface no longer receives it: the export
-    // prop is gone from that call, not merely left optional.
+    // …to the DRAWER: the chat surface no longer receives the prop at all.
     const surfaceCall = root.match(/<HostChatSurface[\s\S]*?\/>/)?.[0] ?? "";
     expect(surfaceCall.length).toBeGreaterThan(0);
     expect(surfaceCall).not.toContain("onExportPress");

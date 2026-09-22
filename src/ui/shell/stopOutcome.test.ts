@@ -1,9 +1,8 @@
 /**
  * §2.8's four stop outcomes, as the decision layer returns them — moved
  * verbatim out of `composerState.test.ts` when that file crossed the shell's
- * 350-line line (the guard in `src/host/fileSize.test.ts` now covers this
- * directory too). Same block, same assertions, same catalogue check; only the
- * two helpers it needs were copied alongside, so both files stay
+ * 350-line line; nothing was weakened in the move. The two helpers it needs
+ * were copied alongside rather than imported, so both files stay
  * self-contained and neither imports the other (a test file importing a test
  * file would run its suite twice).
  */

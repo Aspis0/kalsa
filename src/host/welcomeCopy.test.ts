@@ -1,11 +1,9 @@
 /**
- * The welcome block's decisions, which are the controller's own lifted ones:
- * the hour table (`AiChatPage:505-509`), the four suggestions (`:423-453`) and
- * the history gate (`:4015-4016`). The block's JSX cannot be rendered in this
- * stack (DESIGN.md, "proof regime"), so what is proven here is everything the
- * JSX is required to obey: the same catalogue keys in BOTH locales, the same
- * order and two-tone pattern, and the gate's truth table — the row that says
- * the block does not exist before history is known.
+ * The welcome block's decisions. The block's JSX cannot be rendered in this
+ * stack, so what is proven here is everything the JSX is required to obey:
+ * the same catalogue keys in BOTH locales, the same order and two-tone
+ * pattern, and the gate's truth table — the row that says the block does not
+ * exist before history is known.
  */
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";

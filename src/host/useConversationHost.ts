@@ -1,12 +1,10 @@
 /**
  * The conversations index: state, the 180 ms search debounce, the save FIFO,
- * `applyConversations`, `bindActiveConversation` and the boot load — lifted
- * from `AppShell.tsx:1018-1047` (state/search), `:1051-1053` (queue refs),
- * `:1057-1090` (FIFO + bind) and `:1091-1124` (boot load).
+ * `applyConversations`, `bindActiveConversation` and the boot load.
  *
- * Not lifted here: the three flush/empty/epoch REF slots the old parent held
- * for `AiChatPage` (`:1048-1050`) — one root calls the history host's
- * functions directly (same order, no refs to register).
+ * Not lifted here: the three flush/empty/epoch REF slots the old parent held —
+ * one root calls the history host's functions directly (same order, no refs
+ * to register).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +17,7 @@ import {
 } from "../conversations/ConversationsStore";
 import { getBootHistoryHash, setBootMessagesKey, setSessionConversationId, resetBootHistoryHash } from "../engine/sessionPersistence";
 
-/** Search debounce, lifted from `AppShell.tsx:460`. */
+/** Search debounce in ms. */
 const SEARCH_DEBOUNCE_MS = 180;
 
 export function useConversationHost(): {

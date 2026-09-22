@@ -1,19 +1,16 @@
 /**
  * Per-turn fencing for message updates.
  *
- * The old screen re-checked the pair `regenGenerationRef` / `sendRunIdRef`
- * at every stream callback and inside every deferred setState updater
- * (AiChatPage:2570, 2614, 2694, 1970-1993 are samples of the set). That
- * pair is exactly what a stale callback can forget to present: ownerGen
- * and ownerRunId were optional on updateMessage. Here a turn is issued ONE
+ * The old screen re-checked its generation/runId pair at every stream
+ * callback and inside every deferred setState updater. That pair is exactly
+ * what a stale callback can forget to present. Here a turn is issued ONE
  * token and every mutation requires it — an unfenced update is no longer
  * expressible, and a token issued before a clear/switch/new run can never
  * validate again.
  *
  * Bump pairing, from the old code: every invalidation (clear, conversation
- * switch, unmount, stop-watchdog) bumps BOTH counters (AiChatPage:1866,
- * 1928, 3161, 3244+3264); only a new send bumps the run id alone (2308),
- * which is what beginRun() re-expresses.
+ * switch, unmount, stop-watchdog) bumps BOTH counters; only a new send bumps
+ * the run id alone, which is what beginRun() re-expresses.
  */
 
 /** Module-private brand: outside code cannot name it, so it cannot mint tokens. */
@@ -31,10 +28,9 @@ export interface TurnToken {
 export interface TurnFence {
   /**
    * Start a send run: bumps the run id and issues the token every update of
-   * this run must present. Call at run start (old claim site, AiChatPage:
-   * 2254/2308 collapsed into one issue point — every other sendRunIdRef
-   * bump site also bumps the generation, so nothing can intervene between
-   * the two old capture points without triing the generation check).
+   * this run must present. One issue point: every other run-id bump also
+   * bumps the generation, so nothing can intervene between the old capture
+   * points without tripping the generation check.
    */
   beginRun(): TurnToken;
   /**
@@ -46,9 +42,8 @@ export interface TurnFence {
   /**
    * Retire the live turn AND issue the post-retire token in one step: both
    * counters move (owner transfer — a stale send's finally can no longer
-   * validate) and the caller walks away owning the post-bump state. This is
-   * the stop watchdog's shape: bump first, then act exactly once as the new
-   * owner (AiChatPage:3161-3199).
+   * validate) and the caller walks away owning the post-bump state. The stop
+   * watchdog's shape: bump first, then act exactly once as the new owner.
    */
   retire(): TurnToken;
   /** True while the token still owns the turn. */
@@ -57,8 +52,8 @@ export interface TurnFence {
    * Run `update` only for a live token; a stale token returns `state`
    * untouched (same reference — a refused update changes nothing). Call
    * inside the setState updater: ownership is re-checked when the updater
-   * actually runs, which is what stops a Fabric-queued update that was
-   * scheduled before a clear (AiChatPage:2904-2910).
+   * actually runs, which is what stops a Fabric-queued update scheduled
+   * before a clear.
    */
   apply<T>(token: TurnToken, state: T, update: (state: T) => T): T;
 }

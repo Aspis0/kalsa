@@ -1,17 +1,15 @@
 /**
  * The composer band: the field, the three in-field controls and the send face's
- * three states. It is a MOVE out of `Shell.tsx` (the seam cut so the Web switch
- * and the toolbar row could land without crossing that file's ratchet —
- * `src/host/fileSize.test.ts` guards this directory too), not a redesign: the
- * JSX, the styles it reads (`shellStyles.ts`) and every decision it draws are
- * the ones the shell carried before, still arriving as props from the host
- * (`composerState.ts` decides, this file only places).
+ * three states. A MOVE out of `Shell.tsx` (to cut a seam under that file's
+ * ratchet), not a redesign: the JSX, the styles and every decision it draws are
+ * the shell's own, still arriving as props from the host (`composerState.ts`
+ * decides, this file only places).
  *
- * Leaf rules from the shell's own header hold: no state beyond the preview's
- * internal draft fallback, no engine calls, no `src/engine` / `src/app` /
- * `src/screens` imports, real 48 dp boxes and never `hitSlop`.
+ * Leaf rules from the shell's own header hold: no state beyond the internal
+ * draft fallback, no engine calls, no `src/engine` / `src/app` / `src/screens`
+ * imports, real 48 dp boxes and never `hitSlop`.
  */
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 

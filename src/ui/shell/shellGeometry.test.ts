@@ -4,8 +4,8 @@
  * 48 dp floor are asserted here and the pixels are proven by screenshots.
  *
  * The three real sizes are the measured ones (DESIGN.md §1.1). The Jelly's
- * keyboard case is the one that decides the strip's collapsed form, and it is
- * the only case where the transcript is short.
+ * keyboard case decides the strip's collapsed form and is the only case where
+ * the transcript is short.
  */
 import {
   COMPOSER_HEIGHT,
@@ -69,8 +69,8 @@ describe.each(CASES)("$name", (c) => {
     expect(geo.strip.top).toBe(c.insets.top);
     expect(geo.transcript.top).toBe(geo.strip.top + geo.strip.height);
     expect(geo.composer.top).toBe(geo.transcript.top + geo.transcript.height);
-    // The sum, written out: this is the assertion that fails the moment a
-    // constant is changed without the arithmetic following it.
+    // The sum, written out: the assertion that fails the moment a constant is
+    // changed without the arithmetic following it.
     expect(geo.strip.height + geo.transcript.height + geo.composer.height).toBe(usable);
     expect(geo.composer.top + geo.composer.height).toBe(c.height - c.insets.bottom);
   });
@@ -98,12 +98,10 @@ describe.each(CASES)("$name", (c) => {
   });
 
   it("keeps the pill's chrome smaller than the pill, so only the pill is the target", () => {
-    // BEFORE this held the LOGO MARK (28 dp) under the 48 dp pill. The mark is
-    // gone from the strip — a capture showed it spending 28 dp of a 154 dp pill
-    // while the model's own name truncated (`LFM2.5 …`) — and the chevron is
-    // now the only picture inside. The rule is unchanged: chrome is a picture,
-    // the pill around it is the touch target, and chrome may not decide the
-    // pill's size.
+    // BEFORE this held the LOGO MARK under the 48 dp pill — a capture showed
+    // it spending 28 dp of a 154 dp pill while the model's name truncated
+    // (`LFM2.5 …`). The rule is unchanged: chrome is a picture, the pill
+    // around it is the touch target, and chrome may not decide the pill's size.
     expect(STRIP_CHEVRON_SIZE).toBeGreaterThan(0);
     expect(STRIP_CHEVRON_SIZE).toBeLessThan(MIN_TOUCH_TARGET);
     expect(MIN_TOUCH_TARGET - STRIP_CHEVRON_SIZE).toBeGreaterThanOrEqual(12);
@@ -128,9 +126,9 @@ describe("the smallest screen, 349x325 with the keyboard open", () => {
     expect(geo.stripCollapsed).toBe(true);
     expect(geo.strip.height).toBe(STRIP_HEIGHT_COLLAPSED);
     // 325 - 52 - 78 = 195 dp of transcript, as `shellGeometry` partitions it.
-    // The live shell then takes the toolbar row OUT of this height before the
-    // partition (see COMPOSER_TOOLBAR_HEIGHT), so the app draws 195 - 48 = 147
-    // here while the toolbar shows — the row is not a fourth band.
+    // The live shell takes the toolbar row OUT of this height before the
+    // partition, so the app draws 195 - 48 = 147 while the toolbar shows —
+    // the row is not a fourth band.
     expect(geo.transcript.height).toBe(195);
     expect(geo.transcriptUsableHeight).toBeGreaterThanOrEqual(120);
   });
@@ -174,8 +172,7 @@ describe("the bottom inset rule: the keyboard and the safe area", () => {
   /**
    * The band numbers, without the inputs (the keyboard case has a taller
    * `height` than the window it is compared to, by design) and without
-   * `composerBottomOffset`, which is exactly where the two cases must differ:
-   * in the keyboard case the composer bottom is the keyboard's top edge.
+   * `composerBottomOffset`, exactly where the two cases must differ.
    */
   const bandNumbers = (geo: ShellGeometry) => ({
     usableHeight: geo.usableHeight,
@@ -209,9 +206,9 @@ describe("the bottom inset rule: the keyboard and the safe area", () => {
   it("makes the 325 dp case real: a 621 dp window with the keyboard open IS a short window", () => {
     const keyboard = shellGeometry(349, 621, bottomInsetFor(INSETS, 296));
 
-    // The number that makes the claim checkable at a glance: the composer's
-    // bottom edge is the keyboard's top edge, and 621 - 296 = 325 dp is the app
-    // area this file has called the keyboard case all along.
+    // The number that makes the claim checkable: the composer's bottom edge
+    // is the keyboard's top edge, and 621 - 296 = 325 dp is the app area this
+    // file has called the keyboard case all along.
     expect(keyboard.composerBottomOffset).toBe(296);
     expect(621 - keyboard.composerBottomOffset).toBe(325);
     expect(keyboard.usableHeight).toBe(301);
@@ -223,7 +220,7 @@ describe("the bottom inset rule: the keyboard and the safe area", () => {
     expect(bandNumbers(keyboard)).toEqual(bandNumbers(shortWindow));
 
     // That 16 dp is the whole difference from the pinned 325 dp window the
-    // preview uses, so the two are one gesture bar apart and not equal.
+    // preview uses: one gesture bar apart, not equal.
     const pinned325 = shellGeometry(349, 325, INSETS);
     expect(keyboard.usableHeight - pinned325.usableHeight).toBe(16);
     expect(keyboard.transcript.height - pinned325.transcript.height).toBe(16);
@@ -250,10 +247,8 @@ describe("the bottom inset rule: the keyboard and the safe area", () => {
 describe("the preview's notice line", () => {
   it("holds one line plus the chosen gap below it, and still clips a wrap", () => {
     // BEFORE this assertion read only ">= one line, < two" over a 22 dp band
-    // that left 3 dp under the caption; it now pins the gap the caption was
-    // given, keeps the ceiling that makes a long string clip instead of
-    // wrapping into the conversation, and states the band as its own arithmetic
-    // so the constant and the gap cannot drift apart.
+    // with 3 dp under the caption; it now pins the gap the caption was given
+    // and the ceiling that makes a long string clip instead of wrapping.
     expect(SHELL_NOTICE_HEIGHT).toBe(2 * SHELL_NOTICE_GAP + designType.meta.lineHeight);
     expect(SHELL_NOTICE_HEIGHT).toBeGreaterThanOrEqual(
       designType.meta.lineHeight + SHELL_NOTICE_GAP,
@@ -262,10 +257,9 @@ describe("the preview's notice line", () => {
   });
 
   it("still lets the bands partition the available height exactly at all three sizes", () => {
-    // The notice is subtracted from the height BEFORE `shellGeometry` runs
-    // (`Shell.tsx`, `ShellPreview.tsx`), so the taller band must leave the
-    // partition invariant untouched at every measured size: 349x621,
-    // 349x325 (the pinned keyboard case) and 360x780.
+    // The notice is subtracted from the height BEFORE `shellGeometry` runs, so
+    // the taller band must leave the partition invariant untouched at every
+    // measured size: 349x621, 349x325 and 360x780.
     for (const c of CASES) {
       const available = c.height - SHELL_NOTICE_HEIGHT;
       const geo = shellGeometry(c.width, available, c.insets);
@@ -282,20 +276,18 @@ describe("the preview's notice line", () => {
 describe("the width is only used for the horizontal boxes", () => {
   it("keeps the pill and the field at or above the touch floor on the Jelly", () => {
     const geo = shellGeometry(349, 621, { top: 0, bottom: 0 });
-    // Contract history, all three states written down so the next change lands
-    // as a deliberate edit of THIS number rather than a discovery:
-    //   BEFORE the Web switch:  `349 - 2*12 - 3*48 - 3*9 = 154` (menu, export,
-    //     new chat) — the pill 154 dp.
-    //   WITH the switch AND export on the strip: four buttons, `= 97`, a 14 dp
-    //     text column: the model name and "On this phone" both rendered as bare
-    //     ellipses (host3 capture: "a row of tiny dots").
-    //   NOW: export lives in the drawer (chat-level action; `HostDrawer.tsx`),
-    //     three buttons again, pill 154 dp — and WHAT THE PILL SPENDS inside
-    //     those 154 dp changed with the legibility slice: no 28 dp mark, no
-    //     where-dot, spacing.xs padding and ONE gap, so the name's column is
-    //     154 - 2*6 - 6 - 15 = 121 dp, against 71 dp before and the ~105 dp the
-    //     capture measured for `LFM2.5 2.6B`. Nothing shrank below the 48 dp
-    //     floor; the decorative pictures moved instead.
+    // Contract history, written down so the next change lands as a deliberate
+    // edit of THIS number rather than a discovery:
+    //   BEFORE the Web switch: `349 - 2*12 - 3*48 - 3*9 = 154` (menu, export,
+    //     new chat) — pill 154 dp.
+    //   WITH switch AND export on the strip: four buttons, `= 97`, a 14 dp text
+    //     column — the model name rendered as bare ellipses ("a row of tiny
+    //     dots" in the capture).
+    //   NOW: export in the drawer (chat-level action), three buttons, pill 154;
+    //     the pill's own spend changed with the legibility slice — no mark, no
+    //     where-dot, xs padding and ONE gap — so the name's column is
+    //     154 - 2*6 - 6 - 15 = 121 dp, against 71 before and the ~105 the
+    //     capture measured for `LFM2.5 2.6B`. Nothing shrank below 48 dp.
     expect(geo.touchTargets.stripPill.width).toBe(154);
     expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBe(121);
     expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBeGreaterThanOrEqual(
@@ -309,8 +301,7 @@ describe("the composer's toolbar row (D1 rows 13/14)", () => {
   it("is a real 48 dp row, and it is subtracted before the partition, not drawn over a band", () => {
     // The row is a shell row like the notice lines: paid out of the height in
     // `Shell.tsx`'s `extraRows` before `shellGeometry` runs, so the three-band
-    // invariant above never mentions it — and the pinned 349x325 stand-in's
-    // live transcript is 195 - 48 = 147 while the toolbar shows.
+    // invariant never mentions it — the stand-in's live transcript is 147.
     expect(COMPOSER_TOOLBAR_HEIGHT).toBe(MIN_TOUCH_TARGET);
     const geo = shellGeometry(349, 325, { top: 0, bottom: 0 });
     expect(geo.transcript.height - COMPOSER_TOOLBAR_HEIGHT).toBe(147);

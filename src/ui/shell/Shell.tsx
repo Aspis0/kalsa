@@ -1,26 +1,21 @@
 /**
  * The shell: three bands, static chrome, no engine calls.
  *
- * Step 2 of the rebuild, with step 3's transcript arriving as `children`. This
- * file places the boxes `shellGeometry.ts` returns and nothing else — it holds
- * no data, fetches nothing, and imports nothing from `src/engine`, `src/app`,
- * `src/screens` or `src/conversations`. The composer is DRAW-ONLY: every
- * decision (draft, hold, face, enabled) arrives through optional props from
- * the host; with none passed the old inert chrome is what renders, which is
- * the preview's contract. Mounting the shell was blocked on exactly this —
- * the draft used to live in component-local state, unreadable by any host.
+ * This file places the boxes `shellGeometry.ts` returns and nothing else — it
+ * holds no data, fetches nothing, and imports nothing from `src/engine`,
+ * `src/app`, `src/screens` or `src/conversations`. The composer is DRAW-ONLY:
+ * every decision (draft, hold, face, enabled) arrives through optional props
+ * from the host; with none passed the old inert chrome renders, which is the
+ * preview's contract. Insets are a prop so `shellGeometry` stays pure and its
+ * test honest; width/height default to the live window.
  *
- * Insets arrive as a prop so `shellGeometry.ts` stays pure and its test honest;
- * width and height default to the live window so the preview can render at any
- * size the emulator reports.
- *
- * The keyboard arrives as its own prop, because with edge-to-edge the window
- * never shrinks when the IME opens: the bands re-partition inside the safe area
- * plus the keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
+ * The keyboard is its own prop because with edge-to-edge the window never
+ * shrinks when the IME opens: the bands re-partition inside safe area plus
+ * keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
 import { ChevronDown, Globe, Menu, Plus } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
@@ -52,22 +47,18 @@ export type ShellProps = {
   /**
    * One translated line drawn between the strip and the transcript — the
    * preview's pinned-size notice, and nothing the app draws. It takes
-   * `SHELL_NOTICE_HEIGHT` out of the bands, so the transcript yields the line
-   * instead of being covered by it; a caller that sets it hands the same
-   * reduced height to whatever fills the transcript band (`ShellPreview` does,
-   * so the band the shell draws and the band the transcript believes it has
-   * cannot drift).
+   * `SHELL_NOTICE_HEIGHT` out of the bands, and the caller must hand the same
+   * reduced height to whatever fills the transcript band, so the band the shell
+   * draws and the band the transcript believes in cannot drift.
    */
   notice?: string;
   /** The transcript band's content. The shell does not know what it is. */
-  children?: React.ReactNode;
+  children?: ReactNode;
   /**
-   * The composer, as decided by the host (`composerState.ts` decides holds
-   * and faces; this file only draws them). Every prop below is OPTIONAL and
-   * defaults to the old non-functional chrome, which is what the preview
-   * still passes — the controlled form is the mount fix: the draft lived in
-   * component-local state (old Shell:113), so no host could ever read what
-   * the user typed or swap the send face for stop.
+   * The composer, as decided by the host (`composerState.ts` decides holds and
+   * faces; this file only draws them). Every prop below is OPTIONAL and defaults
+   * to the old non-functional chrome — the controlled form is the mount fix:
+   * a component-local draft was unreadable by any host.
    */
   draft?: string;
   onDraftChange?: (text: string) => void;
@@ -89,8 +80,7 @@ export type ShellProps = {
   onNewChatPress?: () => void;
   /** The Web permission switch in the strip (D1 row 5 / §2.9: Web lives here,
    *  device and calendar stay in Settings). The host persists it under the
-   *  controller's own key (`toolFlags.ts`); `true` is the controller's default
-   *  ON, so the preview draws the switch the app boots with. */
+   *  controller's own key (`toolFlags.ts`). */
   webEnabled?: boolean;
   onWebPress?: () => void;
   onAttachPress?: () => void;
@@ -99,9 +89,9 @@ export type ShellProps = {
   /**
    * The toolbar row above the field — templates ✦ + the research/notes chips
    * (D1 rows 13/14). Absent in the preview: the row costs the bands height, so
-   * without it the preview's geometry is exactly the one `shellGeometry.test.ts`
-   * partitions directly; when present, `Shell.tsx` subtracts it like the notice
-   * rows and draws it between the hold line and the field.
+   * without it the preview's geometry is the one `shellGeometry.test.ts`
+   * partitions directly; when present, `Shell.tsx` subtracts it like the
+   * other extra rows and draws it between the hold line and the field.
    */
   toolbar?: ComposerToolbarProps;
 };
@@ -146,11 +136,10 @@ export function Shell({
     (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT) +
     (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT);
   const layoutHeight = (height ?? window.height) - extraRows;
-  // One combined inset for BOTH uses. The geometry partitions the height with it
-  // and the composer's own bottom offset uses it: computing it for the geometry
-  // and then anchoring the composer to the raw safe-area inset puts the composer
-  // under the keyboard, because the keyboard covers the navigation bar rather
-  // than sitting above it (2026-09-21: that is exactly what shipped for an hour).
+  // One combined inset for BOTH uses: the geometry partitions with it and the
+  // composer's bottom offset anchors to it. Computing them separately anchors
+  // the composer to the raw safe-area inset and puts it under the keyboard,
+  // because the keyboard covers the navigation bar rather than sitting above it.
   const layoutInsets = useMemo(
     () => bottomInsetFor(insets, keyboardHeight),
     [insets.top, insets.bottom, keyboardHeight],
@@ -193,17 +182,12 @@ export function Shell({
           onPress={onModelPress}
           style={styles.pill}
         >
-          {/* No picture in here, and that is the point of this slice. The pill
-              is 154 dp and used to spend 28 dp on the logo's clip, 20 dp on two
-              gaps, 20 dp of padding and 6+4 dp on the where-dot, leaving the
-              MODEL'S OWN NAME a 71 dp column against the ~105 dp `LFM2.5 2.6B`
-              measures: the capture read `LFM2.5 …` over `On this ph…`, the
-              second cut mid-word. The name is the information; the mark was
-              not, so the mark and the dot are gone (the logo still ships as the
-              launcher icon) and what the pill draws is budgeted in
-              `shellGeometry.stripPillTextColumn`, held against the real strings
-              by `stripTextBudget.test.ts`. The chevron stays — it says the pill
-              is tappable. */}
+          {/* No picture in here, and that is the point of this slice: the mark
+              and the where-dot took 74 dp of a 154 dp pill and starved the
+              MODEL'S OWN NAME (a capture cut it to `LFM2.5 …`). What the pill
+              draws is budgeted in `shellGeometry.stripPillTextColumn`, held
+              against the real strings by `stripTextBudget.test.ts`; the chevron
+              stays — it says the pill is tappable. */}
           <View style={styles.pillText}>
             <Text style={styles.modelName} numberOfLines={1}>
               {modelName}
@@ -221,10 +205,9 @@ export function Shell({
           />
         </Pressable>
 
-        {/* D1 row 5: the Web permission switch. The old chip was 36×22 riding
-            `hitSlop` (`AppShell:6926-6959`) — here a real 48 dp box with the
-            controller's own label and hints; the line-through while off is the
-            controller's own signal. */}
+        {/* D1 row 5: the Web permission switch — a real 48 dp box with the
+            controller's own label and hints (the old chip was 36x22 on
+            `hitSlop`); line-through while off is the controller's signal. */}
         <Pressable
           testID="shell.strip.web"
           accessibilityRole="switch"
@@ -256,10 +239,9 @@ export function Shell({
           </Text>
         </Pressable>
 
-        {/* Export left the strip for the drawer (see `shellGeometry.ts`'s pill
-            arithmetic: five controls gave the model name a 14 dp column and
-            the name cannot be the thing that shrinks). The row it joined is
-            `HostDrawer`'s, on the same 48 dp tile grammar as its neighbours. */}
+        {/* Export left the strip for the drawer: five controls gave the model
+            name a 14 dp column and the name cannot be the thing that shrinks
+            (see `shellGeometry.ts`'s pill arithmetic). */}
         <Pressable
           testID="shell.strip.newChat"
           accessibilityRole="button"
@@ -272,10 +254,9 @@ export function Shell({
       </View>
 
       {/* The preview's mismatch notice: a row of its own, directly under the
-          strip and above the transcript, so it can never be drawn over the
-          conversation. `styles.notice` is `SHELL_NOTICE_HEIGHT` tall and clips,
-          which is why a long string cannot wrap into the transcript; the
-          height also left the bands in `layoutHeight`. */}
+          strip, so it can never be drawn over the conversation. `styles.notice`
+          is `SHELL_NOTICE_HEIGHT` tall and clips, so a long string cannot wrap
+          into the transcript; the height already left the bands. */}
       {notice === undefined ? null : (
         <View style={styles.notice} testID="shell.notice">
           <Text numberOfLines={1} style={styles.noticeLabel}>

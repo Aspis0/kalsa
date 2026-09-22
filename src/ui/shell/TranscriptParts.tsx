@@ -1,17 +1,12 @@
 /**
  * The transcript's stylesheet — the one table every band file draws with.
  *
- * It used to also hold the two turn boxes (`UserTurn`, `Answer`); those moved
- * to `TranscriptTurns.tsx` when this slice added the long-press pressables and
- * the inline copy chip, because this file sits AT the shell's size ratchet
- * (`src/host/fileSize.test.ts`, `SHELL_FILE_LIMIT` = 342) and the owner's rule
- * is to cut a seam rather than raise a number. The table stayed here for the
- * same reason it was ever one table: `TranscriptEvidence.tsx`,
- * `TranscriptMarkdown.tsx` and the two source-check tests
- * (`sourceChipBox.test.ts`, `transcriptJumpPill.test.ts`) read these styles by
- * name, and one table read in one place beats two that can drift. The markdown
- * half of the SAME table is built in `transcriptMarkdownStyles.ts` and spread
- * into this one, because putting all of it here crossed the line budget.
+ * The two turn boxes moved out to `TranscriptTurns.tsx` (the file sits on the
+ * shell's size ratchet), but the table stayed: `TranscriptEvidence`,
+ * `TranscriptMarkdown` and two source-check tests read these styles by name,
+ * and one table read in one place beats two that can drift. The markdown half
+ * is built in `transcriptMarkdownStyles.ts` and spread in, because all of it
+ * here crossed the line budget.
  */
 import { StyleSheet } from "react-native";
 
@@ -29,13 +24,11 @@ import { markdownStyles } from "./transcriptMarkdownStyles";
 export type TranscriptStyles = ReturnType<typeof createTranscriptStyles>;
 
 export function createTranscriptStyles(colors: DesignColors) {
-  // Two `create` calls and a spread, rather than one call whose argument spreads
-  // a function's return: TypeScript cannot infer `StyleSheet.create`'s generic
-  // through a spread, and the styles come out as `NamedStyles<any>`, which would have
-  // turned every `styles.<typo>` in three files into a compile error about the
-  // helper instead of about the typo. Creating each half and merging the two
-  // typed objects keeps the key checking exact, and the band still gets ONE table
-  // from ONE call.
+  // Two `create` calls and a spread: TypeScript cannot infer
+  // `StyleSheet.create`'s generic through a spread — the styles would come out
+  // `NamedStyles<any>` and every `styles.<typo>` in three files would error
+  // about the helper instead of the typo. Two typed halves merged keeps the
+  // key checking exact, and the band still gets ONE table from ONE call.
   return {
     ...markdownStyles(colors),
     ...StyleSheet.create({
@@ -45,33 +38,17 @@ export function createTranscriptStyles(colors: DesignColors) {
       scroll: {
         flex: 1,
       },
-      // Drawn only while the reader is away from the end. It is the only thing in
-      // this file that moves the view on their behalf, and it is a real 48 dp box
-      // rather than a hitSlop.
-      //
-      // It carries no visible label, and that is a fix rather than a preference. A
-      // hostile vision audit of the 621 capture found the labelled version — about
-      // 131 x 48 dp — floating over the transcript and hiding the reader's own word
-      // "trust?" behind it. Any control that floats over a scroll view covers
-      // something; the honest minimum is to cover as little as possible and never
-      // the middle of a line, so this became a 48 dp round icon in the bottom-right
-      // corner. The accessible name is unchanged (`shell.a11y.jumpToEnd`), and it is
-      // the only thing that names the control now.
-      // Deviation from §1.2, which forbids a border telling a SURFACE from
-      // the page (white on `#f4f8f3` is 1.07:1, so elevation carries
-      // surfaces): this ring says "this is a CONTROL", not "this is another
-      // surface". Its number is not taste: WCAG 2.2 SC 1.4.11 (non-text
-      // contrast) requires the boundary of a UI component to reach 3:1 against
-      // the colours it sits between. The first ring (`colors.borderStrong`)
-      // measured 1.53:1 against the page and 1.64:1 against the control's own
-      // white fill in light mode (2.09 / 1.88 dark), and a vision audit could
-      // not trace it — "if the arrow were removed, I could not reliably tell
-      // you where the circle ends". `colors.silence` measures 5.97 / 6.41 in
-      // light and 7.12 / 6.40 in dark: all four pairs clear 3:1, measured by
-      // `transcriptJumpPill.test.ts` on every run. `colors.inkSoft` would also
-      // clear it (11.67 / 12.52 light, 11.35 / 10.19 dark) but at 11–13:1
-      // reads as a hard frame rather than a control edge, so the quieter of
-      // the two passing tokens wins.
+      // Drawn only while the reader is away from the end — the only thing here
+      // that moves the view for them. A real 48 dp box, never a hitSlop, and no
+      // visible label: a hostile vision audit found the labelled version floating
+      // over the transcript and hiding the reader's own word behind it, so it is
+      // now a corner icon whose accessible name (`shell.a11y.jumpToEnd`) is the
+      // only thing that names it.
+      // The ring says "this is a CONTROL", not "this is a surface" (§1.2 lets
+      // elevation carry surfaces): WCAG 2.2 SC 1.4.11 wants a UI component's
+      // boundary at 3:1, the first ring measured ~1.5:1 and no audit could trace
+      // it, and `colors.silence` clears 3:1 against all four pairs — measured by
+      // `transcriptJumpPill.test.ts` on every run.
       jump: {
         ...elevation.raised,
         alignItems: "center",
@@ -88,8 +65,7 @@ export function createTranscriptStyles(colors: DesignColors) {
       },
       content: {
         // The gap that keeps the last item — the cloud above all — off the
-        // composer band's edge. One chosen number, not the cloud's own height:
-        // the cloud has to be visible and scrollable, not to fit in the gap
+        // composer band's edge: one chosen number, never the cloud's own height
         // (`transcriptLayout.ts` `TRANSCRIPT_LAST_ITEM_GAP`).
         paddingBottom: TRANSCRIPT_LAST_ITEM_GAP,
       },
@@ -118,8 +94,8 @@ export function createTranscriptStyles(colors: DesignColors) {
         marginTop: PARAGRAPH_GAP,
       },
       // One quiet line per tool call, above the answer (§2.4). No icon, no
-      // container, no lift: the rows state what the answer stands on and must not
-      // compete with it for attention.
+      // container, no lift: the rows state what the answer stands on and must
+      // not compete with it for attention.
       toolRows: {
         gap: spacing.xxs,
         marginBottom: spacing.xs,
@@ -130,8 +106,7 @@ export function createTranscriptStyles(colors: DesignColors) {
         fontSize: type.meta.fontSize,
         lineHeight: type.meta.lineHeight,
       },
-      // The source chips below the answer (§2.5): small text, wrapped, the
-      // citation index and the host.
+      // The source chips below the answer (§2.5).
       sourceChips: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -145,18 +120,15 @@ export function createTranscriptStyles(colors: DesignColors) {
         gap: spacing.xs,
         maxWidth: "100%",
         paddingHorizontal: spacing.sm,
-        // The mock's `.src` padding: 6 dp above and below, so the chip is about
-        // 28 dp tall. Smaller than the 48 dp floor the shell's own controls are
-        // held to, deliberately: §2.5 asks for small text chips, and the mock
-        // draws exactly this.
+        // The mock's `.src` padding: ~28 dp tall. Deliberately under the shell's
+        // own 48 dp floor — §2.5 asks for small text chips; the BOX below pays.
         paddingVertical: spacing.xs,
       },
-      // The box the finger lands on, which is NOT the paint above (§2.5): 48 dp on
-      // both axes, with the chip centred inside it, because the project requires a
-      // real box and forbids `hitSlop`. This is where `SOURCE_CHIP_BOX_COST` — the
-      // 20 dp per row of chips the design accepts — actually goes. It is also what
-      // keeps a row that mixes a tappable chip with a static one on one baseline:
-      // the box is invisible on both, so the two pills line up.
+      // The box the finger lands on, NOT the paint above (§2.5): 48 dp on both
+      // axes with the chip centred inside, because the project requires a real
+      // box and forbids `hitSlop` — this is where `SOURCE_CHIP_BOX_COST` goes.
+      // Being invisible on both, it also keeps a row mixing tappable and static
+      // chips on one baseline.
       sourceChipBox: {
         alignItems: "center",
         justifyContent: "center",
@@ -170,8 +142,8 @@ export function createTranscriptStyles(colors: DesignColors) {
         backgroundColor: colors.surface,
         ...elevation.raised,
       },
-      // A chip that cannot is text with reduced emphasis, and the dashed hairline
-      // is the mock's `.src.off`: it is the difference between two kinds of
+      // A chip that cannot be opened is text with reduced emphasis; the dashed
+      // hairline is the mock's `.src.off` — the difference between two kinds of
       // chip, not an attempt to separate a surface from the page.
       sourceChipStatic: {
         borderColor: colors.border,
@@ -197,22 +169,20 @@ export function createTranscriptStyles(colors: DesignColors) {
       sourceHostStatic: {
         color: colors.silence,
       },
-      // The inline action row under a turn — today just the copy chip (the
-      // controller's MessageActionChip row minus read-aloud and "more", which
-      // this build does not have honest versions of yet).
+      // The inline action row under a turn — today just the copy chip: the
+      // controller's MessageActionChip row minus read-aloud and "more", for
+      // which this build has no honest version yet.
       actionChips: {
         flexDirection: "row",
         gap: spacing.xs,
         marginTop: spacing.xs,
       },
-      // The user's chips ride under the capsule, on its side of the page
-      // (old `AiChatPage:5419-5434` drew them right-aligned too).
+      // The user's chips ride under the capsule, on its side of the page.
       actionChipsRight: {
         justifyContent: "flex-end",
       },
-      // The chip's real box: 48 dp on both axes, paint inside it — the source
-      // chip's own box/paint split, on a chip that is a BUTTON rather than a
-      // link. `hitSlop` would be the cheap way; the project forbids it.
+      // The chip's real box: 48 dp both axes, paint inside it — the source
+      // chip's split, on a BUTTON. `hitSlop` would be the cheap way; forbidden.
       actionChipBox: {
         alignItems: "center",
         justifyContent: "center",
@@ -252,8 +222,7 @@ export function createTranscriptStyles(colors: DesignColors) {
         fontSize: type.meta.fontSize,
         lineHeight: type.meta.lineHeight,
       },
-      // §2.8's stop line: one quiet row at meta size, tone from the outcome
-      // (`TranscriptStop.tone`) — `danger` is the design's word for the failed row.
+      // §2.8's stop line: one quiet row at meta size, tone from the outcome.
       stopLine: {
         color: colors.silence,
         fontFamily: families.sansMedium,

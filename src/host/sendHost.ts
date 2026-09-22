@@ -1,17 +1,16 @@
 /**
  * The chat side of a send: guards, the claim, the turn append, the run
- * through `runSendStream` (slice 1) into the lifted engine half, the four
- * outcomes and the release — composed, not re-derived: every order it keeps
- * is pinned by `src/host/{turnGuards,sendStream,historyWrite}.ts` and their
- * tests (D2 rows 1, 3, 4, 5, 6, 11).
+ * through `runSendStream` into the lifted engine half, the four outcomes and
+ * the release — composed, not re-derived: every order it keeps is pinned by
+ * `src/host/{turnGuards,sendStream,historyWrite}.ts` and their tests (D2
+ * rows 1, 3, 4, 5, 6, 11).
  *
  * What is NOT here (reported): the bench-command branch and the doc-hint
  * composition (attachments are held in this slice), the voice/PDF/translate
- * busy guards (those systems are not mounted), the chat-side pre-send
- * fit gate — the lifted `ensureEngineForModel` runs the same gate on the
- * load path, the OS thermal gate arrives as the `tooHot` composer phase,
- * and the notes-truncation `onNotice` (its voice-note toast is D1 row 40,
- * absent), which the engine half treats as optional.
+ * busy guards (those systems are not mounted), the chat-side pre-send fit
+ * gate (the load path runs the same gate), the OS thermal gate (it arrives
+ * as the `tooHot` composer phase), and the notes-truncation `onNotice`
+ * (absent, D1 row 40), which the engine half treats as optional.
  */
 import { useRef } from "react";
 import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
@@ -53,8 +52,8 @@ export interface SendHostParams {
   onToolCapture: (assistantId: string, name: string) => void;
   clearDraft: () => void;
   /** The composer's one-shot research/notes arms (D1 row 14): read through
-   *  the refs at send time and cleared at the controller's own point
-   *  (`AiChatPage:2454-2463`, after the content gate). */
+   *  the refs at send time and cleared at the controller's own point —
+   *  after the content gate. */
   arms: {
     researchRef: { current: boolean };
     notesRef: { current: boolean };
@@ -99,9 +98,9 @@ export function useSendHost(params: SendHostParams): SendHost {
 
   const send = async (text: string): Promise<void> => {
     const trimmed = text.trim();
-    // The synchronous claim check (old AiChatPage:2215-2234 minus the voice /
-    // PDF / translate busy flags this host does not have): empty draft,
-    // claim or sending already held, history not settled.
+    // The synchronous claim check (old controller minus the voice / PDF /
+    // translate busy flags this host does not have): empty draft, claim or
+    // sending already held, history not settled.
     if (
       !trimmed ||
       sendClaimRef.current ||
@@ -123,8 +122,8 @@ export function useSendHost(params: SendHostParams): SendHost {
     stopRequestedRef.current = false;
 
     try {
-      // X2: pre-send content gate — blocking categories never reach the
-      // model; the localized decline becomes the assistant's message.
+      // Pre-send content gate — blocking categories never reach the model;
+      // the localized decline becomes the assistant's message.
       const classification = classifyChatContent(trimmed);
       const userMsgId = nextMsgId("u");
       const assistantId = nextMsgId("a");
@@ -148,10 +147,9 @@ export function useSendHost(params: SendHostParams): SendHost {
       }
 
       const useResearch = hasDeepResearchTrigger(trimmed);
-      // The one-shot arms (D1 row 14): captured AND cleared at the point the
-      // controller cleared them — after the gate, before the append — so a
-      // keyword-only research send still clears an armed notes mode exactly
-      // as `AiChatPage:2456-2463` did.
+      // The one-shot arms: captured AND cleared after the gate, before the
+      // append — a keyword-only research send still clears an armed notes
+      // mode, as the controller did.
       const armsOptions = armsSendOptions(
         params.arms.researchRef.current,
         params.arms.notesRef.current,
@@ -203,10 +201,9 @@ export function useSendHost(params: SendHostParams): SendHost {
         onToolCapture: params.onToolCapture,
         t: t as unknown as (key: string, params?: Record<string, string | number>) => string,
       });
-      // The history handed to assembly is the PRE-append snapshot: the old
-      // screen passed `messagesRef.current` before React re-rendered
-      // (AiChatPage:2740), so the just-sent turn is appended by the engine
-      // half itself and must not be double-counted here.
+      // The history handed to assembly is the PRE-append snapshot: the just-
+      // sent turn is appended by the engine half itself and must not be
+      // double-counted here.
       const engine: SendEngine = (request, emit, signal) =>
         handleSendStream(
           engineDeps,
@@ -242,8 +239,7 @@ export function useSendHost(params: SendHostParams): SendHost {
       const request = {
         text: modelText,
         history: params.messagesRef.current,
-        // Research or armed notes hand the engine its options (the notes
-        // branch `engineTurn.ts:246-257` was unreachable until this slice).
+        // Research or armed notes hand the engine its options.
         options: armsOptions ?? undefined,
       };
 
@@ -274,12 +270,11 @@ export function useSendHost(params: SendHostParams): SendHost {
             ),
           );
         } else if (result.kind === "failed") {
-          // A backend that failed without a delta still gets honest text;
-          // a ⚠️ delta already streamed is kept as-is. The message is also
-          // MARKED failed (§2.8) with the engine's own reason when one
-          // exists — captured from the engine-half's failure hooks, or a
-          // thrown error's message — and never with a catalogued apology:
-          // an absent reason draws the reasonless honest line instead.
+          // A backend that failed without a delta still gets honest text; a
+          // ⚠️ delta already streamed is kept as-is. The message is MARKED
+          // failed (§2.8) with the engine's own reason when one exists —
+          // never a catalogued apology; an absent reason draws the reasonless
+          // honest line instead.
           finalizeAssistantTurn(finalizeCtx, captured, {
             interrupted: false,
             fallbackText: t("chat.serviceUnreachable"),

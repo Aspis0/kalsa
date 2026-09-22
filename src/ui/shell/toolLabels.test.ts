@@ -1,12 +1,10 @@
 /**
- * The tool-row table (DESIGN.md §2.4).
- *
- * This is the test the module exists for: a name-to-label table is exactly the
- * kind of table that rots silently. A ninth tool in the engine would arrive as
- * an unknown name and be drawn as "Tool: web_find" — honest, but wrong, and
- * nothing would fail to say so. So the table is checked against the registry's
- * OWN list, `ALL_TOOL_NAMES`, in the registry's own order, and the unknown case
- * is checked on its own because it is the case the interface is most likely to
+ * The tool-row table (DESIGN.md §2.4) — the test the module exists for: a
+ * name-to-label table rots silently. A ninth tool would arrive as an unknown
+ * name and be drawn as "Tool: web_find" — honest, but wrong, and nothing would
+ * fail to say so. The table is checked against the registry's OWN list,
+ * `ALL_TOOL_NAMES`, in the registry's own order, and the unknown case is
+ * checked on its own because it is the case the interface is most likely to
  * get wrong.
  */
 import { ALL_TOOL_NAMES } from "../../agent/toolNames";

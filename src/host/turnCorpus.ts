@@ -1,14 +1,14 @@
 /**
- * Per-chat corpus singletons for the send window, lifted from
- * AppShell.tsx:636-826 — module-level Maps that survive remounts, plus the
- * hygiene filter, the warm-index sync, the per-chat reset and the history
- * validator. The compactor state machine inside a send reads these; the
- * conversation delete path calls `resetCompactorChat` (D2 row 19).
+ * Per-chat corpus singletons for the send window: module-level Maps that
+ * survive remounts, plus the hygiene filter, the warm-index sync, the per-chat
+ * reset and the history validator. The compactor state machine inside a send
+ * reads these; the conversation delete path calls `resetCompactorChat`
+ * (D2 row 19).
  *
- * Also the three per-process turn counters (AppShell:656-665): the monotonic
- * web_fetch allowlist sequence, the private-search latch and the
- * calendar-extract skip. They are shared between the tool executor and the
- * engine turn, which is why they live here rather than inside either one.
+ * Also the three per-process turn counters: the monotonic web_fetch
+ * allowlist sequence, the private-search latch and the calendar-extract skip.
+ * They are shared between the tool executor and the engine turn, which is
+ * why they live here rather than inside either one.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -39,14 +39,14 @@ const digestIndexCoveredByChat = new Map<string, number>();
 /** Message-unit count currently in the warm index (for cap / append bookkeeping). */
 const digestIndexCorpusLenByChat = new Map<string, number>();
 /**
- * Cap older-turns corpus fed to the warm RetrieverIndex.
- * Unbounded corpus → linear rebuild cost (~1.3s at 5000 turns desktop).
+ * Cap older-turns corpus fed to the warm RetrieverIndex: an unbounded corpus
+ * means linear rebuild cost (~1.3s at 5000 turns desktop).
  */
 export const MAX_DIGEST_CORPUS_MESSAGES = 400;
 /**
- * Monotonic per-send turn id for the web_fetch allowlist (F5).
- * Keying on message text alone re-used the allowlist when the user re-sent the
- * same text; identical consecutive messages must get a fresh allowlist.
+ * Monotonic per-send turn id for the web_fetch allowlist. Keying on message
+ * text alone re-used the allowlist when the user re-sent the same text;
+ * identical consecutive messages must get a fresh allowlist.
  */
 export let fetchAllowlistTurnSeq = 0;
 /** Turn seq that already ran calendar_agenda or device_info — refuse web_search. */
@@ -111,10 +111,10 @@ export function resetDigestIndex(chatId: string): void {
 }
 
 /**
- * Keep the warm RetrieverIndex in sync with the older corpus under `boundary`.
- * - Same boundary as last sync → reuse index (query-time path).
- * - Boundary advanced (under or over cap) → append delta; dropOldestUnits when over cap.
- * - Boundary shrunk / missing / corpus-identity drift at same boundary → full rebuild.
+ * Keep the warm RetrieverIndex in sync with the older corpus under `boundary`:
+ * same boundary → reuse (query-time path); boundary advanced → append delta,
+ * dropOldestUnits over cap; boundary shrunk / missing / corpus-identity drift
+ * at the same boundary → full rebuild.
  */
 export function syncDigestIndex(
   chatId: string,
@@ -225,11 +225,10 @@ export function validateHistoryMessages(
         (m as { edited?: unknown }).edited === true ? true : undefined;
       const rawEmitted = (m as { modelEmittedText?: unknown }).modelEmittedText;
       // Load applies the save path's own rule (readModelEmittedText):
-      // whitespace-only means absent, everything else is preserved
-      // byte-for-byte. Trimming here destroyed leading whitespace the KV
-      // holds, so the replay diverged at the emission's first token — and
-      // every boot re-saved the trimmed value, so the bytes eroded one
-      // boot at a time.
+      // whitespace-only means absent, everything else preserved byte-for-byte.
+      // Trimming here destroyed leading whitespace the KV holds, so replay
+      // diverged at the emission's first token — and every boot re-saved the
+      // trimmed value, eroding the bytes one boot at a time.
       const modelEmittedText = readModelEmittedText(role, rawEmitted);
       // Provenance travels WITH the string: absent (or corrupt) stays absent
       // and the renderer falls back to its syntactic predicate.

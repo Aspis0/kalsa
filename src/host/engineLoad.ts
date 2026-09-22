@@ -1,12 +1,8 @@
 /**
  * The load gate's evaluation, its refusal report and the once-only fallback
- * picker — lifted from `AppShell.tsx:3891-3984` (evaluate + report) and from
- * inside `ensureEngineForModel` (`AppShell.tsx:4206-4243`, the fallback
- * block, now one function so the ensure body calls it instead of carrying
- * 38 lines). Also this host's copy of the marker store (AppShell:406-407).
- *
- * `evaluateLoadGate` takes no deps: the original `useCallback([])` captured
- * none either — every input is a module service.
+ * picker — plus this host's copy of the marker store. `evaluateLoadGate`
+ * takes no deps: the original captured none either — every input is a
+ * module service.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
@@ -51,7 +47,7 @@ export const loadMarkerStore: LoadMarkerStore = AsyncStorage;
 /**
  * Every field the load path (ensure, gate report, fallback, switch) reads as
  * host state. One object, threaded: the old component spread these across four
- * useCallback dependency arrays and two refs.
+ * dependency arrays and two refs.
  */
 export interface EngineLoadDeps {
   t: TranslateFn;
@@ -78,10 +74,10 @@ export interface EngineLoadDeps {
 }
 
 export async function evaluateLoadGate(model: ModelInfo): Promise<LoadGateVerdict> {
-    // The gate must charge what the load will really do: the context the budget
-    // resolves (bench ?? user ?? catalog, downgraded if it must be) and KV at
-    // the chosen cache profile. loadGateFitModel is that resolution, shared
-    // with gateForModel so the two gates cannot disagree.
+    // The gate must charge what the load will really do: the context the
+    // budget resolves (bench ?? user ?? catalog, downgraded if it must be)
+    // and KV at the chosen cache profile. loadGateFitModel is that
+    // resolution, shared with gateForModel so the two gates cannot disagree.
     const [profile, kvCache, benchNCtx, userNCtx, benchNoRepack, engineOverride] =
       await Promise.all([
         getCachedDeviceProfile(),
@@ -177,8 +173,7 @@ export async function reportLoadRefusal(
       setModelErrorDetail(null);
 }
 
-/** The refusal fallback: one hop to the last good load, else the default.
- *  Lifted from `ensureEngineForModel` (AppShell:4206-4243). */
+/** The refusal fallback: one hop to the last good load, else the default. */
 export async function runLoadFallback(
   deps: EngineLoadDeps,
   model: ModelInfo,
@@ -208,10 +203,10 @@ export async function runLoadFallback(
             // the direct ensure below awaits, and modelIndexRef lags the render.
             modelIndexRef.current = fallbackIndex;
             setModelIndex(fallbackIndex);
-            // Load the fallback directly: the [modelIndex] kick is one-shot per
-            // modelId@generation (claimEagerKick), so a fallback that already
-            // kicked this process would otherwise never load. A duplicate kick
-            // ensure is refused by the chat-gate backstop.
+            // Load the fallback directly: the [modelIndex] kick is one-shot
+            // per modelId@generation (claimEagerKick), so a fallback that
+            // already kicked this process would otherwise never load. A
+            // duplicate kick ensure is refused by the chat-gate backstop.
             const fallbackModel = MODEL_REGISTRY[fallbackIndex];
             void (async () => {
               try {

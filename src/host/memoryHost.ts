@@ -1,11 +1,9 @@
 /**
  * User memory as the send path sees it: the facts snapshot, the enabled
- * mirror and the refresh — lifted from `AppShell.tsx:990-998` (the three
- * refs) and `:2713-2743` (state + refresh + mount refresh).
- *
- * The facts feed the prompt (bound at send, inside the lifted engine half);
- * nothing renders them in this slice — the old `memoryBannerKey` was
- * set-only (PARITY D2 row 18) and is dropped with a report, not revived.
+ * mirror and the refresh. The facts feed the prompt (bound at send, inside
+ * the engine half); nothing renders them in this slice — the old
+ * `memoryBannerKey` was set-only (PARITY D2 row 18) and is dropped with a
+ * report, not revived.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as MemoryStore from "../memory/MemoryStore";
@@ -24,7 +22,7 @@ export function useMemoryHost(): {
   /**
    * Facts actually injected this turn (last-user tail). Captured at send time
    * so the search echo guard still matches them if the user disables memory
-   * mid-turn (lifted comment, AppShell:998-1003).
+   * mid-turn.
    */
   const injectedFactsRef = useRef<string[]>([]);
   const [memoryFacts, setMemoryFacts] = useState<MemoryStore.MemoryFact[]>([]);

@@ -1,15 +1,10 @@
 /**
  * The conversation drawer, wired to the host — extracted from `HostRoot.tsx`
- * (the root may only compose). The JSX and every handler are the root's old
- * ones moved verbatim: close clears the drawer AND the search, the persona row
- * opens the personas overlay, and the model-bar height offsets the strip.
- *
- * It also holds EXPORT now (D1 row 2's share): the strip gave the model pill a
- * 14 dp text column with five controls on 349 dp — 349 - 2*12 - 4*48 - 4*9 =
- * 97 dp for the pill — and the model name is the thing that may shrink, not
- * this. The row is chat-level, the drawer already exists, and the press is the
- * strip's old one: dismiss the keyboard, close the drawer, then the same
- * `shareConversation` the root used to hand the strip.
+ * (the root may only compose). It also holds EXPORT now (D1 row 2's share):
+ * the strip's five controls gave the model pill a 14 dp text column
+ * (349 - 2*12 - 4*48 - 4*9 = 97 dp), and the model name is the thing that
+ * may shrink, not this. The row is chat-level, the drawer already exists,
+ * and the press dismisses the keyboard, closes the drawer, then shares.
  */
 import { Keyboard } from "react-native";
 import { Share } from "lucide-react-native";
@@ -64,8 +59,8 @@ export function HostDrawer({
         ...actions.drawerItems(),
         {
           // The strip's old share button, on a drawer tile: 48 dp floor and
-          // testID come from the row renderer (`DrawerContent.tsx`), the label
-          // is the controller's own `chat.a11yExport` from both catalogues.
+          // testID come from the row renderer; the label is `chat.a11yExport`
+          // from both catalogues.
           id: "export",
           label: t("chat.a11yExport"),
           Icon: Share,

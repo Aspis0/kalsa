@@ -2,16 +2,14 @@
  * The chip's touch box (DESIGN.md §2.5): the painted chip stays the mock's small
  * pill, and the box the finger lands on is a real 48 dp on both axes.
  *
- * Two proofs, because neither one is enough on its own. The arithmetic lives in
- * `shellGeometry.ts` and is asserted against the **literal** 48, so lowering the
- * project's floor does not quietly lower the chip's box with it. The second is a
- * source check, the technique `transcriptNoFetch.test.ts` and
- * `shellLogoAsset.test.ts` already use: read the two files, strip the comments,
- * and fail if the box stops being worn by the chip nodes or stops being bound to
- * the constant. A constant that nothing renders is a decoration, and a rendered
- * box that drifted off the constant is the defect this pair exists to catch.
- * Each predicate is tested against a sample that must fail it, so a check that
- * quietly stopped matching cannot pass as green.
+ * Two proofs, because neither one is enough alone. The arithmetic lives in
+ * `shellGeometry.ts` and is asserted against the **literal** 48, so lowering
+ * the project's floor does not quietly lower the chip's box with it. The second
+ * is a source check: read the two files, strip the comments, and fail if the
+ * box stops being worn by the chip nodes or stops being bound to the constant.
+ * A constant that nothing renders is a decoration; a rendered box that drifted
+ * off the constant is the defect this pair exists to catch. Each predicate is
+ * tested against a sample that must fail it.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -118,7 +116,7 @@ describe("and the component actually wears it", () => {
 
   it("would catch each way of undoing it", () => {
     // A box shrunk to the paint, a paint that grew into the box, and a chip node
-    // that went back to being the painted pill. One sample per predicate.
+    // that went back to being the painted pill — one sample per predicate.
     expect(boxIsTheConstant("minHeight: SOURCE_CHIP_PAINTED_HEIGHT, minWidth: 48")).toBe(false);
     expect(boxIsTheConstant("minHeight: SOURCE_CHIP_TOUCH_BOX")).toBe(false);
     expect(paintIsNotTheBox("minHeight: SOURCE_CHIP_TOUCH_BOX")).toBe(false);

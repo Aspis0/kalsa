@@ -1,27 +1,21 @@
 /**
- * The three claims step 3b makes about its renderer that a screenshot cannot
- * prove and that this jest stack cannot render:
+ * The three claims the renderer makes that a screenshot cannot prove and this
+ * jest stack cannot render:
  *
- * 1. **The table's structure follows the pure decision.** `tableScrollDecision`
- *    is the only thing allowed to decide whether a table scrolls, and when it
- *    says the table does not fit, the inner table is pinned to the decision's own
- *    `requiredWidth`. If the renderer invented its own threshold, the arithmetic
- *    in `transcriptLayout.ts` would be decoration.
- * 2. **A cell never shrinks below the readable minimum.** The cell style's
- *    `minWidth` is `TABLE_MIN_COLUMN_WIDTH` (97 dp of content plus two 10 dp
- *    paddings), which is what makes "a three-column table scrolls instead of
- *    being cut" true on the device rather than only in the constant.
- * 3. **The answer stays in the reading face.** Bold and italic take
- *    SourceSerif4's own semibold and italic, and the code block is mono. Step 1
- *    found the opposite defect in the old type layer — a body whose italic jumped
- *    to another family's serif — and this is where that family jump would come
- *    back. The check also fails on a numeric `fontWeight` in any of these files,
- *    because Android ignores one beside a custom family.
+ * 1. **The table's structure follows the pure decision.**
+ *    `tableScrollDecision` is the only thing allowed to decide whether a
+ *    table scrolls, and the inner table is pinned to its `requiredWidth` —
+ *    a renderer with its own threshold would make the arithmetic decoration.
+ * 2. **A cell never shrinks below the readable minimum.** The cell's
+ *    `minWidth` is `TABLE_MIN_COLUMN_WIDTH` (97 dp plus two 10 dp paddings).
+ * 3. **The answer stays in the reading face.** Bold/italic take SourceSerif4's
+ *    own weights, code is mono — the family jump would come back here. The
+ *    check also fails on a numeric `fontWeight`, which Android ignores beside
+ *    a custom family.
  *
- * A SOURCE check, the technique `transcriptNoFetch.test.ts` and
- * `sourceChipBox.test.ts` already use: read the files, strip the comments, and
- * match the wiring. Every predicate is exercised against a sample that must fail
- * it, so a check that quietly stopped matching cannot pass as green.
+ * A SOURCE check: read the files, strip the comments, match the wiring. Every
+ * predicate is exercised against a sample that must fail it, so a check that
+ * quietly stopped matching cannot pass as green.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -76,17 +70,13 @@ function tableFollowsTheDecision(source: string): boolean {
 }
 
 /**
- * The `TableBlock` function's own text — the parameter list walked first (its
- * destructured `{` closes before the body opens), then the body counted by
- * braces like `styleBody`, so indentation and neighbours cannot matter. Null
- * when the function is gone: a guard whose subject disappeared must fail, not
- * pass.
+ * The `TableBlock` function's own text — the parameter list walked first, then
+ * the body counted by braces like `styleBody`. Null when the function is gone:
+ * a guard whose subject disappeared must fail, not pass.
  *
- * The scoping is the fix for the audit's F1: both regexes used to run over the
- * whole file, so the second was satisfied by the CODE block's
- * `<ScrollView horizontal>` and deleting the table's entire scrolling branch —
- * the exact defect §2.2 forbids, a wide table clipped with its third column
- * unreachable — left the suite 9/9 green.
+ * The scoping fixes the audit's F1: whole-file regexes let the second be
+ * satisfied by the CODE block's `<ScrollView horizontal>` while the table's
+ * entire scrolling branch was deleted — §2.2's forbidden defect, left green.
  */
 function tableBlockSliceOrNull(source: string): string | null {
   const header = source.indexOf("function TableBlock(");
@@ -118,10 +108,9 @@ function tableBlockSliceOrNull(source: string): string | null {
 
 /**
  * The scroll view is built only when the decision says the table does not fit,
- * and BOTH halves are checked inside `TableBlock` itself, so a horizontal
- * `ScrollView` anywhere else in the file cannot answer for the table's. The
- * second regex also refuses to look past this tag's own `>`: `horizontal` has
- * to be an attribute of the table's `ScrollView`, not a word further down.
+ * both halves checked inside `TableBlock` itself, so a horizontal `ScrollView`
+ * elsewhere in the file cannot answer for the table's; `horizontal` must be an
+ * attribute of the table's own tag, not a word further down.
  */
 function scrollViewIsGatedOnTheDecision(source: string): boolean {
   const table = tableBlockSliceOrNull(source);
@@ -191,11 +180,8 @@ describe("the table follows the pure decision (§2.2)", () => {
   });
 
   it("would catch the auditor's own deletion: no scroll view in the table, one elsewhere", () => {
-    // F1 replayed as a sample. The table's scrolling branch is gone — the
-    // defect §2.2 forbids — but the CODE block still carries a horizontal
-    // `<ScrollView>` exactly where the old whole-file regex found it, and the
-    // gate strings and the `requiredWidth` pin are both still in the file, so
-    // only the `TableBlock` scoping can tell the two ScrollViews apart.
+    // F1 replayed as a sample: only the `TableBlock` scoping can tell the two
+    // ScrollViews apart.
     const auditorDeletion =
       "function CodeBlock() { return <ScrollView horizontal>{code}</ScrollView>; } " +
       "function TableBlock({ header }) { " +

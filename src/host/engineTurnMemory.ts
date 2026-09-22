@@ -1,6 +1,5 @@
 /**
- * The turn-end memory extract, lifted from `AppShell.tsx:5443-5666`
- * (inside handleSendStream) as a factory over the turn's closures.
+ * The turn-end memory extract, lifted as a factory over the turn's closures.
  *
  * The turn-end order this preserves is the KV-save effectiveness rule
  * (D2 row 11): (1) `armMemoryExtract` at onDone registers the job so a
@@ -9,13 +8,12 @@
  * save gate and only then does extractMemory run — it checkpoint-restores
  * chat KV and can reuse the just-written .kvs. The 10 s gate timeout is
  * the deadlock backstop: a stranded gate would keep `memoryExtractRef`
- * set and deadlock the next send (AppShell:5550-5553).
+ * set and deadlock the next send.
  *
- * Adaptations from the original (reported): the closure variables
- * `signal` / `text` / `turnFailed` / `assistantFull` / `turnCiswireFlags`
- * arrive as the `turn` accessor object, and the module-local
- * `calendarExtractSkipSeq` comparison goes through turnCorpus's live
- * getters — reads happen at call time in both versions.
+ * Adaptations (reported): the closure variables `signal` / `text` /
+ * `turnFailed` / `assistantFull` / `turnCiswireFlags` arrive as the `turn`
+ * accessor object; the calendar-skip comparison goes through turnCorpus's
+ * live getters — reads happen at call time in both versions.
  */
 import {
   extractMemory,
@@ -62,16 +60,9 @@ export function createMemoryExtract(
           };
 
           /**
-           * Turn-end order (must preserve for KV save effectiveness):
-           *   1) armMemoryExtract at onDone — registers memoryExtractRef so a
-           *      concurrent next send waits, but does NOT yet queue extractMemory
-           *   2) AiChatPage awaits saveEngineSession (FIFO)
-           *   3) afterSessionSave releases the save-gate → extractMemory runs
-           *
-           * extractMemory checkpoint-restores chat KV (EXTRACT_MEMORY_PRESERVE_CHAT_KV).
-           * Save-first still lets extract reuse the just-written .kvs instead of
-           * a second snapshot. Gates: memory enabled, non-empty reply, not
-           * aborted/failed, sendRunId (AiChatPage).
+           * Turn-end order: see the file header — arm registers, the save
+           * runs, the gate releases, then extractMemory runs and can reuse
+           * the just-written .kvs.
            */
           let releaseSaveGate: (() => void) | undefined;
           let extractGateSource = 0;
@@ -156,9 +147,9 @@ export function createMemoryExtract(
             });
             // Cancel = release the gate (source 3) + abort the extraction's own
             // signal. stop/clearChat abort the TURN signal; forwarding it here is
-            // what makes cancellation reach a completion that is already running
-            // (audit 2026-09-10: the old listener released the gate only, and
-            // extractMemory listens on this controller, not on the turn signal).
+            // what makes cancellation reach a completion already running (the
+            // old listener released the gate only, and extractMemory listens on
+            // this controller, not on the turn signal).
             const extractAbort = createExtractAbort({
               outer: turn.signal,
               onCancel: () => {
@@ -167,12 +158,12 @@ export function createMemoryExtract(
               },
             });
             memoryExtractCancelRef.current = extractAbort.cancel;
-            // Safety valve (re-verify finding 1c): if NO path releases the gate
-            // (rapid re-send inside the save window, a skipped save branch, a
-            // Fabric-lane ordering glitch), the extract must still run — a
-            // stranded gate keeps memoryExtractRef set and DEADLOCKS the next
-            // send. Worst case of firing early: the save skips with
-            // kv_not_chat, which is the pre-feature behavior, never a hang.
+            // Safety valve: if NO path releases the gate (rapid re-send inside
+            // the save window, a skipped save branch, a Fabric-lane ordering
+            // glitch), the extract must still run — a stranded gate keeps
+            // memoryExtractRef set and DEADLOCKS the next send. Worst case of
+            // firing early: the save skips with kv_not_chat (the pre-feature
+            // behavior), never a hang.
             const gateTimeoutId = setTimeout(() => {
               if (releaseSaveGate && extractGateSource === 0) extractGateSource = 2;
               releaseSaveGate?.();
@@ -257,7 +248,7 @@ export function createMemoryExtract(
 
             trackMemoryExtractJob(extractJob);
           };
-          // AiChatPage: await saveEngineSession → afterSessionSave() (releases gate).
+          // await saveEngineSession → afterSessionSave() (releases the gate).
           const afterSessionSave = () => {
             const release = releaseSaveGate;
             if (release) {
@@ -265,8 +256,9 @@ export function createMemoryExtract(
               release();
               return;
             }
-            // Fallback if arm ran without a gate (empty/aborted) or ordering glitch:
-            // arm now and release immediately so extract is not silently dropped.
+            // Fallback if arm ran without a gate (empty/aborted) or ordering
+            // glitch: arm now and release immediately so extract is not
+            // silently dropped.
             armMemoryExtract();
             const releaseAfterArm = releaseSaveGate;
             if (releaseAfterArm) {

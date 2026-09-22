@@ -1,13 +1,11 @@
 /**
  * What a regenerate drops, decided before anything is mutated — the pure half
- * of the controller's truncate-and-resend (`editMessage`, `Chat:3329-3465`),
- * which regenerate shares with edit (`editedFlagForResend`'s comment names the
- * sharing; the edit modal itself is deferred, so only this half exists here).
+ * of the controller's truncate-and-resend (the edit modal itself is deferred,
+ * so only this half exists here).
  *
- * The rule, from the controller's own lines (`Chat:3411-3421`): keep the
- * messages BEFORE the target user turn, drop the target user turn and
- * EVERYTHING after it (the assistant answer being replaced and any turns that
- * followed it), then `send` re-appends the same user text with
+ * The rule: keep the messages BEFORE the target user turn, drop the target
+ * user turn and EVERYTHING after it (the assistant answer being replaced and
+ * any turns that followed it), then `send` re-appends the same user text with
  * `edited: false` — so a regenerated bubble is never badged as edited.
  *
  * Returns null when the controller showed `chat.regenFailed` and did nothing:
@@ -32,10 +30,10 @@ export function planRegenerate(
   messages: readonly Message[],
   assistantId: string,
 ): RegenPlan | null {
-  // The controller's `canRegen(role, …)` gate already keeps user bubbles out
-  // of the sheet, and `editMessage` checked its TARGET was a user turn
-  // (`Chat:3405-3409`); this is the same role check on the anchor, so a
-  // mis-targeted id can never truncate history from the wrong side.
+  // `canRegen(role, …)` already keeps user bubbles out of the sheet, and the
+  // old edit path checked its TARGET was a user turn; this is the same role
+  // check on the anchor, so a mis-targeted id can never truncate history from
+  // the wrong side.
   const anchor = messages.find((message) => message.id === assistantId);
   if (!anchor || anchor.role !== "assistant") return null;
   const target = findRegenTarget(messages, assistantId);

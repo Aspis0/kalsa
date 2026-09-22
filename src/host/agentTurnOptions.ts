@@ -1,8 +1,7 @@
 /**
- * The engine turn options: tool schemas + executor — lifted from the
- * `agentOptions` memo at `AppShell.tsx:2110-2346`, converted from
- * `useMemo` to a builder over injected host state (the same fields the old
- * memo captured).
+ * The engine turn options: tool schemas + executor — the old `agentOptions`
+ * memo converted from `useMemo` to a builder over injected host state (the
+ * same fields the old memo captured).
  *
  * Adaptations (reported): the three module turn-seq counters go through
  * `turnCorpus`'s accessors (live reads at call time, same as before);
@@ -143,12 +142,12 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
             signal: opts?.signal,
           }),
         readTxt: async (doc: LibraryDoc, opts) => {
-          // Uncancellable host read: check abort BEFORE starting and AFTER settle
-          // so wrapper abort rejects the caller while strategy still holds the latch.
+          // Uncancellable host read: check abort BEFORE starting and AFTER
+          // settle so the wrapper rejects the caller while the strategy still
+          // holds the latch (expo-file-system has no AbortSignal).
           if (opts?.signal?.aborted) {
             throw new Error("document_chat aborted");
           }
-          // expo-file-system read has no AbortSignal; honor abort before/after.
           const raw = await FileSystem.readAsStringAsync(doc.fileUri);
           if (opts?.signal?.aborted) {
             throw new Error("document_chat aborted");
@@ -166,7 +165,7 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
         },
         getSemanticIndexFor: (docId: string) =>
           docSemanticByIdRef.current.get(docId) ?? null,
-        // FIX D: lazy restore from durable sidecar on first hybrid query.
+        // Lazy restore from durable sidecar on first hybrid query.
         loadSemanticIndexFor: (docId: string) => ensureSemanticIndexLoaded({ documentLibraryRef }, docId),
         getDenseUnavailableReason: (docId: string) => {
           // Process-wide hung embedder wins over per-doc reasons so hybrid
@@ -175,7 +174,7 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
           return docDenseReasonByIdRef.current.get(docId) ?? null;
         },
         isEmbedderDownloaded: () => embedderDownloadedRef.current,
-        // FIX 6: thread AbortSignal into embedQuery (native abort gate).
+        // Thread AbortSignal into embedQuery (native abort gate).
         embedQuery: (text: string, signal?: AbortSignal) =>
           thermalHardGateRef.current
             ? Promise.resolve(null)
@@ -183,7 +182,6 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
       },
       { locale },
     );
-    // ensureSemanticIndexLoaded is stable (useCallback []); captured above.
 
     // New tool checklist and ordering live in src/agent/toolRegistry.ts.
     const tools = assembleTools({

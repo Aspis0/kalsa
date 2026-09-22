@@ -3,15 +3,10 @@
  * marker's height rule, the clearance under the last item, and the decision it
  * takes to make a table scroll.
  *
- * Pure, no React, and testable in the `node` jest stack (DESIGN.md, "proof
- * regime": there is no render harness, so every size the layout depends on is
- * written here and `Transcript.tsx` only places the boxes these functions
- * return).
- *
- * It sits ON `shellGeometry.ts` on purpose. The transcript band is a band the
- * shell owns, and the height that decides the day marker is exactly the height
- * the shell computed; re-deriving it here would let the two drift apart while
- * both tests stayed green.
+ * Pure, no React, testable in the node jest stack (DESIGN.md, "proof regime").
+ * It sits ON `shellGeometry.ts` on purpose: the band is the shell's, and the
+ * height that decides the day marker is exactly the height the shell computed —
+ * re-deriving it here would let the two drift while both tests stayed green.
  */
 import { measure } from "../../theme/design";
 import { shellGeometry, type Insets } from "./shellGeometry";
@@ -19,11 +14,9 @@ import { shellGeometry, type Insets } from "./shellGeometry";
 /** A turn is the user's capsule plus its own answer. Inside it: 6 dp. */
 export const USER_TO_ANSWER_GAP = 6;
 /**
- * The same gap when the answer opens with the cloud, and it is a CHOSEN 12, not
- * a derived number: the layout's arithmetic produces only the bare answer's 6.
- * The cloud is a filled white blob with two puffs on its top edge, so at 6 dp it
- * reads as a bubble hanging off the green capsule; 12 separates the two shapes
- * without inventing a new rhythm step. Written here so a reviewer can move it.
+ * The same gap when the answer opens with the cloud: a CHOSEN 12 — the
+ * arithmetic only produces the bare answer's 6, and at 6 the white blob reads
+ * as a bubble hanging off the green capsule.
  */
 export const USER_TO_CLOUD_GAP = 12;
 /** Between two turns: 26 dp. Grouping is by proximity; a separator between
@@ -45,53 +38,30 @@ export const CAPSULE_MIN_WIDTH = 48;
  */
 export const DAY_MARKER_HEIGHT = 42;
 /**
- * Below this transcript height the marker is dropped entirely.
- *
- * 320 is a CHOSEN floor, not a derived one, and it is written that way on
- * purpose so a reviewer can move it: all the arithmetic fixes is the band the
- * marker has to sit inside. The marker costs 42 dp, a one-line turn about 104
- * (a capsule, a two-line answer and their 6 dp), the gap above it 26 — so the
- * rule this number encodes is that the marker may not eat more than roughly a
- * seventh of the band (42 x 7.6 = 320), past which it pushes a whole turn out of
- * view to say nothing. The two measured cases sit on opposite sides of it:
- * 349x621 leaves 443 dp and keeps the marker; 349x325 (the keyboard open)
- * leaves 195 and drops it.
+ * Below this transcript height the marker is dropped entirely. 320 is a
+ * CHOSEN floor (labelled so a reviewer can move it): it encodes that the marker
+ * may not eat more than roughly a seventh of the band — 42 marker x 7.6 = 320.
+ * The measured cases straddle it: 443 dp keeps the marker, 195 (keyboard) drops it.
  */
 export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
 
 /**
- * The gap under the transcript's last item, in dp. The transcript scrolls under
- * the composer band, so without it the newest element sits on the band's bottom
- * edge.
- *
- * 24 is a CHOSEN number, and it is labelled the way
- * `DAY_MARKER_MIN_TRANSCRIPT_HEIGHT` is so a reviewer can move it: nothing in
- * the arithmetic derives it. The number it replaced was not chosen either — it
- * was `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`, 96 dp, on the argument that the
- * tallest thing that can be last must fit inside the gap. **That argument is
- * wrong and the constant is gone with it.** The cloud does not have to FIT in
- * the gap: it has to be visible and scrollable, and when its disclosure opens
- * the content grows and the pin follows the content. Sizing a gap from one
- * element's collapsed height charged every band for that element: on the Jelly's
- * keyboard band (171 dp: 349x621 with a 296 dp IME) the old function shrank it
- * to 51 dp and still spent 30 % of the band on it, and the clearance read as a
- * hole under the last item rather than as a gap under it.
- *
- * 24 dp is about one and a half answer lines at the reading size: enough that
- * the clearance reads as a clearance rather than as the last line sitting on the
- * band's edge, and small enough that the last item is never what pays for it.
- * It is NOT a function of the cloud: `thoughtMotion.ts` still owns that height
- * for the component that draws the cloud, and `transcript` no longer reads it.
+ * The gap under the transcript's last item, in dp: the transcript scrolls under
+ * the composer band, so without it the newest element sits on that band's edge.
+ * 24 is CHOSEN, not derived — it replaced `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`,
+ * which sized the gap from the cloud's collapsed height: wrong, because the cloud
+ * need not FIT in the gap, only be visible and scrollable, and one element's
+ * height charged every band (the 171 dp keyboard band spent 30 % of itself on
+ * it). It is NOT a function of the cloud: `thoughtMotion` no longer feeds the
+ * transcript, and a test holds that.
  */
 export const TRANSCRIPT_LAST_ITEM_GAP = 24;
 
 /**
- * The clearance for a band of this height. A gap, not a share of the band: every
- * band that can hold it gets the same 24 dp — the keyboard-short one included —
- * so the last item is never pushed out by a number derived from something else.
- * It is capped by the band and floored at 0, so a degenerate band yields a
- * smaller gap instead of a negative padding the layout would have to defend
- * against, and the function stays usable at any height.
+ * The clearance for a band of this height: ONE gap, the same 24 dp at every band
+ * that can hold it (the keyboard-short one included), never a share of the band.
+ * Capped by the band and floored at 0, so a degenerate band yields a smaller
+ * gap instead of a negative padding.
  */
 export function transcriptBottomPadding(availableHeight: number): number {
   const band = Number.isFinite(availableHeight) ? Math.max(0, availableHeight) : 0;
@@ -141,8 +111,7 @@ export function isSameDay(a: number, b: number): boolean {
 }
 
 /**
- * The marker is dropped when the band is short. `availableHeight` is the
- * transcript band, the same number `transcriptLayout` reports.
+ * The marker is dropped when the band is short.
  */
 export function showsDayMarker(availableHeight: number): boolean {
   return availableHeight >= DAY_MARKER_MIN_TRANSCRIPT_HEIGHT;
@@ -150,8 +119,7 @@ export function showsDayMarker(availableHeight: number): boolean {
 
 /**
  * True when this message opens a new day AND the band can afford the marker.
- * `null` previous means the transcript's first message, which needs none: the
- * reader already knows it is today or the top of what they opened.
+ * `null` previous means the transcript's first message, which needs none.
  */
 export function shouldShowDayMarker(
   previousCreatedAt: number | null,
@@ -164,10 +132,9 @@ export function shouldShowDayMarker(
 }
 
 /**
- * The gap above an item, from the item before it. A user turn and its own
- * answer are one turn and sit close together; everything else is 26 dp. The
- * first item has no gap above it. `opensWithCloud` is the caller saying the
- * answer starts with the thinking cloud, which takes the larger chosen gap.
+ * The gap above an item: a user turn and its own answer sit close together,
+ * everything else is TURN_GAP; the first item has none. `opensWithCloud` is the
+ * caller saying the answer starts with the thinking cloud (the larger gap).
  */
 export function rhythmGap(
   previous: TranscriptRole | null,
@@ -231,10 +198,8 @@ export type TableScrollDecision = {
 };
 
 /**
- * Step 3b consumes this; step 3 does not render a table. The decision is a pure
- * function of the column count and the width the table was given, so the
- * "three columns at 349 dp scroll" claim is a property of a function rather
- * than of a stylesheet someone has to read.
+ * A pure function of column count and given width, so "three columns at 349 dp
+ * scroll" is a property of a function rather than of a stylesheet to read.
  */
 export function tableScrollDecision(columns: number, availableWidth: number): TableScrollDecision {
   const count = Number.isFinite(columns) ? Math.max(0, Math.floor(columns)) : 0;

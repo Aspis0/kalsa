@@ -2,20 +2,19 @@
  * The logo's asset, and the fact that the STRIP no longer draws it.
  *
  * BEFORE this slice `Shell.tsx` `require`d `assets/icon.png` and painted it as
- * the pill's 28 dp mark; this file pinned that require (path exists, file is a
- * real PNG, `source={LOGO}` in the JSX) because a typo would not fail the node
- * stack — it would only show a blank disc on device. The device capture then
- * measured what the mark COST: 28 dp of a 154 dp pill while the model's own
- * name truncated to `LFM2.5 …`, so the mark left the strip — the name is the
- * information and the mark was not.
+ * the pill's 28 dp mark; this file pinned that require (path exists, real PNG,
+ * `source={LOGO}` in the JSX) because a typo would not fail the node stack —
+ * only show a blank disc on device. The capture then measured what the mark
+ * COST (28 dp of a 154 dp pill while the name truncated to `LFM2.5 …`), so the
+ * mark left the strip: the name is the information, the mark was not.
  *
- * The asset itself did not go anywhere: it is still one of the three assets the
- * rebuild keeps (DESIGN.md §1.2) and `app.config.js` still ships it as the
- * launcher icon. So the pin MOVED with it — from Shell's `require` to the
- * launcher's config line — and the strip's half of the old contract inverted:
- * Shell.tsx must now require no raster and draw no mark, or the name loses its
- * column again. What the column must hold is measured in
- * `stripTextBudget.test.ts`; this file holds the picture.
+ * The asset did not go anywhere — still one of the three assets the rebuild
+ * keeps (DESIGN.md §1.2), still `app.config.js`'s launcher icon. So the pin
+ * MOVED with it — from Shell's `require` to the launcher's config line — and
+ * the strip's half of the old contract inverted: Shell.tsx must require no
+ * raster and draw no mark, or the name loses its column again. What the column
+ * must hold is measured in `stripTextBudget.test.ts`; this file holds the
+ * picture.
  */
 import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
@@ -49,10 +48,8 @@ describe("the strip requires no raster — the name owns the pill", () => {
   });
 
   it("draws no <Image> and no mark or where-dot style anywhere in the shell", () => {
-    // BEFORE this asserted the opposite half: `source={LOGO}` inside
-    // `styles.markImage`, because `mark` had been an empty accent disc. The
-    // empty disc and the ellipsised name are the same defect — a picture
-    // eating a string's room — so the assertion inverts rather than goes.
+    // The assertion INVERTS rather than goes: the empty disc and the ellipsised
+    // name are the same defect — a picture eating a string's room.
     expect(shell).not.toContain("<Image");
     expect(shell).not.toMatch(/styles\.(mark|markImage|whereDot)/);
     const styles = readFileSync(SHELL_STYLES_PATH, "utf8");

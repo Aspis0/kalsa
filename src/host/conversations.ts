@@ -2,20 +2,17 @@
  * Conversation-list operations for the new host: pure functions over an
  * index state, plus store-backed operations over an injected index store.
  *
- * Semantics re-expressed from AppShell: switch = setActive with unknown
- * ids a no-op (:2371); create = fresh empty meta activated, but appended
- * instead of recency-sorted — display order is derived at render by
- * filterConversations and re-derived on load by parseConversationsState,
- * so the stored array no longer needs (or may take) a sort on every write;
- * delete = survivor or none, and the index is written BEFORE the messages
- * key is removed (:2477 vs :2486) — a crash may orphan a key, never leave
- * a row pointing at a wiped one; touch = in-place update of the ACTIVE
- * meta (:2530-2544) with NO reordering.
+ * Semantics re-expressed from the old controller: switch = setActive, unknown
+ * ids a no-op; create = fresh empty meta activated, appended instead of
+ * recency-sorted (display order is derived at render and on load, so the
+ * stored array need not sort on every write); delete = survivor or none, and
+ * the index is written BEFORE the messages key is removed — a crash may
+ * orphan a key, never leave a row pointing at a wiped one; touch = in-place
+ * update of the ACTIVE meta with NO reordering.
  *
  * The epoch bump that must precede an ACTIVE conversation's key deletion
  * lives in historyWrite.bumpThenDeleteKey; the host wraps this module's
- * store.deleteMessages with it (AppShell bumps only when deletingActive,
- * :2505-2506).
+ * store.deleteMessages with it.
  */
 import {
   type ConversationMeta,
@@ -92,9 +89,8 @@ export function createConversation(
 
 /**
  * First non-active conversation `isOccupied` reports empty — the "New chat"
- * scan (AppShell:2427-2441): reuse an idle thread instead of growing the
- * index with empty rows. The active conversation itself is never a
- * candidate.
+ * scan: reuse an idle thread instead of growing the index with empty rows.
+ * The active conversation itself is never a candidate.
  */
 export async function findIdleConversation(
   state: ConversationsState,

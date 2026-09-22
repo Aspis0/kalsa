@@ -1,8 +1,8 @@
 /**
- * The shell's stylesheet, out of `Shell.tsx` so the component stays readable and
- * under the file-size rule. It is a MOVE, not a redesign: every value here is
- * the one the component carried when this file was split out, and the arithmetic
- * behind the numbers still lives in `shellGeometry.ts`.
+ * The shell's stylesheet, out of `Shell.tsx` so the component stays readable
+ * and under the file-size rule. A MOVE, not a redesign: every value is the one
+ * the component carried when this file split out; the arithmetic behind the
+ * numbers lives in `shellGeometry.ts`.
  */
 import { StyleSheet } from "react-native";
 
@@ -49,11 +49,9 @@ export function createShellStyles(colors: DesignColors) {
     },
     pill: {
       // The name owns the column: padding and ONE gap are the only chrome the
-      // pill spends outside it (`shellGeometry.stripPillTextColumn` computes
-      // what is left, and `stripTextBudget.test.ts` holds the real strings
-      // against it). The mark and the where-dot styles that used to live below
-      // are gone with the pictures they drew — see the pill's comment in
-      // `Shell.tsx`.
+      // pill spends outside it (`stripPillTextColumn` computes what is left,
+      // `stripTextBudget.test.ts` holds the real strings against it). The mark
+      // and where-dot styles are gone with the pictures they drew.
       alignItems: "center",
       backgroundColor: colors.surface,
       borderRadius: radius.pill,
@@ -78,9 +76,8 @@ export function createShellStyles(colors: DesignColors) {
     },
     where: {
       // One line under the name, no dot in front of it: the 6+4 dp the dot
-      // spent came out of THIS line's box, and the Italian catalogue value
-      // ("Su questo telefono", 108 dp at 12 dp Inter) needs every dp of the
-      // column the mark's removal returned.
+      // spent came out of THIS line's box, and the Italian value
+      // ("Su questo telefono", 108 dp at 12 dp Inter) needs every dp back.
       color: colors.silence,
       fontFamily: families.sansMedium,
       fontSize: type.meta.fontSize,

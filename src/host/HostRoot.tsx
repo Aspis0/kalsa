@@ -1,17 +1,13 @@
 /**
  * The new root: the honest essential loop — real conversations behind the
  * owner's shell, a real send through the lifted engine half, the drawer,
- * the overlay union, the notice toast.
- *
- * Everything under `src/host` is either lifted from the two controller
- * files (with the adaptation named at the lift) or composed on slice 1's
- * pinned seams. `App.tsx` renders this behind `NEW_SHELL`; the flag and old
- * branch are TEMPORARY, so `AppShell` still boots as the controller until
- * `docs/PARITY.md` says the rest is reproduced.
+ * the overlay union, the notice toast. `App.tsx` renders this behind
+ * `NEW_SHELL`; the old branch is TEMPORARY, so `AppShell` still boots as the
+ * controller until `docs/PARITY.md` says the rest is reproduced.
  *
  * The root may only COMPOSE: state it owns, hooks it calls, children it
- * arranges (`src/host/fileSize.test.ts` pins the line budget): strip/composer
- * are `HostChatSurface`, the drawer `HostDrawer`, overlays+notice `HostFurniture`.
+ * arranges (fileSize.test pins the line budget): strip/composer are
+ * `HostChatSurface`, the drawer `HostDrawer`, overlays+notice `HostFurniture`.
  */
 import { useMemo, useState, useCallback } from "react";
 import { View } from "react-native";
@@ -50,7 +46,7 @@ export function HostRoot() {
   // ── Host-owned engine-turn state (the names the lifted halves read) ──
   // The ref cluster and the thermal gate live in `turnRefs.ts` — the seam cut
   // so the Web switch, the composer arms and the welcome wiring could land
-  // without the root growing (the root may only compose; fileSize ratchet).
+  // without the root growing past its ratchet (the root may only compose).
   const { thermalHardGated, touchedRef, refs: turnRefs } = useHostTurnRefs();
 
   const [streaming, setStreaming] = useState(false);
@@ -69,12 +65,12 @@ export function HostRoot() {
   const library = useLibraryHost(t);
   const conv = useConversationHost();
 
-  const { agentOptions, agentOptionsRef, modelHost, turnDeps } = useHostEngine({
+  const { agentOptions, modelHost, turnDeps } = useHostEngine({
     t,
     locale,
     thermalHardGated,
     setStreaming,
-    // The thirteen turn refs, from the seam module (was thirteen lines here).
+    // The thirteen turn refs, from the seam module.
     ...turnRefs,
     conversationsRef: conv.conversationsRef,
     flags,
@@ -86,7 +82,7 @@ export function HostRoot() {
   const handleConversationEnter = useCallback(() => {
     setDraft("");
     setToolsById(new Map());
-    // Old `AiChatPage:1894-1897`: entering a conversation drops both arms.
+    // Entering a conversation drops both arms.
     arms.clear();
   }, []);
   const onTouched = useCallback(
@@ -223,8 +219,8 @@ export function HostRoot() {
         personas={personas}
         setActiveOverlay={setActiveOverlay}
         // Export moved here from the strip: five 349 dp controls left the model
-        // pill a 14 dp text column (`shellGeometry.ts`), and a chat-level action
-        // is what a drawer is for. Same `shareConversation`, same messages.
+        // pill a 14 dp text column, and a chat-level action is what a drawer is
+        // for. Same `shareConversation`, same messages.
         onExportPress={() => shareConversation(history.messages, t)}
       />
 

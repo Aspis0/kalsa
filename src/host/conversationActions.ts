@@ -1,15 +1,14 @@
 /**
  * Conversation actions — the ordering-critical set the parity doc marks
- * D2 row 13 — lifted from `AppShell.tsx:2371-2624`: switch (flush before
- * bind, UI-first so the session stem stays on the chat being left), new
- * (idle-thread reuse), delete (index before key; the ACTIVE key delete runs
- * behind `bumpEpoch`, injected here), touch, the confirm dialog and the two
- * drawer item builders.
+ * D2 row 13: switch (flush before bind, UI-first so the session stem stays
+ * on the chat being left), new (idle-thread reuse), delete (index before
+ * key; the ACTIVE key delete runs behind `bumpEpoch`, injected here), touch,
+ * the confirm dialog and the two drawer item builders.
  *
  * Adaptations (reported): the parent↔child flush/empty/epoch ref slots
- * become direct calls (`flushPartial` / `isActiveChatEmpty` / `bumpPersistEpoch`)
- * — one root needs no registration dance; the `useCallback`/`useMemo` wrappers
- * become plain functions whose arguments are the values the memo closed over.
+ * become direct calls (`flushPartial` / `isActiveChatEmpty` /
+ * `bumpPersistEpoch`) — one root needs no registration dance; the
+ * `useCallback`/`useMemo` wrappers become plain functions.
  */
 import { Alert, Keyboard } from "react-native";
 import {
@@ -52,11 +51,11 @@ export interface ConversationActionCtx {
   applyConversations: (next: ConversationsState) => void;
   bindActiveConversation: (id: string) => void;
   clearChatSearch: () => void;
-  /** Flush the active thread's last write (the old `persistFlushRef`). */
+  /** Flush the active thread's last write. */
   flushPartial: () => void;
-  /** True when the active chat is empty (the old `isActiveChatEmptyRef`). */
+  /** True when the active chat is empty. */
   isActiveChatEmpty: () => boolean;
-  /** Bump the history epoch BEFORE an active key delete (old `bumpPersistEpochRef`). */
+  /** Bump the history epoch BEFORE an active key delete. */
   bumpPersistEpoch: () => void;
   sendingInFlightRef: { current: boolean };
   setDrawerOpen: (open: boolean) => void;

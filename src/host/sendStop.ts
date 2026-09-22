@@ -1,15 +1,13 @@
 /**
- * Stop: abort + the 3 s watchdog — the lifted body of
- * `AiChatPage.tsx:3141-3203` over the turn fence.
+ * Stop: abort + the 3 s watchdog, over the turn fence.
  *
  * The watchdog exists because a native completion may never settle after
- * abort: at 3 s the UI unlocks for THAT run only. The order is the old
- * one (comment AiChatPage:3157-3160): retire the turn FIRST so the engine's
- * late finally no-ops every fence gate, then act exactly once as the new
- * owner — mark the streaming assistants interrupted (dropping empty
- * placeholders), persist in lockstep, then release the composer locks.
- * UI unlock while the engine FIFO is still wedged is intentional (old
- * comment AiChatPage:3196-3199).
+ * abort: at 3 s the UI unlocks for THAT run only. The order: retire the turn
+ * FIRST so the engine's late finally no-ops every fence gate, then act
+ * exactly once as the new owner — mark the streaming assistants interrupted
+ * (dropping empty placeholders), persist in lockstep, then release the
+ * composer locks. UI unlock while the engine FIFO is still wedged is
+ * intentional.
  */
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
 import type { Message } from "./hostMessage";
@@ -47,7 +45,7 @@ export function handleStop(deps: StopDeps): void {
   deps.stopRequestedRef.current = true;
   // If native completion never settles after abort, unlock the composer
   // after 3s for the same run (mirrors the clear/switch ordering so a late
-  // finally no-ops its fence gates and cannot resurrect interrupted state).
+  // finally no-ops its fence gates).
   if (deps.stopWatchdogRef.current != null) {
     clearTimeout(deps.stopWatchdogRef.current);
     deps.stopWatchdogRef.current = null;

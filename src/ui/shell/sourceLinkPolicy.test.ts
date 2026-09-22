@@ -5,9 +5,9 @@
  * A policy, so a test: the rule the desktop states is "no favicons and no
  * previews", and its consequence — which addresses may leave the app on a tap —
  * is decided here, by a pure function, rather than by a component this stack
- * cannot render. The host half of the rule is the interesting half: the old UI
- * asked only `isSafeHttpUrl`, which would have made the user's own Kalsa Brain
- * box, or a `localhost:8080` dev server, a link.
+ * cannot render. The host half is the interesting half: the old UI asked only
+ * `isSafeHttpUrl`, which would have made the user's own Kalsa Brain box, or a
+ * `localhost:8080` dev server, a link.
  */
 import {
   hostOf,

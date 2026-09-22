@@ -1,54 +1,29 @@
 /**
  * Where the transcript sits: the pin state, and nothing else.
  *
- * The owner chose bottom-anchoring (2026-09-21) knowing the three failures it is
- * known for, and asked for it to be made to work rather than merely chosen. All
- * three of those failures are behavioural, so a screenshot cannot prove any of
- * them, and all three are decided here:
+ * Bottom-anchoring is known for three failures; all three are decided here,
+ * because all three are behavioural and a screenshot cannot prove any:
  *
- *  1. **whose is the last message** -> while pinned the view always shows the
- *     end, and the view follows an append and a growth; the clearance that keeps
- *     the composer band off the last line belongs to `transcriptLayout.ts`
- *     (`TRANSCRIPT_LAST_ITEM_GAP`, one chosen gap at every band), because it is
- *     a layout fact rather than a scroll one, and this module moves offsets and
- *     nothing else;
- *  2. **the answer writing above itself and then below** -> that failure starts
- *     as a rendering rule, not a scroll rule, and `duplicateMessageIds` is the
- *     checkable half of it: a list holding the same answer twice is how it begins;
- *  3. **the view fighting the reader** -> one number decides the pin in every
- *     cause, so an upward move past the threshold unpins and nothing moves while
- *     unpinned.
+ *  1. whose is the last message -> while pinned the view shows the end and
+ *     follows an append and a growth; the clearance under the last line belongs
+ *     to `transcriptLayout.ts` (a layout fact, not a scroll one) and this
+ *     module moves offsets and nothing else;
+ *  2. the answer writing above itself then below -> starts as a rendering rule:
+ *     `duplicateMessageIds` is the checkable half, a list holding the same
+ *     answer twice is how it begins;
+ *  3. the view fighting the reader -> one number decides the pin in every
+ *     cause, so an upward move past the threshold unpins and nothing moves
+ *     while unpinned.
  *
- * And the rule that keeps this coherent with the desktop app: the transcript
- * grows from the top while it fits and sticks to the bottom once it overflows. A
- * short conversation has an end offset of zero, which is the top — so both
- * statements are the same function rather than two behaviours to choose between.
- *
- * And one more fact that decides the FIRST placement: whether there is anything
- * to be pinned to at all. `messageCount === 0` is not a short conversation — it
- * is the welcome block, ~607 dp of content to read DOWNWARDS in a ~357 dp band.
- * Parking that block at its end on first layout put the reader 250 dp in: the
- * hour greeting sat above the viewport unpainted, the plate showed as a sliver,
- * and the fourth suggestion card was cut to a ghost under the edge fade (device
- * capture `host3-firstopen.png`, measured there). So an empty transcript opens
- * at its START, stays armed while it is shown (the first append follows to the
- * end of the conversation it begins), and no resize of the block moves the
- * reader. All of it decided here; the view only reports the message count.
- *
- * One fact more than the message count, because "first layout" is a property
- * of the CONVERSATION and not of the event. React Native's `onLayout` fires
- * for every re-layout of the band, so opening the keyboard — top edge 116 →
- * 105, band down to 130 dp — presented itself as `first-layout`, and the guard
- * above answered it with `scrollTo: 0`: a reader sitting at offset 338 was
- * thrown back to the top of the block (device capture, this slice). The view
- * cannot tell the two apart either — the event is identical — so it reports
- * `placedBefore` beside the cause, exactly as it reports `messageCount`, and
- * THIS module tells them apart: the FIRST placement of a conversation may take
- * the reader to the block's top (or a conversation's end), and a later layout
- * of the same conversation may not move a reader who has scrolled, messages or
- * no messages. Not a special case but the same rule one fact wider: first
- * layout is the one placement that does not answer to where the view already
- * is, and everything after it does.
+ * The desktop rule and this module are one function: the transcript grows from
+ * the top while it fits and sticks to the bottom once it overflows — a short
+ * conversation's end offset is zero, the top. An empty transcript is the
+ * welcome block, not a short conversation: it opens at its START, stays armed
+ * while shown (the first append follows to the end it begins), and no resize
+ * moves the reader. And "first layout" is a property of the CONVERSATION, not
+ * the event: React Native's `onLayout` fires for every re-layout, so the view
+ * reports `placedBefore` beside the cause and THIS module tells the two apart
+ * (see the field's own comment).
  */
 
 /**
@@ -58,19 +33,14 @@
 export const PIN_THRESHOLD_DP = 10;
 
 /**
- * How long after issuing a programmatic scroll the view ignores `user-scroll`
- * events.
+ * How long after a programmatic scroll the view ignores `user-scroll` events.
  *
- * A programmatic `scrollTo` emits scroll events of its own in React Native, so
- * following the end — or placing the view at the end on first layout — fires
- * events that read as "the reader scrolled away". Obeying them unpins the
- * transcript while it is still moving, and the run can end parked somewhere
- * other than the end, showing the bottom clearance and no content.
- *
- * 400 ms, chosen to outlast the longest scroll animation the design names: the
- * sheet's 300 ms (DESIGN.md §2.11). `transcriptScroll.test.ts` asserts that
- * relation, so shortening a motion value cannot silently turn a programmatic
- * scroll into an opinion of the reader's. The value is a grace, not a pin: the
+ * React Native's `scrollTo` emits scroll events of its own; obeying them
+ * unpins the transcript while it is still moving and the run can end parked
+ * away from the end. 400 ms outlasts the design's longest scroll animation
+ * (the sheet's 300 ms, DESIGN.md §2.11 — `transcriptScroll.test.ts` asserts
+ * the relation, so shortening a motion value cannot silently turn a
+ * programmatic scroll into the reader's opinion). A grace, not a pin: the
  * events inside the window are ignored, not obeyed and not re-pinned.
  */
 export const PROGRAMMATIC_SCROLL_GRACE_MS = 400;
@@ -84,11 +54,9 @@ export type ScrollCause =
   | "user-scroll"
   /** The reader asked to return to the end. */
   | "jump-to-end"
-  /** Nothing has been placed yet: the band knows its size for the first time.
-   *  Which of the two it IS — that first time, or a later layout of the same
-   *  conversation (keyboard, insets, rotation) — is not in the event: the same
-   *  `onLayout` fires for both. The view reports it as `placedBefore`; the
-   *  machine decides what it means, below. */
+  /** Nothing has been placed yet. Which of the two it IS — that first time, or
+   *  a later layout of the same conversation — is not in the event; the view
+   *  reports it as `placedBefore`, and the machine decides, below. */
   | "first-layout"
   /** The band changed size under a placed view: the keyboard opening or closing. */
   | "resize";
@@ -100,24 +68,15 @@ export type ScrollInput = {
   offsetY: number;
   /** Whether the view was pinned **before** this event. */
   pinned: boolean;
-  /**
-   * How many messages the transcript currently holds — the one fact first
-   * layout needs to tell a conversation (opens at its end) from an empty
-   * conversation wearing the welcome block (opens at its first line). The view
-   * reports it; the decision stays in this module.
-   */
+  /** Messages held — the one fact that tells a conversation (opens at its end)
+   *  from an empty one wearing the welcome block (opens at its first line). */
   messageCount: number;
   /**
-   * Whether the band has already placed the view ONCE in this conversation —
-   * the first-layout-done fact `onLayout` cannot carry, because a keyboard
-   * re-layout presents itself as exactly the same event.
-   *
-   * Reported by the view (a ref it sets after the band's first layout), decided
-   * on here: `cause: "first-layout"` with `false` is a genuine first placement
-   * and may choose the opening offset; with `true` the same event is a
-   * RE-layout of a placed view and is handled as `resize` — the reader's
-   * position is then the only thing that matters. Like `messageCount` it is a
-   * fact, not a rule, so the rule cannot fork per call site.
+   * Whether the band has already placed the view ONCE — the first-layout-done
+   * fact `onLayout` cannot carry, because a keyboard re-layout is the same
+   * event. Reported by the view, decided on here: `first-layout` with `false`
+   * is a genuine first placement; with `true` it is a re-layout and folds into
+   * `resize`. A fact, not a rule, so the rule cannot fork per call site.
    */
   placedBefore: boolean;
 };
@@ -141,22 +100,17 @@ function distanceFromEnd(input: ScrollInput): number {
 export function transcriptScroll(input: ScrollInput): ScrollDecision {
   const end = endOffset(input.contentHeight, input.viewportHeight);
 
-  // One event, two meanings, settled once at the top so no branch below has to
-  // know about it: `first-layout` is a first placement only until the band has
-  // laid out once. From there a re-layout is what it is — a resize under a
-  // placed view — with both of its halves already written: follow the end while
-  // pinned, move nothing while not.
+  // Settled once at the top so no branch below has to know: `first-layout` is
+  // a first placement only until the band has laid out once; from there it is
+  // a resize under a placed view, whose halves are already written.
   const cause: ScrollCause =
     input.cause === "first-layout" && input.placedBefore ? "resize" : input.cause;
 
-  // No messages: there is no end to be pinned to, so every rule below that
-  // reads the pin from the distance to the end would be reading the welcome
-  // block's bottom as if it were a conversation's. The empty state is decided
-  // in this one guard: the block opens at its first line, the pin stays armed
-  // (a reader scrolling the block never unpins, so the first append follows to
-  // the end of the conversation it starts — never parked at the top of a
-  // conversation that has just grown), a growing or resizing block never moves
-  // the reader, and there is no end for a jump control to offer.
+  // No messages: no end to pin to, so every rule below reading the pin from
+  // the distance to the end would read the welcome block's bottom as a
+  // conversation's. The whole empty state is this one guard: the block opens
+  // at its first line, stays armed (the first append follows to the end it
+  // begins), never moves the reader on growth or resize, and offers no jump.
   if (input.messageCount === 0) {
     switch (cause) {
       case "first-layout":
@@ -173,39 +127,35 @@ export function transcriptScroll(input: ScrollInput): ScrollDecision {
 
   switch (cause) {
     case "user-scroll": {
-      // The reader's own position is the only thing the pin can honestly be read
-      // from, and never move the view for them.
+      // The reader's own position is the only honest source for the pin, and
+      // never move the view for them.
       const pinned = distanceFromEnd(input) <= PIN_THRESHOLD_DP;
       return { pinned, scrollTo: null };
     }
     case "first-layout":
-      // Nothing has been placed yet, so the offset at this moment means nothing
-      // — not even a stale 338 the view may be reporting. A conversation opens
-      // at its end — and a short one has an end of zero, which is the top,
-      // exactly as the desktop app starts. (With no messages the guard above
-      // already returned the block's first line; a LATER layout never reaches
-      // this arm — `placedBefore` folded it into `resize` at the top.)
+      // Nothing placed yet, so the offset means nothing — not even a stale 338
+      // the view may report. A conversation opens at its end (a short one's end
+      // is the top, as the desktop app starts); the empty guard above already
+      // returned for the block, and a LATER layout never reaches this arm.
       return { pinned: true, scrollTo: end };
     case "jump-to-end":
       return { pinned: true, scrollTo: end };
     case "append":
     case "growth":
     case "resize":
-      // Only while pinned. The append case is the one that makes this design work
-      // and the easiest to get wrong: it leaves the OLD offset behind, which now
-      // measures far from the new end, so deriving the pin from the offset here
-      // would decide "unpinned" and never follow the newest message again. The
-      // resize case belongs with it for the same reason: the keyboard opening
-      // must not throw a reader who had scrolled away back to the bottom.
+      // Only while pinned. The append case is what makes this design work and
+      // the easiest to get wrong: the OLD offset now measures far from the new
+      // end, so deriving the pin from it here would decide "unpinned" and stop
+      // following the newest message. Resize joins it so the keyboard cannot
+      // throw a reader who scrolled away back to the bottom.
       return { pinned: input.pinned, scrollTo: input.pinned ? end : null };
   }
 }
 
 /**
- * The rendering half of "one entry per message". A list that holds the same message
- * twice is how an answer ends up written above itself and then below: the
- * placeholder and the real answer become two entries. Returns the ids that appear
- * more than once, each reported once, in the order it is first repeated.
+ * The rendering half of "one entry per message": a list holding the same
+ * message twice is how an answer ends up written above itself and then below.
+ * Returns each repeated id once, in order of first repetition.
  */
 export function duplicateMessageIds(messages: ReadonlyArray<{ id: string }>): string[] {
   const seen = new Set<string>();

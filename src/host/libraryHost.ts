@@ -1,19 +1,13 @@
 /**
  * The document library: state, the save FIFO and the CRUD that the documents
- * overlay, the tool executor and the send path share — lifted from
- * `AppShell.tsx:1011-1016` (state), `:1201-1212` (mutation counter + FIFO)
- * and `:1213-1437` (enqueue, load, change, delete, add, reorder, preview,
- * delete-latch).
- *
- * Adaptations (reported): `bumpEmbedJobGeneration` is gone with the
- * background embed pipeline (nothing to cancel), so an import lands
- * BM25-first; the `onPersistenceFailure` prop is replaced by the old code's
- * own fallback (warn + Alert); `rebuildSemanticIndex` is HELD — it needs the
- * embed job, so the host serves an honest notice instead (§2.7).
+ * overlay, the tool executor and the send path share — lifted from the old
+ * controller. Adaptations (reported): `bumpEmbedJobGeneration` is gone with
+ * the background embed pipeline (nothing to cancel), so an import lands
+ * BM25-first; `rebuildSemanticIndex` is HELD — it needs the embed job, so the
+ * host serves an honest notice instead (§2.7).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   deleteOwnedFile,
   deleteVectorIndexFile,
@@ -60,11 +54,10 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
 
   const libraryMutationRef = useRef(0);
   /**
-   * FIFO serialized persistence queue (HIGH-5). add → reorder → preview-update
-   * → delete writes land at AsyncStorage in order so a slow save cannot
-   * overwrite a newer state. Failures retry up to 3 times, then surface via
-   * onPersistenceFailure (or console.warn + Alert) — queue keeps draining
-   * subsequent saves so one failure never deadlocks the chain (HIGH-3).
+   * FIFO serialized persistence queue. add → reorder → preview-update →
+   * delete writes land at AsyncStorage in order so a slow save cannot
+   * overwrite a newer state. Failures retry up to 3 times, then warn + Alert;
+   * the queue keeps draining so one failure never deadlocks the chain.
    */
   const pendingSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -110,11 +103,9 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
           return;
         }
         setDocumentLibrary(state);
-        // FIX D: NO startup vector restore. Parsing every .vec.json on the JS
-        // thread stalls the UI and spikes memory for large libraries. Vectors
-        // are restored lazily per doc on the first hybrid query (see
-        // ensureSemanticIndexLoaded). Memory policy: cap total loaded floats
-        // (VECTOR_MEMORY_FLOAT_CAP); beyond → leave that doc BM25-only.
+        // NO startup vector restore: parsing every .vec.json on the JS thread
+        // stalls the UI and spikes memory. Vectors restore lazily per doc on
+        // the first hybrid query; the float cap leaves big docs BM25-only.
       })
       .catch(() => {
         /* keep empty library on load failure */
@@ -123,36 +114,11 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
       mounted = false;
     };
   }, []);
-  const handleLibraryChange = useCallback((next: LibraryState) => {
-    // Refuse library mutations (import/add) while a delete is in flight so a
-    // fresh import cannot race the old deleteAsync / functional drop.
-    if (isDeleteActive()) {
-      return;
-    }
-    libraryMutationRef.current += 1;
-    // Drop indexes for removed docs so delete frees retrieval memory.
-    const nextIds = new Set((next.docs ?? []).map((d) => d.id));
-    for (const id of docIndexByIdRef.current.keys()) {
-      if (!nextIds.has(id)) docIndexByIdRef.current.delete(id);
-    }
-    for (const id of docSemanticByIdRef.current.keys()) {
-      if (!nextIds.has(id)) {
-        docSemanticByIdRef.current.delete(id);
-        docEmbedHashesByIdRef.current.delete(id);
-        docDenseReasonByIdRef.current.delete(id);
-      }
-    }
-    for (const id of docDenseReasonByIdRef.current.keys()) {
-      if (!nextIds.has(id)) docDenseReasonByIdRef.current.delete(id);
-    }
-    setDocumentLibrary(next);
-    enqueueLibrarySave(next);
-  }, [enqueueLibrarySave]);
   /**
-   * AppShell-owned document delete. Shared docOpGate DELETE + FS delete + index
-   * drop + functional state update all live here so DocumentsScreen unmount
-   * cannot clear the guard or capture a stale `library` snapshot.
-   * @returns false when refused (any document op already in flight).
+   * Document delete: shared gate + FS delete + index drop + functional state
+   * update all live here so a screen's unmount cannot clear the guard or
+   * capture a stale `library` snapshot. False when refused (any document op
+   * already in flight).
    */
   const deleteDocument = useCallback(async (id: string): Promise<boolean> => {
     if (!id || typeof id !== "string") return false;
@@ -171,15 +137,15 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
       }
       // Drop durable dense-vector sidecar alongside the owned file.
       await deleteVectorIndexFile(id);
-      // Drop retrieval + semantic indexes for this id (best-effort; functional
-      // filter below is the source of truth for the list).
+      // Drop retrieval + semantic indexes for this id (best-effort; the
+      // functional filter below is the source of truth for the list).
       docIndexByIdRef.current.delete(id);
       docSemanticByIdRef.current.delete(id);
       docEmbedHashesByIdRef.current.delete(id);
       docDenseReasonByIdRef.current.delete(id);
       libraryMutationRef.current += 1;
-      // Gate blocks handleLibraryChange, so ref is current. Functional updater
-      // still guards against any non-import concurrent React state write.
+      // The delete gate blocks mutations, so the ref is current; the
+      // functional updater still guards against any concurrent state write.
       const next: LibraryState = {
         docs: (documentLibraryRef.current.docs ?? []).filter((d) => d.id !== id),
       };
@@ -194,12 +160,11 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
     }
   }, [enqueueLibrarySave]);
   /**
-   * AppShell-owned document add (import commit). Prepends (new-on-top).
-   * Invariant: every library mutation (add + delete) is owned by AppShell,
-   * applied against current ref state with a functional updater; screens never
-   * merge snapshots. A screen-captured `library` prop must not re-add a doc
-   * that was deleted while import was in flight.
-   * @returns false when refused (delete gate held — screen surfaces busy).
+   * Document add (import commit), prepends (new-on-top). Invariant: every
+   * library mutation is owned by the host, applied against current ref state
+   * with a functional updater; screens never merge snapshots — a screen-
+   * captured `library` prop must not re-add a doc deleted while import was in
+   * flight. False when refused (delete gate held — screen surfaces busy).
    */
   const addDocument = useCallback((entry: LibraryDoc): boolean => {
     if (!entry || typeof entry.id !== "string" || entry.id.length === 0) {
@@ -208,7 +173,7 @@ export function useLibraryHost(t: TranslateFn): LibraryHost {
     if (isDeleteActive()) return false;
     libraryMutationRef.current += 1;
     // Atomic commit against CURRENT state — never a screen-captured snapshot.
-    // Prepend: newest import sits at the top of the list (CRIT-3).
+    // Prepend: newest import sits at the top of the list.
     const next: LibraryState = {
       docs: [entry, ...(documentLibraryRef.current.docs ?? [])],
     };

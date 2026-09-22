@@ -1,27 +1,23 @@
 /**
  * The message interactions' host half: the long-press menu's payload, the
  * copied flash, save-to-notes and the regenerate handoff (PARITY-STATUS
- * gap 1 / D1 rows 15, 16, 20, 21). Beside `sendHost`, not inside it: this is
- * the menu's state and dispatch, and the regenerate it performs ENTERS
- * `sendHost.send` like any other send, so the claim, the turn token, the
- * engine half and the release are the send's own fences — a regenerate is
- * fenced exactly like a send because it IS one.
+ * gap 1 / D1 rows 15, 16, 20, 21). Beside `sendHost`, not inside it: the
+ * regenerate it performs ENTERS `sendHost.send` like any other send, so the
+ * claim, the turn token, the engine half and the release are the send's own
+ * fences — a regenerate is fenced exactly like a send because it IS one.
  *
  * Two traps the controller records, both honored here:
  *
- * 1. **Refs only in the opener** (`AiChatPage.tsx:3484-3487`): a closure over
- *    state froze the menu's payload inside memoized rows. The guards below
- *    read `sendingRef` / `regenInFlightRef` / `historyLoadedRef`, never this
- *    component's `sending` state, and the latest non-ref inputs (`send`,
- *    `t`, the notice) arrive through a params ref that is refreshed every
- *    render — the same identity-stability the controller was buying.
- * 2. **Close the menu when a turn starts** (`Chat:3466-3471`): a live turn
- *    must not keep the sheet open, so `sending` closing it is kept.
+ * 1. **Refs only in the opener**: a closure over state froze the menu's
+ *    payload inside memoized rows. The guards below read `sendingRef` /
+ *    `regenInFlightRef` / `historyLoadedRef`, never this component's
+ *    `sending` state, and the latest non-ref inputs (`send`, `t`, the notice)
+ *    arrive through a params ref refreshed every render.
+ * 2. **Close the menu when a turn starts**: a live turn must not keep the
+ *    sheet open, so `sending` closing it is kept.
  *
- * Timers: the copied flash and the sheet's +400 ms close, both at the
- * controller's `messageMenuCloseTimer` (`Chat:4424-4431`) and cleared on
- * close/unmount exactly where the controller cleared them
- * (`Chat:3473-3480`, `:1935-1941`).
+ * Timers: the copied flash and the sheet's +400 ms close, both cleared on
+ * close/unmount exactly where the controller cleared them.
  *
  * Deferred, NOT built (reported, not stubbed): translate, edit, read-aloud —
  * and therefore no `translationInFlightRef` guard (there is no translate to
@@ -55,8 +51,7 @@ export interface MessageActionsParams {
     setMessages: (updater: (prev: Message[]) => Message[]) => void;
     historyLoadedRef: { current: boolean };
     /** The write guard: a truncate must be DECLARED or the shrink write is
-     *  refused (the controller's `historyGuard.armDeclaredShrink(base)`,
-     *  `Chat:3434`). */
+     *  refused (the controller's `armDeclaredShrink(base)`). */
     historyGuard: HistoryWriteGuard;
   };
   showNoticeKey: (key: TranslationKey) => void;
@@ -110,8 +105,8 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     setMenu(null);
   }, []);
 
-  // The controller's two timer effects: a closed menu drops its pending close
-  // (Chat:3473-3480), unmount drops both (Chat:1935-1941).
+  // The controller's two timer effects: a closed menu drops its pending close;
+  // unmount drops both.
   useEffect(() => {
     if (menu) return;
     if (menuCloseTimer.current) {
@@ -126,17 +121,16 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     [],
   );
 
-  // A live turn must not keep the sheet open (controller `Chat:3466-3471`).
+  // A live turn must not keep the sheet open.
   useEffect(() => {
     if (params.sending) setMenu(null);
   }, [params.sending]);
 
   const onMessageLongPress = useCallback(
     (message: { id: string; role: "user" | "assistant"; text: string; caret?: boolean }) => {
-      // REFs ONLY for the busy gates — the controller's recorded trap
-      // (Chat:3484-3487): a state-capturing closure froze the payload inside
-      // memoized rows. The payload below comes from the press event's own
-      // message, so nothing here can be stale.
+      // REFs ONLY for the busy gates — a state-capturing closure froze the
+      // payload inside memoized rows. The payload below comes from the press
+      // event's own message, so nothing here can be stale.
       const p = latest.current;
       if (
         p.sendHost.sendingRef.current ||
@@ -145,14 +139,14 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       ) {
         return;
       }
-      if (message.caret === true) return; // still arriving (controller's `streaming` guard)
+      if (message.caret === true) return; // still arriving (`streaming` guard)
       if (!message.text.trim()) return; // nothing copyable, nothing to resend
       setMenu({ id: message.id, role: message.role, text: message.text });
     },
     [],
   );
 
-  /** Save-to-notes: `App:3749-3763`, same guard, same two notice keys. */
+  /** Save-to-notes: same guard, same two notice keys. */
   const saveToNotes = useCallback(async (text: string) => {
     if (!text.trim()) return;
     try {
@@ -172,8 +166,7 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
    */
   const regenerate = useCallback(async (assistantId: string) => {
     const p = latest.current;
-    // The controller's synchronous claim (`editMessage` `Chat:3343-3347`),
-    // reduced to the locks this host actually holds.
+    // The controller's synchronous claim, reduced to the locks this host holds.
     if (
       sendClaimRef.current ||
       p.sendHost.sendingRef.current ||
@@ -205,12 +198,11 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       return;
     }
     // The claim is provably taken: arm the shrink BEFORE the first await, so
-    // the first flush or turn-end write of `plan.base` is the declared one
-    // (controller `Chat:3434`, policy `historyWritePolicy.ts:100`).
+    // the first flush or turn-end write of `plan.base` is the declared one.
     p.history.historyGuard.armDeclaredShrink(plan.base);
     // The lock is released by the run itself (`sendHost.releaseOwned`, which
     // clears `regenInFlightRef` for the owning token) or by the stop watchdog
-    // / conversation change, exactly where the controller cleared it.
+    // / conversation change.
     try {
       await run;
     } catch (error) {
@@ -226,9 +218,8 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       const payload = menuRef.current;
       if (!payload) return;
       if (id === "copy") {
-        // Keep the sheet open ~400ms with "Copied!" — the controller's order:
-        // await the clipboard first, and a failed copy leaves the row as it
-        // was (Chat:4420-4433).
+        // Keep the sheet open ~400ms with "Copied!": await the clipboard
+        // first, and a failed copy leaves the row as it was.
         void (async () => {
           const ok = await copyToClipboard(payload.text);
           if (!ok) return;

@@ -1,11 +1,9 @@
 /**
- * The root's lifecycle effects: the static-prefix skip-first notifier
- * (lifted `AppShell.tsx:2357-2366`, rule pinned by
- * `staticPrefixNotify.test.ts` — D2 row 21), the conversation-change abort
- * (lifted `AiChatPage.tsx:1861-1907`, trimmed to the systems this host
- * mounts) and the unmount flush-then-abort
- * (`AiChatPage.tsx:1908-1950`: partial reaches the store BEFORE the abort,
- * epoch-stamped, because `updateMessage` no-ops once unmounted).
+ * The root's lifecycle effects: the static-prefix skip-first notifier (rule
+ * pinned by `staticPrefixNotify.test.ts` — D2 row 21), the conversation-
+ * change abort (trimmed to the systems this host mounts) and the unmount
+ * flush-then-abort: the partial reaches the store BEFORE the abort,
+ * epoch-stamped, because `updateMessage` no-ops once unmounted.
  */
 import { useEffect, useMemo, useRef } from "react";
 import {
@@ -56,7 +54,7 @@ export function useHostEffects(params: HostEffectParams): void {
   } = params;
 
   // First run is skipped (mount/remount), every later flip notifies — the
-  // old ref-based rule as a value (AppShell:2357-2366).
+  // old ref-based rule as a value.
   const notify = useMemo(
     () => createStaticPrefixNotifier<string, EngineTool>((l, toolList) =>
       notifyStaticPrefixInputs(l as "en" | "it", toolList),
@@ -123,8 +121,8 @@ export function useHostEffects(params: HostEffectParams): void {
 /** The regen locks — held now, briefly: `messageActions.regenerate` sets
  *  `regenInFlightRef` across the truncate→send handoff and the run's own
  *  release clears it (`sendHost.releaseOwned` / the stop watchdog). This is
- *  where the old screen cleared them too (conversation change, `Chat:1867`),
- *  so a switch mid-handoff cannot wedge the menu closed forever. */
+ *  where the old screen cleared them too, so a switch mid-handoff cannot
+ *  wedge the menu closed forever. */
 function regenAbortReset(): void {
   regenInFlightRef.current = false;
   regenHandleSendPassRef.current = false;

@@ -4,15 +4,13 @@
  *
  * 1. **No favicons and no previews — no request of any kind, and no storage
  *    (DESIGN.md §2.5, §2.4).** A chip that fetched an icon would tell every
- *    domain the user searched that the phone had looked at it, which is the
- *    desktop's stated rule and holds twice as hard on a phone; and the tool rows
- *    are volatile by decision, so nothing in this band may read or write the
- *    history path. Both are invisible in pixels — a chip that fetched a favicon
- *    looks exactly like one that did not — so this is a SOURCE check, the
- *    technique `shellLogoAsset.test.ts` and the cloud's worklet guard already
- *    use: read the file, strip the comments, fail on the tokens that would mean
- *    a request or a store. The guards are themselves tested against samples, so
- *    a guard that quietly stopped matching cannot pass as green.
+ *    domain the user searched that the phone had looked at it; and the tool
+ *    rows are volatile by decision, so nothing in this band may read or write
+ *    the history path. Both are invisible in pixels — a fetching chip looks
+ *    exactly like one that did not — so this is a SOURCE check: read the file,
+ *    strip the comments, fail on the tokens that would mean a request or a
+ *    store. The guards are themselves tested against samples, so a guard that
+ *    quietly stopped matching cannot pass as green.
  *
  * 2. **The transcript is a leaf.** It imports nothing from `src/engine`,
  *    `src/app`, `src/screens` or `src/conversations`; the message shape it takes
@@ -24,18 +22,16 @@ import { join } from "path";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
-/** Every file the transcript band is made of. Step 3b added the answer's own
- *  renderer, its inline spans and their styles to this list, so the no-request rule
- *  covers the new files too rather than starting at the old edge of the band.
- *  The edge fades (`TranscriptEdgeFade.tsx`) were added the same way: a band
- *  file is a band file however decorative it is. */
+/** Every file the transcript band is made of: added as the band grew (the
+ *  renderer, inline spans and their styles; the edge fades), because a band
+ *  file is a band file however decorative it is — new band files must be
+ *  listed here. */
 const BAND_FILES = [
   "Transcript.tsx",
   "TranscriptEdgeFade.tsx",
   "TranscriptParts.tsx",
-  // The turn boxes + copy chip split out of TranscriptParts when the
-  // long-press landed (the seam that kept the stylesheet under the ratchet):
-  // a band file is a band file however it is spelled.
+  // Turn boxes + copy chip, split out of TranscriptParts when the long-press
+  // landed (the seam that kept the stylesheet under the ratchet).
   "TranscriptTurns.tsx",
   "TranscriptEvidence.tsx",
   "TranscriptMarkdown.tsx",
@@ -55,8 +51,7 @@ const EVIDENCE = SOURCES["TranscriptEvidence.tsx"];
 /**
  * Block and line comments removed before matching, so the prose that explains
  * the rules cannot trip them — the subject matter of these files IS a network
- * request, and a guard that reads its own commentary as code fails on the wrong
- * thing. The line form is anchored to the start of a line on purpose: a `//`
+ * request. The line form is anchored to the start of a line on purpose: a `//`
  * inside a URL is not a comment.
  */
 function stripComments(source: string): string {

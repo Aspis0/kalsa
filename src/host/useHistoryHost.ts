@@ -1,8 +1,6 @@
 /**
  * One conversation's messages: the write guard + epoch writer, the touch
- * notify, the persist wrapper and the LOAD path lifted from
- * `AiChatPage.tsx:1009-1161` (notify + persist + the conversation-switch
- * effect).
+ * notify, the persist wrapper and the LOAD path.
  *
  * What changed and why (reported): `persistEpochRef` / `persistKeyRef` /
  * `historyGuard`-as-raw-writer are replaced by `createHistoryWriter`
@@ -123,7 +121,7 @@ export function useHistoryHost(params: HistoryHostParams): {
     [notifyConversationTouched, writer],
   );
 
-  /** The old `persistFlushRef` body (AiChatPage:1165-1172), called directly. */
+  /** The old `persistFlushRef` body, called directly. */
   const flushPartial = useCallback(() => {
     persistActiveMessages(messagesRef.current, {
       allowStreamingPartial: true,
@@ -131,13 +129,13 @@ export function useHistoryHost(params: HistoryHostParams): {
     });
   }, [persistActiveMessages, writer]);
 
-  /** The old `isActiveChatEmptyRef` body (AiChatPage:1193-1201). */
+  /** The old `isActiveChatEmptyRef` body. */
   const isActiveChatEmpty = useCallback(() => {
     if (!historyLoadedRef.current) return false;
     if (messagesRef.current.length > 0) return false;
     // Poisoned state: the screen shows 0 but the store holds a raw the
-    // guard has not (yet) preserved. Report NOT empty so "New chat"
-    // really starts a conversation instead of keeping the user here.
+    // guard has not (yet) preserved. Report NOT empty so "New chat" really
+    // starts a conversation instead of keeping the user here.
     return !historyGuard.storeKnownToHoldMessages();
   }, [historyGuard]);
   useEffect(() => {
@@ -164,9 +162,9 @@ export function useHistoryHost(params: HistoryHostParams): {
     AsyncStorage.getItem(key)
       .then((raw) => {
         if (!mounted || writer.epoch() !== loadEpoch) return;
-        // locale is already resolved (App gates on localeReady). The guard
-        // classifies the load by message IDENTITY; a lossy raw is preserved
-        // in the quarantine key before any write can be issued.
+        // The guard classifies the load by message IDENTITY; a lossy raw is
+        // preserved in the quarantine key before any write can be issued
+        // (locale is already resolved — the app gates on localeReady).
         let begun: BegunHistoryLoad<Message>;
         try {
           begun = historyGuard.beginHistoryLoad(raw, key, (entries) =>
@@ -187,7 +185,7 @@ export function useHistoryHost(params: HistoryHostParams): {
         }
         // Show what could be read and open the composer BEFORE awaiting the
         // preservation copy — the write gate stays closed meanwhile, and one
-        // refused write is a better outcome than a blank wedged chat.
+        // refused write beats a blank wedged chat.
         if (begun.messages.length) {
           setMessages(begun.messages);
           messagesRef.current = begun.messages;
@@ -200,8 +198,8 @@ export function useHistoryHost(params: HistoryHostParams): {
           return;
         }
         if (settled.preservationFailed) {
-          // console.warn is not telling the user: without this Alert the
-          // only symptom is "my new messages never survive a restart".
+          // Without this Alert the only symptom is "my new messages never
+          // survive a restart".
           try {
             Alert.alert(
               t("chat.historyGuardTitle"),
@@ -251,8 +249,8 @@ export function useHistoryHost(params: HistoryHostParams): {
     return () => {
       mounted = false;
     };
-    // Reload when the active conversation changes. locale is stable after
-    // LocaleProvider ready gate.
+    // Reload when the active conversation changes (locale is stable after
+    // the LocaleProvider ready gate).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
   return {

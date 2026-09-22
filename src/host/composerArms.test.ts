@@ -1,9 +1,7 @@
 /**
- * The composer arms' decisions (D1 row 14): the draft-empty rule the
- * controller stated at `AiChatPage:1264-1273`, the send's capture-and-clear
- * (`:2454-2463`), the conversation-change clear (`:1894-1897`), and the
- * quick-templates sheet that this slice mounts rather than rebuilds
- * (`QuickActionSheet.tsx` is called, old entry `Chat:4375-4381`).
+ * The composer arms' decisions (D1 row 14): the draft-empty rule, the send's
+ * capture-and-clear, the conversation-change clear, and the quick-templates
+ * sheet that this slice mounts rather than rebuilds.
  *
  * The pure predicates are tested directly; the WIRING is a source check, the
  * stack having no render harness — every assertion names the file it reads, and
@@ -64,8 +62,7 @@ describe("the send's options and its capture-and-clear (Chat:2454-2463)", () => 
     expect(SEND).toMatch(/if \(params\.arms\.researchRef\.current \|\| params\.arms\.notesRef\.current\)/);
     expect(SEND).toContain("params.arms.clear()");
     // The clear must come AFTER the content gate's early return — a refused
-    // send must not eat the user's arms (the controller cleared at 2454, the
-    // gate returns at 2380's branch).
+    // send must not eat the user's arms.
     expect(SEND.indexOf("params.arms.clear()")).toBeGreaterThan(
       SEND.indexOf("contentFilterMessage(classification.reason, t)"),
     );
@@ -113,11 +110,9 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
 
   it("the library-document chip is GONE, and the attach button keeps the hold sentence", () => {
     // BEFORE this slice the toolbar carried the document chip as a §2.7 stub
-    // whose press fired `shell.notice.attach`; the chip was REMOVED (vision
-    // audit: clipped by 349 dp's right edge, Notes pushed entirely out of the
-    // row, and inert without the attachment flow — `ComposerToolbar.tsx`
-    // header). What that old check was really holding has two halves, and
-    // both still hold:
+    // whose press fired `shell.notice.attach`; the chip was REMOVED (clipped by
+    // 349 dp's right edge, inert without the attachment flow). Two halves still
+    // hold:
     expect(SURFACE).not.toMatch(/onDocumentPress/);
     // the key still has a real user — the composer's own attach button:
     expect(SURFACE).toMatch(
@@ -128,8 +123,8 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
 
 describe("the samples: each guard above would fail on its absence", () => {
   it("the source files really are the ones being read", () => {
-    // Without this, a typo'd filename would make every source assertion above
-    // fail loudly — but a changed path in a refactor should too.
+    // Without this, a typo'd filename would make every source assertion pass
+    // against a file that does not exist.
     expect(SEND).toContain("export function useSendHost");
     expect(ROOT).toContain("export function HostRoot");
     expect(SURFACE).toContain("export function HostChatSurface");

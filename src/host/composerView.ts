@@ -31,14 +31,14 @@ export interface ComposerView {
   /** Machine yes AND a draft to send: dims the control with no reason line. */
   sendEnabled: boolean;
   transcript: TranscriptMessage[];
-  /** The controller's welcome gate (`AiChatPage:4015-4016`): the host shows
-   *  the first-open block only once the history load has settled. */
+  /** The welcome gate: the host shows the first-open block only once the
+   *  history load has settled. */
   historyLoaded: boolean;
 }
 
 export function composerView(input: ComposerViewInput): ComposerView {
-  // The live turn's status label: the LAST streaming assistant (D1 row 24 —
-  // the label is volatile and never enters the transcript's persisted shape).
+  // The live turn's status label: the LAST streaming assistant — the label is
+  // volatile and never enters the transcript's persisted shape.
   let statusLabel: string | undefined;
   for (let i = input.messages.length - 1; i >= 0; i--) {
     const message = input.messages[i];

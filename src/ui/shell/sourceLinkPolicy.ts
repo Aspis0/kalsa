@@ -1,24 +1,19 @@
 /**
  * Which source chip may be tapped, and what host it prints (DESIGN.md §2.5).
  *
- * Pure, and in its own module, because "only a public `http(s)` address is
+ * Pure and in its own module because "only a public `http(s)` address is
  * tappable; `javascript:`, `data:`, `file:` and the machine's own server stay
- * text with reduced emphasis" is a POLICY — and a policy written inside a
- * component is a policy nothing in this stack can test (the jest stack is
- * `node` with no render harness; see the proof regime in DESIGN.md). So the
- * decision lives here and the chip only draws it.
+ * text with reduced emphasis" is a POLICY, and a policy inside a component is
+ * a policy this test stack (node, no render harness) cannot test.
  *
- * The scheme half of the rule is NOT re-derived: `isSafeHttpUrl` in
- * `src/util/url.ts` already parses a scheme instead of substring-matching it,
- * and rejects the raw whitespace, control and invisible-format characters that
- * can rewrite an authority ("https://example.com\u200b@evil.com"). This module
- * adds the host half — no loopback, no LAN, no link-local, no mDNS — and the
- * host the chip displays.
+ * The scheme half is NOT re-derived: `isSafeHttpUrl` in `src/util/url.ts`
+ * parses the scheme instead of substring-matching it and rejects the invisible
+ * characters that can rewrite an authority. This module adds the host half —
+ * no loopback, no LAN, no link-local, no mDNS — and the displayed host.
  *
- * Nothing here fetches anything, and `transcriptNoFetch.test.ts` reads this
- * file and the component to keep it that way: fetching a favicon for a source
- * chip would tell every domain the user searched that the phone had looked at
- * it, which is the desktop's stated rule and matters more on a phone.
+ * Nothing here fetches anything, and `transcriptNoFetch.test.ts` holds this
+ * file and the component to it: a favicon would tell every domain the user
+ * searched that the phone had looked at it.
  */
 import { isSafeHttpUrl } from "../../util/url";
 
@@ -64,8 +59,8 @@ function defaultPortFor(scheme: string): string {
   return "";
 }
 
-/** The host a chip prints: lowercased, `www.` dropped, a trailing dot dropped,
- *  and the port kept only when it is not the scheme's default. Empty when the
+/** The host a chip prints: lowercased, `www.` and a trailing dot dropped, the
+ *  port kept only when it differs from the scheme's default. Empty when the
  *  address has no authority to print. */
 export function hostOf(url: string): string {
   const authority = authorityOf(url);
@@ -92,14 +87,11 @@ function isLocalIpv4(host: string): boolean {
 }
 
 /**
- * True for a host that resolves to this machine or to the network it sits on:
- * loopback, the private and link-local ranges, the CGNAT range, mDNS and
- * `.localhost` names, IPv6 loopback, link-local (fe80::/10) and unique-local
- * (fc00::/7) addresses, IPv4-mapped IPv6, and any single-label name — a name
- * with no dot is not a public name, it is a host on the LAN or nothing.
- *
- * Takes the bare host, with or without brackets and with or without a port, so
- * a caller cannot get the answer wrong by forgetting to split them.
+ * True for a host that resolves to this machine or its network: loopback,
+ * private, link-local, CGNAT, mDNS-style suffixes, IPv6 local ranges, and any
+ * single-label name — no dot is not a public name. Takes the bare host, with
+ * or without brackets and port, so a caller cannot get it wrong by forgetting
+ * to split them.
  */
 export function isLocalNetworkHost(host: string): boolean {
   if (typeof host !== "string") return false;
@@ -136,9 +128,8 @@ export function isLocalNetworkHost(host: string): boolean {
 const FALLBACK_TEXT_MAX = 48;
 
 /**
- * The chip's own words when no host can be parsed, in this order: the source's
- * title, then the address clipped. The address is clipped because a source can
- * be a `data:` URL whose text would otherwise fill the band.
+ * The chip's own words when no host can be parsed: the source's title, then the
+ * address clipped — a `data:` URL would otherwise fill the band.
  */
 function fallbackText(url: string, title: string): string {
   const trimmed = title.trim();
@@ -157,10 +148,8 @@ export type SourceChipDecision = {
 };
 
 /**
- * The whole policy for one source: may it be tapped, and what does it say.
- *
- * `tappable` requires all of: a parsed scheme of exactly http/https, an
- * authority, and a host that is not this machine's own network.
+ * The whole policy for one source: `tappable` requires a parsed http/https
+ * scheme, an authority, and a host that is not this machine's own network.
  */
 export function sourceChipDecision(url: string, title = ""): SourceChipDecision {
   const authority = authorityOf(url);

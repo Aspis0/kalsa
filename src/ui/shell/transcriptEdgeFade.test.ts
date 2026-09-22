@@ -4,19 +4,16 @@
  *
  * The element exists because a vision audit found the band's two clip edges
  * slicing content mid-glyph in the ordinary resting state — a citation chip cut
- * in half by the top edge, a heading chopped by the composer's top edge at the
- * bottom — and called the halved chip the worst visual defect of the set. The
- * owner did not ask for the fade and may reverse it; what this test pins is
- * that IF it exists it cannot become a touch-catcher, an accessibility node or
- * a black-smudging gradient, and that it keeps the z-order the jump control's
- * new ring depends on.
+ * in half by the top edge, a heading chopped at the bottom — the worst visual
+ * defect of the set. The owner did not ask for the fade and may reverse it;
+ * what this test pins is that IF it exists it cannot become a touch-catcher, an
+ * accessibility node or a black-smudging gradient, and that it keeps the
+ * z-order the jump control's new ring depends on.
  *
- * A SOURCE check, the technique `transcriptMarkdownSource.test.ts` and
- * `shellLogoAsset.test.ts` use: jest runs on `node` with `.ts` only and there
- * is no render harness (DESIGN.md, "proof regime"), so a gradient is read as
- * source. Comments are stripped before matching so the prose about the rules
- * cannot satisfy them, and every predicate is exercised against a sample that
- * must fail it, so a guard that quietly stopped matching cannot pass as green.
+ * A SOURCE check: jest runs on `node` with no render harness, so a gradient is
+ * read as source. Comments are stripped before matching so the prose about the
+ * rules cannot satisfy them, and every predicate is exercised against a sample
+ * that must fail it, so a guard that quietly stopped matching cannot pass green.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -85,8 +82,8 @@ function drawsBothEdges(code: string): boolean {
   );
 }
 
-/** Paint, not a control: it takes no touches, announces nothing, is not found
- *  by a test id — decorative gradients get no catalogue string and no node. */
+/** Paint, not a control: no touches, no announcement, no test id —
+ *  decorative gradients get no catalogue string and no node. */
 function isInert(block: string): boolean {
   return (
     block.includes('pointerEvents="none"') &&
@@ -153,9 +150,9 @@ describe("the transcript band's edge fades", () => {
 
   it("draws one fade at each edge, at the band's own resting clearance", () => {
     expect(drawsBothEdges(fade)).toBe(true);
-    // The height is CHOSEN, and chosen as a pair: 24 dp is the gap the layout
-    // already keeps empty under the last item, so at rest the bottom ramp
-    // veils empty page. Moving one number without the other breaks that.
+    // The height is CHOSEN as a pair: 24 dp is the gap the layout already
+    // keeps empty under the last item, so at rest the bottom ramp veils empty
+    // page. Moving one number without the other breaks that.
     const declared = /export const EDGE_FADE_HEIGHT = (\d+);/.exec(fade);
     expect(declared).not.toBeNull();
     expect(Number(declared![1])).toBe(TRANSCRIPT_LAST_ITEM_GAP);

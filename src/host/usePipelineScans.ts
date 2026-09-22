@@ -1,14 +1,9 @@
 /**
  * The boot-time scans: which model starts (boot-loop defence), the one-shot
  * eager-load kick, the unmount disposal, and the voice/embedding presence
- * scans — lifted from `AppShell.tsx:2939-2986` (boot selection), `:3764-3805`
- * (unmount dispose), `:3806-3847` (voice + embedding scans) and `:3849-3883`
- * (bundle probe + eager kick).
- *
- * Adaptations (reported): the Italian docstrings are English per the repo
- * rule; the notice-timer and download-abort cleanups left with the systems
- * they belong to (the root's notice, the unmounted download paths), and
- * `bumpEmbedJobGeneration` left with the embed pipeline.
+ * scans. Adaptations (reported): the notice-timer and download-abort cleanups
+ * left with the systems they belong to, and `bumpEmbedJobGeneration` left
+ * with the embed pipeline.
  */
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,7 +19,6 @@ import { disposeEngine, getActiveModelId } from "../engine/LlamaService";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import {
-  EMBEDDER_RELEASE_TIMEOUT_MS,
   getEmbeddingModelStatus,
   releaseEmbedder,
 } from "../engine/EmbeddingService";
@@ -89,10 +83,9 @@ export function usePipelineScans(params: {
   };
 
   // Restore the last model the app used (the persisted selection), not
-  // always the registry default.
-  // Boot-loop defence: a persisted selection carrying a death marker (its load
-  // killed the process on a previous launch) never starts; pickStartModel
-  // starts on the last good model, else the registry default.
+  // always the registry default. Boot-loop defence: a persisted selection
+  // carrying a death marker never starts; pickStartModel starts on the last
+  // good model, else the registry default.
   useEffect(() => {
     let mounted = true;
     void (async () => {
@@ -127,8 +120,8 @@ export function usePipelineScans(params: {
         // Preference read failure → keep the default boot model.
       }
     })();
-    // M1: detect orphaned model folders left by a catalog prune (no UI delete
-    // path). Detect-ONLY: never deletes at boot. A one-time "Delete / Keep"
+    // Detect orphaned model folders left by a catalog prune (no UI delete
+    // path). Detect-ONLY: never deletes at boot; a one-time "Delete / Keep"
     // notice surfaces in Settings. Fire-and-forget — never blocks UI.
     void detectOrphansAtBoot(getActiveModelId()).catch(() => undefined);
     return () => {
@@ -138,24 +131,23 @@ export function usePipelineScans(params: {
   }, []);
   useEffect(() => {
     return () => {
-      engineGenerationRef.current += 1; // invalida ogni async in corso
-      // FIX 1: capture THIS load's gen SYNCHRONOUSLY at invalidation time.
+      engineGenerationRef.current += 1; // bumps invalidate every async in flight
+      // Capture THIS load's gen SYNCHRONOUSLY at invalidation time.
       // Never read chatGateGenRef.current inside the dispose callback — a newer
       // load may have acquired a higher gen by then, and releasing it would
       // idle the wrong owner.
       const releasedGen = chatGateGenRef.current;
       chatGateGenRef.current = null;
-      // FIX 1 / round 7: full chat disposal lifecycle through the native-op
-      // barrier so a chat release cannot overlap an in-flight embed op.
-      // Sequential: disposeEngine (wrapped) THEN releaseEmbedder (which itself
-      // enters runNativeOp — do NOT nest, that would deadlock the FIFO).
+      // Full chat disposal lifecycle through the native-op barrier so a chat
+      // release cannot overlap an in-flight embed op. Sequential: disposeEngine
+      // (wrapped) THEN releaseEmbedder — do NOT nest, that deadlocks the FIFO.
       void (async () => {
         try {
           await runNativeOp(() => disposeEngine());
         } catch {
           // ignore — unmount best-effort
         } finally {
-          // FIX B / FIX 1: unmount dispose frees only the gen captured above.
+          // Unmount dispose frees only the gen captured above.
           if (releasedGen !== null) markChatReleased(releasedGen);
         }
         // Sequential after dispose settles — releaseEmbedder owns its own barrier entry.
@@ -211,9 +203,9 @@ export function usePipelineScans(params: {
     };
   }, []);
   // Initial check: is the current model bundle already on disk?
-  // v1 trap = runAfterInteractions + volatile effect deps. This kick is
-  // one-shot per process+generation (claimEagerKick). Effect deps stay
-  // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
+  // This kick is one-shot per process+generation (claimEagerKick). Effect deps
+  // stay [currentModel] only — ensureEngineForModel is read from a ref, not
+  // listed, so a new bound function never re-fires the kick.
   useEffect(() => {
     let mounted = true;
     const checkedIndex = modelIndexRef.current;

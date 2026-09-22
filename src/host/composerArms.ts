@@ -1,31 +1,29 @@
 /**
- * The composer's one-shot mode arms — research and notes (D1 row 14) — lifted
- * from `AiChatPage.tsx:1251-1273` (state + the draft-empty auto-clear),
- * `:3642-3653` (the toggles), `:2454-2463` (capture-and-clear inside a send,
- * done in `sendHost.ts` through `armsSendOptions`) and `:1894-1897` (the clear
- * on conversation change, which the root's `onConversationEnter` calls).
+ * The composer's one-shot mode arms — research and notes (D1 row 14): the
+ * state + draft-empty auto-clear, the toggles, the capture-and-clear inside a
+ * send (`sendHost.ts` through `armsSendOptions`) and the clear on
+ * conversation change (the root's `onConversationEnter`).
  *
  * The third chip of that row — the library document — needs `attachedItems`
- * and the picker sheet (D1 row 43 / gap 5), which this slice does not build;
- * it ships as a §2.7 stub that says why when pressed (`HostChatSurface`), not
- * as a chip that would sit there inactive and lie.
+ * and the picker sheet, which this slice does not build; it ships as a §2.7
+ * stub that says why when pressed (`HostChatSurface`), not as a chip that
+ * would sit there inactive and lie.
  *
  * The draft rule is a pure predicate so the semantics are testable without a
- * render harness (DESIGN.md, "proof regime"): a draft that HAD content and now
- * has none drops both arms — clearing the field is not consent to keep research
- * riding the next send.
+ * render harness: a draft that HAD content and now has none drops both arms —
+ * clearing the field is not consent to keep research riding the next send.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Old `AiChatPage:1266-1271`: had content, now blank → clear both arms. */
+/** Had content, now blank → clear both arms. */
 export function armsShouldClearOnDraft(draft: string, hadContent: boolean): boolean {
   return hadContent && draft.trim().length === 0;
 }
 
 /**
  * The options one send builds from the arms plus the typed deep-research
- * trigger (old `AiChatPage:2454-2463`): `null` means nothing changes and no
- * `options` object is handed to the engine half.
+ * trigger: `null` means nothing changes and no `options` object is handed to
+ * the engine half.
  */
 export function armsSendOptions(
   armedResearch: boolean,

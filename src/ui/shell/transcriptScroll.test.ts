@@ -29,15 +29,14 @@ function input(partial: Partial<ScrollInput>): ScrollInput {
     offsetY: 0,
     pinned: true,
     // BEFORE this field existed the machine could not tell a conversation from
-    // the welcome block, which is the defect the empty-state block below pins.
-    // The default here is 1 — a conversation WITH messages — so every existing
-    // assertion keeps exactly the meaning (and the expected value) it had; the
-    // empty case is only ever reached where a test opts in with `messageCount: 0`.
+    // the welcome block — the defect the empty-state block below pins. The
+    // default 1 means every assertion keeps its original meaning; the empty
+    // case is only reached where a test opts in with `messageCount: 0`.
     messageCount: 1,
     // The same pattern for the OTHER reported fact: `false` is the state every
-    // assertion here was written in — the band's FIRST layout — so no existing
-    // expectation moves. A test that means "the keyboard opened under a placed
-    // view" opts in with `placedBefore: true` (`transcriptRelayout.test.ts`).
+    // assertion here was written in (the band's FIRST layout); "the keyboard
+    // opened under a placed view" opts in with `placedBefore: true`
+    // (`transcriptRelayout.test.ts`).
     placedBefore: false,
     ...partial,
   };
@@ -157,10 +156,8 @@ describe("failure 3 — the view fighting the reader", () => {
 
 describe("an empty conversation reads from its top (the welcome block)", () => {
   // The two real numbers the device capture measured (`host3-firstopen.png`):
-  // the block with its bottom clearance is ~607 dp of content (24 top + a
-  // 240.75 dp plate + the prompt + 4 cards of 61 + their gaps + the 24 dp
-  // clearance) against a 357 dp band — 621 minus the 48 dp of insets, the
-  // 60 dp strip, the 78 dp composer, the 48 dp toolbar and the 30 dp hold line.
+  // a ~607 dp block against a 357 dp band (621 minus insets, strip, composer,
+  // toolbar and hold line).
   const WELCOME = 607;
   const BAND = 357;
   /** Deep inside the block, where the old first layout parked the reader. */
@@ -244,8 +241,7 @@ describe("an empty conversation reads from its top (the welcome block)", () => {
 
   it("follows the first message to the end of the conversation it starts", () => {
     // The transition the whole rule exists for: armed while empty, so the
-    // append that creates the first message lands the reader at the end of the
-    // grown conversation instead of at the top of it.
+    // append that creates the first message lands the reader at the end.
     const grown = 700;
     expect(
       transcriptScroll(
@@ -294,12 +290,10 @@ describe("an empty conversation reads from its top (the welcome block)", () => {
 
 describe("the programmatic-scroll grace", () => {
   it("outlasts the longest scroll animation the design names", () => {
-    // DESIGN.md §2.11: the sheet is 250-300 ms, the longest scroll motion in the
-    // table. A programmatic scroll must be allowed to finish before its own
-    // events are read as the reader's, so the grace is asserted against that
-    // value. Keeping the literal here — rather than importing a constant — is
-    // deliberate: the test must fail if the design's longest animation grows
-    // past the grace, whatever the motion table is called.
+    // DESIGN.md §2.11: the sheet's 250-300 ms is the longest scroll motion in
+    // the table; the grace is asserted against that value. The literal is kept
+    // here rather than imported so the test fails if the design's longest
+    // animation grows past the grace.
     const LONGEST_DESIGNED_SCROLL_ANIMATION_MS = 300;
     expect(PROGRAMMATIC_SCROLL_GRACE_MS).toBeGreaterThan(LONGEST_DESIGNED_SCROLL_ANIMATION_MS);
   });

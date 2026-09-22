@@ -1,13 +1,12 @@
 /**
- * The load gate's bounded helpers, lifted verbatim from
- * `AppShell.tsx:468-633`: the native-patch diagnostic, the raw-error
- * truncator, the bundle-size probe, `gateForModel`, the bounded embedder
- * release (round-7 BLOCK policy) and the localized gate reason. Plus the
- * model-switch dispose bound the gate's injected dispose uses (AppShell:462).
+ * The load gate's bounded helpers, lifted verbatim: the native-patch
+ * diagnostic, the raw-error truncator, the bundle-size probe, `gateForModel`,
+ * the bounded embedder release and the localized gate reason. Plus the
+ * model-switch dispose bound the gate's injected dispose uses.
  */
 import {
   diskRequirementBytes,
-  getCachedDeviceProfile,
+  type getCachedDeviceProfile,
   modelGateVerdict,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
@@ -34,10 +33,6 @@ import type { TranslationKey } from "../i18n";
 export const MODEL_SWITCH_DISPOSE_TIMEOUT_MS = 5_000;
 
 /**
- * Untranslated on-device diagnostic string from a thrown value.
- * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 400 chars.
- */
-/**
  * Non-blocking native-patch marker check. When systemInfo is present and
  * lacks "kalsa-native-patches", the build used prebuilt jniLibs and every
  * Kalsa cpp/ patch is inactive. Never throws; skip silently when unknown
@@ -55,6 +50,10 @@ export function warnIfNativePatchesInactive(systemInfo: string | undefined): voi
   }
 }
 
+/**
+ * Untranslated on-device diagnostic string from a thrown value.
+ * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 400 chars.
+ */
 export function rawErrorDetail(error: unknown): string | null {
   let rawSource: string;
   if (error instanceof Error) {
@@ -96,10 +95,10 @@ export function gateForModel(
   /** bench:engine useMmap; the gate prices the mode the engine will use. */
   benchUseMmap?: boolean,
 ): ModelGateVerdict {
-  // Charge the context this load will ACTUALLY run at (KV priced at the chosen
-  // profile): the user's 100k asking does not get refused here when the budget
-  // will simply degrade it, and the catalog default is not charged when the
-  // user asked for more. Same helper the other load gate uses.
+  // Charge the context this load will ACTUALLY run at (KV priced at the
+  // chosen profile): the user's 100k asking is not refused here when the
+  // budget will simply degrade it, and the catalog default is not charged
+  // when the user asked for more. Same helper the other load gate uses.
   const fitModel = loadGateFitModel({
     model,
     profile,
@@ -109,13 +108,12 @@ export function gateForModel(
     benchUseMmap,
   });
 
-  // One responsibility: what the gate should charge this model for RAM. Measured
-  // streamed footprint when expert streaming is loaded, else the repack estimate
-  // (unchanged by this change). `repack` stays the bench norepack knob. Settings
-  // also calls gateNonEvictableMiB, but passes checkVolatileMemory:false today,
-  // so modelNonEvictableMiB is unused there. The shared helper guarantees they
-  // will agree on the RAM axis IF Settings ever consults it (as
-  // diskRequirementBytes already keeps them from drifting on disk).
+  // One responsibility: what the gate should charge this model for RAM.
+  // Measured streamed footprint when expert streaming is loaded, else the
+  // repack estimate. Settings also calls gateNonEvictableMiB with
+  // checkVolatileMemory:false, so this shared helper is what guarantees the
+  // two agree on the RAM axis (as diskRequirementBytes keeps them from
+  // drifting on disk).
   return modelGateVerdict(
     {
       totalMemoryBytes: profile.totalMemoryBytes,
@@ -140,14 +138,13 @@ export function gateForModel(
   );
 }
 
-/** Localized hard-gate reason for Alert / error banner. */
 /**
- * Bounded releaseEmbedder for chat-init (FIX 2 / round-7 BLOCK policy).
- * Races release against EMBEDDER_RELEASE_TIMEOUT_MS. On timeout:
- *   - markEmbedderHung (drop JS ref; native leak isolated, never reused);
- *   - do NOT clear the native-op chain (hung op holds the barrier — never-overlap);
- *   - do NOT proceed with chat init — caller surfaces an explicit busy UI state.
- * Recovery for a hung native context = process restart. Never throws.
+ * Bounded releaseEmbedder for chat-init: races release against
+ * EMBEDDER_RELEASE_TIMEOUT_MS. On timeout: markEmbedderHung (drop the JS ref;
+ * native leak isolated, never reused), do NOT clear the native-op chain (the
+ * hung op holds it), do NOT proceed with chat init — the caller surfaces an
+ * explicit busy state. Recovery for a hung native context = process restart.
+ * Never throws.
  *
  * Invariant: never two overlapping llama.rn ops; a hung op holds the chain
  * and blocks new native work until restart.
@@ -167,10 +164,7 @@ export async function releaseEmbedderBounded(): Promise<"released" | "timeout"> 
       }),
     ]);
     if (result === "timeout") {
-      // BLOCK policy (round 7): release timed out — native embedding/release
-      // is not cancellable. Drop the JS context ref (markEmbedderHung). Do NOT
-      // clear the native-op chain (hung op holds the barrier). Do NOT proceed
-      // with chat init. Recovery = process restart.
+      // Release timed out — native embedding/release is not cancellable.
       markEmbedderHung();
       console.warn(
         `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; embedder marked hung (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
@@ -184,6 +178,7 @@ export async function releaseEmbedderBounded(): Promise<"released" | "timeout"> 
   }
 }
 
+/** Localized hard-gate reason for Alert / error banner. */
 export function gateReasonMessage(
   reason: ModelGateVerdict["reason"],
   t: (key: TranslationKey) => string,

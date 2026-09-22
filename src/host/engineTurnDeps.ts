@@ -1,17 +1,13 @@
 /**
- * The dependency surface of the lifted engine half
- * (`AppShell.tsx:5363-6719`, handleSendStream).
+ * The dependency surface of the lifted engine half (`handleSendStream`).
  *
  * The lift rule: the body moves verbatim and these names are destructured at
  * the top of each phase so the moved code compiles unchanged. Everything NOT
  * here is a module import — services, pure helpers, the compactor maps — and
- * is imported directly, never injected. Members are host-owned STATE:
- * refs the old component held, setters it owned, values it captured in the
- * useCallback dependency array.
- *
- * `EngineTurnCallbacks` mirrors the old screen's `StreamCallbacks`
- * (AiChatPage.tsx:261-272) structurally, so the single
- * `bridgeEngineCallbacks` call at the stream site stays byte-identical.
+ * is imported directly, never injected. Members are host-owned STATE: refs
+ * the old component held, setters it owned, values it captured in dependency
+ * arrays. `EngineTurnCallbacks` mirrors the old screen's `StreamCallbacks`
+ * structurally, so the single `bridgeEngineCallbacks` call stays unchanged.
  */
 import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { PersonasPersisted } from "../conversations/PersonasStore";
@@ -34,8 +30,7 @@ export type EngineTurnCallbacks = BridgedUiCallbacks & {
   /**
    * The engine's own failure REASON (raw message or the host's localized
    * line), alongside the catalogued `onFailed` key: §2.8's failed row shows
-   * the engine's words, never a generic apology. The chat side captures it
-   * onto `Message.failureReason` at finalize.
+   * the engine's words, never a generic apology.
    */
   onFailedReason?: (reason: string) => void;
 };

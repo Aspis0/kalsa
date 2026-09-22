@@ -1,14 +1,11 @@
 /**
  * Phase 2 of the lifted engine turn — the per-chat compactor window's state
- * load and ceiling guard, from `AppShell.tsx:5997-6203` (inside
- * handleSendStream, the body of its `if (retrievalOn || anchoredOn)` block
- * up to and including `decideAssembleWindowAction`).
- *
- * The original was one 483-line block; the guard moves to the two phases'
- * entry (the same condition the block tested), and this phase returns a
- * cast on the guard-false path: under that guard `advanceCompactorWindow`
- * returns before touching any field below, so the cast and the runtime
- * agree by construction — stated at the cast rather than hidden in it.
+ * load and ceiling guard. The original was one 483-line block; the guard
+ * moves to the two phases' entry (the same condition the block tested), and
+ * this phase returns a cast on the guard-false path: under that guard
+ * `advanceCompactorWindow` returns before touching any field below, so the
+ * cast and the runtime agree by construction — stated at the cast rather
+ * than hidden in it.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { buildSystemPrompt, getActiveEngineNCtx, getLoadedAssembleBoundary, resolvedStaticPrefixTokens } from "../engine/LlamaService";
@@ -54,9 +51,8 @@ export async function loadCompactorWindow(
   if (!(retrievalOn || anchoredOn)) {
     // Off mode has no compactor block: the original `if` simply did not run.
     // The cast is the guard restated for the type checker — every field below
-    // is absent here, and neither B nor the stream phase's log reads them
-    // before their own copy of this condition (the log's `?? null` covers the
-    // absence, exactly as the original left the two lets uninitialized).
+    // is absent, and neither later phase reads them before its own copy of
+    // this condition (the log's `?? null` covers the absence).
     return run as CompactorRun;
   }
             let measuredCharsPerToken: number | undefined;
@@ -96,10 +92,11 @@ export async function loadCompactorWindow(
                 compactorStateByChat.set(chatId, state);
               }
 
-              // Load-time guards: stale digest/summary after clearChat + app restart
-              // (in-memory lastHistoryLen dies with the process; AsyncStorage survives).
-              // (1) State belongs to a longer (deleted) conversation.
-              // (2) First send of an empty conversation still has persisted state.
+              // Load-time guards: stale digest/summary after clearChat + app
+              // restart (in-memory lastHistoryLen dies with the process;
+              // AsyncStorage survives). (1) State belongs to a longer
+              // (deleted) conversation. (2) First send of an empty one still
+              // has persisted state.
               const persistedCompactorExists =
                 state.builtAtUserTurn >= 0 ||
                 Boolean(state.frozenDigest?.trim()) ||
@@ -129,10 +126,9 @@ export async function loadCompactorWindow(
               ).recent;
 
               // Bench-only: shrink the verbatim-window budget so compaction
-              // fires often, the regime a phone actually runs in. Absent in
-              // production → null → WINDOW_CHAR_BUDGET. Read inline (not via
-              // React state) so there is no window where the trigger disagrees
-              // with itself.
+              // fires often, the regime a phone runs in. Absent in production
+              // → null → WINDOW_CHAR_BUDGET. Read inline (not via React state)
+              // so there is no window where the trigger disagrees with itself.
               const winBudget = await getBenchWindowBudget();
               const compactorConfig =
                 winBudget == null ? null : { windowCharBudget: winBudget };
@@ -182,11 +178,11 @@ export async function loadCompactorWindow(
               const activeNCtx = getActiveEngineNCtx();
               // The prompt the native sees is window + static prefix, so the
               // ceiling must price both. Read SYNCHRONOUSLY from the memo the
-              // prewarm fill inside the engine FIFO: an await here sat between
+              // prewarm fills inside the engine FIFO: an await here sat between
               // the capture of chatId/kvHeld/loadedB above and the slide's
               // clear below, so a chat switch could clear the wrong session
-              // (TOCTOU, audit FAIL 2026-09-14). Unmeasured prefix identity →
-              // prudent char-side fallback, never 0.
+              // (TOCTOU). Unmeasured prefix identity → prudent char-side
+              // fallback, never 0.
               const withTools =
                 Boolean(agentOptions.tools?.length && agentOptions.executeTool) &&
                 shouldUseToolCalling(toolChoiceMode);
@@ -208,14 +204,10 @@ export async function loadCompactorWindow(
                 projectedWindowTokens(pinnedWindowChars);
               // Measured chars/token from the live KV (sync reals only — no
               // await, TOCTOU). The current turn is not yet in the KV, so
-              // exclude it from the chars side. An imperfect ratio stays
-              // bounded: conservativeWindowTokens clamps its result to
-              // [chars/3, chars] and ignores ratios >= 3, so the guard can
-              // only slide EARLIER than the chars/3 projection, never later.
-              // The KV delta counts non-window tokens too (injected
-              // digest/template overhead the char budget never sees), so the
-              // ratio is biased toward sliding EARLIER — safe, because the
-              // clamp keeps the projection in [chars/3, chars].
+              // exclude it from the chars side. conservativeWindowTokens clamps
+              // to [chars/3, chars] and ignores ratios >= 3, so the guard can
+              // only slide EARLIER than the chars/3 projection, never later;
+              // the KV delta counting non-window tokens biases the same way.
               const windowKvChars = pinnedWindowChars - currentTurnChars;
               const windowKvTokens = (nPast ?? 0) - systemPromptTokens;
               measuredCharsPerToken =
@@ -226,11 +218,10 @@ export async function loadCompactorWindow(
                 pinnedWindowChars,
                 measuredCharsPerToken,
               );
-              // The same ratio the guard effectively used
-              // (conservativeWindowTokens only honours a ratio < 3). The
-              // ceiling rebuild below must convert with this and not the
-              // default, or it would re-grow a window that crosses the
-              // ceiling again and slide in a loop.
+              // The same ratio the guard effectively used (the clamp only
+              // honours a ratio < 3). The ceiling rebuild must convert with
+              // this and not the default, or it would re-grow a window past
+              // the ceiling and slide in a loop.
               const effectiveCharsPerToken =
                 Number.isFinite(measuredCharsPerToken) &&
                 measuredCharsPerToken !== undefined &&

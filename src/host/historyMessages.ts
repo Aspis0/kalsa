@@ -1,17 +1,12 @@
 /**
  * The history record shape: what is written to AsyncStorage and what comes
- * back out of it.
+ * back out of it. The two functions carry the parity document's rules:
  *
- * `buildPersistableMessages` is lifted from AiChatPage.tsx:576-587 and
- * `sanitizeHistoryMessages` from AiChatPage.tsx:656-818, verbatim except
- * for the docstring language (English, per the repo rule). The two carry
- * the parity document's rules:
- *
- * - SOURCES PERSIST (AiChatPage:713-731): the source strip is rebuilt from
- *   the raw record, bounded and validated field by field.
- * - STATUS IS VOLATILE (AiChatPage:709-713): `statusLabel` /
- *   `statusHistory` are intentionally dropped on restore, and a live
- *   `streaming` flag is never restored — no eternal spinners after a kill.
+ * - SOURCES PERSIST: the source strip is rebuilt from the raw record,
+ *   bounded and validated field by field.
+ * - STATUS IS VOLATILE: `statusLabel` / `statusHistory` are intentionally
+ *   dropped on restore, and a live `streaming` flag is never restored — no
+ *   eternal spinners after a kill.
  * - `interrupted` is restored only with non-empty text (a corrupt payload
  *   cannot render a floating marker);
  * - `failed` / `failureReason` / `failureThermal` (§2.8's failed row) restore
@@ -73,16 +68,14 @@ export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[]
       text: record.text.slice(0, MAX_TEXT),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
     };
-    // interrupted is terminal (partial kept after kill) — restore so the UI marker shows.
-    // Only with non-empty text so a corrupt payload cannot render a floating marker.
-    // Transient `streaming` is never restored (no eternal spinners).
+    // interrupted is terminal (partial kept after kill) — restore so the UI marker shows,
+    // only with non-empty text; transient `streaming` is never restored.
     if (record.interrupted === true && message.text.trim().length > 0) {
       message.interrupted = true;
     }
-    // §2.8's failed row survives a reopen (the fields ride the persistable
-    // spread, so save and load round-trip the same shape). The reason is the
-    // engine's own words as data — never a catalogue line — and `failed` alone
-    // draws the reasonless honest line when no reason was stored.
+    // §2.8's failed row survives a reopen. The reason is the engine's own
+    // words as data — never a catalogue line — and `failed` alone draws the
+    // reasonless honest line when no reason was stored.
     if (record.failed === true && message.text.trim().length > 0) {
       message.failed = true;
       if (typeof record.failureReason === "string" && record.failureReason.trim()) {
@@ -100,8 +93,7 @@ export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[]
     if (emitted !== undefined) {
       // Latent erosion: this slice cuts the emission while emissionSource
       // rides along unchanged, and the next save makes the cut permanent —
-      // the same class the load-path fix removed for trim, left here for
-      // length (no reachable input reaches it at today's n_ctx).
+      // no reachable input reaches it at today's n_ctx.
       message.modelEmittedText = emitted.slice(0, MAX_TEXT);
       // Propagate the provenance flag; a persisted value outside the union
       // (corrupt payload) falls back to unknown → syntactic predicate.
@@ -115,8 +107,7 @@ export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[]
       message.thinkingText = thinking.slice(0, MAX_TEXT);
     }
     // Transient UI only — never restore live status strips after kill/reload
-    // (orphan "Writing / Reading document…" after a finished turn — Jelly MED-5).
-    // statusLabel / statusHistory are intentionally dropped on restore.
+    // (orphan "Writing…" after a finished turn). Dropped on restore.
     if (Array.isArray(record.sources) && record.sources.length <= MAX_ITEMS) {
       message.sources = record.sources
         .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))

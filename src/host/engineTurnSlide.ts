@@ -1,16 +1,11 @@
 /**
  * Phase 3 of the lifted engine turn — the slide, the reconcile, the
- * KALSA_WINDOW_SLIDE line, the boundary persistence and the ciswire digest,
- * from `AppShell.tsx:6204-6480` (the rest of handleSendStream's compactor
- * block). Returns on the same guard phase 2 had, because the original ran
- * both halves inside one `if (retrievalOn || anchoredOn)`.
- *
- * Adaptation (reported): the seven frame locals this block mutates
- * (`run.legacyWindowStart`, `run.nativeClearedForAssemble`, `run.windowSlideForCeiling`,
- * `run.boundaryForAssemble`, `run.operativeContext`, `run.anchoredHistoryDropped`,
- * `run.anchoredRebuildBudget`) are reached as `run.*` so the values cross the
- * phase boundary; `state` is re-taken from `run` at entry and lands in the
- * same module singleton the old block wrote.
+ * KALSA_WINDOW_SLIDE line, the boundary persistence and the ciswire digest.
+ * Returns on the same guard phase 2 had, because the original ran both halves
+ * inside one `if (retrievalOn || anchoredOn)`. The seven frame locals this
+ * block mutates are reached as `run.*` so the values cross the phase boundary;
+ * `state` is re-taken from `run` at entry and lands in the same module
+ * singleton the old block wrote.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { discardChatKvForWindowSlide, getActiveModelId } from "../engine/LlamaService";
@@ -32,9 +27,9 @@ import type { EngineTurnDeps } from "./engineTurnDeps";
 import type { CompactorRun } from "./engineTurnCompactor";
 
 /**
- * Phase 3 — the slide, the reconcile, the persistence and the digest
- * (`AppShell.tsx:6204-6480`). Returns on the same guard A had, because the
- * original block ran both halves inside one `if`.
+ * Phase 3 — the slide, the reconcile, the persistence and the digest.
+ * Returns on the same guard A had, because the original block ran both halves
+ * inside one `if`.
  */
 export async function advanceCompactorWindow(
   deps: EngineTurnDeps,
@@ -56,7 +51,6 @@ export async function advanceCompactorWindow(
     pinnedStart,
     systemPromptTokens,
     activeNCtx,
-    pinnedWindowChars,
     promptTokensBefore,
     effectiveCharsPerToken,
     ceilingCrossed,
@@ -66,19 +60,18 @@ export async function advanceCompactorWindow(
               let slideOk = windowAction.slide;
               // A slide is only worth its destructive half — deleting the .kvs
               // and dropping the live RAM cache — if the boundary actually
-              // moves. With an infinite charBudget (attachment turn, bench
-              // override) the anchored rebuild is a no-op, so discarding would
-              // destroy the live KV and leave the prompt at exactly the size it
-              // already was, above the ceiling. Compute the advance first.
+              // moves: with an infinite charBudget (attachment turn, bench
+              // override) the rebuild is a no-op, so discarding would destroy
+              // the live KV and leave the prompt at the size it already was,
+              // above the ceiling. Compute the advance first.
               let slideBlocked = false;
               // The gate compares the two real assemble starts: anchored's
               // persisted boundary, ciswire's clamped/trusted window start.
               const previousStart = anchoredOn ? pinnedStart : run.legacyWindowStart;
               // Roles only, no text: the floor the anchored rebuild must not
-              // cross. Its index is the user that opens the last exchange with
-              // an assistant reply (so historyLengths, same order, indexes it);
-              // with the newest user message still unanswered, the previous
-              // exchange.
+              // cross — the user opening the last exchange with an assistant
+              // reply (historyLengths, same order, indexes it); with the newest
+              // user message still unanswered, the previous exchange.
               const anchoredFloorIndex = anchoredOn
                 ? lastCompleteExchangeStart(validatedHistory.map((m) => m.role))
                 : -1;
@@ -108,12 +101,11 @@ export async function advanceCompactorWindow(
                       profile: windowProfile,
                       maxCharsPerMessage: noPerMessageCap,
                       ceilingBudgetChars,
-                      // The last complete exchange is kept even when the turn
-                      // being sent plus the newest history message exceed the
-                      // rebuild target — but only within the budget this
-                      // rebuild uses. On the ceiling path a consumed ceiling
-                      // gives a 0-char budget, the floor cannot fit either, and
-                      // the history is still dropped.
+                      // The last complete exchange is kept even when over
+                      // the rebuild target — but only within this budget:
+                      // on the ceiling path a consumed ceiling gives a
+                      // 0-char budget, the floor cannot fit either, and the
+                      // history is still dropped.
                       floorIndex: anchoredFloorIndex,
                     })
                   : advanceCompactionBoundary(state, {
@@ -130,7 +122,7 @@ export async function advanceCompactorWindow(
                   nextState,
                   validatedHistory.length,
                 );
-                // Name the one outcome this rebuild can produce that is not a
+                // The one outcome this rebuild can produce that is not a
                 // window: the floor did not fit the real budget, so no history
                 // is kept. Reported on KALSA_WINDOW below.
                 if (anchoredOn) {
@@ -190,7 +182,7 @@ export async function advanceCompactorWindow(
                   }
                 }
               } else if (reconcileRequired) {
-                // No logical slide is due, but the native cache contains chat
+                // No logical slide is due, but the native cache holds chat
                 // tokens whose absolute start is unknown. Clear once, keep the
                 // attempted logical start, and let adoption install the fact.
                 run.nativeClearedForAssemble = await discardChatKvForWindowSlide(
@@ -221,10 +213,10 @@ export async function advanceCompactorWindow(
                 );
               }
 
-              // One line per deliberate ceiling slide: the counts that decided
-              // it, and whether the explicit clear actually succeeded. No
-              // token ids. `advanced`/`skipReason` distinguish "could not
-              // slide" from "clear failed", which `kvCleared` alone cannot.
+              // One line per deliberate ceiling slide: the counts that
+              // decided it and whether the clear succeeded. No token ids.
+              // `advanced`/`skipReason` distinguish "could not slide" from
+              // "clear failed", which `kvCleared` alone cannot.
               if (ceilingCrossed) {
                 run.windowSlideForCeiling = slideOk;
                 try {
@@ -288,8 +280,8 @@ export async function advanceCompactorWindow(
                 const oldUnits = toRetrievalUnits(olderForDigest);
 
                 // Query-time BM25 digest — current user message is the retrieval query.
-                // (Digest rides on last user message via format B; freezing it saved
-                // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
+                // (Digest rides on the last user message via format B; freezing it
+                // saved zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
                 state = refreshQueryDigest(state, {
                   chatId,
                   index: digestIndex,
@@ -323,8 +315,7 @@ export async function advanceCompactorWindow(
 
                 // Bench-only cadence: null → inject every turn (production). The
                 // block rides the last user message, so every injection costs the
-                // KV that user turn plus the reply generated after it; injecting
-                // every K turns pays that once per K instead (see §7.9).
+                // KV that user turn plus its reply; every K turns pays it once.
                 const injectBlock = shouldInjectOperativeBlock(
                   userTurnCount - 1,
                   await getBenchDigestCadence(),
@@ -332,8 +323,7 @@ export async function advanceCompactorWindow(
                 if (injectBlock) {
                   run.operativeContext = operativeContextForLiveKv({
                     // A successful clear means the native KV is gone for this
-                    // send, so the digest may ride it (7aabfe8 only skips it
-                    // while the KV is still alive).
+                    // send, so the digest may ride it (a live KV skips it).
                     kvHeld: run.nativeClearedForAssemble ? false : kvHeld,
                     digest: state.frozenDigest || undefined,
                     summary: state.rollingSummary || undefined,

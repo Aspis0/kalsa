@@ -1,19 +1,14 @@
 /**
  * `Message → TranscriptMessage`: the bridge from the persisted chat model to
- * the transcript band's local shape. It did not exist before this mount —
- * the only `Transcript` consumer until now was the preview fixture.
- *
- * Pure by construction: no storage, no locale lookup inside, the engine's
- * thinking status arrives as an already-translated string. Two parity rules
- * ride here (D1 rows 22–24):
+ * the transcript band's local shape. Pure by construction: no storage, no
+ * locale lookup inside, the engine's thinking status arrives already
+ * translated. The parity rules that ride here (D1 rows 22–24):
  *
  * - sources map across to the chips;
- * - `statusLabel` / `statusHistory` are never carried — they are volatile by
- *   decision (AiChatPage:709-713) and the cloud replaces them while the turn
- *   is live;
- * - `caret` carries §2.11's streaming predicate (`caretVisible`, the old
- *   `showCursor` rule of AiChatPage:5484) and `stop` carries §2.8's outcome
- *   line, decided here through the design's own `stopOutcome` so an
+ * - `statusLabel` / `statusHistory` are never carried — volatile by decision,
+ *   and the cloud replaces them while the turn is live;
+ * - `caret` carries §2.11's streaming predicate (`caretVisible`) and `stop`
+ *   carries §2.8's outcome line, decided here through `stopOutcome`, so an
  *   interrupted or failed turn can never draw as a finished one;
  * - `tools` are NOT read from the message: the volatile tool rows are fed
  *   from the host's capture map (`toolNameFromActionsPayload`), because the
@@ -45,18 +40,16 @@ function mapSource(source: MessageSource): TranscriptSource {
 }
 
 /**
- * The cloud's state for one assistant message.
- *
- * The engine owns the phases: it emits `thinkingStatus` until the first
- * VISIBLE content token and flips to writing after it (LlamaService's round
- * loop), and status callbacks are volatile. Three rules, all pure:
+ * The cloud's state for one assistant message. The engine owns the phases:
+ * it emits `thinkingStatus` until the first VISIBLE content token and flips
+ * to writing after it; status callbacks are volatile. Three rules, all pure:
  *
  * - the cloud exists when reasoning exists, or while the live turn is still
- *   in the thinking phase (a prefill with no tokens yet still needs the card);
- * - `working` is true only in that thinking phase — the trail's pace belongs
- *   to arriving reasoning, and a tool round is not reasoning arriving;
- * - a restored message never reports `working` (status is volatile: no
- *   orphan "thinking" after a reopen).
+ *   in the thinking phase (a prefill with no tokens still needs the card);
+ * - `working` is true only in that thinking phase — a tool round is not
+ *   reasoning arriving;
+ * - a restored message never reports `working` (no orphan "thinking" after
+ *   a reopen).
  */
 function mapThinking(message: Message, opts: MapperOptions): TranscriptThinking | undefined {
   if (message.role !== "assistant") return undefined;
@@ -74,18 +67,15 @@ function mapThinking(message: Message, opts: MapperOptions): TranscriptThinking 
 }
 
 /**
- * §2.8's outcome for a turn that ended early, as the band draws it — routed
- * through the design's own tested `stopOutcome` (`composerState.ts`), so the
- * transcript and the composer cannot disagree about what a stop means:
- *
- * - failed → the engine's own reason in `danger` (or the reasonless honest
- *   line when the engine gave none — §2.8 forbids a generic apology);
- * - the device's thermal refusal → §2.8's `thermal` row in `attention`;
- * - interrupted → the user's stop line over the kept partial. The tokens
- *   count is the message's own text: sanitize restores an interrupted mark
- *   only with non-empty text, so this reads `stoppedByUser`; an empty marked
- *   message (no reachable send path produces one) reads `stoppedEmpty`;
- * - a finished turn → nothing: silence is the honest row for completion.
+ * §2.8's outcome for a turn that ended early — routed through the tested
+ * `stopOutcome` (`composerState.ts`) so transcript and composer cannot
+ * disagree about what a stop means. Failed → the engine's own reason in
+ * `danger` (or the reasonless honest line); thermal → the `attention` row;
+ * interrupted → the user's stop line over the kept partial, tokens counted
+ * from the message's own text (sanitize restores an interrupted mark only
+ * with non-empty text, so this reads `stoppedByUser`; an empty marked message
+ * — no reachable send path produces one — reads `stoppedEmpty`); finished →
+ * nothing: silence is the honest row for completion.
  */
 function mapStop(message: Message): TranscriptStop | undefined {
   if (message.failed === true) {
@@ -133,14 +123,12 @@ export function toTranscriptMessages(
 }
 
 /**
- * The tool-name capture: the branch the old consumer never had.
- *
- * `engineCallbackBridge.ts:65` forwards an engine `onTool` as
- * `{ kind: "tool", tool }` on `onActions`; AiChatPage:2628 read only
- * `payload.proposed_actions` — `undefined` for a tool payload — so the name
- * died at the UI boundary. This is that branch, in the host, and the ONLY
- * thing it does is keep the engine's own wire name. A malformed payload
- * yields null and is ignored: never a guessed name.
+ * The tool-name capture: the branch the old consumer never had. The bridge
+ * forwards an engine `onTool` as `{ kind: "tool", tool }` on `onActions`; the
+ * old UI read only `payload.proposed_actions` — `undefined` for a tool
+ * payload — so the name died at the UI boundary. This branch lives in the
+ * host and does ONE thing: keep the engine's own wire name. A malformed
+ * payload yields null and is ignored: never a guessed name.
  */
 export function toolNameFromActionsPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;

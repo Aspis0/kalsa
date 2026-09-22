@@ -1,14 +1,13 @@
 /**
- * The three write-while-alive effects of the history path, lifted from
- * `AiChatPage.tsx:1202-1246` (400 ms debounce, 10 s streaming safety net)
- * and `:1427-1507` (AppState background flush + the turn-end-adjacent
- * session save keyed off the write LANDING).
+ * The three write-while-alive effects of the history path: a 400 ms debounce,
+ * a 10 s streaming safety net, and the AppState background flush with the
+ * turn-end-adjacent session save keyed off the write LANDING.
  *
  * Adaptations (reported): the epoch is the writer's (stamped at schedule);
  * the voice-capture/TTS background branch left with the voice system this
  * host does not mount; the background clean-save block now goes through
- * `writer.persist` instead of calling the guard directly — same guard,
- * same landing-keyed `saveEngineSession`.
+ * `writer.persist` instead of calling the guard directly — same guard, same
+ * landing-keyed `saveEngineSession`.
  */
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -57,7 +56,7 @@ export function useHistoryFlushes(params: {
     const epoch = writer.epoch();
     const timer = setTimeout(() => {
       if (writer.epoch() !== epoch) return;
-      // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
+      // Attachments[].uri/pages are stripped inside buildPersistableMessages.
       persistActiveMessages(messages, { epoch });
     }, 400);
     return () => clearTimeout(timer);
@@ -100,8 +99,8 @@ export function useHistoryFlushes(params: {
           });
         }
         // KV save + clean history overwrite only on true background + idle.
-        // While sending, keep the allowStreamingPartial payload above (pre-diff
-        // behavior) — a clean buildPersistableMessages would drop the partial.
+        // While sending, keep the allowStreamingPartial payload above — a
+        // clean buildPersistableMessages would drop the partial.
         if (next === "background" && !sendingRef.current) {
           const modelId = getActiveModelId();
           if (modelId) {

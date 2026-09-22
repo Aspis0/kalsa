@@ -1,19 +1,18 @@
 /**
  * The per-document retrieval indexes the tool executor and the document
  * chat read: the BM25 index map, the dense (semantic) map, the dense
- * unavailable-reason map and the embed-hash map — lifted from
- * `AppShell.tsx:1126-1160` — plus `ensureSemanticIndexLoaded`, the lazy
- * sidecar restore lifted from `AppShell.tsx:1439-1523` (D fix: no startup
- * vector restore; cap; corrupt → BM25-only with a reason).
+ * unavailable-reason map and the embed-hash map — plus
+ * `ensureSemanticIndexLoaded`, the lazy sidecar restore (no startup vector
+ * restore; cap; corrupt → BM25-only with a reason).
  *
- * What is NOT here: the background embed job that BUILDS those sidecars
- * (`AppShell.tsx:1590-2044`) — not mounted in this host, so imports land
- * BM25-first and dense reads still work for sidecars the old app wrote.
+ * What is NOT here: the background embed job that BUILDS those sidecars —
+ * not mounted in this host, so imports land BM25-first and dense reads
+ * still work for sidecars the old app wrote.
  */
 import { DEFAULT_VECTOR_MEMORY_FLOAT_CAP, SemanticVectorIndex, totalResidentFloats } from "../documents/semanticIndex";
 import { readVectorIndexFile } from "../documents/documentStorage";
 import { isReadActive, releaseRead, tryAcquireRead } from "../documents/docOpGate";
-import { DocRetrieverIndex } from "../context/retrievalLoop";
+import type { DocRetrieverIndex } from "../context/retrievalLoop";
 import type { LibraryState } from "../documents/DocumentLibrary";
 
 export const docIndexByIdRef: { current: Map<string, DocRetrieverIndex> } = {
@@ -41,7 +40,7 @@ export const docDenseReasonByIdRef: {
 export const docEmbedHashesByIdRef: { current: Map<string, Set<string>> } = {
   current: new Map(),
 };
-/** Module-local cap (same value the old component kept in a local). */
+/** Module-local cap (the same value the old component kept). */
 const VECTOR_MEMORY_FLOAT_CAP = DEFAULT_VECTOR_MEMORY_FLOAT_CAP;
 
 
@@ -50,13 +49,12 @@ export interface DocIndexDeps {
 }
 
   /**
-   * FIX D — lazy per-doc vector restore (no startup cost).
+   * Lazy per-doc vector restore (no startup cost).
    *
    * Memory policy: total loaded floats across all docs must stay under
-   * DEFAULT_VECTOR_MEMORY_FLOAT_CAP (400_000 ≈ 1.6 MB fp32; raised from 200k
-   * after Jelly HIGH-4: 516-chunk partial on 273 KB docs). If loading this
-   * doc would exceed the cap, leave it BM25-only (return null) and record
-   * reason "cap". Corrupt / missing sidecars → reason "corrupt".
+   * DEFAULT_VECTOR_MEMORY_FLOAT_CAP (400_000 ≈ 1.6 MB fp32). If loading
+   * this doc would exceed the cap, leave it BM25-only (return null) and
+   * record reason "cap". Corrupt sidecars → reason "corrupt".
    */
 export async function ensureSemanticIndexLoaded(
   deps: DocIndexDeps,
@@ -98,8 +96,8 @@ export async function ensureSemanticIndexLoaded(
           docDenseReasonByIdRef.current.set(docId, "corrupt");
           return null; // corrupt / bad dims → BM25-only
         }
-        // Zero-vector edge (round 6): a capped sidecar with zero valid vectors
-        // must still record "capped" so hybrid surfaces degraded-cap consistently
+        // Zero-vector edge: a capped sidecar with zero valid vectors must
+        // still record "capped" so hybrid surfaces degraded-cap consistently
         // (do not early-return before recording the reason).
         if (idx.chunkCount <= 0) {
           if (idx.isCapped) {
@@ -119,8 +117,8 @@ export async function ensureSemanticIndexLoaded(
 
         docSemanticByIdRef.current.set(docId, idx);
         docEmbedHashesByIdRef.current.set(docId, idx.contentHashKeys());
-        // FIX 3: retain "capped" when the restored index is partial; only clear
-        // the reason when the index is genuinely uncapped (full hybrid).
+        // Retain "capped" when the restored index is partial; only clear the
+        // reason when the index is genuinely uncapped (full hybrid).
         if (idx.isCapped) {
           docDenseReasonByIdRef.current.set(docId, "capped");
         } else {

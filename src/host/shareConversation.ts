@@ -1,14 +1,13 @@
 /**
- * Export/share the conversation — the old nav's action, lifted from
- * `AiChatPage.tsx:3206-3218` (`exportChat`) with its button at `:4757-4769`
- * (PARITY-STATUS gap 3 / D1 row 2): the transcript as Markdown, `You` / `AI`
- * turns separated by a rule, through React Native's `Share` sheet.
+ * Export/share the conversation — the old nav's action: the transcript as
+ * Markdown, `You` / `AI` turns separated by a rule, through React Native's
+ * `Share` sheet (PARITY-STATUS gap 3 / D1 row 2).
  *
  * The three copy keys (`chat.exportYou`, `chat.exportAi`, `chat.exportTitle`)
  * already live in both catalogues — the controller used the same ones, so the
- * two apps cannot drift apart on what an export says. Empty transcript → no
- * sheet, as the old callback did. The rejection of the share sheet is
- * swallowed on purpose: dismissing it is not an error the user asked to see.
+ * two apps cannot drift on what an export says. Empty transcript → no sheet.
+ * The rejection of the share sheet is swallowed on purpose: dismissing it is
+ * not an error the user asked to see.
  *
  * Split into a pure builder so the format is testable without the sheet
  * (`shareConversation.test.ts` drives `Share` through a mock).

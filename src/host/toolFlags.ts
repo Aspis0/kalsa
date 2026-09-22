@@ -1,17 +1,15 @@
 /**
  * The three tool flags as state + ref mirrors (D2 row 14: the engine reads
- * the refs mid-run). Lifted from `AppShell.tsx:861-916`.
+ * the refs mid-run).
  *
  * `toggleWebTools` is lifted WITH the control it belongs to (D1 row 5): the
- * controller kept the Web toggle on the chat top bar (`AppShell:6926-6959`,
- * key write `:882`) and the new strip carries it as `shell.strip.web`
- * (`Shell.tsx`). The persisted key is the controller's own
- * `WEB_TOOLS_ENABLED_KEY`, written as `"1"`/`"0"` exactly as `:882` did. The
+ * controller kept the Web toggle on the chat top bar and the new strip carries
+ * it as `shell.strip.web`. The persisted key is the controller's own
+ * `WEB_TOOLS_ENABLED_KEY`, written as `"1"`/`"0"` exactly as before. The
  * notify-on-change-but-not-on-mount rule rides the existing wiring —
  * `useHostEffects` → `staticPrefixNotify.ts` (skip once at mount), tested in
- * `staticPrefixNotify.test.ts` — so a toggle flips state, the effect's deps
- * change, and the notice fires; mount never does. Device and calendar stay
- * inside Settings (D1 row 5), untouched.
+ * `staticPrefixNotify.test.ts` — so a toggle fires the notice and mount never
+ * does. Device and calendar stay inside Settings, untouched.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -34,8 +32,8 @@ export function useToolFlags(): {
   calendarToolsEnabled: boolean;
   flagRefs: ToolFlagRefs;
   refreshToolFlags: () => Promise<void>;
-  /** The strip's Web switch (old `AppShell:875-886`): flip state + ref, then
-   *  persist under the controller's key. */
+  /** The strip's Web switch: flip state + ref, then persist under the
+   *  controller's key. */
   toggleWebTools: () => void;
 } {
   const [webToolsEnabled, setWebToolsEnabled] = useState(true);
@@ -84,9 +82,9 @@ export function useToolFlags(): {
     void refreshToolFlags();
   }, [refreshToolFlags]);
 
-  // Old `AppShell:875-886`: flip state AND ref first (the engine reads the ref
-  // mid-run), persist under the controller's key, swallow a storage failure —
-  // the toggle stays true for the session either way.
+  // Flip state AND ref first (the engine reads the ref mid-run), persist
+  // under the controller's key, swallow a storage failure — the toggle stays
+  // true for the session either way.
   const toggleWebTools = useCallback(() => {
     setWebToolsEnabled((prev) => {
       const next = !prev;

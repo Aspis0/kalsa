@@ -1,30 +1,25 @@
 /**
  * The blank first-open screen: the sage raster, the hour greeting, the welcome
- * line and the four suggestion cards (D1 row 12 / gap 1), lifted block-for-block
- * from `AiChatPage.tsx:4017-4131`, with `buildSuggestions` and
- * `greetingForHour` beside it in `welcomeCopy.ts`.
+ * line and the four suggestion cards (D1 row 12 / gap 1), with
+ * `buildSuggestions` and `greetingForHour` beside it in `welcomeCopy.ts`.
  *
- * Three rules, two the controller states and one the rebuild adds:
+ * Three rules:
  *
- * 1. **The gate is not here.** The controller rendered this block only after
- *    `historyLoaded` (`AiChatPage:4015-4016`); the host applies the same
- *    condition (`welcomeVisible`) and hands `Transcript` either this block or
- *    nothing, so nothing can flash while history is still unknown.
+ * 1. **The gate is not here.** The host applies `welcomeVisible` and hands
+ *    `Transcript` either this block or nothing, so nothing can flash while
+ *    history is still unknown.
  * 2. **A card SENDS.** `onPress` fires `onSend(text)` — the host wires it to
- *    `sendHost.send`, the real send path (the controller's cards called
- *    `handleSendTracked(s.text, attachedItems)` at `:4095-4096`; the attachments
- *    this slice does not have were empty in that call too).
- * 3. **It is not a band.** The host passes this as `Transcript`'s `empty`
- *    content, so it scrolls inside the transcript band and `shellGeometry.ts`'s
- *    three-band contract stands untouched.
+ *    `sendHost.send`, the real send path (the attachments that slice does not
+ *    have were empty in the old call too).
+ * 3. **It is not a band.** It rides `Transcript`'s `empty` content, so it
+ *    scrolls inside the transcript band and the three-band contract stands.
  *
- * The raster loads through `tryRequireAsset`, the controller's own loader
- * (`AiChatPage:182-194`): a missing file degrades to the block WITHOUT the
- * image instead of a broken one, and an `onError` at runtime does the same for
- * a file Metro found but the decoder could not paint. `welcomeBlock.test.ts`
- * proves the path is on disk, so the degrade path never ships by accident.
+ * The raster loads through `tryRequireAsset`: a missing file degrades to the
+ * block WITHOUT the image, and an `onError` does the same for a file Metro
+ * found but the decoder could not paint. `welcomeBlock.test.ts` proves the
+ * path is on disk, so the degrade path never ships by accident.
  */
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { BarChart2, BookOpen, ChevronRight, Globe, Sparkles } from "lucide-react-native";
 
@@ -45,7 +40,7 @@ const EMPTY_STATE_RASTER = tryRequireAsset(
   () => require("../../assets/brand/light/empty-state.jpg"),
 );
 
-/** Controller order: `buildSuggestions`' Sparkles / Globe / BarChart2 / BookOpen. */
+/** Icon per suggestion index — fixed order, paired with the four texts. */
 const SUGGESTION_ICONS = [Sparkles, Globe, BarChart2, BookOpen];
 
 export interface WelcomeBlockProps {
@@ -58,8 +53,8 @@ export function WelcomeBlock({ mode, onSend }: WelcomeBlockProps) {
   const { t } = useLocale();
   const colors = modes[mode];
   const [artFailed, setArtFailed] = useState(false);
-  // Chat:967 — the raster is optional; a failed decode renders the block
-  // without it rather than a broken image (and is reported, not hidden).
+  // The raster is optional; a failed decode renders the block without it
+  // rather than a broken image (and is reported, not hidden).
   const showArt = EMPTY_STATE_RASTER != null && !artFailed;
   const greeting = greetingForHour(new Date().getHours(), t);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
@@ -68,25 +63,21 @@ export function WelcomeBlock({ mode, onSend }: WelcomeBlockProps) {
     <View style={{ paddingTop: spacing.xl }} testID="chat.welcome">
       {/* Greeting — optional sage plate (the raster carries no letters).
 
-          The box carries NEITHER margin NOR padding, and that is a measured
-          decision, not a style preference (`host3-firstopen.png`; both traps
-          reproduced against the Yoga React Native 0.86 vendors, in
-          `welcomeBlock.test.ts`'s pins):
+          The box carries NEITHER margin NOR padding — a measured decision,
+          pinned in `welcomeBlock.test.ts` (capture `host3-firstopen.png`):
 
           1. a `marginBottom` on an `aspectRatio` node makes the box resolve
-             BELOW its column — a 441 px column lays out a 430.67 px box
-             (aspect intact), 8 dp of the card column missing on the right;
-          2. React Native paints an absolutely-positioned image at the box's
-             CONTENT size, anchored at the box origin, so the plate's own
-             `paddingHorizontal` pulled another 38.5 px (28 dp) off the
-             photograph's right edge. Stack 1 + 2 and the capture's plate ends
-             36 dp short of the cards — the ragged edge the vision pass saw.
+             BELOW its column (441 px column → 430.67 px box), 8 dp of the
+             card column missing on the right;
+          2. RN paints an absolutely-positioned image at the box's CONTENT
+             size, anchored at the origin, so the plate's own
+             `paddingHorizontal` pulled 38.5 px off the photograph.
 
-          Both insets still exist, in the controller's own values, on nodes
-          that cannot trigger the traps: the md inset is on the greeting text
-          (with its 70% cap) and the xs gap is the prompt's marginTop. The
-          proportions a reader sees — a 4:3 plate spanning the card column,
-          text inset 14 dp, 6 dp to the prompt — are AiChatPage:4033-4047's. */}
+          Both insets still exist, on nodes that cannot trigger the traps: the
+          md inset is on the greeting text (with its 70% cap) and the xs gap is
+          the prompt's marginTop. The proportions a reader sees — a 4:3 plate
+          spanning the card column, text inset 14 dp, 6 dp to the prompt — are
+          the ones the controller shipped. */}
       <View
         style={
           showArt
@@ -166,8 +157,8 @@ export function WelcomeBlock({ mode, onSend }: WelcomeBlockProps) {
               flexDirection: "row",
               alignItems: "center",
               gap: spacing.sm,
-              // Real box: 12 + 12 padding over a 32 dp tile is 56 dp tall, well
-              // past the 48 dp floor — no hitSlop anywhere in this block.
+              // Real box: 12 + 12 padding over a 32 dp tile is 56 dp tall,
+              // well past the 48 dp floor — no hitSlop anywhere in this block.
               paddingVertical: spacing.sm + 2,
               paddingHorizontal: spacing.md,
               borderRadius: radius.lg,

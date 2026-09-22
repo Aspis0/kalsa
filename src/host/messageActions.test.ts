@@ -1,10 +1,10 @@
 /**
- * The message interactions as SOURCE proof — the stack renders nothing
- * (DESIGN.md, "proof regime"), so what is checked is what a screenshot cannot
- * see and a rewrite would break silently: the two traps the controller
- * records, the fences around a regenerate, the deferred actions staying
- * absent, the 350 ms hold that must not fight the scroll view, and the 48 dp
- * floor on everything the sheet and the chip put under a finger.
+ * The message interactions as SOURCE proof — the stack renders nothing, so
+ * what is checked is what a screenshot cannot see and a rewrite would break
+ * silently: the two traps the controller records, the fences around a
+ * regenerate, the deferred actions staying absent, the 350 ms hold that must
+ * not fight the scroll view, and the 48 dp floor on everything the sheet and
+ * the chip put under a finger.
  *
  * Every predicate is exercised against a sample that must FAIL it, so a guard
  * that quietly stops matching cannot pass as green.
@@ -93,10 +93,9 @@ describe("the hold: 350 ms, and the gesture cannot fight the scroll view", () =>
     expect(/onPress/.test("return { onLongPress, onPress }")).toBe(true);
   });
 
-  it("the band's scroll view carries the controller's keyboardShouldPersistTaps=\"handled\" (Chat:4146) — the press the keyboard otherwise eats", () => {
+  it("the band's scroll view carries the controller's keyboardShouldPersistTaps=\"handled\" — the press the keyboard otherwise eats", () => {
     // With the default `never`, RN's ScrollView claims the touch ON START while
-    // the keyboard is up, and a 350 ms hold never begins. This is PARITY-STATUS
-    // row 45's missing transcript prop, spent here because the long-press needs it.
+    // the keyboard is up, and a 350 ms hold never begins (PARITY-STATUS row 45).
     expect(TRANSCRIPT).toContain('keyboardShouldPersistTaps="handled"');
     expect(TRANSCRIPT).not.toContain('keyboardShouldPersistTaps="never"');
   });
@@ -187,8 +186,7 @@ describe("the regenerate handoff is fenced exactly like a send, because it is on
 describe("deferred actions stay ABSENT from the code, not present and inert", () => {
   it("no translate, edit or read-aloud path exists in the menu's host or sheet", () => {
     // The controller's identifiers for the deferred systems — by name, so a
-    // `TranslateFn` type import cannot trip the check (the comment stripper
-    // already removed the prose).
+    // `TranslateFn` type import cannot trip the check.
     const deferred = [
       "runTranslate",
       "translationInFlightRef",

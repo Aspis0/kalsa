@@ -1,26 +1,21 @@
 /**
  * The streaming caret's decision and its motion values (DESIGN.md §2.11).
  *
- * The decision is the controller's own predicate, lifted from
- * `AiChatPage.tsx:5484` (`showCursor = !!m.streaming && !!m.text`): a caret
- * exists only while a live answer already has text to sit after — a pre-token
- * think draws the cloud, never a cursor over nothing, and a settled turn
- * draws nothing.
+ * The decision is the controller's predicate lifted verbatim: a caret exists
+ * only while a live answer already has text to sit after — a pre-token think
+ * draws the cloud, a settled turn draws nothing.
  *
  * The motion is §2.11's row as data: opacity 1 → 0.35 → 1 over 1 s, linear,
- * frozen solid as text arrives (the component restarts the blink from solid
- * on every text change, so the blink never fights arriving glyphs). Values
- * live here so `caretSpec.test.ts` can pin them without a render harness —
- * this repo's proof regime — and so the component cannot quietly grow its own
- * numbers.
+ * frozen solid as text arrives. Values live here so `caretSpec.test.ts` can
+ * pin them without a render harness, and the component cannot grow its own.
  *
  * Leaf rules, same as the band around it: no React, no storage, no engine.
  */
 
 /**
  * The controller's thin caret glyph: a hair space and a light vertical bar
- * (`U+2502`). A full block glyph (`U+258B`) at body size read as a missing
- * font — the note `src/chat/StreamCaret.tsx` carries — so the bar is kept.
+ * (`U+2502`). The full block glyph (`U+258B`) at body size read as a missing
+ * font — so the bar is kept.
  */
 export const CARET_GLYPH = "\u200A\u2502";
 

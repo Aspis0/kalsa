@@ -2,13 +2,11 @@
  * Phase 4 of the lifted engine turn — the static-prefix prewarm, the
  * KALSA_WINDOW line, history assembly, the persona tails, the image caps,
  * the memory-facts bound and the single `streamAssistantTurn` call with its
- * one `bridgeEngineCallbacks` (AppShell.tsx:6480-6699 → bridge at the
- * original :6630, D2 row 11's "bridge called once").
+ * one `bridgeEngineCallbacks` (D2 row 11: the bridge is called once).
  *
  * Two textual adaptations (reported): the two writes back into the core's
  * closure arrive as hooks — `setAssistantFull` for the stream's full-text
- * mirror and `markFailed` for the error flag — and everything else is the
- * lifted text itself.
+ * mirror and `markFailed` for the error flag — the rest is lifted text.
  */
 import { assembleEngineHistory } from "../context/compactor";
 import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
@@ -88,19 +86,14 @@ export async function streamEngineTurn(
     promptFacts,
   } = run;
 
-            // A slide's clearCache does not spare the static prefix — it is the
-            // same native cache — so without this the send below re-prefills
-            // ~1832 tokens of system prompt and tool schemas it had already
-            // paid for. queueStaticPrefixPrewarm restores them from the
-            // on-disk snapshot in single-digit ms; with no snapshot yet it
-            // prefills them and writes one, so the next slide is cheap.
-            //
-            // Awaited on purpose: the promise resolves once the job is ENQUEUED
-            // (queueStaticPrefixPrewarm never awaits its own withEngineJob
-            // body), which is exactly the ordering guarantee we need — the
-            // restore must sit in front of this send's completion in the FIFO,
-            // or the completion arrives first and the prewarm is skipped for
-            // holding chat KV.
+            // A slide's clearCache does not spare the static prefix — same
+            // native cache — so without this the send below re-prefills ~1832
+            // tokens of system prompt and tool schemas it already paid for.
+            // Awaited on purpose: the promise resolves once the job is
+            // ENQUEUED, which is the ordering guarantee we need — the restore
+            // must sit in front of this send's completion in the FIFO, or the
+            // completion arrives first and the prewarm is skipped for holding
+            // chat KV.
             if (nativeClearedForAssemble) {
               try {
                 await queueStaticPrefixPrewarm(
@@ -109,21 +102,16 @@ export async function streamEngineTurn(
                 );
               } catch {
                 // The prewarm is an optimisation on top of this send, never a
-                // precondition for it: the completion below prefills the same
-                // tokens either way. Its own job body already catches, but the
-                // queueing half runs on this stack, and an awaited rejection
-                // here would fail the user's turn.
+                // precondition: the completion below prefills the same tokens
+                // either way, and an awaited rejection here would fail the turn.
               }
             }
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
             // (anchored — append-only growth between rebuilds, preserves KV prefix).
-            // boundaryForAssemble is anchored-only: off/ciswire assemble from
-            // legacyWindowStart, and the engine's assembleBoundary uses it too,
-            // so no non-anchored store of boundaryForAssemble is read.
-            // One KALSA_WINDOW per send, emitted after the slide block so the
-            // logged start is the one the engine actually gets (on a ceiling
-            // slide the pre-slide clamp is no longer the answer).
+            // boundaryForAssemble is anchored-only; no non-anchored store of it
+            // is read. One KALSA_WINDOW per send, after the slide block, so the
+            // logged start is the one the engine actually gets.
             try {
               const windowChars =
                 historyLengths
@@ -160,11 +148,9 @@ export async function streamEngineTurn(
               legacyWindowStart,
             });
             // `persona` was resolved at the char-budget walk above: the same
-            // lookup prices the tails and applies them, so the budget and the
-            // prompt cannot disagree mid-send.
-            // Persona on every history user so bake rematch keys equal
-            // applyPersonaTail(persist, persona). Keep modelEmittedText so
-            // hybrid KV replay is byte-identical to the original completion.
+            // lookup prices the tails and applies them, so budget and prompt
+            // cannot disagree mid-send. Keep modelEmittedText so hybrid KV
+            // replay is byte-identical to the original completion.
             const engineMessages: EngineMessage[] = assembled.map((m) => {
               const msg: EngineMessage = {
                 role: m.role,
@@ -186,8 +172,8 @@ export async function streamEngineTurn(
               return msg;
             });
 
-            // Immagini da allegare all'ultimo messaggio user (cap 5):
-            // immagini dirette + pagine PDF renderizzate.
+            // Images attached to the last user message (cap 5): direct
+            // images + rendered PDF pages.
             const images: string[] = [];
             for (const attachment of attachments ?? []) {
               if (images.length >= 5) break;
@@ -202,8 +188,8 @@ export async function streamEngineTurn(
             }
             // Last-user composition (engine, format B):
             //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
-            // Persona is applied here; facts are prefixed in streamAssistantTurn
-            // (applyMemoryFactsToLastUser) so they never rewrite the system prefix.
+            // Persona applied here; facts are prefixed in streamAssistantTurn
+            // so they never rewrite the system prefix.
             const lastUserHistoryContent = applyPersonaTail(
               promptText,
               persona?.instructions,
@@ -216,9 +202,9 @@ export async function streamEngineTurn(
             engineMessages.push(userMessage);
 
             // Bound at send so echo-guard + telemetry see the same kept set
-            // LlamaService injects (pure; assembly site bounds again).
-            // promptFacts itself was hoisted above the ceiling guard so the
-            // system estimate and this send price the same facts.
+            // the assembly injects (pure; the assembly site bounds again).
+            // promptFacts was hoisted above the ceiling guard so the system
+            // estimate and this send price the same facts.
             if (memoryEnabledRef.current) {
               const dna = boundMemoryFacts(promptFacts);
               MemoryStore.trackMemoryInjection(dna.health.injectedCount);

@@ -2,30 +2,27 @@
  * The answer's blocks for the new shell: paragraphs, headings, lists,
  * blockquotes, rules, GFM pipe tables and fenced code.
  *
- * It exists because the old renderer cannot be reused as-is: `MarkdownText.tsx`
- * takes the old `ThemeColors` and `useTypography()` through the lab theme, and the
- * new shell mounts no theme provider — its colours come from `design.ts`. So the
- * adapter §1.5 asks for is a renderer. The parsing is NOT re-implemented: the
- * block and inline shapes come from `parseMarkdownDocument`, which sits on the old
- * pure parser.
+ * The old renderer cannot be reused as-is: it takes the old `ThemeColors` and
+ * `useTypography()` through the lab theme, and the new shell mounts no theme
+ * provider — its colours come from `design.ts`. The parsing is NOT
+ * re-implemented: block and inline shapes come from `parseMarkdownDocument`,
+ * which sits on the old pure parser.
  *
  * Two things this file must not do.
  *
  * **It must not shrink a table cell.** `tableScrollDecision` is the only thing
- * that decides whether a table scrolls, and it is a pure function with its own
- * tests; when it says the table does not fit, the scroll view appears and the
- * table is pinned to the decision's own `requiredWidth`, so the cells keep the
- * readable minimum instead of being squeezed. That is why the layout has to hand
- * the answer a width (`readingMeasure`) rather than the renderer guessing one.
+ * that decides whether a table scrolls — a pure function with its own tests —
+ * and a table pinned to its `requiredWidth` keeps the readable minimum instead
+ * of being squeezed. That is why the layout hands the answer a width
+ * (`readingMeasure`) rather than the renderer guessing one.
  *
- * **It must not label a container.** A table or a code block is a scrollable box
- * of text, not a control: an accessibility label on it becomes a
- * `contentDescription` on Android, which collapses the box into one announced
- * node and hides the cells or the code from a screen reader. The only interactive
- * node in this subtree is an inline link, and that one carries both a `testID` and
- * a name (`TranscriptInline.tsx`).
+ * **It must not label a container.** A table or code block is a scrollable box
+ * of text, not a control: an accessibility label becomes a `contentDescription`
+ * on Android, which collapses the box into one announced node and hides the
+ * cells or code from a screen reader. The only interactive node here is an
+ * inline link, and it carries both a `testID` and a name.
  */
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import type { MdBlock } from "../../chat/markdown";
@@ -72,10 +69,9 @@ export function MarkdownBlocks({
   return (
     <>
       {document.map((block, index) => {
-        // The document's own rhythm: everything the answer stacks as a block — a
-        // paragraph run, a table, a fence — is separated by the same 12–16 dp the
-        // paragraphs get (DESIGN.md §2.2). Inside one run the old parser's blocks
-        // keep their own, smaller gaps.
+        // The document's own rhythm: every block stack — paragraph run, table,
+        // fence — separated by the same 12–16 dp the paragraphs get (DESIGN.md
+        // §2.2). Inside one run the parser's blocks keep their own, smaller gaps.
         const separated = index > 0;
         if (block.type === "code") {
           return (

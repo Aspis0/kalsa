@@ -170,6 +170,18 @@ nothing behind it is a control that lies. Tapping it opens a sheet
 listing **this phone** and the paired PCs, each with its state and its models. It collapses to one
 line on the smallest screen.
 
+**The strip's controls and the pill (2026-09-21, moved here from `shellGeometry.ts`).** The strip
+holds **three** icon buttons — menu, Web, new chat — plus the model pill. When the Web switch and
+Export both sat on the strip (four buttons), the pill was left **97 dp with a 14 dp text column**: a
+device capture read `LFM2.5 …` over `On this ph…`, both lines cut, which the vision pass called
+"a row of tiny dots". Export moved to the drawer (a chat-level action, and the drawer already
+exists); three buttons restore the pill to `349 − 2·12 − 3·48 − 3·9 = 154 dp`. What the pill then
+spends *inside* those 154 dp is decided the same way: the 28 dp logo mark, the where-dot and 20 dp of
+padding are gone — the name is the only information in there — leaving `stripPillTextColumn` =
+121 dp for it (71 dp before, ~105 dp measured on the device). The 48 dp frame and the chevron stay
+(they say the pill is tappable), and `stripTextBudget.test.ts` measures the real strings in the real
+fonts against that column, in both catalogues, so "does the line fit" is arithmetic, not a hope.
+
 ### 2.2 The transcript
 
 - **Only the user's turn is boxed**: a tinted capsule, right-aligned, no border, no tail, max 78 %.
@@ -335,6 +347,13 @@ Decision, taken before mounting the shell:
   already records. The two are combined by **one named rule** rather than by hand at each call site:
   the bottom inset becomes the **larger** of the safe-area inset and the keyboard, because when the
   keyboard is up it covers the navigation bar rather than sitting above it.
+- **React Native's own `Keyboard` event is not a drop-in for that number.** Its payload is
+  `imeInsets.bottom - systemBars.bottom` — the IME with the navigation bar already taken out — so
+  pairing it with the `max` rule leaves the composer one gesture bar under the keyboard;
+  `react-native-keyboard-controller` subtracts the bar only when it is **not** translucent, and the
+  provider marks it translucent under edge-to-edge (which this app runs), so its height **is the full
+  IME inset** — the number the larger rule was written for (`useKeyboardHeight.ts` keeps this note
+  beside the code).
 - **The transition is not smoothed in this step, and that is a listed gap rather than an oversight.**
   The bands re-partition when the keyboard settles, so the composer arrives in one step instead of
   travelling with the keyboard. Animating it properly means driving the transcript's height and the

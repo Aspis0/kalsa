@@ -1,13 +1,11 @@
 /**
  * Turn-end finalize: the assistant message's terminal write plus the
- * epoch-stamped history persist and the landing-keyed `saveEngineSession`
- * — the lifted body of `AiChatPage.tsx:2907-3046` (the `applyFinalize`
- * compose + the turn-end save block), re-expressed over the turn fence and
- * `createHistoryWriter`.
+ * epoch-stamped history persist and the landing-keyed `saveEngineSession`,
+ * re-expressed over the turn fence and `createHistoryWriter`.
  *
  * The side effects stay INSIDE the setState updater on purpose: React still
  * applies queued updaters after a clear, so ownership is re-checked where
- * the queue is applied — the old code's own rule (AiChatPage:2956-2962).
+ * the queue is applied.
  *
  * Not lifted: `turnEndSavePromiseRef` — the only reader was the
  * background-discard lifecycle this host does not mount (reported); the
@@ -17,8 +15,7 @@
 import {
   miniappStripMakesKvNonReproducible,
 } from "../engine/kvReproducibility";
-import { markKvNonReproducible, saveEngineSession } from "../engine/LlamaService";
-import { getActiveModelId } from "../engine/LlamaService";
+import { markKvNonReproducible, saveEngineSession, getActiveModelId } from "../engine/LlamaService";
 import {
   normalizeModelEmittedTextForSave,
   normalizeThinkingTextForSave,
@@ -34,7 +31,6 @@ import type { TurnFence, TurnToken } from "./turnGuards";
  * Bounded fallback for the turn-end lifecycle: a KV write promise that never
  * settles must not hang the turn (it blocks memory extraction). A late
  * landing still writes the .kvs — the hold just does not wait forever.
- * Lifted from `AiChatPage.tsx:588-591`.
  */
 export const HISTORY_WRITE_FALLBACK_MS = 10_000;
 
@@ -129,7 +125,7 @@ export function finalizeAssistantTurn(
       messagesRef.current = next;
       const epoch = getEpoch();
       const historyWrite = persist(next, { epoch });
-      // A2: mark BEFORE save when miniapp JSON was stripped from text.
+      // Mark BEFORE save when miniapp JSON was stripped from text.
       if (miniappStripped) {
         markKvNonReproducible("miniapp_stripped");
       }

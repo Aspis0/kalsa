@@ -1,23 +1,20 @@
 /**
- * The message action sheet — the controller's modal at
- * `AiChatPage.tsx:4385-4496`, as a presentational leaf: it draws the rows the
+ * The message action sheet, as a presentational leaf: it draws the rows the
  * HOST decides it may show, and an action that cannot run is ABSENT from that
- * list, never present and inert (translate, edit and read-aloud are absent
- * because their systems are deferred; see `src/host/messageMenuRows.ts`).
+ * list, never present and inert (translate, edit and read-aloud are deferred;
+ * see `src/host/messageMenuRows.ts`).
  *
- * Shape parity with the controller: a translucent backdrop that dismisses
- * (`:4390-4395`), a caption line above the rows that turns into `common.copied`
- * during the flash (`:4412`), rows with an icon + label (`AttachSheetRow`,
- * `:4416-4486`), cancel last, Android back closes (`onRequestClose`). The
- * inner sheet is a swallow-pressable exactly like the controller's
- * `onPress={() => undefined}` (`:4401`) so taps on dead space inside the sheet
- * do not dismiss it.
+ * Shape parity with the controller: a translucent backdrop that dismisses, a
+ * caption that turns into `common.copied` during the flash, rows with icon +
+ * label, cancel last, Android back closes, and the inner sheet is a
+ * swallow-pressable (`onPress={() => undefined}`) so taps on dead space inside
+ * it do not dismiss the menu.
  *
  * Every row is a real `MIN_TOUCH_TARGET`-tall box with a testID and an
  * accessible name — never `hitSlop`. The icons are this file's own mapping
  * from the row id, so the host ships data, not JSX.
  */
-import React, { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { ClipboardList, Copy, RefreshCw, X } from "lucide-react-native";
 
@@ -49,15 +46,14 @@ export type MessageMenuProps = {
   /** The caption above the rows: the long-press line, or `common.copied`. */
   caption: string;
   rows: readonly MessageMenuRow[];
-  /** Safe-area bottom: the sheet clears the gesture bar like the controller's
-   *  `paddingBottom: insets.bottom + spacing.md` (`Chat:4490`). */
+  /** Safe-area bottom: the sheet clears the gesture bar. */
   bottomInset: number;
   onRowPress: (id: MessageMenuRowId) => void;
-  /** Android back = cancel, the controller's `onRequestClose` (`:4388`). */
+  /** Android back = cancel. */
   onRequestClose: () => void;
 };
 
-function iconFor(id: MessageMenuRowId, color: string): React.ReactNode {
+function iconFor(id: MessageMenuRowId, color: string): ReactNode {
   switch (id) {
     case "copy":
       return <Copy size={18} color={color} />;
@@ -129,7 +125,7 @@ export function MessageMenu({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onRequestClose}>
       {/* The backdrop is the cancel gesture: a tap outside the sheet closes the
-          menu (controller `Chat:4390-4395`). Real box, named node. */}
+          menu. Real box, named node. */}
       <Pressable
         testID="shell.messageMenu.backdrop"
         accessibilityRole="button"
@@ -138,7 +134,7 @@ export function MessageMenu({
         style={styles.backdrop}
       >
         {/* The swallow: without this the backdrop would close on taps landing
-            on dead space INSIDE the sheet (controller `Chat:4401-4404`). */}
+            on dead space INSIDE the sheet. */}
         <Pressable
           testID="shell.messageMenu.sheet"
           accessibilityRole="menu"

@@ -1,9 +1,8 @@
 /**
- * The rewrite exists because two files grew into 7261 and 6092 lines and nobody
- * could hold either in their head. The owner's rule for the replacement, in his
- * own words: do not recreate a giant chat or app file. This is that rule as a
- * test, because a promise about file size is exactly the kind of promise that
- * survives in a document and dies in a hurry.
+ * The file-size ratchet. The rewrite this replaces had two files at 7261 and
+ * 6092 lines; a promise about file size is exactly the kind of promise that
+ * survives in a document and dies in a hurry, so this is that promise as a
+ * test.
  *
  * Three limits, each ratcheting (lower as the tree shrinks; never raise to
  * make room):
@@ -12,10 +11,9 @@
  *    only COMPOSE: state it owns, hooks it calls, children it arranges. Every
  *    slice that lands in the root instead of beside it is how a rewrite becomes
  *    the thing it replaced;
- *  - every `*.ts`/`*.tsx` under `src/ui/shell` stays within SHELL_FILE_LIMIT.
- *    This directory was outside the guard while `composerState.test.ts` sat at
- *    358 — eight over the project's ~350 guideline — which is exactly how a
- *    limit earns itself a second directory.
+ *  - every `*.ts`/`*.tsx` under `src/ui/shell` stays within SHELL_FILE_LIMIT —
+ *    a second directory earning its own limit when its largest file sat over
+ *    the project guideline.
  *
  * Each file list is asserted non-empty AND large enough to be the real tree:
  * a reader that silently returns nothing would make every other assertion
@@ -28,19 +26,15 @@ import { join } from "path";
 export const HOST_FILE_LIMIT = 350;
 /**
  * A tighter, RATCHETING limit for the root, which must stay a composer rather
- * than a home. It is 250 lines today: this number is deliberately just above
- * that, so the root cannot grow at all until it has been split further, and
- * every new behaviour must land in a module beside it. Lower this as the root
- * shrinks; never raise it to make room. (Was 340 when the root sat at 332;
- * lowered to 250 when the root split to 250 — HostChatSurface, HostDrawer and
- * HostFurniture came out.)
+ * than a home. Deliberately just above the root's size, so it cannot grow at
+ * all until it has been split further and every new behaviour lands in a
+ * module beside it. Lower this as the root shrinks; never raise it.
  */
 export const ROOT_FILE_LIMIT = 250;
 /**
- * The shell's RATCHETING limit: the largest file the tree holds today,
- * `TranscriptMarkdown.tsx` at 342 lines. Set to the observed max rather than
- * the project guideline, so the first line added to that file fails and the
- * seam gets cut instead. Lower it as the shell shrinks; never raise it.
+ * The shell's RATCHETING limit: the largest file the tree held when it was
+ * set, so the first line added fails and the seam gets cut instead. Lower it
+ * as the shell shrinks; never raise it.
  */
 export const SHELL_FILE_LIMIT = 342;
 /** Below this many files the listing is broken, not the codebase. */

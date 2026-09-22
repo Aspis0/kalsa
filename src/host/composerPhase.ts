@@ -4,9 +4,9 @@
  *
  * Pure on purpose: the mapping is the whole question of what the composer
  * says while the machine moves, and this stack has no render harness to
- * assert it on (DESIGN.md, "proof regime"). The engine's status callback
- * names the live phase — `thinkingStatus` until the first visible token,
- * anything else after (the same flip LlamaService owns for the old chip).
+ * assert it on. The engine's status callback names the live phase —
+ * `thinkingStatus` until the first visible token, anything else after (the
+ * same flip LlamaService owns for the old chip).
  */
 import type { ModelPipelineState } from "../app/AppShell";
 import type { ComposerPhase } from "../ui/shell/composerState";
@@ -40,8 +40,7 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   }
   // Idle-side order: settle history first (the first renders of a switch are
   // not "ready"), then the model's own pipeline. "missing" and "error" are
-  // both "the model is not loaded" for the composer — the strip pill's tap
-  // is the way out of either (parity with the old chip's tap-to-load).
+  // both "not loaded" for the composer — the strip pill's tap is the way out.
   if (!input.historyLoaded) return "loading";
   if (input.modelState === "checking" || input.modelState === "loading") return "loading";
   if (input.modelState === "downloading") return "loading";

@@ -2,22 +2,21 @@
  * The keyboard must not throw the reader's place away — and the FIRST layout
  * must still open the conversation where it opens.
  *
- * Both halves are pinned here rather than in `transcriptScroll.test.ts` because
- * they are one rule with two edges: React Native's `onLayout` fires for the
- * band's first layout AND for every re-layout after it (the keyboard opening
- * moves the band's top edge from 116 to 105 and shrinks it to 130 dp), and
- * before this slice the view reported both as `first-layout`. The welcome
- * guard answers `first-layout` with `scrollTo: 0`, so a reader at offset 338
- * went back to the top of the block — measured, not guessed (device capture,
- * this slice). The fix is one reported fact, `placedBefore`, and the tests
- * below hold each direction of it:
+ * Both halves are pinned here rather than in `transcriptScroll.test.ts`
+ * because they are one rule with two edges: RN's `onLayout` fires for the
+ * band's first layout AND every re-layout after it (the keyboard moves the
+ * top edge 116 → 105 and shrinks the band to 130 dp), and before this slice
+ * the view reported both as `first-layout`. The welcome guard answers
+ * `first-layout` with `scrollTo: 0`, so a reader at offset 338 went back to
+ * the top of the block — measured, not guessed (device capture). The fix is
+ * one reported fact, `placedBefore`, and the tests below hold each direction:
  *
  *  - a RE-layout of the same conversation moves nothing (338 stays 338),
  *  - a GENUINE first layout still opens at the block's top (0),
  *  - with messages present the same event no longer slams an unpinned reader
- *    to the end (the identical defect in the other branch — `first-layout`
- *    used to return `scrollTo: end` unconditionally), while a pinned reader is
- *    still followed to the newest message, and
+ *    to the end (`first-layout` used to return `scrollTo: end`
+ *    unconditionally), while a pinned reader is still followed to the newest
+ *    message, and
  *  - the fact is inert for every other cause, so nothing else changed.
  *
  * The numbers are the capture's where the capture made them (offset 338, the

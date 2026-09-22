@@ -3,8 +3,8 @@
  * DESIGN.md §2.8 (stop's outcomes, the engine's own reason, danger tone) and
  * §2.11 (the streaming caret), plus the sanitize round-trip that keeps the
  * mark alive across a reopen. Split out of `messageMapper.test.ts` when that
- * file crossed the host's 350-line budget: the helpers below are its own, the
- * assertions are the same rules, nothing was weakened in the move.
+ * file crossed the host's 350-line budget: the helpers below are its own and
+ * nothing was weakened in the move.
  *
  * The gap this pins is `docs/PARITY-STATUS.md` gap 2: an interrupted or
  * failed turn used to render exactly like a completed one.

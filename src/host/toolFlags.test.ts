@@ -1,12 +1,11 @@
 /**
  * The Web switch's persistence (D1 row 5 / D2 row 14), as source plus the pure
  * parser: the toggle itself needs AsyncStorage, which the node stack cannot
- * run, so what is proven is the part a typo would break silently — the new
- * toggle writes the CONTROLLER'S OWN key (`kalsa.web.enabled`, old
- * `AppShell:882`) with the controller's own `"1"`/`"0"` encoding, both files
- * importing that key from the same module, and the skip-once notify rule that
- * makes a toggle announce itself while mount does not (the notify machinery is
- * `staticPrefixNotify.ts`, already tested in `staticPrefixNotify.test.ts`).
+ * run, so what is proven is the part a typo would break silently — the toggle
+ * writes the CONTROLLER'S OWN key (`kalsa.web.enabled`) with the controller's
+ * own `"1"`/`"0"` encoding, both files importing that key from the same
+ * module, and the skip-once notify rule that makes a toggle announce itself
+ * while mount does not (the notify machinery has its own test).
  */
 import { readFileSync } from "fs";
 import { join } from "path";

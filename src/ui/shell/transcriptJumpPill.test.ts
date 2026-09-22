@@ -1,16 +1,12 @@
 /**
- * The transcript's jump control, after a vision audit found it doing damage.
+ * The transcript's jump control, after a vision audit found it doing damage:
+ * a white pill ~131 x 48 dp with the words "Go to the end" floated over the
+ * transcript and hid the reader's own word "trust?". Any control floating over
+ * a scroll view covers something, so the fix covers as little as possible: a
+ * 48 dp round icon in the bottom-right corner, named only by its accessible
+ * label (the label was what made it 131 dp wide).
  *
- * The audit looked at `mock/shell-jelly-621.png` and reported that the control —
- * a white pill about 131 x 48 dp, with a down arrow and the words "Go to the
- * end" in it — floated over the transcript and hid the reader's own word
- * "trust?" behind it. Any control that floats over a scroll view covers
- * something, so the fix is not to float it elsewhere but to cover as little as
- * possible: a 48 dp round icon in the bottom-right corner, named only by its
- * accessible label. The label was what made it 131 dp wide.
- *
- * This is a source check and not a rendered one, for the reason DESIGN.md's
- * proof regime gives: jest runs on `node` with `.ts` only and there is no render
+ * A source check, not a rendered one: jest runs on `node` with no render
  * harness, so a style object cannot be imported and asserted. What it locks is
  * the two things that actually went wrong — the box, and the visible label.
  */
@@ -108,15 +104,14 @@ describe("the jump control's boundary", () => {
   it("measures the ring at 3:1 against the page AND the control's own fill, both modes", () => {
     // §1.2 forbids a border telling a SURFACE from the page (white on the page
     // is 1.07:1); this ring's job is different — it says "control", and the
-    // number for a UI component's boundary is WCAG 2.2 SC 1.4.11 (non-text
-    // contrast): 3:1 against adjacent colours. A requirement, not taste.
+    // number for a UI component's boundary is WCAG 2.2 SC 1.4.11: 3:1 against
+    // adjacent colours. A requirement, not taste.
     //
-    // BEFORE (2026-09-21, `colors.borderStrong`): light 1.53:1 page / 1.64:1
-    // fill, dark 2.09 / 1.88 — below 3:1 everywhere, and a vision audit could
-    // not trace the ring. AFTER (`colors.silence`): light 5.97 / 6.41, dark
-    // 7.12 / 6.40. `colors.inkSoft` also clears the bar (11.67 / 12.52 light,
-    // 11.35 / 10.19 dark) but at 11–13:1 reads as a hard frame rather than a
-    // control edge; silence is the quieter passing token.
+    // BEFORE (`colors.borderStrong`): light 1.53:1 page / 1.64:1 fill, dark
+    // 2.09 / 1.88 — below 3:1 everywhere; a vision audit could not trace the
+    // ring. AFTER (`colors.silence`): light 5.97 / 6.41, dark 7.12 / 6.40.
+    // `colors.inkSoft` also clears the bar but at 11–13:1 reads as a hard
+    // frame; silence is the quieter passing token.
     for (const [mode, c] of Object.entries(modes)) {
       const vsPage = contrast(c.silence, c.page);
       const vsFill = contrast(c.silence, c.surface);

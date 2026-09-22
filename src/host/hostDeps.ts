@@ -1,8 +1,8 @@
 /**
  * The three dependency objects the lifted halves consume, assembled in one
- * place from what the root owns. They exist because the old component
- * spread these values across four `useCallback` dependency arrays, one
- * `useMemo` and a dozen refs; here every field is named once.
+ * place from what the root owns — one named field each where the old
+ * component spread these across four dependency arrays, one memo and a dozen
+ * refs.
  *
  * Build order the root must keep: `buildAgentDeps` → `buildAgentOptions`
  * (the tool options need only host-owned refs) → `buildHostDeps` (the load
@@ -51,21 +51,17 @@ export interface HostDepsInput {
   embedderDownloadedRef: { current: boolean };
   personasStateRef: { current: PersonasPersisted };
   activePersonaIdRef: { current: string };
-  // tool flags
   webToolsEnabled: boolean;
   deviceToolsEnabled: boolean;
   calendarToolsEnabled: boolean;
   webToolsEnabledRef: { current: boolean };
   deviceToolsEnabledRef: { current: boolean };
   calendarToolsEnabledRef: { current: boolean };
-  // model host
   currentModel: ModelInfo;
   chatEngineCtxRef: { current: number };
   recordDecodeSample: (model: ModelInfo, sample: DecodeMeasurement) => void;
-  // agent options (finished value + mirror ref)
   agentOptions: EngineTurnOptions;
   agentOptionsRef: { current: EngineTurnOptions };
-  // engine half
   setStreaming: (streaming: boolean) => void;
 }
 
@@ -130,8 +126,7 @@ export function buildTurnDeps(
     streamInFlightRef: input.streamInFlightRef,
     nativeTurnStartAtRef: input.nativeTurnStartAtRef,
     // The real module ref: its default is the no-op and the (unmounted)
-    // idle-dispose system is the only thing that would ever assign it; the
-    // lifted call site stays byte-identical either way.
+    // idle-dispose system is the only thing that would ever assign it.
     bumpForegroundIdleRef,
     lastUserRawRef: input.lastUserRawRef,
     activeDocumentAttachmentRef: input.activeDocumentAttachmentRef,

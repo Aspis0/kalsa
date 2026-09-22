@@ -1,7 +1,5 @@
 /**
- * Phase 1 of the lifted engine turn — the window scaffolding, from
- * `AppShell.tsx:5816-6296` (`const retrievalOn …` through the legacy window
- * start, the off-mode reconcile and the char-budget walk). Verbatim body;
+ * Phase 1 of the lifted engine turn — the window scaffolding. Verbatim body;
  * the original `let` declarations become this function's locals and are
  * returned as `WindowFrame` for the two phases after it.
  */
@@ -66,17 +64,15 @@ export async function prepareEngineWindow(
               | { chars: number; source: "ceiling" | "profile" }
               | undefined;
             let nativeClearedForAssemble = false;
-            // The verbatim window, resolved from the context the engine actually
-            // loaded (post-clamp) rather than from a constant — same treatment
-            // threads / ubatch / n_ctx already get. A bench override still wins,
-            // and expresses itself as a message cap with no char budget so the
-            // arms keep measuring exactly the count they ask for.
+            // The verbatim window, resolved from the context the engine
+            // actually loaded (post-clamp) rather than a constant. A bench
+            // override still wins, as a message cap with no char budget.
             //
-            // Computed ONCE, as a start index, and handed to both consumers.
-            // They must not each derive it: assembly takes the window and the
-            // ciswire corpus takes everything outside it, so if the two ever
-            // disagreed a message would land in both or — worse — in neither.
-            // Passing one index makes them agree by construction.
+            // Computed ONCE, as a start index, handed to both consumers: the
+            // assembly takes the window and the ciswire corpus takes
+            // everything outside it — if the two ever disagreed a message
+            // would land in both, or in neither. One index makes them agree
+            // by construction.
             const benchWindow = await getBenchLegacyWindow();
             const nPast = chatKvNPast();
             const lastSaveTokens = chatKvLastSaveTokens();
@@ -92,9 +88,8 @@ export async function prepareEngineWindow(
               loadedB,
             });
             // Digest share shrinks the verbatim window. While live KV still
-            // holds the full chat, that drop is n_common=0 (f441b3d T20C t10:
-            // embd=7189 text_tokens=4173 n_common=0 = WINDOW_SHARE_WITH_DIGEST).
-            // Flag / nPast can both be stale-false; last save tokens count.
+            // holds the full chat, that drop is n_common=0. Flag / nPast can
+            // both be stale-false; last save tokens count.
             const hasDigest = windowHasDigest({ retrievalOn, kvHeld });
             const windowProfile =
               typeof benchWindow === "number"
@@ -108,20 +103,16 @@ export async function prepareEngineWindow(
                     hasImages,
                     hasDigest,
                   });
-            // The turn being sent is appended to the prompt AFTER this walk, so
-            // it must be charged here or a long message would ride entirely
-            // outside the budget — exactly the overflow the budget exists to
-            // stop. The built turn carries promptText whole (last-user
-            // composition below never slices it), so the charge is uncapped.
+            // The turn being sent is appended AFTER this walk, so it must be
+            // charged here or a long message would ride entirely outside the
+            // budget — exactly the overflow the budget exists to stop. The
+            // built turn carries promptText whole, so the charge is uncapped.
             //
             // Assembly also adds tails on top of stored text, and they ride in
-            // the budget too (audit FAIL 2026-09-14 — until a run proved
-            // otherwise this was a "known under-count"): the persona frame is
-            // applied to EVERY history user at the send, and its extra is
-            // content-independent, so applyPersonaTail("") prices it exactly.
-            // The bounded facts block (boundMemoryFacts, inside
-            // buildMemoryFactsBlock) rides the last user and — baked — prior
-            // user turns while memory is on.
+            // the budget too: the persona frame applies to EVERY history user
+            // at the send and its extra is content-independent, so
+            // applyPersonaTail("") prices it exactly. The bounded facts block
+            // rides the last user and — baked — prior user turns while on.
             const promptFacts = memoryEnabledRef.current
               ? memoryFactsRef.current
               : [];
@@ -145,11 +136,10 @@ export async function prepareEngineWindow(
               currentModel.preserveThinking,
             );
             // historyBudgetCharge prices each message as its BUILT length:
-            // uncapped replay for assistant emissions (assembly keeps the
-            // field whole — byte-identity), capped stored text everywhere
-            // else. Because the array already carries the only legitimate
-            // cap, every budget consumer below passes Infinity as the
-            // per-message cap: re-capping here would re-shave a long emission
+            // uncapped replay for assistant emissions (byte-identity), capped
+            // stored text everywhere else. The array carries the only
+            // legitimate cap, so every budget consumer passes Infinity as the
+            // per-message cap — re-capping here would re-shave a long emission
             // back under the ceiling guard's eyes.
             const noPerMessageCap = Number.POSITIVE_INFINITY;
             const historyLengths = validatedHistory.map((m) =>
@@ -201,8 +191,8 @@ export async function prepareEngineWindow(
             }
             // Off mode has no compactor block below. A held cache without a
             // same-chat boundary fact must still be cleared before a start-0
-            // prompt is sent; relying on native partial removal here is the
-            // hybrid corruption path this protocol forbids.
+            // prompt is sent; relying on native partial removal is the hybrid
+            // corruption path this protocol forbids.
             if (contextMode === "off" && reconcileRequired) {
               nativeClearedForAssemble = await discardChatKvForWindowSlide(
                 getActiveModelId() ?? currentModel.id,

@@ -6,21 +6,20 @@
  * sources) until exactly one terminal result. Semantics pinned from the
  * old path:
  *
- * - Backends RESOLVE on failure and report via onFailed(reasonKey)
- *   (AiChatPage:2693, AppShell:5399); a throw becomes the default key.
+ * - Backends RESOLVE on failure and report via onFailed(reasonKey); a throw
+ *   becomes the default key.
  * - Abort is classified from the AbortSignal, never from a callback: the
- *   engine resolves through its normal path after an abort
- *   (LlamaService:4554), so "done" and "aborted" share a resolution.
- * - Stopped before any token ⇒ aborted (failed, chat.sendAborted unless a
- *   backend already named the failure — AiChatPage:3101-3105); stopped
- *   after tokens ⇒ interrupted: the partial is kept and the turn-end save
- *   hook is still adopted (AiChatPage:2718-2724, 2802-2810).
+ *   engine resolves through its normal path after an abort, so "done" and
+ *   "aborted" share a resolution.
+ * - Stopped before any token ⇒ aborted (failed, `chat.sendAborted` unless a
+ *   backend already named the failure); stopped after tokens ⇒ interrupted:
+ *   the partial is kept and the turn-end save hook is still adopted.
  * - Events after the terminal result are dropped.
  *
  * The engine stays behind `SendEngine`; tests drive a fake.
  */
 
-/** Mirror of the composer's attachment type (AiChatPage:229), narrowed to what a send consumes. */
+/** Mirror of the composer's attachment type, narrowed to what a send consumes. */
 export interface SendAttachment {
   id: string;
   kind: "image" | "pdf" | "document";
@@ -38,7 +37,7 @@ export interface SendRequest {
   attachments?: readonly SendAttachment[];
   /** UI history snapshot assembled for this turn. */
   history?: readonly unknown[];
-  /** Persistable user text without doc hints (AiChatPage:335). */
+  /** Persistable user text without doc hints. */
   lastUserBare?: string;
   options?: {
     research?: boolean;
@@ -65,7 +64,7 @@ export interface SendEngineEmit {
 }
 
 export interface SendEngineResult {
-  /** Deferred turn-end hook: run after the KV save settles (AppShell:5358). */
+  /** Deferred turn-end hook: run after the KV save settles. */
   afterSessionSave?: () => void;
 }
 
@@ -133,8 +132,8 @@ export async function runSendStream(
     if (anyTextStreamed) {
       return { kind: "interrupted", afterSessionSave: save };
     }
-    // A named failure survives the abort default (AiChatPage:3103 only
-    // overwrites the default key).
+    // A named failure survives the abort default: only the default key is
+    // ever overwritten.
     return { kind: "aborted", reasonKey: failure ?? ABORT_FAILURE_KEY };
   }
   if (failure !== null) {

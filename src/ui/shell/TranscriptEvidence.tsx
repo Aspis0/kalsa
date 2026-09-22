@@ -1,25 +1,16 @@
 /**
  * What the answer stands on: one quiet row per tool call above it (§2.4), and
- * the source chips under it (§2.5).
- *
- * Both live in one file because §1.5 says they are one family — "the durable
- * evidence of what an answer stands on is the sources, and the tools are the
- * live half of it" — and because the two are the only parts of the transcript
- * that borrow something from outside the message text.
- *
- * A leaf, like the rest of the band: it reads no storage, subscribes to nothing,
- * fetches nothing, and knows no engine. The two decisions it needs are pure
- * functions in `toolLabels.ts` and `sourceLinkPolicy.ts`, so the node jest stack
- * can prove them without a render harness (DESIGN.md, "proof regime").
+ * the source chips under it (§2.5) — one file because §1.5 says they are one
+ * family (sources are the durable evidence, tools the live half). A leaf: no
+ * storage, no subscription, no fetch, no engine; the two decisions it needs
+ * are pure functions in `toolLabels.ts` and `sourceLinkPolicy.ts`.
  *
  * The rule this file must keep, and `transcriptNoFetch.test.ts` enforces by
- * reading it: NO network request of any kind. A favicon or a preview image would
- * be a request out of the app naming every domain the user searched — the
- * desktop's stated rule, and it holds twice as hard on a phone. A tappable chip
- * hands its address to the system browser on the reader's own tap; it does not
- * open a connection here.
+ * reading it: NO network request of any kind. A favicon or preview image would
+ * be a request out of the app naming every domain the user searched. A
+ * tappable chip hands its address to the system browser on the reader's own
+ * tap; it does not open a connection here.
  */
-import React from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
@@ -29,12 +20,9 @@ import { toolRowLabel } from "./toolLabels";
 import type { TranscriptSource, TranscriptToolCall } from "./transcriptTypes";
 
 /**
- * One line per tool call, in the order the engine made them: small, muted, no
- * icon and no container. Nothing here is expandable in this step, so a row
- * carries the label and nothing else.
- *
- * A repeated call draws two rows and not one: two searches are two calls, and
- * collapsing them would silently rewrite what the answer stood on.
+ * One line per tool call, in engine order: small, muted, no icon, no container,
+ * nothing expandable. A repeated call draws two rows, not one: two searches are
+ * two calls, and collapsing them would silently rewrite what the answer stood on.
  */
 export function ToolRows({
   styles,
@@ -67,10 +55,9 @@ export function ToolRows({
 
 /**
  * One chip: the citation index the answer's `[N]` markers point at, and the
- * host. The index is the 1-based position in the message's own source list,
- * which is the rule the renderer already uses (`MarkdownText` reads
- * `sources[N - 1]`), so a chip number and a marker number are the same number by
- * construction rather than by agreement.
+ * host. The index is the 1-based position in the message's own source list —
+ * the rule the renderer already uses — so a chip number and a marker number are
+ * the same number by construction rather than by agreement.
  */
 function SourceChip({
   cite,
@@ -106,10 +93,10 @@ function SourceChip({
   );
 
   if (!decision.tappable) {
-    // Reduced emphasis, no lift: a chip that cannot be opened must not look like
-    // the ones that can (§2.5). It wears the same box as the tappable kind all the
-    // same, and not for a 48 dp reason — it has nothing to press — but so that a
-    // row holding both forms keeps one baseline instead of one pill riding high.
+    // Reduced emphasis, no lift: a chip that cannot be opened must not look
+    // like the ones that can (§2.5). It wears the same box not for a 48 dp
+    // reason — it has nothing to press — but so a row holding both forms keeps
+    // one baseline instead of one pill riding high.
     return (
       <View
         accessibilityLabel={label}

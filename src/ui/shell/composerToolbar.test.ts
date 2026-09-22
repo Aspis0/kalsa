@@ -1,14 +1,11 @@
 /**
- * The composer toolbar (D1 rows 13/14) as source plus its one geometry number,
- * because this stack cannot render it (DESIGN.md, "proof regime"). What a
- * screenshot cannot see and a regression would break silently: every finger
- * target is the real 48 dp row (never `hitSlop`), every node carries a testID
- * and an accessible name, the chips follow the controller's role split
+ * The composer toolbar (D1 rows 13/14) as source plus its one geometry number.
+ * What a screenshot cannot see and a regression would break silently: every
+ * finger target is the real 48 dp row (never `hitSlop`), every node carries a
+ * testID and an accessible name, the chips keep the controller's role split
  * (switch + checked for the toggles), and — since the library-document chip
- * was REMOVED from the row (clipped by 349 dp, inert without the attachment
- * flow; `ComposerToolbar.tsx` header) — that no chip quietly creeps back into
- * a row the arithmetic cannot hold (`composerToolbarWidth.test.ts` holds the
- * numbers).
+ * was REMOVED from the row — that no chip quietly creeps back into a row the
+ * arithmetic cannot hold (`composerToolbarWidth.test.ts` holds the numbers).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -48,8 +45,8 @@ describe("the row is a real box, not a slop (project rule)", () => {
 describe("every interactive node: testID + accessible name", () => {
   it("three controls, three testIDs", () => {
     // BEFORE: four IDs — templates, research, document, notes. The document
-    // chip was removed from the row (its chip could not do its job without the
-    // attachment flow and sat outside 349 dp); it returns WITH that flow.
+    // chip left the row (it could not do its job without the attachment flow);
+    // it returns WITH that flow.
     for (const id of [
       "shell.composer.templates",
       "shell.composer.research",
@@ -73,7 +70,7 @@ describe("every interactive node: testID + accessible name", () => {
     expect(CODE).toContain('accessibilityRole={toggle ? "switch" : "button"}');
     expect(CODE).toMatch(/checked: active, disabled/);
     expect(CODE).toMatch(/selected: active, disabled/);
-    // Research carries the active-specific name the controller used (Chat:4200).
+    // Research carries the active-specific name the controller used.
     expect(CODE).toContain('t("chat.deepResearchActive")');
   });
 });
@@ -102,7 +99,7 @@ describe("the machine gates the chips, and the document chip is really gone (§2
   it("the document chip and its stub press are gone; the attach BUTTON keeps the hold", () => {
     // BEFORE (this test asserted the opposite): the chip pressed into
     // `shell.notice.attach` — a control that fired a toast it could not act
-    // on, clipped at the row's right edge so most shots never saw it. Now:
+    // on. Now:
     expect(CODE).not.toContain("shell.composer.document");
     expect(CODE).not.toContain("chat.libraryDocument");
     expect(SURFACE_CODE).not.toContain("onDocumentPress");

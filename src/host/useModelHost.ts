@@ -1,14 +1,12 @@
 /**
  * The model host: selection state, the device-bandwidth recorder, the
- * context-size reads and the bound load path — the stateful half lifted from
- * `AppShell.tsx:2744-2933` (index/state/errors/bandwidth/context), with the
- * load deps assembled once so `ensureEngineForModel`, the boot kick and the
- * switchers all read the same values the old component captured in three
- * dependency arrays.
+ * context-size reads and the bound load path — stateful half lifted from the
+ * old controller, with the load deps assembled once so `ensureEngineForModel`,
+ * the boot kick and the switchers all read the same values the old component
+ * captured in three dependency arrays.
  *
  * `download` state is NOT lifted (downloads are held in this slice); the
- * switchers and `userReloadModel` are the lifted ones from `modelSwitch` and
- * `AppShell.tsx:3986-4001`.
+ * switchers and `userReloadModel` are the lifted ones from `modelSwitch`.
  */
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
@@ -34,7 +32,6 @@ import { loadMarkerStore, type EngineLoadDeps } from "./engineLoad";
 import { clearLoadMarker } from "../engine/loadMarker";
 import {
   createModelSwitchers,
-  MODEL_STORAGE_KEY,
   type ModelSwitchDeps,
 } from "./modelSwitch";
 import { usePipelineScans, type PipelineScanResult } from "./usePipelineScans";
@@ -76,7 +73,7 @@ export function useModelHost(params: ModelHostParams) {
   /**
    * Ownership token from tryAcquireChat (null when chat slot not held).
    * markChatReady / markChatReleased must pass this gen so a stale load
-   * cannot idle a newer owner's gate (FIX 1).
+   * cannot idle a newer owner's gate.
    */
   const chatGateGenRef = useRef<number | null>(null);
   /** Latest bound ensure — the boot kick reads this so its effect stays []. */
@@ -118,9 +115,8 @@ export function useModelHost(params: ModelHostParams) {
   );
   // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
   // After initEngine succeeds we overwrite both state and ref with the
-  // reported effectiveNCtx (memory clamp may shrink). Document tool
-  // (getCtxTokens → chatEngineCtxRef) and AiChatPage longChat (engineCtx prop)
-  // share that same resolved value — see comment on chatEngineCtxRef.
+  // reported effectiveNCtx (memory clamp may shrink); the document tool and
+  // the long-chat UI share that resolved value — see chatEngineCtxRef.
   const [benchNCtxOverride, setBenchNCtxOverride] = useState<number | null>(null);
   // Settings' context-size choice, read on mount so the pre-init estimate uses
   // it; the load paths read it themselves (they must never decide from a
@@ -130,10 +126,9 @@ export function useModelHost(params: ModelHostParams) {
   // call sites so the engine reload key never disagrees mid-conversation.
   // The context-size choice is clamped to the ACTIVE model's own maximum here,
   // so a size stored for another model cannot reach init — and re-read on a
-  // model switch, because what is on offer depends on that model.
-  // Latest-wins kept simple: the load path rereads storage itself, so a
-  // stale preview here could never reach the engine — it would only show the
-  // wrong size until this runs again. Settings' back button calls it too.
+  // model switch, because what is on offer depends on that model. Latest-wins
+  // is safe: the load path rereads storage itself, so a stale preview could
+  // only show the wrong size until this runs again.
   const refreshContextSize = useCallback(async () => {
     try {
       setBenchNCtxOverride(await getBenchNCtx());
@@ -174,8 +169,6 @@ export function useModelHost(params: ModelHostParams) {
     setChatEngineCtx(catalogEngineCtx);
     chatEngineCtxRef.current = catalogEngineCtx;
   }, [catalogEngineCtx, currentModel.id]);
-  // Speculative ref for the race between the initial check and the preference load.
-
   const loadDeps: EngineLoadDeps = {
     t,
     locale,
@@ -209,11 +202,10 @@ export function useModelHost(params: ModelHostParams) {
   /**
    * Explicit user reload (model-bar chip / Settings retry). The recovery from
    * a marker refusal is a HUMAN act: the tap clears this model's death marker
-   * and retries once. The app never clears the marker or retries on its own,
-   * so no launch ever hammers the killer again — and the way out is chosen by
-   * a person who has just read what happened. The clear is AWAITED: it is the
-   * user's one explicit act, and the ensure below must never read the marker
-   * before the removal lands — a lost race would make the tap a silent no-op.
+   * and retries once — the app never clears or retries on its own, so no
+   * launch ever hammers the killer again. The clear is AWAITED: the ensure
+   * below must never read the marker before the removal lands — a lost race
+   * would make the tap a silent no-op.
    */
   const userReloadModel = (model: ModelInfo) => {
     void (async () => {

@@ -2,22 +2,19 @@
  * The pill's text column, measured against the STRINGS it must paint — in
  * both catalogues, in the font files the app actually loads.
  *
- * The defect this exists for was visual: the strip's model pill spent its 154
- * dp on a 28 dp mark, two 10 dp gaps, a where-dot and 20 dp of padding, and
- * the model's own name got 71 dp against the ~105 dp `LFM2.5 2.6B` measures.
- * A capture read `LFM2.5 …` and `On this ph…` — the second cut mid-word, which
- * reads as damage rather than as an ellipsis. The node stack cannot render
- * text (DESIGN.md, "proof regime"), but it can do the two things the question
- * actually needs: read the shipped TTF for the advance widths, and read the
- * catalogue for the strings. "Does this line fit" is therefore arithmetic
- * here, not a hope, and it is checked in EVERY catalogue the pill can draw.
+ * The defect this exists for: the strip's model pill spent its 154 dp on a
+ * 28 dp mark, two 10 dp gaps, a where-dot and 20 dp of padding, and the name
+ * got 71 dp against the ~105 dp `LFM2.5 2.6B` measures — a capture read
+ * `LFM2.5 …` and `On this ph…`, the second cut mid-word. The node stack cannot
+ * render text, but it can read the shipped TTF's advance widths and the
+ * catalogue's strings: "does this line fit" is arithmetic here, in EVERY
+ * catalogue the pill can draw.
  *
  * The font reader below is deliberately minimal — cmap format 4 and hmtx, the
  * two tables advance widths live in — because a metrics dependency would be a
  * worse risk than the ~50 lines it replaces. Its numbers are validated by the
- * capture: it puts `LFM2.5 …` at 93 px in the old 99 px column (the cut the
- * capture saw) and the full name at 116 px, which is why 71 dp could not hold
- * it.
+ * capture: `LFM2.5 …` at 93 px in the old 99 px column (the cut the capture
+ * saw), the full name at 116 px — which is why 71 dp could not hold it.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -127,7 +124,7 @@ describe("the column", () => {
   it("is what the geometry says it is, and clears the capture's measured need", () => {
     // 154 dp pill - 2*6 padding - 6 gap - 15 chevron = 121 dp. The floor is
     // the capture's own figure for `LFM2.5 2.6B` (~145 px = 105 dp), kept here
-    // rather than the font's 85 dp because a capture can see the device's.
+    // rather than the font's 85 dp because only a capture sees the device.
     expect(COLUMN_DP).toBe(121);
     expect(COLUMN_DP).toBeGreaterThanOrEqual(MODEL_NAME_COLUMN_NEED_DP);
     expect(COLUMN_DP * PX_PER_DP).toBeGreaterThanOrEqual(145);
@@ -142,9 +139,8 @@ describe("the column", () => {
 });
 
 describe("the model name paints in full", () => {
-  // The Phase-1 default the capture read (`ModelRegistry.ts`, `name:
-  // "LFM2.5 2.6B"`), at the pill's own style: `type.label` + Inter 600, the
-  // -0.1 letterSpacing `styles.modelName` carries.
+  // The default the capture read (`"LFM2.5 2.6B"`), at the pill's own style:
+  // `type.label` + Inter 600, the -0.1 letterSpacing `styles.modelName` carries.
   const NAME = "LFM2.5 2.6B";
 
   it("fits the column at the pill's type size, in dp and in the capture's px", () => {
@@ -161,16 +157,16 @@ describe("the where line paints in full — in BOTH catalogues", () => {
   it("fits every catalogue value of shell.where.thisPhone, with no ellipsis to cut a word", () => {
     // The defect was `On this ph…` cut MID-WORD, which reads as damage. The
     // fix must not trade it for the same cut in Italian: "Su questo telefono"
-    // is the longer of the two values and the one that decides the budget.
+    // is the longer value and the one that decides the budget.
     const values = [en.shell.where.thisPhone, italian.shell.where.thisPhone];
     for (const value of values) {
       const widthDp = textWidthDp(value, interMedium, type.meta.fontSize);
       expect([value, widthDp]).toEqual([value, expect.any(Number)]);
       expect([value, widthDp <= COLUMN_DP]).toEqual([value, true]);
     }
-    // The Italian value is the binding one, so the margin it leaves is a fact
-    // worth stating: if a copy edit shrinks that margin to nothing, the next
-    // assertion on the column is where to look.
+    // The Italian value is the binding one; the margin it leaves is a fact
+    // worth stating — if a copy edit shrinks it to nothing, the next assertion
+    // on the column is where to look.
     expect(
       textWidthDp(italian.shell.where.thisPhone, interMedium, type.meta.fontSize),
     ).toBeLessThanOrEqual(COLUMN_DP);

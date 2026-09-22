@@ -3,8 +3,8 @@
  * three cases (621 dp with the keyboard down, 325 dp with it open as the app
  * area, and the live keyboard case the two are simulations of) and the S23's 780.
  *
- * This is the real proof of steps 3 and 4 (DESIGN.md, "proof regime"): the pixels
- * go to screenshots, and everything that must be true regardless of pixels is
+ * The real proof of steps 3 and 4 (DESIGN.md, "proof regime"): the pixels go
+ * to screenshots, and everything that must be true regardless of pixels is
  * asserted here.
  */
 import {
@@ -54,13 +54,11 @@ const JELLY_KEYBOARD: Case = { name: "Jelly keyboard 349x325", width: 349, heigh
 
 /**
  * The same keyboard on the live window instead of a pinned app area, and the
- * band the clearance correction is argued from.
- *
- * 349x621 dp with a 296 dp IME and the status bar's 24 leaves 301 dp usable, so
- * 301 - 52 (collapsed strip) - 78 (composer) = **171 dp of transcript**. That is
- * shorter than the pinned 325 case above, because the pin replaces the whole
- * window with the app area while this case keeps the window and subtracts the
- * keyboard from it — and it is the real one when the IME is up.
+ * band the clearance correction is argued from: 349x621 with a 296 dp IME and
+ * the status bar's 24 leaves 301 usable, so 301 - 52 - 78 = **171 dp of
+ * transcript**. Shorter than the pinned 325 case (the pin replaces the whole
+ * window; this one subtracts the keyboard from it), and the real one when the
+ * IME is up.
  */
 const JELLY_KEYBOARD_LIVE: Case = {
   name: "Jelly keyboard (live) 349x621, 296 dp IME",
@@ -120,10 +118,10 @@ describe("the clearance under the last item", () => {
     expect(TRANSCRIPT_LAST_ITEM_GAP).toBe(24);
     expect(Number.isInteger(TRANSCRIPT_LAST_ITEM_GAP)).toBe(true);
     // The rejected reasoning, made checkable rather than argued: the number this
-    // replaced was `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`, and the argument was
-    // that the tallest thing that can be last must fit inside the gap. The cloud
-    // has to be visible and scrollable, not to fit — so the module no longer
-    // reads the cloud at all, and changing the cloud cannot move this gap.
+    // replaced was `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)` — the tallest thing
+    // last must fit the gap. Wrong: the cloud must be visible and scrollable,
+    // not fit — so the module no longer reads the cloud, and changing the cloud
+    // cannot move this gap.
     const source = readFileSync(join(__dirname, "transcriptLayout.ts"), "utf8");
     expect(source).not.toMatch(/from\s+"[^"]*thoughtMotion"/);
   });
@@ -134,10 +132,9 @@ describe("the clearance under the last item", () => {
     // rather than a constant restated here.
     expect(live.availableHeight).toBe(171);
     expect(live.bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
-    // 24 of 171 is 14 %: the gap costs the shortest band a seventh of itself and
-    // leaves 147 dp for the answer's own text, which is more than a turn (a
-    // capsule, a two-line answer and their 6 dp is about 104). This is a
-    // consequence of the chosen number, not the rule that sizes it.
+    // 24 of 171 is 14 %: the gap costs the shortest band a seventh of itself
+    // and leaves 147 dp — more than a turn. A consequence of the chosen
+    // number, not the rule that sizes it.
     expect(live.bottomPadding / live.availableHeight).toBeLessThan(0.2);
     expect(live.availableHeight - live.bottomPadding).toBeGreaterThanOrEqual(
       CLOUD_COLLAPSED_HEIGHT_DP,
@@ -146,8 +143,8 @@ describe("the clearance under the last item", () => {
 
   it("is the same gap on a wide band, so no band pays for the cloud", () => {
     // The defect this replaced: 96 dp at 443 and 590, 75 at 195, 51 at 171 — a
-    // different clearance per band, all of them the cloud's height. Now the four
-    // bands get one number, and the two measured viewports carry it too.
+    // different clearance per band, all of them the cloud's height. Now one
+    // number everywhere, measured viewports included.
     for (const band of [171, 195, 443, 590]) {
       expect(transcriptBottomPadding(band)).toBe(TRANSCRIPT_LAST_ITEM_GAP);
     }

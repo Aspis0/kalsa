@@ -6,14 +6,13 @@
  *  2. it is checked again immediately BEFORE the guard issues the write;
  *  3. a clear bumps the epoch BEFORE its key is deleted;
  *  4. a clear flushes the old thread's last write BEFORE bumping.
- * A guard refusal ends the attempt — never a retry with fewer messages.
- * Recovery after the gate reopens is a full-list rewrite (AiChatPage:1139).
+ * A guard refusal ends the attempt — never a retry with fewer messages;
+ * recovery after the gate reopens is a full-list rewrite.
  *
  * The epoch stamp is taken at SCHEDULE time by delayed callers (debounce /
  * throttle / AppState) and passed as `opts.epoch`; synchronous callers omit
- * it and are fenced against clears that already landed. The old signature
- * skipped both checks whenever a caller forgot either half of its epoch
- * pair — here the check cannot be skipped.
+ * it and are fenced against clears that already landed. The check cannot be
+ * skipped.
  */
 import type {
   HistoryWriteGuard,

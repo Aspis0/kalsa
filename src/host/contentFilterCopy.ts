@@ -1,14 +1,12 @@
 /**
- * The pre-send content gate's localized decline (lifted `AiChatPage:532-558`,
- * carried into the host at `sendHost.ts`). It lives in its own module because
- * `sendHost.ts` crossed the 350-line ratchet when the composer arms landed and
- * the owner's rule is to cut a seam, never raise the number
- * (`src/host/fileSize.test.ts`) — this pure key-mapping function was the seam,
- * moved verbatim: same reasons, same keys, same default.
+ * The pre-send content gate's localized decline, carried into the host at
+ * `sendHost.ts`. Own module because `sendHost.ts` crossed the 350-line
+ * ratchet and the owner's rule is to cut a seam, never raise the number —
+ * this pure key-mapping function was the seam, moved verbatim: same reasons,
+ * same keys, same default.
  *
- * X2, the controller's own note: `classifyChatContent`'s built-in formatter is
- * English-only, so every user-visible line routes through i18n keyed on the
- * same reasons.
+ * `classifyChatContent`'s built-in formatter is English-only, so every
+ * user-visible line routes through i18n keyed on the same reasons.
  */
 import type { ContentFilterReason } from "../domain/contentFilter";
 import type { TranslateFn } from "../i18n";

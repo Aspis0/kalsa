@@ -1,8 +1,6 @@
 /**
  * The stream callbacks of one send run, fenced by the run's turn token —
- * the lifted bodies from `AiChatPage.tsx:2551-2694` (delta, model-emitted
- * text, thinking, status, sources, actions, cta, miniapp, images, failed),
- * with the old `(myGen, runId)` pair replaced by `fence.owns(token)` /
+ * the old `(myGen, runId)` pair replaced by `fence.owns(token)` /
  * `fence.apply` (`src/host/turnGuards.ts` pins that pairing — D2 rows 3-4).
  *
  * One NEW branch, the host's whole point (D1 row 23 / §1.5): a
@@ -58,8 +56,7 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
       if (typeof text === "string" && text.length > 0) {
         modelEmittedText = text;
         // Written with the string, by the same writer: the flag records the
-        // mechanism that produced it (see the writer audit in
-        // modelEmittedText.test.ts).
+        // mechanism that produced it.
         modelEmittedSource = source;
       }
     },
@@ -71,15 +68,13 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
     },
     // The engine's own failure sentence (§2.8's failed row): captured verbatim,
     // first non-empty wins, fenced like every other write of this run. An empty
-    // capture stays absent — the renderer then draws the reasonless honest line
-    // instead of a fabricated one.
+    // capture stays absent — the renderer draws the reasonless honest line.
     onFailedReason: (reason) => {
       if (!fence.owns(token)) return;
       if (failureReason === undefined && typeof reason === "string" && reason.trim()) {
         failureReason = reason.trim();
       }
     },
-    // Feature 1: append to history AND set current label.
     onStatus: (status) => {
       if (!fence.owns(token)) return;
       patch((message) => ({
@@ -126,7 +121,7 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
       patch((message) => ({ ...message, ctas: [...(message.ctas ?? []), payload] }));
     },
     // Miniapp callback: store only, never ends the stream; invalid payloads
-    // are ignored (the old screen's rule, AiChatPage:2665-2681).
+    // are ignored.
     onMiniapp: (miniapp: any) => {
       if (!fence.owns(token)) return;
       const normalized = normalizeMiniapp(miniapp);

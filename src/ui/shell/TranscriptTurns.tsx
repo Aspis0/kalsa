@@ -1,25 +1,20 @@
 /**
  * The transcript's two turn boxes and the inline copy chip — lifted OUT of
- * `TranscriptParts.tsx` (which stayed behind as the stylesheet) because that
- * file sits at the shell's size ratchet and this slice adds the long-press
- * pressables and the chip row to both boxes. The owner's rule: cut a seam,
- * never raise a number.
+ * `TranscriptParts.tsx` (which stayed behind as the stylesheet) to cut a seam
+ * rather than raise the size ratchet.
  *
  * The long-press is the controller's, shape for shape: `delayLongPress={350}`
- * on a pressable that has ONLY `onLongPress` (`AiChatPage.tsx:5332-5334,
- * 5395-5398`), so the gesture cannot fight the scroll view — see the
- * `keyboardShouldPersistTaps` note in `Transcript.tsx`, and below: no
- * `onPress` means a hold that turns into a drag (Pressability cancels the
- * pending timer once the finger moves, and the ScrollView takes the touch)
- * has no tap side effect, while a stationary 350 ms hold opens the menu.
+ * on a pressable that has ONLY `onLongPress`, so the gesture cannot fight the
+ * scroll view — with no `onPress`, a hold that turns into a drag (Pressability
+ * cancels the pending timer once the finger moves) has no tap side effect,
+ * while a stationary 350 ms hold opens the menu.
  *
- * The chip is `Chat:5419-5427` / `:5594-5601` minus read-aloud (TTS is not
- * wired — deferred, not inert) and minus "more" (it only ever opened this
- * same menu, which the long-press now opens). It flashes `common.copied` for
- * the controller's +400 ms (`copiedFlash.ts`) and only when the host's copy
- * actually took the text.
+ * The chip is the controller's copy row minus read-aloud (TTS is not wired —
+ * deferred, not inert) and minus "more" (it only ever opened this same menu,
+ * which the long-press now opens). It flashes for +400 ms (`copiedFlash.ts`) and
+ * only when the host's copy actually took the text.
  */
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Copy } from "lucide-react-native";
 
@@ -34,8 +29,7 @@ import type { TranscriptStyles } from "./TranscriptParts";
 import type { TranscriptLayout } from "./transcriptLayout";
 import type { TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
 
-/** The controller labelled the pressable with the message itself, cut at 200
- *  characters (`AiChatPage:5397`, `:5525`). */
+/** The pressable's label: the message itself, cut at 200 characters. */
 function pressLabel(text: string): string {
   return text.length > 200 ? text.slice(0, 200) : text;
 }
@@ -198,8 +192,8 @@ export function Answer({
         // not the chips, not the source row (those keep their own presses).
         <Pressable {...press} testID={`transcript.text.${id}`}>
           {caret === true ? (
-            // Plain text + caret while it arrives — the controller's rule
-            // (AiChatPage:5486-5490): markdown is parsed only once it settles.
+            // Plain text + caret while it arrives: markdown is parsed only once
+            // the turn settles, never per token.
             <Text style={styles.answer} testID={`transcript.streaming.${id}`}>
               {text}
               <StreamCaret color={colors.accent} text={text} />
@@ -217,8 +211,8 @@ export function Answer({
         </Pressable>
       ) : null}
       {showChips && onCopy ? (
-        // Left-aligned under the answer (controller `Chat:5593-5624`); the
-        // user's copy chip right-aligns under its capsule.
+        // Left-aligned under the answer; the user's copy chip right-aligns under
+        // its capsule.
         <CopyChip align="left" colors={colors} id={id} onCopy={onCopy} styles={styles} text={text} />
       ) : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
