@@ -7,10 +7,11 @@
  * Three limits, each ratcheting (lower as the tree shrinks; never raise to
  * make room):
  *  - every file under `src/host` stays within HOST_FILE_LIMIT;
- *  - `HostRoot.tsx` stays within ROOT_FILE_LIMIT, well under it, because it may
- *    only COMPOSE: state it owns, hooks it calls, children it arranges. Every
- *    slice that lands in the root instead of beside it is how a rewrite becomes
- *    the thing it replaced;
+ *  - `HostRoot.tsx` stays within ROOT_FILE_LIMIT, well under it, because it
+ *    may only COMPOSE: state it owns, hooks it calls, one layout it renders
+ *    (the children themselves live in `HostLayout.tsx`). Every slice that
+ *    lands in the root instead of beside it is how a rewrite becomes the
+ *    thing it replaced;
  *  - every `*.ts`/`*.tsx` under `src/ui/shell` stays within SHELL_FILE_LIMIT —
  *    a second directory earning its own limit when its largest file sat over
  *    the project guideline.
@@ -30,7 +31,7 @@ export const HOST_FILE_LIMIT = 350;
  * all until it has been split further and every new behaviour lands in a
  * module beside it. Lower this as the root shrinks; never raise it.
  */
-export const ROOT_FILE_LIMIT = 250;
+export const ROOT_FILE_LIMIT = 241;
 /**
  * The shell's RATCHETING limit: the largest file the tree held when it was
  * set, so the first line added fails and the seam gets cut instead. Lower it

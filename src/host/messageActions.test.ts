@@ -2,9 +2,10 @@
  * The message interactions as SOURCE proof — the stack renders nothing, so
  * what is checked is what a screenshot cannot see and a rewrite would break
  * silently: the two traps the controller records, the fences around a
- * regenerate, the deferred actions staying absent, the 350 ms hold that must
- * not fight the scroll view, and the 48 dp floor on everything the sheet and
- * the chip put under a finger.
+ * regenerate (and the edit save that shares them), the three interactions
+ * that ship wired by name, the 350 ms hold that must not fight the scroll
+ * view, and the 48 dp floor on everything the sheet and the chips put under a
+ * finger.
  *
  * Every predicate is exercised against a sample that must FAIL it, so a guard
  * that quietly stops matching cannot pass as green.
@@ -21,10 +22,13 @@ const readShell = (file: string): string =>
   readFileSync(join(__dirname, "..", "ui", "shell", file), "utf8");
 
 const ACTIONS = read("messageActions.ts");
+const RESEND = read("truncateAndResend.ts");
 const SURFACE = read("HostChatSurface.tsx");
 const ROOT = read("HostRoot.tsx");
+const LAYOUT = read("HostLayout.tsx");
 const MENU = readShell("MessageMenu.tsx");
 const TURNS = readShell("TranscriptTurns.tsx");
+const CHIPS = readShell("TranscriptChips.tsx");
 const TRANSCRIPT = readShell("Transcript.tsx");
 
 /** Comments stripped: the prose about a rule must never satisfy the rule. */
@@ -32,8 +36,11 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 const ACTIONS_CODE = stripComments(ACTIONS);
+const RESEND_CODE = stripComments(RESEND);
 const MENU_CODE = stripComments(MENU);
 const TURNS_CODE = stripComments(TURNS);
+const CHIPS_CODE = stripComments(CHIPS);
+const ROWS_CODE = stripComments(read("messageMenuRows.ts"));
 
 /** Every `<Pressable …>` JSX element's source (attributes only, to `>`). */
 function pressables(source: string): string[] {
@@ -80,7 +87,10 @@ describe("the hold: 350 ms, and the gesture cannot fight the scroll view", () =>
 
   it("the long-press props carry NO onPress — a hold that becomes a drag does nothing", () => {
     const start = TURNS_CODE.indexOf("function useLongPressProps");
-    const end = TURNS_CODE.indexOf("function CopyChip", start);
+    // The bound marker: the next component AFTER the hook. The chip row moved
+    // to `TranscriptChips.tsx` (the seam that kept this file under its
+    // ratchet), so the old `function CopyChip` bound no longer exists here.
+    const end = TURNS_CODE.indexOf("export function UserTurn", start);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
     const props = TURNS_CODE.slice(start, end);
@@ -127,11 +137,14 @@ describe("the sheet: real boxes, named nodes, a way to cancel", () => {
   });
 
   it("the icon mapping covers every row id, so a row can never render nameless", () => {
-    for (const id of ['case "copy"', 'case "notes"', 'case "regenerate"', 'case "cancel"']) {
+    for (const id of ['case "copy"', 'case "notes"', 'case "translate"', 'case "edit"', 'case "regenerate"', 'case "cancel"']) {
       expect(MENU_CODE).toContain(id);
     }
     // and the union the sheet can draw is the union the builder can emit:
-    expect(MENU).toContain('MessageMenuRowId = "copy" | "notes" | "regenerate" | "cancel"');
+    expect(MENU).toContain(
+      'MessageMenuRowId = "copy" | "notes" | "translate" | "edit" | "regenerate" | "cancel"',
+    );
+    expect(ROWS_CODE).not.toContain('id: "speak"'); // read-aloud never had a sheet row
   });
 
   it("renders nothing at all when closed", () => {
@@ -142,16 +155,27 @@ describe("the sheet: real boxes, named nodes, a way to cancel", () => {
 describe("the regenerate handoff is fenced exactly like a send, because it is one", () => {
   const regen = slice("const regenerate = useCallback(", "const onMenuRow");
 
-  it("claims synchronously: checks → truncate → send's own claim → declare, one block", () => {
+  it("the caller checks and plans before anything is mutated, and truncates only through the shared handoff", () => {
+    expect(regen).toContain("sendClaimRef.current");
+    expect(regen).toContain("planRegenerate(");
+    expect(regen).toContain("truncateAndResend(");
+    // ONE truncate implementation exists: this callback no longer writes
+    // history itself (the block moved into `truncateAndResend.ts` so the edit
+    // save enters the same fence — before, it lived inline here).
+    expect(regen).not.toContain("setMessages(() => plan.base)");
+    expect(regen).not.toContain("armDeclaredShrink");
+  });
+
+  it("claims synchronously: lock → truncate → send's own claim → declare, one block", () => {
     const order = [
-      "sendClaimRef.current",
-      "planRegenerate(",
       "regenInFlightRef.current = true",
-      "p.sendHost.send(plan.text)",
-      "armDeclaredShrink",
+      "history.setMessages(() => plan.base)",
+      "sendHost.send(plan.text",
+      "if (!sendHost.sendingRef.current)",
+      "history.historyGuard.armDeclaredShrink(plan.base)",
       "await run",
     ].map((needle) => {
-      const at = regen.indexOf(needle);
+      const at = RESEND_CODE.indexOf(needle);
       expect([needle, at >= 0]).toEqual([needle, true]);
       return at;
     });
@@ -159,18 +183,19 @@ describe("the regenerate handoff is fenced exactly like a send, because it is on
   });
 
   it("verifies the claim took before arming the shrink, and rolls back if it did not", () => {
-    expect(regen).toContain("if (!p.sendHost.sendingRef.current)");
-    expect(regen).toContain("p.history.messagesRef.current = snapshot");
-    expect(regen).toContain("regenInFlightRef.current = false");
+    expect(RESEND_CODE).toContain("if (!sendHost.sendingRef.current)");
+    expect(RESEND_CODE).toContain("history.messagesRef.current = snapshot");
+    expect(RESEND_CODE).toContain("regenInFlightRef.current = false");
     // The rollback is on the impossible side of the block, never after `await run`.
-    expect(regen.indexOf("messagesRef.current = snapshot")).toBeLessThan(
-      regen.indexOf("await run"),
+    expect(RESEND_CODE.indexOf("messagesRef.current = snapshot")).toBeLessThan(
+      RESEND_CODE.indexOf("await run"),
     );
   });
 
   it("the busy and the failure both speak through a shipped notice key", () => {
     expect(regen).toContain('"chat.regenBusy"');
     expect(regen).toContain('"chat.regenFailed"');
+    expect(RESEND_CODE).toContain('"chat.regenFailed"');
   });
 
   it("sample: the ordering predicate fails when the order is wrong", () => {
@@ -180,35 +205,51 @@ describe("the regenerate handoff is fenced exactly like a send, because it is on
     expect(inverted.indexOf("planRegenerate(") < inverted.indexOf("armDeclaredShrink")).toBe(
       false,
     );
+    // …and the real handoff is not accidentally written in the wrong order:
+    expect(RESEND_CODE.indexOf("regenInFlightRef.current = true")).toBeLessThan(
+      RESEND_CODE.indexOf("armDeclaredShrink"),
+    );
   });
 });
 
-describe("deferred actions stay ABSENT from the code, not present and inert", () => {
-  it("no translate, edit or read-aloud path exists in the menu's host or sheet", () => {
-    // The controller's identifiers for the deferred systems — by name, so a
-    // `TranslateFn` type import cannot trip the check.
-    const deferred = [
-      "runTranslate",
-      "translationInFlightRef",
-      "translateAbortRef",
-      "translate.title",
-      "handleReadAloud",
-      "speakingId",
-      "onSpeak",
-      "editMessage",
-      "editEmpty",
-      "editingMessage",
-    ];
-    for (const source of [ACTIONS_CODE, MENU_CODE, stripComments(read("messageMenuRows.ts"))]) {
-      for (const name of deferred) expect(source).not.toContain(name);
-    }
-    // sample: the guard is about names, not the letter sequence
-    expect("TranslateFn").not.toContain("runTranslate");
+describe("the three interactions that were deferred now ship, by the names that own them", () => {
+  const TRANSLATE = stripComments(read("useTranslateMessage.ts"));
+  const EDIT = stripComments(read("useEditMessage.ts"));
+  const VOICE = stripComments(read("useReadAloud.ts"));
+
+  it("translate: the opener gates on the in-flight ref, the row runs the engine path", () => {
+    expect(ACTIONS_CODE).toContain("translationInFlightRef.current");
+    expect(ACTIONS_CODE).toContain("runTranslate(payload.id, payload.text)");
+    // The engine call itself, and the abort/run-id guards around it.
+    expect(TRANSLATE).toContain("await translateText(");
+    expect(TRANSLATE).toContain("runRef.current");
+    expect(TRANSLATE).toContain(".abort()");
   });
 
-  it("the sheet cannot draw a row its union does not name", () => {
-    expect(MENU_CODE).not.toContain('"translate"');
-    expect(MENU_CODE).not.toContain('"edit"');
+  it("edit: the row opens the modal, the save goes through the shared handoff", () => {
+    expect(ACTIONS_CODE).toContain("openEdit(payload.id, payload.text)");
+    expect(EDIT).toContain("truncateAndResend(");
+    expect(EDIT).toContain('"chat.editEmpty"');
+    // No second truncate: the save never writes history itself.
+    expect(EDIT).not.toContain("setMessages(() =>");
+    expect(EDIT).not.toContain("armDeclaredShrink");
+  });
+
+  it("read-aloud: the bundle carries the speaking id and the toggle", () => {
+    expect(ACTIONS_CODE).toContain("onSpeak: speak");
+    expect(ACTIONS_CODE).toContain("speakingId");
+    expect(VOICE).toContain("TtsService.speak(");
+    expect(VOICE).toContain("TtsService.stop()");
+  });
+
+  it("the sheet's union names every id the builder can emit — nothing else can be drawn", () => {
+    expect(MENU).toContain(
+      'MessageMenuRowId = "copy" | "notes" | "translate" | "edit" | "regenerate" | "cancel"',
+    );
+    expect(ROWS_CODE).toContain('id: "translate"');
+    expect(ROWS_CODE).toContain('id: "edit"');
+    // sample: the guard is about names, not the letter sequence
+    expect("TranslateFn").not.toContain("runTranslate");
   });
 });
 
@@ -216,14 +257,16 @@ describe("the copied flash: one number, the controller's +400 ms", () => {
   it("is 400 in its own file, and both consumers import it", () => {
     expect(COPIED_FLASH_MS).toBe(400);
     expect(ACTIONS).toContain('from "../ui/shell/copiedFlash"');
-    expect(TURNS).toContain('from "./copiedFlash"');
+    // The chip row moved to its own file (`TranscriptChips.tsx`); the import
+    // lives there now.
+    expect(CHIPS).toContain('from "./copiedFlash"');
   });
 
   it("the chip flashes only after the copy reported success, and shows the shipped word", () => {
-    expect(TURNS_CODE).toContain("await onCopy(text)");
-    expect(TURNS_CODE).toContain("if (!ok) return;");
-    expect(TURNS_CODE).toContain('copied ? t("common.copied") : t("common.copy")');
-    expect(TURNS_CODE).toContain("COPIED_FLASH_MS");
+    expect(CHIPS_CODE).toContain("await onCopy(text)");
+    expect(CHIPS_CODE).toContain("if (!ok) return;");
+    expect(CHIPS_CODE).toContain('copied ? t("common.copied") : t("common.copy")');
+    expect(CHIPS_CODE).toContain("COPIED_FLASH_MS");
   });
 
   it("the menu keeps the sheet open on the flash and closes it on the same window", () => {
@@ -235,10 +278,16 @@ describe("the copied flash: one number, the controller's +400 ms", () => {
   });
 });
 
-describe("the wiring: root composes, surface mounts, both keep their old duties", () => {
-  it("the root only calls the hook with what it already owns", () => {
+describe("the wiring: root composes through the layout, surface mounts, both keep their old duties", () => {
+  it("the root only calls the hook with what it already owns, and hands the bundle to the layout", () => {
     expect(ROOT).toContain("useMessageActions({");
     expect(ROOT).toContain("actions={messageActions}");
+    expect(ROOT).toContain("conversationId:");
+    expect(ROOT).toContain("ttsEnabled: modelHost.scans.ttsEnabled");
+  });
+
+  it("the layout passes the bundle on unchanged", () => {
+    expect(LAYOUT).toContain("actions={actions}");
   });
 
   it("the surface hands the transcript its two callbacks and mounts the sheet", () => {

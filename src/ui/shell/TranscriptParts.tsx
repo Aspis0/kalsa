@@ -169,9 +169,9 @@ export function createTranscriptStyles(colors: DesignColors) {
       sourceHostStatic: {
         color: colors.silence,
       },
-      // The inline action row under a turn — today just the copy chip: the
-      // controller's MessageActionChip row minus read-aloud and "more", for
-      // which this build has no honest version yet.
+      // The inline action row under a turn: copy under both boxes, and under
+      // an answer read-aloud too. "More" is gone by design — the 350 ms
+      // long-press opens that same menu now (`TranscriptTurns.tsx`).
       actionChips: {
         flexDirection: "row",
         gap: spacing.xs,

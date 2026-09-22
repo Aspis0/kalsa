@@ -22,6 +22,9 @@ export interface ComposerViewInput {
   sending: boolean;
   stopping: boolean;
   hasTokens: boolean;
+  /** A translate holds the engine: the controller's `canSend` refused while
+   *  `translatingId` was set (`AiChatPage.tsx:3605`). */
+  translating: boolean;
   modelState: ModelPipelineState;
   engineResident: boolean;
 }
@@ -61,7 +64,10 @@ export function composerView(input: ComposerViewInput): ComposerView {
   const composer = composerState({ phase, attachment: null });
   return {
     composer,
-    sendEnabled: composer.canSend && input.draft.trim().length > 0,
+    // Machine yes, a draft to send, and no translate holding the engine:
+    // the send control dims while a translation runs (controller `Chat:3605`);
+    // the phase table itself is untouched.
+    sendEnabled: composer.canSend && input.draft.trim().length > 0 && !input.translating,
     transcript: toTranscriptMessages(input.messages, {
       thinkingStatus: input.thinkingStatus,
       toolsById: input.toolsById,

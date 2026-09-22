@@ -1,8 +1,9 @@
 /**
  * The message action sheet, as a presentational leaf: it draws the rows the
  * HOST decides it may show, and an action that cannot run is ABSENT from that
- * list, never present and inert (translate, edit and read-aloud are deferred;
- * see `src/host/messageMenuRows.ts`).
+ * list, never present and inert (the builder's gates live in
+ * `src/host/messageMenuRows.ts`; read-aloud has no sheet row — its chip rides
+ * under an answer).
  *
  * Shape parity with the controller: a translucent backdrop that dismisses, a
  * caption that turns into `common.copied` during the flash, rows with icon +
@@ -16,7 +17,7 @@
  */
 import { useMemo, type ReactNode } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
-import { ClipboardList, Copy, RefreshCw, X } from "lucide-react-native";
+import { ClipboardList, Copy, Languages, RefreshCw, SquarePen, X } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
 import {
@@ -31,7 +32,7 @@ import { MIN_TOUCH_TARGET } from "./shellGeometry";
 
 /** The rows this sheet can ever draw. The host's pure builder decides which
  *  of them a given message gets (`messageMenuRows.ts`). */
-export type MessageMenuRowId = "copy" | "notes" | "regenerate" | "cancel";
+export type MessageMenuRowId = "copy" | "notes" | "translate" | "edit" | "regenerate" | "cancel";
 
 export type MessageMenuRow = {
   id: MessageMenuRowId;
@@ -59,6 +60,10 @@ function iconFor(id: MessageMenuRowId, color: string): ReactNode {
       return <Copy size={18} color={color} />;
     case "notes":
       return <ClipboardList size={18} color={color} />;
+    case "translate":
+      return <Languages size={18} color={color} />;
+    case "edit":
+      return <SquarePen size={18} color={color} />;
     case "regenerate":
       return <RefreshCw size={18} color={color} />;
     case "cancel":

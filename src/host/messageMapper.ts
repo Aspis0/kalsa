@@ -15,6 +15,8 @@
  *   engine's tool trace deliberately does not survive a reopen;
  * - `miniapp` crosses whole on an answer (D1 rows 4/28): persisted by the
  *   history path, drawn by the card, handed unchanged to the sheet;
+ * - `edited` crosses on a user bubble (D1 row 17): the badge the edit modal's
+ *   save stamps, which the history path already round-trips;
  * - `ctas` cross as label + kind + id only (D1 row 26): the outputs-system
  *   fields are dropped here because no renderer reads them.
  */
@@ -112,10 +114,14 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
     if (caretVisible(message.streaming, message.text)) mapped.caret = true;
     const stop = mapStop(message);
     if (stop) mapped.stop = stop;
-    // The mini-app definition crosses whole (D1 rows 4/28): the card reads
+    // The mini-app definition crosses whole (D1 row 4/28): the card reads
     // kind + title, the sheet reads the rest — nothing is projected away
     // here, because the sheet opens from THIS object.
     if (message.miniapp) mapped.miniapp = message.miniapp;
+  } else if (message.edited === true) {
+    // The edit badge lives on the user bubble it belongs to (the controller
+    // drew it under the capsule, `Chat:5437-5445`); answers never carry it.
+    mapped.edited = true;
   }
   if (tools && tools.length > 0) mapped.tools = tools;
   if (message.sources && message.sources.length > 0) {

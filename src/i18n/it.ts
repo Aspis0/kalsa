@@ -533,8 +533,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yNewChat: "Nuova chat",
     a11yClearRun: "Cancella esecuzione selezionata",
     a11yLongPress: "Tieni premuto per copiare, tradurre o salvare nelle note",
-    /** See `en.ts`: the honest long-press line — only the actions this build runs. */
-    a11yMessageActions: "Tieni premuto per copiare, salvare nelle note o rigenera",
+    /** See `en.ts`: the honest long-press line — every action the sheet can show. */
+    a11yMessageActions: "Tieni premuto per copiare, tradurre, modificare, salvare nelle note o rigenera",
     saveToNotes: "Salva nelle note",
     lookAtAttachedFile: "Guarda il file allegato.",
     visionUnsupportedNotice:

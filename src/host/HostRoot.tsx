@@ -5,12 +5,12 @@
  * `NEW_SHELL`; the old branch is TEMPORARY, so `AppShell` still boots as the
  * controller until `docs/PARITY.md` says the rest is reproduced.
  *
- * The root may only COMPOSE: state it owns, hooks it calls, children it
- * arranges (fileSize.test pins the line budget): strip/composer are
- * `HostChatSurface`, the drawer `HostDrawer`, overlays+notice `HostFurniture`.
+ * The root may only COMPOSE: state it owns, hooks it calls, one layout it
+ * renders (fileSize.test pins the line budget). The three children and their
+ * arrangement live in `HostLayout.tsx` — the seam cut so new wiring lands
+ * beside the root instead of pushing it back to its ceiling.
  */
 import { useMemo, useState, useCallback } from "react";
-import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendingInFlightRef } from "../engine/regenState";
 import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
@@ -34,9 +34,7 @@ import { useShareIn } from "./useShareIn";
 import { composerView } from "./composerView";
 import { shareConversation } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
-import { HostChatSurface } from "./HostChatSurface";
-import { HostDrawer } from "./HostDrawer";
-import { HostFurniture } from "./HostFurniture";
+import { HostLayout } from "./HostLayout";
 import { withMiniappOverlay, type HostOverlay } from "./hostOverlay";
 
 export function HostRoot() {
@@ -173,14 +171,20 @@ export function HostRoot() {
     clearTools,
   });
 
-  // The long-press menu + copy chip (PARITY-STATUS gap 1): borrows the send
-  // fence, the history guard and this notice, but lives in `messageActions.ts`.
+  // The message interactions (PARITY-STATUS gap 1): the long-press menu, the
+  // copy chip, translate, edit-then-resend and read-aloud. They borrow the
+  // send fence, the history guard and this notice; the live pieces they need
+  // (the conversation to drop work on, the TTS preference the scan read) are
+  // ports, the implementations live in `messageActions.ts` and its files.
   const messageActions = useMessageActions({
     t,
+    locale,
     sending,
     sendHost,
     history,
     showNoticeKey,
+    conversationId: conv.conversationsReady ? conv.conversations.activeId : undefined,
+    ttsEnabled: modelHost.scans.ttsEnabled,
   });
 
   const view = composerView({
@@ -193,6 +197,10 @@ export function HostRoot() {
     sending,
     stopping: sendHost.stopRequestedRef.current,
     hasTokens: sendHost.hasTokensRef.current,
+    // The controller's `canSend` also refuses while a translate holds the
+    // engine (`Chat:3605`); the face dims here, the send itself refuses in
+    // `sendHost.send`.
+    translating: messageActions.translating,
     modelState: modelHost.modelState,
     engineResident:
       isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
@@ -201,50 +209,33 @@ export function HostRoot() {
   const size = { top: insets.top, bottom: insets.bottom };
 
   return (
-    <View style={{ flex: 1 }}>
-      <HostChatSurface
-        insets={size}
-        draft={draft}
-        onDraftChange={setDraft}
-        view={view}
-        modelHost={modelHost}
-        showNoticeKey={showNoticeKey}
-        sendHost={sendHost}
-        onMenuPress={() => setDrawerOpen(true)}
-        onNewChatPress={() => actions.handleNewConversation()}
-        flags={flags}
-        arms={arms}
-        actions={messageActions}
-        onMiniappOpen={(miniapp) => setActiveOverlay((previous) => withMiniappOverlay(previous, miniapp))}
-      />
-
-      <HostDrawer
-        insets={size}
-        open={drawerOpen}
-        setOpen={setDrawerOpen}
-        conv={conv}
-        actions={actions}
-        personas={personas}
-        setActiveOverlay={setActiveOverlay}
-        // Export moved here from the strip: five 349 dp controls left the model
-        // pill a 14 dp text column, and a chat-level action is what a drawer is
-        // for. Same `shareConversation`, same messages.
-        onExportPress={() => shareConversation(history.messages, t)}
-      />
-
-      <HostFurniture
-        overlay={activeOverlay}
-        setOverlay={setActiveOverlay}
-        onNotice={showNoticeKey}
-        onNoticeText={showNotice}
-        notice={notice}
-        memory={memory}
-        flags={flags}
-        library={library}
-        personas={personas}
-        modelHost={modelHost}
-        streaming={streaming}
-      />
-    </View>
+    <HostLayout
+      insets={size}
+      draft={draft}
+      onDraftChange={setDraft}
+      view={view}
+      modelHost={modelHost}
+      showNoticeKey={showNoticeKey}
+      sendHost={sendHost}
+      onMenuPress={() => setDrawerOpen(true)}
+      onNewChatPress={() => actions.handleNewConversation()}
+      flags={flags}
+      arms={arms}
+      actions={messageActions}
+      onMiniappOpen={(miniapp) => setActiveOverlay((previous) => withMiniappOverlay(previous, miniapp))}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+      conv={conv}
+      conversationActions={actions}
+      personas={personas}
+      onExportPress={() => shareConversation(history.messages, t)}
+      activeOverlay={activeOverlay}
+      setActiveOverlay={setActiveOverlay}
+      notice={notice}
+      showNotice={showNotice}
+      memory={memory}
+      library={library}
+      streaming={streaming}
+    />
   );
 }

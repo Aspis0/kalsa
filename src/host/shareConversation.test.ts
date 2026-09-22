@@ -112,10 +112,16 @@ describe("export's home: the drawer, since the strip needed the width", () => {
   it("the root wires the same shareConversation it once handed the strip", () => {
     const root = stripComments(read("HostRoot.tsx"));
     expect(root).toContain("onExportPress={() => shareConversation(history.messages, t)}");
-    // …to the DRAWER: the chat surface no longer receives the prop at all.
-    const surfaceCall = root.match(/<HostChatSurface[\s\S]*?\/>/)?.[0] ?? "";
+    // …to the DRAWER: the chat surface never receives the prop. The three
+    // children moved into `HostLayout.tsx` (the root's composition seam), so
+    // both halves of "to the drawer, not to the surface" are asserted there.
+    const layout = stripComments(read("HostLayout.tsx"));
+    const surfaceCall = layout.match(/<HostChatSurface[\s\S]*?\/>/)?.[0] ?? "";
     expect(surfaceCall.length).toBeGreaterThan(0);
     expect(surfaceCall).not.toContain("onExportPress");
+    const drawerCall = layout.match(/<HostDrawer[\s\S]*?\/>/)?.[0] ?? "";
+    expect(drawerCall.length).toBeGreaterThan(0);
+    expect(drawerCall).toContain("onExportPress={onExportPress}");
   });
 
   it("the strip no longer draws it (the width the pill got back)", () => {

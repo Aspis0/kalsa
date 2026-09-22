@@ -6,10 +6,11 @@
  * rows 1, 3, 4, 5, 6, 11).
  *
  * What is NOT here (reported): the bench-command branch and the doc-hint
- * composition (attachments are held in this slice), the voice/PDF/translate
- * busy guards (those systems are not mounted), the chat-side pre-send fit
- * gate (the load path runs the same gate), the OS thermal gate (it arrives
- * as the `tooHot` composer phase).
+ * composition (attachments are held in this slice), the voice/PDF busy
+ * guards (those systems are not mounted), the chat-side pre-send fit gate
+ * (the load path runs the same gate), the OS thermal gate (it arrives as
+ * the `tooHot` composer phase). The translate guard IS here — a translate
+ * holds the engine and refuses a send, as the controller did (`Chat:2233`).
  */
 import { useRef } from "react";
 import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
@@ -32,6 +33,7 @@ import { createRichCallbacks } from "./sendCallbacks";
 import { finalizeAssistantTurn } from "./sendFinalize";
 import { handleStop, type StopDeps } from "./sendStop";
 import { nextMsgId, type Message } from "./hostMessage";
+import { translationInFlightRef } from "./translateState";
 import type { TranslateFn, TranslationKey } from "../i18n";
 import type { TurnFence, TurnToken } from "./turnGuards";
 
@@ -67,7 +69,8 @@ export interface SendHostParams {
 }
 
 export interface SendHost {
-  send: (text: string) => Promise<void>;
+  /** `opts.edited` badges the re-sent user bubble (edit-then-resend). */
+  send: (text: string, opts?: { edited?: boolean }) => Promise<void>;
   stop: () => void;
   sendingRef: { current: boolean };
   abortRef: { current: AbortController | null };
@@ -101,15 +104,17 @@ export function useSendHost(params: SendHostParams): SendHost {
     params.onSendingChange(false);
   };
 
-  const send = async (text: string): Promise<void> => {
+  const send = async (text: string, opts?: { edited?: boolean }): Promise<void> => {
     const trimmed = text.trim();
-    // The synchronous claim check (old controller minus the voice / PDF /
-    // translate busy flags this host does not have): empty draft, claim or
-    // sending already held, history not settled.
+    // The synchronous claim check (old controller minus the voice / PDF busy
+    // flags this host does not have; the translate flag this host DOES have —
+    // translate ships with its system): empty draft, claim or sending held,
+    // a translate holding the engine, history settled.
     if (
       !trimmed ||
       sendClaimRef.current ||
       sendingRef.current ||
+      translationInFlightRef.current ||
       !params.historyLoadedRef.current
     ) {
       return;
@@ -137,7 +142,7 @@ export function useSendHost(params: SendHostParams): SendHost {
         params.setMessages((prev) =>
           fence.apply(token, prev, (state) => [
             ...state,
-            { id: userMsgId, role: "user", text: trimmed, createdAt: now },
+            { id: userMsgId, role: "user", text: trimmed, createdAt: now, ...(opts?.edited ? { edited: true } : {}) },
             {
               id: assistantId,
               role: "assistant",
@@ -168,7 +173,7 @@ export function useSendHost(params: SendHostParams): SendHost {
       params.setMessages((prev) =>
         fence.apply(token, prev, (state) => [
           ...state,
-          { id: userMsgId, role: "user", text: trimmed, createdAt: now },
+          { id: userMsgId, role: "user", text: trimmed, createdAt: now, ...(opts?.edited ? { edited: true } : {}) },
           {
             id: assistantId,
             role: "assistant",

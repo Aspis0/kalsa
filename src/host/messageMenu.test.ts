@@ -1,19 +1,21 @@
 /**
  * The menu's pure halves, checked where they live: which rows a message gets
- * (`messageMenuRows`) and what a regenerate drops (`planRegenerate`).
+ * (`messageMenuRows`) and what a truncate drops (`planRegenerate`).
  *
  * The two proofs here are the ones a rendered tree could not give:
  *
- * 1. **Honest rows**: an action that cannot run is ABSENT. Translate and edit
- *    do not appear at all (deferred with their systems), read-aloud never had
- *    a sheet row, regenerate only appears where the controller's own
- *    `canRegen` allows it, Copy only where `sheetCopyVisible` does — and every
- *    label key resolves in BOTH catalogues, so a row cannot ship with an
- *    English-only word.
- * 2. **The truncate**: regenerate keeps everything BEFORE the target user
+ * 1. **Honest rows**: every row the sheet draws has a system behind it —
+ *    translate and edit appear exactly where the controller's sheet offered
+ *    them (translate on every row, edit on an idle user bubble), read-aloud
+ *    never had a sheet row, regenerate only where the controller's own
+ *    `canRegen` allows it, Copy only where `sheetCopyVisible` does — and
+ *    every label key resolves in BOTH catalogues, so a row cannot ship with
+ *    an English-only word.
+ * 2. **The truncate**: a regenerate keeps everything BEFORE the target user
  *    turn and drops that turn, the answer being replaced, and everything after
  *    it — the controller's `Chat:3411-3421`, pinned so a future "helpful"
- *    change (keeping later turns, keeping the old answer) fails here.
+ *    change (keeping later turns, keeping the old answer) fails here. The
+ *    edit plan's own truncate lives beside it in `editFlow.test.ts`.
  */
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";
@@ -44,38 +46,62 @@ function assistant(id: string, text: string): Message {
 const ids = (rows: ReturnType<typeof messageMenuRows>) => rows.map((row) => row.id);
 
 describe("which rows a message gets — present only if it can run", () => {
-  it("a user bubble idle: copy, notes, cancel — and NO regenerate (canRegen says assistant only)", () => {
-    expect(ids(messageMenuRows("user", "hello", false))).toEqual(["copy", "notes", "cancel"]);
+  it("a user bubble idle: copy, notes, translate, edit, cancel — regenerate stays answer-only (canRegen says assistant)", () => {
+    expect(ids(messageMenuRows("user", "hello", false))).toEqual([
+      "copy",
+      "notes",
+      "translate",
+      "edit",
+      "cancel",
+    ]);
   });
 
-  it("an answer idle: copy, notes, regenerate, cancel — the controller's order", () => {
+  it("an answer idle: copy, notes, translate, regenerate, cancel — the controller's order", () => {
     expect(ids(messageMenuRows("assistant", "hi", false))).toEqual([
       "copy",
       "notes",
+      "translate",
       "regenerate",
       "cancel",
     ]);
   });
 
-  it("regenerate is absent mid-turn, not present and inert", () => {
-    expect(ids(messageMenuRows("assistant", "hi", true))).toEqual(["copy", "notes", "cancel"]);
-    expect(ids(messageMenuRows("user", "hi", true))).toEqual(["copy", "notes", "cancel"]);
+  it("mid-turn, edit and regenerate are absent (not present and inert); translate survives, as the controller drew it", () => {
+    expect(ids(messageMenuRows("assistant", "hi", true))).toEqual([
+      "copy",
+      "notes",
+      "translate",
+      "cancel",
+    ]);
+    expect(ids(messageMenuRows("user", "hi", true))).toEqual([
+      "copy",
+      "notes",
+      "translate",
+      "cancel",
+    ]);
   });
 
   it("copy is absent without copyable text — the controller's sheetCopyVisible gate", () => {
     expect(ids(messageMenuRows("assistant", "", false))).toEqual([
       "notes",
+      "translate",
       "regenerate",
       "cancel",
     ]);
-    expect(ids(messageMenuRows("user", "   \n ", false))).toEqual(["notes", "cancel"]);
+    expect(ids(messageMenuRows("user", "   \n ", false))).toEqual([
+      "notes",
+      "translate",
+      "edit",
+      "cancel",
+    ]);
   });
 
-  it("translate and edit never appear in any state — deferred, not inert", () => {
+  it("translate stands on every row; edit only ever on an idle user bubble — the controller's two gates", () => {
     for (const role of ["user", "assistant"] as const) {
       for (const sending of [false, true]) {
-        expect(ids(messageMenuRows(role, "text", sending))).not.toContain("translate");
-        expect(ids(messageMenuRows(role, "text", sending))).not.toContain("edit");
+        const rows = ids(messageMenuRows(role, "text", sending));
+        expect(rows).toContain("translate");
+        expect(rows.includes("edit")).toBe(role === "user" && !sending);
       }
     }
   });
@@ -103,16 +129,20 @@ describe("every string the menu shows exists in BOTH catalogues", () => {
     }
   });
 
-  it("the caption's two lines resolve in both — and the idle one is the honest hint, not the controller's translate-promising one", () => {
+  it("the caption's two lines resolve in both — and the idle one names every action the sheet can show", () => {
     expect(messageMenuCaption(false)).toBe("chat.a11yMessageActions");
     expect(messageMenuCaption(true)).toBe("common.copied");
     for (const key of [messageMenuCaption(false), messageMenuCaption(true)]) {
       expect(typeof EN[key]).toBe("string");
       expect(typeof IT[key]).toBe("string");
     }
-    // The hint this build ships names only actions that exist:
-    expect(EN["chat.a11yMessageActions"]).not.toMatch(/translate/i);
-    expect(EN["chat.a11yLongPress"]).toMatch(/translate/i); // the old one did
+    // The hint this build ships keeps up with the rows: translate and edit
+    // landed, so the line names them (it used to omit them, like the
+    // controller's own line omitted edit and regenerate).
+    expect(EN["chat.a11yMessageActions"]).toMatch(/translate/i);
+    expect(EN["chat.a11yMessageActions"]).toMatch(/edit/i);
+    expect(IT["chat.a11yMessageActions"]).toMatch(/tradurre/i);
+    expect(EN["chat.a11yLongPress"]).toMatch(/translate/i); // the controller's line
   });
 });
 

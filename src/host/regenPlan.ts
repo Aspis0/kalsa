@@ -1,17 +1,19 @@
 /**
- * What a regenerate drops, decided before anything is mutated — the pure half
- * of the controller's truncate-and-resend (the edit modal itself is deferred,
- * so only this half exists here).
+ * What a regenerate or an edit drops, decided before anything is mutated —
+ * the pure half of the controller's truncate-and-resend, shared by the
+ * regenerate row and the edit modal (the controller kept both in
+ * `editMessage`, `AiChatPage.tsx:3329-3465`).
  *
  * The rule: keep the messages BEFORE the target user turn, drop the target
  * user turn and EVERYTHING after it (the assistant answer being replaced and
- * any turns that followed it), then `send` re-appends the same user text with
- * `edited: false` — so a regenerated bubble is never badged as edited.
+ * any turns that followed it), then `send` re-appends the user text — with
+ * `edited: false`-absent for a regenerate (never badged as edited) and
+ * `edited: true` for an edit save.
  *
- * Returns null when the controller showed `chat.regenFailed` and did nothing:
- * no such assistant message, no preceding user turn (`findRegenTarget`), or a
- * target whose text `send()` would refuse anyway — decided HERE so the
- * refusal happens before the truncate, not after it.
+ * Each plan returns null when the controller showed `chat.regenFailed` and
+ * did nothing: no such message, wrong role, no preceding user turn
+ * (`findRegenTarget`), or a target whose text `send()` would refuse anyway —
+ * decided HERE so the refusal happens before the truncate, not after it.
  */
 import { findRegenTarget } from "../screens/regenTarget";
 import type { Message } from "./hostMessage";
@@ -49,4 +51,31 @@ export function planRegenerate(
     text: target.text,
     base: messages.slice(0, index),
   };
+}
+
+/** An edit's truncate, anchored on the USER turn itself: same rule as a
+ *  regenerate, different anchor (regenerate resolves assistant → its user
+ *  turn through `findRegenTarget`; edit IS on the user turn) and different
+ *  text (the edited draft, not the stored one). */
+export type EditPlan = {
+  userId: string;
+  text: string;
+  base: Message[];
+};
+
+export function planEdit(
+  messages: readonly Message[],
+  userId: string,
+  newText: string,
+): EditPlan | null {
+  const index = messages.findIndex((message) => message.id === userId);
+  if (index < 0) return null;
+  // The role check: only a user bubble may anchor an edit, so a mis-targeted
+  // id (an answer) can never truncate history from the wrong side.
+  if (messages[index].role !== "user") return null;
+  // `send`'s own first gate is a non-empty trimmed draft; failing here keeps
+  // the truncate from ever happening for a send that would refuse.
+  const text = newText.trim();
+  if (!text) return null;
+  return { userId, text, base: messages.slice(0, index) };
 }

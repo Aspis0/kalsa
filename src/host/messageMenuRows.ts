@@ -2,22 +2,24 @@
  * Which rows the message action sheet may show — the controller's visibility
  * rules as a pure function, so the menu cannot grow a row that cannot run.
  *
- * The controller's sheet drew five actions plus cancel; this build ships
- * three of them:
+ * The controller's sheet drew five actions plus cancel (`AiChatPage.tsx:
+ * 4415-4495`); this build ships all five, in its order:
  *
  * - **copy** — gated by the controller's own `sheetCopyVisible(text)` (its
  *   own file, called not rebuilt: a caption-less message keeps Copy out).
- * - **save-to-notes** — always here: the host mounts the NotesStore path the
- *   controller called behind an always-passed prop.
+ * - **save-to-notes** — always here: the host mounts the NotesStore path
+ *   the controller called behind an always-passed prop.
+ * - **translate** — always, as the controller drew it (`Chat:4446-4454`):
+ *   the opener's own gate already guarantees non-empty text, mid-turn or
+ *   busy states never reach the sheet at all.
+ * - **edit** — user bubbles only, idle only (the controller's
+ *   `Chat:4455`); it opens the edit modal, which re-enters the send path.
  * - **regenerate** — gated by the controller's `canRegen(role, sending)`:
  *   assistant bubbles only, never mid-turn.
  * - **cancel** — always.
  *
- * **translate and edit are ABSENT, not present and inert** — deferred with
- * their systems (the translate path + expanding block, the edit modal + its
- * regen fencing), reported as deferred rather than stubbed with a row that
- * does nothing. Read-aloud never had a sheet row; its absence is reported
- * with the inline chip.
+ * Read-aloud never had a sheet row (the controller's either); it rides the
+ * inline chip under an answer.
  *
  * Both gates and all label keys come from files/catalogues the controller
  * already shipped; `messageMenu.test.ts` proves every `labelKey` resolves in
@@ -36,9 +38,9 @@ export type MessageMenuRowSpec = {
 
 /**
  * The sheet's rows for one message, in draw order. `testID`s follow the
- * controller's for copy and regenerate; save and cancel get names because
- * this project requires a testID on every interactive node and the
- * controller's two rows had none.
+ * controller's for copy, edit and regenerate; save, translate and cancel get
+ * names because this project requires a testID on every interactive node and
+ * the controller's rows had none.
  */
 export function messageMenuRows(
   role: "user" | "assistant",
@@ -50,6 +52,10 @@ export function messageMenuRows(
     rows.push({ id: "copy", labelKey: "common.copy", testID: "message-action-copy" });
   }
   rows.push({ id: "notes", labelKey: "notes.saveToNotes", testID: "message-action-notes" });
+  rows.push({ id: "translate", labelKey: "translate.title", testID: "message-action-translate" });
+  if (role === "user" && !sending) {
+    rows.push({ id: "edit", labelKey: "chat.edit", testID: "message-action-edit" });
+  }
   if (canRegen(role, sending)) {
     rows.push({ id: "regenerate", labelKey: "chat.regen", testID: "message-action-regen" });
   }
@@ -58,10 +64,12 @@ export function messageMenuRows(
 }
 
 /**
- * The caption above the rows: the controller's own choice of line — its hint
- * while idle, `common.copied` during the flash. The hint key is THIS build's,
- * not the controller's `chat.a11yLongPress`, because that sentence promises
- * translate, which this menu deliberately does not contain.
+ * The caption above the rows: this build's own line — it names EVERY action
+ * the sheet can show across the two roles (Edit appears on user bubbles,
+ * Regenerate on answers), so the hint a finger reads before it presses is
+ * never a promise of an action that is not there. The controller's own line
+ * (`chat.a11yLongPress`) omitted Edit and Regenerate. During the copied
+ * flash the caption is `common.copied`, as the controller's was.
  */
 export function messageMenuCaption(copied: boolean): TranslationKey {
   return copied ? "common.copied" : "chat.a11yMessageActions";

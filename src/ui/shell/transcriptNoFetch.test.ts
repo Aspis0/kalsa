@@ -33,6 +33,10 @@ const BAND_FILES = [
   // Turn boxes + copy chip, split out of TranscriptParts when the long-press
   // landed (the seam that kept the stylesheet under the ratchet).
   "TranscriptTurns.tsx",
+  // The chip row (copy + read-aloud) and the translation block under a
+  // message, split out when those interactions landed.
+  "TranscriptChips.tsx",
+  "TranslationBlock.tsx",
   "TranscriptEvidence.tsx",
   "TranscriptMarkdown.tsx",
   "TranscriptInline.tsx",

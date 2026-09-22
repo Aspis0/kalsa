@@ -1,52 +1,61 @@
 /**
  * The message interactions' host half: the long-press menu's payload, the
- * copied flash, save-to-notes and the regenerate handoff (PARITY-STATUS
- * gap 1 / D1 rows 15, 16, 20, 21). Beside `sendHost`, not inside it: the
- * regenerate it performs ENTERS `sendHost.send` like any other send, so the
- * claim, the turn token, the engine half and the release are the send's own
- * fences — a regenerate is fenced exactly like a send because it IS one.
+ * copied flash, save-to-notes, regenerate, translate, edit-then-resend and
+ * read-aloud (PARITY-STATUS gap 1 / D1 rows 15-21). Beside `sendHost`, not
+ * inside it: the regenerate and the edit SAVE both ENTER `sendHost.send` like
+ * any other send, so the claim, the turn token, the engine half and the
+ * release are the send's own fences — a regenerate or an edit is fenced
+ * exactly like a send because it IS one. The synchronous truncate → claim →
+ * declare block they share is `truncateAndResend.ts`; the translate run and
+ * its orphan cleanup are `useTranslateMessage.ts`, the edit modal's state
+ * `useEditMessage.ts`, the voice `useReadAloud.ts`.
  *
  * Two traps the controller records, both honored here:
  *
  * 1. **Refs only in the opener**: a closure over state froze the menu's
  *    payload inside memoized rows. The guards below read `sendingRef` /
- *    `regenInFlightRef` / `historyLoadedRef`, never this component's
- *    `sending` state, and the latest non-ref inputs (`send`, `t`, the notice)
- *    arrive through a params ref refreshed every render.
+ *    `regenInFlightRef` / `translationInFlightRef` / `historyLoadedRef`,
+ *    never this component's `sending` state, and the latest non-ref inputs
+ *    (`send`, `t`, the notice) arrive through a params ref refreshed every
+ *    render.
  * 2. **Close the menu when a turn starts**: a live turn must not keep the
  *    sheet open, so `sending` closing it is kept.
  *
  * Timers: the copied flash and the sheet's +400 ms close, both cleared on
  * close/unmount exactly where the controller cleared them.
- *
- * Deferred, NOT built (reported, not stubbed): translate, edit, read-aloud —
- * and therefore no `translationInFlightRef` guard (there is no translate to
- * contend with) and no `onSpeak`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  regenInFlightRef,
-  sendClaimRef,
-} from "../engine/regenState";
+import { regenInFlightRef, sendClaimRef } from "../engine/regenState";
 import { saveNote } from "../notes/NotesStore";
 import { COPIED_FLASH_MS } from "../ui/shell/copiedFlash";
 import type { MessageMenuRow } from "../ui/shell/MessageMenu";
+import type { TranscriptTranslateAction } from "../ui/shell/transcriptTypes";
 import type { HistoryWriteGuard } from "../chat/historyWriteGuard";
-import type { TranslateFn, TranslationKey } from "../i18n";
+import type { Locale, TranslateFn, TranslationKey } from "../i18n";
 import { copyToClipboard } from "./copyText";
 import { messageMenuCaption, messageMenuRows } from "./messageMenuRows";
 import type { Message } from "./hostMessage";
 import { planRegenerate } from "./regenPlan";
+import { truncateAndResend } from "./truncateAndResend";
+import { translationInFlightRef } from "./translateState";
+import { useEditMessage } from "./useEditMessage";
+import { useReadAloud } from "./useReadAloud";
+import { useTranslateMessage } from "./useTranslateMessage";
 import type { SendHost } from "./sendHost";
 
 /** What this hook borrows from the root: the send fence it hands the resend
- *  into, and the conversation's messages + shrink guard it truncates. */
+ *  into, the conversation's messages + shrink guard it truncates, and the two
+ *  ports the live interactions need (locale, TTS preference). */
 export interface MessageActionsParams {
   t: TranslateFn;
+  /** The settings language: captured at a translate run's start. */
+  locale: Locale;
   /** The root's rendering mirror; the guards read the ref, never this. */
   sending: boolean;
   sendHost: Pick<SendHost, "send" | "sendingRef">;
   history: {
+    /** The rendering mirror: the translate orphan cleanup reads it. */
+    messages: readonly Message[];
     messagesRef: { current: Message[] };
     setMessages: (updater: (prev: Message[]) => Message[]) => void;
     historyLoadedRef: { current: boolean };
@@ -55,6 +64,10 @@ export interface MessageActionsParams {
     historyGuard: HistoryWriteGuard;
   };
   showNoticeKey: (key: TranslationKey) => void;
+  /** The active conversation: a translate or a voice must not outlive it. */
+  conversationId: string | undefined;
+  /** The scan's TTS preference (`usePipelineScans`); read-aloud checks it. */
+  ttsEnabled: boolean;
 }
 
 export type MessageMenuView = {
@@ -77,6 +90,18 @@ export interface MessageActions {
   onMenuRow: (id: MessageMenuRow["id"]) => void;
   /** The copy both the menu row and the inline chip go through. */
   onCopy: (text: string) => Promise<boolean>;
+  /** The translate run under one message (the band draws it), or null. */
+  translate: TranscriptTranslateAction | null;
+  /** True while a translate holds the engine — the send face dims on it. */
+  translating: boolean;
+  /** Read-aloud: the id whose chip reads "Stop reading", and the toggle. */
+  speakingId: string | null;
+  onSpeak: (id: string, text: string) => void;
+  /** The edit modal's draft while open; null closes the modal. */
+  edit: { draft: string } | null;
+  onEditDraftChange: (draft: string) => void;
+  onEditSubmit: () => void;
+  onEditClose: () => void;
 }
 
 export function useMessageActions(params: MessageActionsParams): MessageActions {
@@ -105,6 +130,33 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     setMenu(null);
   }, []);
 
+  // The three live interactions, composed beside the menu they hang from.
+  const translate = useTranslateMessage({
+    locale: params.locale,
+    conversationId: params.conversationId,
+    messages: params.history.messages,
+    sendingRef: params.sendHost.sendingRef,
+    closeMenu,
+  });
+  const edit = useEditMessage({
+    sending: params.sending,
+    sendHost: params.sendHost,
+    history: params.history,
+    showNoticeKey: params.showNoticeKey,
+  });
+  const readAloud = useReadAloud({
+    locale: params.locale,
+    conversationId: params.conversationId,
+    ttsEnabled: params.ttsEnabled,
+    showNoticeKey: params.showNoticeKey,
+    closeMenu,
+  });
+  // The hooks' callbacks are identity-stable; the view/state fields are not,
+  // so the dispatch and the return below read the latest through these names.
+  const { view: translationView, translating, run: runTranslate, retry: retryTranslate, close: closeTranslation, toggle: toggleTranslation } = translate;
+  const { editing, open: openEdit, setDraft: setEditDraft, close: closeEdit, submit: submitEdit } = edit;
+  const { speakingId, speak } = readAloud;
+
   // The controller's two timer effects: a closed menu drops its pending close;
   // unmount drops both.
   useEffect(() => {
@@ -130,11 +182,15 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     (message: { id: string; role: "user" | "assistant"; text: string; caret?: boolean }) => {
       // REFs ONLY for the busy gates — a state-capturing closure froze the
       // payload inside memoized rows. The payload below comes from the press
-      // event's own message, so nothing here can be stale.
+      // event's own message, so nothing here can be stale. The translation
+      // ref is the controller's own third gate (`Chat:3495`): a translate
+      // holds the engine, so the sheet — with its Translate and Regenerate
+      // rows — must not open over it.
       const p = latest.current;
       if (
         p.sendHost.sendingRef.current ||
         regenInFlightRef.current ||
+        translationInFlightRef.current ||
         !p.history.historyLoadedRef.current
       ) {
         return;
@@ -158,11 +214,10 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
   }, []);
 
   /**
-   * Regenerate: declare the shrink, truncate, and hand the resend to
-   * `send()` — one synchronous block, because the claim `send` reserves
-   * before its first await is what fences the truncate: no await sits between
-   * the checks, the truncate and the claim, so no other flow can run in
-   * between, and everything after the claim is the send's own turn token.
+   * Regenerate: checks and plan here, then the shared handoff — one
+   * synchronous block from the caller's last check to the declared shrink,
+   * because the claim `send` reserves before its first await is what fences
+   * the truncate (`truncateAndResend.ts`).
    */
   const regenerate = useCallback(async (assistantId: string) => {
     const p = latest.current;
@@ -181,36 +236,10 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       p.showNoticeKey("chat.regenFailed");
       return;
     }
-    const snapshot = p.history.messagesRef.current;
-    // ── one synchronous block: truncate → claim → declare ──
-    regenInFlightRef.current = true;
-    p.history.setMessages(() => plan.base);
-    p.history.messagesRef.current = plan.base;
-    const run = p.sendHost.send(plan.text);
-    if (!p.sendHost.sendingRef.current) {
-      // `send` refused synchronously — impossible after the checks above
-      // (identical gates, no await between), so this is a defensive rollback
-      // and it must also undo the truncate and the lock it took.
-      p.history.setMessages(() => snapshot);
-      p.history.messagesRef.current = snapshot;
-      regenInFlightRef.current = false;
-      p.showNoticeKey("chat.regenFailed");
-      return;
-    }
-    // The claim is provably taken: arm the shrink BEFORE the first await, so
-    // the first flush or turn-end write of `plan.base` is the declared one.
-    p.history.historyGuard.armDeclaredShrink(plan.base);
-    // The lock is released by the run itself (`sendHost.releaseOwned`, which
-    // clears `regenInFlightRef` for the owning token) or by the stop watchdog
-    // / conversation change.
-    try {
-      await run;
-    } catch (error) {
-      // The run began, so its own outcomes own the history — no rollback here
-      // (rolling back into a finished turn would resurrect the dropped answer).
-      // Counts-only: never the message text.
-      console.warn("[messageActions] regenerate run threw", error);
-    }
+    await truncateAndResend(
+      { history: p.history, sendHost: p.sendHost, showNoticeKey: p.showNoticeKey },
+      plan,
+    );
   }, []);
 
   const onMenuRow = useCallback(
@@ -242,6 +271,16 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
         void saveToNotes(payload.text);
         return;
       }
+      if (id === "translate") {
+        // The run closes the menu itself, as `runTranslate` did (`Chat:3542`).
+        runTranslate(payload.id, payload.text);
+        return;
+      }
+      if (id === "edit") {
+        closeMenu();
+        openEdit(payload.id, payload.text);
+        return;
+      }
       if (id === "regenerate") {
         const assistantId = payload.id;
         closeMenu();
@@ -250,7 +289,7 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       }
       closeMenu(); // cancel
     },
-    [closeMenu, regenerate, saveToNotes],
+    [closeMenu, regenerate, saveToNotes, runTranslate, openEdit],
   );
 
   const menuView = useMemo<MessageMenuView | null>(() => {
@@ -272,5 +311,21 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     closeMenu,
     onMenuRow,
     onCopy: copyToClipboard,
+    translate:
+      translationView === null
+        ? null
+        : {
+            view: translationView,
+            onToggle: toggleTranslation,
+            onClose: closeTranslation,
+            onRetry: retryTranslate,
+          },
+    translating,
+    speakingId,
+    onSpeak: speak,
+    edit: editing === null ? null : { draft: editing.draft },
+    onEditDraftChange: setEditDraft,
+    onEditSubmit: () => void submitEdit(),
+    onEditClose: closeEdit,
   };
 }

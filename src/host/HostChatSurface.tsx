@@ -1,14 +1,16 @@
 /**
  * The chat surface: the strip, the composer band and the transcript, wired to
- * the host — extracted from `HostRoot.tsx` under the owner's rule that the
- * root may only COMPOSE. This is the same JSX the root used to render, moved
+ * the host — the root's main child (the drawer, overlays and notice live in
+ * `HostLayout.tsx` beside it). This is the JSX the root used to render, moved
  * not re-thought:
  *
  * - the strip's model-pill tap semantics, with the missing-download path
  *   serving `shell.notice.download` (§2.7);
  * - the attach / mic stubs, which answer with their toast (§2.7);
  * - the send ⇄ stop wiring of §2.8's one control: `stop` while the face says
- *   stop, otherwise a send of the draft the root owns.
+ *   stop, otherwise a send of the draft the root owns;
+ * - the message menu, the edit modal and the transcript's live interactions
+ *   (translate, read-aloud), all through the root's `actions` bundle.
  *
  * The theme, the keyboard height and the band insets live here because only
  * this subtree consumes them; the root keeps the safe-area insets (the drawer
@@ -24,6 +26,7 @@ import type { ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
 import { MessageMenu } from "../ui/shell/MessageMenu";
+import { EditMessageModal } from "../ui/shell/EditMessageModal";
 import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
@@ -172,12 +175,15 @@ export function HostChatSurface({
         onMessageLongPress={actions.onMessageLongPress}
         onCopy={actions.onCopy}
         onMiniappOpen={onMiniappOpen}
+        translate={actions.translate}
+        speakingId={actions.speakingId}
+        onSpeak={actions.onSpeak}
       />
     </Shell>
     {/* The controller's message sheet, CALLED with the rows the host's pure
-        builder allows (`messageMenuRows.ts`); translate, edit and read-aloud
-        are absent until their systems exist, not rows that do nothing.
-        Android back and the backdrop both cancel. */}
+        builder allows (`messageMenuRows.ts`): copy, notes, translate, edit,
+        regenerate — each with a system behind it. Android back and the
+        backdrop both cancel. */}
     <MessageMenu
       mode={mode}
       visible={actions.menu !== null}
@@ -198,6 +204,17 @@ export function HostChatSurface({
         onDraftChange(t(template.promptKey));
         fieldRef.current?.focus();
       }}
+    />
+    {/* The controller's edit modal (`AiChatPage.tsx:4500-4581`), mounted on
+        the host's edit state: Save enters the shared resend handoff and the
+        modal closes only when the claim took. */}
+    <EditMessageModal
+      visible={actions.edit !== null}
+      mode={mode}
+      draft={actions.edit?.draft ?? ""}
+      onChange={actions.onEditDraftChange}
+      onSubmit={actions.onEditSubmit}
+      onClose={actions.onEditClose}
     />
     </>
   );

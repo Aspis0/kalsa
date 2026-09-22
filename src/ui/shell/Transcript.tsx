@@ -33,7 +33,19 @@ export type {
   TranscriptThinking,
   TranscriptToolCall,
 } from "./transcriptTypes";
-import type { TranscriptProps } from "./transcriptTypes";
+import type { TranscriptProps, TranscriptTranslateAction } from "./transcriptTypes";
+
+/** The band draws the translate action ONLY under the message it belongs to:
+ *  a run keyed to another id (or to a message that no longer exists) draws
+ *  nothing here — the host's orphan cleanup is the second fence, this is the
+ *  first. */
+function translateFor(
+  translate: TranscriptTranslateAction | null | undefined,
+  messageId: string,
+): TranscriptTranslateAction | undefined {
+  if (!translate || translate.view.messageId !== messageId) return undefined;
+  return translate;
+}
 
 /** In the order `Date.getMonth()` reports. */
 const MONTH_KEYS: readonly TranslationKey[] = [
@@ -76,6 +88,9 @@ export function Transcript({
   onCopy,
   onMessageLongPress,
   onMiniappOpen,
+  onSpeak,
+  speakingId,
+  translate,
   width,
   height,
   mode = "light",
@@ -256,6 +271,7 @@ export function Transcript({
             {message.role === "user" ? (
               <UserTurn
                 colors={colors}
+                edited={message.edited}
                 id={message.id}
                 layout={layout}
                 onCopy={onCopy}
@@ -264,6 +280,7 @@ export function Transcript({
                 }
                 styles={styles}
                 text={message.text}
+                translate={translateFor(translate, message.id)}
               />
             ) : (
               <Answer
@@ -278,13 +295,16 @@ export function Transcript({
                   onMessageLongPress ? () => onMessageLongPress(message) : undefined
                 }
                 onMiniappOpen={onMiniappOpen}
+                onSpeak={onSpeak ? () => onSpeak(message.id, message.text) : undefined}
                 readingMeasure={layout.readingMeasure}
+                speaking={message.id === speakingId}
                 sources={message.sources}
                 stop={message.stop}
                 styles={styles}
                 text={message.text}
                 thinking={message.thinking}
                 tools={message.tools}
+                translate={translateFor(translate, message.id)}
               />
             )}
           </View>

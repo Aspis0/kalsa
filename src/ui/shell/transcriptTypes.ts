@@ -6,7 +6,7 @@
  * layer, and guessing at it here would bind this file to a decision it does
  * not own.
  */
-import type { TranslationKey } from "../../i18n";
+import type { TranslationKey, Locale } from "../../i18n";
 import type { ReactNode } from "react";
 import type { ThemeMode } from "../../theme/design";
 import type { StopTone } from "./composerState";
@@ -58,6 +58,12 @@ export type TranscriptMessage = {
    * Absent on a finished turn: silence is the honest row.
    */
   stop?: TranscriptStop;
+  /**
+   * The user edited this bubble and resent it (D1 row 17): the small badge
+   * under the capsule. Carried from the host's `Message.edited`, which the
+   * history path already round-trips.
+   */
+  edited?: boolean;
   /**
    * The action chips under an answer (D1 row 26). Drawn as STATIC chips:
    * the controller's press handler was a stub (`AppShell.tsx:7047`) and this
@@ -120,6 +126,42 @@ export type TranscriptSource = {
 };
 
 /**
+ * One message's translation, as the band draws it (D1 row 18): the busy row
+ * while the engine job runs, the expandable block once a result exists. The
+ * host owns the state — it is NEVER a field of a message, so it cannot enter
+ * the persist path; the band draws whatever it is handed under the message
+ * whose id matches.
+ */
+export type TranscriptTranslation = {
+  /** The message this run belongs to; drawn only under that message. */
+  messageId: string;
+  /** The engine job is running: the band draws the "Translating…" row. */
+  busy: boolean;
+  /** The block's expand/collapse. */
+  expanded: boolean;
+  /** Absent while busy: an error result carries `error` and no text. */
+  result?: {
+    text: string;
+    /** Captured at run start, so the badge survives a locale change. */
+    lang: Locale;
+    error?: boolean;
+    truncated?: boolean;
+  };
+};
+
+/**
+ * The translate action the band is given as ONE prop: the view plus the
+ * handlers that belong to it, so the band can never draw the block with a
+ * control that has nothing behind it (absent together or present together).
+ */
+export type TranscriptTranslateAction = {
+  view: TranscriptTranslation;
+  onToggle: () => void;
+  onClose: () => void;
+  onRetry: () => void;
+};
+
+/**
  * The mini-app envelope a message carries (D1 rows 4/28), as the card draws
  * it: `kind` picks the icon, `title` the header. At runtime the object IS
  * the full normalized envelope — `blocks`, `actions` and `state` ride along
@@ -162,6 +204,19 @@ export type TranscriptProps = {
    * inert affordance this build does not ship.
    */
   onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
+  /**
+   * The translate run under ONE message (D1 row 18): busy row + expandable
+   * block, handlers bundled with the view. Absent (the preview, or no run):
+   * no block at all. The host's `useTranslateMessage` owns the state.
+   */
+  translate?: TranscriptTranslateAction | null;
+  /**
+   * Read-aloud (D1 row 19): the id whose chip reads "Stop reading", and the
+   * press that speaks an answer (the controller's `speakingId` + `onSpeak`).
+   * Absent → no chip is drawn: absent, not present and inert.
+   */
+  speakingId?: string | null;
+  onSpeak?: (id: string, text: string) => void;
   insets: Insets;
   /** Overrides for the preview; the live window is the default. */
   width?: number;

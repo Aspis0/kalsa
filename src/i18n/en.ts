@@ -535,12 +535,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11yNewChat: "New chat",
     a11yClearRun: "Clear selected run",
     a11yLongPress: "Long press for copy, translate, or save to notes",
-    /** The long-press hint this build keeps honest: translate and edit are
-     *  deferred (they need their modals), so this line names only the three
-     *  actions the menu can actually run. Used as the pressable's hint and as
-     *  the open menu's caption line (the controller used `a11yLongPress` for
-     *  both, but that sentence promises translate). */
-    a11yMessageActions: "Long press for copy, save to notes, or regenerate",
+    /** The long-press hint and the open menu's caption: EVERY action the
+     *  sheet can show across the two roles — copy, translate and save-to-notes
+     *  stand on every row, Edit appears on user bubbles, Regenerate on
+     *  answers. This build's own line, kept in step with
+     *  `messageMenuRows.ts` (the controller's `a11yLongPress` above omitted
+     *  Edit and Regenerate, which its sheet did show). */
+    a11yMessageActions: "Long press for copy, translate, edit, save to notes, or regenerate",
     saveToNotes: "Save to notes",
     lookAtAttachedFile: "Look at the attached file.",
     visionUnsupportedNotice:
