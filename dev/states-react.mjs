@@ -158,6 +158,10 @@ const scenarios = [
   ["Model", "advanced settings with an f16 cache override", "models", { state: { kind: "running" }, advanced: advancedDto({ kv_cache_override: "f16", kv_cache_type: "f16" }) }],
   ["Model", "advanced settings with a saved micro-batch", "models", { state: { kind: "running" }, advanced: advancedDto({ ubatch_override: 1024, ubatch_size: 1024 }) }],
   ["Model", "starting on the chosen model", "models", { state: { kind: "starting" } }],
+  // The drain as the Models page reports it: the model being put away — never
+  // the "could not tell" sentence, which the blind `default:` used to show
+  // for the whole teardown while the poll was saying exactly what happened.
+  ["Model", "draining: the model is being put away", "models", { state: { kind: "stopping" } }],
   ["Model", "off: nothing is chosen while off", "models", { state: { kind: "stopped" } }],
   ["Model", "not running: the Status page says why", "models", { state: { kind: "failed", reason: REASON_PORT } }],
   ["Model", "outside the app (browser preview)", "models", { available: false }],

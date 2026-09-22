@@ -1915,17 +1915,30 @@ fn server_state_variants() -> Vec<String> {
 }
 
 /// The pin under the fifth way, and the most important check this round adds.
-/// The cross-layer invariant nobody wrote down: a window that polls THIS
-/// command says `absent` only when `kind !== "running"` (`slotGate.ts`,
-/// `standingOf`), and `brain_state` — the very command that poll answers from
-/// — calls `stop_door()` in every non-`Running` arm. Together they make
-/// `absent` on the polling client imply the door is already down. Drop one
-/// `stop_door()` and the implication breaks in silence: the window calls a
-/// live door "no door", mints a chat against its slot, and the next switch
-/// writes that slot's state into another chat's file — the divergence
-/// `slotGate.ts` exists to prevent, re-entered from Rust. (A browser outside
-/// the webview never polls this command and says `absent` on an assumption
-/// instead — declared in `useBrain.ts`, not covered here.)
+/// It defends TWO things in every non-`Running` arm of `brain_state`, because
+/// two promises ride on the same answer:
+///
+/// 1. THE DOOR. The cross-layer invariant nobody wrote down: a window that
+/// polls THIS command says `absent` only when `kind !== "running"`
+/// (`slotGate.ts`, `standingOf`), and `brain_state` — the very command that
+/// poll answers from — calls `stop_door()` in every non-`Running` arm.
+/// Together they make `absent` on the polling client imply the door is
+/// already down. Drop one `stop_door()` and the implication breaks in
+/// silence: the window calls a live door "no door", mints a chat against
+/// its slot, and the next switch writes that slot's state into another
+/// chat's file — the divergence `slotGate.ts` exists to prevent, re-entered
+/// from Rust. (A browser outside the webview never polls this command and
+/// says `absent` on an assumption instead — declared in `useBrain.ts`, not
+/// covered here.)
+///
+/// 2. THE SQUARE. `desk.desk.stop_serving()` in those same arms: the pairing
+/// square is only drawn while the desk serves (`brain_pairing` answers
+/// `serving` from `Running`), so an arm that takes the door down and leaves
+/// the square up promises a way in that has just gone — a phone scans a QR
+/// that leads to a door being torn down and finds nothing behind it. The
+/// door's arm was pinned and this was not: the reviewer cancelled one
+/// `desk.desk.stop_serving();` and all 166 + 47 + the harness stayed green,
+/// which is exactly the hole this half of the pin closes.
 fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
     let at = source
         .find("fn brain_state(")
@@ -1946,6 +1959,12 @@ fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
                 "the {variant} arm of brain_state answers without stopping the door"
             ));
         }
+        if !arm.contains("desk.desk.stop_serving()") {
+            return Err(format!(
+                "the {variant} arm of brain_state answers without retiring the pairing square — \
+                 a square that stays up while the door goes down promises a way in that is gone"
+            ));
+        }
     }
     Ok(())
 }
@@ -1955,7 +1974,10 @@ fn every_non_running_arm_of_brain_state_stops_the_door() {
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
     if let Err(error) = non_running_arms_stop_the_door(&source) {
-        panic!("{error} — the client's `absent` would no longer imply a stopped door");
+        panic!(
+            "{error} — the client's `absent` would no longer imply a stopped door, or a square \
+             would keep promising an entrance the door no longer answers"
+        );
     }
 }
 
@@ -1979,6 +2001,36 @@ fn the_pin_bites_when_one_stop_door_is_taken_away() {
     );
     // ...and stay green on the untouched source, so the red above is the
     // mutation's doing and not a checker that fails both ways.
+    assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
+}
+
+#[test]
+fn the_pin_bites_when_the_square_is_taken_away() {
+    // The reviewer's own edit, replayed on a COPY of the source: the
+    // `Stopping` arm goes on lowering the door and stops retiring the
+    // pairing square — done to the real source it left every suite green,
+    // which is the hole this replay exists for. The pin must go red on
+    // exactly that copy...
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let start = source.find("fn brain_state(").expect("the command");
+    // Scoped from `fn brain_state(` onward: `clear_launch_for_state` matches
+    // `ServerState::Stopping` too, and the first `stop_serving` before this
+    // point is not an arm of this command at all.
+    let draining = start +
+        source[start..]
+            .find("ServerState::Stopping =>")
+            .expect("the drain's arm");
+    let mutated = format!(
+        "{}{}",
+        &source[..draining],
+        source[draining..].replacen("desk.desk.stop_serving();", "", 1)
+    );
+    assert!(
+        non_running_arms_stop_the_door(&mutated).is_err(),
+        "the pin passed on a brain_state whose Stopping arm no longer retires the square"
+    );
+    // ...and stay green on the untouched source.
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
 }
 

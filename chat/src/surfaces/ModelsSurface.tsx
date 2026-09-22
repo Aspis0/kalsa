@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
 import { available, invoke } from "../lib/tauri";
+// ONE declaration of `brain_state`'s answer, shared with the poll every other
+// surface reads. A local copy of `kind` here is how "stopping" was read as
+// "could not tell": the DTO moved and this page's second declaration did not.
+import type { BrainState } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
@@ -10,14 +14,6 @@ const MODEL_NO_PICK = "You never have to pick one.";
  *  where the developer pinned a file and no catalog choice was made. It states
  *  nothing about a phone, because on this path a phone played no part. */
 const MODEL_REASON_FALLBACK = "A model is chosen for this computer every time you turn on.";
-
-/** What `brain_state` answers. The kind decides the sentence; on a running
- *  start the catalog's own name and its reason for THIS start travel with it. */
-interface BrainState {
-  kind: "stopped" | "starting" | "running" | "failed";
-  model?: string | null;
-  reason?: string | null;
-}
 
 interface ModelsSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
@@ -61,6 +57,16 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         headline = state.model ? `Running ${state.model}` : "Chosen for this computer";
         sentence = `${state.reason ?? MODEL_REASON_FALLBACK} ${MODEL_NO_PICK}`;
         break;
+      case "stopping":
+        // The drain, in this page's own subject: the model this computer had
+        // chosen is being put away. NOT the "could not tell" sentence — the
+        // poll has just said exactly what is happening, and a page that
+        // claims not to know the one thing the state reported is a false
+        // sentence standing on screen for the whole teardown.
+        headline = "Stopping";
+        sentence =
+          "This computer is putting the model away. When you turn it on again it will measure itself and choose a model it can run.";
+        break;
       case "starting":
         headline = "Chosen and starting";
         sentence = "A model has been chosen for this computer. It is starting now.";
@@ -74,8 +80,15 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
           "When you turn on, this computer measures itself, picks a model it can run, and starts it. You never have to pick anything.";
         button = "Go to Server";
         break;
-      default:
-        sentence = "This page could not tell what this computer is running. Trying again usually works.";
+      default: {
+        // Exhaustive over the shared `kind`: a state the wire grows without
+        // this page is a COMPILE error here, never a sentence this page
+        // invents — the blind `default:` is what turned "stopping" into a
+        // false admission of not-knowing. `never` is assignable to `string`,
+        // so this line exists only to make a missing case fail `tsc`.
+        const unreachable: never = state.kind;
+        sentence = unreachable;
+      }
     }
   }
 

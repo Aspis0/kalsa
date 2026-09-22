@@ -521,6 +521,27 @@ try {
     }
   }
 
+  // The Models page across the same drain: it says the model is being put
+  // away, and NEVER the "could not tell" sentence — that would be a false
+  // admission of not-knowing about the one thing this poll just reported,
+  // standing on screen for the whole teardown.
+  const MODEL_DRAIN_CARD = results.find(
+    (r) => r.heading === "Model — draining: the model is being put away",
+  );
+  if (!MODEL_DRAIN_CARD) {
+    problems.push("the harness is missing the Models page's draining state");
+  } else {
+    if (/could not (tell|check)/.test(MODEL_DRAIN_CARD.sentence)) {
+      problems.push("the Models page claimed not to know while the state said stopping");
+    }
+    if (!MODEL_DRAIN_CARD.sentence.includes("putting the model away")) {
+      problems.push("the Models page must say the model is being put away during a drain");
+    }
+    if (MODEL_DRAIN_CARD.all.includes("could not")) {
+      problems.push("the Models page rendered a not-knowing sentence over a draining state");
+    }
+  }
+
   // A running Model card must show what actually happened on this start: the
   // name the shell chose, the reason the shell gave for THIS start, and the
   // promise that picking is never asked. Two of these are the real cases — a

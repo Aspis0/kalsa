@@ -22,6 +22,26 @@
 //! `Stopped` is named nowhere here: the rollback writes back the state it
 //! read, and only while the state still reads `Stopping` — a drain that ended
 //! in the meantime keeps its end.
+//!
+//! DECLARED, NOT CLOSED — `Stopping` IN PERPETUITY. If the worker thread
+//! DIES (a panic) after the drain was declared and before it wrote its end,
+//! nobody ever writes again: the guard below drops every outcome but
+//! `Stopped`, the command channel's receiver died with the thread, and each
+//! later `stop()`/`shutdown()` reads `Stopping`, re-declares that same state
+//! and has its `send` fail — so `restore` writes back the `Stopping` it read.
+//! The app then says "it is turning off" forever, under a button that stays
+//! disabled. Scope: it needs a worker gone MID-DRAIN; a worker that dies at
+//! any other moment leaves the state it already wrote, and before this
+//! module existed the same panic left `Running` forever — the same wedge,
+//! not a regression. Not closed here, because a worker dead mid-drain has
+//! no one left to write its end, and inventing that end honestly is not this
+//! module's to invent: whether the child was actually killed is the §9
+//! `Stopped` invariant's own question (pid AND port), and `Failed` would
+//! claim a server state nothing observed. The honest closure that does NOT
+//! widen the guard: a liveness read on the worker (`JoinHandle::is_finished`)
+//! deciding whether `Stopping` may still be believed, surfaced as a failure
+//! variant with its own user-facing words — that is new state and new copy,
+//! and it is proposed in the commit, not smuggled past the guard.
 
 use std::sync::Mutex;
 
