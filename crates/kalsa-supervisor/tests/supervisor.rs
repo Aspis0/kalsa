@@ -7,7 +7,7 @@
 
 mod common;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use common::{
     clear_files, config, is_dead, recorded_pid, unique_port, wait_dead, wait_for, FakeHealth, When,
@@ -114,13 +114,52 @@ fn stop_escalates_to_sigkill_for_a_wedged_child() {
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
-    let _ = supervisor.start(config("fake_stubborn.sh", port));
+    let cfg = config("fake_stubborn.sh", port);
+    // Named so the walk's cost can be asserted against it: this child never
+    // reads stdin and ignores SIGTERM, so it can only be gone after BOTH
+    // graces expired and SIGKILL landed. The escalation is a SUCCESS — the
+    // state ends `Stopped` (§9: a killed engine is a proved-gone engine) —
+    // and the grace expiries below are the registration of what the walk
+    // spent, instead of the old silence.
+    let grace = cfg.stop_grace;
+    let _ = supervisor.start(cfg);
+    wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
+
+    let pid = recorded_pid(port);
+    let began = Instant::now();
+    supervisor.stop();
+    wait_for(&supervisor, |s| *s == ServerState::Stopped);
+    assert!(wait_dead(pid), "SIGTERM-ignoring child was not killed");
+    assert!(
+        began.elapsed() >= grace * 2,
+        "the walk finished in {:?}: both graces ({:?} each) must have expired before SIGKILL",
+        began.elapsed(),
+        grace
+    );
+    supervisor.shutdown();
+}
+
+#[test]
+fn a_reaped_child_stops_even_while_the_port_still_answers() {
+    // §9's two halves are about OUR engine: the reap is the kernel's own
+    // proof for the process half, so the port is NOT a veto on `Stopped`.
+    // Here the stand-in listener outlives the fake child (in production the
+    // engine's listener dies with it), so the port answers 200 at the moment
+    // of the probe — the stop must still say `Stopped`. What the port says
+    // instead is the suspicion the orphan record beside the state file
+    // carries; this test pins the END (mutation: make the port veto a
+    // reaped child → this, and every stop test above, go red).
+    let port = unique_port();
+    clear_files(port);
+    let _health = FakeHealth::start(port, When::OnceChildIsUp);
+    let supervisor = Supervisor::new();
+    let _ = supervisor.start(config("fake_server.sh", port));
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
 
     let pid = recorded_pid(port);
     supervisor.stop();
     wait_for(&supervisor, |s| *s == ServerState::Stopped);
-    assert!(wait_dead(pid), "SIGTERM-ignoring child was not killed");
+    assert!(wait_dead(pid), "the child outlived its own stop");
     supervisor.shutdown();
 }
 

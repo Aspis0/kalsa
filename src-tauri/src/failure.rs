@@ -230,6 +230,14 @@ fn supervisor_words(failure: &Failure) -> String {
              update may fix this."
                 .into()
         }
+        // The measures are deliberately NOT printed: they are this crate's
+        // own vocabulary (pids, ports, walk details) and the file's rule is
+        // that a `detail` payload never crosses into a sentence.
+        Failure::StopUnconfirmed { .. } => {
+            "The assistant's server could not be confirmed gone when it was turned off, so the \
+             app has not reported it as off. Restarting the computer usually clears it."
+                .into()
+        }
     }
 }
 
@@ -301,6 +309,9 @@ mod tests {
                 detail: DETAIL.into(),
             }),
             StartupFailure::Supervisor(Failure::NotReady { seconds: 600 }),
+            StartupFailure::Supervisor(Failure::StopUnconfirmed {
+                measures: DETAIL.into(),
+            }),
             StartupFailure::NoBuildForThisMachine,
             StartupFailure::ServerUnverified,
             StartupFailure::NoBackendWorked,

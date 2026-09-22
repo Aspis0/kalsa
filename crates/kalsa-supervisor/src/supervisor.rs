@@ -18,6 +18,7 @@ use crate::config::ServerConfig;
 use crate::drain;
 use crate::health;
 use crate::instance::{Existing, InstanceFile};
+use crate::presence;
 
 /// How often the worker thread looks for a command or a dead child.
 const TICK: Duration = Duration::from_millis(200);
@@ -40,9 +41,11 @@ pub enum ServerState {
     /// poll must report the drain instead of the `Running` the state kept
     /// reading for up to two graces, and that arm must NOT raise the door the
     /// stop lowered — the poll is the reconciler, so this state is what
-    /// suppresses the re-raise. It leaves only for `Stopped`, written by the
-    /// worker's own `stop` (see `drain`), and it is a state rather than a
-    /// flag because two actors used to race on this one field.
+    /// suppresses the re-raise. It leaves only for one of the drain's TWO
+    /// ends: `Stopped`, or the failed-to-stop state that reports a drain it
+    /// could not prove finished (`drain`, `presence`) — both written by the
+    /// worker's own `stop`. It is a state rather than a flag because two
+    /// actors used to race on this one field.
     Stopping,
     /// It is not running and we know why. The reason is data: this crate
     /// names what it observed, and the caller owns the words. The `detail`
@@ -78,6 +81,13 @@ pub enum Failure {
     /// server the supervisor could not find, or one exposed off loopback.
     /// The start refused it before any process was made.
     UnsafeBinding { detail: String },
+    /// A stop could not prove the server is gone, so the drain ended HERE
+    /// instead of `Stopped` — a stop that declared success over a live
+    /// engine is how a ghost survives a restart cycle (§9). `measures` is
+    /// DATA: the walk (pid if known, what was tried, each grace), the
+    /// process witness, and whether the port answers. It goes to logs and
+    /// to this record; `failure::words` never prints it as-is.
+    StopUnconfirmed { measures: String },
 }
 
 enum Command {
@@ -417,40 +427,127 @@ fn work(
 fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
     // Every entry to a stop passes here and declares the drain — a caller
     // that already declared it is re-declared, not doubled (`drain` drops the
-    // duplicate write), and the walk below then ends it with `Stopped`.
+    // duplicate write). What the walk below writes is the drain's END, and
+    // there are exactly two: `Stopped` (absence proved, `presence::settle`)
+    // or the failed-to-stop state carrying the measures of what could not be
+    // proved. `§9`: a stop must not declare success while the engine lives.
     set(state, ServerState::Stopping);
+    let mut end = ServerState::Stopped; // nothing of ours owned: nothing to prove gone
     if let Some(mut run) = owned.take() {
-        match (run.child.take(), run.adopted_pid, run.instance.take()) {
+        // The PROCESS half's witness, from what the teardown reported — the
+        // `let _ =` walk that used to swallow its own result is gone: a
+        // grace expiry, a survivor and an io error are all data now.
+        let (witness, walk, escalated) = match (run.child.take(), run.adopted_pid, run.instance.take()) {
             (Some(mut child), _, instance) => {
-                let _ = child.terminate(run.config.stop_grace);
+                let pid = child.pid();
+                let report = child.terminate(run.config.stop_grace);
+                let escalated = matches!(
+                    report,
+                    child::Termination::Gone { needed: child::Step::Kill }
+                );
+                let walk = format!(
+                    "spawned child pid {pid}, {:?} per rung (stdin, SIGTERM, SIGKILL): {report:?}",
+                    run.config.stop_grace
+                );
                 if let Some(file) = instance {
                     file.release();
                 }
+                let witness = match &report {
+                    // Reaped: the kernel's own proof about OUR child.
+                    child::Termination::Gone { .. } => presence::Witness::Reaped,
+                    child::Termination::Survived { .. } => presence::Witness::PidAlive { pid },
+                    child::Termination::Unknown { .. } => {
+                        if child::pid_alive(pid) {
+                            presence::Witness::PidAlive { pid }
+                        } else {
+                            presence::Witness::PidDead { pid }
+                        }
+                    }
+                };
+                (witness, walk, escalated)
             }
             (None, Some(pid), _) => {
                 // Adopted from an earlier run. The proof it was ours was the
                 // lock, and time has passed: if the server died and the pid
                 // was recycled, the lock is gone and the pid now names
                 // somebody else's program. Terminate only a pid the file
-                // still vouches for.
-                if let Ok(Existing::Live { pid: current, .. }) =
-                    InstanceFile::inspect(&run.config.state_file)
-                {
-                    if current == pid {
-                        let _ = child::terminate_pid(pid, run.config.stop_grace);
+                // still vouches for; when it does not, THAT is reported as
+                // the unknown it is instead of being skipped in silence.
+                let report = match InstanceFile::inspect(&run.config.state_file) {
+                    Ok(Existing::Live { pid: current, .. }) => {
+                        let outcome = if current == pid {
+                            child::terminate_pid(pid, run.config.stop_grace)
+                        } else {
+                            child::Termination::Unknown {
+                                detail: format!(
+                                    "the state file vouches for pid {current}, not {pid}: not signalled"
+                                ),
+                            }
+                        };
+                        let _ = std::fs::remove_file(&run.config.state_file);
+                        outcome
                     }
-                    let _ = std::fs::remove_file(&run.config.state_file);
-                }
+                    Ok(existing) => child::Termination::Unknown {
+                        detail: format!(
+                            "the state file no longer vouches for pid {pid} ({existing:?}): not signalled"
+                        ),
+                    },
+                    Err(error) => child::Termination::Unknown {
+                        detail: format!("the state file cannot be read ({error}): pid {pid} not signalled"),
+                    },
+                };
+                let escalated = matches!(
+                    report,
+                    child::Termination::Gone { needed: child::Step::Kill }
+                );
+                let walk =
+                    format!("adopted pid {pid}, {:?} per rung: {report:?}", run.config.stop_grace);
+                let witness = match &report {
+                    child::Termination::Gone { .. } => presence::Witness::PidDead { pid },
+                    child::Termination::Survived { .. } => presence::Witness::PidAlive { pid },
+                    child::Termination::Unknown { .. } => {
+                        if child::pid_alive(pid) {
+                            presence::Witness::PidAlive { pid }
+                        } else {
+                            presence::Witness::PidDead { pid }
+                        }
+                    }
+                };
+                (witness, walk, escalated)
             }
-            // Adopted blind: no pid was ever recorded, so there is nothing
-            // to signal and no lock of ours to release — the heir still
-            // holds it. Left running by necessity; the next start re-adopts
-            // it by port and health, so a stop followed by a start keeps
-            // working. Only a stop that stays stopped leaks it, until reboot.
-            (None, None, _) => {}
+            // Adopted blind: no pid was ever recorded, so the process half
+            // can never be proven here — only the port can speak (§9:
+            // `Stopped` only after the probe fails), and what it could not
+            // prove becomes the suspicion record beside the state file.
+            (None, None, _) => (
+                presence::Witness::Unwatched,
+                "adopted blind: no pid was ever recorded, so no process could be signalled"
+                    .to_string(),
+                false,
+            ),
+        };
+        // The PORT half's witness, and the join (§9's two halves). NOT
+        // `health_ok`: a refused connection is absence, a 503 or a silence
+        // after a successful connect is presence (`presence`).
+        let addr = run.config.address();
+        let answer = presence::probe(addr, presence::PROBE_TIMEOUT);
+        let settled = presence::settle(&witness, &answer);
+        let measures = format!("{walk}; process {witness:?}; port {addr} — {answer:?}");
+        // The walk registers itself when it is not a plain exit: a SIGKILL
+        // escalation or an unconfirmed stop is a line the operator can read,
+        // never a `let _ =`.
+        if escalated || !settled.stopped {
+            eprintln!("kalsa-brain: stop walk: {measures}");
         }
+        end = if settled.stopped {
+            ServerState::Stopped
+        } else {
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed { measures },
+            }
+        };
     }
-    set(state, ServerState::Stopped);
+    set(state, end);
 }
 
 /// Reuses or clears a previous instance, then spawns and waits for readiness.
@@ -889,5 +986,88 @@ mod tests {
         let _ = stand_in.kill();
         let _ = stand_in.wait();
         let _ = std::fs::remove_file(&config(port).state_file);
+    }
+
+    #[test]
+    fn a_survivor_is_a_failed_stop_with_its_measures_not_a_stopped_one() {
+        // §9: a stop must not declare success while the engine is alive.
+        // The adopted pid is still there — the state file stopped vouching
+        // for it, so the walk refused to signal a pid that may now name
+        // somebody else's program — AND the port answers. Both halves fail
+        // the proof: the state must say the stop is unconfirmed, carrying
+        // the measures (pid, port, what was tried, that the port answered),
+        // instead of `Stopped`.
+        let port = 8295;
+        let state_file = config(port).state_file;
+        let _ = std::fs::remove_file(&state_file);
+        let mut stand_in = std::process::Command::new("/bin/sleep")
+            .arg("300")
+            .spawn()
+            .expect("spawn the survivor");
+        let pid = stand_in.id();
+        // No lock on it: `inspect` reads this as Stale — the file no longer
+        // vouches for the pid, which is exactly why nothing may be signalled.
+        std::fs::write(
+            &state_file,
+            format!("kalsa-brain v1\npid={pid}\nport={port}\n"),
+        )
+        .expect("write a state file nobody holds");
+
+        // Something answering on the port — the second witness.
+        let listener = TcpListener::bind(("127.0.0.1", port)).expect("bind the stand-in port");
+        listener.set_nonblocking(true).expect("nonblocking");
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let accepting = std::thread::spawn({
+            let stop_flag = Arc::clone(&stop_flag);
+            move || {
+                while !stop_flag.load(Ordering::Relaxed) {
+                    match listener.accept() {
+                        Ok((mut stream, _)) => {
+                            let _ = std::io::Write::write_all(
+                                &mut stream,
+                                b"HTTP/1.0 200 OK\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}",
+                            );
+                        }
+                        Err(_) => std::thread::sleep(Duration::from_millis(5)),
+                    }
+                }
+            }
+        });
+
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: Some(pid),
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
+        stop(&mut owned, &state);
+
+        let ended = state.lock().expect("the state lock").clone();
+        let measures = match &ended {
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed { measures },
+            } => measures.clone(),
+            other => panic!(
+                "a live engine was reported as {other:?}: the stop declared a success it could not prove"
+            ),
+        };
+        assert!(measures.contains(&pid.to_string()), "the measures miss the pid: {measures}");
+        assert!(measures.contains(&port.to_string()), "the measures miss the port: {measures}");
+        assert!(measures.contains("Answered"), "the measures do not say the port answered: {measures}");
+        assert!(
+            measures.contains("no longer vouches"),
+            "the measures do not say what was tried: {measures}"
+        );
+        assert!(
+            stand_in.try_wait().expect("poll the stand-in").is_none(),
+            "the survivor was signalled"
+        );
+
+        stop_flag.store(true, Ordering::Relaxed);
+        let _ = accepting.join();
+        let _ = stand_in.kill();
+        let _ = stand_in.wait();
+        let _ = std::fs::remove_file(&state_file);
     }
 }

@@ -43,11 +43,17 @@ fn brace_block(source: &str, from: usize) -> &str {
 
 /// I3, as source: `Stopped` is written by the worker's `stop` — the drain's
 /// own end, after the teardown — and constructed exactly once as the
-/// supervisor's initial value in `Supervisor::new`. Every other occurrence of
-/// the literal in production code is a READ (`unwrap_or`: a poisoned lock
+/// supervisor's initial value in `Supervisor::new`. Every other occurrence
+/// of the literal in production code is a READ (`unwrap_or`: a poisoned lock
 /// answers `Stopped` to the reader and writes nothing). The tests below the
 /// `#[cfg(test)]` marker are out of scope on purpose: they build states to
 /// assert against, they never write into a live supervisor.
+///
+/// The stop picks its end into a local (there are two: `Stopped`, or the
+/// failed-to-stop state `presence` decides) and writes it through ONE
+/// `set(state, end)` — so the literal may appear more than once INSIDE that
+/// fn, choosing the end; what this pin forbids is it appearing anywhere
+/// else. The invariant is the WHERE, not the count.
 fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
     let production_end = source
         .find("#[cfg(test)]")
@@ -91,7 +97,10 @@ fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
         if line.contains("unwrap_or(ServerState::Stopped)") {
             continue; // a read, no write
         }
-        if here >= stop_at && here < stop_end && line.contains("set(") {
+        if here >= stop_at && here < stop_end {
+            // Inside the worker's stop the literal is the drain choosing or
+            // naming its own end; the single write point below carries it
+            // out (`set(state, end)`).
             ends += 1;
             continue;
         }
@@ -104,9 +113,9 @@ fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
             "the construction in Supervisor::new appeared {constructions} times, expected 1"
         ));
     }
-    if ends != 1 {
+    if ends < 1 {
         return Err(format!(
-            "the worker's stop writes the drain's end {ends} times, expected 1"
+            "the worker's stop never names the drain's end ({ends} times)"
         ));
     }
     let stop_body = &production[stop_at..stop_end];
@@ -114,7 +123,7 @@ fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
         .find("set(state, ServerState::Stopping)")
         .ok_or_else(|| "the worker's stop no longer declares the drain on entry".to_string())?;
     let end = stop_body
-        .find("set(state, ServerState::Stopped)")
+        .find("ServerState::Stopped")
         .ok_or_else(|| "the worker's stop no longer names the drain's end".to_string())?;
     if entry > end {
         return Err("the worker's stop declares the drain after it ends it".to_string());

@@ -7,10 +7,14 @@
 //! narrowing the window did not close it — the window is now an explicit
 //! state, and this module is the rule that keeps it true:
 //!
-//! - while the state reads `Stopping`, the only write that lands is
-//!   `Stopped`, the drain's own end. A start finishing late writes nothing;
-//!   a failure observed while the teardown runs writes nothing. No other
-//!   actor overwrites a drain it did not start.
+//! - while the state reads `Stopping`, the only writes that land are the
+//!   drain's OWN ENDS: `Stopped`, or the failed-to-stop state
+//!   (`Failure::StopUnconfirmed`) that reports a drain whose end could not
+//!   be proved — without the second end a survivor would have no honest way
+//!   to reach the state at all, and this guard would render it invisible.
+//!   A start finishing late writes nothing; any other failure observed while
+//!   the teardown runs writes nothing. No other actor overwrites a drain it
+//!   did not start.
 //! - a drain is declared by its CALLER, before the command that performs it
 //!   is queued — that ordering is the window above, closed from its first
 //!   instant — and the declaration is taken back when the command never left:
@@ -25,8 +29,8 @@
 //!
 //! DECLARED, NOT CLOSED — `Stopping` IN PERPETUITY. If the worker thread
 //! DIES (a panic) after the drain was declared and before it wrote its end,
-//! nobody ever writes again: the guard below drops every outcome but
-//! `Stopped`, the command channel's receiver died with the thread, and each
+//! nobody ever writes again: the guard below drops every outcome but the
+//! drain's own ends, the command channel's receiver died with the thread, and each
 //! later `stop()`/`shutdown()` reads `Stopping`, re-declares that same state
 //! and has its `send` fail — so `restore` writes back the `Stopping` it read.
 //! The app then says "it is turning off" forever, under a button that stays
@@ -45,17 +49,32 @@
 
 use std::sync::Mutex;
 
-use crate::supervisor::ServerState;
+use crate::supervisor::{Failure, ServerState};
 
-/// The one write to the state. It refuses every outcome but `Stopped` while
-/// the state reads `Stopping`; otherwise it writes `next` as asked. A lock
-/// poisoned by a panic writes nothing — the reader answers `Stopped` from
-/// `unwrap_or` and the app decides what a poisoned supervisor means.
+/// Whether `next` may END a drain: `Stopped` (absence proved) or the
+/// failed-to-stop state carrying its measures (`presence::settle` answered
+/// `stopped: false`). Nothing else — a start finishing late, a crash the
+/// watcher saw — may be written over a drain, and every further widening is
+/// a guard that stops defending the state it exists for.
+fn is_drain_end(next: &ServerState) -> bool {
+    matches!(
+        next,
+        ServerState::Stopped | ServerState::Failed {
+            reason: Failure::StopUnconfirmed { .. }
+        }
+    )
+}
+
+/// The one write to the state. While it reads `Stopping` it refuses every
+/// outcome that is not one of the drain's own ends (`is_drain_end`);
+/// otherwise it writes `next` as asked. A lock poisoned by a panic writes
+/// nothing — the reader answers `Stopped` from `unwrap_or` and the app
+/// decides what a poisoned supervisor means.
 pub(crate) fn set(state: &Mutex<ServerState>, next: ServerState) {
     let Ok(mut current) = state.lock() else {
         return;
     };
-    if matches!(*current, ServerState::Stopping) && !matches!(next, ServerState::Stopped) {
+    if matches!(*current, ServerState::Stopping) && !is_drain_end(&next) {
         return;
     }
     *current = next;
@@ -102,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn while_a_drain_stands_only_its_end_lands() {
+    fn while_a_drain_stands_only_its_ends_land() {
         // The interleaving the state exists for, one write at a time: a start
         // finishing late, a teardown that reports its failure, a restart that
         // accepted itself — none of them may be written over a drain.
@@ -125,6 +144,45 @@ mod tests {
             read(&state),
             ServerState::Stopped,
             "the drain's own end must land"
+        );
+    }
+
+    #[test]
+    fn the_failed_stop_is_the_drains_other_end_and_nothing_else_is() {
+        // §9: a survivor must be reportable FROM a drain. The guard refuses
+        // every failure but this one — take the allowance away and the
+        // survivor's report is dropped, the state stays `Stopping`, and the
+        // app says "turning off" forever over an engine that is alive.
+        let state = holding(ServerState::Stopping);
+        set(
+            &state,
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed {
+                    measures: "walk: survived; port — There".into(),
+                },
+            },
+        );
+        assert!(
+            matches!(
+                read(&state),
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "the failed-to-stop could not end the drain: the guard hid a survivor"
+        );
+        // …and the allowance does not open for a failure that is not this one.
+        let state = holding(ServerState::Stopping);
+        set(
+            &state,
+            ServerState::Failed {
+                reason: Failure::PortTaken,
+            },
+        );
+        assert_eq!(
+            read(&state),
+            ServerState::Stopping,
+            "some other failure ended a drain"
         );
     }
 

@@ -202,23 +202,55 @@ impl ChildHandle {
         self.stdin.take().is_some()
     }
 
-    /// Stops the child: stdin EOF, then SIGTERM, then SIGKILL, each after
-    /// `grace`. Always reaps, so no zombie survives this call.
-    pub fn terminate(&mut self, grace: Duration) -> io::Result<ExitStatus> {
+    /// Stops the child: stdin EOF, then SIGTERM to its group, then SIGKILL,
+    /// each after `grace`. Always reaps, so no zombie survives this call —
+    /// and REPORTS what the walk found instead of handing back an exit
+    /// status that reads as "gone" either way. This end never reports
+    /// `Survived`: we hold the handle, and the final `wait` IS the reap —
+    /// if even that errors, nothing is known and nothing may claim to be.
+    pub fn terminate(&mut self, grace: Duration) -> Termination {
+        let mut complaints: Vec<String> = Vec::new();
+        if let Ok(Some(_)) = self.child.try_wait() {
+            return Termination::Gone { needed: Step::Already };
+        }
         self.close_stdin();
-        if let Some(status) = self.wait_within(grace)? {
-            return Ok(status);
+        match self.wait_within(grace) {
+            Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
+            Ok(None) => {}
+            Err(error) => {
+                return Termination::Unknown {
+                    detail: format!("reaping after stdin EOF failed: {error}"),
+                }
+            }
         }
         #[cfg(unix)]
-        signal_group(self.pid(), libc::SIGTERM);
-        if let Some(status) = self.wait_within(grace)? {
-            return Ok(status);
+        if let Err(error) = signal_group(self.pid(), libc::SIGTERM) {
+            complaints.push(format!("SIGTERM to the group: {error}"));
+        }
+        match self.wait_within(grace) {
+            Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
+            Ok(None) => {}
+            Err(error) => {
+                return Termination::Unknown {
+                    detail: format!("reaping after SIGTERM failed: {error}"),
+                }
+            }
         }
         #[cfg(unix)]
-        signal_group(self.pid(), libc::SIGKILL);
+        if let Err(error) = signal_group(self.pid(), libc::SIGKILL) {
+            complaints.push(format!("SIGKILL to the group: {error}"));
+        }
         #[cfg(not(unix))]
-        let _ = self.child.kill();
-        self.child.wait()
+        if let Err(error) = self.child.kill() {
+            complaints.push(format!("kill: {error}"));
+        }
+        match self.child.wait() {
+            Ok(_) => Termination::Gone { needed: Step::Kill },
+            Err(error) => {
+                complaints.push(format!("wait: {error}"));
+                Termination::Unknown { detail: complaints.join("; ") }
+            }
+        }
     }
 
     /// Some(status) when the child exited within `grace`, None on timeout.
@@ -242,7 +274,7 @@ impl Drop for ChildHandle {
     fn drop(&mut self) {
         if matches!(self.child.try_wait(), Ok(None)) {
             #[cfg(unix)]
-            signal_group(self.pid(), libc::SIGKILL);
+            let _ = signal_group(self.pid(), libc::SIGKILL);
             let _ = self.child.kill();
             let _ = self.child.wait();
         }
@@ -277,23 +309,72 @@ pub fn pid_alive(pid: u32) -> bool {
 /// Pid 0 is refused outright: it is this crate's marker for "ours, pid
 /// unknown" (an orphan adopted blind), and signalling 0 would signal our own
 /// process group instead of any server.
-pub fn terminate_pid(pid: u32, grace: Duration) -> io::Result<()> {
+pub fn terminate_pid(pid: u32, grace: Duration) -> Termination {
     if pid == 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "refusing to signal pid 0: it names no process",
-        ));
+        return Termination::Unknown {
+            detail: "refusing to signal pid 0: it names no process".to_string(),
+        };
     }
     if !pid_alive(pid) {
-        return Ok(());
+        return Termination::Gone { needed: Step::Already };
     }
-    signal(pid, Signal::Term);
+    // Every signal's own error is kept, and the SECOND wait decides: the old
+    // `let _ = wait_pid_gone(...)` turned "still alive after SIGKILL" into
+    // `Ok(())` — the swallowed grace expiry §9 asks us to record.
+    let mut complaints: Vec<String> = Vec::new();
+    if let Err(error) = signal(pid, Signal::Term) {
+        complaints.push(format!("SIGTERM: {error}"));
+    }
     if wait_pid_gone(pid, grace) {
-        return Ok(());
+        return Termination::Gone { needed: Step::Grace };
     }
-    signal(pid, Signal::Kill);
-    let _ = wait_pid_gone(pid, grace);
-    Ok(())
+    if let Err(error) = signal(pid, Signal::Kill) {
+        complaints.push(format!("SIGKILL: {error}"));
+    }
+    if wait_pid_gone(pid, grace) {
+        return Termination::Gone { needed: Step::Kill };
+    }
+    if complaints.is_empty() {
+        complaints.push("still alive after SIGTERM and SIGKILL, a grace each".to_string());
+    }
+    Termination::Survived {
+        pid,
+        detail: complaints.join("; "),
+    }
+}
+
+/// What a teardown FOUND when it finished — the report §9 asks for. The walk
+/// itself is normal (a child that needs SIGKILL is a report, not a failure);
+/// what could not be established is data here, never an `Ok` that implies
+/// "gone".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Termination {
+    /// The process is gone, and how far the walk had to go to learn that:
+    /// which class of rung finished it (each grace expiry recorded in the
+    /// rung that needed it, not swallowed).
+    Gone { needed: Step },
+    /// Still alive after the whole walk — the stop may NOT declare success.
+    /// `detail` carries what the signals themselves said: a `kill` that
+    /// failed (EPERM, ESRCH) used to be swallowed by `let _ =`.
+    Survived { pid: u32, detail: String },
+    /// Nothing could be established (an io error on the walk, or a pid this
+    /// crate refuses to signal at all): the caller probes the port and the
+    /// state reports what remains unknown.
+    Unknown { detail: String },
+}
+
+/// Which class of rung of the walk finished it: `Grace` covers both grace
+/// rungs (gone on stdin EOF, or gone within the grace after SIGTERM) — the
+/// question `Kill` answers separately is whether SIGKILL was needed at all.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    /// No push was needed: it had already exited when the walk began.
+    Already,
+    /// Gone within a grace rung — no SIGKILL was required.
+    Grace,
+    /// SIGKILL finished it: both earlier rungs were spent and are recorded
+    /// as the time they cost, not as a failure.
+    Kill,
 }
 
 enum Signal {
@@ -301,16 +382,19 @@ enum Signal {
     Kill,
 }
 
-fn signal(pid: u32, which: Signal) {
+fn signal(pid: u32, which: Signal) -> io::Result<()> {
     #[cfg(unix)]
     {
         let number = match which {
             Signal::Term => libc::SIGTERM,
             Signal::Kill => libc::SIGKILL,
         };
-        // The pid, not the group: this one came out of a file.
-        unsafe {
-            libc::kill(pid as i32, number);
+        // The pid, not the group: this one came out of a file. The result is
+        // returned now — a `kill` that failed is reported, never ignored.
+        if unsafe { libc::kill(pid as i32, number) } == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
         }
     }
     #[cfg(windows)]
@@ -322,11 +406,16 @@ fn signal(pid: u32, which: Signal) {
         let _ = which;
         let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
         if handle.is_null() {
-            return;
+            return Err(io::Error::last_os_error());
         }
+        let done = unsafe { TerminateProcess(handle, 1) };
         unsafe {
-            TerminateProcess(handle, 1);
             CloseHandle(handle);
+        }
+        if done == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(())
         }
     }
 }
@@ -345,11 +434,13 @@ fn wait_pid_gone(pid: u32, grace: Duration) -> bool {
 }
 
 #[cfg(unix)]
-fn signal_group(pid: u32, signal: i32) {
+fn signal_group(pid: u32, signal: i32) -> io::Result<()> {
     // The child leads its own group (`process_group(0)`), so the group id is its
     // pid and a negative pid addresses the group.
-    unsafe {
-        libc::kill(-(pid as i32), signal);
+    if unsafe { libc::kill(-(pid as i32), signal) } == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
     }
 }
 
@@ -459,8 +550,12 @@ mod tests {
     fn pid_zero_is_refused_not_signalled() {
         // 0 is the marker for "ours, pid unknown", and signalling it would
         // signal our own process group. Instant by construction: no process
-        // is touched, so there is nothing to wait for.
-        assert!(terminate_pid(0, Duration::from_millis(10)).is_err());
+        // is touched, and the refusal is reported as the unknown it is —
+        // never as "gone".
+        match terminate_pid(0, Duration::from_millis(10)) {
+            Termination::Unknown { detail } => assert!(detail.contains("pid 0"), "{detail}"),
+            other => panic!("pid 0 was not refused: {other:?}"),
+        }
     }
 
     #[cfg(unix)]
