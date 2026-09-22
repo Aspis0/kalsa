@@ -115,7 +115,7 @@ fn several_devices_are_held_and_read_back_with_their_ids() {
 }
 
 #[test]
-fn forgetting_one_device_leaves_the_others_and_ids_are_never_reused() {
+fn forgetting_one_device_leaves_the_others_and_a_middle_id_is_not_reused() {
     let dir = scratch("forget-one");
     let path = dir.join("credential.json");
     let first = sample_handshake();
@@ -140,9 +140,11 @@ fn forgetting_one_device_leaves_the_others_and_ids_are_never_reused() {
     forget_device(&path, 1).unwrap();
     assert_eq!(load_devices(&path).unwrap().len(), 2);
 
-    // The next device mints a fresh id: never the forgotten one's.
+    // The set holds ids {0, 2}, and the mint is the highest present plus one:
+    // it starts above both, so this forgotten middle id is passed over and the
+    // next device is 3.
     let added = add_device(&path, "Fourth", &sample_handshake()).unwrap();
-    assert_eq!(added.id, 3, "the forgotten id was not handed out again");
+    assert_eq!(added.id, 3, "the middle id below the present max was handed out");
 
     // Forgetting the last devices empties the store, which is no file.
     forget_device(&path, 0).unwrap();

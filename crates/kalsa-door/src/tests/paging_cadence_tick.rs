@@ -223,7 +223,7 @@ fn the_second_dirty_slot_of_one_tick_is_offered_a_budget_of_its_own() {
 
 #[test]
 fn one_attempt_per_interval_and_the_third_succeeds_once_the_two_refusals_run_out() {
-    let slot_dir = temp_dir("tick-ceiling");
+    let slot_dir = temp_dir("tick-third-attempt");
     let engine = Engine::start(&slot_dir);
     let token = credential();
     let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);

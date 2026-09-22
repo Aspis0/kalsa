@@ -103,9 +103,15 @@ pub(super) fn save_idle(
             // is the first tick at or after its bound, so attempt k is offered no
             // earlier than mark+k·interval, each bound rounded UP by the ticker,
             // never down. There is no ceiling: no field in the door counts a
-            // failure, so the offer stands once per interval for every k until one
-            // of the arms below clears the mark or the backoff — and the price of
-            // that is declared on the `Err` arm, not implied away here.
+            // failure, so the offer stands once per interval for every k until the
+            // mark or the backoff is cleared — and the price of that is declared
+            // on the `Err` arm, not implied away here.
+            //
+            // The arms below are not the only ones to clear the mark: `activate`
+            // and `erase` drop it too, and neither touches `retry_after`. So a
+            // slot handed to another chat carries the previous holder's backoff —
+            // the new holder's own mark gates the slot first, and its first offer
+            // cannot precede the inherited bound.
             //
             // Attempts one and two both sit inside the unload clock measured from
             // the mark: attempt two is out at worst mark+2Q+two tick periods — 2 s
