@@ -470,8 +470,9 @@ instead of returning an empty conversation.
 ### T6 — the panel
 
 Resident count, window per device, **55.78 MiB** per extra resident, and the concurrency figure
-**only once its measurement is committed** — it is (`5b9b98f`, re-measured `fe14e78`, §5), and the
-row names the artifact it was measured on (`1f22bb7` + `35458f1`, §9). Two corrections the tier owes:
+**only once its measurement is committed** — it is (`5b9b98f`; re-measured `fe14e78` and again
+`34de14f`, §5), and the row names the artifact it was measured on (`1f22bb7` + `35458f1`, §9). Two
+corrections the tier owes:
 
 - The live window number must come from the engine's per-slot value, not `n_ctx`
   (`chat/src/lib/chat.ts:117-140`).
@@ -506,15 +507,17 @@ Consequences, all of them recorded above:
   in the engine the app installs today** — a pin decision on the kernel's release line, declared
   here so nobody reads the tier as shipped.
 
-**The two-device concurrency figure, measured twice; the second run is the one the panel carries.**
-`dev/results/concurrency-two-devices/` answers it on the **release artifact**: one device keeps
-**0.7302** of its solo decode rate while a second device decodes (both slots agree to four
-decimals), and the engine's total is **1.4604×** one device, with `A2/A = 0.9982` inside the 3 %
-drift bracket. The first run (`5b9b98f`) answered 0.7546 / 1.5093 at a load floor of ~4–6; the
-commit `fe14e78` regenerated the artifact on the harness that records its provenance, and **the
-panel cites the second run**, because that is the artifact whose `platform`, `backend` and release
-identity are fields rather than prose (§9). The floor is declared and not denied: the machine was
-not empty, which moves the absolute rate and cancels in the comparison.
+**The two-device concurrency figure, measured three times; the third run is the one the panel
+carries.** `dev/results/concurrency-two-devices/` answers it on the **release artifact**: one device
+keeps **0.7336** of its solo decode rate while a second device decodes (both slots agree to four
+decimals), and the engine's total is **1.4672×** one device, with `A2/A = 1.0037` inside the 3 %
+drift bracket. **The spread across the three runs is the honest part:** `5b9b98f` answered 0.7546 /
+1.5093 at a load floor of ~4–6, `fe14e78` 0.7302 / 1.4604 at ~2, `34de14f` 0.7336 / 1.4672 at
+4.08 — three runs, three floors, and the answer moves by 3 % in the per-device term while every
+run's own `A2/A` bracket stays inside ±1 %. **The panel cites the third**, because that is the
+artifact produced by the script in the tree and whose provenance is a field rather than prose (§9);
+the first two are history, kept in their own commits. The floor is declared and not denied: the
+machine was not empty, which moves the absolute rate and cancels in the comparison.
 
 **Still open**: nothing above ~1900 tokens is measured, so the saturating part of the disk curve is
 not a number this plan may carry.
@@ -673,11 +676,23 @@ not implemented**, so a decision is never read as a delivery.
   label `fork build, not the release` and is re-measured; a pre-release number never shares a column
   with a release one. It is valid only on its recorded `platform` and `backend` — this one is
   `macos-arm64` / `metal`.
-- **`Stopping` — decided, this plan's to implement, not implemented.** A stop in flight becomes an
-  explicit state that suppresses the door's re-raise, makes `brain_state` report the draining state
-  instead of `Running`, and is the only state in which the worker may write `Stopped`. It is a state
-  and not a flag because the outcome today depends on two actors writing the same field: a race by
-  construction, which narrowing the window does not close. `brain_stop` stays non-blocking.
+- **`Stopping` — decided; implemented in `6efec90`, corrections in `5ffcb11`**, reviewed hostile
+  (FIT CON CORREZIONI). A stop
+  in flight is an explicit state that suppresses the door's re-raise, makes `brain_state` report the
+  draining state instead of `Running`, and is the only state in which the worker may write `Stopped`.
+  It is a state and not a flag because the outcome used to depend on two actors writing the same
+  field: a race by construction, which narrowing the window does not close. `brain_stop` stays
+  non-blocking, and the drain is declared **by its caller, before the command is queued** — that
+  ordering is the window, closed from its first instant. The rule that keeps it true lives in
+  `crates/kalsa-supervisor/src/drain.rs`: while the state reads `Stopping`, the only write that
+  lands is the drain's own end. Three corrections came back from the review and are carried, not
+  dropped: the `Models` page had its **own** copy of the state type, so the real DTO fell into a
+  blind `default` and told the owner it could not tell what the computer was running, for as long as
+  the teardown took — the duplicate type is gone and the union is now exhaustive at compile time;
+  the desk's square was written but never pinned, so deleting it left every suite green; and the
+  panic path — a worker that dies mid-drain leaves `Stopping` standing, since the guard refuses
+  every later write — is **declared** in `drain.rs` rather than left tacit (it wedged as `Running`
+  before this state, so it is not a regression, and nothing reachable panics there today).
 - **The `Stopped` invariant — decided, this plan's to implement, not implemented.** `Stopped` means
   the door does not answer **and** the process is not there; when either half is unknowable, the
   state says so. An engine adopted blind gets `Stopped` only after a probe on the port fails, plus a
@@ -692,8 +707,9 @@ not implemented**, so a decision is never read as a delivery.
   constant floor weighs on every arm and cancels in the comparison — the bracket is what proves it
   did not drift — and what it moves is the absolute rate, not the comparison. The artifact states
   both.
-- **Debt, paid (`fe14e78`):** `--max-load`, `platform` and `backend` are fields of
-  `dev/results/concurrency-two-devices/results.json`, and the artifact was regenerated by the
+- **Debt, paid (`fe14e78`, closed in `34de14f`):** `--max-load`, `platform`, `backend` and the
+  harness's own `attempts_max` are fields of `dev/results/concurrency-two-devices/results.json`, and
+  the artifact was regenerated by the
   harness rather than enriched by hand, because the previous run's raw evidence was gone
   (`raw_log_committed: false`) and a hand-entered `backend` would be an assertion in a field's
   clothing. `platform` and `backend` are **derived**, not stated: the executed binary's sha256 is
@@ -701,7 +717,17 @@ not implemented**, so a decision is never read as a delivery.
   sha256 and fetch instant are recorded too), and the derivation has three states that are never
   conflated — `matched`; `not-the-release`, which carries the label `fork build, not the release`
   with `platform` from the host and `backend: null`; and `unverified`, which a network failure
-  produces and `not-the-release` never is. The check that keeps this honest is
-  `dev/test-release-provenance.py`, and it can go red for the reason it declares: an always-true
-  match leaves case (a) red on 5 of 13 checks. **A field that lives in prose is a field the next
-  reader has to trust** — that sentence stands, and now there is no such field in this artifact.
+  produces and `not-the-release` never is. **The review found the taxonomy's real hole, and the
+  closure is the interesting half:** a manifest that had been READ but published no usable
+  `exe_sha256` — missing, empty, `null`, an integer, or even uppercase hex — was accused of being a
+  fork build. "The release does not publish the hash" is not "this build is not the release"; weak
+  evidence was being read as a verdict, which is the one class the original mutation could not
+  catch, because that mutation tested a match that was too WIDE. `not-the-release` now requires at
+  least one well-formed 64-hex hash published and no row matching it; degenerate manifests, a
+  missing binary hash, and two rows carrying the same executed hash are all `unverified`, each with
+  a machine-readable `reason_code`. The check that keeps this honest is
+  `dev/test-release-provenance.py`, and it can go red for the reason it declares — the always-true
+  match leaves case (a) red, and the count in `fe14e78`'s message said 8 where the code killed 5
+  (8 was the number of checks that PASSED); `34de14f` carries the correction. **A field that lives
+  in prose is a field the next reader has to trust** — that sentence stands, and now there is no
+  such field in this artifact.
