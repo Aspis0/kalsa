@@ -195,14 +195,19 @@ All three components already exist, and none of them costs work at save time:
   mark survive each of them.
 - `chat/src/App.tsx` and `src-tauri/src/main.rs` (1371) are the two files this plan keeps adding to.
   When either next needs more than a wire-up, the answer is a module, not a longer file.
-- **Declared now, measured 2026-09-22 at `5f0ef55`**, and not refactored:
-  `chat/src/surfaces/useBrain.ts` **447**, `crates/kalsa-door/src/lib.rs` **563**,
-  `src-tauri/src/options.rs` **675**, `src-tauri/src/tests.rs` **1906**, and `src-tauri/src/main.rs`
-  **1427** (it was 1371 when declared above). Three of those were over the ceiling and **undeclared**
-  until a reconnaissance found them — that is a rule not enforced, not a finding.
-  `crates/kalsa-door/src/paging.rs` sits at **385** because T5b moved `file_name` and `valid_id` into
-  `paging/names.rs`: the next change there moves code out, it does not add. `chat/src/lib/slotGate.ts`
-  is at its 400.
+- **Declared, and not refactored.** Measured 2026-09-22 at `5f0ef55` and unchanged since:
+  `crates/kalsa-door/src/lib.rs` **563**, `src-tauri/src/options.rs` **675**,
+  `chat/src/lib/slotGate.ts` at its 400, and `chat/src/App.tsx` **1211**. Re-measured at T6b's
+  first commit (pre `2a3fc4e`): `src-tauri/src/tests.rs` **2007** (1939 before T6b),
+  `src-tauri/src/main.rs` **1456** (1371 when first declared, 1427 at `5f0ef55`),
+  `src-tauri/src/metrics.rs` **440** — over the ceiling for the first time, the tier's DTO being
+  what took it there — and `chat/src/surfaces/useBrain.ts` **474** (447 at `5f0ef55`). Three of
+  the 2026-09-22 set were over the ceiling and **undeclared** until a reconnaissance found them —
+  that is a rule not enforced, not a finding.
+  `crates/kalsa-door/src/paging.rs` is **387** because T5b moved `file_name` and `valid_id` into
+  `paging/names.rs`: the next change there moves code out, it does not add — which is why T6b's two
+  getters live in `paging/census.rs` (**53**) and `paging/disk.rs` (**74**) instead. T6b did not
+  touch `chat/src/App.tsx`.
 
 ### T2 — app: the launch flag set this tier needs
 
@@ -580,7 +585,9 @@ saturating part of the disk curve is not a number this plan may carry.
   **No new file beyond ~350**, and no file — new or existing — that mixes responsibilities until it
   stops being readable. Test files follow the same logic: if a test file becomes an indistinguishable
   list of cases, split it by **topic**, not by line count. Pre-existing excess is **declared, not
-  refactored** (those declarations sit with the tasks above). Comments only for WHY or a trap, and if
+  refactored** (those declarations sit with the tasks above; the live list with its counts is the
+  "Declared, and not refactored" bullet under T1, re-measured whenever a task adds to one of those
+  files). Comments only for WHY or a trap, and if
   a comment declares an invariant that invariant must be true. No secret **values** anywhere — names
   are fine. **These ceilings govern the delivery's code.** A measurement tool under `dev/` is a
   development instrument, not the delivery: it is not reshaped to make a count work, and its

@@ -167,6 +167,25 @@ fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
     }
 }
 
+/// The disk tier's numbers as the page receives them: one read of the
+/// running door, through the door's own getters. The residents come from the
+/// residency map and the capacity from the slots the door built — never from
+/// `active_devices` (in-flight requests, 0 at rest) and never from `/props`'
+/// `total_slots` (the engine's number, clamped to 1 when it ignores the
+/// private headers): three slot numbers can diverge and the panel shows the
+/// door's.
+fn tier_facts(door: &kalsa_door::RunningDoor) -> metrics::TierDto {
+    metrics::TierDto {
+        capacity: door.capacity(),
+        residents: door.residents(),
+        disk: door.disk_usage().map(|scan| metrics::DiskScanDto {
+            bytes: scan.bytes,
+            files: scan.files,
+            unreadable: scan.unreadable,
+        }),
+    }
+}
+
 /// The capacity the door is built with, given the engine it will forward to.
 /// An engine that cannot isolate is not asked to: the door serves ONE device
 /// rather than refusing to build, so a machine whose engine ignores
@@ -413,6 +432,15 @@ impl Brain {
                 })
                 .collect(),
         )
+    }
+
+    /// The disk tier's numbers for the panel, when there is a door to ask:
+    /// `None` is "no door", which the page reads as no rows — a missing
+    /// number never arrives as a zero.
+    fn tier(&self) -> Option<metrics::TierDto> {
+        let stored = self.door.lock().ok()?;
+        let active = stored.as_ref()?;
+        Some(tier_facts(&active.door))
     }
 
     fn start_door_if_paired(
@@ -831,6 +859,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 desk.desk.stop_serving();
             }
             let active_devices = brain.active_devices();
+            let tier = brain.tier();
             let model = brain.model_dto();
             StateDto::Running {
                 port,
@@ -840,7 +869,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 model: model.display_name,
                 reason: model.reason,
                 asleep: brain.supervisor.model_asleep(),
-                metrics: brain.metrics.snapshot(active_devices),
+                metrics: brain.metrics.snapshot(active_devices, tier),
             }
         }
         ServerState::Starting => {

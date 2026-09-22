@@ -194,6 +194,7 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
+            tier: None,
             throttled: None,
         },
     };
@@ -233,6 +234,7 @@ fn a_running_engine_without_a_door_publishes_no_endpoint() {
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
+            tier: None,
             throttled: None,
         },
     };
@@ -261,6 +263,7 @@ fn an_unknown_residency_crosses_as_an_absence_not_as_a_fact() {
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
+            tier: None,
             throttled: None,
         },
     };
@@ -1936,4 +1939,69 @@ fn the_pin_bites_when_one_stop_door_is_taken_away() {
     // ...and stay green on the untouched source, so the red above is the
     // mutation's doing and not a checker that fails both ways.
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
+}
+
+/// T6b from the app's side: the panel's numbers are the DOOR's reads —
+/// residents from the residency map, capacity from the slots the door built,
+/// disk from one scan of its directory — and they reach `tier_facts` whole.
+/// `active_devices` is deliberately not consulted on this path: at rest with
+/// a resident chat it answers 0 and would say the opposite of the truth.
+#[test]
+fn the_panel_numbers_are_read_from_the_door_not_from_traffic() {
+    let (upstream, _log, engine_thread, engine_stop) = stand_in_engine();
+    let slot_dir =
+        std::env::temp_dir().join(format!("kalsa-brain-t6b-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&slot_dir);
+    std::fs::create_dir_all(&slot_dir).unwrap();
+    // A saved chat already on disk: the activation below is a real restore,
+    // and the scan has real bytes to weigh.
+    let chat = "aaaa1111";
+    std::fs::write(slot_dir.join(format!("d0-ma1b2c3d4-c{chat}.bin")), b"state").unwrap();
+    let token = "b".repeat(64);
+    let devices = kalsa_door::Devices::new(vec![kalsa_door::DeviceEntry::new(
+        kalsa_door::DeviceId::new(0),
+        "Host",
+        token.clone(),
+    )
+    .unwrap()])
+    .unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let door = kalsa_door::Door::new_with_engine(
+        listener,
+        upstream,
+        devices,
+        4,
+        kalsa_door::EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .with_model_hash("a1b2c3d4")
+    .unwrap()
+    .with_slot_dir(slot_dir.clone());
+    let door = door.start().unwrap();
+
+    // Before any chat is opened: no residents (a slot nobody has looked at
+    // holds nothing), the four slots the door itself built, and the file
+    // that is really in the directory — five bytes, one file, nothing skipped.
+    let facts = tier_facts(&door);
+    assert_eq!(facts.capacity, 4, "the capacity is not the slots this door built");
+    assert_eq!(facts.residents, 0, "an unopened slot holds a resident");
+    let scan = facts.disk.expect("a door with a directory answers a scan");
+    assert_eq!(scan.bytes, 5, "the scan did not weigh the file that is there");
+    assert_eq!(scan.files, 1, "the scan did not count the file that is there");
+    assert_eq!(scan.unreadable, 0, "nothing was skipped, nothing may be missing");
+
+    assert_eq!(activate_chat(address, &token, chat), 204, "the activation failed");
+    let facts = tier_facts(&door);
+    assert_eq!(
+        facts.residents,
+        1,
+        "the resident chat did not reach the panel's number"
+    );
+    assert_eq!(facts.capacity, 4, "the capacity moved under a running door");
+
+    engine_stop.store(true, Ordering::SeqCst);
+    let _ = engine_thread.join();
+    drop(door);
+    let _ = std::fs::remove_dir_all(&slot_dir);
 }

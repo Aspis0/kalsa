@@ -28,6 +28,8 @@
 //! a timer — where the switch never runs — is [`cadence`].
 
 mod cadence;
+mod census;
+mod disk;
 mod invalidate;
 mod io;
 mod names;

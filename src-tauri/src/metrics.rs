@@ -41,12 +41,45 @@ pub(crate) struct ActiveDeviceDto {
     pub(crate) kind: &'static str,
 }
 
+/// The disk tier's numbers, as one read of the running door leaves them.
+/// `None` when there is no door to ask — the page reads that as "no rows",
+/// never as zeros.
+#[derive(Clone, Serialize)]
+pub(crate) struct TierDto {
+    /// The slots the door was built with: the denominator the residents are
+    /// counted against. NOT `/props`' `total_slots` — the engine's number,
+    /// which `door_capacity` forces to 1 when the engine does not consume the
+    /// private headers, so the three can diverge and this is the door's own.
+    pub(crate) capacity: usize,
+    /// Slots whose residency map names a chat. NOT `active_devices`: that
+    /// counts in-flight requests *before* the ownership check, so it counts
+    /// `/props` and the door's own routes and answers 0 at rest with N
+    /// resident chats.
+    pub(crate) residents: usize,
+    /// The directory scan, with its own `None` when the tier is not wired or
+    /// the directory could not be read: unknown, never an empty disk.
+    pub(crate) disk: Option<DiskScanDto>,
+}
+
+/// One declared scan of the save directory. `unreadable` is the entries
+/// skipped because their metadata would not read, so `bytes` and `files` are
+/// short by exactly that many — the panel says incomplete rather than
+/// inventing the missing total.
+#[derive(Clone, Serialize)]
+pub(crate) struct DiskScanDto {
+    pub(crate) bytes: u64,
+    pub(crate) files: usize,
+    pub(crate) unreadable: usize,
+}
+
 #[derive(Clone, Serialize)]
 pub(crate) struct RuntimeMetricsDto {
     pub(crate) decode_tokens_per_second: Option<f64>,
     /// Who is busy right now, as the door sees it. `None` when there is no
     /// door to ask; an empty list is the honest "nobody is using it".
     pub(crate) active_devices: Option<Vec<ActiveDeviceDto>>,
+    /// The door's own reads for the panel, `None` with no door to ask.
+    pub(crate) tier: Option<TierDto>,
     pub(crate) throttled: Option<bool>,
 }
 
@@ -120,6 +153,7 @@ impl RuntimeMetrics {
     pub(crate) fn snapshot(
         &self,
         active_devices: Option<Vec<ActiveDeviceDto>>,
+        tier: Option<TierDto>,
     ) -> RuntimeMetricsDto {
         self.apply_releases();
         let (decode, throttled) = self
@@ -138,6 +172,7 @@ impl RuntimeMetrics {
         RuntimeMetricsDto {
             decode_tokens_per_second: decode,
             active_devices,
+            tier,
             throttled,
         }
     }
@@ -287,7 +322,7 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Arc;
 
-    use super::{RuntimeMetrics, TimingScanner};
+    use super::{DiskScanDto, RuntimeMetrics, TierDto, TimingScanner};
 
     fn metrics() -> (RuntimeMetrics, Arc<AtomicU64>) {
         let releases = Arc::new(AtomicU64::new(0));
@@ -302,7 +337,7 @@ mod tests {
         let (metrics, releases) = metrics();
         metrics.observe_decode(12.0);
         releases.fetch_add(1, Ordering::Relaxed);
-        let snapshot = metrics.snapshot(None);
+        let snapshot = metrics.snapshot(None, None);
         assert_eq!(snapshot.decode_tokens_per_second, None);
     }
 
@@ -315,7 +350,7 @@ mod tests {
         metrics.observe_decode(12.0);
         releases.fetch_add(1, Ordering::Relaxed);
         metrics.observe_decode(12.0);
-        let snapshot = metrics.snapshot(None);
+        let snapshot = metrics.snapshot(None, None);
         assert_eq!(snapshot.decode_tokens_per_second, Some(12.0));
         assert_eq!(snapshot.throttled, Some(false));
     }
@@ -327,13 +362,41 @@ mod tests {
         // counts as applied; nothing panics, nothing is invented.
         let (metrics, releases) = metrics();
         releases.fetch_add(1, Ordering::Relaxed);
-        let snapshot = metrics.snapshot(None);
+        let snapshot = metrics.snapshot(None, None);
         assert_eq!(snapshot.decode_tokens_per_second, None);
         assert_eq!(snapshot.throttled, None);
         metrics.observe_decode(12.0);
         assert_eq!(
-            metrics.snapshot(None).decode_tokens_per_second,
+            metrics.snapshot(None, None).decode_tokens_per_second,
             Some(12.0)
+        );
+    }
+
+    #[test]
+    fn the_tier_numbers_cross_the_poll_with_their_field_names() {
+        // The IPC half of the panel's contract: the door's reads arrive under
+        // `tier` with the names the TS type declares, and no door arrives as
+        // `null` — zeros here would be a fact nobody measured.
+        let (metrics, _) = metrics();
+        let snapshot = metrics.snapshot(
+            None,
+            Some(TierDto {
+                capacity: 4,
+                residents: 1,
+                disk: Some(DiskScanDto { bytes: 18, files: 2, unreadable: 1 }),
+            }),
+        );
+        let json = serde_json::to_value(&snapshot).expect("the tier block serialises");
+        assert_eq!(json["tier"]["residents"], 1, "{json}");
+        assert_eq!(json["tier"]["capacity"], 4, "{json}");
+        assert_eq!(json["tier"]["disk"]["bytes"], 18, "{json}");
+        assert_eq!(json["tier"]["disk"]["files"], 2, "{json}");
+        assert_eq!(json["tier"]["disk"]["unreadable"], 1, "{json}");
+
+        let json = serde_json::to_value(metrics.snapshot(None, None)).expect("serialises");
+        assert!(
+            json["tier"].is_null(),
+            "no door must read as null, not as zeros: {json}"
         );
     }
 

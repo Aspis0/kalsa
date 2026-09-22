@@ -18,6 +18,7 @@ mod paging_cadence;
 mod paging_cadence_owed;
 mod paging_cadence_tick;
 mod paging_invalidate;
+mod paging_panel;
 mod paging_route;
 mod paging_support;
 mod paging_sweep;

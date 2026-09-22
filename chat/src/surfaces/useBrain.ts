@@ -20,6 +20,29 @@ const ASLEEP_SENTENCE =
     it did not work; two sentences for one fact is how they come to disagree. */
 export const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
 
+/** The disk tier's numbers as `brain_state` answers them: one read of the
+    running door, `null` when there is no door to ask — the page then shows no
+    rows, never zeros. Declared here beside the poll's other fields because the
+    Rust DTO (`src-tauri/src/metrics.rs`) crosses IPC only if this side names
+    it too: `port: u16` already crossed without a type of its own, and that is
+    the error this declaration avoids. */
+export interface TierFacts {
+  /** The slots the door was built with: the denominator the count below is
+      honest against. NOT `/props`' `total_slots` — `door_capacity` forces that
+      to 1 when the engine ignores the private headers, so the numbers diverge
+      and this is the door's own. */
+  capacity: number;
+  /** Slots whose residency map names a chat. NOT `active_devices`: that counts
+      in-flight requests before the ownership check and answers 0 at rest with
+      N resident chats. */
+  residents: number;
+  /** One scan of the save directory, `null` when the tier is not wired or the
+      directory could not be read. `unreadable` is the entries the scan skipped
+      because their metadata would not read, so `bytes` and `files` are short by
+      exactly that many — declared partial, never invented whole. */
+  disk?: { bytes: number; files: number; unreadable: number } | null;
+}
+
 /** What `brain_state` answers: the server's own account of itself. */
 export interface BrainState {
   kind: "stopped" | "starting" | "running" | "failed";
@@ -41,6 +64,10 @@ export interface BrainState {
     // Who the door is serving right now, with the kind that tells this
     // computer's own traffic from a phone's.
     active_devices?: { kind?: string }[];
+    // The door's own reads for the panel: residents, the capacity they are
+    // counted against, and the directory scan. Absent or null is "no number",
+    // which renders no row.
+    tier?: TierFacts | null;
     throttled?: boolean;
   };
 }
