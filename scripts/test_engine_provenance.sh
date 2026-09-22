@@ -13,6 +13,10 @@
 # Cases A and B are the regression this file exists for: the lock may name the
 # fork as Aspis0/kalsa.rn or under its pre-rename name Aspis0/llama.rn, and
 # either way the gate must fetch codeload.github.com/Aspis0/kalsa.rn.
+#
+# Cases F-L guard the legs added after the 2026-09-22 mutation report:
+# package.json vs the lockfile, native/kalsallama.pin vs vendor/VERSIONS
+# (mismatch, missing, empty), and a committed LOCAL OVERRIDE note.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -39,6 +43,10 @@ CANONICAL_URL="https://codeload.github.com/Aspis0/kalsa.rn/tar.gz/$SHA"
 ENGINE_SHA=aaaa1111bbbb2222cccc3333dddd4444eeee5555
 ENGINE12="${ENGINE_SHA:0:12}"
 DECOY_SHA=9999999999999999999999999999999999999999
+# Second decoy: exists only as a package.json value, never fetched.
+DRIFT_SHA=bbbb2222cccc3333dddd4444eeee5555ffff0000
+# First line of the note the APK worktree carried over its vendor/VERSIONS.
+OVERRIDE_NOTE='# LOCAL OVERRIDE (2026-09-21, build-with-fixes). The tree under vendor/llama.cpp is a LOCAL commit, not the one named below.'
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/engine-provenance-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -141,6 +149,12 @@ cp "$GATE" "$FAKE/scripts/assert-engine-provenance.sh"
 chmod +x "$FAKE/scripts/assert-engine-provenance.sh"
 cp -R "$WORK/tree" "$FAKE/node_modules/llama.rn"
 
+# The gate also reads package.json and the app-side engine pin. The fixture
+# declares both, coherent with the lock, until a case below mutates one.
+mkdir -p "$FAKE/native"
+printf '{"dependencies":{"llama.rn":"github:Aspis0/kalsa.rn#%s"}}\n' "$SHA" >"$FAKE/package.json"
+printf '%s\n' "$ENGINE_SHA" >"$FAKE/native/kalsallama.pin"
+
 # run_gate <lock-json> <packed-extra>: sets $rc and leaves output in
 # $WORK/out.txt / $WORK/err.txt.
 rc=0
@@ -156,6 +170,12 @@ run_gate() {
 
 lock() { # lock <url> -> npm-shaped lockfile JSON
   printf '{"packages":{"node_modules/llama.rn":{"resolved":"%s"}}}' "$1"
+}
+
+reset_trees() { # undo any case's mutation of the stage and installed trees
+  rm -rf "$WORK/stage/$FIXTURE_TARBALL_ROOT" "$FAKE/node_modules/llama.rn"
+  make_tree "$WORK/stage/$FIXTURE_TARBALL_ROOT"
+  cp -R "$WORK/tree" "$FAKE/node_modules/llama.rn"
 }
 
 expect_fetched_canonical() { # expect_fetched_canonical <label>
@@ -185,6 +205,9 @@ grep -qE "OK: [0-9]+ files match Aspis0/kalsa\.rn@$SHA12" "$WORK/out.txt" \
 grep -q "engine inside it: kalsallama@$ENGINE12" "$WORK/out.txt" \
   && ok "canonical lock: engine sha read from vendor/VERSIONS" \
   || bad "canonical lock: engine sha not the vendor/VERSIONS value"
+grep -q "engine inside it: kalsallama@$ENGINE12 == native/kalsallama.pin" "$WORK/out.txt" \
+  && ok "canonical lock: engine sha read and compared against the app pin" \
+  || bad "canonical lock: pin comparison line missing (got: $(tr '\n' '|' <"$WORK/out.txt"))"
 grep -q "$DECOY_SHA" "$WORK/out.txt" \
   && bad "canonical lock: reported the decoy cpp/KALSALLAMA_SHA" \
   || ok "canonical lock: pre-vendor cpp/KALSALLAMA_SHA ignored"
@@ -241,6 +264,136 @@ fi
 grep -q "no 40-hex commit" "$WORK/err.txt" \
   && ok "short sha: fatal names the missing commit" \
   || bad "short sha: fatal message missing"
+
+# --- F: the app pin and vendor/VERSIONS name different engine shas ------
+# The construction the old gate could not express: the app recorded no
+# engine sha anywhere, so there was nothing to disagree with.
+printf '%s\n' "$DECOY_SHA" >"$FAKE/native/kalsallama.pin"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "engine mismatch: exit 2"
+else
+  bad "engine mismatch: exit $rc, expected 2"
+fi
+if grep -q "engine mismatch" "$WORK/err.txt" \
+  && grep -q "$DECOY_SHA" "$WORK/err.txt" \
+  && grep -q "$ENGINE_SHA" "$WORK/err.txt"; then
+  ok "engine mismatch: fatal prints both engine shas"
+else
+  bad "engine mismatch: both engine shas missing (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+fi
+grep -q "OK:" "$WORK/out.txt" \
+  && bad "engine mismatch: OK printed although the comparison failed" \
+  || ok "engine mismatch: no OK line when the comparison fails"
+printf '%s\n' "$ENGINE_SHA" >"$FAKE/native/kalsallama.pin"
+
+# --- G: vendor/VERSIONS absent on both sides (the fail-open case) -------
+# Old gate: manifests match, engine="", exit 0 with an empty sha after @.
+rm "$WORK/stage/$FIXTURE_TARBALL_ROOT/vendor/VERSIONS" \
+   "$FAKE/node_modules/llama.rn/vendor/VERSIONS"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "VERSIONS absent both sides: exit 2 (was the exit-0 fail-open)"
+else
+  bad "VERSIONS absent both sides: exit $rc, expected 2"
+fi
+if grep -q "no usable LLAMA_CPP_COMMIT" "$WORK/err.txt" \
+  && grep -q "$ENGINE_SHA" "$WORK/err.txt"; then
+  ok "VERSIONS absent both sides: fatal names the empty side and the pin sha"
+else
+  bad "VERSIONS absent both sides: message missing (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+fi
+grep -q "OK:" "$WORK/out.txt" \
+  && bad "VERSIONS absent both sides: OK printed on an empty provenance" \
+  || ok "VERSIONS absent both sides: no OK line"
+reset_trees
+
+# --- H: package.json pin drifted off the lockfile -----------------------
+# Old gate: never reads package.json, exits 0 with the full success message.
+printf '{"dependencies":{"llama.rn":"github:Aspis0/kalsa.rn#%s"}}\n' "$DRIFT_SHA" >"$FAKE/package.json"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "package.json drift: exit 2 (was the exit-0 silent pass)"
+else
+  bad "package.json drift: exit $rc, expected 2"
+fi
+if grep -q "package.json pins" "$WORK/err.txt" \
+  && grep -q "$DRIFT_SHA" "$WORK/err.txt" \
+  && grep -q "$SHA" "$WORK/err.txt"; then
+  ok "package.json drift: fatal prints both fork shas"
+else
+  bad "package.json drift: both fork shas missing (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+fi
+if [ -s "$CURL_LOG" ]; then
+  bad "package.json drift: fetched the lockfile anyway ($(cat "$CURL_LOG"))"
+else
+  ok "package.json drift: rejected before any fetch"
+fi
+printf '{"dependencies":{"llama.rn":"github:Aspis0/kalsa.rn#%s"}}\n' "$SHA" >"$FAKE/package.json"
+
+# --- I: LOCAL OVERRIDE note committed on both sides ---------------------
+# Commits left equal, so only the note itself is the mutation: the old gate
+# passed it, because manifests match and nothing reads the file's content.
+printf '%s\n' "$OVERRIDE_NOTE" >>"$WORK/stage/$FIXTURE_TARBALL_ROOT/vendor/VERSIONS"
+printf '%s\n' "$OVERRIDE_NOTE" >>"$FAKE/node_modules/llama.rn/vendor/VERSIONS"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "override both sides: exit 2 (was the exit-0 silent pass)"
+else
+  bad "override both sides: exit $rc, expected 2"
+fi
+grep -q "LOCAL OVERRIDE" "$WORK/err.txt" \
+  && ok "override both sides: fatal quotes the note" \
+  || bad "override both sides: note not quoted (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+grep -q "OK:" "$WORK/out.txt" \
+  && bad "override both sides: OK printed over a declared override" \
+  || ok "override both sides: no OK line"
+reset_trees
+
+# --- J: pin file missing ------------------------------------------------
+rm "$FAKE/native/kalsallama.pin"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "pin missing: exit 2"
+else
+  bad "pin missing: exit $rc, expected 2"
+fi
+grep -q "kalsallama.pin" "$WORK/err.txt" && grep -q "$ENGINE_SHA" "$WORK/err.txt" \
+  && ok "pin missing: fatal names the pin file and the installed engine sha" \
+  || bad "pin missing: message missing (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+grep -q "OK:" "$WORK/out.txt" \
+  && bad "pin missing: OK printed without a pin to compare" \
+  || ok "pin missing: no OK line"
+printf '%s\n' "$ENGINE_SHA" >"$FAKE/native/kalsallama.pin"
+
+# --- K: pin file empty --------------------------------------------------
+: >"$FAKE/native/kalsallama.pin"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 2 ]; then
+  ok "pin empty: exit 2"
+else
+  bad "pin empty: exit $rc, expected 2"
+fi
+grep -q "not one 40-hex sha" "$WORK/err.txt" && grep -q "$ENGINE_SHA" "$WORK/err.txt" \
+  && ok "pin empty: fatal names the empty pin and the installed engine sha" \
+  || bad "pin empty: message missing (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+printf '%s\n' "$ENGINE_SHA" >"$FAKE/native/kalsallama.pin"
+
+# --- L: LOCAL OVERRIDE note on the installed side only ------------------
+# Manifests differ, so the verdict must stay the generic DIVERGENT with the
+# changed path named: the pre-existing guard the new success-path checks
+# must not disturb.
+printf '%s\n' "$OVERRIDE_NOTE" >>"$FAKE/node_modules/llama.rn/vendor/VERSIONS"
+run_gate "$(lock "git+ssh://git@github.com/Aspis0/kalsa.rn.git#$SHA")" 0
+if [ "$rc" -eq 1 ]; then
+  ok "override installed only: exit 1"
+else
+  bad "override installed only: exit $rc, expected 1"
+fi
+grep -q "first differing path: ./vendor/VERSIONS" "$WORK/err.txt" \
+  && ok "override installed only: divergence names vendor/VERSIONS" \
+  || bad "override installed only: path not named (got: $(tr '\n' '|' <"$WORK/err.txt"))"
+reset_trees
 
 rm -rf "$WORK"
 echo ""
