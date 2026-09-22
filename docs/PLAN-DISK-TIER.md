@@ -399,6 +399,27 @@ instead of returning an empty conversation.
   map to `Unknown` and drops the mark (`dbe23b3`), so no second attempt is made. The ordinary
   post-release slot has no mark left to attempt with at all (the pre-release save cleared it),
   which is why the cold mount above is the half that survives.
+- **Declared loss, not fixed**: a failure that REACHED the engine and persists holds the engine
+  awake without end, so slot and model stay in RAM while the condition lasts. The engine posts the
+  save task before any outcome and that post stamps `time_last_task` (every non-METRICS task,
+  `defer` included); the failure does not unstamp it — the stamp is at the post and the error only
+  arrives after — and the interval is a third of the unload clock by construction
+  (`idle_save_seconds`, `IDLE_SAVE_DIVISOR`), so Q < 3Q and the sleep threshold is never reached.
+  The designed exit is invalidation, and it waits for the sleep's stderr lines
+  (`MODEL_RELEASED_LINE`, `crates/kalsa-supervisor/src/child.rs`) that the retry itself prevents;
+  the `Err` arm touches no residency (`crates/kalsa-door/src/paging/cadence.rs`), so the slot stays
+  `Resident` and the cycle restarts. The species that produce it: a persistent `Refused` (a full
+  disk), a persistent `Files` (each interval the engine rewrites the whole state and the door's
+  rename fails again), and a request delivered but never answered past `PATIENCE` (10 s). The
+  species that never reach the engine — connect refused, a deadline spent before the dial — post
+  nothing, so the engine's own clock runs, the sleep arrives and the map is relaxed: they go out by
+  themselves, and that split is what makes the sentence above bounded rather than absolute (the
+  door cannot tell the two apart, `Call::Unreachable` carries both, and the arm drops the
+  discriminant). Whether the retry is capped is the owner's call, three roads and a price each:
+  **(a)** a real ceiling, which **loses the turn** — the state is in RAM and the release destroys
+  it, so T4's promise (an unload cannot lose a turn) is what a ceiling spends; **(b)** no ceiling,
+  which is what ships, and the price is the RAM above while the condition persists; **(c)** having
+  the engine stamp `time_last_task` only on an outcome it liked, which is engine-side.
 - **Acceptance**: a test that a crash does not leave the map claiming residency; a test that a
   rebuilt door does not report `Empty` for a slot it has never looked at; a test that a revoked
   device's files are gone; a test that deleting a chat removes its file.

@@ -222,7 +222,7 @@ fn the_second_dirty_slot_of_one_tick_is_offered_a_budget_of_its_own() {
 }
 
 #[test]
-fn two_consecutive_failures_are_the_ceiling_and_the_third_attempt_is_the_release() {
+fn one_attempt_per_interval_and_the_third_succeeds_once_the_two_refusals_run_out() {
     let slot_dir = temp_dir("tick-ceiling");
     let engine = Engine::start(&slot_dir);
     let token = credential();

@@ -102,18 +102,36 @@ pub(super) fn save_idle(
             // The backoff restarts from each attempt's own start, and every attempt
             // is the first tick at or after its bound, so attempt k is offered no
             // earlier than mark+k·interval, each bound rounded UP by the ticker,
-            // never down. Two consecutive failures are the ceiling, and both sit
-            // inside the unload clock measured from the mark: attempt two is out at
-            // worst mark+2Q+two tick periods — 2 s at the shipped 1 s tick — and
-            // 2Q+2 s < 3Q already at Q = 20 s, the interval the panel's 60 s unload
-            // clock derives (`idle_save_seconds`), which the engine counts from the
-            // turn this mark ends. The engine grants that clock anew after every
-            // task it sees — `server_queue` stamps `time_last_task` on each one,
-            // `defer` included — so attempts that arrive push the release further
-            // out again: no release falls between two attempts the engine answered.
+            // never down. There is no ceiling: no field in the door counts a
+            // failure, so the offer stands once per interval for every k until one
+            // of the arms below clears the mark or the backoff — and the price of
+            // that is declared on the `Err` arm, not implied away here.
+            //
+            // Attempts one and two both sit inside the unload clock measured from
+            // the mark: attempt two is out at worst mark+2Q+two tick periods — 2 s
+            // at the shipped 1 s tick — and 2Q+2 s < 3Q already at Q = 20 s, the
+            // interval the panel's 60 s unload clock derives (`idle_save_seconds`,
+            // the clock divided by three), which the engine counts from the turn
+            // this mark ends. Past that first clock the engine counts from the last
+            // attempt IT saw — `server_queue` stamps `time_last_task` on every task
+            // it posts, non-METRICS ones, `defer` included — so every attempt that
+            // REACHES the engine pushes the release further out again: no release
+            // falls between two attempts the engine answered. That cuts both ways,
+            // and the split is by delivery, never by this arm. A failure the engine
+            // received — a refusal (a full disk), a state it wrote whose rename the
+            // door then refused (`ChatError::Files`), a request delivered and never
+            // answered inside the patience — re-stamps the clock on the way through,
+            // so the sleep lines never print, `invalidate_residency` never fires, and
+            // slot and model stay in RAM for as long as the condition lasts. A
+            // failure whose request never left the door (connect refused, a deadline
+            // spent before the dial, `engine.rs`) stamps nothing: the engine's own
+            // clock runs, the sleep arrives, `invalidate_residency` relaxes the map,
+            // and an `Unknown` slot is never offered again — those species switch
+            // themselves off. Which of the two an `Unreachable` was, the arm cannot
+            // know and does not ask (`Call::Unreachable` carries both).
             //
             // What attempt three does NOT do is "coincide with the release" (the
-            // claim the comment this replaces carried): its bound IS mark+3Q,
+            // claim an older comment here carried): its bound IS mark+3Q,
             // rounded up like every other attempt's — it is held back by a release
             // an earlier attempt re-stamped, and only races one that nothing ever
             // reached. And if the relay of the final token let a release beat every
@@ -124,7 +142,7 @@ pub(super) fn save_idle(
             // retrying that answer was the loop that fed its own condition (the
             // arm says why).
             //
-            // What spends those two failures without costing the turn: the failure
+            // What spends those failures without costing the turn: the failure
             // this backoff is built for is a save deferred by a turn in flight, a
             // turn in flight keeps the slot busy, and the engine's unload clock has
             // not started while they are spent.
@@ -249,7 +267,35 @@ pub(super) fn save_idle(
             // (`dev/results/save-on-busy-slot`: a save sent 3 s into a 34 s turn
             // was answered 31 s later with the whole turn, `n_saved` 2529). The
             // retry is what persists it, and the backoff is one interval from
-            // this attempt's own start — see the ceiling above.
+            // this attempt's own start — see the cadence above. This arm changes
+            // nothing else: no count, no residency, no mark, and the discriminant
+            // is dropped — `Save`, `Unreachable` and `Files` are owed the same
+            // next attempt.
+            //
+            // **Declared loss, not fixed**: an error that REACHED the engine and
+            // keeps arriving holds the engine awake without end. The engine posts
+            // the save task before any outcome, and that post stamps
+            // `time_last_task` — every non-METRICS task, `defer` included — while
+            // the failure does not unstamp it: the stamp is at the post and the
+            // error only arrives after. The interval is a third of the unload clock
+            // by construction (`IDLE_SAVE_DIVISOR`), so Q < 3Q and the sleep
+            // threshold is never reached; and the designed exit, invalidation,
+            // waits for the sleep's stderr lines (`MODEL_RELEASED_LINE`,
+            // `kalsa-supervisor/src/child.rs`) that this very retry keeps from
+            // printing. Residency is left alone here, so the slot stays `Resident`
+            // and the cycle starts over. The species that feed it: a persistent
+            // `Refused` (a full disk), a persistent `Files` (each interval the
+            // engine rewrites the whole state and the rename fails again), and a
+            // request delivered but never answered past `PATIENCE`. The species that
+            // never reach the engine stamp nothing and go out by themselves (the
+            // cadence above says how) — that is what makes the sentence bounded
+            // rather than absolute. Whether a ceiling exists is the owner's choice,
+            // and each road has a price: (a) a real ceiling, which LOSES THE TURN —
+            // the state is in RAM and the release destroys it, so it spends T4's
+            // promise (an unload cannot lose a turn); (b) none, which is what ships,
+            // and the price is slot and model in RAM while the condition lasts;
+            // (c) stamping `time_last_task` only on an outcome the engine liked,
+            // which is engine-side and not this arm's to change.
             Err(_) => state.retry_after = Some(now + idle_save),
         }
     }
