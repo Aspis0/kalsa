@@ -33,6 +33,8 @@ export interface RichCallbacks {
     modelEmittedText: string | undefined;
     modelEmittedSource: "parsed" | "raw" | undefined;
     thinkingText: string | undefined;
+    /** The engine's own failure sentence, first non-empty one wins. */
+    failureReason: string | undefined;
   };
 }
 
@@ -48,6 +50,7 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
   let modelEmittedText: string | undefined;
   let modelEmittedSource: "parsed" | "raw" | undefined;
   let thinkingText: string | undefined;
+  let failureReason: string | undefined;
 
   const callbacks: EngineTurnCallbacks = {
     onModelEmittedText: (text, source) => {
@@ -64,6 +67,16 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
       if (!fence.owns(token)) return;
       if (typeof text === "string" && text.trim().length > 0) {
         thinkingText = text;
+      }
+    },
+    // The engine's own failure sentence (§2.8's failed row): captured verbatim,
+    // first non-empty wins, fenced like every other write of this run. An empty
+    // capture stays absent — the renderer then draws the reasonless honest line
+    // instead of a fabricated one.
+    onFailedReason: (reason) => {
+      if (!fence.owns(token)) return;
+      if (failureReason === undefined && typeof reason === "string" && reason.trim()) {
+        failureReason = reason.trim();
       }
     },
     // Feature 1: append to history AND set current label.
@@ -132,6 +145,6 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
 
   return {
     callbacks,
-    captured: () => ({ modelEmittedText, modelEmittedSource, thinkingText }),
+    captured: () => ({ modelEmittedText, modelEmittedSource, thinkingText, failureReason }),
   };
 }

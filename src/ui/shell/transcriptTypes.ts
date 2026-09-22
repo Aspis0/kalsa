@@ -6,7 +6,9 @@
  * belongs to another layer, and guessing at it here would bind this file to a
  * decision it does not own.
  */
+import type { TranslationKey } from "../../i18n";
 import type { ThemeMode } from "../../theme/design";
+import type { StopTone } from "./composerState";
 import type { Insets } from "./shellGeometry";
 
 export type TranscriptRole = "user" | "assistant";
@@ -50,6 +52,35 @@ export type TranscriptMessage = {
   /** What the answer stands on, drawn as chips below it (§2.5). Persisted by
    *  the history path, unlike `tools`. */
   sources?: readonly TranscriptSource[];
+  /**
+   * The streaming caret is up: this answer is arriving right now (§2.11,
+   * `caretVisible`). While true the band draws the answer as plain text with
+   * the caret after its last segment — the controller's own render rule
+   * (`AiChatPage.tsx:5486-5490`): markdown is parsed when the turn settles,
+   * not per token.
+   */
+  caret?: boolean;
+  /**
+   * The turn ended early — stopped by the user, refused by the device, or
+   * failed (§2.8) — and carries the line that says so, decided by the host's
+   * mapper through `stopOutcome` (never re-derived here from the text). Absent
+   * on a finished turn: silence is the honest row for a turn that completed.
+   */
+  stop?: TranscriptStop;
+};
+
+/**
+ * §2.8's stop line, as data: one catalogue key, the engine's own reason when
+ * the key interpolates one, and the tone the design assigns the outcome
+ * (`quiet` marks, `attention` is the device having intervened, `danger` is
+ * the failed row's explicit word). The band draws the line and never invents
+ * a second sentence of its own.
+ */
+export type TranscriptStop = {
+  key: TranslationKey;
+  /** Interpolation params — `{ reason }` carries the engine's own words. */
+  params?: { reason: string };
+  tone: StopTone;
 };
 
 /**

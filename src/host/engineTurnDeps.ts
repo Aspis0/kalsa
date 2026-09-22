@@ -31,6 +31,13 @@ export type EngineTurnCallbacks = BridgedUiCallbacks & {
   onCta?: (payload: ChatCta) => void;
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
   onFailed?: (reasonKey: string) => void;
+  /**
+   * The engine's own failure REASON (raw message or the host's localized
+   * line), alongside the catalogued `onFailed` key: §2.8's failed row shows
+   * the engine's words, never a generic apology. The chat side captures it
+   * onto `Message.failureReason` at finalize.
+   */
+  onFailedReason?: (reason: string) => void;
 };
 
 export interface EngineTurnDeps {

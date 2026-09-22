@@ -272,10 +272,18 @@ export function useSendHost(params: SendHostParams): SendHost {
           );
         } else if (result.kind === "failed") {
           // A backend that failed without a delta still gets honest text;
-          // a ⚠️ delta already streamed is kept as-is.
+          // a ⚠️ delta already streamed is kept as-is. The message is also
+          // MARKED failed (§2.8) with the engine's own reason when one
+          // exists — captured from the engine-half's failure hooks, or a
+          // thrown error's message — and never with a catalogued apology:
+          // an absent reason draws the reasonless honest line instead.
           finalizeAssistantTurn(finalizeCtx, captured, {
             interrupted: false,
             fallbackText: t("chat.serviceUnreachable"),
+            failure: {
+              reason: captured.failureReason ?? result.message?.trim(),
+              thermal: result.reasonKey === "chat.thermalHardGateBody",
+            },
             afterSessionSave: result.afterSessionSave,
           });
         } else {

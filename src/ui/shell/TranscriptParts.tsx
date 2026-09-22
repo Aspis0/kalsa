@@ -16,10 +16,12 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { useLocale } from "../../i18n";
 import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import { MarkdownBlocks } from "./TranscriptMarkdown";
+import { StreamCaret } from "./StreamCaret";
 import { MIN_TOUCH_TARGET, SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
 import {
   PARAGRAPH_GAP,
@@ -28,7 +30,7 @@ import {
   type TranscriptLayout,
 } from "./transcriptLayout";
 import { markdownStyles } from "./transcriptMarkdownStyles";
-import type { TranscriptSource, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
+import type { TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
 
 /** The one stylesheet, as a named type: `TranscriptEvidence.tsx` draws the tool
  *  rows and the source chips with it rather than carrying a second table. */
@@ -61,16 +63,19 @@ export function UserTurn({
  *  between the two (what the answer stands on, §2.4), and the source chips
  *  close the entry below the text (§2.5). */
 export function Answer({
+  caret,
   colors,
   id,
   labels,
   readingMeasure,
   sources,
+  stop,
   styles,
   text,
   thinking,
   tools,
 }: {
+  caret?: boolean;
   colors: DesignColors;
   id: string;
   labels: { show: string; hide: string; region: string };
@@ -78,11 +83,13 @@ export function Answer({
    *  (`tableScrollDecision`) is a function of the column count and this width. */
   readingMeasure: number;
   sources?: readonly TranscriptSource[];
+  stop?: TranscriptStop;
   styles: TranscriptStyles;
   text: string;
   thinking?: TranscriptThinking;
   tools?: readonly TranscriptToolCall[];
 }) {
+  const { t } = useLocale();
   return (
     <View testID={`transcript.answer.${id}`}>
       {thinking ? (
@@ -98,15 +105,33 @@ export function Answer({
         />
       ) : null}
       {tools ? <ToolRows styles={styles} tools={tools} /> : null}
-      <MarkdownBlocks
-        colors={colors}
-        id={id}
-        readingMeasure={readingMeasure}
-        sources={sources}
-        styles={styles}
-        text={text}
-      />
+      {caret === true ? (
+        // Plain text + caret while it arrives — the controller's rule
+        // (AiChatPage:5486-5490): markdown is parsed only once it settles.
+        <Text style={styles.answer} testID={`transcript.streaming.${id}`}>
+          {text}
+          <StreamCaret color={colors.accent} text={text} />
+        </Text>
+      ) : (
+        <MarkdownBlocks
+          colors={colors}
+          id={id}
+          readingMeasure={readingMeasure}
+          sources={sources}
+          styles={styles}
+          text={text}
+        />
+      )}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
+      {stop ? (
+        // §2.8's line in the outcome's tone; this file writes no other sentence.
+        <Text
+          style={[styles.stopLine, stop.tone === "danger" ? styles.stopLineDanger : null, stop.tone === "attention" ? styles.stopLineAttention : null]}
+          testID={`transcript.stop.${id}`}
+        >
+          {t(stop.key, stop.params)}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -296,6 +321,21 @@ export function createTranscriptStyles(colors: DesignColors) {
         fontFamily: families.sansMedium,
         fontSize: type.meta.fontSize,
         lineHeight: type.meta.lineHeight,
+      },
+      // §2.8's stop line: one quiet row at meta size, tone from the outcome
+      // (`TranscriptStop.tone`) — `danger` is the design's word for the failed row.
+      stopLine: {
+        color: colors.silence,
+        fontFamily: families.sansMedium,
+        fontSize: type.meta.fontSize,
+        lineHeight: type.meta.lineHeight,
+        marginTop: spacing.xs,
+      },
+      stopLineDanger: {
+        color: colors.danger,
+      },
+      stopLineAttention: {
+        color: colors.accent,
       },
     }),
   };

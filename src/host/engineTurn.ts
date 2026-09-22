@@ -115,6 +115,7 @@ export function handleSendStream(
         const fail = (message: string, reasonKey?: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
           try {
+            callbacks.onFailedReason?.(message); // §2.8: the engine's own words, no apology
             callbacks.onFailed?.(reasonKey || "chat.serviceUnreachable");
           } catch {
             // ignore

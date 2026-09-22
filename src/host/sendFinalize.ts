@@ -62,11 +62,15 @@ export function finalizeAssistantTurn(
     modelEmittedText: string | undefined;
     modelEmittedSource: "parsed" | "raw" | undefined;
     thinkingText: string | undefined;
+    failureReason?: string | undefined;
   },
   opts: {
     interrupted: boolean;
     /** Text for a failed turn whose stream never carried any. */
     fallbackText?: string;
+    /** §2.8's failed row: mark the message failed and carry the engine's own
+     *  reason (verbatim, possibly absent) — never a catalogued apology. */
+    failure?: { reason?: string | undefined; thermal?: boolean };
     /** The engine's deferred extract release, adopted only through the save. */
     afterSessionSave?: () => void;
   },
@@ -89,6 +93,11 @@ export function finalizeAssistantTurn(
           streaming: false,
           statusLabel: undefined,
           interrupted: opts.interrupted ? true : undefined,
+          // §2.8: a failed turn says so — the failure reason is the engine's
+          // own sentence (captured or thrown), trimmed; absent stays absent.
+          failed: opts.failure ? true : undefined,
+          failureReason: opts.failure?.reason?.trim() || undefined,
+          failureThermal: opts.failure?.thermal ? true : undefined,
           ...(emittedSave !== undefined
             ? {
                 modelEmittedText: emittedSave,

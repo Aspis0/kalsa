@@ -13,7 +13,11 @@
  *   `statusHistory` are intentionally dropped on restore, and a live
  *   `streaming` flag is never restored — no eternal spinners after a kill.
  * - `interrupted` is restored only with non-empty text (a corrupt payload
- *   cannot render a floating marker).
+ *   cannot render a floating marker);
+ * - `failed` / `failureReason` / `failureThermal` (§2.8's failed row) restore
+ *   on the same rule: the marker only with non-empty text, the engine's own
+ *   reason verbatim (clipped like any text) and only beside a marker — a
+ *   reason with no failure to explain is corrupt data, not a line to draw.
  *
  * The projection goes through `toPersistableHistoryMessages`
  * (`src/engine/historyPersistable.ts`, untouched): the persisted field set
@@ -74,6 +78,19 @@ export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[]
     // Transient `streaming` is never restored (no eternal spinners).
     if (record.interrupted === true && message.text.trim().length > 0) {
       message.interrupted = true;
+    }
+    // §2.8's failed row survives a reopen (the fields ride the persistable
+    // spread, so save and load round-trip the same shape). The reason is the
+    // engine's own words as data — never a catalogue line — and `failed` alone
+    // draws the reasonless honest line when no reason was stored.
+    if (record.failed === true && message.text.trim().length > 0) {
+      message.failed = true;
+      if (typeof record.failureReason === "string" && record.failureReason.trim()) {
+        message.failureReason = record.failureReason.trim().slice(0, MAX_TEXT);
+      }
+      if (record.failureThermal === true) {
+        message.failureThermal = true;
+      }
     }
     if (record.edited === true) {
       message.edited = true;

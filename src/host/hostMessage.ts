@@ -46,6 +46,24 @@ export type Message = {
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
+  /**
+   * Terminal marker: the turn FAILED (§2.8's failed row) instead of finishing.
+   * Without it a crashed or refused turn draws exactly like a completed one —
+   * the lie `docs/PARITY-STATUS.md` gap 2 names. Set only by the send path's
+   * finalize; persisted (it rides the spread in `historyPersistable.ts`) and
+   * restored by `sanitizeHistoryMessages`, so the mark survives a reopen.
+   */
+  failed?: boolean;
+  /**
+   * The engine's own reason for `failed`, verbatim after trimming. Absent when
+   * the engine gave none — §2.8 forbids a generic apology in this slot, so an
+   * empty reason renders the catalogued "Stopped by an error" line and never
+   * a fabricated sentence.
+   */
+  failureReason?: string;
+  /** The device refused the turn (thermal), not the engine: the mapper sends
+   *  it to §2.8's thermal row instead of the failed row. */
+  failureThermal?: boolean;
   /** True when the user edited this message text (edit-then-regen flow). */
   edited?: boolean;
   // Feature 1: status history

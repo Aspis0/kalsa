@@ -19,7 +19,7 @@
  * plus the keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
-import { ArrowUp, ChevronDown, Menu, Mic, Plus, Square } from "lucide-react-native";
+import { ArrowUp, ChevronDown, Menu, Mic, Plus, Share, Square } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, Text, TextInput, View, useWindowDimensions } from "react-native";
 
@@ -93,6 +93,10 @@ export type ShellProps = {
   onMenuPress?: () => void;
   onModelPress?: () => void;
   onNewChatPress?: () => void;
+  /** Export/share the conversation (D1 row 2): the old nav's share glyph at
+   *  `AiChatPage:4757-4769`, here as a real 48 dp strip box — the old
+   *  36 dp box rode `hitSlop`, which the project forbids. */
+  onExportPress?: () => void;
   onAttachPress?: () => void;
   onMicPress?: () => void;
   onSendPress?: () => void;
@@ -120,6 +124,7 @@ export function Shell({
   onMenuPress,
   onModelPress,
   onNewChatPress,
+  onExportPress,
   onAttachPress,
   onMicPress,
   onSendPress,
@@ -204,6 +209,16 @@ export function Shell({
             )}
           </View>
           <ChevronDown size={15} color={colors.silence} strokeWidth={2.4} />
+        </Pressable>
+
+        <Pressable
+          testID="shell.strip.export"
+          accessibilityRole="button"
+          accessibilityLabel={t("chat.a11yExport")}
+          onPress={onExportPress}
+          style={styles.iconButton}
+        >
+          <Share size={18} color={iconColor} strokeWidth={2.1} />
         </Pressable>
 
         <Pressable

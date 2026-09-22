@@ -231,11 +231,13 @@ export function Transcript({
               <UserTurn id={message.id} layout={layout} styles={styles} text={message.text} />
             ) : (
               <Answer
+                caret={message.caret}
                 colors={colors}
                 id={message.id}
                 labels={cloudLabels}
                 readingMeasure={layout.readingMeasure}
                 sources={message.sources}
+                stop={message.stop}
                 styles={styles}
                 text={message.text}
                 thinking={message.thinking}

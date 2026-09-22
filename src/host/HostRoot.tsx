@@ -5,29 +5,23 @@
  *
  * Everything under `src/host` is either lifted from the two controller
  * files (with the adaptation named at the lift) or composed on slice 1's
- * pinned seams. `App.tsx` renders this behind `NEW_SHELL`; the flag and the
- * old branch are TEMPORARY and exist so `AppShell` can boot as the
- * controller until `docs/PARITY.md` says the rest is reproduced.
+ * pinned seams. `App.tsx` renders this behind `NEW_SHELL`; the flag and old
+ * branch are TEMPORARY, so `AppShell` still boots as the controller until
+ * `docs/PARITY.md` says the rest is reproduced.
+ *
+ * The root may only COMPOSE: state it owns, hooks it calls, children it
+ * arranges (`src/host/fileSize.test.ts` pins the line budget): strip/composer
+ * are `HostChatSurface`, the drawer `HostDrawer`, overlays+notice `HostFurniture`.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { isEmbedderHung } from "../engine/EmbeddingService";
-import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
-import { sendingInFlightRef } from "../engine/regenState";
 import { type ContextMode } from "../context/compactor";
 import { COMPACTION_ENABLED_DEFAULT } from "../engine/ttftFlags";
-import { findPersona } from "../conversations/PersonasStore";
-import { builtinCopyFromT } from "../screens/PersonasScreen";
-import { Drawer } from "../theme/components";
-import { useLocale } from "../i18n";
-import { useLabTheme } from "../ui/labTheme";
+import { sendingInFlightRef } from "../engine/regenState";
+import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
 import { useThermalHardGate } from "../hooks/useThermalHardGate";
-import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
-import { bottomInsetFor, STRIP_HEIGHT } from "../ui/shell/shellGeometry";
-import { Shell } from "../ui/shell/Shell";
-import { Transcript } from "../ui/shell/Transcript";
-import type { ThemeMode } from "../theme/design";
+import { useLocale } from "../i18n";
 import { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
 import { useMemoryHost } from "./memoryHost";
@@ -41,16 +35,16 @@ import { useSendHost } from "./sendHost";
 import { useHostEffects } from "./useHostEffects";
 import { useNotice } from "./useNotice";
 import { composerView } from "./composerView";
+import { shareConversation } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
-import { HostNotice } from "./HostNotice";
-import { HostOverlays } from "./HostOverlays";
+import { HostChatSurface } from "./HostChatSurface";
+import { HostDrawer } from "./HostDrawer";
+import { HostFurniture } from "./HostFurniture";
 import type { HostOverlay } from "./hostOverlay";
 
 export function HostRoot() {
-  const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
   const fence = useMemo(() => createTurnFence(), []);
 
   // ── Host-owned engine-turn state (the names the lifted halves read) ──
@@ -79,9 +73,7 @@ export function HostRoot() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<HostOverlay>(null);
   const [draft, setDraft] = useState("");
-  const [toolsById, setToolsById] = useState<ReadonlyMap<string, { name: string }[]>>(
-    new Map(),
-  );
+  const [toolsById, setToolsById] = useState<ReadonlyMap<string, { name: string }[]>>(new Map());
 
   const flags = useToolFlags();
   const memory = useMemoryHost();
@@ -214,119 +206,45 @@ export function HostRoot() {
       isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
   });
 
-  // Strip pill, old chip semantics (AppShell:6879-6911): load when the bundle
-  // is on disk but unloaded, retry an engine error, no-op while busy or
-  // already resident (the old chip was disabled there); a missing bundle has
-  // no download path in this build and says so (§2.7).
-  const onModelPress = () => {
-    if (isEmbedderHung()) return;
-    const resident = isEngineReady() && getActiveModelId() === modelHost.currentModel.id;
-    if (modelHost.modelState === "missing" || modelHost.modelErrorKind === "download") {
-      showNoticeKey("shell.notice.download");
-      return;
-    }
-    if (modelHost.modelState === "checking" || modelHost.modelState === "loading") return;
-    if (modelHost.modelState === "ready" && resident) return;
-    modelHost.userReloadModel(modelHost.currentModel);
-  };
-
   const size = { top: insets.top, bottom: insets.bottom };
-  const bandInsets = bottomInsetFor(size, keyboardHeight);
 
   return (
     <View style={{ flex: 1 }}>
-      <Shell
+      <HostChatSurface
         insets={size}
-        modelName={modelHost.currentModel.name}
-        whereLabel={t("shell.where.thisPhone")}
-        keyboardHeight={keyboardHeight}
-        mode={mode}
         draft={draft}
         onDraftChange={setDraft}
-        editable={view.composer.field.editable}
-        placeholderKey={view.composer.field.placeholder ?? undefined}
-        holdReason={view.composer.hold === null ? null : t(view.composer.hold)}
-        face={view.composer.face}
-        faceLabel={t(view.composer.faceLabel)}
-        faceEnabled={view.composer.faceEnabled}
-        sendEnabled={view.sendEnabled}
+        view={view}
+        modelHost={modelHost}
+        showNoticeKey={showNoticeKey}
+        sendHost={sendHost}
         onMenuPress={() => setDrawerOpen(true)}
-        onModelPress={onModelPress}
         onNewChatPress={() => actions.handleNewConversation()}
-        onAttachPress={() => showNoticeKey("shell.notice.attach")}
-        onMicPress={() => showNoticeKey("shell.notice.mic")}
-        onSendPress={() => {
-          if (view.composer.face === "stop") sendHost.stop();
-          else void sendHost.send(draft);
-        }}
-      >
-        <Transcript
-          insets={bandInsets}
-          messages={view.transcript}
-          mode={mode}
-        />
-      </Shell>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          conv.clearChatSearch();
-        }}
-        brand="Kalsa"
-        subtitle={t("drawer.subtitle")}
-        items={actions.drawerItems()}
-        conversationItems={actions.drawerConversationItems(
-          conv.conversations,
-          conv.chatSearchQuery,
-        )}
-        searchValue={conv.chatSearch}
-        searchQuery={conv.chatSearchQuery}
-        onSearchChange={conv.handleChatSearchChange}
-        onNewChat={() => actions.handleNewConversation()}
-        personaLabel={
-          findPersona(personas.personasState, personas.activePersonaId, builtinCopyFromT(t))
-            ?.name ?? t("drawer.personaNone")
-        }
-        modelBarHeight={insets.top + STRIP_HEIGHT}
-        onPersonaPress={() => {
-          setDrawerOpen(false);
-          conv.clearChatSearch();
-          setActiveOverlay({ kind: "personas" });
-        }}
+        onExportPress={() => shareConversation(history.messages, t)}
       />
 
-      <HostOverlays
+      <HostDrawer
+        insets={size}
+        open={drawerOpen}
+        setOpen={setDrawerOpen}
+        conv={conv}
+        actions={actions}
+        personas={personas}
+        setActiveOverlay={setActiveOverlay}
+      />
+
+      <HostFurniture
         overlay={activeOverlay}
         setOverlay={setActiveOverlay}
         onNotice={showNoticeKey}
-        refreshMemoryFacts={memory.refreshMemoryFacts}
-        refreshToolFlags={flags.refreshToolFlags}
-        refreshContextSize={modelHost.refreshContextSize}
-        currentModel={modelHost.currentModel}
-        modelState={modelHost.modelState}
-        modelError={modelHost.modelError}
-        modelErrorDetail={modelHost.modelErrorDetail}
-        modelErrorKind={modelHost.modelErrorKind}
-        deviceBandwidth={modelHost.deviceBandwidth}
+        notice={notice}
+        memory={memory}
+        flags={flags}
+        library={library}
+        personas={personas}
+        modelHost={modelHost}
         streaming={streaming}
-        selectModelById={modelHost.selectModelById}
-        userReloadModel={modelHost.userReloadModel}
-        voiceState={modelHost.scans.voiceState}
-        ttsEnabled={modelHost.scans.ttsEnabled}
-        setTtsEnabled={modelHost.scans.setTtsEnabled}
-        embeddingState={modelHost.scans.embeddingState}
-        library={library.library}
-        addDocument={library.addDocument}
-        deleteDocument={library.deleteDocument}
-        reorderDocuments={library.reorderDocuments}
-        updateDocumentPreview={library.updateDocumentPreview}
-        isDocumentDeleteInFlight={library.isDocumentDeleteInFlight}
-        setActivePersonaId={personas.setActivePersonaId}
-        refreshPersonas={personas.refreshPersonas}
       />
-
-      <HostNotice text={notice} />
     </View>
   );
 }

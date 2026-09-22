@@ -273,8 +273,9 @@ describe("the preview's notice line", () => {
 describe("the width is only used for the horizontal boxes", () => {
   it("keeps the pill and the field at or above the touch floor on the Jelly", () => {
     const geo = shellGeometry(349, 621, { top: 0, bottom: 0 });
-    // 349 - 2*12 - 2*48 - 2*9 = 211 for the pill; 349 - 2*12 = 325 for the field.
-    expect(geo.touchTargets.stripPill.width).toBe(211);
+    // 349 - 2*12 - 3*48 - 3*9 = 154 for the pill (three icon buttons: menu,
+    // export, new chat); 349 - 2*12 = 325 for the field.
+    expect(geo.touchTargets.stripPill.width).toBe(154);
     expect(geo.touchTargets.composerField.width).toBe(325);
   });
 });

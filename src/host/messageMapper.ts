@@ -11,15 +11,22 @@
  * - `statusLabel` / `statusHistory` are never carried — they are volatile by
  *   decision (AiChatPage:709-713) and the cloud replaces them while the turn
  *   is live;
+ * - `caret` carries §2.11's streaming predicate (`caretVisible`, the old
+ *   `showCursor` rule of AiChatPage:5484) and `stop` carries §2.8's outcome
+ *   line, decided here through the design's own `stopOutcome` so an
+ *   interrupted or failed turn can never draw as a finished one;
  * - `tools` are NOT read from the message: the volatile tool rows are fed
  *   from the host's capture map (`toolNameFromActionsPayload`), because the
  *   engine's tool trace deliberately does not survive a reopen.
  */
 import type { MessageSource } from "./hostMessage";
 import type { Message } from "./hostMessage";
+import { stopOutcome } from "../ui/shell/composerState";
+import { caretVisible } from "../ui/shell/caretSpec";
 import type {
   TranscriptMessage,
   TranscriptSource,
+  TranscriptStop,
   TranscriptThinking,
 } from "../ui/shell/transcriptTypes";
 
@@ -66,6 +73,36 @@ function mapThinking(message: Message, opts: MapperOptions): TranscriptThinking 
   return { reasoning, working: false, answered: !live || message.text.trim().length > 0 };
 }
 
+/**
+ * §2.8's outcome for a turn that ended early, as the band draws it — routed
+ * through the design's own tested `stopOutcome` (`composerState.ts`), so the
+ * transcript and the composer cannot disagree about what a stop means:
+ *
+ * - failed → the engine's own reason in `danger` (or the reasonless honest
+ *   line when the engine gave none — §2.8 forbids a generic apology);
+ * - the device's thermal refusal → §2.8's `thermal` row in `attention`;
+ * - interrupted → the user's stop line over the kept partial. The tokens
+ *   count is the message's own text: sanitize restores an interrupted mark
+ *   only with non-empty text, so this reads `stoppedByUser`; an empty marked
+ *   message (no reachable send path produces one) reads `stoppedEmpty`;
+ * - a finished turn → nothing: silence is the honest row for completion.
+ */
+function mapStop(message: Message): TranscriptStop | undefined {
+  if (message.failed === true) {
+    const view = stopOutcome(
+      message.failureThermal === true
+        ? { cause: "thermal" }
+        : { cause: "error", reason: message.failureReason ?? "" },
+    );
+    return { key: view.line.key, params: view.line.params, tone: view.tone };
+  }
+  if (message.interrupted === true) {
+    const view = stopOutcome({ cause: "user", tokens: message.text.trim().length });
+    return { key: view.line.key, params: view.line.params, tone: view.tone };
+  }
+  return undefined;
+}
+
 export function toTranscriptMessage(message: Message, opts: MapperOptions): TranscriptMessage {
   const tools = message.role === "assistant" ? opts.toolsById?.get(message.id) : undefined;
   const mapped: TranscriptMessage = {
@@ -76,6 +113,11 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
   };
   const thinking = mapThinking(message, opts);
   if (thinking) mapped.thinking = thinking;
+  if (message.role === "assistant") {
+    if (caretVisible(message.streaming, message.text)) mapped.caret = true;
+    const stop = mapStop(message);
+    if (stop) mapped.stop = stop;
+  }
   if (tools && tools.length > 0) mapped.tools = tools;
   if (message.sources && message.sources.length > 0) {
     mapped.sources = message.sources.map(mapSource);

@@ -205,9 +205,11 @@ describe("sanitize → mapper round trip", () => {
     expect(restored[1].sources).toHaveLength(1);
     const out = toTranscriptMessages(restored, opts());
     expect(out[1].sources).toEqual([{ url: "https://example.com", title: "T" }]);
-    // Interrupted partial is a settled cloud + plain text: the marker itself
-    // has no transcript representation yet (PARITY row 25, reported).
+    // Interrupted partial: settled cloud + plain text + the §2.8 stop line —
+    // the marker the controller drew at AiChatPage:5627-5630 now has its
+    // transcript representation (`stop`), decided by `stopOutcome`.
     expect(out[1].thinking).toEqual({ reasoning: "hmm", working: false, answered: true });
+    expect(out[1].stop).toEqual({ key: "shell.phase.stoppedByUser", tone: "quiet" });
     expect(out[1].text).toBe("partial");
   });
 

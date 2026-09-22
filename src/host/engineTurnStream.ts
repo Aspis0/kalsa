@@ -278,6 +278,9 @@ export async function streamEngineTurn(
                   }
                   callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
                   try {
+                    // The engine's own sentence, verbatim (§2.8): the failed
+                    // row shows this reason, never a generic apology.
+                    callbacks.onFailedReason?.(error.message);
                     callbacks.onFailed?.("chat.serviceUnreachable");
                   } catch {
                     // ignore

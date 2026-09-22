@@ -191,8 +191,10 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   };
 
   const full = MIN_TOUCH_TARGET;
+  // The pill's remaining width: the strip holds THREE icon buttons (menu,
+  // export, new chat) and the pill takes what is left of the row.
   const stripPillWidth = clamp(
-    width - 2 * STRIP_SIDE_PADDING - 2 * full - 2 * STRIP_GAP,
+    width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
   );
 
   return {
