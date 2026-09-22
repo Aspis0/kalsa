@@ -526,6 +526,18 @@ impl RunningDoor {
     /// one outcome revocation cannot mean.
     pub fn set_devices(&self, devices: Devices) {
         self.devices.swap(devices);
+        // This is the moment a file becomes an orphan: a revoked device's
+        // names parse to an id the new set no longer holds. Sweeping here
+        // rather than on the tick is deliberate (see `paging::sweep`) — and
+        // the race with a save already in flight for the revoked device is
+        // benign by the sweep's own rule: it never touches a name whose
+        // device is still in the set, so the worst it can leave behind is a
+        // revoked device's file the in-flight rename recreates, taken by the
+        // next sweep — and the next sweep is not around the corner: the only
+        // two moments are this set change and the next construction of a
+        // door, so such a file sits until the next set change or the next
+        // start of the door.
+        self.chats.sweep(&self.devices);
     }
 
     /// Stop accepting and wait for the bounded thread set to leave.

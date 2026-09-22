@@ -171,6 +171,29 @@ fn a_written_set_is_still_owner_only() {
 }
 
 #[test]
+fn forgetting_the_highest_id_then_pairing_reuses_it() {
+    // The salt trap, T5b: the file name carries no salt, so what matters for
+    // the door's sweep is only whether a re-pair moves the device id. The
+    // id is minted `max + 1` over the records present NOW — so forgetting
+    // the record that holds the highest id hands that id straight back to
+    // the next pairing. The old files then sit under an id the new set
+    // holds, and the sweep is blind to them by its own first rule.
+    let dir = scratch("forget-top-repair");
+    let path = dir.join("credential.json");
+    add_device(&path, "First", &sample_handshake()).unwrap(); // id 0
+    add_device(&path, "Second", &sample_handshake()).unwrap(); // id 1
+
+    forget_device(&path, 1).unwrap();
+
+    let again = add_device(&path, "Re-paired", &sample_handshake()).unwrap();
+    assert_eq!(
+        again.id, 1,
+        "the forgotten top id was minted again: a re-pair can keep the id"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn a_store_sitting_on_the_last_id_refuses_to_add_instead_of_duplicating() {
     let dir = scratch("ids-exhausted");
     let path = dir.join("credential.json");

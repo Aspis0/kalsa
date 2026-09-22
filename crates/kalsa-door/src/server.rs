@@ -48,6 +48,14 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         door.slot_dir.clone(),
         door.idle_save,
     ));
+    // The sweep runs here, before any worker exists: construction is the one
+    // moment provably free of this door's own saves, and it is what clears
+    // what a previous run left behind — a crash's staging file, a device
+    // forgotten while no door was standing. On a set change the sweep runs
+    // from `set_devices` instead; on the tick it never runs, because the
+    // directory's ownership only changes at those two moments and a per-tick
+    // read would race the ticker's own saves for nothing.
+    chats.sweep(&device_set);
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
     let mut threads = Vec::with_capacity(WORKERS + 2);

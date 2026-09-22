@@ -30,6 +30,8 @@
 mod cadence;
 mod invalidate;
 mod io;
+mod names;
+mod sweep;
 
 use std::fs;
 use std::io::Read;
@@ -39,6 +41,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use self::io::{erase_slot, restore, save, ChatError, STAGING};
+use self::names::{file_name, valid_id};
 use crate::cors;
 use crate::devices::DeviceId;
 use crate::engine::Engine;
@@ -338,24 +341,6 @@ impl Chats {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()))
     }
-}
-
-/// The name, and the door builds it: flat, because `fs_validate_filename`
-/// rejects separators, and carrying the device and the model so a file can
-/// never be read back into another device's slot by accident.
-fn file_name(model: &str, device: DeviceId, id: &str) -> String {
-    format!("d{}-m{model}-c{id}.bin", device.value())
-}
-
-/// The shape both branches of the app's `uid()` produce: lowercase letters,
-/// digits and dashes, 8 to 64 of them. No dot, no separator, no leading dash —
-/// and each of those is a refusal, never something the door repairs.
-fn valid_id(id: &str) -> bool {
-    (8..=64).contains(&id.len())
-        && !id.starts_with('-')
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 /// The client's body, bounded: this route carries one id, so a body beyond

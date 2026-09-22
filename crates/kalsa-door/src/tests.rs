@@ -20,6 +20,7 @@ mod paging_cadence_tick;
 mod paging_invalidate;
 mod paging_route;
 mod paging_support;
+mod paging_sweep;
 mod revocation;
 mod slot_routes;
 mod slots;
