@@ -11,13 +11,15 @@ import {
   COMPOSER_HEIGHT,
   COMPOSER_TOOLBAR_HEIGHT,
   MIN_TOUCH_TARGET,
+  MODEL_NAME_COLUMN_NEED_DP,
   SHELL_NOTICE_GAP,
   SHELL_NOTICE_HEIGHT,
+  STRIP_CHEVRON_SIZE,
   STRIP_HEIGHT,
   STRIP_HEIGHT_COLLAPSED,
-  STRIP_MARK_SIZE,
   bottomInsetFor,
   shellGeometry,
+  stripPillTextColumn,
   type Insets,
   type ShellGeometry,
 } from "./shellGeometry";
@@ -95,13 +97,16 @@ describe.each(CASES)("$name", (c) => {
     expect(COMPOSER_HEIGHT).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
   });
 
-  it("keeps the logo mark inside the pill, so the pill stays the 48 dp target", () => {
-    // The mark is a picture, not a control: the pill around it is the target,
-    // and it is `MIN_TOUCH_TARGET` tall. A mark that reached that height would
-    // be the thing deciding the pill's size instead.
-    expect(STRIP_MARK_SIZE).toBeGreaterThan(0);
-    expect(STRIP_MARK_SIZE).toBeLessThan(MIN_TOUCH_TARGET);
-    expect(MIN_TOUCH_TARGET - STRIP_MARK_SIZE).toBeGreaterThanOrEqual(12);
+  it("keeps the pill's chrome smaller than the pill, so only the pill is the target", () => {
+    // BEFORE this held the LOGO MARK (28 dp) under the 48 dp pill. The mark is
+    // gone from the strip — a capture showed it spending 28 dp of a 154 dp pill
+    // while the model's own name truncated (`LFM2.5 …`) — and the chevron is
+    // now the only picture inside. The rule is unchanged: chrome is a picture,
+    // the pill around it is the touch target, and chrome may not decide the
+    // pill's size.
+    expect(STRIP_CHEVRON_SIZE).toBeGreaterThan(0);
+    expect(STRIP_CHEVRON_SIZE).toBeLessThan(MIN_TOUCH_TARGET);
+    expect(MIN_TOUCH_TARGET - STRIP_CHEVRON_SIZE).toBeGreaterThanOrEqual(12);
   });
 
   it("agrees with the collapsed form the height implies", () => {
@@ -285,10 +290,17 @@ describe("the width is only used for the horizontal boxes", () => {
     //     text column: the model name and "On this phone" both rendered as bare
     //     ellipses (host3 capture: "a row of tiny dots").
     //   NOW: export lives in the drawer (chat-level action; `HostDrawer.tsx`),
-    //     three buttons again, pill 154 dp, text column 71 dp — 154 - 2*10
-    //     padding - 28 mark - 15 chevron - 2*10 gaps. Nothing shrank below the
-    //     48 dp floor; the RARE control moved instead.
+    //     three buttons again, pill 154 dp — and WHAT THE PILL SPENDS inside
+    //     those 154 dp changed with the legibility slice: no 28 dp mark, no
+    //     where-dot, spacing.xs padding and ONE gap, so the name's column is
+    //     154 - 2*6 - 6 - 15 = 121 dp, against 71 dp before and the ~105 dp the
+    //     capture measured for `LFM2.5 2.6B`. Nothing shrank below the 48 dp
+    //     floor; the decorative pictures moved instead.
     expect(geo.touchTargets.stripPill.width).toBe(154);
+    expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBe(121);
+    expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBeGreaterThanOrEqual(
+      MODEL_NAME_COLUMN_NEED_DP,
+    );
     expect(geo.touchTargets.composerField.width).toBe(325);
   });
 });

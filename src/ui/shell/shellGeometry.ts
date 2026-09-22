@@ -46,12 +46,43 @@ export const STRIP_COLLAPSE_BELOW = 420;
 export const STRIP_SIDE_PADDING = 12;
 export const STRIP_GAP = 9;
 /**
- * The strip pill's mark: the logo's circular clip, in dp. Kept well under the
- * pill's `MIN_TOUCH_TARGET` height so the mark can never be the thing that
- * makes the 48 dp pill grow — the pill is the touch target, the mark is the
- * picture inside it (the mock's `.pick .mark`, same 28).
+ * What the strip pill spends OUTSIDE its text column, in dp — the whole budget
+ * of a 154 dp pill whose one job is to paint the model's name.
+ *
+ * The pill used to spend 28 dp on the logo's circular clip, 20 dp on two 10 dp
+ * gaps, 20 dp of padding and (on the second line) 6+4 dp on an accent dot, and
+ * the name — the only information in there — was left a 71 dp column against
+ * the ~105 dp `LFM2.5 2.6B` measures (device capture: `LFM2.5 …` over `On this
+ * ph…`, both lines cut, the second one mid-word). The mark and the dot are GONE
+ * (the logo still ships as the launcher icon, `app.config.js`), the padding is
+ * `spacing.xs`, and one gap remains at `spacing.xs`. The pill's height (48 dp),
+ * its width (154 dp) and its chevron are untouched: the chevron says the pill
+ * is tappable, and `stripPillTextColumn` below is what a test can hold the rest
+ * against.
  */
-export const STRIP_MARK_SIZE = 28;
+export const STRIP_PILL_PADDING_X = spacing.xs;
+export const STRIP_PILL_GAP = spacing.xs;
+export const STRIP_CHEVRON_SIZE = 15;
+
+/**
+ * The column the model's name must have to paint in full, in dp. The capture
+ * measured `LFM2.5 2.6B` at ~145 px = 105 dp at `type.label` on the Jelly
+ * (1.375 px/dp); the shipped Inter 600 file puts the string at 84.6 dp, and
+ * the DEVICE's figure is the one kept, because it is the one a capture can
+ * see. `shellGeometry.test.ts` holds `stripPillTextColumn(154)` at or above
+ * it; `stripTextBudget.test.ts` measures the real strings in the real TTFs
+ * against the same column, in both catalogues.
+ */
+export const MODEL_NAME_COLUMN_NEED_DP = 105;
+
+/**
+ * What is left of the pill's width for the model's name (and the line under
+ * it): everything the pill draws between its padding and its chevron is
+ * chrome, and chrome is what took the room last time.
+ */
+export function stripPillTextColumn(pillWidth: number): number {
+  return clamp(pillWidth - 2 * STRIP_PILL_PADDING_X - STRIP_PILL_GAP - STRIP_CHEVRON_SIZE);
+}
 
 /** Composer: an 8 dp lift, a 56 dp field, and a 14 dp lift over the gesture
  *  bar — the mock's `.dock` and `.field`, re-measured in dp. */
@@ -211,8 +242,11 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   // pill was 97 dp and its whole text column 14 dp, so the model name and
   // "On this phone" both collapsed to ellipses (the vision pass read the
   // remnants as "a row of tiny dots"). Three buttons give the pill 154 dp
-  // again: 349 - 2*12 - 3*48 - 3*9 = 154, text column 71 dp. Reversible in
-  // one edit; nothing below the 48 dp floor was shrunk to get there.
+  // again: 349 - 2*12 - 3*48 - 3*9 = 154. What the pill then SPENDS inside
+  // those 154 dp is `stripPillTextColumn`'s business: 121 dp for the name today
+  // (it was 71 with the 28 dp mark, the dot and two 10 dp gaps in the way — a
+  // capture read both lines as ellipses, the second cut mid-word). Reversible
+  // in one edit; nothing below the 48 dp floor was shrunk to get there.
   const stripPillWidth = clamp(
     width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
   );

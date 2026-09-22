@@ -34,6 +34,11 @@ function input(partial: Partial<ScrollInput>): ScrollInput {
     // assertion keeps exactly the meaning (and the expected value) it had; the
     // empty case is only ever reached where a test opts in with `messageCount: 0`.
     messageCount: 1,
+    // The same pattern for the OTHER reported fact: `false` is the state every
+    // assertion here was written in — the band's FIRST layout — so no existing
+    // expectation moves. A test that means "the keyboard opened under a placed
+    // view" opts in with `placedBefore: true` (`transcriptRelayout.test.ts`).
+    placedBefore: false,
     ...partial,
   };
 }

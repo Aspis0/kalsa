@@ -34,6 +34,21 @@
  * at its START, stays armed while it is shown (the first append follows to the
  * end of the conversation it begins), and no resize of the block moves the
  * reader. All of it decided here; the view only reports the message count.
+ *
+ * One fact more than the message count, because "first layout" is a property
+ * of the CONVERSATION and not of the event. React Native's `onLayout` fires
+ * for every re-layout of the band, so opening the keyboard — top edge 116 →
+ * 105, band down to 130 dp — presented itself as `first-layout`, and the guard
+ * above answered it with `scrollTo: 0`: a reader sitting at offset 338 was
+ * thrown back to the top of the block (device capture, this slice). The view
+ * cannot tell the two apart either — the event is identical — so it reports
+ * `placedBefore` beside the cause, exactly as it reports `messageCount`, and
+ * THIS module tells them apart: the FIRST placement of a conversation may take
+ * the reader to the block's top (or a conversation's end), and a later layout
+ * of the same conversation may not move a reader who has scrolled, messages or
+ * no messages. Not a special case but the same rule one fact wider: first
+ * layout is the one placement that does not answer to where the view already
+ * is, and everything after it does.
  */
 
 /**
@@ -69,7 +84,11 @@ export type ScrollCause =
   | "user-scroll"
   /** The reader asked to return to the end. */
   | "jump-to-end"
-  /** Nothing has been placed yet: the band knows its size for the first time. */
+  /** Nothing has been placed yet: the band knows its size for the first time.
+   *  Which of the two it IS — that first time, or a later layout of the same
+   *  conversation (keyboard, insets, rotation) — is not in the event: the same
+   *  `onLayout` fires for both. The view reports it as `placedBefore`; the
+   *  machine decides what it means, below. */
   | "first-layout"
   /** The band changed size under a placed view: the keyboard opening or closing. */
   | "resize";
@@ -88,6 +107,19 @@ export type ScrollInput = {
    * reports it; the decision stays in this module.
    */
   messageCount: number;
+  /**
+   * Whether the band has already placed the view ONCE in this conversation —
+   * the first-layout-done fact `onLayout` cannot carry, because a keyboard
+   * re-layout presents itself as exactly the same event.
+   *
+   * Reported by the view (a ref it sets after the band's first layout), decided
+   * on here: `cause: "first-layout"` with `false` is a genuine first placement
+   * and may choose the opening offset; with `true` the same event is a
+   * RE-layout of a placed view and is handled as `resize` — the reader's
+   * position is then the only thing that matters. Like `messageCount` it is a
+   * fact, not a rule, so the rule cannot fork per call site.
+   */
+  placedBefore: boolean;
 };
 
 export type ScrollDecision = {
@@ -109,6 +141,14 @@ function distanceFromEnd(input: ScrollInput): number {
 export function transcriptScroll(input: ScrollInput): ScrollDecision {
   const end = endOffset(input.contentHeight, input.viewportHeight);
 
+  // One event, two meanings, settled once at the top so no branch below has to
+  // know about it: `first-layout` is a first placement only until the band has
+  // laid out once. From there a re-layout is what it is — a resize under a
+  // placed view — with both of its halves already written: follow the end while
+  // pinned, move nothing while not.
+  const cause: ScrollCause =
+    input.cause === "first-layout" && input.placedBefore ? "resize" : input.cause;
+
   // No messages: there is no end to be pinned to, so every rule below that
   // reads the pin from the distance to the end would be reading the welcome
   // block's bottom as if it were a conversation's. The empty state is decided
@@ -118,7 +158,7 @@ export function transcriptScroll(input: ScrollInput): ScrollDecision {
   // conversation that has just grown), a growing or resizing block never moves
   // the reader, and there is no end for a jump control to offer.
   if (input.messageCount === 0) {
-    switch (input.cause) {
+    switch (cause) {
       case "first-layout":
       case "jump-to-end":
       // The conversation was wiped back to empty: the block again, from its top.
@@ -131,7 +171,7 @@ export function transcriptScroll(input: ScrollInput): ScrollDecision {
     }
   }
 
-  switch (input.cause) {
+  switch (cause) {
     case "user-scroll": {
       // The reader's own position is the only thing the pin can honestly be read
       // from, and never move the view for them.
@@ -139,10 +179,12 @@ export function transcriptScroll(input: ScrollInput): ScrollDecision {
       return { pinned, scrollTo: null };
     }
     case "first-layout":
-      // Nothing has been placed yet, so the offset at this moment means nothing.
-      // A conversation opens at its end — and a short one has an end of zero,
-      // which is the top, exactly as the desktop app starts. (With no messages
-      // the guard above already returned the block's first line.)
+      // Nothing has been placed yet, so the offset at this moment means nothing
+      // — not even a stale 338 the view may be reporting. A conversation opens
+      // at its end — and a short one has an end of zero, which is the top,
+      // exactly as the desktop app starts. (With no messages the guard above
+      // already returned the block's first line; a LATER layout never reaches
+      // this arm — `placedBefore` folded it into `resize` at the top.)
       return { pinned: true, scrollTo: end };
     case "jump-to-end":
       return { pinned: true, scrollTo: end };

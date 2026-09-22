@@ -103,6 +103,13 @@ export function Transcript({
   const offsetRef = useRef(0);
   const countRef = useRef(messages.length);
   const pinnedRef = useRef(true);
+  // Whether the band has laid out at least once in this conversation — the
+  // first-layout-done FACT, reported into the machine as `placedBefore`.
+  // `onLayout` fires for every re-layout (the keyboard opening moves the band's
+  // top edge), and the event itself is identical for the first layout and the
+  // hundredth, so the machine cannot tell them apart without this. A ref, not
+  // state: it decides a scroll, never a draw.
+  const placedRef = useRef(false);
   // When this component last issued a `scrollTo`. A programmatic scroll emits
   // `onScroll` events too, so they are ignored for a grace window rather than
   // read as the reader moving the view (see `PROGRAMMATIC_SCROLL_GRACE_MS`).
@@ -127,14 +134,21 @@ export function Transcript({
         // the same measurement pass: the machine decides what an empty
         // transcript means (see `transcriptScroll.ts`), the view only reports.
         messageCount: countRef.current,
+        // The other fact the view reports: whether anything was placed before
+        // THIS event. Everything else about deciding stays in the machine.
+        placedBefore: placedRef.current,
       });
       pinnedRef.current = decision.pinned;
       setPinned((current) => (current === decision.pinned ? current : decision.pinned));
       if (decision.scrollTo !== null) {
-        // The first placement must not animate: a conversation that scrolls
-        // itself on open looks like the bug this design is written against.
+        // Only the GENUINE first placement must not animate: a conversation
+        // that scrolls itself on open looks like the bug this design is written
+        // against. A later layout of the same conversation arrives as the same
+        // cause — the machine folds it into `resize` via `placedBefore` — and
+        // animates like any other resize.
+        const firstPlacement = cause === "first-layout" && !placedRef.current;
         programmaticScrollAtRef.current = Date.now();
-        scrollRef.current?.scrollTo({ y: decision.scrollTo, animated: cause !== "first-layout" });
+        scrollRef.current?.scrollTo({ y: decision.scrollTo, animated: !firstPlacement });
       }
     },
     [layout.availableHeight],
@@ -180,7 +194,15 @@ export function Transcript({
           setOverflows((current) => (current === nextOverflows ? current : nextOverflows));
           decide(appended ? "append" : "growth");
         }}
-        onLayout={() => decide("first-layout")}
+        onLayout={() => {
+          // The band laid out. The first of these is a placement (offset 0 for
+          // the welcome block, the end for a conversation); every one after it
+          // is a RE-layout under a placed view — keyboard, insets, rotation —
+          // and the reader's position must survive it. The event cannot say
+          // which it is, so the ref does; the machine decides.
+          decide("first-layout");
+          placedRef.current = true;
+        }}
         onScroll={(event) => {
           offsetRef.current = event.nativeEvent.contentOffset.y;
           const scrolled = offsetRef.current > 0;

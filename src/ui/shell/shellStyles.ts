@@ -21,7 +21,8 @@ import {
   MIN_TOUCH_TARGET,
   SHELL_NOTICE_HEIGHT,
   STRIP_GAP,
-  STRIP_MARK_SIZE,
+  STRIP_PILL_GAP,
+  STRIP_PILL_PADDING_X,
   STRIP_SIDE_PADDING,
 } from "./shellGeometry";
 
@@ -47,31 +48,22 @@ export function createShellStyles(colors: DesignColors) {
       ...elevation.raised,
     },
     pill: {
+      // The name owns the column: padding and ONE gap are the only chrome the
+      // pill spends outside it (`shellGeometry.stripPillTextColumn` computes
+      // what is left, and `stripTextBudget.test.ts` holds the real strings
+      // against it). The mark and the where-dot styles that used to live below
+      // are gone with the pictures they drew — see the pill's comment in
+      // `Shell.tsx`.
       alignItems: "center",
       backgroundColor: colors.surface,
       borderRadius: radius.pill,
       flex: 1,
       flexDirection: "row",
-      gap: spacing.sm,
+      gap: STRIP_PILL_GAP,
       height: MIN_TOUCH_TARGET,
       minWidth: 0,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: STRIP_PILL_PADDING_X,
       ...elevation.raised,
-    },
-    mark: {
-      // The mock's `.pick .mark`: a 28 dp circular clip with the raster filling
-      // it (`object-fit: cover`). `icon.png` is the full-bleed plate — unlike
-      // the composer's JPEGs it carries no sage margin — so cover needs no
-      // scale. The ground only shows while the image decodes.
-      backgroundColor: colors.surfaceMuted,
-      borderRadius: STRIP_MARK_SIZE / 2,
-      height: STRIP_MARK_SIZE,
-      overflow: "hidden",
-      width: STRIP_MARK_SIZE,
-    },
-    markImage: {
-      height: STRIP_MARK_SIZE,
-      width: STRIP_MARK_SIZE,
     },
     pillText: {
       flex: 1,
@@ -84,18 +76,11 @@ export function createShellStyles(colors: DesignColors) {
       letterSpacing: -0.1,
       lineHeight: type.label.lineHeight,
     },
-    whereRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: spacing.xxs,
-    },
-    whereDot: {
-      backgroundColor: colors.accent,
-      borderRadius: 3,
-      height: 6,
-      width: 6,
-    },
     where: {
+      // One line under the name, no dot in front of it: the 6+4 dp the dot
+      // spent came out of THIS line's box, and the Italian catalogue value
+      // ("Su questo telefono", 108 dp at 12 dp Inter) needs every dp of the
+      // column the mark's removal returned.
       color: colors.silence,
       fontFamily: families.sansMedium,
       fontSize: type.meta.fontSize,

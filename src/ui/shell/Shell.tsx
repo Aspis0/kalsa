@@ -21,7 +21,7 @@
  */
 import { ChevronDown, Globe, Menu, Plus } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { Image, Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
 import { modes, type, type ThemeMode } from "../../theme/design";
@@ -30,21 +30,12 @@ import { ShellComposer } from "./ShellComposer";
 import {
   COMPOSER_TOOLBAR_HEIGHT,
   SHELL_NOTICE_HEIGHT,
+  STRIP_CHEVRON_SIZE,
   bottomInsetFor,
   shellGeometry,
   type Insets,
 } from "./shellGeometry";
 import { createShellStyles } from "./shellStyles";
-
-/**
- * The app's logo, and one of the three assets the rebuild keeps (DESIGN.md
- * §1.2): the neural-leaf mark, the same file `app.config.js` ships as the
- * launcher icon and the mock draws as `.pick .mark`. It is `require`d rather
- * than drawn, because the strip's mark is the one place the brand is visible.
- * `shellLogoAsset.test.ts` reads this file, pulls this path out and proves the
- * file exists, so a typo cannot ship the blank disc again.
- */
-const LOGO = require("../../../assets/icon.png");
 
 export type ShellProps = {
   /** Safe-area insets, in dp. */
@@ -202,29 +193,32 @@ export function Shell({
           onPress={onModelPress}
           style={styles.pill}
         >
-          <View
-            accessibilityElementsHidden
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            pointerEvents="none"
-            style={styles.mark}
-          >
-            <Image resizeMode="cover" source={LOGO} style={styles.markImage} />
-          </View>
+          {/* No picture in here, and that is the point of this slice. The pill
+              is 154 dp and used to spend 28 dp on the logo's clip, 20 dp on two
+              gaps, 20 dp of padding and 6+4 dp on the where-dot, leaving the
+              MODEL'S OWN NAME a 71 dp column against the ~105 dp `LFM2.5 2.6B`
+              measures: the capture read `LFM2.5 …` over `On this ph…`, the
+              second cut mid-word. The name is the information; the mark was
+              not, so the mark and the dot are gone (the logo still ships as the
+              launcher icon) and what the pill draws is budgeted in
+              `shellGeometry.stripPillTextColumn`, held against the real strings
+              by `stripTextBudget.test.ts`. The chevron stays — it says the pill
+              is tappable. */}
           <View style={styles.pillText}>
             <Text style={styles.modelName} numberOfLines={1}>
               {modelName}
             </Text>
             {geometry.stripCollapsed ? null : (
-              <View style={styles.whereRow}>
-                <View style={styles.whereDot} />
-                <Text style={styles.where} numberOfLines={1}>
-                  {whereLabel}
-                </Text>
-              </View>
+              <Text style={styles.where} numberOfLines={1}>
+                {whereLabel}
+              </Text>
             )}
           </View>
-          <ChevronDown size={15} color={colors.silence} strokeWidth={2.4} />
+          <ChevronDown
+            size={STRIP_CHEVRON_SIZE}
+            color={colors.silence}
+            strokeWidth={2.4}
+          />
         </Pressable>
 
         {/* D1 row 5: the Web permission switch. The old chip was 36×22 riding
