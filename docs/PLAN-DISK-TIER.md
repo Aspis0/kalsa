@@ -377,6 +377,20 @@ instead of returning an empty conversation.
   map (`slots.rs:239-262`). The bound is real — only a departed holder, only the last interval of
   its state, and the tick would skip a salt-less device anyway — so it is written down rather than
   given a mechanism.
+- **Declared loss, not fixed**: the adopted server's invisible release. A server reused from an
+  earlier run has no pipe of ours, so `model_asleep()` stays `None` for it (`child.rs:53-57`) and
+  the tick's invalidation (`engine_lost_its_state`, `src-tauri/src/main.rs`) never fires for it:
+  after the release the map still reads `Resident` for every slot the app named afterwards, and
+  mounting the chat already in such a slot is the no-op that skips the restore — it returns COLD,
+  the warmth this task exists to protect for piped servers. Only the first activate is covered (the
+  door born against an adopted server starts `Unknown`, so that one restore is driven — the last
+  sentence of the invalidation bullet above). Not fixed because there is no observable signal:
+  no pipe, no stderr line, no crash. The other half of that stale map — `save_idle` writing the
+  post-release slot over the chat's file — is CLOSED rather than declared: the first attempt
+  answers `n_saved` 0 (an emptied slot renames nothing), and the `Nothing` arm then relaxes the
+  map to `Unknown` and drops the mark (`dbe23b3`), so no second attempt is made. The ordinary
+  post-release slot has no mark left to attempt with at all (the pre-release save cleared it),
+  which is why the cold mount above is the half that survives.
 - **Acceptance**: a test that a crash does not leave the map claiming residency; a test that a
   rebuilt door does not report `Empty` for a slot it has never looked at; a test that a revoked
   device's files are gone; a test that deleting a chat removes its file.

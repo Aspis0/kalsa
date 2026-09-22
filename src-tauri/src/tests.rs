@@ -1537,10 +1537,25 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
         !engine_lost_its_state(&running, None),
         "an unanswered residency was read as a release"
     );
-    // Stopped and Starting never meet a live door: every path that stops or
-    // starts the supervisor calls `stop_door` first (`brain_stop`, the turn-on
-    // walk, the exit handler), and the state changes that reach an unpolled
-    // app are exactly the two above — a release, or a death.
+    // Stopped and Starting never meet a live door — and NOT because every
+    // path calls `stop_door` first: `brain_start` (the turn-on walk) never
+    // calls it, and neither does `startup.rs`. What makes the invariant true
+    // is the chain, each link read from the code: the door is raised only in
+    // this command's own Running arm (`start_door_if_paired`, the single
+    // caller), and `Stopped` is set only by `Supervisor::stop`/`shutdown`,
+    // whose two senders take the door down BEFORE them — `brain_stop`
+    // (`main.rs:1138` before `:1141`) and the exit handler (`:1402` before
+    // `:1403`). `Starting` is entered only by a start the supervisor
+    // accepted, and it refuses one while it still owns a server
+    // (`supervisor.rs:278-281`), so `Running` — the one state whose door may
+    // be up — is never recycled through it. And the window asks for a start
+    // either off a state this very command last answered — whose non-`Running`
+    // arms all drop the door
+    // (`every_non_running_arm_of_brain_state_stops_the_door`, below) — or
+    // after a `brain_stop` it sends itself, while a state it never polled
+    // means the Running arm never raised a door either (`useBrain.ts`,
+    // `act`/`chooseModel`). What reaches an app nobody polled is therefore
+    // exactly the two above — a release, or a death.
     assert!(!engine_lost_its_state(&ServerState::Starting, None));
     assert!(!engine_lost_its_state(&ServerState::Stopped, None));
 }

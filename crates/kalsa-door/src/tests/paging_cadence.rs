@@ -381,17 +381,24 @@ fn a_dirty_unknown_slot_is_never_saved() {
     assert!(dirty.is_none(), "a new slot came out dirty");
 
     // A turn writes into it all the same: the mark records the turn and does
-    // not consult the map — `cadence::note_activity` carries the reason.
-    let before = Instant::now();
+    // not consult the map — `cadence::note_activity` carries the reason. The
+    // instant is taken AFTER the completion: the mark is stamped when the
+    // relay drops, so only an instant captured behind it can carry the quiet
+    // the gate measures — an instant from before the completion makes the
+    // quiet gate (cadence.rs, the first `continue`) fire every time and the
+    // residency gate behind it unreachable, and every assertion below then
+    // passes against a `save_idle` that DID write `Unknown` slots out.
     complete(address, &token);
+    let after = Instant::now();
     let (dirty, claim) = door.chats.observed(0);
     assert_eq!(claim, "unknown", "the completion moved the map");
     assert!(dirty.is_some(), "the turn through the slot was not marked");
 
-    // And the save refuses it: nothing leaves a slot whose chat the door
-    // cannot name — no request to the engine, no file, no staging file.
+    // And the save refuses it AT THE RESIDENCY GATE: the quiet has run out
+    // from an instant behind the mark, so nothing else is left to skip it —
+    // no request to the engine, no file, no staging file.
     assert_eq!(
-        door.save_idle(quiet_since(before)),
+        door.save_idle(quiet_since(after)),
         0,
         "the tick saved a slot the door cannot name"
     );

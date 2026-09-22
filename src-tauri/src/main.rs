@@ -105,6 +105,22 @@ struct ActiveDoor {
 /// it without a poll. `None` is a server with no pipe of ours, and is NOT
 /// this: nothing has said its state is gone, and a door born against one
 /// starts every slot `Unknown` anyway.
+///
+/// DECLARED LOSS, the save/warmth side of answering `None` this way: an
+/// adopted server announces nothing — its residency cell stays `None` for the
+/// life of that server (`kalsa_supervisor::child`) — so an invisible release
+/// never reaches this predicate, and every slot the app named AFTER the door
+/// was born goes on reading `Resident` in a map nothing relaxes (only the
+/// born-`Unknown` door is covered: its first activate drives the restore).
+/// Mounting the chat already in such a slot is then the no-op that skips the
+/// restore — it returns cold, the warmth the piped server's invalidation
+/// buys. The other half of that stale map is CLOSED, not declared: the tick
+/// cannot write an emptied slot over the chat's file — `n_saved` 0 renames
+/// nothing, and `save_idle`'s `Nothing` arm then relaxes the map to
+/// `Unknown` instead of retrying (T4a-fix4, `dbe23b3`). And in the ordinary
+/// case no attempt fires at all — the pre-release save already cleared the
+/// mark — which is exactly why the cold mount is the half that survives and
+/// is written down (docs/PLAN-DISK-TIER.md, T5).
 fn engine_lost_its_state(state: &ServerState, asleep: Option<bool>) -> bool {
     matches!(state, ServerState::Failed { .. }) || asleep == Some(true)
 }
