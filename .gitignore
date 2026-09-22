@@ -13,3 +13,7 @@ dev/results/**/*.log
 # tooling state, not this project's: whoever clones the repo runs their own
 # agents, or none.
 .zcode/
+
+# Python bytecode from the dev/ tools. Not this project's: a test importing a
+# module leaves a __pycache__ beside it, and a blanket `git add .` would carry it.
+__pycache__/
