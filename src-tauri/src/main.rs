@@ -373,7 +373,18 @@ impl Brain {
 
     fn clear_launch_for_state(&self, state: &ServerState) {
         match state {
-            ServerState::Stopped | ServerState::Failed { .. } => self.clear_launch(),
+            // `Stopping` belongs with the two that are down. A stop in
+            // flight means this record's engine is being torn down:
+            // `brain_stop` already clears the record by hand before it sends
+            // anything, and a walk that publishes its record AFTER that clear
+            // would otherwise leave a record describing the draining engine.
+            // Clearing here makes the state — not the caller's hand — the
+            // thing that decides it, and a stale record is exactly what
+            // would hand `start_door_if_paired` the capacity and the
+            // capability of a server that is going away.
+            ServerState::Stopped | ServerState::Failed { .. } | ServerState::Stopping => {
+                self.clear_launch()
+            }
             ServerState::Starting | ServerState::Running { .. } => {}
         }
     }
@@ -800,6 +811,11 @@ where
 enum StateDto {
     Stopped,
     Starting,
+    /// A stop in flight, `kind: "stopping"`: the page reports the drain
+    /// instead of the `Running` the field kept reading until the worker
+    /// wrote `Stopped`, and the arm below LOWERS the door — raising it is
+    /// the re-raise this state exists to suppress.
+    Stopping,
     Running {
         port: u16,
         /// The door's OpenAI-style address, and the only road this page
@@ -878,6 +894,18 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             // would point at a door that cannot complete a request.
             desk.desk.stop_serving();
             StateDto::Starting
+        }
+        ServerState::Stopping => {
+            // The drain's arm, and the reason the state exists: this poll
+            // must LOWER the door the stop is taking down, never raise it.
+            // Before this state the field read `Running` through the whole
+            // teardown — the poll is the reconciler — and this is where it
+            // re-raised the door the stop had lowered. Lowering is
+            // idempotent: `brain_stop` may already have taken the door.
+            brain.stop_door();
+            // The square points at a door that is going away with the engine.
+            desk.desk.stop_serving();
+            StateDto::Stopping
         }
         ServerState::Stopped => {
             brain.stop_door();
@@ -1180,10 +1208,16 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
 
 #[tauri::command]
 fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
+    // The declaration first, and it is not a formality: `stop` is
+    // non-blocking and sets `Stopping` before it queues the command, so from
+    // this line on every poll enters the drain's arm and lowers the door
+    // itself. Lowering the door first — what this used to do — left the
+    // field reading `Running` while the door was already down, and a poll in
+    // that gap raised it again.
+    brain.supervisor.stop();
     brain.stop_door();
     brain.clear_launch();
     desk.desk.stop_serving();
-    brain.supervisor.stop();
 }
 
 /// The Pairing page's one read, polled. A square is only offered while the

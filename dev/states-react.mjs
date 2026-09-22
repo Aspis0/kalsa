@@ -12,6 +12,7 @@ import { AdvancedSurface } from "../chat/src/surfaces/AdvancedSurface";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
+import { brainWords } from "../chat/src/surfaces/useBrain";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -130,6 +131,11 @@ const scenarios = [
   ["Status", "first run: no model, engine off", "server", { state: stateDto("stopped") }],
   ["Status", "off, with a model set up", "server", { state: stateDto("stopped") }],
   ["Status", "starting", "server", { state: stateDto("starting") }],
+  // A stop in flight, as `brain_state` now reports it: the drain is its own
+  // state, so the page says "Stopping" from the state itself — the direct
+  // `brainWords` checks in smoke-react.mjs add the `busy` reading of the same
+  // state, which the branch order must not turn into "Starting".
+  ["Status", "stopping", "server", { state: stateDto("stopping") }],
   ["Status", "running, phone unknown", "server", { state: stateDto("running") }],
   ["Status", "running, asleep", "server", { state: { ...stateDto("running"), asleep: true } }],
   ["Status", "running, asleep while a phone works", "server", { state: { ...stateDto("running", { active_devices: [{}] }), asleep: true } }],
@@ -460,6 +466,7 @@ export {
   REASON_UNFUNDABLE,
   MODEL_BYTES,
   advancedDto,
+  brainWords,
   completionBody,
   loadSampling,
   samplingProblem,

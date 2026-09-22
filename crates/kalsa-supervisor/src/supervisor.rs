@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 
 use crate::child::{self, ChildHandle, Residency};
 use crate::config::ServerConfig;
+use crate::drain;
 use crate::health;
 use crate::instance::{Existing, InstanceFile};
 
@@ -34,6 +35,15 @@ pub enum ServerState {
         pid: u32,
         port: u16,
     },
+    /// A stop is in flight: its caller has declared it and the worker has not
+    /// finished the teardown. The two facts it exists for: a `brain_state`
+    /// poll must report the drain instead of the `Running` the state kept
+    /// reading for up to two graces, and that arm must NOT raise the door the
+    /// stop lowered — the poll is the reconciler, so this state is what
+    /// suppresses the re-raise. It leaves only for `Stopped`, written by the
+    /// worker's own `stop` (see `drain`), and it is a state rather than a
+    /// flag because two actors used to race on this one field.
+    Stopping,
     /// It is not running and we know why. The reason is data: this crate
     /// names what it observed, and the caller owns the words. The `detail`
     /// payloads (an io error, the last line of stderr) are for logs and must
@@ -241,16 +251,31 @@ impl Supervisor {
         StartWaiter { receiver }
     }
 
-    /// Asks the worker to stop the server and reaps it there: the state follows
-    /// on the next read, so a caller that must block uses `shutdown` instead.
+    /// Asks the worker to stop the server and reaps it there. NON-BLOCKING:
+    /// it returns at once, and the drain it starts is declared HERE — before
+    /// the command is queued — so a `brain_state` poll landing anywhere in
+    /// the teardown reads `Stopping` rather than the `Running` that used to
+    /// send it into the door's raising arm. A caller that must block uses
+    /// `shutdown`.
     pub fn stop(&self) {
-        let _ = self.commands.send(Command::Stop);
+        let declared = drain::declare(&self.state);
+        if self.commands.send(Command::Stop).is_err() {
+            // No worker to receive it (already joined, or dead): a drain
+            // nobody performs must not stand as a state.
+            drain::restore(&self.state, declared);
+        }
     }
 
     /// Stops the server and joins the worker: call this on app exit, so the
-    /// child is gone before we are.
+    /// child is gone before we are. Declares the drain first, exactly as
+    /// `stop` does, and still joins afterwards. The app's exit handler runs
+    /// on `ExitRequested` AND on `Exit`, so its second call finds no worker
+    /// left: that is the declaration `restore` takes back.
     pub fn shutdown(&self) {
-        let _ = self.commands.send(Command::Shutdown);
+        let declared = drain::declare(&self.state);
+        if self.commands.send(Command::Shutdown).is_err() {
+            drain::restore(&self.state, declared);
+        }
         if let Ok(mut worker) = self.worker.lock() {
             if let Some(handle) = worker.take() {
                 let _ = handle.join();
@@ -390,6 +415,10 @@ fn work(
 }
 
 fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
+    // Every entry to a stop passes here and declares the drain — a caller
+    // that already declared it is re-declared, not doubled (`drain` drops the
+    // duplicate write), and the walk below then ends it with `Stopped`.
+    set(state, ServerState::Stopping);
     if let Some(mut run) = owned.take() {
         match (run.child.take(), run.adopted_pid, run.instance.take()) {
             (Some(mut child), _, instance) => {
@@ -605,10 +634,10 @@ fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure
     }
 }
 
+/// The one write to the state. What may land while a drain stands lives in
+/// `drain`: a state reading `Stopping` takes only its own end.
 fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
-    if let Ok(mut current) = state.lock() {
-        *current = next;
-    }
+    drain::set(state, next);
 }
 
 #[cfg(test)]

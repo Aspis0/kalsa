@@ -323,6 +323,39 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
 }
 
 #[test]
+fn a_drain_takes_the_launch_record_down_with_it() {
+    // `brain_stop` clears the record by hand before it sends anything, but a
+    // walk can publish its record AFTER that clear lands, and the poll is
+    // what must not go on describing the engine being torn down: the record
+    // carries the capacity and the capability `start_door_if_paired` builds
+    // a door from, and neither belongs to an engine on its way out.
+    let brain = Brain::new();
+    brain.record_launch(
+        startup::LaunchInfo {
+            args: launch_args("/models/draining.gguf", startup::PORT),
+            maximum_context: startup::ContextMaxima {
+                q8_0: Some(8192),
+                f16: Some(4096),
+            },
+            automatic_context: startup::ContextMaxima {
+                q8_0: Some(8192),
+                f16: Some(4096),
+            },
+            context_prices: Default::default(),
+            display_name: None,
+            reason: None,
+            model_sha256: None,
+        },
+        StartOutcome::Accepted,
+    );
+    brain.clear_launch_for_state(&ServerState::Stopping);
+    assert!(
+        brain.launch.lock().unwrap().is_none(),
+        "a drain kept the launch record of the engine going away"
+    );
+}
+
+#[test]
 fn a_refused_start_never_publishes_its_record() {
     // The second walk of a double start is refused by the supervisor:
     // its argv must not replace the record of the server that kept
@@ -1550,25 +1583,30 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     // never calls it, and neither does `startup.rs`. The door is raised only
     // in `brain_state`'s own Running arm (`start_door_if_paired`, the single
     // PRODUCTION caller — this file calls it too, and that is why the
-    // adjective is here), and `Stopped` is a transition only
-    // `Supervisor::stop`/`shutdown` write, from two senders that take the door
-    // down BEFORE they send — `brain_stop` (`stop_door` before
-    // `supervisor.stop`) and the exit handler (`stop_door` before
-    // `supervisor.shutdown`). What those senders guarantee is the lowering
-    // before the send, NOT a door that stays down until the set:
-    // `Supervisor::stop` returns at once ("the state follows on the next
-    // read"), and for a SPAWNED engine the worker walks the teardown out —
-    // stdin EOF, a stop grace (`stop_grace`, 2.5 s as `startup.rs` configures
-    // it — `llama-server` reads no stdin, so the first grace is spent whole),
-    // SIGTERM, a second grace, SIGKILL — before it writes `Stopped`. An engine
-    // adopted blind has no child to walk: there the stop writes `Stopped` at
-    // once with the engine still listening, which is declared in the plan (T5)
-    // and is why this sentence is about the spawned path only. A `brain_state` poll
-    // landing inside that window reads `Running`, enters the Running arm and
-    // RE-RAISES the door `brain_stop` lowered. So `Stopped` can be set with
-    // the door UP, and the door stays up until the next poll's `Stopped` arm
-    // takes it down (≤ `POLL_MS`, 1 s, while a reader keeps the poll running)
-    // — a blip declared in `docs/PLAN-DISK-TIER.md`, T5.
+    // adjective is here), and `Stopped` is reached only through
+    // `Supervisor::stop`/`shutdown` — whose callers declare `Stopping` in
+    // themselves BEFORE they queue the command (`brain_stop` sends first and
+    // lowers the door after; the exit handler lowers it and `shutdown`
+    // declares in the next breath), and whose write itself belongs to the
+    // worker's `stop`, pinned in `crates/kalsa-supervisor/tests/stopping.rs`
+    // (`stopped_is_written_only_where_the_drain_ends`). From that
+    // declaration on, a poll lands in the `Stopping` arm and lowers the door
+    // itself, so the window this sketch used to describe — a poll reading
+    // `Running`, re-raising, `Stopped` set with the door UP — is CLOSED
+    // rather than narrowed: it is the blip `docs/PLAN-DISK-TIER.md` T5
+    // declared, and §9's `Stopping` bullet is this code implementing it.
+    // What remains of the walk is the teardown itself: for a SPAWNED engine
+    // the worker still spends stdin EOF, a stop grace (`stop_grace`, 2.5 s as
+    // `startup.rs` configures it — `llama-server` reads no stdin, so the
+    // first grace is spent whole), SIGTERM, a second grace, SIGKILL before it
+    // writes `Stopped`, and an engine adopted blind has no child to walk:
+    // there the stop writes `Stopped` at once with the engine still
+    // listening, which is declared in the plan (T5) and is why this sentence
+    // is about the spawned path only. One residual, declared: the exit
+    // handler lowers the door BEFORE `shutdown` declares, so a poll inside
+    // that single call can still read `Running` and rebuild the door; the
+    // next poll's `Stopping` arm takes it down (≤ `POLL_MS`, 1 s) and the
+    // process is on its way out anyway.
     // `Starting` is entered only by a start the
     // supervisor accepted, and it refuses one while it still owns a server
     // (`StartOutcome::Refused`: "already on"), so `Running` — the state whose
@@ -1593,6 +1631,10 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     // a release, or a death.
     assert!(!engine_lost_its_state(&ServerState::Starting, None));
     assert!(!engine_lost_its_state(&ServerState::Stopped, None));
+    // A drain is not a lost engine: the server is alive and still holds its
+    // state until the teardown ends, so invalidating here would burn a
+    // restore on a stop the owner asked for.
+    assert!(!engine_lost_its_state(&ServerState::Stopping, None));
 }
 
 /// A stand-in engine for the door: records the action of every slot request
@@ -1938,6 +1980,95 @@ fn the_pin_bites_when_one_stop_door_is_taken_away() {
     // ...and stay green on the untouched source, so the red above is the
     // mutation's doing and not a checker that fails both ways.
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
+}
+
+/// The companion pin: `every_non_running_arm_of_brain_state_stops_the_door`
+/// demands an arm that STOPS the door; this one demands that the RAISE lives
+/// in exactly one arm, the `Running` one. `start_door_if_paired` inside the
+/// drain's arm is the original defect arriving through the very arm that
+/// exists to suppress it: a poll landing during a stop would rebuild the
+/// door the stop had lowered, from inside the answer that is supposed to say
+/// "draining". Exactly once, in `Running`, or the window is open again.
+fn only_the_running_arm_raises_the_door(source: &str) -> Result<(), String> {
+    let at = source
+        .find("fn brain_state(")
+        .ok_or_else(|| "brain_state is the command the poll answers from".to_string())?;
+    let body = brace_block(source, at);
+    let marker = "start_door_if_paired(";
+    let mut hits = 0usize;
+    let mut cursor = 0usize;
+    while let Some(found) = body[cursor..].find(marker) {
+        let call = cursor + found;
+        hits += 1;
+        // The arm this call sits in: the last `ServerState::` before it.
+        let arm_at = body[..call]
+            .rfind("ServerState::")
+            .ok_or_else(|| "a door raise sits outside every arm of brain_state".to_string())?;
+        let rest = &body[arm_at + "ServerState::".len()..];
+        let name: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if name != "Running" {
+            return Err(format!(
+                "start_door_if_paired is called in the {name} arm of brain_state"
+            ));
+        }
+        cursor = call + marker.len();
+    }
+    if hits == 0 {
+        return Err("brain_state no longer raises the door at all".to_string());
+    }
+    Ok(())
+}
+
+#[test]
+fn start_door_if_paired_is_raised_by_the_running_arm_only() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    if let Err(error) = only_the_running_arm_raises_the_door(&source) {
+        panic!("{error} — a poll would raise the door out of the state that suppresses it");
+    }
+}
+
+#[test]
+fn the_raise_pin_bites_when_the_drain_re_raises_the_door() {
+    // The edit replayed on a COPY: a future cleanup "reconciles" the door in
+    // the new `Stopping` arm as well — which is the defect this state closes,
+    // re-entered through the arm that exists to close it. The pin must go red
+    // on that copy...
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    // Found inside `brain_state` itself: `clear_launch_for_state` matches
+    // `ServerState::Stopping` too, and injecting there would be outside every
+    // arm this pin reads.
+    let command = source
+        .find("fn brain_state(")
+        .expect("the command the poll answers from");
+    let anchor = "ServerState::Stopping => {";
+    let at = command + source[command..].find(anchor).expect("the drain's arm");
+    let insert = at + anchor.len();
+    let mutated = format!(
+        "{}\n            let _ = brain.start_door_if_paired(port, &desk.pairing_file, false);{}",
+        &source[..insert],
+        &source[insert..]
+    );
+    assert!(
+        only_the_running_arm_raises_the_door(&mutated).is_err(),
+        "the pin passed on a brain_state whose Stopping arm raises the door"
+    );
+    // ...and stay green on the untouched source.
+    assert_eq!(only_the_running_arm_raises_the_door(&source), Ok(()));
+}
+
+/// The wire name the page unions (`useBrain.ts`, `kind: "stopping"`): pinned
+/// as one sample, so renaming the variant cannot quietly orphan the frontend
+/// into its `default:` arm — where the page would say "Not known" about a
+/// machine that is simply being turned off.
+#[test]
+fn the_drain_reaches_the_page_as_stopping() {
+    let json = serde_json::to_value(StateDto::Stopping).expect("the drain's DTO serialises");
+    assert_eq!(json, serde_json::json!({ "kind": "stopping" }));
 }
 
 /// T6b from the app's side: the panel's numbers are the DOOR's reads —

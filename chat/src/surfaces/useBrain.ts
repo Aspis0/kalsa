@@ -48,9 +48,11 @@ export interface TierFacts {
   disk?: { bytes: number; files: number; unreadable: number } | null;
 }
 
-/** What `brain_state` answers: the server's own account of itself. */
+/** What `brain_state` answers: the server's own account of itself.
+    `stopping` is the drain: a stop in flight, reported instead of `running`
+    until the worker has torn the server down and written `stopped`. */
 export interface BrainState {
-  kind: "stopped" | "starting" | "running" | "failed";
+  kind: "stopped" | "starting" | "stopping" | "running" | "failed";
   reason?: string;
   // Only on `running`: the DOOR's OpenAI-style address, and `null` while
   // the door is not up. The engine's own port is deliberately not offered
@@ -297,6 +299,21 @@ export function brainWords(
   // this, Try again on a machine that refuses the same way twice leaves the
   // screen identical for the ten seconds the probe takes, and the button
   // looks like it does nothing.
+  //
+  // The TRUE state is read before this heuristic, not after: a turn-off that
+  // has landed is `stopping`, and `(busy && !running)` below is true for it
+  // too — the walk flag is up while the stop is in flight and `running` is
+  // false for a state that is neither — so this order would tell an owner who
+  // just asked for the machine to go quiet that it is Starting.
+  if (state.kind === "stopping") {
+    return {
+      headline: "Stopping",
+      sentence: "Putting the assistant away.",
+      button: "Stopping",
+      enabled: false,
+      running,
+    };
+  }
   if (state.kind === "starting" || (busy && !running)) {
     return {
       headline: "Starting",
@@ -306,10 +323,13 @@ export function brainWords(
       running,
     };
   }
-  // The mirror of the branch above. A turn-OFF in flight leaves the state
-  // `running`, so the page held "On — this computer is ready for you" over a
-  // server on its way down, under a greyed-out Turn off. Ready is the one
-  // thing it is not.
+  // The mirror of the branch above, for the window BEFORE the stop lands.
+  // `brain_stop` returns at once and the state follows on the next poll, so
+  // while the command is still in the air the read says `running` — and the
+  // page would hold "On — this computer is ready for you" over a server on
+  // its way down, under a greyed-out Turn off. Ready is the one thing it is
+  // not. This branch covers the command's flight; the `stopping` branch
+  // covers the drain behind it, and the two say the same words on purpose.
   if (busy && running) {
     return {
       headline: "Stopping",

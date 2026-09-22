@@ -416,7 +416,7 @@ try {
   for (const { heading, sentence, button, working, walk, qr } of results) {
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
     const pressable = button && !button.disabled && button.text.trim() !== "";
-    const progressButton = button && button.disabled && (button.text === "Measuring…" || button.text === "Starting");
+    const progressButton = button && button.disabled && (button.text === "Measuring…" || button.text === "Starting" || button.text === "Stopping");
     if (!pressable && !progressButton && !endsInNothing && !working && !walk && !qr) {
       problems.push(`dead end: ${heading}`);
     }
@@ -489,6 +489,35 @@ try {
     }
     if (!card.all.includes("This computer is ready for you.")) {
       problems.push(`an unknown model residency must keep the running words: ${note}`);
+    }
+  }
+
+  // A stop in flight is its own state, and the page says so: headline and
+  // button "Stopping", the sentence the words chose, and a button that is
+  // disabled rather than pressable. Then the state on its own, with the walk
+  // flag DOWN and UP: `busy && !running` is true for `stopping`, so the order
+  // of the branches — the true state read BEFORE the heuristic — is what
+  // keeps "Starting" out of an owner's mouth who just asked for quiet.
+  const STOPPING_CARD = results.find((r) => r.heading === "Status — stopping");
+  if (!STOPPING_CARD) {
+    problems.push("the harness is missing the draining state the page must speak about");
+  } else {
+    if (!STOPPING_CARD.all.includes("Putting the assistant away.")) {
+      problems.push("a drain must say it is putting the assistant away");
+    }
+    if (STOPPING_CARD.all.includes("Starting")) {
+      problems.push("a drain was told as a start");
+    }
+    if (!STOPPING_CARD.button || STOPPING_CARD.button.text !== "Stopping" || !STOPPING_CARD.button.disabled) {
+      problems.push("a drain must offer a disabled Stopping button");
+    }
+  }
+  for (const drainingBusy of [false, true]) {
+    const drainingWords = renderer.brainWords({ kind: "stopping" }, null, drainingBusy);
+    if (drainingWords.headline !== "Stopping" || drainingWords.button !== "Stopping" || drainingWords.enabled) {
+      problems.push(
+        `brainWords(kind "stopping", busy ${drainingBusy}) answered ${JSON.stringify(drainingWords)} — the true state must win over the heuristic`,
+      );
     }
   }
 

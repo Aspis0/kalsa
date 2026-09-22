@@ -10,6 +10,7 @@
 
 mod child;
 mod config;
+mod drain;
 mod health;
 mod instance;
 mod supervisor;
