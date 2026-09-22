@@ -9,7 +9,7 @@
  * draft fallback, no engine calls, no `src/engine` / `src/app` / `src/screens`
  * imports, real 48 dp boxes and never `hitSlop`.
  */
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 
@@ -34,6 +34,9 @@ export interface ShellComposerProps {
   onAttachPress?: () => void;
   onMicPress?: () => void;
   onSendPress?: () => void;
+  /** The host's handle on the field, filled here — so a chosen template can
+   *  focus it (the controller's `inputRef.current?.focus()`, Chat:3637). */
+  fieldRef?: { current: TextInput | null };
 }
 
 export function ShellComposer({
@@ -51,9 +54,11 @@ export function ShellComposer({
   onAttachPress,
   onMicPress,
   onSendPress,
+  fieldRef,
 }: ShellComposerProps) {
   const { t } = useLocale();
   const styles = useMemo(() => createShellStyles(colors), [colors]);
+  const inputRef = useRef<TextInput | null>(null);
 
   return (
     <View
@@ -71,17 +76,31 @@ export function ShellComposer({
           <Plus size={19} color={colors.silence} strokeWidth={1.9} />
         </Pressable>
 
-        <TextInput
-          testID="shell.composer.field"
+        {/* Tap the field area focuses it — the controller's own wrapper
+            (`AiChatPage.tsx:4329`), kept so the focus path exists in source
+            and does not depend on any native default. */}
+        <Pressable
+          testID="shell.composer.fieldArea"
           accessibilityLabel={t("shell.a11y.field")}
-          placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
-          placeholderTextColor={colors.silence}
-          value={draft}
-          onChangeText={onDraftChange}
-          editable={editable}
-          style={styles.input}
-          returnKeyType="send"
-        />
+          onPress={() => inputRef.current?.focus()}
+          style={{ flex: 1, minWidth: 0 }}
+        >
+          <TextInput
+            ref={(node) => {
+              inputRef.current = node;
+              if (fieldRef) fieldRef.current = node;
+            }}
+            testID="shell.composer.field"
+            accessibilityLabel={t("shell.a11y.field")}
+            placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
+            placeholderTextColor={colors.silence}
+            value={draft}
+            onChangeText={onDraftChange}
+            editable={editable}
+            style={styles.input}
+            returnKeyType="send"
+          />
+        </Pressable>
 
         <Pressable
           testID="shell.composer.mic"

@@ -12,13 +12,16 @@
  *   interrupted or failed turn can never draw as a finished one;
  * - `tools` are NOT read from the message: the volatile tool rows are fed
  *   from the host's capture map (`toolNameFromActionsPayload`), because the
- *   engine's tool trace deliberately does not survive a reopen.
+ *   engine's tool trace deliberately does not survive a reopen;
+ * - `ctas` cross as label + kind + id only (D1 row 26): the outputs-system
+ *   fields are dropped here because no renderer reads them.
  */
 import type { MessageSource } from "./hostMessage";
 import type { Message } from "./hostMessage";
 import { stopOutcome } from "../ui/shell/composerState";
 import { caretVisible } from "../ui/shell/caretSpec";
 import type {
+  TranscriptCta,
   TranscriptMessage,
   TranscriptSource,
   TranscriptStop,
@@ -111,6 +114,13 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
   if (tools && tools.length > 0) mapped.tools = tools;
   if (message.sources && message.sources.length > 0) {
     mapped.sources = message.sources.map(mapSource);
+  }
+  if (message.ctas && message.ctas.length > 0) {
+    mapped.ctas = message.ctas.map((cta): TranscriptCta => ({
+      label: cta.label,
+      kind: cta.kind,
+      ...(cta.id ? { id: cta.id } : {}),
+    }));
   }
   return mapped;
 }

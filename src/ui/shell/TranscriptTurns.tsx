@@ -16,7 +16,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Copy } from "lucide-react-native";
+import { ChevronRight, Copy } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
 import { type DesignColors } from "../../theme/design";
@@ -27,7 +27,7 @@ import { MarkdownBlocks } from "./TranscriptMarkdown";
 import { StreamCaret } from "./StreamCaret";
 import type { TranscriptStyles } from "./TranscriptParts";
 import type { TranscriptLayout } from "./transcriptLayout";
-import type { TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
+import type { TranscriptCta, TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
 
 /** The pressable's label: the message itself, cut at 200 characters. */
 function pressLabel(text: string): string {
@@ -141,6 +141,7 @@ export function UserTurn({
 export function Answer({
   caret,
   colors,
+  ctas,
   id,
   labels,
   onCopy,
@@ -155,6 +156,7 @@ export function Answer({
 }: {
   caret?: boolean;
   colors: DesignColors;
+  ctas?: readonly TranscriptCta[];
   id: string;
   labels: { show: string; hide: string; region: string };
   /** The width the answer got, handed on because the table's own decision
@@ -216,6 +218,34 @@ export function Answer({
         <CopyChip align="left" colors={colors} id={id} onCopy={onCopy} styles={styles} text={text} />
       ) : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
+      {ctas && ctas.length > 0 ? (
+        // D1 row 26: the controller drew these as buttons, but its own press
+        // handler was a stub (`AppShell.tsx:7047`) and this build has no
+        // outputs view behind `target: "outputs"` — so the chip is TEXT, not
+        // a button that does nothing.
+        <View style={styles.ctaRow} testID={`transcript.ctas.${id}`}>
+          {ctas.map((cta, ctaIdx) => (
+            <View
+              key={cta.id ?? `${cta.kind}-${ctaIdx}`}
+              style={[
+                styles.ctaChip,
+                cta.kind === "run_monitor_recovery" ? styles.ctaChipRecovery : null,
+              ]}
+              testID={`transcript.cta.${id}.${ctaIdx}`}
+              accessibilityRole="text"
+              accessibilityLabel={cta.label}
+            >
+              <ChevronRight
+                size={12}
+                color={cta.kind === "run_monitor_recovery" ? colors.accent : colors.silence}
+              />
+              <Text numberOfLines={1} style={styles.ctaLabel}>
+                {cta.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       {stop ? (
         // §2.8's line in the outcome's tone; this file writes no other sentence.
         <Text

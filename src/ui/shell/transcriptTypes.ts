@@ -58,6 +58,25 @@ export type TranscriptMessage = {
    * Absent on a finished turn: silence is the honest row.
    */
   stop?: TranscriptStop;
+  /**
+   * The action chips under an answer (D1 row 26). Drawn as STATIC chips:
+   * the controller's press handler was a stub (`AppShell.tsx:7047`) and this
+   * build has no outputs view behind `target: "outputs"`, so a button here
+   * would be a control that does nothing. See `TranscriptTurns`.
+   */
+  ctas?: readonly TranscriptCta[];
+};
+
+/**
+ * One CTA chip as the band draws it: the label the engine wrote (already
+ * localized at capture, `sendCallbacks.ts`) and the kind that tints it. The
+ * outputs-system fields (`outputId`, `target`, `artifactType`, `contrastId`)
+ * are dropped by the mapper — nothing reads them while the chip is text.
+ */
+export type TranscriptCta = {
+  label: string;
+  kind: string;
+  id?: string;
 };
 
 /**

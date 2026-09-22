@@ -236,6 +236,39 @@ export function createTranscriptStyles(colors: DesignColors) {
       stopLineAttention: {
         color: colors.accent,
       },
+      // D1 row 26: the CTA chips — STATIC text, never pressables (the
+      // controller's own press handler was a stub; see `TranscriptTurns`).
+      ctaRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+        marginTop: spacing.sm,
+      },
+      ctaChip: {
+        alignItems: "center",
+        backgroundColor: colors.surfaceMuted,
+        borderColor: colors.border,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        flexDirection: "row",
+        gap: spacing.xxs,
+        maxWidth: "100%",
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+      },
+      // The controller's tint split: recovery wears the accent, the rest the
+      // quiet surface (old `computeSoft`, which this palette does not have).
+      ctaChipRecovery: {
+        backgroundColor: `${colors.accent}1f`,
+        borderColor: colors.accent,
+      },
+      ctaLabel: {
+        color: colors.ink,
+        flexShrink: 1,
+        fontFamily: families.sansMedium,
+        fontSize: type.meta.fontSize,
+        lineHeight: type.meta.lineHeight,
+      },
     }),
   };
 }

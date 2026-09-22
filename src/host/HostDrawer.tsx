@@ -86,6 +86,9 @@ export function HostDrawer({
       }
       modelBarHeight={insets.top + STRIP_HEIGHT}
       onPersonaPress={() => {
+        // The controller's one line (`App:7104`): this row opens an overlay,
+        // so the keyboard must not stay up underneath it.
+        Keyboard.dismiss();
         setOpen(false);
         conv.clearChatSearch();
         setActiveOverlay({ kind: "personas" });

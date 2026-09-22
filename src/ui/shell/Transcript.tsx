@@ -268,6 +268,7 @@ export function Transcript({
               <Answer
                 caret={message.caret}
                 colors={colors}
+                ctas={message.ctas}
                 id={message.id}
                 labels={cloudLabels}
                 onCopy={onCopy}

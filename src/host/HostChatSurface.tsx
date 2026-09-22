@@ -16,7 +16,8 @@
  */
 import { isEmbedderHung } from "../engine/EmbeddingService";
 import { getActiveModelId, isEngineReady } from "../engine/LlamaService";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { TextInput } from "react-native";
 import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { useLocale, type TranslationKey } from "../i18n";
 import type { ThemeMode } from "../theme/design";
@@ -83,6 +84,9 @@ export function HostChatSurface({
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
+  // The field's handle: a chosen template fills the draft AND focuses the
+  // field, exactly as the controller's `handleChooseTemplate` (Chat:3636-3637).
+  const fieldRef = useRef<TextInput | null>(null);
 
   // Strip pill semantics: load when the bundle is on disk but unloaded, retry
   // an engine error, no-op while busy or already resident (the old chip was
@@ -146,6 +150,7 @@ export function HostChatSurface({
       onNewChatPress={onNewChatPress}
       onAttachPress={() => showNoticeKey("shell.notice.attach")}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
+      fieldRef={fieldRef}
       webEnabled={flags.webToolsEnabled}
       onWebPress={flags.toggleWebTools}
       toolbar={toolbar}
@@ -177,14 +182,16 @@ export function HostChatSurface({
       onRequestClose={actions.closeMenu}
     />
     {/* The controller's template sheet, CALLED not rebuilt; choosing one
-        replaces the draft the same way the old handler did. The focus() half
-        of that handler needs an inputRef the shell does not have yet (its own
-        gap) — reported, not faked. */}
+        replaces the draft and focuses the field, as the old handler did
+        (`AiChatPage.tsx:3636-3637`). */}
     <QuickActionSheet
       onlyTemplates
       visible={quickSheetVisible}
       onClose={() => setQuickSheetVisible(false)}
-      onChooseTemplate={(template) => onDraftChange(t(template.promptKey))}
+      onChooseTemplate={(template) => {
+        onDraftChange(t(template.promptKey));
+        fieldRef.current?.focus();
+      }}
     />
     </>
   );

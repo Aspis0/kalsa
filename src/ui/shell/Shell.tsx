@@ -16,7 +16,7 @@
  */
 import { ChevronDown, Globe, Menu, Plus } from "lucide-react-native";
 import { useMemo, useState, type ReactNode } from "react";
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, Text, View, useWindowDimensions, type TextInput } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
 import { modes, type, type ThemeMode } from "../../theme/design";
@@ -86,6 +86,9 @@ export type ShellProps = {
   onAttachPress?: () => void;
   onMicPress?: () => void;
   onSendPress?: () => void;
+  /** The host's handle on the field, handed straight to the composer — focus
+   *  after a template is chosen (the controller's `inputRef`, Chat:3637). */
+  fieldRef?: { current: TextInput | null };
   /**
    * The toolbar row above the field — templates ✦ + the research/notes chips
    * (D1 rows 13/14). Absent in the preview: the row costs the bands height, so
@@ -123,6 +126,7 @@ export function Shell({
   onAttachPress,
   onMicPress,
   onSendPress,
+  fieldRef,
   toolbar,
 }: ShellProps) {
   const { t } = useLocale();
@@ -298,6 +302,7 @@ export function Shell({
         onAttachPress={onAttachPress}
         onMicPress={onMicPress}
         onSendPress={onSendPress}
+        fieldRef={fieldRef}
       />
     </View>
   );

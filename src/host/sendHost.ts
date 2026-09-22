@@ -9,8 +9,7 @@
  * composition (attachments are held in this slice), the voice/PDF/translate
  * busy guards (those systems are not mounted), the chat-side pre-send fit
  * gate (the load path runs the same gate), the OS thermal gate (it arrives
- * as the `tooHot` composer phase), and the notes-truncation `onNotice`
- * (absent, D1 row 40), which the engine half treats as optional.
+ * as the `tooHot` composer phase).
  */
 import { useRef } from "react";
 import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
@@ -25,6 +24,7 @@ import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
 import { classifyChatContent } from "../domain/contentFilter";
 import { runSendStream, type SendEngine, type SendUiHandlers } from "./sendStream";
 import { armsSendOptions } from "./composerArms";
+import { sendClearsDraft } from "./sendDraft";
 import { contentFilterMessage } from "./contentFilterCopy";
 import { handleSendStream } from "./engineTurn";
 import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
@@ -32,7 +32,7 @@ import { createRichCallbacks } from "./sendCallbacks";
 import { finalizeAssistantTurn } from "./sendFinalize";
 import { handleStop, type StopDeps } from "./sendStop";
 import { nextMsgId, type Message } from "./hostMessage";
-import type { TranslateFn } from "../i18n";
+import type { TranslateFn, TranslationKey } from "../i18n";
 import type { TurnFence, TurnToken } from "./turnGuards";
 
 export interface SendHostParams {
@@ -51,6 +51,11 @@ export interface SendHostParams {
   /** The volatile tool-row capture (D1 row 23: never persisted). */
   onToolCapture: (assistantId: string, name: string) => void;
   clearDraft: () => void;
+  /** The field's current text: the send clears the field only when the field
+   *  itself sent the words (`sendClearsDraft`). */
+  draft: string;
+  /** The one-slot notice (D1 row 40): where a truncated notes context speaks. */
+  showNoticeKey: (key: TranslationKey) => void;
   /** The composer's one-shot research/notes arms (D1 row 14): read through
    *  the refs at send time and cleared at the controller's own point —
    *  after the content gate. */
@@ -142,7 +147,7 @@ export function useSendHost(params: SendHostParams): SendHost {
             },
           ]),
         );
-        params.clearDraft();
+        if (sendClearsDraft(params.draft, trimmed)) params.clearDraft();
         return;
       }
 
@@ -177,7 +182,7 @@ export function useSendHost(params: SendHostParams): SendHost {
           },
         ]),
       );
-      params.clearDraft();
+      if (sendClearsDraft(params.draft, trimmed)) params.clearDraft();
 
       // ~30 fps UI flush: llama.rn is 5-15 tok/s; setState every token is
       // wasteful. The coalescer overwrites with the latest full text.
@@ -239,8 +244,13 @@ export function useSendHost(params: SendHostParams): SendHost {
       const request = {
         text: modelText,
         history: params.messagesRef.current,
-        // Research or armed notes hand the engine its options.
-        options: armsOptions ?? undefined,
+        // Research or armed notes hand the engine its options. A truncated
+        // notes context speaks through this build's single notice slot
+        // (D1 row 40) — the controller sent the same catalogue line to its
+        // voice-note toast (`AiChatPage.tsx:2710`), which this build lacks.
+        options: armsOptions
+          ? { ...armsOptions, onNotice: () => params.showNoticeKey("chat.notesContextTruncated") }
+          : undefined,
       };
 
       const result = await runSendStream(engine, request as any, ui, controller.signal);

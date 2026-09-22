@@ -123,6 +123,7 @@ export function HostRoot() {
   const clearDraft = useCallback(() => setDraft(""), []);
   const clearTools = useCallback(() => setToolsById(new Map()), []);
 
+  const { notice, showNoticeKey } = useNotice();
   const sendHost = useSendHost({
     t,
     fence,
@@ -135,6 +136,8 @@ export function HostRoot() {
     onSendingChange: setSending,
     onToolCapture,
     clearDraft,
+    draft,
+    showNoticeKey,
     arms,
   });
 
@@ -165,7 +168,6 @@ export function HostRoot() {
     clearTools,
   });
 
-  const { notice, showNoticeKey } = useNotice();
   // The long-press menu + copy chip (PARITY-STATUS gap 1): borrows the send
   // fence, the history guard and this notice, but lives in `messageActions.ts`.
   const messageActions = useMessageActions({

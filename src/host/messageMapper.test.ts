@@ -224,6 +224,65 @@ describe("sanitize → mapper round trip", () => {
   });
 });
 
+describe("CTA chips (D1 row 26): label + kind + id cross; the outputs-system fields do not", () => {
+  test("maps each chip down to what the renderer draws", () => {
+    const out = toTranscriptMessage(
+      base({
+        role: "assistant",
+        ctas: [
+          {
+            kind: "output",
+            label: "Open report",
+            id: "output-1-report",
+            outputId: "1",
+            target: "outputs",
+            artifactType: "report",
+            contrastId: null,
+          },
+          { kind: "run_monitor_recovery", label: "Retry run" },
+        ],
+      }),
+      opts(),
+    );
+    expect(out.ctas).toEqual([
+      { label: "Open report", kind: "output", id: "output-1-report" },
+      { label: "Retry run", kind: "run_monitor_recovery" },
+    ]);
+    // The dropped fields stay dropped: modelling what no renderer reads is
+    // how dead weight arrives.
+    expect(JSON.stringify(out.ctas)).not.toContain("outputId");
+    expect(JSON.stringify(out.ctas)).not.toContain("outputs");
+  });
+
+  test("absent and empty both mean no field — never an empty row", () => {
+    expect("ctas" in toTranscriptMessage(base({ role: "assistant" }), opts())).toBe(false);
+    expect(
+      "ctas" in toTranscriptMessage(base({ role: "assistant", ctas: [] }), opts()),
+    ).toBe(false);
+  });
+
+  test("chips survive a persist/restore round trip", () => {
+    const restored = sanitizeHistoryMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          text: "done",
+          createdAt: 6,
+          ctas: [
+            { kind: "output", label: "Open report", id: "output-1-report", outputId: "1", target: "outputs" },
+          ],
+        },
+      ],
+      "en",
+    );
+    const out = toTranscriptMessages(restored, opts());
+    expect(out[0].ctas).toEqual([
+      { label: "Open report", kind: "output", id: "output-1-report" },
+    ]);
+  });
+});
+
 describe("toolNameFromActionsPayload", () => {
   test("extracts the name from the bridge's tool payload", () => {
     expect(
