@@ -1,6 +1,7 @@
-//! The sweep: the one place the door deletes in the save directory, and
-//! the only rules it ever deletes by. (The panel's own read of the same
-//! directory, `paging/disk`, weighs files and never deletes.)
+//! The sweep: the only deletion the door decides from the directory's own
+//! contents, and the only rules it ever deletes by. `erase` and `io::save`
+//! delete too, but each one removes a name it was handed; the panel's read of
+//! the same directory (`paging/disk`) weighs files and never deletes.
 //!
 //! Three things leave a file behind that nobody will name again: a device is
 //! revoked, the process dies between the engine's write and the door's

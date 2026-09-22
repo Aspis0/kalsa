@@ -20,12 +20,17 @@ const ASLEEP_SENTENCE =
     it did not work; two sentences for one fact is how they come to disagree. */
 export const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
 
-/** The disk tier's numbers as `brain_state` answers them: one read of the
-    running door, `null` when there is no door to ask — the page then shows no
-    rows, never zeros. Declared here beside the poll's other fields because the
-    Rust DTO (`src-tauri/src/metrics.rs`) crosses IPC only if this side names
-    it too: `port: u16` already crossed without a type of its own, and that is
-    the error this declaration avoids. */
+/** The disk tier's numbers as `brain_state` answers them: three separate
+    reads of the running door, not one instant. The residency count and the
+    disk scan take their own locks, so they can be a moment apart, and a poll
+    whose scan fails leaves the last known block standing one poll longer.
+    Old numbers are possible; numbers no process produced are not — `residents`
+    cannot exceed `capacity`, because both come from the same slot vector,
+    fixed when the door was built. `null` when there is no door to ask: the page
+    then shows no rows, never zeros. Declared here beside the poll's other
+    fields because the Rust DTO (`src-tauri/src/metrics.rs`) crosses IPC only if
+    this side names it too: `port: u16` already crossed without a type of its
+    own, and that is the error this declaration avoids. */
 export interface TierFacts {
   /** The slots the door was built with: the denominator the count below is
       honest against. NOT `/props`' `total_slots` — `door_capacity` forces that

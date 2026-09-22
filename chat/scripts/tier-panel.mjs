@@ -85,9 +85,9 @@ try {
     check("1024 → 1.0 KB", formatBytes(1024) === "1.0 KB", formatBytes(1024));
     check("5 MiB → 5.0 MB", formatBytes(5 * 1024 * 1024) === "5.0 MB", formatBytes(5 * 1024 * 1024));
     check(
-      "1900-token save at the measured footprint (≈101.5 MB) reads as MB",
-      formatBytes(106_444_800) === "101.5 MB",
-      formatBytes(106_444_800),
+      "1907-token save at the footprint recorded in dev/results/slot-restore-device-path (--swa-full off) reads as MB",
+      formatBytes(101_493_292) === "96.8 MB",
+      formatBytes(101_493_292),
     );
   }
 } finally {
