@@ -79,8 +79,9 @@ const EXPECTED_HOLD: Readonly<Record<string, string | null>> = {
 
 const HELD_CASES = Object.entries(EXPECTED_HOLD).filter((entry): entry is [string, string] => entry[1] !== null);
 const GENERATING: readonly ComposerPhase[] = ["prefill", "thinking", "writing"];
-/** The phases where the design grants no typing, so the refusal must show. */
-const FIELD_REFUSING: readonly ComposerPhase[] = ["loading", "tooHot", "unloaded", "converting"];
+/** The not-ready phases where §2.7's first sentence matters most: sending
+ *  is held and the wait is longest, so the field must still take typing. */
+const NOT_READY_HELD: readonly ComposerPhase[] = ["loading", "tooHot", "unloaded", "converting"];
 
 /** The design's four rows, paired with what the engine reports for each. */
 const STOP_CASES: ReadonlyArray<readonly [string, StopReport]> = [
@@ -114,13 +115,20 @@ describe("§2.7 — the field and the send are two different answers", () => {
     expect(s.faceEnabled).toBe(true);
   });
 
-  it.each(FIELD_REFUSING)("refuses the field with its line, never an invite, in %s", (phase) => {
+  it.each(NOT_READY_HELD)("takes typing while it holds sending in %s", (phase) => {
     const s = state(phase);
-    expect(s.field).toEqual({ editable: false, placeholder: null });
+    expect(s.field).toEqual({ editable: true, placeholder: "shell.composer.placeholder" });
     expect(s.canSend).toBe(false);
     expect(s.hold).not.toBeNull();
     expect(s.face).toBe("send");
     expect(s.faceEnabled).toBe(false);
+  });
+
+  it("takes typing in every phase the table knows; only an unknown wire value refuses", () => {
+    // The ratchet: a future row cannot smuggle the old single `disabled` back
+    // in — refusal is `UNKNOWN_PHASE_RULE`'s alone (fully pinned below).
+    for (const phase of COMPOSER_PHASES) expect(state(phase).field.editable).toBe(true);
+    expect(composerState({ phase: "repairing" as ComposerPhase }).field).toEqual({ editable: false, placeholder: null });
   });
 
   it("returns no phase whose refusing field still carries the placeholder", () => {

@@ -7,7 +7,7 @@
  * typing the next message while the model generates is allowed, only sending
  * is held — which is exactly the single `disabled` the old composer computed
  * for both (`AiChatPage.tsx:4339`). So this module returns two booleans, and
- * the test pins the one state where they must disagree: the model generating.
+ * the test pins them disagreeing wherever the machine is merely not ready.
  *
  * The second §2.7 rule is about refusals: a place that refuses input never
  * shows the input placeholder and always carries exactly one line of reason.
@@ -102,8 +102,9 @@ export type ComposerState = {
 type PhaseRule = {
   /** Why the composer holds, or null when it does not hold at all. */
   hold: TranslationKey | null;
-  /** Whether the field takes typing. True through generation (§2.7); false
-   *  where the design grants no typing, so the refusal can carry its line. */
+  /** Whether the field takes typing. True in every phase the table knows
+   *  (§2.7's first sentence covers the whole wait, longest at `loading` and
+   *  `unloaded`); false only where the design refuses outright — the line. */
   editable: boolean;
   face: ComposerFace;
 };
@@ -117,14 +118,14 @@ type PhaseRule = {
  */
 const PHASE_RULES: Readonly<Record<ComposerPhase, PhaseRule>> = Object.freeze({
   idle: { hold: null, editable: true, face: "send" },
-  loading: { hold: "shell.held.loading", editable: false, face: "send" },
+  loading: { hold: "shell.held.loading", editable: true, face: "send" },
   prefill: { hold: "shell.held.prefill", editable: true, face: "stop" },
   thinking: { hold: "shell.held.thinking", editable: true, face: "stop" },
   writing: { hold: "shell.held.writing", editable: true, face: "stop" },
   stopping: { hold: "shell.held.stopping", editable: true, face: "stopping" },
-  tooHot: { hold: "shell.held.tooHot", editable: false, face: "send" },
-  unloaded: { hold: "shell.held.unloaded", editable: false, face: "send" },
-  converting: { hold: "shell.held.converting", editable: false, face: "send" },
+  tooHot: { hold: "shell.held.tooHot", editable: true, face: "send" },
+  unloaded: { hold: "shell.held.unloaded", editable: true, face: "send" },
+  converting: { hold: "shell.held.converting", editable: true, face: "send" },
 });
 
 /**

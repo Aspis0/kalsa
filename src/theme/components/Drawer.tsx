@@ -123,7 +123,10 @@ export function Drawer({
             creaseStyle={fold.creaseStyle}
             shadeStyle={fold.shadeStyle}
           />
-          <Animated.View pointerEvents={fold.contentLive ? "auto" : "none"} style={[styles.fill, pad, fold.contentStyle]}>
+          {/* Not "auto": this layer is full-screen while its content is only the padded
+              box, so as a touch target it swallowed the taps meant for the scrim below
+              (on device: 240,820 and 465,500 dead). box-none keeps the rows tappable. */}
+          <Animated.View pointerEvents={fold.contentLive ? "box-none" : "none"} style={[styles.fill, pad, fold.contentStyle]}>
             <KeyboardAvoidingView
               style={{ flex: 1 }}
               behavior={Platform.OS === "ios" ? "padding" : undefined}
