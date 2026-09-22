@@ -28,6 +28,7 @@ import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import type { ComposerToolbarProps } from "../ui/shell/ComposerToolbar";
+import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
 import type { ComposerArms } from "./composerArms";
 import type { ComposerView } from "./composerView";
 import type { useMessageActions } from "./messageActions";
@@ -64,6 +65,9 @@ export interface ChatSurfaceProps {
   /** The long-press menu + copy chip (PARITY-STATUS gap 1): the menu's view,
    *  the press handler for the transcript and the copy both chips use. */
   actions: MessageActionsBundle;
+  /** The mini-app card's open (D1 row 4/28): the host applies the
+   *  controller's open policy and owns the overlay (`AppShell.tsx:7035-7046`). */
+  onMiniappOpen: (miniapp: TranscriptMiniapp) => void;
 }
 
 export function HostChatSurface({
@@ -79,6 +83,7 @@ export function HostChatSurface({
   flags,
   arms,
   actions,
+  onMiniappOpen,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
@@ -166,6 +171,7 @@ export function HostChatSurface({
         empty={empty}
         onMessageLongPress={actions.onMessageLongPress}
         onCopy={actions.onCopy}
+        onMiniappOpen={onMiniappOpen}
       />
     </Shell>
     {/* The controller's message sheet, CALLED with the rows the host's pure

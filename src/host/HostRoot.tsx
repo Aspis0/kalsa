@@ -30,13 +30,14 @@ import { useSendHost } from "./sendHost";
 import { useMessageActions } from "./messageActions";
 import { useHostEffects } from "./useHostEffects";
 import { useNotice } from "./useNotice";
+import { useShareIn } from "./useShareIn";
 import { composerView } from "./composerView";
 import { shareConversation } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
 import { HostChatSurface } from "./HostChatSurface";
 import { HostDrawer } from "./HostDrawer";
 import { HostFurniture } from "./HostFurniture";
-import type { HostOverlay } from "./hostOverlay";
+import { withMiniappOverlay, type HostOverlay } from "./hostOverlay";
 
 export function HostRoot() {
   const { t, locale } = useLocale();
@@ -123,7 +124,11 @@ export function HostRoot() {
   const clearDraft = useCallback(() => setDraft(""), []);
   const clearTools = useCallback(() => setToolsById(new Map()), []);
 
-  const { notice, showNoticeKey } = useNotice();
+  const { notice, showNotice, showNoticeKey } = useNotice();
+  // Share-in (D1 row 41): the Linking listener, the pending flush and the
+  // nonce merge live in one hook — this call is ports only (draft, drawer,
+  // notice, library).
+  useShareIn({ conversationsReady: conv.conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument: library.addDocument });
   const sendHost = useSendHost({
     t,
     fence,
@@ -210,6 +215,7 @@ export function HostRoot() {
         flags={flags}
         arms={arms}
         actions={messageActions}
+        onMiniappOpen={(miniapp) => setActiveOverlay((previous) => withMiniappOverlay(previous, miniapp))}
       />
 
       <HostDrawer
@@ -230,6 +236,7 @@ export function HostRoot() {
         overlay={activeOverlay}
         setOverlay={setActiveOverlay}
         onNotice={showNoticeKey}
+        onNoticeText={showNotice}
         notice={notice}
         memory={memory}
         flags={flags}

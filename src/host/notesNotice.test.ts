@@ -29,7 +29,12 @@ describe("the wire: engine half → send options → the one-slot notice", () =>
     const block = ROOT.match(/useSendHost\(\{[\s\S]*?\n {2}\}\)/)?.[0] ?? "";
     expect(block.length).toBeGreaterThan(0);
     expect(block).toMatch(/\n    showNoticeKey,\n/);
-    expect(ROOT).toContain("const { notice, showNoticeKey } = useNotice();");
+    // CHANGED with the share-in/mini-app slice: the destructure now also
+    // names `showNotice` — the RAW-string writer the mini-app sheet's block
+    // actions need (the controller passed the same `showNotice` at
+    // App:5346-5362). Same hook, same single slot; the one-writer test below
+    // is untouched and remains the enforcement.
+    expect(ROOT).toContain("const { notice, showNotice, showNoticeKey } = useNotice();");
   });
 
   test("the firing side speaks only on an actual truncation, and never twice", () => {

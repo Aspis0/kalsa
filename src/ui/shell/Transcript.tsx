@@ -75,6 +75,7 @@ export function Transcript({
   insets,
   onCopy,
   onMessageLongPress,
+  onMiniappOpen,
   width,
   height,
   mode = "light",
@@ -271,10 +272,12 @@ export function Transcript({
                 ctas={message.ctas}
                 id={message.id}
                 labels={cloudLabels}
+                miniapp={message.miniapp}
                 onCopy={onCopy}
                 onLongPress={
                   onMessageLongPress ? () => onMessageLongPress(message) : undefined
                 }
+                onMiniappOpen={onMiniappOpen}
                 readingMeasure={layout.readingMeasure}
                 sources={message.sources}
                 stop={message.stop}

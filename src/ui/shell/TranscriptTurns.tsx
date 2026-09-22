@@ -21,13 +21,14 @@ import { ChevronRight, Copy } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
+import { MiniappCard } from "./MiniappCard";
 import { COPIED_FLASH_MS } from "./copiedFlash";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import { MarkdownBlocks } from "./TranscriptMarkdown";
 import { StreamCaret } from "./StreamCaret";
 import type { TranscriptStyles } from "./TranscriptParts";
 import type { TranscriptLayout } from "./transcriptLayout";
-import type { TranscriptCta, TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
+import type { TranscriptCta, TranscriptMiniapp, TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
 
 /** The pressable's label: the message itself, cut at 200 characters. */
 function pressLabel(text: string): string {
@@ -144,8 +145,10 @@ export function Answer({
   ctas,
   id,
   labels,
+  miniapp,
   onCopy,
   onLongPress,
+  onMiniappOpen,
   readingMeasure,
   sources,
   stop,
@@ -159,11 +162,15 @@ export function Answer({
   ctas?: readonly TranscriptCta[];
   id: string;
   labels: { show: string; hide: string; region: string };
+  /** The mini-app card under this answer (D1 row 28); the opener applies
+   *  the controller's open policy in the host. */
+  miniapp?: TranscriptMiniapp;
   /** The width the answer got, handed on because the table's own decision
    *  (`tableScrollDecision`) is a function of the column count and this width. */
   readingMeasure: number;
   onCopy?: (text: string) => Promise<boolean>;
   onLongPress?: () => void;
+  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
   sources?: readonly TranscriptSource[];
   stop?: TranscriptStop;
   styles: TranscriptStyles;
@@ -216,6 +223,16 @@ export function Answer({
         // Left-aligned under the answer; the user's copy chip right-aligns under
         // its capsule.
         <CopyChip align="left" colors={colors} id={id} onCopy={onCopy} styles={styles} text={text} />
+      ) : null}
+      {miniapp ? (
+        // The controller's order (`AiChatPage.tsx:5665`): the card sits above
+        // the source chips — what the answer IS, then what it stands on.
+        <MiniappCard
+          colors={colors}
+          id={id}
+          miniapp={miniapp}
+          onOpen={onMiniappOpen ? () => onMiniappOpen(miniapp) : undefined}
+        />
       ) : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
       {ctas && ctas.length > 0 ? (

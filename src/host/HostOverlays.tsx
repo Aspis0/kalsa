@@ -5,8 +5,10 @@
  * back wiring (Help returns to Settings; Settings' back refreshes memory
  * facts, tool flags and the context-size preview).
  *
- * Adaptations (reported): the mini-app sheet is not mounted (no opener in
- * the new transcript — held, see `hostOverlay.ts`); model SELECT and retry
+ * Adaptations (reported): the mini-app sheet mounts here as
+ * `HostMiniappSheet` — the controller's exclusive union is complete again
+ * (the kind was held while no card could open it; see `hostOverlay.ts`);
+ * model SELECT and retry
  * are real (the lifted switchers), while the three DOWNLOAD buttons serve
  * `shell.notice.*` — the download paths stayed behind with a report;
  * `onRebuildSemanticIndex` needs the background embed job and answers
@@ -39,12 +41,16 @@ import type {
 import { useLocale, type TranslationKey } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import type { HostOverlay } from "./hostOverlay";
+import { HostMiniappSheet } from "./HostMiniappSheet";
 
 export interface OverlaysProps {
   overlay: HostOverlay;
   setOverlay: (overlay: HostOverlay) => void;
   /** Show the one-line reason for a control this build does not wire. */
   onNotice: (key: TranslationKey) => void;
+  /** The one-slot notice with a rendered string — the mini-app sheet's block
+   *  actions speak strings, not catalogue keys (`miniappActions.ts`). */
+  onNoticeText: (value: string) => void;
   refreshMemoryFacts: () => Promise<void>;
   refreshToolFlags: () => Promise<void>;
   refreshContextSize: () => Promise<void>;
@@ -76,6 +82,7 @@ export function HostOverlays(props: OverlaysProps) {
     overlay,
     setOverlay,
     onNotice,
+    onNoticeText,
     refreshMemoryFacts,
     refreshToolFlags,
     refreshContextSize,
@@ -256,6 +263,15 @@ export function HostOverlays(props: OverlaysProps) {
         key={fontScaleId}
         // Back from Help returns to Settings (Help is opened from Settings).
         onBack={() => setOverlay({ kind: "settings" })}
+      />
+    );
+  }
+  if (overlay?.kind === "miniapp") {
+    return (
+      <HostMiniappSheet
+        miniapp={overlay.miniapp}
+        onClose={() => setOverlay(null)}
+        onNoticeText={onNoticeText}
       />
     );
   }

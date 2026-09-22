@@ -749,6 +749,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     shareImportFailed: "Could not import the shared file.",
     shareImportTooLarge: "The shared file is too large.",
     shareImportBusy: "Something is already in progress. Try sharing again in a moment.",
+    /** The PDF share-in landed in the document library, but this build has no
+     *  composer attachment flow (PARITY row 43): the import's real job
+     *  happened, the auto-attach is held — say both, never go quiet. */
+    shareImportNotAttached:
+      "Saved to Documents. Attaching a shared file to the conversation is not available in this build yet.",
     source: "Source",
     searchKeyMissing: "API key missing for {provider}. Add it in Settings.",
     searchKeyInvalid: "Invalid API key for {provider}. Check Settings.",

@@ -34,6 +34,9 @@ export interface HostFurnitureProps {
   overlay: HostOverlay;
   setOverlay: (overlay: HostOverlay) => void;
   onNotice: (key: TranslationKey) => void;
+  /** The one-slot notice with a rendered string (the mini-app sheet's block
+   *  actions speak strings, not catalogue keys). */
+  onNoticeText: (value: string) => void;
   /** Rendered text of the one-slot notice, or null. */
   notice: string | null;
   memory: MemoryHost;
@@ -48,6 +51,7 @@ export function HostFurniture({
   overlay,
   setOverlay,
   onNotice,
+  onNoticeText,
   notice,
   memory,
   flags,
@@ -62,6 +66,7 @@ export function HostFurniture({
         overlay={overlay}
         setOverlay={setOverlay}
         onNotice={onNotice}
+        onNoticeText={onNoticeText}
         refreshMemoryFacts={memory.refreshMemoryFacts}
         refreshToolFlags={flags.refreshToolFlags}
         refreshContextSize={modelHost.refreshContextSize}

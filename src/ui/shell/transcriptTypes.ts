@@ -65,6 +65,12 @@ export type TranscriptMessage = {
    * would be a control that does nothing. See `TranscriptTurns`.
    */
   ctas?: readonly TranscriptCta[];
+  /**
+   * The interactive mini-app card under an answer (D1 row 28). PERSISTED by
+   * the history path (unlike `tools`): a definition that comes back from a
+   * reopen still draws its card, and the sheet still opens from it.
+   */
+  miniapp?: TranscriptMiniapp;
 };
 
 /**
@@ -113,6 +119,19 @@ export type TranscriptSource = {
   title?: string;
 };
 
+/**
+ * The mini-app envelope a message carries (D1 rows 4/28), as the card draws
+ * it: `kind` picks the icon, `title` the header. At runtime the object IS
+ * the full normalized envelope — `blocks`, `actions` and `state` ride along
+ * unmodelled and the host hands the same object to the sheet's renderer, so
+ * modelling what the card does not read would be dead weight (the controller
+ * cast the same object at `AppShell.tsx:7046`).
+ */
+export type TranscriptMiniapp = {
+  kind: string;
+  title: string;
+};
+
 export type TranscriptProps = {
   messages: readonly TranscriptMessage[];
   /**
@@ -135,6 +154,14 @@ export type TranscriptProps = {
    * drawn: absent, not present and inert.
    */
   onCopy?: (text: string) => Promise<boolean>;
+  /**
+   * The mini-app card's open: hands the message's envelope to the host,
+   * which applies the controller's open policy (`AppShell.tsx:7035-7046`).
+   * Absent (the preview) → the card draws with NO "tap to open" hint and no
+   * Open control: a hint that promises an opener nothing can perform is the
+   * inert affordance this build does not ship.
+   */
+  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
   insets: Insets;
   /** Overrides for the preview; the live window is the default. */
   width?: number;

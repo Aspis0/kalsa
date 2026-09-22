@@ -13,6 +13,8 @@
  * - `tools` are NOT read from the message: the volatile tool rows are fed
  *   from the host's capture map (`toolNameFromActionsPayload`), because the
  *   engine's tool trace deliberately does not survive a reopen;
+ * - `miniapp` crosses whole on an answer (D1 rows 4/28): persisted by the
+ *   history path, drawn by the card, handed unchanged to the sheet;
  * - `ctas` cross as label + kind + id only (D1 row 26): the outputs-system
  *   fields are dropped here because no renderer reads them.
  */
@@ -110,6 +112,10 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
     if (caretVisible(message.streaming, message.text)) mapped.caret = true;
     const stop = mapStop(message);
     if (stop) mapped.stop = stop;
+    // The mini-app definition crosses whole (D1 rows 4/28): the card reads
+    // kind + title, the sheet reads the rest — nothing is projected away
+    // here, because the sheet opens from THIS object.
+    if (message.miniapp) mapped.miniapp = message.miniapp;
   }
   if (tools && tools.length > 0) mapped.tools = tools;
   if (message.sources && message.sources.length > 0) {
