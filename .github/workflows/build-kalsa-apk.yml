@@ -48,6 +48,12 @@ jobs:
           KALSA_LLAMA_FROM_SOURCE: "1"
         run: npm ci
 
+      # The builder that produces the artifact must be the builder that checks
+      # it. Same gate as apk.yml and e2e-emulator.yml; a non-zero exit stops
+      # the build here, before any native work starts.
+      - name: Assert the installed engine is the pinned fork commit
+        run: bash scripts/assert-engine-provenance.sh
+
       - name: Prebuild Android native project
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
