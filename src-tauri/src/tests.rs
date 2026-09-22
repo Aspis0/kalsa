@@ -1563,8 +1563,7 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     // SIGTERM, a second grace, SIGKILL — before it writes `Stopped`. An engine
     // adopted blind has no child to walk: there the stop writes `Stopped` at
     // once with the engine still listening, which is declared in the plan (T5)
-    // and is why this sentence is about the spawned path only. A `brain_state`
-    // poll
+    // and is why this sentence is about the spawned path only. A `brain_state` poll
     // landing inside that window reads `Running`, enters the Running arm and
     // RE-RAISES the door `brain_stop` lowered. So `Stopped` can be set with
     // the door UP, and the door stays up until the next poll's `Stopped` arm

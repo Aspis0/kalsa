@@ -437,7 +437,9 @@ instead of returning an empty conversation.
   (`POLL_MS`, 1 s) — after the grace window, in which the state still reads `Running`. This is an
   availability blip behind full authentication, not an exposure: the listener answers 401 without
   the bearer. Whether a request that slips into the blip is **served** depends on which stop this
-  is, and the two cases are not the same. For a **spawned** engine the child is walked to its reap
+  is, and these cases are not all the same (the two below are not an exhaustive split: an adopted
+  engine whose pid **is** recorded, and whose SIGKILL grace expires without the process leaving, is
+  a third, degenerate one). For a **spawned** engine the child is walked to its reap
   before `Stopped` is written, so the engine is gone and the request gets an error. For an engine
   **adopted blind** — `Started::Adopted { pid: None }`, reachable when the previous writer died
   between its announce and its describe — there is no pid and no handle to walk, so the stop takes
