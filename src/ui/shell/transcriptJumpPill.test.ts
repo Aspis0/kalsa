@@ -97,25 +97,31 @@ function contrast(a: string, b: string): number {
 }
 
 describe("the jump control's boundary", () => {
-  it("rings the circle with the palette's strong hairline, elevation kept", () => {
+  it("rings the circle with the token that reaches 3:1, elevation kept", () => {
     const body = styleBody(stripComments(PARTS), "jump");
-    expect(body).toMatch(/borderColor:\s*colors\.borderStrong\b/);
+    expect(body).toMatch(/borderColor:\s*colors\.silence\b/);
     expect(body).toMatch(/borderWidth:\s*1\b/);
     // The ring is the boundary; the lift is still the surface's (§1.2).
     expect(body).toContain("elevation.raised");
   });
 
-  it("measures the ring against the page AND the control's own fill, both modes", () => {
+  it("measures the ring at 3:1 against the page AND the control's own fill, both modes", () => {
     // §1.2 forbids a border telling a SURFACE from the page (white on the page
-    // is 1.07:1); this ring's job is different — it says "control". The 1.5
-    // floor is CHOSEN: well above the 1.07 a borderless white circle gets and
-    // above design.test's 1.2 hairline floor, because an edge has to read.
-    // Light ring/page 1.53, ring/fill 1.64; dark 2.09 and 1.88.
+    // is 1.07:1); this ring's job is different — it says "control", and the
+    // number for a UI component's boundary is WCAG 2.2 SC 1.4.11 (non-text
+    // contrast): 3:1 against adjacent colours. A requirement, not taste.
+    //
+    // BEFORE (2026-09-21, `colors.borderStrong`): light 1.53:1 page / 1.64:1
+    // fill, dark 2.09 / 1.88 — below 3:1 everywhere, and a vision audit could
+    // not trace the ring. AFTER (`colors.silence`): light 5.97 / 6.41, dark
+    // 7.12 / 6.40. `colors.inkSoft` also clears the bar (11.67 / 12.52 light,
+    // 11.35 / 10.19 dark) but at 11–13:1 reads as a hard frame rather than a
+    // control edge; silence is the quieter passing token.
     for (const [mode, c] of Object.entries(modes)) {
-      const vsPage = contrast(c.borderStrong, c.page);
-      const vsFill = contrast(c.borderStrong, c.surface);
-      expect([mode, "page", vsPage >= 1.5]).toEqual([mode, "page", true]);
-      expect([mode, "fill", vsFill >= 1.5]).toEqual([mode, "fill", true]);
+      const vsPage = contrast(c.silence, c.page);
+      const vsFill = contrast(c.silence, c.surface);
+      expect([mode, "page", vsPage >= 3]).toEqual([mode, "page", true]);
+      expect([mode, "fill", vsFill >= 3]).toEqual([mode, "fill", true]);
     }
   });
 });

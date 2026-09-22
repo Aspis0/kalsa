@@ -26,9 +26,12 @@ const read = (file: string): string => readFileSync(join(__dirname, file), "utf8
 
 /** Every file the transcript band is made of. Step 3b added the answer's own
  *  renderer, its inline spans and their styles to this list, so the no-request rule
- *  covers the new files too rather than starting at the old edge of the band. */
+ *  covers the new files too rather than starting at the old edge of the band.
+ *  The edge fades (`TranscriptEdgeFade.tsx`) were added the same way: a band
+ *  file is a band file however decorative it is. */
 const BAND_FILES = [
   "Transcript.tsx",
+  "TranscriptEdgeFade.tsx",
   "TranscriptParts.tsx",
   "TranscriptEvidence.tsx",
   "TranscriptMarkdown.tsx",

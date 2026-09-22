@@ -21,6 +21,7 @@ import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-na
 import { useLocale, type TranslateFn, type TranslationKey } from "../../i18n";
 import { elevation, families, modes, radius, spacing, type } from "../../theme/design";
 import { type Insets } from "./shellGeometry";
+import { TranscriptEdgeFade } from "./TranscriptEdgeFade";
 import { Answer, UserTurn, createTranscriptStyles } from "./TranscriptParts";
 import {
   PROGRAMMATIC_SCROLL_GRACE_MS,
@@ -107,6 +108,11 @@ export function Transcript({
   const programmaticScrollAtRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState(true);
   const [overflows, setOverflows] = useState(false);
+  // Whether content has scrolled under the band's TOP edge — the only state the
+  // edge fade needs besides the two above. Updated before the grace-window
+  // return below, because a programmatic `scrollTo` moves the offset too and
+  // its events are otherwise ignored on purpose.
+  const [topClipped, setTopClipped] = useState(false);
 
   const decide = useCallback(
     (cause: ScrollCause) => {
@@ -172,6 +178,10 @@ export function Transcript({
         onLayout={() => decide("first-layout")}
         onScroll={(event) => {
           offsetRef.current = event.nativeEvent.contentOffset.y;
+          const scrolled = offsetRef.current > 0;
+          // Same value in, no re-render out: this flips only when the view
+          // crosses the top, not on every scroll frame.
+          setTopClipped((was) => (was === scrolled ? was : scrolled));
           // A programmatic scroll emits scroll events too. While one is still
           // in flight the offset is not the reader's opinion, so these events
           // are ignored — not obeyed and not re-pinned. Reading them as a
@@ -236,6 +246,15 @@ export function Transcript({
         );
       })}
       </ScrollView>
+      {/* The band's edge fades (a vision audit's addition, not the owner's —
+          see `TranscriptEdgeFade.tsx` for the defect and the reversal note).
+          Placement is the z-order argument: after the ScrollView it paints over
+          the content it dissolves; before the jump control it paints UNDER the
+          control, whose new ring must not be faded by it (React Native paints
+          siblings in document order). It lives inside this root, which the
+          shell clips to the transcript band, so it cannot reach the notice band
+          above or the composer band below. */}
+      <TranscriptEdgeFade colors={colors} topClipped={topClipped} />
       {!pinned && overflows ? (
         <Pressable
           accessibilityLabel={t("shell.a11y.jumpToEnd")}

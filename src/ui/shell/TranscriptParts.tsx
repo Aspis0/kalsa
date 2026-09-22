@@ -143,13 +143,23 @@ export function createTranscriptStyles(colors: DesignColors) {
       // Deviation from §1.2, which forbids a border telling a SURFACE from
       // the page (white on `#f4f8f3` is 1.07:1, so elevation carries
       // surfaces): this ring says "this is a CONTROL", not "this is another
-      // surface" — a vision audit found the white circle's boundary faint on
-      // the pale page with the elevation not reading on the device.
+      // surface". Its number is not taste: WCAG 2.2 SC 1.4.11 (non-text
+      // contrast) requires the boundary of a UI component to reach 3:1 against
+      // the colours it sits between. The first ring (`colors.borderStrong`)
+      // measured 1.53:1 against the page and 1.64:1 against the control's own
+      // white fill in light mode (2.09 / 1.88 dark), and a vision audit could
+      // not trace it — "if the arrow were removed, I could not reliably tell
+      // you where the circle ends". `colors.silence` measures 5.97 / 6.41 in
+      // light and 7.12 / 6.40 in dark: all four pairs clear 3:1, measured by
+      // `transcriptJumpPill.test.ts` on every run. `colors.inkSoft` would also
+      // clear it (11.67 / 12.52 light, 11.35 / 10.19 dark) but at 11–13:1
+      // reads as a hard frame rather than a control edge, so the quieter of
+      // the two passing tokens wins.
       jump: {
         ...elevation.raised,
         alignItems: "center",
         backgroundColor: colors.surface,
-        borderColor: colors.borderStrong,
+        borderColor: colors.silence,
         borderWidth: 1,
         borderRadius: MIN_TOUCH_TARGET / 2,
         bottom: spacing.sm,
