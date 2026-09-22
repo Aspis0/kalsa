@@ -43,7 +43,20 @@ Usage:
   measure-concurrency.py --bin BIN --out dev/results/<dir>/results.json \
       --log /tmp/<dir>/server.log --slots-dir /tmp/<dir>/slots \
       [--port 19311] [--model MODEL] [--ctx-size 8192] [--n-predict 256] \
-      [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server]
+      [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server] \
+      [--max-load 6.0] [--release-manifest-url URL]
+
+Provenance the next reader can check instead of trust: `max_load` is recorded
+as the ceiling this run actually passed, and `release` is DERIVED by matching
+the sha256 of the binary that ran against the published release manifest - by
+`exe_sha256` only, never by path or directory name. Three statuses, kept
+apart on purpose: `matched` (a manifest row carries this hash -> the row's
+fields ride along), `not-the-release` (the manifest was read and no row
+carries it -> a fork build, labelled exactly as §9 of PLAN-DISK-TIER.md says),
+`unverified` (the manifest could not be read -> say so; a dead network is
+never evidence of a fork build). The manifest URL is derived from a
+`kalsa-server-vX.Y.Z` binary directory, overridable with
+`--release-manifest-url`; when it cannot be derived the status is `unverified`.
 """
 
 import argparse
@@ -182,6 +195,171 @@ def loadavg():
         return [float(x) for x in os.getloadavg()]
     except Exception:
         return None
+
+
+# --------------------------------------------------------------------------
+# release provenance: DERIVED from the published manifest, never asserted
+# --------------------------------------------------------------------------
+FORK_LABEL = "fork build, not the release"
+MANIFEST_NAME_RE = re.compile(r"kalsa-server-(v\d+\.\d+\.\d+)")
+PLATFORM_ALIASES = {"x86_64": "x86-64", "amd64": "x86-64", "aarch64": "arm64"}
+OS_ALIASES = {"darwin": "macos", "win32": "windows", "windows": "windows"}
+
+
+def derive_manifest_url(bin_path):
+    """Which manifest to ask, from where the binary lives.
+
+    `kalsa-server-vX.Y.Z/kalsa-server` ->
+    `https://dl.kalsa.io/kalsa-server/vX.Y.Z/manifest.json`. The tag is not
+    typed by anyone and not read out of the binary: it comes from the
+    release's own directory spelling. A directory of any other shape yields
+    None - with no version there is nothing to ask, and guessing a tag would
+    attribute this build to a release nobody published. The path chooses the
+    URL and only that: it never takes part in the match itself.
+    """
+    parent = Path(bin_path).resolve().parent.name
+    m = MANIFEST_NAME_RE.fullmatch(parent)
+    if not m:
+        return None
+    return f"https://dl.kalsa.io/kalsa-server/{m.group(1)}/manifest.json"
+
+
+def host_platform():
+    """Platform of the machine that ran the binary - the FALLBACK source.
+
+    Labelled `platform_source: host` wherever it is used, so a host-derived
+    platform is never read as the manifest's claim about the artifact.
+    """
+    import platform as plat
+    system = OS_ALIASES.get(plat.system().lower(), plat.system().lower() or "unknown")
+    machine = PLATFORM_ALIASES.get(plat.machine().lower(),
+                                   plat.machine().lower() or "unknown")
+    return f"{system}-{machine}"
+
+
+def match_manifest_row(manifest, exe_sha256):
+    """PURE. The executed binary's sha256 against the manifest's rows.
+
+    Match is by `exe_sha256` and by nothing else: never a path, never a
+    directory name, never a file name - those are exactly what a copied
+    release binary in a renamed folder would fake. Returns the merged
+    manifest-header + row block for the first row carrying this hash, or
+    None when no row does.
+    """
+    if not isinstance(manifest, dict):
+        return None
+    rows = manifest.get("artifacts")
+    if not isinstance(rows, list):
+        return None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if row.get("exe_sha256") and row.get("exe_sha256") == exe_sha256:
+            block = {k: manifest.get(k) for k in
+                     ("tag", "tag_object", "commit", "run_url", "built_at",
+                      "pack_sha256")}
+            block.update({k: row.get(k) for k in
+                          ("file", "platform", "backend", "exe_sha256")})
+            block["platform_source"] = "manifest"
+            return block
+    return None
+
+
+def fetch_manifest(url):
+    # A User-Agent, because dl.kalsa.io answers 403 to the default
+    # `Python-urllib/3.x`: refusing the default agent turns a readable
+    # manifest into `unverified` and loses the match for a reason that has
+    # nothing to do with the build.
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "kalsa-brain-measure-concurrency/1.0 "
+                                    "(release provenance check)",
+                      "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.read()
+
+
+def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
+    """The `release` block, with its three statuses kept apart.
+
+    Pure given `fetch` (the injected callable is the only I/O), which is what
+    lets dev/test-release-provenance.py drive the red paths without a network.
+
+      matched          a manifest row carries this exe_sha256 -> record the
+                       row and the manifest header it belongs to.
+      not-the-release  the manifest was READ and no row carries this hash ->
+                       a fork build: label `fork build, not the release`,
+                       platform from the host, backend null.
+      unverified       the manifest could not be read (no URL derivable,
+                       network down, 404 body that is not JSON) -> say why.
+                       A read failure is never converted into not-the-release:
+                       a dead network says nothing about which build this is.
+    """
+    fetch = fetch or fetch_manifest
+    block = {
+        "status": None,
+        "manifest_url": manifest_url,
+        "manifest_sha256": None,
+        "checked_utc": checked_utc or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "match_basis": ("exe_sha256 of the executed binary; never a path, "
+                        "never a directory name"),
+        "exe_sha256": exe_sha256,
+        # host is the fallback claim until a manifest row upgrades it:
+        "platform": host_platform(),
+        "platform_source": "host",
+        "backend": None,
+    }
+    if not manifest_url:
+        block["status"] = "unverified"
+        block["reason"] = (
+            "no manifest URL could be derived from the binary's directory "
+            "(expected kalsa-server-vX.Y.Z) and none was given with "
+            "--release-manifest-url: there is no release tag to ask, and "
+            "inventing one would attribute this build to a release nobody "
+            "published")
+        return block
+
+    try:
+        body = fetch(manifest_url)
+    except Exception as e:
+        block["status"] = "unverified"
+        block["reason"] = (
+            f"manifest not readable at {manifest_url}: "
+            f"{type(e).__name__}: {e} - a network or HTTP failure says nothing "
+            "about which build this is, so it is NOT 'not-the-release'")
+        return block
+    if isinstance(body, str):
+        body = body.encode()
+    block["manifest_sha256"] = hashlib.sha256(body).hexdigest()
+    try:
+        manifest = json.loads(body.decode("utf-8", errors="replace"))
+    except Exception as e:
+        block["status"] = "unverified"
+        block["reason"] = (
+            f"manifest at {manifest_url} answered with a body that is not JSON "
+            f"({type(e).__name__}: {e}): it could not be read, so the build is "
+            "unverified, not 'not-the-release'")
+        return block
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
+        block["status"] = "unverified"
+        block["reason"] = (
+            f"the body at {manifest_url} is JSON but not a release manifest "
+            "(no artifacts[]): there is no row to match against, so the build "
+            "is unverified, not 'not-the-release'")
+        return block
+
+    row = match_manifest_row(manifest, exe_sha256)
+    if row is None:
+        block["status"] = "not-the-release"
+        block["label"] = FORK_LABEL
+        block["reason"] = (
+            "the manifest was read and no artifacts[] row carries this "
+            "exe_sha256: the binary that ran is not what the release "
+            "published")
+        return block
+
+    block["status"] = "matched"
+    block.update(row)
+    return block
 
 
 def engine_argv(bin_path, model, port, ctx_size, slots_dir):
@@ -386,8 +564,21 @@ def main():
     ap.add_argument("--max-load", type=float, default=6.0,
                     help="refuse to start an engine while the 1-minute load "
                          "average is above this; a decode rate recorded under "
-                         "other load is not the number the panel may print")
+                         "other load is not the number the panel may print; "
+                         "the value used (after this default) is recorded as "
+                         "provenance.max_load")
+    ap.add_argument("--release-manifest-url", default=None,
+                    help="override the release manifest URL; by default it is "
+                         "derived from a kalsa-server-vX.Y.Z binary directory")
     args = ap.parse_args()
+
+    # Derived before anything is measured, so a later failure to read the
+    # manifest is recorded as unverified instead of quietly forgotten.
+    engine_sha256 = sha256_file(args.bin)
+    manifest_url = args.release_manifest_url
+    if manifest_url is None:
+        manifest_url = derive_manifest_url(args.bin)
+    release = release_provenance(manifest_url, engine_sha256)
 
     la0 = os.getloadavg()[0]
     if args.max_load > 0 and la0 > args.max_load:
@@ -537,7 +728,9 @@ def main():
                 "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
                                             text=True).stdout.strip(),
                 "engine_binary": args.bin,
-                "engine_sha256": sha256_file(args.bin),
+                "engine_sha256": engine_sha256,
+                "max_load": args.max_load,
+                "release": release,
                 "engine_version": version,
                 "engine_nice": NICE,
                 "script": str(script),

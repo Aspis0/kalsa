@@ -2,15 +2,34 @@
  "measurement": "concurrency-cost",
  "question": "what one device's decode rate costs when a second device decodes at the same time, on one engine",
  "provenance": {
-  "started_utc": "2026-09-22T18:50:22Z",
+  "started_utc": "2026-09-22T21:36:51Z",
   "hostname": "MacBookPro.lan",
   "host_arch": "arm64",
   "engine_binary": "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
   "engine_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+  "max_load": 6.0,
+  "release": {
+   "status": "matched",
+   "manifest_url": "https://dl.kalsa.io/kalsa-server/v1.1.1/manifest.json",
+   "manifest_sha256": "55d8128c05a985f54f7cb87a7cc99a89c640542d0619f4ae3cbf9ac1ec87f450",
+   "checked_utc": "2026-09-22T21:36:51Z",
+   "match_basis": "exe_sha256 of the executed binary; never a path, never a directory name",
+   "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+   "platform": "macos-arm64",
+   "platform_source": "manifest",
+   "backend": "metal",
+   "tag": "kalsa-server-v1.1.1",
+   "tag_object": "0f1b3bec7342ddd5624dc474c760a0b38bc80b5b",
+   "commit": "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1",
+   "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35762258094",
+   "built_at": "2026-09-22T17:50:26Z",
+   "pack_sha256": "a90d88a1650367c6821f70e625a4ff2d43744d5986580c206434381a732075a7",
+   "file": "kalsa-server-v1.1.1-bin-macos-arm64.tar.gz"
+  },
   "engine_version": "version: 0.4.1-dev (build 11195, commit a7d2cec79)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
   "engine_nice": 10,
   "script": "/Users/marco/Projects/kalsa-brain/dev/measure-concurrency.py",
-  "script_sha256": "1cb03ecbcc192698d891a0e13f74721edb253db09a10522b11d5dbd496646516",
+  "script_sha256": "3d6eebc45f5919bc7108601c34b123a22e723a468f3eb00774a5ddbce922d460",
   "harness": "/Users/marco/Projects/kalsa-brain/dev/engine-harness.py",
   "harness_sha256": "51aa8b28ec2fa97a1584b582ef1a2e2a456b98bfe6358cb75799e632bd917900",
   "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
@@ -63,20 +82,20 @@
   "sleep_idle_seconds": -1,
   "sleep_idle_note": "disabled on purpose: a model unload mid-run would contaminate every later arm; the app ships 300",
   "engine_init_line": [
-   "0.02.136.762 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 4096, kv_unified = 'false'"
+   "0.00.741.940 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 4096, kv_unified = 'false'"
   ],
   "engine_kv_lines": [
-   "0.02.036.004 I llama_kv_cache: size =   59.50 MiB (  4096 cells,  14 layers,  2/2 seqs), K (q8_0):   29.75 MiB, V (q8_0):   29.75 MiB",
-   "0.02.045.941 I llama_kv_cache: size =  111.56 MiB (  2560 cells,  42 layers,  2/2 seqs), K (q8_0):   55.78 MiB, V (q8_0):   55.78 MiB"
+   "0.00.657.397 I llama_kv_cache: size =   59.50 MiB (  4096 cells,  14 layers,  2/2 seqs), K (q8_0):   29.75 MiB, V (q8_0):   29.75 MiB",
+   "0.00.664.978 I llama_kv_cache: size =  111.56 MiB (  2560 cells,  42 layers,  2/2 seqs), K (q8_0):   55.78 MiB, V (q8_0):   55.78 MiB"
   ],
   "engine_swa_lines": [
-   "0.00.515.834 I print_info: n_swa                 = 2048",
-   "0.00.515.834 I print_info: is_swa_any            = 1",
-   "0.02.031.255 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 4096 cells",
-   "0.02.036.039 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
+   "0.00.485.303 I print_info: n_swa                 = 2048",
+   "0.00.485.303 I print_info: is_swa_any            = 1",
+   "0.00.653.355 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 4096 cells",
+   "0.00.657.417 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
   ],
   "checkpoint_line": [
-   "0.02.137.303 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 8192"
+   "0.00.741.993 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 8192"
   ],
   "n_predict": 256,
   "ignore_eos": true,
@@ -90,38 +109,38 @@
   "raw_log_committed": false,
   "wall_times_note": "walls are this machine's at nice 10 under whatever else it was doing, with the A2/A bracket as the drift control; not performance promises",
   "loadavg_before": [
-   3.99072265625,
-   5.83447265625,
-   7.068359375
+   1.9921875,
+   1.80810546875,
+   2.74755859375
   ],
   "loadavg_after": [
-   3.837890625,
-   5.681640625,
-   6.984375
+   2.13623046875,
+   1.85205078125,
+   2.7412109375
   ],
-  "finished_utc": "2026-09-22T18:50:44Z"
+  "finished_utc": "2026-09-22T21:37:11Z"
  },
  "arms": {
   "A_solo_slot0": {
    "slot": 0,
    "salt_label": "44652eed8deaf2a5",
    "status": 200,
-   "wall_ms": 3950.2,
+   "wall_ms": 3863.2,
    "loadavg_at_start": [
-    3.8310546875,
-    5.7705078125,
-    7.03857421875
+    2.15283203125,
+    1.84423828125,
+    2.7548828125
    ],
    "tokens_evaluated": 512,
    "tokens_predicted": 256,
    "stop_type": "limit",
    "cache_n": 0,
    "prompt_n": 512,
-   "prompt_ms": 259.675,
-   "prompt_per_second": 1971.6953884663521,
+   "prompt_ms": 254.328,
+   "prompt_per_second": 2013.14837532635,
    "predicted_n": 256,
-   "predicted_ms": 3686.427,
-   "predicted_per_second": 69.17267044756346,
+   "predicted_ms": 3606.572,
+   "predicted_per_second": 70.7042587809144,
    "engine_lines": [
     {
      "slot": 0,
@@ -132,10 +151,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 209,
-     "tg": 69.07,
-     "tg_3s": 69.4,
-     "line": "0.05.970.024 I slot print_timing: id  0 | task 1 | n_gen =    209, tg =  69.07 t/s, tg_3s =  69.40 t/s"
+     "n_gen": 214,
+     "tg": 70.69,
+     "tg_3s": 71.02,
+     "line": "0.04.426.020 I slot print_timing: id  0 | task 1 | n_gen =    214, tg =  70.69 t/s, tg_3s =  71.02 t/s"
     },
     {
      "slot": 0,
@@ -143,73 +162,73 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 259.68,
+     "prompt_ms": 254.33,
      "prompt_tokens": 512,
-     "prompt_per_second": 1971.7,
+     "prompt_per_second": 2013.15,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.06.644.943 I slot print_timing: id  0 | task 1 | prompt eval time =     259.68 ms /   512 tokens (    0.51 ms per token,  1971.70 tokens per second)"
+     "line": "0.05.019.402 I slot print_timing: id  0 | task 1 | prompt eval time =     254.33 ms /   512 tokens (    0.50 ms per token,  2013.15 tokens per second)"
     },
     {
      "slot": 0,
      "kind": "eval",
-     "eval_ms": 3686.43,
+     "eval_ms": 3606.57,
      "tokens": 256,
-     "tokens_per_second": 69.17,
+     "tokens_per_second": 70.7,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.06.644.946 I slot print_timing: id  0 | task 1 |        eval time =    3686.43 ms /   256 tokens (   14.46 ms per token,    69.17 tokens per second)"
+     "line": "0.05.019.407 I slot print_timing: id  0 | task 1 |        eval time =    3606.57 ms /   256 tokens (   14.14 ms per token,    70.70 tokens per second)"
     }
    ]
   },
   "B_two_slots": {
-   "slot1": {
-    "slot": 1,
-    "salt_label": "2f21d3a00443f69f",
-    "status": 200,
-    "wall_ms": 5403.0,
-    "loadavg_at_start": [
-     3.9111328125,
-     5.72705078125,
-     7.00830078125
-    ],
-    "tokens_evaluated": 512,
-    "tokens_predicted": 256,
-    "stop_type": "limit",
-    "cache_n": 0,
-    "prompt_n": 512,
-    "prompt_ms": 510.421,
-    "prompt_per_second": 1003.0935247570143,
-    "predicted_n": 256,
-    "predicted_ms": 4884.624,
-    "predicted_per_second": 52.20463233198707,
-    "engine_lines": []
-   },
    "slot0": {
     "slot": 0,
     "salt_label": "fba224578f3fbf8c",
     "status": 200,
-    "wall_ms": 5402.6,
+    "wall_ms": 5432.1,
     "loadavg_at_start": [
-     3.9111328125,
-     5.72705078125,
-     7.00830078125
+     2.0615234375,
+     1.8330078125,
+     2.73974609375
     ],
     "tokens_evaluated": 512,
     "tokens_predicted": 256,
     "stop_type": "limit",
     "cache_n": 0,
     "prompt_n": 512,
-    "prompt_ms": 509.909,
-    "prompt_per_second": 1004.1007316991855,
+    "prompt_ms": 485.101,
+    "prompt_per_second": 1055.4503082863157,
     "predicted_n": 256,
-    "predicted_ms": 4885.007,
-    "predicted_per_second": 52.20053932368982,
+    "predicted_ms": 4939.106,
+    "predicted_per_second": 51.62877654377128,
+    "engine_lines": []
+   },
+   "slot1": {
+    "slot": 1,
+    "salt_label": "2f21d3a00443f69f",
+    "status": 200,
+    "wall_ms": 5432.8,
+    "loadavg_at_start": [
+     2.0615234375,
+     1.8330078125,
+     2.73974609375
+    ],
+    "tokens_evaluated": 512,
+    "tokens_predicted": 256,
+    "stop_type": "limit",
+    "cache_n": 0,
+    "prompt_n": 512,
+    "prompt_ms": 485.346,
+    "prompt_per_second": 1054.917522756961,
+    "predicted_n": 256,
+    "predicted_ms": 4938.976,
+    "predicted_per_second": 51.63013547747549,
     "engine_lines": []
    },
    "engine_lines": [
@@ -222,10 +241,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 158,
-     "tg": 52.1,
-     "tg_3s": 52.44,
-     "line": "0.12.190.852 I slot print_timing: id  0 | task 262 | n_gen =    158, tg =  52.10 t/s, tg_3s =  52.44 t/s"
+     "n_gen": 157,
+     "tg": 51.76,
+     "tg_3s": 52.09,
+     "line": "0.10.543.247 I slot print_timing: id  0 | task 262 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
     },
     {
      "slot": 1,
@@ -236,10 +255,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 158,
-     "tg": 52.11,
-     "tg_3s": 52.44,
-     "line": "0.12.191.032 I slot print_timing: id  1 | task 261 | n_gen =    158, tg =  52.11 t/s, tg_3s =  52.44 t/s"
+     "n_gen": 157,
+     "tg": 51.76,
+     "tg_3s": 52.09,
+     "line": "0.10.543.372 I slot print_timing: id  1 | task 261 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
     },
     {
      "slot": 0,
@@ -247,27 +266,27 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 509.91,
+     "prompt_ms": 485.1,
      "prompt_tokens": 512,
-     "prompt_per_second": 1004.1,
+     "prompt_per_second": 1055.45,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.709 I slot print_timing: id  0 | task 262 | prompt eval time =     509.91 ms /   512 tokens (    1.00 ms per token,  1004.10 tokens per second)"
+     "line": "0.12.468.201 I slot print_timing: id  0 | task 262 | prompt eval time =     485.10 ms /   512 tokens (    0.95 ms per token,  1055.45 tokens per second)"
     },
     {
      "slot": 0,
      "kind": "eval",
-     "eval_ms": 4885.01,
+     "eval_ms": 4939.11,
      "tokens": 256,
-     "tokens_per_second": 52.2,
+     "tokens_per_second": 51.63,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.713 I slot print_timing: id  0 | task 262 |        eval time =    4885.01 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+     "line": "0.12.468.204 I slot print_timing: id  0 | task 262 |        eval time =    4939.11 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
     },
     {
      "slot": 1,
@@ -275,27 +294,27 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 510.42,
+     "prompt_ms": 485.35,
      "prompt_tokens": 512,
-     "prompt_per_second": 1003.09,
+     "prompt_per_second": 1054.92,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.876 I slot print_timing: id  1 | task 261 | prompt eval time =     510.42 ms /   512 tokens (    1.00 ms per token,  1003.09 tokens per second)"
+     "line": "0.12.468.363 I slot print_timing: id  1 | task 261 | prompt eval time =     485.35 ms /   512 tokens (    0.95 ms per token,  1054.92 tokens per second)"
     },
     {
      "slot": 1,
      "kind": "eval",
-     "eval_ms": 4884.62,
+     "eval_ms": 4938.98,
      "tokens": 256,
-     "tokens_per_second": 52.2,
+     "tokens_per_second": 51.63,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.877 I slot print_timing: id  1 | task 261 |        eval time =    4884.62 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+     "line": "0.12.468.364 I slot print_timing: id  1 | task 261 |        eval time =    4938.98 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
     }
    ],
    "engine_lines_slot0": [
@@ -308,10 +327,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 158,
-     "tg": 52.1,
-     "tg_3s": 52.44,
-     "line": "0.12.190.852 I slot print_timing: id  0 | task 262 | n_gen =    158, tg =  52.10 t/s, tg_3s =  52.44 t/s"
+     "n_gen": 157,
+     "tg": 51.76,
+     "tg_3s": 52.09,
+     "line": "0.10.543.247 I slot print_timing: id  0 | task 262 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
     },
     {
      "slot": 0,
@@ -319,27 +338,27 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 509.91,
+     "prompt_ms": 485.1,
      "prompt_tokens": 512,
-     "prompt_per_second": 1004.1,
+     "prompt_per_second": 1055.45,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.709 I slot print_timing: id  0 | task 262 | prompt eval time =     509.91 ms /   512 tokens (    1.00 ms per token,  1004.10 tokens per second)"
+     "line": "0.12.468.201 I slot print_timing: id  0 | task 262 | prompt eval time =     485.10 ms /   512 tokens (    0.95 ms per token,  1055.45 tokens per second)"
     },
     {
      "slot": 0,
      "kind": "eval",
-     "eval_ms": 4885.01,
+     "eval_ms": 4939.11,
      "tokens": 256,
-     "tokens_per_second": 52.2,
+     "tokens_per_second": 51.63,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.713 I slot print_timing: id  0 | task 262 |        eval time =    4885.01 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+     "line": "0.12.468.204 I slot print_timing: id  0 | task 262 |        eval time =    4939.11 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
     }
    ],
    "engine_lines_slot1": [
@@ -352,10 +371,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 158,
-     "tg": 52.11,
-     "tg_3s": 52.44,
-     "line": "0.12.191.032 I slot print_timing: id  1 | task 261 | n_gen =    158, tg =  52.11 t/s, tg_3s =  52.44 t/s"
+     "n_gen": 157,
+     "tg": 51.76,
+     "tg_3s": 52.09,
+     "line": "0.10.543.372 I slot print_timing: id  1 | task 261 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
     },
     {
      "slot": 1,
@@ -363,56 +382,56 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 510.42,
+     "prompt_ms": 485.35,
      "prompt_tokens": 512,
-     "prompt_per_second": 1003.09,
+     "prompt_per_second": 1054.92,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.876 I slot print_timing: id  1 | task 261 | prompt eval time =     510.42 ms /   512 tokens (    1.00 ms per token,  1003.09 tokens per second)"
+     "line": "0.12.468.363 I slot print_timing: id  1 | task 261 | prompt eval time =     485.35 ms /   512 tokens (    0.95 ms per token,  1054.92 tokens per second)"
     },
     {
      "slot": 1,
      "kind": "eval",
-     "eval_ms": 4884.62,
+     "eval_ms": 4938.98,
      "tokens": 256,
-     "tokens_per_second": 52.2,
+     "tokens_per_second": 51.63,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.14.062.877 I slot print_timing: id  1 | task 261 |        eval time =    4884.62 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+     "line": "0.12.468.364 I slot print_timing: id  1 | task 261 |        eval time =    4938.98 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
     }
    ],
-   "arm_wall_ms": 5404.2,
+   "arm_wall_ms": 5434.4,
    "loadavg_at_start": [
-    3.9111328125,
-    5.72705078125,
-    7.00830078125
+    2.0615234375,
+    1.8330078125,
+    2.73974609375
    ]
   },
   "A2_solo_repeat": {
    "slot": 0,
    "salt_label": "2221214d96c839a1",
    "status": 200,
-   "wall_ms": 3931.8,
+   "wall_ms": 3898.1,
    "loadavg_at_start": [
-    3.837890625,
-    5.681640625,
-    6.984375
+    2.13623046875,
+    1.85205078125,
+    2.7412109375
    ],
    "tokens_evaluated": 512,
    "tokens_predicted": 256,
    "stop_type": "limit",
    "cache_n": 0,
    "prompt_n": 512,
-   "prompt_ms": 279.013,
-   "prompt_per_second": 1835.0399443753518,
+   "prompt_ms": 276.251,
+   "prompt_per_second": 1853.3869560653175,
    "predicted_n": 256,
-   "predicted_ms": 3648.045,
-   "predicted_per_second": 69.90045353058967,
+   "predicted_ms": 3612.993,
+   "predicted_per_second": 70.5786033905961,
    "engine_lines": [
     {
      "slot": 0,
@@ -423,10 +442,10 @@
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
-     "n_gen": 211,
-     "tg": 69.89,
-     "tg_3s": 70.22,
-     "line": "0.19.361.228 I slot print_timing: id  0 | task 520 | n_gen =    211, tg =  69.89 t/s, tg_3s =  70.22 t/s"
+     "n_gen": 213,
+     "tg": 70.57,
+     "tg_3s": 70.9,
+     "line": "0.17.769.620 I slot print_timing: id  0 | task 520 | n_gen =    213, tg =  70.57 t/s, tg_3s =  70.90 t/s"
     },
     {
      "slot": 0,
@@ -434,27 +453,27 @@
      "eval_ms": null,
      "tokens": null,
      "tokens_per_second": null,
-     "prompt_ms": 279.01,
+     "prompt_ms": 276.25,
      "prompt_tokens": 512,
-     "prompt_per_second": 1835.04,
+     "prompt_per_second": 1853.39,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.20.004.535 I slot print_timing: id  0 | task 520 | prompt eval time =     279.01 ms /   512 tokens (    0.54 ms per token,  1835.04 tokens per second)"
+     "line": "0.18.378.401 I slot print_timing: id  0 | task 520 | prompt eval time =     276.25 ms /   512 tokens (    0.54 ms per token,  1853.39 tokens per second)"
     },
     {
      "slot": 0,
      "kind": "eval",
-     "eval_ms": 3648.05,
+     "eval_ms": 3612.99,
      "tokens": 256,
-     "tokens_per_second": 69.9,
+     "tokens_per_second": 70.58,
      "prompt_ms": null,
      "prompt_tokens": null,
      "prompt_per_second": null,
      "n_gen": null,
      "tg": null,
      "tg_3s": null,
-     "line": "0.20.004.538 I slot print_timing: id  0 | task 520 |        eval time =    3648.05 ms /   256 tokens (   14.31 ms per token,    69.90 tokens per second)"
+     "line": "0.18.378.404 I slot print_timing: id  0 | task 520 |        eval time =    3612.99 ms /   256 tokens (   14.17 ms per token,    70.58 tokens per second)"
     }
    ]
   }
@@ -466,22 +485,22 @@
     "slot": 0,
     "salt_label": "44652eed8deaf2a5",
     "status": 200,
-    "wall_ms": 3950.2,
+    "wall_ms": 3863.2,
     "loadavg_at_start": [
-     3.8310546875,
-     5.7705078125,
-     7.03857421875
+     2.15283203125,
+     1.84423828125,
+     2.7548828125
     ],
     "tokens_evaluated": 512,
     "tokens_predicted": 256,
     "stop_type": "limit",
     "cache_n": 0,
     "prompt_n": 512,
-    "prompt_ms": 259.675,
-    "prompt_per_second": 1971.6953884663521,
+    "prompt_ms": 254.328,
+    "prompt_per_second": 2013.14837532635,
     "predicted_n": 256,
-    "predicted_ms": 3686.427,
-    "predicted_per_second": 69.17267044756346,
+    "predicted_ms": 3606.572,
+    "predicted_per_second": 70.7042587809144,
     "engine_lines": [
      {
       "slot": 0,
@@ -492,10 +511,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 209,
-      "tg": 69.07,
-      "tg_3s": 69.4,
-      "line": "0.05.970.024 I slot print_timing: id  0 | task 1 | n_gen =    209, tg =  69.07 t/s, tg_3s =  69.40 t/s"
+      "n_gen": 214,
+      "tg": 70.69,
+      "tg_3s": 71.02,
+      "line": "0.04.426.020 I slot print_timing: id  0 | task 1 | n_gen =    214, tg =  70.69 t/s, tg_3s =  71.02 t/s"
      },
      {
       "slot": 0,
@@ -503,73 +522,73 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 259.68,
+      "prompt_ms": 254.33,
       "prompt_tokens": 512,
-      "prompt_per_second": 1971.7,
+      "prompt_per_second": 2013.15,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.06.644.943 I slot print_timing: id  0 | task 1 | prompt eval time =     259.68 ms /   512 tokens (    0.51 ms per token,  1971.70 tokens per second)"
+      "line": "0.05.019.402 I slot print_timing: id  0 | task 1 | prompt eval time =     254.33 ms /   512 tokens (    0.50 ms per token,  2013.15 tokens per second)"
      },
      {
       "slot": 0,
       "kind": "eval",
-      "eval_ms": 3686.43,
+      "eval_ms": 3606.57,
       "tokens": 256,
-      "tokens_per_second": 69.17,
+      "tokens_per_second": 70.7,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.06.644.946 I slot print_timing: id  0 | task 1 |        eval time =    3686.43 ms /   256 tokens (   14.46 ms per token,    69.17 tokens per second)"
+      "line": "0.05.019.407 I slot print_timing: id  0 | task 1 |        eval time =    3606.57 ms /   256 tokens (   14.14 ms per token,    70.70 tokens per second)"
      }
     ]
    },
    "B_two_slots": {
-    "slot1": {
-     "slot": 1,
-     "salt_label": "2f21d3a00443f69f",
-     "status": 200,
-     "wall_ms": 5403.0,
-     "loadavg_at_start": [
-      3.9111328125,
-      5.72705078125,
-      7.00830078125
-     ],
-     "tokens_evaluated": 512,
-     "tokens_predicted": 256,
-     "stop_type": "limit",
-     "cache_n": 0,
-     "prompt_n": 512,
-     "prompt_ms": 510.421,
-     "prompt_per_second": 1003.0935247570143,
-     "predicted_n": 256,
-     "predicted_ms": 4884.624,
-     "predicted_per_second": 52.20463233198707,
-     "engine_lines": []
-    },
     "slot0": {
      "slot": 0,
      "salt_label": "fba224578f3fbf8c",
      "status": 200,
-     "wall_ms": 5402.6,
+     "wall_ms": 5432.1,
      "loadavg_at_start": [
-      3.9111328125,
-      5.72705078125,
-      7.00830078125
+      2.0615234375,
+      1.8330078125,
+      2.73974609375
      ],
      "tokens_evaluated": 512,
      "tokens_predicted": 256,
      "stop_type": "limit",
      "cache_n": 0,
      "prompt_n": 512,
-     "prompt_ms": 509.909,
-     "prompt_per_second": 1004.1007316991855,
+     "prompt_ms": 485.101,
+     "prompt_per_second": 1055.4503082863157,
      "predicted_n": 256,
-     "predicted_ms": 4885.007,
-     "predicted_per_second": 52.20053932368982,
+     "predicted_ms": 4939.106,
+     "predicted_per_second": 51.62877654377128,
+     "engine_lines": []
+    },
+    "slot1": {
+     "slot": 1,
+     "salt_label": "2f21d3a00443f69f",
+     "status": 200,
+     "wall_ms": 5432.8,
+     "loadavg_at_start": [
+      2.0615234375,
+      1.8330078125,
+      2.73974609375
+     ],
+     "tokens_evaluated": 512,
+     "tokens_predicted": 256,
+     "stop_type": "limit",
+     "cache_n": 0,
+     "prompt_n": 512,
+     "prompt_ms": 485.346,
+     "prompt_per_second": 1054.917522756961,
+     "predicted_n": 256,
+     "predicted_ms": 4938.976,
+     "predicted_per_second": 51.63013547747549,
      "engine_lines": []
     },
     "engine_lines": [
@@ -582,10 +601,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 158,
-      "tg": 52.1,
-      "tg_3s": 52.44,
-      "line": "0.12.190.852 I slot print_timing: id  0 | task 262 | n_gen =    158, tg =  52.10 t/s, tg_3s =  52.44 t/s"
+      "n_gen": 157,
+      "tg": 51.76,
+      "tg_3s": 52.09,
+      "line": "0.10.543.247 I slot print_timing: id  0 | task 262 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
      },
      {
       "slot": 1,
@@ -596,10 +615,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 158,
-      "tg": 52.11,
-      "tg_3s": 52.44,
-      "line": "0.12.191.032 I slot print_timing: id  1 | task 261 | n_gen =    158, tg =  52.11 t/s, tg_3s =  52.44 t/s"
+      "n_gen": 157,
+      "tg": 51.76,
+      "tg_3s": 52.09,
+      "line": "0.10.543.372 I slot print_timing: id  1 | task 261 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
      },
      {
       "slot": 0,
@@ -607,27 +626,27 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 509.91,
+      "prompt_ms": 485.1,
       "prompt_tokens": 512,
-      "prompt_per_second": 1004.1,
+      "prompt_per_second": 1055.45,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.709 I slot print_timing: id  0 | task 262 | prompt eval time =     509.91 ms /   512 tokens (    1.00 ms per token,  1004.10 tokens per second)"
+      "line": "0.12.468.201 I slot print_timing: id  0 | task 262 | prompt eval time =     485.10 ms /   512 tokens (    0.95 ms per token,  1055.45 tokens per second)"
      },
      {
       "slot": 0,
       "kind": "eval",
-      "eval_ms": 4885.01,
+      "eval_ms": 4939.11,
       "tokens": 256,
-      "tokens_per_second": 52.2,
+      "tokens_per_second": 51.63,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.713 I slot print_timing: id  0 | task 262 |        eval time =    4885.01 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+      "line": "0.12.468.204 I slot print_timing: id  0 | task 262 |        eval time =    4939.11 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
      },
      {
       "slot": 1,
@@ -635,27 +654,27 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 510.42,
+      "prompt_ms": 485.35,
       "prompt_tokens": 512,
-      "prompt_per_second": 1003.09,
+      "prompt_per_second": 1054.92,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.876 I slot print_timing: id  1 | task 261 | prompt eval time =     510.42 ms /   512 tokens (    1.00 ms per token,  1003.09 tokens per second)"
+      "line": "0.12.468.363 I slot print_timing: id  1 | task 261 | prompt eval time =     485.35 ms /   512 tokens (    0.95 ms per token,  1054.92 tokens per second)"
      },
      {
       "slot": 1,
       "kind": "eval",
-      "eval_ms": 4884.62,
+      "eval_ms": 4938.98,
       "tokens": 256,
-      "tokens_per_second": 52.2,
+      "tokens_per_second": 51.63,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.877 I slot print_timing: id  1 | task 261 |        eval time =    4884.62 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+      "line": "0.12.468.364 I slot print_timing: id  1 | task 261 |        eval time =    4938.98 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
      }
     ],
     "engine_lines_slot0": [
@@ -668,10 +687,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 158,
-      "tg": 52.1,
-      "tg_3s": 52.44,
-      "line": "0.12.190.852 I slot print_timing: id  0 | task 262 | n_gen =    158, tg =  52.10 t/s, tg_3s =  52.44 t/s"
+      "n_gen": 157,
+      "tg": 51.76,
+      "tg_3s": 52.09,
+      "line": "0.10.543.247 I slot print_timing: id  0 | task 262 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
      },
      {
       "slot": 0,
@@ -679,27 +698,27 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 509.91,
+      "prompt_ms": 485.1,
       "prompt_tokens": 512,
-      "prompt_per_second": 1004.1,
+      "prompt_per_second": 1055.45,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.709 I slot print_timing: id  0 | task 262 | prompt eval time =     509.91 ms /   512 tokens (    1.00 ms per token,  1004.10 tokens per second)"
+      "line": "0.12.468.201 I slot print_timing: id  0 | task 262 | prompt eval time =     485.10 ms /   512 tokens (    0.95 ms per token,  1055.45 tokens per second)"
      },
      {
       "slot": 0,
       "kind": "eval",
-      "eval_ms": 4885.01,
+      "eval_ms": 4939.11,
       "tokens": 256,
-      "tokens_per_second": 52.2,
+      "tokens_per_second": 51.63,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.713 I slot print_timing: id  0 | task 262 |        eval time =    4885.01 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+      "line": "0.12.468.204 I slot print_timing: id  0 | task 262 |        eval time =    4939.11 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
      }
     ],
     "engine_lines_slot1": [
@@ -712,10 +731,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 158,
-      "tg": 52.11,
-      "tg_3s": 52.44,
-      "line": "0.12.191.032 I slot print_timing: id  1 | task 261 | n_gen =    158, tg =  52.11 t/s, tg_3s =  52.44 t/s"
+      "n_gen": 157,
+      "tg": 51.76,
+      "tg_3s": 52.09,
+      "line": "0.10.543.372 I slot print_timing: id  1 | task 261 | n_gen =    157, tg =  51.76 t/s, tg_3s =  52.09 t/s"
      },
      {
       "slot": 1,
@@ -723,56 +742,56 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 510.42,
+      "prompt_ms": 485.35,
       "prompt_tokens": 512,
-      "prompt_per_second": 1003.09,
+      "prompt_per_second": 1054.92,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.876 I slot print_timing: id  1 | task 261 | prompt eval time =     510.42 ms /   512 tokens (    1.00 ms per token,  1003.09 tokens per second)"
+      "line": "0.12.468.363 I slot print_timing: id  1 | task 261 | prompt eval time =     485.35 ms /   512 tokens (    0.95 ms per token,  1054.92 tokens per second)"
      },
      {
       "slot": 1,
       "kind": "eval",
-      "eval_ms": 4884.62,
+      "eval_ms": 4938.98,
       "tokens": 256,
-      "tokens_per_second": 52.2,
+      "tokens_per_second": 51.63,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.14.062.877 I slot print_timing: id  1 | task 261 |        eval time =    4884.62 ms /   256 tokens (   19.16 ms per token,    52.20 tokens per second)"
+      "line": "0.12.468.364 I slot print_timing: id  1 | task 261 |        eval time =    4938.98 ms /   256 tokens (   19.37 ms per token,    51.63 tokens per second)"
      }
     ],
-    "arm_wall_ms": 5404.2,
+    "arm_wall_ms": 5434.4,
     "loadavg_at_start": [
-     3.9111328125,
-     5.72705078125,
-     7.00830078125
+     2.0615234375,
+     1.8330078125,
+     2.73974609375
     ]
    },
    "A2_solo_repeat": {
     "slot": 0,
     "salt_label": "2221214d96c839a1",
     "status": 200,
-    "wall_ms": 3931.8,
+    "wall_ms": 3898.1,
     "loadavg_at_start": [
-     3.837890625,
-     5.681640625,
-     6.984375
+     2.13623046875,
+     1.85205078125,
+     2.7412109375
     ],
     "tokens_evaluated": 512,
     "tokens_predicted": 256,
     "stop_type": "limit",
     "cache_n": 0,
     "prompt_n": 512,
-    "prompt_ms": 279.013,
-    "prompt_per_second": 1835.0399443753518,
+    "prompt_ms": 276.251,
+    "prompt_per_second": 1853.3869560653175,
     "predicted_n": 256,
-    "predicted_ms": 3648.045,
-    "predicted_per_second": 69.90045353058967,
+    "predicted_ms": 3612.993,
+    "predicted_per_second": 70.5786033905961,
     "engine_lines": [
      {
       "slot": 0,
@@ -783,10 +802,10 @@
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
-      "n_gen": 211,
-      "tg": 69.89,
-      "tg_3s": 70.22,
-      "line": "0.19.361.228 I slot print_timing: id  0 | task 520 | n_gen =    211, tg =  69.89 t/s, tg_3s =  70.22 t/s"
+      "n_gen": 213,
+      "tg": 70.57,
+      "tg_3s": 70.9,
+      "line": "0.17.769.620 I slot print_timing: id  0 | task 520 | n_gen =    213, tg =  70.57 t/s, tg_3s =  70.90 t/s"
      },
      {
       "slot": 0,
@@ -794,31 +813,31 @@
       "eval_ms": null,
       "tokens": null,
       "tokens_per_second": null,
-      "prompt_ms": 279.01,
+      "prompt_ms": 276.25,
       "prompt_tokens": 512,
-      "prompt_per_second": 1835.04,
+      "prompt_per_second": 1853.39,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.20.004.535 I slot print_timing: id  0 | task 520 | prompt eval time =     279.01 ms /   512 tokens (    0.54 ms per token,  1835.04 tokens per second)"
+      "line": "0.18.378.401 I slot print_timing: id  0 | task 520 | prompt eval time =     276.25 ms /   512 tokens (    0.54 ms per token,  1853.39 tokens per second)"
      },
      {
       "slot": 0,
       "kind": "eval",
-      "eval_ms": 3648.05,
+      "eval_ms": 3612.99,
       "tokens": 256,
-      "tokens_per_second": 69.9,
+      "tokens_per_second": 70.58,
       "prompt_ms": null,
       "prompt_tokens": null,
       "prompt_per_second": null,
       "n_gen": null,
       "tg": null,
       "tg_3s": null,
-      "line": "0.20.004.538 I slot print_timing: id  0 | task 520 |        eval time =    3648.05 ms /   256 tokens (   14.31 ms per token,    69.90 tokens per second)"
+      "line": "0.18.378.404 I slot print_timing: id  0 | task 520 |        eval time =    3612.99 ms /   256 tokens (   14.17 ms per token,    70.58 tokens per second)"
      }
     ]
    },
-   "A2_over_A": 1.0105,
+   "A2_over_A": 0.9982,
    "bracket_ok": true
   }
  ],
@@ -826,7 +845,7 @@
  "bracket": {
   "rule": "A2 must land within +/- bracket_tol of A; A2 is the control for host load, not a measurement",
   "bracket_tol": 0.03,
-  "accepted_A2_over_A": 1.0105
+  "accepted_A2_over_A": 0.9982
  },
  "tokens_generated": {
   "A": 256,
@@ -844,17 +863,17 @@
   "verdict": "none - every arm is cold; --cache-ram 0 and a fresh salt per arm, so only decode is compared"
  },
  "ratios": {
-  "per_stream_slot0_over_A": 0.7546,
-  "per_stream_slot1_over_A": 0.7547,
-  "aggregate_over_A": 1.5093,
-  "per_stream_slot0_over_A2": 0.7468,
-  "A2_over_A": 1.0105
+  "per_stream_slot0_over_A": 0.7302,
+  "per_stream_slot1_over_A": 0.7302,
+  "aggregate_over_A": 1.4604,
+  "per_stream_slot0_over_A2": 0.7315,
+  "A2_over_A": 0.9982
  },
  "tokens_per_second": {
-  "A": 69.17267044756346,
-  "B_slot0": 52.20053932368982,
-  "B_slot1": 52.20463233198707,
-  "A2": 69.90045353058967,
-  "B_aggregate": 104.41
+  "A": 70.7042587809144,
+  "B_slot0": 51.62877654377128,
+  "B_slot1": 51.63013547747549,
+  "A2": 70.5786033905961,
+  "B_aggregate": 103.26
  }
 }
