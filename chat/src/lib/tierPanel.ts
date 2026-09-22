@@ -104,7 +104,10 @@ export function concurrencyRow(): TierRow | null {
     slots[0] === slots[1] ? `${slots[0]}x each` : `${slots[0]}x / ${slots[1]}x per slot`;
   return {
     label: "Two devices decoding",
-    value: `${perDevice}, ${ratios.aggregate.toFixed(2)}x together — decode rate vs one device, not wall time`,
-    detail: `Measured on ${release.tag}, ${release.platform}/${release.backend}`,
+    // The value is the number's line: the two figures and nothing else.
+    // What the figures MEAN, and which artifact they came from, live in the
+    // detail — the row this panel already uses to name its sources.
+    value: `${perDevice}, ${ratios.aggregate.toFixed(2)}x together`,
+    detail: `Decode rate vs one device, not wall time — measured on ${release.tag}, ${release.platform}/${release.backend}`,
   };
 }

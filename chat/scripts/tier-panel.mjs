@@ -20,13 +20,15 @@
 // `dev/results/slot-restore-device-path`), so a path edited in the constant
 // cannot quietly aim the check at some other file. Constant and artifact
 // must say the same thing: status, tag, platform, backend, exe_sha256; the
-// three ratios at the precision the panel shows; a detail that names the
-// artifact; and a row that exists exactly while the artifact's status is
+// three ratios at the precision the panel shows; a detail carrying the
+// qualification and naming the artifact; and a row that exists exactly
+// while the artifact's status is
 // `matched`. The committed JSON is only ever read — the two mutation proofs
 // run on in-memory copies, and the third was run against the constant
 // itself at commit time: `aggregate: 1.4604` → `1.5604` in `tierPanel.ts`
 // turned this red (exit 1, 2 failures — the ratio equality, and the value
-// that stopped showing the artifact's number), then was reverted.
+// that stopped showing the artifact's number), then was reverted. Dropping
+// `not wall time` from the row's detail goes red on the detail check.
 // Full run: 30 checks, all passing.
 //
 // Run: node scripts/tier-panel.mjs
@@ -88,10 +90,13 @@ function concurrencyChecks(app, artifact, emit) {
       pairs.every(([, , a]) => row.value.includes(`${a.toFixed(2)}x`)),
       row.value,
     );
+    // The qualification lives in the detail, not in the value: the value is
+    // the number's line. Checking it where it actually sits, or the check
+    // would go green (or red) on a string that is no longer there.
     emit(
-      "concurrency: the value is a decode rate, not a wall time",
-      /decode rate/.test(row.value) && /not wall time/.test(row.value),
-      row.value,
+      "concurrency: the detail says decode rate, not wall time",
+      /decode rate/i.test(row.detail) && /not wall time/i.test(row.detail),
+      row.detail,
     );
     emit(
       "concurrency: the detail names the artifact",
