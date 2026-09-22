@@ -9,11 +9,13 @@
  * What this host does NOT mount, reported rather than half-wired: the
  * background discard machine and its grace (`App:3076-3084, 3330-3424`), so
  * there is no `backgroundGrace` to cancel on the foreground transition and
- * no `background.grace` log line to emit; the download-start bump
- * (`App:4676` — no download system, Table 3 gap 3); and the controller's
+ * no `background.grace` log line to emit; and the controller's
  * `setProcessUnloadedReason` / `setMemoryBannerKey` paints
  * (`App:3124-3125` — row 35's strip hint was never lifted and D1:38 dropped
- * the banner). Residency truth after a dispose is carried by one re-render:
+ * the banner). The download-start bump (`App:4676`) and `downloadInFlight`
+ * in the in-flight read are WITH the download system now
+ * (`useModelDownload.ts`). Residency truth after a dispose is carried by one
+ * re-render:
  * the composer already maps `ready && !engineResident` to its `unloaded`
  * hold line (`composerPhase.ts:44`).
  */
@@ -54,6 +56,7 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { modelSwitchInFlightRef } from "./modelSwitch";
+import { downloadInFlightRef } from "./useModelDownload";
 import { createForegroundIdleClock } from "./idleWatchdog";
 
 /** The controller's bounded pre-dispose drain (`App:3216-3231`): abort is
@@ -73,14 +76,16 @@ export const idleDiscardAbortRef: { current: (() => void) | null } = {
   current: null,
 };
 
-/** The controller's `engineWorkInFlight` (`App:3262-3269`) minus
- *  `downloadInFlight` — this host mounts no downloads (Table 3 gap 3). */
+/** The controller's `engineWorkInFlight` (`App:3262-3269`),
+ *  `downloadInFlightRef` included (`App:3267`) now that the download
+ *  system exists. */
 function engineWorkInFlight(streamInFlightRef: { current: boolean }): boolean {
   return (
     streamInFlightRef.current ||
     sendClaimRef.current ||
     sendingInFlightRef.current ||
     regenInFlightRef.current ||
+    downloadInFlightRef.current ||
     modelSwitchInFlightRef.current ||
     nativeEngineWorkInFlight()
   );

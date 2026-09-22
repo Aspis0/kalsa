@@ -1242,7 +1242,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
      */
     notice: {
       mic: "Dictation is not available in this build yet.",
-      download: "Downloading models is not available in this build yet.",
       voiceDownload: "Downloading the voice model is not available in this build yet.",
       embeddingDownload: "Downloading the embedding model is not available in this build yet.",
       semanticRebuild: "Rebuilding the semantic index is not available in this build yet.",

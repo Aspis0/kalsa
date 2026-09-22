@@ -23,6 +23,7 @@ import { modes, type, type ThemeMode } from "../../theme/design";
 import { ComposerAttachments, type ComposerAttachmentsProps } from "./ComposerAttachments";
 import { ComposerToolbar, type ComposerToolbarProps } from "./ComposerToolbar";
 import { ShellComposer } from "./ShellComposer";
+import { ModelBar, modelBarHeight, type ModelBarView, type ModelPressState } from "./ModelBar";
 import {
   COMPOSER_ATTACHMENTS_HEIGHT,
   COMPOSER_TOOLBAR_HEIGHT,
@@ -110,6 +111,7 @@ export type ShellProps = {
    * would be describing a different palette than the band it sits in.
    */
   attachments?: Omit<ComposerAttachmentsProps, "colors">;
+  modelBar?: ModelBarView;
 };
 
 export function Shell({
@@ -143,6 +145,7 @@ export function Shell({
   fieldRef,
   toolbar,
   attachments,
+  modelBar,
 }: ShellProps) {
   const { t } = useLocale();
   const window = useWindowDimensions();
@@ -156,7 +159,7 @@ export function Shell({
     (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT) +
     (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT) +
     (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT) +
-    (attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0);
+    (attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0) + (modelBar === undefined ? 0 : modelBarHeight(modelBar));
   const layoutHeight = (height ?? window.height) - extraRows;
   // One combined inset for BOTH uses: the geometry partitions with it and the
   // composer's bottom offset anchors to it. Computing them separately anchors
@@ -178,6 +181,7 @@ export function Shell({
   };
 
   const iconColor = colors.inkSoft;
+  const modelControl: ModelPressState = modelBar?.control ?? "enabled";
 
   return (
     <View style={styles.root} testID="shell.root">
@@ -201,7 +205,10 @@ export function Shell({
           testID="shell.strip.model"
           accessibilityRole="button"
           accessibilityLabel={t("shell.a11y.modelSwitcher", { model: modelName, where: whereLabel })}
+          accessibilityState={{ disabled: modelControl !== "enabled" }}
           onPress={onModelPress}
+          disabled={modelControl !== "enabled"}
+          pointerEvents={modelControl === "inert" ? "none" : "auto"}
           style={styles.pill}
         >
           {/* No picture in here, and that is the point of this slice: the mark
@@ -275,6 +282,9 @@ export function Shell({
         </Pressable>
       </View>
 
+      {/* The status rows the pill's column cannot hold (D1 34-36): their
+          height leaves the transcript before the partition above. */}
+      {modelBar === undefined ? null : <ModelBar view={modelBar} mode={mode} />}
       {/* The preview's mismatch notice: a row of its own, directly under the
           strip, so it can never be drawn over the conversation. `styles.notice`
           is `SHELL_NOTICE_HEIGHT` tall and clips, so a long string cannot wrap

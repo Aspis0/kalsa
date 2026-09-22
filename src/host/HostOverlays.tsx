@@ -8,13 +8,18 @@
  * Adaptations (reported): the mini-app sheet mounts here as
  * `HostMiniappSheet` — the controller's exclusive union is complete again
  * (the kind was held while no card could open it; see `hostOverlay.ts`);
- * model SELECT and retry
- * are real (the lifted switchers), while the three DOWNLOAD buttons serve
- * `shell.notice.*` — the download paths stayed behind with a report;
+ * model SELECT, retry and the MODEL download are real (the lifted switchers
+ * plus `confirmDownload`), while the voice and embedding download buttons
+ * keep serving `shell.notice.voiceDownload` / `shell.notice.embeddingDownload`
+ * — held because the voice pipeline does not exist in this build;
  * `onRebuildSemanticIndex` needs the background embed job and answers
  * `{ok:false, reason:"unavailable"}` plus the same notice.
+ *
+ * The settings-presence scan mirrors `AppShell.tsx:5321-5344` exactly:
+ * gated on Settings open (there is NO boot-time rescan in either app) and
+ * re-run when `modelState` moves, writing UP into the download host's map.
  */
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { AccountScreen } from "../screens/AccountScreen";
 import { ProScreen } from "../screens/ProScreen";
@@ -30,6 +35,7 @@ import {
   type ModelInfo,
 } from "../engine/ModelRegistry";
 import { isModelBundleDownloaded } from "../engine/ModelDownloader";
+import { modelErrorHint } from "./modelBar";
 import type { RebuildSemanticIndexResult } from "../screens/documents/DocumentDetailView";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import type { LibraryDoc, LibraryState } from "../documents/DocumentLibrary";
@@ -63,6 +69,13 @@ export interface OverlaysProps {
   streaming: boolean;
   selectModelById: (modelId: string) => void;
   userReloadModel: (model: ModelInfo) => void;
+  /** The real confirm-then-transfer (controller `confirmDownload`, App:7132). */
+  confirmDownload: (modelId: string) => void;
+  /** 0-100 while downloading; null otherwise (controller App:7128). */
+  downloadPercent: number | null;
+  /** Presence map owned by the download host; the scan below writes into it. */
+  downloadedById: Record<string, boolean>;
+  onDownloadedScan: (map: Record<string, boolean>) => void;
   voiceState: VoicePipelineState;
   ttsEnabled: boolean;
   setTtsEnabled: (enabled: boolean) => void;
@@ -95,6 +108,10 @@ export function HostOverlays(props: OverlaysProps) {
     streaming,
     selectModelById,
     userReloadModel,
+    confirmDownload,
+    downloadPercent,
+    downloadedById,
+    onDownloadedScan,
     voiceState,
     ttsEnabled,
     setTtsEnabled,
@@ -110,9 +127,11 @@ export function HostOverlays(props: OverlaysProps) {
   } = props;
   const { t } = useLocale();
   const { fontScaleId } = useLabTheme<{ fontScaleId: string }>();
-  const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
-  // When Settings opens, scan which models are fully on disk (once per open).
+  // When Settings opens, scan which models are fully on disk — once per open
+  // AND on every state change while open, the controller's deps
+  // (`activeOverlay?.kind, modelState`, `App:5343`), writing up into the
+  // download host so strip and Settings read one map.
   useEffect(() => {
     if (overlay?.kind !== "settings") return;
     let mounted = true;
@@ -127,33 +146,18 @@ export function HostOverlays(props: OverlaysProps) {
           }
         }),
       );
-      if (mounted) setDownloadedById(Object.fromEntries(entries));
+      const map: Record<string, boolean> = Object.fromEntries(entries);
+      if (mounted) onDownloadedScan(map);
     })();
     return () => {
       mounted = false;
     };
-  }, [overlay]);
+  }, [overlay, modelState, onDownloadedScan]);
 
-  // Extra guidance for connectivity-shaped failures (keep-open hint), plus the
-  // raw download error as an untranslated diagnostic when it differs from the
-  // friendly message.
-  const modelErrorHint = (() => {
-    if (modelState !== "error") return null;
-    const isConnectivity =
-      !!modelError &&
-      (modelError === t("errors.connectionLost") ||
-        modelError === t("errors.networkUnreachable"));
-    const detailBody = modelErrorDetail
-      ? modelErrorDetail.replace(/^(?:[A-Za-z]+Error?|Error):\s*/, "")
-      : null;
-    const raw =
-      modelErrorDetail && detailBody !== modelError ? modelErrorDetail : null;
-    if (isConnectivity) {
-      const keepOpen = t("download.keepOpenHint");
-      return raw ? `${raw} — ${keepOpen}` : keepOpen;
-    }
-    return raw;
-  })();
+  // Extra guidance for connectivity-shaped failures plus the raw diagnostic
+  // — the controller's single builder (`App:6725-6745`), shared with the
+  // strip's hint row (`modelBar.ts`).
+  const hint = modelErrorHint({ modelState, modelError, modelErrorDetail, t });
 
   if (overlay?.kind === "settings") {
     return (
@@ -171,16 +175,15 @@ export function HostOverlays(props: OverlaysProps) {
         model={{
           currentModelId: currentModel.id,
           modelState,
-          // No download pipeline in this build: never mid-download.
-          downloadPercent: null,
+          downloadPercent,
           modelError,
-          modelErrorHint,
+          modelErrorHint: hint,
           modelErrorKind,
           streaming,
           downloadedById,
           deviceBandwidth,
           onSelectModel: selectModelById,
-          onDownloadModel: () => onNotice("shell.notice.download"),
+          onDownloadModel: confirmDownload,
           onRetryLoad: () => {
             userReloadModel(currentModel);
           },

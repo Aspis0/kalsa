@@ -1,12 +1,11 @@
 /**
  * The model host: selection state, the device-bandwidth recorder, the
- * context-size reads and the bound load path — stateful half lifted from the
- * old controller, with the load deps assembled once so `ensureEngineForModel`,
+ * context-size reads, the bound load path, and the download acquisition
+ * (`useModelDownload`) — stateful half lifted from the old controller,
+ * with the load deps assembled once so `ensureEngineForModel`,
  * the boot kick and the switchers all read the same values the old component
- * captured in three dependency arrays.
- *
- * `download` state is NOT lifted (downloads are held in this slice); the
- * switchers and `userReloadModel` are the lifted ones from `modelSwitch`.
+ * captured in three dependency arrays. The switchers and
+ * `userReloadModel` are the lifted ones from `modelSwitch`.
  */
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
@@ -28,6 +27,7 @@ import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { ModelPipelineState } from "../app/AppShell";
 import type { Locale, TranslateFn } from "../i18n";
 import { ensureEngineForModel } from "./engineEnsure";
+import { useModelDownload } from "./useModelDownload";
 import { loadMarkerStore, type EngineLoadDeps } from "./engineLoad";
 import { clearLoadMarker } from "../engine/loadMarker";
 import {
@@ -39,6 +39,7 @@ import { usePipelineScans, type PipelineScanResult } from "./usePipelineScans";
 export interface ModelHostParams {
   t: TranslateFn;
   locale: Locale;
+  thermalHardGated: boolean;
   thermalHardGateRef: { current: boolean };
   streamInFlightRef: { current: boolean };
   conversationsRef: { current: ConversationsState };
@@ -50,7 +51,7 @@ export interface ModelHostParams {
 }
 
 export function useModelHost(params: ModelHostParams) {
-  const { t, locale, thermalHardGateRef, streamInFlightRef, conversationsRef, agentOptions, agentOptionsRef, memoryExtractRef, embedderDownloadedRef, chatEngineCtxRef } = params;
+  const { t, locale, thermalHardGated, thermalHardGateRef, streamInFlightRef, conversationsRef, agentOptions, agentOptionsRef, memoryExtractRef, embedderDownloadedRef, chatEngineCtxRef } = params;
 
   const [modelIndex, setModelIndex] = useState(() =>
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
@@ -199,6 +200,25 @@ export function useModelHost(params: ModelHostParams) {
     memoryExtractRef,
   } satisfies ModelSwitchDeps);
 
+  // The download acquisition (`AppShell.tsx:4657-5154`): transfer state,
+  // the settings-presence map and the confirmed start — dependencies read
+  // straight from the load deps this hook already owns.
+  const modelDownload = useModelDownload({
+    t,
+    locale,
+    thermalHardGated,
+    thermalHardGateRef,
+    engineGenerationRef,
+    modelIndexRef,
+    modelStateRef,
+    ensureEngineForModelRef,
+    deviceBandwidth,
+    setModelState,
+    setModelError,
+    setModelErrorKind,
+    setModelErrorDetail,
+  });
+
   /**
    * Explicit user reload (model-bar chip / Settings retry). The recovery from
    * a marker refusal is a HUMAN act: the tap clears this model's death marker
@@ -240,6 +260,7 @@ export function useModelHost(params: ModelHostParams) {
     scanSetters,
     scans,
     ...switchers,
+    ...modelDownload,
     userReloadModel,
     refreshContextSize,
   };

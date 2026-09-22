@@ -102,6 +102,7 @@ export function useHostEngine(params: HostEngineParams) {
   const modelHost = useModelHost({
     t,
     locale,
+    thermalHardGated,
     thermalHardGateRef,
     streamInFlightRef,
     conversationsRef,

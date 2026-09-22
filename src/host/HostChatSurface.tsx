@@ -4,8 +4,10 @@
  * `HostLayout.tsx` beside it). This is the JSX the root used to render, moved
  * not re-thought:
  *
- * - the strip's model-pill tap semantics, with the missing-download path
- *   serving `shell.notice.download` (§2.7);
+ * - the strip's model-pill tap semantics (D1 row 33: download if missing,
+ *   retry if error, load if ready; disabled while busy, inert when the
+ *   embedder is hung) and the model bar's rows under the strip (rows 34-36),
+ *   both decided in `useModelBar`;
  * - the attach flow (sheet, pickers, PDF conversion, §2.7 chip row) and the
  *   mic, still a stub that answers with its toast (§2.7);
  * - the send ⇄ stop wiring of §2.8's one control: `stop` while the face says
@@ -17,10 +19,6 @@
  * this subtree consumes them; the root keeps the safe-area insets (the drawer
  * needs the strip's top).
  */
-import { isEmbedderHung } from "../engine/EmbeddingService";
-import { getActiveModelId, isEngineReady } from "../engine/LlamaService";
-import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
-import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { PdfToImages } from "../components/PdfToImages";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -46,6 +44,9 @@ import type { SendHost } from "./sendHost";
 import type { AttachmentsHost } from "./useAttachments";
 import type { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
+import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
+import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
+import { useModelBar } from "./useModelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeCopy";
 
@@ -126,21 +127,10 @@ export function HostChatSurface({
   // field, exactly as the controller's `handleChooseTemplate` (Chat:3636-3637).
   const fieldRef = useRef<TextInput | null>(null);
 
-  // Strip pill semantics: load when the bundle is on disk but unloaded, retry
-  // an engine error, no-op while busy or already resident (the old chip was
-  // disabled there); a missing bundle has no download path in this build and
-  // says so (§2.7).
-  const onModelPress = () => {
-    if (isEmbedderHung()) return;
-    const resident = isEngineReady() && getActiveModelId() === modelHost.currentModel.id;
-    if (modelHost.modelState === "missing" || modelHost.modelErrorKind === "download") {
-      showNoticeKey("shell.notice.download");
-      return;
-    }
-    if (modelHost.modelState === "checking" || modelHost.modelState === "loading") return;
-    if (modelHost.modelState === "ready" && resident) return;
-    modelHost.userReloadModel(modelHost.currentModel);
-  };
+  // Strip pill semantics and the rows beneath it (D1 rows 33-36): one hook
+  // owns the decision table, the derived labels and the battery sampling —
+  // the controller computed these in render (`AppShell.tsx:6720-6788`).
+  const modelBar = useModelBar(modelHost);
 
   const bandInsets = bottomInsetFor(insets, keyboardHeight);
   const colors = modes[mode];
@@ -242,7 +232,8 @@ export function HostChatSurface({
       faceEnabled={view.composer.faceEnabled}
       sendEnabled={view.sendEnabled}
       onMenuPress={onMenuPress}
-      onModelPress={onModelPress}
+      onModelPress={modelBar.onPress}
+      modelBar={modelBar.view}
       onNewChatPress={onNewChatPress}
       onAttachPress={() => setAttachSheetOpen(true)}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}

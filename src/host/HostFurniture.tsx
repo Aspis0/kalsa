@@ -14,6 +14,7 @@
  * survive a font-scale change).
  */
 import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
+import { progressPercent } from "./modelBar";
 import { HostNotice } from "./HostNotice";
 import { HostOverlays } from "./HostOverlays";
 import type { HostOverlay } from "./hostOverlay";
@@ -79,6 +80,14 @@ export function HostFurniture({
         streaming={streaming}
         selectModelById={modelHost.selectModelById}
         userReloadModel={modelHost.userReloadModel}
+        confirmDownload={modelHost.confirmDownload}
+        downloadPercent={
+          modelHost.modelState === "downloading"
+            ? progressPercent(modelHost.download?.progress ?? null)
+            : null
+        }
+        downloadedById={modelHost.downloadedById}
+        onDownloadedScan={modelHost.applyDownloadedScan}
         voiceState={modelHost.scans.voiceState}
         ttsEnabled={modelHost.scans.ttsEnabled}
         setTtsEnabled={modelHost.scans.setTtsEnabled}

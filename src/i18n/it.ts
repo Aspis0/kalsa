@@ -1197,7 +1197,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
      */
     notice: {
       mic: "Il dettato non è ancora disponibile in questa build.",
-      download: "Il download dei modelli non è ancora disponibile in questa build.",
       voiceDownload: "Il download del modello vocale non è ancora disponibile in questa build.",
       embeddingDownload: "Il download del modello di embedding non è ancora disponibile in questa build.",
       semanticRebuild: "La ricostruzione dell'indice semantico non è ancora disponibile in questa build.",

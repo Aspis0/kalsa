@@ -4,10 +4,11 @@
  * their original names so their mutual calls stay verbatim.
  *
  * Adaptations (reported): the render-captured guards read `modelIndexRef` /
- * `modelStateRef` (same values, sync read); `downloadInFlight` is gone with
- * the download paths; the chat-side locks are `regenState`'s module refs,
- * maintained at the same points the old screen did. `MODEL_STORAGE_KEY` is the
- * parity doc's class-(a) const, lifted.
+ * `modelStateRef` (same values, sync read); the chat-side locks are
+ * `regenState`'s module refs, maintained at the same points the old screen
+ * did. `MODEL_STORAGE_KEY` is the parity doc's class-(a) const, lifted.
+ * `downloadInFlightRef` is back with the download system it once guarded
+ * (`App:4452`) — its absence was declared when this file was lifted.
  */
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -37,6 +38,7 @@ import { MODEL_REGISTRY } from "../engine/ModelRegistry";
 import { clearLoadMarker } from "../engine/loadMarker";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 import { loadMarkerStore, type EngineLoadDeps } from "./engineLoad";
+import { downloadInFlightRef } from "./useModelDownload";
 
 export const MODEL_STORAGE_KEY = "kalsa.model.id";
 
@@ -70,6 +72,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
   async function selectModel(nextIndex: number): Promise<void> {
       if (thermalHardGateRef.current) return;
       if (
+        downloadInFlightRef.current ||
         modelSwitchInFlightRef.current ||
         modelStateRef.current === "downloading" ||
         modelStateRef.current === "loading"
