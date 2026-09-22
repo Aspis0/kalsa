@@ -125,8 +125,9 @@ export function buildTurnDeps(
     setStreaming: input.setStreaming,
     streamInFlightRef: input.streamInFlightRef,
     nativeTurnStartAtRef: input.nativeTurnStartAtRef,
-    // The real module ref: its default is the no-op and the (unmounted)
-    // idle-dispose system is the only thing that would ever assign it.
+    // The real module ref: its default is the no-op until the host's
+    // foreground-idle governor (`foregroundIdle.ts`) mounts and assigns the
+    // real clock — engineTurn's bump at `engineTurn.ts:134` is its only reader.
     bumpForegroundIdleRef,
     lastUserRawRef: input.lastUserRawRef,
     activeDocumentAttachmentRef: input.activeDocumentAttachmentRef,

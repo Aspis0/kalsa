@@ -14,6 +14,7 @@ import {
 } from "../engine/regenState";
 import { notifyStaticPrefixInputs, type EngineTool } from "../engine/LlamaService";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
+import { idleDiscardAbortRef } from "./foregroundIdle";
 import type { TurnFence } from "./turnGuards";
 
 export interface HostEffectParams {
@@ -102,7 +103,12 @@ export function useHostEffects(params: HostEffectParams): void {
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
   // no-ops once unmounted and the turn's finally may never rewrite state.
   useEffect(() => {
+    // The idle governor's abort bridge (`foregroundIdle.ts`): the discard
+    // drains a stalled send through this handle — the controller's abort
+    // inside its discard lifecycle (`Chat:2103`).
+    idleDiscardAbortRef.current = () => abortRef.current?.abort();
     return () => {
+      idleDiscardAbortRef.current = null;
       flushPartial();
       abortRef.current?.abort();
       sendingInFlightRef.current = false;

@@ -11,6 +11,7 @@ import type { Locale, TranslateFn } from "../i18n";
 import { buildAgentDeps, buildTurnDeps } from "./hostDeps";
 import { buildAgentOptions } from "./agentTurnOptions";
 import { useModelHost } from "./useModelHost";
+import { useForegroundIdleDispose } from "./foregroundIdle";
 import type { useMemoryHost } from "./memoryHost";
 import type { usePersonasHost } from "./personasHost";
 import type { useLibraryHost } from "./libraryHost";
@@ -109,6 +110,15 @@ export function useHostEngine(params: HostEngineParams) {
     memoryExtractRef,
     embedderDownloadedRef,
     chatEngineCtxRef,
+  });
+
+  // The 180 s foreground-idle governor (PARITY-STATUS gap 8): mounted here
+  // because this chain holds the turn refs the token-silence gate reads and
+  // the model host that owns the chat-gate generation the discard releases.
+  useForegroundIdleDispose({
+    streamInFlightRef,
+    nativeTurnStartAtRef,
+    chatGateGenRef: modelHost.scanRefs.chatGateGenRef,
   });
 
   const turnDeps = buildTurnDeps(

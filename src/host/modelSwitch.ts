@@ -44,8 +44,10 @@ export interface ModelSwitchDeps extends EngineLoadDeps {
   memoryExtractRef: { current: Promise<void> | null };
 }
 
-/** Single-flight guard across a switch's dispose window (was a component ref). */
-const modelSwitchInFlightRef = { current: false };
+/** Single-flight guard across a switch's dispose window (was a component
+ *  ref). Exported for the idle governor's in-flight read — the controller's
+ *  `engineWorkInFlight` counted it (`App:3267`). */
+export const modelSwitchInFlightRef = { current: false };
 /** Single-flight waiter that drains the pending switch queue after sendClaim. */
 const modelSwitchDrainInFlightRef = { current: false };
 

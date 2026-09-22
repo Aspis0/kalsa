@@ -10,6 +10,13 @@
  * controller's +400 ms and only when the host's copy actually took the
  * text; the speak chip's label flips to `voice.stopReading` while its own
  * answer is the one speaking (controller `AiChatPage.tsx:5601-5616`).
+ *
+ * The controller's THIRD chip — the "more" chip (`Chat:5593-5624`) — is not
+ * drawn, by decision, because it is a second door to the same room: its
+ * `onPress` calls `onOpenMessageMenu(m.id, m.text, m.role, m.streaming)`,
+ * byte-identical to the handler both 350 ms holds call (`Chat:5332,5395`),
+ * so it adds an affordance but no capability (PARITY row 16's last delta /
+ * Table 3 gap 10). This header is where that absence is recorded.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";

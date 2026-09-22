@@ -5,11 +5,10 @@
  * `src/host/{turnGuards,sendStream,historyWrite}.ts` and their tests (D2
  * rows 1, 3, 4, 5, 6, 11).
  *
- * What is NOT here (reported): the bench-command branch and the doc-hint
- * composition (attachments are held in this slice), the voice/PDF busy
- * guards (those systems are not mounted), the chat-side pre-send fit gate
- * (the load path runs the same gate), the OS thermal gate (it arrives as
- * the `tooHot` composer phase). The translate guard IS here — a translate
+ * What is NOT here (reported): the doc-hint composition (attachments are
+ * held in this slice), the voice/PDF busy guards, the chat-side pre-send fit
+ * gate (the load path runs the same gate) and the OS thermal gate (it arrives
+ * as the `tooHot` composer phase). The translate guard IS here — a translate
  * holds the engine and refuses a send, as the controller did (`Chat:2233`).
  */
 import { useRef } from "react";
@@ -32,6 +31,7 @@ import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
 import { createRichCallbacks } from "./sendCallbacks";
 import { finalizeAssistantTurn } from "./sendFinalize";
 import { handleStop, type StopDeps } from "./sendStop";
+import { runBenchTurn } from "./benchTurn";
 import { nextMsgId, type Message } from "./hostMessage";
 import { translationInFlightRef } from "./translateState";
 import type { TranslateFn, TranslationKey } from "../i18n";
@@ -132,6 +132,8 @@ export function useSendHost(params: SendHostParams): SendHost {
     stopRequestedRef.current = false;
 
     try {
+      if (await runBenchTurn(fence, token, trimmed, params)) return;
+
       // Pre-send content gate — blocking categories never reach the model;
       // the localized decline becomes the assistant's message.
       const classification = classifyChatContent(trimmed);

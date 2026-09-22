@@ -90,6 +90,7 @@ export function HostLayout({
         sendHost={sendHost}
         onMenuPress={onMenuPress}
         onNewChatPress={onNewChatPress}
+        conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
         flags={flags}
         arms={arms}
         actions={actions}

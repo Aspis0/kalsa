@@ -26,6 +26,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { regenInFlightRef, sendClaimRef } from "../engine/regenState";
+import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { saveNote } from "../notes/NotesStore";
 import { COPIED_FLASH_MS } from "../ui/shell/copiedFlash";
 import type { MessageMenuRow } from "../ui/shell/MessageMenu";
@@ -324,7 +325,11 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     speakingId,
     onSpeak: speak,
     edit: editing === null ? null : { draft: editing.draft },
-    onEditDraftChange: setEditDraft,
+    onEditDraftChange: (draft: string) => {
+      // Keystrokes in the edit modal bump the idle clock (`Chat:4526`).
+      setEditDraft(draft);
+      bumpForegroundIdleRef.current();
+    },
     onEditSubmit: () => void submitEdit(),
     onEditClose: closeEdit,
   };

@@ -16,6 +16,7 @@
  * finished turn would resurrect the dropped answer).
  */
 import { regenInFlightRef } from "../engine/regenState";
+import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import type { TranslationKey } from "../i18n";
 import type { HistoryWriteGuard } from "../chat/historyWriteGuard";
 import type { Message } from "./hostMessage";
@@ -50,6 +51,9 @@ export async function truncateAndResend(
   const snapshot = history.messagesRef.current;
   // ── one synchronous block: lock → truncate → claim → declare ──
   regenInFlightRef.current = true;
+  // The edit/regenerate acquire is user activity (`Chat:3353`); synchronous,
+  // so the no-await order the header pins is untouched.
+  bumpForegroundIdleRef.current();
   history.setMessages(() => plan.base);
   history.messagesRef.current = plan.base;
   const run = sendHost.send(plan.text, opts.edited ? { edited: true } : undefined);

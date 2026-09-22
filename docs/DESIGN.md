@@ -46,6 +46,9 @@ Two constraints the measurements impose, both now enforced by tests
   rows, not white cards.
 - **Inside the dark user turn, tertiary text (4.22:1) and the accent (4.49:1) are below AA.** Only
   ink and inkSoft may appear there.
+- **`PainterlyBg` (`AppShell.tsx:6849`) stays unmounted in the new shell**, because the shell's
+  root is opaque, the washes would sit under surfaces whose contrast was measured against the flat
+  page (the two constraints above), and the component reads the old palette's keys.
 
 ### 1.3 The type
 

@@ -18,13 +18,15 @@
  */
 import { isEmbedderHung } from "../engine/EmbeddingService";
 import { getActiveModelId, isEngineReady } from "../engine/LlamaService";
-import { useRef, useState } from "react";
-import type { TextInput } from "react-native";
+import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
+import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, Text, View, type TextInput } from "react-native";
 import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { useLocale, type TranslationKey } from "../i18n";
-import type { ThemeMode } from "../theme/design";
+import { modes, spacing, type, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
-import { bottomInsetFor } from "../ui/shell/shellGeometry";
+import { bottomInsetFor, MIN_TOUCH_TARGET } from "../ui/shell/shellGeometry";
 import { MessageMenu } from "../ui/shell/MessageMenu";
 import { EditMessageModal } from "../ui/shell/EditMessageModal";
 import { Shell } from "../ui/shell/Shell";
@@ -53,6 +55,11 @@ export interface ChatSurfaceProps {
   insets: { top: number; bottom: number };
   draft: string;
   onDraftChange: (text: string) => void;
+  /** The live conversation the surface draws: the long-chat nudge's
+   *  once-per-conversation reset. `HostLayout` derives it from the drawer's
+   *  copy of the store — the same expression the root passes to its own
+   *  effects, so the root's file stays at its ratchet. */
+  conversationId: string | undefined;
   /** The composer's decision + the mapped transcript (one render's view). */
   view: ComposerView;
   modelHost: ModelHost;
@@ -77,6 +84,7 @@ export function HostChatSurface({
   insets,
   draft,
   onDraftChange,
+  conversationId,
   view,
   modelHost,
   showNoticeKey,
@@ -113,6 +121,41 @@ export function HostChatSurface({
   };
 
   const bandInsets = bottomInsetFor(insets, keyboardHeight);
+  const colors = modes[mode];
+
+  // Every keystroke bumps the foreground-idle clock — the controller's
+  // `Chat:4335` site (template fills skip it there, and they skip it here:
+  // the sheet keeps calling `onDraftChange` directly below).
+  const bumpDraftOnType = (text: string) => {
+    onDraftChange(text);
+    bumpForegroundIdleRef.current();
+  };
+
+  // ── The long-chat nudge (controller `Chat:921-922, 1314-1327`) ──
+  // One-shot per conversation (V4.2 §Fase 3.5): the latch fires the first
+  // time THIS conversation crosses the estimate; the conversation change IS
+  // the controller's two resets (clearChat and load both arrive as one id
+  // change here); the render gate keeps the previous conversation's row out
+  // while a switch's history load is still in flight.
+  const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
+  // Recompute on length, resolved n_ctx and the last turn's (de)finalize —
+  // NOT per token (`Chat:1318-1322`); the mapped band carries that flip as
+  // `caret`/`stop` instead of the raw `streaming` flag.
+  const longChat = useMemo(
+    () => shouldShowLongChatNudge(view.transcript, modelHost.chatEngineCtx),
+    [
+      view.transcript.length,
+      modelHost.chatEngineCtx,
+      view.transcript[view.transcript.length - 1]?.caret,
+      view.transcript[view.transcript.length - 1]?.stop,
+    ],
+  );
+  useEffect(() => {
+    if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);
+  }, [longChat, longChatNudgeShown]);
+  useEffect(() => {
+    setLongChatNudgeShown(false);
+  }, [conversationId]);
 
   // The toolbar's chips arm the NEXT send (one-shot; the arms clear on send,
   // on an emptied draft and on conversation change — `composerArms.ts`). The
@@ -145,7 +188,7 @@ export function HostChatSurface({
       keyboardHeight={keyboardHeight}
       mode={mode}
       draft={draft}
-      onDraftChange={onDraftChange}
+      onDraftChange={bumpDraftOnType}
       editable={view.composer.field.editable}
       placeholderKey={view.composer.field.placeholder ?? undefined}
       holdReason={view.composer.hold === null ? null : t(view.composer.hold)}
@@ -167,6 +210,51 @@ export function HostChatSurface({
         else void sendHost.send(draft);
       }}
     >
+      {/* The long-chat nudge row (controller `Chat:3987-4006`): dot, sentence,
+          "New chat" — whose press is the controller's own action
+          (`clearChat` there, the new-conversation action here, which also
+          resets the latch through the id change). The action is a real
+          `MIN_TOUCH_TARGET` box, not the controller's `hitSlop={8}`. */}
+      {longChat && longChatNudgeShown ? (
+        <View
+          testID="transcript.longChatNudge"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginHorizontal: spacing.md,
+            marginTop: spacing.sm,
+            padding: spacing.sm + 2,
+            backgroundColor: `${colors.accent}1f`,
+            borderRadius: 12,
+          }}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: colors.accent }} />
+          <Text numberOfLines={2} style={[type.meta, { flex: 1, color: colors.ink }]}>
+            {t("chat.longChatNudge")}
+          </Text>
+          <Pressable
+            testID="transcript.longChatNudge.newChat"
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.a11yNewChat")}
+            onPress={onNewChatPress}
+            style={({ pressed }) => [
+              {
+                minHeight: MIN_TOUCH_TARGET,
+                minWidth: MIN_TOUCH_TARGET,
+                alignItems: "center",
+                justifyContent: "center",
+                paddingHorizontal: spacing.sm,
+              },
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={[type.meta, { color: colors.silence }]}>
+              {t("chat.longChatNudgeAction")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       <Transcript
         insets={bandInsets}
         messages={view.transcript}
