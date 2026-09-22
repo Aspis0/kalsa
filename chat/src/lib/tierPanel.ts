@@ -56,3 +56,55 @@ export function tierRows(tier: TierFacts | null | undefined): TierRow[] {
   }
   return rows;
 }
+
+/** The two-device concurrency measurement, carried as ONE constant: the
+    three decode-rate ratios, the identity of the release build they were
+    measured on, and the repo-relative path of the artifact they are copied
+    from — field for field, `provenance.release` of that file.
+
+    The identity sits WITH the numbers on purpose. A bare `0.73` written
+    into an interface has no date and no home: it is believed forever, and
+    it lies the day the engine changes. Next to its tag, platform, backend
+    and exe hash the number ages VISIBLY — and `scripts/tier-panel.mjs`
+    turns red the moment this constant and that artifact disagree: the copy
+    is checked against its original, so it cannot drift alone. */
+export const CONCURRENCY = {
+  /** Where the ratios below come from, repo-relative; the control script
+      reads exactly this file with `fs`. */
+  sourcePath: "dev/results/concurrency-two-devices/results.json",
+  /** The artifact's `provenance.release`: status, tag, platform, backend,
+      exe_sha256, copied and never recomputed here. */
+  release: {
+    status: "matched",
+    tag: "kalsa-server-v1.1.1",
+    platform: "macos-arm64",
+    backend: "metal",
+    exe_sha256: "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+  },
+  /** The artifact's `ratios`: decode rate while a second device decodes,
+      over the solo arm — four decimals as the artifact holds them, shown
+      at two. Rates, not wall times: no seconds appear anywhere here. */
+  ratios: { slot0: 0.7302, slot1: 0.7302, aggregate: 1.4604 },
+} as const;
+
+/** The concurrency row, or `null` when the measurement's provenance is not
+    `matched`: a number taken on a fork build or left `unverified` is not a
+    release measurement, and a release column never carries one — the panel's
+    number is attributed to the release artifact (PLAN-DISK-TIER §9). The
+    gate reads the constant, not a live lookup: the row and its source
+    identity are the same object, so they cannot drift apart. */
+export function concurrencyRow(): TierRow | null {
+  const { release, ratios } = CONCURRENCY;
+  if (release.status !== "matched") return null;
+  const slots = [ratios.slot0, ratios.slot1].map((r) => r.toFixed(2));
+  // "each" only while both slots read the same at the shown precision;
+  // otherwise the row names both, because one averaged figure would be a
+  // number the artifact never wrote down.
+  const perDevice =
+    slots[0] === slots[1] ? `${slots[0]}x each` : `${slots[0]}x / ${slots[1]}x per slot`;
+  return {
+    label: "Two devices decoding",
+    value: `${perDevice}, ${ratios.aggregate.toFixed(2)}x together — decode rate vs one device, not wall time`,
+    detail: `Measured on ${release.tag}, ${release.platform}/${release.backend}`,
+  };
+}

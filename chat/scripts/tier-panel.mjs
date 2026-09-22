@@ -14,15 +14,92 @@
 // rows at all — it went red (exit 1) on the first row check — and the module
 // then answered the contract: 17 checks, all passing.
 //
+// The concurrency row is checked against the artifact it names, read with
+// `fs` from a path relative to this file — this script states that path
+// independently of the constant (the way it already cites
+// `dev/results/slot-restore-device-path`), so a path edited in the constant
+// cannot quietly aim the check at some other file. Constant and artifact
+// must say the same thing: status, tag, platform, backend, exe_sha256; the
+// three ratios at the precision the panel shows; a detail that names the
+// artifact; and a row that exists exactly while the artifact's status is
+// `matched`. The committed JSON is only ever read — the two mutation proofs
+// run on in-memory copies, and the third was run against the constant
+// itself at commit time: `aggregate: 1.4604` → `1.5604` in `tierPanel.ts`
+// turned this red (exit 1, 2 failures — the ratio equality, and the value
+// that stopped showing the artifact's number), then was reverted.
+// Full run: 30 checks, all passing.
+//
 // Run: node scripts/tier-panel.mjs
 
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
+
+// The artifact behind the concurrency row, repo-relative, named here and
+// not read out of the constant: two sources that must agree cannot be one.
+const ARTIFACT = "dev/results/concurrency-two-devices/results.json";
 
 let failures = 0;
 function check(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failures++;
+}
+
+// The concurrency row against the artifact it names. Every finding goes
+// through `emit`, so the mutation proofs below can run this exact logic on
+// an in-memory copy and prove it still turns red — a check that cannot fail
+// is not a check. Nothing here writes the artifact.
+function concurrencyChecks(app, artifact, emit) {
+  const { CONCURRENCY } = app;
+  const release = artifact.provenance.release;
+  const row = app.concurrencyRow();
+  const pairs = [
+    ["slot0", CONCURRENCY.ratios.slot0, artifact.ratios.per_stream_slot0_over_A],
+    ["slot1", CONCURRENCY.ratios.slot1, artifact.ratios.per_stream_slot1_over_A],
+    ["aggregate", CONCURRENCY.ratios.aggregate, artifact.ratios.aggregate_over_A],
+  ];
+  const both = (label, c, a) => emit(`concurrency: ${label}`, c === a, `constant ${c} vs artifact ${a}`);
+
+  emit(
+    "concurrency: the constant names the artifact path this script reads",
+    CONCURRENCY.sourcePath === ARTIFACT,
+    `${CONCURRENCY.sourcePath} vs ${ARTIFACT}`,
+  );
+  both("status", CONCURRENCY.release.status, release.status);
+  both("tag", CONCURRENCY.release.tag, release.tag);
+  both("platform", CONCURRENCY.release.platform, release.platform);
+  both("backend", CONCURRENCY.release.backend, release.backend);
+  both("exe_sha256", CONCURRENCY.release.exe_sha256, release.exe_sha256);
+  emit(
+    "concurrency: the three ratios, equal to the artifact at the shown 2 decimals",
+    pairs.every(([, c, a]) => c.toFixed(2) === a.toFixed(2)),
+    pairs.map(([, c, a]) => `${c.toFixed(2)} vs ${a.toFixed(2)}`).join(", "),
+  );
+  // PLAN-DISK-TIER §9: the panel's number is attributed to the release
+  // artifact — so the row's existence follows the ARTIFACT's status, not
+  // only the constant's own claim about itself.
+  emit(
+    "concurrency: the row exists exactly when the artifact says matched",
+    (release.status === "matched") === (row !== null),
+    `status ${release.status}, row ${row ? "shown" : "withheld"}`,
+  );
+  if (row) {
+    emit(
+      "concurrency: the value shows the artifact's ratios (2 decimals)",
+      pairs.every(([, , a]) => row.value.includes(`${a.toFixed(2)}x`)),
+      row.value,
+    );
+    emit(
+      "concurrency: the value is a decode rate, not a wall time",
+      /decode rate/.test(row.value) && /not wall time/.test(row.value),
+      row.value,
+    );
+    emit(
+      "concurrency: the detail names the artifact",
+      row.detail.includes(release.tag) &&
+        row.detail.includes(`${release.platform}/${release.backend}`),
+      row.detail,
+    );
+  }
 }
 
 const { app, dir } = await loadApp();
@@ -88,6 +165,33 @@ try {
       "1907-token save at the footprint recorded in dev/results/slot-restore-device-path (--swa-full off) reads as MB",
       formatBytes(101_493_292) === "96.8 MB",
       formatBytes(101_493_292),
+    );
+  }
+
+  // The concurrency row and the artifact behind it: the constant may say
+  // only what the committed JSON says, and the row may exist only while
+  // that JSON's status is `matched`.
+  const artifact = JSON.parse(await readFile(new URL(`../../${ARTIFACT}`, import.meta.url), "utf8"));
+  concurrencyChecks(app, artifact, check);
+
+  // MUTATIONS, both in memory — the committed artifact is never written.
+  // Each copy must turn this script red through the checks above: a status
+  // that is not `matched` must withhold the row, a platform the artifact
+  // does not carry must break the identity.
+  for (const [field, value] of [
+    ["status", "not-the-release"],
+    ["platform", "linux-x64"],
+  ]) {
+    const copy = structuredClone(artifact);
+    copy.provenance.release[field] = value;
+    const caught = [];
+    concurrencyChecks(app, copy, (name, ok, detail) => {
+      if (!ok) caught.push(`${name}${detail ? ` — ${detail}` : ""}`);
+    });
+    check(
+      `concurrency MUTATION (in-memory copy): ${field} = ${value} → the check goes red`,
+      caught.length > 0,
+      caught[0] ?? "nothing caught it",
     );
   }
 } finally {

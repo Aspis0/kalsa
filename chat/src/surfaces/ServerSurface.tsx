@@ -1,5 +1,5 @@
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
-import { tierRows } from "../lib/tierPanel";
+import { concurrencyRow, tierRows } from "../lib/tierPanel";
 import { SetupProgress } from "./SetupProgress";
 import "./surfaces.css";
 
@@ -14,10 +14,12 @@ function connectedText(connected: boolean): string {
 }
 
 // The Server surface: one glance tells the owner whether the local server is on
-// and what it is doing, and the cards below show only facts the process
-// produced — the server's own rates, and the disk tier's numbers as the door
-// read them (`tierRows`: residents over the door's capacity, the directory
-// scan). While the first walk runs, its progress (the `brain_progress`
+// and what it is doing, and the cards below show only facts with a named
+// source — the server's own rates, the disk tier's numbers as the door read
+// them (`tierRows`: residents over the door's capacity, the directory scan),
+// and the two-device concurrency figure, which carries the release artifact
+// it was measured on (`concurrencyRow`: a rate, never a wall time). While
+// the first walk runs, its progress (the `brain_progress`
 // events) replaces the body. The state's facts and words come from the shared
 // hook; this page adds only what is its own: the stop failure and the metrics.
 export function ServerSurface() {
@@ -30,6 +32,14 @@ export function ServerSurface() {
     (device) => device.kind !== "host",
   ).length;
   const words = brainWords(state, heldFailure, busy);
+  // What the metrics grid may state: the tier's own rows, plus the
+  // concurrency row — which exists only while its constant names a
+  // `matched` release, so the number never travels without its artifact
+  // (PLAN-DISK-TIER §9). Both live inside the `running` branch below: no
+  // running server, no grid.
+  const panelRows = tierRows(metrics.tier);
+  const concurrency = concurrencyRow();
+  if (concurrency) panelRows.push(concurrency);
 
   return (
     <div className="surface-page">
@@ -55,10 +65,11 @@ export function ServerSurface() {
                   </strong>
                   <span className="surface-metric-detail">Live connection</span>
                 </div>
-                {/* The tier's own rows, only while the door answers: no tier
-                    block means no rows — and no concurrency row at all, since
-                    that number has no committed measurement yet. */}
-                {tierRows(metrics.tier).map((row) => (
+                {/* The grid's rows: the tier's own (no tier block → no rows
+                    at all) and the concurrency row, absent whenever the
+                    measurement's status is not `matched` — the debt this row
+                    owed is paid, and its gate is the provenance. */}
+                {panelRows.map((row) => (
                   <div className="surface-metric" key={row.label}>
                     <span className="surface-metric-label">{row.label}</span>
                     <strong className="surface-metric-value">{row.value}</strong>
