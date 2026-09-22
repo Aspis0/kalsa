@@ -223,7 +223,7 @@ describe("governor inputs", () => {
     });
   });
 
-  test("lifts the latched plugged idle from tenths to degrees", async () => {
+  test("lifts the native plugged temperature from tenths to degrees", async () => {
     (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
       battTempTenthsC: 370,
       battLevelPct: 90,
@@ -243,7 +243,11 @@ describe("governor inputs", () => {
     });
   });
 
-  test("refuses a tenths value that leaks into the degrees field", async () => {
+  // CHANGED DELIBERATELY: the app-side gate (idle > 0 && idle + 1 < 42) was
+  // removed by the policy consolidation. This test used to assert the app
+  // refused 350; the app now forwards raw and the engine's profile_is_valid
+  // is the only refusal (llama-governor-policy.cpp).
+  test("forwards an out-of-range plugged baseline unchanged", async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
       JSON.stringify({
         batt_temp_tenths_c: 350,
@@ -256,7 +260,30 @@ describe("governor inputs", () => {
     );
     await expect(readGovernorThermo()).resolves.toMatchObject({
       plugged: true,
-      t_idle_valid: false,
+      t_idle_valid: true,
+      t_idle_c: 350,
+      thermo_source: "bench-skin",
+    });
+  });
+
+  // Exact disagreement case: the removed app rule refused idle = 0 through
+  // `idle > 0`, the engine rule accepts it through `t_idle_c + 1 < 42`.
+  // The engine decides; the app must forward 0 untouched.
+  test("forwards a zero plugged baseline for the engine to judge", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 300,
+        batt_level_pct: 80,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 0,
+      }),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      plugged: true,
+      t_idle_valid: true,
+      t_idle_c: 0,
       thermo_source: "bench-skin",
     });
   });

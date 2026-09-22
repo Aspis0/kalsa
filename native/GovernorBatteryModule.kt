@@ -34,11 +34,6 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
     private var samplerHandler: Handler? = null
     private var samplerWriter: BufferedWriter? = null
     private var samplerRunning = false
-    // Latched plugged baseline in tenths of a degree C: set on the plug-in edge,
-    // held for the whole plugged session, cleared on unplug. The engine offsets
-    // every plugged threshold from this value, so it must not track the live
-    // battery temperature.
-    private var idleBaselineTenthsC: Int? = null
 
     override fun getName(): String = "GovernorBattery"
 
@@ -63,21 +58,15 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 0)
             val percent = if (scale > 0) (level * 100 / scale).coerceIn(0, 100) else 0
             val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
-            if (plugged) {
-                if (idleBaselineTenthsC == null && present && temperature > 0) {
-                    idleBaselineTenthsC = temperature
-                }
-            } else {
-                idleBaselineTenthsC = null
-            }
-            val idleTenths = idleBaselineTenthsC
+            val sensorValid = present && temperature > 0
             result.putInt("battTempTenthsC", temperature)
             result.putInt("battLevelPct", percent)
             result.putBoolean("plugged", plugged)
-            result.putBoolean("sensorValid", present && temperature > 0)
-            result.putBoolean("t_idle_valid", idleTenths != null)
-            if (idleTenths != null) {
-                result.putInt("t_idle_tenths_c", idleTenths)
+            result.putBoolean("sensorValid", sensorValid)
+            // Raw reading only: the engine latches the plugged baseline and judges it.
+            result.putBoolean("t_idle_valid", sensorValid)
+            if (sensorValid) {
+                result.putInt("t_idle_tenths_c", temperature)
             }
             promise.resolve(result)
         } catch (error: Exception) {
