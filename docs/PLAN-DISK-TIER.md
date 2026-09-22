@@ -540,8 +540,15 @@ saturating part of the disk curve is not a number this plan may carry.
   work in the same checkout — that is how the plan commits and the code commits stay one history —
   but nobody but the orchestrator changes the branch, and the orchestrator does not change it while a
   delegate is working.
-- Files under ~400 lines; pre-existing excess declared, not refactored. Comments only for WHY or a
-  trap. No secret **values** anywhere — names are fine.
+- **Never create a God file.** A file holds one responsibility, and the test is that you can name it
+  in one phrase. Line count is a smell, not the rule: ~250 is indicative, **~350 is fine**, and a
+  change that only moves lines to make a number work should stop and leave the file where it is.
+  **No new file beyond ~350**, and no file — new or existing — that mixes responsibilities until it
+  stops being readable. Test files follow the same logic: if a test file becomes an indistinguishable
+  list of cases, split it by **topic**, not by line count. Pre-existing excess is **declared, not
+  refactored** (those declarations sit with the tasks above). Comments only for WHY or a trap, and if
+  a comment declares an invariant that invariant must be true. No secret **values** anywhere — names
+  are fine.
 - On the released engine commit `2a290390d` — tagged **`kalsa-server-v1.1.0`** — the same lines
   are `:2868`, `:3199`, `:3418-3421`, and the older documents cite that numbering.
 
