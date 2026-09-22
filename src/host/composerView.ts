@@ -31,6 +31,9 @@ export interface ComposerView {
   /** Machine yes AND a draft to send: dims the control with no reason line. */
   sendEnabled: boolean;
   transcript: TranscriptMessage[];
+  /** The controller's welcome gate (`AiChatPage:4015-4016`): the host shows
+   *  the first-open block only once the history load has settled. */
+  historyLoaded: boolean;
 }
 
 export function composerView(input: ComposerViewInput): ComposerView {
@@ -63,5 +66,6 @@ export function composerView(input: ComposerViewInput): ComposerView {
       thinkingStatus: input.thinkingStatus,
       toolsById: input.toolsById,
     }),
+    historyLoaded: input.historyLoaded,
   };
 }

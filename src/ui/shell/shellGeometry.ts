@@ -97,6 +97,19 @@ export const SOURCE_CHIP_BOX_COST = SOURCE_CHIP_TOUCH_BOX - SOURCE_CHIP_PAINTED_
 export const SHELL_NOTICE_GAP = 7;
 export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
 
+/**
+ * The composer's toolbar row — the templates ✦ entry and the one-shot mode
+ * chips (D1 rows 13/14), drawn by `ComposerToolbar.tsx` between the hold line
+ * and the field. Like `SHELL_NOTICE_HEIGHT` it is a row the shell draws OUTSIDE
+ * the three bands: `Shell.tsx` adds it to `extraRows` and subtracts it from the
+ * height BEFORE `shellGeometry` partitions it, so the contract below stands
+ * untouched — strip + transcript + composer still sum to whatever height this
+ * function is given. It is a real `MIN_TOUCH_TARGET` row on the axis the finger
+ * lands on; the pills it carries are painted small inside it, the source chip's
+ * own split (`SOURCE_CHIP_BOX_COST`).
+ */
+export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
+
 function clamp(value: number): number {
   return value > 0 ? value : 0;
 }
@@ -191,10 +204,11 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   };
 
   const full = MIN_TOUCH_TARGET;
-  // The pill's remaining width: the strip holds THREE icon buttons (menu,
-  // export, new chat) and the pill takes what is left of the row.
+  // The pill's remaining width: the strip holds FOUR icon buttons (menu, Web,
+  // export, new chat — the Web permission switch joined the strip with D1 row
+  // 5) and the pill takes what is left of the row.
   const stripPillWidth = clamp(
-    width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
+    width - 2 * STRIP_SIDE_PADDING - 4 * full - 4 * STRIP_GAP,
   );
 
   return {

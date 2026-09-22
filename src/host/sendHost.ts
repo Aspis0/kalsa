@@ -7,12 +7,13 @@
  *
  * What is NOT here (reported): the bench-command branch and the doc-hint
  * composition (attachments are held in this slice), the voice/PDF/translate
- * busy guards (those systems are not mounted), and the chat-side pre-send
+ * busy guards (those systems are not mounted), the chat-side pre-send
  * fit gate — the lifted `ensureEngineForModel` runs the same gate on the
- * load path, and the OS thermal gate arrives as the `tooHot` composer phase.
+ * load path, the OS thermal gate arrives as the `tooHot` composer phase,
+ * and the notes-truncation `onNotice` (its voice-note toast is D1 row 40,
+ * absent), which the engine half treats as optional.
  */
 import { useRef } from "react";
-import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import {
@@ -22,7 +23,10 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
+import { classifyChatContent } from "../domain/contentFilter";
 import { runSendStream, type SendEngine, type SendUiHandlers } from "./sendStream";
+import { armsSendOptions } from "./composerArms";
+import { contentFilterMessage } from "./contentFilterCopy";
 import { handleSendStream } from "./engineTurn";
 import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
 import { createRichCallbacks } from "./sendCallbacks";
@@ -31,29 +35,6 @@ import { handleStop, type StopDeps } from "./sendStop";
 import { nextMsgId, type Message } from "./hostMessage";
 import type { TranslateFn } from "../i18n";
 import type { TurnFence, TurnToken } from "./turnGuards";
-
-/** Localized copy for the pre-send content gate (lifted AiChatPage:532-558). */
-function contentFilterMessage(reason: ContentFilterReason | null, t: TranslateFn): string {
-  switch (reason) {
-    case "self_harm":
-      return t("contentFilter.selfHarm");
-    case "child_exploitation":
-    case "sex_crimes":
-      return t("contentFilter.sexualAbuse");
-    case "unsafe_bio":
-    case "unsafe_chem":
-      return t("contentFilter.unsafeScience");
-    case "privacy":
-      return t("contentFilter.privacy");
-    case "prompt_injection":
-      return t("contentFilter.promptInjection");
-    case "non_violent_crime":
-    case "violent_crime":
-      return t("contentFilter.illegalActivity");
-    default:
-      return t("contentFilter.generic");
-  }
-}
 
 export interface SendHostParams {
   t: TranslateFn;
@@ -71,6 +52,14 @@ export interface SendHostParams {
   /** The volatile tool-row capture (D1 row 23: never persisted). */
   onToolCapture: (assistantId: string, name: string) => void;
   clearDraft: () => void;
+  /** The composer's one-shot research/notes arms (D1 row 14): read through
+   *  the refs at send time and cleared at the controller's own point
+   *  (`AiChatPage:2454-2463`, after the content gate). */
+  arms: {
+    researchRef: { current: boolean };
+    notesRef: { current: boolean };
+    clear: () => void;
+  };
 }
 
 export interface SendHost {
@@ -159,6 +148,18 @@ export function useSendHost(params: SendHostParams): SendHost {
       }
 
       const useResearch = hasDeepResearchTrigger(trimmed);
+      // The one-shot arms (D1 row 14): captured AND cleared at the point the
+      // controller cleared them — after the gate, before the append — so a
+      // keyword-only research send still clears an armed notes mode exactly
+      // as `AiChatPage:2456-2463` did.
+      const armsOptions = armsSendOptions(
+        params.arms.researchRef.current,
+        params.arms.notesRef.current,
+        useResearch,
+      );
+      if (params.arms.researchRef.current || params.arms.notesRef.current) {
+        params.arms.clear();
+      }
       const modelText = useResearch ? stripDeepResearchTrigger(trimmed) || trimmed : trimmed;
 
       params.setMessages((prev) =>
@@ -241,7 +242,9 @@ export function useSendHost(params: SendHostParams): SendHost {
       const request = {
         text: modelText,
         history: params.messagesRef.current,
-        options: useResearch ? { research: true } : undefined,
+        // Research or armed notes hand the engine its options (the notes
+        // branch `engineTurn.ts:246-257` was unreachable until this slice).
+        options: armsOptions ?? undefined,
       };
 
       const result = await runSendStream(engine, request as any, ui, controller.signal);

@@ -9,6 +9,7 @@
  */
 import {
   COMPOSER_HEIGHT,
+  COMPOSER_TOOLBAR_HEIGHT,
   MIN_TOUCH_TARGET,
   SHELL_NOTICE_GAP,
   SHELL_NOTICE_HEIGHT,
@@ -121,7 +122,10 @@ describe("the smallest screen, 349x325 with the keyboard open", () => {
   it("collapses the strip to one line and still leaves the transcript room", () => {
     expect(geo.stripCollapsed).toBe(true);
     expect(geo.strip.height).toBe(STRIP_HEIGHT_COLLAPSED);
-    // 325 - 52 - 78 = 195 dp of transcript.
+    // 325 - 52 - 78 = 195 dp of transcript, as `shellGeometry` partitions it.
+    // The live shell then takes the toolbar row OUT of this height before the
+    // partition (see COMPOSER_TOOLBAR_HEIGHT), so the app draws 195 - 48 = 147
+    // here while the toolbar shows — the row is not a fourth band.
     expect(geo.transcript.height).toBe(195);
     expect(geo.transcriptUsableHeight).toBeGreaterThanOrEqual(120);
   });
@@ -273,9 +277,23 @@ describe("the preview's notice line", () => {
 describe("the width is only used for the horizontal boxes", () => {
   it("keeps the pill and the field at or above the touch floor on the Jelly", () => {
     const geo = shellGeometry(349, 621, { top: 0, bottom: 0 });
-    // 349 - 2*12 - 3*48 - 3*9 = 154 for the pill (three icon buttons: menu,
-    // export, new chat); 349 - 2*12 = 325 for the field.
-    expect(geo.touchTargets.stripPill.width).toBe(154);
+    // BEFORE the Web switch joined the strip this read
+    // `349 - 2*12 - 3*48 - 3*9 = 154` (three icon buttons: menu, export, new
+    // chat). The strip now holds FOUR (menu, Web, export, new chat — D1 row 5):
+    // 349 - 2*12 - 4*48 - 4*9 = 97 for the pill; 349 - 2*12 = 325 for the field.
+    expect(geo.touchTargets.stripPill.width).toBe(97);
     expect(geo.touchTargets.composerField.width).toBe(325);
+  });
+});
+
+describe("the composer's toolbar row (D1 rows 13/14)", () => {
+  it("is a real 48 dp row, and it is subtracted before the partition, not drawn over a band", () => {
+    // The row is a shell row like the notice lines: paid out of the height in
+    // `Shell.tsx`'s `extraRows` before `shellGeometry` runs, so the three-band
+    // invariant above never mentions it — and the pinned 349x325 stand-in's
+    // live transcript is 195 - 48 = 147 while the toolbar shows.
+    expect(COMPOSER_TOOLBAR_HEIGHT).toBe(MIN_TOUCH_TARGET);
+    const geo = shellGeometry(349, 325, { top: 0, bottom: 0 });
+    expect(geo.transcript.height - COMPOSER_TOOLBAR_HEIGHT).toBe(147);
   });
 });

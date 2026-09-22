@@ -13,15 +13,14 @@
  * arranges (`src/host/fileSize.test.ts` pins the line budget): strip/composer
  * are `HostChatSurface`, the drawer `HostDrawer`, overlays+notice `HostFurniture`.
  */
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { type ContextMode } from "../context/compactor";
-import { COMPACTION_ENABLED_DEFAULT } from "../engine/ttftFlags";
 import { sendingInFlightRef } from "../engine/regenState";
 import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
-import { useThermalHardGate } from "../hooks/useThermalHardGate";
 import { useLocale } from "../i18n";
+import { useHostTurnRefs } from "./turnRefs";
+import { useComposerArms } from "./composerArms";
 import { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
 import { useMemoryHost } from "./memoryHost";
@@ -48,25 +47,10 @@ export function HostRoot() {
   const fence = useMemo(() => createTurnFence(), []);
 
   // ── Host-owned engine-turn state (the names the lifted halves read) ──
-  const thermalHardGateRef = useRef(false);
-  const onThermalHardGateChange = useCallback((gated: boolean) => {
-    // Native events update the imperative guard before React paints the gate.
-    thermalHardGateRef.current = gated;
-  }, []);
-  const { gated: thermalHardGated } = useThermalHardGate({ onGateChange: onThermalHardGateChange });
-  const streamInFlightRef = useRef(false);
-  const nativeTurnStartAtRef = useRef(0);
-  const memoryExtractRef = useRef<Promise<void> | null>(null);
-  const memoryExtractCancelRef = useRef<(() => void) | null>(null);
-  const lastUserRawRef = useRef("");
-  const activeDocumentAttachmentRef = useRef<import("./hostMessage").LocalAttachment | null>(null);
-  const onMiniappRef = useRef<(miniapp: unknown) => void>(() => {});
-  const toolhelpRef = useRef(false);
-  const contextModeRef = useRef<ContextMode>("anchored");
-  const compactionEnabledRef = useRef(COMPACTION_ENABLED_DEFAULT);
-  const embedderDownloadedRef = useRef(false);
-  const chatEngineCtxRef = useRef(4096);
-  const touchedRef = useRef<((meta: { title: string; preview: string; searchBlob: string }) => void) | null>(null);
+  // The ref cluster and the thermal gate live in `turnRefs.ts` — the seam cut
+  // so the Web switch, the composer arms and the welcome wiring could land
+  // without the root growing (the root may only compose; fileSize ratchet).
+  const { thermalHardGated, touchedRef, refs: turnRefs } = useHostTurnRefs();
 
   const [streaming, setStreaming] = useState(false);
   const [sending, setSending] = useState(false);
@@ -74,6 +58,9 @@ export function HostRoot() {
   const [activeOverlay, setActiveOverlay] = useState<HostOverlay>(null);
   const [draft, setDraft] = useState("");
   const [toolsById, setToolsById] = useState<ReadonlyMap<string, { name: string }[]>>(new Map());
+  /** The research/notes one-shot arms (D1 row 14): beside the draft they
+   *  clear with, read by `sendHost` through their refs. */
+  const arms = useComposerArms(draft);
 
   const flags = useToolFlags();
   const memory = useMemoryHost();
@@ -84,21 +71,10 @@ export function HostRoot() {
   const { agentOptions, agentOptionsRef, modelHost, turnDeps } = useHostEngine({
     t,
     locale,
-    thermalHardGateRef,
     thermalHardGated,
     setStreaming,
-    streamInFlightRef,
-    nativeTurnStartAtRef,
-    lastUserRawRef,
-    activeDocumentAttachmentRef,
-    onMiniappRef,
-    memoryExtractRef,
-    memoryExtractCancelRef,
-    toolhelpRef,
-    contextModeRef,
-    compactionEnabledRef,
-    embedderDownloadedRef,
-    chatEngineCtxRef,
+    // The thirteen turn refs, from the seam module (was thirteen lines here).
+    ...turnRefs,
     conversationsRef: conv.conversationsRef,
     flags,
     memory,
@@ -109,6 +85,8 @@ export function HostRoot() {
   const handleConversationEnter = useCallback(() => {
     setDraft("");
     setToolsById(new Map());
+    // Old `AiChatPage:1894-1897`: entering a conversation drops both arms.
+    arms.clear();
   }, []);
   const onTouched = useCallback(
     (meta: { title: string; preview: string; searchBlob: string }) => {
@@ -160,6 +138,7 @@ export function HostRoot() {
     onSendingChange: setSending,
     onToolCapture,
     clearDraft,
+    arms,
   });
 
   useHistoryFlushes({
@@ -221,6 +200,8 @@ export function HostRoot() {
         onMenuPress={() => setDrawerOpen(true)}
         onNewChatPress={() => actions.handleNewConversation()}
         onExportPress={() => shareConversation(history.messages, t)}
+        flags={flags}
+        arms={arms}
       />
 
       <HostDrawer

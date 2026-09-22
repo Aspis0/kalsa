@@ -77,6 +77,7 @@ function dayLabel(createdAt: number, now: number, t: TranslateFn): string {
 
 export function Transcript({
   messages,
+  empty,
   insets,
   width,
   height,
@@ -195,7 +196,9 @@ export function Transcript({
         style={styles.scroll}
         testID="transcript.root"
       >
-      {messages.map((message, index) => {
+      {messages.length === 0
+        ? empty
+        : messages.map((message, index) => {
         const previous = messages[index - 1];
         // An answer that opens with the cloud takes the larger, chosen gap: at
         // 6 dp the white blob reads as hanging off the green capsule, because it

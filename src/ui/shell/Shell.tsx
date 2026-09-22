@@ -19,13 +19,16 @@
  * plus the keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
-import { ArrowUp, ChevronDown, Menu, Mic, Plus, Share, Square } from "lucide-react-native";
+import { ChevronDown, Globe, Menu, Plus, Share } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { Image, Pressable, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Image, Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
-import { families, modes, type ThemeMode } from "../../theme/design";
+import { modes, type, type ThemeMode } from "../../theme/design";
+import { ComposerToolbar, type ComposerToolbarProps } from "./ComposerToolbar";
+import { ShellComposer } from "./ShellComposer";
 import {
+  COMPOSER_TOOLBAR_HEIGHT,
   SHELL_NOTICE_HEIGHT,
   bottomInsetFor,
   shellGeometry,
@@ -93,6 +96,12 @@ export type ShellProps = {
   onMenuPress?: () => void;
   onModelPress?: () => void;
   onNewChatPress?: () => void;
+  /** The Web permission switch in the strip (D1 row 5 / §2.9: Web lives here,
+   *  device and calendar stay in Settings). The host persists it under the
+   *  controller's own key (`toolFlags.ts`); `true` is the controller's default
+   *  ON, so the preview draws the switch the app boots with. */
+  webEnabled?: boolean;
+  onWebPress?: () => void;
   /** Export/share the conversation (D1 row 2): the old nav's share glyph at
    *  `AiChatPage:4757-4769`, here as a real 48 dp strip box — the old
    *  36 dp box rode `hitSlop`, which the project forbids. */
@@ -100,6 +109,14 @@ export type ShellProps = {
   onAttachPress?: () => void;
   onMicPress?: () => void;
   onSendPress?: () => void;
+  /**
+   * The toolbar row above the field — templates ✦ + the research/notes chips
+   * (D1 rows 13/14). Absent in the preview: the row costs the bands height, so
+   * without it the preview's geometry is exactly the one `shellGeometry.test.ts`
+   * partitions directly; when present, `Shell.tsx` subtracts it like the notice
+   * rows and draws it between the hold line and the field.
+   */
+  toolbar?: ComposerToolbarProps;
 };
 
 export function Shell({
@@ -124,10 +141,13 @@ export function Shell({
   onMenuPress,
   onModelPress,
   onNewChatPress,
+  webEnabled = true,
+  onWebPress,
   onExportPress,
   onAttachPress,
   onMicPress,
   onSendPress,
+  toolbar,
 }: ShellProps) {
   const { t } = useLocale();
   const window = useWindowDimensions();
@@ -137,7 +157,8 @@ export function Shell({
   // the height the bands partition rather than being drawn over the transcript.
   const extraRows =
     (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT) +
-    (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT);
+    (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT) +
+    (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT);
   const layoutHeight = (height ?? window.height) - extraRows;
   // One combined inset for BOTH uses. The geometry partitions the height with it
   // and the composer's own bottom offset uses it: computing it for the geometry
@@ -211,6 +232,41 @@ export function Shell({
           <ChevronDown size={15} color={colors.silence} strokeWidth={2.4} />
         </Pressable>
 
+        {/* D1 row 5: the Web permission switch. The old chip was 36×22 riding
+            `hitSlop` (`AppShell:6926-6959`) — here a real 48 dp box with the
+            controller's own label and hints; the line-through while off is the
+            controller's own signal. */}
+        <Pressable
+          testID="shell.strip.web"
+          accessibilityRole="switch"
+          accessibilityState={{ checked: webEnabled }}
+          accessibilityLabel={t("common.web")}
+          accessibilityHint={webEnabled ? t("common.webOnHint") : t("common.webOffHint")}
+          onPress={onWebPress}
+          style={[
+            styles.iconButton,
+            webEnabled ? { backgroundColor: `${colors.accent}1f` } : null,
+          ]}
+        >
+          <Globe
+            size={13}
+            color={webEnabled ? colors.accent : colors.silence}
+            strokeWidth={2.2}
+          />
+          <Text
+            numberOfLines={1}
+            style={[
+              type.meta,
+              {
+                color: webEnabled ? colors.accent : colors.silence,
+                textDecorationLine: webEnabled ? "none" : "line-through",
+              },
+            ]}
+          >
+            {t("common.web")}
+          </Text>
+        </Pressable>
+
         <Pressable
           testID="shell.strip.export"
           accessibilityRole="button"
@@ -261,74 +317,24 @@ export function Shell({
         </View>
       )}
 
-      <View
-        style={[
-          styles.composerBand,
-          { height: geometry.composer.height, marginBottom: layoutInsets.bottom },
-        ]}
-        testID="shell.composer"
-      >
-        <View style={styles.field}>
-          <Pressable
-            testID="shell.composer.attach"
-            accessibilityRole="button"
-            accessibilityLabel={t("shell.a11y.attach")}
-            onPress={onAttachPress}
-            style={styles.fieldIcon}
-          >
-            <Plus size={19} color={colors.silence} strokeWidth={1.9} />
-          </Pressable>
+      {toolbar === undefined ? null : <ComposerToolbar {...toolbar} colors={colors} />}
 
-          <TextInput
-            testID="shell.composer.field"
-            accessibilityLabel={t("shell.a11y.field")}
-            placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
-            placeholderTextColor={colors.silence}
-            value={draft}
-            onChangeText={changeDraft}
-            editable={editable}
-            style={styles.input}
-            returnKeyType="send"
-          />
-
-          <Pressable
-            testID="shell.composer.mic"
-            accessibilityRole="button"
-            accessibilityLabel={t("shell.a11y.mic")}
-            onPress={onMicPress}
-            style={styles.fieldIcon}
-          >
-            <Mic size={19} color={colors.silence} strokeWidth={1.9} />
-          </Pressable>
-
-          <Pressable
-            testID="shell.composer.send"
-            accessibilityRole="button"
-            accessibilityLabel={faceLabel ?? t(face === "send" ? "shell.a11y.send" : "shell.a11y.stop")}
-            accessibilityState={{ disabled: !(faceEnabled && (face !== "send" || sendEnabled)) }}
-            onPress={onSendPress}
-            disabled={!(faceEnabled && (face !== "send" || sendEnabled))}
-            style={[
-              styles.send,
-              face === "send" && !sendEnabled ? { opacity: 0.45 } : null,
-              face === "stopping" ? { width: 96, borderRadius: 24 } : null,
-            ]}
-          >
-            {face === "stopping" ? (
-              <Text
-                numberOfLines={1}
-                style={{ color: colors.onAccent, fontFamily: families.sansSemi, fontSize: 13 }}
-              >
-                {faceLabel ?? t("shell.composer.stopping")}
-              </Text>
-            ) : face === "stop" ? (
-              <Square size={16} color={colors.onAccent} strokeWidth={2.6} fill={colors.onAccent} />
-            ) : (
-              <ArrowUp size={18} color={colors.onAccent} strokeWidth={2.6} />
-            )}
-          </Pressable>
-        </View>
-      </View>
+      <ShellComposer
+        height={geometry.composer.height}
+        bottomOffset={layoutInsets.bottom}
+        colors={colors}
+        draft={draft}
+        onDraftChange={changeDraft}
+        editable={editable}
+        placeholderKey={placeholderKey}
+        face={face}
+        faceLabel={faceLabel}
+        faceEnabled={faceEnabled}
+        sendEnabled={sendEnabled}
+        onAttachPress={onAttachPress}
+        onMicPress={onMicPress}
+        onSendPress={onSendPress}
+      />
     </View>
   );
 }

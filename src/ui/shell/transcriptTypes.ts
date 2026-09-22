@@ -7,6 +7,7 @@
  * decision it does not own.
  */
 import type { TranslationKey } from "../../i18n";
+import type { ReactNode } from "react";
 import type { ThemeMode } from "../../theme/design";
 import type { StopTone } from "./composerState";
 import type { Insets } from "./shellGeometry";
@@ -114,6 +115,15 @@ export type TranscriptSource = {
 
 export type TranscriptProps = {
   messages: readonly TranscriptMessage[];
+  /**
+   * The first-open content (D1 row 12): rendered INSTEAD of the messages, in
+   * this band's own scrolling content, while the conversation is empty. The
+   * host decides WHEN (the `historyLoaded` gate the controller used at
+   * `AiChatPage:4015-4016`) and WHAT; this band only places it, so the
+   * welcome screen is not a fourth band and `shellGeometry.ts` is untouched.
+   * Absent in the preview and in every conversation with messages.
+   */
+  empty?: ReactNode;
   insets: Insets;
   /** Overrides for the preview; the live window is the default. */
   width?: number;
