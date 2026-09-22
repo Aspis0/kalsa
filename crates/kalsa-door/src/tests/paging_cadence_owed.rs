@@ -1,8 +1,11 @@
-//! What an outcome that wrote nothing must leave behind on the slot: the mark
-//! the turn put there and the backoff the slot's current holder is owed. Both
-//! were cleared by the tick reading "nothing reached a file" as "the slot is
-//! saved" — one books a lost turn as written, the other re-offers the engine a
-//! slot its own refusal had delayed by an interval.
+//! What an outcome that wrote nothing leaves behind on the slot. `n_saved` 0
+//! while the map still names this chat no longer keeps mark and backoff: the
+//! slot holds no tokens, so the map is relaxed to `Unknown` and both go with
+//! it — kept, the mark would promise a save that can never be made, because
+//! the tick refuses every slot it cannot name (T4a-fix4, and the arm says the
+//! whole reason). What must NOT be moved is the other outcome: a save that
+//! came back `Superseded` leaves mark, backoff and refusals untouched on
+//! whoever holds the slot now.
 
 use std::fs;
 use std::thread;
@@ -21,7 +24,7 @@ use super::*;
 const IN_FLIGHT: Duration = Duration::from_millis(4000);
 
 #[test]
-fn n_saved_zero_keeps_the_turns_mark_and_the_backoff_bounds_its_retries() {
+fn n_saved_zero_relaxes_the_slot_to_unknown_and_asks_no_more() {
     let slot_dir = temp_dir("owed-zero");
     let engine = Engine::start(&slot_dir);
     let token = credential();
@@ -34,18 +37,18 @@ fn n_saved_zero_keeps_the_turns_mark_and_the_backoff_bounds_its_retries() {
     complete(address, &token);
     let after = Instant::now();
 
-    // The engine answers the save with `n_saved` 0: it holds nothing of this
-    // turn. The door's map says this chat is resident and a completion has
-    // passed through — so 0 means the turn is NOT on disk, and neither the
-    // count nor the mark may say otherwise.
+    // The engine answers the save with `n_saved` 0: the slot holds no tokens,
+    // so the map naming this chat is a lie — the idle purge (or a request that
+    // never reached the engine) emptied the slot after the mark. The count is
+    // not booked, the map is relaxed to `Unknown`, and the mark goes with it:
+    // a mark on a slot the tick cannot name would promise a save no attempt
+    // can ever make.
     engine.reply([Reply::Answered(0)]);
     let count = door.save_idle(quiet_since(after));
-    let (mark, _) = door.chats.observed(0);
-    assert!(
-        count == 0 && mark.is_some(),
-        "n_saved 0 was booked as a save: count {count}, mark {}",
-        if mark.is_some() { "kept" } else { "CLEARED" }
-    );
+    let (mark, claim) = door.chats.observed(0);
+    assert_eq!(count, 0, "n_saved 0 was booked as a save");
+    assert_eq!(claim, "unknown", "the map went on claiming a slot the engine emptied");
+    assert!(mark.is_none(), "the mark stayed: a promise nothing can redeem");
     assert!(
         !slot_dir.join(format!("{}.staging", file_name(chat))).exists(),
         "the zero-token staging file survived the door"
@@ -56,28 +59,38 @@ fn n_saved_zero_keeps_the_turns_mark_and_the_backoff_bounds_its_retries() {
         "a save that wrote nothing touched the chat's file"
     );
 
-    // The kept mark is bounded by the backoff, not open-ended: a tick inside
-    // the interval asks the engine nothing, and the tick at the interval's
-    // end asks once — which is what writes the mark clean when the slot's
-    // state is whole again.
+    // And the answer ENDS the attempts — this is the loop the old arm fed.
+    // Every attempt is a post the engine counts toward its idle clock, so a
+    // retry at each interval never let the release (or the invalidation it
+    // prints) happen; `Unknown` is the residency this tick never saves out of,
+    // so the relaxed slot is never offered again, at any instant.
     let owed = engine.sent().len();
     assert_eq!(
-        door.save_idle(quiet_since(after) + QUIET - Duration::from_millis(1)),
+        door.save_idle(quiet_since(after) + QUIET),
         0,
-        "a zero-token save was re-asked inside its backoff"
+        "a relaxed slot was offered to the engine again"
     );
     assert_eq!(
         engine.sent().len(),
         owed,
-        "the backoff did not hold the engine back: {:?}",
+        "the retry that fed its own condition ran again: {:?}",
         &engine.sent()[owed..]
     );
+
+    // The file is what the next activate restores: the chat is opened again
+    // from it — an `Unknown` slot has no previous chat to save, so the state
+    // on disk is all there is and it is read back, not written over.
+    let sent = engine.sent();
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    let reopen = engine.sent();
+    assert_eq!(reopen.len(), sent.len() + 1, "the reopen sent {:?}", &reopen[sent.len()..]);
+    assert_eq!(reopen[sent.len()].action, "restore", "the reopen did not restore the file");
+    assert_eq!(reopen[sent.len()].filename, file_name(chat));
     assert_eq!(
-        door.save_idle(quiet_since(after) + QUIET),
-        1,
-        "the retry at the interval's end did not save the mark"
+        fs::read(slot_dir.join(file_name(chat))).unwrap(),
+        b"state",
+        "the reopen wrote over the file it restored from"
     );
-    assert!(door.chats.observed(0).0.is_none(), "the written mark stayed set");
     door.shutdown();
 }
 

@@ -89,7 +89,9 @@ pub(super) fn save_idle(
             if now.saturating_duration_since(at) < idle_save {
                 continue;
             }
-            // One failed save is owed, not owed *now*: the slot is offered to the
+            // One save the engine refused or left unanswered is owed, not owed
+            // *now* — that is the `Err` arm below; a `Nothing` answer asks no
+            // more at all, and its arm says why. The slot is offered to the
             // engine again only after another interval, so an engine that refuses or
             // cannot answer is asked once per interval and not once per tick. Reusing
             // the interval is also what keeps this retry inside the unload clock —
@@ -115,10 +117,12 @@ pub(super) fn save_idle(
             // rounded up like every other attempt's — it is held back by a release
             // an earlier attempt re-stamped, and only races one that nothing ever
             // reached. And if the relay of the final token let a release beat every
-            // attempt, the save that comes after finds `n_saved` 0 — the unload
-            // took what the slot held — and the arm below keeps that turn's mark
-            // instead of booking it, because a mark is kept at the price of one
-            // attempt and lost at the price of the turn.
+            // attempt, the save that comes after finds `n_saved` 0 — the slot was
+            // emptied after the mark — and the arm below relaxes the map to
+            // `Unknown` and drops the mark with it: with zero tokens there is no
+            // turn left to book, the file keeps the last save that reached it, and
+            // retrying that answer was the loop that fed its own condition (the
+            // arm says why).
             //
             // What spends those two failures without costing the turn: the failure
             // this backoff is built for is a save deferred by a turn in flight, a
@@ -188,22 +192,49 @@ pub(super) fn save_idle(
                     state.dirty_at = None;
                 }
             }
-            // `n_saved` 0 for a slot this tick holds and had marked: the
-            // engine wrote nothing, so the turn is NOT on disk, and neither
-            // the count nor the mark may say it is. The door cannot tell an
-            // engine that lost the slot (the unload ran, the map is stale)
-            // from any other zero, and a slot it truly owed nothing to never
-            // reaches this call — the mark stays and the backoff bounds what
-            // keeping it costs: one attempt per interval, where clearing it
-            // would cost the turn. A slot handed on meanwhile is touched not
-            // at all: its mark and its backoff belong to the new holder, as
-            // under `Superseded`.
+            // `n_saved` 0 for a slot this tick holds and had marked: the engine
+            // wrote nothing because the slot holds no tokens — a 200 with zero
+            // leaves only from an emptied slot: the idle purge ran after the mark
+            // (`try_clear_idle_slots` announces itself to nobody but a WRN log), or
+            // the request that marked never reached the engine at all. Zero tokens
+            // means nothing of the turn is in RAM, so the map naming this chat is
+            // a lie in every case the door can reach — and a lie is what
+            // `Chats::invalidate_residency` exists to relax. So the map is relaxed
+            // to `Unknown` here instead of kept: nothing was renamed on a zero, the
+            // file still holds the last state that ever reached disk, and the next
+            // `activate` — which cannot save an `Unknown` slot and therefore does
+            // not try — restores exactly that file.
+            //
+            // The mark goes WITH the map, and the choice is declared. Kept, it
+            // would be a promise nothing can redeem: `save_idle` refuses every
+            // slot it cannot name, so no future attempt would ever be made for
+            // that mark while it went on reporting a turn nothing would write.
+            // Cleared, what is lost is the record of a turn since the last save —
+            // and that turn's state is already out of RAM (that is what the zero
+            // said), so nothing saveable goes with it.
+            //
+            // Not retrying is the other half of the choice, and the cost of the
+            // retry this replaces was NOT "one attempt per interval": every
+            // attempt is a `SLOT_SAVE` post, and every task re-stamps the engine's
+            // `time_last_task` (`server_queue`, `defer` included) — so a door that
+            // asked every Q < 3Q never let the engine reach its idle threshold,
+            // the sleep lines were never printed, `engine_lost_its_state` never
+            // fired, and model and loop both stayed in RAM without end. A
+            // completion that arrived while this save was in flight stamped a
+            // newer mark: the zero then describes the slot as it WAS, that turn's
+            // own attempt (one interval after its mark) is what decides, and this
+            // arm touches nothing. A slot handed on meanwhile is touched not at
+            // all: its mark and its backoff belong to the new holder, as under
+            // `Superseded`.
             Ok(Saved::Nothing) => {
                 if matches!(
                     &state.resident,
                     Residency::Resident(owner, held) if *owner == device && *held == chat
-                ) {
-                    state.retry_after = Some(now + idle_save);
+                ) && state.dirty_at == Some(at)
+                {
+                    state.resident = Residency::Unknown;
+                    state.dirty_at = None;
+                    state.retry_after = None;
                 }
             }
             // Nothing reached a chat's name and the slot is another chat's

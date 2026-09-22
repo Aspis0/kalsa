@@ -317,7 +317,10 @@ fn a_filename_in_the_payload_is_ignored() {
 
 #[test]
 fn a_request_outside_the_two_routes_is_answered_by_the_door() {
-    let slot_dir = temp_dir("route-unknown");
+    // A name of its own: `route-unknown` belongs to the slot-state test above,
+    // and two tests sharing one directory is the collision `temp_dir`'s
+    // remove-then-create turns into a race.
+    let slot_dir = temp_dir("route-outside");
     let engine = Engine::start(&slot_dir);
     let token = credential();
     let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);

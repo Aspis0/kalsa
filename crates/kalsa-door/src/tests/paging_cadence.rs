@@ -366,7 +366,10 @@ fn an_interrupted_generation_still_marks_the_slot() {
 
 #[test]
 fn a_dirty_unknown_slot_is_never_saved() {
-    let slot_dir = temp_dir("cadence-unknown");
+    // A name of its own: this test asserts the directory is EMPTY, so sharing
+    // one with the test above (which writes files into it) made the pair a
+    // race — red on a loaded machine, green in isolation.
+    let slot_dir = temp_dir("cadence-dirty-unknown");
     let engine = Engine::start(&slot_dir);
     let token = credential();
     let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
