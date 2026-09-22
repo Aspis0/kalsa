@@ -166,22 +166,21 @@ function profileFrom(value: unknown): ThermoProfile | null {
   const idleValidRaw = Boolean(input.t_idle_valid);
   const idleDegrees = numberValue(input.t_idle_c, Number.NaN);
   const idleTenths = numberValue(input.t_idle_tenths_c, Number.NaN);
-  // t_idle_c reaches the engine in whole degrees C: the native latch reports
-  // tenths, the bench skin already reports degrees. Convert exactly once, and
-  // refuse a baseline the engine's own plugged rule would reject, so a
-  // tenths value can never become a plugged baseline.
+  // t_idle_c reaches the engine in whole degrees C: the native side reports
+  // tenths, the bench skin already reports degrees. Convert exactly once.
+  // Validity is the engine's decision (profile_is_valid in
+  // llama-governor-policy.cpp): forward the raw flag, apply no range gate here.
   const idle = Number.isFinite(idleDegrees)
     ? idleDegrees
     : Number.isFinite(idleTenths)
       ? idleTenths / 10
       : 0;
-  const idleValid = idleValidRaw && idle > 0 && idle + 1 < 42;
   return {
     batt_temp_tenths_c: temp,
     batt_level_pct: level,
     plugged,
     sensor_valid: sensor,
-    t_idle_valid: idleValid,
+    t_idle_valid: idleValidRaw,
     t_idle_c: idle,
     trend_c_per_min: numberValue(input.trend_c_per_min, 0),
   };
