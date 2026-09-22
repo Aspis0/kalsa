@@ -20,16 +20,19 @@
 // `dev/results/slot-restore-device-path`), so a path edited in the constant
 // cannot quietly aim the check at some other file. Constant and artifact
 // must say the same thing: status, tag, platform, backend, exe_sha256; the
-// three ratios at the precision the panel shows; a detail carrying the
-// qualification and naming the artifact; and a row that exists exactly
+// three ratios EXACTLY (the constant carries the artifact's four decimals,
+// so the copy is checked against its original digit for digit — a drift
+// below the rounding cannot hide); the rounding the panel SHOWS (2 decimals
+// in the value), as its own check with its own message; a detail carrying
+// the qualification and naming the artifact; and a row that exists exactly
 // while the artifact's status is
 // `matched`. The committed JSON is only ever read — the two mutation proofs
 // run on in-memory copies, and the third was run against the constant
-// itself at commit time: `aggregate: 1.4604` → `1.5604` in `tierPanel.ts`
-// turned this red (exit 1, 2 failures — the ratio equality, and the value
-// that stopped showing the artifact's number), then was reverted. Dropping
-// `not wall time` from the row's detail goes red on the detail check.
-// Full run: 30 checks, all passing.
+// itself at commit time: bumping `aggregate` in `tierPanel.ts` by a tenth
+// turned this red (exit 1, 2 failures — the exact-ratio check, and the
+// value that stopped showing the artifact's number), then was reverted.
+// Dropping `not wall time` from the row's detail goes red on the detail
+// check. Full run: 30 checks, all passing.
 //
 // Run: node scripts/tier-panel.mjs
 
@@ -72,9 +75,9 @@ function concurrencyChecks(app, artifact, emit) {
   both("backend", CONCURRENCY.release.backend, release.backend);
   both("exe_sha256", CONCURRENCY.release.exe_sha256, release.exe_sha256);
   emit(
-    "concurrency: the three ratios, equal to the artifact at the shown 2 decimals",
-    pairs.every(([, c, a]) => c.toFixed(2) === a.toFixed(2)),
-    pairs.map(([, c, a]) => `${c.toFixed(2)} vs ${a.toFixed(2)}`).join(", "),
+    "concurrency: the three ratios are exactly the artifact's, digit for digit",
+    pairs.every(([, c, a]) => c === a),
+    pairs.map(([, c, a]) => `${c} vs ${a}`).join(", "),
   );
   // PLAN-DISK-TIER §9: the panel's number is attributed to the release
   // artifact — so the row's existence follows the ARTIFACT's status, not
@@ -86,7 +89,7 @@ function concurrencyChecks(app, artifact, emit) {
   );
   if (row) {
     emit(
-      "concurrency: the value shows the artifact's ratios (2 decimals)",
+      "concurrency: the value rounds the artifact's ratios to the 2 decimals shown",
       pairs.every(([, , a]) => row.value.includes(`${a.toFixed(2)}x`)),
       row.value,
     );

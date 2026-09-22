@@ -1,10 +1,12 @@
 # What a second device costs on one engine
 
 One question, one run: **what does one device's decode rate become when a second device decodes at
-the same time, on the same engine.** Every number below is a field of `results.json`. The verdict
-field is computed by the script from the recorded `cache_n` values — none of it is written by hand,
-and neither is the provenance: `max_load`, `attempts_max`, `platform` and `backend` are fields of
-the artifact now.
+the same time, on the same engine.** Every number below is a field of `results.json`, or the one
+step of arithmetic named beside it: the percentages and the `×` figure in the answer table are the
+four-decimal ratios taken ×100 or subtracted from 1, rounded where they are shown — nothing else is
+derived here. The verdict field is computed by the script from the recorded `cache_n` values —
+none of it is written by hand, and neither is the provenance: `max_load`, `attempts_max`,
+`platform` and `backend` are fields of the artifact now.
 
 ## The run
 
