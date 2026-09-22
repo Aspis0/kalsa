@@ -1,4 +1,5 @@
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
+import { tierRows } from "../lib/tierPanel";
 import { SetupProgress } from "./SetupProgress";
 import "./surfaces.css";
 
@@ -14,7 +15,9 @@ function connectedText(connected: boolean): string {
 
 // The Server surface: one glance tells the owner whether the local server is on
 // and what it is doing, and the cards below show only facts the process
-// produced. While the first walk runs, its progress (the `brain_progress`
+// produced — the server's own rates, and the disk tier's numbers as the door
+// read them (`tierRows`: residents over the door's capacity, the directory
+// scan). While the first walk runs, its progress (the `brain_progress`
 // events) replaces the body. The state's facts and words come from the shared
 // hook; this page adds only what is its own: the stop failure and the metrics.
 export function ServerSurface() {
@@ -52,6 +55,16 @@ export function ServerSurface() {
                   </strong>
                   <span className="surface-metric-detail">Live connection</span>
                 </div>
+                {/* The tier's own rows, only while the door answers: no tier
+                    block means no rows — and no concurrency row at all, since
+                    that number has no committed measurement yet. */}
+                {tierRows(metrics.tier).map((row) => (
+                  <div className="surface-metric" key={row.label}>
+                    <span className="surface-metric-label">{row.label}</span>
+                    <strong className="surface-metric-value">{row.value}</strong>
+                    <span className="surface-metric-detail">{row.detail}</span>
+                  </div>
+                ))}
               </div>
               {metrics.throttled === true ? (
                 <p className="surface-note">
