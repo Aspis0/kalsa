@@ -1537,19 +1537,36 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
         !engine_lost_its_state(&running, None),
         "an unanswered residency was read as a release"
     );
-    // `Stopped` is only ever set with the door already down, and `Starting`
-    // only by a start the supervisor accepted — and NOT because every path
-    // calls `stop_door` first: `brain_start` (the turn-on walk) never calls
-    // it, and neither does `startup.rs`. What holds is the chain, each link
-    // read from the code: the door is raised only in `brain_state`'s own
-    // Running arm (`start_door_if_paired`, the single caller), and `Stopped`
-    // is set only by `Supervisor::stop`/`shutdown`, whose two senders take
-    // the door down BEFORE them — `brain_stop` (`stop_door` before
+    // A SKETCH, not a proof: every link below was read from the code the night
+    // it was written, and the code moves — this chain has been rewritten four
+    // times in one night — so re-verify each link instead of trusting it. The
+    // register to update when a link moves: `docs/PLAN-DISK-TIER.md` §7 and
+    // `docs/HANDOFF-2026-09-21-b.md`.
+    // What holds is the chain, each link read from the code — and NOT because
+    // every path calls `stop_door` first: `brain_start` (the turn-on walk)
+    // never calls it, and neither does `startup.rs`. The door is raised only
+    // in `brain_state`'s own Running arm (`start_door_if_paired`, the single
+    // PRODUCTION caller — this file calls it too, and that is why the
+    // adjective is here), and `Stopped` is a transition only
+    // `Supervisor::stop`/`shutdown` write, from two senders that take the door
+    // down BEFORE they send — `brain_stop` (`stop_door` before
     // `supervisor.stop`) and the exit handler (`stop_door` before
-    // `supervisor.shutdown`). `Starting` is entered only by a start the
+    // `supervisor.shutdown`). What those senders guarantee is the lowering
+    // before the send, NOT a door that stays down until the set:
+    // `Supervisor::stop` returns at once ("the state follows on the next
+    // read"), the worker spends the teardown walking stdin EOF, a stop grace
+    // (`stop_grace`, 2.5 s as `startup.rs` configures it — `llama-server`
+    // reads no stdin, so the first grace is spent whole), SIGTERM, a second
+    // grace and SIGKILL before it writes `Stopped`, and a `brain_state` poll
+    // landing inside that window reads `Running`, enters the Running arm and
+    // RE-RAISES the door `brain_stop` lowered. So `Stopped` can be set with
+    // the door UP, and the door stays up until the next poll's `Stopped` arm
+    // takes it down (≤ `POLL_MS`, 1 s, while a reader keeps the poll running)
+    // — a blip declared in `docs/PLAN-DISK-TIER.md`, T5.
+    // `Starting` is entered only by a start the
     // supervisor accepted, and it refuses one while it still owns a server
-    // (`StartOutcome::Refused`: "already on"), so `Running` — the one state
-    // whose door may be up — is never recycled through it. And the window
+    // (`StartOutcome::Refused`: "already on"), so `Running` — the state whose
+    // arm raises the door — is never recycled through it. And the window
     // asks for a start either off a state `brain_state` last answered — whose
     // non-`Running` arms all drop the door
     // (`every_non_running_arm_of_brain_state_stops_the_door`, below) — or

@@ -420,6 +420,27 @@ instead of returning an empty conversation.
   it, so T4's promise (an unload cannot lose a turn) is what a ceiling spends; **(b)** no ceiling,
   which is what ships, and the price is the RAM above while the condition persists; **(c)** having
   the engine stamp `time_last_task` only on an outcome it liked, which is engine-side.
+- **Declared behaviour, not fixed**: a live door can stand beside `Stopped`. Both senders lower the
+  door *before* they send (`brain_stop` before `supervisor.stop`, the app-exit handler before
+  `supervisor.shutdown`), but `Supervisor::stop` returns at once — the state follows on the next
+  read — and the worker spends the teardown in the stop grace (`stop_grace`, 2.5 s as `startup.rs`
+  configures it: stdin EOF → grace → SIGTERM → grace → SIGKILL) before it writes `Stopped`. A
+  `brain_state` poll landing in that window still reads `Running`, enters the Running arm and
+  re-raises the door the stop had lowered: **the poll is the reconciler**, and that is the whole
+  mechanism. So a door that is up can coexist with `Stopped` for up to one poll interval
+  (`POLL_MS`, 1 s) — after the grace window, in which the state still reads `Running`. This is an
+  availability blip behind full authentication, not an exposure: the listener answers 401 without
+  the bearer, and from the `Stopped` set on the engine is already gone, so a request that slips
+  into the blip gets an error instead of a service. The alternative — the Running arm not
+  re-raising while a stop is in flight — is an owner decision, and it has not been taken.
+- **Declared loss, not fixed**: a slot handed to another holder inherits `retry_after`.
+  `activate` and `erase` clear the mark (`dirty_at`) and leave the backoff standing
+  (`crates/kalsa-door/src/paging.rs`, `paging/cadence.rs`), so the new holder's first save cannot
+  precede the inherited bound: a refusal that was not theirs can push their first save back. Bounded
+  twice — the bound itself is one interval (`retry_after = now + idle_save`), and the tick's
+  `dirty_at` gate offers a slot only once its *own* mark has earned the interval, so an inherited
+  bound bites only a holder whose mark matures before it. Clearing `retry_after` on
+  `activate`/`erase` is an owner decision, and it has not been taken.
 - **Acceptance**: a test that a crash does not leave the map claiming residency; a test that a
   rebuilt door does not report `Empty` for a slot it has never looked at; a test that a revoked
   device's files are gone; a test that deleting a chat removes its file.
