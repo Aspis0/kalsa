@@ -84,7 +84,7 @@ export const CONCURRENCY = {
   /** The artifact's `ratios`: decode rate while a second device decodes,
       over the solo arm — four decimals as the artifact holds them, shown
       at two. Rates, not wall times: no seconds appear anywhere here. */
-  ratios: { slot0: 0.7302, slot1: 0.7302, aggregate: 1.4604 },
+  ratios: { slot0: 0.7336, slot1: 0.7336, aggregate: 1.4672 },
 } as const;
 
 /** The concurrency row, or `null` when the measurement's provenance is not

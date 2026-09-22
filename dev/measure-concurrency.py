@@ -46,15 +46,21 @@ Usage:
       [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server] \
       [--max-load 6.0] [--release-manifest-url URL]
 
-Provenance the next reader can check instead of trust: `max_load` is recorded
-as the ceiling this run actually passed, and `release` is DERIVED by matching
-the sha256 of the binary that ran against the published release manifest - by
-`exe_sha256` only, never by path or directory name. Three statuses, kept
-apart on purpose: `matched` (a manifest row carries this hash -> the row's
-fields ride along), `not-the-release` (the manifest was read and no row
-carries it -> a fork build, labelled exactly as §9 of PLAN-DISK-TIER.md says),
-`unverified` (the manifest could not be read -> say so; a dead network is
-never evidence of a fork build). The manifest URL is derived from a
+Provenance the next reader can check instead of trust: `max_load` and
+`attempts_max` are recorded as the values actually used (after their
+defaults), and `release` is DERIVED by matching the sha256 of the binary that
+ran against the published release manifest - by `exe_sha256` only, never by
+path or directory name. Three statuses, kept apart on purpose: `matched` (a
+manifest row carries this hash -> the row's fields ride along),
+`not-the-release` (the manifest published at least one well-formed 64-hex
+`exe_sha256` and none of them is this binary's -> a fork build, labelled
+exactly as §9 of PLAN-DISK-TIER.md says), `unverified` (everything too weak
+to decide: the manifest could not be read, it published no usable
+`exe_sha256`, several rows claim the executed hash, no URL could be
+derived). Weak evidence is never promoted to the fork verdict: a dead
+network, a missing hash or a duplicate row each get `unverified` plus a
+machine-readable `reason_code`. Hex is compared case-insensitively and the
+canonical lowercase digest is recorded. The manifest URL is derived from a
 `kalsa-server-vX.Y.Z` binary directory, overridable with
 `--release-manifest-url`; when it cannot be derived the status is `unverified`.
 """
@@ -202,8 +208,28 @@ def loadavg():
 # --------------------------------------------------------------------------
 FORK_LABEL = "fork build, not the release"
 MANIFEST_NAME_RE = re.compile(r"kalsa-server-(v\d+\.\d+\.\d+)")
+HEX64_RE = re.compile(r"[0-9a-fA-F]{64}")
 PLATFORM_ALIASES = {"x86_64": "x86-64", "amd64": "x86-64", "aarch64": "arm64"}
 OS_ALIASES = {"darwin": "macos", "win32": "windows", "windows": "windows"}
+
+
+def usable_sha256(value):
+    """A digest this comparison is allowed to reason about: a string of
+    exactly 64 hex digits.
+
+    `null`, an int, an empty string, a short or malformed string are NOT a
+    hash - and "the release published no hash" is a different claim from
+    "this build is not the release": the first is missing evidence, the
+    second is a verdict, and only a published digest can support one.
+    """
+    return (isinstance(value, str)
+            and HEX64_RE.fullmatch(value.strip()) is not None)
+
+
+def canonical_sha256(value):
+    """Lowercase: `A-F` and `a-f` are the same digest, and the artifact
+    records the canonical spelling of whatever matched."""
+    return value.strip().lower()
 
 
 def derive_manifest_url(bin_path):
@@ -237,32 +263,60 @@ def host_platform():
     return f"{system}-{machine}"
 
 
-def match_manifest_row(manifest, exe_sha256):
+def match_manifest(manifest, exe_sha256):
     """PURE. The executed binary's sha256 against the manifest's rows.
 
     Match is by `exe_sha256` and by nothing else: never a path, never a
     directory name, never a file name - those are exactly what a copied
-    release binary in a renamed folder would fake. Returns the merged
-    manifest-header + row block for the first row carrying this hash, or
-    None when no row does.
+    release binary in a renamed folder would fake. Hex is compared
+    case-insensitively; the merged header + row block carries the canonical
+    lowercase digest.
+
+    Returns {"outcome", "published_rows", "matched_rows", "block"?} where
+    outcome is one of:
+      unique            exactly one published row carries this digest
+      no-match          at least one row published a usable digest, none is
+                        this one - the ONLY outcome that can justify the fork
+                        verdict
+      no-usable-hash    the manifest published no 64-hex exe_sha256 at all:
+                        missing evidence, not a verdict
+      ambiguous         several rows claim this digest: platform/backend
+                        would be an arbitrary pick, so no pick is made
+      not-a-manifest    no artifacts[] list to reason about
+      binary-hash-unusable  the digest we would match with is not a digest
     """
-    if not isinstance(manifest, dict):
-        return None
-    rows = manifest.get("artifacts")
-    if not isinstance(rows, list):
-        return None
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        if row.get("exe_sha256") and row.get("exe_sha256") == exe_sha256:
-            block = {k: manifest.get(k) for k in
-                     ("tag", "tag_object", "commit", "run_url", "built_at",
-                      "pack_sha256")}
-            block.update({k: row.get(k) for k in
-                          ("file", "platform", "backend", "exe_sha256")})
-            block["platform_source"] = "manifest"
-            return block
-    return None
+    if not usable_sha256(exe_sha256):
+        return {"outcome": "binary-hash-unusable",
+                "published_rows": 0, "matched_rows": 0}
+    if not isinstance(manifest, dict) \
+            or not isinstance(manifest.get("artifacts"), list):
+        return {"outcome": "not-a-manifest",
+                "published_rows": 0, "matched_rows": 0}
+    rows = [r for r in manifest["artifacts"] if isinstance(r, dict)]
+    published = [r for r in rows if usable_sha256(r.get("exe_sha256"))]
+    if not published:
+        return {"outcome": "no-usable-hash",
+                "published_rows": 0, "matched_rows": 0}
+    key = canonical_sha256(exe_sha256)
+    hits = [r for r in published if canonical_sha256(r["exe_sha256"]) == key]
+    out = {"published_rows": len(published), "matched_rows": len(hits)}
+    if not hits:
+        out["outcome"] = "no-match"
+        return out
+    if len(hits) > 1:
+        out["outcome"] = "ambiguous"
+        return out
+    row = hits[0]
+    block = {k: manifest.get(k) for k in
+             ("tag", "tag_object", "commit", "run_url", "built_at",
+              "pack_sha256")}
+    block.update({k: row.get(k) for k in
+                  ("file", "platform", "backend")})
+    block["exe_sha256"] = canonical_sha256(row["exe_sha256"])
+    block["platform_source"] = "manifest"
+    out["outcome"] = "unique"
+    out["block"] = block
+    return out
 
 
 def fetch_manifest(url):
@@ -284,15 +338,21 @@ def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
     Pure given `fetch` (the injected callable is the only I/O), which is what
     lets dev/test-release-provenance.py drive the red paths without a network.
 
-      matched          a manifest row carries this exe_sha256 -> record the
-                       row and the manifest header it belongs to.
-      not-the-release  the manifest was READ and no row carries this hash ->
-                       a fork build: label `fork build, not the release`,
-                       platform from the host, backend null.
-      unverified       the manifest could not be read (no URL derivable,
-                       network down, 404 body that is not JSON) -> say why.
-                       A read failure is never converted into not-the-release:
-                       a dead network says nothing about which build this is.
+      matched          exactly one manifest row carries this exe_sha256 ->
+                       record the row and the header it belongs to.
+      not-the-release  the manifest published at least one well-formed
+                       64-hex exe_sha256 and none is this binary's -> a fork
+                       build: label `fork build, not the release`, platform
+                       from the host, backend null.
+      unverified       anything too weak to decide, each with its own
+                       machine-readable `reason_code`: no URL derivable,
+                       fetch failed, body not JSON, no artifacts[], the
+                       executed binary has no usable digest, the manifest
+                       published no usable exe_sha256, or several rows
+                       claim the executed digest. None of those is promoted
+                       to not-the-release: a dead network, a missing hash
+                       and a duplicate row say nothing about which build
+                       this is.
     """
     fetch = fetch or fetch_manifest
     block = {
@@ -300,16 +360,27 @@ def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
         "manifest_url": manifest_url,
         "manifest_sha256": None,
         "checked_utc": checked_utc or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "match_basis": ("exe_sha256 of the executed binary; never a path, "
-                        "never a directory name"),
-        "exe_sha256": exe_sha256,
+        "match_basis": ("exe_sha256 of the executed binary, compared as "
+                        "64-hex case-insensitively and recorded in canonical "
+                        "lowercase; never a path, never a directory name"),
+        "exe_sha256": (canonical_sha256(exe_sha256)
+                       if usable_sha256(exe_sha256) else exe_sha256),
         # host is the fallback claim until a manifest row upgrades it:
         "platform": host_platform(),
         "platform_source": "host",
         "backend": None,
     }
+    if not usable_sha256(exe_sha256):
+        block["status"] = "unverified"
+        block["reason_code"] = "binary-has-no-usable-exe-sha256"
+        block["reason"] = (
+            f"the executed binary's exe_sha256 is {exe_sha256!r}, not a "
+            "64-hex sha256: with no digest there is no match to report, and "
+            "no manifest row can be accused of anything")
+        return block
     if not manifest_url:
         block["status"] = "unverified"
+        block["reason_code"] = "no-manifest-url"
         block["reason"] = (
             "no manifest URL could be derived from the binary's directory "
             "(expected kalsa-server-vX.Y.Z) and none was given with "
@@ -322,6 +393,7 @@ def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
         body = fetch(manifest_url)
     except Exception as e:
         block["status"] = "unverified"
+        block["reason_code"] = "manifest-fetch-failed"
         block["reason"] = (
             f"manifest not readable at {manifest_url}: "
             f"{type(e).__name__}: {e} - a network or HTTP failure says nothing "
@@ -334,32 +406,74 @@ def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
         manifest = json.loads(body.decode("utf-8", errors="replace"))
     except Exception as e:
         block["status"] = "unverified"
+        block["reason_code"] = "manifest-body-unreadable"
         block["reason"] = (
             f"manifest at {manifest_url} answered with a body that is not JSON "
             f"({type(e).__name__}: {e}): it could not be read, so the build is "
             "unverified, not 'not-the-release'")
         return block
-    if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
-        block["status"] = "unverified"
+
+    match = match_manifest(manifest, exe_sha256)
+    outcome = match["outcome"]
+    block["manifest_exe_sha256_rows"] = match["published_rows"]
+
+    if outcome == "unique":
+        block["status"] = "matched"
+        block.update(match["block"])
+        return block
+    if outcome == "no-match":
+        block["status"] = "not-the-release"
+        block["label"] = FORK_LABEL
+        block["reason_code"] = "no-published-exe-sha256-is-this-binary"
+        block["reason"] = (
+            f"the manifest was read and published {match['published_rows']} "
+            "well-formed exe_sha256 values, none of them this binary's: the "
+            "binary that ran is not what the release published")
+        return block
+
+    # Everything left is evidence too weak for the fork verdict.
+    block["status"] = "unverified"
+    block["matched_rows"] = match["matched_rows"]
+    if outcome == "not-a-manifest":
+        block["reason_code"] = "manifest-not-a-release-manifest"
         block["reason"] = (
             f"the body at {manifest_url} is JSON but not a release manifest "
             "(no artifacts[]): there is no row to match against, so the build "
             "is unverified, not 'not-the-release'")
-        return block
-
-    row = match_manifest_row(manifest, exe_sha256)
-    if row is None:
-        block["status"] = "not-the-release"
-        block["label"] = FORK_LABEL
+    elif outcome == "no-usable-hash":
+        block["reason_code"] = "manifest-published-no-usable-exe-sha256"
         block["reason"] = (
-            "the manifest was read and no artifacts[] row carries this "
-            "exe_sha256: the binary that ran is not what the release "
-            "published")
-        return block
-
-    block["status"] = "matched"
-    block.update(row)
+            "the manifest published no usable exe_sha256 (0 rows of 64 hex "
+            "out of " + str(len(manifest.get("artifacts") or [])) + " artifacts[]): "
+            "a release that declares no hash is missing evidence, not a "
+            "declaration that this build is not the release")
+    elif outcome == "ambiguous":
+        block["reason_code"] = "manifest-exe-sha256-ambiguous"
+        block["reason"] = (
+            f"{match['matched_rows']} manifest rows carry this exe_sha256: "
+            "platform/backend would be an arbitrary pick, so no pick is made "
+            "and the build stays unverified")
+    elif outcome == "binary-hash-unusable":  # guarded above; stated, not assumed
+        block["reason_code"] = "binary-has-no-usable-exe-sha256"
+        block["reason"] = "the executed binary's exe_sha256 is not a 64-hex sha256"
+    else:  # an outcome nobody declared: unknown is unverified, never fork
+        block["reason_code"] = "unknown-match-outcome"
+        block["reason"] = f"unforeseen match outcome {outcome!r}"
     return block
+
+
+def run_parameters(args):
+    """The knobs of this run, each as the VALUE USED - after its default.
+
+    These fields live here and not inline in the artifact literal so the
+    control file can call this builder with a distinctive value and prove
+    the field FOLLOWS the argument: a provenance field whose builder ignores
+    its input records the default forever and calls it a measurement.
+    """
+    return {
+        "max_load": args.max_load,
+        "attempts_max": args.attempts,
+    }
 
 
 def engine_argv(bin_path, model, port, ctx_size, slots_dir):
@@ -556,7 +670,8 @@ def main():
     ap.add_argument("--prompt-tokens", type=int, default=512)
     ap.add_argument("--attempts", type=int, default=4,
                     help="A/B/A2 attempts; each is rejected unless A2 is "
-                         "within --bracket-tol of A")
+                         "within --bracket-tol of A; the value used (after "
+                         "this default) is recorded as provenance.attempts_max")
     ap.add_argument("--bracket-tol", type=float, default=0.03,
                     help="how far A2 may drift from A before the attempt is "
                          "called contaminated by other load")
@@ -566,7 +681,10 @@ def main():
                          "average is above this; a decode rate recorded under "
                          "other load is not the number the panel may print; "
                          "the value used (after this default) is recorded as "
-                         "provenance.max_load")
+                         "provenance.max_load. 0 or a negative value means NO "
+                         "ceiling: the gate is off by explicit choice, and the "
+                         "artifact records the field as 0.0 - a reader sees the "
+                         "gate was disabled, not that the run passed a limit")
     ap.add_argument("--release-manifest-url", default=None,
                     help="override the release manifest URL; by default it is "
                          "derived from a kalsa-server-vX.Y.Z binary directory")
@@ -581,6 +699,9 @@ def main():
     release = release_provenance(manifest_url, engine_sha256)
 
     la0 = os.getloadavg()[0]
+    # max_load <= 0 is the documented way to switch this gate OFF (no
+    # ceiling, recorded verbatim as provenance.max_load = 0.0); anything
+    # positive is a real ceiling the run must pass before anything starts.
     if args.max_load > 0 and la0 > args.max_load:
         raise SystemExit(
             f"refusing to measure: 1-minute load average is {la0:.2f}, above "
@@ -723,13 +844,13 @@ def main():
             "question": ("what one device's decode rate costs when a second device "
                          "decodes at the same time, on one engine"),
             "provenance": {
+                **run_parameters(args),
                 "started_utc": started_utc,
                 "hostname": socket.gethostname(),
                 "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
                                             text=True).stdout.strip(),
                 "engine_binary": args.bin,
                 "engine_sha256": engine_sha256,
-                "max_load": args.max_load,
                 "release": release,
                 "engine_version": version,
                 "engine_nice": NICE,
