@@ -277,11 +277,18 @@ describe("the preview's notice line", () => {
 describe("the width is only used for the horizontal boxes", () => {
   it("keeps the pill and the field at or above the touch floor on the Jelly", () => {
     const geo = shellGeometry(349, 621, { top: 0, bottom: 0 });
-    // BEFORE the Web switch joined the strip this read
-    // `349 - 2*12 - 3*48 - 3*9 = 154` (three icon buttons: menu, export, new
-    // chat). The strip now holds FOUR (menu, Web, export, new chat — D1 row 5):
-    // 349 - 2*12 - 4*48 - 4*9 = 97 for the pill; 349 - 2*12 = 325 for the field.
-    expect(geo.touchTargets.stripPill.width).toBe(97);
+    // Contract history, all three states written down so the next change lands
+    // as a deliberate edit of THIS number rather than a discovery:
+    //   BEFORE the Web switch:  `349 - 2*12 - 3*48 - 3*9 = 154` (menu, export,
+    //     new chat) — the pill 154 dp.
+    //   WITH the switch AND export on the strip: four buttons, `= 97`, a 14 dp
+    //     text column: the model name and "On this phone" both rendered as bare
+    //     ellipses (host3 capture: "a row of tiny dots").
+    //   NOW: export lives in the drawer (chat-level action; `HostDrawer.tsx`),
+    //     three buttons again, pill 154 dp, text column 71 dp — 154 - 2*10
+    //     padding - 28 mark - 15 chevron - 2*10 gaps. Nothing shrank below the
+    //     48 dp floor; the RARE control moved instead.
+    expect(geo.touchTargets.stripPill.width).toBe(154);
     expect(geo.touchTargets.composerField.width).toBe(325);
   });
 });

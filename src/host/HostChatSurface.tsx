@@ -51,8 +51,6 @@ export interface ChatSurfaceProps {
   sendHost: SendHost;
   onMenuPress: () => void;
   onNewChatPress: () => void;
-  /** Export/share of the live conversation (D1 row 2), built by the root. */
-  onExportPress?: () => void;
   /** The strip's Web switch (D1 row 5): the host's persisted flag + its flip. */
   flags: ToolFlags;
   /** The research/notes one-shot arms behind the toolbar chips (D1 row 14). */
@@ -69,7 +67,6 @@ export function HostChatSurface({
   sendHost,
   onMenuPress,
   onNewChatPress,
-  onExportPress,
   flags,
   arms,
 }: ChatSurfaceProps) {
@@ -139,7 +136,6 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={onModelPress}
       onNewChatPress={onNewChatPress}
-      onExportPress={onExportPress}
       onAttachPress={() => showNoticeKey("shell.notice.attach")}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       webEnabled={flags.webToolsEnabled}

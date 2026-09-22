@@ -221,6 +221,10 @@ export function DrawerContent({
         {items.map(({ id, label, Icon, lastUsed, onPress }) => (
           <Pressable
             key={id}
+            // Every row names itself for tests and accessibility tooling; the
+            // export row (`id: "export"`) is the one that moved here from the
+            // strip, but the id is derived, so no row is anonymous.
+            testID={`drawer.item.${id}`}
             onPress={onPress}
             accessibilityRole="button"
             accessibilityLabel={label}
@@ -230,6 +234,10 @@ export function DrawerContent({
               gap: 12,
               paddingHorizontal: 14,
               paddingVertical: 11,
+              // Real box: 11+11 padding over a ~22 dp line measured 46 dp, two
+              // under the project's floor. The tile grows to a true 48 dp;
+              // no hitSlop anywhere.
+              minHeight: 48,
               opacity: pressed ? 0.7 : 1,
               ...tile,
             })}

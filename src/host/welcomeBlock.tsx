@@ -66,20 +66,37 @@ export function WelcomeBlock({ mode, onSend }: WelcomeBlockProps) {
 
   return (
     <View style={{ paddingTop: spacing.xl }} testID="chat.welcome">
-      {/* Greeting — optional sage plate (the raster carries no letters). */}
+      {/* Greeting — optional sage plate (the raster carries no letters).
+
+          The box carries NEITHER margin NOR padding, and that is a measured
+          decision, not a style preference (`host3-firstopen.png`; both traps
+          reproduced against the Yoga React Native 0.86 vendors, in
+          `welcomeBlock.test.ts`'s pins):
+
+          1. a `marginBottom` on an `aspectRatio` node makes the box resolve
+             BELOW its column — a 441 px column lays out a 430.67 px box
+             (aspect intact), 8 dp of the card column missing on the right;
+          2. React Native paints an absolutely-positioned image at the box's
+             CONTENT size, anchored at the box origin, so the plate's own
+             `paddingHorizontal` pulled another 38.5 px (28 dp) off the
+             photograph's right edge. Stack 1 + 2 and the capture's plate ends
+             36 dp short of the cards — the ragged edge the vision pass saw.
+
+          Both insets still exist, in the controller's own values, on nodes
+          that cannot trigger the traps: the md inset is on the greeting text
+          (with its 70% cap) and the xs gap is the prompt's marginTop. The
+          proportions a reader sees — a 4:3 plate spanning the card column,
+          text inset 14 dp, 6 dp to the prompt — are AiChatPage:4033-4047's. */}
       <View
         style={
           showArt
             ? {
-                marginBottom: spacing.xs,
                 borderRadius: radius.lg,
                 overflow: "hidden",
                 aspectRatio: 4 / 3,
                 justifyContent: "center",
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.md,
               }
-            : { marginBottom: spacing.xs }
+            : undefined
         }
       >
         {showArt ? (
@@ -108,13 +125,27 @@ export function WelcomeBlock({ mode, onSend }: WelcomeBlockProps) {
         <Text
           style={[
             type.display,
-            { color: colors.ink, maxWidth: showArt ? "70%" : undefined },
+            {
+              color: colors.ink,
+              maxWidth: showArt ? "70%" : undefined,
+              // The plate's inset, moved onto the text (trap 2 above): same
+              // 14 dp from every edge, but the photograph now fills the box.
+              padding: showArt ? spacing.md : 0,
+            },
           ]}
         >
           {greeting}.
         </Text>
       </View>
-      <Text style={[type.label, { color: colors.silence, marginBottom: spacing.xl }]}>
+      <Text
+        style={[
+          type.label,
+          // The plate's 6 dp gap, moved here as its own margin-top: a margin on
+          // the aspect-ratio box is trap 1, and the reader sees the same 6 dp
+          // either way. Controller: plate `marginBottom: spacing.xs`.
+          { color: colors.silence, marginTop: spacing.xs, marginBottom: spacing.xl },
+        ]}
+      >
         {t("chat.welcomePrompt")}
       </Text>
 

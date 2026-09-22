@@ -4,9 +4,16 @@
  * a diff would hide are all textual — the control is a real 48 dp box (the old
  * one was 36×22 on `hitSlop`, `AppShell:6926-6959`, which this project forbids),
  * it carries the controller's own switch role, name and both hints from the
- * shipped catalogue, and the geometry beside it now budgets FOUR icon buttons
- * (the pill's 154 dp became 97 dp when the switch joined — the contract change
- * `shellGeometry.test.ts` pins on its side).
+ * shipped catalogue, and the geometry beside it budgets THREE icon buttons.
+ *
+ * BEFORE the export row left for the drawer this read FOUR buttons and pinned
+ * `… - 4*full - 4*STRIP_GAP`, because the switch had joined the strip and
+ * squeezed the pill to 97 dp (a 14 dp text column — no legible model name, the
+ * dots a vision pass saw were both lines' ellipses). The strip contract changed
+ * by decision, not by drift: export moved to the drawer (`HostDrawer.tsx`),
+ * three buttons give the pill 154 dp (`shellGeometry.ts`, pinned on its side by
+ * `shellGeometry.test.ts`). Everything else in this file is unchanged: the
+ * switch itself, its 48 dp box, its hints, both catalogues.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -63,13 +70,18 @@ describe("the switch itself", () => {
   });
 });
 
-describe("the geometry beside it: four icon buttons, one pill", () => {
-  it("budgets the strip with FOUR 48 dp controls and four gaps (was three)", () => {
-    expect(GEOMETRY_SOURCE).toMatch(/width - 2 \* STRIP_SIDE_PADDING - 4 \* full - 4 \* STRIP_GAP/);
-    // The four the formula counts: menu, Web, export, new chat — asserted on
-    // the raw source because the sentence IS the comment documenting the
-    // contract change (three buttons / 154 dp was the old one).
-    expect(GEOMETRY_SOURCE).toContain("FOUR icon buttons (menu, Web,");
+describe("the geometry beside it: three icon buttons, one pill", () => {
+  it("budgets the strip with THREE 48 dp controls and three gaps (was four)", () => {
+    // BEFORE (Web switch on the strip, export in the strip):
+    //   `width - 2 * STRIP_SIDE_PADDING - 4 * full - 4 * STRIP_GAP` = 97 dp pill.
+    // AFTER export moved to the drawer the strip holds menu, Web, new chat:
+    expect(GEOMETRY_SOURCE).toMatch(/width - 2 \* STRIP_SIDE_PADDING - 3 \* full - 3 \* STRIP_GAP/);
+    // The sentence IS the comment documenting the contract change; it must
+    // name all three controls and the reason export is not one of them.
+    expect(GEOMETRY_SOURCE).toContain("THREE icon buttons (menu, Web,");
+    expect(GEOMETRY_SOURCE).toContain("Export moved to the");
+    // The old four-button formula must be gone, or both budgets exist at once.
+    expect(GEOMETRY_SOURCE).not.toMatch(/4 \* full - 4 \* STRIP_GAP/);
   });
 
   it("the shell hands the switch the host's persisted flag, not a local copy", () => {

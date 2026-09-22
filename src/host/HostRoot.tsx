@@ -199,7 +199,6 @@ export function HostRoot() {
         sendHost={sendHost}
         onMenuPress={() => setDrawerOpen(true)}
         onNewChatPress={() => actions.handleNewConversation()}
-        onExportPress={() => shareConversation(history.messages, t)}
         flags={flags}
         arms={arms}
       />
@@ -212,6 +211,10 @@ export function HostRoot() {
         actions={actions}
         personas={personas}
         setActiveOverlay={setActiveOverlay}
+        // Export moved here from the strip: five 349 dp controls left the model
+        // pill a 14 dp text column (`shellGeometry.ts`), and a chat-level action
+        // is what a drawer is for. Same `shareConversation`, same messages.
+        onExportPress={() => shareConversation(history.messages, t)}
       />
 
       <HostFurniture

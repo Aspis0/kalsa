@@ -28,6 +28,12 @@ function input(partial: Partial<ScrollInput>): ScrollInput {
     viewportHeight: JELLY_VIEWPORT,
     offsetY: 0,
     pinned: true,
+    // BEFORE this field existed the machine could not tell a conversation from
+    // the welcome block, which is the defect the empty-state block below pins.
+    // The default here is 1 — a conversation WITH messages — so every existing
+    // assertion keeps exactly the meaning (and the expected value) it had; the
+    // empty case is only ever reached where a test opts in with `messageCount: 0`.
+    messageCount: 1,
     ...partial,
   };
 }
@@ -141,6 +147,143 @@ describe("failure 3 — the view fighting the reader", () => {
 
   it("pins again by itself when the reader scrolls back to the end", () => {
     expect(transcriptScroll(input({ cause: "user-scroll", offsetY: CONTENT - JELLY_VIEWPORT })).pinned).toBe(true);
+  });
+});
+
+describe("an empty conversation reads from its top (the welcome block)", () => {
+  // The two real numbers the device capture measured (`host3-firstopen.png`):
+  // the block with its bottom clearance is ~607 dp of content (24 top + a
+  // 240.75 dp plate + the prompt + 4 cards of 61 + their gaps + the 24 dp
+  // clearance) against a 357 dp band — 621 minus the 48 dp of insets, the
+  // 60 dp strip, the 78 dp composer, the 48 dp toolbar and the 30 dp hold line.
+  const WELCOME = 607;
+  const BAND = 357;
+  /** Deep inside the block, where the old first layout parked the reader. */
+  const PARKED_AT = WELCOME - BAND; // 250 dp in
+
+  it("opens at the first line, not at the bottom of the block", () => {
+    expect(
+      transcriptScroll(
+        input({
+          cause: "first-layout",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: 0,
+          pinned: false,
+          messageCount: 0,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: 0 });
+  });
+
+  it("keeps the pin armed while the block is shown, wherever the reader scrolls", () => {
+    // The top of the block is 250 dp from the block's end; the distance rule
+    // would unpin here, and the first message would then never be followed to.
+    expect(
+      transcriptScroll(
+        input({
+          cause: "user-scroll",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: 0,
+          pinned: true,
+          messageCount: 0,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: null });
+    expect(
+      transcriptScroll(
+        input({
+          cause: "user-scroll",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: PARKED_AT,
+          pinned: true,
+          messageCount: 0,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: null });
+  });
+
+  it("never moves the reader when the block itself changes size", () => {
+    for (const cause of ["growth", "resize"] as const) {
+      expect(
+        transcriptScroll(
+          input({
+            cause,
+            contentHeight: WELCOME + 40,
+            viewportHeight: BAND,
+            offsetY: 60,
+            pinned: true,
+            messageCount: 0,
+          }),
+        ),
+      ).toEqual({ pinned: true, scrollTo: null });
+    }
+  });
+
+  it("offers no jump to the block's end — there is no conversation to jump to", () => {
+    expect(
+      transcriptScroll(
+        input({
+          cause: "jump-to-end",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: 60,
+          pinned: true,
+          messageCount: 0,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: 0 });
+  });
+
+  it("follows the first message to the end of the conversation it starts", () => {
+    // The transition the whole rule exists for: armed while empty, so the
+    // append that creates the first message lands the reader at the end of the
+    // grown conversation instead of at the top of it.
+    const grown = 700;
+    expect(
+      transcriptScroll(
+        input({
+          cause: "append",
+          contentHeight: grown,
+          viewportHeight: BAND,
+          offsetY: 0,
+          pinned: true,
+          messageCount: 1,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: grown - BAND });
+  });
+
+  it("returns to the block's first line when the conversation is wiped back to empty", () => {
+    expect(
+      transcriptScroll(
+        input({
+          cause: "append",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: PARKED_AT,
+          pinned: false,
+          messageCount: 0,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: 0 });
+  });
+
+  it("with messages present, first layout still opens at the end (nothing moved)", () => {
+    expect(
+      transcriptScroll(
+        input({
+          cause: "first-layout",
+          contentHeight: WELCOME,
+          viewportHeight: BAND,
+          offsetY: 0,
+          pinned: false,
+          messageCount: 1,
+        }),
+      ),
+    ).toEqual({ pinned: true, scrollTo: PARKED_AT });
   });
 });
 

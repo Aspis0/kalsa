@@ -21,6 +21,8 @@ import { join } from "path";
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const BLOCK = read("welcomeBlock.tsx");
 const SURFACE = read("HostChatSurface.tsx");
+/** The controller's plate, read for parity — read-only, never edited. */
+const CHAT = readFileSync(join(__dirname, "..", "screens", "AiChatPage.tsx"), "utf8");
 
 /** Comments removed, so prose that mentions the gate cannot satisfy (or fail)
  *  the code-level checks below. */
@@ -104,5 +106,68 @@ describe("a suggestion card sends for real (not into the field)", () => {
     const code = stripComments(BLOCK);
     expect(code).toContain("greetingForHour(");
     expect(code).toContain("buildSuggestions(");
+  });
+});
+
+/**
+ * The plate's geometry, as source — because both defects that shaped it were
+ * measured against pixels this stack cannot render, and each one is a layout
+ * ENGINE behaviour no reader of the JSX would guess:
+ *
+ * 1. Yoga (the copy React Native 0.86 vendors, compiled standalone) resolves
+ *    a `marginBottom` on an `aspectRatio` node BELOW its column: a 441.49 px
+ *    column lays out a 430.67 px box, aspect intact — 8 dp of the card column
+ *    gone from the box's right edge.
+ * 2. React Native paints an absolutely-positioned image at the box's CONTENT
+ *    size, anchored at the box origin, so padding on the box pulled another
+ *    38.5 px (28 dp) off the photograph — right AND bottom.
+ *
+ * Stacked, they are the capture's 36 dp ragged edge (`host3-firstopen.png`:
+ * the plate's paint ends at x=410 px, the cards reach x=460 px). So the box
+ * carries neither margin nor padding, while the controller's composition
+ * (AiChatPage:4033-4047) — 4:3, md inset, lg radius, xs gap, 70% cap — lives
+ * on in the moved insets. These pins fail if anyone "restores" the original
+ * style object and the ragged edge with it.
+ */
+describe("the plate's geometry: the controller's composition without the engine's traps", () => {
+  const code = stripComments(BLOCK);
+  const plateStyle =
+    code.match(/style=\{\s*showArt\s*\?\s*\{[^}]*\}\s*:\s*undefined\s*\}/)?.[0] ?? "";
+
+  it("the controller really does declare a 4:3 plate (the composition being reproduced)", () => {
+    const controllerPlate =
+      CHAT.match(/showEmptyArt\s*\?\s*\{[\s\S]*?aspectRatio: 4 \/ 3[\s\S]*?\n\s*\}/)?.[0] ?? "";
+    // The match must actually be found: a line-number drift that hides the
+    // block must fail here rather than pass by matching nothing.
+    expect(controllerPlate.length).toBeGreaterThan(0);
+    expect(controllerPlate).toContain("borderRadius: radius.lg");
+    expect(controllerPlate).toContain("paddingHorizontal: spacing.md");
+    expect(controllerPlate).toContain("paddingVertical: spacing.md");
+    expect(controllerPlate).toContain("marginBottom: spacing.xs");
+    expect(CHAT).toContain('maxWidth: showEmptyArt ? "70%" : undefined');
+  });
+
+  it("the host's plate box carries NEITHER margin NOR padding (trap 1 + trap 2)", () => {
+    expect(plateStyle.length).toBeGreaterThan(0);
+    expect(plateStyle).toContain("aspectRatio: 4 / 3");
+    expect(plateStyle).toContain("borderRadius: radius.lg");
+    expect(plateStyle).toContain('overflow: "hidden"');
+    expect(plateStyle).not.toMatch(/margin|padding/);
+  });
+
+  it("both insets still exist, on nodes that cannot trigger the traps", () => {
+    // The md inset moved onto the greeting text (same 14 dp from every edge of
+    // the plate), the xs gap became the prompt's own margin-top (same 6 dp
+    // between plate and prompt), and the 70% greeting cap stayed put.
+    expect(code).toContain("padding: showArt ? spacing.md : 0");
+    expect(code).toContain("marginTop: spacing.xs");
+    expect(code).toContain('maxWidth: showArt ? "70%" : undefined');
+  });
+
+  it("no width, cap or side margin ever reaches the plate box (shared column edges)", () => {
+    expect(plateStyle.length).toBeGreaterThan(0);
+    // A width here would decouple the plate from the card column the cards
+    // stretch to — the measured defect, restated as its inverse.
+    expect(plateStyle).not.toMatch(/width|maxWidth|marginHorizontal|alignSelf/);
   });
 });

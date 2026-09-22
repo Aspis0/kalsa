@@ -123,6 +123,10 @@ export function Transcript({
         viewportHeight: layout.availableHeight,
         offsetY: offsetRef.current,
         pinned: pinnedRef.current,
+        // Kept in step with `contentHeightRef` in `onContentSizeChange`, which is
+        // the same measurement pass: the machine decides what an empty
+        // transcript means (see `transcriptScroll.ts`), the view only reports.
+        messageCount: countRef.current,
       });
       pinnedRef.current = decision.pinned;
       setPinned((current) => (current === decision.pinned ? current : decision.pinned));

@@ -19,7 +19,7 @@
  * plus the keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
-import { ChevronDown, Globe, Menu, Plus, Share } from "lucide-react-native";
+import { ChevronDown, Globe, Menu, Plus } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, Text, View, useWindowDimensions } from "react-native";
 
@@ -102,10 +102,6 @@ export type ShellProps = {
    *  ON, so the preview draws the switch the app boots with. */
   webEnabled?: boolean;
   onWebPress?: () => void;
-  /** Export/share the conversation (D1 row 2): the old nav's share glyph at
-   *  `AiChatPage:4757-4769`, here as a real 48 dp strip box — the old
-   *  36 dp box rode `hitSlop`, which the project forbids. */
-  onExportPress?: () => void;
   onAttachPress?: () => void;
   onMicPress?: () => void;
   onSendPress?: () => void;
@@ -143,7 +139,6 @@ export function Shell({
   onNewChatPress,
   webEnabled = true,
   onWebPress,
-  onExportPress,
   onAttachPress,
   onMicPress,
   onSendPress,
@@ -267,16 +262,10 @@ export function Shell({
           </Text>
         </Pressable>
 
-        <Pressable
-          testID="shell.strip.export"
-          accessibilityRole="button"
-          accessibilityLabel={t("chat.a11yExport")}
-          onPress={onExportPress}
-          style={styles.iconButton}
-        >
-          <Share size={18} color={iconColor} strokeWidth={2.1} />
-        </Pressable>
-
+        {/* Export left the strip for the drawer (see `shellGeometry.ts`'s pill
+            arithmetic: five controls gave the model name a 14 dp column and
+            the name cannot be the thing that shrinks). The row it joined is
+            `HostDrawer`'s, on the same 48 dp tile grammar as its neighbours. */}
         <Pressable
           testID="shell.strip.newChat"
           accessibilityRole="button"

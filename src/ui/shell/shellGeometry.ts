@@ -204,11 +204,17 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   };
 
   const full = MIN_TOUCH_TARGET;
-  // The pill's remaining width: the strip holds FOUR icon buttons (menu, Web,
-  // export, new chat — the Web permission switch joined the strip with D1 row
-  // 5) and the pill takes what is left of the row.
+  // The pill's remaining width: the strip holds THREE icon buttons (menu, Web,
+  // new chat) and the pill takes what is left of the row. Export moved to the
+  // drawer — it is a chat-level action and the drawer already exists — because
+  // five controls cannot fit 349 dp with a legible pill: at FOUR buttons the
+  // pill was 97 dp and its whole text column 14 dp, so the model name and
+  // "On this phone" both collapsed to ellipses (the vision pass read the
+  // remnants as "a row of tiny dots"). Three buttons give the pill 154 dp
+  // again: 349 - 2*12 - 3*48 - 3*9 = 154, text column 71 dp. Reversible in
+  // one edit; nothing below the 48 dp floor was shrunk to get there.
   const stripPillWidth = clamp(
-    width - 2 * STRIP_SIDE_PADDING - 4 * full - 4 * STRIP_GAP,
+    width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
   );
 
   return {

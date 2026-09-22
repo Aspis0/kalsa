@@ -23,6 +23,17 @@
  * grows from the top while it fits and sticks to the bottom once it overflows. A
  * short conversation has an end offset of zero, which is the top — so both
  * statements are the same function rather than two behaviours to choose between.
+ *
+ * And one more fact that decides the FIRST placement: whether there is anything
+ * to be pinned to at all. `messageCount === 0` is not a short conversation — it
+ * is the welcome block, ~607 dp of content to read DOWNWARDS in a ~357 dp band.
+ * Parking that block at its end on first layout put the reader 250 dp in: the
+ * hour greeting sat above the viewport unpainted, the plate showed as a sliver,
+ * and the fourth suggestion card was cut to a ghost under the edge fade (device
+ * capture `host3-firstopen.png`, measured there). So an empty transcript opens
+ * at its START, stays armed while it is shown (the first append follows to the
+ * end of the conversation it begins), and no resize of the block moves the
+ * reader. All of it decided here; the view only reports the message count.
  */
 
 /**
@@ -70,6 +81,13 @@ export type ScrollInput = {
   offsetY: number;
   /** Whether the view was pinned **before** this event. */
   pinned: boolean;
+  /**
+   * How many messages the transcript currently holds — the one fact first
+   * layout needs to tell a conversation (opens at its end) from an empty
+   * conversation wearing the welcome block (opens at its first line). The view
+   * reports it; the decision stays in this module.
+   */
+  messageCount: number;
 };
 
 export type ScrollDecision = {
@@ -91,6 +109,28 @@ function distanceFromEnd(input: ScrollInput): number {
 export function transcriptScroll(input: ScrollInput): ScrollDecision {
   const end = endOffset(input.contentHeight, input.viewportHeight);
 
+  // No messages: there is no end to be pinned to, so every rule below that
+  // reads the pin from the distance to the end would be reading the welcome
+  // block's bottom as if it were a conversation's. The empty state is decided
+  // in this one guard: the block opens at its first line, the pin stays armed
+  // (a reader scrolling the block never unpins, so the first append follows to
+  // the end of the conversation it starts — never parked at the top of a
+  // conversation that has just grown), a growing or resizing block never moves
+  // the reader, and there is no end for a jump control to offer.
+  if (input.messageCount === 0) {
+    switch (input.cause) {
+      case "first-layout":
+      case "jump-to-end":
+      // The conversation was wiped back to empty: the block again, from its top.
+      case "append":
+        return { pinned: true, scrollTo: 0 };
+      case "user-scroll":
+      case "growth":
+      case "resize":
+        return { pinned: true, scrollTo: null };
+    }
+  }
+
   switch (input.cause) {
     case "user-scroll": {
       // The reader's own position is the only thing the pin can honestly be read
@@ -101,7 +141,8 @@ export function transcriptScroll(input: ScrollInput): ScrollDecision {
     case "first-layout":
       // Nothing has been placed yet, so the offset at this moment means nothing.
       // A conversation opens at its end — and a short one has an end of zero,
-      // which is the top, exactly as the desktop app starts.
+      // which is the top, exactly as the desktop app starts. (With no messages
+      // the guard above already returned the block's first line.)
       return { pinned: true, scrollTo: end };
     case "jump-to-end":
       return { pinned: true, scrollTo: end };
