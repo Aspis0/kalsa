@@ -43,6 +43,14 @@ pub(super) fn valid_id(id: &str) -> bool {
 /// the `-c` boundary unambiguous even when the chat id itself carries
 /// dashes.
 ///
+/// Those eight-wide lowercase hex are not born in this file: they are
+/// guaranteed at the door's boundary, where
+/// [`with_model_hash`](crate::Door::with_model_hash) is the field's only
+/// writer and refuses any other shape with
+/// [`InvalidModelHash`](crate::DoorError::InvalidModelHash) before a name
+/// can be built — the exact inverse above stands on that check, so moving
+/// the boundary moves what `owner` may assume.
+///
 /// The model is checked for *shape*, never against the current pin: a file
 /// written under an older model belongs to its device like any other and
 /// dies with it.

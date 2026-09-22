@@ -4,8 +4,14 @@
 //! absent device's file goes, an unparseable name is left where it is.
 //!
 //! The test that makes the sweep safe to have is
-//! `a_present_devices_files_are_never_touched`: without it a sweep that
-//! deleted everything would pass every other test here.
+//! `a_present_devices_files_are_never_touched`. A sweep that deleted every
+//! file is caught without it: four of the other five tests plant a file
+//! that must stay and assert it is still there (the fifth plants only
+//! something that must go). What only this test does is re-read the bytes
+//! of the files that stay — among them one under an older model's hash and
+//! the present device's staging sibling — where every other test here has
+//! only ever looked at names. It bites too: the mutation that drops the
+//! membership check turns it red, along with three others.
 
 use std::fs;
 use std::path::Path;
@@ -112,7 +118,7 @@ fn a_name_the_door_could_not_have_written_is_left_alone() {
         "d1-ma1b2c3-caaaa1111.bin".to_string(), // the model is not eight wide
         "d1-mA1B2C3D4-cffff4444.bin".to_string(), // upper case: with_model_hash never wrote it
         "d01-ma1b2c3d4-caaaa1111.bin".to_string(), // Display never pads with a zero
-        "d1-ma1b2c3d4-cab.bin".to_string(),       // a chat id the door would have refused
+        name(1, "-abcdefg"),                      // a legal length that starts with a dash: refused
         "d9999999999999999999-ma1b2c3d4-caaaa1111.bin".to_string(), // past u32
         "leftover.staging".to_string(),           // a staging that is not one of ours
         name(1, "ab"),                            // device 1's real hash, chat id too short

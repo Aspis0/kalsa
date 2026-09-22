@@ -25,7 +25,7 @@
 //!    included: nothing will ever rename it.
 //! 3. **A name that does not parse is left alone.** Unknown is not orphan.
 //!
-//! Two blind spots, both decided rather than missed:
+//! Three blind spots, all decided rather than missed:
 //!
 //! - **A refused erase is not collected.** The door cannot know a chat was
 //!   deleted — conversations live only in the client's store and the door
@@ -36,12 +36,18 @@
 //! - **A re-pair may leave the old files under a live name.** The name
 //!   carries no salt by design, and the store mints an id as `max + 1` over
 //!   the records present *now* (`kalsa-pairing/src/store.rs`), so forgetting
-//!   the top id and pairing again re-uses it — pinned by
-//!   `forgetting_the_highest_id_then_pairing_reuses_it`. The old files then
+//!   the top id and pairing again re-uses it — pinned on the store side
+//!   only, by `forgetting_the_highest_id_then_pairing_reuses_it`; no test
+//!   carries a re-pair through this door. The old files then
 //!   belong to an id the set holds, and this sweep is what it is: complete
 //!   for revocation, blind to re-pair. A re-paired device keeps its own
 //!   chats; whether the owner would rather orphan them is a decision this
 //!   code does not make for them.
+//! - **A save directory that is missing or unreadable ends the sweep
+//!   without a word.** `fs::read_dir` failing answers the same as an empty
+//!   directory: the app refuses the launch if it cannot create the
+//!   directory, and a read error may not fail a store poll or a door
+//!   build, so neither case is reported; no test makes `read_dir` fail.
 
 use std::fs;
 
@@ -56,9 +62,12 @@ impl Chats {
     /// Membership is read once, as one snapshot: every file is judged
     /// against the same set, so the directory comes out of one coherent
     /// decision rather than a set that changed mid-read. A read or delete
-    /// that fails is skipped, not reported: a file that cannot be removed
-    /// now is retried at the next moment, and neither the store poll nor a
-    /// door build may fail over deleting something.
+    /// that fails is skipped, not reported, and neither the store poll nor
+    /// a door build may fail over deleting something. For an I/O error the
+    /// skip is a delay: the next moment tries again. For a directory that
+    /// carries a valid, absent device's name it is not: `fs::remove_file`
+    /// refuses a directory every time, so that name is skipped in silence
+    /// at every moment and never collected.
     pub(crate) fn sweep(&self, devices: &DeviceSet) {
         let Some(dir) = self.dir.as_deref() else {
             return;
