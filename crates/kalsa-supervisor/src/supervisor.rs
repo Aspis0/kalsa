@@ -180,7 +180,12 @@ pub struct Watch {
 }
 
 impl Watch {
-    /// The server's state, answered exactly as `Supervisor::state` answers it.
+    /// The server's state, as the field holds it — NOT the dead-worker read
+    /// `Supervisor::state` performs: this view carries no worker handle, by
+    /// design (it is what can outlive or travel without the supervisor), so
+    /// for a drain whose worker died it keeps answering `Stopping`. Nothing
+    /// in the tick acts on `Stopping`; declared as a stale read, not a
+    /// state — see `Supervisor::state` for the closure.
     pub fn state(&self) -> ServerState {
         self.state
             .lock()
@@ -245,11 +250,46 @@ impl Supervisor {
         }
     }
 
+    /// The server's state — and the closure of the one wedge no WRITER can
+    /// reach. If the worker DIED mid-drain, nobody will ever write that
+    /// drain's end: the guard takes only the drain's own ends, the command
+    /// channel died with the thread, and the next `stop()` restores the
+    /// `Stopping` it read. So this is a READ: with the state at `Stopping`
+    /// AND the worker that owns it already finished, the drain is provably
+    /// orphaned — the answer becomes the failed-to-stop state carrying the
+    /// measures this side actually has: the dead worker, and NO port,
+    /// because nothing is left that could ask (inventing one would be a
+    /// measurement nobody took). A worker still alive keeps the plain
+    /// reading: the declaration stands while somebody can still perform it.
     pub fn state(&self) -> ServerState {
-        self.state
+        let current = self
+            .state
             .lock()
             .map(|s| s.clone())
-            .unwrap_or(ServerState::Stopped)
+            .unwrap_or(ServerState::Stopped);
+        if matches!(current, ServerState::Stopping) && self.worker_finished() {
+            return ServerState::Failed {
+                reason: Failure::StopUnconfirmed {
+                    measures: "the worker that owns this drain exited without writing its end; \
+                     the state has stood at Stopping since — no port was probed, because there \
+                     is no worker left to walk or to ask"
+                        .to_string(),
+                },
+            };
+        }
+        current
+    }
+
+    /// Whether the worker thread has finished. A handle already TAKEN by
+    /// `shutdown`'s join reads as NOT finished on purpose: the join is in
+    /// progress, its worker is alive until it returns, and nothing may be
+    /// reported over a drain somebody is still performing.
+    fn worker_finished(&self) -> bool {
+        self.worker
+            .lock()
+            .ok()
+            .map(|worker| worker.as_ref().is_some_and(|handle| handle.is_finished()))
+            .unwrap_or(false)
     }
 
     /// Sends the start to the worker and returns at once with the handle to
@@ -1128,5 +1168,60 @@ mod tests {
             "the record carries no measures: {recorded}"
         );
         let _ = std::fs::remove_file(&suspect_path);
+    }
+
+    #[test]
+    fn a_drain_whose_worker_died_reads_as_a_failed_stop_not_as_eternally_stopping() {
+        // The wedge `drain` declared, closed here as a READ: no write, no
+        // guard widening, no invented port. The worker that owned the drain
+        // is finished — it exited between `declare` and `Stopped` — so
+        // nothing on the writing path can ever finish that drain, and the
+        // state() answer must become the failed-to-stop with the measures
+        // this side actually has.
+        let (commands, inbox) = mpsc::channel();
+        drop(inbox); // the dead worker's channel: nobody is listening
+        let worker = std::thread::spawn(|| {});
+        while !worker.is_finished() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let supervisor = Supervisor {
+            commands,
+            state: Arc::new(Mutex::new(ServerState::Stopping)),
+            worker: Mutex::new(Some(worker)),
+            releases: Arc::new(AtomicU64::new(0)),
+            residency: Residency::new(),
+        };
+        match supervisor.state() {
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed { measures },
+            } => {
+                assert!(
+                    measures.contains("exited without writing its end"),
+                    "the measures miss the reason: {measures}"
+                );
+                assert!(
+                    !measures.contains("127.0.0.1"),
+                    "a port nobody could ask was invented: {measures}"
+                );
+            }
+            other => panic!("a dead worker's drain read as {other:?}: Stopping stands forever"),
+        }
+
+        // A worker still ALIVE: the declaration stands — nothing is reported
+        // over a drain somebody may still perform (a `shutdown` mid-join
+        // takes the handle, which reads as not-finished for the same reason).
+        let living = std::thread::spawn(|| std::thread::park());
+        let live = Supervisor {
+            commands: mpsc::channel().0,
+            state: Arc::new(Mutex::new(ServerState::Stopping)),
+            worker: Mutex::new(Some(living)),
+            releases: Arc::new(AtomicU64::new(0)),
+            residency: Residency::new(),
+        };
+        assert_eq!(
+            live.state(),
+            ServerState::Stopping,
+            "a live drain was reported as a failed stop"
+        );
     }
 }
