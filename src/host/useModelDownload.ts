@@ -44,6 +44,8 @@ import { MODEL_REGISTRY, formatBytes, type ModelInfo } from "../engine/ModelRegi
 import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import type { Locale, TranslateFn } from "../i18n";
 import { createDownloadNotifications, type DownloadNotifications } from "./downloadNotifications";
+import { confirmDownloadGate } from "./confirmDownloadGate";
+import { confirmGateWarning } from "./confirmGateWarning";
 import { gateForModel, gateReasonMessage, rawErrorDetail } from "./engineGateHelpers";
 import { noticePort } from "./useNotice";
 
@@ -289,31 +291,34 @@ export function useModelDownload(deps: ModelDownloadDeps) {
     if (downloadInFlightRef.current || confirmDownloadLockRef.current) return;
     confirmDownloadLockRef.current = true;
     void (async () => {
-      try {
-        const [deviceProfile, free] = await Promise.all([
-          getCachedDeviceProfile(),
-          getFreeDiskBytes(),
-        ]);
-        const gate = gateForModel(
-          model,
-          deviceProfile,
-          free,
-          false,
-          undefined, // disk-only gate: RAM axis unused
-          deviceBandwidth,
-        );
-        if (!gate.allowed) {
+      // One probe, volatile axis ON, priced as the load will price it; null
+      // means the probe failed, and a failed probe refuses nothing and warns
+      // nothing (`confirmDownloadGate.ts`).
+      const preview = await confirmDownloadGate(model, deviceBandwidth);
+      let memoryWarning: string | null = null;
+      if (preview !== null) {
+        const { gate } = preview;
+        if (!gate.allowed && gate.reason !== "blocked_ram") {
+          // Tier / disk: hard refusal, the same sentence as before.
           confirmDownloadLockRef.current = false;
           Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
           return;
         }
-      } catch {
-        // Probe failure → fall through to the normal confirm dialog.
+        // blocked_ram does NOT block the transfer (memory is volatile and the
+        // user may free it): the same sheet carries the need-vs-have sentence
+        // instead, so nobody spends 1.6 GB reaching a refusal they could read.
+        memoryWarning = confirmGateWarning({
+          gate,
+          availableMemoryBytes: preview.profile.availableMemoryBytes,
+          modelName: model.name,
+          t,
+        });
       }
       const total = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+      const confirmBody = t("download.confirmBody", { name: model.name, size: formatBytes(total) });
       Alert.alert(
         t("download.title"),
-        t("download.confirmBody", { name: model.name, size: formatBytes(total) }),
+        memoryWarning === null ? confirmBody : `${confirmBody}\n\n${memoryWarning}`,
         [
           {
             text: t("common.cancel"),

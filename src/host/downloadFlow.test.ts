@@ -20,6 +20,8 @@ import { en, it as italian } from "../i18n";
 const HOST = (file: string) => readFileSync(join(__dirname, file), "utf8");
 const OVERLAYS = HOST("HostOverlays.tsx");
 const DOWNLOAD = HOST("useModelDownload.ts");
+const CONFIRM_GATE = HOST("confirmDownloadGate.ts");
+const WARNING = HOST("confirmGateWarning.ts");
 const SWITCH = HOST("modelSwitch.ts");
 const IDLE = HOST("foregroundIdle.ts");
 const NOTICE = HOST("useNotice.ts");
@@ -96,10 +98,37 @@ describe("the notice slot stays one slot (D2 row 17)", () => {
   });
 });
 
+describe("the confirm sheet knows the load that follows the download", () => {
+  test("the verdict runs with the volatile axis ON, priced as the load prices it", () => {
+    // It was `false` before: disk-only, RAM deferred to a load the user only
+    // meets after paying for the bytes. This is item 1's whole probe.
+    expect(CONFIRM_GATE).toMatch(/\/\/ Volatile RAM ON[\s\S]*?\n\s*true,/);
+    expect(CONFIRM_GATE).toContain("readUserContextSize(model.contextLength)");
+    expect(CONFIRM_GATE).toContain("readKvCacheChoice()");
+    // Fresh sample: the sheet's numbers are about NOW, not about boot.
+    expect(CONFIRM_GATE).toContain("profileWithFreshMemory(cachedProfile)");
+  });
+
+  test("a RAM refusal warns in the SAME sheet; tier and disk still refuse outright", () => {
+    expect(DOWNLOAD).toContain('gate.reason !== "blocked_ram"');
+    expect(DOWNLOAD).toContain("confirmGateWarning({");
+    expect(DOWNLOAD).toContain("${confirmBody}\\n\\n${memoryWarning}");
+    // No second dialog, no second state: one Alert whose body grows one sentence.
+    expect(DOWNLOAD).toContain("memoryWarning === null ? confirmBody :");
+  });
+
+  test("the warning sentence quotes the gate's numbers and never invents them", () => {
+    expect(WARNING).toContain('t("download.confirmLowMemory"');
+    expect(WARNING).toContain('t("models.blockedRam")');
+    expect(WARNING).toContain("gate.nonEvictableMiB * BYTES_PER_MIB");
+  });
+});
+
 describe("every key this path speaks exists in BOTH catalogues, same placeholders", () => {
   const KEYS: Array<[string, string, string]> = [
     ["download.title", en.download.title, italian.download.title],
     ["download.confirmBody", en.download.confirmBody, italian.download.confirmBody],
+    ["download.confirmLowMemory", en.download.confirmLowMemory, italian.download.confirmLowMemory],
     ["download.checking", en.download.checking, italian.download.checking],
     ["download.missing", en.download.missing, italian.download.missing],
     ["download.downloading", en.download.downloading, italian.download.downloading],

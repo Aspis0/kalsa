@@ -446,6 +446,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     title: "Download model",
     confirmBody:
       "Download {name} ({size})? You need a stable connection and free disk space. If it stops, it resumes where it left off.",
+    confirmLowMemory:
+      "Not enough free memory to run {name} after the download: about {need} MB needed, {free} MB available right now. You can still download it — it will not load until enough memory is free.",
     checking: "Checking…",
     missing: "Download {size}",
     downloading: "Downloading… {percent}%",
@@ -1316,6 +1318,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     },
     where: {
       thisPhone: "On this phone",
+      /** The pill's second line while a hard RAM/tier refusal stands
+       *  (`pillWhereLabel`): the claim must stay true in the failure state. */
+      notRunning: "Not running here",
     },
     composer: {
       placeholder: "Ask anything",

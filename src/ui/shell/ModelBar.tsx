@@ -15,10 +15,10 @@
  * the pill was rebuilt to kill. The strip says the name and where; these rows
  * say what the machine is doing (`docs/DESIGN.md` §2.1).
  */
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { modes, type, type ThemeMode } from "../../theme/design";
-import { SHELL_NOTICE_GAP, SHELL_NOTICE_HEIGHT, STRIP_SIDE_PADDING } from "./shellGeometry";
+import { MIN_TOUCH_TARGET, SHELL_NOTICE_GAP, SHELL_NOTICE_HEIGHT, STRIP_SIDE_PADDING } from "./shellGeometry";
 
 export type ModelBarTone = "muted" | "accent" | "bad" | "good";
 /** The pill's control state, decided by the host (`modelBarPress.ts`):
@@ -27,7 +27,13 @@ export type ModelPressState = "enabled" | "disabled" | "inert";
 
 export type ModelBarView = {
   control: ModelPressState;
-  status: { label: string; tone: ModelBarTone };
+  status: {
+    label: string;
+    tone: ModelBarTone;
+    /** Present exactly on a sentence that promises a tap: the row then draws
+     *  as that control — its accessible name, never the sentence itself. */
+    retryLabel?: string;
+  };
   /** 0-100 while downloading, null otherwise — the bar draws iff this is set. */
   percent: number | null;
   error: string | null;
@@ -37,6 +43,15 @@ export type ModelBarView = {
 
 /** One clipped line, the notice row's own box. */
 const ONE_LINE = SHELL_NOTICE_HEIGHT;
+/**
+ * The status row's height: a real 48 dp finger box while the row IS the
+ * retry control it names (`retryLabel`), the clipped one-line row otherwise.
+ * The promise in "tap to retry" is a promise about a tap target — the only
+ * one on the screen while the engine has refused this model.
+ */
+function statusRowHeight(view: ModelBarView): number {
+  return view.status.retryLabel !== undefined ? MIN_TOUCH_TARGET : ONE_LINE;
+}
 /** The controller's hint is `numberOfLines={4}` (`AppShell.tsx:7005`). */
 const HINT_LINES = 4;
 const HINT_ROW = 2 * SHELL_NOTICE_GAP + HINT_LINES * type.meta.lineHeight;
@@ -50,7 +65,7 @@ function batteryHeight(count: number): number {
 /** The height `Shell.tsx` subtracts before the bands partition. */
 export function modelBarHeight(view: ModelBarView): number {
   return (
-    ONE_LINE +
+    statusRowHeight(view) +
     batteryHeight(view.battery.length) +
     (view.percent !== null ? PROGRESS_ROW : 0) +
     (view.error !== null ? ONE_LINE : 0) +
@@ -79,15 +94,51 @@ function toneColor(
 
 const ROW = { paddingHorizontal: STRIP_SIDE_PADDING } as const;
 
-export function ModelBar({ view, mode }: { view: ModelBarView; mode: ThemeMode }) {
+export function ModelBar({
+  view,
+  mode,
+  onRetryPress,
+}: {
+  view: ModelBarView;
+  mode: ThemeMode;
+  /** The pill's own press (`Shell.tsx` passes `onModelPress`), so the retry
+   *  sentence does exactly what the pill does — required whenever the view's
+   *  status carries a `retryLabel`. */
+  onRetryPress?: () => void;
+}) {
   const colors = modes[mode];
   return (
     <View testID="shell.modelBar">
-      <View style={[ROW, { height: ONE_LINE }]} testID="shell.modelBar.status">
-        <Text numberOfLines={1} style={[type.meta, { color: toneColor(view.status.tone, colors) }]}>
-          {view.status.label}
-        </Text>
-      </View>
+      {view.status.retryLabel !== undefined ? (
+        <Pressable
+          testID="shell.modelBar.retry"
+          accessibilityRole="button"
+          accessibilityLabel={view.status.retryLabel}
+          onPress={onRetryPress}
+          style={({ pressed }) => [
+            ROW,
+            { height: statusRowHeight(view), justifyContent: "center", opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          {/* Underline + box, same red: the sentence keeps its tone and
+              becomes visibly the control it already claimed to be. */}
+          <Text
+            numberOfLines={1}
+            style={[
+              type.meta,
+              { color: toneColor(view.status.tone, colors), textDecorationLine: "underline" },
+            ]}
+          >
+            {view.status.label}
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={[ROW, { height: statusRowHeight(view) }]} testID="shell.modelBar.status">
+          <Text numberOfLines={1} style={[type.meta, { color: toneColor(view.status.tone, colors) }]}>
+            {view.status.label}
+          </Text>
+        </View>
+      )}
 
       {view.battery.length > 0 ? (
         <View
@@ -133,7 +184,16 @@ export function ModelBar({ view, mode }: { view: ModelBarView; mode: ThemeMode }
 
       {view.error !== null ? (
         <View style={[ROW, { height: ONE_LINE }]} testID="shell.modelBar.error">
-          <Text numberOfLines={1} style={[type.meta, { color: toneColor("bad", colors) }]}>
+          {/* The cause reads subordinate to the failure above: while the status
+              carries the alarm (bad), this line is the EXPLANATION — two
+              identical red lines could not tell cause from consequence. */}
+          <Text
+            numberOfLines={1}
+            style={[
+              type.meta,
+              { color: toneColor(view.status.tone === "bad" ? "muted" : "bad", colors) },
+            ]}
+          >
             {view.error}
           </Text>
         </View>

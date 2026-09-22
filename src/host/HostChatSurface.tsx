@@ -47,6 +47,7 @@ import { useHostEngine } from "./useHostEngine";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
+import { pillWhereLabel } from "./modelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeCopy";
 
@@ -115,6 +116,16 @@ export function HostChatSurface({
   onMiniappOpen,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
+  // The pill's second line: while a hard RAM/tier refusal stands, "On this
+  // phone" is a false status claim and swaps for the true one
+  // (`modelBar.ts` decides; the bar's error row still says WHY below).
+  const whereLabel = t(
+    pillWhereLabel({
+      modelState: modelHost.modelState,
+      modelError: modelHost.modelError,
+      t,
+    }),
+  );
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
@@ -219,7 +230,7 @@ export function HostChatSurface({
     <Shell
       insets={insets}
       modelName={modelHost.currentModel.name}
-      whereLabel={t("shell.where.thisPhone")}
+      whereLabel={whereLabel}
       keyboardHeight={keyboardHeight}
       mode={mode}
       draft={draft}

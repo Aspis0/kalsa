@@ -23,7 +23,7 @@ import {
 } from "../engine/LlamaService";
 import { getCachedDeviceProfile, getFreeDiskBytes } from "../engine/deviceProfile";
 import { setCoResidencyContext, isChatModel2BClass, tryAcquireChat, getState as getLlamaContextGateState } from "../engine/llamaContextGate";
-import { gateForModel, gateReasonMessage, releaseEmbedderBounded, rawErrorDetail } from "./engineGateHelpers";
+import { gateForModel, gateReasonMessage, profileWithFreshMemory, releaseEmbedderBounded, rawErrorDetail } from "./engineGateHelpers";
 import { isEngineLostRecovery } from "../engine/LlamaService";
 import { friendlyNetworkError } from "../engine/ModelDownloader";
 import { writeLastGoodModelId } from "../engine/loadMarker";
@@ -113,7 +113,11 @@ export async function ensureEngineForModel(
       let totalMemKnown = 0;
       try {
         const [profile, free] = await Promise.all([
-          getCachedDeviceProfile(),
+          // "tap to retry" must re-sample memory: the profile cache holds one
+          // sample for the process (deviceProfile.ts `cachedProfilePromise`),
+          // so without this the retry re-runs the verdict against the same
+          // number. Same uncached MemAvailable the load gate's fit probe uses.
+          getCachedDeviceProfile().then(profileWithFreshMemory),
           getFreeDiskBytes(),
         ]);
         if (!stillCurrent()) return false;

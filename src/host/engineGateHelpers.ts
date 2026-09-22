@@ -6,10 +6,12 @@
  */
 import {
   diskRequirementBytes,
+  type DeviceProfile,
   type getCachedDeviceProfile,
   modelGateVerdict,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { loadGateFitModel } from "../engine/loadGate";
 import { gateNonEvictableMiB } from "../engine/modelGateRAM";
 import {
@@ -77,8 +79,11 @@ export function modelBundleSizeBytes(model: ModelInfo): number {
 }
 
 /**
- * Build a ModelGateVerdict for a registry entry from a cached DeviceProfile +
- * free-disk probe. Pure after inputs are resolved.
+ * Build a ModelGateVerdict for a registry entry from a DeviceProfile +
+ * free-disk probe. Pure after inputs are resolved. Besides the verdict it
+ * returns `nonEvictableMiB` — the RAM charge it priced — so the download
+ * sheet can quote need-vs-have without re-running the fit (one pricing,
+ * two readers).
  */
 export function gateForModel(
   model: ModelInfo,
@@ -94,7 +99,10 @@ export function gateForModel(
   requestedContextTokens?: number,
   /** bench:engine useMmap; the gate prices the mode the engine will use. */
   benchUseMmap?: boolean,
-): ModelGateVerdict {
+): ModelGateVerdict & {
+  /** The RAM charge (MiB) the verdict priced — see this function's doc. */
+  nonEvictableMiB: number | null;
+} {
   // Charge the context this load will ACTUALLY run at (KV priced at the
   // chosen profile): the user's 100k asking is not refused here when the
   // budget will simply degrade it, and the catalog default is not charged
@@ -114,28 +122,55 @@ export function gateForModel(
   // checkVolatileMemory:false, so this shared helper is what guarantees the
   // two agree on the RAM axis (as diskRequirementBytes keeps them from
   // drifting on disk).
-  return modelGateVerdict(
-    {
-      totalMemoryBytes: profile.totalMemoryBytes,
-      availableMemoryBytes: profile.availableMemoryBytes,
-      freeDiskBytes,
-      ramTier: profile.ramTier,
-      modelMinRamTier: model.minRamTier,
-      modelNonEvictableMiB: gateNonEvictableMiB({
-        // The catalog's ModelFileSpec (this helper's own type), not the
-        // size-only view the fit decider takes.
-        model: { ...fitModel, mmproj: model.mmproj },
-        contextTokens: fitModel.engineCtx,
+  const nonEvictableMiB = gateNonEvictableMiB({
+    // The catalog's ModelFileSpec (this helper's own type), not the
+    // size-only view the fit decider takes.
+    model: { ...fitModel, mmproj: model.mmproj },
+    contextTokens: fitModel.engineCtx,
+    availableMemoryBytes: profile.availableMemoryBytes,
+    benchNoRepack,
+  });
+  return {
+    ...modelGateVerdict(
+      {
+        totalMemoryBytes: profile.totalMemoryBytes,
         availableMemoryBytes: profile.availableMemoryBytes,
-        benchNoRepack,
-      }),
-      modelWeightsBytesPerToken: model.weightsBytesPerToken,
-      deviceBandwidthBytesPerSecond: deviceBandwidthForModel(deviceBandwidth, model),
-      // Always margined so confirm/start/Settings share one disk requirement.
-      modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
-    },
-    { checkVolatileMemory },
-  );
+        freeDiskBytes,
+        ramTier: profile.ramTier,
+        modelMinRamTier: model.minRamTier,
+        modelNonEvictableMiB: nonEvictableMiB,
+        modelWeightsBytesPerToken: model.weightsBytesPerToken,
+        deviceBandwidthBytesPerSecond: deviceBandwidthForModel(deviceBandwidth, model),
+        // Always margined so confirm/start/Settings share one disk requirement.
+        modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
+      },
+      { checkVolatileMemory },
+    ),
+    nonEvictableMiB,
+  };
+}
+
+/**
+ * The profile's volatile axis re-sampled, everything else untouched:
+ * `getCachedDeviceProfile()` freezes `availableMemoryBytes` for the process
+ * (its builder reads memoryEstimate's process-lifetime cache), and
+ * `monitor.ts`'s own header forbids cached MemAvailable on decision paths.
+ * Total memory and RAM tier cannot change at runtime, so only MemAvailable is
+ * re-read — through the same uncached reader the load gate's fit evaluation
+ * already uses. Probe failure keeps the cached sample; never throws.
+ */
+export async function profileWithFreshMemory(
+  profile: DeviceProfile,
+): Promise<DeviceProfile> {
+  try {
+    const availableMemoryBytes = await getAvailableMemoryBytesUncached();
+    if (typeof availableMemoryBytes === "number" && availableMemoryBytes > 0) {
+      return { ...profile, availableMemoryBytes };
+    }
+  } catch {
+    // The reader is documented never to throw; keep the cached sample anyway.
+  }
+  return profile;
 }
 
 /**

@@ -154,11 +154,17 @@ describe("the model name paints in full", () => {
 });
 
 describe("the where line paints in full — in BOTH catalogues", () => {
-  it("fits every catalogue value of shell.where.thisPhone, with no ellipsis to cut a word", () => {
+  it("fits every catalogue value of the where line, with no ellipsis to cut a word", () => {
     // The defect was `On this ph…` cut MID-WORD, which reads as damage. The
     // fix must not trade it for the same cut in Italian: "Su questo telefono"
-    // is the longer value and the one that decides the budget.
-    const values = [en.shell.where.thisPhone, italian.shell.where.thisPhone];
+    // is the longer value and the one that decides the budget — and a load
+    // refusal swaps in `shell.where.notRunning`, which must fit too.
+    const values = [
+      en.shell.where.thisPhone,
+      italian.shell.where.thisPhone,
+      en.shell.where.notRunning,
+      italian.shell.where.notRunning,
+    ];
     for (const value of values) {
       const widthDp = textWidthDp(value, interMedium, type.meta.fontSize);
       expect([value, widthDp]).toEqual([value, expect.any(Number)]);

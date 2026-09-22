@@ -78,14 +78,17 @@ describe("the status label, one case per bar kind", () => {
     });
   });
 
-  it("a download error says retry, an engine error says load-failed", () => {
+  it("a download error says retry, an engine error says load-failed — and both name the control", () => {
     expect(status({ modelState: "error", errorKind: "download" })).toEqual({
       label: en.download.failedRetry,
       tone: "bad",
+      // The row this sentence sits in IS the control it promises.
+      retryLabel: en.shell.action.retry,
     });
     expect(status({ modelState: "error", errorKind: "engine" })).toEqual({
       label: en.download.loadFailedRetry,
       tone: "bad",
+      retryLabel: en.shell.action.retry,
     });
     // errorKind null counts as a download failure, as the controller did.
     expect(status({ modelState: "error", errorKind: null }).label).toBe(
@@ -106,6 +109,10 @@ describe("the status label, one case per bar kind", () => {
     expect(status({ modelState: "error", errorKind: "download", hung: true }).label).not.toContain(
       "tap",
     );
+    // …and so must the control's name: a hung row is not tappable.
+    for (const errorKind of ["download", "engine", null] as const) {
+      expect(status({ modelState: "error", errorKind, hung: true }).retryLabel).toBeUndefined();
+    }
   });
 
   it("ready needs BOTH the JS wrapper and the matching active id", () => {

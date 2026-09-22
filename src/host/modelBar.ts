@@ -1,9 +1,12 @@
 /**
- * What the model bar SAYS — the three derivations the controller computes in
+ * What the model bar SAYS — the derivations the controller computes in
  * render (`AppShell.tsx:6720-6788` progress %, error hint, status label; and
- * `:2793-2830` the advisory battery lines). Pure: state and catalogue in,
- * label + tone out, so the tones can map onto this shell's palette in
- * `ModelBar.tsx` and the tests can drive every branch without a device.
+ * `:2793-2830` the advisory battery lines) plus this host's two additions:
+ * the retry control's name on a failure row (`retryLabel`) and the pill's
+ * where-line while a hard refusal stands (`pillWhereLabel`). Pure: state and
+ * catalogue in, label + tone out, so the tones can map onto this shell's
+ * palette in `ModelBar.tsx` and the tests can drive every branch without a
+ * device.
  *
  * The status kind comes from the engine's own `decideEngineBarKind`
  * (`src/engine/engineLiveness.ts:163`) — called, not copied — because the
@@ -14,10 +17,19 @@ import type { ModelPipelineState } from "../app/AppShell";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import type { BatteryEtaUiState } from "../hooks/useBatteryEta";
-import type { TranslateFn } from "../i18n";
+import { type TranslateFn, type TranslationKey } from "../i18n";
 import type { ModelBarTone } from "../ui/shell/ModelBar";
 
-export type ModelBarStatus = { label: string; tone: ModelBarTone };
+/**
+ * `retryLabel` is present exactly on the rows whose sentence PROMISES a tap:
+ * the bar draws that row as the control (48 dp, `ModelBar.tsx`), and the
+ * label is the control's accessible name — a name, not the sentence.
+ */
+export type ModelBarStatus = {
+  label: string;
+  tone: ModelBarTone;
+  retryLabel?: string;
+};
 
 /** `AppShell.tsx:6720`. */
 export function progressPercent(progress: number | null): number {
@@ -96,12 +108,35 @@ export function modelBarStatus(args: {
             ? t("download.loadFailedRetry")
             : t("download.failedRetry"),
         tone: "bad",
+        // Hung has no tap to name (recovery is a restart), so the control
+        // name appears exactly while `decideModelPress` would answer a tap.
+        ...(hung ? null : { retryLabel: t("shell.action.retry") }),
       };
     case "ready":
       return { label: t("download.readyLocal"), tone: "good" };
     case "reload":
       return { label: t("chat.lazyReload"), tone: "accent" };
   }
+}
+
+/**
+ * The pill's where-line as a STATUS claim: `shell.where.thisPhone` is only
+ * true while this model can run here, so the host's own hard RAM/tier
+ * refusal swaps it for a line that is true in the failure state. The bar's
+ * error row still carries the reason below. String comparison on the two
+ * refusal sentences is the idiom `modelErrorHint` uses for connectivity —
+ * no structured gate reason reaches the UI.
+ */
+export function pillWhereLabel(args: {
+  modelState: ModelPipelineState;
+  modelError: string | null;
+  t: TranslateFn;
+}): TranslationKey {
+  const { modelState, modelError, t } = args;
+  const refusedHere =
+    modelState === "error" &&
+    (modelError === t("models.blockedRam") || modelError === t("models.blockedTier"));
+  return refusedHere ? "shell.where.notRunning" : "shell.where.thisPhone";
 }
 
 /** `AppShell.tsx:2765-2777`: whole hours, half-hour fractions, sub-hour band. */

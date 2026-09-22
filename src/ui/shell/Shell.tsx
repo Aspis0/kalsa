@@ -284,7 +284,7 @@ export function Shell({
 
       {/* The status rows the pill's column cannot hold (D1 34-36): their
           height leaves the transcript before the partition above. */}
-      {modelBar === undefined ? null : <ModelBar view={modelBar} mode={mode} />}
+      {modelBar === undefined ? null : <ModelBar view={modelBar} mode={mode} onRetryPress={onModelPress} />}
       {/* The preview's mismatch notice: a row of its own, directly under the
           strip, so it can never be drawn over the conversation. `styles.notice`
           is `SHELL_NOTICE_HEIGHT` tall and clips, so a long string cannot wrap

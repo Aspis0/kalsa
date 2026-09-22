@@ -441,6 +441,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     title: "Scarica modello",
     confirmBody:
       "Scarica {name} ({size})? Serve una connessione stabile e spazio su disco. Se si interrompe, riprende da dove era.",
+    confirmLowMemory:
+      "Memoria libera insufficiente per eseguire {name} dopo il download: circa {need} MB necessari, {free} MB disponibili ora. Puoi scaricarlo comunque — non si caricherà finché non c'è abbastanza memoria libera.",
     checking: "Verifica…",
     missing: "Scarica {size}",
     downloading: "Scaricamento… {percent}%",
@@ -1262,6 +1264,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     },
     where: {
       thisPhone: "Su questo telefono",
+      /** The pill's second line while a hard RAM/tier refusal stands
+       *  (`pillWhereLabel`): the claim must stay true in the failure state. */
+      notRunning: "Non gira qui",
     },
     composer: {
       placeholder: "Chiedi qualcosa",
