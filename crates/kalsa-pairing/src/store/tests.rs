@@ -144,7 +144,7 @@ fn forgetting_one_device_leaves_the_others_and_a_middle_id_is_not_reused() {
     // it starts above both, so this forgotten middle id is passed over and the
     // next device is 3.
     let added = add_device(&path, "Fourth", &sample_handshake()).unwrap();
-    assert_eq!(added.id, 3, "the middle id below the present max was handed out");
+    assert_eq!(added.id, 3, "the middle id below the present max was not handed out again");
 
     // Forgetting the last devices empties the store, which is no file.
     forget_device(&path, 0).unwrap();
@@ -237,7 +237,7 @@ fn forget_takes_the_crashed_write_temp_down_with_the_store() {
     assert!(!path.exists());
     assert!(
         !temp_path(&path).exists(),
-        "the second copy of the secret survived the forget"
+        "the second copy of the secret does not survive the forget"
     );
 
     // A temp that exists but cannot be removed is a failure to discard,
