@@ -38,7 +38,7 @@
 //!   the records present *now* (`kalsa-pairing/src/store.rs`), so forgetting
 //!   the top id and pairing again re-uses it — pinned on the store side
 //!   only, by `forgetting_the_highest_id_then_pairing_reuses_it`; no test
-//!   carries a re-pair through this door. The old files then
+//!   carries a re-pair through this sweep. The old files then
 //!   belong to an id the set holds, and this sweep is what it is: complete
 //!   for revocation, blind to re-pair. A re-paired device keeps its own
 //!   chats; whether the owner would rather orphan them is a decision this

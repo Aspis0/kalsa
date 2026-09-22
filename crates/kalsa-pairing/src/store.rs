@@ -74,9 +74,12 @@
 //! by publishing a set that never saw the other writer's record. This
 //! crate locks nothing; ensuring one writer is the application's job.
 //!
-//! Device ids come from the store, are minted once, and are never reused:
-//! the next id is one above every id in the set, so a forgotten device's id
-//! is never handed to a different device later. The label is assigned
+//! Device ids come from the store: one above the highest id in the set as
+//! it stands at that write, so an id is unique within one set and not
+//! forever — forget the record holding the top id and the next pairing
+//! mints that id again, which the store's own
+//! `forgetting_the_highest_id_then_pairing_reuses_it` asserts rather than
+//! forbids. The label is assigned
 //! locally by whoever adds the device — the pairing protocol deliberately
 //! carries no name — and the store only holds what it is given.
 
@@ -336,9 +339,11 @@ fn kind_of(handshake: &Handshake) -> DeviceKind {
 }
 
 /// Adds a device to the store and answers with the record as stored,
-/// including the fresh id the store minted for it. Ids are one above every
-/// id in the set, so they are stable across restarts and never reused: a
-/// forgotten device's id is never handed to a different device later.
+/// including the fresh id the store minted for it: one above the highest id
+/// in the set as it stands now, so it survives restarts while the records
+/// do — but the id a forgotten record held is free again and the next
+/// pairing takes it, as `forgetting_the_highest_id_then_pairing_reuses_it`
+/// asserts.
 ///
 /// On duplicates, the honest answer is narrow. Every pairing ceremony mints
 /// a fresh credential, so "the same phone asking twice" and "a new phone"
@@ -400,8 +405,10 @@ fn add_device_record(
     })
 }
 
-/// One above every id in the set. Ids are minted once and never reused, so a
-/// forgotten device's id is never handed to a different device later.
+/// One above every id in the set as it stands now: unique within one set,
+/// not unique forever. Forget the record holding the top id and this hands
+/// it straight back — asserted, not forbidden, by
+/// `forgetting_the_highest_id_then_pairing_reuses_it`.
 fn next_id(records: &[StoredDeviceRecord]) -> Result<u32, StoreError> {
     match records.iter().map(|record| record.id).max() {
         None => Ok(0),

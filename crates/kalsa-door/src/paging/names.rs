@@ -73,3 +73,19 @@ pub(super) fn owner(file: &str) -> Option<DeviceId> {
     let chat = rest.strip_prefix("-c")?;
     valid_id(chat).then_some(DeviceId::new(id))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The `-c` boundary is the fixed model's to hold, never the chat id's:
+    /// an id that itself carries `-c` (twice, here) is still read back as
+    /// one id, because the model's eight characters are consumed before the
+    /// prefix is ever looked for. Without this a chat the door did write
+    /// would sit in the sweep's "unknown, leave it alone" pile forever.
+    #[test]
+    fn a_chat_id_containing_the_c_boundary_is_still_accepted() {
+        let name = file_name("a1b2c3d4", DeviceId::new(4), "a-cb-cdefg");
+        assert_eq!(owner(&name), Some(DeviceId::new(4)));
+    }
+}
