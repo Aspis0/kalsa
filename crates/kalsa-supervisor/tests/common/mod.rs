@@ -107,10 +107,21 @@ pub fn pid_file(port: u16) -> PathBuf {
     std::env::temp_dir().join(format!("kalsa-fake-{port}.pid"))
 }
 
-/// Each test starts from no state file and no pid file at all.
+/// The suspicion record a stop leaves beside the state file when it could
+/// not prove absence (`<state file>.orphan`, `crate::suspect`). Named here
+/// as well because every test that plants or checks one must use the same
+/// convention the crate writes.
+pub fn suspect_file(port: u16) -> PathBuf {
+    PathBuf::from(format!("{}.orphan", state_file(port).display()))
+}
+
+/// Each test starts from no state file, no pid file and no suspicion record
+/// at all — a record left by a previous test on this port would make the
+/// next start settle a suspicion nobody raised.
 pub fn clear_files(port: u16) {
     let _ = std::fs::remove_file(state_file(port));
     let _ = std::fs::remove_file(pid_file(port));
+    let _ = std::fs::remove_file(suspect_file(port));
 }
 
 pub fn config(exe: &str, port: u16) -> ServerConfig {

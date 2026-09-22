@@ -19,6 +19,7 @@ use crate::drain;
 use crate::health;
 use crate::instance::{Existing, InstanceFile};
 use crate::presence;
+use crate::suspect::Suspect;
 
 /// How often the worker thread looks for a command or a dead child.
 const TICK: Duration = Duration::from_millis(200);
@@ -539,6 +540,13 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
         if escalated || !settled.stopped {
             eprintln!("kalsa-brain: stop walk: {measures}");
         }
+        if settled.record {
+            // §9's suspicion, carried to the next start: absence was not
+            // proved on both halves, so `<state file>.orphan` says what this
+            // stop could not — recovered or replaced when the next start
+            // finds out which (`suspect`).
+            let _ = Suspect::of(&run.config.state_file).write(&measures);
+        }
         end = if settled.stopped {
             ServerState::Stopped
         } else {
@@ -561,7 +569,16 @@ fn start_blocking(
     config
         .verified_binding()
         .map_err(|detail| Failure::UnsafeBinding { detail })?;
+    // The suspicion a previous stop could not disprove, settled FIRST: a
+    // refusing port means there was nothing — recovered, deleted before this
+    // walk goes on, whatever it then does. An answering port leaves the
+    // record standing for the adoption below, which replaces it the moment
+    // an instance of ours is alive; a start that fails with a stranger
+    // still on the port keeps it, because the suspicion is still open.
+    let suspect = Suspect::of(&config.state_file);
+    suspect.settle_before_start(config.address(), presence::PROBE_TIMEOUT);
     if let Some(started) = take_over(config)? {
+        suspect.clear();
         return Ok(started);
     }
     preflight_port(config)?;
@@ -599,6 +616,7 @@ fn start_blocking(
             return Err(exit_reason(&child, status));
         }
         if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
+            suspect.clear();
             return Ok(Started::Spawned { child, instance });
         }
         if Instant::now() >= deadline {
@@ -1069,5 +1087,46 @@ mod tests {
         let _ = stand_in.kill();
         let _ = stand_in.wait();
         let _ = std::fs::remove_file(&state_file);
+    }
+
+    #[test]
+    fn a_blind_stop_with_a_silent_port_is_stopped_and_still_leaves_the_record() {
+        // §9, literally: an engine adopted blind gets `Stopped` only after
+        // the probe on the port FAILS — and the suspicion record is written
+        // anyway, because no pid was ever proven (the record is what the
+        // port alone cannot carry). Unit level on purpose: this drives
+        // `stop()` directly, so the stand-in listener can go silent without
+        // racing the worker's watcher, which reads that silence as the
+        // server dying (integration coverage of the blind arm is
+        // `suspect_record.rs`'s answering-port twin).
+        let port = 8296;
+        let state_file = config(port).state_file;
+        let _ = std::fs::remove_file(&state_file);
+        let suspect_path = format!("{}.orphan", state_file.display());
+        let _ = std::fs::remove_file(&suspect_path);
+        let listener = TcpListener::bind(("127.0.0.1", port)).expect("bind the stand-in port");
+        drop(listener); // nothing listens: the probe is refused
+
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: None,
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
+        stop(&mut owned, &state);
+
+        assert_eq!(
+            state.lock().expect("the state lock").clone(),
+            ServerState::Stopped,
+            "a refusing port did not settle a blind engine's stop"
+        );
+        let recorded =
+            std::fs::read_to_string(&suspect_path).expect("the suspicion record beside the state");
+        assert!(
+            recorded.contains("adopted blind") && recorded.contains("Gone"),
+            "the record carries no measures: {recorded}"
+        );
+        let _ = std::fs::remove_file(&suspect_path);
     }
 }

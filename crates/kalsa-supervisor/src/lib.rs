@@ -15,6 +15,7 @@ mod health;
 mod instance;
 mod presence;
 mod supervisor;
+mod suspect;
 
 pub use child::{pid_alive, terminate_pid, Step, Termination};
 pub use config::{ServerConfig, DEFAULT_STOP_GRACE};

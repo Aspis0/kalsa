@@ -76,6 +76,12 @@ pub(crate) struct Settlement {
     /// True: absence is proven well enough for `Stopped`. False: the drain
     /// ends in the failed-to-stop state carrying its measures instead.
     pub(crate) stopped: bool,
+    /// Whether this stop owes the suspicion record beside the state file —
+    /// absence was NOT proved on both halves (§9): a reaped child whose port
+    /// still answers, a survivor, an undecidable probe, and EVERY blind
+    /// stop, whose process half can never be proven here (the record is what
+    /// the port alone cannot carry).
+    pub(crate) record: bool,
 }
 
 /// Joins the two witnesses into the end of a drain, one row per combination
@@ -99,7 +105,16 @@ pub(crate) fn settle(witness: &Witness, presence: &Presence) -> Settlement {
         Witness::PidDead { .. } => matches!(presence, Presence::Gone),
         Witness::Unwatched => matches!(presence, Presence::Gone),
     };
-    Settlement { stopped }
+    // Both halves positive — a process half that proves OURS is gone (reaped,
+    // or a pid we knew that is now dead) AND a port that refuses — is the
+    // only case that owes nothing to the next start. Everything else carries
+    // its suspicion into `<state file>.orphan` (`suspect`).
+    let proven = matches!(witness, Witness::Reaped | Witness::PidDead { .. })
+        && matches!(presence, Presence::Gone);
+    Settlement {
+        stopped,
+        record: !proven,
+    }
 }
 
 /// Probes `addr` once: connect, send the health request, read what comes
@@ -232,24 +247,29 @@ mod tests {
         let gone = Presence::Gone;
         let there = Presence::There { evidence: Evidence::Silent };
         let unknown = Presence::Unknown { detail: "undecided".into() };
+        // (the drain's end, owes the suspicion record) per row.
+        let row = |witness: &Witness, port: &Presence| {
+            let settled = settle(witness, port);
+            (settled.stopped, settled.record)
+        };
         // OUR child, reaped: the kernel proved the process half; the port is
         // a suspicion to record, never a veto on `Stopped`.
-        assert!(settle(&Witness::Reaped, &gone).stopped);
-        assert!(settle(&Witness::Reaped, &there).stopped);
-        assert!(settle(&Witness::Reaped, &unknown).stopped);
-        // A survivor: nothing may say `Stopped`.
+        assert_eq!(row(&Witness::Reaped, &gone), (true, false), "both halves positive");
+        assert_eq!(row(&Witness::Reaped, &there), (true, true), "reaped + answering port");
+        assert_eq!(row(&Witness::Reaped, &unknown), (true, true), "reaped + undecided port");
+        // A survivor: nothing may say `Stopped`, and the record is owed.
         for port in [&gone, &there, &unknown] {
-            assert!(!settle(&Witness::PidAlive { pid: 7 }, port).stopped);
+            assert_eq!(row(&Witness::PidAlive { pid: 7 }, port), (false, true));
         }
         // A pid we knew, now dead: the port corroborates (pid AND port).
-        assert!(settle(&Witness::PidDead { pid: 7 }, &gone).stopped);
-        assert!(!settle(&Witness::PidDead { pid: 7 }, &there).stopped);
-        assert!(!settle(&Witness::PidDead { pid: 7 }, &unknown).stopped);
-        // Adopted blind: §9's literal rule — Stopped only after the probe
-        // fails, and an undecidable probe is not a failed one.
-        assert!(settle(&Witness::Unwatched, &gone).stopped);
-        assert!(!settle(&Witness::Unwatched, &there).stopped);
-        assert!(!settle(&Witness::Unwatched, &unknown).stopped);
+        assert_eq!(row(&Witness::PidDead { pid: 7 }, &gone), (true, false));
+        assert_eq!(row(&Witness::PidDead { pid: 7 }, &there), (false, true));
+        assert_eq!(row(&Witness::PidDead { pid: 7 }, &unknown), (false, true));
+        // Adopted blind: §9's literal rule — `Stopped` only after the probe
+        // fails, AND the record either way, because no pid was ever proven.
+        assert_eq!(row(&Witness::Unwatched, &gone), (true, true), "blind + silent port");
+        assert_eq!(row(&Witness::Unwatched, &there), (false, true));
+        assert_eq!(row(&Witness::Unwatched, &unknown), (false, true));
     }
 
     /// The stand-in must not outlive its test's listener thread: `serve_once`
