@@ -3,7 +3,9 @@
 #
 # `npm ci` already binds the install to one tarball through the lockfile's integrity
 # hash. This gate answers the other half: that the tarball is what Aspis0/kalsa.rn
-# holds at that commit, and that nothing has edited node_modules/llama.rn since.
+# holds at that commit, that nothing has edited node_modules/llama.rn since, that
+# package.json names the same fork sha, and that the engine inside is the sha
+# native/kalsallama.pin declares.
 # It is a manual gate — the old road's assert-vendor-pristine.sh in its new shape.
 #
 # Exit 0 = identical. 1 = divergent, first differing path printed. 2 = cannot decide.
@@ -11,6 +13,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOCKFILE="$REPO_ROOT/package-lock.json"
+PKGJSON="$REPO_ROOT/package.json"
+PIN="$REPO_ROOT/native/kalsallama.pin"
 INSTALLED="$REPO_ROOT/node_modules/llama.rn"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/engine-provenance.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -66,6 +70,20 @@ SHA="${resolved##*#}"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || fatal "no 40-hex commit in $resolved"
 note "lockfile pins Aspis0/kalsa.rn@${SHA:0:12}"
 
+# package.json must name the same fork sha. Drift between the two files is the
+# mechanism of the hand-pinned APK; the lockfile alone cannot see it.
+[[ -f "$PKGJSON" ]] || fatal "missing $PKGJSON"
+pkg_spec="$(node -e '
+const pkg = require(process.argv[1]);
+const spec = pkg.dependencies && pkg.dependencies["llama.rn"];
+if (typeof spec !== "string") process.exit(1);
+process.stdout.write(spec);
+' "$PKGJSON")" || fatal "no dependencies[\"llama.rn\"] in $PKGJSON"
+PKG_SHA="${pkg_spec##*#}"
+[[ "$PKG_SHA" =~ ^[0-9a-f]{40}$ ]] || fatal "package.json does not pin llama.rn to a 40-hex commit: $pkg_spec"
+[[ "$PKG_SHA" == "$SHA" ]] \
+  || fatal "package.json pins Aspis0/kalsa.rn@$PKG_SHA but package-lock.json pins Aspis0/kalsa.rn@$SHA"
+
 curl -fsSL "https://codeload.github.com/Aspis0/kalsa.rn/tar.gz/$SHA" -o "$WORK/fork.tgz" \
   || fatal "cannot fetch Aspis0/kalsa.rn@${SHA:0:12} from codeload"
 mkdir -p "$WORK/fork" "$WORK/packed"
@@ -86,10 +104,24 @@ if diff -u "$WORK/packed.manifest" "$WORK/installed.manifest" > "$WORK/diff"; th
   # Was cpp/KALSALLAMA_SHA while cpp/ was kalsallama flattened; after the
   # vendor migration the pin is declarative in vendor/VERSIONS.
   engine="$(sed -n 's/^LLAMA_CPP_COMMIT=//p' "$INSTALLED/vendor/VERSIONS" 2>/dev/null | tr -d '[:space:]' || true)"
+
+  # An override note means the file declares a tree it does not hold, so the
+  # sha below would be a lie and the comparison pointless.
+  override="$(grep -m1 'LOCAL OVERRIDE' "$INSTALLED/vendor/VERSIONS" 2>/dev/null || true)"
+  [[ -z "$override" ]] || fatal "vendor/VERSIONS declares a local override: $override"
+
+  # The app records the engine sha it expects: native/kalsallama.pin, one line.
+  # Compare before any OK line is printed; an engine sha printed untested is noise.
+  [[ -f "$PIN" ]] || fatal "missing engine pin $PIN; vendor/VERSIONS declares ${engine:-<empty>}"
+  pinned="$(tr -d '[:space:]' < "$PIN")"
+  [[ "$pinned" =~ ^[0-9a-f]{40}$ ]] || fatal "engine pin $PIN is not one 40-hex sha: '$pinned'; vendor/VERSIONS declares ${engine:-<empty>}"
+  [[ -n "$engine" && "$engine" =~ ^[0-9a-f]{40}$ ]] \
+    || fatal "vendor/VERSIONS declares no usable LLAMA_CPP_COMMIT: '${engine}'; $PIN pins $pinned"
+  [[ "$engine" == "$pinned" ]] \
+    || fatal "engine mismatch: $PIN pins kalsallama@$pinned but vendor/VERSIONS declares kalsallama@$engine"
+
   note "OK: $(wc -l < "$WORK/installed.manifest" | tr -d ' ') files match Aspis0/kalsa.rn@${SHA:0:12}"
-  # The app pins the fork, and the fork pins the engine: nothing here declares
-  # an expected kalsallama sha, so print the one that is installed.
-  note "engine inside it: kalsallama@${engine:0:12}"
+  note "engine inside it: kalsallama@${engine:0:12} == native/kalsallama.pin"
   exit 0
 fi
 
