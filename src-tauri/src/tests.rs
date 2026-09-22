@@ -1554,10 +1554,14 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     // `supervisor.shutdown`). What those senders guarantee is the lowering
     // before the send, NOT a door that stays down until the set:
     // `Supervisor::stop` returns at once ("the state follows on the next
-    // read"), the worker spends the teardown walking stdin EOF, a stop grace
-    // (`stop_grace`, 2.5 s as `startup.rs` configures it — `llama-server`
-    // reads no stdin, so the first grace is spent whole), SIGTERM, a second
-    // grace and SIGKILL before it writes `Stopped`, and a `brain_state` poll
+    // read"), and for a SPAWNED engine the worker walks the teardown out —
+    // stdin EOF, a stop grace (`stop_grace`, 2.5 s as `startup.rs` configures
+    // it — `llama-server` reads no stdin, so the first grace is spent whole),
+    // SIGTERM, a second grace, SIGKILL — before it writes `Stopped`. An engine
+    // adopted blind has no child to walk: there the stop writes `Stopped` at
+    // once with the engine still listening, which is declared in the plan (T5)
+    // and is why this sentence is about the spawned path only. A `brain_state`
+    // poll
     // landing inside that window reads `Running`, enters the Running arm and
     // RE-RAISES the door `brain_stop` lowered. So `Stopped` can be set with
     // the door UP, and the door stays up until the next poll's `Stopped` arm

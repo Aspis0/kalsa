@@ -109,9 +109,10 @@ pub(super) fn save_idle(
             //
             // The arms below are not the only ones to clear the mark: `activate`
             // and `erase` drop it too, and neither touches `retry_after`. So a
-            // slot handed to another chat carries the previous holder's backoff —
-            // the new holder's own mark gates the slot first, and its first offer
-            // cannot precede the inherited bound.
+            // slot handed to another chat carries the previous holder's backoff. That
+            // bound is real and never binding: the new holder's own mark is stamped
+            // after the handover, and the handover after the stamp's instant
+            // (T < H < M), so the quiet gate M+Q matures after T+Q has expired.
             //
             // Attempts one and two both sit inside the unload clock measured from
             // the mark: attempt two is out at worst mark+2Q+two tick periods — 2 s

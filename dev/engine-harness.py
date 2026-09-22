@@ -6,8 +6,9 @@ free before the spawn, the child must survive its own boot, and stop() must be
 safe on every exit path - a run that dies halfway and leaves the engine up
 poisons the next run's pre-flight.
 
-Shared by the measurement scripts so the guard is written once instead of
-copied per tool.
+Used by `measure-concurrency.py`. The older measurement scripts still carry their
+own copy of this lifecycle: this module is not what they share yet, and the two
+spellings of the guard have already drifted apart.
 """
 
 import os

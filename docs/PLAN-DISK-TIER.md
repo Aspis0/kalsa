@@ -423,15 +423,25 @@ instead of returning an empty conversation.
 - **Declared behaviour, not fixed**: a live door can stand beside `Stopped`. Both senders lower the
   door *before* they send (`brain_stop` before `supervisor.stop`, the app-exit handler before
   `supervisor.shutdown`), but `Supervisor::stop` returns at once — the state follows on the next
-  read — and the worker spends the teardown in the stop grace (`stop_grace`, 2.5 s as `startup.rs`
-  configures it: stdin EOF → grace → SIGTERM → grace → SIGKILL) before it writes `Stopped`. A
+  read — and the worker spends the teardown walking the stop grace out — stdin EOF → grace →
+  SIGTERM → grace → SIGKILL, each wait bounded by `stop_grace` (2.5 s as `startup.rs` configures
+  it), so the window is up to **two** graces plus the reap — before it writes `Stopped`. A
   `brain_state` poll landing in that window still reads `Running`, enters the Running arm and
   re-raises the door the stop had lowered: **the poll is the reconciler**, and that is the whole
   mechanism. So a door that is up can coexist with `Stopped` for up to one poll interval
   (`POLL_MS`, 1 s) — after the grace window, in which the state still reads `Running`. This is an
   availability blip behind full authentication, not an exposure: the listener answers 401 without
-  the bearer, and from the `Stopped` set on the engine is already gone, so a request that slips
-  into the blip gets an error instead of a service. The alternative — the Running arm not
+  the bearer. Whether a request that slips into the blip is **served** depends on which stop this
+  is, and the two cases are not the same. For a **spawned** engine the child is walked to its reap
+  before `Stopped` is written, so the engine is gone and the request gets an error. For an engine
+  **adopted blind** — `Started::Adopted { pid: None }`, reachable when the previous writer died
+  between its announce and its describe — there is no pid and no handle to walk, so the stop takes
+  that arm and writes `Stopped` **at once**, leaving the engine **alive and listening**: the code's
+  own words are that it is left running by necessity and leaks until reboot
+  (`crates/kalsa-supervisor/src/supervisor.rs`). In that window a request with a valid bearer is
+  **served**, not errored. It is the same adopted server whose invisible release the residency map
+  cannot hear — the declared loss above, on this same task: no pipe, so the map never learns, and
+  no child, so `Stopped` need not mean the engine is gone. The alternative — the Running arm not
   re-raising while a stop is in flight — is an owner decision, and it has not been taken.
 - **Inherited, never binding**: a slot handed to another holder inherits `retry_after`.
   `activate` and `erase` clear the mark (`dirty_at`) and leave the backoff standing
@@ -572,7 +582,9 @@ saturating part of the disk curve is not a number this plan may carry.
   list of cases, split it by **topic**, not by line count. Pre-existing excess is **declared, not
   refactored** (those declarations sit with the tasks above). Comments only for WHY or a trap, and if
   a comment declares an invariant that invariant must be true. No secret **values** anywhere — names
-  are fine.
+  are fine. **These ceilings govern the delivery's code.** A measurement tool under `dev/` is a
+  development instrument, not the delivery: it is not reshaped to make a count work, and its
+  duplication is not chased for its own sake.
 - On the released engine commit `2a290390d` — tagged **`kalsa-server-v1.1.0`** — the same lines
   are `:2868`, `:3199`, `:3418-3421`, and the older documents cite that numbering.
 
