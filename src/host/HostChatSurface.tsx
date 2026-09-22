@@ -22,12 +22,14 @@ import { useLocale, type TranslationKey } from "../i18n";
 import type { ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
+import { MessageMenu } from "../ui/shell/MessageMenu";
 import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import type { ComposerToolbarProps } from "../ui/shell/ComposerToolbar";
 import type { ComposerArms } from "./composerArms";
 import type { ComposerView } from "./composerView";
+import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
 import type { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
@@ -36,6 +38,9 @@ import { welcomeVisible } from "./welcomeCopy";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
 type ToolFlags = ReturnType<typeof useToolFlags>;
+/** The message menu's bundle, created by the root beside the send/history it
+ *  borrows (`src/host/messageActions.ts`). */
+type MessageActionsBundle = ReturnType<typeof useMessageActions>;
 
 export interface ChatSurfaceProps {
   /** Safe-area insets: `top` paints the strip below the notch, `bottom` feeds
@@ -55,6 +60,9 @@ export interface ChatSurfaceProps {
   flags: ToolFlags;
   /** The research/notes one-shot arms behind the toolbar chips (D1 row 14). */
   arms: ComposerArms;
+  /** The long-press menu + copy chip (PARITY-STATUS gap 1): the menu's view,
+   *  the press handler for the transcript and the copy both chips use. */
+  actions: MessageActionsBundle;
 }
 
 export function HostChatSurface({
@@ -69,6 +77,7 @@ export function HostChatSurface({
   onNewChatPress,
   flags,
   arms,
+  actions,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
@@ -103,10 +112,10 @@ export function HostChatSurface({
     onResearchPress: arms.toggleResearch,
     notesActive: arms.notes,
     onNotesPress: arms.toggleNotes,
-    // §2.7 stub: the library-document chip needs the attachment pipeline
-    // (D1 row 43), absent in this slice — its press says so instead of arming
-    // nothing (`shell.notice.attach`, the attach stub's own reason).
-    onDocumentPress: () => showNoticeKey("shell.notice.attach"),
+    // The library-document chip is GONE from the row (it could not do its job
+    // without the attachment flow and was clipped/pushed out of 349 dp) — see
+    // `ComposerToolbar.tsx`'s header. The attach BUTTON still carries the
+    // same hold sentence (`shell.notice.attach`), which is why that key stays.
     disabled: view.composer.face !== "send",
   };
   // The controller's gate (`AiChatPage:4015-4016`): nothing shows until the
@@ -146,8 +155,28 @@ export function HostChatSurface({
         else void sendHost.send(draft);
       }}
     >
-      <Transcript insets={bandInsets} messages={view.transcript} mode={mode} empty={empty} />
+      <Transcript
+        insets={bandInsets}
+        messages={view.transcript}
+        mode={mode}
+        empty={empty}
+        onMessageLongPress={actions.onMessageLongPress}
+        onCopy={actions.onCopy}
+      />
     </Shell>
+    {/* D1 rows 15/16/20/21: the controller's message sheet, CALLED with the
+        rows the host's pure builder allows (`messageMenuRows.ts`); translate,
+        edit and read-aloud are absent until their systems exist, not rows that
+        do nothing. Android back and the backdrop both cancel. */}
+    <MessageMenu
+      mode={mode}
+      visible={actions.menu !== null}
+      caption={actions.menu?.caption ?? ""}
+      rows={actions.menu?.rows ?? []}
+      bottomInset={insets.bottom}
+      onRowPress={actions.onMenuRow}
+      onRequestClose={actions.closeMenu}
+    />
     {/* D1 row 13: the controller's sheet, CALLED not rebuilt
         (old entry `AiChatPage:4375-4381`); choosing a template replaces the
         draft the same way `handleChooseTemplate` did (`:3633-3641`). The

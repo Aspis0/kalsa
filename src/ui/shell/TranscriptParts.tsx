@@ -1,147 +1,39 @@
 /**
- * The transcript's two boxes and the stylesheet they are drawn with: the user's
- * capsule and the bare answer. Split out of `Transcript.tsx` when that file
- * crossed the line budget. They hold no state of their own — the cloud and the day
- * marker are the band's business, not theirs, and the answer's markdown is
- * `TranscriptMarkdown.tsx`, which these two only place.
+ * The transcript's stylesheet — the one table every band file draws with.
  *
- * The band's own stylesheet lives here, including the jump control, the tool
- * rows and the source chips, because one table of styles read in one place beats
- * two that can drift. `TranscriptEvidence.tsx` draws the tool rows and the chips
- * and `TranscriptMarkdown.tsx` the answer's blocks, each taking this table as a
- * prop rather than keeping a second one. The markdown half of the SAME table is
- * built in `transcriptMarkdownStyles.ts` and spread into this one, because putting
- * all of it here crossed the line budget.
+ * It used to also hold the two turn boxes (`UserTurn`, `Answer`); those moved
+ * to `TranscriptTurns.tsx` when this slice added the long-press pressables and
+ * the inline copy chip, because this file sits AT the shell's size ratchet
+ * (`src/host/fileSize.test.ts`, `SHELL_FILE_LIMIT` = 342) and the owner's rule
+ * is to cut a seam rather than raise a number. The table stayed here for the
+ * same reason it was ever one table: `TranscriptEvidence.tsx`,
+ * `TranscriptMarkdown.tsx` and the two source-check tests
+ * (`sourceChipBox.test.ts`, `transcriptJumpPill.test.ts`) read these styles by
+ * name, and one table read in one place beats two that can drift. The markdown
+ * half of the SAME table is built in `transcriptMarkdownStyles.ts` and spread
+ * into this one, because putting all of it here crossed the line budget.
  */
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native";
 
-import { useLocale } from "../../i18n";
 import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
-import { ThoughtCloud } from "../thinking/ThoughtCloud";
-import { SourceChips, ToolRows } from "./TranscriptEvidence";
-import { MarkdownBlocks } from "./TranscriptMarkdown";
-import { StreamCaret } from "./StreamCaret";
 import { MIN_TOUCH_TARGET, SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
 import {
   PARAGRAPH_GAP,
   TRANSCRIPT_LAST_ITEM_GAP,
   TURN_GAP,
-  type TranscriptLayout,
 } from "./transcriptLayout";
 import { markdownStyles } from "./transcriptMarkdownStyles";
-import type { TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall } from "./transcriptTypes";
 
-/** The one stylesheet, as a named type: `TranscriptEvidence.tsx` draws the tool
- *  rows and the source chips with it rather than carrying a second table. */
+/** The one stylesheet, as a named type: the evidence and markdown files draw
+ *  with it rather than carrying a second table. */
 export type TranscriptStyles = ReturnType<typeof createTranscriptStyles>;
-
-/** The only boxed turn: tinted, right-aligned, no border, no tail, one radius. */
-export function UserTurn({
-  id,
-  layout,
-  styles,
-  text,
-}: {
-  id: string;
-  layout: TranscriptLayout;
-  styles: TranscriptStyles;
-  text: string;
-}) {
-  return (
-    <View
-      style={[styles.userCapsule, { maxWidth: layout.capsuleMaxWidth }]}
-      testID={`transcript.user.${id}`}
-    >
-      <Text style={styles.userText}>{text}</Text>
-    </View>
-  );
-}
-
-/** The answer is bare: serif ink on the page, full measure, no container. The
- *  cloud sits above it while that answer is still thinking, the tool rows sit
- *  between the two (what the answer stands on, §2.4), and the source chips
- *  close the entry below the text (§2.5). */
-export function Answer({
-  caret,
-  colors,
-  id,
-  labels,
-  readingMeasure,
-  sources,
-  stop,
-  styles,
-  text,
-  thinking,
-  tools,
-}: {
-  caret?: boolean;
-  colors: DesignColors;
-  id: string;
-  labels: { show: string; hide: string; region: string };
-  /** The width the answer got, handed on because the table's own decision
-   *  (`tableScrollDecision`) is a function of the column count and this width. */
-  readingMeasure: number;
-  sources?: readonly TranscriptSource[];
-  stop?: TranscriptStop;
-  styles: TranscriptStyles;
-  text: string;
-  thinking?: TranscriptThinking;
-  tools?: readonly TranscriptToolCall[];
-}) {
-  const { t } = useLocale();
-  return (
-    <View testID={`transcript.answer.${id}`}>
-      {thinking ? (
-        <ThoughtCloud
-          answered={thinking.answered}
-          colors={colors}
-          labels={labels}
-          messageId={id}
-          reasoning={thinking.reasoning}
-          reasoningMs={thinking.reasoningMs}
-          tail={thinking.tail}
-          working={thinking.working}
-        />
-      ) : null}
-      {tools ? <ToolRows styles={styles} tools={tools} /> : null}
-      {caret === true ? (
-        // Plain text + caret while it arrives — the controller's rule
-        // (AiChatPage:5486-5490): markdown is parsed only once it settles.
-        <Text style={styles.answer} testID={`transcript.streaming.${id}`}>
-          {text}
-          <StreamCaret color={colors.accent} text={text} />
-        </Text>
-      ) : (
-        <MarkdownBlocks
-          colors={colors}
-          id={id}
-          readingMeasure={readingMeasure}
-          sources={sources}
-          styles={styles}
-          text={text}
-        />
-      )}
-      {sources ? <SourceChips sources={sources} styles={styles} /> : null}
-      {stop ? (
-        // §2.8's line in the outcome's tone; this file writes no other sentence.
-        <Text
-          style={[styles.stopLine, stop.tone === "danger" ? styles.stopLineDanger : null, stop.tone === "attention" ? styles.stopLineAttention : null]}
-          testID={`transcript.stop.${id}`}
-        >
-          {t(stop.key, stop.params)}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
 
 export function createTranscriptStyles(colors: DesignColors) {
   // Two `create` calls and a spread, rather than one call whose argument spreads
   // a function's return: TypeScript cannot infer `StyleSheet.create`'s generic
-  // through a spread, and the styles come out as `NamedStyles<any>`, which would
-  // have turned every `styles.<typo>` in three files into a compile error about
-  // the helper instead of about the typo. Creating each half and merging the two
+  // through a spread, and the styles come out as `NamedStyles<any>`, which would have
+  // turned every `styles.<typo>` in three files into a compile error about the
+  // helper instead of about the typo. Creating each half and merging the two
   // typed objects keeps the key checking exact, and the band still gets ONE table
   // from ONE call.
   return {
@@ -279,7 +171,7 @@ export function createTranscriptStyles(colors: DesignColors) {
         ...elevation.raised,
       },
       // A chip that cannot is text with reduced emphasis, and the dashed hairline
-      // is the mock's `.src.off`: it is the difference between the two kinds of
+      // is the mock's `.src.off`: it is the difference between two kinds of
       // chip, not an attempt to separate a surface from the page.
       sourceChipStatic: {
         borderColor: colors.border,
@@ -304,6 +196,44 @@ export function createTranscriptStyles(colors: DesignColors) {
       },
       sourceHostStatic: {
         color: colors.silence,
+      },
+      // The inline action row under a turn — today just the copy chip (the
+      // controller's MessageActionChip row minus read-aloud and "more", which
+      // this build does not have honest versions of yet).
+      actionChips: {
+        flexDirection: "row",
+        gap: spacing.xs,
+        marginTop: spacing.xs,
+      },
+      // The user's chips ride under the capsule, on its side of the page
+      // (old `AiChatPage:5419-5434` drew them right-aligned too).
+      actionChipsRight: {
+        justifyContent: "flex-end",
+      },
+      // The chip's real box: 48 dp on both axes, paint inside it — the source
+      // chip's own box/paint split, on a chip that is a BUTTON rather than a
+      // link. `hitSlop` would be the cheap way; the project forbids it.
+      actionChipBox: {
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: MIN_TOUCH_TARGET,
+        minWidth: MIN_TOUCH_TARGET,
+      },
+      actionChip: {
+        alignItems: "center",
+        backgroundColor: colors.surface,
+        borderRadius: radius.pill,
+        ...elevation.raised,
+        flexDirection: "row",
+        gap: spacing.xxs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+      },
+      actionChipLabel: {
+        color: colors.ink,
+        fontFamily: families.sansMedium,
+        fontSize: type.meta.fontSize,
+        lineHeight: type.meta.lineHeight,
       },
       dayMarker: {
         alignItems: "center",

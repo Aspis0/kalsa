@@ -111,8 +111,18 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     expect(SURFACE).toMatch(/disabled: view\.composer\.face !== "send"/);
   });
 
-  it("the library-document chip is a §2.7 stub that says why, never an inert chip", () => {
-    expect(SURFACE).toMatch(/onDocumentPress: \(\) => showNoticeKey\("shell\.notice\.attach"\)/);
+  it("the library-document chip is GONE, and the attach button keeps the hold sentence", () => {
+    // BEFORE this slice the toolbar carried the document chip as a §2.7 stub
+    // whose press fired `shell.notice.attach`; the chip was REMOVED (vision
+    // audit: clipped by 349 dp's right edge, Notes pushed entirely out of the
+    // row, and inert without the attachment flow — `ComposerToolbar.tsx`
+    // header). What that old check was really holding has two halves, and
+    // both still hold:
+    expect(SURFACE).not.toMatch(/onDocumentPress/);
+    // the key still has a real user — the composer's own attach button:
+    expect(SURFACE).toMatch(
+      /onAttachPress=\{\(\) => showNoticeKey\("shell\.notice\.attach"\)\}/,
+    );
   });
 });
 

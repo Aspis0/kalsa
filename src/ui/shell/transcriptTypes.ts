@@ -124,6 +124,23 @@ export type TranscriptProps = {
    * Absent in the preview and in every conversation with messages.
    */
   empty?: ReactNode;
+  /**
+   * Long-press on a message — the controller's 350 ms hold
+   * (`AiChatPage.tsx:5332-5334` and siblings), reported as the message itself.
+   * The band only reports; the HOST decides whether a menu may open, through
+   * the same refs-only guards the controller recorded (`Chat:3484-3487`,
+   * `src/host/messageActions.ts`). Absent in the preview: with no handler the
+   * pressables draw no long-press hint, because a hint that promises a menu is
+   * a promise.
+   */
+  onMessageLongPress?: (message: TranscriptMessage) => void;
+  /**
+   * The inline copy chip's actual copy. Returns whether the clipboard took the
+   * text, so the chip only flashes "Copied!" when it did (the controller's
+   * `copyTextToClipboard`, which returned false on the share-sheet fallback).
+   * Absent → no chip is drawn: absent, not present and inert.
+   */
+  onCopy?: (text: string) => Promise<boolean>;
   insets: Insets;
   /** Overrides for the preview; the live window is the default. */
   width?: number;

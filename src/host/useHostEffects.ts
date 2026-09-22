@@ -120,8 +120,11 @@ export function useHostEffects(params: HostEffectParams): void {
   }, []);
 }
 
-/** The regen locks this host never holds (no edit/regen flows yet); cleared
- *  on a conversation change exactly where the old screen cleared them. */
+/** The regen locks — held now, briefly: `messageActions.regenerate` sets
+ *  `regenInFlightRef` across the truncate→send handoff and the run's own
+ *  release clears it (`sendHost.releaseOwned` / the stop watchdog). This is
+ *  where the old screen cleared them too (conversation change, `Chat:1867`),
+ *  so a switch mid-handoff cannot wedge the menu closed forever. */
 function regenAbortReset(): void {
   regenInFlightRef.current = false;
   regenHandleSendPassRef.current = false;

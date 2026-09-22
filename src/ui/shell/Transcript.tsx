@@ -22,7 +22,8 @@ import { useLocale, type TranslateFn, type TranslationKey } from "../../i18n";
 import { elevation, families, modes, radius, spacing, type } from "../../theme/design";
 import { type Insets } from "./shellGeometry";
 import { TranscriptEdgeFade } from "./TranscriptEdgeFade";
-import { Answer, UserTurn, createTranscriptStyles } from "./TranscriptParts";
+import { createTranscriptStyles } from "./TranscriptParts";
+import { Answer, UserTurn } from "./TranscriptTurns";
 import {
   PROGRAMMATIC_SCROLL_GRACE_MS,
   duplicateMessageIds,
@@ -79,6 +80,8 @@ export function Transcript({
   messages,
   empty,
   insets,
+  onCopy,
+  onMessageLongPress,
   width,
   height,
   mode = "light",
@@ -218,6 +221,16 @@ export function Transcript({
           decide("user-scroll");
         }}
         ref={scrollRef}
+        // The controller's own prop on the message list (`AiChatPage:4146`) and
+        // welcome ScrollView (`:4025`) — this is how a press inside a scroll
+        // view kept from being eaten: with the default `never`, while the
+        // keyboard is up the ScrollView claims the touch ON START (RN's own
+        // comment: "the first tap should be sent to the scroll view and
+        // dismiss the keyboard"), so the first press on a message — a hold of
+        // any length — was consumed and the long-press timer never began.
+        // `handled` lets a press a descendant handles reach that descendant,
+        // while a tap that handles nothing still dismisses the keyboard.
+        keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
         style={styles.scroll}
         testID="transcript.root"
@@ -257,13 +270,27 @@ export function Transcript({
               </View>
             ) : null}
             {message.role === "user" ? (
-              <UserTurn id={message.id} layout={layout} styles={styles} text={message.text} />
+              <UserTurn
+                colors={colors}
+                id={message.id}
+                layout={layout}
+                onCopy={onCopy}
+                onLongPress={
+                  onMessageLongPress ? () => onMessageLongPress(message) : undefined
+                }
+                styles={styles}
+                text={message.text}
+              />
             ) : (
               <Answer
                 caret={message.caret}
                 colors={colors}
                 id={message.id}
                 labels={cloudLabels}
+                onCopy={onCopy}
+                onLongPress={
+                  onMessageLongPress ? () => onMessageLongPress(message) : undefined
+                }
                 readingMeasure={layout.readingMeasure}
                 sources={message.sources}
                 stop={message.stop}

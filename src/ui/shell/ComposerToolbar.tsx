@@ -1,6 +1,6 @@
 /**
  * The composer's toolbar row: the templates ✦ entry and the one-shot mode
- * chips. Lifted from `AiChatPage.tsx:4189-4221` (the three chips), `:3642-3653`
+ * chips. Lifted from `AiChatPage.tsx:4189-4221` (the chips), `:3642-3653`
  * (the toggles) and `:4821-4837` (the ✦ entry into `QuickActionSheet`, D1 row
  * 13); the sheet itself is CALLED by the host (`HostChatSurface`), never rebuilt.
  *
@@ -8,19 +8,27 @@
  * stays small (~28 dp) and is centred in the row's real `COMPOSER_TOOLBAR_HEIGHT`
  * box; every node the finger lands on is 48 dp tall on both axes — never `hitSlop`.
  *
- * The library-document chip is a §2.7 STUB: it needs `attachedItems` and the
- * document picker (D1 row 43 / gap 5), which this slice does not build, so its
- * press reports that through `shell.notice.attach` instead of pretending to arm
- * anything. It renders inactive by construction — there is no attachment state
- * for it to reflect — and the report carries the hold.
+ * The library-document chip is GONE from this row (vision audit: clipped by the
+ * right edge in 4 of 4 shots, its Notes sibling pushed ENTIRELY out of 349 dp —
+ * `composerToolbarWidth.test.ts` holds the arithmetic). It was a §2.7 stub that
+ * could not do its job (`attachedItems` and the picker do not exist, D1 row 43),
+ * so it was the worst of both: undiscoverable behind a scroller, inert when
+ * found. **It returns with the attachment flow**; until then the composer's own
+ * attach button keeps saying why (`shell.notice.attach`). What remains —
+ * templates, research, notes — fits 349 dp without scrolling, which is why the
+ * row still scrolls but never has to.
  */
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { BookOpen, ClipboardList, Search, Sparkles } from "lucide-react-native";
+import { ClipboardList, Search, Sparkles } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
 import { radius, spacing, type, type DesignColors } from "../../theme/design";
-import { COMPOSER_TOOLBAR_HEIGHT } from "./shellGeometry";
+import {
+  COMPOSER_TOOLBAR_HEIGHT,
+  TOOLBAR_CHIP_ICON,
+  TOOLBAR_CHIP_LABEL_GAP,
+} from "./shellGeometry";
 
 export type ComposerToolbarProps = {
   /** The quick-templates sheet entry (D1 row 13); never held while generating. */
@@ -29,8 +37,6 @@ export type ComposerToolbarProps = {
   onResearchPress: () => void;
   notesActive: boolean;
   onNotesPress: () => void;
-  /** §2.7 stub — see the header: press states the hold, never arms a mode. */
-  onDocumentPress: () => void;
   /** The machine's answer (the controller's rule at `AiChatPage:4203`): the
    *  chips cannot flip an arm while the face says stop. */
   disabled?: boolean;
@@ -76,7 +82,7 @@ function Chip({
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 4,
+          gap: TOOLBAR_CHIP_LABEL_GAP,
           paddingHorizontal: spacing.sm,
           paddingVertical: 5,
           borderRadius: radius.md,
@@ -131,7 +137,7 @@ export function ComposerToolbar(props: ComposerToolbarProps & { colors: DesignCo
       >
         <Chip
           testID="shell.composer.research"
-          icon={<Search size={15} color={iconTint(props.researchActive)} />}
+          icon={<Search size={TOOLBAR_CHIP_ICON} color={iconTint(props.researchActive)} />}
           label={t("chat.deepResearch")}
           a11yLabel={
             props.researchActive ? t("chat.deepResearchActive") : t("chat.deepResearch")
@@ -143,19 +149,8 @@ export function ComposerToolbar(props: ComposerToolbarProps & { colors: DesignCo
           colors={colors}
         />
         <Chip
-          testID="shell.composer.document"
-          icon={<BookOpen size={15} color={colors.silence} />}
-          label={t("chat.libraryDocument")}
-          a11yLabel={t("chat.libraryDocument")}
-          active={false}
-          disabled={disabled}
-          toggle={false}
-          onPress={props.onDocumentPress}
-          colors={colors}
-        />
-        <Chip
           testID="shell.composer.notes"
-          icon={<ClipboardList size={15} color={iconTint(props.notesActive)} />}
+          icon={<ClipboardList size={TOOLBAR_CHIP_ICON} color={iconTint(props.notesActive)} />}
           label={t("notes.title")}
           a11yLabel={t("notes.title")}
           active={props.notesActive}

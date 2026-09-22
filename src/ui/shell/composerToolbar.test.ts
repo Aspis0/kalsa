@@ -4,9 +4,11 @@
  * screenshot cannot see and a regression would break silently: every finger
  * target is the real 48 dp row (never `hitSlop`), every node carries a testID
  * and an accessible name, the chips follow the controller's role split
- * (switch + checked for the toggles, button + selected for the document), and
- * the document chip is the §2.7 stub — it reports the hold rather than arming
- * nothing.
+ * (switch + checked for the toggles), and — since the library-document chip
+ * was REMOVED from the row (clipped by 349 dp, inert without the attachment
+ * flow; `ComposerToolbar.tsx` header) — that no chip quietly creeps back into
+ * a row the arithmetic cannot hold (`composerToolbarWidth.test.ts` holds the
+ * numbers).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -44,15 +46,18 @@ describe("the row is a real box, not a slop (project rule)", () => {
 });
 
 describe("every interactive node: testID + accessible name", () => {
-  it("four controls, four testIDs", () => {
+  it("three controls, three testIDs", () => {
+    // BEFORE: four IDs — templates, research, document, notes. The document
+    // chip was removed from the row (its chip could not do its job without the
+    // attachment flow and sat outside 349 dp); it returns WITH that flow.
     for (const id of [
       "shell.composer.templates",
       "shell.composer.research",
-      "shell.composer.document",
       "shell.composer.notes",
     ]) {
       expect(CODE).toContain(`testID="${id}"`);
     }
+    expect(CODE).not.toContain("shell.composer.document");
   });
 
   it("every Pressable declaration binds an accessibilityLabel", () => {
@@ -75,11 +80,12 @@ describe("every interactive node: testID + accessible name", () => {
 
 describe("the labels are the controller's catalogue keys, in both locales", () => {
   it("uses the shipped keys — no new string was invented for this row", () => {
+    // BEFORE: the list also carried `t("chat.libraryDocument")`; its chip left
+    // the row with the chip itself (it returns with the attachment flow).
     for (const key of [
       't("chat.a11yTemplates")',
       't("chat.deepResearch")',
       't("chat.deepResearchActive")',
-      't("chat.libraryDocument")',
       't("notes.title")',
     ]) {
       expect(CODE).toContain(key);
@@ -87,21 +93,24 @@ describe("the labels are the controller's catalogue keys, in both locales", () =
   });
 });
 
-describe("the machine gates the chips, and the document chip says why (§2.7)", () => {
+describe("the machine gates the chips, and the document chip is really gone (§2.7 + the 349 dp cut)", () => {
   it("disabled rides into every chip, decided by the host's face", () => {
     expect(CODE).toMatch(/disabled=\{disabled\}/);
     expect(SURFACE_CODE).toMatch(/disabled: view\.composer\.face !== "send"/);
   });
 
-  it("the document chip presses into a notice, never into an arm", () => {
-    expect(CODE).toMatch(/onPress=\{props\.onDocumentPress\}/);
-    // The host maps it to the attach stub's own reason — a chip that does
-    // something the build can honour: telling the user why it cannot arm.
+  it("the document chip and its stub press are gone; the attach BUTTON keeps the hold", () => {
+    // BEFORE (this test asserted the opposite): the chip pressed into
+    // `shell.notice.attach` — a control that fired a toast it could not act
+    // on, clipped at the row's right edge so most shots never saw it. Now:
+    expect(CODE).not.toContain("shell.composer.document");
+    expect(CODE).not.toContain("chat.libraryDocument");
+    expect(SURFACE_CODE).not.toContain("onDocumentPress");
+    // The key itself survives with its real user — the composer's attach
+    // button (the owner's instruction: `shell.notice.attach` stays).
     expect(SURFACE_CODE).toMatch(
-      /onDocumentPress: \(\) => showNoticeKey\("shell\.notice\.attach"\)/,
+      /onAttachPress=\{\(\) => showNoticeKey\("shell\.notice\.attach"\)\}/,
     );
-    // It is not a toggle pretending to hold state.
-    expect(CODE).toMatch(/active=\{false\}\s*\n\s*disabled=\{disabled\}\s*\n\s*toggle=\{false\}/);
   });
 });
 

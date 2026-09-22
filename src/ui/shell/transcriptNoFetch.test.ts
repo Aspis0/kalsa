@@ -33,6 +33,10 @@ const BAND_FILES = [
   "Transcript.tsx",
   "TranscriptEdgeFade.tsx",
   "TranscriptParts.tsx",
+  // The turn boxes + copy chip split out of TranscriptParts when the
+  // long-press landed (the seam that kept the stylesheet under the ratchet):
+  // a band file is a band file however it is spelled.
+  "TranscriptTurns.tsx",
   "TranscriptEvidence.tsx",
   "TranscriptMarkdown.tsx",
   "TranscriptInline.tsx",

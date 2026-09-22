@@ -141,6 +141,46 @@ export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
  */
 export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
 
+/**
+ * The toolbar row's HORIZONTAL arithmetic — the strip's pill budget one band
+ * down, for the same reason: 349 dp cannot hold everything a designer would
+ * like on one line, so what fits is decided by numbers a test can read.
+ *
+ * The row spends, left to right: `2 * spacing.md` of row padding, the 48 dp
+ * templates ✦ target, one `spacing.xs` gap, then the chips scroller — which
+ * gets `toolbarChipsAvailable(width)` (349 - 28 - 48 - 6 = 267 dp). Each chip
+ * spends `toolbarChipWidth(label)`: `2 * spacing.sm` of pill padding, the
+ * 15 dp icon, the 4 dp icon↔label gap, and the label's own measured width.
+ * Chips are separated by `spacing.xs` (`toolbarChipsWidth`).
+ *
+ * These constants are the ones `ComposerToolbar.tsx` binds, so the budget and
+ * the component cannot drift; `composerToolbarWidth.test.ts` measures the real
+ * labels in the real font files against them and is what proved the
+ * library-document chip had to go (research + document + notes = ~331 dp > 267
+ * on 349 — the Notes chip sat ENTIRELY outside the row).
+ */
+export const TOOLBAR_CHIP_ICON = 15;
+export const TOOLBAR_CHIP_LABEL_GAP = 4;
+
+/** What the chips scroller may use, at the given screen width. */
+export function toolbarChipsAvailable(width: number): number {
+  return width - 2 * spacing.md - MIN_TOUCH_TARGET - spacing.xs;
+}
+
+/** One chip's width from its label's measured width. */
+export function toolbarChipWidth(labelWidth: number): number {
+  return 2 * spacing.sm + TOOLBAR_CHIP_ICON + TOOLBAR_CHIP_LABEL_GAP + labelWidth;
+}
+
+/** A run of chips side by side: every chip plus the gaps between them. */
+export function toolbarChipsWidth(labelWidths: readonly number[]): number {
+  if (labelWidths.length === 0) return 0;
+  return (
+    labelWidths.reduce((sum, label) => sum + toolbarChipWidth(label), 0) +
+    spacing.xs * (labelWidths.length - 1)
+  );
+}
+
 function clamp(value: number): number {
   return value > 0 ? value : 0;
 }

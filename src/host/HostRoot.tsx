@@ -31,6 +31,7 @@ import { createConversationActions } from "./conversationActions";
 import { useHistoryHost } from "./useHistoryHost";
 import { useHistoryFlushes } from "./useHistoryFlushes";
 import { useSendHost } from "./sendHost";
+import { useMessageActions } from "./messageActions";
 import { useHostEffects } from "./useHostEffects";
 import { useNotice } from "./useNotice";
 import { composerView } from "./composerView";
@@ -169,6 +170,15 @@ export function HostRoot() {
   });
 
   const { notice, showNoticeKey } = useNotice();
+  // The long-press menu + copy chip (PARITY-STATUS gap 1): borrows the send
+  // fence, the history guard and this notice, but lives in `messageActions.ts`.
+  const messageActions = useMessageActions({
+    t,
+    sending,
+    sendHost,
+    history,
+    showNoticeKey,
+  });
 
   const view = composerView({
     messages: history.messages,
@@ -201,6 +211,7 @@ export function HostRoot() {
         onNewChatPress={() => actions.handleNewConversation()}
         flags={flags}
         arms={arms}
+        actions={messageActions}
       />
 
       <HostDrawer
