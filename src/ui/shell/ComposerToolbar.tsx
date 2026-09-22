@@ -7,13 +7,13 @@
  * stays small (~28 dp), centred in the row's real `COMPOSER_TOOLBAR_HEIGHT`
  * box; every node the finger lands on is 48 dp on both axes — never `hitSlop`.
  *
- * The library-document chip is GONE from this row — a §2.7 stub that could not
- * do its job, undiscoverable behind a scroller and inert when found (the story
- * and the arithmetic: `composerToolbarWidth.test.ts`, PARITY-STATUS). **It
- * returns with the attachment flow**; until then the composer's own attach
- * button keeps saying why (`shell.notice.attach`). What remains — templates,
- * research, notes — fits 349 dp without scrolling, which is why the row still
- * scrolls but never has to.
+ * The library-document ENTRY is not in this row — a §2.7 stub that could not
+ * do its job, undiscoverable behind a scroller and inert when found (the
+ * arithmetic: `composerToolbarWidth.test.ts` — three chips overflow 349 dp in
+ * both catalogues). The attach flow landed and the entry moved to the ATTACH
+ * SHEET (`HostAttachSheet.tsx`), where a finger looks for "attach something".
+ * What remains here — templates, research, notes — fits 349 dp without
+ * scrolling, which is why the row still scrolls but never has to.
  */
 import type React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";

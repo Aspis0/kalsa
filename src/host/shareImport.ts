@@ -1,18 +1,20 @@
 /**
  * The file half of share-in (`AppShell.tsx:3583-3637`): a shared `.txt`/`.md`
  * is read with the controller's size caps into a prefill, anything else goes
- * through the PDF import into the document library, and every failure path —
- * too large, busy, failed — serves a notice instead of a silent no-op.
+ * through the PDF import into the document library AND onto the composer's
+ * attachment rows (the controller's `setShareAttachDoc`,
+ * `AppShell.tsx:3616-3621` → `AiChatPage.tsx:3717-3722`), and every failure
+ * path — too large, busy, failed — serves a notice instead of a silent
+ * no-op.
  *
  * Every side effect arrives as a port, so the branch order and the notice
  * mapping are testable in node without `expo-file-system` or the PDF host.
  *
- * ADAPTATION, reported: the controller attached the imported PDF to the
- * composer (`setShareAttachDoc`, `AppShell.tsx:3616-3621` →
- * `AiChatPage.tsx:3717-3722`); this build has no attachment flow at all
- * (PARITY row 43 — the composer's `attachment` is always `null`), so a
- * successful import says what happened and what is held
- * (`errors.shareImportNotAttached`) rather than pretending to attach.
+ * The earlier ADAPTATION (a successful import saying
+ * `errors.shareImportNotAttached` because no attachment flow existed) is
+ * GONE with the flow itself — success is now silent, as in the controller:
+ * the library add and the attach row each report their own refusal (busy /
+ * cap) from inside their ports.
  *
  * The controller decides `instanceof SharedImportError` to pick a notice;
  * this module reads the error's `code` instead — the outcomes are identical
@@ -33,6 +35,10 @@ export interface ShareFilePorts {
   importPdf: (uri: string) => Promise<LibraryDoc>;
   /** The library's `addDocument`; `false` means it did not take. */
   addDocument: (entry: LibraryDoc) => boolean;
+  /** The composer row the imported PDF joins (the controller's
+   *  `setShareAttachDoc` → `addLibraryDocumentAttachment`); its cap and
+   *  dedupe notices are the row hook's own. */
+  attach: (entry: LibraryDoc) => void;
   /** The controller's `shareImportingRef` (`AppShell.tsx:3560`). */
   isImporting: () => boolean;
   setImporting: (busy: boolean) => void;
@@ -86,9 +92,9 @@ export async function applyShareFile(uri: string, ports: ShareFilePorts): Promis
       ports.notice("errors.shareImportBusy");
       return;
     }
-    // The import's real job (into Documents) happened; the composer attach
-    // did not exist to happen — say so instead of going quiet.
-    ports.notice("errors.shareImportNotAttached");
+    // The import's real job AND the attach both happen, as in the
+    // controller — success is silent.
+    ports.attach(entry);
   } catch (err) {
     const code =
       err && typeof err === "object" && "code" in err

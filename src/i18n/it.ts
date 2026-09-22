@@ -745,9 +745,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     shareImportFailed: "Impossibile importare il file condiviso.",
     shareImportTooLarge: "Il file condiviso è troppo grande.",
     shareImportBusy: "Qualcosa è già in corso. Riprova a condividere tra un momento.",
-    /** See `en.ts`: the import landed in Documents; the composer attach is held. */
-    shareImportNotAttached:
-      "Salvato nei Documenti. Allegare un file condiviso alla conversazione non è ancora disponibile in questa build.",
     source: "Fonte",
     searchKeyMissing: "API key mancante per {provider}. Aggiungila in Impostazioni.",
     searchKeyInvalid: "API key non valida per {provider}. Controlla Impostazioni.",
@@ -1199,7 +1196,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
      * these are the whys, as full sentences because they ride the toast).
      */
     notice: {
-      attach: "Allegare file non è ancora disponibile in questa build.",
       mic: "Il dettato non è ancora disponibile in questa build.",
       download: "Il download dei modelli non è ancora disponibile in questa build.",
       voiceDownload: "Il download del modello vocale non è ancora disponibile in questa build.",

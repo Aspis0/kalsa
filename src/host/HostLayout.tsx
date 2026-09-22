@@ -29,6 +29,7 @@ export interface HostLayoutProps {
   onNewChatPress: ChatSurfaceProps["onNewChatPress"];
   flags: ChatSurfaceProps["flags"];
   arms: ChatSurfaceProps["arms"];
+  attachments: ChatSurfaceProps["attachments"];
   /** The message-interaction bundle (menu, copy, translate, edit, read-aloud). */
   actions: ChatSurfaceProps["actions"];
   onMiniappOpen: ChatSurfaceProps["onMiniappOpen"];
@@ -62,6 +63,7 @@ export function HostLayout({
   onNewChatPress,
   flags,
   arms,
+  attachments,
   actions,
   onMiniappOpen,
   drawerOpen,
@@ -93,6 +95,9 @@ export function HostLayout({
         conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
         flags={flags}
         arms={arms}
+        attachments={attachments}
+        libraryDocs={library.library.docs ?? []}
+        onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
         actions={actions}
         onMiniappOpen={onMiniappOpen}
       />

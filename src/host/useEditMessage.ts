@@ -76,8 +76,9 @@ export function useEditMessage(params: EditMessageParams): EditMessage {
       params.showNoticeKey("chat.regenBusy");
       return;
     }
-    // This build has no attachments (PARITY D1 row 43), so an empty caption
-    // is never valid — the controller's `chat.editEmpty` (`Chat:3345-3349`).
+    // Empty caption is valid when the TARGET still carries attachments — the
+    // controller's `chat.editEmpty` rule (`Chat:3345-3349`); `planEdit`
+    // decides it (no text AND no attachments → null → the key below).
     const plan = planEdit(params.history.messagesRef.current, target.id, target.draft);
     if (!plan) {
       params.showNoticeKey(

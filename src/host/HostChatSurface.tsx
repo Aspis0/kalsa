@@ -6,7 +6,8 @@
  *
  * - the strip's model-pill tap semantics, with the missing-download path
  *   serving `shell.notice.download` (§2.7);
- * - the attach / mic stubs, which answer with their toast (§2.7);
+ * - the attach flow (sheet, pickers, PDF conversion, §2.7 chip row) and the
+ *   mic, still a stub that answers with its toast (§2.7);
  * - the send ⇄ stop wiring of §2.8's one control: `stop` while the face says
  *   stop, otherwise a send of the draft the root owns;
  * - the message menu, the edit modal and the transcript's live interactions
@@ -20,13 +21,15 @@ import { isEmbedderHung } from "../engine/EmbeddingService";
 import { getActiveModelId, isEngineReady } from "../engine/LlamaService";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
+import { PdfToImages } from "../components/PdfToImages";
+import type { LibraryDoc } from "../documents/DocumentLibrary";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View, type TextInput } from "react-native";
+import { type TextInput } from "react-native";
 import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { useLocale, type TranslationKey } from "../i18n";
-import { modes, spacing, type, type ThemeMode } from "../theme/design";
+import { modes, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
-import { bottomInsetFor, MIN_TOUCH_TARGET } from "../ui/shell/shellGeometry";
+import { bottomInsetFor } from "../ui/shell/shellGeometry";
 import { MessageMenu } from "../ui/shell/MessageMenu";
 import { EditMessageModal } from "../ui/shell/EditMessageModal";
 import { Shell } from "../ui/shell/Shell";
@@ -36,8 +39,11 @@ import type { ComposerToolbarProps } from "../ui/shell/ComposerToolbar";
 import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
 import type { ComposerArms } from "./composerArms";
 import type { ComposerView } from "./composerView";
+import { HostAttachSheet, type AttachAction } from "./HostAttachSheet";
+import { LongChatNudgeRow } from "./LongChatNudgeRow";
 import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
+import type { AttachmentsHost } from "./useAttachments";
 import type { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
 import { WelcomeBlock } from "./welcomeBlock";
@@ -72,6 +78,14 @@ export interface ChatSurfaceProps {
   flags: ToolFlags;
   /** The research/notes one-shot arms behind the toolbar chips (D1 row 14). */
   arms: ComposerArms;
+  /** The staged attachments and the pickers behind the attach control
+   *  (D1 row 43). */
+  attachments: AttachmentsHost;
+  /** The library for the sheet's document list (D1 row 43). */
+  libraryDocs: readonly LibraryDoc[];
+  /** Empty library → the controller's `onOpenDocuments` fallback
+   *  (`Chat:3664-3669`). */
+  onOpenDocuments: () => void;
   /** The long-press menu + copy chip (PARITY-STATUS gap 1): the menu's view,
    *  the press handler for the transcript and the copy both chips use. */
   actions: MessageActionsBundle;
@@ -93,6 +107,9 @@ export function HostChatSurface({
   onNewChatPress,
   flags,
   arms,
+  attachments,
+  libraryDocs,
+  onOpenDocuments,
   actions,
   onMiniappOpen,
 }: ChatSurfaceProps) {
@@ -100,6 +117,11 @@ export function HostChatSurface({
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
+  // The attach sheet and its nested document picker (the controller's
+  // `attachSheetOpen` / `docPickOpen`, `Chat:1273-1276`) — surface-local like
+  // the quick sheet, closed on a conversation change (`Chat:1889`).
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [docPickOpen, setDocPickOpen] = useState(false);
   // The field's handle: a chosen template fills the draft AND focuses the
   // field, exactly as the controller's `handleChooseTemplate` (Chat:3636-3637).
   const fieldRef = useRef<TextInput | null>(null);
@@ -155,7 +177,31 @@ export function HostChatSurface({
   }, [longChat, longChatNudgeShown]);
   useEffect(() => {
     setLongChatNudgeShown(false);
+    setAttachSheetOpen(false);
+    setDocPickOpen(false);
   }, [conversationId]);
+
+  // One row of the attach sheet: each press runs the hook's flow and closes
+  // only when the controller did (cancel and refusals keep the sheet up).
+  const handleAttachAction = (action: AttachAction) => {
+    if (action === "library" || action === "camera") {
+      void attachments.beginImagePick(action).then((close) => {
+        if (close) setAttachSheetOpen(false);
+      });
+      return;
+    }
+    if (action === "document") {
+      void attachments.beginDocumentPick().then((close) => {
+        if (close) setAttachSheetOpen(false);
+      });
+      return;
+    }
+    setAttachSheetOpen(false);
+    // The controller's `onComposerDocument` (`Chat:3662-3669`): an empty
+    // library opens Documents, a stocked one opens the picker.
+    if (libraryDocs.length === 0) onOpenDocuments();
+    else setDocPickOpen(true);
+  };
 
   // The toolbar's chips arm the NEXT send (one-shot; the arms clear on send,
   // on an emptied draft and on conversation change — `composerArms.ts`). The
@@ -166,11 +212,10 @@ export function HostChatSurface({
     onResearchPress: arms.toggleResearch,
     notesActive: arms.notes,
     onNotesPress: arms.toggleNotes,
-    // The library-document chip is GONE from the row (it could not do its job
-    // without the attachment flow — see `ComposerToolbar.tsx`'s header). The
-    // attach BUTTON still carries the same hold sentence
-    // (`shell.notice.attach`), which is why that key stays.
-    disabled: view.composer.face !== "send",
+    // The library-document ENTRY moved to the attach sheet (the row cannot
+    // hold a third chip — `composerToolbarWidth.test.ts`); the machine still
+    // gates what is here, now including a live PDF conversion.
+    disabled: view.composer.face !== "send" || attachments.converting !== null,
   };
   // Nothing shows until the history load has settled; then, on an empty
   // conversation, the welcome block rides INSIDE the transcript's own
@@ -199,61 +244,38 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={onModelPress}
       onNewChatPress={onNewChatPress}
-      onAttachPress={() => showNoticeKey("shell.notice.attach")}
+      onAttachPress={() => setAttachSheetOpen(true)}
+      attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       fieldRef={fieldRef}
       webEnabled={flags.webToolsEnabled}
       onWebPress={flags.toggleWebTools}
       toolbar={toolbar}
+      attachments={{
+        chips: view.attachmentChips,
+        onRemove: attachments.removeIndex,
+        // The controller's `PdfToImages` mount (`Chat:4174-4185`), keyed on
+        // the URI so a re-selection never reuses a finished conversion.
+        job: attachments.converting ? (
+          <PdfToImages
+            key={attachments.converting.uri}
+            pdfUri={attachments.converting.uri}
+            onPage={attachments.pdf.onPage}
+            onDone={attachments.pdf.onDone}
+            onError={attachments.pdf.onError}
+          />
+        ) : undefined,
+      }}
       onSendPress={() => {
         if (view.composer.face === "stop") sendHost.stop();
         else void sendHost.send(draft);
       }}
     >
-      {/* The long-chat nudge row (controller `Chat:3987-4006`): dot, sentence,
-          "New chat" — whose press is the controller's own action
-          (`clearChat` there, the new-conversation action here, which also
-          resets the latch through the id change). The action is a real
-          `MIN_TOUCH_TARGET` box, not the controller's `hitSlop={8}`. */}
+      {/* The long-chat nudge (controller `Chat:3987-4006`): the row is
+          `LongChatNudgeRow.tsx` — cut out so the attach sheet could land
+          under this file's ratchet; the latch stays here. */}
       {longChat && longChatNudgeShown ? (
-        <View
-          testID="transcript.longChatNudge"
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginHorizontal: spacing.md,
-            marginTop: spacing.sm,
-            padding: spacing.sm + 2,
-            backgroundColor: `${colors.accent}1f`,
-            borderRadius: 12,
-          }}
-        >
-          <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: colors.accent }} />
-          <Text numberOfLines={2} style={[type.meta, { flex: 1, color: colors.ink }]}>
-            {t("chat.longChatNudge")}
-          </Text>
-          <Pressable
-            testID="transcript.longChatNudge.newChat"
-            accessibilityRole="button"
-            accessibilityLabel={t("chat.a11yNewChat")}
-            onPress={onNewChatPress}
-            style={({ pressed }) => [
-              {
-                minHeight: MIN_TOUCH_TARGET,
-                minWidth: MIN_TOUCH_TARGET,
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: spacing.sm,
-              },
-              { opacity: pressed ? 0.7 : 1 },
-            ]}
-          >
-            <Text style={[type.meta, { color: colors.silence }]}>
-              {t("chat.longChatNudgeAction")}
-            </Text>
-          </Pressable>
-        </View>
+        <LongChatNudgeRow colors={colors} onNewChatPress={onNewChatPress} />
       ) : null}
       <Transcript
         insets={bandInsets}
@@ -303,6 +325,23 @@ export function HostChatSurface({
       onChange={actions.onEditDraftChange}
       onSubmit={actions.onEditSubmit}
       onClose={actions.onEditClose}
+    />
+    {/* The controller's attach sheet and nested document picker
+        (`AiChatPage.tsx:4584-4663`), one component over row data. */}
+    <HostAttachSheet
+      open={attachSheetOpen ? "actions" : docPickOpen ? "documents" : null}
+      colors={colors}
+      docs={libraryDocs}
+      onAction={handleAttachAction}
+      onDocumentPick={(doc) => {
+        attachments.addLibraryDocumentRow(doc);
+        setDocPickOpen(false);
+        setAttachSheetOpen(false);
+      }}
+      onClose={() => {
+        setAttachSheetOpen(false);
+        setDocPickOpen(false);
+      }}
     />
     </>
   );

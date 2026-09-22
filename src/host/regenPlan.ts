@@ -6,17 +6,20 @@
  *
  * The rule: keep the messages BEFORE the target user turn, drop the target
  * user turn and EVERYTHING after it (the assistant answer being replaced and
- * any turns that followed it), then `send` re-appends the user text — with
- * `edited: false`-absent for a regenerate (never badged as edited) and
- * `edited: true` for an edit save.
+ * any turns that followed it), then `send` re-appends the user text WITH the
+ * target's own attachments (the controller passed `target.attachments` to
+ * `handleSendTracked`, `Chat:3412`) — with `edited: false`-absent for a
+ * regenerate (never badged as edited) and `edited: true` for an edit save.
  *
  * Each plan returns null when the controller showed `chat.regenFailed` and
  * did nothing: no such message, wrong role, no preceding user turn
- * (`findRegenTarget`), or a target whose text `send()` would refuse anyway —
- * decided HERE so the refusal happens before the truncate, not after it.
+ * (`findRegenTarget`), or a target `send()` would refuse anyway — no text
+ * AND no attachments (an attachment-only turn may be resent empty, the
+ * controller's `editHasAttachments`, `Chat:3345-3349`) — decided HERE so the
+ * refusal happens before the truncate, not after it.
  */
 import { findRegenTarget } from "../screens/regenTarget";
-import type { Message } from "./hostMessage";
+import type { LocalAttachment, Message } from "./hostMessage";
 
 export type RegenPlan = {
   /** The answer being replaced. */
@@ -24,6 +27,8 @@ export type RegenPlan = {
   /** The user turn it answers, which is also re-sent. */
   userId: string;
   text: string;
+  /** The target turn's attachments, re-sent with it (controller `Chat:3412`). */
+  attachments: LocalAttachment[] | undefined;
   /** History BEFORE the target user turn — the truncate target. */
   base: Message[];
 };
@@ -40,15 +45,19 @@ export function planRegenerate(
   if (!anchor || anchor.role !== "assistant") return null;
   const target = findRegenTarget(messages, assistantId);
   if (!target) return null;
-  // `send`'s own first gate is a non-empty trimmed draft; failing here keeps
-  // the truncate from ever happening for a send that would refuse.
-  if (!target.text.trim()) return null;
   const index = messages.findIndex((message) => message.id === target.id);
   if (index < 0) return null;
+  const targetMessage = messages[index];
+  const attachments = targetMessage.attachments;
+  // `send`'s own first gate is (non-empty trimmed text OR attachments);
+  // failing here keeps the truncate from ever happening for a send that
+  // would refuse.
+  if (!target.text.trim() && !(attachments?.length)) return null;
   return {
     assistantId,
     userId: target.id,
     text: target.text,
+    attachments,
     base: messages.slice(0, index),
   };
 }
@@ -60,6 +69,8 @@ export function planRegenerate(
 export type EditPlan = {
   userId: string;
   text: string;
+  /** The target turn's attachments, re-sent with it (controller `Chat:3412`). */
+  attachments: LocalAttachment[] | undefined;
   base: Message[];
 };
 
@@ -73,9 +84,12 @@ export function planEdit(
   // The role check: only a user bubble may anchor an edit, so a mis-targeted
   // id (an answer) can never truncate history from the wrong side.
   if (messages[index].role !== "user") return null;
-  // `send`'s own first gate is a non-empty trimmed draft; failing here keeps
-  // the truncate from ever happening for a send that would refuse.
+  const attachments = messages[index].attachments;
+  // `send`'s own first gate is (non-empty trimmed text OR attachments);
+  // failing here keeps the truncate from ever happening for a send that
+  // would refuse. Empty caption is valid when attachments remain — the
+  // controller's `editHasAttachments` (`Chat:3345-3349`).
   const text = newText.trim();
-  if (!text) return null;
-  return { userId, text, base: messages.slice(0, index) };
+  if (!text && !(attachments?.length)) return null;
+  return { userId, text, attachments, base: messages.slice(0, index) };
 }

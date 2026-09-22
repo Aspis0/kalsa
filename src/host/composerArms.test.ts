@@ -120,16 +120,17 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     expect(SURFACE).toMatch(/disabled: view\.composer\.face !== "send"/);
   });
 
-  it("the library-document chip is GONE, and the attach button keeps the hold sentence", () => {
+  it("the library-document ENTRY moved to the attach sheet; the attach button opens it", () => {
     // BEFORE this slice the toolbar carried the document chip as a §2.7 stub
-    // whose press fired `shell.notice.attach`; the chip was REMOVED (clipped by
-    // 349 dp's right edge, inert without the attachment flow). Two halves still
-    // hold:
+    // whose press fired `shell.notice.attach`, then the chip was REMOVED (it
+    // clipped 349 dp's right edge and did nothing without the flow). The
+    // attach flow landed and the entry found its door in the ATTACH SHEET
+    // (`HostAttachSheet.tsx` — the row cannot hold a third chip,
+    // `composerToolbarWidth.test.ts`); the attach BUTTON opens that sheet:
     expect(SURFACE).not.toMatch(/onDocumentPress/);
-    // the key still has a real user — the composer's own attach button:
-    expect(SURFACE).toMatch(
-      /onAttachPress=\{\(\) => showNoticeKey\("shell\.notice\.attach"\)\}/,
-    );
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    // the stub key was deleted with its last user:
+    expect(SURFACE).not.toContain("shell.notice.attach");
   });
 });
 

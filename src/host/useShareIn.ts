@@ -13,11 +13,14 @@
  *   the merge effect's dependencies change even for identical text and the
  *   same passage shared twice appends twice.
  * - NOTICES: the file half's busy / too-large / failed paths each serve the
- *   one-slot notice (`shareImport.ts`); text payloads need none.
+ *   one-slot notice (`shareImport.ts`); text payloads need none;
+ * - ATTACH: a shared PDF lands in Documents AND in the composer's rows —
+ *   the controller's `setShareAttachDoc` (`AppShell.tsx:3616-3621` →
+ *   `AiChatPage.tsx:3717-3722`), whose row hook owns the cap and dedupe.
  *
- * The root passes ports only — state it owns (draft, drawer, notice) and the
- * library's `addDocument` — so this hook holds no state of its own beyond
- * the gate, the import flag and the pending prefill.
+ * The root passes ports only — state it owns (draft, drawer, notice), the
+ * library's `addDocument`, and the attach row — so this hook holds no state
+ * of its own beyond the gate, the import flag and the pending prefill.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking } from "react-native";
@@ -43,10 +46,13 @@ export interface ShareInParams {
   setDrawerOpen: (open: boolean) => void;
   showNoticeKey: (key: TranslationKey) => void;
   addDocument: (entry: LibraryDoc) => boolean;
+  /** The composer row a successfully imported shared PDF joins (the
+   *  controller's attach effect, `Chat:3717-3722`). */
+  attachDocument: (doc: { id: string; name: string }) => boolean;
 }
 
 export function useShareIn(params: ShareInParams): void {
-  const { conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument } = params;
+  const { conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument, attachDocument } = params;
   const [gate] = useState(createShareGate);
   const importingRef = useRef(false);
   const [prefill, setPrefill] = useState<SharePrefill | null>(null);
@@ -69,6 +75,7 @@ export function useShareIn(params: ShareInParams): void {
         readText: (uri) => FileSystem.readAsStringAsync(uri),
         importPdf: (uri) => importSharedPdf(uri),
         addDocument,
+        attach: (entry) => attachDocument({ id: entry.id, name: entry.name }),
         isImporting: () => importingRef.current,
         setImporting: (busy) => {
           importingRef.current = busy;
@@ -77,7 +84,7 @@ export function useShareIn(params: ShareInParams): void {
         prefill: (text) => setPrefill((previous) => recordSharePrefill(previous, text)),
       });
     },
-    [addDocument, setDrawerOpen, showNoticeKey],
+    [addDocument, attachDocument, setDrawerOpen, showNoticeKey],
   );
 
   useEffect(() => {

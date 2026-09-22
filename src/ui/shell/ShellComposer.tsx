@@ -32,6 +32,10 @@ export interface ShellComposerProps {
   faceEnabled: boolean;
   sendEnabled: boolean;
   onAttachPress?: () => void;
+  /** False while the machine refuses an attach (the controller's
+   *  `attachDisabled = sending || voiceBlocksComposer || pdfBlocked`,
+   *  `AiChatPage.tsx:4810`): disabled means no press, not an inert face. */
+  attachDisabled?: boolean;
   onMicPress?: () => void;
   onSendPress?: () => void;
   /** The host's handle on the field, filled here — so a chosen template can
@@ -55,6 +59,7 @@ export function ShellComposer({
   onMicPress,
   onSendPress,
   fieldRef,
+  attachDisabled = false,
 }: ShellComposerProps) {
   const { t } = useLocale();
   const styles = useMemo(() => createShellStyles(colors), [colors]);
@@ -70,8 +75,10 @@ export function ShellComposer({
           testID="shell.composer.attach"
           accessibilityRole="button"
           accessibilityLabel={t("shell.a11y.attach")}
+          accessibilityState={{ disabled: attachDisabled }}
           onPress={onAttachPress}
-          style={styles.fieldIcon}
+          disabled={attachDisabled}
+          style={[styles.fieldIcon, attachDisabled ? { opacity: 0.45 } : null]}
         >
           <Plus size={19} color={colors.silence} strokeWidth={1.9} />
         </Pressable>

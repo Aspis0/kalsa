@@ -96,18 +96,17 @@ describe("the machine gates the chips, and the document chip is really gone (§2
     expect(SURFACE_CODE).toMatch(/disabled: view\.composer\.face !== "send"/);
   });
 
-  it("the document chip and its stub press are gone; the attach BUTTON keeps the hold", () => {
-    // BEFORE (this test asserted the opposite): the chip pressed into
-    // `shell.notice.attach` — a control that fired a toast it could not act
-    // on. Now:
+  it("the document chip stays out of the row; the attach BUTTON opens the sheet", () => {
+    // BEFORE: the chip pressed into `shell.notice.attach` — a control that
+    // fired a toast it could not act on — then the chip left the row. The
+    // attach flow landed; the chip's ENTRY is now a row of the attach sheet
+    // (`HostAttachSheet.tsx`), and the attach button opens that sheet:
     expect(CODE).not.toContain("shell.composer.document");
     expect(CODE).not.toContain("chat.libraryDocument");
     expect(SURFACE_CODE).not.toContain("onDocumentPress");
-    // The key itself survives with its real user — the composer's attach
-    // button (the owner's instruction: `shell.notice.attach` stays).
-    expect(SURFACE_CODE).toMatch(
-      /onAttachPress=\{\(\) => showNoticeKey\("shell\.notice\.attach"\)\}/,
-    );
+    expect(SURFACE_CODE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    // the stub key died with its last user (deleted from both catalogues):
+    expect(SURFACE_CODE).not.toContain("shell.notice.attach");
   });
 });
 

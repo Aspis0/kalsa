@@ -86,6 +86,15 @@ export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
 export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
 
 /**
+ * The composer's attachment-chip row (`ComposerAttachments.tsx`): drawn
+ * OUTSIDE the three bands like the toolbar — Shell.tsx adds it to
+ * `extraRows` only while chips or a conversion exist, so an empty composer
+ * pays nothing. 48 dp is the remove box's own size, so one row holds chips
+ * AND their finger targets without a second number.
+ */
+export const COMPOSER_ATTACHMENTS_HEIGHT = MIN_TOUCH_TARGET;
+
+/**
  * The toolbar row's horizontal arithmetic: 349 dp cannot hold everything on one
  * line, so what fits is decided by numbers a test can read. The row spends
  * `2 * spacing.md` padding, the 48 dp ✦ target, one `spacing.xs` gap, then the

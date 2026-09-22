@@ -20,9 +20,11 @@ import { Pressable, Text, View, useWindowDimensions, type TextInput } from "reac
 
 import { useLocale, type TranslationKey } from "../../i18n";
 import { modes, type, type ThemeMode } from "../../theme/design";
+import { ComposerAttachments, type ComposerAttachmentsProps } from "./ComposerAttachments";
 import { ComposerToolbar, type ComposerToolbarProps } from "./ComposerToolbar";
 import { ShellComposer } from "./ShellComposer";
 import {
+  COMPOSER_ATTACHMENTS_HEIGHT,
   COMPOSER_TOOLBAR_HEIGHT,
   SHELL_NOTICE_HEIGHT,
   STRIP_CHEVRON_SIZE,
@@ -84,6 +86,8 @@ export type ShellProps = {
   webEnabled?: boolean;
   onWebPress?: () => void;
   onAttachPress?: () => void;
+  /** False while the machine refuses an attach (controller `Chat:4810`). */
+  attachDisabled?: boolean;
   onMicPress?: () => void;
   onSendPress?: () => void;
   /** The host's handle on the field, handed straight to the composer — focus
@@ -97,6 +101,15 @@ export type ShellProps = {
    * other extra rows and draws it between the hold line and the field.
    */
   toolbar?: ComposerToolbarProps;
+  /**
+   * The staged attachments (D1 row 43): §2.7's chip row plus the live PDF
+   * conversion's status line, drawn BELOW the toolbar (the controller put
+   * its thumbnail strip below its context chips, `AiChatPage.tsx:4238+`) and
+   * costing one 48 dp row out of the bands ONLY while something is staged.
+   * `colors` is the shell's own, added on render — a caller that passed one
+   * would be describing a different palette than the band it sits in.
+   */
+  attachments?: Omit<ComposerAttachmentsProps, "colors">;
 };
 
 export function Shell({
@@ -124,10 +137,12 @@ export function Shell({
   webEnabled = true,
   onWebPress,
   onAttachPress,
+  attachDisabled = false,
   onMicPress,
   onSendPress,
   fieldRef,
   toolbar,
+  attachments,
 }: ShellProps) {
   const { t } = useLocale();
   const window = useWindowDimensions();
@@ -135,10 +150,13 @@ export function Shell({
   const styles = useMemo(() => createShellStyles(colors), [colors]);
   // The notice and the hold line are rows of their own, so they come out of
   // the height the bands partition rather than being drawn over the transcript.
+  const attachmentsRowVisible =
+    attachments !== undefined && (attachments.job !== undefined || attachments.chips.length > 0);
   const extraRows =
     (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT) +
     (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT) +
-    (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT);
+    (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT) +
+    (attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0);
   const layoutHeight = (height ?? window.height) - extraRows;
   // One combined inset for BOTH uses: the geometry partitions with it and the
   // composer's bottom offset anchors to it. Computing them separately anchors
@@ -287,6 +305,10 @@ export function Shell({
 
       {toolbar === undefined ? null : <ComposerToolbar {...toolbar} colors={colors} />}
 
+      {attachmentsRowVisible && attachments ? (
+        <ComposerAttachments {...attachments} colors={colors} />
+      ) : null}
+
       <ShellComposer
         height={geometry.composer.height}
         bottomOffset={layoutInsets.bottom}
@@ -300,6 +322,7 @@ export function Shell({
         faceEnabled={faceEnabled}
         sendEnabled={sendEnabled}
         onAttachPress={onAttachPress}
+        attachDisabled={attachDisabled}
         onMicPress={onMicPress}
         onSendPress={onSendPress}
         fieldRef={fieldRef}

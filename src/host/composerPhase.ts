@@ -29,6 +29,10 @@ export interface ComposerPhaseInput {
   modelState: ModelPipelineState;
   /** The engine holds this very model (isEngineReady + active match). */
   engineResident: boolean;
+  /** A picked PDF is still being read into pages (the composer's own phase —
+   *  the controller's `!pdfToRender` in `canSend`, `Chat:3620`, as a row of
+   *  the table with its own hold line). */
+  converting?: boolean;
 }
 
 export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
@@ -38,6 +42,11 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
     if (!input.hasTokens) return "prefill";
     return input.statusLabel === input.thinkingStatus ? "thinking" : "writing";
   }
+  // A conversion is the composer's own wait: it outranks the model's pipeline
+  // because it refuses THIS send (the rows are not ready), which is what the
+  // hold line must say. It cannot coexist with `sending` — the attach control
+  // is disabled while the face says stop, so no conversion starts mid-run.
+  if (input.converting) return "converting";
   // Idle-side order: settle history first (the first renders of a switch are
   // not "ready"), then the model's own pipeline. "missing" and "error" are
   // both "not loaded" for the composer — the strip pill's tap is the way out.

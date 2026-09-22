@@ -161,8 +161,27 @@ export function composerState(input: ComposerInput): ComposerState {
     faceLabel: FACE_LABELS[rule.face],
     faceEnabled: rule.face === "stop" ? true : rule.hold === null,
     fieldLabel: FIELD_LABEL_KEY,
-    attachment: name === "" ? null : { key: "shell.composer.attachment", params: { name } },
+    attachment: attachmentView(name),
   };
+}
+
+/** One chip per attached file, from the SAME shape `composerState` puts on
+ *  its single `attachment` — the host maps the composer's rows through this
+ *  so the chip row can never draw a parallel shape (§2.7: a label with the
+ *  name inside it, never the bare filename). Blank names are dropped, as
+ *  `composerState` drops them from the single field. */
+export function attachmentViews(names: readonly string[]): AttachmentView[] {
+  const views: AttachmentView[] = [];
+  for (const raw of names) {
+    const view = attachmentView(typeof raw === "string" ? raw : "");
+    if (view) views.push(view);
+  }
+  return views;
+}
+
+function attachmentView(name: string): AttachmentView | null {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  return trimmed === "" ? null : { key: "shell.composer.attachment", params: { name: trimmed } };
 }
 
 /**

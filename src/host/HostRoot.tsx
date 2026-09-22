@@ -15,8 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendingInFlightRef } from "../engine/regenState";
 import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
 import { useLocale } from "../i18n";
-import { useHostTurnRefs } from "./turnRefs";
+import { useHostTurnRefs, type TouchedRef } from "./turnRefs";
 import { useComposerArms } from "./composerArms";
+import { useToolCapture } from "./toolCapture";
 import { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
 import { useMemoryHost } from "./memoryHost";
@@ -30,6 +31,7 @@ import { useSendHost } from "./sendHost";
 import { useMessageActions } from "./messageActions";
 import { useHostEffects } from "./useHostEffects";
 import { useNotice } from "./useNotice";
+import { useAttachments } from "./useAttachments";
 import { useShareIn } from "./useShareIn";
 import { composerView } from "./composerView";
 import { shareConversation } from "./shareConversation";
@@ -53,10 +55,11 @@ export function HostRoot() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<HostOverlay>(null);
   const [draft, setDraft] = useState("");
-  const [toolsById, setToolsById] = useState<ReadonlyMap<string, { name: string }[]>>(new Map());
-  /** The research/notes one-shot arms (D1 row 14): beside the draft they
-   *  clear with, read by `sendHost` through their refs. */
-  const arms = useComposerArms(draft);
+  // The volatile tool rows (D1 row 23) — state + handlers in `toolCapture.ts`,
+  // a seam cut so the attach flow could land under the root's line budget.
+  const { toolsById, onToolCapture, clearTools } = useToolCapture();
+  /** The research/notes one-shot arms (D1 row 14) — beside the draft they
+   *  clear with; `sendHost` reads them through their refs. */  const arms = useComposerArms(draft);
 
   const flags = useToolFlags();
   const memory = useMemoryHost();
@@ -78,18 +81,22 @@ export function HostRoot() {
     library,
   });
 
+  // One-slot notice first: the attach flow's picker refusals speak through it.
+  const { notice, showNotice, showNoticeKey } = useNotice();
+  // The attach flow (D1 row 43): the rows, the live PDF conversion, the pickers.
+  const attachments = useAttachments({ t, locale, showNotice, addDocument: library.addDocument, visionCapable: () => Boolean(modelHost.currentModel.mmproj) });
+
   const handleConversationEnter = useCallback(() => {
     setDraft("");
-    setToolsById(new Map());
-    // Entering a conversation drops both arms.
+    clearTools();
+    // Entering drops both arms AND the staged rows (controller `Chat:1887-1892`).
     arms.clear();
+    attachments.clear();
   }, []);
-  const onTouched = useCallback(
-    (meta: { title: string; preview: string; searchBlob: string }) => {
-      touchedRef.current?.(meta);
-    },
-    [],
-  );
+  // Typed as the ref's own shape so the callback stays one line (ratchet).
+  const onTouched = useCallback<NonNullable<TouchedRef["current"]>>((meta) => {
+    touchedRef.current?.(meta);
+  }, []);
   const history = useHistoryHost({
     t,
     locale,
@@ -113,20 +120,11 @@ export function HostRoot() {
   });
   touchedRef.current = actions.handleConversationTouched;
 
-  const onToolCapture = useCallback((assistantId: string, name: string) => {
-    setToolsById((prev) => {
-      const rows = prev.get(assistantId) ?? [];
-      return new Map(prev).set(assistantId, [...rows, { name }]);
-    });
-  }, []);
   const clearDraft = useCallback(() => setDraft(""), []);
-  const clearTools = useCallback(() => setToolsById(new Map()), []);
 
-  const { notice, showNotice, showNoticeKey } = useNotice();
-  // Share-in (D1 row 41): the Linking listener, the pending flush and the
-  // nonce merge live in one hook — this call is ports only (draft, drawer,
-  // notice, library).
-  useShareIn({ conversationsReady: conv.conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument: library.addDocument });
+  // Share-in (D1 row 41): listener, pending flush, nonce merge — one hook,
+  // ports only, now including the attach row a shared PDF lands in.
+  useShareIn({ conversationsReady: conv.conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument: library.addDocument, attachDocument: attachments.addLibraryDocumentRow });
   const sendHost = useSendHost({
     t,
     fence,
@@ -142,6 +140,8 @@ export function HostRoot() {
     draft,
     showNoticeKey,
     arms,
+    attachments,
+    visionCapable: Boolean(modelHost.currentModel.mmproj),
   });
 
   useHistoryFlushes({
@@ -171,11 +171,9 @@ export function HostRoot() {
     clearTools,
   });
 
-  // The message interactions (PARITY-STATUS gap 1): the long-press menu, the
-  // copy chip, translate, edit-then-resend and read-aloud. They borrow the
-  // send fence, the history guard and this notice; the live pieces they need
-  // (the conversation to drop work on, the TTS preference the scan read) are
-  // ports, the implementations live in `messageActions.ts` and its files.
+  // The message interactions (PARITY-STATUS gap 1): the long-press menu,
+  // copy, translate, edit-then-resend, read-aloud — implementations in
+  // `messageActions.ts` and its files, live pieces here as ports.
   const messageActions = useMessageActions({
     t,
     locale,
@@ -197,13 +195,14 @@ export function HostRoot() {
     sending,
     stopping: sendHost.stopRequestedRef.current,
     hasTokens: sendHost.hasTokensRef.current,
-    // The controller's `canSend` also refuses while a translate holds the
-    // engine (`Chat:3605`); the face dims here, the send itself refuses in
-    // `sendHost.send`.
+    // Translate holds the engine (`Chat:3605`): the face dims here, the
+    // send itself refuses in `sendHost.send`.
     translating: messageActions.translating,
     modelState: modelHost.modelState,
     engineResident:
       isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
+    attachments: attachments.items,
+    converting: attachments.converting !== null,
   });
 
   const size = { top: insets.top, bottom: insets.bottom };
@@ -221,6 +220,7 @@ export function HostRoot() {
       onNewChatPress={() => actions.handleNewConversation()}
       flags={flags}
       arms={arms}
+      attachments={attachments}
       actions={messageActions}
       onMiniappOpen={(miniapp) => setActiveOverlay((previous) => withMiniappOverlay(previous, miniapp))}
       drawerOpen={drawerOpen}

@@ -5,14 +5,21 @@
  * `src/host/{turnGuards,sendStream,historyWrite}.ts` and their tests (D2
  * rows 1, 3, 4, 5, 6, 11).
  *
- * What is NOT here (reported): the doc-hint composition (attachments are
- * held in this slice), the voice/PDF busy guards, the chat-side pre-send fit
- * gate (the load path runs the same gate) and the OS thermal gate (it arrives
- * as the `tooHot` composer phase). The translate guard IS here — a translate
- * holds the engine and refuses a send, as the controller did (`Chat:2233`).
+ * What is NOT here (reported): the voice busy guard and the PDF-conversion
+ * re-entry guard (this host's equivalents are the composer phase and the
+ * attach flow's own flag), the chat-side pre-send fit gate (the load path
+ * runs the same gate) and the OS thermal gate (it arrives as the `tooHot`
+ * composer phase). The translate guard IS here — a translate holds the
+ * engine and refuses a send, as the controller did (`Chat:2233`).
+ *
+ * The attachment half arrives through seams beside this file (which sits AT
+ * its 350-line ratchet and may only shed weight): snapshot/clear ride
+ * `params.attachments`, the composition is `sendComposition.ts`, the
+ * outcomes `sendOutcomes.ts`, the adapter `sendEngineAdapter.ts`, the stop
+ * closure `sendStop.createStopHandler`.
  */
 import { useRef } from "react";
-import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
+import { hasDeepResearchTrigger } from "../research/plan";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import {
   regenHandleSendPassRef,
@@ -22,17 +29,18 @@ import {
 } from "../engine/regenState";
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
 import { classifyChatContent } from "../domain/contentFilter";
-import { runSendStream, type SendEngine, type SendUiHandlers } from "./sendStream";
+import { runSendStream, type SendUiHandlers } from "./sendStream";
 import { armsSendOptions } from "./composerArms";
 import { sendClearsDraft } from "./sendDraft";
+import { composeSendText } from "./sendComposition";
 import { contentFilterMessage } from "./contentFilterCopy";
-import { handleSendStream } from "./engineTurn";
-import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
+import type { EngineTurnDeps } from "./engineTurnDeps";
 import { createRichCallbacks } from "./sendCallbacks";
-import { finalizeAssistantTurn } from "./sendFinalize";
-import { handleStop, type StopDeps } from "./sendStop";
+import { createSendEngine } from "./sendEngineAdapter";
+import { applySendOutcome } from "./sendOutcomes";
+import { createStopHandler } from "./sendStop";
 import { runBenchTurn } from "./benchTurn";
-import { nextMsgId, type Message } from "./hostMessage";
+import { nextMsgId, type LocalAttachment, type Message } from "./hostMessage";
 import { translationInFlightRef } from "./translateState";
 import type { TranslateFn, TranslationKey } from "../i18n";
 import type { TurnFence, TurnToken } from "./turnGuards";
@@ -66,11 +74,24 @@ export interface SendHostParams {
     notesRef: { current: boolean };
     clear: () => void;
   };
+  /** The composer's attachment rows (D1 row 43): snapshotted at send time;
+   *  cleared when THIS send consumed them — a foreign send (card, edit,
+   *  regenerate) never eats staged rows, the `sendDraft.ts` doctrine applied
+   *  to rows (the controller cleared unconditionally, `Chat:2420,2525`). */
+  attachments: { itemsRef: { current: readonly LocalAttachment[] }; clear: () => void };
+  /** `Boolean(currentModel.mmproj)` — where the send's vision notices decide. */
+  visionCapable: boolean;
 }
 
 export interface SendHost {
-  /** `opts.edited` badges the re-sent user bubble (edit-then-resend). */
-  send: (text: string, opts?: { edited?: boolean }) => Promise<void>;
+  /** `opts.edited` badges the re-sent user bubble (edit-then-resend);
+   *  `attachments` is a FOREIGN attachment set (edit/regenerate re-send the
+   *  target's own) — absent means "consume the composer's rows". */
+  send: (
+    text: string,
+    opts?: { edited?: boolean },
+    attachments?: readonly LocalAttachment[],
+  ) => Promise<void>;
   stop: () => void;
   sendingRef: { current: boolean };
   abortRef: { current: AbortController | null };
@@ -104,14 +125,20 @@ export function useSendHost(params: SendHostParams): SendHost {
     params.onSendingChange(false);
   };
 
-  const send = async (text: string, opts?: { edited?: boolean }): Promise<void> => {
+  const send = async (
+    text: string,
+    opts?: { edited?: boolean },
+    attachments?: readonly LocalAttachment[],
+  ): Promise<void> => {
     const trimmed = text.trim();
-    // The synchronous claim check (old controller minus the voice / PDF busy
-    // flags this host does not have; the translate flag this host DOES have —
-    // translate ships with its system): empty draft, claim or sending held,
-    // a translate holding the engine, history settled.
+    // The claim check (old controller minus the voice/PDF busy flags this
+    // host does not have; the translate flag it DOES have): nothing to send
+    // means no text AND nothing attached — an attachment-only send IS a send
+    // (controller `Chat:3676`). Foreign callers (edit/regenerate) hand their
+    // own attachments; the face, a card or the welcome block consume rows.
+    const staged = attachments ?? params.attachments.itemsRef.current;
     if (
-      !trimmed ||
+      (!trimmed && staged.length === 0) ||
       sendClaimRef.current ||
       sendingRef.current ||
       translationInFlightRef.current ||
@@ -134,6 +161,13 @@ export function useSendHost(params: SendHostParams): SendHost {
     try {
       if (await runBenchTurn(fence, token, trimmed, params)) return;
 
+      // Snapshot the attachment rows at send time (controller `Chat:2437`):
+      // the array stamped on the user message and handed to the engine half
+      // is frozen here, after every early return above.
+      const snapshot = staged.slice();
+      const consumedComposerRows = attachments === undefined;
+      const stamped = snapshot.length > 0 ? snapshot : undefined;
+
       // Pre-send content gate — blocking categories never reach the model;
       // the localized decline becomes the assistant's message.
       const classification = classifyChatContent(trimmed);
@@ -144,7 +178,7 @@ export function useSendHost(params: SendHostParams): SendHost {
         params.setMessages((prev) =>
           fence.apply(token, prev, (state) => [
             ...state,
-            { id: userMsgId, role: "user", text: trimmed, createdAt: now, ...(opts?.edited ? { edited: true } : {}) },
+            { id: userMsgId, role: "user", text: trimmed, createdAt: now, attachments: stamped, ...(opts?.edited ? { edited: true } : {}) },
             {
               id: assistantId,
               role: "assistant",
@@ -154,6 +188,9 @@ export function useSendHost(params: SendHostParams): SendHost {
             },
           ]),
         );
+        // The controller cleared the rows on the refused send too
+        // (`setAttachedItems([])`, `Chat:2420`) — consumed rows only.
+        if (consumedComposerRows) params.attachments.clear();
         if (sendClearsDraft(params.draft, trimmed)) params.clearDraft();
         return;
       }
@@ -170,12 +207,22 @@ export function useSendHost(params: SendHostParams): SendHost {
       if (params.arms.researchRef.current || params.arms.notesRef.current) {
         params.arms.clear();
       }
-      const modelText = useResearch ? stripDeepResearchTrigger(trimmed) || trimmed : trimmed;
+      // The doc-hint annotation, the empty-caption fallback and this send's
+      // ONE notice live in `sendComposition.ts` (controller `Chat:2438-2477`).
+      const composition = composeSendText({
+        trimmed,
+        attachments: snapshot,
+        research: useResearch,
+        visionCapable: params.visionCapable,
+        attachedFileLabel: t("chat.lookAtAttachedFile"),
+      });
+      if (composition.notice) params.showNoticeKey(composition.notice);
+      const modelText = composition.modelText;
 
       params.setMessages((prev) =>
         fence.apply(token, prev, (state) => [
           ...state,
-          { id: userMsgId, role: "user", text: trimmed, createdAt: now, ...(opts?.edited ? { edited: true } : {}) },
+          { id: userMsgId, role: "user", text: trimmed, createdAt: now, attachments: stamped, ...(opts?.edited ? { edited: true } : {}) },
           {
             id: assistantId,
             role: "assistant",
@@ -190,6 +237,9 @@ export function useSendHost(params: SendHostParams): SendHost {
         ]),
       );
       if (sendClearsDraft(params.draft, trimmed)) params.clearDraft();
+      // Rows clear only when THIS send consumed them (the controller cleared
+      // them on every append, `Chat:2525`; a foreign send keeps staged rows).
+      if (consumedComposerRows) params.attachments.clear();
 
       // ~30 fps UI flush: llama.rn is 5-15 tok/s; setState every token is
       // wasteful. The coalescer overwrites with the latest full text.
@@ -215,31 +265,9 @@ export function useSendHost(params: SendHostParams): SendHost {
       });
       // The history handed to assembly is the PRE-append snapshot: the just-
       // sent turn is appended by the engine half itself and must not be
-      // double-counted here.
-      const engine: SendEngine = (request, emit, signal) =>
-        handleSendStream(
-          engineDeps,
-          request.text,
-          {
-            ...rich.callbacks,
-            onDelta: (delta, full) => emit.onDelta(delta, full),
-            onFailed: (reasonKey) => emit.onFailed?.(reasonKey),
-            // Sources ride the emit path so the run layer drops them after
-            // the terminal result; the rich copy is not called twice.
-            onSources: (sources) => emit.onSources?.(sources),
-          } as EngineTurnCallbacks,
-          signal,
-          undefined,
-          request.history as unknown[] | undefined,
-          undefined,
-          request.options
-            ? {
-                research: request.options.research,
-                notes: request.options.notes,
-                onNotice: request.options.onNotice,
-              }
-            : undefined,
-        );
+      // double-counted here. The adapter is `sendEngineAdapter.ts` — the
+      // seam this file cut to take the attachments under its ratchet.
+      const engine = createSendEngine({ engineDeps, rich, attachments: snapshot });
       const ui: SendUiHandlers = {
         onToken: (_delta, full) => {
           hasTokensRef.current = true;
@@ -250,6 +278,9 @@ export function useSendHost(params: SendHostParams): SendHost {
       };
       const request = {
         text: modelText,
+        // The typed seam carries the same frozen snapshot the engine half
+        // receives below (`sendStream.SendRequest.attachments`).
+        attachments: snapshot,
         history: params.messagesRef.current,
         // Research or armed notes hand the engine its options. A truncated
         // notes context speaks through this build's single notice slot
@@ -269,73 +300,38 @@ export function useSendHost(params: SendHostParams): SendHost {
         streamCoalescer.finalize();
       }
       if (fence.owns(token)) {
-        const captured = rich.captured();
-        const finalizeCtx = {
-          fence,
-          token,
-          assistantId,
-          messagesRef: params.messagesRef,
-          setMessages: params.setMessages,
-          persist: params.persist,
-          getEpoch: params.getEpoch,
-        };
-        if (result.kind === "aborted") {
-          // Stop before any token: remove the empty placeholder (no ghost bubble).
-          params.setMessages((prev) =>
-            fence.apply(token, prev, (state) =>
-              state.filter((message) => message.id !== assistantId),
-            ),
-          );
-        } else if (result.kind === "failed") {
-          // A backend that failed without a delta still gets honest text; a
-          // ⚠️ delta already streamed is kept as-is. The message is MARKED
-          // failed (§2.8) with the engine's own reason when one exists —
-          // never a catalogued apology; an absent reason draws the reasonless
-          // honest line instead.
-          finalizeAssistantTurn(finalizeCtx, captured, {
-            interrupted: false,
-            fallbackText: t("chat.serviceUnreachable"),
-            failure: {
-              reason: captured.failureReason ?? result.message?.trim(),
-              thermal: result.reasonKey === "chat.thermalHardGateBody",
-            },
-            afterSessionSave: result.afterSessionSave,
-          });
-        } else {
-          // done | interrupted: the partial stays, marked interrupted when
-          // stopped after tokens; the turn-end save and the extract release
-          // run for both.
-          finalizeAssistantTurn(finalizeCtx, captured, {
-            interrupted: result.kind === "interrupted",
-            afterSessionSave: result.afterSessionSave,
-          });
-        }
+        // The four outcomes moved to `sendOutcomes.ts` — the seam this file
+        // cut to take the attachment snapshot under its 350-line ratchet.
+        applySendOutcome(
+          result,
+          {
+            fence,
+            token,
+            assistantId,
+            messagesRef: params.messagesRef,
+            setMessages: params.setMessages,
+            persist: params.persist,
+            getEpoch: params.getEpoch,
+            t,
+          },
+          rich.captured(),
+        );
       }
     } finally {
       releaseOwned(token);
     }
   };
 
-  const stop = () => {
-    const stopDeps: StopDeps = {
-      fence,
-      abortRef,
-      stopWatchdogRef,
-      currentTokenRef,
-      sendingRef,
-      sendClaimRef: sendClaimRef as { current: boolean },
-      sendingInFlightRef: sendingInFlightRef as { current: boolean },
-      regenInFlightRef,
-      regenHandleSendPassRef,
-      stopRequestedRef,
-      messagesRef: params.messagesRef,
-      setMessages: params.setMessages,
-      persist: params.persist,
-      getEpoch: params.getEpoch,
-      onSendingChange: params.onSendingChange,
-    };
-    handleStop(stopDeps);
-  };
+  // The stop closure lives in `sendStop.ts` (`createStopHandler`) — the
+  // second seam this file cut under its 350-line ratchet; the handler and
+  // its watchdog are unchanged.
+  const stop = createStopHandler(params, {
+    abortRef,
+    stopWatchdogRef,
+    currentTokenRef,
+    sendingRef,
+    stopRequestedRef,
+  });
 
   return {
     send,

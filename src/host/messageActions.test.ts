@@ -297,10 +297,13 @@ describe("the wiring: root composes through the layout, surface mounts, both kee
     expect(SURFACE).toMatch(/onRequestClose=\{actions\.closeMenu\}/);
   });
 
-  it("the attach button still wears `shell.notice.attach` — the key the removed chip also used", () => {
-    expect(SURFACE).toMatch(
-      /onAttachPress=\{\(\) => showNoticeKey\("shell\.notice\.attach"\)\}/,
-    );
+  it("the attach button OPENS the sheet — the stub notice retired with the flow", () => {
+    // BEFORE this slice the button answered a press with
+    // `showNoticeKey("shell.notice.attach")` (a §2.7 stub), pinned here.
+    // The attach flow landed: the press now opens the attach sheet, and the
+    // stub key was deleted from both catalogues with its last user.
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).not.toContain("shell.notice.attach");
     expect(SURFACE).not.toContain("onDocumentPress");
   });
 });
@@ -318,7 +321,6 @@ describe("every user-visible string exists in BOTH catalogues", () => {
     "common.cancel",
     "common.close",
     "chat.regen",
-    "shell.notice.attach",
   ];
 
   it("en and it each resolve every key the menu, the sheet and the notices use", () => {

@@ -9,8 +9,9 @@
  *    `Transcript` either this block or nothing, so nothing can flash while
  *    history is still unknown.
  * 2. **A card SENDS.** `onPress` fires `onSend(text)` — the host wires it to
- *    `sendHost.send`, the real send path (the attachments that slice does not
- *    have were empty in the old call too).
+ *    `sendHost.send`, the real send path, which consumes the composer's
+ *    staged attachment rows exactly as the controller's card call did
+ *    (`handleSendTracked(s.text, attachedItems)`, `Chat:4097`).
  * 3. **It is not a band.** It rides `Transcript`'s `empty` content, so it
  *    scrolls inside the transcript band and the three-band contract stands.
  *

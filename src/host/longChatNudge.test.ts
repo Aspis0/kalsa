@@ -17,6 +17,11 @@ function stripComments(source: string): string {
 }
 
 const SURFACE = stripComments(read("HostChatSurface.tsx"));
+// BEFORE this slice the row's JSX lived INSIDE HostChatSurface; it moved to
+// its own component (a topic seam — one row, one file — cut so the attach
+// sheet could land under the surface's ratchet). The GATE, the latch and the
+// reset stayed in the surface; the DRAWING pins below moved with the drawing.
+const ROW = stripComments(read("LongChatNudgeRow.tsx"));
 const LAYOUT = stripComments(read("HostLayout.tsx"));
 
 describe("the estimate runs on the controller's own unit", () => {
@@ -68,8 +73,10 @@ describe("once per conversation: latch, reset, gate (Chat:921-922, 1314-1327)", 
 
   it("the row renders behind the gate (longChat && shown) with the controller's copy", () => {
     expect(SURFACE).toContain("{longChat && longChatNudgeShown ? (");
-    expect(SURFACE).toContain('{t("chat.longChatNudge")}');
-    expect(SURFACE).toContain('{t("chat.longChatNudgeAction")}');
+    // The copy pins moved with the JSX to `LongChatNudgeRow.tsx` (see the
+    // header): the gate decides WHEN, the component says WHAT.
+    expect(ROW).toContain('{t("chat.longChatNudge")}');
+    expect(ROW).toContain('{t("chat.longChatNudgeAction")}');
     // sample: ungated rendering is the stuck-row bug this gate exists for
     expect(SURFACE.includes("{longChatNudgeShown ? (")).toBe(false);
   });
@@ -77,12 +84,15 @@ describe("once per conversation: latch, reset, gate (Chat:921-922, 1314-1327)", 
 
 describe("the row: named node, real box, both catalogues", () => {
   it("the action is a pressable with a testID, the controller's a11y label and a 48 dp box", () => {
-    expect(SURFACE).toContain('testID="transcript.longChatNudge"');
-    expect(SURFACE).toContain('testID="transcript.longChatNudge.newChat"');
-    expect(SURFACE).toContain('accessibilityLabel={t("chat.a11yNewChat")}');
-    expect(SURFACE).toContain("onPress={onNewChatPress}");
-    expect(SURFACE).toContain("minHeight: MIN_TOUCH_TARGET");
-    // The controller used hitSlop={8}; this build may not.
+    // BEFORE: these pins ran against HostChatSurface's source; the row moved
+    // to `LongChatNudgeRow.tsx` — same strings, new file.
+    expect(ROW).toContain('testID="transcript.longChatNudge"');
+    expect(ROW).toContain('testID="transcript.longChatNudge.newChat"');
+    expect(ROW).toContain('accessibilityLabel={t("chat.a11yNewChat")}');
+    expect(ROW).toContain("onPress={onNewChatPress}");
+    expect(ROW).toContain("minHeight: MIN_TOUCH_TARGET");
+    // The controller used hitSlop={8}; this build may not — in EITHER file.
+    expect(ROW).not.toContain("hitSlop");
     expect(SURFACE).not.toContain("hitSlop");
     // sample
     expect("hitSlop".includes("hitSlop")).toBe(true);

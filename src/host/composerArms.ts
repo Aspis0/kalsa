@@ -4,10 +4,10 @@
  * send (`sendHost.ts` through `armsSendOptions`) and the clear on
  * conversation change (the root's `onConversationEnter`).
  *
- * The third chip of that row — the library document — needs `attachedItems`
- * and the picker sheet, which this slice does not build; it ships as a §2.7
- * stub that says why when pressed (`HostChatSurface`), not as a chip that
- * would sit there inactive and lie.
+ * The third chip of that row — the library document — is not here: the
+ * attach flow landed and its ENTRY moved to the attach sheet
+ * (`HostAttachSheet.tsx`), because the row's arithmetic holds exactly two
+ * chips (`composerToolbarWidth.test.ts`).
  *
  * The draft rule is a pure predicate so the semantics are testable without a
  * render harness: a draft that HAD content and now has none drops both arms —

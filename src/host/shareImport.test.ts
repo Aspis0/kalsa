@@ -5,8 +5,11 @@
  * - TOO LARGE and FAILED each serve their notice for `.txt`/`.md` reads;
  * - BUSY serves its notice while an import is in flight (the controller's
  *   `shareImportingRef`) and when the library refuses the entry;
- * - a successful PDF import lands in Documents and SAYS the composer attach
- *   is held (`errors.shareImportNotAttached`) — the adaptation, asserted;
+ * - a successful PDF import lands in Documents AND joins the composer's
+ *   attachment rows — the controller's `setShareAttachDoc` (`App:3616-3621`),
+ *   silently, as the controller did. BEFORE the attach flow this test pinned
+ *   an adaptation notice (`errors.shareImportNotAttached`); that key was
+ *   deleted with the flow's arrival, and the attach PORT is now asserted;
  * - every notice key this file can fire exists in BOTH catalogues.
  */
 import { en as enCatalog } from "../i18n/en";
@@ -33,6 +36,7 @@ function harness(overrides: Partial<ShareFilePorts> = {}) {
   const notices: TranslationKey[] = [];
   const prefills: string[] = [];
   const imported: string[] = [];
+  const attached: string[] = [];
   let importing = false;
   const ports: ShareFilePorts = {
     getInfo: async () => ({ exists: true, isDirectory: false, size: 16 }),
@@ -42,6 +46,7 @@ function harness(overrides: Partial<ShareFilePorts> = {}) {
       return sharedDoc();
     },
     addDocument: () => true,
+    attach: (entry) => attached.push(entry.id),
     isImporting: () => importing,
     setImporting: (busy) => {
       importing = busy;
@@ -50,7 +55,7 @@ function harness(overrides: Partial<ShareFilePorts> = {}) {
     prefill: (text) => prefills.push(text),
     ...overrides,
   };
-  return { ports, notices, prefills, imported, isBusy: () => importing };
+  return { ports, notices, prefills, imported, attached, isBusy: () => importing };
 }
 
 describe("the .txt/.md read (App:3583-3610)", () => {
@@ -95,16 +100,22 @@ describe("the .txt/.md read (App:3583-3610)", () => {
     await applyShareFile("file:///shared/empty.md", h.ports);
     expect(h.prefills).toEqual([]);
     expect(h.imported).toEqual(["file:///shared/empty.md"]);
-    expect(h.notices).toEqual(["errors.shareImportNotAttached"]);
+    // The import succeeded, so it attached — success serves NO notice.
+    expect(h.attached).toEqual(["doc-1"]);
+    expect(h.notices).toEqual([]);
   });
 });
 
 describe("the PDF import (App:3611-3636)", () => {
-  test("a successful import lands in Documents and the held attach is announced", async () => {
+  test("a successful import lands in Documents AND attaches — silently, as the controller did", async () => {
+    // BEFORE the attach flow this asserted the adaptation notice
+    // `errors.shareImportNotAttached`; the flow landed, so the controller's
+    // real behaviour is back: import + attach, no notice on success.
     const h = harness();
     await applyShareFile("file:///shared/paper.pdf", h.ports);
     expect(h.imported).toEqual(["file:///shared/paper.pdf"]);
-    expect(h.notices).toEqual(["errors.shareImportNotAttached"]);
+    expect(h.attached).toEqual(["doc-1"]);
+    expect(h.notices).toEqual([]);
     // The flag always releases — the finally half of the controller's block.
     expect(h.isBusy()).toBe(false);
   });
@@ -156,18 +167,19 @@ describe("the PDF import (App:3611-3636)", () => {
     release(sharedDoc("doc-2"));
     await first;
     expect(h.isBusy()).toBe(false);
-    // The first import finished its own path after the busy refusal.
-    expect(h.notices).toEqual(["errors.shareImportBusy", "errors.shareImportNotAttached"]);
+    // The first import finished its own path after the busy refusal — it
+    // attached (the gate released with doc-2); only the refusal spoke.
+    expect(h.notices).toEqual(["errors.shareImportBusy"]);
+    expect(h.attached).toEqual(["doc-2"]);
   });
 });
 
 describe("both catalogues carry every notice this flow can fire", () => {
-  test("failed / too large / busy / not-attached resolve in en and it", () => {
+  test("failed / too large / busy resolve in en and it (the adaptation key is deleted)", () => {
     const keys = [
       "errors.shareImportFailed",
       "errors.shareImportTooLarge",
       "errors.shareImportBusy",
-      "errors.shareImportNotAttached",
     ] as const;
     const flatten = (catalog: object, prefix = ""): Record<string, string> => {
       const out: Record<string, string> = {};

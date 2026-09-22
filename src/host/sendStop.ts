@@ -10,6 +10,12 @@
  * intentional.
  */
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
+import {
+  regenHandleSendPassRef,
+  regenInFlightRef,
+  sendClaimRef,
+  sendingInFlightRef,
+} from "../engine/regenState";
 import type { Message } from "./hostMessage";
 import type { TurnFence } from "./turnGuards";
 
@@ -37,6 +43,33 @@ export interface StopDeps {
 
 /** Structural view of a turn token (the branded type stays opaque). */
 type TurnFenceToken = NonNullable<Parameters<TurnFence["apply"]>[0]>;
+
+/** The host-held half of `StopDeps` — the six fields `sendHost.ts` passes
+ *  as `params`, so the factory below takes the send file's own object. */
+export type StopHost = Pick<
+  StopDeps,
+  "fence" | "messagesRef" | "setMessages" | "persist" | "getEpoch" | "onSendingChange"
+>;
+
+/** The run-local refs the stop closure reads — MOVED OUT of `sendHost.ts`
+ *  (whose 350-line ratchet the attachment snapshot pushed past): the stop
+ *  HANDLER is unchanged, only where its closure is built. */
+export type StopRefs = Pick<
+  StopDeps,
+  "abortRef" | "stopWatchdogRef" | "currentTokenRef" | "sendingRef" | "stopRequestedRef"
+>;
+
+export function createStopHandler(host: StopHost, refs: StopRefs): () => void {
+  return () =>
+    handleStop({
+      ...host,
+      ...refs,
+      sendClaimRef: sendClaimRef as { current: boolean },
+      sendingInFlightRef: sendingInFlightRef as { current: boolean },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+    });
+}
 
 export function handleStop(deps: StopDeps): void {
   const controller = deps.abortRef.current;

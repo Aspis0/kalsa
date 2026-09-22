@@ -1,0 +1,172 @@
+/**
+ * The attach UI as source — each describe names what a screenshot cannot
+ * see: real 48 dp boxes (never `hitSlop`), a testID and an accessible name
+ * on every pressable, the §2.7 chip label (the name INSIDE the label), the
+ * shell's row arithmetic, the disabled attach control, the sheet's four
+ * entries — and that every catalogue key those entries print exists in BOTH
+ * catalogues.
+ */
+import { readFileSync } from "fs";
+import { join } from "path";
+import { en } from "../../i18n/en";
+import { it as italian } from "../../i18n/it";
+import { COMPOSER_ATTACHMENTS_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
+
+const SHELL_DIR = __dirname;
+const HOST_DIR = join(__dirname, "..", "..", "host");
+
+const stripComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+
+const SHEET = stripComments(readFileSync(join(SHELL_DIR, "AttachSheet.tsx"), "utf8"));
+const CHIPS = stripComments(readFileSync(join(SHELL_DIR, "ComposerAttachments.tsx"), "utf8"));
+const SHELL = stripComments(readFileSync(join(SHELL_DIR, "Shell.tsx"), "utf8"));
+const FIELD = stripComments(readFileSync(join(SHELL_DIR, "ShellComposer.tsx"), "utf8"));
+const MENU = stripComments(readFileSync(join(HOST_DIR, "HostAttachSheet.tsx"), "utf8"));
+const SURFACE = stripComments(readFileSync(join(HOST_DIR, "HostChatSurface.tsx"), "utf8"));
+const SEND = stripComments(readFileSync(join(HOST_DIR, "sendHost.ts"), "utf8"));
+
+const flatten = (catalog: object, prefix = ""): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(catalog)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === "string") out[path] = value;
+    else if (value && typeof value === "object") Object.assign(out, flatten(value, path));
+  }
+  return out;
+};
+const EN = flatten(en);
+const IT = flatten(italian);
+
+describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop)", () => {
+  it("every row is a 48 dp pressable with a testID and an accessible name", () => {
+    expect(SHEET).toContain("minHeight: 48");
+    expect(SHEET).toContain("accessibilityLabel={row.label}");
+    expect(SHEET).toContain('accessibilityRole="button"');
+    expect(SHEET).toContain("testID={row.testID}");
+    expect(SHEET).not.toContain("hitSlop");
+    // sample
+    expect("accessibilityLabel={row.label}".match(/accessibilityLabel/g)).not.toBeNull();
+  });
+
+  it("the backdrop closes AND Android back has a target (onRequestClose)", () => {
+    expect(SHEET).toContain('testID="shell.attach.backdrop"');
+    expect(SHEET).toContain("onRequestClose={onClose}");
+    expect(SHEET).toContain("onPress={onClose}");
+  });
+});
+
+describe("the chips are §2.7: the name INSIDE the label, a 48 dp remove box", () => {
+  it("draws the composerState view through `t(key, params)` — a bare name never reaches the screen alone", () => {
+    expect(CHIPS).toContain("t(chip.key, chip.params)");
+    expect(CHIPS).not.toMatch(/accessibilityLabel=\{chip\.params/);
+  });
+
+  it("the remove control is a real box with the controller's removal label", () => {
+    expect(CHIPS).toContain("width: COMPOSER_ATTACHMENTS_HEIGHT");
+    expect(CHIPS).toContain("height: COMPOSER_ATTACHMENTS_HEIGHT");
+    expect(CHIPS).toContain('accessibilityLabel={t("chat.a11yRemoveAttachment")}');
+    expect(CHIPS).toContain("testID={`shell.composer.attachment.remove.${index}`}");
+    expect(CHIPS).not.toContain("hitSlop");
+  });
+
+  it("the row's height is the shell's own subtraction (48, one number)", () => {
+    expect(COMPOSER_ATTACHMENTS_HEIGHT).toBe(MIN_TOUCH_TARGET);
+    expect(SHELL).toContain("attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0)");
+    expect(SHELL).toContain("<ComposerAttachments {...attachments} colors={colors} />");
+    // …and the row sits BELOW the toolbar, where the controller kept its strip
+    const toolbarAt = SHELL.indexOf("<ComposerToolbar");
+    const chipsAt = SHELL.indexOf("<ComposerAttachments {...");
+    expect(toolbarAt).toBeGreaterThan(0);
+    expect(chipsAt).toBeGreaterThan(toolbarAt);
+  });
+});
+
+describe("the attach control carries the controller's disabled rule (Chat:4810)", () => {
+  it("the field's attach pressable is disabled with its state announced", () => {
+    expect(FIELD).toContain("disabled={attachDisabled}");
+    expect(FIELD).toContain("accessibilityState={{ disabled: attachDisabled }}");
+    expect(FIELD).toContain('testID="shell.composer.attach"');
+    expect(FIELD).toContain('accessibilityLabel={t("shell.a11y.attach")}');
+    expect(FIELD).not.toContain("hitSlop");
+  });
+
+  it("the surface decides it: face says stop OR a PDF is converting", () => {
+    expect(SURFACE).toContain(
+      "attachDisabled={view.composer.face !== \"send\" || attachments.converting !== null}",
+    );
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).not.toContain("shell.notice.attach");
+  });
+
+  it("the conversion job is mounted keyed on the URI (controller's U2 remount)", () => {
+    expect(SURFACE).toContain("key={attachments.converting.uri}");
+    expect(SURFACE).toContain("pdfUri={attachments.converting.uri}");
+    expect(SURFACE).toContain("onDone={attachments.pdf.onDone}");
+    expect(SURFACE).toContain("onError={attachments.pdf.onError}");
+  });
+});
+
+describe("the send snapshots and clears the rows (sendHost as source — its import graph reaches the engine)", () => {
+  it("BOTH append paths stamp the frozen snapshot on the user message and hand it to the engine half", () => {
+    const stamps = SEND.split("\n").filter((line) => line.includes("attachments: stamped"));
+    expect(stamps).toHaveLength(2); // the content-gate append and the live append
+    expect(SEND).toContain("const snapshot = staged.slice();");
+    // the adapter receives the same snapshot, not the live rows
+    expect(SEND).toContain("createSendEngine({ engineDeps, rich, attachments: snapshot })");
+  });
+
+  it("rows clear ONLY where this send consumed them — a foreign send keeps staged rows (the sendDraft doctrine applied to rows)", () => {
+    const clears = SEND.split("\n").filter((line) => line.includes("params.attachments.clear()"));
+    expect(clears).toHaveLength(2); // gate refusal + live append, as the controller had
+    for (const line of clears) {
+      expect(line).toContain("if (consumedComposerRows)");
+    }
+    // sample: an unconditional clear would fail the line above
+    expect("        params.attachments.clear();").not.toContain("consumedComposerRows");
+  });
+
+  it("an attachment-only send is not refused at the gate (controller Chat:3676)", () => {
+    expect(SEND).toContain("(!trimmed && staged.length === 0)");
+    // …and an empty foreign send over nothing still refuses
+    expect(SEND).toContain("const staged = attachments ?? params.attachments.itemsRef.current;");
+  });
+});
+
+describe("the sheet's four entries, each label resolvable in BOTH catalogues", () => {
+  const entries: Array<[string, string]> = [
+    ["shell.attach.library", "chat.photoLibrary"],
+    ["shell.attach.camera", "chat.takePhoto"],
+    ["shell.attach.pdfOrWord", "chat.pdfOrWord"],
+    ["shell.attach.libraryDocument", "chat.libraryDocument"],
+  ];
+
+  it.each(entries)("%s prints %s, in en and it with real text", (testID, key) => {
+    expect(MENU).toContain(`testID: "${testID}"`);
+    expect(MENU).toContain(`labelKey: "${key}"`);
+    expect(typeof EN[key]).toBe("string");
+    expect(typeof IT[key]).toBe("string");
+    expect(IT[key]).not.toBe(EN[key]);
+  });
+
+  it("the document list labels each row with the doc's NAME and offers Cancel", () => {
+    expect(MENU).toContain("label: doc.name");
+    expect(MENU).toContain('testID: "shell.attach.cancel"');
+    expect(MENU).toContain('t("common.cancel")');
+    expect(typeof EN["common.cancel"]).toBe("string");
+    expect(typeof IT["common.cancel"]).toBe("string");
+  });
+
+  it("every a11y string this flow prints exists in both catalogues", () => {
+    for (const key of ["chat.a11yRemoveAttachment", "shell.a11y.attach", "common.cancel"]) {
+      expect(typeof EN[key]).toBe("string");
+      expect(typeof IT[key]).toBe("string");
+      expect(IT[key]).not.toBe(EN[key]);
+    }
+  });
+
+  it("sample: a catalogue key the sheet names but the catalogues dropped would fail above", () => {
+    expect(EN["chat.photoLibrary"]).toBeDefined();
+    expect(EN["shell.notice.attach"]).toBeUndefined();
+  });
+});

@@ -20,6 +20,7 @@ import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import type { TranslationKey } from "../i18n";
 import type { HistoryWriteGuard } from "../chat/historyWriteGuard";
 import type { Message } from "./hostMessage";
+import type { LocalAttachment } from "./hostMessage";
 import type { SendHost } from "./sendHost";
 
 export interface ResendPlan {
@@ -27,6 +28,10 @@ export interface ResendPlan {
   base: Message[];
   /** The user text to re-send (regenerated or edited). */
   text: string;
+  /** The target's attachments, re-sent with it — NEVER the composer's
+   *  staged rows: a foreign send leaves those alone (`send`'s third
+   *  argument distinguishes them). */
+  attachments?: LocalAttachment[] | undefined;
 }
 
 export interface ResendDeps {
@@ -56,7 +61,10 @@ export async function truncateAndResend(
   bumpForegroundIdleRef.current();
   history.setMessages(() => plan.base);
   history.messagesRef.current = plan.base;
-  const run = sendHost.send(plan.text, opts.edited ? { edited: true } : undefined);
+  // Third argument = FOREIGN attachments: `send` then knows not to consume
+  // (or clear) the composer's own rows. One line so `messageActions.test`'s
+  // ordering needle (lock → truncate → send → declare) keeps its shape.
+  const run = sendHost.send(plan.text, opts.edited ? { edited: true } : undefined, plan.attachments ?? []);
   if (!sendHost.sendingRef.current) {
     // `send` refused synchronously — impossible after the caller's checks
     // (identical gates, no await between), so this is a defensive rollback
