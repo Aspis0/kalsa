@@ -594,6 +594,15 @@ saturating part of the disk curve is not a number this plan may carry.
   are fine. **These ceilings govern the delivery's code.** A measurement tool under `dev/` is a
   development instrument, not the delivery: it is not reshaped to make a count work, and its
   duplication is not chased for its own sake.
+- **A green built from the answer is the most expensive kind of green.** A test or a fixture must be
+  able to go **red for the reason it declares**, and the only proof that it can is a mutation that
+  kills it. Four instances, one night: a fixture whose bytes were computed **backwards** from the
+  string its test wanted (`106_444_800`, recorded in no artifact); a pin that stayed **green with
+  the residency gate switched off**, because the instant it captured made the quiet gate
+  short-circuit first; a test named "two consecutive failures are the ceiling" that **never produced
+  a second failure**, so no assertion could observe a ceiling; and the same defect found from the
+  other side by the engine coordinator's mutation test on the provenance gate. A green with no
+  mutation that kills it is not evidence — it is an insurance policy that covers nothing.
 - On the released engine commit `2a290390d` — tagged **`kalsa-server-v1.1.0`** — the same lines
   are `:2868`, `:3199`, `:3418-3421`, and the older documents cite that numbering.
 
@@ -623,3 +632,49 @@ again by the next author who reasons from lines they did not open.
    authorship, chat deletion, the sleep case, salt rotation across a re-pair, the resident map's
    interface, crash invalidation, who renders `--swa-full`, and whether the tier passes
    `--ctx-checkpoints`. Each is now decided in T1–T6 or declared in §6.
+
+## 9. Decisions taken elsewhere, and what they bind here
+
+The engine and the binding are **one fork and one binding**, so every question that touches them was
+put to the kernel coordinator — the session at `/Users/marco/Projects/kalsa`. Its answers are
+recorded here with **its** authority, and anything nobody has built yet is labelled **decided and
+not implemented**, so a decision is never read as a delivery.
+
+- **The retry ceiling — decided: the engine stamps only on a successful outcome.** A task that
+  failed stops counting as use, so the model becomes releasable, and the app's retry loop stays as
+  it is. The price is accepted and real: with a persistent refusal (a full disk) the model can be
+  released between attempts, so the retry costs a reload. The turn survives — reload plus retry —
+  without pinning RAM. **Not implemented**: it lands in the engine, with a test for each half.
+- **The governor — one owner, the engine.** A latched plugged idle baseline now has exactly one
+  implementation: the engine's condition survives, the phone app's copy is deleted. The desktop
+  never had one and adds none. 
+- **Any threshold this plan restates must cite the engine's constant rather than repeat its value**,
+  or there is a fourth divergence in six months.
+- **The panel's number is attributed to the release artifact**, not to a build of the fork:
+  `kalsa-server-v1.1.1`, by artifact **name** (a name cannot drift the way a hand-typed tag can),
+  its sha256, the commit and the workflow run. A number taken before the release exists carries the
+  label `fork build, not the release` and is re-measured; a pre-release number never shares a column
+  with a release one. It is valid only on its recorded `platform` and `backend` — this one is
+  `macos-arm64` / `metal`.
+- **`Stopping` — decided, this plan's to implement, not implemented.** A stop in flight becomes an
+  explicit state that suppresses the door's re-raise, makes `brain_state` report the draining state
+  instead of `Running`, and is the only state in which the worker may write `Stopped`. It is a state
+  and not a flag because the outcome today depends on two actors writing the same field: a race by
+  construction, which narrowing the window does not close. `brain_stop` stays non-blocking.
+- **The `Stopped` invariant — decided, this plan's to implement, not implemented.** `Stopped` means
+  the door does not answer **and** the process is not there; when either half is unknowable, the
+  state says so. An engine adopted blind gets `Stopped` only after a probe on the port fails, plus a
+  suspected-orphan record the next start recovers or replaces. A known pid whose grace expires is
+  settled by pid **and** port rather than by the wait, the grace expiry is recorded instead of
+  swallowed, and a survivor gets a failed-to-stop state **with its measurements**. The reason it is
+  worth the work: a stop that declares success while the engine is alive is how a ghost survives a
+  restart cycle — it holds the port, holds RAM, and makes the next start's failure look like a bug
+  somewhere else.
+- **The measurement's floor is declared, not denied.** The concurrency run was taken on a machine
+  with the agent harness on it (`loadavg` ~4–6), because nobody runs two devices on an idle Mac. A
+  constant floor weighs on every arm and cancels in the comparison — the bracket is what proves it
+  did not drift — and what it moves is the absolute rate, not the comparison. The artifact states
+  both.
+- **Debt, declared:** the harness does not yet record `--max-load`, `platform` or `backend` as
+  fields of `results.json`; the concurrency summary states them by hand. A field that lives in prose
+  is a field the next reader has to trust.
