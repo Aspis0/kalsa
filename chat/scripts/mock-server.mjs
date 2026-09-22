@@ -203,6 +203,10 @@ const server = http.createServer((req, res) => {
   // Context sizes: big by default, tiny under /small, tight under /tight.
   // /ok behaves like a server root (its own /props), so the default flow
   // sees a known size. Anything else stays silent: unknown, never invented.
+  // The shape is the fork's contract: the window lives at
+  // default_generation_settings.n_ctx (server-context.cpp:4939) — there is
+  // NO top-level n_ctx on /props, and serving one here would let a re-read
+  // of the old defect pass green.
   if (req.method === "GET" && (req.url === "/props" || req.url === "/ok/props")) {
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
     // A chat template with the switch the real model has: `/props` answers the
@@ -210,7 +214,7 @@ const server = http.createServer((req, res) => {
     // same answer.
     res.end(
       JSON.stringify({
-        n_ctx: 32768,
+        default_generation_settings: { n_ctx: 32768 },
         chat_template:
           "{%- if enable_thinking is defined and not enable_thinking %}{%- endif %}{%- for message in messages %}{{ message['content'] }}{%- endfor %}",
       }),
@@ -219,12 +223,12 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "GET" && req.url === "/small/props") {
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
-    res.end(JSON.stringify({ n_ctx: 256 }));
+    res.end(JSON.stringify({ default_generation_settings: { n_ctx: 256 } }));
     return;
   }
   if (req.method === "GET" && req.url === "/tight/props") {
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
-    res.end(JSON.stringify({ n_ctx: 1024 }));
+    res.end(JSON.stringify({ default_generation_settings: { n_ctx: 1024 } }));
     return;
   }
   if (req.method !== "POST") {

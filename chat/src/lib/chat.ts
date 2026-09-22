@@ -1,4 +1,5 @@
 import { SAMPLING_KNOBS } from "./knobs/sampling";
+import { parseContextSize } from "./contextSize";
 import type { Sampling } from "./sampling";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
@@ -105,8 +106,10 @@ export function serverBase(endpoint: string): string {
 }
 
 /**
- * Ask the server for its real context size (llama.cpp serves /props with
- * n_ctx). Anything missing, non-numeric or unreachable means UNKNOWN —
+ * Ask the server for its real context size: a GET `/props`, and the reply
+ * parsed by `parseContextSize` (`contextSize.ts`) — the ONE path
+ * `default_generation_settings.n_ctx`, with the four decoys named there.
+ * Anything missing, non-numeric or unreachable means UNKNOWN —
  * never an invented limit.
  *
  * The token is required when the caller's server is the local door: /props is
@@ -128,10 +131,8 @@ export async function fetchContextSize(
       ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
     });
     if (!response.ok) return null;
-    const data = (await response.json()) as { n_ctx?: unknown };
-    return typeof data.n_ctx === "number" && Number.isFinite(data.n_ctx) && data.n_ctx > 0
-      ? Math.floor(data.n_ctx)
-      : null;
+    const data: unknown = await response.json();
+    return parseContextSize(data);
   } catch {
     return null;
   } finally {

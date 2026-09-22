@@ -5,6 +5,7 @@ import { appendTail } from "./lib/tail";
 import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
+import { ensureContextSize, hasContextSize } from "./lib/contextSize";
 import { createSlotGate } from "./lib/slotGate";
 import type { ActiveChat, DoorAccess } from "./lib/slotGate";
 import { streamChatCompletion } from "./lib/toolLoop";
@@ -128,7 +129,13 @@ export function App() {
   const [gateWaiting, setGateWaiting] = useState(0);
   const gateAsks = useRef<GateAsk[]>([]);
   const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
-  const nctxCache = useRef(new Map<string, number | null>());
+  // Numbers only, and that IS the healing rule: an unknown answer is never
+  // stored (the choice and its cost are declared at `ensureContextSize` in
+  // lib/contextSize.ts), so a `null` cannot be memoized here until the user
+  // happens to save settings — which was the defect. Clearing on save below
+  // stays correct (the endpoint or token may have changed); it is simply no
+  // longer the only road out.
+  const nctxCache = useRef(new Map<string, number>());
   // In-flight stream buffers, keyed by assistant message id. Text lives here
   // while streaming and renders from here; the disk is written on a throttle
   // plus once at the end — never per token. The stored copy always trails
@@ -287,18 +294,25 @@ export function App() {
     return null;
   }, [failedById, active, streaming]);
 
-  async function ensureCtx(): Promise<number | null> {
+  // `announce` is for the attach flow, which is the only caller a human is
+  // waiting inside of: it may own the status line. The panel's refresh passes
+  // call `ensureCtx(false)` — while the size is unknown they re-run at store-
+  // notification rate (the healing cost declared at `ensureContextSize`), and
+  // announcing each one would strobe this line and could clear an attach's
+  // own "Reading…" message mid-extraction.
+  async function ensureCtx(announce = true): Promise<number | null> {
     const endpoint = effectiveSettings.endpoint;
-    const cached = nctxCache.current.get(endpoint);
-    if (cached !== undefined) {
-      setCtxInfo({ endpoint, nctx: cached });
-      return cached;
+    const known = nctxCache.current.get(endpoint);
+    if (known !== undefined) {
+      setCtxInfo({ endpoint, nctx: known });
+      return known;
     }
-    setAttachStatus("Checking context size…");
-    const nctx = await fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token);
-    nctxCache.current.set(endpoint, nctx);
+    if (announce) setAttachStatus("Checking context size…");
+    const nctx = await ensureContextSize(nctxCache.current, endpoint, () =>
+      fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token),
+    );
     setCtxInfo({ endpoint, nctx });
-    setAttachStatus(null);
+    if (announce) setAttachStatus(null);
     return nctx;
   }
 
@@ -306,8 +320,14 @@ export function App() {
   useEffect(() => {
     if (!panelOpen || !activeId) return;
     if (store.getAttachments(activeId).every((a) => !a.active)) return;
-    if (ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint) return;
-    void ensureCtx();
+    if (hasContextSize(ctxInfo, effectiveSettings.endpoint)) return;
+    // Only a NUMBER settles this line: an endpoint currently holding an
+    // unknown asks again on the next pass — that is how the panel heals
+    // after the engine starts answering, with no settings save involved.
+    // The cost (declared at `ensureContextSize`): one silent GET /props per
+    // pass while the size stays unknown; once a number lands, this returns
+    // above and the asking stops.
+    void ensureCtx(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panelOpen, activeId, effectiveSettings.endpoint, conversations]);
 
