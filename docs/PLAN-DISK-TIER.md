@@ -443,6 +443,22 @@ saturating part of the disk curve is not a number this plan may carry.
 
 ## 7. Rules this plan obeys
 
+- **Name the repository, always — path, branch and HEAD.** Kalsa is five repositories plus their
+  worktrees, and two of them share one remote URL, so neither the name nor the remote identifies a
+  tree. Every report, every delegation and every commit message says which one:
+
+  | repository | path | branch |
+  |---|---|---|
+  | the app, ours | `/Users/marco/Projects/kalsa-brain` | `brain` |
+  | the phone app | `/Users/marco/Projects/kalsa` | `main` (worktrees: `kalsa-ux`) |
+  | the engine | `/Users/marco/Projects/kalsallama` | `main` (worktrees: `-wt-1068`, `-wt-opencl-degrade`, `-wt-q6k`) |
+  | the React Native binding | `/Users/marco/Projects/llama.rn-kalsa` | `main` |
+  | the MoE experiments | `/Users/marco/Projects/kalsa-moe-experiments` | `main` |
+
+  `kalsa-brain` and `kalsa` both point at `Aspis0/kalsa.git`. The engine's own worktrees sit at
+  different commits, two of them detached, and its main worktree can carry another branch's file
+  content uncommitted — so "the engine" is not one tree, it is four.
+
 - **Nothing goes upstream.** No PRs, issues, comments, reviews, patches or discussion. Upstream is
   read, never written. The appendix keeps its attribution to upstream PR #26004; any fork
   divergence is stated in the code comment, not filed anywhere.
