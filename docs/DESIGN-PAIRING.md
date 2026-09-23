@@ -85,9 +85,9 @@ for pressure, an **empty 401** for a bad credential. Every sentence below is the
 | Signal | What it actually means | Copy | Actions |
 |---|---|---|---|
 | **403, empty** — pairing | **indistinguishable** between a wrong code, an expired code, a malformed body, a failed completion and a full pairing queue (`transport.rs:445` → `:481`) | *"Il computer non ha accettato il collegamento. Chiedine uno nuovo sulla schermata di Kalsa desktop e riprova."* — **never "occupato": the phone cannot know that** | Chiedi un nuovo codice · Annulla |
-| **503, empty** — door | a request was **dropped**: the queue is full or the 12-connection cap is hit (`lib.rs:125-126`, `server.rs:163-182`) | *"Il computer non ha accettato la richiesta in questo momento. Riprova fra poco."* — **not "partirà"**: nothing is queued | Riprova |
+| **503, empty** — door | **more causes than one**: the queue is full, the 12-connection cap is hit (`lib.rs:125-126`, `server.rs:163-182`), the head-patience timeout fired (`proxy.rs:101-116`), or the event-job registry refused the job (`proxy.rs:332-340`) | *"Il computer non ha accettato la richiesta in questo momento. Riprova fra poco."* — **cause-neutral on purpose**: the phone cannot tell those apart, and it must not guess which one it was | Riprova |
 | **503, with a body** — door | the door's one spoken sentence: no seats left (`lib.rs:167`) | the sentence itself, quoted: *"This computer is set up for {seats} at once, and one of them is this computer…"* | Riprova |
-| **slow response, no error** | the request **is in the queue** and starts when a worker frees (`proxy.rs:95-98`), bounded by the 300 s connection lifetime (`proxy.rs:94`) | *"Il computer sta rispondendo ad altre richieste. La tua partirà appena se ne libera una."* — true **only** while there is no error | Annulla |
+| **slow response, no error** | the request may be queued (`proxy.rs:95-98`) or **already running**, bounded by the 300 s connection lifetime (`proxy.rs:94`) — and the phone can see **neither** a queue position nor the difference | *"Il computer non ha ancora risposto."* — true and observable. **Not "è in coda" and not "partirà":** neither is observable from here, and a request that entered the queue is not punished for the wait | Annulla |
 | **401, empty** | a **post-pairing** credential state, not a pairing-code one (`lib.rs:113-116`) | *"La chiave di questo telefono non è più valida. Rimuovilo dal computer e collegalo di nuovo."* | Rimuovi · Riprova |
 
 **And the timeout that decides which row applies must be longer than a long answer**: every request takes
@@ -95,10 +95,54 @@ a door worker, the readiness probe included (`proxy.rs:51-53`), so a probe durin
 6 376.7 ms (`dev/results/concurrency-four-devices/results.json`, commit `7f3d28f`). A short timeout turns
 the "slow response" row into the "not reachable" one, and a busy computer into a dead one.
 
+## What the second review added, including a correction of its own
+
+The re-check of this document came back **NON FIT again**, and it separated my mistakes from the parts of
+the desktop's contract that had never been written down. Four of the seven findings are fixed; three are
+partial, and each partial one is now a blocked or corrected state rather than a silence.
+
+**A correction of the reviewer's own, and it narrows my retry rule.** The desktop's acknowledgement is
+**its own successful socket write**, not a confirmation from the phone
+(`src-tauri/src/transport.rs:409-412`: `if result.is_ok() { if let Some(token) = answer.delivery_token { desk.acknowledge(&token);`).
+So **retry-with-the-same-token is safe only when the desktop's write itself failed**: a completion response
+that left the desktop and never reached the phone — the app killed, the network cut with bytes in flight —
+**cannot be recovered**, and a retry earns the generic 403. Closing that would need a receipt from the
+phone, which is a desktop protocol change and not something this document can design around.
+
+**A lost claim has no recovery at all.** The claim consumes the code and answers `{}`
+(`transport.rs:430-434`); a second claim is rejected (`ceremony.rs:161`) — there is **no idempotent claim**.
+So an ambiguous claim failure is an **add a new square** state, not a retry: the phone cannot distinguish
+"the claim never arrived" from "the claim arrived and the answer was lost", and the second one has already
+spent the code.
+
+**Backgrounded or killed between claim and complete.** The desktop keeps the claimed ceremony until its
+120 s deadline, so the phone has two honest options and must pick one: hold the payload's fields and the
+delivery token in **short-lived protected state** to resume, or accept that the square is spent and say so.
+This document takes the second as the default, with the first as the goal once the payload's lifetime is
+pinned down.
+
+**Single flight per ceremony.** One claim in flight at a time, with a latch: a double tap must not send the
+claim twice, and a **late 403 arriving after the other request succeeded is not a failure** and must not be
+shown. (Refuted, and worth recording: a **second phone cannot double-claim** — the loser simply gets the
+generic 403 and the winner is unaffected.) And an explicit **new square on the desktop abandons** an
+attempt in flight (`pairing.rs:344`), so the phone's "chiedi un codice nuovo" and the desktop's button are
+the same act from two sides.
+
+**Status codes the first table did not cover**, all after pairing: a **403 with a body** when the door
+refuses the engine's `/slots` routes in one sentence (`slot_routes.rs:148-154` — quote it if it ever
+appears, a correct client never sends those); an **empty 502** when the door cannot reach the engine
+(`proxy.rs:265`) and a 502 with a body from its own chat routes; **400 / 404 / 500 / 501** from the door's
+`/kalsa/` chat routes; a **401 relayed from the engine**, which is not necessarily a bad pairing
+credential; and — the row that was missing entirely — **a closed connection with no HTTP response at all**
+(upstream failures, `proxy.rs:305`; pairing refusals are best-effort writes, `transport.rs:477`), which
+needs a generic *"la connessione è caduta"* with a retry, not a diagnosis.
+
 ## Open, and not mine to close
 
 1. **Should a photograph of the square be enough?** Today it is: the code is a bearer secret with no second
-   approval. That is a protocol decision on the desktop side, and the Brain session is putting it to the owner.
+   approval, and **the scanning implementation stays blocked until the owner either accepts that or the
+   desktop adds a second approval** — building a camera around an unresolved authorization question would
+   spend the work twice. The question is with the owner, through the Brain session.
 2. **A typed fallback.** The code is 32 hex (`qr.rs:19`) and the desktop never shows it as text; a typed
    door would be a new state on **both** sides.
 3. **The route.** Until the desk is reachable from a phone, none of these states can be exercised end to
