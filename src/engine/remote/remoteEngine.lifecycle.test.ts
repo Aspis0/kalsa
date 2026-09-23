@@ -886,6 +886,132 @@ describe("RemoteEngine lifecycle", () => {
     );
   });
 
+  test("a config edit during a probe supersedes it — no ready against the old server", async () => {
+    // R2-2: the hook bumps initGeneration, so a probe already in flight
+    // cannot mark ready after the config changed.
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    let release!: () => void;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({ data: [{ id: "ornith" }] }),
+            });
+        }),
+    );
+    const probe = initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    while (!release) await Promise.resolve();
+    await setRemoteBrainUrl("http://127.0.0.1:9200");
+    release();
+    const err = await probe.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(isSupersededRemoteOp(err)).toBe(true);
+    expect(isRemoteEngineReady()).toBe(false);
+  });
+
+  test("a mid-turn config edit cannot mix URL and model in the request", async () => {
+    // Item 4: one turn captures ONE server identity (URL + model together, at
+    // turn start, before the token await). The edit belongs to the next turn.
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const tokenMock = getRemoteBrainToken as jest.Mock;
+    let releaseToken!: () => void;
+    tokenMock.mockImplementationOnce(
+      () =>
+        new Promise<null>((resolve) => {
+          releaseToken = () => resolve(null);
+        }),
+    );
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let request: { model?: string; completionsUrl?: string } | undefined;
+    streamOpenAiChat.mockImplementation((
+      req: { model?: string; completionsUrl?: string },
+      handlers: {
+        onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+        onFinish: (f: { kind: string; finishReason: string }) => void;
+      },
+    ) => {
+      request = req;
+      queueMicrotask(() => {
+        handlers.onDelta({
+          kind: "delta",
+          content: "hi",
+          reasoning: "",
+          finishReason: null,
+        });
+        handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      });
+      return { requestId: "cfg", abort: jest.fn(), xhr: {}, isClosed: () => false };
+    });
+    const turn = streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    while (!releaseToken) await Promise.resolve();
+    await setRemoteServerModelId("new-model");
+    await setRemoteBrainUrl("http://127.0.0.1:9300");
+    releaseToken();
+    await turn;
+    expect(request).toBeDefined();
+    expect(request!.model).toBe("ornith");
+    expect(String(request!.completionsUrl)).toContain("127.0.0.1:8000");
+  });
+
+  test("the boundary passes only its own codes and the control markers", async () => {
+    // R2-1: a snake_case token that is NOT ours must not cross verbatim;
+    // the interrupted control marker must cross unchanged.
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const tokenMock = getRemoteBrainToken as jest.Mock;
+    const errors: unknown[] = [];
+    const callbacks = {
+      onDelta: () => undefined,
+      onDone: () => undefined,
+      onError: (e: unknown) => errors.push(e),
+    };
+    tokenMock.mockRejectedValueOnce(new Error("not_found"));
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "a" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    expect((errors[0] as Error).message).toBe("remote_brain_internal");
+    expect((errors[0] as Error).message).not.toContain("not_found");
+
+    tokenMock.mockRejectedValueOnce(
+      Object.assign(new Error("Generation was interrupted."), {
+        code: "interrupted",
+        preservePartial: true,
+      }),
+    );
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "b" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    const interrupted = errors[1] as Error & { code?: string };
+    expect(interrupted.message).toBe("Generation was interrupted.");
+    expect(interrupted.code).toBe("interrupted");
+  });
+
   test("onDone throw still settles", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");
     await setRemoteServerModelId("ornith");

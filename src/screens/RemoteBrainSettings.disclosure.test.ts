@@ -192,3 +192,18 @@ it("shows what is sent, above the Use my computer button", async () => {
   expect(buttonIndex).toBeGreaterThanOrEqual(0);
   expect(disclosureIndex).toBeLessThan(buttonIndex);
 });
+
+test("the rebuild refusal has its own copy in both locales", () => {
+  // Owner-worded (fix round 3, item 5): the reason must be the rebuild, and
+  // there must be no false “Continue?” from the streaming alert.
+  expect(en.settings.switchWhileRebuildingTitle).toBe("Index rebuild in progress");
+  expect(en.settings.switchWhileRebuildingBody).toBe(
+    "Switch to your computer after the document index finishes rebuilding.",
+  );
+  expect(itLocale.settings.switchWhileRebuildingTitle).toBe(
+    "Ricostruzione indice in corso",
+  );
+  expect(itLocale.settings.switchWhileRebuildingBody).toBe(
+    "Passa al computer quando l'indice dei documenti ha finito di ricostruirsi.",
+  );
+});

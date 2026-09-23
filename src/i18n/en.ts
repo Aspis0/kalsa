@@ -196,6 +196,9 @@ export const en = {
     switchWhileStreamingTitle: "Response in progress",
     switchWhileStreamingBody:
       "Changing model will stop generation. Continue?",
+    switchWhileRebuildingTitle: "Index rebuild in progress",
+    switchWhileRebuildingBody:
+      "Switch to your computer after the document index finishes rebuilding.",
     privacy: "Privacy",
     privacyBody:
       "Kalsa runs fully on this device. Your chats stay local. Network calls are model downloads from Hugging Face, web search through the provider you choose, optional page fetches (web_fetch), and opt-in telemetry. API keys are stored in this device's secure storage. There is no account and no cloud sync. Telemetry is off by default.",

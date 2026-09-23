@@ -131,12 +131,49 @@ describe("AppShell remote wiring (source pins)", () => {
       /const selectRemoteComputer = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[/,
     );
     expect(selectRemote).not.toBeNull();
-    expect(selectRemote![1]).toContain("semanticRebuildInFlight || isDeleteActive()");
+    const body = selectRemote![1].replace(/\s+/g, " ");
+    // Synchronous ref, not the render-lagged state (R2-4).
+    expect(body).toContain("semanticRebuildBusyRef.current || isDeleteActive()");
+    expect(body).not.toContain("if (semanticRebuildInFlight ||");
+    // Own copy inside the rebuild branch — the stream/regen guard keeps the
+    // streaming alert; the rebuild branch must not borrow it (no false
+    // “Continue?”).
+    const rebuildBranch = body.match(
+      /if \(semanticRebuildBusyRef\.current \|\| isDeleteActive\(\)\) [\s\S]{0,300}?return;/,
+    );
+    expect(rebuildBranch).not.toBeNull();
+    expect(rebuildBranch![0]).toContain("switchWhileRebuildingTitle");
+    expect(rebuildBranch![0]).toContain("switchWhileRebuildingBody");
+    expect(rebuildBranch![0]).not.toContain("switchWhileStreamingTitle");
   });
 
-  test("boot does not overwrite the intent of a switch in flight (N1)", () => {
+  test("boot does not overwrite a switch or a rebuild in flight (N1 + R2 boot)", () => {
+    // Compound guard: tap-in-flight AND rebuild/delete all shield boot.
     expect(shell).toMatch(
-      /decideRemoteBoot\(\{[\s\S]{0,900}?if \(modelSwitchInFlightRef\.current\) return;/,
+      /decideRemoteBoot\(\{[\s\S]{0,1100}?modelSwitchInFlightRef\.current \|[\s\S]{0,80}?semanticRebuildBusyRef\.current \|\|[\s\S]{0,40}?isDeleteActive\(\)/,
+    );
+  });
+
+  test("config setters invalidate readiness before the write's first await", () => {
+    // Order-sensitive: the hook must sit BEFORE `await commit(...)` — moving
+    // it after re-opens the new-config/old-ready window (re-audit 2).
+    const config = readFileSync(
+      join(__dirname, "../engine/remote/remoteSettings.ts"),
+      "utf8",
+    );
+    expect(config).toMatch(
+      /const changed = urlCache !== next;[\s\S]{0,500}?onRemoteConfigChanged\?\.\(\);\s*\n\s*await commit\(urlCache/,
+    );
+    expect(config).toMatch(
+      /const changed = serverModelCache !== next;[\s\S]{0,120}?onRemoteConfigChanged\?\.\(\);\s*\n\s*await commit\(serverModelCache/,
+    );
+    // The hook also supersedes an in-flight probe (R2-2).
+    const engine = readFileSync(
+      join(__dirname, "../engine/remote/RemoteEngine.ts"),
+      "utf8",
+    );
+    expect(engine).toMatch(
+      /setRemoteConfigChangedHook\(\(\) => \{[\s\S]{0,260}?initGeneration \+= 1;/,
     );
   });
 

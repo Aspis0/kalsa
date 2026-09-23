@@ -32,7 +32,6 @@ import {
   setRemoteConfigChangedHook,
   validateServedModel,
 } from "./remoteSettings";
-import { isInternalErrorCode } from "./remoteBrainErrors";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
 
@@ -48,7 +47,11 @@ let streamGeneration = 0;
 // server it will actually talk to, not inherit the ready short-circuit's
 // verdict about the previous one.
 setRemoteConfigChangedHook(() => {
+  // Readiness AND any probe already in flight: initRemoteEngine re-checks its
+  // generation after the probe, so an init started before this edit cannot
+  // mark ready against the previous server (re-audit 2, R2-2).
   ready = false;
+  initGeneration += 1;
 });
 
 /**
@@ -246,6 +249,11 @@ export async function streamRemoteAssistantTurn(
   // and a URL/model edit drops readiness (setRemoteConfigChangedHook above),
   // so this must win over the not-ready message behind it.
   const base = getRemoteBrainUrl();
+  // URL and model are ONE server identity for the whole turn: capture both
+  // here, before the token await, so a mid-turn edit cannot mix the old URL
+  // with the new model (or vice versa). The edit belongs to the NEXT turn —
+  // the config hook only drops readiness; it never aborts a running stream.
+  const serverModel = getRemoteServerModelId();
   const urlGate = remoteUrlGateError(base);
   if (urlGate) {
     callbacks.onError(new Error(urlGate));
@@ -404,7 +412,7 @@ export async function streamRemoteAssistantTurn(
     const handle = streamOpenAiChat(
       {
         completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
-        model: getRemoteServerModelId(),
+        model: serverModel,
         messages: toOpenAiMessages(
           turnMessages,
           buildRemoteSystemPrompt({
@@ -475,16 +483,18 @@ export async function streamRemoteAssistantTurn(
   });
   } catch (err) {
     if (!closed) {
-      // Remote-boundary normalization: a native exception (SecureStore, JS)
-      // must reach the UI as an internal code so it renders as generic copy,
-      // never verbatim (remoteBrainErrors' module rule). Codes pass through;
-      // AppShell's prefix gate turns every one of them into human copy.
+      // Boundary pass-through: only our own codes and the two control signals
+      // AppShell must see unchanged — the "interrupted" code marker and the
+      // superseded flag — may cross verbatim. Anything else (any snake_case
+      // token a dependency might throw) becomes remote_brain_internal, so the
+      // UI can only ever render human copy (re-audit 2, R2-1).
       const failure = err instanceof Error ? err : new Error(String(err));
-      finishOnce(
-        isInternalErrorCode(failure.message)
-          ? failure
-          : new Error("remote_brain_internal"),
-      );
+      const control = failure as { code?: string; superseded?: boolean };
+      const ours =
+        failure.message.startsWith("remote_brain_") ||
+        control.code === "interrupted" ||
+        control.superseded === true;
+      finishOnce(ours ? failure : new Error("remote_brain_internal"));
     }
   } finally {
     if (!streamStarted && stillMine()) inFlight = false;

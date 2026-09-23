@@ -195,6 +195,9 @@ export const it: typeof en = {
     switchWhileStreamingTitle: "Risposta in corso",
     switchWhileStreamingBody:
       "Cambiare modello interromperà la generazione. Continuare?",
+    switchWhileRebuildingTitle: "Ricostruzione indice in corso",
+    switchWhileRebuildingBody:
+      "Passa al computer quando l'indice dei documenti ha finito di ricostruirsi.",
     privacy: "Privacy",
     privacyBody:
       "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le chiamate di rete sono il download dei modelli da Hugging Face, la ricerca web tramite il provider che scegli, i fetch di pagine opzionali (web_fetch) e la telemetria opt-in. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud. La telemetria è disattivata di default.",

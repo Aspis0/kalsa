@@ -164,21 +164,24 @@ export async function setRemoteBrainUrl(url: string): Promise<void> {
   const trimmed = url.trim();
   const next = trimmed ? normalizeUrl(trimmed) : "";
   const changed = urlCache !== next;
+  // Invalidate BEFORE the write's first await: commit assigns the new cache
+  // value synchronously, so readiness must drop in the same synchronous
+  // stretch — no ensure can observe the new config with the old ready=true
+  // (re-audit 2). A failed write leaves readiness dropped, which is the safe
+  // direction (the next ensure just re-probes the restored config).
+  if (changed) onRemoteConfigChanged?.();
   await commit(urlCache, next, (value) => {
     urlCache = value;
   }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, value));
-  // A different address is a different server: readiness must drop so the
-  // next ensure probes instead of the ready short-circuit trusting the old one.
-  if (changed) onRemoteConfigChanged?.();
 }
 
 export async function setRemoteServerModelId(id: string): Promise<void> {
   const next = id.trim();
   const changed = serverModelCache !== next;
+  if (changed) onRemoteConfigChanged?.();
   await commit(serverModelCache, next, (value) => {
     serverModelCache = value;
   }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, value));
-  if (changed) onRemoteConfigChanged?.();
 }
 
 export async function setRemoteMaxTokens(n: number): Promise<void> {

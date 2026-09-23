@@ -1192,6 +1192,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Reactive busy flag for a user-triggered rebuild, not ordinary imports. */
   const [semanticRebuildInFlight, setSemanticRebuildInFlight] = useState(false);
   /**
+   * Synchronous mirror of the state above: the guards (boot, selector) must
+   * see a rebuild start without waiting for a React render — setState's
+   * pre-render window is the residual gap (re-audit 2, R2-4).
+   */
+  const semanticRebuildBusyRef = useRef(false);
+  /**
    * Generation token for the background embed job. Bumped on unmount, on
    * library delete of the doc being embedded, and when the chat model starts
    * loading. Bumping also aborts embedJobAbortRef so EmbeddingService sees
@@ -2146,8 +2152,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       if (!entry) return { ok: false, reason: "unavailable" };
+      // Same synchronous stretch as releaseDelete (no await between): by the
+      // time any tap handler can run, the ref is already true.
+      semanticRebuildBusyRef.current = true;
       setSemanticRebuildInFlight(true);
       void scheduleBackgroundEmbed(entry).finally(() => {
+        semanticRebuildBusyRef.current = false;
         setSemanticRebuildInFlight(false);
       });
       return true;
@@ -3029,10 +3039,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           defaultLocalModelId: getDefaultModel().id,
           remoteModelId: REMOTE_COMPUTER_MODEL_ID,
         });
-        // A tap during hydration owns the intent and the model index: boot
-        // must not overwrite a switch that is in flight (its probe-skip and
-        // epoch bump take over from here).
-        if (modelSwitchInFlightRef.current) return;
+        // Guards: a tap during hydration owns the intent and the model index;
+        // a rebuild owns the delete/embed arc. Boot overwrites neither — with
+        // a rebuild running it stays local for this launch and persists
+        // nothing new (the live backend cache is the fresh-process default
+        // "local"; hydrate never writes it), so the next launch retries the
+        // stored choice.
+        if (
+          modelSwitchInFlightRef.current ||
+          semanticRebuildBusyRef.current ||
+          isDeleteActive()
+        ) {
+          return;
+        }
         if (decision.kind === "remote") {
           engineIntentRef.current = {
             modelId: REMOTE_COMPUTER_MODEL_ID,
@@ -4935,10 +4954,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
       return;
     }
-    if (semanticRebuildInFlight || isDeleteActive()) {
+    if (semanticRebuildBusyRef.current || isDeleteActive()) {
       // A rebuild in flight: switching to remote would let its embed pass hit
       // the entry gate and strand the just-deleted index with no rebuild.
-      Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
+      Alert.alert(
+        t("settings.switchWhileRebuildingTitle"),
+        t("settings.switchWhileRebuildingBody"),
+      );
       return;
     }
     modelSwitchInFlightRef.current = true;
@@ -4995,7 +5017,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         endBackendSwitch();
       }
     })();
-  }, [ensureEngineForModel, modelState, semanticRebuildInFlight, t]);
+  }, [ensureEngineForModel, modelState, t]);
 
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
