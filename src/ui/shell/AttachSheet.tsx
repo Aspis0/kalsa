@@ -23,8 +23,9 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { radius, spacing, type, type DesignColors } from "../../theme/design";
+import { e3, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { SheetGrabber } from "./SheetGrabber";
+import { singleLineSheetTitle } from "./sheetTitleProps";
 
 export type AttachSheetIcon =
   | "library"
@@ -132,6 +133,7 @@ export function AttachSheet({
   scroll = false,
 }: AttachSheetProps) {
   const body = rows.map((row) => <SheetRow key={row.testID} row={row} colors={colors} />);
+  const heading = title ? singleLineSheetTitle(title) : null;
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
@@ -150,17 +152,18 @@ export function AttachSheet({
               backgroundColor: colors.surface,
               borderRadius: radius.sheet,
               overflow: "hidden",
+              ...e3,
               ...(scroll ? { maxHeight: 360 } : null),
             }}
           >
             <SheetGrabber colors={colors} />
-            {title ? (
+            {heading ? (
               <Text
                 accessibilityRole="header"
-                numberOfLines={1}
+                numberOfLines={heading.numberOfLines}
                 style={[type.title, { color: colors.ink, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs }]}
               >
-                {title}
+                {heading.title}
               </Text>
             ) : null}
             {subtitle ? (

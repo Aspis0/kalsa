@@ -165,6 +165,9 @@ export const e2 = {
   elevation: 3,
 } as const;
 
+/** DESIGN-V2's Sheet row names the existing floating shadow role e3. */
+export const e3 = e2;
+
 /** Compatibility names retained while older mounted screens are replaced. */
 export const elevation = { raised: e1, float: e1, dock: e2 } as const;
 

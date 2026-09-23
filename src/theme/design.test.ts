@@ -10,7 +10,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { families, measure, modes, radius, space, type, type DesignColors, type ThemeMode } from "./design";
+import { e2, e3, families, measure, modes, radius, space, type, type DesignColors, type ThemeMode } from "./design";
 
 function channel(value: number): number {
   const c = value / 255;
@@ -212,6 +212,10 @@ describe("measure", () => {
 });
 
 describe("v2 shape and space tokens", () => {
+  it("names the Sheet's floating shadow role e3", () => {
+    expect(e3).toBe(e2);
+  });
+
   it("uses the v2 spacing ladder and semantic radii", () => {
     expect(Object.values(space)).toEqual([4, 8, 12, 16, 20, 24, 32]);
     expect(radius).toMatchObject({

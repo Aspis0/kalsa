@@ -10,7 +10,9 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { en } from "../../i18n/en";
 import { it as italian } from "../../i18n/it";
+import { e2, e3 } from "../../theme/design";
 import { COMPOSER_ATTACHMENTS_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
+import { singleLineSheetTitle } from "./sheetTitleProps";
 
 const SHELL_DIR = __dirname;
 const HOST_DIR = join(__dirname, "..", "..", "host");
@@ -60,8 +62,14 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
   it("supports a titled sheet heading for conversation actions", () => {
     expect(SHEET).toContain("title?: string;");
     expect(SHEET).toContain('accessibilityRole="header"');
-    expect(SHEET).toContain("{title}");
-    expect(SHEET).toContain("numberOfLines={1}");
+    const longTitle = "This conversation title is long enough to exceed the sheet width ".repeat(4);
+    const heading = singleLineSheetTitle(longTitle);
+    expect(heading).toEqual({ title: longTitle, numberOfLines: 1 });
+    const headingAt = SHEET.indexOf("{heading ? (");
+    const subtitleAt = SHEET.indexOf("{subtitle ? (", headingAt);
+    const headingSource = SHEET.slice(headingAt, subtitleAt);
+    expect(headingSource).toContain("numberOfLines={heading.numberOfLines}");
+    expect(headingSource).toContain("{heading.title}");
   });
 
   it("supports a full-width primary action for selectable settings sheets", () => {
@@ -80,6 +88,8 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
     expect(GRABBER).toContain("alignSelf: \"center\"");
     expect(GRABBER).toContain("marginTop: 8");
     expect(SHEET).toContain("<SheetGrabber colors={colors} />");
+    expect(e3).toBe(e2);
+    expect(SHEET).toContain("...e3");
     expect(MODEL_SHEET).toContain("<SheetGrabber colors={colors} marginBottom={spacing.md} />");
     expect(MODEL_SHEET).not.toContain("width: 36");
     expect(MODEL_SHEET).not.toContain("height: 4");

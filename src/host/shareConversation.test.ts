@@ -15,7 +15,10 @@ import { buildExportMarkdown, shareConversation, shareConversationById } from ".
 import {
   bindConversationRowActions,
   buildDrawerConversationItems,
+  createConversationRowActions,
+  runConversationRowAction,
 } from "./conversationRowActions";
+import { en as english } from "../i18n/en";
 import { it as italian } from "../i18n/it";
 import type { Message } from "./hostMessage";
 
@@ -28,12 +31,23 @@ const t = ((key: string, params?: Record<string, string | number>) => {
     "chat.exportYou": "**You**",
     "chat.exportAi": "**AI**",
     "chat.exportTitle": "Kalsa — conversation export",
-    "drawer.exportConversationA11y": "Export conversation {title}",
-    "drawer.deleteConversationA11y": "Delete conversation {title}",
+    "drawer.exportAction": "Export chat",
+    "drawer.deleteAction": "Delete chat",
+    "drawer.exportConversationA11y": "Export chat {title}",
+    "drawer.deleteConversationA11y": "Delete chat {title}",
   };
   const line = copy[key] ?? key;
   return params ? line.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? k)) : line;
 }) as TranslateFn;
+
+function drawerTranslator(catalog: typeof english.drawer): TranslateFn {
+  return ((key, params) => {
+    const copy = catalog[key.replace(/^drawer\./, "") as keyof typeof catalog];
+    return params
+      ? copy.replace(/\{(\w+)\}/g, (_, name: string) => String(params[name] ?? name))
+      : copy;
+  }) as TranslateFn;
+}
 
 const turn = (role: Message["role"], text: string): Message => ({
   id: `${role}-${text.length}`,
@@ -105,8 +119,19 @@ describe("the conversation row action sheet", () => {
     const content = stripComments(read("../theme/components/DrawerContent.tsx"));
     expect(content).toContain('["documents", "notes", "settings", "account"]');
     expect(content).not.toContain('"export"');
-    expect(italian.drawer.exportAction).toBe("Esporta");
-    expect(italian.drawer.deleteAction).toBe("Elimina");
+    expect(english.drawer.exportAction).toBe("Export chat");
+    expect(english.drawer.deleteAction).toBe("Delete chat");
+    expect(italian.drawer.exportAction).toBe("Esporta chat");
+    expect(italian.drawer.deleteAction).toBe("Elimina chat");
+
+    const sheet = stripComments(read("../ui/shell/AttachSheet.tsx"));
+    expect(sheet).toContain("accessibilityLabel={row.accessibilityLabel ?? row.label}");
+
+    const actions = createConversationRowActions("older", "Titolo lungo", drawerTranslator(italian.drawer), jest.fn(), jest.fn());
+    expect(actions.map(({ label, accessibilityLabel }) => [label, accessibilityLabel])).toEqual([
+      ["Esporta chat", "Esporta la chat Titolo lungo"],
+      ["Elimina chat", "Elimina la chat Titolo lungo"],
+    ]);
   });
 
   it("exports from the row's action set through the root handler using that row id", async () => {
@@ -142,12 +167,12 @@ describe("the conversation row action sheet", () => {
     expect(rows.find((item) => item.id === activeId)?.active).toBe(true);
     expect(row?.active).toBe(false);
     expect(row?.actions?.map((action) => action.id)).toEqual(["export", "delete"]);
-    expect(row?.actions?.find((action) => action.id === "export")?.label).toBe("drawer.exportAction");
+    expect(row?.actions?.find((action) => action.id === "export")?.label).toBe("Export chat");
     expect(row?.actions?.find((action) => action.id === "export")?.accessibilityLabel).toBe(
-      "Export conversation Older",
+      "Export chat Older",
     );
     expect(row?.actions?.find((action) => action.id === "delete")?.accessibilityLabel).toBe(
-      "Delete conversation Older",
+      "Delete chat Older",
     );
     const sheetRows = bindConversationRowActions(row?.actions ?? [], {
       closeSheet: () => order.push("closeSheet"),
@@ -180,6 +205,48 @@ describe("the conversation row action sheet", () => {
     expect(rowsBuilder).toContain("filterConversations(conversations.items, query).map((item)");
     expect(rowsBuilder).toContain("createConversationRowActions(item.id, title, t, onExport, onDelete)");
     expect(rowsBuilder).toContain("onLongPress: () => onActionSheetOpen(item.id)");
+  });
+
+  it("wires HostDrawer's sheet and drawer closers to their named behaviors", () => {
+    const drawer = stripComments(read("HostDrawer.tsx"));
+    expect(drawer).toMatch(
+      /bindConversationRowActions\(selectedConversation\.actions,\s*\{\s*closeSheet: \(\) => setSelectedConversationId\(null\),\s*closeDrawer,\s*\}\s*\)/,
+    );
+
+    const events: string[] = [];
+    const action = createConversationRowActions(
+      "row-id",
+      "Row",
+      t,
+      (id) => events.push("export:" + id),
+      (id) => events.push("delete:" + id),
+    )[0];
+    const bound = bindConversationRowActions([action], {
+      closeSheet: () => events.push("close-sheet"),
+      closeDrawer: () => events.push("close-drawer"),
+    });
+    bound[0].onPress();
+    expect(events).toEqual(["close-sheet", "close-drawer", "export:row-id"]);
+  });
+
+  it("closes the drawer for export and leaves it open for delete", () => {
+    const events: string[] = [];
+    const actions = createConversationRowActions(
+      "row-id",
+      "Row",
+      t,
+      (id) => events.push("export:" + id),
+      (id) => events.push("delete:" + id),
+    );
+    const closeSheet = () => events.push("close-sheet");
+    const closeDrawer = () => events.push("close-drawer");
+
+    runConversationRowAction(actions[0], closeSheet, closeDrawer);
+    expect(events).toEqual(["close-sheet", "close-drawer", "export:row-id"]);
+
+    events.length = 0;
+    runConversationRowAction(actions[1], closeSheet, closeDrawer);
+    expect(events).toEqual(["close-sheet", "delete:row-id"]);
   });
 
   it("routes long press through the shell sheet to the id-aware root handler", () => {
