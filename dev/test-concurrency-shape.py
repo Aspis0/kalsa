@@ -13,7 +13,9 @@ committed provenance.argv element for element.
   (2) build_result fed synthetic arms at N=2 yields the committed
       artifact's key tree - every committed path present, and the only
       NEW paths are the listed provenance additions:
-      provenance.context_size_per_slot (commit 2) and
+      provenance.context_size_per_slot (commit 2),
+      provenance.ctx_checkpoints / provenance.flash_attn (commit 3: null
+      when the flag was not rendered), and
       provenance.release.status_by_exe_sha256 / provenance.release.identity.*
       (commit 1's veto fields, which live under provenance.release).
       Anything else new, or anything missing, is red.
@@ -22,6 +24,11 @@ committed provenance.argv element for element.
       tokens_per_second.B_slot0..3 + B_aggregate, arms.B_four_slots with
       slot0..slot3, provenance.parallel == 4, context_size_per_slot =
       ctx_size // 4, and a question that says 4 devices.
+  (4) the launch flags: at defaults NEITHER is in the argv (and the argv is
+      still the committed one); given a value it lands as the exact PAIR,
+      exactly once, in the app's position - and `--ctx-checkpoints 1` does
+      NOT pass for `12` (the substring trap, pinned: joining the argv would
+      yield "--ctx-checkpoints 12", which contains "--ctx-checkpoints 1").
 
 The synthetic arm records mirror run_one()/run_streams() key for key (the
 engine lines are produced by mc.extract() itself, from lines in the
@@ -57,6 +64,8 @@ COMMITTED = json.loads(ARTIFACT.read_text())
 # unlisted key anywhere (provenance included) turns case (2) red.
 EXPECTED_EXTRA = {
     "provenance.context_size_per_slot",
+    "provenance.ctx_checkpoints",
+    "provenance.flash_attn",
     "provenance.release.status_by_exe_sha256",
     "provenance.release.identity",
 } | {f"provenance.release.identity.{k}" for k in (
@@ -167,7 +176,10 @@ def fake_args(**over):
                 streams=COMMITTED["provenance"]["parallel"],
                 n_predict=256, prompt_tokens=512, attempts=4,
                 bracket_tol=0.03, keep_server=False, max_load=6.0,
-                release_manifest_url=None)
+                release_manifest_url=None,
+                # commit 3's launch flags: unrendered by default, null in
+                # provenance - run_parameters reads them off the namespace.
+                ctx_checkpoints=None, flash_attn=None)
     base.update(over)
     return argparse.Namespace(**base)
 
@@ -272,10 +284,54 @@ def case_3():
           "4 devices" in built["question"], built["question"])
 
 
+def case_4():
+    print("(4) launch flags: exact pair, exactly once, nothing at default",
+          file=sys.stderr)
+    p = COMMITTED["provenance"]
+
+    def argv_with(**kw):
+        return mc.engine_argv(p["engine_binary"], p["model"],
+                              int(p["argv"][p["argv"].index("--port") + 1]),
+                              p["context_size_total"], Path(p["slots_dir"]),
+                              p["parallel"], **kw)
+
+    dflt = argv_with()
+    check("(4) at defaults neither flag is rendered",
+          "--flash-attn" not in dflt and "--ctx-checkpoints" not in dflt)
+    check("(4) and the argv at defaults is still the committed one",
+          dflt == p["argv"])
+    one = argv_with(ctx_checkpoints=1, flash_attn="on")
+    pairs = list(zip(one, one[1:]))
+    check("(4) `--ctx-checkpoints 1` lands as the exact pair, exactly once",
+          one.count("--ctx-checkpoints") == 1
+          and pairs.count(("--ctx-checkpoints", "1")) == 1)
+    check("(4) `--flash-attn on` lands as the exact pair, exactly once",
+          one.count("--flash-attn") == 1
+          and pairs.count(("--flash-attn", "on")) == 1)
+    twelve = argv_with(ctx_checkpoints=12)
+    pairs12 = list(zip(twelve, twelve[1:]))
+    check("(4) the pin: `--ctx-checkpoints 1` does NOT pass for 12 - the pair "
+          "is absent, and the pair for 12 is exactly once",
+          pairs12.count(("--ctx-checkpoints", "1")) == 0
+          and pairs12.count(("--ctx-checkpoints", "12")) == 1,
+          str(pairs12[pairs12.index(("--ctx-checkpoints", "12"))]
+              if ("--ctx-checkpoints", "12") in pairs12 else "pair missing"))
+    check("(4) placement follows the app: flash-attn immediately before the "
+          "cache types (argv.rs:56-57)",
+          one[one.index("--flash-attn") + 1] == "on"
+          and one[one.index("--flash-attn") + 2] == "--cache-type-k",
+          str(one[one.index("--flash-attn"):one.index("--flash-attn") + 3]))
+    check("(4) placement follows the app: ctx-checkpoints immediately after "
+          "--slot-save-path (argv.rs:105-108)",
+          one[one.index("--slot-save-path") + 2] == "--ctx-checkpoints",
+          str(one[one.index("--slot-save-path"):one.index("--slot-save-path") + 4]))
+
+
 def main():
     case_1()
     case_2()
     case_3()
+    case_4()
     print(f"concurrency shape: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

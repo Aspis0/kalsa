@@ -358,9 +358,13 @@ def case_c(artifact, expect_max_load, expect_attempts):
 def case_e(mc):
     """The provenance builder must FOLLOW its input, with a value that is not
     the default: a `"max_load": 6.0` literal is invisible to the documented
-    CLI run, whose --expect-max-load is 6.0 by definition."""
+    CLI run, whose --expect-max-load is 6.0 by definition. The two launch
+    flags are here for the same reason: 3 / "off" are neither the
+    unrendered default (null) nor the values the app ships (1 / on), so a
+    builder that hardcodes either one dies on this case."""
     c = Checks("(e) the provenance builder follows its input")
-    args = type("Args", (), {"max_load": 4.75, "attempts": 7})()
+    args = type("Args", (), {"max_load": 4.75, "attempts": 7,
+                             "ctx_checkpoints": 3, "flash_attn": "off"})()
     built = mc.run_parameters(args)
     c.eq("run_parameters(max_load=4.75).max_load follows the argument",
          built.get("max_load"), 4.75)
@@ -369,6 +373,19 @@ def case_e(mc):
     c.ok("the distinctive values are NOT the defaults used by the artifact "
          "(a check that compares 6.0 to 6.0 kills nothing)",
          4.75 != 6.0 and 7 != 4)
+    c.eq("run_parameters(ctx_checkpoints=3).ctx_checkpoints follows the "
+         "argument (3: not the app's 1, not the null of an unrendered flag)",
+         built.get("ctx_checkpoints"), 3)
+    c.eq("run_parameters(flash_attn='off').flash_attn follows the argument "
+         "('off': not the app's 'on', not the null of an unrendered flag)",
+         built.get("flash_attn"), "off")
+    bare = type("Args", (), {"max_load": 6.0, "attempts": 4,
+                             "ctx_checkpoints": None, "flash_attn": None})()
+    bb = mc.run_parameters(bare)
+    c.eq("a default run records ctx_checkpoints null (not rendered)",
+         bb.get("ctx_checkpoints"), None)
+    c.eq("a default run records flash_attn null (not rendered)",
+         bb.get("flash_attn"), None)
     return c
 
 

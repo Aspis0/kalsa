@@ -46,13 +46,15 @@ Usage:
   measure-concurrency.py --bin BIN --out dev/results/<dir>/results.json \
       --log /tmp/<dir>/server.log --slots-dir /tmp/<dir>/slots \
       [--port 19311] [--model MODEL] [--ctx-size 8192] [--streams {2,4}] \
-      [--n-predict 256] \
+      [--n-predict 256] [--ctx-checkpoints K] [--flash-attn {on,off,auto}] \
       [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server] \
       [--max-load 6.0] [--release-manifest-url URL]
 
 Provenance the next reader can check instead of trust: `max_load` and
 `attempts_max` are recorded as the values actually used (after their
-defaults), and `release` is DERIVED by matching the sha256 of the binary that
+defaults), `ctx_checkpoints` and `flash_attn` as the values that rode the
+argv (null when the flag was not rendered - the default), and `release` is
+DERIVED by matching the sha256 of the binary that
 ran against the published release manifest - by `exe_sha256` only, never by
 path or directory name. Three statuses, kept apart on purpose: `matched` (a
 manifest row carries this hash -> the row's fields ride along),
@@ -572,32 +574,51 @@ def run_parameters(args):
     These fields live here and not inline in the artifact literal so the
     control file can call this builder with a distinctive value and prove
     the field FOLLOWS the argument: a provenance field whose builder ignores
-    its input records the default forever and calls it a measurement.
+    its input records the default forever and calls it a measurement. The
+    two launch flags are here for the same reason, and their "default" is
+    None = the flag was not rendered at all - the null IS the value a
+    default run used.
     """
     return {
         "max_load": args.max_load,
         "attempts_max": args.attempts,
+        "ctx_checkpoints": args.ctx_checkpoints,
+        "flash_attn": args.flash_attn,
     }
 
 
-def engine_argv(bin_path, model, port, ctx_size, slots_dir, streams):
+def engine_argv(bin_path, model, port, ctx_size, slots_dir, streams,
+                ctx_checkpoints=None, flash_attn=None):
     """The engine command line.
 
     `--parallel` is `streams` verbatim - at 2 the argv is byte-identical to
     the committed artifact's (pinned by dev/test-concurrency-shape.py).
+    The two optional flags render only when given (default None -> nothing
+    in the argv, so the argv at defaults is the committed one) and exactly
+    as the app renders them: `--flash-attn <value>` immediately before the
+    cache types (crates/kalsa-launch/src/argv.rs:56-57),
+    `--ctx-checkpoints <k>` immediately after --slot-save-path
+    (argv.rs:105-108). The value rides as its own element - a bare
+    substring of the joined argv would let `1` pass for `12`.
     `--slot-save-path` is not decoration: without it the slot actions answer
     501 and every erase in this run fails silently. The directory is created
     by the caller, because the engine refuses a path that is not a directory.
     """
-    return ["nice", "-n", str(NICE), bin_path, "-m", model,
+    argv = ["nice", "-n", str(NICE), bin_path, "-m", model,
             "--host", "127.0.0.1", "--port", str(port),
-            "--parallel", str(streams), "--ctx-size", str(ctx_size),
-            "--cache-type-k", "q8_0", "--cache-type-v", "q8_0",
-            "--n-gpu-layers", "all", "--threads", "4", "--threads-batch", "4",
-            "--batch-size", "2048", "--ubatch-size", "512",
-            "--cache-ram", "0", "--slot-save-path", str(slots_dir) + "/",
-            "--sleep-idle-seconds", str(SLEEP_IDLE_S),
-            "--no-webui", "-lv", "4"]
+            "--parallel", str(streams), "--ctx-size", str(ctx_size)]
+    if flash_attn is not None:
+        argv.extend(["--flash-attn", flash_attn])
+    argv.extend(["--cache-type-k", "q8_0", "--cache-type-v", "q8_0",
+                 "--n-gpu-layers", "all", "--threads", "4",
+                 "--threads-batch", "4",
+                 "--batch-size", "2048", "--ubatch-size", "512",
+                 "--cache-ram", "0", "--slot-save-path", str(slots_dir) + "/"])
+    if ctx_checkpoints is not None:
+        argv.extend(["--ctx-checkpoints", str(ctx_checkpoints)])
+    argv.extend(["--sleep-idle-seconds", str(SLEEP_IDLE_S),
+                 "--no-webui", "-lv", "4"])
+    return argv
 
 
 # --------------------------------------------------------------------------
@@ -959,6 +980,18 @@ def main():
                          "ceiling: the gate is off by explicit choice, and the "
                          "artifact records the field as 0.0 - a reader sees the "
                          "gate was disabled, not that the run passed a limit")
+    ap.add_argument("--ctx-checkpoints", type=int, default=None,
+                    help="render `--ctx-checkpoints K` exactly as the app "
+                         "does (argv.rs:105-108 ships 1); default None "
+                         "renders NOTHING (the argv at defaults stays the "
+                         "committed one); the value used is recorded as "
+                         "provenance.ctx_checkpoints, null when not rendered")
+    ap.add_argument("--flash-attn", choices=("on", "off", "auto"),
+                    default=None,
+                    help="render `--flash-attn <value>` exactly as the app "
+                         "does (argv.rs:56-57, the value as given); default "
+                         "None renders NOTHING; the value used is recorded "
+                         "as provenance.flash_attn, null when not rendered")
     ap.add_argument("--release-manifest-url", default=None,
                     help="override the release manifest URL; by default it is "
                          "derived from a kalsa-server-vX.Y.Z binary directory")
@@ -997,7 +1030,9 @@ def main():
         old.unlink()   # a file from an earlier run must not predate this one
 
     argv = engine_argv(args.bin, args.model, args.port, args.ctx_size,
-                       slots_dir, args.streams)
+                       slots_dir, args.streams,
+                       ctx_checkpoints=args.ctx_checkpoints,
+                       flash_attn=args.flash_attn)
 
     vp = subprocess.run(["nice", "-n", str(NICE), args.bin, "--version"],
                         capture_output=True, text=True)
