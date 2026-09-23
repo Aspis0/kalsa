@@ -71,6 +71,7 @@
     "expo-doctor": "^1.18.20",
     "jest": "^30.4.2",
     "pdfjs-dist": "^3.11.174",
+    "react-test-renderer": "19.2.3",
     "ts-jest": "^29.4.12",
     "typescript": "~6.0.3"
   },

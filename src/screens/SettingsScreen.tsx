@@ -111,6 +111,7 @@ import {
 import { getBenchNCtx, getBenchNoRepack, getEngineOverride, getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
+import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, type FontScaleId, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -2544,6 +2545,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
             ) : null}
           </View>
         </GlassPanel2>
+
+        <RemoteBrainSettings
+          currentModelId={model.currentModelId}
+          busy={modelBusy}
+          onSelectModel={model.onSelectModel}
+        />
 
         {/* ── Models ───────────────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>

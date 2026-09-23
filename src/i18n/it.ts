@@ -127,6 +127,56 @@ export const it: typeof en = {
     models: "Modelli",
     modelsHint:
       "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
+    remoteBrain: "Cervello remoto",
+    remoteBrainHint:
+      "Usa il tuo computer come modello. Imposta qui sotto il suo indirizzo. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
+    remoteBrainDisclosure:
+      "Per rispondere, il tuo computer riceve la conversazione: messaggi, memoria, riassunti e nomi dei documenti.",
+    remoteBrainUrl: "Indirizzo del tuo computer",
+    remoteBrainUrlHint: "https://il-tuo-computer.example",
+    remoteBrainUrlMissing:
+      "Inserisci l'indirizzo del tuo computer prima di usare il cervello remoto.",
+    remoteBrainMigratedToLocal:
+      "Il cervello remoto non è stato caricato all'avvio. Resta la modalità locale: scegli di nuovo il tuo computer in Impostazioni.",
+    remoteBrainModel: "Id del modello sul tuo computer",
+    remoteBrainModelHint: "L'id del modello che offre il tuo computer. Non viene indovinato.",
+    remoteBrainMaxTokens: "Max token",
+    remoteBrainToken: "Token API (opzionale)",
+    remoteBrainTokenHint:
+      "Lascia vuoto se il tuo computer non chiede un token. Salvato nello storage sicuro di questo dispositivo.",
+    remoteBrainTest: "Prova connessione",
+    remoteBrainTesting: "Verifica…",
+    remoteBrainOk: "Connesso · {model}",
+    remoteBrainFailGeneric:
+      "Il tuo computer non risponde. Controlla l'indirizzo e riprova.",
+    remoteBrainFailNetwork:
+      "Il tuo computer non risponde. Controlla che sia acceso e raggiungibile, poi riprova.",
+    remoteBrainFailTimeout:
+      "Il tuo computer ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
+    remoteBrainFailServer:
+      "Il tuo computer ha risposto con un errore ({status}). Forse si sta ancora avviando: riprova tra un momento.",
+    remoteBrainFailBusy:
+      "Il tuo computer sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
+    remoteBrainFailStaleInit:
+      "Quel tentativo di connessione è stato sostituito da uno più recente. Riprova.",
+    remoteBrainFailModelRequired:
+      "Imposta l'id del modello che offre il tuo computer prima di collegarti.",
+    remoteBrainFailModelMissing:
+      "Il tuo computer ha risposto ma non offre quel modello. Controlla l'id.",
+    remoteBrainSaveFailed:
+      "Queste impostazioni non sono state salvate su questo telefono. Riprova.",
+    remoteBrainUrlInvalid:
+      "Quell'indirizzo non è un URL http o https valido.",
+    remoteBrainHttpWarning:
+      "Questo indirizzo è HTTP in chiaro e non è su questo telefono. Il token non verrà inviato. Usa HTTPS.",
+    remoteBrainHttpsRequired:
+      "HTTP in chiaro funziona solo per questo telefono. Per il tuo computer usa https://.",
+    remoteBrainTokenRequired:
+      "Serve un token quando l'indirizzo non è su questo telefono.",
+    remoteComputer: "Il mio computer",
+    remoteComputerHint: "Gira sul tuo computer. Nessun download sul telefono.",
+    remoteGated: "Non disponibile con il cervello remoto",
+    remoteSelect: "Usa il mio computer",
     governor: "Governor termico (sperimentale)",
     governorBody:
       "Adatta CPU/GPU per fase di inferenza in base a temperatura e batteria. Ha effetto al prossimo caricamento del modello.",
@@ -250,6 +300,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   },
 
   models: {
+    remoteComputer: {
+      description:
+        "Il modello in esecuzione sul tuo computer. Solo chat in streaming — nessun peso sul telefono.",
+    },
     qwen4b: {
       description:
         "Predefinito. Qualità migliore, capisce le immagini. Richiede 8 GB di RAM o più (3,5 GB di download).",
@@ -448,6 +502,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     failedRetry: "Download non riuscito — tocca per riprovare",
     loadFailedRetry: "Caricamento non riuscito — tocca per riprovare",
     readyLocal: "Pronto · locale",
+    readyRemote: "Pronto · remoto",
     downloaded: "Scaricato",
     incomplete: "Download incompleto — tocca per riprovare.",
     readyNotice: "{name} pronto.",
@@ -475,6 +530,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     writingStatus: "Sto scrivendo",
     reasoningLabel: "Ragionamento",
     interrupted: "Generazione interrotta.",
+    truncated: "Risposta fermata al limite di token.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
     readingDocument: "Leggendo il documento…",

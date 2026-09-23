@@ -19,6 +19,7 @@ import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
 import type { KvCacheProfile } from "./kvCacheProfile";
 import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
+import { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "./remote/remoteComputerModel";
 
 /**
  * K/V quant pair of a model's cache. Defined in a leaf module so the pure
@@ -103,6 +104,11 @@ export type ModelInfo = {
   preserveThinking?: boolean;
   /** i18n key for the user-facing description shown in Settings (en master + it). */
   descriptionKey: TranslationKey;
+  /**
+   * i18n key for a localized display name. Set when `name` would be wrong in
+   * one of the two locales (the remote row), so renderers prefer it.
+   */
+  nameKey?: TranslationKey;
   /**
    * i18n key for a compact RAM badge (e.g. "8 GB+ RAM") shown in Settings.
    * Set for models that participate in the RAM-tier recommendation UI.
@@ -386,6 +392,7 @@ export function getDefaultModel(): ModelInfo {
 }
 
 export function getModelById(id: string): ModelInfo {
+  if (id === REMOTE_COMPUTER_MODEL_ID) return REMOTE_COMPUTER_MODEL;
   return MODEL_REGISTRY.find((model) => model.id === id) ?? getDefaultModel();
 }
 
