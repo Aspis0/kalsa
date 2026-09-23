@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";
+import { settingsWebToggleProps } from "./settingsWebToggle";
 
 const read = (name: string) => readFileSync(join(__dirname, name), "utf8");
 const readSource = (path: string) => readFileSync(path, "utf8");
@@ -67,6 +68,14 @@ describe("Settings v2 home and advanced pages", () => {
       expect(SETTINGS).toContain(`settings.${key}`);
     }
     expect(SETTINGS).toContain("MODEL_REGISTRY.map((entry)");
+    const advancedModelsAt = SETTINGS.indexOf("modelChoices.map(({ entry, active");
+    expect(advancedModelsAt).toBeGreaterThan(-1);
+    const advancedModels = SETTINGS.slice(advancedModelsAt, SETTINGS.indexOf("</GlassPanel2>", advancedModelsAt));
+    expect(advancedModels).toContain("const sizeLabel = formatBytes(modelBundleSize(entry));");
+    expect(advancedModels).toContain("{entry.quant} · {sizeLabel}");
+    expect(advancedModels).toContain("onPress={() => model.onSelectModel(entry.id)}");
+    expect(SETTINGS).toContain("detail: entry.quant,");
+    expect(SETTINGS).not.toContain('detail: `${entry.quant} · ${formatBytes(modelBundleSize(entry))}`,');
     expect(SETTINGS).toContain("onPress={handleReportProblem}");
   });
 
@@ -76,9 +85,23 @@ describe("Settings v2 home and advanced pages", () => {
     expect(OVERLAYS).toContain("webToolsEnabled={webToolsEnabled}");
     expect(OVERLAYS).toContain("onToggleWebTools={toggleWebTools}");
     expect(SETTINGS).toContain("onToggleWeb={onToggleWebTools}");
-    expect(HOME).toContain("onPress={onToggleWeb}");
+    expect(HOME).toContain("settingsWebToggleProps(webEnabled, onToggleWeb)");
+    expect(HOME).toContain("{...webToggleProps}");
+    expect(HOME).toContain("{webToggleProps ? (");
     expect(FLAGS).toContain("const toggleWebTools = useCallback(() => {");
     expect(FLAGS).toContain("AsyncStorage.setItem(WEB_TOOLS_ENABLED_KEY");
+
+    const toggled = jest.fn();
+    const disabled = settingsWebToggleProps(false, toggled);
+    expect(disabled?.checked).toBe(false);
+    disabled?.onPress();
+    expect(toggled).toHaveBeenCalledTimes(1);
+
+    const enabled = settingsWebToggleProps(true, toggled);
+    expect(enabled?.checked).toBe(true);
+    enabled?.onPress();
+    expect(toggled).toHaveBeenCalledTimes(2);
+    expect(settingsWebToggleProps(true, undefined)).toBeNull();
   });
 
   it("gives settings choice sheets a title and a localized Done action", () => {
@@ -90,5 +113,7 @@ describe("Settings v2 home and advanced pages", () => {
     expect(itStrings["common.done"]).toBe("Fatto");
     expect(enStrings["settings.advancedCount"]).toContain("{count}");
     expect(itStrings["settings.advancedCount"]).toContain("{count}");
+    expect(enStrings["settings.advancedSummary"]).toBe("Context, KV cache, governor and thresholds");
+    expect(itStrings["settings.advancedSummary"]).toBe("Contesto, KV cache, governor, soglie");
   });
 });

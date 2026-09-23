@@ -19,6 +19,8 @@ const stripComments = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
 const SHEET = stripComments(readFileSync(join(SHELL_DIR, "AttachSheet.tsx"), "utf8"));
+const GRABBER = stripComments(readFileSync(join(SHELL_DIR, "SheetGrabber.tsx"), "utf8"));
+const MODEL_SHEET = stripComments(readFileSync(join(SHELL_DIR, "ModelPillSheet.tsx"), "utf8"));
 const CHIPS = stripComments(readFileSync(join(SHELL_DIR, "ComposerAttachments.tsx"), "utf8"));
 const SHELL = stripComments(readFileSync(join(SHELL_DIR, "Shell.tsx"), "utf8"));
 const FIELD = stripComments(readFileSync(join(SHELL_DIR, "ShellComposer.tsx"), "utf8"));
@@ -71,15 +73,16 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
     expect(SHEET).toContain("backgroundColor: pressed ? colors.brandDeep : colors.brand");
   });
 
-  it("draws the shared 36 by 4 grabber eight dp below every sheet top", () => {
-    const grabberAt = SHEET.indexOf('testID="shell.attach.grabber"');
-    const titleAt = SHEET.indexOf("{title ? (");
-    expect(grabberAt).toBeGreaterThan(-1);
-    expect(grabberAt).toBeLessThan(titleAt);
-    expect(SHEET).toContain("width: 36");
-    expect(SHEET).toContain("height: 4");
-    expect(SHEET).toContain("alignSelf: \"center\"");
-    expect(SHEET).toContain("marginTop: 8");
+  it("uses one shared 36 by 4 grabber eight dp below every sheet top", () => {
+    expect(GRABBER).toContain('testID="shell.attach.grabber"');
+    expect(GRABBER).toContain("width: 36");
+    expect(GRABBER).toContain("height: 4");
+    expect(GRABBER).toContain("alignSelf: \"center\"");
+    expect(GRABBER).toContain("marginTop: 8");
+    expect(SHEET).toContain("<SheetGrabber colors={colors} />");
+    expect(MODEL_SHEET).toContain("<SheetGrabber colors={colors} marginBottom={spacing.md} />");
+    expect(MODEL_SHEET).not.toContain("width: 36");
+    expect(MODEL_SHEET).not.toContain("height: 4");
   });
 });
 

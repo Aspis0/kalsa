@@ -1412,7 +1412,7 @@ export function SettingsScreen({ onBack, onOpenHelp, webToolsEnabled, onToggleWe
         modelOptions={modelChoices.map(({ entry, selectDisabled }) => ({
           id: entry.id,
           label: entry.name,
-          detail: `${entry.quant} · ${formatBytes(modelBundleSize(entry))}`,
+          detail: entry.quant,
           disabled: selectDisabled,
         }))}
         currentModelId={model.currentModelId}

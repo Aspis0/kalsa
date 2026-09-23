@@ -61,7 +61,7 @@ export const en = {
     title: "Settings",
     placeholder: "Settings will be added here",
     advanced: "Advanced",
-    advancedSummary: "Context, KV cache and model controls",
+    advancedSummary: "Context, KV cache, governor and thresholds",
     advancedCount: "{count} entries",
     groupAssistant: "Assistant",
     groupAppearance: "Appearance",

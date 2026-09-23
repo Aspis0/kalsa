@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react-native";
 import { radius, spacing, type, type DesignColors } from "../../theme/design";
+import { SheetGrabber } from "./SheetGrabber";
 
 export type AttachSheetIcon =
   | "library"
@@ -152,18 +153,7 @@ export function AttachSheet({
               ...(scroll ? { maxHeight: 360 } : null),
             }}
           >
-            <View
-              testID="shell.attach.grabber"
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 2,
-                alignSelf: "center",
-                marginTop: 8,
-                marginBottom: spacing.sm,
-                backgroundColor: colors.line2,
-              }}
-            />
+            <SheetGrabber colors={colors} />
             {title ? (
               <Text
                 accessibilityRole="header"

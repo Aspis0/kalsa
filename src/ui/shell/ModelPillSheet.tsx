@@ -1,7 +1,8 @@
 /** Model readiness and battery detail opened from the strip's model pill. */
 import { Modal, Pressable, Text, View } from "react-native";
 import { useLocale } from "../../i18n";
-import { e2, modes, radius, spacing, type, type ThemeMode } from "../../theme/design";
+import { e2, modes, spacing, type, type ThemeMode } from "../../theme/design";
+import { SheetGrabber } from "./SheetGrabber";
 import { ModelBar, type ModelBarView } from "./ModelBar";
 
 export function ModelPillSheet({
@@ -45,22 +46,13 @@ export function ModelPillSheet({
             backgroundColor: colors.surface,
             borderTopLeftRadius: 22,
             borderTopRightRadius: 22,
-            paddingTop: spacing.sm,
+            paddingTop: 0,
             paddingHorizontal: spacing.md,
             paddingBottom: spacing.lg,
             ...e2,
           }}
         >
-          <View
-            style={{
-              alignSelf: "center",
-              width: 36,
-              height: 4,
-              borderRadius: radius.pill,
-              backgroundColor: colors.line,
-              marginBottom: spacing.md,
-            }}
-          />
+          <SheetGrabber colors={colors} marginBottom={spacing.md} />
           <Text style={[type.title, { color: colors.ink }]}>{modelName}</Text>
           <Text style={[type.secondary, { color: colors.ink3, marginTop: spacing.xs }]}>
             {t("shell.model.statusTitle")}

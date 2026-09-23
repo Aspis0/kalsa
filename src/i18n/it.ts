@@ -60,7 +60,7 @@ export const it: typeof en = {
     title: "Impostazioni",
     placeholder: "Le impostazioni verranno aggiunte qui",
     advanced: "Avanzate",
-    advancedSummary: "Contesto, cache KV e controlli del modello",
+    advancedSummary: "Contesto, KV cache, governor, soglie",
     advancedCount: "{count} voci",
     groupAssistant: "Assistente",
     groupAppearance: "Aspetto",

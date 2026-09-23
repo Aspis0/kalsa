@@ -27,6 +27,7 @@ import type { FontScaleId } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import { AttachSheet, type AttachSheetRowData } from "../ui/shell/AttachSheet";
 import { SettingsHeader } from "./SettingsHeader";
+import { settingsWebToggleProps } from "./settingsWebToggle";
 
 type ModelOption = { id: string; label: string; detail: string; disabled: boolean };
 type SheetName = "model" | "theme" | "size" | "language" | "permissions";
@@ -172,6 +173,7 @@ export function SettingsHomeScreen({
   const colors = modes[mode];
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const model = modelOptions.find((option) => option.id === currentModelId);
+  const webToggleProps = settingsWebToggleProps(webEnabled, onToggleWeb);
   const fontScales: Array<{ id: FontScaleId; label: string }> = [
     { id: "s", label: t("settings.fontSizeS") },
     { id: "m", label: t("settings.fontSizeM") },
@@ -247,9 +249,9 @@ export function SettingsHomeScreen({
         </Group>
 
         <Group title={t("settings.groupPrivacy")} colors={colors}>
-          {onToggleWeb ? (
+          {webToggleProps ? (
             <>
-              <Row testID="settings.home.web" title={t("settings.webToggle")} subtitle={t("settings.webWhenAsked")} checked={webEnabled ?? false} onPress={onToggleWeb} icon={<Search size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
+              <Row testID="settings.home.web" title={t("settings.webToggle")} subtitle={t("settings.webWhenAsked")} {...webToggleProps} icon={<Search size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
               <Divider colors={colors} />
             </>
           ) : null}

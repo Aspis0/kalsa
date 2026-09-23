@@ -15,34 +15,44 @@ and what you could not verify.
 
 ## Slice 2 — Settings
 
-Branch `ux-2026-09-21`, base HEAD `212816f`; no commit. Work stayed in `/Users/marco/Projects/kalsa-ux`.
+Base: `212816f`; branch `ux-2026-09-21`. No commit, build, or device install.
 
 ### Changes
 
-- Step 0: `src/host/HostDrawer.tsx:43-46` binds named sheet/drawer closers. `src/host/conversationRowActions.ts:49-81` gives actions conversation-specific accessible names and closes only the sheet for delete. `src/host/shareConversation.test.ts:120-169` drives active and older rows and asserts callback order and older-row ID.
-- Step 1: `src/ui/shell/AttachSheet.tsx:56-62,156-180` adds the shared 36×4 grabber, title and optional subtitle; `:182-198` adds the full-width primary action used by settings sheets.
-- Step 2: `src/screens/SettingsHeader.tsx:13-49` provides the centered title and back control. `src/screens/SettingsHomeScreen.tsx:229-285` builds the five ordered groups, model/theme/size/language/permissions sheets, toggles and Kalsa mark/version card. Cards have `flexGrow: 0`/`flexShrink: 0` at `:135-145`.
-- `src/screens/SettingsScreen.tsx:1364-1431` routes Home/Advanced and shares the current memory/disk model gate with the Home picker; `:1447-2853` retains the Advanced surface and its engine controls. `src/host/HostFurniture.tsx:73-74` and `src/host/HostOverlays.tsx:169-170` pass the real Web flag and `toggleWebTools` handler.
-- `src/i18n/en.ts:17,63-82` and `src/i18n/it.ts:18,62-81` add localized labels and the settings-sheet “Done” action.
-- `src/screens/SettingsHomeScreen.tsx` is 289 lines; `SettingsHeader.tsx` 56; `settingsHome.test.ts` 94. `HostRoot.tsx` remains 241 lines; no ratchet was raised.
+- `src/host/HostDrawer.tsx:43-46` preserves action ordering; `src/host/conversationRowActions.ts:49-81` binds row IDs. `src/ui/shell/AttachSheet.tsx:53-63,156-190` provides titled/primary actions; `src/ui/shell/SheetGrabber.tsx:4-25` is shared.
+- `src/screens/SettingsHomeScreen.tsx:229-291` builds the home groups/sheets; `src/screens/SettingsHeader.tsx:13-49` navigates pages. `src/screens/SettingsScreen.tsx:1407-1447` routes Home/Advanced; `:1447-2853` keeps Advanced mounted.
+- Web fix: `src/screens/settingsWebToggle.ts:1-12` maps state/callback; Home `:174,252-255` spreads its props; `src/screens/settingsHome.test.ts:82-105` tests both states and presses.
+- Model/copy fixes: `src/screens/SettingsScreen.tsx:1412-1417` sends quant only to Home, while Advanced retains size at `:2548-2592`; `src/i18n/it.ts:63`/`src/i18n/en.ts:64` name context, KV cache, governor, thresholds.
+- `src/ui/shell/ModelPillSheet.tsx:47-50` uses shared grabber; `src/ui/shell/attachUi.test.ts:76-85` pins both sheets. `src/screens/settingsHome.test.ts:70-79` now checks the Advanced list's size and selection.
 
-### SettingsScreen inventory
+### SettingsScreen inventory — baseline ranges from `212816f` (3,050 lines); current lines refer to this tree. Each old rendered block is classified.
+- 1390-1435 Language: MOVED locale choices to Home language sheet (`src/screens/SettingsHomeScreen.tsx:214-219`); old hint 1394-1397 DEAD.
+- 1437-1498 Appearance/text size: MOVED size choices to Home (`src/screens/SettingsHomeScreen.tsx:246,211-213`); old hint and preview DEAD.
+- 1500-1572 CisWire flags STILL MOUNTED Advanced (`src/screens/SettingsScreen.tsx:1456-1527`); 1573-1668 Context STILL MOUNTED (`:1529-1623`).
+- 1669-1764 KV cache STILL MOUNTED Advanced (`:1625-1719`); 1765-1811 Instant chat reopen STILL MOUNTED (`:1721-1766`).
+- 1812-1858 Thinking STILL MOUNTED Advanced (`:1768-1813`); 1859-2129 Memory STILL MOUNTED (`:1815-2084`).
+- 2130-2185 On-device tools: MOVED to Home Permissions sheet (`src/screens/SettingsHomeScreen.tsx:220-226`).
+- 2186-2344 Web search: STILL MOUNTED Advanced (`src/screens/SettingsScreen.tsx:2086-2243`).
+- 2345-2460 Voice: STILL MOUNTED Advanced (`:2245-2359`); 2461-2547 Embedding: STILL MOUNTED Advanced (`:2361-2446`).
+- 2548-2944 Models: STILL MOUNTED Advanced (`:2448-2795`), including download sizes and model actions.
+- 2945-2952 Privacy heading/body: DEAD; 2954-2981 telemetry: MOVED to Home (`src/screens/SettingsHomeScreen.tsx:258`).
+- 2983-3003 Report Problem: MOVED to Advanced Diagnostics (`src/screens/SettingsScreen.tsx:2797-2821`).
+- 3005-3031 Help: STILL MOUNTED Advanced (`:2823-2849`).
+- 3032-3046 About: version line 3040-3042 MOVED as the Kalsa card version (`src/screens/SettingsHomeScreen.tsx:267-272`); title, app-name, and body lines 3032-3039, 3043-3046 DEAD.
+- The SettingsScreen page router and Advanced state remain required (`src/screens/SettingsScreen.tsx:199-1405,1407-2853`); the About block as a whole did not move.
 
-- The pre-slice file was 3,050 lines. Current `SettingsScreen.tsx` is 2,853 lines and remains mounted; it was not deleted.
-- Still live: `SettingsScreen.tsx:199-1405` owns settings state, persistence, dirty handling, model fit/gating, and page routing. `:1456-2795` retains CisWire, context/KV, session pool, thinking, memory, provider keys, voice, embeddings, model downloads, governor/thermal details and diagnostics; `:2823-2848` retains Help.
-- Superseded baseline markup: `HEAD:src/screens/SettingsScreen.tsx:1390-1498` (language/text size) moved to Home sheets; `HEAD:src/screens/SettingsScreen.tsx:2130-2185` (device/calendar tools) moved to Permissions; `HEAD:src/screens/SettingsScreen.tsx:2945-2981` (telemetry) moved to Home; `HEAD:src/screens/SettingsScreen.tsx:2983-3003` (report problem) moved under Advanced Diagnostics; `HEAD:src/screens/SettingsScreen.tsx:3032-3046` (About) moved to the Kalsa card.
-- Next retirement seam: extract the remaining Advanced body and its state owner; the retained ranges above are still used by the new two-page screen.
+### Tests and lesson
 
-### Tests
-
-- No tests were deleted or weakened. `shareConversation.test.ts:120-169` replaces direct low-level action calls/source-order matching with row-built behavioral ordering, including export closing the drawer and delete leaving it open; existing byte-for-byte Markdown assertions remain untouched. `attachUi.test.ts:41-43` now accepts object-specific labels with a label fallback, and `:64-88` pins the grabber and primary action. `settingsHome.test.ts:23-92` pins group order, the Advanced boundary, model gate, Web wiring, Kalsa card and localized Done.
+- No tests were deleted or weakened. `src/host/shareConversation.test.ts:120-169` drives row actions with another active ID and guards close-before-export; `attachUi.test.ts:41-43` keeps object-specific accessible names with a row-label fallback, and `:76-85` pins shared grabbers.
+- Jest has no React Native renderer (Node environment; no `react-test-renderer`), so Web tests exercise the production props function and pin its spread into the row.
+- Lesson: a source-text assertion can catch a rename while missing a dropped state leg. Keep a behavioral assertion for the behavior the source check is meant to protect.
 
 ### Commands and results
 
-- Mock render viewed before coding: `cd /Users/marco/Projects/kalsa-ux && "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --window-size=349,621 --force-device-scale-factor=3 --screenshot=/tmp/kalsa-settings-target-s2.png "file:///Users/marco/Projects/kalsa-ux/docs/design/kalsa-mock-v2.html?s=settings" > /tmp/kalsa-ux-s2-chrome.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-ux-s2-chrome.log` — EXIT=0; Chrome emitted macOS display/GPU warnings but wrote the image.
-- Step 0 filtered Jest: `npx jest --runInBand --silent src/host/shareConversation.test.ts src/ui/shell/attachUi.test.ts src/theme/components/Drawer.test.ts` — EXIT=0, 3 suites / 40 tests. Step 1 filtered Jest: `npx jest --runInBand --silent src/ui/shell/attachUi.test.ts src/host/shareConversation.test.ts` — EXIT=0, 2 suites / 34 tests.
-- Final focused Jest: `cd /Users/marco/Projects/kalsa-ux && npx jest --runInBand --silent src/screens/settingsHome.test.ts src/ui/shell/attachUi.test.ts src/host/shareConversation.test.ts > /tmp/kalsa-ux-s2-modelgate-jest.log 2>&1; echo "EXIT=$?"; tail -40 /tmp/kalsa-ux-s2-modelgate-jest.log` — EXIT=0, 3 suites / 40 tests.
-- Final TypeScript: `cd /Users/marco/Projects/kalsa-ux && test "$(git branch --show-current)" = ux-2026-09-21 && npx tsc --noEmit > /tmp/kalsa-ux-s2-final-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-ux-s2-final-tsc.log` — EXIT=0. Final Jest: `cd /Users/marco/Projects/kalsa-ux && test "$(git branch --show-current)" = ux-2026-09-21 && npx jest --silent > /tmp/kalsa-ux-s2-final-jest.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-ux-s2-final-jest.log` — EXIT=0, 168 suites / 2,062 tests.
-- `git diff --check > /tmp/kalsa-ux-s2-diffcheck.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/kalsa-ux-s2-diffcheck.log` — EXIT=0. Combined code patch SHA-256 (tracked diff from `212816f` plus three new source/test files, excluding this report): `3cadfd161b7ce5761954366f5c308420567de72d9c2b005ba730b54300b4661e`; `shasum -a 256 /tmp/kalsa-ux-s2-code.patch` — EXIT=0.
-- Interim failures, all corrected: checkpoint `npx tsc --noEmit` EXIT=2 for missing draft translations; next `npx tsc --noEmit` EXIT=2 because untouched `AppShell.tsx` constructed the screen without the new optional props; first focused settings Jest EXIT=1 because its helper double-joined an absolute path; first brief-block `diff -u` EXIT=1 for a line-wrap mismatch, corrected comparison EXIT=0. Corrected TSC/Jest runs passed; the Web handler remains optional only for the legacy `AppShell` caller and is supplied by the active Host path.
-- Could not verify the requested mock|device captures in `docs/captures/2026-09-23/slice2/`; no app build, install or device capture was run, as required. The orchestrator must capture the device pair.
+- Mock render command: `cd /Users/marco/Projects/kalsa-ux && "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars --window-size=349,621 --force-device-scale-factor=3 --screenshot=/tmp/kalsa-settings-target-s2.png "file:///Users/marco/Projects/kalsa-ux/docs/design/kalsa-mock-v2.html?s=settings" > /tmp/kalsa-ux-s2-chrome.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-ux-s2-chrome.log` EXIT=0.
+- Focused: `npx tsc --noEmit > /tmp/kalsa-s2-review-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-review-tsc.log` EXIT=0; `npx jest --runInBand --silent src/screens/settingsHome.test.ts src/ui/shell/attachUi.test.ts > /tmp/kalsa-s2-review-focused.log 2>&1; echo "EXIT=$?"; tail -40 /tmp/kalsa-s2-review-focused.log` EXIT=0, 2 suites / 30 tests.
+- Final: `npx tsc --noEmit > /tmp/kalsa-s2-review-final-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-review-final-tsc.log` EXIT=0; `npx jest --silent > /tmp/kalsa-s2-review-final-jest.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-review-final-jest.log` EXIT=0, 168 suites / 2,062 tests.
+- Diff check: `git diff --check > /tmp/kalsa-s2-review-final-diffcheck.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-review-final-diffcheck.log` EXIT=0. Review code patch SHA-256: `d98dc5d3b1b68fc76fb574fca227fcbe3d737726a5dddfbbbab66cca079fbb5a` (tracked/new code; report excluded).
+- Earlier corrected interim failures: TSC EXIT=2 for draft translations/legacy caller props; focused Jest EXIT=1 for a test helper path, then corrected; report brief comparison EXIT=1 for wrapping, then corrected.
+
+Could not verify: no device capture, app build, or install was run; the orchestrator must capture the screen pair.
