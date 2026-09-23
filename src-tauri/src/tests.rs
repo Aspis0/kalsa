@@ -1659,14 +1659,45 @@ fn stand_in_engine() -> (
             while !stop.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // The accepted socket INHERITS O_NONBLOCK from this
+                        // listener (macOS), and a read before the client's
+                        // bytes arrive returns `WouldBlock` at once. The old
+                        // loop turned that error into a phantom end-of-head
+                        // with zero bytes — logged as "none" and answered
+                        // 200 — so under load the door's own restore was
+                        // recorded as a success that never happened. The door
+                        // itself defends against exactly this by forcing the
+                        // accepted socket back to blocking (server.rs); this
+                        // fixture now does the same, and a head it cannot
+                        // read completely is dropped and reported instead of
+                        // answered.
+                        stream
+                            .set_nonblocking(false)
+                            .expect("the accepted socket must be blocking");
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
                         let mut head = Vec::new();
+                        let mut complete = false;
                         while !head.ends_with(b"\r\n\r\n") {
                             let mut byte = [0u8; 1];
-                            if stream.read(&mut byte).unwrap_or_default() == 0 {
-                                break;
+                            match stream.read(&mut byte) {
+                                Ok(0) | Err(_) => break,
+                                Ok(_) => head.push(byte[0]),
                             }
-                            head.push(byte[0]);
+                            if head.ends_with(b"\r\n\r\n") {
+                                complete = true;
+                            }
+                        }
+                        if !complete {
+                            // Not a slot request this fixture can answer for:
+                            // no log line, no reply — an incomplete head must
+                            // never become an action, and a client that never
+                            // finished its request gets no success it did not
+                            // earn (the door then reports Unreachable, loudly).
+                            eprintln!(
+                                "stand-in engine: dropping an incomplete request head ({:?})",
+                                String::from_utf8_lossy(&head)
+                            );
+                            continue;
                         }
                         let text = String::from_utf8_lossy(&head).to_string();
                         let length = text
@@ -1677,12 +1708,22 @@ fn stand_in_engine() -> (
                             .unwrap_or(0);
                         let mut body = vec![0u8; length];
                         let _ = stream.read_exact(&mut body);
+                        // A captured head without `action=` is not a slot
+                        // request — the door never sends one (engine.rs
+                        // builds `POST /slots/{id}?action={action}` and
+                        // nothing else). The old `.unwrap_or("none")` turned
+                        // an anomaly into a plausible action in the log;
+                        // now it is reported and dropped, like an incomplete
+                        // head: a fixture may never INVENT a value.
                         let action = text
                             .split_whitespace()
                             .nth(1)
                             .and_then(|target| target.split("action=").nth(1))
-                            .unwrap_or("none")
-                            .to_string();
+                            .map(str::to_string);
+                        let Some(action) = action else {
+                            eprintln!("stand-in engine: dropping a request with no slot action: {text:?}");
+                            continue;
+                        };
                         log.lock().unwrap().push(action);
                         let reply_body = "{\"id_slot\":0,\"n_saved\":1}";
                         let reply = format!(
