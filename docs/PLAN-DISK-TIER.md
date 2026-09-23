@@ -592,11 +592,101 @@ bracketed between 1900 and 4096 tokens**, and **beyond it the marginal is flat**
 while the benefit **grows** (at 65 536: 71,0 s of cold pre-fill avoided against 87,6 ms of warm
 restore): **the longer the chat, the better this tier pays**, which is the opposite of the fear the
 derivation encoded. What remains open is narrow and named: sizes **between 8192 and 32768 are not
-measured** (the knee is bracketed, not localised), the app-context run used `--ctx-size 131072`
+measured** — and that gap is **not** where the knee is (an earlier reading of this paragraph put it
+there; it was wrong, see "Task 3, closed" below) — the app-context run used `--ctx-size 131072`
 because 65 552 does not fit a 65 536 slot ctx (the `headroom` gate refuses instead of truncating, and
 the per-token independence from ctx is carried by the two committed artifacts at ctx 8192/16384), and
 the `ms` columns of everything but the last two runs are **contention-dependent**, labelled as such
 in the artifacts.
+
+**Task 3, closed by decision without a new run (2026-09-23). The four points past the window fit one
+line with no remainder, and the inside of the gap is not measured.** The four committed points
+past the window lie on one line with **zero remainder**:
+`bytes = 7 632 x tokens + 93 751 528` gives 125 012 200 at 4096, 156 272 872 at 8192
+(`unload-restore-disk-curve`), 343 836 904 at 32768 and 593 922 280 at 65536
+(`unload-restore-app-context`), every one exact. The segment nobody measured inside, 8192→32768,
+spans the two artifacts (two different `--ctx-size`), and its average marginal is
+187 564 032 / 24 576 = **7 632 exactly**, the same integer as both measured segments. So the knee
+that is measured is the window crossing: bracketed 1900–4096 by measurement, and placed at 2048 by
+the restored context checkpoint's size line (above). This is an endpoint fit, not a proof about
+the interior. A curve that bends inside 8192→32768 and bends back by exactly the same amount would
+leave the same endpoints. The mechanism (14 full layers linear, the windowed copies capped at 2048)
+predicts no such bend, and nothing measured shows one. The task is closed because that is enough
+for what the tier decides: no number the panel or the plan uses falls inside the gap. It is **not**
+closed because the gap was shown to be straight. The four-point fit is falsifiable to the byte: at
+**16 384** tokens it gives **218 794 216 B**. The header law above gives 218 365 952 B, 0.2 % lower,
+because its slope is the derived 7 616 and not the measured 7 632. That run is optional; it is not
+owed.
+
+**Task 4, disclosed (2026-09-23): what "the fork build" actually was.** Four committed artifacts ran
+the dev build (`/Users/marco/Projects/kalsallama/build/bin/llama-server`): `slot-restore-device-path`
+(`b3ded12`), `save-on-busy-slot` (`41bdc4c`), `unload-restore` (`c14460c`) and `prefill-build-ab`
+(`5b3b7f3`). All four record the **launcher** `c748bac0…`, and the launcher separates nothing: it
+kept that sha across the 09-23 rebuild. Only `prefill-build-ab` records the **module**
+(`libllama-server-impl.dylib`, `4b151aa2…`, the same sha as the file on disk today). The other
+three were measured on 09-21 and record no module sha, so **their module identity is unknown**.
+The module file was rebuilt at 09-23 02:19, after them. Whether that rebuild changed its bytes is not
+known either, because nothing recorded them before. And the tree was not clean `833cde99b`:
+`src/llama-governor-policy.cpp` carries an uncommitted edit (4 lines added, 1 removed; it admits
+`V73`, and its comment attributes that to the owner's 09-21 enablement decision). The file's mtime
+is 15:29:10 on 09-21; its object and `libllama.0.4.1.dylib` are 15:29:39. That fits a rebuild that
+consumed the edit, but it does not prove what the build read. Read-only on the fork: `git status`,
+`git diff --stat`, `stat`. This changes no conclusion that stands. The warmth is re-measured on the
+release (`unload-restore-release`, `matched`). The governor policy is compiled into `libllama`, but
+no governor call is observed in `tools/server` (above). Every dev-build prefill figure is already
+labelled CPU. The rule it leaves is: **an artifact names the module it ran, not just the
+launcher**. `measure-concurrency.py` and `measure-unload-restore.py` record the dylib's sha beside
+the release identity, and `measure-slot-restore.py` no longer carries the v1.1.0 path at `:45`.
+Every `dev/measure-*.py` that launches an engine now requires the binary as an argument: `--bin`,
+or `--fork-bin` and `--release-bin` in `measure-prefill-ab.py`. `measure-switch-cost.py` attaches
+to an engine already running and records that engine's build. **One script outside that set still
+hard-codes its engine**: `dev/spike-kv-paging.py:51` (the upstream `llama-b10950` build) launches it
+at `:141` and prints no `engine:` line. It is a spike whose artifact is history, and it is left as
+it is.
+
+**Task 2, delivered (`ec8496f`..`6a37dd4`): each `dev/measure-*.py` checks that the engine it
+measured agrees, by commit, with the one it declares.** There are three checks, each with a mutation
+that kills it. The release-identity hole was found by review. The responder and panel mutations are
+built into their own tests (`dev/test-running-engine.py`, `chat/scripts/tier-panel.mjs`). First, the
+release identity (`release_block`, one implementation in `measure-concurrency.py`, used by the
+release-aware harnesses) vetoes a `matched` that rests on the launcher alone. The module file must
+exist beside the launcher, and its sha is recorded. The manifest publishes no sha for the module,
+so the module is recorded, not compared, and nothing checks which dylib the loader actually mapped.
+The commit that `--version` prints must agree with the manifest's commit. Second, the engine that
+ANSWERS must agree with the one launched: `/props`'s `build_info` commit must agree with
+`--version`'s, and it is recorded. That is commit agreement, not byte identity of the process that
+answers. Third, the panel check (`chat/scripts/tier-panel.mjs`) requires the committed artifact's
+recorded `engine_version` commit to agree with its `release.commit`. That closes the
+launcher-identity hole for the panel's own artifact without re-measuring it. "Agree" is one rule,
+the same in Python and JS and pinned by the same ten vectors in both: two commits agree if they are
+equal, or if one is the full 40 hex and starts with the other, and both are at least **9**
+lowercase hex. A 7-hex prefix used to pass, and a 41-hex token used to be cut to 40 and pass. Both
+were found by review, not by the author. Every `dev/measure-*.py` prints an `engine:` line naming
+what it ran.
+
+**Task 1, measured (2026-09-23): four devices on the release, through the door, at the app's own
+context.** `dev/results/concurrency-four-devices/` is a separate artifact, and **the panel's row is
+not changed**: that is the owner's decision. The run went through the real door
+(`crates/kalsa-door`, run as a child process by `examples/measure_door.rs`), with four credentials,
+four salts computed from them, four slots each proved pinned before the run, 65 536 tokens per slot,
+`--ctx-checkpoints 1 --flash-attn on`, and every arm cold. Each device keeps **0.5597–0.5638** of its
+solo decode rate, and the four together deliver **2.251×** one device (`A2/A = 0.9998`). Two
+controls make it readable. The same four streams **direct** to the engine give 2.2361×, and the
+summed rates differ by **0.08 %**: the door costs nothing this run can see, with one run per path.
+**Two** streams direct at the same configuration give 1.4611×, inside the range of the panel's own
+three runs (1.4604–1.5093, all three in git), so the tier's configuration does not move the
+two-device figure out of its known range. From two devices to four, the aggregate grows by ×1.53
+(direct) and ×1.54 (door): each of the two added devices brings about 0.39 of a solo rate, against
+0.73 per device at two.
+
+**And the door's pool is full at four, measured, not argued.** During the four-device run a fifth
+request through the door (`/health`, same worker path) waited **6376.7 ms**. It was answered
+0.454 ms after the first stream ended. `WORKERS = 4` and a worker holds one exchange end to end, so
+with four devices streaming, any other request through the door waits for a stream to end, however
+small it is. The owner's decision on the pool is in §9. What this run does not answer: the
+spread at four devices (one run per path), the wait at two devices (the direct control has no
+probe), and why one slot per four-stream run is 0.7 % slower (its decode started ~85 ms before the
+other three; measured in the raw log, which is not committed, and the mechanism is not traced).
 
 ## 6. Out of scope, with the reason written down
 
@@ -871,3 +961,15 @@ not implemented**, so a decision is never read as a delivery.
   one is not — an inconsistency that can only push toward `unverified`, never toward the fork
   accusation, and changing it would drift the artifact's `script_sha256` and buy a fourth
   measurement for nothing.
+- **The door's pool stays at four, owner's decision (2026-09-23), and four is not a derived
+  number.** `crates/kalsa-door/src/lib.rs:88-90`: `WORKERS = 4`, `QUEUE = 8`, `MAX_CONNECTIONS =
+  WORKERS + QUEUE`. A worker holds one exchange end to end, streams included, and the PC is itself
+  a door device, so four devices streaming at once occupy the whole pool and a fifth request waits
+  in the queue until a stream ends (the measured wait is in §5, from the four-device run). Nobody on either side can say why the number is
+  four, and the owner said so, in chat and translated here: why four, nobody knows, but it stays at
+  four, and what matters is that it can be raised later. What that binds: the menu's device rows
+  (`policy/menu.rs:74-80`, one, two and four) must never offer more devices than the door has
+  workers. Raising either one changes both, and must be measured on more devices than today's four,
+  which the owner also named as future work. **Decided and not implemented:** no test yet pins the menu's
+  maximum to `WORKERS`. The three ways past the saturation are an open owner question, not a
+  decision: leave it; more workers than devices; a separate lane for short requests.
