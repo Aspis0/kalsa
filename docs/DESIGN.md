@@ -557,3 +557,8 @@ Reviewer profile before anything is reported as done.
 
 The dependency this list used to carry — persisting the per-message tool list — is **closed by
 decision: not persisted** (§2.4).
+
+> **Part 3's status column is stale (2026-09-24).** Steps marked "coder" shipped: the tokens, the
+> strip, the composer, the empty state, the menu (leaf drawer deleted), Settings (five groups with
+> Avanzate behind it) and the six overlays. The design detour that this file does not record is in
+> `docs/DESIGN-DELTA-2026-09-22.md`, and the specification in force is `docs/DESIGN-V2.md`.
