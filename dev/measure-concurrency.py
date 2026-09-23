@@ -805,18 +805,28 @@ def ratio(x, y):
     return round(x / y, 4) if (x and y) else None
 
 
-def warm_prefix_field(cache_ns):
+def warm_prefix_field(cache_ns, door=False):
     """Cold/warm verdict DERIVED from the recorded cache_n values, never
     written: an artifact that claims every arm was cold while its own data
     says otherwise is worse than no field at all. If a value is missing the
-    verdict is not derivable, so only the data is emitted."""
+    verdict is not derivable, so only the data is emitted.
+
+    Only the DATA picks cold vs warm; `door` picks the clause that names
+    what KEPT the arms cold on that road - a fresh salt per arm (direct)
+    versus the erase before each arm with the device's FIXED salt (door,
+    where the salt alone would leave arm B's warmth under A2)."""
     field = {"cache_n": dict(cache_ns)}
     if any(v is None for v in cache_ns.values()):
         return field
     warm = sorted(name for name, v in cache_ns.items() if v > 0)
     if not warm:
-        field["verdict"] = ("none - every arm is cold; --cache-ram 0 and a "
-                            "fresh salt per arm, so only decode is compared")
+        if door:
+            field["verdict"] = ("none - every arm is cold; --cache-ram 0 and "
+                                "the erase before each arm with the device's "
+                                "fixed salt, so only decode is compared")
+        else:
+            field["verdict"] = ("none - every arm is cold; --cache-ram 0 and a "
+                                "fresh salt per arm, so only decode is compared")
     else:
         field["verdict"] = ("present in " + ", ".join(warm) +
                             " - prompt cache reuse is in play there, so those "
@@ -1108,6 +1118,26 @@ def door_health(door_port, credential, timeout=60):
     return status, round((time.perf_counter() - t0) * 1000, 1)
 
 
+def require_arms_cold(recs):
+    """Door mode REFUSES to write the number when any arm is warm. The
+    erase before every arm exists precisely so the arms compare decode only
+    (the door's salt is FIXED per device, so a missed erase WOULD show up
+    as warmth): a warm arm means the erase did not land, and its number
+    would be prompt-cache reuse, not decode. Door-only - main() calls this
+    under `if door`, and direct mode keeps its documented behaviour (its
+    salts differ per arm, so its warmth semantics are the warm_prefix
+    verdict's, not this refusal's)."""
+    warm = sorted(name for name, rec in recs.items()
+                  if rec.get("cache_n") != 0)
+    if warm:
+        raise SystemExit(
+            f"door mode refuses: arm cache_n != 0 for {warm} - every arm's "
+            "slots are erased (direct, with the device's own salt) before "
+            "the arm runs so the arms stay cold; a warm arm means the erase "
+            "did not land and the number would be prompt-cache reuse, not "
+            "decode - no artifact written")
+
+
 def pin_device_slots(port, door_port, prompts, credentials, salts):
     """Prove the salt per device END TO END, one device at a time, before
     anything is measured.
@@ -1384,7 +1414,8 @@ def build_result(args, release, version, engine_sha256, argv, slots_dir,
                for k in range(n)},
             "A2": arm_a2["predicted_n"],
         },
-        "warm_prefix_in_play": warm_prefix_field(cache_ns),
+        "warm_prefix_in_play": warm_prefix_field(
+            cache_ns, door=bool(args.door_bin)),
         "ratios": {
             **{f"per_stream_slot{k}_over_A": ratio(b_pps[k], a_pps)
                for k in range(n)},
@@ -1647,21 +1678,7 @@ def main():
                 require_engine_lines(f"attempt {i} arm B slot {k}",
                                      arm_b[f"engine_lines_slot{k}"])
             if door:
-                # The erases above exist precisely so the arms compare
-                # decode only (the door's salt is fixed per device, so a
-                # missed erase WOULD show as warmth): a warm arm means the
-                # erase did not land, and its number would be prompt-cache
-                # reuse. Direct mode keeps its documented behaviour.
-                warm = sorted(name for name, rec in recs.items()
-                              if rec.get("cache_n") != 0)
-                if warm:
-                    raise SystemExit(
-                        f"door mode refuses: arm cache_n != 0 for {warm} - "
-                        "every arm's slots are erased (direct, with the "
-                        "device's own salt) before the arm runs so the arms "
-                        "stay cold; a warm arm means the erase did not land "
-                        "and the number would be prompt-cache reuse, not "
-                        "decode - no artifact written")
+                require_arms_cold(recs)
 
             a_pps = arm_a["predicted_per_second"]
             a2_pps = arm_a2["predicted_per_second"]

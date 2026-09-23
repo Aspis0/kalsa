@@ -31,6 +31,15 @@ Cases:
       door_queue_probe fields ride through verbatim, the door_* provenance
       keys are present; in direct mode via == "direct", there is NO
       door_queue_probe key at the top level and no door_bin key.
+  (7) no salt material in a door-mode artifact: salts (and their 8- and
+      16-char prefixes) and credentials for fixed test credentials must
+      not appear anywhere in the serialized result, and every door
+      record's salt_label is exactly `device-{slot}`; plus the warm-arm
+      refusal (require_arms_cold: cold passes, one warm arm refuses with
+      `door mode refuses`), and the warm_prefix prose: the door verdict
+      says the ERASE before each arm (device salt fixed) keeps arms cold
+      and never says "fresh salt per arm" - which stays the direct-mode
+      text, data-derived in both.
 
 Exit 0 green, 1 red, 2 the committed artifact (an input here) is missing.
 Run: python3 dev/test-door-harness.py
@@ -160,7 +169,10 @@ def synthetic_attempt():
     """The fields build_result actually reads - no server, no network."""
     def rec(slot, pps):
         return {"slot": slot, "cache_n": 0, "predicted_n": 256,
-                "predicted_per_second": pps}
+                "predicted_per_second": pps,
+                # the door road's labels: what a door record CARRIES is
+                # the device label, never the device salt
+                "salt_label": f"device-{slot}"}
     return {"index": 0, "A_solo_slot0": rec(0, 80.0),
             mc.ARM_KEYS[2]: {"slot0": rec(0, 60.0), "slot1": rec(1, 59.0)},
             "A2_solo_repeat": rec(0, 81.0), "A2_over_A": 1.0123,
@@ -233,6 +245,60 @@ def case_6():
           str([k for k in direct["provenance"] if k.startswith("door_")]))
 
 
+def case_7():
+    print("(7) door mode: no salt material, the warm refusal, the prose",
+          file=sys.stderr)
+    creds = ["d" * 64, "e" * 64]
+    salts = [mc.device_cache_salt(c) for c in creds]
+    probe = {"sent_after_ms": 1000.0, "wall_ms": 5.0, "status": 200,
+             "streams_done_before_probe_answered": 1}
+    door = build(fake_args(str(HARNESS)), door_probe=probe)
+    blob = json.dumps(door)
+    for i, (cred, salt) in enumerate(zip(creds, salts)):
+        check(f"(7) credential {i} is nowhere in the artifact",
+              cred not in blob)
+        check(f"(7) the door salt for credential {i} is nowhere in the "
+              "artifact (full)", salt not in blob)
+        check(f"(7) ...nor its 16-char prefix", salt[:16] not in blob,
+              salt[:16])
+        check(f"(7) ...nor its 8-char prefix", salt[:8] not in blob,
+              salt[:8])
+    labels = [door["arms"]["A_solo_slot0"]["salt_label"],
+              door["arms"]["A2_solo_repeat"]["salt_label"],
+              door["arms"][mc.ARM_KEYS[2]]["slot0"]["salt_label"],
+              door["arms"][mc.ARM_KEYS[2]]["slot1"]["salt_label"]]
+    check("(7) every door record's salt_label is exactly device-{slot}",
+          labels == ["device-0", "device-0", "device-0", "device-1"],
+          repr(labels))
+
+    cold = {"A": {"cache_n": 0}, "B_slot0": {"cache_n": 0},
+            "B_slot1": {"cache_n": 0}, "A2": {"cache_n": 0}}
+    check("(7) require_arms_cold: all-cold passes",
+          mc.require_arms_cold(cold) is None)
+    warm = dict(cold, B_slot1={"cache_n": 512})
+    msg = raised(mc.require_arms_cold, warm)
+    check("(7) require_arms_cold: one warm arm refuses with "
+          "'door mode refuses' naming it",
+          msg is not None and "door mode refuses" in msg
+          and "B_slot1" in msg, (msg or "")[:160])
+
+    v_door = (door["warm_prefix_in_play"].get("verdict") or "")
+    check("(7) the door verdict says the ERASE before each arm keeps arms "
+          "cold (salt fixed per device)",
+          "erase before each arm" in v_door and "fixed salt" in v_door,
+          v_door)
+    check("(7) the door verdict never claims a fresh salt per arm",
+          "fresh salt per arm" not in v_door, v_door)
+    direct = build(fake_args(None))
+    v_direct = (direct["warm_prefix_in_play"].get("verdict") or "")
+    check("(7) the direct verdict keeps the fresh-salt-per-arm prose "
+          "(unchanged, data-derived in both)",
+          "fresh salt per arm" in v_direct, v_direct)
+    check("(7) both verdicts are cold because the DATA says cache_n 0",
+          all(v == 0 for v in door["warm_prefix_in_play"]["cache_n"].values()),
+          json.dumps(door["warm_prefix_in_play"]["cache_n"]))
+
+
 def main():
     case_1()
     case_2()
@@ -240,6 +306,7 @@ def main():
     case_4()
     case_5()
     case_6()
+    case_7()
     print(f"door harness: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

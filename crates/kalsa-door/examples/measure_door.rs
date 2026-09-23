@@ -1,15 +1,12 @@
-//! The door for `dev/measure-concurrency.py`: the same `Door` the app runs,
-//! as a standalone child process, so a measurement can go THROUGH the door
-//! instead of direct to the engine.
+//! The door for `dev/measure-concurrency.py` as a standalone child
+//! process, so a measurement can go THROUGH the door instead of direct.
 //!
 //! stdin carries exactly `--capacity` credentials, one 64-hex line each —
-//! none of them is ever printed, however it was wrong. stdout carries
-//! exactly one line, `listening 127.0.0.1:<port>`, which the harness reads
-//! before it sends anything; the pipe then stays open and stdin blocking is
-//! the harness saying "done": EOF shuts the worker pool down and exits 0.
+//! none is ever printed, however it was wrong. stdout carries exactly one
+//! line, `listening 127.0.0.1:<port>`; stdin then blocking is the harness
+//! saying "done": EOF shuts the worker pool down and exits 0.
 //!
-//! The engine's header support is asserted by the harness that launches
-//! this runner, not by this runner.
+//! The engine's header support is asserted by the harness, not here.
 
 use std::io::{self, BufRead, Write};
 use std::net::TcpListener;
@@ -26,23 +23,43 @@ fn arg(flag: &str) -> Result<String, String> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let engine_port: u16 = arg("--engine-port")?.parse()?;
-    let capacity: u32 = arg("--capacity")?.parse()?;
+    // Every error below is a FIXED string: the runtime prints `main`'s Err
+    // with Debug, and the three operations that touch a credential (line
+    // read, DeviceEntry::new, Devices::new) are mapped to text and line
+    // numbers only - no error type's Debug or Display can echo one.
+    let engine_port: u16 = arg("--engine-port")?
+        .parse()
+        .map_err(|_| "--engine-port must be a number")?;
+    let capacity: u32 = arg("--capacity")?
+        .parse()
+        .map_err(|_| "--capacity must be a number")?;
 
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
     let mut entries = Vec::new();
     for k in 0..capacity {
-        let Some(line) = lines.next().transpose()? else {
-            return Err(format!("stdin ended after {k} of {capacity} credentials").into());
+        let line = match lines.next().transpose() {
+            Ok(Some(line)) => line,
+            Ok(None) => {
+                return Err(format!("stdin ended after {k} of {capacity} credentials").into())
+            }
+            // an io error may quote the bytes it choked on; those bytes
+            // may be a credential - the line number is all that is kept
+            Err(_) => return Err(format!("line {}: could not be read", k + 1).into()),
         };
         if line.len() != 64 || !line.bytes().all(|b| b.is_ascii_hexdigit()) {
             // the credential itself is never echoed, however it was wrong
             return Err(format!("line {}: expected 64 hex characters", k + 1).into());
         }
-        entries.push(DeviceEntry::new(DeviceId::new(k), format!("device-{k}"), line)?);
+        let entry = DeviceEntry::new(DeviceId::new(k), format!("device-{k}"), line)
+            // InvalidCredential is a unit variant today and cannot carry
+            // the credential; mapped anyway - this file's guarantee, not
+            // the enum's mood.
+            .map_err(|_| format!("line {}: invalid credential", k + 1))?;
+        entries.push(entry);
     }
-    let devices = Devices::new(entries)?;
+    let devices = Devices::new(entries)
+        .map_err(|_| "the credential set is invalid (empty or duplicated)")?;
 
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let running = Door::new_with_engine(
@@ -57,8 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writeln!(stdout, "listening {}", running.address())?;
     stdout.flush()?;
 
-    // EOF on stdin: the harness has every credential it needs and is done —
-    // stop accepting, join the workers, exit 0.
+    // EOF on stdin: the harness is done - stop accepting, join, exit 0.
     for line in lines {
         line?;
     }
