@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { BackHandler, ScrollView, Text, View } from "react-native";
-import { Monitor, Search, ShieldCheck } from "lucide-react-native";
+import { Monitor, Search, ShieldCheck, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
 import { e1, modes, radius, space, type, type ThemeMode } from "../theme/design";
@@ -54,6 +54,13 @@ export function ProScreen({ onBack }: Props) {
           <View style={benefitStyle}>
             <Search size={20} color={colors.accent} strokeWidth={1.75} />
             <Text style={[type.body, { color: colors.ink, flex: 1 }]}>{t("account.proSearchBenefit")}</Text>
+          </View>
+          <View testID="pro.benefit.future" style={benefitStyle}>
+            <Sparkles size={20} color={colors.accent} strokeWidth={1.75} />
+            <View style={{ flex: 1, gap: space.xs }}>
+              <Text testID="pro.benefit.future.title" style={[type.bodyStrong, { color: colors.ink }]}>{t("account.proFutureTitle")}</Text>
+              <Text testID="pro.benefit.future.detail" style={[type.secondary, { color: colors.ink2 }]}>{t("account.proFutureBenefit")}</Text>
+            </View>
           </View>
         </View>
         <View style={cardStyle}>

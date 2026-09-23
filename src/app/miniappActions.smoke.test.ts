@@ -137,30 +137,63 @@ describe("handleAskAssistantMiniappAction", () => {
 });
 
 describe("i18n parity for new keys", () => {
-  test("EN and IT expose the same miniapp template + requiresAi keys", () => {
+  test("every non-empty EN catalog path exists in IT and vice versa", () => {
     const en = getStrings("en") as Record<string, any>;
     const it = getStrings("it") as Record<string, any>;
-    const enKeys = Object.keys(en.quickActions);
-    const itKeys = Object.keys(it.quickActions);
-    for (const k of enKeys) expect(itKeys).toContain(k);
-    for (const k of itKeys) expect(enKeys).toContain(k);
+
+    const flatten = (value: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> => {
+      for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (typeof entry === "string") out[path] = entry;
+        else if (entry && typeof entry === "object") flatten(entry, path, out);
+      }
+      return out;
+    };
+    const enStrings = flatten(en);
+    const itStrings = flatten(it);
+    const missingInItalian = Object.keys(enStrings).filter((path) => !(path in itStrings));
+    const missingInEnglish = Object.keys(itStrings).filter((path) => !(path in enStrings));
+    if (missingInItalian.length || missingInEnglish.length) {
+      throw new Error([
+        missingInItalian.length ? `Missing from Italian catalog: ${missingInItalian.join(", ")}` : "",
+        missingInEnglish.length ? `Missing from English catalog: ${missingInEnglish.join(", ")}` : "",
+      ].filter(Boolean).join("\n"));
+    }
+    const emptyEnglish = Object.entries(enStrings).filter(([, value]) => value.trim().length === 0).map(([path]) => path);
+    const emptyItalian = Object.entries(itStrings).filter(([, value]) => value.trim().length === 0).map(([path]) => path);
+    if (emptyEnglish.length || emptyItalian.length) {
+      throw new Error([
+        emptyEnglish.length ? `Empty English translations: ${emptyEnglish.join(", ")}` : "",
+        emptyItalian.length ? `Empty Italian translations: ${emptyItalian.join(", ")}` : "",
+      ].filter(Boolean).join("\n"));
+    }
+
+    // Identical values are valid for names and formatting tokens; only paths and non-empty values matter.
+    const enQuickActionKeys = Object.keys(en.quickActions);
+    const itQuickActionKeys = Object.keys(it.quickActions);
+    for (const key of enQuickActionKeys) expect(itQuickActionKeys).toContain(key);
+    for (const key of itQuickActionKeys) expect(enQuickActionKeys).toContain(key);
     // Every template key referenced by miniappTemplates.ts must resolve in both languages.
     for (const key of [
       "quickActions.compareData", "quickActions.compareDataSub", "quickActions.compareDataPrompt",
       "quickActions.quickCalculator", "quickActions.quickCalculatorSub", "quickActions.quickCalculatorPrompt",
       "quickActions.readingQuiz", "quickActions.readingQuizSub", "quickActions.readingQuizPrompt",
     ]) {
-      expect(en.quickActions[key.split(".")[1]]).toBeTruthy();
-      expect(it.quickActions[key.split(".")[1]]).toBeTruthy();
+      expect(enStrings[key]).toBeTruthy();
+      expect(itStrings[key]).toBeTruthy();
     }
-    expect(en.miniapp.actionRequiresAi).toBeTruthy();
-    expect(it.miniapp.actionRequiresAi).toBeTruthy();
+    expect(enStrings["miniapp.actionRequiresAi"]).toBeTruthy();
+    expect(itStrings["miniapp.actionRequiresAi"]).toBeTruthy();
   });
 
   // F-04 regression guard: unit_converter renders density/mass/volume via t() keys.
   // If those keys were deleted while still referenced, t() would leak the raw key.
-  test("restored renderer density keys resolve to real translations (not raw keys)", () => {
-    for (const key of ["renderer.massFromDensity", "renderer.volumeMl", "renderer.densityGml"]) {
+  test("renderer density and empty-state keys resolve to real translations (not raw keys)", () => {
+    for (const key of [
+      "renderer.massFromDensity", "renderer.volumeMl", "renderer.densityGml",
+      "renderer.condition", "renderer.conditionN", "renderer.noMatrixRowsYet",
+      "renderer.noTimelineStepsConfigured", "renderer.noDecisionNodesYet", "renderer.noRisksIdentified",
+    ]) {
       expect(translate("en", key as any)).not.toBe(key);
       expect(translate("it", key as any)).not.toBe(key);
     }

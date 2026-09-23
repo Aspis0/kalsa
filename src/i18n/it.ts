@@ -368,7 +368,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   embedding: {
     title: "Modello embedding (multilingua)",
     hint:
-      "Modello opzionale di ~126 MB che abilita la ricerca semantica (ibrida) nei documenti. Non serve per la chat. Scaricalo una volta; gira tutto sul dispositivo.",
+      "Modello opzionale di ~126 MB che abilita la ricerca semantica (ibrida) nei documenti. Non serve per la chat. In modalità locale, scaricalo una volta: gira tutto sul dispositivo.",
     statusNotDownloaded: "Non scaricato",
     statusDownloaded: "Pronto · locale",
     downloading: "Scaricamento… {percent}%",
@@ -636,7 +636,13 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     unsupportedUnit: "Unità non supportata",
     chart: "Grafico",
     table: "Tabella",
+    condition: "Condizione",
+    conditionN: "Condizione {n}",
     noRowsYet: "Nessuna riga ancora.",
+    noMatrixRowsYet: "Nessuna riga della matrice ancora.",
+    noTimelineStepsConfigured: "Nessun passaggio configurato per la cronologia.",
+    noDecisionNodesYet: "Nessun nodo decisionale ancora.",
+    noRisksIdentified: "Nessun rischio individuato.",
     showingUpTo: "Mostro fino a {rows} righe e {cols} colonne.",
     interactiveMiniapp: "Mini-app interattiva",
     interactiveMiniappA11y: "Mini-app interattiva: {title}",
@@ -1061,8 +1067,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     proUnlocksTitle: "Cosa sblocca",
     proComputerBenefit: "Usa il tuo computer con Kalsa desktop senza configurare Tailscale da solo.",
     proSearchBenefit: "Più ricerca sul web. Le ricerche passano da Exa: il piano gratuito ha un tetto, che Pro alza.",
+    proFutureTitle: "Funzioni esclusive e AI più potenti",
+    proFutureBenefit: "Sui telefoni più recenti.",
     proUnchangedTitle: "Cosa non cambia",
-    proUnchangedBody: "La chat su questo telefono resta gratuita e locale. Niente pubblicità, niente addestramento sui tuoi dati. I documenti restano su questo dispositivo.",
+    proUnchangedBody: "La chat su questo telefono resta gratuita e locale. Anche i telefoni meno recenti restano supportati. Niente pubblicità, niente addestramento sui tuoi dati. I documenti restano su questo dispositivo.",
   },
 
   operativeBlock: {

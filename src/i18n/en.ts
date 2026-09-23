@@ -373,7 +373,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
   embedding: {
     title: "Embedding model (multilingual)",
     hint:
-      "Optional ~126 MB model that enables semantic (hybrid) document search. Not required for chat. Download once; runs fully on-device.",
+      "Optional ~126 MB model that enables semantic (hybrid) document search. Not required for chat. In local mode, download once; it runs fully on-device.",
     statusNotDownloaded: "Not downloaded",
     statusDownloaded: "Ready · local",
     downloading: "Downloading… {percent}%",
@@ -642,7 +642,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     unsupportedUnit: "Unsupported unit",
     chart: "Chart",
     table: "Table",
+    condition: "Condition",
+    conditionN: "Condition {n}",
     noRowsYet: "No rows yet.",
+    noMatrixRowsYet: "No matrix rows yet.",
+    noTimelineStepsConfigured: "No timeline steps configured.",
+    noDecisionNodesYet: "No decision nodes yet.",
+    noRisksIdentified: "No risks identified.",
     showingUpTo: "Showing up to {rows} rows and {cols} columns.",
     interactiveMiniapp: "Interactive miniapp",
     interactiveMiniappA11y: "Interactive miniapp: {title}",
@@ -1092,8 +1098,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     proUnlocksTitle: "What it unlocks",
     proComputerBenefit: "Use your computer with Kalsa desktop without setting up Tailscale yourself.",
     proSearchBenefit: "More web search. Searches go through Exa; the free plan has a limit, and Pro raises it.",
+    proFutureTitle: "Exclusive features and more powerful AI",
+    proFutureBenefit: "On the newest phones.",
     proUnchangedTitle: "What it does not change",
-    proUnchangedBody: "Chat on this phone stays free and local. No ads, no training on your data. Your documents stay on this device.",
+    proUnchangedBody: "Chat on this phone stays free and local. Older phones remain supported. No ads, no training on your data. Your documents stay on this device.",
   },
 
   /**

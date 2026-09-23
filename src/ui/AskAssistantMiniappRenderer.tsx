@@ -925,7 +925,7 @@ function ExperimentMatrixBlockView({ block, context }: { block: MiniappBlock; co
     ...asRecord(entry),
     __index: rowIndex,
   })) as MatrixRow[];
-  const headerValues = columns.length ? columns : readoutLabels.length ? readoutLabels : ["Condition", ...asStringList(block.conditions)];
+  const headerValues = columns.length ? columns : readoutLabels.length ? readoutLabels : [context.t("renderer.condition"), ...asStringList(block.conditions)];
 
   return (
     <View style={context.styles.miniappExperimentMatrix}>
@@ -933,7 +933,7 @@ function ExperimentMatrixBlockView({ block, context }: { block: MiniappBlock; co
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={context.styles.miniappExperimentMatrixScroll}>
         <View>
           <View style={context.styles.miniappTableRow}>
-            <Text style={[context.styles.miniappExperimentMatrixHeader, context.styles.miniappTableCell]}>Condition</Text>
+            <Text style={[context.styles.miniappExperimentMatrixHeader, context.styles.miniappTableCell]}>{context.t("renderer.condition")}</Text>
             {headerValues.map((column) => (
               <Text
                 key={`header-${column}`}
@@ -945,7 +945,7 @@ function ExperimentMatrixBlockView({ block, context }: { block: MiniappBlock; co
           </View>
             {rows.length ? (
               rows.map((row, rowIndex) => {
-                const condition = toStringValue(row.condition, toStringValue(row.group, toStringValue(row.label, `Condition ${rowIndex + 1}`)));
+                const condition = toStringValue(row.condition, toStringValue(row.group, toStringValue(row.label, context.t("renderer.conditionN", { n: rowIndex + 1 }))));
                 return (
                 <View key={`row-${row.__index}`} style={context.styles.miniappTableRow}>
                   <Text style={[context.styles.miniappExperimentMatrixCell, context.styles.miniappTableCell]} numberOfLines={1}>
@@ -964,7 +964,7 @@ function ExperimentMatrixBlockView({ block, context }: { block: MiniappBlock; co
               );
             })
           ) : (
-            <Text style={context.styles.miniappFallbackText}>No matrix rows yet.</Text>
+            <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noMatrixRowsYet")}</Text>
           )}
           {readoutLabels.length ? <Text style={context.styles.miniappFallbackText}>Readouts: {readoutLabels.join(", ")}</Text> : null}
         </View>
@@ -997,7 +997,7 @@ function WorkflowTimelineBlockView({ block, context }: { block: MiniappBlock; co
             );
           })
         ) : (
-          <Text style={context.styles.miniappFallbackText}>No timeline steps configured.</Text>
+          <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noTimelineStepsConfigured")}</Text>
         )}
       </View>
     </View>
@@ -1033,7 +1033,7 @@ function DecisionTreeBlockView({ block, context }: { block: MiniappBlock; contex
           );
         })
       ) : (
-        <Text style={context.styles.miniappFallbackText}>No decision nodes yet.</Text>
+        <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noDecisionNodesYet")}</Text>
       )}
     </View>
   );
@@ -1064,7 +1064,7 @@ function RiskPanelBlockView({ block, context }: { block: MiniappBlock; context: 
             );
           })
         ) : (
-          <Text style={context.styles.miniappFallbackText}>No risks identified.</Text>
+          <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noRisksIdentified")}</Text>
         )}
       </View>
       {items.length ? (
