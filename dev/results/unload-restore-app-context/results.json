@@ -1,0 +1,931 @@
+{
+ "release_qualification": "MATCHED: measured on the delivered release kalsa-server-v1.1.1 (macos-arm64/metal), engine module 714e8ba12e7f9403..., version commit a7d2cec79",
+ "measurement": "unload-restore",
+ "provenance": {
+  "engine_binary": "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+  "engine_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+  "engine_version": "version: 0.4.1-dev (build 11195, commit a7d2cec79)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+  "release": {
+   "status": "matched",
+   "manifest_url": "https://dl.kalsa.io/kalsa-server/v1.1.1/manifest.json",
+   "manifest_sha256": "55d8128c05a985f54f7cb87a7cc99a89c640542d0619f4ae3cbf9ac1ec87f450",
+   "checked_utc": "2026-09-23T05:27:41Z",
+   "match_basis": "exe_sha256 of the executed binary, compared as 64-hex case-insensitively and recorded in canonical lowercase; never a path, never a directory name",
+   "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+   "platform": "macos-arm64",
+   "platform_source": "manifest",
+   "backend": "metal",
+   "manifest_exe_sha256_rows": 1,
+   "tag": "kalsa-server-v1.1.1",
+   "tag_object": "0f1b3bec7342ddd5624dc474c760a0b38bc80b5b",
+   "commit": "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1",
+   "run_url": "https://github.com/Aspis0/kalsallama/actions/runs/35762258094",
+   "built_at": "2026-09-22T17:50:26Z",
+   "pack_sha256": "a90d88a1650367c6821f70e625a4ff2d43744d5986580c206434381a732075a7",
+   "file": "kalsa-server-v1.1.1-bin-macos-arm64.tar.gz",
+   "status_by_exe_sha256": "matched",
+   "identity": {
+    "why": "the launcher is byte-identical across v1.1.0 and v1.1.1, so exe_sha256 alone cannot tell the delivered release from a v1.1.0 tree; the module it loads and the commit --version prints can",
+    "module_file": "libllama-server-impl.dylib",
+    "module_path": "/tmp/k111/kalsa-server-v1.1.1/libllama-server-impl.dylib",
+    "module_sha256": "714e8ba12e7f9403835e8655f6b581f0a7b76b91026012e5e7d43cea6790f5fb",
+    "version_full": "version: 0.4.1-dev (build 11195, commit a7d2cec79)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+    "version_commit": "a7d2cec79",
+    "manifest_commit": "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1",
+    "commit_agrees": true,
+    "ok": true
+   }
+  },
+  "release_derivation": {
+   "script": "dev/measure-concurrency.py",
+   "sha256": "0be0e52424a38d5941fb094dcc945bb1816a593439e06612c30ceb0bb077ae08",
+   "loaded_as": "importlib module mconc - loaded, never copied"
+  },
+  "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+  "model_sha256": "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+  "model_header": {
+   "general.architecture": "afmoe",
+   "general.name": "Trinity Nano Preview",
+   "afmoe.context_length": 131072,
+   "afmoe.block_count": 56,
+   "afmoe.attention.head_count_kv": 2,
+   "afmoe.attention.key_length": 128,
+   "afmoe.attention.value_length": 128,
+   "afmoe.attention.sliding_window": 2048,
+   "gguf_version": 3,
+   "n_tensors": 1057,
+   "source": "the model file's own header, read without starting an engine"
+  },
+  "sizes": [
+   32768,
+   65536
+  ],
+  "size_ceiling": {
+   "largest_size": 65536,
+   "sizes": [
+    32768,
+    65536
+   ],
+   "per_slot_ctx": 131072,
+   "headroom_tokens": 65520,
+   "model_context_length": 131072,
+   "model_context_source": "read from the model's own GGUF header (model_header)",
+   "honest": true,
+   "why": "the largest size 65536 comes from --sizes [32768, 65536]; it plus n_predict 16 fits the 131072-token per-slot ctx with 65520 tokens spare (--parallel 1), and the model's trained context read from its own GGUF header is 131072: the ceiling is a choice of what this run has to measure, not a model or ctx limit; a size that did not fit would be refused above, never truncated"
+  },
+  "script": "/Users/marco/Projects/kalsa-brain/dev/measure-unload-restore.py",
+  "script_sha256": "dc88f0220dfaa76e8c6eb1485766b029182f701636ef9aff11c8546bc57e96a8",
+  "ctx_size": 131072,
+  "parallel": 1,
+  "cache_ram": 0,
+  "ctx_checkpoints": 1,
+  "swa_full": false,
+  "argv_facts_source": "parsed back out of the argv every arm receives (flags_from_argv), asserted equal per arm and against the intended flags before the first engine",
+  "sleep_idle_seconds": 30,
+  "sleep_idle_note": "short so the release lands inside the run; the app ships 300",
+  "engine_nice": 10,
+  "max_load": 6.0,
+  "max_load_note": "gate on the 1-minute load average, checked before any engine starts; 0 disables it and would be recorded as 0.0",
+  "watched_release_line": "server is entering sleeping state",
+  "watched_reload_line": "server is exiting sleeping state",
+  "watched_lines_source": "crates/kalsa-supervisor/src/child.rs:42-43",
+  "release_deadline_s": 120,
+  "reload_deadline_s": 180,
+  "release_settle_s": 1.0,
+  "n_predict": 16,
+  "warm_threshold": "cache_n >= 0.5 * chat_tokens",
+  "warm_threshold_kind": "RULE - the line this verdict draws, not a measured datum",
+  "salt_header": "x-kalsa-cache-salt",
+  "salt_on_slot_actions": true,
+  "raw_log_committed": false,
+  "wall_times_note": "wall times are measurements of this machine at nice 10 under whatever else it was doing, not performance promises",
+  "invariant_note": "contention-invariant: token counts, cache_n, file bytes. NOT invariant: prompt_ms, save_ms, every wall - they move with loadavg_before (recorded above and below) and are labelled wherever they are quoted",
+  "loadavg_before": [
+   2.1298828125,
+   4.87890625,
+   8.736328125
+  ],
+  "engine_init_line": [
+   "0.00.794.335 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 131072, kv_unified = 'false'"
+  ],
+  "engine_kv_lines": [
+   "0.00.697.932 I llama_kv_cache: size =  952.00 MiB (131072 cells,  14 layers,  1/1 seqs), K (q8_0):  476.00 MiB, V (q8_0):  476.00 MiB",
+   "0.00.701.842 I llama_kv_cache: size =   55.78 MiB (  2560 cells,  42 layers,  1/1 seqs), K (q8_0):   27.89 MiB, V (q8_0):   27.89 MiB"
+  ],
+  "engine_swa_lines": [
+   "0.00.485.663 I print_info: n_swa                 = 2048",
+   "0.00.485.664 I print_info: is_swa_any            = 1",
+   "0.00.630.204 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 131072 cells",
+   "0.00.697.963 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
+  ],
+  "checkpoint_line": [
+   "0.00.794.396 I srv    load_model: context checkpoints enabled, max = 1, min spacing = 8192"
+  ],
+  "app_context_default": {
+   "value": 65536,
+   "source": "crates/kalsa-launch/src/args.rs",
+   "line_text": "DEFAULT_CONTEXT_TOKENS: u64 = 65_536"
+  },
+  "device_offers": {
+   "values": [
+    1,
+    2,
+    4
+   ],
+   "source": "crates/kalsa-launch/src/policy/menu.rs"
+  },
+  "loadavg_after": [
+   5.10986328125,
+   4.03662109375,
+   6.693359375
+  ],
+  "chat_sentinels_found_in_log": false
+ },
+ "engine_commits": {
+  "scan_note": "no boot line carries both 'build' and 'commit'; this field is empty because the line is absent, not because a commit was not found - provenance.engine_version (--version) carries the commit instead"
+ },
+ "arms": {
+  "32768": {
+   "saved": {
+    "arm": "saved",
+    "chat_tokens": 32768,
+    "save_filename": "chat32768.bin",
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.81,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 26168.0,
+     "prompt_n": 32768,
+     "cache_n": 0,
+     "prompt_ms": 25797.095,
+     "predicted_n": 16,
+     "predicted_per_second": 54.985135684986496,
+     "cache_reused_tokens": 32783,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      1.87353515625,
+      4.59814453125,
+      8.52294921875
+     ]
+    },
+    "save": {
+     "status": 200,
+     "wall_ms": 261.25,
+     "n_saved": 32783,
+     "n_written": 343836904,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": null,
+     "save_ms": 260.531,
+     "restore_ms": null,
+     "file_bytes": 343836904
+    },
+    "restore_with_model_resident": {
+     "status": 200,
+     "wall_ms": 56.42,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 32783,
+     "n_read": 343836904,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 55.733
+    },
+    "release": {
+     "observed": true,
+     "line_index": 300,
+     "line": "0.58.029.708 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.3,
+     "deadline_s": 120
+    },
+    "restore_after_release": {
+     "status": 200,
+     "wall_ms": 868.82,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 32783,
+     "n_read": 343836904,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 57.36
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 303,
+     "line": "0.59.118.838 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 60.4,
+     "triggered_by": "restore"
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 467.6,
+     "prompt_n": 5,
+     "cache_n": 32763,
+     "prompt_ms": 75.084,
+     "predicted_n": 16,
+     "predicted_per_second": 52.23041272472135,
+     "cache_reused_tokens": 32783,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task 38 | restored context checkpoint (pos_min = 30204, pos_max = 32763, n_tokens = 32764, n_past = 32763, size = 44.649 MiB)"
+      }
+     ],
+     "loadavg": [
+      2.62451171875,
+      4.45751953125,
+      8.3115234375
+     ]
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.3,
+     "reload_observed": true,
+     "reload_triggered_by": "restore",
+     "n_saved": 32783,
+     "file_bytes": 343836904,
+     "n_restored": 32783,
+     "n_read": 343836904,
+     "restore_wall_ms": 868.82,
+     "resident_restore_wall_ms": 56.42,
+     "warm": true,
+     "second_send": {
+      "cache_n": 32763,
+      "prompt_n": 5,
+      "prompt_ms": 75.084,
+      "predicted_n": 16,
+      "wall_ms": 467.6
+     },
+     "cache_n": 32763,
+     "reused_fraction": 1.0,
+     "reload_announced_ms_after_restore_start": 60.4,
+     "restore_wall_minus_resident_ms": 812.4,
+     "model_reload_ms_estimate": 752.0
+    },
+    "measured": true,
+    "arm_wall_s": 59.2,
+    "chat_pool_words": 32768,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "131072",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-ur-appctx/saved_32768/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   },
+   "control": {
+    "arm": "control",
+    "chat_tokens": 32768,
+    "file_saved": false,
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.69,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 26207.5,
+     "prompt_n": 32768,
+     "cache_n": 0,
+     "prompt_ms": 25835.04,
+     "predicted_n": 16,
+     "predicted_per_second": 54.89719585123592,
+     "cache_reused_tokens": 32783,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      3.65576171875,
+      4.5380859375,
+      8.20703125
+     ]
+    },
+    "release": {
+     "observed": true,
+     "line_index": 296,
+     "line": "0.57.720.929 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.26,
+     "deadline_s": 120
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 26950.9,
+     "prompt_n": 32768,
+     "cache_n": 0,
+     "prompt_ms": 25804.206,
+     "predicted_n": 16,
+     "predicted_per_second": 56.07937849094131,
+     "cache_reused_tokens": 32783,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 35 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      4.6513671875,
+      4.76318359375,
+      8.044921875
+     ]
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 299,
+     "line": "0.58.797.795 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 52.6,
+     "triggered_by": "completion"
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.26,
+     "reload_observed": true,
+     "reload_triggered_by": "completion",
+     "reload_announced_ms_after_send_start": 52.6,
+     "warm": false,
+     "second_send": {
+      "cache_n": 0,
+      "prompt_n": 32768,
+      "prompt_ms": 25804.206,
+      "predicted_n": 16,
+      "wall_ms": 26950.9
+     },
+     "cache_n": 0,
+     "reused_fraction": 0.0,
+     "cold": true
+    },
+    "measured": true,
+    "arm_wall_s": 84.4,
+    "chat_pool_words": 32768,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "131072",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-ur-appctx/control_32768/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   }
+  },
+  "65536": {
+   "saved": {
+    "arm": "saved",
+    "chat_tokens": 65536,
+    "save_filename": "chat65536.bin",
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.67,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 71549.8,
+     "prompt_n": 65536,
+     "cache_n": 0,
+     "prompt_ms": 71033.823,
+     "predicted_n": 16,
+     "predicted_per_second": 46.896836339420545,
+     "cache_reused_tokens": 65551,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      2.84765625,
+      4.1650390625,
+      7.537109375
+     ]
+    },
+    "save": {
+     "status": 200,
+     "wall_ms": 288.99,
+     "n_saved": 65551,
+     "n_written": 593922280,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": null,
+     "save_ms": 288.265,
+     "restore_ms": null,
+     "file_bytes": 593922280
+    },
+    "restore_with_model_resident": {
+     "status": 200,
+     "wall_ms": 103.71,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 65551,
+     "n_read": 593922280,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 103.006
+    },
+    "release": {
+     "observed": true,
+     "line_index": 332,
+     "line": "1.43.737.854 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.22,
+     "deadline_s": 120
+    },
+    "restore_after_release": {
+     "status": 200,
+     "wall_ms": 918.5,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 65551,
+     "n_read": 593922280,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 120.385
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 335,
+     "line": "1.44.792.557 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 53.1,
+     "triggered_by": "restore"
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 604.2,
+     "prompt_n": 5,
+     "cache_n": 65531,
+     "prompt_ms": 87.606,
+     "predicted_n": 16,
+     "predicted_per_second": 47.37734794240178,
+     "cache_reused_tokens": 65551,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task 54 | restored context checkpoint (pos_min = 62972, pos_max = 65531, n_tokens = 65532, n_past = 65531, size = 44.649 MiB)"
+      }
+     ],
+     "loadavg": [
+      4.0234375,
+      4.33642578125,
+      7.48193359375
+     ]
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.22,
+     "reload_observed": true,
+     "reload_triggered_by": "restore",
+     "n_saved": 65551,
+     "file_bytes": 593922280,
+     "n_restored": 65551,
+     "n_read": 593922280,
+     "restore_wall_ms": 918.5,
+     "resident_restore_wall_ms": 103.71,
+     "warm": true,
+     "second_send": {
+      "cache_n": 65531,
+      "prompt_n": 5,
+      "prompt_ms": 87.606,
+      "predicted_n": 16,
+      "wall_ms": 604.2
+     },
+     "cache_n": 65531,
+     "reused_fraction": 1.0,
+     "reload_announced_ms_after_restore_start": 53.1,
+     "restore_wall_minus_resident_ms": 814.8,
+     "model_reload_ms_estimate": 761.7
+    },
+    "measured": true,
+    "arm_wall_s": 104.7,
+    "chat_pool_words": 65536,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "131072",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-ur-appctx/saved_65536/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   },
+   "control": {
+    "arm": "control",
+    "chat_tokens": 65536,
+    "file_saved": false,
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.73,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 71570.0,
+     "prompt_n": 65536,
+     "cache_n": 0,
+     "prompt_ms": 71036.393,
+     "predicted_n": 16,
+     "predicted_per_second": 45.00679602619996,
+     "cache_reused_tokens": 65551,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      2.1845703125,
+      3.73095703125,
+      6.986328125
+     ]
+    },
+    "release": {
+     "observed": true,
+     "line_index": 328,
+     "line": "1.43.432.993 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.25,
+     "deadline_s": 120
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 73356.8,
+     "prompt_n": 65536,
+     "cache_n": 0,
+     "prompt_ms": 71388.018,
+     "predicted_n": 16,
+     "predicted_per_second": 47.651874465901905,
+     "cache_reused_tokens": 65551,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 51 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      3.11767578125,
+      3.63232421875,
+      6.56787109375
+     ]
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 331,
+     "line": "1.44.496.749 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 65.4,
+     "triggered_by": "completion"
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.25,
+     "reload_observed": true,
+     "reload_triggered_by": "completion",
+     "reload_announced_ms_after_send_start": 65.4,
+     "warm": false,
+     "second_send": {
+      "cache_n": 0,
+      "prompt_n": 65536,
+      "prompt_ms": 71388.018,
+      "predicted_n": 16,
+      "wall_ms": 73356.8
+     },
+     "cache_n": 0,
+     "reused_fraction": 0.0,
+     "cold": true
+    },
+    "measured": true,
+    "arm_wall_s": 176.2,
+    "chat_pool_words": 65536,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "131072",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-ur-appctx/control_65536/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   }
+  }
+ },
+ "verdict": {
+  "warm_after_unload": true,
+  "cold_without_the_file": true,
+  "per_size": {
+   "32768": {
+    "warm_after_unload": true,
+    "cold_without_the_file": true,
+    "release_waited_s_saved": 30.3,
+    "release_waited_s_control": 30.26,
+    "restore_wall_ms": 868.82,
+    "resident_restore_wall_ms": 56.42,
+    "model_reload_ms_estimate": 752.0,
+    "n_restored": 32783,
+    "second_send_cache_n_saved": 32763,
+    "second_send_cache_n_control": 0
+   },
+   "65536": {
+    "warm_after_unload": true,
+    "cold_without_the_file": true,
+    "release_waited_s_saved": 30.22,
+    "release_waited_s_control": 30.25,
+    "restore_wall_ms": 918.5,
+    "resident_restore_wall_ms": 103.71,
+    "model_reload_ms_estimate": 761.7,
+    "n_restored": 65551,
+    "second_send_cache_n_saved": 65531,
+    "second_send_cache_n_control": 0
+   }
+  },
+  "disk_curve": {
+   "32768": {
+    "chat_tokens": 32768,
+    "file_bytes": 343836904,
+    "bytes_per_token": 10493,
+    "excess_over_q8_kv_bytes_per_token": -19971,
+    "cold_prompt_ms": 25797.095,
+    "warm_second_prompt_ms": 75.084,
+    "control_reprefill_prompt_ms": 25804.206,
+    "prefill_ms_avoided": 25729.1,
+    "resident_restore_wall_ms": 56.42,
+    "restore_wall_carries_reload_ms": 868.82,
+    "tokens_reused_saved": 32763,
+    "tokens_reused_control": 0
+   },
+   "65536": {
+    "chat_tokens": 65536,
+    "file_bytes": 593922280,
+    "bytes_per_token": 9063,
+    "excess_over_q8_kv_bytes_per_token": -21401,
+    "cold_prompt_ms": 71033.823,
+    "warm_second_prompt_ms": 87.606,
+    "control_reprefill_prompt_ms": 71388.018,
+    "prefill_ms_avoided": 71300.4,
+    "resident_restore_wall_ms": 103.71,
+    "restore_wall_carries_reload_ms": 918.5,
+    "tokens_reused_saved": 65531,
+    "tokens_reused_control": 0,
+    "marginal_bytes_per_token": 7632,
+    "marginal_from": 32768,
+    "prefill_ms_avoided_per_token_from_prev": 1.391
+   }
+  },
+  "disk_law": {
+   "formula": "bytes = per_layer_bpt x (layer_full x tokens + 2 x layer_windowed x min(tokens, window))",
+   "per_layer_bpt": 544,
+   "window_from_header": 2048,
+   "layer_full_from_boot_line": 14,
+   "layer_windowed_from_boot_line": 42,
+   "blocks_from_header": 56,
+   "layers_add_up_to_blocks": true,
+   "per_size": {
+    "32768": {
+     "tokens": 32768,
+     "measured_bytes": 343836904,
+     "predicted_bytes": 343146496,
+     "error_pct": 0.2
+    },
+    "65536": {
+     "tokens": 65536,
+     "measured_bytes": 593922280,
+     "predicted_bytes": 592707584,
+     "error_pct": 0.2
+    }
+   },
+   "available": true
+  },
+  "conclusion": "after a real release the saved chats came back warm and the no-file controls stayed cold, so the warmth travelled with the file. Numbers: 32768 tokens: saved cache_n=32763/32768 n_restored=32783 restore=868.82ms (resident 56.42ms, reload est. 752.0ms), control cache_n=0/32768; 65536 tokens: saved cache_n=65531/65536 n_restored=65551 restore=918.5ms (resident 103.71ms, reload est. 761.7ms), control cache_n=0/65536 | disk curve: (a) bytes/token: 32768 tokens -> 343836904 B = 10493 B/token; 65536 tokens -> 593922280 B = 9063 B/token (marginal 32768->65536: 7632 B/token); the 600->1900 base was 53352 B/token, the q8_0 full-KV arithmetic from the model's own GGUF header is 30464 B/token. THE CURVE BENDS between 32768 and 65536: the marginal drops to 7632 B/token, -27.3 % below the 32768-token average - consistent with the 2048-token sliding window the model's own GGUF header declares capping the windowed layers there. THE BEND IS BELOW THE SMALLEST SIZE MEASURED HERE: at 32768 tokens the average is already 10493 B/token, -80.3 % under the 53352 B/token base measured at 600->1900 tokens, so the 2048-token window was crossed between 1900 and 32768 tokens - the marginals above are what remains after it. (b) benefit per size: 32768 tokens: 25804.206 ms cold re-prefill vs 75.084 ms warm -> 25729.1 ms avoided, 32763/32768 tokens reused; 65536 tokens: 71388.018 ms cold re-prefill vs 87.606 ms warm -> 71300.4 ms avoided, 65531/65536 tokens reused - the MILLISECOND half is this machine at this load (contention-dependent, not a promise); the invariant half is the token count and the byte counts above; the benefit grows FASTER than with the token count (0.785 -> 1.088 ms avoided per token, 32768 -> 65536 tokens). (c) this artifact does not reach 4096 tokens (sizes: 32768, 65536), so the plan's ~218 MB at 4096 is NOT settled here - it is settled by the artifact that measures 4096. (d) at 65536 tokens there is NO excess: the file sits 21401 B/token BELOW the header's full-KV arithmetic, which is what the 2048-token window capping the windowed layers does to a file. The positive excess exists only BELOW the window; it is measured and attributed in the companion 600/1900-token artifact (dev/results/unload-restore-release), not re-derived from this one. (e) the law read from the model's own header - 2048-token window, 14 full + 42 windowed layers from the boot lines, 544 B/layer/token, layers sum to 56 blocks (True): 32768: predicted 343146496 B vs measured 343836904 B (+0.20 %); 65536: predicted 592707584 B vs measured 593922280 B (+0.20 %) -> the law HOLDS within 0.2 % at every size (f) THE NUMBER FOR THE OWNER: one chat saved at the app's default context (65536 tokens, read from crates/kalsa-launch/src/args.rs) costs MEASURED 593922280 bytes = 593.9 MB; BY ARITHMETIC ON THAT MEASUREMENT, not measured as a group, the menu offers 1/2/4 devices (read from crates/kalsa-launch/src/policy/menu.rs), so saved chats alone are 1 = 593.9 MB, 2 = 1187.8 MB, 4 = 2375.7 MB"
+ }
+}

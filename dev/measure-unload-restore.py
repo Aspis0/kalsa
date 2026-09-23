@@ -527,16 +527,19 @@ def release_qualification(block):
             "run cannot claim the delivered artifact, and does not")
 
 
-def gguf_header_facts(path, extra_keys=()):
+def gguf_header_facts(path, extra_keys=(), with_offsets=False):
     """Read scalars out of the model's own GGUF header - no engine started.
 
     The trained context and the sliding window are properties of the MODEL,
-    so they are read from the model file (the ceiling and the bend's
-    explanation come from here, not from a typed constant). Arrays are read
-    and discarded: this model's header parses in milliseconds and only the
-    scalar facts are wanted.
+    so they are read from the model file (the ceiling, the bend's explanation
+    and the disk law's window come from here, not from a typed constant).
+    Arrays are read and discarded: this model's header parses in milliseconds
+    and only the scalar facts are wanted. `with_offsets` also returns where
+    each value lives in the file - what lets a mutation patch a COPY of the
+    header instead of the model.
     """
     scalars = {}
+    offsets = {}
     try:
         with open(path, "rb") as f:
             if f.read(4) != b"GGUF":
@@ -570,6 +573,7 @@ def gguf_header_facts(path, extra_keys=()):
             for _ in range(n_kv):
                 key = rd_str()
                 t = struct.unpack("<I", f.read(4))[0]
+                offsets[key] = {"value_offset": f.tell(), "type": t}
                 value = rd_value(t)
                 if isinstance(value, (int, float, bool)) or (
                         isinstance(value, str) and len(value) < 120):
@@ -586,6 +590,8 @@ def gguf_header_facts(path, extra_keys=()):
     facts["gguf_version"] = version
     facts["n_tensors"] = n_tensors
     facts["source"] = "the model file's own header, read without starting an engine"
+    if with_offsets:
+        facts["value_offsets"] = offsets
     return facts
 
 
@@ -856,6 +862,195 @@ def disk_curve_sentence(rows, model_facts=None, kv_lines=None, swa_lines=None):
 
 
 # ------------------------------------------------------------------------ main
+# ---------------------------------------------------------- chat fixture
+def make_chat_at(port, seed, target, floor_words=16000):
+    """An exact-token chat of ANY size the engine can hold, deterministic.
+
+    The shared `measure-slot-restore.make_chat` builds a 16 001-word pool and
+    stops working somewhere past ~8k tokens; the app's own default context is
+    65 536 (crates/kalsa-launch/src/args.rs DEFAULT_CONTEXT_TOKENS), which is
+    the size this artifact has to measure. Same contract as `make_chat`:
+    seeded rng (the same seed builds the same text, run after run), a window
+    that is detokenized and RE-TOKENIZED to exactly `target` tokens before it
+    is returned, and `(content, target, sentinel)` with the sentinel = the
+    text's first 80 chars - the artifact and the logs are checked against it.
+
+    The pool GROWS until it holds the target: a fixed pool is a silent ceiling
+    on the measurement, and a chat whose token count is not exact is not the
+    size it claims to be - if no window start round-trips, the run stops.
+    """
+    import random
+    rng = random.Random(seed)
+    sentinel = f"zqxvsentinelchat{seed:04d}"
+    need = max(floor_words, target)
+    for _ in range(6):
+        big = [sentinel] + [rng.choice(msr.WORDS) for _ in range(need)]
+        ids = msr.tokenize(port, " ".join(big))
+        if len(ids) >= target:
+            for start in range(0, 256):
+                window = ids[start:start + target]
+                content = msr.detokenize(port, window)
+                if len(msr.tokenize(port, content)) == target:
+                    return content, target, content[:80], need
+            raise SystemExit(
+                f"the {target}-token window did not round-trip at any of 256 "
+                "starts - refusing to measure a chat whose token count is not exact")
+        need *= 2
+    raise SystemExit(
+        f"the chat pool ({need} words) still tokenizes below {target} tokens "
+        "- refusing to fake the size")
+
+
+def read_app_context_default():
+    """The app's per-slot context, read from the source that declares it - the
+    owner's number is about THAT context, so the context is read, not typed."""
+    src = HERE.parent / "crates" / "kalsa-launch" / "src" / "args.rs"
+    try:
+        text = src.read_text()
+    except OSError as e:
+        return {"value": None, "source": str(src), "error": str(e)}
+    m = re.search(r"DEFAULT_CONTEXT_TOKENS: u64 = ([\d_]+)", text)
+    return {"value": int(m.group(1).replace("_", "")) if m else None,
+            "source": str(src.relative_to(HERE.parent)),
+            "line_text": m.group(0) if m else None}
+
+
+def read_device_offers():
+    """Which device counts the menu offers, read from the Offer initializers
+    (n1/n2/n4 -> 1/2/4 devices)."""
+    src = HERE.parent / "crates" / "kalsa-launch" / "src" / "policy" / "menu.rs"
+    try:
+        text = src.read_text()
+    except OSError as e:
+        return {"values": None, "source": str(src), "error": str(e)}
+    found = sorted({int(n) for n in re.findall(r"\bn(\d+):\s*\(", text)})
+    return {"values": found or None,
+            "source": str(src.relative_to(HERE.parent))}
+
+
+def disk_law(rows, model_facts, kv_lines, swa_lines):
+    """THE LAW, predicted from the model's own geometry, checked against the
+    measurement - per size, with the error in percent.
+
+    Every input is READ, never typed: window and block/head/key/value come
+    from the GGUF header, the full/windowed layer split comes from the
+    engine's boot cache lines (kv_layout), and the per-layer cost is q8_0
+    arithmetic (34 B per 32 elements = 1.0625 B/element).
+
+      bytes = per_layer_bpt x (layer_full x tokens
+                               + 2 x layer_windowed x min(tokens, window))
+
+    The `2 x` is what the sizes below the window already showed: the windowed
+    layers are stored twice while inside the window, once capped at `window`
+    beyond it. This function does not TRUST that the window still caps at the
+    app's real context: it computes the prediction, and the error is what
+    says whether the law holds or has to be corrected.
+    """
+    _, per_layer = header_kv_arithmetic(model_facts)
+    window = window_from_facts(model_facts)
+    layout = kv_layout(kv_lines, swa_lines)
+    full = (layout.get("non-SWA") or {}).get("layers")
+    windowed = (layout.get("SWA") or {}).get("layers")
+    arch = model_facts.get("general.architecture")
+    blocks = model_facts.get(f"{arch}.block_count") if arch else None
+    law = {
+        "formula": ("bytes = per_layer_bpt x (layer_full x tokens + 2 x "
+                    "layer_windowed x min(tokens, window))"),
+        "per_layer_bpt": per_layer,
+        "window_from_header": window,
+        "layer_full_from_boot_line": full,
+        "layer_windowed_from_boot_line": windowed,
+        "blocks_from_header": blocks,
+        "layers_add_up_to_blocks": (full + windowed == blocks)
+        if (full and windowed and blocks) else None,
+        "per_size": {},
+    }
+    if not (per_layer and full and windowed):
+        law["available"] = False
+        law["why_not"] = "the boot cache lines or the header fields are missing"
+        return law
+    law["available"] = True
+    for size, row in rows.items():
+        tokens, measured = row.get("chat_tokens"), row.get("file_bytes")
+        if not tokens or not measured:
+            continue
+        predicted = per_layer * (full * tokens
+                                 + 2 * windowed * min(tokens, window))
+        law["per_size"][str(size)] = {
+            "tokens": tokens,
+            "measured_bytes": measured,
+            "predicted_bytes": predicted,
+            "error_pct": round((measured - predicted) / predicted * 100, 2),
+        }
+    return law
+
+
+def law_clause(law):
+    """(e) predicted vs measured vs error, per size, with a verdict."""
+    if not law.get("available"):
+        return ("(e) THE LAW COULD NOT BE EVALUATED: "
+                f"{law.get('why_not')} - no prediction to compare")
+    per_size = law["per_size"]
+    if not per_size:
+        return "(e) THE LAW COULD NOT BE EVALUATED: no size has a file to compare"
+    bits = []
+    for size in sorted(map(int, per_size)):
+        e = per_size[str(size)]
+        bits.append(f"{size}: predicted {e['predicted_bytes']} B vs measured "
+                    f"{e['measured_bytes']} B ({e['error_pct']:+.2f} %)")
+    worst = max(abs(e["error_pct"]) for e in per_size.values())
+    verdict = (f"HOLDS within {round(worst, 2)} % at every size" if worst <= 5
+               else f"IS WRONG AT THIS SIZE: worst error {round(worst, 2)} % "
+                    "- the law must be corrected, not the measurement")
+    return (f"(e) the law read from the model's own header - "
+            f"{law['window_from_header']}-token window, "
+            f"{law['layer_full_from_boot_line']} full + "
+            f"{law['layer_windowed_from_boot_line']} windowed layers from the "
+            f"boot lines, {law['per_layer_bpt']} B/layer/token, layers sum to "
+            f"{law['blocks_from_header']} blocks "
+            f"({law['layers_add_up_to_blocks']}): "
+            + "; ".join(bits) + f" -> the law {verdict}")
+
+
+def owner_clause(law, rows, app_ctx, offers):
+    """(f) the number the owner asked for: bytes per saved chat at the app's
+    default context, MEASURED when this artifact reaches that size, and the
+    1/2/4-device consequence declared as arithmetic on it."""
+    target = app_ctx.get("value")
+    src = app_ctx.get("source")
+    if not target:
+        return ("(f) THE OWNER NUMBER IS UNAVAILABLE: the app's default context "
+                f"could not be read from {src} - nothing derived without it")
+    row = rows.get(str(target)) or {}
+    offer_values = offers.get("values") or []
+    offers_txt = ("/".join(str(v) for v in offer_values) + " devices"
+                  if offer_values else "unknown offers")
+    if row.get("file_bytes"):
+        measured = row["file_bytes"]
+        per = round(measured / 1_000_000, 1)
+        multi = {d: round(d * measured / 1_000_000, 1) for d in (1, 2, 4)}
+        return (f"(f) THE NUMBER FOR THE OWNER: one chat saved at the app's default "
+                f"context ({target} tokens, read from {src}) costs MEASURED "
+                f"{measured} bytes = {per} MB; BY ARITHMETIC ON THAT MEASUREMENT, "
+                f"not measured as a group, the menu offers {offers_txt} (read from "
+                f"{offers.get('source')}), so saved chats alone are "
+                + ", ".join(f"{d} = {multi[d]} MB" for d in (1, 2, 4)))
+    per_layer = law.get("per_layer_bpt")
+    full = law.get("layer_full_from_boot_line")
+    windowed = law.get("layer_windowed_from_boot_line")
+    window = law.get("window_from_header")
+    if law.get("available"):
+        predicted = per_layer * (full * target + 2 * windowed * min(target, window))
+        return (f"(f) THE OWNER NUMBER IS A DERIVATION IN THIS ARTIFACT: no chat of "
+                f"{target} tokens was measured here (sizes: "
+                f"{', '.join(sorted(rows, key=int))}); the law above puts it at "
+                f"{predicted} bytes = {round(predicted / 1_000_000, 1)} MB per saved "
+                "chat - DECLARED as arithmetic, measured in "
+                "dev/results/unload-restore-app-context/")
+    return (f"(f) THE OWNER NUMBER IS UNAVAILABLE: {target} tokens not measured "
+            "here and the law could not be evaluated")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -1057,7 +1252,7 @@ def main():
                                               or "creating     SWA" in l]
                     pv["checkpoint_line"] = [l.strip() for l in boot
                                              if "context checkpoints" in l]
-                chat, _, sent = msr.make_chat(args.port, 1000 + size, size)
+                chat, _, sent, pool_words = make_chat_at(args.port, 1000 + size, size)
                 sentinels.append(sent)
                 logs.append(arm_dir / "engine.log")
                 chat_tokens = len(msr.tokenize(args.port, chat))
@@ -1069,6 +1264,7 @@ def main():
                     rec = arm_control(server, args.port, chat, chat_tokens,
                                       args.n_predict, blockers)
                 rec["arm_wall_s"] = round(time.perf_counter() - t0, 1)
+                rec["chat_pool_words"] = pool_words
                 rec["argv"] = argv
                 rec["blockers"] = blockers
                 rec["engine_lines_note"] = ("per-send engine lines are filtered by "
@@ -1096,6 +1292,15 @@ def main():
         curve, record["provenance"].get("model_header"),
         record["provenance"].get("engine_kv_lines"),
         record["provenance"].get("engine_swa_lines"))
+    app_ctx = read_app_context_default()
+    offers = read_device_offers()
+    record["provenance"]["app_context_default"] = app_ctx
+    record["provenance"]["device_offers"] = offers
+    law = disk_law(curve, record["provenance"].get("model_header") or {},
+                   record["provenance"].get("engine_kv_lines"),
+                   record["provenance"].get("engine_swa_lines"))
+    conclusion = (f"{conclusion} {law_clause(law)} "
+                  f"{owner_clause(law, curve, app_ctx, offers)}")
     record["verdict"] = {
         "warm_after_unload": aggregate(warm_flags),
         "cold_without_the_file": aggregate(cold_flags),
@@ -1112,6 +1317,7 @@ def main():
             "second_send_cache_n_control": per_size[s]["control"]["derived"].get("cache_n"),
         } for s in sorted(per_size)},
         "disk_curve": curve,
+        "disk_law": law,
         "conclusion": conclusion,
     }
     record["provenance"]["loadavg_after"] = msr.loadavg()
