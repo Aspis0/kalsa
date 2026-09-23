@@ -38,7 +38,9 @@ the computer is where they chose where the answer comes from.
 | **2 — scanning** | the camera, a plain frame, one line under it | **Annulla** (text) | *"Inquadra il codice che vedi su Kalsa desktop."* |
 | **3 — checking** | a progress line, cancellable | **Annulla** (text) | *"Sto collegando…"* |
 | **4 — connected** | the computer's name, when it was last reached, and what it is for | **Disconnetti** (secondary, destructive-ish) | *"Questo telefono può usare il tuo computer. La chat resta sul telefono finché non scegli un modello sul computer."* |
-| **5 — the computer is busy** | the same as 4, with the queue line | **Riprova** (secondary) | *"Il computer sta già servendo altri dispositivi (ne regge quattro insieme). La tua richiesta partirà appena si libera."* |
+| **5 — the computer is busy** | the same as 4, with the queue line | **Riprova** (secondary) | *"Il computer sta già servendo sé stesso e tre telefoni. La tua richiesta partirà appena uno si libera."*
+The owner's reading of the number: **n=4 is one computer plus three phones** — the computer counts itself
+— and it is *for now*, so no copy should memorise a figure. |
 
 ## Failure copy, and the register it has to match
 
@@ -70,8 +72,11 @@ are written the same way: what happened, what it means, what the person can do �
 5. **Nothing about Tailscale appears on this screen.** The owner's line is that Pro exists *for people
    who do not want to set up Tailscale themselves*: a screen that names a VPN would be answering a
    question the person did not ask. The network only shows up in the failure copy, as "the same network".
-6. **A seat is a device** `[WAITING: question 8]` — if that turns out false, state 4's copy and the room's
-   face both change.
+6. **A seat is a device** — and the owner's clarification makes this almost answered: n=4 is *one computer
+   plus three phones*, which matches the hub's own language about **four seats, one of them yours**, and the
+   note that the machine running the server registers itself without a QR. So the computer holds a seat
+   from first launch, phones join by pairing, and the room's `[WAITING: question 8]` is now a confirmation
+   rather than an open question.
 
 ## The one fact we already have, and it changes a copy line
 
