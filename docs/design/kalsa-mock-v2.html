@@ -731,10 +731,12 @@ body{background:var(--page);font-size:15px}
 /* strip: menu + pill, nient'altro. Il "+" e' ridondante: la Nuova chat e' la CTA del menu */
 .head{padding:12px 16px 14px;background:var(--page)}
 .head .iconbtn:last-of-type{display:none}
-.pick{border:0;box-shadow:var(--e1);border-radius:var(--r-card);padding:8px 12px 8px 8px}
+.pick{border:0;box-shadow:var(--e1);border-radius:999px;padding:6px 14px 6px 6px}
 .pick .mark{width:32px;height:32px}
 .pick b{font-size:15px;font-weight:600}
-.pick small{font-size:12.5px}
+.pick small{font-size:12.5px;gap:6px}
+.pick small i{display:none}
+.pick .dev{width:13px;height:13px;color:var(--accent);flex:none}
 .iconbtn{width:44px;height:44px;border-radius:var(--r-btn);border:0;box-shadow:var(--e1)}
 /* transcript: meno decorazione, piu' gerarchia */
 .page{padding:6px 16px 0}
@@ -813,5 +815,17 @@ body{background:var(--page);font-size:15px}
 .preview{font-size:16px}
 .rm{background:var(--surface)}
 </style>
+
+<script>
+/* v2: the model pill says WHERE it runs with a device glyph instead of a dot */
+(function(){
+  var w = document.getElementById("mwhere"); if(!w) return;
+  var t = (w.textContent || "").trim(); if(!t) return;
+  var PH = '<svg class="dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>';
+  var PC = '<svg class="dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>';
+  var remote = /pc|brain|mac|studio|server/i.test(t);
+  w.innerHTML = (remote ? PC : PH) + '<span>' + t + '</span>';
+})();
+</script>
 </body>
 </html>

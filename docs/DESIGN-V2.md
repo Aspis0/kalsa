@@ -93,6 +93,10 @@ lucide, **1.75 stroke**, 20 px inside rows and controls, 18 px inside chips, 24 
 own leading action. Every interactive node carries a `testID` and an accessible name, and a **48 dp
 touch box** (the painted control may be smaller: 44 px send, 36 px ghost action, 32 px chip).
 
+One pictogram is load-bearing and must not be swapped for a coloured dot: **the device glyph beside the
+model's name** — `smartphone` while the answer comes from this phone, `monitor` while it comes from the
+server brain — 13 px in `accent`, on the pill's second line (the owner asked for exactly this).
+
 ### 1.6 What is not decoration
 
 A rule the v2 pass was written against, because the first version of it read as a toy:
@@ -127,6 +131,7 @@ Each entry is the anatomy a coder implements; states are named because a missing
 | **Button, danger** | as secondary with `danger` label and `danger` hairline | pressed, disabled |
 | **Icon button** | 44 px painted in a 48 dp box, radius 14, `surface` + `e1`; ghost variant: no container, `ink3` | default, pressed (`tint`), selected (`tint` + `accent`), disabled |
 | **Chip** | pill, 32 dp, 1 px `line`, `surface`, 12.5 label, optional 18 px leading icon, optional trailing `×` | default, selected (`brand` fill, white label), disabled |
+| **Model pill** | **capsule**, 48 dp, `surface`, 1 px `line`, `e1`: a 32 px mark (the logo), the model's short name in `bodyStrong`, a second line carrying a 13 px `accent` **device glyph** and where it runs, and a 20 px chevron. Radius 999 so it agrees with the composer | local (`smartphone`, "Su questo telefono"), server brain (`monitor`, "Su Kalsa Brain"), loading (the glyph becomes a 14 px spinner), refused (the pill goes `tint` + `ink3`) |
 | **Field (forms)** | 52 dp, radius 14, `surface`, 1 px `line`, 15 px `ink`, placeholder `ink3`, optional 20 px leading icon, optional trailing 24 dp action | empty, filled, focused (`accent` hairline + `accent` caret), error (`danger` hairline) |
 | **Composer field** | **one capsule**: 56 dp, radius 999, `surface`, 1 px `line`, `e2`; inside it, left to right: a 40 px ghost attach button, the text (15.5 px sans), a 40 px ghost mic, and a **40 px circular filled send**. A circle inside a capsule, never a square inside a rectangle | empty (placeholder `ink3`), focused, held (the circle goes `tint` + `ink3`, and the hold line says why), stop (the same circle carries a square glyph) |
 | **Search field** | as Field with a leading magnifier and a trailing clear `×` that appears only when non-empty | — |
@@ -157,12 +162,13 @@ Each entry is the anatomy a coder implements; states are named because a missing
 
 ### 3.1 Conversation
 
-**The strip** — 56 dp: the drawer's icon button (ghost, 44 px), the **model pill** (44 dp, `surface`,
-radius 14, `e1`: a 32 px mark, the model's short name in `bodyStrong`, and a second line with a 6 px
-`accent` dot plus where it runs — "Su questo telefono" / "Sul PC"), and a chevron. **Nothing else
-lives in the strip**: no `+` (the new chat is the menu's primary action, and a second door to it was
-redundant), no web switch (it moves to Settings › Privacy), and the model's progress, error and
-battery lines live inside the pill's own sheet, opened by tapping it.
+**The strip** — 56 dp: the drawer's icon button (ghost, 44 px), the **model pill** — **a capsule**, 48 dp,
+radius 999, `surface`, 1 px `line`, `e1`, holding a 32 px mark, the model's short name in `bodyStrong`,
+a second line with a **13 px `accent` device glyph** (`smartphone` / `monitor`) and where it runs, and a
+chevron — and nothing else. **Nothing else lives in the strip**: no `+` (the new chat is the menu's
+primary action, and a second door to it was redundant), no web switch (it moves to Settings › Privacy),
+and the model's progress, error and battery lines live inside the pill's own sheet, opened by tapping
+it. The dot that used to sit on the second line is gone: a colour says "something", a glyph says *where*.
 
 **The transcript** — the answer has no container. States, each with its line:
 empty (the photograph alone), waiting for the first token (the strip of three dots and the composer's
