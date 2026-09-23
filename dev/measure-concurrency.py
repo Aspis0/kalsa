@@ -1036,15 +1036,40 @@ def require_matched_for_door(release):
             "Run direct (--door-bin absent) or on the delivered release.")
 
 
+def scrub_secrets(text, credentials):
+    """G3: child output may contain ANYTHING - a runner that echoes stdin
+    must not be able to put a credential or a derived salt into an
+    exception, a print or the artifact. Every credential and its door
+    salt, full and as 16-hex prefixes, are replaced before `text` leaves
+    this function. Longest-first, so a full digest is hidden even where
+    its prefix would match too. (Credentials and salts reach no artifact
+    path at all - dev/test-door-harness.py (7) proves that on the records
+    - so child output is the one channel this guards.)"""
+    if not text:
+        return text
+    hidden = set()
+    for cred in credentials:
+        salt = device_cache_salt(cred)
+        hidden.update((cred, salt, cred[:16], salt[:16]))
+    for s in sorted(hidden, key=len, reverse=True):
+        text = text.replace(s, "[scrubbed]")
+    return text
+
+
 def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     """Spawn measure_door, hand it `capacity` fresh credentials over stdin,
     and wait for its ONE stdout line: `listening 127.0.0.1:<port>`.
 
-    Credentials are minted here and live only in this process's memory:
-    never printed, never logged, never in the artifact (which carries the
-    label `device-k` only). A runner that cannot announce a port is stopped
-    before the refusal - a half-started door must not outlive the run that
-    made it. Returns (proc, door_port, credentials).
+    Credentials are minted here and live only in this process's memory.
+    EVERY exit path stops the child, BaseException included: Ctrl-C during
+    startup must not orphan a runner that was already spawned (the old
+    `except Exception` did exactly that - Reviewer A proved it live:
+    HARNESS_EXIT=-2, RUNNER_SURVIVED_AFTER_SIGINT=True). KeyboardInterrupt
+    and SystemExit stop the child first and then propagate unchanged; an
+    ordinary Exception becomes the harness's refusal, and BOTH child-output
+    channels (the first stdout line, the stderr excerpt) are run through
+    scrub_secrets before they can enter that message. Returns (proc,
+    door_port, credentials).
     """
     credentials = [secrets.token_hex(32) for _ in range(capacity)]
     proc = None
@@ -1060,7 +1085,9 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         box = {}
 
         def read_listening():
-            box["line"] = proc.stdout.readline()
+            # scrubbed AT THE SOURCE: the line is child output, and it is
+            # about to be quoted into an exception message
+            box["line"] = scrub_secrets(proc.stdout.readline(), credentials)
 
         reader = threading.Thread(target=read_listening, daemon=True)
         reader.start()
@@ -1074,13 +1101,17 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
                 f"unexpected runner output {line.strip()[:80]!r} "
                 f"(runner exit {proc.poll()})")
         return proc, int(m.group(1)), credentials
-    except Exception as e:
+    except BaseException as e:
         stop_door_runner(proc)
-        # the runner never prints a credential, so its stderr is safe to show
+        if not isinstance(e, Exception):
+            # KeyboardInterrupt / SystemExit: the child is stopped, the
+            # original BaseException propagates untouched.
+            raise
         stderr = ""
         if proc is not None and proc.stderr is not None:
             try:
-                stderr = proc.stderr.read().strip()[:300]
+                raw = proc.stderr.read().strip()[:300]
+                stderr = scrub_secrets(raw, credentials)
             except OSError:
                 pass
         raise SystemExit(
