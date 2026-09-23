@@ -241,8 +241,10 @@ logo lives in the interface, together with the launcher icon.
 
 ### 3.4 Documents, Notes, Personas, Account, Pro, Help
 
-Same grammar: a `title` screen header with a back icon button, groups of cards of rows, one primary
-action per screen (open a document, write a note, create a persona). Editing happens in a sheet, never
+Same grammar: a `title` screen header with a back icon button, groups of cards of rows, **at most one** primary
+action per screen (open a document, write a note, create a persona) — at most, not exactly: Help has
+nothing to do and carries no filled button, because a second green CTA on an informational screen would
+devalue the one-fill-per-screen rule that makes the primary action readable everywhere else. Editing happens in a sheet, never
 inline in the list.
 
 ### 3.5 The switch sheet, the hold states
