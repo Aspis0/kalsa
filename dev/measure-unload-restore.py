@@ -60,7 +60,8 @@ labels the latter.
     nice-free by construction: the engine is launched under `nice -n 10`
     inside this script. Stdlib only.
 
-    python3 dev/measure-unload-restore.py --out dev/results/unload-restore/results.json
+    python3 dev/measure-unload-restore.py --bin /path/to/kalsa-server \
+        --out dev/results/unload-restore/results.json
 """
 
 import argparse
@@ -91,7 +92,11 @@ _mc_spec = importlib.util.spec_from_file_location("mconc", MC_SCRIPT)
 mc = importlib.util.module_from_spec(_mc_spec)
 _mc_spec.loader.exec_module(mc)
 
-DEFAULT_BIN = "/Users/marco/Projects/kalsallama/build/bin/llama-server"
+# The shared identity line and (later) the port-identity check live in
+# engine-harness.py - loaded here, never copied.
+_eh_spec = importlib.util.spec_from_file_location("eh", HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh_spec)
+_eh_spec.loader.exec_module(eh)
 
 NICE = 10
 
@@ -1105,7 +1110,10 @@ def require_headroom(ctx_size, largest_size, n_predict):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--bin", default=DEFAULT_BIN)
+    ap.add_argument("--bin", required=True,
+                    help="the engine binary under test; which binary the "
+                         "panel's number describes is the owner's decision, "
+                         "so there is no default")
     ap.add_argument("--model", default=msr.DEFAULT_MODEL)
     ap.add_argument("--work", default="/tmp/kalsa-unload-restore")
     ap.add_argument("--port", type=int, default=19347)
@@ -1171,6 +1179,7 @@ def main():
     # derived here, since this script has no --release-manifest-url override.
     release = mc.release_block(args.bin, version, mc.derive_manifest_url(args.bin))
     qualification = release_qualification(release)
+    print(eh.engine_identity_line(release), flush=True)
     print(f"[release] {release['status']} (by exe_sha256: "
           f"{release['status_by_exe_sha256']}): {qualification}", flush=True)
 

@@ -29,6 +29,7 @@ the named log lines above.
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -41,8 +42,19 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_BIN = ("/Users/marco/Library/Application Support/kalsa-brain/runtime/"
-               "builds/metal/kalsa-server-v1.1.0/kalsa-server")
+HERE = Path(__file__).resolve().parent
+# The release identity is inherited, never written here: mc.release_block
+# derives it (launcher hash + engine-identity veto), engine-harness prints
+# the one line and later checks the process on the port is this binary's.
+_mc_spec = importlib.util.spec_from_file_location("mconc",
+                                                  HERE / "measure-concurrency.py")
+mc = importlib.util.module_from_spec(_mc_spec)
+_mc_spec.loader.exec_module(mc)
+_eh_spec = importlib.util.spec_from_file_location("eh",
+                                                  HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh_spec)
+_eh_spec.loader.exec_module(eh)
+
 DEFAULT_MODEL = ("/Users/marco/Library/Application Support/kalsa-brain/runtime/"
                  "models/Trinity-Nano-Preview-Q4_K_M.gguf")
 
@@ -369,7 +381,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--work", default="/tmp/kalsa-m2")
-    ap.add_argument("--bin", default=DEFAULT_BIN)
+    ap.add_argument("--bin", required=True,
+                    help="the engine binary under test; which binary the "
+                         "panel's number describes is the owner's decision, "
+                         "so there is no default")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--ctx-size", type=int, default=16384)
     ap.add_argument("--n-predict", type=int, default=8)
@@ -396,12 +411,21 @@ def main():
     vp = subprocess.run([args.bin, "--version"], capture_output=True, text=True)
     version = (vp.stdout + vp.stderr).strip()
 
+    # The engine's identity, derived (never asserted) and printed before
+    # the first measurement: the old DEFAULT_BIN pointed at v1.1.0 - the
+    # release WITHOUT T1 - so which tree this run measures is now the
+    # owner's decision, recorded and legible in the log.
+    release = mc.release_block(args.bin, version,
+                               mc.derive_manifest_url(args.bin))
+    print(eh.engine_identity_line(release), flush=True)
+
     prov = {
         "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
                                     text=True).stdout.strip(),
         "engine_binary": args.bin,
         "engine_sha256": sha256_file(args.bin),
         "engine_version": version,
+        "release": release,
         "model": args.model,
         "model_sha256": sha256_file(args.model),
         "context_size": args.ctx_size,

@@ -21,6 +21,28 @@ import urllib.request
 from pathlib import Path
 
 
+def engine_identity_line(block):
+    """ONE line naming the engine a harness is about to measure:
+
+        engine: <status> <tag or fork label> commit <x> module <sha12>
+
+    Everything is derived from mc.release_block's output, nothing asserted:
+    the status; the tag, or the fork label when the identity veto fired, or
+    - when the evidence is too weak to call either - the reason code; the
+    commit `--version` printed (the commit that RAN); and the first 12 hex
+    of the module the launcher loads (or `missing`). Harnesses print it
+    before the first measurement so every run's log names its object.
+    """
+    ident = block.get("identity") or {}
+    commit = (ident.get("version_commit") or ident.get("manifest_commit")
+              or "unknown")
+    module = ident.get("module_sha256")
+    subject = (block.get("tag") or block.get("label")
+               or block.get("reason_code") or "-")
+    return (f"engine: {block.get('status')} {subject} commit {commit} "
+            f"module {module[:12] if module else 'missing'}")
+
+
 def wait_health(port, timeout=180):
     deadline = time.time() + timeout
     while time.time() < deadline:

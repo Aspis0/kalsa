@@ -27,12 +27,14 @@ comparison of instants rather than the subtraction of two wall times that start
 at different moments - which is how the previous version of this script derived
 the opposite verdict from the same evidence.
 
-    python3 dev/measure-save-on-busy-slot.py --out dev/results/save-on-busy-slot/results.json
+    python3 dev/measure-save-on-busy-slot.py --bin /path/to/kalsa-server \
+        --out dev/results/save-on-busy-slot/results.json
 """
 
 import argparse
 import importlib.util
 import json
+import subprocess
 import sys
 import threading
 import time
@@ -42,8 +44,16 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("msr", HERE / "measure-slot-restore.py")
 msr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(msr)
+# The release identity is inherited, never written here: mc.release_block
+# derives it, engine-harness prints the one line and later checks the port.
+_mc_spec = importlib.util.spec_from_file_location("mconc",
+                                                  HERE / "measure-concurrency.py")
+mc = importlib.util.module_from_spec(_mc_spec)
+_mc_spec.loader.exec_module(mc)
+_eh_spec = importlib.util.spec_from_file_location("eh", HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh_spec)
+_eh_spec.loader.exec_module(eh)
 
-DEFAULT_BIN = "/Users/marco/Projects/kalsallama/build/bin/llama-server"
 GEN_SECONDS = 30.0
 DOOR_PATIENCE_MS = 10_000  # `PATIENCE` in crates/kalsa-door/src/lib.rs
 
@@ -137,7 +147,10 @@ def derive(arms):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--bin", default=DEFAULT_BIN)
+    ap.add_argument("--bin", required=True,
+                    help="the engine binary under test; which binary the "
+                         "panel's number describes is the owner's decision, "
+                         "so there is no default")
     ap.add_argument("--model", default=msr.DEFAULT_MODEL)
     ap.add_argument("--work", default="/tmp/kalsa-save-on-busy")
     ap.add_argument("--port", type=int, default=19341)
@@ -145,8 +158,20 @@ def main():
     ap.add_argument("--n-predict", type=int, default=0, help="0 = size the turn from a rate probe")
     args = ap.parse_args()
 
+    # The engine's identity, derived and printed before the first arm: the
+    # old DEFAULT_BIN was the fork's CPU-only dev build, which prefills 16x
+    # slower - which tree this run measures is now the owner's decision.
+    vp = subprocess.run([args.bin, "--version"], capture_output=True, text=True)
+    version = (vp.stdout + vp.stderr).strip()
+    release = mc.release_block(args.bin, version,
+                               mc.derive_manifest_url(args.bin))
+    print(eh.engine_identity_line(release), flush=True)
+
     record = {"engine_sha256": msr.sha256_file(args.bin), "model": args.model,
               "model_sha256": msr.sha256_file(args.model),
+              "provenance": {"release": release,
+                             "engine_binary": args.bin,
+                             "engine_version": version},
               "door_patience_ms": DOOR_PATIENCE_MS, "loadavg_before": msr.loadavg(),
               "arms": {}, "engine_commits": {}}
     for ctx in [int(x) for x in args.ctx_sizes.split(",")]:

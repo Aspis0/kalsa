@@ -43,7 +43,9 @@ The `release` block of each engine is inherited from `measure-concurrency.py`
 delivered one.
 
 Usage:
-  python3 dev/measure-prefill-ab.py --out dev/results/prefill-build-ab/results.json
+  python3 dev/measure-prefill-ab.py --fork-bin /path/to/fork/llama-server \
+      --release-bin /path/to/kalsa-server \
+      --out dev/results/prefill-build-ab/results.json
 """
 
 import argparse
@@ -67,8 +69,11 @@ _mc = importlib.util.spec_from_file_location("mconc", MC_SCRIPT)
 mc = importlib.util.module_from_spec(_mc)
 _mc.loader.exec_module(mc)
 
-DEFAULT_FORK = "/Users/marco/Projects/kalsallama/build/bin/llama-server"
-DEFAULT_RELEASE = "/tmp/k111/kalsa-server-v1.1.1/kalsa-server"
+# The identity line and (later) the port-identity check: shared, not copied.
+_eh = importlib.util.spec_from_file_location("eh", HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh)
+_eh.loader.exec_module(eh)
+
 ENGINE_MODULE_FILE = "libllama-server-impl.dylib"
 OLD_ARTIFACT = HERE / "results" / "unload-restore" / "results.json"
 OLD_LOG_DIR = Path("/tmp/kalsa-unload-restore")
@@ -145,11 +150,13 @@ def engine_identity(label, bin_path):
     version = version_of(bin_path)
     module = Path(bin_path).parent / ENGINE_MODULE_FILE
     libllama = libllama_of(bin_path)
-    block = mc.release_provenance(mc.derive_manifest_url(bin_path),
-                                  msr.sha256_file(bin_path))
+    block = mc.release_block(bin_path, version, mc.derive_manifest_url(bin_path))
     return {
         "label": label,
         "bin": bin_path,
+        # the full derived block (mc's launcher verdict + identity veto),
+        # popped into provenance.release by main() so it is recorded once
+        "release_block": block,
         "bin_sha256": msr.sha256_file(bin_path),      # launcher: recorded, NOT a separator
         "launcher_note": ("recorded only: the launcher is byte-identical across "
                           "releases, so it separates nothing"),
@@ -489,8 +496,14 @@ def decide(arms, old_ref, between):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--fork-bin", default=DEFAULT_FORK)
-    ap.add_argument("--release-bin", default=DEFAULT_RELEASE)
+    ap.add_argument("--fork-bin", required=True,
+                    help="THE A ARM - the engine binary under test; which "
+                         "binaries this A/B measures is the owner's decision, "
+                         "so there is no default")
+    ap.add_argument("--release-bin", required=True,
+                    help="THE B ARM - the engine binary under test; which "
+                         "binaries this A/B measures is the owner's decision, "
+                         "so there is no default")
     ap.add_argument("--model", default=msr.DEFAULT_MODEL)
     ap.add_argument("--work", default="/tmp/kalsa-prefill-ab")
     ap.add_argument("--port", type=int, default=19351)
@@ -519,6 +532,9 @@ def main():
     start_loadavg = msr.loadavg()   # BEFORE any arm: the floor this run passed
     idents = {"fork": engine_identity("fork", args.fork_bin),
               "release": engine_identity("release", args.release_bin)}
+    release_blocks = {k: idents[k].pop("release_block") for k in idents}
+    for label in ("fork", "release"):
+        print(eh.engine_identity_line(release_blocks[label]), flush=True)
     control = ab_control(idents["fork"], idents["release"])
     old_ref = old_run_reference()
     between = commits_between(idents["fork"]["version_commit"],
@@ -578,6 +594,9 @@ def main():
             "sizes": sizes, "ctx_size": args.ctx_size,
             "n_predict": args.n_predict, "port": args.port,
             "max_load": args.max_load,
+            # one block per arm, the A/B separator kept: which engine each
+            # number describes, derived by mc.release_block (with the veto)
+            "release": release_blocks,
             "burners": args.burners, "heat_s": args.heat_s,
             "load_arms": not args.skip_load_arms,
             "arm_order": [f"{e}/{s}" + ("/load" if b else "")

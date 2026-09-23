@@ -34,6 +34,15 @@ HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("sp", HERE / "simulate-phones.py")
 sp = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sp)
+# The release identity is inherited, never written here: mc.release_block
+# derives it, engine-harness prints the one line and later checks the port.
+_mc_spec = importlib.util.spec_from_file_location("mconc",
+                                                  HERE / "measure-concurrency.py")
+mc = importlib.util.module_from_spec(_mc_spec)
+_mc_spec.loader.exec_module(mc)
+_eh_spec = importlib.util.spec_from_file_location("eh", HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh_spec)
+_eh_spec.loader.exec_module(eh)
 
 QUESTION = "\n\nQuestion: name three items from the notes above. Answer briefly."
 
@@ -113,12 +122,23 @@ class Server:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--bin", required=True)
+    ap.add_argument("--bin", required=True,
+                    help="the engine binary under test; which binary the "
+                         "panel's number describes is the owner's decision, "
+                         "so there is no default")
     ap.add_argument("--trinity", required=True)
     ap.add_argument("--gemma", required=True)
     ap.add_argument("--results-dir", required=True)
     args = ap.parse_args()
     rd = Path(args.results_dir)
+
+    # The engine's identity, derived and printed before the first switch:
+    # --bin was already required here, but nothing recorded WHO it was.
+    vp = subprocess.run([args.bin, "--version"], capture_output=True, text=True)
+    version = (vp.stdout + vp.stderr).strip()
+    release = mc.release_block(args.bin, version,
+                               mc.derive_manifest_url(args.bin))
+    print(eh.engine_identity_line(release), flush=True)
 
     doc = sp.make_doc(7, 1500)
     rows = []
@@ -165,7 +185,10 @@ def main() -> None:
     phase("gemma-to-trinity", Server(args.bin, args.gemma, 18341, rd / "x.log"),
           Server(args.bin, args.trinity, 18342, rd / "y.log"))
 
-    (rd / "results.json").write_text(json.dumps({"switches": rows}, indent=1))
+    (rd / "results.json").write_text(json.dumps(
+        {"switches": rows,
+         "provenance": {"release": release, "engine_binary": args.bin,
+                        "engine_version": version}}, indent=1))
     print("model-switch measurement written")
 
 
