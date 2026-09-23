@@ -25,6 +25,17 @@ that overlaps upstream PR #26004 is simply OUR code, kept as it is; we do not to
 This rule sits ABOVE the standing push/tag/release rule: push, tag and release additionally require
 the owner's explicit OK.
 
+## STANDING RULE (2026-09-23): A CODER'S REFSPEC IS A PROPOSAL, NOT A DECISION
+
+The shipping line moves only when the audit's checklist is cleared, and the branch that holds a
+candidate fix is a *different object* from the line that ships. A push command written against
+`refs/heads/kalsa-phone-v1-1-1` (or any shipping ref) is a proposal for the owner, not an
+instruction: on 2026-09-23 such a refspec appeared in a coder's push block
+(`scratchpad/agents/cok-residual/REPORT.md` sec. 9, marked UNRUN), what was executed created
+`kalsa-opencl-cok-korder` as a new ref instead, and `kalsa-phone-v1-1-1` was verified unmoved at
+`1577495b9` afterwards (re-verified with `git ls-remote` while writing this line). This rule
+recurs on every future fix: review the REFSPEC, not just the patch.
+
 ## What Kalsa is
 
 Kalsa is an Android chat app that runs language models on the phone itself, with no server in
@@ -195,6 +206,24 @@ reviewed SHA -> APK built and hashed from that chain -> that APK installed -> it
 and cache identity captured with a measured result. The artefact to clear is the final APK, not
 the separately measured `llama-perplexity`. Diary version: `docs/ALIVE.md`, Headline and the
 2026-09-23 entry.
+
+### The residual's next ablation: built, prediction on disk
+
+`scratchpad/agents/cok-residual/REPORT.md`: the +0.001478 the audit left NOT VERIFIED has a named
+candidate - the batch-256 kernel walks K **serially inside one work-item** (`:70`, accumulators
+at `:61`, no K reduction in `:145-177`) while the `_cok` path **strides K across 8 subgroups**
+(`:438`) and sums subgroup partials (`:494-505`) - effective order `[0,8,16,...]+[1,9,...]+...`
+against `0,1,2,...`, and floating-point addition is not associative. Ablated behind
+`KALSA_COK_KORDER` (default = serial = the b256 order; `split` = previous behaviour;
+`KALSA_COK_ACC=fp16` still pins the shipped kernel, so the pre-registered control stays one env
+value), dispatch, args and launch geometry untouched. Control evidence in the strongest form:
+IR **byte-identical to the shipping `1577495b9`** with `KSPLIT`, and **byte-identical to
+`319b53937`'s treatment kernel** with `fp16` (both `cmp -s` rc=0). Branch
+`kalsa-opencl-cok-korder` (pushed as a NEW ref - standing rule above), commit `7965f43e0`, build
+11203, binary sha256 `6ff4124b4c8a6449cca7e880556f94a3a2d90cb233151411d0439664e328c747`, seven
+targets `0 0 77 77 0 0 0`. **Prediction timestamped before the build** (sec. 3, 03:25 EDT):
+treatment at or below the ~0.0054 neighbourhood; if it sits on 0.006890, the residual is
+something else and **we stop** - no third attempt.
 
 ### GPU numerics: the cause is found, the gate is still not reachable
 
@@ -570,7 +599,9 @@ The order is the owner's to set. The committed near-term work is:
    it charges): the **Meter** experiment first (rule and bar on disk, s23 sec. 30), then the
    **app-shaped verification** of the tail fix (s23 sec. 37: tail accuracy on the app's KV
    reference, decode zero at `-b 1`, tail speed in the app's configuration, b256 anchor for a
-   derived real-prefill penalty), then the K-split accumulator-order work. Sec. 37 pre-registers
+   derived real-prefill penalty), then the **K-split pair** on `kalsa-opencl-cok-korder` /
+   `7965f43e0` (build 11203, binary sha256 `6ff4124b4c8a6449cca7e880556f94a3a2d90cb233151411d0439664e328c747`
+   - prediction and stop rule already on disk, `cok-residual/REPORT.md` sec. 3). Sec. 37 pre-registers
    its own weakest assumption - the b8-equals-b256 reference identity is proven only at f16 with
    attention off, so at the app's configuration it is an assumption, and the first suspect if
    the control misbehaves. Nothing in the pin chain moves before the checklist in "The `_cok`

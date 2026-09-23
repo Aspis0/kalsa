@@ -59,7 +59,8 @@ document that produced them is named instead.
 
 | what | record |
 |---|---|
-| The engine pin the app ships is `llama.rn@0f313bab` → `kalsallama` `8537d097c` (`b11010-merge`), and the q4_K MoE OpenCL mask fix is inside it | `PLAN.md`, "The q4_K MoE OpenCL fix is in the shipped engine"; `vendor/VERSIONS` at `0f313bab` |
+| The app's `main` is `e206a945b` (fast-forwarded 2026-09-23 from `54297994a`): `llama.rn` pinned to binding `5b966218`, engine `kalsa-phone-v1-1-1` = `1577495b9`. The app repo keeps three branches (`main`, `remote-brain`, `ux-2026-09-21`) plus the desktop line `brain`; retired branches are `archive/<name>` tags | `scratchpad/agents/app-branch-cleanup/REPORT.md`; chain audits in the delivery-chain row below |
+| History (superseded 2026-09-22): the app shipped `llama.rn@0f313bab` → `kalsallama` `8537d097c` (`b11010-merge`), with the q4_K MoE OpenCL mask fix inside it | `PLAN.md`, "The q4_K MoE OpenCL fix is in the shipped engine"; `vendor/VERSIONS` at `0f313bab` |
 | The migration to upstream's `vendor/` layout: the measured upstream bump, the gates, the repaired consumers | `analysis/FORK-VENDOR-MIGRATION.md` |
 | ciswire char-3-gram retrieval: recall, KV and prefill behaviour, and device thermal on S23 and Jelly | `analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md` |
 | Xiaomi/Qwen: the fit-gate vision refusal, the ciswire char-vs-token overflow, and what did run | `analysis/XIAOMI-QWEN-FITGATE-AND-CISWIRE-TOKEN-OVERFLOW-2026-09-20.md` |
@@ -74,7 +75,7 @@ document that produced them is named instead.
 | The governor trend question, CLOSED: producer, two reviews, and the wrong-fire replay (inert at production cadence, unproven - not safe) | `scratchpad/agents/governor-trend/REPORT.md` (rounds 1-4, harness `replay-wrongfire.cjs`); `governor-trend-numeric/REPORT.md`; `governor-trend-audit/REPORT.md` |
 | The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
 | Desktop speed numbers: the provenance verdict (CPU-only / GPU-capable / NOT ATTRIBUTABLE), the load-condition finding, and the profile-validity test matrix | `scratchpad/agents/governor-desktop-net/REPORT.md` |
-| The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
+| The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the K-order ablation for its residual, the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/cok-residual/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -103,6 +104,12 @@ document that produced them is named instead.
   the panel records carry load, so the load-follows signature cannot be applied to anything else
   retroactively (`scratchpad/agents/governor-desktop-net/REPORT.md` sec. 3.3). Numbers we publish
   carry their load alongside the time, from here.
+- A coder's refspec is a proposal, not a decision: the shipping line (`kalsa-phone-v1-1-1`)
+  moves only when the audit's checklist is cleared, and a branch that holds a candidate fix is a
+  different object from the line that ships. On 2026-09-23 a push block targeted the shipping
+  ref; what ran created `kalsa-opencl-cok-korder` as a new ref instead, and the phone ref was
+  verified unmoved at `1577495b9` afterwards (`scratchpad/agents/cok-residual/REPORT.md` sec. 9,
+  re-verified with `git ls-remote`).
 
 ## Closed workstreams
 
@@ -528,6 +535,39 @@ estimate); (3) whatever the K-split accumulator-order coder produces. Sec. 37 ea
 how it is written: it **names its own weakest assumption in advance** - that the
 b8-equals-b256 reference identity was proven only at f16 with attention off, so at the app's
 configuration it is an *assumption*, and the first suspect if the control misbehaves.
+
+**The residual's next ablation exists and is built** (`scratchpad/agents/cok-residual/REPORT.md`).
+The coder identified the difference behind the +0.001478 the audit left NOT VERIFIED, and it is a
+clean one: in `gemm_noshuffle_q4_k_f32.cl` the batch-256 reference walks **K serially inside one
+work-item** (`:70`, f32 accumulators at `:61`, no K reduction in `:145-177`), while the `_cok`
+path **strides K across 8 subgroups** (`:438`) and then **sums subgroup partials** (`:494-505`) -
+so the effective order is `[0,8,16,...]+[1,9,...]+...` instead of `0,1,2,...`, and
+floating-point addition is not associative. That is the candidate for the residual. It is ablated
+behind the same selector pattern - default = serial, i.e. the b256 order; previous behaviour
+behind `KALSA_COK_KORDER=split`; and `KALSA_COK_ACC=fp16` stays pinned to the old behaviour so
+the pre-registered control is still one env value - with **dispatch, args and launch geometry
+untouched**. The control evidence is the strongest form: the new build with `KSPLIT` produces IR
+**byte-identical to the shipping `1577495b9`**, and with `fp16` **byte-identical to
+`319b53937`'s treatment kernel** (both `cmp -s` rc=0). Branch `kalsa-opencl-cok-korder`, commit
+**`7965f43e0`**, build **11203**, binary sha256
+**`6ff4124b4c8a6449cca7e880556f94a3a2d90cb233151411d0439664e328c747`**, seven standing targets
+`0 0 77 77 0 0 0`. And **the prediction is already on disk, timestamped before the build** (sec. 3,
+2026-09-23 03:25 EDT): the phone pair should land at or below the ~0.0054 neighbourhood; if it
+sits on 0.006890 the residual is something else and **we stop** rather than attempt a third time.
+Caveats fixed in advance: "neighbourhood of 0.0054", not "exactly" (the b1-vs-b256 0.0006-class
+difference remains on this engine), and the serial default makes the `_cok` kernel 1-of-8
+subgroups active, so the phone's b8 speed pair is the pre-declared price gate.
+
+**The process point, which is the part worth writing down.** The coder's push command targeted
+**`refs/heads/kalsa-phone-v1-1-1`** - the shipping line. That is a **refspec out of habit** from
+earlier tasks, and it is exactly the move that must not happen: the audit has not cleared
+shipping, so a branch that merely *contains* a candidate fix must not be moved onto the line the
+phone runs. What actually happened: the branch was pushed as a **new ref**
+(`refs/heads/kalsa-opencl-cok-korder`, verified by `git ls-remote`), and `kalsa-phone-v1-1-1`
+was **verified unmoved at `1577495b9`** afterwards (re-verified by this cell). The rule,
+recorded because it will recur on every future fix: **a coder's refspec is a proposal, not a
+decision - the shipping line moves only when the audit's checklist is cleared, and the branch
+that holds a candidate is a *different object* from the line that ships.**
 
 ## Engine release pipeline (`kalsa-server`)
 
