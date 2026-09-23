@@ -90,7 +90,7 @@ for pressure, an **empty 401** for a bad credential. Every sentence below is the
 | **503, empty** — door | **more causes than one**: the queue is full, the 12-connection cap is hit (`lib.rs:125-126`, `server.rs:163-182`), the head-patience timeout fired (`proxy.rs:101-116`), or the event-job registry refused the job (`proxy.rs:332-340`) | *"Il computer non ha accettato la richiesta in questo momento. Riprova fra poco."* — **cause-neutral on purpose**: the phone cannot tell those apart, and it must not guess which one it was | Riprova |
 | **503, with a body** — door | the door's one spoken sentence: no seats left (`lib.rs:167`) | the sentence itself, quoted: *"This computer is set up for {seats} at once, and one of them is this computer…"* | Riprova |
 | **slow response, no error** | the request may be queued (`proxy.rs:95-98`) or **already running**, bounded by the 300 s connection lifetime (`proxy.rs:94`) — and the phone can see **neither** a queue position nor the difference | *"Il computer non ha ancora risposto."* — true and observable. **Not "è in coda" and not "partirà":** neither is observable from here, and a request that entered the queue is not punished for the wait | Annulla |
-| **401, empty** | a **post-pairing** credential state, not a pairing-code one (`lib.rs:113-116`) | *"La chiave di questo telefono non è più valida. Rimuovilo dal computer e collegalo di nuovo."* | Rimuovi · Riprova |
+| **401, empty** | says only that this key is not being served. **Waiting for the OK, refused, forgotten and a wrong key all look identical by design** (`lib.rs:113-116`) | *"Il computer non sta servendo questo telefono. Se l'hai appena collegato serve il suo OK; altrimenti guarda i dispositivi sul computer."* — **no certainty**, because the door deliberately tells nobody which case it is | Riprova · Dimentica questo computer |
 
 **Two timeouts, and they are not the same number.** The one that decides the refusal rows must be
 longer than a long answer (below); the one that waits for the owner's Allow must cover **a human decision**,
@@ -144,6 +144,50 @@ appears, a correct client never sends those); an **empty 502** when the door can
 credential; and — the row that was missing entirely — **a closed connection with no HTTP response at all**
 (upstream failures, `proxy.rs:305`; pairing refusals are best-effort writes, `transport.rs:477`), which
 needs a generic *"la connessione è caduta"* with a retry, not a diagnosis.
+
+## The approval gate's contract, as the desktop defines it (2026-09-24)
+
+Committed on the desktop's side at `brain` `e2ae919` (locally, not pushed), with the contract below
+verified on disk there. Point 1 changes our copy, and it changes it in the direction of saying **less**.
+
+1. **A 401 says nothing, and we must not pretend it does.** Until Allow, every door request carrying the
+   new credential gets an **empty 401** — no body, no distinguishing header — and **waiting, refused,
+   forgotten and a wrong key all produce that same empty 401 by design**, so the door tells nobody which
+   one it is. So after a successful completion the phone **keeps the credential**, shows the waiting
+   state, and retries quietly. **Never delete the credential on a 401 by itself**: deleting is the
+   person's gesture, not the network's. And our copy must not assert that a 401 means "not allowed yet" —
+   it may equally mean the owner pressed Refuse, or forgot the device, or the key is wrong. This corrects
+   a sentence I had written for the (B) gate, which was certain where the door is silent.
+2. **Allow reaches the door in about a second** (it learns the new set on the desktop's next 1000 ms
+   poll), so the waiting state needs no countdown of ours and no invented timing.
+3. **A 503 with a sentence is not pressure.** After Allow a phone can still receive a 503 *carrying the
+   no-seat sentence* when the model was launched before that phone was paired, because seats are planned at
+   launch and re-planned when the model restarts (`crates/kalsa-door/src/lib.rs:148-152`). Pre-existing,
+   and distinct from the **empty** 503, which is pressure. Our table separates them; this is why.
+4. **The seal retry rule is unchanged**: retry `/pair/complete` with the same token **only if the response
+   never arrived**, because the desktop counts delivery on its own successful socket write, and a blind
+   retry leaves it holding an orphan waiting device.
+
+And the desktop's own screen, step by step, so both sides say the same thing at the same moment:
+
+| Step | What the computer shows |
+|---|---|
+| model not running | no square at all: *"This computer is not running yet, so there is nothing for your phone to connect to."* |
+| a phone claims | *"A phone is connecting right now."*, with Cancel |
+| a phone completes | headline *"Waiting for your OK"*, then the row *"Paired phone 2 — Waiting for your OK."* with Allow and Refuse |
+| Allow | headline *"Paired"*, and the row shows the capability and Forget |
+| Refuse | the row disappears and the page returns to a fresh square |
+
+That table also answers a question this document asked earlier: the desktop **does** show something while a
+phone is scanning — not the scanning, which is invisible to it, but the claim the moment it arrives, which
+is exactly when the person's attention should move to the computer. And the `2` in "Paired phone 2" is a
+pre-existing label quirk: the computer's own record holds number one, which is the seat model stating
+itself in the interface.
+
+**And the reason none of this can be tested yet, in the desktop's own words**: the pairing desk listens on
+`127.0.0.1` on a random port and the square advertises that loopback address
+(`src-tauri/src/transport.rs:128-131`); the only tunnel is off by default and forwards to the door, not to
+the desk. The road to the desk is the next desktop work item and needs the owner's go-ahead.
 
 ## Open, and not mine to close
 
