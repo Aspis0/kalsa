@@ -402,9 +402,9 @@ fn work(
                     Err(reason) => set(&state, ServerState::Failed { reason }),
                 }
             }
-            Ok(Command::Stop) => stop(&mut owned, &state),
+            Ok(Command::Stop) => stop(&mut owned, &state, presence::probe),
             Ok(Command::Shutdown) => {
-                stop(&mut owned, &state);
+                stop(&mut owned, &state, presence::probe);
                 return;
             }
             Err(RecvTimeoutError::Timeout) => {
@@ -465,7 +465,15 @@ fn work(
     }
 }
 
-fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
+fn stop(
+    owned: &mut Option<Owned>,
+    state: &Arc<Mutex<ServerState>>,
+    // The port probe arrives as an argument: production passes `presence::
+    // probe`, and the tests that assert the POLICY below pass a script — a
+    // policy test must not depend on a socket it (or a neighbour) can
+    // rebind under its feet.
+    probe: presence::Probe,
+) {
     // Every entry to a stop passes here and declares the drain — a caller
     // that already declared it is re-declared, not doubled (`drain` drops the
     // duplicate write). What the walk below writes is the drain's END, and
@@ -571,7 +579,7 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
         // `health_ok`: a refused connection is absence, a 503 or a silence
         // after a successful connect is presence (`presence`).
         let addr = run.config.address();
-        let answer = presence::probe(addr, presence::PROBE_TIMEOUT);
+        let answer = probe(addr, presence::PROBE_TIMEOUT);
         let settled = presence::settle(&witness, &answer);
         let measures = format!("{walk}; process {witness:?}; port {addr} — {answer:?}");
         // The walk registers itself when it is not a plain exit: a SIGKILL
@@ -616,7 +624,7 @@ fn start_blocking(
     // an instance of ours is alive; a start that fails with a stranger
     // still on the port keeps it, because the suspicion is still open.
     let suspect = Suspect::of(&config.state_file);
-    suspect.settle_before_start(config.address(), presence::PROBE_TIMEOUT);
+    suspect.settle_before_start(presence::probe, config.address(), presence::PROBE_TIMEOUT);
     if let Some(started) = take_over(config)? {
         suspect.clear();
         return Ok(started);
@@ -1036,7 +1044,7 @@ mod tests {
             pid: stand_in_pid,
             port,
         }));
-        stop(&mut owned, &state);
+        stop(&mut owned, &state, presence::probe);
         assert!(
             stand_in.try_wait().expect("poll the stand-in").is_none(),
             "a recycled pid was signalled: we killed somebody else's program"
@@ -1071,26 +1079,15 @@ mod tests {
         )
         .expect("write a state file nobody holds");
 
-        // Something answering on the port — the second witness.
-        let listener = TcpListener::bind(("127.0.0.1", port)).expect("bind the stand-in port");
-        listener.set_nonblocking(true).expect("nonblocking");
-        let stop_flag = Arc::new(AtomicBool::new(false));
-        let accepting = std::thread::spawn({
-            let stop_flag = Arc::clone(&stop_flag);
-            move || {
-                while !stop_flag.load(Ordering::Relaxed) {
-                    match listener.accept() {
-                        Ok((mut stream, _)) => {
-                            let _ = std::io::Write::write_all(
-                                &mut stream,
-                                b"HTTP/1.0 200 OK\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}",
-                            );
-                        }
-                        Err(_) => std::thread::sleep(Duration::from_millis(5)),
-                    }
-                }
-            }
-        });
+        // Something answering on the port — the second witness — as a
+        // SCRIPTED probe: the policy (a survivor is never `Stopped`, port or
+        // no port) must not be proven with a socket a neighbour could
+        // rebind, and the measures still carry what the script answered.
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
 
         let mut owned = Some(Owned {
             child: None,
@@ -1099,7 +1096,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, &state);
+        stop(&mut owned, &state, answering);
 
         let ended = state.lock().expect("the state lock").clone();
         let measures = match &ended {
@@ -1122,8 +1119,6 @@ mod tests {
             "the survivor was signalled"
         );
 
-        stop_flag.store(true, Ordering::Relaxed);
-        let _ = accepting.join();
         let _ = stand_in.kill();
         let _ = stand_in.wait();
         let _ = std::fs::remove_file(&state_file);
@@ -1134,18 +1129,18 @@ mod tests {
         // §9, literally: an engine adopted blind gets `Stopped` only after
         // the probe on the port FAILS — and the suspicion record is written
         // anyway, because no pid was ever proven (the record is what the
-        // port alone cannot carry). Unit level on purpose: this drives
-        // `stop()` directly, so the stand-in listener can go silent without
-        // racing the worker's watcher, which reads that silence as the
-        // server dying (integration coverage of the blind arm is
-        // `suspect_record.rs`'s answering-port twin).
+        // port alone cannot carry). SCRIPTED probe, no socket: a policy test
+        // that demanded a refusal from a listener it had just dropped could
+        // read a ghost `There{Silent}` under concurrent socket activity (the
+        // flake this seam retires: three live reproductions, no listener
+        // visible at capture time). The answering twin of this case runs the
+        // full worker integration in `suspect_record.rs`.
         let port = 8296;
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
         let suspect_path = format!("{}.orphan", state_file.display());
         let _ = std::fs::remove_file(&suspect_path);
-        let listener = TcpListener::bind(("127.0.0.1", port)).expect("bind the stand-in port");
-        drop(listener); // nothing listens: the probe is refused
+        let silent: presence::Probe = |_, _| presence::Presence::Gone;
 
         let mut owned = Some(Owned {
             child: None,
@@ -1154,7 +1149,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, &state);
+        stop(&mut owned, &state, silent);
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1166,6 +1161,135 @@ mod tests {
         assert!(
             recorded.contains("adopted blind") && recorded.contains("Gone"),
             "the record carries no measures: {recorded}"
+        );
+        let _ = std::fs::remove_file(&suspect_path);
+    }
+
+    #[test]
+    fn a_dead_pid_whose_port_still_answers_is_a_failed_stop_with_its_measures() {
+        // §9's "pid AND port" from the other side, through `stop()`: the
+        // PROCESS half is positive (the pid the state file vouches for does
+        // not exist — `terminate_pid` answers Gone{Already} without ever
+        // signalling), and the PORT half is not (something answers). Both
+        // halves must say gone for `Stopped`: here neither alone is enough,
+        // so the drain ends in the failed-to-stop carrying pid, port, what
+        // the walk found and what the port said — plus the record. Until
+        // now this row existed only in `settle`'s matrix.
+        //
+        // SCRIPTED probe, no socket: the policy must not be proven with a
+        // listener. The decoy pid is spawned and REAPED first, so it names
+        // nothing (pids are handed out of a forward-moving counter, so a
+        // just-reaped one is not the next one given away).
+        let port = 8297;
+        let state_file = config(port).state_file;
+        let _ = std::fs::remove_file(&state_file);
+        let suspect_path = format!("{}.orphan", state_file.display());
+        let _ = std::fs::remove_file(&suspect_path);
+        let mut decoy = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg("exit 0")
+            .spawn()
+            .expect("spawn the decoy");
+        let pid = decoy.id();
+        let _ = decoy.wait(); // reaped: the pid names no process any more
+        std::fs::write(
+            &state_file,
+            format!("kalsa-brain v1\npid={pid}\nport={port}\n"),
+        )
+        .expect("write the state file");
+        let lock = std::fs::File::open(&state_file).expect("open the state file");
+        lock.try_lock().expect("hold the lock as the heir would");
+
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: Some(pid),
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
+        stop(&mut owned, &state, answering);
+
+        match state.lock().expect("the state lock").clone() {
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed { measures },
+            } => {
+                assert!(
+                    measures.contains(&pid.to_string()),
+                    "the measures miss the pid: {measures}"
+                );
+                assert!(
+                    measures.contains("Already"),
+                    "the measures miss what the walk found: {measures}"
+                );
+                assert!(
+                    measures.contains("Answered"),
+                    "the measures miss what the port said: {measures}"
+                );
+            }
+            other => panic!(
+                "a dead pid with a held port reported as {other:?}: pid AND port must BOTH say gone"
+            ),
+        }
+        assert!(
+            std::path::Path::new(&suspect_path).exists(),
+            "a half-proved stop left no record for the next start"
+        );
+        drop(lock);
+        let _ = std::fs::remove_file(&state_file);
+        let _ = std::fs::remove_file(&suspect_path);
+    }
+
+    #[test]
+    fn a_reaped_child_with_a_still_answering_port_stops_and_records_the_doubt() {
+        // The other half of the same row, through `stop()`: the kernel
+        // reaped OUR child, so the port does NOT veto `Stopped` — but it
+        // still owes the suspicion record, because something answered what
+        // the reap could not explain. Integration covers this with a real
+        // stand-in listener (`suspect_record.rs`); this version drives the
+        // policy with a script, which is what makes it churn-proof.
+        let port = 8298;
+        let state_file = config(port).state_file;
+        let suspect_path = format!("{}.orphan", state_file.display());
+        let _ = std::fs::remove_file(&state_file);
+        let _ = std::fs::remove_file(&suspect_path);
+        let residency = Residency::new();
+        let child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "exit 0".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            residency,
+        )
+        .expect("spawn the child that is already on its way out");
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+        let mut owned = Some(Owned {
+            child: Some(child),
+            adopted_pid: None,
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid: 1, port }));
+        stop(&mut owned, &state, answering);
+
+        assert_eq!(
+            state.lock().expect("the state lock").clone(),
+            ServerState::Stopped,
+            "the port vetoed a child the kernel reaped"
+        );
+        let recorded =
+            std::fs::read_to_string(&suspect_path).expect("the suspicion record beside the state");
+        assert!(
+            recorded.contains("Reaped") && recorded.contains("Answered"),
+            "the record does not carry the doubt: {recorded}"
         );
         let _ = std::fs::remove_file(&suspect_path);
     }

@@ -117,6 +117,14 @@ pub(crate) fn settle(witness: &Witness, presence: &Presence) -> Settlement {
     }
 }
 
+/// The probe as a VALUE, so a test of the policy around it can script the
+/// answer instead of holding a socket: `stop` and the record's start-side
+/// recovery take this, and production passes [`probe`]. A policy test holds
+/// no socket because "a listener I just dropped refuses" is a fixture that
+/// can read a ghost under concurrent socket activity — the policy must not
+/// depend on it.
+pub(crate) type Probe = fn(SocketAddr, Duration) -> Presence;
+
 /// Probes `addr` once: connect, send the health request, read what comes
 /// back. One probe with a budget, never a poll — the caller is a stop that
 /// has already finished walking.
@@ -187,13 +195,18 @@ mod tests {
         (addr, handle)
     }
 
-    /// The four cases plus the 503: refused, silent, answered, undecidable —
-    /// and a 503 must read as PRESENCE (health_ok would call it absent).
+    /// The wiring half of the classification: a connect ERROR reaches
+    /// `classify_connect` (whose pure behaviour — refused is Gone,
+    /// anything else is Unknown — is proven with synthetic errors below).
+    /// The port here was NEVER bound by this test: the bind → drop → connect
+    /// pattern this replaces demanded a refusal from a listener it had just
+    /// let go, and under concurrent socket activity that demand can be met
+    /// with a ghost `There { Silent }` (three live reproductions) — the
+    /// fixture lied, not the kernel. Port 1 is privileged: no unprivileged
+    /// binder on this machine can take it, so there is nothing to let go.
     #[test]
-    fn nothing_listening_is_refused_and_reads_as_gone() {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let addr = listener.local_addr().expect("address");
-        drop(listener); // nothing holds the port any more
+    fn a_refused_connect_reads_as_gone() {
+        let addr: SocketAddr = "127.0.0.1:1".parse().expect("a literal address");
         assert_eq!(probe(addr, PROBE_TIMEOUT), Presence::Gone);
     }
 

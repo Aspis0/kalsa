@@ -15,6 +15,7 @@
 
 mod common;
 
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -80,7 +81,11 @@ fn a_blind_stop_whose_port_answers_is_a_failed_stop_and_leaves_the_record() {
 fn a_silent_port_recovers_the_record_before_the_next_start() {
     // The recovery sentence: nothing listens, so there was nothing to
     // suspect — the record goes BEFORE the start's own outcome (this start
-    // then fails its handshake; the suspicion was never about IT).
+    // then fails its handshake; the suspicion was never about IT). This
+    // port is never bound by this test — no drop window, nothing a churn
+    // binder can hand back — and the recovery POLICY itself is proven with
+    // a scripted probe in `suspect`'s unit test; what THIS proves is that
+    // the start path calls it.
     let port = unique_port();
     clear_files(port);
     std::fs::write(
@@ -172,4 +177,41 @@ fn a_reaped_child_whose_port_still_answers_leaves_the_suspicion_record() {
 
     supervisor.shutdown();
     let _ = std::fs::remove_file(&record);
+}
+
+#[test]
+fn a_start_that_fails_with_a_stranger_on_the_port_keeps_the_record() {
+    // The record's THIRD outcome, until now owned only by a comment: the
+    // recovery (silent port) and the replacement (an adoption) have their
+    // tests; this is the one where the start FAILS because a stranger holds
+    // the port — the suspicion is still open, so the record must STAY for
+    // the start after it. The stranger is a listener this test HOLDS: a
+    // bound socket cannot be rebound out from under the probe, and
+    // `preflight_port` then names it `PortTaken`.
+    let port = unique_port();
+    clear_files(port);
+    std::fs::write(
+        suspect_file(port),
+        "walk: adopted blind; process Unwatched; port — There\n",
+    )
+    .expect("plant the record");
+    let stranger = TcpListener::bind(("127.0.0.1", port)).expect("a stranger holds the port");
+
+    let supervisor = Supervisor::new();
+    let _ = supervisor.start(config("fake_server.sh", port));
+    let ended = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    match ended {
+        ServerState::Failed {
+            reason: Failure::PortTaken,
+        } => {}
+        other => panic!("the stranger on the port was not reported as PortTaken: {other:?}"),
+    }
+    assert!(
+        suspect_file(port).exists(),
+        "a start that failed with a stranger on the port swallowed the record — the suspicion is still open"
+    );
+
+    supervisor.shutdown();
+    drop(stranger);
+    let _ = std::fs::remove_file(suspect_file(port));
 }

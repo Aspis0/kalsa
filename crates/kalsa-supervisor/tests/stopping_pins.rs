@@ -63,7 +63,7 @@ fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
         .find("pub fn new()")
         .ok_or_else(|| "Supervisor::new is the construction the pin allows".to_string())?;
     let stop_at = production
-        .find("fn stop(owned")
+        .find("fn stop(\n")
         .ok_or_else(|| "the worker's stop is where a drain ends".to_string())?;
     let stop_end = stop_at
         + production[stop_at..]

@@ -24,7 +24,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::presence::{self, Presence};
+use crate::presence::{Presence, Probe};
 
 pub(crate) struct Suspect {
     path: PathBuf,
@@ -60,11 +60,20 @@ impl Suspect {
     /// recovered (deleted) and the start proceeds with nothing owed. A port
     /// that answers (or cannot be decided) keeps the record standing for the
     /// adoption that follows to replace. Returns whether it recovered.
-    pub(crate) fn settle_before_start(&self, addr: SocketAddr, timeout: Duration) -> bool {
+    ///
+    /// The probe arrives as an argument (`probe`): this is the policy the
+    /// start-side tests script — a test that proved it with a real socket
+    /// would be proving the socket.
+    pub(crate) fn settle_before_start(
+        &self,
+        probe: Probe,
+        addr: SocketAddr,
+        timeout: Duration,
+    ) -> bool {
         if !self.exists() {
             return false;
         }
-        if presence::probe(addr, timeout) == Presence::Gone {
+        if probe(addr, timeout) == Presence::Gone {
             self.clear();
             return true;
         }
@@ -75,7 +84,7 @@ impl Suspect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::TcpListener;
+    use crate::presence::{self, Evidence};
 
     fn temp_state(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("kalsa-suspect-test-{name}.state"))
@@ -108,30 +117,37 @@ mod tests {
 
     #[test]
     fn a_silent_port_recovers_the_record_and_an_answering_port_keeps_it() {
-        // Silent: bind, note the port, close it — the probe is refused.
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let addr = listener.local_addr().expect("address");
-        let state = temp_state("silent");
+        // SCRIPTED probes, no sockets: the policy is "refused → recovered,
+        // anything else → kept", and a test of THAT must not also be a test
+        // of a listener it just dropped — that fixture can read a ghost
+        // `There{Silent}` under churn (see `presence`'s classification
+        // note). The address is never dialled.
+        let silent: Probe = |_, _| Presence::Gone;
+        let answering: Probe = |_, _| Presence::There {
+            evidence: Evidence::Silent,
+        };
+        let addr: SocketAddr = "127.0.0.1:1".parse().expect("a literal address");
+        let state = temp_state("policy");
         let suspect = Suspect::of(&state);
-        suspect.write("walk: ...").expect("write");
-        drop(listener);
+        let _ = std::fs::remove_file(&suspect.path);
+
+        suspect.write("walk: ...").expect("write the suspicion");
         assert!(
-            suspect.settle_before_start(addr, presence::PROBE_TIMEOUT),
-            "a refusing port did not recover the record"
+            suspect.settle_before_start(silent, addr, presence::PROBE_TIMEOUT),
+            "a refusing probe did not recover the record"
         );
         assert!(!suspect.exists(), "the recovered record is still standing");
 
-        // Answering: a listener holds the port — the suspicion stands for
-        // the adoption to replace.
-        let listener = TcpListener::bind(addr).expect("rebind");
-        suspect.write("walk: ...").expect("write again");
+        suspect.write("walk: ...").expect("write it again");
         assert!(
-            !suspect.settle_before_start(addr, presence::PROBE_TIMEOUT),
-            "an answering port was read as recovery"
+            !suspect.settle_before_start(answering, addr, presence::PROBE_TIMEOUT),
+            "an answering probe was read as recovery"
         );
-        assert!(suspect.exists(), "the record vanished before an adoption could replace it");
+        assert!(
+            suspect.exists(),
+            "the record vanished before an adoption could replace it"
+        );
         suspect.clear();
         let _ = std::fs::remove_file(&state);
-        drop(listener);
     }
 }
