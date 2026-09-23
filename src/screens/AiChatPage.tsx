@@ -82,7 +82,8 @@ import {
   probeAndReconcileEngine,
   saveEngineSession,
   translateText,
-} from "../engine/LlamaService";
+  isRemoteEngineBackend,
+} from "../engine/engineBackend";
 import { shouldRecoverLost } from "../engine/engineLiveness";
 import {
   backgroundDiscardLifecycleRef,
@@ -1710,6 +1711,10 @@ export function AiChatPage({
   }, [showVoiceNote, supportsVision, t]);
 
   const addPdfAttachment = useCallback(async () => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     if (pickingPdfRef.current || pdfToRenderRef.current) return;
     if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
       showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
@@ -2453,7 +2458,8 @@ export function AiChatPage({
       const armedResearch = researchModeRef.current;
       const armedNotes = notesModeRef.current;
       const keywordResearch = hasDeepResearchTrigger(trimmed);
-      const useResearch = armedResearch || keywordResearch;
+      const useResearch =
+        !isRemoteEngineBackend() && (armedResearch || keywordResearch);
       if (armedResearch) {
         researchModeRef.current = false;
         setResearchMode(false);
@@ -3533,6 +3539,10 @@ export function AiChatPage({
   const runTranslate = useCallback(
     async (messageId: string, sourceText: string) => {
       // Do not contend with an active chat completion on the same engine.
+      if (isRemoteEngineBackend()) {
+        showVoiceNote(t("settings.remoteGated"));
+        return;
+      }
       if (sendingRef.current || translationInFlightRef.current) return;
       const runId = ++translateRunRef.current;
       // Sync flag BEFORE the await so handleSend / long-press see it immediately.
@@ -3623,11 +3633,17 @@ export function AiChatPage({
   );
 
   const onComposerAttach = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      // Attachments cannot travel this backend — say so instead of opening a
+      // sheet whose choices would be silently dropped.
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     if (voiceBusyRef.current || voiceUiRef.current !== "idle" || pdfToRenderRef.current) {
       return;
     }
     setAttachSheetOpen(true);
-  }, []);
+  }, [showVoiceNote, t]);
 
   // Prefill the composer with the chosen miniapp template's prompt, then focus.
   const handleChooseTemplate = useCallback(
@@ -3640,10 +3656,14 @@ export function AiChatPage({
   );
 
   const toggleResearchMode = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     const next = !researchModeRef.current;
     researchModeRef.current = next;
     setResearchMode(next);
-  }, []);
+  }, [t]);
 
   const toggleNotesMode = useCallback(() => {
     const next = !notesModeRef.current;
@@ -3653,13 +3673,17 @@ export function AiChatPage({
 
   const hasDocumentContext = attachedItems.some((item) => item.kind === "document");
   const onComposerDocument = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     const docs = documentLibrary?.docs ?? [];
     if (docs.length === 0) {
       onOpenDocuments?.();
       return;
     }
     setDocPickOpen(true);
-  }, [documentLibrary, onOpenDocuments]);
+  }, [documentLibrary, onOpenDocuments, showVoiceNote, t]);
 
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
@@ -3717,8 +3741,14 @@ export function AiChatPage({
   useEffect(() => {
     const doc = attachLibraryDoc;
     if (!doc?.id) return;
+    if (isRemoteEngineBackend()) {
+      // Shared into a remote session: say so instead of arming an attachment
+      // the disclosure covers but the mode was told it cannot take.
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     addLibraryDocumentAttachment({ id: doc.id, name: doc.name });
-  }, [addLibraryDocumentAttachment, attachLibraryDoc]);
+  }, [addLibraryDocumentAttachment, attachLibraryDoc, showVoiceNote, t]);
 
   const importAndAttachDocx = useCallback(
     async (uri: string, name: string) => {
@@ -4197,7 +4227,7 @@ export function AiChatPage({
             onPress={toggleResearchMode}
             colors={colors}
             active={researchMode}
-            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender || isRemoteEngineBackend()}
             accessibilityLabel={researchMode ? t("chat.deepResearchActive") : t("chat.deepResearch")}
           />
           <ComposerContextChip
@@ -4444,6 +4474,7 @@ export function AiChatPage({
                     colors={colors}
                   />
                 ) : null}
+                {!isRemoteEngineBackend() ? (
                 <AttachSheetRow
                   icon={<Languages size={18} color={colors.ink} />}
                   label={t("translate.title")}
@@ -4452,6 +4483,7 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
+                ) : null}
                 {messageMenu.role === "user" && !sending ? (
                   <AttachSheetRow
                     icon={<SquarePen size={18} color={colors.ink} />}

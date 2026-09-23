@@ -159,6 +159,56 @@ export const en = {
     models: "Models",
     modelsHint:
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
+    remoteBrain: "Remote brain",
+    remoteBrainHint:
+      "Use your computer as the model. Set its address below. Tools, memory extraction, translation and embeddings stay off in this mode.",
+    remoteBrainDisclosure:
+      "To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names.",
+    remoteBrainUrl: "Your computer's address",
+    remoteBrainUrlHint: "https://your-computer.example",
+    remoteBrainUrlMissing:
+      "Enter your computer's address before using the remote brain.",
+    remoteBrainMigratedToLocal:
+      "The remote brain was not loaded at startup. Local mode is on — pick your computer again in Settings.",
+    remoteBrainModel: "Model id on your computer",
+    remoteBrainModelHint: "The model id your computer offers. Not guessed.",
+    remoteBrainMaxTokens: "Max tokens",
+    remoteBrainToken: "API token (optional)",
+    remoteBrainTokenHint:
+      "Leave empty if your computer does not ask for a token. Stored in this device's secure storage.",
+    remoteBrainTest: "Test connection",
+    remoteBrainTesting: "Testing…",
+    remoteBrainOk: "Connected · {model}",
+    remoteBrainFailGeneric:
+      "Could not reach your computer. Check the address and try again.",
+    remoteBrainFailNetwork:
+      "Your computer isn't answering. Check that it is awake and reachable, then try again.",
+    remoteBrainFailTimeout:
+      "Your computer stopped replying. Try again, or switch to the model on this phone in Settings.",
+    remoteBrainFailServer:
+      "Your computer answered with an error ({status}). It may still be starting up — try again in a moment.",
+    remoteBrainFailBusy:
+      "Your computer is still answering the previous request. Wait a moment and try again.",
+    remoteBrainFailStaleInit:
+      "That connection attempt was replaced by a newer one. Try again.",
+    remoteBrainFailModelRequired:
+      "Set the model id your computer offers before connecting.",
+    remoteBrainFailModelMissing:
+      "Your computer answered but does not offer that model. Check the id.",
+    remoteBrainSaveFailed:
+      "These settings were not saved on this phone. Try again.",
+    remoteBrainUrlInvalid:
+      "That address is not a valid http or https URL.",
+    remoteBrainHttpWarning:
+      "This address is plain HTTP and it is not on this phone. The token will not be sent. Use HTTPS.",
+    remoteBrainHttpsRequired:
+      "Plain HTTP only works for this phone itself. Use https:// for your computer.",
+    remoteBrainTokenRequired:
+      "A token is required when the address is not on this phone.",
+    remoteComputer: "My computer",
+    remoteComputerHint: "Runs on your computer. No download on this phone.",
+    remoteGated: "Not available with the remote brain",
+    remoteSelect: "Use my computer",
     governor: "Thermal governor (experimental)",
     governorBody:
       "Adapts CPU/GPU per inference phase to temperature and battery. Takes effect on the next model load.",
@@ -177,6 +227,9 @@ export const en = {
     switchWhileStreamingTitle: "Response in progress",
     switchWhileStreamingBody:
       "Changing model will stop generation. Continue?",
+    switchWhileRebuildingTitle: "Index rebuild in progress",
+    switchWhileRebuildingBody:
+      "Switch to your computer after the document index finishes rebuilding.",
     privacy: "Privacy",
     privacyBody:
       "In local mode, the model runs on this device. When computer mode is available: To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names. Document files are not sent. Network calls include model downloads from Hugging Face, web search through your chosen provider, optional page fetches (web_fetch), and opt-in telemetry. API keys are stored securely on this device. There is no account or cloud sync. Telemetry is off by default.",
@@ -286,6 +339,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
    * Settings → Models. Recommendation ownership lives on ModelInfo.
    */
   models: {
+    remoteComputer: {
+      description:
+        "The model running on your computer. Streaming chat only — no on-device weights.",
+    },
     qwen4b: {
       description:
         "Default. Best quality, understands images. Needs 8 GB RAM or more (3.5 GB download).",
@@ -444,6 +501,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     failedRetry: "Download failed — tap to retry",
     loadFailedRetry: "Load failed — tap to retry",
     readyLocal: "Ready · local",
+    readyRemote: "Ready · remote",
     downloaded: "Downloaded",
     incomplete: "Download incomplete — tap to retry.",
     readyNotice: "{name} is ready.",
@@ -470,6 +528,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     writingStatus: "Writing",
     reasoningLabel: "Reasoning",
     interrupted: "Generation was interrupted.",
+    truncated: "Reply stopped at the token limit.",
     searching: "Searching the web…",
     fetching: "Fetching page…",
     readingDocument: "Reading document…",

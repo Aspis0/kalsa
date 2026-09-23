@@ -7,8 +7,12 @@
 - Language: ALL agent communication, code comments, commit messages, docs,
   and log/stderr strings must be in **English**. Italian is ONLY for direct
   conversation with Marco. Never let Italian leak into code or docs.
-- Devices: Jelly Star = 192.168.1.82:5555. Galaxy S23 = 192.168.1.152:43089
-  (owned by another session — do not touch without explicit coordination).
+- Devices: Jelly Star = 192.168.1.82:5555 (Helio G99, Mali-G57 MC2). Galaxy S23 =
+  `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp` (SM-S911U, SM8550, Adreno 740,
+  Hexagon v73); the IP form `192.168.1.152:43089` has also been used. BOTH PHONES
+  ARE OURS TO WORK ON. No other session works on the phones except the UX session,
+  and Marco decides when the UX may take one — ask him before handing a device over,
+  and never let two sessions drive the same phone at the same time.
 - Never push without Marco's explicit approval. Audit (DeepSeek reviewer)
   before every push.
 - Energy measurements: never benchmark while charging (project rule);

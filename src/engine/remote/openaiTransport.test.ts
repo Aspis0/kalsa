@@ -1,0 +1,774 @@
+import { streamOpenAiChat, type RemoteFinish, type XhrLike } from "./openaiTransport";
+
+function fakeXhr(): XhrLike & { _body?: string; _headers: Record<string, string> } {
+  const xhr = {
+    readyState: 0,
+    status: 0,
+    responseText: "",
+    timeout: 0,
+    _headers: {} as Record<string, string>,
+    _body: undefined as string | undefined,
+    open() {},
+    setRequestHeader(name: string, value: string) {
+      this._headers[name] = value;
+    },
+    send(body?: string) {
+      this._body = body;
+    },
+    abort() {},
+    onreadystatechange: null as XhrLike["onreadystatechange"],
+    onprogress: null as XhrLike["onprogress"],
+    onerror: null as XhrLike["onerror"],
+    ontimeout: null as XhrLike["ontimeout"],
+    onabort: null as XhrLike["onabort"],
+  };
+  return xhr;
+}
+
+/**
+ * The log excerpt is development-only, and the guard reads `__DEV__` at call
+ * time so both sides are reachable from here. A release-only branch nobody can
+ * test is how a guard in this app once passed every test and broke on the first
+ * real phone; the flag is restored exactly, including when it was absent.
+ */
+async function withDevBuild<T>(
+  dev: boolean,
+  run: () => T | Promise<T>,
+): Promise<T> {
+  const global = globalThis as { __DEV__?: unknown };
+  const had = Object.prototype.hasOwnProperty.call(global, "__DEV__");
+  const previous = global.__DEV__;
+  global.__DEV__ = dev;
+  try {
+    return await run();
+  } finally {
+    if (had) global.__DEV__ = previous;
+    else delete global.__DEV__;
+  }
+}
+
+function flush(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function start(
+  xhr: XhrLike,
+  extra?: { signal?: AbortSignal; requestId?: string; inactivityMs?: number },
+) {
+  const deltas: string[] = [];
+  const finishes: RemoteFinish[] = [];
+  const handle = streamOpenAiChat(
+    {
+      completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
+      model: "ornith",
+      messages: [{ role: "user", content: "hi" }],
+      maxTokens: 4096,
+      temperature: 0.7,
+      requestId: extra?.requestId ?? "kalsa-remote-test",
+      signal: extra?.signal,
+      inactivityMs: extra && "inactivityMs" in extra ? extra.inactivityMs : 0,
+    },
+    {
+      onDelta: (d) => {
+        if (d.content) deltas.push(d.content);
+      },
+      onFinish: (f) => {
+        finishes.push(f);
+      },
+    },
+    () => xhr,
+  );
+  return { handle, deltas, finishes };
+}
+
+describe("streamOpenAiChat", () => {
+  // One unconditional cleanup for every spy in this describe: a case that
+  // fails mid-way must not leak its console.warn spy into the next case.
+  afterEach(() => jest.restoreAllMocks());
+
+  test("rejects non-loopback http before open", () => {
+    const xhr = fakeXhr();
+    const finishes: RemoteFinish[] = [];
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://192.168.1.10:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [{ role: "user", content: "hi" }],
+        maxTokens: 8,
+        temperature: 0,
+        token: "secret",
+        inactivityMs: 0,
+      },
+      {
+        onDelta: () => undefined,
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    expect(handle.isClosed()).toBe(true);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_https_required");
+    expect(xhr._headers.Authorization).toBeUndefined();
+  });
+
+  test("sends stream:true and a client request id", () => {
+    const xhr = fakeXhr();
+    const { handle } = start(xhr);
+    expect(handle.requestId).toBe("kalsa-remote-test");
+    expect(xhr._headers["X-Request-Id"]).toBe("kalsa-remote-test");
+    const body = JSON.parse(xhr._body ?? "{}");
+    expect(body.stream).toBe(true);
+    expect(body.max_tokens).toBe(4096);
+  });
+
+  test("complete only after onload AND [DONE]", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"p"}}]}\n\n' +
+      'data: {"choices":[{"delta":{"content":"ong"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(deltas.join("")).toBe("pong");
+    expect(finishes).toHaveLength(0);
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    expect(finishes).toHaveLength(0);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+  });
+
+  test("DONE-before-error: terminal marker beats onerror", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    xhr.onerror?.call(xhr);
+    await flush();
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("complete");
+  });
+
+  test("onerror without terminal is still error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    xhr.onerror?.call(xhr);
+    await flush();
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_network");
+  });
+
+  test("ontimeout after length finish_reason is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"cut"},"finish_reason":"length"}]}\n\n';
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.ontimeout?.call(xhr);
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("truncated");
+  });
+
+  test("EOF without [DONE] is interrupted, partial kept", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas.join("")).toBe("hi");
+    expect(finishes[0]?.kind).toBe("interrupted");
+  });
+
+  test("finish_reason content_filter is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
+  test("finish_reason length is truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("length+[DONE]: explicit finish_reason wins over synthetic [DONE]", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("content_filter+[DONE]: explicit finish_reason wins", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
+  test("stop+[DONE] is complete", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("[DONE]-only is complete with no finish_reason", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBeNull();
+  });
+
+  test("reason-without-DONE is still terminal", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("length then [DONE] then stop stays truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n" +
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("content after [DONE] is ignored for state and delivery", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"}}]}\n\n' +
+      "data: [DONE]\n\n" +
+      'data: {"choices":[{"delta":{"content":"two"},"finish_reason":"length"}]}\n\n';
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBeNull();
+  });
+
+  test("content_filter then error channel stays truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"content_filter"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.onerror?.call(xhr);
+    expect(finishes).toHaveLength(1);
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("content_filter");
+  });
+
+  test("length+[DONE] with non-2xx is still error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ab"},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 302;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
+  });
+
+  test("stop then length is blocked after terminal freeze", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n' +
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("content after finish_reason in the same progress is not delivered", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"},"finish_reason":"stop"}]}\n\n' +
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.onprogress?.call(xhr);
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("content after finish_reason across separate progress is not delivered", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"},"finish_reason":"stop"}]}\n\n';
+    xhr.onprogress?.call(xhr);
+    expect(deltas).toEqual(["one"]);
+    xhr.responseText +=
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.onprogress?.call(xhr);
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("complete");
+    expect(finishes[0]?.finishReason).toBe("stop");
+  });
+
+  test("repeated length chunks stay truncated", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"a"},"finish_reason":"length"}]}\n\n' +
+      'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 200;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("truncated");
+    expect(finishes[0]?.finishReason).toBe("length");
+  });
+
+  test("status 0 is failure", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 0;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_0");
+  });
+
+  test("HTTP 500 is error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.readyState = 2;
+    xhr.status = 500;
+    xhr.onreadystatechange?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_500");
+  });
+
+  test("HTTP 3xx with [DONE] is error, not complete", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"nope"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.readyState = 4;
+    xhr.status = 302;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_http_302");
+  });
+
+  test("error-event frame on HTTP 200 is error, without echoing the server text", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = 'event: error\ndata: {"error":{"message":"nope"}}\n\n';
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    // The payload is server-controlled: it is logged, never surfaced as app text.
+    expect(finishes[0]?.error?.message).toBe("remote_brain_sse_error");
+    expect(finishes[0]?.error?.message).not.toContain("nope");
+  });
+
+  test("production logs what is ours and none of the server's words", async () => {
+    await withDevBuild(false, async () => {
+      const warned = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr);
+      const sent = '{"apiKey":"SECRET"} the server said this';
+      xhr.responseText = `event: error\ndata: ${JSON.stringify({
+        error: { message: sent },
+      })}\n\n`;
+      xhr.readyState = 3;
+      xhr.status = 200;
+      xhr.onprogress?.call(xhr);
+      expect(finishes[0]?.kind).toBe("error");
+
+      const [, payload] = warned.mock.calls[0] ?? [];
+      const logged = JSON.parse(String(payload)) as Record<string, unknown>;
+      expect(logged.code).toBe("remote_brain_sse_error");
+      expect(logged.bytes).toBe(sent.length);
+      // No excerpt at all — not even a redacted one. `apiKey` walks straight
+      // past the redactor, which is why the excerpt does not ship.
+      expect(logged).not.toHaveProperty("excerpt");
+      expect(String(payload)).not.toContain("apiKey");
+      expect(String(payload)).not.toContain("the server said this");
+    });
+  });
+
+  test("development adds a redacted excerpt, and it is still redacted", async () => {
+    await withDevBuild(true, async () => {
+    const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    const sent = 'bad key, see https://host/v1?token=SECRET';
+    xhr.responseText = `event: error\ndata: ${JSON.stringify({
+      error: { message: sent },
+    })}\n\n`;
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+
+    const [, payload] = warned.mock.calls[0] ?? [];
+    const logged = JSON.parse(String(payload)) as {
+      code: string;
+      bytes: number;
+      excerpt: string;
+    };
+    expect(logged.code).toBe("remote_brain_sse_error");
+    expect(logged.bytes).toBe(sent.length);
+    expect(logged.excerpt).toContain("bad key");
+    expect(logged.excerpt).not.toContain("SECRET");
+    // No verbatim copy of the server's text travels with the log line.
+    expect(String(payload)).not.toContain("https://host/v1?token=SECRET");
+    });
+  });
+
+  test("a secret beyond the excerpt is not logged at all", async () => {
+    await withDevBuild(true, async () => {
+    const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    const sent = `${"pad ".repeat(80)}token=SECRET`;
+    xhr.responseText = `event: error\ndata: ${JSON.stringify({
+      error: { message: sent },
+    })}\n\n`;
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+
+    const [, payload] = warned.mock.calls[0] ?? [];
+    const logged = JSON.parse(String(payload)) as { bytes: number; excerpt: string };
+    expect(logged.bytes).toBe(sent.length);
+    // The bound is upstream of the redactor: whatever is past it is never read,
+    // let alone logged.
+    expect(logged.excerpt.length).toBeLessThanOrEqual(160);
+    expect(String(payload)).not.toContain("SECRET");
+    });
+  });
+
+  test("malformed JSON frame is error", async () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.responseText = "data: {not json}\n\n";
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+  });
+
+  test("partial JSON across progress events then completes", async () => {
+    const xhr = fakeXhr();
+    const { deltas, finishes } = start(xhr);
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText = 'data: {"choices":[{"delta":{"content":"he';
+    xhr.onprogress?.call(xhr);
+    expect(deltas).toEqual([]);
+    xhr.responseText =
+      xhr.responseText + 'llo"}}]}\n\ndata: [DONE]\n\n';
+    xhr.onprogress?.call(xhr);
+    expect(deltas.join("")).toBe("hello");
+    xhr.readyState = 4;
+    xhr.onreadystatechange?.call(xhr);
+    await flush();
+    expect(finishes[0]?.kind).toBe("complete");
+  });
+
+  test("reentrant abort in onDelta does not deliver later frames", async () => {
+    const xhr = fakeXhr();
+    const deltas: string[] = [];
+    const finishes: RemoteFinish[] = [];
+    let abortFn: () => void = () => undefined;
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [{ role: "user", content: "hi" }],
+        maxTokens: 8,
+        temperature: 0,
+        requestId: "reenter",
+        inactivityMs: 0,
+      },
+      {
+        onDelta: (d) => {
+          if (d.content) deltas.push(d.content);
+          if (d.content === "one") abortFn();
+        },
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    abortFn = handle.abort;
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"one"}}]}\n\n' +
+      'data: {"choices":[{"delta":{"content":"two"}}]}\n\n' +
+      "data: [DONE]\n\n";
+    xhr.onprogress?.call(xhr);
+    expect(deltas).toEqual(["one"]);
+    expect(finishes[0]?.kind).toBe("interrupted");
+  });
+
+  test("abort mid-frame flushes complete frames only", async () => {
+    const xhr = fakeXhr();
+    const { handle, deltas, finishes } = start(xhr);
+    xhr.status = 200;
+    xhr.readyState = 3;
+    xhr.responseText =
+      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: {"choices":[{"delta":{"content":"xx';
+    xhr.onprogress?.call(xhr);
+    expect(deltas.join("")).toBe("ok");
+    handle.abort();
+    expect(finishes[0]?.kind).toBe("interrupted");
+    expect(deltas.join("")).toBe("ok");
+  });
+
+  test("network error", () => {
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    xhr.onerror?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("remote_brain_network");
+  });
+
+  test("abort-before-send never opens a request", () => {
+    const xhr = fakeXhr();
+    const controller = new AbortController();
+    controller.abort();
+    const { finishes } = start(xhr, { signal: controller.signal });
+    expect(finishes[0]?.kind).toBe("interrupted");
+    expect(xhr._body).toBeUndefined();
+  });
+
+  test("inactivity timeout fires without progress", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      expect(finishes).toHaveLength(0);
+      jest.advanceTimersByTime(120_000);
+      expect(finishes[0]?.kind).toBe("error");
+      expect(finishes[0]?.error?.message).toBe("remote_brain_timeout");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("post-terminal abort does not re-arm idle timer", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { handle, finishes } = start(xhr, { inactivityMs: 120_000 });
+      xhr.responseText = "data: [DONE]\n\n";
+      xhr.readyState = 4;
+      xhr.status = 200;
+      xhr.onreadystatechange?.call(xhr);
+      jest.runOnlyPendingTimers();
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("complete");
+      expect(handle.isClosed()).toBe(true);
+      handle.abort();
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("open throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    xhr.open = () => {
+      throw new Error("open_boom");
+    };
+    const { handle, finishes } = start(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("open_boom");
+    expect(handle.isClosed()).toBe(true);
+  });
+
+  test("header throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    xhr.setRequestHeader = () => {
+      throw new Error("hdr_boom");
+    };
+    const { handle, finishes } = start(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("hdr_boom");
+    expect(handle.isClosed()).toBe(true);
+  });
+
+  test("stringify throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    const circular: { role: string; content: string; self?: unknown } = {
+      role: "user",
+      content: "hi",
+    };
+    circular.self = circular;
+    const finishes: RemoteFinish[] = [];
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [circular as { role: string; content: string }],
+        maxTokens: 8,
+        temperature: 0,
+        inactivityMs: 0,
+      },
+      {
+        onDelta: () => undefined,
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    expect(finishes[0]?.kind).toBe("error");
+    expect(handle.isClosed()).toBe(true);
+  });
+
+  test("setup/send throw emits terminal error and cleans idle timer", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      xhr.send = () => {
+        throw new Error("send_boom");
+      };
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("error");
+      expect(finishes[0]?.error?.message).toBe("send_boom");
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("progress resets idle timer and complete cleans it", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      jest.advanceTimersByTime(60_000);
+      xhr.status = 200;
+      xhr.readyState = 3;
+      xhr.responseText = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+      xhr.onprogress?.call(xhr);
+      jest.advanceTimersByTime(60_000);
+      expect(finishes).toHaveLength(0);
+      xhr.responseText += "data: [DONE]\n\n";
+      xhr.readyState = 4;
+      xhr.onreadystatechange?.call(xhr);
+      jest.runOnlyPendingTimers();
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("complete");
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

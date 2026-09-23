@@ -47,7 +47,7 @@
     "expo-sharing": "~57.0.8",
     "expo-speech": "~57.0.1",
     "fflate": "^0.8.3",
-    "llama.rn": "github:Aspis0/kalsa.rn#0288dc2786911d9b7dda6b2961cb3f0afa1e0ee2",
+    "llama.rn": "github:Aspis0/kalsa.rn#e437b1af3de7af563526f5777dbf25d86f9b3215",
     "lucide-react-native": "^1.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -72,6 +72,7 @@
     "expo-doctor": "^1.18.20",
     "jest": "^30.4.2",
     "pdfjs-dist": "^3.11.174",
+    "react-test-renderer": "19.2.3",
     "ts-jest": "^29.4.12",
     "typescript": "~6.0.3"
   },

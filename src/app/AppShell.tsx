@@ -59,6 +59,26 @@ import {
 } from "../engine/ModelDownloader";
 import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
 import {
+  captureEnsureIntent,
+  ensureIntentKey,
+  ensureIntentStale,
+  ensureOutcome,
+  InFlightEnsures,
+  type EnsureIntent,
+  type EnsureOutcome,
+  type RemoteConfiguration,
+} from "../engine/ensureIntent";
+import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
+import { decideRemoteBoot } from "../engine/remote/remoteBoot";
+import {
+  canEagerInitLocal,
+  decideModelIndexProbe,
+  shouldNoopLocalSelect,
+  shouldReprobeAfterSwitch,
+  switchDisposeUi,
+  afterRemoteSwitchDispose,
+} from "../engine/modelIndexProbe";
+import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
   embedChunkKey,
@@ -122,16 +142,21 @@ import {
 } from "../engine/deviceThroughputStore";
 import {
   buildSystemPrompt,
-  chatKvIsHeld,
   chatKvLastSaveTokens,
   chatKvNPast,
+  getAttemptedAssembleStart,
+  lastNativeTokenAtMs,
+  logPrewarmSkip,
+  resolvedStaticPrefixTokens,
+} from "../engine/LlamaService";
+import {
+  chatKvIsHeld,
   completeOnce,
   discardChatKvForWindowSlide,
   disposeEngine,
   extractMemory,
   getActiveEngineNCtx,
   getActiveModelId,
-  getAttemptedAssembleStart,
   getEngineLostModelId,
   getLoadedAssembleBoundary,
   initEngine,
@@ -139,21 +164,31 @@ import {
   invalidateEngineSession,
   isEngineLostRecovery,
   isEngineReady,
-  lastNativeTokenAtMs,
-  logPrewarmSkip,
-  resolvedStaticPrefixTokens,
   nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
   queueStaticPrefixPrewarm,
   restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
+  beginBackendSwitch,
+  endBackendSwitch,
+  getRemoteBrainUrl,
+  getRemoteServerModelId,
+  hydrateRemoteBrainSettings,
+  isHydrationCurrent,
+  isRemoteEngineBackend,
+  recoverLocalBackend,
+  setEngineBackendMode,
+  disposeRemoteEngine,
+  isSupersededRemoteOp,
+  REMOTE_COMPUTER_MODEL,
+  REMOTE_COMPUTER_MODEL_ID,
   type EngineMessage,
   type MemoryExtractResult,
   type MemoryExtractStopReason,
   type EngineToolResult,
   type EngineTurnOptions,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { runDeepResearch } from "../research/deepResearch";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
@@ -464,6 +499,11 @@ const SEARCH_DEBOUNCE_MS = 180;
  * hang dispose forever and pin the UI on "checking". Refuse after this deadline.
  */
 const MODEL_SWITCH_DISPOSE_TIMEOUT_MS = 5_000;
+/**
+ * One ensure attempt gets this long before callers receive the `abandon`
+ * outcome — storage reads have no deadline of their own (see InFlightEnsures).
+ */
+const ENSURE_DEADLINE_MS = 120_000;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
@@ -1152,6 +1192,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Reactive busy flag for a user-triggered rebuild, not ordinary imports. */
   const [semanticRebuildInFlight, setSemanticRebuildInFlight] = useState(false);
   /**
+   * Synchronous mirror of the state above: the guards (boot, selector) must
+   * see a rebuild start without waiting for a React render — setState's
+   * pre-render window is the residual gap (re-audit 2, R2-4).
+   */
+  const semanticRebuildBusyRef = useRef(false);
+  /**
    * Generation token for the background embed job. Bumped on unmount, on
    * library delete of the doc being embedded, and when the chat model starts
    * loading. Bumping also aborts embedJobAbortRef so EmbeddingService sees
@@ -1589,6 +1635,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
     if (thermalHardGateRef.current) return;
+    // The panel promise: embeddings stay off in remote mode — skip the whole
+    // job (no embedder download, no native embed). The next import or an
+    // explicit rebuild re-runs it after switching back to local.
+    if (isRemoteEngineBackend()) return;
     if (!entry?.id || !entry.fileUri) return;
     // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
     // import cannot sneak a second job past the flag.
@@ -1841,6 +1891,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           logEmbedDone(embeddedCount > 0 ? "partial" : "aborted");
           return;
         }
+        // Mid-job backend flip: the panel promise holds — stop embedding.
+        if (isRemoteEngineBackend()) {
+          logEmbedDone(embeddedCount > 0 ? "partial" : "aborted");
+          return;
+        }
         const vec = await embedDocumentChunk(chunk.text, { signal });
         if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
@@ -2047,6 +2102,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (thermalHardGateRef.current) {
         return { ok: false, reason: "unavailable" };
       }
+      // The panel promise: embeddings stay off in remote mode. Refuse before
+      // the old index is destroyed.
+      if (isRemoteEngineBackend()) {
+        return { ok: false, reason: "unavailable" };
+      }
       if (!id || typeof id !== "string") {
         return { ok: false, reason: "unavailable" };
       }
@@ -2076,6 +2136,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return { ok: false, reason: "no_embedder" };
         }
 
+        // Re-check the backend with NO await in between: a switch to remote
+        // during the preflights above must not delete an index the entry gate
+        // will then refuse to rebuild.
+        if (isRemoteEngineBackend()) {
+          return { ok: false, reason: "unavailable" };
+        }
         bumpEmbedJobGeneration();
         await deleteVectorIndexFile(id);
         docSemanticByIdRef.current.delete(id);
@@ -2086,8 +2152,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       if (!entry) return { ok: false, reason: "unavailable" };
+      // Same synchronous stretch as releaseDelete (no await between): by the
+      // time any tap handler can run, the ref is already true.
+      semanticRebuildBusyRef.current = true;
       setSemanticRebuildInFlight(true);
       void scheduleBackgroundEmbed(entry).finally(() => {
+        semanticRebuildBusyRef.current = false;
         setSemanticRebuildInFlight(false);
       });
       return true;
@@ -2744,6 +2814,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [modelIndex, setModelIndex] = useState(() =>
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
+  const [remoteActive, setRemoteActive] = useState(false);
+  const [prefsReady, setPrefsReady] = useState(false);
+  /** Bumped when a model switch finishes so the presence probe re-runs after backend flip. */
+  const [presenceProbeEpoch, setPresenceProbeEpoch] = useState(0);
   const [modelState, setModelState] = useState<ModelState>("checking");
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
@@ -2751,7 +2825,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // C7 — slope ETA from expo-battery level samples. Advisory only: never
   // blocks send/load. Enabled only while a model is loaded and the engine is
-  const currentModel = MODEL_REGISTRY[modelIndex];
+  const currentModel = remoteActive ? REMOTE_COMPUTER_MODEL : MODEL_REGISTRY[modelIndex];
 
   // ready (the drain slope is meaningless otherwise). Fail-open — unknown /
   // measuring / charging states simply render no hard stop.
@@ -2945,34 +3019,130 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     let mounted = true;
     void (async () => {
       try {
-        const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
-        if (!mounted || !saved) return;
+        const generation = engineGenerationRef.current;
+        const bootStillCurrent = () =>
+          mounted && generation === engineGenerationRef.current;
+        const hydrated = await hydrateRemoteBrainSettings();
+        if (!bootStillCurrent()) return;
+        const saved = hydrated.hydrationOk
+          ? await AsyncStorage.getItem(MODEL_STORAGE_KEY)
+          : null;
+        if (!bootStillCurrent()) return;
+        const decision = decideRemoteBoot({
+          hydrationOk: hydrated.hydrationOk,
+          // A snapshot a newer hydration replaced is stale evidence: decide on
+          // it and the app can boot remote against a URL that was just cleared.
+          hydrationStale: !isHydrationCurrent(hydrated),
+          backend: hydrated.backend,
+          url: hydrated.url,
+          savedModelId: saved,
+          defaultLocalModelId: getDefaultModel().id,
+          remoteModelId: REMOTE_COMPUTER_MODEL_ID,
+        });
+        // A tap during hydration owns the intent and the model index: boot
+        // must not overwrite a switch that is in flight (N1 — its probe-skip
+        // and epoch bump take over from here).
+        if (modelSwitchInFlightRef.current) return;
+        if (decision.kind === "remote") {
+          // A rebuild/delete owns the document arc and may block ONLY the
+          // remote flip (its embed pass would hit the remote entry gate).
+          // Falling through keeps the local restore below intact for this
+          // launch and writes nothing — the stored remote choice survives
+          // untouched for the next launch.
+          const rebuildBusy =
+            semanticRebuildBusyRef.current || isDeleteActive();
+          if (!rebuildBusy) {
+            engineIntentRef.current = {
+              modelId: REMOTE_COMPUTER_MODEL_ID,
+              remote: true,
+            };
+            setRemoteActive(true);
+            await setEngineBackendMode("remote");
+            return;
+          }
+        } else {
+          await recoverLocalBackend();
+          // Boot is read-only for the model choice: only a stored REMOTE id is
+          // rewritten (the demotion decideRemoteBoot just decided). A hydration
+          // failure returns the default too — persisting THAT would overwrite a
+          // saved local choice on a transient error.
+          if (decision.reason === "orphan" && saved === REMOTE_COMPUTER_MODEL_ID) {
+            await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+          }
+        }
+        if (!bootStillCurrent()) return;
+        setRemoteActive(false);
+        // Death-marker defence runs on the id this launch restores: a local
+        // decision passes its persisted id (decideRemoteBoot already demoted
+        // any remote id); a deferred remote decision passes the raw saved id —
+        // main's boot did the same, and an id outside the registry leaves the
+        // default standing, silently.
+        const restoreId =
+          decision.kind === "local"
+            ? decision.persistModelId
+            : (saved ?? getDefaultModel().id);
         const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
-        if (!mounted) return;
+        if (!bootStillCurrent()) return;
         const startId = await pickStartModel({
-          savedId: saved,
+          savedId: restoreId,
           lastGoodId,
           defaultId: getDefaultModel().id,
           isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
         });
-        if (!mounted) return;
+        if (!bootStillCurrent()) return;
+        if (
+          decision.kind === "local" &&
+          (decision.reason === "orphan" ||
+            decision.reason === "hydration-failed" ||
+            decision.reason === "stale-hydration")
+        ) {
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("settings.remoteBrainMigratedToLocal"));
+        }
         // Every candidate is marked: start where the selection points and let
         // the load gate refuse it with the message — no load, no silent flip.
         if (startId === null) return;
         const startIndex = MODEL_REGISTRY.findIndex((model) => model.id === startId);
         if (startIndex < 0 || startIndex === modelIndexRef.current) return;
-        if (startId !== saved) {
+        if (startId !== restoreId) {
           loadFallbackTargetRef.current = startId;
           setModelState("error");
           setModelErrorKind("engine");
           setModelError(t("model.loadSetAside"));
           setModelErrorDetail(null);
         }
-        // Keep stillCurrent() of any in-flight boot kick correct before re-render.
+        // Keep stillCurrent() of any in-flight boot kick correct before re-render;
+        // the intent must follow the index or every later ensure reads stale.
+        engineIntentRef.current = { modelId: startId, remote: false };
         modelIndexRef.current = startIndex;
         setModelIndex(startIndex);
       } catch {
-        // Preference read failure → keep the default boot model.
+        // Preference read failure → keep the default boot model (main's
+        // contract): the model choice is read-only this launch — no
+        // MODEL_STORAGE_KEY write. Only recoverLocalBackend may write, and
+        // only the backend key, as "local".
+        try {
+          await recoverLocalBackend();
+          engineIntentRef.current = { modelId: getDefaultModel().id, remote: false };
+          setRemoteActive(false);
+        } catch {
+          // The setter rolled the cache back to whatever it was. Intent must
+          // AGREE with that cache or the probe skips forever with no ensure —
+          // a local model on a remote backend would wedge every send. Align to
+          // the cache, surface the failure; the probe (prefsReady, below) then
+          // ensures whichever side we landed on.
+          const cacheRemote = isRemoteEngineBackend();
+          engineIntentRef.current = cacheRemote
+            ? { modelId: REMOTE_COMPUTER_MODEL_ID, remote: true }
+            : { modelId: getDefaultModel().id, remote: false };
+          setRemoteActive(cacheRemote);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("settings.remoteBrainSaveFailed"));
+        }
+      } finally {
+        if (mounted) setPrefsReady(true);
       }
     })();
     // M1: detect orphaned model folders left by a catalog prune (no UI delete
@@ -2994,10 +3164,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  /** Model + backend the next ensure must load; intent, not the live cache. */
+  const engineIntentRef = useRef<{ modelId: string; remote: boolean }>({
+    modelId: MODEL_REGISTRY[modelIndex]?.id ?? "",
+    remote: false,
+  });
+  /** Last remote-init failure cause — human copy only, via humanRemoteBrainError. */
+  const remoteInitErrorRef = useRef<string | null>(null);
   /** Latest ensureEngineForModel — boot kick reads this so its effect stays [modelIndex]. */
-  const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<boolean>>(
-    async () => false,
+  const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<EnsureOutcome>>(
+    async () => "failed",
   );
+  /** One in-flight ensure attempt per intent key (select vs remoteActive effect). */
+  const inFlightEnsuresRef = useRef(new InFlightEnsures<EnsureOutcome>());
   /**
    * Ownership token from tryAcquireChat (null when chat slot not held).
    * markChatReady / markChatReleased must pass this gen so a stale load
@@ -3848,19 +4027,45 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // Controllo iniziale: il modello corrente è già scaricato?
   // v1 trap = runAfterInteractions + volatile effect deps. This kick is
-  // one-shot per process+generation (claimEagerKick). Effect deps stay
-  // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
+  // one-shot per process+generation (claimEagerKick). Effect deps are
+  // [modelIndex, prefsReady, presenceProbeEpoch]; ensureEngineForModel is
+  // read from a ref, not listed.
   useEffect(() => {
+    if (!prefsReady) return;
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
+        const decision = decideModelIndexProbe({
+          switchInFlight: modelSwitchInFlightRef.current,
+          backendRemote: isRemoteEngineBackend(),
+          intentRemote: engineIntentRef.current.remote,
+        });
+        if (decision.action === "skip") return;
+        if (decision.action === "ensure-remote") {
+          if (mounted) {
+            setRemoteActive(true);
+            void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
+          }
+          return;
+        }
         const model = MODEL_REGISTRY[checkedIndex];
         const ok = await isModelBundleDownloaded(model);
         // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
         if (mounted && modelIndexRef.current === checkedIndex) {
+          if (modelSwitchInFlightRef.current || engineIntentRef.current.remote) {
+            return;
+          }
           setModelState(ok ? "ready" : "missing");
           if (ok && EAGER_ENGINE_INIT && model) {
+            if (
+              !canEagerInitLocal({
+                switchInFlight: modelSwitchInFlightRef.current,
+                backendRemote: isRemoteEngineBackend(),
+              })
+            ) {
+              return;
+            }
             const generation = engineGenerationRef.current;
             if (claimEagerKick(model.id, generation)) {
               // eslint-disable-next-line no-console
@@ -3880,7 +4085,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelIndex]);
+  }, [modelIndex, prefsReady, presenceProbeEpoch]);
+
+  useEffect(() => {
+    if (!remoteActive) return;
+    void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
+  }, [remoteActive]);
 
   /**
    * Shared load-gate invocation — ONE function for every load site (boot
@@ -3999,7 +4209,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     })();
   }, []);
 
-  const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+  const runEnsureEngineForModel = useCallback(async (
+    captured: EnsureIntent,
+    model: ModelInfo,
+  ): Promise<boolean> => {
+    const liveIntent = (): EnsureIntent => ({
+      generation: engineGenerationRef.current,
+      modelId: engineIntentRef.current.modelId,
+      remote: engineIntentRef.current.remote,
+      remoteConfig: engineIntentRef.current.remote
+        ? { url: getRemoteBrainUrl(), serverModelId: getRemoteServerModelId() }
+        : null,
+    });
+    const stillCurrent = () => !ensureIntentStale(captured, liveIntent());
     // C3 — refuse every model load while the OS is at platform CRITICAL.
     // The ref closes the event-to-render race; the query covers a transition
     // that arrived before the listener was attached.
@@ -4013,12 +4235,53 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // The platform reader is fail-open; an unavailable API never blocks.
     }
     if (thermalHardGateRef.current) return false;
-    // Capture generation + expected model BEFORE any await (race with selectModel).
-    const generation = engineGenerationRef.current;
-    const expectedModelId = model.id;
-    const stillCurrent = () =>
-      generation === engineGenerationRef.current &&
-      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
+    if (!stillCurrent()) return false;
+    if (captured.remote) {
+      // Ready for this intent: skip the /props + /v1/models re-probe and the
+      // loading flash — mirrors the local short-circuit below. stillCurrent()
+      // above already rejected a changed configuration (the intent key carries
+      // url|serverModel), and the stream reads url/model fresh each time.
+      if (isEngineReady() && getActiveModelId() === REMOTE_COMPUTER_MODEL_ID) {
+        return true;
+      }
+      setModelState("loading");
+      remoteInitErrorRef.current = null;
+      try {
+        if (!stillCurrent()) return false;
+        await setEngineBackendMode("remote");
+        if (!stillCurrent()) return false;
+        setRemoteActive(true);
+        await initEngine("", REMOTE_COMPUTER_MODEL_ID, { locale, backend: "remote" });
+        if (!stillCurrent()) return false;
+        if (isEngineReady()) {
+          setModelState("ready");
+          setModelError(null);
+          setModelErrorKind(null);
+          setModelErrorDetail(null);
+          return true;
+        }
+        setModelState("error");
+        setModelErrorKind("engine");
+        return false;
+      } catch (error) {
+        // A superseded attempt (a newer init or a dispose won the race) must not
+        // write this attempt's failure into the UI: it rethrows with the marker
+        // and the boundary below decides what to report.
+        if (isSupersededRemoteOp(error)) throw error;
+        if (!stillCurrent()) return false;
+        setModelState("error");
+        modelStateRef.current = "error";
+        setModelErrorKind("engine");
+        const raw = error instanceof Error ? error.message : String(error);
+        remoteInitErrorRef.current = raw;
+        setModelError(humanRemoteBrainError(raw, t));
+        setModelErrorDetail(null);
+        return false;
+      }
+    }
+    // Remote backend with a local intent (switch window): never start a local
+    // load against the remote backend.
+    if (isRemoteEngineBackend()) return false;
 
     if (isEngineReady() && getActiveModelId() === model.id) {
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
@@ -4219,6 +4482,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             setModelState("checking");
             // Keep stillCurrent() correct before re-render (same as selectModel):
             // the direct ensure below awaits, and modelIndexRef lags the render.
+            // The intent must follow the index (boot and selectModel do the
+            // same) or this direct fallback ensure reads stale and refuses.
+            engineIntentRef.current = { modelId: MODEL_REGISTRY[fallbackIndex].id, remote: false };
             modelIndexRef.current = fallbackIndex;
             setModelIndex(fallbackIndex);
             // Load the fallback directly: the [modelIndex] kick is one-shot per
@@ -4443,6 +4709,42 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return false;
     }
   }, [agentOptions.tools, deviceBandwidth, evaluateLoadGate, locale, reportLoadRefusal, t, bumpEmbedJobGeneration]);
+
+  /**
+   * The engine-ensure boundary: one in-flight attempt per intent key. The
+   * explicit select and the remoteActive effect share one init; a losing
+   * attempt reports "superseded", not failure.
+   */
+  const ensureEngineForModel = useCallback(
+    (model: ModelInfo): Promise<EnsureOutcome> => {
+      const configuration = (): RemoteConfiguration => ({
+        url: getRemoteBrainUrl(),
+        serverModelId: getRemoteServerModelId(),
+      });
+      const captured = captureEnsureIntent(
+        engineGenerationRef.current,
+        model.id,
+        configuration(),
+      );
+      const live = (): EnsureIntent => ({
+        generation: engineGenerationRef.current,
+        modelId: engineIntentRef.current.modelId,
+        remote: engineIntentRef.current.remote,
+        remoteConfig: engineIntentRef.current.remote ? configuration() : null,
+      });
+      return inFlightEnsuresRef.current.run(
+        ensureIntentKey(captured),
+        () =>
+          runEnsureEngineForModel(captured, model).then(
+            (ready) => ensureOutcome({ ready, captured, live: live() }),
+            (error) => (isSupersededRemoteOp(error) ? "superseded" : "failed"),
+          ),
+        ENSURE_DEADLINE_MS,
+        "failed",
+      );
+    },
+    [runEnsureEngineForModel],
+  );
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
@@ -4457,7 +4759,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
-      if (nextIndex === modelIndex) return;
+      if (
+        shouldNoopLocalSelect({
+          nextIndex,
+          currentIndex: modelIndex,
+          remoteActive: remoteActive || engineIntentRef.current.remote,
+        })
+      ) {
+        return;
+      }
 
       // Pool: keep the previous model's session on disk so switch-back can restore.
 
@@ -4472,6 +4782,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // awaits its clear).
       modelSwitchInFlightRef.current = true;
       engineGenerationRef.current += 1;
+      engineIntentRef.current = {
+        modelId: MODEL_REGISTRY[nextIndex].id,
+        remote: false,
+      };
+      beginBackendSwitch("local");
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
       // ensureEngineForModel may have acquired a higher gen by then.
@@ -4498,16 +4813,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelErrorDetail(null);
         setModelErrorKind(null);
         // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
-        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => {
+          // A lost write can resurrect the previous id at boot (a stored remote
+          // id still wins): say so instead of failing silently.
+          showNotice(t("settings.remoteBrainSaveFailed"));
+        });
 
         // Extraction holds the engine: wait briefly so dispose does not race it.
         // Epoch checks discard any delayed writes after the engine is gone.
         void (async () => {
           // The outer try arms at the TOP of the body, so the memory-extract
           // block below runs inside it: the body can no longer end without
-          // releasing what the switch captured (gen + lock). Nothing in here
-          // is known to throw — clearTimeout never does for a live or
-          // undefined handle — so this closes a shape, not a witnessed crash.
+          // releasing what the switch captured (gen + lock). The catch also
+          // surfaces a backend flip that threw; the finally always releases.
+          let disposeOk = false;
           try {
             if (memoryExtractRef.current) {
               let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
@@ -4547,11 +4866,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // recovers from) must not hold the FIFO forever and leave the UI stuck
             // on "checking". Emptiness check + enqueue are atomic; on timeout we
             // refuse WITHOUT enqueueing behind the possibly-hung op.
-            const disposeResult = await runNativeOpBounded(
-              () => disposeEngine(),
-              MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-            );
-            if (!disposeResult.ok) {
+            const wasRemote = isRemoteEngineBackend();
+            let disposeOkInner = false;
+            try {
+              if (wasRemote) {
+                await disposeRemoteEngine();
+                disposeOkInner = true;
+              } else {
+                const disposeResult = await runNativeOpBounded(
+                  () => disposeEngine(),
+                  MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+                );
+                disposeOkInner = disposeResult.ok;
+              }
+            } catch {
+              disposeOkInner = false;
+            }
+            const ui = switchDisposeUi(disposeOkInner);
+            setRemoteActive(ui.remoteActive);
+            if (ui.surfaceError) {
               console.warn(
                 `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
               );
@@ -4559,13 +4892,32 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setModelErrorKind("engine");
               setModelError(t("errors.engineDisposeTimeout"));
               setModelErrorDetail(null);
+            } else {
+              await setEngineBackendMode("local");
+              disposeOk = true;
             }
           } catch {
-            // ignore
+            // The flip to local never landed (the setter rolls the cache back
+            // to remote on write failure, or the throw preceded it): the cache
+            // still says remote. Agree with it — local intent over a remote
+            // backend makes the probe skip forever with no ensure — and
+            // re-probe so the disposed remote engine is re-armed behind the
+            // surfaced error.
+            engineIntentRef.current = { modelId: REMOTE_COMPUTER_MODEL_ID, remote: true };
+            setRemoteActive(true);
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(t("settings.remoteBrainSaveFailed"));
+            setModelErrorDetail(null);
+            setPresenceProbeEpoch((n) => n + 1);
           } finally {
             // FIX B / FIX 1: dispose → free only the gen captured at switch time.
             if (releasedGen !== null) markChatReleased(releasedGen);
             modelSwitchInFlightRef.current = false;
+            endBackendSwitch();
+            if (shouldReprobeAfterSwitch(disposeOk)) {
+              setPresenceProbeEpoch((n) => n + 1);
+            }
           }
         })();
       } catch (error) {
@@ -4576,6 +4928,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // statements preceding the launch — so there is no double release.
         if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
+        // Also end the backend switch this path began: the IIFE's finally never
+        // runs here, and a stale intent would silently refuse boot's direct
+        // remote setter (setEngineBackendMode refuses conflicting intents).
+        endBackendSwitch();
         // The rethrow below reaches no handler — this app has no global
         // rejection handler and all callers discard the returned promise — so
         // without this line a failed switch is invisible on a release build.
@@ -4586,8 +4942,91 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         throw error;
       }
     },
-    [modelIndex, modelState, t],
+    [modelIndex, modelState, remoteActive, showNotice, t],
   );
+
+  /**
+   * Settings row "Use my computer": dispose the local engine, flip the
+   * backend, then ensure the remote one — one coherent switch, no state
+   * where the remote model is selected while turns still stream locally.
+   */
+  const selectRemoteComputer = useCallback(() => {
+    if (
+      downloadInFlight.current ||
+      modelSwitchInFlightRef.current ||
+      modelState === "downloading" ||
+      modelState === "loading"
+    ) {
+      return;
+    }
+    if (regenInFlightRef.current || streamInFlightRef.current) {
+      Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
+      return;
+    }
+    if (semanticRebuildBusyRef.current || isDeleteActive()) {
+      // A rebuild in flight: switching to remote would let its embed pass hit
+      // the entry gate and strand the just-deleted index with no rebuild.
+      Alert.alert(
+        t("settings.switchWhileRebuildingTitle"),
+        t("settings.switchWhileRebuildingBody"),
+      );
+      return;
+    }
+    modelSwitchInFlightRef.current = true;
+    engineGenerationRef.current += 1;
+    engineIntentRef.current = {
+      modelId: REMOTE_COMPUTER_MODEL_ID,
+      remote: true,
+    };
+    beginBackendSwitch("remote");
+    void (async () => {
+      let disposeOk = false;
+      try {
+        if (isRemoteEngineBackend()) {
+          await disposeRemoteEngine();
+          disposeOk = true;
+        } else if (isEngineReady()) {
+          const bounded = await runNativeOpBounded(
+            () => disposeEngine(),
+            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+          );
+          disposeOk = bounded.ok;
+        } else {
+          disposeOk = true;
+        }
+      } catch {
+        disposeOk = false;
+      }
+      const ui = afterRemoteSwitchDispose(disposeOk);
+      try {
+        if (ui.surfaceError) {
+          setRemoteActive(ui.remoteActive);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("errors.engineDisposeTimeout"));
+          setModelErrorDetail(null);
+          return;
+        }
+        await setEngineBackendMode("remote");
+        setRemoteActive(true);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_COMPUTER_MODEL_ID).catch(() => undefined);
+        await ensureEngineForModel(REMOTE_COMPUTER_MODEL);
+      } catch (error) {
+        const failUi = afterRemoteSwitchDispose(false);
+        setRemoteActive(failUi.remoteActive);
+        setModelState("error");
+        setModelErrorKind("engine");
+        const raw = error instanceof Error ? error.message : String(error);
+        // Every error out of the remote selection flow renders through
+        // humanRemoteBrainError — native exceptions land on its generic copy.
+        setModelError(humanRemoteBrainError(raw, t));
+        setModelErrorDetail(null);
+      } finally {
+        modelSwitchInFlightRef.current = false;
+        endBackendSwitch();
+      }
+    })();
+  }, [ensureEngineForModel, modelState, t]);
 
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
@@ -4627,6 +5066,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         return;
       }
+      if (modelId === REMOTE_COMPUTER_MODEL_ID) {
+        selectRemoteComputer();
+        return;
+      }
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
       if (nextIndex < 0) return;
       // Refuse model switch while edit/regenerate owns the turn.
@@ -4651,7 +5094,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       selectModel(nextIndex);
     },
-    [selectModel, t],
+    [selectModel, selectRemoteComputer, t],
   );
 
   const startDownload = useCallback(async (modelId: string) => {
@@ -5665,15 +6108,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
               memoryExtractRef.current = null;
             }
-            if (!(await ensureEngineForModel(currentModel))) {
+            const ensure = await ensureEngineForModel(currentModel);
+            if (ensure === "superseded") {
+              // Another attempt owns the engine now, and it reports for itself.
+              // This turn cedes its place: no error in the conversation, and no
+              // reply this attempt did not produce.
+              finish();
+              return;
+            }
+            if (ensure === "failed") {
               // Bundle missing → download prompt; engine error → load-failed + Settings retry.
-              // ensureEngineForModel early-returns false when bundle is missing without setting
+              // ensureEngineForModel reports "failed" when bundle is missing without setting
               // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
               if (downloaded) {
                 fail(
                   t("chat.modelLoadFailed", { name: currentModel.name }),
                   "chat.modelLoadFailed",
+                );
+              } else if (currentModel.id === REMOTE_COMPUTER_MODEL_ID) {
+                // The remote brain has no bundle to download. Report the cause the
+                // remote init actually failed with (missing address, missing
+                // token, unreachable computer) instead of guessing "unreachable".
+                fail(
+                  humanRemoteBrainError(remoteInitErrorRef.current ?? undefined, t),
+                  "chat.serviceUnreachable",
                 );
               } else {
                 fail(
@@ -6668,7 +7127,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  // Remote transport failures arrive as internal codes and must
+                  // be human copy; every other error keeps its own text.
+                  const shown = error.message.startsWith("remote_brain_")
+                    ? humanRemoteBrainError(error.message, t)
+                    : error.message;
+                  callbacks.onDelta?.(`⚠️ ${shown}`, `⚠️ ${shown}`);
                   try {
                     callbacks.onFailed?.("chat.serviceUnreachable");
                   } catch {
@@ -6680,6 +7144,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               signal,
               {
                 ...agentOptions,
+                ...(isRemoteEngineBackend()
+                  ? { tools: undefined, executeTool: undefined }
+                  : null),
                 locale,
                 memoryFacts: promptFacts,
                 operativeContext,
@@ -6779,7 +7246,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           color: colors.bad,
         };
       case "ready":
-        return { label: t("download.readyLocal"), color: colors.good };
+        // The bar is where the user reads where the data runs: never say
+        // "local" for a turn served by the remote computer.
+        return {
+          label: isRemoteEngineBackend()
+            ? t("download.readyRemote")
+            : t("download.readyLocal"),
+          color: colors.good,
+        };
       case "reload":
         // HIGH-2: downloaded-but-unloaded / engine-lost is tappable, never auto-load.
         return { label: t("chat.lazyReload"), color: colors.accent };

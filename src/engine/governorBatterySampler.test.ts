@@ -232,3 +232,25 @@ describe("native trace CSV schema", () => {
     expect(columnsWrite).toBeGreaterThan(schemaWrite);
   });
 });
+
+// CHANGED DELIBERATELY: the plug-in-edge latch was removed from the native
+// module by the policy consolidation (the engine is the sole decider). The
+// first case used to assert the latch regex; it now pins its absence.
+describe("readThermo raw plugged reading", () => {
+  const start = KOTLIN_SOURCE.indexOf("fun readThermo(");
+  const end = KOTLIN_SOURCE.indexOf("fun readSoc(");
+  const readThermo = KOTLIN_SOURCE.slice(start, end);
+
+  it("holds no latch state and reports the live temperature", () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(KOTLIN_SOURCE).not.toContain("idleBaselineTenthsC");
+    expect(readThermo).toContain('result.putInt("t_idle_tenths_c", temperature)');
+  });
+
+  it("reports the raw sensor flag in tenths and leaves the degrees conversion to the app", () => {
+    expect(readThermo).toContain('putBoolean("t_idle_valid", sensorValid)');
+    // The tenths-to-degrees conversion happens exactly once, in profileFrom.
+    expect(readThermo).not.toContain('"t_idle_c"');
+  });
+});

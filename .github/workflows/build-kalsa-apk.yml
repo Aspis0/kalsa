@@ -2,14 +2,25 @@ name: Build Kalsa APK
 
 on:
   workflow_dispatch:
+    inputs:
+      debuggable:
+        description: Build a debuggable release APK for device measurements
+        required: false
+        type: boolean
+        default: false
   push:
-    branches: [engine-pin-kalsallama, bench-dev-models]
+    branches: [main]
+    # An APK build (~35 min) is pointless for docs-only commits.
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - docs/**
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-kalsa-apk-${{ github.ref }}
+  group: build-kalsa-apk-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && 'debuggable' || 'release' }}
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +44,9 @@ jobs:
           java-version: 17
 
       - name: Set up Android toolchain
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4, audited 2026-09-23
+        with:
+          packages: platform-tools
 
       - name: Install Android native build packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.1.12297006"
@@ -48,16 +61,22 @@ jobs:
           KALSA_LLAMA_FROM_SOURCE: "1"
         run: npm ci
 
+      # The builder that produces the artifact must be the builder that checks
+      # it. Same gate as apk.yml and e2e-emulator.yml; a non-zero exit stops
+      # the build here, before any native work starts.
+      - name: Assert the installed engine is the pinned fork commit
+        run: bash scripts/assert-engine-provenance.sh
+
       - name: Prebuild Android native project
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
-          KALSA_DEBUGGABLE: ${{ github.ref == 'refs/heads/bench-dev-models' && '1' || '0' }}
+          KALSA_DEBUGGABLE: ${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && '1' || '0' }}
         run: npx expo prebuild --platform android --no-install
 
       - name: Build arm64 release APK
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
-          KALSA_DEBUGGABLE: ${{ github.ref == 'refs/heads/bench-dev-models' && '1' || '0' }}
+          KALSA_DEBUGGABLE: ${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && '1' || '0' }}
           CMAKE_BUILD_PARALLEL_LEVEL: "2"
           NINJAFLAGS: "-j2"
         run: |
@@ -95,7 +114,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kalsa-apk-arm64-v8a-${{ github.sha }}
+          name: kalsa-apk-arm64-v8a${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && '-debuggable' || '' }}-${{ github.sha }}
           path: |
             android/app/build/outputs/apk/release/app-release.apk
             kalsa-apk.sha256

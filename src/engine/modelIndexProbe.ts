@@ -1,0 +1,72 @@
+/**
+ * What the modelIndex presence/eager effect may do. During a remote→local
+ * switch backendCache can still be remote while the user intent is already
+ * local — never follow the cache or start ensure/initEngine in that window.
+ */
+
+export type ModelIndexProbeInput = {
+  switchInFlight: boolean;
+  backendRemote: boolean;
+  intentRemote: boolean;
+};
+
+export type ModelIndexProbeDecision =
+  | { action: "skip" }
+  | { action: "ensure-remote" }
+  | { action: "probe-local" };
+
+export function decideModelIndexProbe(
+  input: ModelIndexProbeInput,
+): ModelIndexProbeDecision {
+  if (input.switchInFlight) return { action: "skip" };
+  // User picked local: do not overwrite that intent from a stale remote cache.
+  if (!input.intentRemote && input.backendRemote) return { action: "skip" };
+  if (input.intentRemote) return { action: "ensure-remote" };
+  return { action: "probe-local" };
+}
+
+export function canEagerInitLocal(input: {
+  switchInFlight: boolean;
+  backendRemote: boolean;
+}): boolean {
+  return !input.switchInFlight && !input.backendRemote;
+}
+
+/** Remote keeps the previous local modelIndex; selecting that row must still switch. */
+export function shouldNoopLocalSelect(input: {
+  nextIndex: number;
+  currentIndex: number;
+  remoteActive: boolean;
+}): boolean {
+  if (input.remoteActive) return false;
+  return input.nextIndex === input.currentIndex;
+}
+
+export function shouldReprobeAfterSwitch(disposeOk: boolean): boolean {
+  return disposeOk === true;
+}
+
+/**
+ * Timeout, rejection, or any failed dispose: error UI, remoteActive off.
+ * Whether a reprobe follows is shouldReprobeAfterSwitch's answer, not ours.
+ */
+export function switchDisposeUi(disposeOk: boolean): {
+  remoteActive: false;
+  surfaceError: boolean;
+} {
+  return {
+    remoteActive: false,
+    surfaceError: disposeOk !== true,
+  };
+}
+
+/** selectRemoteComputer dispose: failures take the K3 error path. */
+export function afterRemoteSwitchDispose(ok: boolean): {
+  surfaceError: boolean;
+  remoteActive: boolean;
+} {
+  if (ok) {
+    return { surfaceError: false, remoteActive: true };
+  }
+  return { surfaceError: true, remoteActive: false };
+}

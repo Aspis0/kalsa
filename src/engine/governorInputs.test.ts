@@ -101,10 +101,9 @@ describe("governor inputs", () => {
       gpu_prefill_measured: true,
     });
     expect(buildGovernorParams(model, device("SM8550"), memory)).toMatchObject({
-      enabled: false,
+      enabled: true,
       generation: "V73",
-      gpu_prefill_measured: false,
-      reason: "gpu-prefill-incorrect-V73",
+      gpu_prefill_measured: true,
     });
     expect(
       buildGovernorParams(
@@ -123,8 +122,7 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("SM7675"), memory)).toMatchObject({
       generation: "V73",
       bench_force_gpu_prefill: false,
-      enabled: false,
-      reason: "gpu-prefill-incorrect-V73",
+      enabled: true,
     });
     expect(buildGovernorParams(model, device("SM8635"), memory).generation).toBe("V73");
     expect(buildGovernorParams(model, device("QRD7675"), memory).generation).toBe("V73");
@@ -141,8 +139,7 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("SM7675"), memory, false)).toMatchObject({
       generation: "V73",
       bench_force_gpu_prefill: false,
-      enabled: false,
-      reason: "gpu-prefill-incorrect-V73",
+      enabled: true,
     });
   });
 
@@ -165,13 +162,14 @@ describe("governor inputs", () => {
     });
   });
 
-  test("refuses unknown KV and 8 GiB devices", () => {
+  test("refuses unknown KV and no longer gates on total RAM", () => {
     expect(
       buildGovernorParams({ sizeBytes: model.sizeBytes }, device("SM8650"), memory).gpu_fit,
     ).toBe("NoFit");
+    // Total RAM is not a gate; the memory estimate against availableMemoryBytes decides.
     expect(
       buildGovernorParams(model, device("SM8650", 8 * 1024 ** 3), memory).gpu_fit,
-    ).toBe("NoFit");
+    ).toBe("Fit");
   });
 
   test("prices two contexts with the measured LFM KV", () => {
@@ -186,7 +184,7 @@ describe("governor inputs", () => {
     ).toBe("Fit");
     expect(
       buildGovernorParams(lfm!, device("QRD8650", 8 * 1024 ** 3), memory).gpu_fit,
-    ).toBe("NoFit");
+    ).toBe("Fit");
   });
 
   test("bench thermo wins over BatteryManager", async () => {
@@ -223,15 +221,81 @@ describe("governor inputs", () => {
     });
   });
 
-  test("forwards plugged source validity without a JS idle gate", async () => {
+  test("lifts the native plugged temperature from tenths to degrees", async () => {
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 370,
+      battLevelPct: 90,
+      plugged: true,
+      sensorValid: true,
+      t_idle_valid: true,
+      t_idle_tenths_c: 350,
+    });
+    // The engine reads t_idle_c in whole degrees C and offsets every plugged
+    // threshold from it; a tenths value here would read 350 "degrees".
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      sensor_valid: true,
+      plugged: true,
+      t_idle_valid: true,
+      t_idle_c: 35,
+      thermo_source: "battery",
+    });
+  });
+
+  // CHANGED DELIBERATELY: the app-side gate (idle > 0 && idle + 1 < 42) was
+  // removed by the policy consolidation. This test used to assert the app
+  // refused 350; the app now forwards raw and the engine's profile_is_valid
+  // is the only refusal (llama-governor-policy.cpp).
+  test("forwards an out-of-range plugged baseline unchanged", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 350,
+        batt_level_pct: 80,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 350,
+      }),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      plugged: true,
+      t_idle_valid: true,
+      t_idle_c: 350,
+      thermo_source: "bench-skin",
+    });
+  });
+
+  // Exact disagreement case: the removed app rule refused idle = 0 through
+  // `idle > 0`, the engine rule accepts it through `t_idle_c + 1 < 42`.
+  // The engine decides; the app must forward 0 untouched.
+  test("forwards a zero plugged baseline for the engine to judge", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 300,
+        batt_level_pct: 80,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 0,
+      }),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      plugged: true,
+      t_idle_valid: true,
+      t_idle_c: 0,
+      thermo_source: "bench-skin",
+    });
+  });
+
+  test("keeps an unplugged poll without an idle reference valid", async () => {
     (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
       battTempTenthsC: 320,
       battLevelPct: 90,
-      plugged: true,
+      plugged: false,
       sensorValid: true,
     });
     await expect(readGovernorThermo()).resolves.toMatchObject({
       sensor_valid: true,
+      plugged: false,
       thermo_source: "battery",
     });
   });

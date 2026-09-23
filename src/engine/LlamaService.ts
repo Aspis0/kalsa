@@ -1776,8 +1776,21 @@ async function emitGovernorTelemetry(
         thermo_source: thermoSource,
         fit: activeGovernorFit ?? "Unknown",
         fallback_reason: activeGovernorFallbackReason,
+        // A latched governor failure is sticky: every later turn dies on it.
+        // Surface it here so it is visible in telemetry, not just in the
+        // completion error the binding raises.
+        failed: Boolean(stats.failure_reason),
+        failure_reason: stats.failure_reason,
       })}`,
     );
+    if (stats.failure_reason) {
+      console.warn(
+        `KALSA_GOVERNOR_FAILED ${JSON.stringify({
+          reason: stats.failure_reason,
+          thermal_state: stats.thermal_state,
+        })}`,
+      );
+    }
   } catch (error) {
     // Governor telemetry must never break a completed turn; make the fallback
     // visible — a hang here closes the turn with no KALSA_GOVERNOR line.
