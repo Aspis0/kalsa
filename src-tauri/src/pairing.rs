@@ -343,17 +343,21 @@ impl Desk {
     }
 
     /// The owner removes ONE device from the house. The others keep their
-    /// credentials and their ids; the last phone leaving leaves the host's
-    /// own record alone in the store, and the desk goes Idle on `new`'s
-    /// rule — only a phone counts as a pairing.
+    /// credentials and their ids; a PAIRED desk whose last phone left goes
+    /// Idle on `new`'s rule — only a phone counts as a pairing — while a
+    /// live ceremony is left alone: forgetting a stored phone never burns a
+    /// square another phone is part-way through.
     pub(crate) fn forget_device(&self, id: u32) -> Result<(), StoreError> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         kalsa_pairing::store::forget_device(&self.file, id)?;
-        // `new`'s rule, restated at the moment a set can change: the host
-        // record is always in the store, so emptiness is never the test.
-        if kalsa_pairing::store::load_devices(&self.file).is_ok_and(|devices| {
-            !devices.iter().any(|device| device.kind == DeviceKind::Phone)
-        }) {
+        // `new`'s rule, restated at the moment a set can change — and only
+        // for a desk that was paired: the host record is always in the
+        // store, so emptiness is never the test.
+        if matches!(*state, State::Paired { .. })
+            && kalsa_pairing::store::load_devices(&self.file).is_ok_and(|devices| {
+                !devices.iter().any(|device| device.kind == DeviceKind::Phone)
+            })
+        {
             *state = State::Idle;
         }
         Ok(())
@@ -886,6 +890,43 @@ mod tests {
         assert!(
             matches!(*desk.state.lock().unwrap(), State::Idle),
             "a host-only store is an unpaired desk"
+        );
+    }
+
+    /// Forgetting a stored phone must not burn a live ceremony: "Pair
+    /// another phone" and Forget sit on the same card, so the owner can be
+    /// tidying the old phone out while a new one is part-way through. Only
+    /// a PAIRED desk falls back to Idle (the test above); a desk holding a
+    /// claimed square keeps it.
+    #[test]
+    fn forgetting_the_last_phone_spares_a_live_ceremony() {
+        let file = scratch("forget-live");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now)
+            .expect("the first pairing seals");
+        let old_id = kalsa_pairing::store::load_devices(&file)
+            .unwrap()
+            .into_iter()
+            .find(|device| device.kind == DeviceKind::Phone)
+            .unwrap()
+            .id;
+
+        // The owner pairs another phone: a fresh square, claimed by it.
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        let in_flight = declaration_for(&desk, a_phone(), now);
+
+        desk.forget_device(old_id).unwrap();
+        assert!(
+            matches!(*desk.state.lock().unwrap(), State::Live { .. }),
+            "forgetting a stored phone must not burn the ceremony another phone is in"
+        );
+        assert!(
+            desk.complete(in_flight, now).is_some(),
+            "the claimed ceremony still completes"
         );
     }
 
