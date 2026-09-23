@@ -148,18 +148,21 @@ def main() -> None:
         warm_port = new.port + 10  # scratch server, its own port
         warm = Server(args.bin, old.model, warm_port, rd / f"warm-{name}.log")
         load_old = warm.start()
+        eh.require_running_engine(warm.port, version)
         w1 = chat_ttft(warm.port, doc)
         warm.kill()
         time.sleep(3)
 
         running = Server(args.bin, old.model, warm_port, rd / f"running-{name}.log")
         running.start()
+        eh.require_running_engine(running.port, version)
         chat_ttft(running.port, doc)  # warm cache in the slot, like a live house
 
         t0 = time.perf_counter()
         running.kill()               # the switch is requested: everything dies
         fresh = Server(args.bin, new.model, new.port, rd / f"switched-{name}.log")
         load_s = fresh.start()       # process start + model load
+        eh.require_running_engine(fresh.port, version)
         first = chat_ttft(fresh.port, doc)
         switch_s = time.perf_counter() - t0
         steady = chat_ttft(fresh.port, doc)  # the next request, right after

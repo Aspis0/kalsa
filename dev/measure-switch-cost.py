@@ -27,6 +27,11 @@ HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("sp", HERE / "simulate-phones.py")
 sp = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sp)
+# This harness runs no binary to hash, so the shared check it needs is the
+# one that reads the RUNNING server's own build string (engine-harness).
+_eh_spec = importlib.util.spec_from_file_location("eh", HERE / "engine-harness.py")
+eh = importlib.util.module_from_spec(_eh_spec)
+_eh_spec.loader.exec_module(eh)
 
 QUESTION = "\n\nQuestion: name three items from the notes above. Answer briefly:"
 
@@ -77,7 +82,13 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    results = {"sizes": []}
+    # No binary here to hash or version: the running server's own build
+    # string is the only identity available - required, printed, recorded;
+    # without it the numbers would describe an unnamed engine.
+    engine_build = eh.require_running_build(args.port)
+    print(f"engine: running build {engine_build}", file=sys.stderr)
+
+    results = {"sizes": [], "running_engine_build": engine_build}
     for words in [int(w) for w in args.sizes_words.split(",")]:
         doc_a = sp.make_doc(101, words)
         doc_b = sp.make_doc(202, words)

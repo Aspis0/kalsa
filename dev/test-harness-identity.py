@@ -25,6 +25,13 @@ dev/test-running-engine.py):
       (`release_block(`, `engine_identity_line(`), and each harness IMPORTS
       cleanly - its importlib loaders for measure-concurrency.py and
       engine-harness.py resolve at load time.
+  (4) (commit b) the RESPONDER check is wired everywhere a port is served:
+      every harness that launches a binary calls
+      `require_running_engine(` after its server is healthy (the running
+      /props build must match the launched binary's --version commit), and
+      measure-switch-cost - which runs no binary - calls
+      `require_running_build(` (record the running build, refuse when
+      absent) and imports cleanly too.
 
 Exit 0 green, 1 red, 2 a harness file is missing (cannot run).
 Run: python3 dev/test-harness-identity.py
@@ -67,6 +74,18 @@ WIRED = [
     "measure-prefill-ab.py",
     "measure-model-switch.py",
 ]
+
+# (b): who calls the responder check, and with which needle
+PORT_CHECK = {
+    "measure-slot-restore.py": "require_running_engine(",
+    "measure-unload-restore.py": "require_running_engine(",
+    "measure-save-on-busy-slot.py": "require_running_engine(",
+    "measure-prefill-ab.py": "require_running_engine(",
+    "measure-model-switch.py": "require_running_engine(",
+    "measure-concurrency.py": "require_running_engine(",
+    # runs no binary: the build-string recorder, not the comparison
+    "measure-switch-cost.py": "require_running_build(",
+}
 
 FAILED = 0
 
@@ -136,10 +155,31 @@ def case_3_wired():
               detail)
 
 
+def case_4_port_check():
+    print("(4) the responder check is wired wherever a port is served",
+          file=sys.stderr)
+    for harness, needle in PORT_CHECK.items():
+        path = HERE / harness
+        if not path.exists():
+            print(f"cannot run: missing {path}", file=sys.stderr)
+            sys.exit(2)
+        check(f"(4) {harness} calls {needle}", needle in path.read_text())
+    spec = importlib.util.spec_from_file_location("wire_switch_cost",
+                                                  HERE / "measure-switch-cost.py")
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+        ok, detail = True, ""
+    except Exception as e:
+        ok, detail = False, f"{type(e).__name__}: {e}"
+    check("(4) measure-switch-cost.py imports cleanly", ok, detail)
+
+
 def main():
     case_1_required()
     case_2_help()
     case_3_wired()
+    case_4_port_check()
     print(f"harness identity: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

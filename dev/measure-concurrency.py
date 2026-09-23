@@ -1564,6 +1564,10 @@ def main():
     runner = None
     try:
         server.start(args.port)
+        # A health check proves a server is alive, not WHICH one: the
+        # responder must claim this binary's build before anything is
+        # measured (engine-harness.check_running_build, offline-tested).
+        eh.require_running_engine(args.port, version)
 
         boot = server.lines()
         init_lines = [l.strip() for l in boot if "n_slots" in l and "n_ctx_slot" in l]

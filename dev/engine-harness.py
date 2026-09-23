@@ -12,7 +12,9 @@ import it): this module is not what they share yet, so the guard is written
 twice, and the two spellings of it have already drifted apart.
 """
 
+import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -41,6 +43,103 @@ def engine_identity_line(block):
                or block.get("reason_code") or "-")
     return (f"engine: {block.get('status')} {subject} commit {commit} "
             f"module {module[:12] if module else 'missing'}")
+
+
+def fetch_props(port, timeout=5):
+    """GET /props - the running server's own announcement about itself.
+    Raises whatever the exchange raises; the require_* wrappers below turn
+    that into the harnesses' refusal path."""
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/props",
+                                timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
+def props_build_commit(props):
+    """PURE: the commit out of /props' `build_info`. This release prints
+    `b11195-a7d2cec79` (quoted from a live probe of v1.1.1); the commit is
+    the trailing hex run, None when the field is absent or carries none."""
+    build = props.get("build_info") if isinstance(props, dict) else None
+    if not isinstance(build, str):
+        return None
+    m = re.search(r"([0-9a-f]{7,40})\s*$", build.strip())
+    return m.group(1) if m else None
+
+
+def version_build_commit(version_text):
+    """PURE: the commit out of a `--version` text (`commit <x>`)."""
+    m = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
+    return m.group(1) if m else None
+
+
+def check_running_build(version_text, props):
+    """PURE -> (ok, reason): does the engine ANSWERING THE PORT claim the
+    build of the binary this harness launched?
+
+    A binary's identity says nothing about which process answered: a stale
+    engine satisfies /health exactly like ours (see port_is_held), and the
+    filesystem-side traps (APFS is case-insensitive) never touch the port.
+    So the running server is asked about itself and ITS words are compared
+    with the launched binary's `--version` commit - prefix either way, the
+    two print different lengths - and absence on either side is NOT
+    agreement: unknown is refused, never assumed.
+    """
+    want = version_build_commit(version_text)
+    have = props_build_commit(props)
+    if want is None:
+        return (False, "the launched binary's --version carries no commit, "
+                       "so the responder cannot be confirmed as it")
+    if have is None:
+        return (False, "the running server's /props carries no build_info "
+                       "commit, so WHICH process answered the port is "
+                       "unknown - a binary's identity is not the "
+                       "responder's")
+    if not (want.startswith(have) or have.startswith(want)):
+        return (False,
+                f"the engine answering the port is not the binary this run "
+                f"launched: /props says commit {have}, --version says "
+                f"{want} - a stale or foreign engine holds the port")
+    return (True, f"running /props commit {have} agrees with --version "
+                  f"commit {want}")
+
+
+def require_running_engine(port, version_text):
+    """The check every harness that launched a binary calls right after its
+    server is healthy: fetch /props, compare, and REFUSE (SystemExit - the
+    harnesses' own refusal path) on disagreement or absence. Returns the
+    running build string for the caller to record."""
+    try:
+        props = fetch_props(port)
+    except Exception as e:
+        raise SystemExit(
+            f"refusing to measure: the server on :{port} did not answer "
+            f"/props ({type(e).__name__}: {e}): /health proves a server is "
+            "alive, not WHICH one - the responder's identity cannot be "
+            "confirmed")
+    ok, reason = check_running_build(version_text, props)
+    if not ok:
+        raise SystemExit(f"refusing to measure: {reason}")
+    return props.get("build_info")
+
+
+def require_running_build(port):
+    """For the harness that runs NO binary (it drives an already-running
+    server and cannot hash one): the running build string is REQUIRED -
+    present and recorded, or the run is refused. An unnamed engine's
+    numbers belong to nobody."""
+    try:
+        props = fetch_props(port)
+    except Exception as e:
+        raise SystemExit(
+            f"refusing to measure: the server on :{port} did not answer "
+            f"/props ({type(e).__name__}: {e}): /health proves a server is "
+            "alive, not WHICH one - no build to record, no run")
+    build = props.get("build_info")
+    if not isinstance(build, str) or not build.strip():
+        raise SystemExit(
+            f"refusing to measure: the server on :{port} carries no "
+            "build_info in /props: the running build cannot be named, and "
+            "an unnamed engine's numbers belong to nobody")
+    return build
 
 
 def wait_health(port, timeout=180):

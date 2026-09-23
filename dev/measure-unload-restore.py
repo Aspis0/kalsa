@@ -1329,6 +1329,9 @@ def main():
             print(f"[{arm} {size}] starting on {args.port}", flush=True)
             try:
                 server.start(args.port)
+                # the responder must claim this binary's build: /health
+                # proves a server is alive, not WHICH one
+                eh.require_running_engine(args.port, version)
             except RuntimeError as e:
                 raise SystemExit(f"[{arm} {size}] engine refused to start: {e} "
                                  f"(log: {arm_dir / 'engine.log'})")

@@ -313,6 +313,9 @@ def run_arm(label, ident, size, args, burners=0, heat_s=0):
             time.sleep(heat_s)
             print(f"  load under burners: {msr.loadavg()}", flush=True)
         server.start(args.port)
+        # the responder must claim THIS arm's binary build (fork or
+        # release), or the run stops
+        eh.require_running_engine(args.port, ident["version"])
         rec["loadavg_arm_start"] = msr.loadavg()
         chat, _, sent = msr.make_chat(args.port, 1000 + size, size)
         chat_tokens = len(msr.tokenize(args.port, chat))
