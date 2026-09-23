@@ -41,9 +41,10 @@ describe("the full-height v2 menu", () => {
     expect(CONTENT).toContain("onLongPress={item.onLongPress}");
   });
 
-  it("shows the five unboxed footer destinations in the specified order", () => {
+  it("shows the four unboxed global footer destinations in the specified order", () => {
     const code = CODE(CONTENT);
-    expect(code).toContain('["documents", "notes", "settings", "account", "export"]');
+    expect(code).toContain('["documents", "notes", "settings", "account"]');
+    expect(code).not.toContain('"export"');
     expect(code).toContain('testID={`drawer.item.${id}`}');
     expect(code).toContain("minHeight: 56");
     expect(code).toContain("colors.accent");

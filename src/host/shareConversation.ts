@@ -13,7 +13,9 @@
  * (`shareConversation.test.ts` drives `Share` through a mock).
  */
 import { Share } from "react-native";
-import type { TranslateFn } from "../i18n";
+import { getDefaultConversationsStorage, messagesKey } from "../conversations/ConversationsStore";
+import type { Locale, TranslateFn } from "../i18n";
+import { sanitizeHistoryMessages } from "./historyMessages";
 import type { Message } from "./hostMessage";
 
 /** The exported conversation: one labelled turn per line pair, `---` between. */
@@ -39,4 +41,35 @@ export function shareConversation(
     message: buildExportMarkdown(messages, t),
     title: t("chat.exportTitle"),
   }).catch(() => undefined);
+}
+
+export type ConversationMessagesReader = (id: string, locale: Locale) => Promise<Message[]>;
+
+async function readPersistedConversationMessages(id: string, locale: Locale): Promise<Message[]> {
+  try {
+    const raw = await getDefaultConversationsStorage().getItem(messagesKey(id));
+    return raw === null ? [] : sanitizeHistoryMessages(JSON.parse(raw) as unknown, locale);
+  } catch {
+    return [];
+  }
+}
+
+/** Export this row's stored history; the active row uses its live in-memory copy. */
+export async function shareConversationById(
+  id: string,
+  activeId: string,
+  activeMessages: readonly Message[],
+  locale: Locale,
+  t: TranslateFn,
+  readMessages: ConversationMessagesReader = readPersistedConversationMessages,
+): Promise<void> {
+  let messages: readonly Message[] = activeMessages;
+  if (id !== activeId) {
+    try {
+      messages = await readMessages(id, locale);
+    } catch {
+      return;
+    }
+  }
+  shareConversation(messages, t);
 }

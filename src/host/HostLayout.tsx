@@ -40,8 +40,8 @@ export interface HostLayoutProps {
    *  renamed here so the sheet's `actions` prop above stays unambiguous. */
   conversationActions: HostDrawerProps["actions"];
   personas: HostFurnitureProps["personas"];
-  /** The root-built share action for the active conversation. */
-  onExportPress: () => void;
+  /** The root-built share action for the conversation row selected by the user. */
+  onExportPress: (conversationId: string) => void;
   activeOverlay: HostFurnitureProps["overlay"];
   setActiveOverlay: HostFurnitureProps["setOverlay"];
   /** The one-slot notice: `showNoticeKey` feeds it keys, `showNotice` text. */

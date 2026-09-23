@@ -13,6 +13,15 @@ export type DrawerItem = {
   onPress: () => void;
 };
 
+export type DrawerConversationAction = {
+  id: "export" | "delete";
+  testID: string;
+  icon: "share" | "trash";
+  label: string;
+  onPress: () => void;
+  tone?: "danger";
+};
+
 export type DrawerConversationItem = {
   id: string;
   title: string;
@@ -20,6 +29,7 @@ export type DrawerConversationItem = {
   active?: boolean;
   onPress: () => void;
   onLongPress?: () => void;
+  actions?: readonly DrawerConversationAction[];
 };
 
 type Props = {

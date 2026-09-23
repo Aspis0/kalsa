@@ -42,8 +42,9 @@ import {
 import { deleteConversationHistory } from "../chat/historyQuarantine";
 import { resetCompactorChat } from "./turnCorpus";
 import type { TranslateFn } from "../i18n";
-import type { DrawerConversationItem, DrawerItem } from "../theme/components";
+import type { DrawerConversationItem, DrawerItem } from "../theme/components/Drawer";
 import type { HostOverlay } from "./hostOverlay";
+import { createConversationRowActions } from "./conversationRowActions";
 
 export interface ConversationActionCtx {
   t: TranslateFn;
@@ -247,6 +248,8 @@ const newChatInFlightRef = { current: false };
   function drawerConversationItems(
     conversations: ConversationsState,
     chatSearchQuery: string,
+    onActionSheetOpen: (id: string) => void,
+    onExportPress: (id: string) => void,
   ): DrawerConversationItem[] {
     return filterConversations(conversations.items, chatSearchQuery).map((item) => ({
         id: item.id,
@@ -254,7 +257,8 @@ const newChatInFlightRef = { current: false };
         preview: item.preview,
         active: item.id === conversations.activeId,
         onPress: () => handleSwitchConversation(item.id),
-        onLongPress: () => confirmDeleteConversation(item.id),
+        onLongPress: () => onActionSheetOpen(item.id),
+        actions: createConversationRowActions(item.id, t, onExportPress, confirmDeleteConversation),
     }));
   }
 

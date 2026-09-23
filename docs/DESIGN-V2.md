@@ -199,8 +199,11 @@ research and notes entries live inside the attach sheet, not in a permanent tool
 
 A **white sheet**, full height, 16 padding: the mark (36 px) with "Kalsa" in `title`, then a full-width
 **primary "Nuova chat"**, then the search field, then the label `LE TUE CHAT` and the conversation rows
-(56 dp, leading icon, title, `secondary` preview), then at the foot the group rows: **Documenti, Note,
-Impostazioni, Account**. The leaf-fold dome is gone; so are the persona pill, the `CONVERSAZIONI`
+(56 dp, leading icon, title, `secondary` preview), then at the foot exactly four group rows: **Documenti, Note,
+Impostazioni, Account**. **A conversation row answers a long press with its own actions** — Rinomina ·
+Esporta · Elimina — because export belongs to *that* conversation; a global row in the foot cannot know
+which chat it would export, and the owner caught exactly that when the first fix put it there. The
+foot is not a place for chat-level actions. The leaf-fold dome is gone; so are the persona pill, the `CONVERSAZIONI`
 heading and the white cards around each row.
 
 ### 3.3 Settings, split in two

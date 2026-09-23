@@ -42,6 +42,8 @@ export const it: typeof en = {
     noMatches: "Nessuna chat corrispondente",
     untitled: "Senza titolo",
     deleteChat: "Elimina chat",
+    exportAction: "Esporta",
+    deleteAction: "Elimina",
     deleteChatConfirm: "Eliminare questa conversazione?",
     notes: "Note",
     personas: "Persona",

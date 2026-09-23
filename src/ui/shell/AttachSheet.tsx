@@ -11,10 +11,31 @@
  */
 import type { ReactNode } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { Camera, FileText, Image as ImageIcon, X, BookOpen, Search, StickyNote, Sparkles } from "lucide-react-native";
+import {
+  BookOpen,
+  Camera,
+  FileText,
+  Image as ImageIcon,
+  Search,
+  Share2,
+  Sparkles,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { radius, spacing, type, type DesignColors } from "../../theme/design";
 
-export type AttachSheetIcon = "library" | "camera" | "file" | "book" | "close" | "templates" | "research" | "notes";
+export type AttachSheetIcon =
+  | "library"
+  | "camera"
+  | "file"
+  | "book"
+  | "close"
+  | "templates"
+  | "research"
+  | "notes"
+  | "share"
+  | "trash";
 
 export interface AttachSheetRowData {
   testID: string;
@@ -23,6 +44,7 @@ export interface AttachSheetRowData {
   onPress: () => void;
   role?: "button" | "switch";
   selected?: boolean;
+  tone?: "danger";
   disabled?: boolean;
 }
 
@@ -43,9 +65,13 @@ const ICONS: Record<AttachSheetIcon, (color: string) => ReactNode> = {
   templates: (color) => <Sparkles size={20} color={color} strokeWidth={1.75} />,
   research: (color) => <Search size={20} color={color} strokeWidth={1.75} />,
   notes: (color) => <StickyNote size={20} color={color} strokeWidth={1.75} />,
+  share: (color) => <Share2 size={20} color={color} strokeWidth={1.75} />,
+  trash: (color) => <Trash2 size={20} color={color} strokeWidth={1.75} />,
 };
 
 function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColors }) {
+  const iconColor = row.tone === "danger" ? colors.danger : row.selected ? colors.accent : colors.ink3;
+  const textColor = row.tone === "danger" ? colors.danger : row.selected ? colors.accent : colors.ink;
   return (
     <Pressable
       testID={row.testID}
@@ -65,8 +91,8 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
         backgroundColor: pressed || row.selected ? colors.tint : "transparent",
       })}
     >
-      <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](row.selected ? colors.accent : colors.ink3)}</View>
-      <Text numberOfLines={1} style={[type.meta, { color: row.selected ? colors.accent : colors.ink, flexShrink: 1 }]}>
+      <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](iconColor)}</View>
+      <Text numberOfLines={1} style={[type.meta, { color: textColor, flexShrink: 1 }]}>
         {row.label}
       </Text>
       {row.role === "switch" ? (

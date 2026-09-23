@@ -43,6 +43,8 @@ export const en = {
     noMatches: "No matching chats",
     untitled: "Untitled",
     deleteChat: "Delete chat",
+    exportAction: "Export",
+    deleteAction: "Delete",
     deleteChatConfirm: "Delete this conversation?",
     notes: "Notes",
     personas: "Persona",

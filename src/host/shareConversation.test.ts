@@ -11,8 +11,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 import type { TranslateFn } from "../i18n";
-import { buildExportMarkdown, shareConversation } from "./shareConversation";
-import { createExportDrawerItem } from "./exportDrawerItem";
+import { buildExportMarkdown, shareConversation, shareConversationById } from "./shareConversation";
+import { createConversationRowActions } from "./conversationRowActions";
 import { it as italian } from "../i18n/it";
 import type { Message } from "./hostMessage";
 
@@ -88,48 +88,64 @@ describe("shareConversation — one sheet, or none", () => {
   });
 });
 
-/** Export stays reachable as the fifth row in the menu foot group. */
-describe("the menu's chat export row", () => {
+/** Chat-level actions stay attached to the long-pressed conversation row. */
+describe("the conversation row action sheet", () => {
   const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
   const stripComments = (source: string): string =>
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
-  it("adds Export after the four standard footer destinations", () => {
+  beforeEach(() => shareMock.mockClear());
+
+  it("keeps the menu foot at its four global destinations", () => {
     const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    expect(content).toContain('["documents", "notes", "settings", "account", "export"]');
-    expect(content).toContain('testID={`drawer.item.${id}`}');
-    expect(italian.chat.a11yExport).toBe("Esporta chat");
+    expect(content).toContain('["documents", "notes", "settings", "account"]');
+    expect(content).not.toContain('"export"');
+    expect(italian.drawer.exportAction).toBe("Esporta");
+    expect(italian.drawer.deleteAction).toBe("Elimina");
   });
 
-  it("builds a named row whose press calls the supplied share handler", () => {
-    const onExport = jest.fn();
-    const row = createExportDrawerItem("Esporta chat", () => null, onExport);
-    expect(row).toMatchObject({ id: "export", label: "Esporta chat" });
-    row.onPress();
-    expect(onExport).toHaveBeenCalledTimes(1);
+  it("exports from the row's action set through the root handler using that row id", async () => {
+    shareMock.mockResolvedValue({ action: "dismissedAction" });
+    const activeId = "active-chat";
+    const rowId = "older-chat";
+    const reader = jest.fn(async (id: string) => [turn("user", `history for ${id}`)]);
+    let shareWork: Promise<void> | undefined;
+    const rootHandler = jest.fn((id: string) => {
+      shareWork = shareConversationById(id, activeId, [turn("user", "active history")], "en", t, reader);
+    });
+    const confirmDelete = jest.fn();
+    const actions = createConversationRowActions(rowId, t, rootHandler, confirmDelete);
+    expect(actions.map((action) => action.id)).toEqual(["export", "delete"]);
+    expect(actions.find((action) => action.id === "export")?.label).toBe("drawer.exportAction");
+    actions.find((action) => action.id === "export")?.onPress();
+    actions.find((action) => action.id === "delete")?.onPress();
+    expect(rootHandler).toHaveBeenCalledWith(rowId);
+    expect(rootHandler).not.toHaveBeenCalledWith(activeId);
+    expect(confirmDelete).toHaveBeenCalledWith(rowId);
+    await shareWork;
+    expect(reader).toHaveBeenCalledWith(rowId, "en");
+    expect(shareMock).toHaveBeenCalledWith({
+      message: "**You**:\nhistory for older-chat",
+      title: "Kalsa — conversation export",
+    });
+
+    const builder = stripComments(read("conversationActions.ts"));
+    expect(builder).toContain("actions: createConversationRowActions(item.id, t, onExportPress, confirmDeleteConversation)");
+    expect(builder).toContain("onLongPress: () => onActionSheetOpen(item.id)");
   });
 
-  it("appends the localized row and closes before invoking the root handler", () => {
+  it("routes long press through the shell sheet to the id-aware root handler", () => {
+    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
     const drawer = stripComments(read("HostDrawer.tsx"));
-    expect(drawer).toContain('createExportDrawerItem(t("chat.a11yExport"), Share, () => {');
-    expect(drawer).toMatch(/closeDrawer\(\);[\s\S]*onExportPress\(\);/);
-    expect(drawer).toContain('items={[...actions.drawerItems(), exportItem]}');
-  });
-
-  it("routes HostRoot's share handler through HostLayout to HostDrawer", () => {
     const layout = stripComments(read("HostLayout.tsx"));
-    const drawerCall = layout.match(/<HostDrawer[\s\S]*?\/>/)?.[0] ?? "";
-    expect(drawerCall).toContain("onExportPress={onExportPress}");
-    expect(stripComments(read("HostRoot.tsx"))).toContain(
-      'onExportPress={() => shareConversation(history.messages, t)}',
+    const root = stripComments(read("HostRoot.tsx"));
+    expect(content).toContain("onLongPress={item.onLongPress}");
+    expect(drawer).toContain("<AttachSheet rows={rows} colors={colors}");
+    expect(drawer).toContain("actions.drawerConversationItems(");
+    expect(drawer).toContain("    onExportPress,\n  );");
+    expect(layout).toContain("onExportPress={onExportPress}");
+    expect(root).toContain(
+      "onExportPress={(id) => void shareConversationById(id, conv.conversations.activeId, history.messagesRef.current, locale, t)}",
     );
-  });
-
-  it("keeps the standard footer rows accessible and export out of the strip", () => {
-    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    expect(content).toContain("minHeight: 56");
-    expect(content).not.toContain("hitSlop");
-    const shell = stripComments(read("../ui/shell/Shell.tsx"));
-    expect(shell).not.toContain('testID="shell.strip.export"');
   });
 });

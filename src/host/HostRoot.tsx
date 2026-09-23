@@ -34,7 +34,7 @@ import { useNotice } from "./useNotice";
 import { useAttachments } from "./useAttachments";
 import { useShareIn } from "./useShareIn";
 import { composerView } from "./composerView";
-import { shareConversation } from "./shareConversation";
+import { shareConversationById } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
 import { HostLayout } from "./HostLayout";
 import { withMiniappOverlay, type HostOverlay } from "./hostOverlay";
@@ -228,7 +228,7 @@ export function HostRoot() {
       conv={conv}
       conversationActions={actions}
       personas={personas}
-      onExportPress={() => shareConversation(history.messages, t)}
+      onExportPress={(id) => void shareConversationById(id, conv.conversations.activeId, history.messagesRef.current, locale, t)}
       activeOverlay={activeOverlay}
       setActiveOverlay={setActiveOverlay}
       notice={notice}
