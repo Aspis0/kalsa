@@ -1474,13 +1474,19 @@ fn a_waiting_device_is_refused_until_the_owner_allows_it() {
     );
 
     // After Allow: the same credential is served (its first authenticated
-    // request leases the free seat and reaches the upstream's body); what
-    // must be gone is the 401. The host, asked afterwards on a one-seat
-    // door, may meet the no-slot 503 - it must not meet the 401.
+    // request leases the free seat and reaches the upstream's body, all 48
+    // bytes of it); what must be gone is the 401. The host, asked afterwards
+    // on a one-seat door, may meet the no-slot 503 - it must not meet the 401.
     let allowed = door_response(door_port, &phone_cred);
     assert!(
         allowed.starts_with(b"HTTP/1.1 200"),
         "after Allow the credential must be served: {}",
+        String::from_utf8_lossy(&allowed)
+    );
+    assert_eq!(
+        allowed.iter().filter(|&&byte| byte == b'#').count(),
+        48,
+        "the served request must reach the upstream's body, to its last byte: {}",
         String::from_utf8_lossy(&allowed)
     );
     let still_host = door_response(door_port, &host_cred);

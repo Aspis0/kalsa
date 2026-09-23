@@ -195,6 +195,12 @@ struct StoredV2 {
 /// reads those records as allowed - the same migration shape as `kind`
 /// (no version branch, the reader stays at version 2). A phone added by a
 /// completed ceremony is written `Waiting`; the host record never is.
+///
+/// Only ABSENCE defaults. A record whose approval is any other word fails
+/// the whole v2 read with a serde "unknown variant" error, not a record
+/// read as one or the other - `kind` behaves the same - and the door then
+/// stands down on the store it cannot read (main.rs stops it on a
+/// store-read error). Fail-closed: a half-recognised set is refused whole.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 enum Approval {
     #[default]

@@ -13,13 +13,15 @@
 //!   binds on `127.0.0.1`. The phone arrives through a tunnel, exactly as it
 //!   does for the inference server; nothing is opened on the LAN, not even
 //!   for the length of a window.
-//! * **A completed ceremony is the authorisation.** Nobody reaches the
-//!   ceremony without scanning a code this computer displayed, so the owner
-//!   showing the square IS the decision: completing the ceremony adds a
-//!   device to the house. The one refusal that is not an addition is a
-//!   credential the store already holds — a replay — and that one never
-//!   asks the owner anything; it consumes the ceremony and reports that
-//!   the connection could not be saved.
+//! * **The owner's Allow is the authorisation.** Nobody reaches the
+//!   ceremony without scanning a code this computer displayed, but showing
+//!   the square is not the decision: a completed ceremony stores the phone
+//!   WAITING — its credential answers the door's 401 — and the owner's
+//!   Allow on the Devices page is what admits it to the house. The one
+//!   refusal that is not an addition is a credential the store already
+//!   holds — a replay — and that one never asks the owner anything; it
+//!   consumes the ceremony and reports that the connection could not be
+//!   saved.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -64,7 +66,9 @@ enum State {
         refreshed: Option<Refreshed>,
         previous: Option<PhoneModel>,
     },
-    /// This computer works with a phone, and the credential is on disk.
+    /// This computer works with a phone, and the credential is on disk —
+    /// though a phone stored by a just-completed ceremony may still be
+    /// waiting for the owner's Allow.
     ///
     /// No name travels with the protocol. The phone's declaration carries
     /// capability — weights, parameters, a measured rate — and nothing a
@@ -170,8 +174,9 @@ impl PairingDto {
 
 impl Desk {
     /// A desk for the credential kept at `file`. A credential already on disk
-    /// is the paired state: the owner sees who this computer works with
-    /// without any ceremony running.
+    /// is the paired state — a stored phone may still be waiting for the
+    /// owner's Allow — so the owner sees the house without any ceremony
+    /// running.
     pub(crate) fn new(file: PathBuf) -> Self {
         // The WHOLE set decides, and only a phone counts as a pairing. A
         // host is this machine's own record, not a phone it is paired with:

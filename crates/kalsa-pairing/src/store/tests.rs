@@ -809,3 +809,48 @@ fn the_host_record_is_never_waiting() {
     ));
     fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Only Allow flips approval: forgetting a DIFFERENT device, and adding
+/// another one, both leave a waiting phone waiting.
+#[test]
+fn a_waiting_phone_stays_waiting_when_a_different_device_is_forgotten_or_added() {
+    let dir = scratch("approval-retains");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+
+    let waiting_handshake = sample_handshake();
+    let code = "11".repeat(16);
+    let nonce = "22".repeat(32);
+    let mut key = [0u8; 16];
+    let mut nonce_bytes = [0u8; 32];
+    hex::decode_to_slice(&code, &mut key).unwrap();
+    hex::decode_to_slice(&nonce, &mut nonce_bytes).unwrap();
+    let seal = seal_computer(
+        &key,
+        &nonce_bytes,
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    let delivery =
+        Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
+    let waiting =
+        add_device_with_delivery(&path, "Waiting phone", &waiting_handshake, delivery).unwrap();
+    let other = add_device(&path, "Other phone", &sample_handshake()).unwrap();
+
+    forget_device(&path, other.id).unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert!(
+        devices.iter().find(|d| d.id == waiting.id).unwrap().waiting,
+        "forgetting a different device must leave the waiting phone waiting"
+    );
+
+    let later = add_device(&path, "Later phone", &sample_handshake()).unwrap();
+    let devices = load_devices(&path).unwrap();
+    let by_id = |id: u32| devices.iter().find(|d| d.id == id).unwrap();
+    assert!(
+        by_id(waiting.id).waiting,
+        "adding another device must leave the waiting phone waiting"
+    );
+    assert!(!by_id(host.id).waiting, "the host stays allowed throughout");
+    assert!(!by_id(later.id).waiting, "a freshly added phone is allowed");
+    fs::remove_dir_all(&dir).unwrap();
+}
