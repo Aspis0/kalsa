@@ -260,11 +260,21 @@ function assertEmissionSourceWriters() {
   // 3. context/compactor.ts — toEngineHistoryMessage assembly.
   // 4. engine/historyPersistable.ts — persistence normaliser, which drops
   //    the string AND the flag together.
+  // 5. host/engineTurnStream.ts — history-to-engine message copy.
+  // 6. host/historyMessages.ts — persisted-message hydration.
+  // 7. host/sendCallbacks.ts — callback capture handed to finalization.
+  // 8. host/sendFinalize.ts — terminal message write.
+  // 9. host/turnCorpus.ts — persisted corpus-message hydration.
   const expected = {
     "screens/AiChatPage.tsx": [1, 0, 1, 0, 0, 0],
     "app/AppShell.tsx": [2, 0, 0, 0, 0, 0],
     "context/compactor.ts": [1, 0, 0, 0, 0, 0],
     "engine/historyPersistable.ts": [1, 0, 0, 0, 1, 0],
+    "host/engineTurnStream.ts": [1, 0, 0, 0, 0, 0],
+    "host/historyMessages.ts": [1, 0, 0, 0, 0, 0],
+    "host/sendCallbacks.ts": [0, 0, 0, 1, 0, 0],
+    "host/sendFinalize.ts": [0, 0, 1, 0, 0, 0],
+    "host/turnCorpus.ts": [1, 0, 0, 0, 0, 0],
   };
 
   // Scan scope: src/ only, .ts/.tsx/.js. Root App.tsx and modules/ live
@@ -324,13 +334,13 @@ function assertEmissionSourceWriters() {
         `audit: ${unregistered.join(", ")}`,
     );
   }
-  if (total !== 7) {
+  if (total !== 12) {
     throw new Error(
-      `expected 7 writers/removers of modelEmittedText across src, found ${total} — ` +
+      `expected 12 writers/removers of modelEmittedText across src, found ${total} — ` +
         `the writer list changed; update the audit on purpose`,
     );
   }
-  console.log("PASS emissionSource writer audit (7 writers, writes and removals paired)");
+  console.log("PASS emissionSource writer audit (12 writers, writes and removals paired)");
 }
 
 function main() {

@@ -20,6 +20,7 @@ import {
   normalizeModelEmittedTextForSave,
   normalizeThinkingTextForSave,
 } from "../engine/modelEmittedText";
+import type { EmissionSource } from "../engine/modelEmittedText";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
 import { parseMiniappFromText } from "../domain/askAssistant";
 import { buildPersistableMessages } from "./historyMessages";
@@ -55,8 +56,8 @@ export interface FinalizeCtx {
 export function finalizeAssistantTurn(
   ctx: FinalizeCtx,
   captured: {
-    modelEmittedText: string | undefined;
-    modelEmittedSource: "parsed" | "raw" | undefined;
+    modelEmittedText?: string | undefined;
+    emissionSource?: EmissionSource | undefined;
     thinkingText: string | undefined;
     failureReason?: string | undefined;
   },
@@ -99,7 +100,7 @@ export function finalizeAssistantTurn(
                 modelEmittedText: emittedSave,
                 // Same writer, same moment as the string (or no string,
                 // no flag — see historyPersistable).
-                emissionSource: captured.modelEmittedSource,
+                emissionSource: captured.emissionSource,
               }
             : {}),
           ...(thinkingSave !== undefined ? { thinkingText: thinkingSave } : {}),

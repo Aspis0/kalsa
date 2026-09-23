@@ -13,6 +13,7 @@ import type { EngineTurnCallbacks } from "./engineTurnDeps";
 import type { TurnFence, TurnToken } from "./turnGuards";
 import { toolNameFromActionsPayload } from "./messageMapper";
 import type { ChatCta, Message, ResultDownload, ResultImage } from "./hostMessage";
+import type { EmissionSource } from "../engine/modelEmittedText";
 
 export interface RichCallbackCtx {
   fence: TurnFence;
@@ -28,8 +29,8 @@ export interface RichCallbacks {
   callbacks: EngineTurnCallbacks;
   /** Everything the turn-end finalize writes back onto the message. */
   captured: () => {
-    modelEmittedText: string | undefined;
-    modelEmittedSource: "parsed" | "raw" | undefined;
+    modelEmittedText?: string | undefined;
+    emissionSource?: EmissionSource | undefined;
     thinkingText: string | undefined;
     /** The engine's own failure sentence, first non-empty one wins. */
     failureReason: string | undefined;
@@ -46,7 +47,7 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
     );
 
   let modelEmittedText: string | undefined;
-  let modelEmittedSource: "parsed" | "raw" | undefined;
+  let emissionSource: EmissionSource | undefined;
   let thinkingText: string | undefined;
   let failureReason: string | undefined;
 
@@ -57,7 +58,7 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
         modelEmittedText = text;
         // Written with the string, by the same writer: the flag records the
         // mechanism that produced it.
-        modelEmittedSource = source;
+        emissionSource = source;
       }
     },
     onThinkingText: (text) => {
@@ -140,6 +141,11 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
 
   return {
     callbacks,
-    captured: () => ({ modelEmittedText, modelEmittedSource, thinkingText, failureReason }),
+    captured: () => ({
+      modelEmittedText,
+      emissionSource: emissionSource,
+      thinkingText,
+      failureReason,
+    }),
   };
 }
