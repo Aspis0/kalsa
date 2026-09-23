@@ -691,6 +691,13 @@ not implemented**, so a decision is never read as a delivery.
   has v1.1.0 re-acquires (the identical `exe_sha256` cannot vouch for a version); and the inlet's
   probe reads the **dylib**, not the launcher, so the launcher-identity argument does not cover it —
   the dylib's bytes were checked directly (`x-kalsa-slot` once, `X-kalsa-Slot` never). The pin is
+  **And it moves the machine's verdict, by design**: `verdict.rs`'s fingerprint is built from the
+  digests of the exact archives that passed the probe (`verdict.rs:26-45`), not from the release tag,
+  so a machine that ran v1.1.0 — this one has `fingerprint=9ee5d9f5…|macos|Metal|os` in its
+  `verdict.txt` — will re-probe the backend on its first start after the update, because those bytes
+  have never been proven there. That is the same rule that made this pin worth moving: the identity of
+  what was measured lives in digests, and the app refuses to inherit a proof for bytes it has not run.
+  The pin is
   kept honest by `dev/test-engine-pin.py`, which states the release **itself** and compares the row
   to the published manifest field by field: the anchor may not come from the value it verifies, or a
   wrong `home` is caught only by accident of chasing itself (the first version did exactly that, and
