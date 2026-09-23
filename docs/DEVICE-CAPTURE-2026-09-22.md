@@ -1,8 +1,22 @@
 # Device capture — Jelly Star, 2026-09-22
 
 Repo `kalsa-ux`, branch `ux-2026-09-21`, HEAD `0246081`. Written by the orchestrator session that ran
-the capture the brief (`docs/NEXT-SESSION.md`) asked for. Frames live in `mock/device-2026-09-22/`
-(that directory is gitignored, as every earlier capture was).
+the capture the brief (`docs/NEXT-SESSION.md`) asked for. The frames are committed with this file,
+under `docs/captures/2026-09-22/` (ten PNGs, 480x854 each). `mock/` is deliberately ignored, so a
+capture that has to be readable from the repo goes here.
+
+| Frame | What it is |
+|---|---|
+| `01-model-ready.png` | Pill `LFM2.5 2.6B / Su questo telefono`, model bar `Pronto · locale`, model resident |
+| `02-send-held-waiting-first-token.png` | Sent, IME up: control swapped to stop, line `In attesa che parta la risposta` |
+| `03-thinking-card-and-trail.png` | The thinking card with the cloud's three-ring trail below it |
+| `04-streaming-free-band.png` | Streaming with the band free: `Fermato da te` from the earlier stopped turn, `In attesa mentre scrive`, live stop control |
+| `05-answer-appearing.png` | The answer's first line arriving inside the 24 dp edge fade — where the caret glyph is lost |
+| `06-stop-partial-the-sea.png` | After a stop: thinking card and the partial answer `The sea` |
+| `07-after-new-chat-tap.png` | The frame right after the second tap on `shell.strip.newChat` |
+| `08-empty-state-after-relaunch.png` | Empty state restored after force-stop and relaunch: photograph, `Buonasera.`, welcome line, suggestion card |
+| `09-drawer-conversations.png` | The drawer: two `Senza titolo` from two new-chat taps, and the previous conversation whose preview still carries its messages |
+| `10-large-context-held.png` | The 13 453-token turn held at `In attesa che parta la risposta` |
 
 ## What is on the phone
 
