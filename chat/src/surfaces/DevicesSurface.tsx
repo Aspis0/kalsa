@@ -52,8 +52,9 @@ interface PairingState {
 // waiting, the sentence says the wait instead — a single waiting phone is
 // named, several are counted — and a mixed house says both facts: the house
 // counted as "paired phones", the waiting ones as waiting for the OK. The
-// pending delivery belongs to the newest phone, so where any phone waits it
-// is named "the newest phone" or not named at all.
+// pending delivery is not attributable from the page — after a restart the
+// desk holds whichever phone the store's order gives it — so wherever a
+// phone is waiting, its clause names no phone.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
     (device) => device.kind !== "host",
@@ -61,18 +62,19 @@ function pairedSentence(dto: PairingState): string {
   const waiting = phones.filter((device) => device.waiting === true);
   const approved = phones.filter((device) => device.waiting !== true);
   const pending = dto.delivery_pending === true;
+  const undelivered = pending
+    ? ", and one phone has not received its connection yet"
+    : "";
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
       const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
-      return `This computer is waiting for your OK to work with ${name}.`;
+      return `This computer is waiting for your OK to work with ${name}${undelivered}.`;
     }
-    return `This computer is waiting for your OK to work with ${waiting.length} paired phones.`;
+    return `This computer is waiting for your OK to work with ${waiting.length} paired phones${undelivered}.`;
   }
   if (waiting.length > 0) {
     const are = waiting.length === 1 ? "is" : "are";
-    return pending
-      ? `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK, and the newest phone has not received its connection yet.`
-      : `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK.`;
+    return `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK${undelivered}.`;
   }
   if (approved.length === 0) {
     return pending

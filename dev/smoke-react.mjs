@@ -672,6 +672,17 @@ try {
         problems.push(`a house with ${waitingRows} of ${phones} phones waiting must be headlined "${expected}", not "${headline}": ${heading}`);
       }
     }
+    // The sentence's counts must be the card's own rows: the page holds the
+    // devices it just drew, so a number that disagrees with them is a lie
+    // whichever direction it misses.
+    const pairedCount = sentence.match(/(\d+) paired phones/);
+    if (pairedCount && Number(pairedCount[1]) !== phones) {
+      problems.push(`the sentence counts ${pairedCount[1]} paired phones but the card draws ${phones}: ${heading}`);
+    }
+    const waitingCount = sentence.match(/(\d+) (?:is|are) waiting/);
+    if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
+      problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
+    }
   }
 
   const hostile = [
