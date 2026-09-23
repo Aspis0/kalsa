@@ -448,6 +448,22 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Ricerca semantica (dense) non disponibile — solo parole chiave.",
   },
 
+  pairing: {
+    open: "Collega il tuo computer",
+    title: "Collega il tuo computer",
+    debugHint: "Inserisci i due indirizzi e i valori del codice mostrato da Kalsa desktop.",
+    doorUrl: "Indirizzo del tuo computer per le risposte",
+    deskUrl: "Indirizzo del servizio di collegamento",
+    reachable: "Indirizzo nel codice di collegamento",
+    code: "Codice di collegamento",
+    nonce: "Nonce",
+    node: "Indirizzo del nodo (opzionale)",
+    submit: "Avvia il collegamento",
+    working: "Collegamento…",
+    refused: "Il collegamento non è stato accettato.",
+    waiting: "Conferma sul computer",
+  },
+
   help: {
     title: "Aiuto",
     about: {

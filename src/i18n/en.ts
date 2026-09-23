@@ -453,6 +453,22 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "Semantic (dense) search unavailable — keyword-only results.",
   },
 
+  pairing: {
+    open: "Pair with your computer",
+    title: "Pair your computer",
+    debugHint: "Enter the two addresses and the values shown by Kalsa desktop.",
+    doorUrl: "Your computer's address (responses)",
+    deskUrl: "Pairing service address",
+    reachable: "Address from the pairing square",
+    code: "Pairing code",
+    nonce: "Nonce",
+    node: "Node address (optional)",
+    submit: "Start pairing",
+    working: "Pairing…",
+    refused: "Pairing was not accepted.",
+    waiting: "Confirm on your computer",
+  },
+
   help: {
     title: "Help",
     about: {
