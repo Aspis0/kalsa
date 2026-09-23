@@ -649,7 +649,7 @@ fn a_road_turned_off_by_its_switch_stays_closed_while_the_door_serves() {
     assert!(matches!(brain.road.snapshot(), road::RoadState::Closed));
     // What the owner is told is the switch's own words, not the road's.
     let state_file = dir.0.join("server.state");
-    let panel = brain.advanced(&state_file, None);
+    let panel = brain.advanced(&state_file);
     assert!(!panel.internet_road);
     assert_eq!(
         panel.iroh_sentence,
@@ -959,7 +959,7 @@ fn setting_advanced_values_writes_the_file_used_by_startup() {
     let brain = Brain::new();
     let pairing = root.join("pairing.json");
     let dto = brain
-        .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None, None)
+        .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None)
         .unwrap();
     let stored = options::load(&state_file);
     assert_eq!(stored.context_tokens, Some(2048));
@@ -1010,7 +1010,6 @@ fn saving_the_idle_clock_keeps_every_other_launch_value() {
             Some(1024),
             Some(256),
             Some(kalsa_launch::KvCache::F16),
-            None,
         )
         .unwrap();
 
@@ -1072,7 +1071,7 @@ fn a_stopped_panel_reports_the_saved_launch_values_as_next_start() {
     )
     .expect("save the owner's choice");
     let brain = Brain::new();
-    let panel = brain.advanced(&state_file, None);
+    let panel = brain.advanced(&state_file);
     assert!(!panel.running);
     assert_eq!(panel.ubatch_size, 1024);
     assert_eq!(panel.kv_cache_type, "f16");
@@ -2323,7 +2322,11 @@ fn the_pairing_dto_carries_the_desks_actual_port() {
     let root = std::env::temp_dir().join(format!("kalsa-brain-desk-port-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    let holder = pairing_desk_with(root.join("pairing.json"), transport::serve).unwrap();
+    // Port 0 on purpose: this test's subject is the DTO wiring, not the
+    // port choice, and the one test that binds the real preferred constant
+    // must be its only claimant in this binary.
+    let holder = pairing_desk_with(root.join("pairing.json"), |desk| transport::serve_on(desk, 0))
+        .unwrap();
     let brain = Brain::new();
     let dto = serde_json::to_value(pairing_dto(&brain, &holder)).unwrap();
     assert_eq!(
@@ -2331,6 +2334,47 @@ fn the_pairing_dto_carries_the_desks_actual_port() {
         Some(u64::from(holder.listener.port())),
         "the DTO must carry the listener's actual port"
     );
+    holder.listener.shutdown();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// This app's fixed loopback ports, kept apart on purpose: the engine's
+/// startup::PORT, the door's DEFAULT_PORT, the instance guard's GUARD_PORT
+/// — claimed before the desk binds on every normal launch, so a collision
+/// there means the fallback always fires and the serve rule never works —
+/// and the guard's own test port (GUARD_PORT + 1). The desk's preference
+/// must be none of them, and the literal is pinned here so a change is a
+/// decision, not a drift.
+#[test]
+fn the_desks_preferred_port_is_none_of_this_apps_other_fixed_ports() {
+    assert_eq!(transport::PREFERRED_PORT, 8134);
+    assert_ne!(transport::PREFERRED_PORT, startup::PORT);
+    assert_ne!(transport::PREFERRED_PORT, door::DEFAULT_PORT);
+    assert_ne!(transport::PREFERRED_PORT, instance::GUARD_PORT);
+    assert_ne!(
+        transport::PREFERRED_PORT,
+        instance::GUARD_PORT + 1,
+        "the guard's own test port"
+    );
+}
+
+/// The startup order that made the guard collision real: main claims the
+/// knock port FIRST, then the desk binds. With the guard held the way
+/// main holds it, the desk must still get its preferred port — the guard
+/// no longer squats on it.
+#[test]
+fn the_desk_gets_its_preferred_port_after_the_instance_guard_is_claimed() {
+    let _guard = instance::claim();
+    let root = std::env::temp_dir().join(format!("kalsa-brain-desk-order-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let holder = pairing_desk_with(root.join("pairing.json"), transport::serve).unwrap();
+    assert_eq!(
+        holder.listener.port(),
+        transport::PREFERRED_PORT,
+        "the guard is claimed and the desk still falls back: the ports collide again"
+    );
+    assert!(holder.listener.on_preferred_port());
     holder.listener.shutdown();
     let _ = std::fs::remove_dir_all(root);
 }

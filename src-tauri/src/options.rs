@@ -234,10 +234,13 @@ pub(crate) struct AdvancedDto {
     pub(crate) threads: Option<usize>,
     pub(crate) threads_batch: Option<usize>,
     pub(crate) door_port: Option<u16>,
-    /// The pairing desk's own loopback port, for the second Tailscale
-    /// Serve command the panel gives beside the door's. `None` only when
-    /// the desk listener does not exist at all.
+    /// The pairing desk's own loopback port and whether it is the
+    /// preferred one, for the Tailscale note the panel gives beside the
+    /// door's. `None` only when the desk listener does not exist at all;
+    /// a desk on a fallback port must be said, because the owner's
+    /// standing serve rule keeps pointing at the preferred one.
     pub(crate) desk_port: Option<u16>,
+    pub(crate) desk_port_preferred: bool,
     /// The second road to the door, in words for being human. Absent
     /// secrets: the node id is public, failures are the road's own.
     pub(crate) iroh_sentence: String,
@@ -249,7 +252,6 @@ pub(crate) fn dto(
     overrides: LaunchOverrides,
     active: Option<&LaunchInfo>,
     door_port: Option<u16>,
-    desk_port: Option<u16>,
     iroh_sentence: String,
 ) -> AdvancedDto {
     let idle = overrides
@@ -308,10 +310,27 @@ pub(crate) fn dto(
         threads: settings.threads,
         threads_batch: settings.threads_batch,
         door_port,
-        desk_port,
+        desk_port: None,
+        desk_port_preferred: false,
         iroh_sentence,
         internet_road: overrides.internet_road,
         running,
+    }
+}
+
+impl AdvancedDto {
+    /// The desk's port facts, applied where they belong: at the command
+    /// layer, which is the only place that can see the desk - not through
+    /// the settings signature that computes everything else here.
+    pub(crate) fn with_desk_port(mut self, desk_port: Option<(u16, bool)>) -> Self {
+        match desk_port {
+            Some((port, preferred)) => {
+                self.desk_port = Some(port);
+                self.desk_port_preferred = preferred;
+            }
+            None => self.desk_port = None,
+        }
+        self
     }
 }
 
@@ -625,9 +644,9 @@ mod tests {
                 model_sha256: None,
             }),
             Some(8130),
-            Some(8132),
             "The internet road is open.".to_string(),
-        );
+        )
+        .with_desk_port(Some((8134, true)));
         let json = serde_json::to_value(&sample).expect("serialise the advanced dto");
         println!(
             "{}",

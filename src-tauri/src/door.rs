@@ -12,7 +12,9 @@ use std::path::{Path, PathBuf};
 use kalsa_door::EnginePrivateHeaders;
 use kalsa_runtime::engine_consumes_private_headers;
 
-const DEFAULT_PORT: u16 = 8131;
+// Read by the shell's port-census test, which keeps this app's fixed
+// loopback ports apart from one another.
+pub(crate) const DEFAULT_PORT: u16 = 8131;
 
 /// The door's declaration for the engine mounted at `exe`, read from the
 /// bytes on disk rather than declared for the life of this binary.

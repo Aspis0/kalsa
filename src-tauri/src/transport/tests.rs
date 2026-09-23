@@ -10,8 +10,8 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use kalsa_pairing::PhoneDeclaration;
 
 use super::{
-    classify, connection_expired, handle, parser, request_queue, serve, worker, Accepted,
-    Connection, Listener, LogState, Request, Work, WriteErrorLog, CONNECTION_LIFETIME,
+    classify, connection_expired, handle, parser, request_queue, serve_on, worker,
+    Accepted, Connection, Listener, LogState, Request, Work, WriteErrorLog, CONNECTION_LIFETIME,
     LOG_INTERVAL, PATIENCE, QUEUE, WORKERS,
 };
 use crate::pairing::Desk;
@@ -37,7 +37,10 @@ fn phone() -> PhoneModel {
 
 fn setup(name: &str) -> (Arc<Desk>, Listener, String, String, String, String) {
     let desk = Arc::new(Desk::new(scratch(name)));
-    let listener = serve(desk.clone()).expect("listener");
+    // Port 0 on purpose: these tests exercise the protocol, not the
+    // port choice, and a setup that took the real preferred constant
+    // would contend with the one test whose subject is that constant.
+    let listener = serve_on(desk.clone(), 0).expect("listener");
     let address = listener.address().to_string();
     let now = SystemTime::now();
     let dto = serde_json::to_value(desk.read(true, &address, None, now)).expect("dto");
@@ -386,57 +389,52 @@ fn transfer_encoding_is_not_silently_interpreted() {
     ));
 }
 
-/// The door's trap, verbatim: on a developer's machine the preferred port
-/// may belong to the running app, so a test must never assume it is free.
-/// The preference is asserted only where this test can take the port
-/// first; when another process holds it, the fallback test below is the
-/// half this machine can observe.
+/// The bind rule, driven through serve_on with a port THIS test scouted
+/// free: the preference must win whenever the port is gettable, and the
+/// three tries are the door's TESTS' own standard (door.rs) for the gap
+/// between releasing a scouted port and asking for it back. No test binds
+/// the real constant - on a developer's machine the running app holds it -
+/// which is why the constant is pinned in the shell's tests instead.
 #[test]
 fn binds_the_preferred_port_when_it_is_free() {
     for _ in 0..3 {
-        let scout = match TcpListener::bind((Ipv4Addr::LOCALHOST, super::PREFERRED_PORT)) {
-            Ok(scout) => scout,
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
-                eprintln!(
-                    "kalsa-brain transport: the preferred port is held by another process; \
-                     the preference is not observable on this machine"
-                );
-                return;
-            }
-            Err(error) => panic!("the preferred port could not even be probed: {error}"),
-        };
+        let scout = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let wanted = scout.local_addr().unwrap().port();
         drop(scout);
         let desk = Arc::new(Desk::new(scratch("prefer")));
-        let listener = serve(desk).expect("listener");
+        let listener = serve_on(desk, wanted).expect("listener");
         let port = listener.port();
         let address = listener.address().to_string();
+        let on_preferred = listener.on_preferred_port();
         listener.shutdown();
-        if port == super::PREFERRED_PORT {
+        if port == wanted {
             assert_eq!(address, format!("http://127.0.0.1:{port}"));
+            assert!(on_preferred);
             return;
         }
     }
-    panic!("the preferred port was taken between being released and asked for, three times");
+    panic!("the scouted port was taken between being released and asked for, three times");
 }
 
 #[test]
 fn falls_back_to_a_random_port_when_the_preferred_one_is_taken() {
-    // The occupied case is arranged, not assumed: this test holds the
-    // preferred port itself when nothing else does — including the
-    // running app, whose holding it is exactly the case under test.
-    let held = match TcpListener::bind((Ipv4Addr::LOCALHOST, super::PREFERRED_PORT)) {
-        Ok(guard) => Some(guard),
-        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => None,
-        Err(error) => panic!("the preferred port could not even be probed: {error}"),
-    };
+    // The occupied port is this test's own listener: arranged, never
+    // assumed, and held for the whole bind.
+    let held = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let occupied = held.local_addr().unwrap().port();
     let desk = Arc::new(Desk::new(scratch("fallback")));
-    let listener = serve(desk).expect("listener");
+    let listener = serve_on(desk, occupied).expect("listener");
     let port = listener.port();
+    let on_preferred = listener.on_preferred_port();
     listener.shutdown();
     drop(held);
     assert_ne!(
-        port, super::PREFERRED_PORT,
+        port, occupied,
         "a taken preferred port must not be answered"
     );
     assert_ne!(port, 0, "the fallback is a real port, not port 0");
+    assert!(
+        !on_preferred,
+        "a fallback listener must not claim to be on the preferred port"
+    );
 }

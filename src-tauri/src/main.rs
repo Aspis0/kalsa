@@ -655,7 +655,7 @@ impl Brain {
         Ok(())
     }
 
-    fn advanced(&self, state_file: &Path, desk_port: Option<u16>) -> options::AdvancedDto {
+    fn advanced(&self, state_file: &Path) -> options::AdvancedDto {
         let overrides = options::load(state_file);
         let launch = self.launch.lock().ok();
         let active = launch.as_ref().and_then(|stored| stored.as_ref());
@@ -664,7 +664,7 @@ impl Brain {
         } else {
             road::OFF_SENTENCE.to_string()
         };
-        options::dto(overrides, active, self.door_port(), desk_port, iroh_sentence)
+        options::dto(overrides, active, self.door_port(), iroh_sentence)
     }
 
     fn set_advanced(
@@ -677,7 +677,6 @@ impl Brain {
         batch_size: Option<u32>,
         ubatch_size: Option<u32>,
         kv_cache: Option<kalsa_launch::KvCache>,
-        desk_port: Option<u16>,
     ) -> Result<options::AdvancedDto, String> {
         let kept = options::load(state_file);
         let next = options::LaunchOverrides {
@@ -730,7 +729,7 @@ impl Brain {
             .ok()
             .and_then(|stored| stored.as_ref().map(|active| active.address));
         self.reconcile_road(internet_road, address, pairing_file, true);
-        Ok(self.advanced(state_file, desk_port))
+        Ok(self.advanced(state_file))
     }
 
     /// Brings the road in line with the switch, for a door that is up right
@@ -933,14 +932,17 @@ fn brain_advanced(
     brain: State<Brain>,
 ) -> Result<options::AdvancedDto, String> {
     let state_file = state_file(&app)?;
-    Ok(brain.advanced(&state_file, desk_port(&app)))
+    Ok(brain.advanced(&state_file).with_desk_port(desk_port(&app)))
 }
 
-/// The desk listener's port, for DTOs that name it. The desk is managed
-/// before any command can run (its startup failure aborts the app), so
-/// `None` is the dead-app case, not a live one.
-fn desk_port(app: &tauri::AppHandle) -> Option<u16> {
-    app.try_state::<Desk>().map(|desk| desk.listener.port())
+/// The desk listener's port and whether it is the preferred one, for the
+/// panels' Tailscale note: a desk on a fallback port means the owner's
+/// standing serve rule points somewhere else, and the note must say so.
+/// The desk is managed before any command can run (its startup failure
+/// aborts the app), so `None` is the dead-app case, not a live one.
+fn desk_port(app: &tauri::AppHandle) -> Option<(u16, bool)> {
+    app.try_state::<Desk>()
+        .map(|desk| (desk.listener.port(), desk.listener.on_preferred_port()))
 }
 
 #[tauri::command]
@@ -965,8 +967,8 @@ fn brain_set_advanced(
         batch_size,
         ubatch_size,
         kv_cache,
-        desk_port(&app),
     )
+    .map(|dto| dto.with_desk_port(desk_port(&app)))
 }
 
 /// The owner's road switch, as last saved. Read once per poll, alongside
@@ -1256,7 +1258,10 @@ fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
             SystemTime::now(),
         )
         .with_door_port(brain.door_port())
-        .with_desk_port(Some(desk.listener.port()))
+        .with_desk_port(Some((
+            desk.listener.port(),
+            desk.listener.on_preferred_port(),
+        )))
 }
 
 /// The owner asked for another square. Whatever was in flight is abandoned.

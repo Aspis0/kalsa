@@ -147,11 +147,13 @@ pub(crate) struct PairingDto {
     delivery_pending: bool,
     failure: Option<&'static str>,
     door_port: Option<u16>,
-    /// The loopback port the desk's own listener holds — the preferred one
-    /// when it was free, the fallback otherwise. A Tailscale Serve rule
-    /// pointed at the desk needs this number, and the fallback makes it a
-    /// fact the owner must read rather than a constant.
+    /// The loopback port the desk's own listener holds and whether it is
+    /// the preferred one — the fallback makes the first a fact the owner
+    /// must read rather than a constant, and the second a fact the Tailscale
+    /// note must state, because a standing serve rule keeps pointing at the
+    /// preferred port after a fallback.
     desk_port: Option<u16>,
+    desk_port_preferred: bool,
 }
 
 /// One stored device, as the page may see it: the store's id and label, what
@@ -176,8 +178,14 @@ impl PairingDto {
         self
     }
 
-    pub(crate) fn with_desk_port(mut self, desk_port: Option<u16>) -> Self {
-        self.desk_port = desk_port;
+    pub(crate) fn with_desk_port(mut self, desk_port: Option<(u16, bool)>) -> Self {
+        match desk_port {
+            Some((port, preferred)) => {
+                self.desk_port = Some(port);
+                self.desk_port_preferred = preferred;
+            }
+            None => self.desk_port = None,
+        }
         self
     }
 }
@@ -604,6 +612,7 @@ fn dto(state: &State, devices: Vec<PairedDeviceDto>) -> PairingDto {
         failure: None,
         door_port: None,
         desk_port: None,
+        desk_port_preferred: false,
     };
     match state {
         State::Idle => empty,

@@ -50,8 +50,9 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 /// Fixed, beside the door's preferred port, and derived from nothing that
-/// is bound later in startup.
-const GUARD_PORT: u16 = 8132;
+/// is bound later in startup. `pub(crate)` for the shell's port-census
+/// test, which keeps this app's fixed loopback ports apart.
+pub(crate) const GUARD_PORT: u16 = 8132;
 /// How long a knock may take to connect before it is abandoned. The only
 /// case this fires in is a holder whose accept queue is full — a squatter,
 /// or a watcher dead at its post — and no launch should hang on that

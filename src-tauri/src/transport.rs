@@ -33,14 +33,19 @@ const POLL_INTERVAL: Duration = Duration::from_millis(5);
 const LOG_INTERVAL: Duration = Duration::from_secs(1);
 
 /// The port the desk prefers: a fixed loopback port a Tailscale Serve
-/// rule can be pointed at across launches. A port another process holds
-/// falls back to a random one, which the pairing DTO reports so the owner
-/// can point a road at the desk anyway.
-const PREFERRED_PORT: u16 = 8132;
+/// rule can be pointed at across launches. This app's other fixed ports
+/// are all taken - 8130 the engine (startup::PORT), 8131 the door, 8132
+/// the single-instance guard, which is claimed BEFORE the desk binds on
+/// every normal launch, and 8133 the guard's own tests - and a collision
+/// would mean the fallback always fires and the rule never works. A port
+/// another process holds still falls back to a random one, which the DTO
+/// reports so the owner can point a road at the desk anyway.
+pub(crate) const PREFERRED_PORT: u16 = 8134;
 
 pub(crate) struct Listener {
     address: String,
     port: u16,
+    on_preferred_port: bool,
     stop: Arc<AtomicBool>,
     #[cfg(test)]
     accepted: Arc<AtomicUsize>,
@@ -78,6 +83,14 @@ impl Listener {
     /// already carries it; this is the number the owner is shown.
     pub(crate) fn port(&self) -> u16 {
         self.port
+    }
+
+    /// Whether the listener holds the preferred port. A desk that fell
+    /// back must tell the owner: a `tailscale serve` rule persists across
+    /// reboots, so the standing rule keeps pointing at the preferred port,
+    /// which now leads somewhere else or nowhere.
+    pub(crate) fn on_preferred_port(&self) -> bool {
+        self.on_preferred_port
     }
 
     pub(crate) fn shutdown(&self) {
@@ -139,10 +152,19 @@ impl WriteErrorLog {
 /// Starts the listener and returns the address the square should advertise.
 /// The acceptor remains bound so a fresh square does not need a new address.
 pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
-    // Preferred, then random: the door's own rule (door.rs). A developer's
-    // running app can hold the preferred port, and a desk that died for it
-    // would be worse than a desk on a port the DTO reports.
-    let listener = match TcpListener::bind((Ipv4Addr::LOCALHOST, PREFERRED_PORT)) {
+    serve_on(desk, PREFERRED_PORT)
+}
+
+/// The bind rule on its own, so the tests can drive it with ports they
+/// control: preferred first, random on AddrInUse — the door's own bind
+/// rule (door.rs:43-47). `pub(crate)` because the shell's tests also drive
+/// it, with port 0: a test harness that binds the real constant would
+/// contend with the one test whose subject is that constant, and no test
+/// may bind it anyway on a developer's machine, where the running app
+/// holds it. The constant itself is pinned in the shell's tests against
+/// every other fixed port this app uses.
+pub(crate) fn serve_on(desk: SharedDesk, preferred: u16) -> io::Result<Listener> {
+    let listener = match TcpListener::bind((Ipv4Addr::LOCALHOST, preferred)) {
         Ok(listener) => listener,
         Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
             TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?
@@ -152,6 +174,7 @@ pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     listener.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
     let address = format!("http://127.0.0.1:{port}");
+    let on_preferred_port = port == preferred;
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(test)]
     let accepted = Arc::new(AtomicUsize::new(0));
@@ -197,6 +220,7 @@ pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     Ok(Listener {
         address,
         port,
+        on_preferred_port,
         stop,
         #[cfg(test)]
         accepted,
