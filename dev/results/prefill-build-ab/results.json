@@ -1,0 +1,417 @@
+{
+ "measurement": "prefill-build-ab",
+ "question": "is the 16x slow cold prefill (7.86 ms/token on the old fork run vs 0.49 on the release) the machine or the build?",
+ "provenance": {
+  "script": "/Users/marco/Projects/kalsa-brain/dev/measure-prefill-ab.py",
+  "script_sha256": "9701a5188134428cd1bf4a6fe48da63ac1ba86db7d7bb8b6215b794e647f98e8",
+  "release_derivation": {
+   "script": "dev/measure-concurrency.py",
+   "sha256": "0be0e52424a38d5941fb094dcc945bb1816a593439e06612c30ceb0bb077ae08",
+   "loaded_as": "importlib module mconc"
+  },
+  "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+  "model_sha256": "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+  "sizes": [
+   600,
+   1900
+  ],
+  "ctx_size": 8192,
+  "n_predict": 16,
+  "port": 19351,
+  "max_load": 6.0,
+  "burners": 7,
+  "heat_s": 90,
+  "load_arms": true,
+  "arm_order": [
+   "fork/600",
+   "release/600",
+   "fork/1900",
+   "release/1900",
+   "fork/1900/load",
+   "release/1900/load"
+  ],
+  "engine_nice": 10,
+  "engine_flags_source": "same flags as the old unload-restore run (arm_extra): only the engine differs",
+  "cold_definition": "cache_n == 0 on the salted send",
+  "loadavg_before": [
+   4.91357421875,
+   17.11865234375,
+   16.52880859375
+  ],
+  "commits_between_engines": [
+   "a7d2cec79 governor : refuse a plugged baseline of 0 C or colder in the engine gate",
+   "e3088932c governor : state raw t_idle_c in llama-ext.h and pin the sole-decider rule"
+  ],
+  "raw_logs_committed": false,
+  "loadavg_after": [
+   10.65087890625,
+   13.99609375,
+   15.23779296875
+  ]
+ },
+ "engines": {
+  "fork": {
+   "label": "fork",
+   "bin": "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+   "bin_sha256": "c748bac0942dc196a7dd1bcddb50ceb53f8fff6381c1b354cc5ecdc5ce801abc",
+   "launcher_note": "recorded only: the launcher is byte-identical across releases, so it separates nothing",
+   "module_file": "libllama-server-impl.dylib",
+   "module_sha256": "4b151aa289f5adc1bb19ff90e5cc565ebb768f1464f0ea94c6ded4d218f58ef5",
+   "libllama_file": "libllama.0.4.1.dylib",
+   "libllama_sha256": "efdf728484a93127b84574732c118c4a13493c1e5f37f4d245c832c32da888d1",
+   "libllama_governor_strings": {
+    "thermal_ceiling": true,
+    "governor": true
+   },
+   "server_impl_governor_strings": {
+    "thermal_ceiling": false,
+    "governor": false
+   },
+   "version": "version: 0.4.1-dev (build 11193, commit 833cde99b)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+   "version_commit": "833cde99b",
+   "mtimes": {
+    "bin": "2026-09-21T19:23:59Z",
+    "module": "2026-09-21T19:23:59Z",
+    "libllama": "2026-09-21T19:29:39Z"
+   },
+   "release_status": "unverified",
+   "release_reason_code": "no-manifest-url"
+  },
+  "release": {
+   "label": "release",
+   "bin": "/tmp/k111/kalsa-server-v1.1.1/kalsa-server",
+   "bin_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
+   "launcher_note": "recorded only: the launcher is byte-identical across releases, so it separates nothing",
+   "module_file": "libllama-server-impl.dylib",
+   "module_sha256": "714e8ba12e7f9403835e8655f6b581f0a7b76b91026012e5e7d43cea6790f5fb",
+   "libllama_file": "libllama.0.4.1.dylib",
+   "libllama_sha256": "66b2556eeaa473cc1e71dbc213bc02f87dab8bdd64c45ac247f6897a4d0c2a32",
+   "libllama_governor_strings": {
+    "thermal_ceiling": true,
+    "governor": true
+   },
+   "server_impl_governor_strings": {
+    "thermal_ceiling": false,
+    "governor": false
+   },
+   "version": "version: 0.4.1-dev (build 11195, commit a7d2cec79)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+   "version_commit": "a7d2cec79",
+   "mtimes": {
+    "bin": "2020-01-01T00:00:00Z",
+    "module": "2020-01-01T00:00:00Z",
+    "libllama": "2020-01-01T00:00:00Z"
+   },
+   "release_status": "matched",
+   "release_reason_code": null
+  }
+ },
+ "ab_control": {
+  "distinct": true,
+  "separated_by": [
+   "module_sha256",
+   "libllama_sha256",
+   "version_commit"
+  ],
+  "identical_fields": [],
+  "checked_fields": [
+   "module_sha256",
+   "libllama_sha256",
+   "version_commit"
+  ],
+  "launcher_excluded": "the launcher sha is identical across releases; never a separator"
+ },
+ "governor_lines": {
+  "fork": {
+   "count": 0,
+   "samples": []
+  },
+  "release": {
+   "count": 0,
+   "samples": []
+  }
+ },
+ "old_run": {
+  "artifact": "dev/results/unload-restore/results.json",
+  "raw_logs_available": true,
+  "raw_log_dir": "/tmp/kalsa-unload-restore",
+  "engine_binary": "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+  "engine_sha256": "c748bac0942dc196a7dd1bcddb50ceb53f8fff6381c1b354cc5ecdc5ce801abc",
+  "engine_version": "version: 0.4.1-dev (build 11193, commit 833cde99b)",
+  "loadavg_before": [
+   5.26953125,
+   4.744140625,
+   3.890625
+  ],
+  "ms_per_token_600": 5.344,
+  "prompt_ms_600": 3206.663,
+  "prompt_n_600": 600,
+  "ms_per_token_1900": 7.86,
+  "prompt_ms_1900": 14933.243,
+  "prompt_n_1900": 1900,
+  "governor_lines_old_run": {
+   "count": 0,
+   "samples": []
+  },
+  "prompt_eval_lines_old_run": [
+   "control_1900: 0.19.910.055 I slot print_timing: id  0 | task 1 | prompt eval time =   14973.66 ms /  1900 tokens (    7.88 ms per token,   126.89 tokens per second)",
+   "control_1900: 1.10.897.723 I slot print_timing: id  0 | task 20 | prompt eval time =   15142.28 ms /  1900 tokens (    7.97 ms per token,   125.48 tokens per second)",
+   "control_600: 0.08.112.523 I slot print_timing: id  0 | task 1 | prompt eval time =    3262.46 ms /   600 tokens (    5.44 ms per token,   183.91 tokens per second)",
+   "control_600: 0.47.072.490 I slot print_timing: id  0 | task 20 | prompt eval time =    3190.18 ms /   600 tokens (    5.32 ms per token,   188.08 tokens per second)"
+  ]
+ },
+ "arms": {
+  "fork/600": {
+   "engine": "fork",
+   "size": 600,
+   "under_load": false,
+   "burners": 0,
+   "heat_s": 0,
+   "loadavg_arm_start": [
+    4.60009765625,
+    16.8505859375,
+    16.4375
+   ],
+   "chat_tokens": 600,
+   "prompt_n": 600,
+   "prompt_ms": 3594.004,
+   "ms_per_token": 5.99,
+   "cache_n": 0,
+   "wall_ms": 3833.0,
+   "loadavg_at_send": [
+    4.9521484375,
+    16.72021484375,
+    16.3935546875
+   ],
+   "loadavg_after_send": [
+    4.9521484375,
+    16.72021484375,
+    16.3935546875
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.09.451.937 I slot print_timing: id  0 | task 1 | prompt eval time =    3594.00 ms /   600 tokens (    5.99 ms per token,   166.94 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/fork_600/engine.log",
+   "blockers": [],
+   "valid": true
+  },
+  "release/600": {
+   "engine": "release",
+   "size": 600,
+   "under_load": false,
+   "burners": 0,
+   "heat_s": 0,
+   "loadavg_arm_start": [
+    4.71533203125,
+    16.4755859375,
+    16.30908203125
+   ],
+   "chat_tokens": 600,
+   "prompt_n": 600,
+   "prompt_ms": 340.527,
+   "ms_per_token": 0.568,
+   "cache_n": 0,
+   "wall_ms": 560.9,
+   "loadavg_at_send": [
+    4.71533203125,
+    16.4755859375,
+    16.30908203125
+   ],
+   "loadavg_after_send": [
+    4.71533203125,
+    16.4755859375,
+    16.30908203125
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.01.649.229 I slot print_timing: id  0 | task 1 | prompt eval time =     340.53 ms /   600 tokens (    0.57 ms per token,  1761.97 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/release_600/engine.log",
+   "blockers": [],
+   "valid": true
+  },
+  "fork/1900": {
+   "engine": "fork",
+   "size": 1900,
+   "under_load": false,
+   "burners": 0,
+   "heat_s": 0,
+   "loadavg_arm_start": [
+    4.41748046875,
+    16.21826171875,
+    16.21923828125
+   ],
+   "chat_tokens": 1900,
+   "prompt_n": 1900,
+   "prompt_ms": 14920.951,
+   "ms_per_token": 7.853,
+   "cache_n": 0,
+   "wall_ms": 15239.6,
+   "loadavg_at_send": [
+    4.32470703125,
+    15.619140625,
+    16.00537109375
+   ],
+   "loadavg_after_send": [
+    4.32470703125,
+    15.619140625,
+    16.00537109375
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.19.368.146 I slot print_timing: id  0 | task 1 | prompt eval time =   14920.95 ms /  1900 tokens (    7.85 ms per token,   127.34 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/fork_1900/engine.log",
+   "blockers": [],
+   "valid": true
+  },
+  "release/1900": {
+   "engine": "release",
+   "size": 1900,
+   "under_load": false,
+   "burners": 0,
+   "heat_s": 0,
+   "loadavg_arm_start": [
+    4.05810546875,
+    15.3759765625,
+    15.9169921875
+   ],
+   "chat_tokens": 1900,
+   "prompt_n": 1900,
+   "prompt_ms": 930.725,
+   "ms_per_token": 0.49,
+   "cache_n": 0,
+   "wall_ms": 1151.8,
+   "loadavg_at_send": [
+    4.05810546875,
+    15.3759765625,
+    15.9169921875
+   ],
+   "loadavg_after_send": [
+    4.05810546875,
+    15.3759765625,
+    15.9169921875
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.02.226.551 I slot print_timing: id  0 | task 1 | prompt eval time =     930.73 ms /  1900 tokens (    0.49 ms per token,  2041.42 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/release_1900/engine.log",
+   "blockers": [],
+   "valid": true
+  },
+  "fork/1900/load": {
+   "engine": "fork",
+   "size": 1900,
+   "under_load": true,
+   "burners": 7,
+   "heat_s": 90,
+   "loadavg_arm_start": [
+    13.68505859375,
+    15.20166015625,
+    15.76611328125
+   ],
+   "chat_tokens": 1900,
+   "prompt_n": 1900,
+   "prompt_ms": 27649.33,
+   "ms_per_token": 14.552,
+   "cache_n": 0,
+   "wall_ms": 28203.8,
+   "loadavg_at_send": [
+    15.9765625,
+    15.61181640625,
+    15.8935546875
+   ],
+   "loadavg_after_send": [
+    15.9765625,
+    15.61181640625,
+    15.8935546875
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.33.814.240 I slot print_timing: id  0 | task 1 | prompt eval time =   27649.33 ms /  1900 tokens (   14.55 ms per token,    68.72 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/fork_1900_under_load/engine.log",
+   "blockers": [],
+   "valid": true
+  },
+  "release/1900/load": {
+   "engine": "release",
+   "size": 1900,
+   "under_load": true,
+   "burners": 7,
+   "heat_s": 90,
+   "loadavg_arm_start": [
+    11.404296875,
+    14.19873046875,
+    15.31591796875
+   ],
+   "chat_tokens": 1900,
+   "prompt_n": 1900,
+   "prompt_ms": 957.288,
+   "ms_per_token": 0.504,
+   "cache_n": 0,
+   "wall_ms": 1318.1,
+   "loadavg_at_send": [
+    11.404296875,
+    14.19873046875,
+    15.31591796875
+   ],
+   "loadavg_after_send": [
+    11.404296875,
+    14.19873046875,
+    15.31591796875
+   ],
+   "released_before_send": false,
+   "cold": true,
+   "governor_lines": {
+    "count": 0,
+    "samples": [],
+    "pattern": "governor|thermal|ceiling|paus|throttl|hot",
+    "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
+   },
+   "prompt_eval_lines": [
+    "0.02.391.495 I slot print_timing: id  0 | task 1 | prompt eval time =     957.29 ms /  1900 tokens (    0.50 ms per token,  1984.77 tokens per second)"
+   ],
+   "log": "/tmp/kalsa-prefill-ab/release_1900_under_load/engine.log",
+   "blockers": [],
+   "valid": true
+  }
+ },
+ "conclusion": "BUILD: at the same low load the fork prefills 1900 tokens at 7.853 ms/token against the release's 0.49 (16.0x), so the 16x follows the engine, not the machine; the two commits between them are a7d2cec79 governor : refuse a plugged baseline of 0 C or colder in the engine gate, e3088932c governor : state raw t_idle_c in llama-ext.h and pin the sole-decider rule; governor/thermal lines logged: fork=0, release=0, old run=0; under the burners the fork drifts to 14.552 ms/token while the release holds at 0.504 at load 11.4 (the fork was measured at load 16.0) - contention hits only the fork, which is what a prefill running off the GPU looks like."
+}
