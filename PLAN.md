@@ -370,6 +370,51 @@ same measurement**, all three registered:
 Record: the three commits above, `kalsa-brain` `dev/results/concurrency-two-devices/`, and
 `kalsa-brain/docs/HANDOFF-2026-09-22.md` sec. 4.
 
+### Desktop numbers: provenance verdict (CLOSED, not open)
+
+Sweep: **228 REPORT.md files, 87 carrying speed lines - 4 desktop, 83 device or third-party** -
+plus `analysis/`, `PLAN.md` and `docs/ALIVE.md` line by line
+(`scratchpad/agents/governor-desktop-net/REPORT.md` sec. 3). Verdicts, with the three words kept
+distinct (GPU-capable / CPU-only / NOT ATTRIBUTABLE):
+
+- **Panel numbers** (69.17 / 52.20 / 1.5093 ...): **fully attributable** - the manifest ties tag
+  -> commit `a7d2cec79` -> `exe_sha256 327fb363`, with `backend: metal` and a CI build:
+  **contains the fix, GPU-capable**.
+- **Slot-save** (1495.0 tok/s prefill, 71.33 decode): the dylib is Metal-capable (verified by
+  `otool` on that exact artefact: one Metal reference), but the command line records **no
+  `--n-gpu-layers`** - **the lane is not attributable**; labelled, not guessed.
+- **A/B fork arm** (7.853 / 14.552 ms/token): a **CPU-only build**, confirmed by the CMake cache
+  and by `otool` today, and its binary's mtime (15:23) predates the 15:24-15:29 dirty edits - the
+  set survives **by luck, not by construction**; it needs a **CPU-only label rather than
+  withdrawal**.
+- **A/B release arm** (0.490): GPU-capable by its own single-flag control, but its **artefact
+  path and tree are NOT ATTRIBUTABLE**.
+- **Apple-silicon figure (0.94 / 0.61)**: upstream commit `e02b477` - **third-party, NOT
+  ATTRIBUTABLE**.
+
+One-sentence verdict, as recorded: **none of our published desktop numbers except the A/B fork
+arm was measured on a CPU-only build; that pair already carries the explanation and needs a
+CPU-only label rather than withdrawal; and the two unknowns are written NOT ATTRIBUTABLE rather
+than guessed.** Finding on our own records: only the A/B and the panel record their **load
+condition**, so the load-follows signature cannot be applied retroactively - **numbers we
+publish should carry their load condition, or they cannot be re-examined later** (standing
+caution in `docs/ALIVE.md`).
+
+### Desktop net: a test-only matrix over the profile-validity gate
+
+`test_profile_validity_matrix()` inside the existing `tests/test-governor-v02-router.cpp`
+(`governor-desktop-net/REPORT.md` sec. 2): **11 rows asserting validity AND state AND lane AND
+the admission consequence**, +37 check call sites, no new test file. **Proven to bite:** removing
+the gate line produces **13 failures, ten of them from the new matrix** (the other three are the
+fix's own pins), green again with the code right (ctest 1/1). **Test-only - it does not move the
+tagged release; it hardens the next one** (worktree at `a7d2cec79`, only the test file
+modified). Four surprises its author reported instead of smoothing: invalid means admission is
+**closed**, not merely not-rationed (Abort at policy level, permanent `fail()` at runtime);
+NaN and infinity were **already covered before the fix**; at realistic temperatures pre-fix and
+post-fix admission outcomes coincide, so the Abort assertions alone would not catch a
+regression; and **41.9 C gives Wait while 42.0 gives Abort** - two refusals a tenth of a degree
+apart.
+
 ## Gates and dates (recovered 2026-09-21)
 
 The concise rewrite of this file dropped the dated register. It is recovered here from

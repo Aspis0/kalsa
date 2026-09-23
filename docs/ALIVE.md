@@ -65,6 +65,7 @@ document that produced them is named instead.
 | The day's second refuted hypothesis (activation quantiser as the common residual) and its pre-registered falsifiers | `scratchpad/agents/quant-alignment/REPORT.md` |
 | The governor trend question, CLOSED: producer, two reviews, and the wrong-fire replay (inert at production cadence, unproven - not safe) | `scratchpad/agents/governor-trend/REPORT.md` (rounds 1-4, harness `replay-wrongfire.cjs`); `governor-trend-numeric/REPORT.md`; `governor-trend-audit/REPORT.md` |
 | The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
+| Desktop speed numbers: the provenance verdict (CPU-only / GPU-capable / NOT ATTRIBUTABLE), the load-condition finding, and the profile-validity test matrix | `scratchpad/agents/governor-desktop-net/REPORT.md` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -89,6 +90,10 @@ document that produced them is named instead.
   published 68.42 was a Dozing number (screen ON it reads 71.98). Every bracket now records
   `mWakefulness`; a KLD number that ever moves with screen state outranks the queue
   (`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 33).
+- A published number without its **load condition** cannot be re-examined later: only the A/B and
+  the panel records carry load, so the load-follows signature cannot be applied to anything else
+  retroactively (`scratchpad/agents/governor-desktop-net/REPORT.md` sec. 3.3). Numbers we publish
+  carry their load alongside the time, from here.
 
 ## Closed workstreams
 
@@ -390,6 +395,48 @@ night: the `KALSA_DEBUGGABLE` gate in `app.config.js` and `plugins/withDebuggabl
 both exist at `e206a94`, and CI builds a debuggable release when the gate is 1
 (`scratchpad/agents/bench-apk/REPORT.md`) - today's APK carries no `debuggable` attribute
 because the gate was 0.
+
+**Desktop provenance audit: CLOSED, as a verdict** (`scratchpad/agents/governor-desktop-net/REPORT.md`
+sec. 3; sweep = **228 REPORT.md files, 87 carrying speed lines - 4 desktop, 83 device or
+third-party** - plus `analysis/`, `PLAN.md` and this file checked line by line). The criterion is
+**CPU-only or GPU-capable**, with three verdict words that must not share a meaning:
+GPU-capable / CPU-only / NOT ATTRIBUTABLE. No reconstruction from dates or from today's tree:
+
+| desktop number | verdict, as recorded |
+|---|---|
+| Panel (69.17 / 52.20 / 1.5093 ...) | **fully attributable: contains the fix, GPU-capable** - the manifest ties tag -> commit `a7d2cec79` -> `exe_sha256 327fb363`, with `backend: metal` and a CI build |
+| Slot-save (1495.0 tok/s prefill, 71.33 decode) | the dylib is Metal-capable (re-checked by `otool` on that exact artefact: one Metal reference), but the command line records **no `--n-gpu-layers`** - **the lane is not attributable**; label it as such rather than guessing |
+| A/B pair, fork arm (7.853 / 14.552 ms/token) | **CPU-only build** - CMake cache (all four backends OFF) and `otool` (zero Metal refs) run today; the binary's mtime (15:23) predates the 15:24-15:29 dirty edits, so that set survives **by luck, not by construction** |
+| A/B pair, release arm (0.490) | GPU-capable by its own single-flag control (0.488 vs 9.860, one flag, one engine), but its **artefact path and tree are NOT ATTRIBUTABLE** |
+| Apple-silicon figure (0.94 / 0.61) | upstream commit `e02b477` - **third-party, NOT ATTRIBUTABLE**, ours neither to label nor to withdraw |
+
+**The one-sentence verdict: none of our published desktop numbers except the A/B fork arm was
+measured on a CPU-only build; that pair already carries the explanation and needs a CPU-only
+label rather than withdrawal; and the two unknowns are written NOT ATTRIBUTABLE rather than
+guessed.**
+
+And a finding about our own records, kept beside it: only the A/B and the panel record their
+**load condition**, so for everything else the load-follows signature **cannot be applied
+retroactively** - hence the standing caution added above: numbers we publish should carry their
+load condition, or they cannot be re-examined later.
+
+**Desktop net: a test-only matrix over the profile-validity gate** (same report, sec. 2).
+`test_profile_validity_matrix()` inside the existing `tests/test-governor-v02-router.cpp`: **11
+rows asserting validity AND state AND lane AND the admission consequence** (probe prompt 1900
+tokens, the A/B's own size), +37 check call sites, no new test file. **Proven to bite:**
+removing the gate line `profile.t_idle_c > 0.0f` produces **13 failures, ten of them from the new
+matrix** (the other three are the fix's own pins), and the suite is green again with the code
+right (ctest 1/1). Test-only by construction - the worktree sits at `a7d2cec79` with only
+`M tests/test-governor-v02-router.cpp` - so **it does not move the tagged release; it hardens the
+next one.** The four surprises its author reported instead of smoothing: (1) **invalid means
+admission is closed**, not merely not-rationed - a refused profile returns Abort at policy level,
+and at runtime `admit_prefill` maps that to a permanent `fail()` ("accelerator admission is
+closed"); (2) at realistic temperatures the pre-fix and post-fix admission outcomes coincide,
+so the Abort assertions alone would not catch a regression - the teeth are the validity return,
+the `Invalid`-vs-`CRITICAL` identity, and the recovery row; (3) **NaN and infinity were already
+covered before the fix** (`isfinite` predates it) - kept as matrix completeness, not as
+regression detectors; (4) **41.9 C gives Wait while 42.0 gives Abort** - two refusals a tenth of
+a degree apart (pause and recoverable, vs latching).
 
 ## Engine release pipeline (`kalsa-server`)
 

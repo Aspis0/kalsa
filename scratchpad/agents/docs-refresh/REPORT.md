@@ -243,3 +243,32 @@ confirmed a real directory (mtime 2026-09-23 00:53); provenance gate re-run by t
 kalsallama@1577495b9209 == native/kalsallama.pin`, exit 0.
 
 No commit, no push, no tag from this cell.
+
+## Fourth pass (2026-09-23): the provenance verdict (closed) and the desktop test net
+
+Both items verified at source first: `scratchpad/agents/governor-desktop-net/REPORT.md`
+(217 lines, sections 2 and 3).
+
+- **`docs/ALIVE.md`** - overnight diary entry gained two blocks, both written as verdicts, not
+  open items: **"Desktop provenance audit: CLOSED, as a verdict"** (the sweep counts: 228
+  REPORT.md, 87 speed-bearing, 4 desktop, 83 device/third-party, plus analysis/PLAN/ALIVE read
+  line by line; a table with one row per desktop number - panel fully attributable / contains
+  the fix / GPU-capable; slot-save GPU-capable dylib but lane not attributable, no
+  `--n-gpu-layers` on the command line; A/B fork arm CPU-only, survives by luck not by
+  construction, CPU-only label not withdrawal; A/B release arm GPU-capable by its single-flag
+  control but artefact path and tree NOT ATTRIBUTABLE; upstream 0.94/0.61 at `e02b477`
+  third-party NOT ATTRIBUTABLE; the one-sentence verdict verbatim; the load-condition finding)
+  and **"Desktop net: a test-only matrix over the profile-validity gate"** (11 rows asserting
+  validity+state+lane+admission consequence, +37 check sites, no new test file; 13 failures with
+  the gate line removed, ten from the matrix, green again when right; test-only, does not move
+  the tagged release, hardens the next one; the four reported surprises incl. admission CLOSED
+  on invalid and 41.9 Wait vs 42.0 Abort).
+- **`docs/ALIVE.md` - Standing cautions**: the load-condition rule (a published number without
+  its load condition cannot be re-examined later; only the A/B and the panel carry load).
+- **`docs/ALIVE.md` - Proven table**: one new row pointing at `governor-desktop-net/REPORT.md`.
+- **`PLAN.md` - Verified state**: two new subsections after the panel number -
+  `### Desktop numbers: provenance verdict (CLOSED, not open)` and
+  `### Desktop net: a test-only matrix over the profile-validity gate`. Nothing was added to the
+  open items: the brief closed this question, and it is recorded as closed.
+
+No commit, no push, no tag from this cell.
