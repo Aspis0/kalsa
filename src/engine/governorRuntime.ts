@@ -44,6 +44,37 @@ export function isGovernorFallback(
   );
 }
 
+/**
+ * Prefix of the JSI completion rejection thrown when the native governor
+ * decode fails (RNLlamaJSI.cpp: "Governor decode failed: " + failure reason).
+ */
+const GOVERNOR_DECODE_FAILED_PREFIX = "Governor decode failed: ";
+
+/** The failure reason after the prefix, or null for any other error. */
+export function governorRuntimeFallbackReason(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (!message.startsWith(GOVERNOR_DECODE_FAILED_PREFIX)) return null;
+  return message.slice(GOVERNOR_DECODE_FAILED_PREFIX.length).trim();
+}
+
+/**
+ * May this failed turn trigger the one runtime governor fallback allowed per
+ * loaded model? Local turns only (a Brain turn has no governor context), never
+ * after an abort — the user stopped the turn — and never a second time for
+ * the model load that already fell back.
+ */
+export function shouldRuntimeGovernorFallback(args: {
+  error: unknown;
+  isLocalTurn: boolean;
+  aborted: boolean;
+  fallbackUsedForModel: boolean;
+}): boolean {
+  if (!args.isLocalTurn || args.aborted || args.fallbackUsedForModel) {
+    return false;
+  }
+  return governorRuntimeFallbackReason(args.error) !== null;
+}
+
 function nativeLogDelta(start: string, current: string): string {
   if (!start) return current;
   if (start === current) return "";

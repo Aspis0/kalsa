@@ -65,9 +65,12 @@ import {
   readBenchSampling,
 } from "./benchSampling";
 import {
+  governorRuntimeFallbackReason,
   initWithGovernorFallback,
   readGovernorEnabled,
+  shouldRuntimeGovernorFallback,
 } from "./governorRuntime";
+import { isRemoteEngineBackend } from "./remote/remoteSettings";
 import {
   decideBoundedReleaseOutcome,
   decideContactProbe,
@@ -337,6 +340,25 @@ let activeEngineKnob: string | undefined;
 let activeMtpNMax: number | undefined;
 /** "draft-mtp" | "draft-dflash" | "none" | undefined (production MTP path). */
 let activeSpecType: string | undefined;
+/**
+ * Args of the most recent completed initEngine: the runtime governor fallback
+ * reloads the loaded model through this same path, and the turn driver holds
+ * neither the model path nor the init options.
+ */
+let lastLoadArgs: {
+  modelPath: string;
+  modelId: string;
+  options: EngineInitOptions;
+} | null = null;
+/**
+ * One runtime governor fallback per loaded model. "fresh": none yet, the next
+ * load may take the governor. "fallback-reload": the fallback is calling
+ * initEngine right now — that one call takes the CPU-only cpuParams path.
+ * "fallback-consumed": the CPU reload ran; the governor stays off until the
+ * next explicit load moves the state back to "fresh".
+ */
+let runtimeGovernorState: "fresh" | "fallback-reload" | "fallback-consumed" =
+  "fresh";
 /**
  * True only when the native KV still holds chat-turn state (post streamAssistantTurn
  * or successful loadSession). Utility jobs (translate/summarize, and extract when
@@ -2204,6 +2226,14 @@ export function initEngine(
 ): Promise<EngineInitResult> {
   let loadOk = false;
   return withLifecycleLock(async () => {
+    // A runtime governor fallback announces its own reload; every other load
+    // is explicit and re-arms the governor.
+    if (runtimeGovernorState === "fallback-reload") {
+      runtimeGovernorState = "fallback-consumed";
+    } else {
+      runtimeGovernorState = "fresh";
+    }
+    const governorRuntimeOff = runtimeGovernorState === "fallback-consumed";
     if (contextHung) {
       throw new Error(
         "Engine context hung after dispose timeout with active native work; restart the app",
@@ -2350,7 +2380,10 @@ export function initEngine(
       activeNoExtraBufts === load.noExtraBufts &&
       activeUseMmap === load.useMmap &&
       activeStreamExperts === streamExperts &&
-      activeGovernorKey === governorKey
+      activeGovernorKey === governorKey &&
+      // A runtime fallback's reload must never take this idempotent skip:
+      // what is loaded is the failed governor context it exists to replace.
+      !governorRuntimeOff
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
@@ -2538,7 +2571,9 @@ export function initEngine(
         const governorParams: ContextParams = { ...params };
         delete governorParams.speculative;
         const result = await initWithGovernorFallback({
-          enabled: true,
+          // false → init with cpuParams directly: the runtime fallback's
+          // CPU-only reload (n_gpu_layers 0, n_parallel 1, no governor).
+          enabled: !governorRuntimeOff,
           governorParams,
           cpuParams,
           init: initLlama,
@@ -2546,7 +2581,7 @@ export function initEngine(
           nativeLogStart: () => nativeLogForEpoch(governorLoadEpoch),
         });
         context = result.value;
-        governorUsed = !result.retried;
+        governorUsed = !governorRuntimeOff && !result.retried;
         if (result.retried) {
           activeGovernorFallbackReason = result.fallbackReason ?? "native governor fallback";
         }
@@ -2563,9 +2598,13 @@ export function initEngine(
       console.log(
         `KALSA_NATIVE_VARIANT ${JSON.stringify({
           androidLib: context.androidLib ?? null,
+          // A runtime-fallback reload runs cpuParams (n_gpu_layers = 0) even
+          // though params still carries the governor's requested layers.
           nGpuLayers: governorUsed
             ? { prefill: 99, decode: 0 }
-            : params.n_gpu_layers ?? 0,
+            : governorRuntimeOff
+              ? 0
+              : params.n_gpu_layers ?? 0,
         })}`,
       );
     } catch (error) {
@@ -2728,6 +2767,7 @@ export function initEngine(
     // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
     // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
     // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
+    lastLoadArgs = { modelPath, modelId, options };
     void noteEngineRssAfterInit();
     loadOk = true;
     return {
@@ -2745,6 +2785,38 @@ export function initEngine(
         loadOk ? { type: "load_ok" } : { type: "load_fail" },
       );
     });
+}
+
+/**
+ * The runtime governor fallback: emit the one log line, arm the state that
+ * makes this initEngine call take the CPU-only cpuParams path (and keeps the
+ * governor off until the next explicit load), then reload the same model the
+ * turn was driving. Throws on reload failure — the caller surfaces it through
+ * the turn's error channel.
+ */
+async function reloadGovernorRuntimeFallback(
+  reason: string,
+  locale: Locale,
+): Promise<void> {
+  try {
+    console.log(`KALSA_GOVERNOR_RUNTIME_FALLBACK ${JSON.stringify({ reason })}`);
+  } catch {
+    // telemetry never throws
+  }
+  const args = lastLoadArgs;
+  if (!args) {
+    // Unreachable while a context is loaded: lastLoadArgs is written by every
+    // completed initEngine, and a runtime fallback implies one completed.
+    throw new Error(getStrings(locale).errors.modelNotLoaded);
+  }
+  runtimeGovernorState = "fallback-reload";
+  await initEngine(args.modelPath, args.modelId, {
+    ...args.options,
+    // Governor mode wrote no .kvs this session: a stale file from an earlier
+    // epoch must not seed the retry. The turn re-prefills cold from JS
+    // history — accepted.
+    sessionRestore: undefined,
+  });
 }
 
 async function noteEngineRssAfterInit(): Promise<void> {
@@ -5408,13 +5480,25 @@ export async function streamAssistantTurn(
       }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
-      if (aborted || signal?.aborted) {
+      const stopped = Boolean(aborted || signal?.aborted);
+      if (stopped) {
         finishOnce(() => callbacks.onDone());
         return;
       }
-      {
-        emitEngineError(callbacks, finishOnce, error);
+      if (
+        shouldRuntimeGovernorFallback({
+          error,
+          isLocalTurn: !isRemoteEngineBackend(),
+          aborted: stopped,
+          fallbackUsedForModel: runtimeGovernorState !== "fresh",
+        })
+      ) {
+        // Hand the reason to the continuation below instead of surfacing it:
+        // disposeEngineLocked waits for THIS job chain to drain, so the CPU
+        // reload cannot run from inside the job — it would wait on itself.
+        return governorRuntimeFallbackReason(error);
       }
+      emitEngineError(callbacks, finishOnce, error);
     } finally {
       if (energyTraceOn) await stopGovernorBatteryTrace();
       stopStallWatchdog();
@@ -5450,6 +5534,23 @@ export async function streamAssistantTurn(
         if (turnPrefixHash) prewarmPrefixHash = turnPrefixHash;
       }
     }
+  }).then(async (runtimeFallbackReason) => {
+    // undefined ends the turn exactly as before; a string is the runtime
+    // governor fallback reason handed over by the catch above.
+    if (typeof runtimeFallbackReason !== "string") return;
+    try {
+      await reloadGovernorRuntimeFallback(runtimeFallbackReason, options.locale);
+    } catch (error) {
+      // The reload itself failed: surface it through the turn's error channel.
+      emitEngineError(callbacks, (finish) => finish(), error);
+      return;
+    }
+    // Retry the same turn once: history lives in JS and travels by value, so
+    // the user message is not appended a second time; the re-entered turn
+    // discards the failed partial (fresh accumulators, full-replace deltas)
+    // and re-prefills cold. The reload moved runtimeGovernorState off "fresh",
+    // so the catch can never hand back another reason — no second retry.
+    await streamAssistantTurn(messages, callbacks, signal, options);
   });
 }
 

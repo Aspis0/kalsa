@@ -9,9 +9,11 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   GOVERNOR_ENABLED_KEY,
+  governorRuntimeFallbackReason,
   initWithGovernorFallback,
   isGovernorFallback,
   readGovernorEnabled,
+  shouldRuntimeGovernorFallback,
   writeGovernorEnabled,
 } from "./governorRuntime";
 
@@ -105,5 +107,74 @@ describe("governor runtime gate", () => {
     expect(String(warn.mock.calls[0][0])).toContain(GOVERNOR_ENABLED_KEY);
 
     warn.mockRestore();
+  });
+});
+
+// Literals on purpose, never the module's constant: if the prefix drifts, the
+// positive cases must go red instead of drifting with it.
+describe("shouldRuntimeGovernorFallback", () => {
+  const rejection = new Error("Governor decode failed: governor is failed");
+  const freshLocalTurn = {
+    isLocalTurn: true,
+    aborted: false,
+    fallbackUsedForModel: false,
+  };
+
+  test("fires on the governor rejection of a fresh local turn", () => {
+    expect(
+      shouldRuntimeGovernorFallback({ error: rejection, ...freshLocalTurn }),
+    ).toBe(true);
+  });
+
+  test("takes the reason from after the prefix only", () => {
+    expect(governorRuntimeFallbackReason(rejection)).toBe("governor is failed");
+    expect(
+      governorRuntimeFallbackReason(new Error("Governor decode failed: rc=-2")),
+    ).toBe("rc=-2");
+  });
+
+  test("ignores errors that are not the governor rejection", () => {
+    const others = [
+      new Error("Generation was interrupted."),
+      new Error('KALSA_GOVERNOR_FALLBACK {"stage":"init"}'),
+      new Error("Governor mode does not support beam search"),
+      new Error("context full"),
+    ];
+    for (const error of others) {
+      expect(shouldRuntimeGovernorFallback({ error, ...freshLocalTurn })).toBe(
+        false,
+      );
+    }
+    expect(governorRuntimeFallbackReason(new Error("context full"))).toBeNull();
+  });
+
+  test("never on a remote (Brain) turn", () => {
+    expect(
+      shouldRuntimeGovernorFallback({
+        error: rejection,
+        ...freshLocalTurn,
+        isLocalTurn: false,
+      }),
+    ).toBe(false);
+  });
+
+  test("never once the turn was aborted or stopped", () => {
+    expect(
+      shouldRuntimeGovernorFallback({
+        error: rejection,
+        ...freshLocalTurn,
+        aborted: true,
+      }),
+    ).toBe(false);
+  });
+
+  test("never after the model already fell back once", () => {
+    expect(
+      shouldRuntimeGovernorFallback({
+        error: rejection,
+        ...freshLocalTurn,
+        fallbackUsedForModel: true,
+      }),
+    ).toBe(false);
   });
 });
