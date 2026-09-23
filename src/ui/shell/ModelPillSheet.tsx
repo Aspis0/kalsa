@@ -52,7 +52,7 @@ export function ModelPillSheet({
             ...e2,
           }}
         >
-          <SheetGrabber colors={colors} marginBottom={spacing.md} />
+          <SheetGrabber colors={colors} testID="shell.modelSheet.grabber" marginBottom={spacing.md} />
           <Text style={[type.title, { color: colors.ink }]}>{modelName}</Text>
           <Text style={[type.secondary, { color: colors.ink3, marginTop: spacing.xs }]}>
             {t("shell.model.statusTitle")}

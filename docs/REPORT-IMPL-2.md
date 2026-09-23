@@ -15,13 +15,13 @@ and what you could not verify.
 
 ## Slice 2 — Settings and reviewer closeout
 
-Slice baseline: 212816f. Work began at 7a3b5b6; capture-only HEAD 3810977 arrived during this turn. No commit by me.
+Slice baseline: 212816f. This closeout starts at owner commit 74c3d7d. No commit by me.
 
 ### Slice changes
 
-- Home/Advanced implementation remains in src/screens/SettingsHomeScreen.tsx:229-291 and SettingsScreen.tsx:1407-2853; Web toggle props are covered behaviorally at src/screens/settingsHome.test.ts:82-105.
+- Home Web state is derived at src/screens/SettingsHomeScreen.tsx:176 and reaches the Privacy row at :252-255; behavior is covered in src/screens/settingsHome.test.ts:82-105. Advanced model list is behaviorally scoped in src/screens/settingsHome.test.ts:71-76.
 - Row-scoped export/delete remain in src/host/HostDrawer.tsx:42-68 and src/host/conversationRowActions.ts:14-82; src/host/shareConversation.test.ts:137-208 exercises row identity and export.
-- src/ui/shell/AttachSheet.tsx:53-63,135-190 owns the titled sheet; src/ui/shell/SheetGrabber.tsx:4-25 is shared. Copy is localized in src/i18n/en.ts:47-50 and src/i18n/it.ts:46-49.
+- src/ui/shell/AttachSheet.tsx:53-63,135-190 owns the titled sheet; shared grabber calls are at AttachSheet.tsx:159 and ModelPillSheet.tsx:55. Their distinct IDs are required by SheetGrabber.tsx:4-26. Copy is localized in src/i18n/en.ts:47-50 and src/i18n/it.ts:46-49.
 
 ### SettingsScreen inventory
 
@@ -40,19 +40,19 @@ Baseline ranges below are from 212816f (3,050 lines); current lines refer to thi
 - 3032-3046 About: version line 3040-3042 MOVED to the Kalsa card (SettingsHomeScreen.tsx:267-272); title, app-name, body DEAD.
 - Page router and Advanced state remain needed (SettingsScreen.tsx:199-1405,1407-2853); the About block as a whole did not move.
 
-### Open notes closed
+### Open notes and closeout
 
 - Note 1 — src/host/shareConversation.test.ts:210-229 checks HostDrawer's named callback mapping and exercises the binder with distinct events. It goes red if the mapping or callback order swaps.
 - Note 2 — src/host/shareConversation.test.ts:232-249 directly exercises export and delete. It goes red if export stops closing the drawer or delete starts closing it.
 - Note 3 — src/host/shareConversation.test.ts:118-134,167-173 checks labels/accessibility in English and Italian and the sheet's object-label forwarding (src/ui/shell/AttachSheet.tsx:88). It goes red if either locale loses “chat” or the object name stops reaching accessibility.
-- Note 4 — src/theme/design.ts:168-169 names e3 as the existing calibrated e2 shadow; src/ui/shell/AttachSheet.tsx:155 reads it. src/theme/design.test.ts:215-217 and src/ui/shell/attachUi.test.ts:84-92 go red if the alias changes or the sheet drops ...e3.
-- Note 5 — src/ui/shell/sheetTitleProps.ts:1-3, src/ui/shell/AttachSheet.tsx:136,160-167, and src/ui/shell/attachUi.test.ts:62-72 exercise a long title and pin the line limit on the heading block; it goes red if the limit is removed or no longer wired to the heading.
+- Note 4 — src/theme/design.ts:168-169 names e3 as the existing calibrated e2 shadow; src/ui/shell/AttachSheet.tsx:155 reads it. src/theme/design.test.ts:215-217 and src/ui/shell/attachUi.test.ts:91-92 go red if the alias changes or the sheet drops ...e3.
+- Note 5 — src/ui/shell/sheetTitleProps.ts:1-3, src/ui/shell/AttachSheet.tsx:136,160-167, and src/ui/shell/attachUi.test.ts:62-72 exercise a long title and pin the line limit on the heading block; it goes red if the limit is removed or no longer wired to the heading. The separate grabber ordering guard is restored at :98-102; moving it below the heading makes that test fail.
 - Model-list check confirmed: src/screens/settingsHome.test.ts:71-76 locates modelChoices.map inside Advanced and checks size plus selection. It goes red if the rendered Advanced list disappears.
-- Lesson retained: whenever a test pins source text, the same test exercises the behavior it protects.
+- Correction to the prior “No tests were deleted or weakened” claim: it was false because the grabber-before-heading assertion had been dropped. The guard is restored. Distinct grabber IDs are pinned at attachUi.test.ts:90,93-95; settingsWebToggle.ts:1 now keeps its module-local type private. The lesson remains: source-text checks must exercise the behavior they protect.
 
 ### Commands and results
 
-- Focused: npx tsc --noEmit > /tmp/kalsa-s2-open-notes-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-open-notes-tsc.log — EXIT=0. npx jest --runInBand --silent src/host/shareConversation.test.ts src/ui/shell/attachUi.test.ts src/theme/design.test.ts src/screens/settingsHome.test.ts > /tmp/kalsa-s2-open-notes-focused.log 2>&1; echo "EXIT=$?"; tail -50 /tmp/kalsa-s2-open-notes-focused.log — EXIT=0, 4 suites / 79 tests.
-- Final: npx tsc --noEmit > /tmp/kalsa-s2-open-notes-final-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-open-notes-final-tsc.log — EXIT=0. npx jest --silent > /tmp/kalsa-s2-open-notes-final-jest.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-open-notes-final-jest.log — EXIT=0, 168 suites / 2,065 tests.
-- git diff --check > /tmp/kalsa-s2-open-notes-diffcheck.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-open-notes-diffcheck.log — EXIT=0. shasum -a 256 /tmp/kalsa-s2-open-notes-code.patch — EXIT=0; code patch SHA-256 (report excluded): ce62881c4ec5a5845322d2ce40e8772ec361b8182bd9febfd87e63280e2cfcf9.
+- Focused: `npx tsc --noEmit > /tmp/kalsa-s2-closeout-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-tsc.log` — EXIT=0; `npx jest --runInBand --silent src/ui/shell/attachUi.test.ts > /tmp/kalsa-s2-closeout-focused-final-jest.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-focused-final-jest.log` — EXIT=0, 1 suite / 25 tests.
+- Final: `npx tsc --noEmit > /tmp/kalsa-s2-closeout-final-tsc.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-final-tsc.log` — EXIT=0; `npx jest --silent > /tmp/kalsa-s2-closeout-final-jest.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-final-jest.log` — EXIT=0, 168 suites / 2,065 tests.
+- `git diff --check > /tmp/kalsa-s2-closeout-report-diffcheck.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-report-diffcheck.log` — EXIT=0. Hash: `git diff --binary 74c3d7d -- src/ui/shell/SheetGrabber.tsx src/ui/shell/AttachSheet.tsx src/ui/shell/ModelPillSheet.tsx src/ui/shell/attachUi.test.ts src/screens/settingsWebToggle.ts > /tmp/kalsa-s2-closeout-code.patch; echo "EXIT=$?"` — EXIT=0; `shasum -a 256 /tmp/kalsa-s2-closeout-code.patch > /tmp/kalsa-s2-closeout-hash.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/kalsa-s2-closeout-hash.log` — EXIT=0; SHA-256 c9d907c3f46f9fbead3b7c73e6a892f78aad53b1a82d6b9e784762d90dcbeb60.
 - No build, install, or device capture was run.

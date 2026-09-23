@@ -1,4 +1,4 @@
-export type SettingsWebToggleProps = {
+type SettingsWebToggleProps = {
   checked: boolean;
   onPress: () => void;
 };

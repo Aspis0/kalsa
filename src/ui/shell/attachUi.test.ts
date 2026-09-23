@@ -81,18 +81,25 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
     expect(SHEET).toContain("backgroundColor: pressed ? colors.brandDeep : colors.brand");
   });
 
-  it("uses one shared 36 by 4 grabber eight dp below every sheet top", () => {
-    expect(GRABBER).toContain('testID="shell.attach.grabber"');
+  it("uses one shared 36 by 4 grabber above the title and eight dp below every sheet top", () => {
+    expect(GRABBER).toContain("testID={testID}");
     expect(GRABBER).toContain("width: 36");
     expect(GRABBER).toContain("height: 4");
     expect(GRABBER).toContain("alignSelf: \"center\"");
     expect(GRABBER).toContain("marginTop: 8");
-    expect(SHEET).toContain("<SheetGrabber colors={colors} />");
+    expect(SHEET).toContain('<SheetGrabber colors={colors} testID="shell.attach.grabber" />');
     expect(e3).toBe(e2);
     expect(SHEET).toContain("...e3");
-    expect(MODEL_SHEET).toContain("<SheetGrabber colors={colors} marginBottom={spacing.md} />");
+    expect(MODEL_SHEET).toContain('<SheetGrabber colors={colors} testID="shell.modelSheet.grabber" marginBottom={spacing.md} />');
+    expect(SHEET).not.toContain('testID="shell.modelSheet.grabber"');
+    expect(MODEL_SHEET).not.toContain('testID="shell.attach.grabber"');
     expect(MODEL_SHEET).not.toContain("width: 36");
     expect(MODEL_SHEET).not.toContain("height: 4");
+    const grabberAt = SHEET.indexOf("<SheetGrabber");
+    const titleAt = SHEET.indexOf("{heading ? (");
+    expect(grabberAt).toBeGreaterThan(-1);
+    expect(titleAt).toBeGreaterThan(-1);
+    expect(grabberAt).toBeLessThan(titleAt);
   });
 });
 

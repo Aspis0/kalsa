@@ -156,7 +156,7 @@ export function AttachSheet({
               ...(scroll ? { maxHeight: 360 } : null),
             }}
           >
-            <SheetGrabber colors={colors} />
+            <SheetGrabber colors={colors} testID="shell.attach.grabber" />
             {heading ? (
               <Text
                 accessibilityRole="header"
