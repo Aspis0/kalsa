@@ -27,6 +27,20 @@ the right, both at 349x621 dp.
 | 6 | Settings and the other six overlays | `settingsScreen()` in the mock: **groups, not a list of sixteen rows** (`mock/index.html:183`), in the mock's language | The old screens, unchanged: 5 359 lines, grey page, white cards, system fonts, `Aa — La volpe marrone` | `compare-2-settings.png`, `11-settings-old-screen.png` |
 | 7 | Display equations | An inline equation typeset as a fraction in the answer | Absent: the owner cut display equations on 2026-09-21 | `compare-3-conversation.png` |
 
+## What changed after this delta was written (2026-09-24)
+
+The table above is the state of 2026-09-22 and is kept as it was — the mock really did carry four
+destinations in the menu's foot then, and the app really was the old leaf-fold dome. Since then, and
+recorded in `DESIGN-V2.md`:
+
+- the menu's foot carries **five destinations**: Documenti, Note, Impostazioni, Account, **Persone**
+  (3.2) — the foot takes destinations, which is why Personas belongs there and the export row the
+  owner rejected does not;
+- the Settings screen is the v2 one (3.3): five groups with the engine material behind **Avanzate**,
+  and the **KALSA** card carrying the mark, the version, and rows for **Aiuto** and **Pro**;
+- row 7 in the table (display equations) is still open: the owner cut them on 2026-09-21 and has not
+  asked for them back.
+
 ## The order the surfaces get rebuilt, and what proves each
 
 Every slice ends with the same artefact: a `compare-N-*.png` pair at 349x621 and 325 dp, mock on the
