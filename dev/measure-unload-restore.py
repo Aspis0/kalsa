@@ -93,9 +93,6 @@ _mc_spec.loader.exec_module(mc)
 
 DEFAULT_BIN = "/Users/marco/Projects/kalsallama/build/bin/llama-server"
 
-# The module the launcher loads, beside it: the same name the runtime's inlet
-# check spells (crates/kalsa-runtime/src/inlet.rs, ENGINE_MODULE_FILE).
-ENGINE_MODULE_FILE = "libllama-server-impl.dylib"
 NICE = 10
 
 # GGUF value types, from the spec (v3 spells the type as uint32, which is the
@@ -485,83 +482,6 @@ def check_argv_facts(got, intended, where=""):
         raise SystemExit(
             f"{where}the argv disagrees with the provenance it intends to "
             f"record: {got} != {intended} - refusing to measure")
-
-
-def engine_identity(bin_path, version_text, block):
-    """The facts that separate v1.1.0 from v1.1.1, beside the executed bin.
-
-    The launcher `kalsa-server` is byte-identical across the two releases
-    (exe_sha256 327fb363... in both published manifests), so the launcher hash
-    - which is all `release_provenance` matches on - also passes for a
-    v1.1.0 tree. The module the launcher loads is not identical
-    (714e8ba1... vs 4b7d69fb...), and `--version` reads those modules, so its
-    commit is the manifest-comparable form of the same fact.
-
-    `ok` is True only when the manifest matched AND the version commit agrees
-    with the manifest's commit AND the module file is there; False when the
-    manifest matched and any of those fails; None when there is no manifest
-    commit to compare against (status not `matched`).
-    """
-    module = Path(bin_path).parent / ENGINE_MODULE_FILE
-    hit = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
-    vcommit = hit.group(1) if hit else None
-    mcommit = block.get("commit")
-    agrees = None
-    if vcommit and mcommit:
-        agrees = mcommit.startswith(vcommit) or vcommit.startswith(mcommit)
-    has_module = module.exists()
-    ident = {
-        "why": ("the launcher is byte-identical across v1.1.0 and v1.1.1, so "
-                "exe_sha256 alone cannot tell the delivered release from a "
-                "v1.1.0 tree; the module it loads and the commit --version "
-                "prints can"),
-        "module_file": ENGINE_MODULE_FILE,
-        "module_path": str(module) if has_module else None,
-        "module_sha256": msr.sha256_file(module) if has_module else None,
-        "version_full": (version_text or "").strip()[:200] or None,
-        "version_commit": vcommit,
-        "manifest_commit": mcommit,
-        "commit_agrees": agrees,
-    }
-    if block.get("status") != "matched":
-        ident["ok"] = None
-    else:
-        ident["ok"] = bool(has_module and agrees is True)
-    return ident
-
-
-def release_block(bin_path, version_text):
-    """The inherited launcher verdict, plus the identity that may veto it.
-
-    The derivation (URL from the directory, match on exe_sha256, three
-    statuses) is `measure-concurrency.py`'s, loaded as a module; what is added
-    here is only the veto: a `matched` the module/commit cannot back becomes
-    `not-the-release` under its own reason_code, with the launcher-only
-    verdict preserved as `status_by_exe_sha256`.
-    """
-    url = mc.derive_manifest_url(bin_path)
-    block = mc.release_provenance(url, msr.sha256_file(bin_path))
-    block["status_by_exe_sha256"] = block["status"]
-    ident = engine_identity(bin_path, version_text, block)
-    block["identity"] = ident
-    if block["status"] == "matched" and ident["ok"] is not True:
-        if ident["module_sha256"] is None:
-            code = "engine-module-missing"
-            why = f"no {ENGINE_MODULE_FILE} beside the binary"
-        elif ident["commit_agrees"] is not True:
-            code = "engine-commit-mismatch"
-            why = (f"--version says commit {ident['version_commit']!r}, the "
-                   f"manifest says {ident['manifest_commit']!r}")
-        else:
-            code = "engine-identity-incomplete"
-            why = "the identity could not be completed"
-        block["status"] = "not-the-release"
-        block["label"] = mc.FORK_LABEL
-        block["reason_code"] = code
-        block["reason"] = ("the launcher hash matched but the tree did not: " + why
-                           + " - by launcher hash alone this build would have "
-                             "called itself the release")
-    return block
 
 
 def release_qualification(block):
@@ -1245,8 +1165,11 @@ def main():
     version = (vp.stdout + vp.stderr).strip()
 
     # The release block, before any arm: what this run measures is decided by
-    # the object, not by how the run goes.
-    release = release_block(args.bin, version)
+    # the object, not by how the run goes. The block itself is inherited
+    # whole (launcher verdict + engine-identity veto) from
+    # measure-concurrency.py, loaded as a module; only the manifest URL is
+    # derived here, since this script has no --release-manifest-url override.
+    release = mc.release_block(args.bin, version, mc.derive_manifest_url(args.bin))
     qualification = release_qualification(release)
     print(f"[release] {release['status']} (by exe_sha256: "
           f"{release['status_by_exe_sha256']}): {qualification}", flush=True)

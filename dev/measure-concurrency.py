@@ -63,6 +63,15 @@ machine-readable `reason_code`. Hex is compared case-insensitively and the
 canonical lowercase digest is recorded. The manifest URL is derived from a
 `kalsa-server-vX.Y.Z` binary directory, overridable with
 `--release-manifest-url`; when it cannot be derived the status is `unverified`.
+
+The launcher alone cannot identify the release: `kalsa-server` is
+byte-identical across v1.1.0 and v1.1.1, so an `exe_sha256` match alone
+passes for a v1.1.0 tree too. `release_block` therefore vetoes a `matched`
+the tree cannot back - the commit `--version` prints and the module beside
+the binary are compared with the manifest's, and disagreement downgrades the
+status to `not-the-release` under `engine-commit-mismatch` /
+`engine-module-missing` while the launcher-only verdict stays visible in
+`status_by_exe_sha256`.
 """
 
 import argparse
@@ -462,6 +471,89 @@ def release_provenance(manifest_url, exe_sha256, fetch=None, checked_utc=None):
     return block
 
 
+# The module the launcher loads, beside it: the same name the runtime's inlet
+# check spells (crates/kalsa-runtime/src/inlet.rs, ENGINE_MODULE_FILE).
+ENGINE_MODULE_FILE = "libllama-server-impl.dylib"
+
+
+def engine_identity(bin_path, version_text, block):
+    """The facts that separate v1.1.0 from v1.1.1, beside the executed bin.
+
+    The launcher `kalsa-server` is byte-identical across the two releases
+    (exe_sha256 327fb363... in both published manifests), so the launcher hash
+    - which is all `release_provenance` matches on - also passes for a
+    v1.1.0 tree. The module the launcher loads is not identical
+    (714e8ba1... vs 4b7d69fb...), and `--version` reads those modules, so its
+    commit is the manifest-comparable form of the same fact.
+
+    `ok` is True only when the manifest matched AND the version commit agrees
+    with the manifest's commit AND the module file is there; False when the
+    manifest matched and any of those fails; None when there is no manifest
+    commit to compare against (status not `matched`).
+    """
+    module = Path(bin_path).parent / ENGINE_MODULE_FILE
+    hit = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
+    vcommit = hit.group(1) if hit else None
+    mcommit = block.get("commit")
+    agrees = None
+    if vcommit and mcommit:
+        agrees = mcommit.startswith(vcommit) or vcommit.startswith(mcommit)
+    has_module = module.exists()
+    ident = {
+        "why": ("the launcher is byte-identical across v1.1.0 and v1.1.1, so "
+                "exe_sha256 alone cannot tell the delivered release from a "
+                "v1.1.0 tree; the module it loads and the commit --version "
+                "prints can"),
+        "module_file": ENGINE_MODULE_FILE,
+        "module_path": str(module) if has_module else None,
+        "module_sha256": sha256_file(module) if has_module else None,
+        "version_full": (version_text or "").strip()[:200] or None,
+        "version_commit": vcommit,
+        "manifest_commit": mcommit,
+        "commit_agrees": agrees,
+    }
+    if block.get("status") != "matched":
+        ident["ok"] = None
+    else:
+        ident["ok"] = bool(has_module and agrees is True)
+    return ident
+
+
+def release_block(bin_path, version_text, manifest_url, fetch=None):
+    """The launcher verdict, plus the identity that may veto it.
+
+    The derivation (URL supplied by the caller - so main()'s
+    `--release-manifest-url` override is honoured - match on exe_sha256,
+    three statuses) is `release_provenance`'s; `fetch` is threaded through
+    the injectable it already accepts, so the veto runs offline. What is
+    added here is only the veto: a `matched` the module/commit cannot back
+    becomes `not-the-release` under its own reason_code, with the
+    launcher-only verdict preserved as `status_by_exe_sha256`.
+    """
+    block = release_provenance(manifest_url, sha256_file(bin_path), fetch=fetch)
+    block["status_by_exe_sha256"] = block["status"]
+    ident = engine_identity(bin_path, version_text, block)
+    block["identity"] = ident
+    if block["status"] == "matched" and ident["ok"] is not True:
+        if ident["module_sha256"] is None:
+            code = "engine-module-missing"
+            why = f"no {ENGINE_MODULE_FILE} beside the binary"
+        elif ident["commit_agrees"] is not True:
+            code = "engine-commit-mismatch"
+            why = (f"--version says commit {ident['version_commit']!r}, the "
+                   f"manifest says {ident['manifest_commit']!r}")
+        else:
+            code = "engine-identity-incomplete"
+            why = "the identity could not be completed"
+        block["status"] = "not-the-release"
+        block["label"] = FORK_LABEL
+        block["reason_code"] = code
+        block["reason"] = ("the launcher hash matched but the tree did not: " + why
+                           + " - by launcher hash alone this build would have "
+                             "called itself the release")
+    return block
+
+
 def run_parameters(args):
     """The knobs of this run, each as the VALUE USED - after its default.
 
@@ -690,13 +782,14 @@ def main():
                          "derived from a kalsa-server-vX.Y.Z binary directory")
     args = ap.parse_args()
 
-    # Derived before anything is measured, so a later failure to read the
-    # manifest is recorded as unverified instead of quietly forgotten.
+    # Hashed and URL-derived before anything is measured, so a later failure
+    # to read the manifest is recorded as unverified instead of quietly
+    # forgotten. The release BLOCK is built below, after --version: its veto
+    # compares the commit --version prints with the manifest's.
     engine_sha256 = sha256_file(args.bin)
     manifest_url = args.release_manifest_url
     if manifest_url is None:
         manifest_url = derive_manifest_url(args.bin)
-    release = release_provenance(manifest_url, engine_sha256)
 
     la0 = os.getloadavg()[0]
     # max_load <= 0 is the documented way to switch this gate OFF (no
@@ -722,6 +815,7 @@ def main():
     vp = subprocess.run(["nice", "-n", str(NICE), args.bin, "--version"],
                         capture_output=True, text=True)
     version = (vp.stdout + vp.stderr).strip()
+    release = release_block(args.bin, version, manifest_url)
 
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     loadavg_before = loadavg()
