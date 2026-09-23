@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalsa — mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+/* ─── Scala del verde: un valore solo non è un sistema ──────────────── */
+:root{
+  --g50:#eef4f1; --g100:#dce8e2; --g200:#bcd3c9; --g300:#93b8a8;
+  --g400:#5f9280; --g500:#3a7a63; --g600:#1f5f4e; --g700:#17503f; --g800:#114036;
+  --ink:#17201c; --ink2:#2c3630; --ink3:#5b6b62;
+  --page:#f4f8f3; --surface:#ffffff; --muted:#e9eeea;
+  --line:#dfe6e0; --line2:#ccd6ce;
+  /* attesa: caldo, informativo, mai un allarme */
+  --wait-bg:#f8f2e4; --wait-line:#ecdfc4; --wait-ink:#6a5729;
+  --danger:#8a3b32;
+  --ui:'Inter',system-ui,sans-serif; --read:'Source Serif 4',Georgia,serif;
+  /* elevazione: tre livelli, non "un'ombra e via" */
+  --e1:0 1px 2px rgba(23,32,28,.07), 0 1px 1px rgba(23,32,28,.04);
+  --e2:0 2px 6px rgba(23,32,28,.07), 0 8px 22px rgba(23,32,28,.07);
+  --e3:0 4px 12px rgba(23,32,28,.09), 0 16px 44px rgba(23,32,28,.13);
+  --r-pill:999px; --r-card:20px; --r-sheet:28px; --r-bub:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%}
+body{width:349px;height:100%;overflow:hidden;background:var(--page);color:var(--ink);
+  font-family:var(--ui);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+
+/* ─── Testata: il modello e DOVE gira sono un controllo solo ─────────── */
+.head{flex:none;display:flex;align-items:center;gap:9px;padding:10px 12px 12px;background:var(--page)}
+.pick{display:flex;align-items:center;gap:9px;flex:1;min-width:0;
+  background:var(--surface);border-radius:var(--r-pill);padding:7px 12px 7px 8px;
+  box-shadow:var(--e1);border:1px solid rgba(23,32,28,.04)}
+.pick .mark{width:28px;height:28px;border-radius:50%;overflow:hidden;flex:none;background:var(--g50)}
+.pick .mark img{width:100%;height:100%;object-fit:cover;display:block}
+.pick .txt{flex:1;min-width:0}
+.pick b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.15px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick small{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink3);margin-top:1px}
+.pick small i{width:6px;height:6px;border-radius:99px;background:var(--g500);display:inline-block}
+.pick .cv{width:15px;height:15px;color:var(--ink3);flex:none}
+.iconbtn{width:38px;height:38px;border-radius:50%;background:var(--surface);box-shadow:var(--e1);
+  display:grid;place-items:center;color:var(--ink2);flex:none;border:1px solid rgba(23,32,28,.04)}
+.iconbtn svg{width:18px;height:18px}
+
+/* ─── Transcript: parte dall'alto e riempie ─────────────────────────── */
+.page{flex:1;min-height:0;overflow:hidden;padding:2px 14px 0}
+.stream{display:flex;flex-direction:column;gap:26px}
+.turn{display:flex;flex-direction:column;gap:8px}
+.me{align-self:flex-end;max-width:78%;background:var(--g100);color:var(--ink);
+  padding:10px 15px;border-radius:var(--r-bub);
+  font-size:15px;line-height:1.45;box-shadow:var(--e1)}
+.ai{display:flex;flex-direction:column;gap:10px}
+.ai .txt{font-family:var(--read);font-size:16px;line-height:1.62;color:var(--ink)}
+.ai .txt b{font-weight:600}
+.ai .txt ol{margin:12px 0 2px 19px}
+.ai .txt li{margin-bottom:4px}
+.eq{font-family:var(--read);font-style:italic;display:block;padding:8px 0 0 2px}
+.frac{display:inline-flex;flex-direction:column;vertical-align:-.5em;font-size:.72em;
+  line-height:1.04;text-align:center;margin:0 .2em}
+.frac span:first-child{border-bottom:1px solid currentColor;padding:0 .24em}
+
+/* righe dei tool: quiete, raggruppate in una pastiglia */
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.tt{display:inline-flex;align-items:center;gap:6px;background:var(--g50);color:var(--g800);
+  border-radius:var(--r-pill);padding:5px 11px 5px 9px;font-size:11.5px;font-weight:500}
+.tt svg{width:13px;height:13px;color:var(--g600);flex:none}
+
+/* fonti: pastiglie bianche, con ombra vera */
+.srcs{display:flex;gap:7px;flex-wrap:wrap}
+.src{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:var(--r-pill);
+  padding:6px 12px;font-size:11.5px;color:var(--ink2);box-shadow:var(--e1);text-decoration:none}
+.src i{font-style:normal;font-weight:700;color:var(--g600);font-size:10.5px}
+.src.off{opacity:.5;box-shadow:none;border:1px dashed var(--line2)}
+
+/* azioni */
+.acts{display:flex;gap:6px}
+.act{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  color:var(--ink3);background:transparent}
+.act svg{width:17px;height:17px}
+.act.solid{background:var(--surface);box-shadow:var(--e1);color:var(--ink2)}
+
+/* mini app: card con elevazione e radius vero */
+.app{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e2);overflow:hidden}
+.app .ah{display:flex;align-items:center;gap:9px;padding:13px 15px 10px}
+.app .ah .badge{width:30px;height:30px;border-radius:10px;background:var(--g50);display:grid;place-items:center;color:var(--g600);flex:none}
+.app .ah .badge svg{width:16px;height:16px}
+.app .ah b{flex:1;font-size:13.5px;font-weight:600;letter-spacing:-.1px}
+.app .go{font-size:11.5px;font-weight:600;color:var(--g600);background:var(--g50);
+  padding:5px 11px;border-radius:var(--r-pill);white-space:nowrap}
+.app .mg{display:flex;border-top:1px solid var(--line)}
+.app .mg div{flex:1;padding:11px 14px}
+.app .mg div+div{border-left:1px solid var(--line)}
+.app .mg small{display:block;font-size:9.5px;letter-spacing:.06em;color:var(--ink3);font-weight:600}
+.app .mg b{font-family:var(--read);font-size:17px;font-weight:600;display:block;margin-top:2px}
+.app .af{padding:9px 15px 11px;font-size:10.5px;color:var(--ink3);border-top:1px solid var(--line)}
+
+/* nuvoletta del pensiero */
+.cloud{position:relative;align-self:flex-start;margin-top:2px}
+.cloud .bub{position:relative;background:var(--surface);border-radius:26px 30px 28px 20px;
+  box-shadow:var(--e1);padding:9px 15px 10px;display:flex;align-items:baseline;gap:14px}
+.cloud .bub::before,.cloud .bub::after{content:"";position:absolute;background:var(--surface);border-radius:99px}
+.cloud .bub::before{top:-7px;left:26px;width:20px;height:20px}
+.cloud .bub::after{top:-4px;right:46px;width:11px;height:11px}
+.face{font-family:var(--read);font-style:italic;font-size:12.5px;color:var(--ink3);
+  white-space:nowrap;overflow:hidden;max-width:200px;mask-image:linear-gradient(90deg,#000 78%,transparent)}
+.tg{font-size:11.5px;font-weight:600;color:var(--g600);white-space:nowrap}
+.tail{position:absolute;left:28px;top:100%;display:flex;flex-direction:column;gap:3px;margin-top:-3px}
+.tail span{background:var(--surface);border-radius:99px;box-shadow:var(--e1)}
+.tail span:nth-child(1){width:12px;height:12px}
+.tail span:nth-child(2){width:9px;height:9px;margin-left:3px}
+.tail span:nth-child(3){width:6px;height:6px;margin-left:6px}
+.gap20{height:20px}
+
+/* ─── Composer: un oggetto che galleggia ────────────────────────────── */
+.dock{flex:none;padding:8px 12px 14px;background:linear-gradient(180deg,rgba(244,248,243,0),var(--page) 42%)}
+.field{background:var(--surface);border-radius:26px;box-shadow:var(--e3);
+  padding:10px 10px 10px 16px;display:flex;align-items:center;gap:11px}
+.field .ph{flex:1;font-family:var(--read);font-size:16px;color:var(--ink3)}
+.field .ic{width:19px;height:19px;color:var(--ink3);flex:none}
+.field .send{width:38px;height:38px;border-radius:50%;background:var(--g600);flex:none;
+  display:grid;place-items:center;color:#fff;box-shadow:0 4px 12px rgba(31,95,78,.35)}
+.field .send svg{width:17px;height:17px}
+.field .send.held{background:var(--muted);box-shadow:none;color:var(--ink3)}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border-radius:var(--r-pill);
+  padding:6px 9px 6px 11px;box-shadow:var(--e1);font-size:11.5px;color:var(--ink2);margin:0 0 8px 4px}
+.chip svg{width:13px;height:13px;color:var(--g600)}
+.chip em{font-style:normal;color:var(--ink3)}
+.chip .x{color:var(--ink3);font-size:14px;line-height:1;padding:0 2px}
+.note{margin:0 0 7px 6px;font-size:11.5px;color:var(--ink3)}
+
+/* ─── Foglio dello switch ───────────────────────────────────────────── */
+.scrim{position:absolute;inset:0;background:rgba(23,32,28,.34)}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;background:var(--surface);
+  border-radius:var(--r-sheet);box-shadow:var(--e3);padding:18px 14px 14px}
+.sheet h2{font-family:var(--read);font-size:20px;font-weight:600;margin-bottom:3px;text-align:center}
+.sheet p.sub{font-size:12px;color:var(--ink3);text-align:center;margin-bottom:14px}
+.opt{display:flex;align-items:center;gap:11px;padding:12px;border-radius:18px;margin-bottom:8px;
+  background:var(--page)}
+.opt.on{background:var(--g50)}
+.opt .badge{width:34px;height:34px;border-radius:50%;background:var(--surface);display:grid;
+  place-items:center;color:var(--g600);flex:none;box-shadow:var(--e1)}
+.opt .badge svg{width:17px;height:17px}
+.opt .g{flex:1;min-width:0}
+.opt b{display:block;font-size:13.5px;font-weight:600}
+.opt small{display:block;font-size:11.5px;color:var(--ink3);margin-top:1px}
+.tick{width:20px;height:20px;border-radius:50%;background:var(--g600);color:#fff;
+  display:grid;place-items:center;flex:none}
+.tick svg{width:12px;height:12px}
+.wait{display:inline-flex;align-items:center;background:var(--wait-bg);color:var(--wait-ink);
+  border-radius:var(--r-pill);padding:4px 10px;font-size:10.5px;font-weight:600;white-space:nowrap}
+.no{font-size:11px;color:var(--ink3);white-space:nowrap}
+.sheet .foot{margin-top:6px;font-size:10.5px;color:var(--ink3);text-align:center;line-height:1.45}
+
+/* ─── Cassetto: da dove si arriva a tutto ───────────────────────────── */
+.drawer{position:absolute;top:0;bottom:0;left:0;right:0;background:var(--page);
+  padding:14px 14px 16px;overflow:hidden;display:flex;flex-direction:column;gap:13px}
+.dclose{width:34px;height:34px;border-radius:50%;background:var(--surface);box-shadow:var(--e1);
+  display:grid;place-items:center;color:var(--ink2);flex:none}
+.dclose svg{width:17px;height:17px}
+.dhead{display:flex;align-items:center;gap:10px}
+.dhead .mark{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--g50)}
+.dhead .mark img{width:100%;height:100%;object-fit:cover}
+.dhead b{font-family:var(--read);font-size:19px;font-weight:600;flex:1}
+.newrow{display:flex;align-items:center;gap:10px;background:var(--g600);color:#fff;
+  border-radius:var(--r-pill);padding:11px 16px;font-size:13.5px;font-weight:600;
+  box-shadow:0 6px 16px rgba(31,95,78,.28)}
+.newrow svg{width:17px;height:17px}
+.dlbl{font-size:10.5px;font-weight:700;letter-spacing:.07em;color:var(--ink3);padding:2px 6px 0}
+.dlist{display:flex;flex-direction:column;gap:4px}
+.drow{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:16px;
+  font-size:13.5px;color:var(--ink2)}
+.drow.on{background:var(--g100);color:var(--ink);font-weight:600}
+.drow .ic2{width:17px;height:17px;color:var(--g600);flex:none}
+.drow .g{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow .cv2{width:14px;height:14px;color:var(--ink3);flex:none}
+.grow{flex:1;min-height:0}
+
+/* ─── Impostazioni: gruppi, non una lista di 16 voci ────────────────── */
+.grp{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e1);overflow:hidden}
+.grp .gt{padding:13px 15px 4px;font-size:10.5px;font-weight:700;letter-spacing:.07em;color:var(--ink3)}
+.srow{display:flex;align-items:center;gap:12px;padding:13px 15px;border-top:1px solid var(--line)}
+.srow:first-of-type{border-top:0}
+.srow .si{width:30px;height:30px;border-radius:10px;background:var(--g50);display:grid;place-items:center;color:var(--g600);flex:none}
+.srow .si svg{width:16px;height:16px}
+.srow .g{flex:1;min-width:0}
+.srow b{display:block;font-size:13.5px;font-weight:500}
+.srow small{display:block;font-size:11px;color:var(--ink3);margin-top:1px}
+.srow .val{font-size:12.5px;color:var(--ink3);white-space:nowrap}
+.sw2{width:44px;height:26px;border-radius:99px;background:var(--g600);flex:none;position:relative}
+.sw2::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.sw2.off{background:var(--line2)}
+.sw2.off::after{left:3px;right:auto}
+.page2{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 14px 0;display:flex;flex-direction:column;gap:14px}
+.titlebar{display:flex;align-items:center;gap:11px;padding:6px 12px 10px}
+.titlebar b{font-family:var(--read);font-size:21px;font-weight:600}
+
+.srow .val.mono{font-family:var(--ui);font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink2)}
+.srow.wrap{align-items:flex-start}
+.srow .g .note2{display:block;font-size:10.5px;color:var(--ink3);margin-top:3px;line-height:1.35}
+.badge2{font-size:10.5px;font-weight:600;background:var(--g50);color:var(--g700);
+  padding:3px 9px;border-radius:99px;white-space:nowrap}
+.badge2.no{background:var(--muted);color:var(--ink3)}
+.btn2{font-size:11.5px;font-weight:600;color:var(--g600);background:var(--g50);
+  padding:6px 12px;border-radius:99px;white-space:nowrap}
+.preview{font-family:var(--read);font-size:15px;color:var(--ink);padding:2px 0 10px 15px}
+.cav{display:flex;align-items:center;gap:8px;padding:10px 15px;background:var(--page);
+  border-radius:14px;margin:0 15px 12px;font-size:10.5px;color:var(--ink3);line-height:1.4}
+.cav svg{width:13px;height:13px;color:var(--g600);flex:none}
+.diag{display:flex;justify-content:space-between;padding:11px 15px;border-top:1px solid var(--line);
+  font-size:12.5px}
+.diag:first-of-type{border-top:0}
+.diag span{color:var(--ink3)}
+.diag b{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink2)}
+/* ─── Card di attesa sul PC ─────────────────────────────────────────── */
+.hold{display:flex;gap:11px;background:var(--wait-bg);border-radius:var(--r-card);
+  padding:13px 15px;box-shadow:var(--e1)}
+.hold .ib{width:26px;height:26px;border-radius:50%;background:#fff;display:grid;place-items:center;
+  color:var(--wait-ink);flex:none}
+.hold .ib svg{width:14px;height:14px}
+.hold b{display:block;font-size:12.5px;font-weight:600;color:var(--wait-ink)}
+.hold p{font-size:11.5px;color:var(--wait-ink);opacity:.8;margin-top:2px;line-height:1.4}
+
+/* ─── Stanza: le persone hanno un nome, Kalsa è un ospite ───────────── */
+.who{font-size:11px;font-weight:600;color:var(--g700);margin-left:15px}
+.who.kalsa{color:var(--g600)}
+.rm{align-self:flex-start;max-width:80%;background:var(--surface);color:var(--ink);
+  padding:10px 15px;border-radius:var(--r-bub);box-shadow:var(--e1);font-size:15px;line-height:1.45}
+.stack{display:flex;flex:none}
+.stack span{width:26px;height:26px;border-radius:50%;background:var(--g200);color:var(--g800);
+  font-size:10.5px;font-weight:700;display:grid;place-items:center;
+  border:2px solid var(--surface);margin-left:-9px}
+.stack span:first-child{margin-left:0}
+.stack span.a{background:var(--g600);color:#fff}
+/* la citazione: barretta a sinistra, due righe, mai di più */
+.qm{display:flex;gap:9px;background:var(--g50);border-radius:16px;padding:8px 11px;
+  align-self:flex-start;max-width:88%}
+.qm .bar{width:2px;border-radius:9px;background:var(--g400);flex:none}
+.qm .qb{min-width:0}
+.qm .qa{display:block;font-size:10.5px;font-weight:700;color:var(--g700)}
+.qm .qt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:12px;color:var(--ink3);line-height:1.4;margin-top:2px}
+/* l'attesa sta attaccata al messaggio che ha chiamato, non in fondo */
+.pend{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;background:var(--surface);
+  border-radius:var(--r-pill);padding:7px 13px;font-size:11px;color:var(--ink3);box-shadow:var(--e1)}
+.pend i{width:6px;height:6px;border-radius:99px;background:var(--g500);animation:beat 1.4s ease-in-out infinite}
+@keyframes beat{0%,100%{opacity:.3}50%{opacity:1}}
+/* il pulsante che esiste solo qui */
+.summ{width:34px;height:34px;border-radius:50%;background:var(--g50);flex:none;
+  display:grid;place-items:center;border:1px solid var(--g200)}
+.summ img{width:19px;height:19px;border-radius:50%;display:block}
+/* barra della citazione nel composer */
+.cq{display:flex;align-items:center;gap:9px;background:var(--surface);border-radius:18px;
+  padding:8px 10px 8px 12px;box-shadow:var(--e1);margin:0 0 8px 4px}
+.cq .bar{width:2px;align-self:stretch;border-radius:9px;background:var(--g400);flex:none}
+.cq .cb{flex:1;min-width:0}
+.cq .ca{display:block;font-size:10.5px;font-weight:700;color:var(--g700)}
+.cq .ct{display:block;font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cq .x{color:var(--ink3);font-size:16px;line-height:1;padding:0 3px}
+/* invito */
+.inv{display:flex;flex-direction:column;gap:12px}
+.invcard{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--e2);padding:16px}
+.invcard .ih{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.invcard .ih b{display:block;font-size:14px;font-weight:600}
+.invcard .ih small{display:block;font-size:11.5px;color:var(--ink3);margin-top:1px}
+.warn{display:flex;gap:10px;background:var(--g50);border-radius:16px;padding:12px 13px}
+.warn svg{width:16px;height:16px;color:var(--g700);flex:none;margin-top:1px}
+.warn p{font-size:12.5px;color:var(--g800);line-height:1.5}
+.mlist{display:flex;flex-direction:column;margin-top:8px}
+.mrow{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.mrow:first-child{border-top:0}
+.mrow .who2{flex:1;color:var(--ink2)}
+.mrow .st{font-size:11px;color:var(--ink3)}
+.dot{width:7px;height:7px;border-radius:99px;background:var(--line2);flex:none}
+.dot.on{background:var(--g500)}
+.pill{display:block;text-align:center;background:var(--g600);color:#fff;border-radius:var(--r-pill);
+  padding:13px;font-size:14px;font-weight:600;box-shadow:0 6px 16px rgba(31,95,78,.28)}
+.pill.quiet{background:transparent;box-shadow:none;color:var(--ink3);font-weight:500;font-size:13px;padding:8px}
+
+/* la menzione: l'invocazione sta nel testo, non nella testa dell'AI */
+.men{display:inline-block;background:var(--g600);color:#fff;border-radius:99px;
+  padding:0 7px 1px;font-size:14px;font-weight:600;line-height:1.35;margin-right:2px}
+.pend.wait2{background:transparent;box-shadow:none;border:1px dashed var(--line2)}
+.pend.wait2 i{display:none}
+/* il menu della chiocciola */
+.mmenu{position:absolute;left:12px;right:12px;bottom:86px;background:var(--surface);
+  border-radius:22px;box-shadow:var(--e3);padding:7px}
+.mi{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:16px;font-size:13.5px}
+.mi.on{background:var(--g50)}
+.mi .mmark{width:28px;height:28px;border-radius:50%;overflow:hidden;flex:none;background:var(--g50)}
+.mi .mmark img{width:100%;height:100%;object-fit:cover;display:block}
+.mi .av{width:28px;height:28px;border-radius:50%;background:var(--g200);color:var(--g800);
+  display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.mi .g{flex:1;min-width:0}
+.mi b{display:block;font-weight:600}
+.mi small{display:block;font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* ─── Stato vuoto: la foto, in alto, e niente copy ──────────────────── */
+.hero{margin:4px 0 0;border-radius:24px;overflow:hidden;box-shadow:var(--e2);height:210px}
+.hero img{width:100%;height:100%;object-fit:cover;object-position:50% 56%;display:block}
+</style>
+</head>
+<body>
+
+<div class="head" id="head">
+  <span class="iconbtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </span>
+  <div class="pick">
+    <span class="mark"><img src="logo.png" alt=""></span>
+    <span class="txt">
+      <b id="mname">LFM2.5 2.6B</b>
+      <small id="mwhere"><i></i>Su questo telefono</small>
+    </span>
+    <svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+  <span class="iconbtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </span>
+</div>
+
+<div class="page" id="page"></div>
+
+<div class="dock">
+  <div id="extra"></div>
+  <div class="field">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    <span class="ph" id="ph">Chiedi qualcosa</span>
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>
+    <span class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M6 12l6-6 6 6"/></svg></span>
+  </div>
+</div>
+
+<script>
+const I = {
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M14 3v5h5M15 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/></svg>',
+  calc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h3M8 16h3M15 12v4"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="3"/><path d="M5 15V6a2 2 0 012-2h9"/></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 21V4M5 5h11l-2 3 2 3H5"/></svg>',
+  again:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 12a8 8 0 10-3 6.2L21 20l-1.2-3.4A8 8 0 0020 12z"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>',
+  pc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 019.5 4a8 8 0 1010.5 9.5z"/></svg>',
+  size:'<span style="font-weight:700;font-size:15px;line-height:1">A</span>',
+  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6z"/><path d="M12 9.2v3.4"/><circle cx="12" cy="15.4" r=".7"/></svg>',
+  people:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.4a3.1 3.1 0 010 5.2M18.4 19.9c0-2.5-.9-4.3-2.2-5.5"/></svg>',
+};
+const modes = {
+  empty: `
+    <div class="stream">
+      <div class="hero"><img src="empty-state.jpg" alt=""></div>
+    </div>`,
+  conv: `
+    <div class="stream">
+      <div class="turn">
+        <div class="me">Mostrami di nuovo la tabella</div>
+        <div class="ai">
+          <div class="cloud">
+            <div class="bub"><span class="face">…ricontrollo le costanti e ricostruisco la tabella</span><span class="tg">Mostra ▾</span></div>
+            <div class="tail" aria-hidden="true"><span></span><span></span><span></span></div>
+          </div>
+          
+          <div class="tools">
+            <span class="tt">${I.search}Cercato «costanti fisiche tabella»</span>
+          </div>
+          <div class="txt">Certo. Ecco le costanti <b>ordinate per importanza</b>:
+            <ol><li>Numero di Eulero <i>e</i></li><li>Pi greco <i>π</i></li></ol>
+            <span class="eq">E<sub>n</sub> = −<span class="frac"><span>13,6 eV</span><span>n²</span></span></span>
+          </div>
+          <div class="srcs">
+            <a class="src" href="#"><i>1</i>it.wikipedia.org</a>
+            <a class="src" href="#"><i>2</i>nist.gov</a>
+            <span class="src off"><i>3</i>file locale</span>
+          </div>
+          <div class="acts">
+            <span class="act solid">${I.copy}</span><span class="act">${I.flag}</span><span class="act">${I.again}</span>
+          </div>
+        </div>
+      </div>
+      <div class="turn">
+        <div class="me">E la seconda vale anche per l'idrogeno?</div>
+        <div class="ai"><div class="txt">Sì, ma il segno cambia: l'energia si conta sempre <b>rispetto allo ione</b>.<span class="eq" style="display:inline"></span></div></div>
+      </div>
+    </div>`,
+  stream: `
+    <div class="stream">
+      <div class="turn">
+        <div class="me">Riassumi il documento</div>
+        <div class="ai"><div class="txt">Il documento confronta tre metodi di misura e ne riporta l'errore massimo <span id="caret" style="display:inline-block;width:8px;height:16px;background:var(--g600);border-radius:2px;vertical-align:-3px;opacity:.7"></span></div></div>
+      </div>
+    </div>`,
+  miniapp: `
+    <div class="stream">
+      <div class="turn">
+        <div class="me">Ci sono valori anomali in questa serie?</div>
+        <div class="ai">
+          <div class="tools"><span class="tt">${I.doc}Letto serie_2.csv</span><span class="tt">${I.calc}Test di Grubbs</span></div>
+          <div class="txt">Uno si stacca dagli altri. Te lo metto in una mini app così lo controlli tu.</div>
+          <div class="app">
+            <div class="ah"><span class="badge">${I.grid}</span><b>Controllo outlier</b><span class="go">Apri</span></div>
+            <div class="mg"><div><small>MEDIA</small><b>12,34</b></div><div><small>DEV. ST.</small><b>0,87</b></div><div><small>OUTLIER</small><b>41,20</b></div></div>
+            <div class="af">Puoi cambiare i valori e ricalcola</div>
+          </div>
+          <div class="acts"><span class="act solid">${I.copy}</span><span class="act">${I.flag}</span></div>
+        </div>
+      </div>
+    </div>`,
+  attesa: `
+    <div class="stream">
+      <div class="turn">
+        <div class="me">Mostrami di nuovo la tabella</div>
+        <div class="ai">
+          <div class="hold">
+            <span class="ib">${I.clock}</span>
+            <div><b>Kalsa Brain sta lavorando a un'altra domanda</b><p>La tua è partita e aspetto la risposta. Non posso dirti quanto manca: il PC non dice quante domande ha davanti.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+  room: `
+    <div class="stream">
+      <div class="turn">
+        <div class="who">Papà</div>
+        <div class="rm">Domenica siete a casa?</div>
+      </div>
+      <div class="turn">
+        <div class="me"><span class="men">@Kalsa</span> domenica piove?</div>
+      </div>
+      <div class="turn">
+        <div class="who kalsa">Kalsa</div>
+        <div class="ai">
+          <div class="qm"><span class="bar"></span><span class="qb">
+            <span class="qa">Tu</span>
+            <span class="qt">domenica piove?</span></span></div>
+          <div class="txt">Sì: pioggia dalle 14 in poi. L'ultimo treno asciutto è quello delle 13.</div>
+        </div>
+      </div>
+      <div class="turn">
+        <div class="who">Papà</div>
+        <div class="rm"><span class="men">@Kalsa</span> e per tornare?</div>
+        <span class="pend"><i></i>Kalsa sta rispondendo a papà…</span>
+      </div>
+      <div class="turn">
+        <div class="me"><span class="men">@Kalsa</span> e i biglietti?</div>
+        <span class="pend wait2">In attesa · sei il prossimo</span>
+      </div>
+    </div>`,
+  menzione: `
+    <div class="stream">
+      <div class="turn">
+        <div class="who">Papà</div>
+        <div class="rm">Domenica siete a casa?</div>
+      </div>
+      <div class="turn"><div class="me">Sì, ci sono</div></div>
+    </div>`,
+  quote: `
+    <div class="stream">
+      <div class="turn">
+        <div class="me">E la seconda vale anche per l'idrogeno?</div>
+        <div class="ai"><div class="txt">Sì, ma il segno cambia: l'energia si conta sempre rispetto allo ione.</div></div>
+      </div>
+      <div class="turn">
+        <div class="qm" style="align-self:flex-end"><span class="bar"></span><span class="qb">
+          <span class="qa">Kalsa</span>
+          <span class="qt">l'energia si conta sempre rispetto allo ione</span></span></div>
+        <div class="me">Questo pezzo non mi torna: perché?</div>
+      </div>
+    </div>`,
+};
+
+const drawer = `
+  <div class="scrim"></div>
+  <div class="drawer">
+    <div class="dhead"><span class="mark"><img src="logo.png" alt=""></span><b>Kalsa</b>
+      <span class="dclose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span></div>
+    <div class="newrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuova chat</div>
+    <div class="dlbl">CHAT</div>
+    <div class="dlist">
+      <div class="drow on"><span class="ic2">${I.doc}</span><span class="g">Tabella delle costanti</span></div>
+      <div class="drow"><span class="ic2">${I.calc}</span><span class="g">Outlier su serie_2.csv</span></div>
+      <div class="drow"><span class="ic2">${I.search}</span><span class="g">Chi ha fondato la Persia</span></div>
+    </div>
+    <div class="grow"></div>
+    <div class="dlist">
+      <div class="drow"><span class="ic2">${I.doc}</span><span class="g">Documenti</span><span class="cv2">›</span></div>
+      <div class="drow"><span class="ic2">${I.grid}</span><span class="g">Note</span><span class="cv2">›</span></div>
+      <div class="drow"><span class="ic2">${I.calc}</span><span class="g">Impostazioni</span><span class="cv2">›</span></div>
+      <div class="drow"><span class="ic2">${I.phone}</span><span class="g">Account</span><span class="cv2">›</span></div>
+    </div>
+  </div>`;
+
+function row(icon,label,sub,right,note){
+  return `<div class="srow${note?" wrap":""}"><span class="si">${icon}</span>
+    <span class="g"><b>${label}</b>${sub?`<small>${sub}</small>`:""}${note?`<span class="note2">${note}</span>`:""}</span>
+    ${right||""}${/class="val/.test(right||"")?CV:""}</div>`;
+}
+const SW=(on)=>`<span class="sw2${on?"":" off"}"></span>`;
+const CV=`<span class="cv2" style="width:14px;height:14px;color:var(--ink3)">›</span>`;
+
+function inviteScreen(){
+  return `
+  <div class="titlebar"><span class="iconbtn" style="width:34px;height:34px;box-shadow:var(--e1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span>
+    <b>Famiglia</b></div>
+  <div class="inv">
+    <div class="invcard">
+      <div class="ih">
+        <span class="stack" style="margin-right:4px"><span class="a">M</span><span>P</span><span>A</span></span>
+        <span><b>Famiglia</b><small>4 persone · sulla tua rete</small></span>
+      </div>
+      <div class="warn">${I.shield}
+        <p>Se qualcuno chiama Kalsa, Kalsa legge la conversazione della stanza.</p>
+      </div>
+      <div class="mlist">
+        <div class="mrow"><span class="dot on"></span><span class="who2">Marco</span><small class="st">nella stanza</small></div>
+        <div class="mrow"><span class="dot on"></span><span class="who2">Mamma</span><small class="st">nella stanza</small></div>
+        <div class="mrow"><span class="dot"></span><span class="who2">Anna</span><small class="st">invitata</small></div>
+      </div>
+    </div>
+    <span class="pill">Entra nella stanza</span>
+    <span class="pill quiet">Non ora</span>
+  </div>`;
+}
+
+function settingsScreen(){
+  return `
+    <div class="titlebar">
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span>
+      <b>Impostazioni</b>
+    </div>
+    <div class="grp">
+      <div class="gt">ASSISTENTE</div>
+      ${row(I.pc,"Dove risponde","Telefono o Kalsa Brain sul PC",`<span class="val">Questo telefono</span>`)}
+      ${row(I.grid,"Cosa può fare","Ricerca web, calendario, note, mini app",CV)}
+      ${row(I.mic,"Voce e lingua","Dettatura, lettura ad alta voce",`<span class="val">Italiano</span>`)}
+    </div>
+    <div class="grp">
+      <div class="gt">ASPETTO</div>
+      ${row(I.moon,"Tema","Segue il sistema",`<span class="val">Automatico</span>`)}
+      ${row(I.size,"Dimensione del testo","Indipendente dal sistema",`<span class="val">Normale</span>`)}
+      <div class="preview">Aa — La volpe marrone salta</div>
+    </div>
+    <div class="grp">
+      <div class="gt">PRIVACY E DATI</div>
+      ${row(I.flag,"Telemetria","Spenta di default. Resta sul telefono.",SW(false))}
+      ${row(I.doc,"Memoria","Cosa il modello ricorda di te",CV)}
+    </div>
+    <div class="grp">
+      <div class="gt">AIUTO</div>
+      ${row(I.flag,"Segnala un problema","Anteprima di un referto ripulito",CV)}
+      ${row(I.search,"Come funziona Kalsa","",CV)}
+      ${row(I.phone,"Informazioni","Kalsa AI Chat · v0.1.0",CV)}
+    </div>
+    <div class="grp">
+      ${row(I.calc,"Avanzate","Contesto, KV cache, modelli, governor",
+        `<span class="val">12 voci</span><span style="color:var(--ink3)">›</span>`)}
+    </div>`;
+}
+
+function advancedScreen(){
+  return `
+    <div class="titlebar">
+      <span class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span>
+      <b>Avanzate</b>
+    </div>
+    <div class="grp">
+      <div class="gt">MODELLO E MOTORE</div>
+      ${row(I.phone,"Modello attivo","LFM2.5 2.6B · Q4_0",`<span class="val">Attivo</span>`)}
+      ${row(I.grid,"Thinking","Il pensiero resta sempre attivo",`<span class="val">Extended</span>`)}
+      ${row(I.calc,"Dimensione del contesto","Quanti token tiene in una volta",
+        `<span class="val mono">4096</span>`,
+        "Hai chiesto 8192: il telefono ne tiene 4096, con 812 MiB non rilasciabili e 640 disponibili.",true)}
+      ${row(I.calc,"Precisione della KV cache","Alta tiene V a 8 bit invece di 4",
+        `<span class="val">Standard</span>`,"Alta costa 96 MiB in più a 4096 token.")}
+      ${row(I.doc,"Riapertura istantanea","Tiene pronte le chat recenti, su disco",
+        `<span class="val">7 chat</span>`)}
+      ${row(I.grid,"CisWire","Compattazione e aiuto strumenti",`<span class="val">Standard</span>`)}
+      ${row(I.flag,"Governor termico","Sperimentale: adatta CPU e GPU secondo temperatura e batteria",SW(false))}
+    </div>
+    <div class="grp">
+      <div class="gt">MODELLI</div>
+      ${row(I.phone,"LFM2.5 2.6B","1,5 GB · QAD-Q4_0",`<span class="badge2">Attivo</span>`)}
+      ${row(I.phone,"Qwen 3.5 4B","2,4 GB · non scaricato",`<span class="btn2">Scarica</span>`)}
+      ${row(I.phone,"LFM2.5-VL 1.6B","1,1 GB · vision",`<span class="btn2">Scarica</span>`,
+        "Non entra in RAM su questo telefono: mancano 340 MiB.")}
+    </div>
+    <div class="grp">
+      <div class="gt">VOCE ED EMBEDDING</div>
+      ${row(I.mic,"Modello vocale","Dettatura sul telefono",`<span class="badge2">Pronto</span>`)}
+      ${row(I.search,"Modello di embedding","Per cercare nei documenti",`<span class="badge2 no">Non scaricato</span>`)}
+    </div>
+    <div class="grp">
+      <div class="gt">DISPOSITIVO</div>
+      <div class="diag"><span>RAM libera</span><b>1.284 MiB</b></div>
+      <div class="diag"><span>Headroom</span><b>912 MiB</b></div>
+      <div class="diag"><span>Swap</span><b>+184 MiB</b></div>
+      <div class="diag"><span>Temperatura</span><b>41,2 °C</b></div>
+      <div class="diag"><span>Spazio libero</span><b>18,4 GB</b></div>
+      <div class="diag"><span>Governor</span><b>spento</b></div>
+    </div>`;
+}
+
+const mode = new URLSearchParams(location.search).get("s") || "conv";
+if (mode === "invito") {
+  document.getElementById("head").style.display = "none";
+  document.querySelector(".dock").style.display = "none";
+  document.getElementById("page").className = "page2";
+  document.getElementById("page").innerHTML = inviteScreen();
+} else if (mode === "advanced") {
+  document.getElementById("head").style.display = "none";
+  document.querySelector(".dock").style.display = "none";
+  document.getElementById("page").className = "page2";
+  document.getElementById("page").innerHTML = advancedScreen();
+} else if (mode === "settings") {
+  document.getElementById("head").style.display = "none";
+  document.querySelector(".dock").style.display = "none";
+  document.getElementById("page").className = "page2";
+  document.getElementById("page").innerHTML = settingsScreen();
+} else {
+  document.getElementById("page").innerHTML = modes[mode] || modes.conv;
+}
+
+if (mode === "attesa") {
+  document.getElementById("mname").textContent = "Qwen 3.6 27B";
+  document.getElementById("mwhere").innerHTML = "<i></i>Su Kalsa Brain · PC";
+  document.getElementById("mwhere").querySelector("i").style.background = "var(--wait-ink)";
+}
+if (mode === "stream") {
+  document.getElementById("mwhere").innerHTML = "<i></i>Su questo telefono · sta scrivendo";
+  document.getElementById("send").classList.add("held");
+  const ph = document.getElementById("ph");
+  ph.textContent = "E poi dimmi se il campione era pulito";
+  ph.style.fontStyle = "normal";
+  const n = document.createElement("div");
+  n.className = "note";
+  n.textContent = "Puoi scrivere: l'invio è in attesa finché scrive";
+  document.getElementById("extra").appendChild(n);
+}
+if (mode === "conv") {
+  const c = document.createElement("div");
+  c.className = "chip";
+  c.innerHTML = `${I.doc}<span><em>Legge da</em> <b>fisica.pdf</b></span><span class="x">×</span>`;
+  document.getElementById("extra").appendChild(c);
+}
+if (mode === "menu") {
+  const w = document.createElement("div"); w.style.cssText = "position:absolute;inset:0";
+  w.innerHTML = drawer; document.body.appendChild(w);
+}
+if (mode === "switch") {
+  document.getElementById("page").innerHTML = `
+    <div class="stream">
+      <div class="turn"><div class="me">Mostrami di nuovo la tabella</div></div>
+    </div>`;
+  const w = document.createElement("div");
+  w.style.cssText = "position:absolute;inset:0";
+  w.innerHTML = `
+    <div class="scrim"></div>
+    <div class="sheet">
+      <h2>Dove rispondere</h2>
+      <p class="sub">Puoi cambiarlo quando vuoi</p>
+      <div class="opt on">
+        <span class="badge">${I.phone}</span>
+        <span class="g"><b>Questo telefono</b><small>LFM2.5 2.6B · Q4_0</small></span>
+        <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+      </div>
+      <div class="opt">
+        <span class="badge">${I.pc}</span>
+        <span class="g"><b>Kalsa Brain · MacBook di Marco</b><small>Qwen 3.6 27B · stessa rete</small></span>
+        <span class="wait">occupato</span>
+      </div>
+      <div class="opt">
+        <span class="badge">${I.pc}</span>
+        <span class="g"><b>Kalsa Brain · Studio</b><small>Non raggiungibile</small></span>
+        <span class="no">—</span>
+      </div>
+      <div class="foot">Sul telefono niente esce dal dispositivo.<br>Sul PC vanno solo i messaggi di questa chat.</div>
+    </div>`;
+  document.body.appendChild(w);
+}
+if (mode === "room" || mode === "menzione") {
+  document.getElementById("mname").textContent = "Casa";
+  document.getElementById("mwhere").innerHTML =
+    mode === "room" ? "risponde a papà · 1 in attesa" : "2 presenti";
+  document.querySelector(".pick .mark").outerHTML =
+    '<span class="stack"><span>P</span><span class="a">M</span></span>';
+  // in una stanza non si scegle dove rispondere: la risposta arriva dal PC
+  document.querySelector(".pick .cv").style.display = "none";
+  document.getElementById("ph").textContent = "Scrivi nella stanza";
+  document.getElementById("send").insertAdjacentHTML("beforebegin",
+    '<span class="summ" aria-label="Chiedi a Kalsa"><img src="logo.png" alt=""></span>');
+}
+if (mode === "menzione") {
+  const ph = document.getElementById("ph");
+  ph.textContent = "@";
+  ph.style.fontStyle = "normal";
+  ph.style.color = "var(--ink)";
+  const m = document.createElement("div");
+  m.className = "mmenu";
+  m.innerHTML = '<div class="mi on"><span class="mmark"><img src="logo.png" alt=""></span>' +
+    '<span class="g"><b>Kalsa</b><small>chiamala: risponde a tutti nella stanza</small></span></div>';
+  document.body.appendChild(m);
+}
+if (mode === "quote") {
+  const c = document.createElement("div");
+  c.className = "cq";
+  c.innerHTML = '<span class="bar"></span><span class="cb"><span class="ca">Kalsa</span>' +
+    '<span class="ct">l\'energia si conta sempre rispetto allo ione</span></span><span class="x">×</span>';
+  document.getElementById("extra").appendChild(c);
+}
+</script>
+<style id="v2-direction">
+:root{
+  --page:#f8faf9; --surface:#fff; --muted:#eff2f0;
+  --line:#e6eae7; --line2:#d7ded9;
+  --brand:#1f5f4e; --brand-deep:#123f32;
+  --ink:#12171a; --ink2:#2b3330; --ink3:#5f6b66;
+  --e1:0 0 0 1px rgba(18,23,26,.06);
+  --e2:0 1px 2px rgba(18,23,26,.05), 0 6px 18px rgba(18,23,26,.06);
+  --e3:0 2px 6px rgba(18,23,26,.06), 0 18px 44px rgba(18,23,26,.12);
+  --r-btn:14px; --r-card:16px; --r-sheet:22px; --r-bub:18px; --r-field:14px;
+}
+body{background:var(--page)}
+.head{padding:12px 14px 14px}
+.pick{border:0;box-shadow:var(--e1);border-radius:var(--r-card);padding:8px 12px 8px 8px}
+.pick .mark{width:32px;height:32px}
+.pick b{font-size:15px;font-weight:600}
+.pick small{font-size:12px}
+.iconbtn{width:44px;height:44px;border-radius:var(--r-btn);border:0;box-shadow:var(--e1)}
+.page{padding:4px 16px 0}
+.stream{gap:30px}
+.me{background:var(--g100);border-radius:var(--r-bub);padding:12px 16px;font-size:15.5px;box-shadow:none}
+.ai .txt{font-size:17px;line-height:1.66}
+.tt{font-size:12px;padding:6px 12px}
+.src{border-radius:10px;box-shadow:none;border:1px solid var(--line);font-size:12px;padding:7px 12px}
+.act{width:36px;height:36px;border-radius:10px}
+.app{border-radius:var(--r-card);box-shadow:var(--e1)}
+.dock{padding:10px 14px 16px}
+.field{border:1px solid var(--line);border-radius:var(--r-field);box-shadow:var(--e2);padding:12px 10px 12px 16px}
+.field .ph{font-family:var(--ui);font-size:15.5px}
+.field .send{width:44px;height:44px;border-radius:var(--r-btn);background:var(--brand)}
+.chip{border:1px solid var(--line);box-shadow:none;border-radius:10px;font-size:12px;padding:7px 11px}
+.sheet{border-radius:var(--r-sheet);padding:20px 16px 16px}
+.sheet h2{font-family:var(--ui);font-size:20px;font-weight:700}
+.opt{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:14px}
+.opt.on{border-color:var(--brand);background:var(--g50)}
+.drawer{background:var(--surface);padding:16px 16px 18px;gap:16px}
+.dhead .mark{width:36px;height:36px}
+.dhead b{font-family:var(--ui);font-size:24px;font-weight:700}
+.newrow{border-radius:var(--r-btn);padding:15px 18px;font-size:15px;background:var(--brand);box-shadow:none}
+.dlbl{font-size:11px;letter-spacing:.09em}
+.drow{padding:14px 12px;border-radius:var(--r-btn);font-size:15px}
+.drow.on{background:var(--g50);font-weight:600}
+.titlebar b{font-family:var(--ui);font-size:24px;font-weight:700}
+.page2{gap:16px}
+.grp{border-radius:var(--r-card);box-shadow:var(--e1)}
+.grp .gt{font-size:11px;letter-spacing:.09em;padding:14px 16px 6px}
+.srow{padding:15px 16px;gap:14px}
+.srow b{font-size:15px}
+.srow small{font-size:12px}
+.srow .si{border-radius:12px}
+.sw2{width:48px;height:28px}
+.badge2,.btn2{border-radius:8px}
+.hold{border-radius:var(--r-card);box-shadow:none;border:1px solid var(--wait-line)}
+.cav{border-radius:12px;background:var(--g50)}
+.preview{font-size:16px}
+</style>
+</body>
+</html>
