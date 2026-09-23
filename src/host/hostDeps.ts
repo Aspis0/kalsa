@@ -5,9 +5,8 @@
  * refs.
  *
  * Build order the root must keep: `buildAgentDeps` → `buildAgentOptions`
- * (the tool options need only host-owned refs) → `buildHostDeps` (the load
- * path wants the finished `agentOptions`, and the engine half binds its
- * `ensureEngineForModel` through the same load deps the boot kick uses).
+ * (the tool options need only host-owned refs) → `buildTurnDeps` (the turn
+ * binds its ensure through the dispatch ref shared with boot and switchers).
  */
 import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { PersonasPersisted } from "../conversations/PersonasStore";
@@ -20,8 +19,7 @@ import type { MemoryFact } from "../memory/MemoryStore";
 import type { Locale, TranslateFn } from "../i18n";
 import type { AgentOptionsDeps } from "./agentTurnOptions";
 import type { EngineTurnDeps } from "./engineTurnDeps";
-import type { EngineLoadDeps } from "./engineLoad";
-import { ensureEngineForModel } from "./engineEnsure";
+import { createTurnEnsure } from "./turnEnsureDispatch";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import type { LocalAttachment } from "./hostMessage";
 
@@ -58,6 +56,7 @@ export interface HostDepsInput {
   deviceToolsEnabledRef: { current: boolean };
   calendarToolsEnabledRef: { current: boolean };
   currentModel: ModelInfo;
+  ensureEngineForModelRef: { current: (model: ModelInfo) => Promise<boolean> };
   remoteErrorRef: { current: string | null };
   chatEngineCtxRef: { current: number };
   recordDecodeSample: (model: ModelInfo, sample: DecodeMeasurement) => void;
@@ -110,13 +109,11 @@ export function buildAgentDeps(input: AgentDepsInput): AgentOptionsDeps {
 }
 
 /**
- * The engine half's deps. The load path is passed finished (the model host
- * owns it): the turn binds `ensureEngineForModel` through the very object
- * the boot kick and the switchers use, so one writer loads models.
+ * The engine half's deps. Its ensure callback uses the dispatch ref shared
+ * with boot and switchers, so a remote model never reaches the local loader.
  */
 export function buildTurnDeps(
   input: HostDepsInput,
-  load: EngineLoadDeps,
 ): EngineTurnDeps {
   return {
     t: input.t,
@@ -140,7 +137,7 @@ export function buildTurnDeps(
     injectedFactsRef: input.injectedFactsRef,
     setMemoryFacts: input.setMemoryFacts,
     refreshMemoryFacts: input.refreshMemoryFacts,
-    ensureEngineForModel: (model) => ensureEngineForModel(load, model),
+    ensureEngineForModel: createTurnEnsure(input.ensureEngineForModelRef),
     currentModel: input.currentModel,
     remoteErrorRef: input.remoteErrorRef,
     documentLibraryRef: input.documentLibraryRef,

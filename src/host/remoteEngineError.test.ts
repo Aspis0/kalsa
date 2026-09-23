@@ -1,4 +1,4 @@
-import { hostEngineErrorText } from "./remoteEngineError";
+import { hostEngineErrorText, hostStreamErrorText } from "./remoteEngineError";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { makeT, en } from "../i18n";
@@ -16,6 +16,21 @@ describe("remote engine failures never expose internal codes", () => {
       "native local failure",
     );
     expect(ENSURE).toContain("hostEngineErrorText(message, true, input.t)");
-    expect(STREAM).toContain("hostEngineErrorText(");
+  });
+
+  test("the stream humanizes remote codes but preserves non-code engine detail", () => {
+    const displayStreamError = (message: string) => `⚠️ ${hostStreamErrorText(message, t)}`;
+
+    expect(displayStreamError("remote_brain_network")).toBe(
+      `⚠️ ${en.settings.remoteBrainFailNetwork}`,
+    );
+    expect(displayStreamError("fetch failed: connection refused")).toBe(
+      "⚠️ fetch failed: connection refused",
+    );
+    expect(displayStreamError("remote_brain_unrecognized_code")).toBe(
+      `⚠️ ${en.settings.remoteBrainFailGeneric}`,
+    );
+    // Keep the tested formatter on the live stream error callback.
+    expect(STREAM).toContain("hostStreamErrorText(error.message, deps.t)");
   });
 });

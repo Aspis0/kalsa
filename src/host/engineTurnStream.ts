@@ -11,12 +11,11 @@
 import { assembleEngineHistory } from "../context/compactor";
 import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
 import {
-  isRemoteEngineBackend,
   queueStaticPrefixPrewarm,
   type EngineMessage,
 } from "../engine/engineBackend";
 import { streamHostTurn } from "./engineBackendStream";
-import { hostEngineErrorText } from "./remoteEngineError";
+import { hostStreamErrorText } from "./remoteEngineError";
 import { applyPersonaTail } from "../engine/personaTail";
 import { boundMemoryFacts } from "../memory/dnaBounding";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
@@ -264,11 +263,7 @@ export async function streamEngineTurn(
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  const shownError = hostEngineErrorText(
-                    error.message,
-                    isRemoteEngineBackend(),
-                    deps.t,
-                  );
+                  const shownError = hostStreamErrorText(error.message, deps.t);
                   callbacks.onDelta?.(`⚠️ ${shownError}`, `⚠️ ${shownError}`);
                   try {
                     // The engine's own sentence, or humanized remote reason.

@@ -20,6 +20,11 @@ export function armsShouldClearOnDraft(draft: string, hadContent: boolean): bool
   return hadContent && draft.trim().length === 0;
 }
 
+/** The research branch invokes app-side tools, so it is local-only. */
+export function researchIntentForBackend(remoteBackend: boolean, requested: boolean): boolean {
+  return !remoteBackend && requested;
+}
+
 /**
  * The options one send builds from the arms plus the typed deep-research
  * trigger: `null` means nothing changes and no `options` object is handed to

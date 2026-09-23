@@ -9,7 +9,7 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { armsSendOptions, armsShouldClearOnDraft } from "./composerArms";
+import { armsSendOptions, armsShouldClearOnDraft, researchIntentForBackend } from "./composerArms";
 import { runHostAttachment } from "./remoteAttachmentGate";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
@@ -54,6 +54,32 @@ describe("the send's options and its capture-and-clear (Chat:2454-2463)", () => 
     expect(armsSendOptions(true, false, false)).toEqual({ research: true, notes: false });
     expect(armsSendOptions(false, false, true)).toEqual({ research: true, notes: false });
     expect(armsSendOptions(true, false, true)).toEqual({ research: true, notes: false });
+  });
+
+  it("never dispatches the research executor for a remote send", () => {
+    const executeTool = jest.fn();
+    const remoteResearch = researchIntentForBackend(true, true);
+    const remoteOptions = armsSendOptions(
+      researchIntentForBackend(true, true),
+      false,
+      remoteResearch,
+    );
+    if (remoteOptions?.research) executeTool("document_chat");
+    expect(remoteOptions).toBeNull();
+    expect(executeTool).not.toHaveBeenCalled();
+
+    const localOptions = armsSendOptions(
+      researchIntentForBackend(false, true),
+      false,
+      researchIntentForBackend(false, true),
+    );
+    if (localOptions?.research) executeTool("document_chat");
+    expect(executeTool).toHaveBeenCalledTimes(1);
+    // The live send must use the tested predicate for both the keyword and
+    // the one-shot research arm; otherwise the executor probe above is moot.
+    expect(SEND).toContain("const remoteBackend = isRemoteEngineBackend()");
+    expect(SEND).toContain("researchIntentForBackend(remoteBackend, hasDeepResearchTrigger(trimmed))");
+    expect(SEND).toContain("researchIntentForBackend(remoteBackend, params.arms.researchRef.current)");
   });
 
   it("arms notes on its own — the branch engineTurn:246-257 was unreachable until this", () => {

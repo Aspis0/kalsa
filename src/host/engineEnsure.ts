@@ -11,6 +11,7 @@
  * row 18), `setProcessUnloadedReason` (its hook is not mounted in this root).
  */
 import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
+import { isRemoteEngineBackend } from "../engine/engineBackend";
 import { MODEL_REGISTRY, type ModelInfo } from "../engine/ModelRegistry";
 import { isModelBundleDownloaded } from "../engine/ModelDownloader";
 import { readUserContextSize } from "../engine/contextSizePref";
@@ -32,8 +33,16 @@ import { isEmbedderHung } from "../engine/EmbeddingService";
 import { loadMarkerStore } from "./engineLoad";
 import { performEngineLoad } from "./engineEnsureLoad";
 import type { EngineLoadDeps } from "./engineLoad";
+import { runLocalEnsureGate } from "./localEnsureGate";
 
-export async function ensureEngineForModel(
+export function ensureEngineForModel(
+  deps: EngineLoadDeps,
+  model: ModelInfo,
+): Promise<boolean> {
+  return runLocalEnsureGate(isRemoteEngineBackend(), () => ensureLocalEngineForModel(deps, model));
+}
+
+async function ensureLocalEngineForModel(
   deps: EngineLoadDeps,
   model: ModelInfo,
 ): Promise<boolean> {

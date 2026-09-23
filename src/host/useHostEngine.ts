@@ -156,13 +156,13 @@ export function useHostEngine(params: HostEngineParams) {
       deviceToolsEnabledRef: flags.flagRefs.deviceToolsEnabledRef,
       calendarToolsEnabledRef: flags.flagRefs.calendarToolsEnabledRef,
       currentModel: modelHost.currentModel,
+      ensureEngineForModelRef: modelHost.scanRefs.ensureEngineForModelRef,
       remoteErrorRef: modelHost.remoteErrorRef,
       chatEngineCtxRef,
       recordDecodeSample: modelHost.recordDecodeSample,
       agentOptions,
       agentOptionsRef,
     },
-    modelHost.loadDeps,
   );
 
 
