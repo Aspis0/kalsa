@@ -82,6 +82,10 @@ function start(
 }
 
 describe("streamOpenAiChat", () => {
+  // One unconditional cleanup for every spy in this describe: a case that
+  // fails mid-way must not leak its console.warn spy into the next case.
+  afterEach(() => jest.restoreAllMocks());
+
   test("rejects non-loopback http before open", () => {
     const xhr = fakeXhr();
     const finishes: RemoteFinish[] = [];
@@ -486,7 +490,6 @@ describe("streamOpenAiChat", () => {
       expect(logged).not.toHaveProperty("excerpt");
       expect(String(payload)).not.toContain("apiKey");
       expect(String(payload)).not.toContain("the server said this");
-      warned.mockRestore();
     });
   });
 
@@ -516,7 +519,6 @@ describe("streamOpenAiChat", () => {
     expect(logged.excerpt).not.toContain("SECRET");
     // No verbatim copy of the server's text travels with the log line.
     expect(String(payload)).not.toContain("https://host/v1?token=SECRET");
-    warned.mockRestore();
     });
   });
 
@@ -541,7 +543,6 @@ describe("streamOpenAiChat", () => {
     // let alone logged.
     expect(logged.excerpt.length).toBeLessThanOrEqual(160);
     expect(String(payload)).not.toContain("SECRET");
-    warned.mockRestore();
     });
   });
 

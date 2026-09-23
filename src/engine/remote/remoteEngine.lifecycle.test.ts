@@ -150,6 +150,10 @@ describe("RemoteEngine lifecycle", () => {
     };
     asyncStorage.__reset();
     fetchMock.mockReset();
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    streamOpenAiChat.mockReset();
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
