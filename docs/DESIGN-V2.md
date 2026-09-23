@@ -170,9 +170,10 @@ Each entry is the anatomy a coder implements; states are named because a missing
 ### 3.1 Conversation
 
 **The strip** — 56 dp: the drawer's icon button (ghost, 44 px, **nude glyph**), the **model pill** — **a
-capsule**, 48 dp, radius 999, `surface`, 1 px `line`, `e1`, holding the model's short name in
-`bodyStrong`, a second line with a **13 px `accent` device glyph** (`smartphone` / `monitor`) and where
-it runs, and a chevron — and nothing else. **Nothing else lives in the strip**: no `+` (the new chat is
+capsule**, 44 dp, radius 999, `surface`, 1 px `line`, `e1`, **on one line**: the model's short name in
+`bodyStrong`, then a **13 px `accent` device glyph** (`smartphone` / `monitor`), then where it runs in
+11.5 px `ink3` (the pill has no second line: two lines wasted vertical room the transcript could use),
+and a chevron. **Nothing else lives in the strip**: no `+` (the new chat is
 the menu's primary action, and a second door to it was redundant), **no brand mark** (the logo lives in
 the launcher icon and in Settings), no web switch (it moves to Settings › Privacy), and the model's
 progress, error and battery lines live inside the pill's own sheet, opened by tapping it. The dot that
@@ -209,6 +210,18 @@ on the **content axis** — a Settings row carries **no leading icon**, so its l
 group header above it; an icon there pushes the text off the axis and makes the screen read misaligned
 (the owner's word). One implementation trap, learned by looking at the render: the scrolling column is a
 flex container, so its cards must be `flex: none` — otherwise they shrink and clip their own rows.
+
+**The first page** holds five groups of everyday things and nothing else: `ASSISTENTE` (**Dove risponde**,
+**Modello**), `ASPETTO` (**Tema**, **Dimensione testo**, **Lingua**), `PRIVACY E DATI` (**Web**,
+**Telemetria**, **Permessi**), `MOTORE` (one row — **Avanzate**, *Contesto, KV cache, governor, soglie*,
+12 voci — the only door to the engine) and `KALSA` (the mark card). Rows carry a **nude 20 px `accent`
+icon** on the left, then the label, an optional 12.5 px second line and, on the right, a value or a
+toggle or a chevron. Nothing about the context window, the KV cache, the governor or thermal thresholds
+appears here: that is the advanced surface, one tap behind **Avanzate**, exactly where the owner wants
+it (his note: — *why are the KV cache and the rest on the first page?*).
+
+`Settings › Avanzate` — the engine surface: contesto, cache KV, ragionamento, governor, soglie termiche,
+finestra, download, diagnostica, each a row with its unit in `mono`.
 
 `Settings › Preferenze` — groups of cards: **Aspetto** (lingua, dimensione testo, tema chiaro/scuro/
 sistema), **Conversazione** (invio con invio, salvataggio automatico, note). Rows 56 dp, value on the

@@ -835,7 +835,10 @@ body{background:var(--page);font-size:15px}
    Settings screen is redrawn: the title sits on the content axis, rows have no
    leading icons so the label axis equals the group header's, and nothing clips. */
 .pick .mark{display:none}
-.pick{padding:0 14px 0 16px;min-height:48px;align-items:center}
+.pick{padding:0 14px 0 16px;min-height:44px;align-items:center}
+.pick .txt{display:flex;align-items:center;gap:8px;min-width:0}
+.pick b{display:inline;font-size:15px}
+.pick small{margin-top:0;font-size:11.5px;color:var(--ink3);white-space:nowrap}
 .pick .cv{margin-left:12px;width:18px;height:18px}
 .page2>*{flex:none}                      /* the cards must not shrink: they were clipping their own rows */
 .titlebar{position:relative;display:flex;align-items:center;justify-content:center;padding:2px 16px 12px}
@@ -874,19 +877,21 @@ body{background:var(--page);font-size:15px}
   <div class="page2">
     <div class="titlebar"><span class="iconbtn">${back}</span><b>Impostazioni</b></div>
     <div class="grp"><div class="gt">ASSISTENTE</div>
-      <div class="srow"><span class="g"><b>Dove risponde</b><small>Telefono o Kalsa Brain sul PC</small></span><span class="val">Questo telefono</span>${chev}</div>
-      <div class="srow"><span class="g"><b>Modello</b><small>LFM2.5 2.6B · Q4_0</small></span>${chev}</div>
-      <div class="srow"><span class="g"><b>Contesto e cache</b><small>16384 token · K 8 bit, V 4 bit</small></span>${chev}</div>
+      <div class="srow"><span class="si">${I.pc}</span><span class="g"><b>Dove risponde</b><small>Questo telefono · o Kalsa Brain sul PC</small></span>${chev}</div>
+      <div class="srow"><span class="si">${I.grid}</span><span class="g"><b>Modello</b><small>LFM2.5 2.6B · Q4_0</small></span>${chev}</div>
     </div>
     <div class="grp"><div class="gt">ASPETTO</div>
-      <div class="srow"><span class="g"><b>Tema</b></span><span class="val">Automatico</span>${chev}</div>
-      <div class="srow"><span class="g"><b>Dimensione testo</b><small>Aa — La volpe marrone</small></span><span class="val">M</span>${chev}</div>
-      <div class="srow"><span class="g"><b>Lingua</b></span><span class="val">Italiano</span>${chev}</div>
+      <div class="srow"><span class="si">${I.moon}</span><span class="g"><b>Tema</b></span><span class="val">Automatico</span>${chev}</div>
+      <div class="srow"><span class="si">${I.size}</span><span class="g"><b>Dimensione testo</b></span><span class="val">M</span>${chev}</div>
+      <div class="srow"><span class="si">${I.people}</span><span class="g"><b>Lingua</b></span><span class="val">Italiano</span>${chev}</div>
     </div>
     <div class="grp"><div class="gt">PRIVACY E DATI</div>
-      <div class="srow"><span class="g"><b>Web</b><small>Ricerca quando la chiedi</small></span><span class="sw2"></span></div>
-      <div class="srow"><span class="g"><b>Telemetria</b><small>Spenta di default. Resta sul telefono.</small></span><span class="sw2 off"></span></div>
-      <div class="srow"><span class="g"><b>Permessi</b><small>Microfono, notifiche, calendario</small></span>${chev}</div>
+      <div class="srow"><span class="si">${I.search}</span><span class="g"><b>Web</b><small> Ricerca quando la chiedi</small></span><span class="sw2"></span></div>
+      <div class="srow"><span class="si">${I.flag}</span><span class="g"><b>Telemetria</b><small>Spenta di default</small></span><span class="sw2 off"></span></div>
+      <div class="srow"><span class="si">${I.shield}</span><span class="g"><b>Permessi</b><small>Microfono, notifiche, calendario</small></span>${chev}</div>
+    </div>
+    <div class="grp"><div class="gt">MOTORE</div>
+      <div class="srow"><span class="si">${I.calc}</span><span class="g"><b>Avanzate</b><small>Contesto, KV cache, governor, soglie</small></span><span class="val">12 voci</span>${chev}</div>
     </div>
     <div class="grp"><div class="gt">KALSA</div>
       <div class="srow"><span class="brandmark"><img src="logo.png" alt=""></span><span class="g"><b>Kalsa</b><small>Versione 0.1.0 · locale e privato</small></span></div>
