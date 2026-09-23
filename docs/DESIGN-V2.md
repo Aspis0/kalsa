@@ -89,7 +89,19 @@ lucide, **1.75 stroke**, 20 px inside rows and controls, 18 px inside chips, 24 
 own leading action. Every interactive node carries a `testID` and an accessible name, and a **48 dp
 touch box** (the painted control may be smaller: 44 px send, 36 px ghost action, 32 px chip).
 
-### 1.5 Motion
+### 1.6 What is not decoration
+
+A rule the v2 pass was written against, because the first version of it read as a toy:
+
+- **No metaphors.** The thought "cloud" is not a cloud: it is a status row with a dot. Nothing in the
+  interface is shaped like an object it does not literally represent.
+- **No pill soup.** A container is a hairline, not a shadow, unless the thing floats over content. A
+  row of metadata (sources, tools) is text with separators and mono indices, not a row of pills.
+- **Type carries the hierarchy, not ornament.** When a screen needs emphasis, the size or the weight
+  moves; it is never a tint, an emoji, a dashed border or a gradient.
+- **One filled green per screen.** It marks the single primary action.
+
+### 1.7 Motion
 
 Inherited from `DESIGN.md` 2.11 and unchanged: the answer enters 200–250 ms fade + 8–12 dp rise
 (`cubic-bezier(0,0,.38,.9)`); the streaming caret pulses 1 → 0.35 → 1 over 1 s, linear, frozen solid as
@@ -128,7 +140,7 @@ Each entry is the anatomy a coder implements; states are named because a missing
 | **Answer** | no container: `surface` is the page; `reading` text, 0 left padding beyond the gutter | streaming (caret), stopped (see below), error |
 | **Source chip** | 32 dp, radius 10, `surface`, 1 px `line`, 12 px label, a `mono` index in `accent` | live (tappable), unavailable (dashed `line2`, `ink3`) |
 | **Tool row** | `tint` pill, 28 dp, 12 px label, 14 px icon in `accent`, grouped into one wrapping row per turn | running, done |
-| **Thinking card** | `surface`, radius 16, `e1`, a 16 dp row (title + value + chevron), a `serif` italic face line with a fade, and the trail of three circles below-left | live (pulsing face), collapsed, expanded |
+| **Thinking card** | **a status row, not a bubble**: a 7 px `accent` dot, a 13.5 px Source Serif italic fragment of the current thought with a right fade, and a `Mostra` text button in `accent`; no container, no shadow, no tail | live (the dot pulses), expanded (the full thought in a `surface` card) |
 | **Stop marker** | a row in `wait` colours with a 20 px icon and 13 px text, placed where the answer stopped | stopped by the user, stopped by the engine |
 | **Attachment chip** | 36 dp, radius 10, `surface`, 1 px `line`, 16 px file icon, filename in `headline`, trailing `×` | uploading, ready, failed |
 | **Progress** | 4 px track radius 999, `tint` ground, `brand` fill, no shadow; the percentage always appears as text beside it | determinate, indeterminate |
@@ -143,9 +155,10 @@ Each entry is the anatomy a coder implements; states are named because a missing
 
 **The strip** — 56 dp: the drawer's icon button (ghost, 44 px), the **model pill** (44 dp, `surface`,
 radius 14, `e1`: a 32 px mark, the model's short name in `bodyStrong`, and a second line with a 6 px
-`accent` dot plus where it runs — "Su questo telefono" / "Sul PC"), a chevron, then a 44 px ghost `+`.
-**Nothing else lives in the strip**: the web switch moves to Settings › Privacy, and the model's
-progress, error and battery lines live inside the pill's own sheet, opened by tapping it.
+`accent` dot plus where it runs — "Su questo telefono" / "Sul PC"), and a chevron. **Nothing else
+lives in the strip**: no `+` (the new chat is the menu's primary action, and a second door to it was
+redundant), no web switch (it moves to Settings › Privacy), and the model's progress, error and
+battery lines live inside the pill's own sheet, opened by tapping it.
 
 **The transcript** — the answer has no container. States, each with its line:
 empty (the photograph alone), waiting for the first token (the strip of three dots and the composer's
