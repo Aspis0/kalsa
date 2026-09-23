@@ -2135,3 +2135,534 @@ the f16/`-fa off` history exactly as it was recorded (the bridge cell f16+`-fa o
 but not run - named, not hidden).
 
 ---
+
+## 30a. METER RESULT
+
+| arm | prediction (fixed in §30) | result | verdict |
+|---|---|---|---|
+| Meter ON, turn 1 | Instrument check: `|CSV - counter| / counter <= 10%` is usable; **>10% outranks the queue and stops it**. Cost decision, once both arms exist: RELEASE-OK only at <=+5% and within 3σ of matched idle windows; DEV-ONLY at >=+15%; intermediate = dev. | **CSV current integral 19.230 µAh** (trapezoid over 34 valid rows, 39.345 s); external charge-counter delta over the same first/last CSV rows **26,250 µAh** (3,363,750 -> 3,337,500 µAh). `|19.230 - 26,250| / 26,250 = 99.927%`. All three CSV property-status columns were `ok`. | **STOP QUEUE — instrument mismatch exceeds 10%.** No ON/OFF cost verdict: the OFF arm did not run. |
+| Meter OFF | Identical idle + fixed turn; same cost thresholds. | **Not run** after the higher-priority instrument check failed. | **NOT RUN — queue stopped by Meter ON accuracy finding.** |
+
+Workload was the same 512-token-budget app turn in a fresh chat, asking for a detailed 500-word explanation of the phone battery charge counter. The app emitted `KALSA_THINKING` but no `KALSA_TELEMETRY`; its UI ended in “Generazione interrotta.” The trace lasted only 39.345 s. The log also records `failed to mlock ... Out of memory`. Thus this was not a completed-answer comparison; it is retained because the pre-registered instrument-accuracy gate is the stop condition. The current integral and the counter delta above use the same CSV window and are not smoothed.
+
+Screen-on condition failed: the Meter-on idle start bracket read `mWakefulness=Dozing`, and the turn bracket at 11:42:16 also read `Dozing`. Treat the app-use cost arm as void; the wake-key loop did not hold the screen awake. This does not change the registered >10% stop finding. All recorded brackets had AC and USB power false. Thermal status stayed 0; maximum bracket temperature was 35.7 °C, below the 44.0 °C stop. Background CPU at the turn brackets was `adsprpcd` 3–7% and `audioadsprpcd` 1%.
+
+Battery was 93% at the coordinator’s session-start check; the first local bracket was 92%. At the stop boundary it was 87% (charge counter 3,292,500 µAh, 33.8 °C, unplugged, thermal status 0, `mWakefulness=Awake`). The trace flag was absent before the arm, armed to `1` for the run, and restored to absent afterward. The app was force-stopped; no uninstall or data clear occurred. Before installation, the APK was verified at **159,233,414 bytes**, SHA-256 **`bfb5b4f95ff27eb749dac4e35a1a08366142d67eef1e198fba13b9dd37ddacdc`**; `adb install -r` returned `Success`.
+
+**Queue disposition:** §37 A/B/C and K-split were not run. The Meter instrument finding stops all later arms.
+
+Raw evidence and archived scripts (`ls -la` metadata, followed by `wc -l`):
+
+```text
+$ ls -la raw/meter-on-t1.csv raw/meter-brackets.txt raw/meter-on-logcat.txt raw/meter-thermal-watch.log raw/meter-key-restore.txt raw/meter-stop-app.txt raw/meter-install.txt raw/meter-bracket.sh raw/meter-idle-window.sh raw/meter-thermal-watchdog.sh raw/meter-waker.sh
+-rw-r--r--  1 marco  staff    2481 Sep 23 11:44 raw/meter-on-t1.csv
+-rw-r--r--  1 marco  staff    6311 Sep 23 11:49 raw/meter-brackets.txt
+-rw-r--r--  1 marco  staff  157006 Sep 23 11:46 raw/meter-on-logcat.txt
+-rw-r--r--  1 marco  staff   27202 Sep 23 11:49 raw/meter-thermal-watch.log
+-rw-r--r--  1 marco  staff     135 Sep 23 11:47 raw/meter-key-restore.txt
+-rw-r--r--  1 marco  staff     170 Sep 23 11:47 raw/meter-stop-app.txt
+-rw-r--r--  1 marco  staff      36 Sep 23 11:30 raw/meter-install.txt
+-rwxr-xr-x  1 marco  staff     584 Sep 23 11:30 raw/meter-bracket.sh
+-rwxr-xr-x  1 marco  staff     440 Sep 23 11:35 raw/meter-idle-window.sh
+-rwxr-xr-x  1 marco  staff    1143 Sep 23 11:30 raw/meter-thermal-watchdog.sh
+-rwxr-xr-x  1 marco  staff     148 Sep 23 11:32 raw/meter-waker.sh
+$ wc -l raw/meter-on-t1.csv raw/meter-brackets.txt raw/meter-on-logcat.txt raw/meter-thermal-watch.log raw/meter-key-restore.txt raw/meter-stop-app.txt raw/meter-install.txt raw/meter-bracket.sh raw/meter-idle-window.sh raw/meter-thermal-watchdog.sh raw/meter-waker.sh
+      36 raw/meter-on-t1.csv
+     270 raw/meter-brackets.txt
+    1249 raw/meter-on-logcat.txt
+     406 raw/meter-thermal-watch.log
+       3 raw/meter-key-restore.txt
+       3 raw/meter-stop-app.txt
+       2 raw/meter-install.txt
+       9 raw/meter-bracket.sh
+      13 raw/meter-idle-window.sh
+      20 raw/meter-thermal-watchdog.sh
+       3 raw/meter-waker.sh
+```
+
+### 30a-correction (coordinator-verified)
+
+The original 19.230 value above treated `current_uA` as microamps. On this S23, the source values are **mA** despite the column name; the Meter reconstruction explicitly records “mA on the S23 against the Javadoc's uA, to be calibrated per device” (`scratchpad/agents/governor-meter-recon/REPORT.md:290`). Corrected arithmetic for the same CSV window:
+
+- CSV current integral: **19.230 mAh = 19,230 µAh**.
+- Charge-counter delta: **26,250 µAh**.
+- Relative difference: `|19,230 - 26,250| / 26,250 = 26.743%` (about **27%**), not 99.927%.
+- Counter quantization: observed steps are **3,750 µAh** (`3,363,750 -> 3,352,500 -> 3,337,500`). With up to one step of uncertainty at each window boundary, the delta uncertainty is up to **±7,500 µAh**, or **±28.6%** of this 26,250 µAh window. This 39-second window cannot resolve the pre-registered 10% instrument threshold.
+
+**Corrected disposition: arm VOID, not an instrument finding. The stop was a unit artefact.** The cost result remains void independently: the turn ended in “Generazione interrotta,” the trace lasted only 39.345 s, and the brackets recorded `mWakefulness=Dozing` against the registered screen-ON condition.
+
+The captured JS logcat's explicit failure clue is an OpenCL allocation-lock warning immediately before the turn marker; it contains no user-stop or keyevent record, so the log does not prove the interruption's cause. The OOM warning is the only logged cause consistent with the interruption:
+
+```text
+1790178103.010 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+1790178105.831 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"off"}
+```
+
+The coordinator correction supersedes the original stop disposition above. Per the owner's order, the queue resumes at §37; Meter will not be rerun here.
+
+Correction source metadata:
+
+```text
+$ ls -la scratchpad/agents/governor-meter-recon/REPORT.md
+-rw-r--r--  1 marco  staff  37244 Sep 23 00:02 scratchpad/agents/governor-meter-recon/REPORT.md
+$ wc -l scratchpad/agents/governor-meter-recon/REPORT.md
+     514 scratchpad/agents/governor-meter-recon/REPORT.md
+```
+
+### 37a-control result (2026-09-23)
+
+**Prediction:** §37 set A control gate 0.28–0.33; <=0.02 would void selector provenance. **Observed median KLD: 0.302991**, so the control gate passes and permits the treatment arm. Mean KLD was 0.499343 ± 0.015902. This is the `KALSA_COK_ACC=fp16` arm with `-b 8 -fa on -ctk q8_0 -ctv q4_0`, compared with `cpu-appkv-r2.kld`.
+
+Start bracket: 85%, 32.3 °C, thermal status 0, AC/USB/wireless false, Awake. End bracket: 82%, 37.5 °C, thermal status 2, AC/USB/wireless false, Awake. The arm status records completion at 83%, 39.1 °C, Awake. No stop threshold was crossed. The end bracket's `top` sample showed `adsprpcd` at 7% CPU (other listed processes were mostly kernel workers). Timed run lasted 142 s. Device thermal status reached 2, below the stop threshold; cooling before the next arm.
+
+Raw files: `raw/s37a-control.status`, `raw/s37a-control.log`, `raw/s37a-control.err`, `raw/s37a-control-pull.txt`, `raw/s37a-control-host.txt`, `raw/kld-brackets.txt`, and `raw/kld-thermal-watch.log`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff   4247 Sep 23 12:08 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  46778 Sep 23 12:09 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch.log
+-rw-r--r--  1 marco  staff    114 Sep 23 12:07 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control-host.txt
+-rw-r--r--  1 marco  staff    328 Sep 23 12:07 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control-pull.txt
+-rw-r--r--  1 marco  staff    378 Sep 23 12:07 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.err
+-rw-r--r--  1 marco  staff   3090 Sep 23 12:07 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.log
+-rw-r--r--  1 marco  staff    546 Sep 23 12:07 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.status
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.log
+       4 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control.err
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-control-host.txt
+     161 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     226 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch.log
+     457 total
+
+### 37a-treatment result (2026-09-23)
+
+**Prediction:** §37 set A treatment literal complete at median KLD <=0.0065; app-config-normalized complete at <=0.0114. The preregistered verdict is by the literal line, with literal and normalized kept separate. **No KLD number was produced; arm VOID.** The device runner returned 137 after the thermal watchdog reached status 3 and terminated `llama-perplexity` at 12:11:18. The partial log ended at the KL computation ETA and contains no summary statistics. The treatment therefore does not receive a pass/fail verdict on either prediction line.
+
+Start bracket: 82%, 37.3 °C, thermal status 1, AC/USB/wireless false, Awake. End bracket: 81%, 41.5 °C, thermal status 3, AC/USB/wireless false, Awake. At the stop, `adsprpcd` was 7% CPU; `pm-proxy` and `heatmap` were also listed at 7%. **Queue stopped at the thermal boundary.** No further §37 arms or K-split arms were run; the Meter is not rerun.
+
+Raw files: `raw/s37a-treatment.status`, `raw/s37a-treatment.log`, `raw/s37a-treatment.err`, `raw/s37a-treatment-pull.txt`, `raw/s37a-treatment-host.txt`, `raw/s37a-treatment-adb-exit.txt`, `raw/kld-brackets.txt`, and `raw/kld-thermal-watch.log`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff   5451 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  66285 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch.log
+-rw-r--r--  1 marco  staff      4 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-adb-exit.txt
+-rw-r--r--  1 marco  staff    114 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-host.txt
+-rw-r--r--  1 marco  staff    340 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-pull.txt
+-rw-r--r--  1 marco  staff    386 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.err
+-rw-r--r--  1 marco  staff   1316 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.log
+-rw-r--r--  1 marco  staff    550 Sep 23 12:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.status
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.status
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.log
+       5 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-adb-exit.txt
+     207 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     323 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch.log
+     559 total
+
+### 37a-treatment retry result (2026-09-23)
+
+**Prediction:** literal complete at median KLD <=0.0065; app-config-normalized complete at <=0.0114. The registered verdict is by the literal line. **Observed median KLD: 0.012742; verdict: PARTIAL by the literal line.** It is above both complete thresholds, including the normalized threshold. The registered app-gap fraction is `(0.302991 - 0.012742) / (0.302991 - 0.010268) = 99.15%`; the §35 literal fraction for continuity is `(0.304543 - 0.012742) / (0.304543 - 0.005412) = 97.55%`. Mean KLD was 0.035070 ± 0.002087.
+
+The first retry launch was refused before `START` because the old wrapper incorrectly required Awake for this accuracy arm; no workload ran. The corrected archived wrapper allows Dozing for accuracy arms and still requires Awake for the timed speed arms. The actual retry started at 80%, 32.9 °C, thermal status 0, unpowered, Dozing; its start bracket read 33.0 °C/status 0. End bracket: 78%, 37.7 °C, thermal status 1, unpowered, Dozing. `adsprpcd` was 7% CPU in the end bracket (with `pm-proxy` and `heatmap` also at 7%). No thermal stop occurred in this retry. Cool to status 0 and <=34.0 °C before the next arm.
+
+Raw files: `raw/s37a-treatment-r3.status`, `raw/s37a-treatment-r3.log`, `raw/s37a-treatment-r3.err`, `raw/s37a-treatment-r3-pull.txt`, `raw/s37a-treatment-r3-host.txt`, `raw/s37a-treatment-r3-adb-exit.txt`, `raw/s37a-treatment-r2-host.txt`, `raw/s37a-treatment-r2-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-r2.log`, `raw/kld-cooldown-polls.txt`, `raw/run-scripts/kld-37-arm-device-r3.sh`, `raw/kld-37-arm-device-r3-push.txt`, and `raw/kld-37-arm-device-r3-device-sha.txt`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff    125 Sep 23 12:20 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-37-arm-device-r3-device-sha.txt
+-rw-r--r--  1 marco  staff    181 Sep 23 12:20 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-37-arm-device-r3-push.txt
+-rw-r--r--  1 marco  staff   7316 Sep 23 12:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  18185 Sep 23 12:18 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-cooldown-polls.txt
+-rw-r--r--  1 marco  staff  62072 Sep 23 12:26 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-r2.log
+-rwxr-xr-x  1 marco  staff   5664 Sep 23 12:20 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r3.sh
+-rw-r--r--  1 marco  staff      3 Sep 23 12:19 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r2-adb-exit.txt
+-rw-r--r--  1 marco  staff     99 Sep 23 12:19 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r2-host.txt
+-rw-r--r--  1 marco  staff      2 Sep 23 12:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-adb-exit.txt
+-rw-r--r--  1 marco  staff    114 Sep 23 12:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-host.txt
+-rw-r--r--  1 marco  staff    349 Sep 23 12:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-pull.txt
+-rw-r--r--  1 marco  staff    379 Sep 23 12:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.err
+-rw-r--r--  1 marco  staff   3087 Sep 23 12:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.log
+-rw-r--r--  1 marco  staff    556 Sep 23 12:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.status
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.log
+       4 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r3-adb-exit.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r2-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37a-treatment-r2-adb-exit.txt
+     276 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     306 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-r2.log
+     328 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-cooldown-polls.txt
+      73 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r3.sh
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-37-arm-device-r3-push.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-37-arm-device-r3-device-sha.txt
+    1064 total
+
+### 37b-speed-control result (2026-09-23)
+
+**Prediction:** at `ne1=1`, <=2% slower confirms the registered zero cost; >5% slower is a nonzero finding. **No valid speed number; arm VOID** after two thermal stops, as directed. Attempt 1 started at 77%, 33.6 °C, thermal status 0, unpowered, Awake; attempt 2 started at 74%, 32.8 °C, thermal status 0, unpowered, Awake. Both ended at the watchdog's thermal status 3: 75%/41.0 °C and 72%/41.8 °C, respectively. Both partial logs stopped before all 14 chunks, so no speed comparison is valid. At the stops, `adsprpcd` was 7% CPU (other top processes are in the brackets). The treatment speed arm remains next; its result cannot form a control/treatment comparison with this VOID control.
+
+Raw files: `raw/s37b-speed-control-attempt1.status`, `.log`, `.err`, `raw/s37b-speed-control-attempt1-pull.txt`, `raw/s37b-speed-control-host.txt`, `raw/s37b-speed-control-adb-exit.txt`, `raw/s37b-speed-control-attempt2.status`, `.log`, `.err`, `raw/s37b-speed-control-attempt2-pull.txt`, `raw/s37b-speed-control-r2-host.txt`, `raw/s37b-speed-control-r2-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-b.log`, `raw/kld-thermal-watch-b-r2.log`, `raw/kld-screen-waker-b.log`, `raw/kld-screen-waker-b-r2.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `kld-37-arm-device-r5.sh`, `kld-screen-waker.sh`, `kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  454 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.status
+-rw-r--r--  1 marco  staff  79 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.log
+-rw-r--r--  1 marco  staff  629 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.err
+-rw-r--r--  1 marco  staff  350 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 12:31 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-host.txt
+-rw-r--r--  1 marco  staff  4 Sep 23 12:31 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-adb-exit.txt
+-rw-r--r--  1 marco  staff  460 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.status
+-rw-r--r--  1 marco  staff  101 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.log
+-rw-r--r--  1 marco  staff  629 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.err
+-rw-r--r--  1 marco  staff  360 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-r2-host.txt
+-rw-r--r--  1 marco  staff  4 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-r2-adb-exit.txt
+-rw-r--r--  1 marco  staff  9806 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  23917 Sep 23 12:31 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b.log
+-rw-r--r--  1 marco  staff  27425 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-r2.log
+-rw-r--r--  1 marco  staff  1012 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b.log
+-rw-r--r--  1 marco  staff  1144 Sep 23 12:42 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-r2.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  5822 Sep 23 12:32 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r5.sh
+-rwxr-xr-x  1 marco  staff  415 Sep 23 11:59 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.status
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.log
+       8 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt1-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-adb-exit.txt
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.status
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.log
+       8 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-attempt2-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-r2-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-control-r2-adb-exit.txt
+     368 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     121 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b.log
+     139 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-r2.log
+      23 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b.log
+      26 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-r2.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r5.sh
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37b-speed-treatment result (2026-09-23)
+
+**Prediction:** <=2% slower confirms zero cost; >5% slower is a nonzero finding. **No valid speed number; arm VOID** after two thermal stops. The §37b speed pair is VOID because the control arm also stopped twice. Treatment attempt 1 started at 71%, 33.7 °C, thermal status 0, unpowered, Awake; attempt 2 started at 68%, 32.8 °C, thermal status 0, unpowered, Awake. Both ended at thermal status 3: 69%/41.6 °C and 66%/41.5 °C. Each partial log stopped before all 14 chunks. `adsprpcd` was 7% CPU in the end brackets. B’s accuracy pair remains queued.
+
+Raw files: `raw/s37b-speed-treatment-attempt1.status`, `.log`, `.err`, `raw/s37b-speed-treatment-attempt1-pull.txt`, `raw/s37b-speed-treatment-host.txt`, `raw/s37b-speed-treatment-adb-exit.txt`, `raw/s37b-speed-treatment-attempt2.status`, `.log`, `.err`, `raw/s37b-speed-treatment-attempt2-pull.txt`, `raw/s37b-speed-treatment-r2-host.txt`, `raw/s37b-speed-treatment-r2-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-b-treatment.log`, `raw/kld-thermal-watch-b-treatment-r2.log`, `raw/kld-screen-waker-b-treatment.log`, `raw/kld-screen-waker-b-treatment-r2.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `kld-37-arm-device-r6.sh`, `kld-screen-waker.sh`, `kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  456 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.status
+-rw-r--r--  1 marco  staff  79 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.log
+-rw-r--r--  1 marco  staff  629 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.err
+-rw-r--r--  1 marco  staff  356 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-host.txt
+-rw-r--r--  1 marco  staff  4 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-adb-exit.txt
+-rw-r--r--  1 marco  staff  462 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.status
+-rw-r--r--  1 marco  staff  79 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.log
+-rw-r--r--  1 marco  staff  629 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.err
+-rw-r--r--  1 marco  staff  365 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-r2-host.txt
+-rw-r--r--  1 marco  staff  4 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-r2-adb-exit.txt
+-rw-r--r--  1 marco  staff  12342 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  22447 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-treatment.log
+-rw-r--r--  1 marco  staff  23638 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-treatment-r2.log
+-rw-r--r--  1 marco  staff  968 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-treatment.log
+-rw-r--r--  1 marco  staff  968 Sep 23 13:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-treatment-r2.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  5846 Sep 23 12:53 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r6.sh
+-rwxr-xr-x  1 marco  staff  415 Sep 23 11:59 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.status
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.log
+       8 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt1-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-adb-exit.txt
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.status
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.log
+       8 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-attempt2-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-r2-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-speed-treatment-r2-adb-exit.txt
+     460 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     111 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-treatment.log
+     119 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-treatment-r2.log
+      22 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-treatment.log
+      22 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-b-treatment-r2.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r6.sh
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37b-accuracy-control result (2026-09-23)
+
+**Prediction:** control and treatment must be bitwise identical to each other and to §17's `0.006012 / 93.138`. **Observed control: median KLD 0.006012; same-top 93.138% — exact match to §17, so the control gate passes.** Treatment remains pending for the bitwise comparison.
+
+Start bracket: 65%, 32.1 °C, thermal status 0, unpowered, Dozing. End bracket: 60%, 36.9 °C, thermal status 0, unpowered, Dozing. `adsprpcd` was 7% CPU in the end bracket. The 965-second KLD run completed rc=0; no thermal stop occurred.
+
+Raw files: `raw/s37b-accuracy-control.status`, `.log`, `.err`, `raw/s37b-accuracy-control-pull.txt`, `raw/s37b-accuracy-control-host.txt`, `raw/s37b-accuracy-control-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-b-accuracy-control.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `raw/run-scripts/kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  546 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.status
+-rw-r--r--  1 marco  staff  3087 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.log
+-rw-r--r--  1 marco  staff  509 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.err
+-rw-r--r--  1 marco  staff  361 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-adb-exit.txt
+-rw-r--r--  1 marco  staff  13589 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  137693 Sep 23 13:31 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-control.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.log
+       5 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control-adb-exit.txt
+     506 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     680 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-control.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37b-accuracy-treatment result (2026-09-23)
+
+**Prediction:** control and treatment must be bitwise identical to each other and to §17's `0.006012 / 93.138`. **Observed treatment: median KLD 0.006012; same-top 93.138% — exact match.** After excluding the first-line runtime measurement, the full numeric logs are bitwise identical between control and treatment, so the decode-zero prediction is confirmed.
+
+Start bracket: 59%, 33.6 °C, thermal status 0, unpowered, Dozing. End bracket: 54%, 37.0 °C, thermal status 1, unpowered, Dozing. `adsprpcd` was 7% CPU in the end bracket. The 925-second KLD run completed rc=0; no thermal stop occurred.
+
+Raw files: `raw/s37b-accuracy-control.status`, `.log`, `raw/s37b-accuracy-treatment.status`, `.log`, `.err`, `raw/s37b-accuracy-treatment-pull.txt`, `raw/s37b-accuracy-treatment-host.txt`, `raw/s37b-accuracy-treatment-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-b-accuracy-control.log`, `raw/kld-thermal-watch-b-accuracy-treatment.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `raw/run-scripts/kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  546 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.status
+-rw-r--r--  1 marco  staff  3087 Sep 23 13:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.log
+-rw-r--r--  1 marco  staff  548 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.status
+-rw-r--r--  1 marco  staff  3087 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.log
+-rw-r--r--  1 marco  staff  509 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.err
+-rw-r--r--  1 marco  staff  367 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-adb-exit.txt
+-rw-r--r--  1 marco  staff  14859 Sep 23 13:50 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  309408 Sep 23 13:51 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-control.log
+-rw-r--r--  1 marco  staff  141024 Sep 23 13:51 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-treatment.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-control.log
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.log
+       5 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37b-accuracy-treatment-adb-exit.txt
+     552 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+    1534 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-control.log
+     698 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-b-accuracy-treatment.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37c-b8-control result (2026-09-23)
+
+**Prediction:** §37 set C b8 speed pair: <=5% difference = no meaningful cost, 5–10% = notable, >10% = significant; expected near +8.3%. **Control number: 2.07 min over 14 chunks** (8.88 s/pass); runner wall was 142 s. Pair verdict awaits treatment.
+
+Start bracket: 53%, 33.7 °C, thermal status 0, unpowered, Awake. End bracket: 51%, 41.3 °C, thermal status 2, unpowered, Awake. `adsprpcd` was 7% CPU at the end bracket. All 14 chunks completed rc=0; no stop threshold was crossed.
+
+Raw files: `raw/s37c-b8-control.status`, `.log`, `.err`, `raw/s37c-b8-control-pull.txt`, `raw/s37c-b8-control-host.txt`, `raw/s37c-b8-control-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-c-b8-control.log`, `raw/kld-screen-waker-c-b8-control.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `raw/run-scripts/kld-bracket.sh`, `raw/run-scripts/kld-screen-waker.sh`, `raw/run-scripts/kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  465 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.status
+-rw-r--r--  1 marco  staff  174 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+-rw-r--r--  1 marco  staff  547 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.err
+-rw-r--r--  1 marco  staff  342 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-adb-exit.txt
+-rw-r--r--  1 marco  staff  16094 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  37581 Sep 23 13:58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b8-control.log
+-rw-r--r--  1 marco  staff  1232 Sep 23 13:58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b8-control.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  576 Sep 23 12:04 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+-rwxr-xr-x  1 marco  staff  415 Sep 23 11:59 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.status
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+       7 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control-adb-exit.txt
+     598 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     180 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b8-control.log
+      28 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b8-control.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+       9 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37c-b8-treatment result (2026-09-23)
+
+**Prediction:** <=5% slowdown = no meaningful cost; 5–10% notable; >10% significant; expected near +8.3%. **Treatment number: 2.03 min over 14 chunks** (8.78 s/pass), versus control 2.07 min (8.88 s/pass), a **1.93% speedup**; wrapper wall was 141 s versus 142 s (0.70% faster). **Verdict: no meaningful cost; the pair confirms the <=5% band.**
+
+Start bracket: 50%, 33.2 °C, thermal status 0, unpowered, Awake. End bracket: 47%, 40.5 °C, thermal status 2, unpowered, Awake. `adsprpcd` was 7% CPU in the end bracket. All 14 chunks completed rc=0; no thermal stop occurred.
+
+Raw files: `raw/s37c-b8-treatment.status`, `.log`, `.err`, `raw/s37c-b8-treatment-pull.txt`, `raw/s37c-b8-treatment-host.txt`, `raw/s37c-b8-treatment-adb-exit.txt`, `raw/s37c-b8-control.log`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-c-b8-treatment.log`, `raw/kld-screen-waker-c-b8-treatment.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `raw/run-scripts/kld-bracket.sh`, `raw/run-scripts/kld-screen-waker.sh`, `raw/run-scripts/kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  467 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.status
+-rw-r--r--  1 marco  staff  174 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.log
+-rw-r--r--  1 marco  staff  547 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.err
+-rw-r--r--  1 marco  staff  348 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-adb-exit.txt
+-rw-r--r--  1 marco  staff  174 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+-rw-r--r--  1 marco  staff  17311 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  34828 Sep 23 14:12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b8-treatment.log
+-rw-r--r--  1 marco  staff  1188 Sep 23 14:12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b8-treatment.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  576 Sep 23 12:04 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+-rwxr-xr-x  1 marco  staff  415 Sep 23 11:59 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.status
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.log
+       7 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment-adb-exit.txt
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+     644 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     170 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b8-treatment.log
+      27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b8-treatment.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+       9 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+### 37c-b256-anchor result (2026-09-23)
+
+**Prediction:** the single app-config b256 PPL anchor should show the fix-inert batch-256 baseline and support the registered derived 3,080-token estimate; the selector's b256 effect is predicted within 2% of zero. **Observed anchor: 1.00 min over 14 chunks** (4.29 s/pass), PPL 24.9072 ± 1.87500; runner wall 70 s. This is the preregistered single anchor; no b256 selector pair was run.
+
+Start bracket: 46%, 33.5 °C, thermal status 0, unpowered, Awake. End bracket: 44%, 38.0 °C, thermal status 1, unpowered, Awake. `adsprpcd` was 7% CPU in the end bracket. All 14 chunks completed rc=0; no thermal stop occurred.
+
+Raw files: `raw/s37c-b256-anchor.status`, `.log`, `.err`, `raw/s37c-b256-anchor-pull.txt`, `raw/s37c-b256-anchor-host.txt`, `raw/s37c-b256-anchor-adb-exit.txt`, `raw/s37c-b8-control.log`, `raw/s37c-b8-treatment.log`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-c-b256-anchor.log`, `raw/kld-screen-waker-c-b256-anchor.log`, and scripts `raw/run-scripts/kld-37-arm-device-r4.sh`, `raw/run-scripts/kld-bracket.sh`, `raw/run-scripts/kld-screen-waker.sh`, `raw/run-scripts/kld-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  466 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.status
+-rw-r--r--  1 marco  staff  174 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.log
+-rw-r--r--  1 marco  staff  549 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.err
+-rw-r--r--  1 marco  staff  345 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-adb-exit.txt
+-rw-r--r--  1 marco  staff  174 Sep 23 13:57 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+-rw-r--r--  1 marco  staff  174 Sep 23 14:11 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.log
+-rw-r--r--  1 marco  staff  18518 Sep 23 14:24 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  26453 Sep 23 14:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b256-anchor.log
+-rw-r--r--  1 marco  staff  968 Sep 23 14:25 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b256-anchor.log
+-rwxr-xr-x  1 marco  staff  5800 Sep 23 12:27 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+-rwxr-xr-x  1 marco  staff  576 Sep 23 12:04 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+-rwxr-xr-x  1 marco  staff  415 Sep 23 11:59 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+-rwxr-xr-x  1 marco  staff  1918 Sep 23 12:03 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.status
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.log
+       7 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b256-anchor-adb-exit.txt
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-control.log
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/s37c-b8-treatment.log
+     690 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     142 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-c-b256-anchor.log
+      22 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-screen-waker-c-b256-anchor.log
+      74 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-37-arm-device-r4.sh
+       9 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-bracket.sh
+      12 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-screen-waker.sh
+      29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-thermal-watchdog.sh
+
+**Derived 3,080-token estimate (not a directly timed app turn):** the measured b8 selector delta is `2.03 - 2.07 = -0.04 min` (2.4 s faster). Normalized to the measured b256 anchor (`1.00 min`), this is **−4.0%** for the registered 3,080-token corpus. The derived effect is a speedup, not a penalty; the actual app-turn tail remains a derived estimate.
+
+## K-split pair RESULT
+
+### K-split control result (2026-09-23)
+
+**Prediction:** the `KALSA_COK_KORDER=split` control must reproduce median KLD **0.006890** exactly; otherwise the pair is VOID. **Observed: median KLD 0.006890; control gate passes.** Host binary SHA-256 and the on-device SHA-256 both match `6ff4124b4c8a6449cca7e880556f94a3a2d90cb233151411d0439664e328c747`. The treatment prediction remains at or near 0.0054; if it sits on 0.006890, stop the pair.
+
+Start bracket: 43%, 33.2 °C, thermal status 0, unpowered, Dozing. End bracket: 40%, 41.3 °C, thermal status 2, unpowered, Dozing. `adsprpcd` was 7% CPU at the end bracket. The 375-second run completed rc=0; no thermal stop occurred.
+
+Raw files: `raw/ksplit-control.status`, `.log`, `.err`, `raw/ksplit-control-pull.txt`, `raw/ksplit-control-host.txt`, `raw/ksplit-control-adb-exit.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-ksplit-control.log`, `raw/k-split-host-sha.txt`, `raw/k-split-device-sha.txt`, `raw/k-split-device-artifacts.txt`, `raw/k-split-binary-push.txt`, `raw/k-split-runner-device-sha.txt`, `raw/k-split-runner-push.txt`, and `raw/run-scripts/kld-k-split-arm-device.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r--  1 marco  staff  552 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.status
+-rw-r--r--  1 marco  staff  3087 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.log
+-rw-r--r--  1 marco  staff  509 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.err
+-rw-r--r--  1 marco  staff  340 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-pull.txt
+-rw-r--r--  1 marco  staff  114 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-host.txt
+-rw-r--r--  1 marco  staff  2 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-adb-exit.txt
+-rw-r--r--  1 marco  staff  19757 Sep 23 14:37 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+-rw-r--r--  1 marco  staff  69880 Sep 23 14:38 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-ksplit-control.log
+-rw-r--r--  1 marco  staff  662 Sep 23 14:38 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-host-sha.txt
+-rw-r--r--  1 marco  staff  138 Sep 23 14:29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-device-sha.txt
+-rw-r--r--  1 marco  staff  361 Sep 23 14:31 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-device-artifacts.txt
+-rw-r--r--  1 marco  staff  157 Sep 23 14:29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-binary-push.txt
+-rw-r--r--  1 marco  staff  127 Sep 23 14:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-runner-device-sha.txt
+-rw-r--r--  1 marco  staff  183 Sep 23 14:30 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-runner-push.txt
+-rwxr-xr-x  1 marco  staff  3390 Sep 23 14:29 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-k-split-arm-device.sh
+
+       3 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.status
+      58 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.log
+       5 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control.err
+       6 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-pull.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-host.txt
+       1 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/ksplit-control-adb-exit.txt
+     736 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-brackets.txt
+     344 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/kld-thermal-watch-ksplit-control.log
+       4 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-host-sha.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-device-sha.txt
+       4 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-device-artifacts.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-binary-push.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-runner-device-sha.txt
+       2 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/k-split-runner-push.txt
+      49 /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-kld-740-q4-0/raw/run-scripts/kld-k-split-arm-device.sh
+
+### K-split serial treatment result (2026-09-23)
+
+**Prediction:** default serial order should close toward the **~0.0054** neighborhood; if it remains at the split control's 0.006890, stop. **Observed median KLD: 0.006983**, which is 0.000093 (1.35%) above the control and 0.001583 above 0.0054. It did not close toward the predicted neighborhood. **Verdict: FAIL; stop the pair** (no third attempt). The split control gate had passed exactly at 0.006890. The binary was pushed under its new name and its on-device SHA-256 matched `6ff4124b4c8a6449cca7e880556f94a3a2d90cb233151411d0439664e328c747` before either arm.
+
+Start bracket: 38%, charge counter 1,455,000 µAh, 33.1 °C, thermal status 0, AC/USB/wireless false, Dozing; the cool-down gate passed. End bracket: 35%, charge counter 1,323,750 µAh, 41.2 °C, thermal status 2, AC/USB/wireless false, Dozing. `adsprpcd`, `pm-proxy`, and `heatmap` each showed 7% CPU in the end bracket. The run completed in 358 s with rc=0; no thermal stop occurred, and the battery stayed above the 22% floor.
+
+Raw files: `raw/ksplit-treatment.status`, `.log`, `.err`, `raw/ksplit-treatment-pull.txt`, `raw/ksplit-treatment-adb-exit.txt`, `raw/ksplit-treatment-end-bracket.txt`, `raw/kld-brackets.txt`, `raw/kld-thermal-watch-ksplit-treatment.log`, `raw/k-split-host-sha.txt`, `raw/k-split-device-sha.txt`, and `raw/run-scripts/kld-k-split-arm-device.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r-- 1 marco staff 556 Sep 23 14:54 raw/ksplit-treatment.status
+-rw-r--r-- 1 marco staff 3087 Sep 23 14:54 raw/ksplit-treatment.log
+-rw-r--r-- 1 marco staff 509 Sep 23 14:54 raw/ksplit-treatment.err
+-rw-r--r-- 1 marco staff 149 Sep 23 14:55 raw/ksplit-treatment-pull.txt
+-rw-r--r-- 1 marco staff 66 Sep 23 14:55 raw/ksplit-treatment-adb-exit.txt
+-rw-r--r-- 1 marco staff 627 Sep 23 14:55 raw/ksplit-treatment-end-bracket.txt
+-rw-r--r-- 1 marco staff 21010 Sep 23 14:55 raw/kld-brackets.txt
+-rw-r--r-- 1 marco staff 66660 Sep 23 14:55 raw/kld-thermal-watch-ksplit-treatment.log
+-rw-r--r-- 1 marco staff 662 Sep 23 14:38 raw/k-split-host-sha.txt
+-rw-r--r-- 1 marco staff 138 Sep 23 14:29 raw/k-split-device-sha.txt
+-rwxr-xr-x 1 marco staff 3390 Sep 23 14:29 raw/run-scripts/kld-k-split-arm-device.sh
+       3 raw/ksplit-treatment.status
+      58 raw/ksplit-treatment.log
+       5 raw/ksplit-treatment.err
+       1 raw/ksplit-treatment-pull.txt
+       1 raw/ksplit-treatment-adb-exit.txt
+      23 raw/ksplit-treatment-end-bracket.txt
+     782 raw/kld-brackets.txt
+     332 raw/kld-thermal-watch-ksplit-treatment.log
+       4 raw/k-split-host-sha.txt
+       2 raw/k-split-device-sha.txt
+      49 raw/run-scripts/kld-k-split-arm-device.sh
