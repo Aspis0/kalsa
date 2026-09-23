@@ -78,6 +78,16 @@ are written the same way: what happened, what it means, what the person can do �
    from first launch, phones join by pairing, and the room's `[WAITING: question 8]` is now a confirmation
    rather than an open question.
 
+## What exists on main today, so this design is not mistaken for the current door
+
+The port that landed on app `main` (`d69b4ce`) connects by **typing the computer's address** — its own
+hint reads *"Use your computer as the model. Set its address below."* — and it labels the mode
+**"Remote brain"**. So the QR this document designs is the *next* door: better, but not the only one, and
+the screen has to be honest about which of the two a person is looking at. At merge time the mode label
+becomes **"Il tuo computer"** by the owner's decision, and the address field either stays as the fallback
+for a camera that will not focus or is retired — a question for the Brain session, not a guess for this
+document.
+
 ## The one fact we already have, and it changes a copy line
 
 From the Brain session today: the door's pool is **4 workers with a queue of 8**
