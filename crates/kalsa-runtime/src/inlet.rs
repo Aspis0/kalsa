@@ -22,6 +22,18 @@ pub const ENGINE_MODULE_FILE: &str = "libllama-server-impl.dylib";
 /// engine lowercases the header name before it matches, so a correct build
 /// carries the lowercase literal and not the capitalised one.
 ///
+/// The source of that claim, as it stands in the release this app installs:
+/// in `kalsa-server-v1.1.1` (`a7d2cec79`),
+/// `tools/server/server-context.cpp:4556` is
+/// `static const std::string key = "x-kalsa-slot";` and the comparison at
+/// `tools/server/server-context.cpp:4563` is
+/// `if (std::tolower((unsigned char) k[i]) != key[i]) {` — the incoming
+/// header name is folded to lowercase byte by byte against that lowercase
+/// key. So the CASE is irrelevant to the ENGINE (it lowercases the byte in
+/// flight before comparing) and decisive for THIS PROBE (which searches a
+/// literal in the binary): that is why `INLET` is spelled the way the
+/// engine's own key is, and not the capitalised spelling.
+///
 /// The counts are a measurement over an artifact that is NOT in this repo,
 /// so they travel with their command: `strings -a <dylib> | grep -c` on the
 /// published archive's `libllama-server-impl.dylib` answers `x-kalsa-slot`
