@@ -1142,7 +1142,7 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         # elsewhere, and every harness main runs here.
         old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
         try:
-            # stdout=PIPE for the listening line (no println exists upstream; measure_door prints only that one line); stderr=DEVNULL - the output is WITHHELD anyway, and an unread pipe blocks the child (A#1)
+            # stdout=PIPE is read to the listening line and THEN drained to EOF and discarded (F2: an unread pipe stalls the child); stderr=DEVNULL - the output is WITHHELD anyway (A#1)
             proc = subprocess.Popen(
                 [door_bin, "--engine-port", str(engine_port),
                  "--capacity", str(capacity)],
@@ -1154,16 +1154,22 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
             proc.stdin.write(cred + "\n")
         proc.stdin.flush()
         box = {}
+        line_ready = threading.Event()
 
         def read_listening():
             # K1: PARSED ONLY - the bounded port token below is protocol;
-            # this text never enters a message, a print or the artifact
+            # this text never enters a message, a print or the artifact.
+            # F2: after the line this thread drains stdout to EOF and
+            # DISCARDS it - never stored, never printed - so a future
+            # println (B flooded 1 MiB) cannot stall on an unread pipe.
             box["line"] = proc.stdout.readline()
+            line_ready.set()
+            for _ in proc.stdout:
+                pass
 
         reader = threading.Thread(target=read_listening, daemon=True)
         reader.start()
-        reader.join(timeout_s)
-        if reader.is_alive():
+        if not line_ready.wait(timeout_s):
             raise RuntimeError(f"no `listening` line within {timeout_s}s")
         line = box.get("line", "")
         m = re.fullmatch(r"listening 127\.0\.0\.1:(\d{1,5})\n?", line)
@@ -1240,10 +1246,11 @@ def count_done_before(streams_done_ms, probe_answered_ms):
     answer, computed FROM THE RECORDED, rounded values the artifact
     stores - so any reader (and dev/test-door-harness.py (10)) can
     recompute `streams_done_before_probe_answered` from the artifact's own
-    fields. A stream with no stamp (None) never counts. The recorded
-    values are 3-decimal ms, so two events closer than ~1 microsecond
-    record as equal and a tie counts as done-before (<=) - the deliberate
-    price of the count being reproducible from the artifact's own fields
+    fields. A stream with no stamp (None) never counts. Two events under
+    1 us apart CAN record as equal (they may also land on different ticks
+    - rounding is monotonic, so a tie never inverts order and <=
+    over-counts only genuinely tied pairs), which is the deliberate price
+    of the count being reproducible from the artifact's own fields
     (A #4)."""
     return sum(1 for d in streams_done_ms
                if d is not None and d <= probe_answered_ms)

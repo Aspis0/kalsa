@@ -11,7 +11,7 @@ Both findings are Reviewer A's, proven live against the previous code.
       RUNNER_SURVIVED_AFTER_SIGINT=True). The test drives the REAL
       start_door_runner against a fake runner that writes its pid and
       NEVER prints the listening line, injects KeyboardInterrupt while
-      the wait is in progress (a Thread.join wrapper, restored after),
+      the wait is in progress (an Event.wait wrapper, restored after),
       and asserts BOTH that the KeyboardInterrupt propagates unchanged
       AND that the child is dead (pid checked with os.kill(pid, 0)).
 
@@ -41,18 +41,26 @@ Both findings are Reviewer A's, proven live against the previous code.
       have been assigned before delivery (so main's finally can stop it),
       and the sleep must be dead afterwards; even a RED run's cleanup
       kills the child it lost track of.
-  (5) A#1 child-stderr flood: a fake prints the listening line, writes
-      1 MiB to stderr (far past any pipe buffer), then waits for stdin
-      EOF - the harness must start AND stop it within an 8 s bound (a
-      worker thread joined with a timeout, so a regression FAILS the
-      check instead of hanging the suite) with the child exiting cleanly
-      (0, not SIGKILLed after stop's 10 s wait). The fix is
-      stderr=subprocess.DEVNULL: the output is WITHHELD anyway, and an
-      unread pipe blocks the writer.
+  (5) A#1/B-F2 floods: fakes print the listening line, then flood 1 MiB
+      to STDERR (A#1) and to STDOUT-without-a-newline (B F2), then wait
+      for stdin EOF - the harness must start AND stop each within an
+      8 s bound (a daemon worker joined with a timeout, so a regression
+      FAILS instead of hanging the suite) with the child exiting cleanly
+      (0, not SIGKILLed after stop's 10 s wait). Fixes: stderr=DEVNULL
+      (the output is WITHHELD anyway) and the reader thread drains
+      stdout to EOF and discards it.
   (6) R5-1 the port RANGE: `listening 127.0.0.1:0` and
       `listening 127.0.0.1:65536` are both refused, with the withheld
       refusal text, and the line itself is never quoted into the
       message. Dropping the range clause turns this red.
+  (7) B F1 - DEVNULL pinned BEHAVIOURALLY, not by reading the argument:
+      a python SUBPROCESS runs start+stop (so its fd 2 is capturable)
+      against a fake that prints the listening line and writes
+      credential renderings to ITS stderr; none of THE shared chunk
+      scan's 4-hex chunks of credential/salt may appear in that
+      subprocess's captured stdout+stderr, and its OK marker must (a
+      crashed harness must not pass green). Mutating DEVNULL -> None
+      (inherit) turns this red; -> PIPE stays red via case (5).
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -98,6 +106,17 @@ def raised(fn, *a, **kw):
     except BaseException as e:
         return e
     return None
+
+
+def secret_chunks(*secrets_list):
+    """Every 4-hex chunk of each secret, in both cases - THE chunk scan,
+    shared by case (2)'s message scan and case (7)'s fd scan: one
+    implementation, no second copy."""
+    chunks = set()
+    for s in secrets_list:
+        for variant in (s, s.upper()):
+            chunks.update(variant[i:i + 4] for i in range(len(variant) - 3))
+    return chunks
 
 
 SILENT_RUNNER = """#!/usr/bin/env python3
@@ -152,22 +171,24 @@ def case_lifecycle():
     work, script = write_script(SILENT_RUNNER)
     pidfile = work / "pid"
     os.environ["DOOR_FAKE_PIDFILE"] = str(pidfile)
-    real_thread = mc.threading.Thread
+    real_event = mc.threading.Event
 
-    class CtrlCDuringWait(real_thread):
-        """The reader thread, with a Ctrl-C injected while the harness
-        waits for the listening line - the exact moment Reviewer A hit."""
+    class CtrlCEvent(real_event):
+        """threading.Event with a Ctrl-C injected while the harness WAITS
+        for the listening line - the exact moment Reviewer A hit (start
+        waits on line_ready, not on the reader's join, since the F2
+        drain)."""
 
-        def join(self, *args, **kwargs):
-            real_thread.join(self, 0.3)
+        def wait(self, timeout=None):
+            real_event.wait(self, 0.3)
             raise KeyboardInterrupt
 
-    mc.threading.Thread = CtrlCDuringWait
+    mc.threading.Event = CtrlCEvent
     try:
         caught = raised(mc.start_door_runner, str(script), 19311, 1,
                         timeout_s=30.0)
     finally:
-        mc.threading.Thread = real_thread
+        mc.threading.Event = real_event
         os.environ.pop("DOOR_FAKE_PIDFILE", None)
     check("(1) KeyboardInterrupt propagated UNCHANGED (not converted to "
           "SystemExit)", isinstance(caught, KeyboardInterrupt),
@@ -208,10 +229,7 @@ def case_withheld():
     # the temp path is random; remove it so the scan below is deterministic
     scan = msg.replace(str(script), "")
     salt = mc.device_cache_salt(known)
-    chunks = set()
-    for secret in (known, salt, known.upper(), salt.upper()):
-        chunks.update(secret[i:i + 4] for i in range(len(secret) - 3))
-    leaked = sorted(c for c in chunks if c in scan)
+    leaked = sorted(c for c in secret_chunks(known, salt) if c in scan)
     check("(2) NO plain 4-hex chunk of credential or salt survives into "
           "the message", not leaked, str(leaked[:6]))
     colon_groups = ":".join(known[i:i + 4] for i in range(0, len(known), 4))
@@ -246,39 +264,108 @@ sys.stderr.flush()
 next(sys.stdin, None)                   # then wait for stdin EOF
 """
 
-def case_flood_stderr():
-    print("(5) A#1: a child flooding stderr starts and stops within the "
-          "bound", file=sys.stderr)
-    work, script = write_script(FLOOD_RUNNER)
-    result = {}
+FLOOD_STDOUT_RUNNER = """#!/usr/bin/env python3
+import sys
+print("listening 127.0.0.1:58229")
+sys.stdout.flush()
+sys.stdout.write("y" * (1024 * 1024))   # far past any pipe buffer, no newline
+sys.stdout.flush()
+next(sys.stdin, None)                   # then wait for stdin EOF
+"""
 
-    def run():
-        t0 = time.perf_counter()
-        try:
-            proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
-                                                     timeout_s=30.0)
-            mc.stop_door_runner(proc)
-            result["ok"] = ("stopped", port, proc.returncode,
-                            round(time.perf_counter() - t0, 2))
-        except BaseException as e:
-            result["ok"] = ("error", f"{type(e).__name__}: {e}")
+FAKE_FD2_RUNNER = """#!/usr/bin/env python3
+import hashlib, sys
+cred = next(sys.stdin, "").rstrip(chr(10))
+print("listening 127.0.0.1:58229")
+sys.stdout.flush()
+salt = hashlib.sha256(b"kalsa-cache-salt-v1" + cred.encode()).hexdigest()
+sys.stderr.write("colons " + ":".join(cred[i:i+4] for i in range(0, len(cred), 4)) + chr(10))
+sys.stderr.write("spaced " + " ".join(salt[i:i+4] for i in range(0, len(salt), 4)) + chr(10))
+sys.stderr.write("upper " + cred.upper() + chr(10))
+sys.stderr.flush()
+next(sys.stdin, None)
+"""
 
-    # daemon + a bounded join: a regression must FAIL the check, never
-    # hang the suite - an abandoned worker's own stop() kills its child.
-    worker = threading.Thread(target=run, daemon=True)
-    worker.start()
-    worker.join(timeout=8)
-    ok = result.get("ok")
-    check("(5) started AND stopped within the 8 s bound despite 1 MiB "
-          "on the child's stderr",
-          not worker.is_alive() and ok is not None and ok[0] == "stopped",
-          f"alive={worker.is_alive()} ok={ok!r}"[:170])
-    if ok is not None and ok[0] == "stopped":
-        check("(5) ...within a few seconds and the child exited CLEANLY "
-              "(rc 0, not SIGKILLed after stop's 10 s wait)",
-              ok[3] < 5 and ok[2] == 0,
-              f"port={ok[1]} rc={ok[2]} took={ok[3]}s")
-    shutil.rmtree(work, ignore_errors=True)
+# run in a SUBPROCESS so fd 2 is capturable: under DEVNULL the fake's
+# stderr goes to /dev/null; under the `None` (inherit) regression it
+# lands in THIS captured stream and the chunk scan finds it.
+FD2_SUBPROCESS = """import importlib.util, secrets, sys
+mc_path, fake_path = sys.argv[1], sys.argv[2]
+secrets.token_hex = lambda n: "ab" * 32          # pinned: chunks known
+spec = importlib.util.spec_from_file_location("mconc", mc_path)
+mc = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mc)
+proc, port, _ = mc.start_door_runner(fake_path, 19311, 1, timeout_s=30.0)
+mc.stop_door_runner(proc)
+print(f"OK started-and-stopped port={port} rc={proc.returncode}")
+"""
+
+def case_flood():
+    for channel, src in (("stderr", FLOOD_RUNNER),
+                         ("stdout", FLOOD_STDOUT_RUNNER)):
+        print(f"(5) A#1/B-F2: a child flooding {channel} starts and stops "
+              "within the bound", file=sys.stderr)
+        work, script = write_script(src)
+        result = {}
+
+        def run():
+            t0 = time.perf_counter()
+            try:
+                proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                         timeout_s=30.0)
+                mc.stop_door_runner(proc)
+                result["ok"] = ("stopped", port, proc.returncode,
+                                round(time.perf_counter() - t0, 2))
+            except BaseException as e:
+                result["ok"] = ("error", f"{type(e).__name__}: {e}")
+
+        # daemon + a bounded join: a regression must FAIL the check, never
+        # hang the suite - an abandoned worker's own stop() kills its child.
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        worker.join(timeout=8)
+        ok = result.get("ok")
+        check(f"(5/{channel}) started AND stopped within the 8 s bound "
+              f"despite 1 MiB on the child's {channel}",
+              not worker.is_alive() and ok is not None and ok[0] == "stopped",
+              f"alive={worker.is_alive()} ok={ok!r}"[:170])
+        if ok is not None and ok[0] == "stopped":
+            check(f"(5/{channel}) ...within a few seconds and the child "
+                  "exited CLEANLY (rc 0, not SIGKILLed after stop's 10 s "
+                  "wait)",
+                  ok[3] < 5 and ok[2] == 0,
+                  f"port={ok[1]} rc={ok[2]} took={ok[3]}s")
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def case_fd2_inherit():
+    print("(7) B F1: no credential chunk reaches the harness process's own "
+          "fds (DEVNULL, behaviourally pinned)", file=sys.stderr)
+    work = Path(tempfile.mkdtemp(prefix="fd2-capture-"))
+    try:
+        fake = work / "fake_runner.py"
+        fake.write_text(FAKE_FD2_RUNNER)
+        fake.chmod(0o755)
+        harness = work / "fd2_harness.py"
+        harness.write_text(FD2_SUBPROCESS)
+        run = subprocess.run([sys.executable, str(harness), str(MC),
+                              str(fake)],
+                             capture_output=True, text=True, timeout=60)
+        captured = ((run.stdout + run.stderr)
+                    .replace(str(fake), "").replace(str(harness), ""))
+        check("(7) the subprocess completed with its OK marker (a crashed "
+              "harness must not pass green)",
+              run.returncode == 0 and "OK started-and-stopped" in run.stdout,
+              f"rc={run.returncode} out={run.stdout[:60]!r}")
+        known = "ab" * 32
+        salt = mc.device_cache_salt(known)
+        leaked = sorted(c for c in secret_chunks(known, salt)
+                        if c in captured)
+        check("(7) NO 4-hex chunk of credential or salt reached the "
+              "harness's captured stdout+stderr",
+              not leaked, str(leaked[:6]))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def case_port_range():
@@ -431,7 +518,8 @@ def main():
     case_success_path()
     case_spawn_window_runner()
     case_spawn_window_engine()
-    case_flood_stderr()
+    case_flood()
+    case_fd2_inherit()
     case_port_range()
     print(f"door runner: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
