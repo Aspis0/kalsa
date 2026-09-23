@@ -65,7 +65,7 @@ export function ShellComposer({
   const styles = useMemo(() => createShellStyles(colors), [colors]);
   const inputRef = useRef<TextInput | null>(null);
   const canActivate = faceEnabled && (face !== "send" || sendEnabled);
-  const faceColor = canActivate ? colors.onAccent : colors.ink3;
+  const faceColor = canActivate ? colors.onBrand : colors.ink3;
 
   return (
     <View
@@ -134,9 +134,9 @@ export function ShellComposer({
           disabled={!canActivate}
           style={({ pressed }) => [styles.send, pressed ? { opacity: 0.78 } : null]}
         >
-          <View style={[styles.sendCircle, { backgroundColor: canActivate ? colors.accent : colors.tint }]}>
+          <View style={[styles.sendCircle, { backgroundColor: canActivate ? colors.brand : colors.tint }]}>
             {face === "stopping" ? (
-              <ActivityIndicator size="small" color={colors.ink3} />
+              <ActivityIndicator size="small" color={faceColor} />
             ) : face === "stop" ? (
               <Square size={16} color={faceColor} strokeWidth={2.5} fill={faceColor} />
             ) : (

@@ -6,12 +6,22 @@
  * stops claiming a model the device just refused. Both driven against the
  * SHIPPED catalogues in both locales.
  */
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { ModelPipelineState } from "../app/AppShell";
 import { makeT, en, it as italian } from "../i18n";
 import { modelBarStatus, pillWhereLabel } from "./modelBar";
 import { decideModelPress } from "./modelBarPress";
 
 const t = makeT("en");
 const tIt = makeT("it");
+const HOST_SURFACE = readFileSync(join(__dirname, "HostChatSurface.tsx"), "utf8");
+const SHELL = readFileSync(join(__dirname, "../ui/shell/Shell.tsx"), "utf8");
+const STRIP = readFileSync(join(__dirname, "../ui/shell/ShellStrip.tsx"), "utf8");
+const MODEL_REGISTRY = readFileSync(join(__dirname, "../engine/ModelRegistry.ts"), "utf8");
+const ALL_MODEL_STATES: Record<ModelPipelineState, true> = {
+  checking: true, missing: true, downloading: true, loading: true, ready: true, error: true,
+};
 
 function status(overrides: Partial<Parameters<typeof modelBarStatus>[0]> = {}) {
   return modelBarStatus({
@@ -68,6 +78,35 @@ describe("the pill's where-line stays true when the device refuses the model", (
     expect(t("shell.where.notRunning")).toBe(en.shell.where.notRunning);
     expect(tIt("shell.where.notRunning")).toBe(italian.shell.where.notRunning);
     expect(italian.shell.where.notRunning).not.toBe(en.shell.where.notRunning);
+  });
+
+  it("routes a hard refusal into the pill instead of the old Locale shortcut", () => {
+    const key = label("error", en.models.blockedRam);
+    expect(key).toBe("shell.where.notRunning");
+    expect(t(key)).not.toBe("Locale");
+    expect(HOST_SURFACE).toContain("pillWhereLabel({ modelState: modelHost.modelState, modelError: modelHost.modelError, t }");
+    expect(HOST_SURFACE).toContain("whereLabel={whereLabel}");
+    expect(HOST_SURFACE).not.toContain('location="phone"');
+    expect(SHELL).toContain("whereLabel={whereLabel}");
+    expect(SHELL).toContain('location = "phone"');
+    expect(STRIP).toContain("const locationLabel = whereLabel ??");
+    expect(STRIP).toContain('const DeviceIcon = location === "phone" ? Smartphone : Monitor;');
+    expect(STRIP).toContain("backgroundColor: refused ? colors.tint : colors.surface");
+    expect(STRIP).toContain("refused ? colors.ink3 : colors.accent");
+  });
+
+  it("pins the phone-only boundary until remote backend state exists", () => {
+    // Replace this boundary when `src/engine/remote/` arrives from `remote-brain`; that dependency supplies backend location state.
+    for (const modelState of Object.keys(ALL_MODEL_STATES) as ModelPipelineState[]) {
+      for (const modelError of [null, en.models.blockedRam, en.models.blockedTier, en.model.tooLarge, en.errors.connectionLost]) {
+        const key = pillWhereLabel({ modelState, modelError, t });
+        expect(["shell.where.thisPhone", "shell.where.notRunning"]).toContain(key);
+        expect(key).not.toMatch(/remote|server/i);
+      }
+    }
+    const modelInfo = MODEL_REGISTRY.match(/export type ModelInfo = \{([\s\S]*?)^\};/m)?.[1];
+    expect(modelInfo).toBeDefined();
+    expect(modelInfo).not.toMatch(/^\s*(?:backend|location)\??:/m);
   });
 
   it("keeps the local claim for every other state and every other error", () => {

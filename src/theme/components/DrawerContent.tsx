@@ -1,4 +1,4 @@
-/** The v2 menu contents: brand, new chat, search, conversations and four destinations. */
+/** The v2 menu contents: brand, new chat, search, conversations and five destinations. */
 import { useMemo } from "react";
 import { Image, Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { ChevronLeft, ChevronRight, MessageSquare, Plus, Search, X } from "lucide-react-native";
@@ -44,7 +44,7 @@ export function DrawerContent({
   const colors = modes[mode];
   const emptySearch = Boolean(searchQuery.trim()) && (conversationItems?.length ?? 0) === 0;
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const destinations = ["documents", "notes", "settings", "account"]
+  const destinations = ["documents", "notes", "settings", "account", "export"]
     .map((id) => itemById.get(id))
     .filter((item): item is DrawerItem => item !== undefined);
 

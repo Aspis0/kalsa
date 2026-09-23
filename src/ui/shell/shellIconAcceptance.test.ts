@@ -30,6 +30,8 @@ describe("shell glyph paint and touch targets", () => {
   it("reserves the filled 40 dp circle for the send action", () => {
     expect(STYLES).toMatch(/sendCircle: \{[\s\S]*?height: 40[\s\S]*?width: 40/);
     expect(COMPOSER).toContain('<View style={[styles.sendCircle, { backgroundColor:');
+    expect(COMPOSER).toContain("backgroundColor: canActivate ? colors.brand : colors.tint");
+    expect(COMPOSER).toContain("const faceColor = canActivate ? colors.onBrand : colors.ink3;");
     expect(COMPOSER).toContain('<ArrowUp size={18}');
   });
 

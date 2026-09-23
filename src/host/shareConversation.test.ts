@@ -12,6 +12,8 @@ import { join } from "path";
 
 import type { TranslateFn } from "../i18n";
 import { buildExportMarkdown, shareConversation } from "./shareConversation";
+import { createExportDrawerItem } from "./exportDrawerItem";
+import { it as italian } from "../i18n/it";
 import type { Message } from "./hostMessage";
 
 jest.mock("react-native", () => ({ Share: { share: jest.fn() } }));
@@ -86,47 +88,48 @@ describe("shareConversation — one sheet, or none", () => {
   });
 });
 
-/** The share formatter stays covered; the v2 menu no longer presents Export. */
-describe("the v2 menu replaces the prior export-row placement", () => {
+/** Export stays reachable as the fifth row in the menu foot group. */
+describe("the menu's chat export row", () => {
   const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
   const stripComments = (source: string): string =>
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
-  it("presents the four destinations named by the v2 menu", () => {
+  it("adds Export after the four standard footer destinations", () => {
     const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    expect(content).toContain('["documents", "notes", "settings", "account"]');
-    expect(content).not.toContain('id: "export"');
-    expect(content).not.toContain("chat.a11yExport");
+    expect(content).toContain('["documents", "notes", "settings", "account", "export"]');
+    expect(content).toContain('testID={`drawer.item.${id}`}');
+    expect(italian.chat.a11yExport).toBe("Esporta chat");
   });
 
-  it("the host drawer wires its four action items without an export row", () => {
+  it("builds a named row whose press calls the supplied share handler", () => {
+    const onExport = jest.fn();
+    const row = createExportDrawerItem("Esporta chat", () => null, onExport);
+    expect(row).toMatchObject({ id: "export", label: "Esporta chat" });
+    row.onPress();
+    expect(onExport).toHaveBeenCalledTimes(1);
+  });
+
+  it("appends the localized row and closes before invoking the root handler", () => {
     const drawer = stripComments(read("HostDrawer.tsx"));
-    expect(drawer).toContain("items={actions.drawerItems()}");
-    expect(drawer).not.toContain("onExportPress");
-    expect(drawer).not.toContain('id: "export"');
+    expect(drawer).toContain('createExportDrawerItem(t("chat.a11yExport"), Share, () => {');
+    expect(drawer).toMatch(/closeDrawer\(\);[\s\S]*onExportPress\(\);/);
+    expect(drawer).toContain('items={[...actions.drawerItems(), exportItem]}');
   });
 
-  it("the root's retained prop has no route into either mounted surface", () => {
+  it("routes HostRoot's share handler through HostLayout to HostDrawer", () => {
     const layout = stripComments(read("HostLayout.tsx"));
-    const surfaceCall = layout.match(/<HostChatSurface[\s\S]*?\/>/)?.[0] ?? "";
-    expect(surfaceCall.length).toBeGreaterThan(0);
-    expect(surfaceCall).not.toContain("onExportPress");
     const drawerCall = layout.match(/<HostDrawer[\s\S]*?\/>/)?.[0] ?? "";
-    expect(drawerCall.length).toBeGreaterThan(0);
-    expect(drawerCall).not.toContain("onExportPress");
+    expect(drawerCall).toContain("onExportPress={onExportPress}");
+    expect(stripComments(read("HostRoot.tsx"))).toContain(
+      'onExportPress={() => shareConversation(history.messages, t)}',
+    );
   });
 
-  it("the strip stays free of an export control", () => {
+  it("keeps the standard footer rows accessible and export out of the strip", () => {
+    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
+    expect(content).toContain("minHeight: 56");
+    expect(content).not.toContain("hitSlop");
     const shell = stripComments(read("../ui/shell/Shell.tsx"));
     expect(shell).not.toContain('testID="shell.strip.export"');
-    expect(shell).not.toContain("onExportPress");
-  });
-
-  it("menu rows keep accessible identities and 56 dp targets", () => {
-    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    expect(content).toContain("testID={`drawer.item.${id}`}");
-    expect(content).toContain("minHeight: 56");
-    // The floor is a height, never a slop: no hitSlop on the row.
-    expect(content).not.toContain("hitSlop");
   });
 });

@@ -38,6 +38,8 @@ export type ShellProps = {
   /** The model's short name and the place it runs. */
   modelName: string;
   location?: "phone" | "server";
+  /** Refusal-aware where-line from the model pipeline. */
+  whereLabel?: string;
   /** The keyboard's settled height in dp, 0 while it is down. */
   keyboardHeight?: number;
   /** Overrides for the preview; the live window is the default. */
@@ -93,6 +95,7 @@ export function Shell({
   insets,
   modelName,
   location = "phone",
+  whereLabel,
   keyboardHeight = 0,
   width,
   height,
@@ -154,6 +157,7 @@ export function Shell({
         insets={insets}
         modelName={modelName}
         location={location}
+        whereLabel={whereLabel}
         mode={mode}
         modelBar={modelBar}
         onMenuPress={onMenuPress}

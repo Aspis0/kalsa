@@ -18,6 +18,7 @@ export function ShellStrip({
   insets,
   modelName,
   location,
+  whereLabel,
   mode,
   modelBar,
   onMenuPress,
@@ -26,6 +27,7 @@ export function ShellStrip({
   insets: Insets;
   modelName: string;
   location: "phone" | "server";
+  whereLabel?: string;
   mode: ThemeMode;
   modelBar?: ModelBarView;
   onMenuPress?: () => void;
@@ -35,7 +37,7 @@ export function ShellStrip({
   const colors = modes[mode];
   const [sheetVisible, setSheetVisible] = useState(false);
   const DeviceIcon = location === "phone" ? Smartphone : Monitor;
-  const locationLabel = location === "phone" ? "Locale" : "Kalsa Brain";
+  const locationLabel = whereLabel ?? (location === "phone" ? "Locale" : "Kalsa Brain");
   const iconColor = colors.ink2;
   const refused = modelBar?.status.tone === "bad";
 

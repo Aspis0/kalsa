@@ -40,7 +40,7 @@ export interface HostLayoutProps {
    *  renamed here so the sheet's `actions` prop above stays unambiguous. */
   conversationActions: HostDrawerProps["actions"];
   personas: HostFurnitureProps["personas"];
-  /** Retained for HostRoot's call shape; the v2 menu has four footer actions. */
+  /** The root-built share action for the active conversation. */
   onExportPress: () => void;
   activeOverlay: HostFurnitureProps["overlay"];
   setActiveOverlay: HostFurnitureProps["setOverlay"];
@@ -72,6 +72,7 @@ export function HostLayout({
   conv,
   conversationActions,
   personas,
+  onExportPress,
   activeOverlay,
   setActiveOverlay,
   notice,
@@ -106,6 +107,7 @@ export function HostLayout({
         setOpen={setDrawerOpen}
         conv={conv}
         actions={conversationActions}
+        onExportPress={onExportPress}
       />
 
       <HostFurniture

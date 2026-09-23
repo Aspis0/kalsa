@@ -8,7 +8,7 @@
  * messages are preview DATA, not interface copy, so they skip `t()`; the
  * mismatch notice IS interface copy and goes through it.
  *
- * The size switch is runtime state on the shell's own `+` control (inert in
+ * The size switch is runtime state on the shell's own menu control (inert in
  * the app): a tap cycles live -> 325 -> 780 -> live. Never a compile-time
  * constant again — that shape made one number cost a native rebuild, and the
  * earlier placements drew preview chrome over the transcript. 325 dp IS the
@@ -144,7 +144,7 @@ export function ShellPreview() {
   // keyboard itself, the transcript is handed the combined value so its band
   // cannot drift from the band the shell drew.
   const bandInsets = bottomInsetFor(size, keyboard);
-  // The switch rides the strip's own `+` control — preview-only binding, inside
+  // The switch rides the strip's menu control — preview-only binding, inside
   // a box the shell already draws, so nothing is added over the transcript.
   const cycleSize = () => setCaseIndex((index) => (index + 1) % PREVIEW_CASES.length);
   const layoutHeight = pinned === undefined ? undefined : pinned;

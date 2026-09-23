@@ -8,6 +8,8 @@
  * confined to one role, so the rule cannot be quietly broken later.
  */
 
+import { readFileSync } from "fs";
+import { join } from "path";
 import { families, measure, modes, radius, space, type, type DesignColors, type ThemeMode } from "./design";
 
 function channel(value: number): number {
@@ -51,6 +53,7 @@ const allModes: Array<[ThemeMode, DesignColors]> = [
   ["light", modes.light],
   ["dark", modes.dark],
 ];
+const SEND_COMPOSER = readFileSync(join(__dirname, "..", "ui", "shell", "ShellComposer.tsx"), "utf8");
 
 describe("contrast arithmetic", () => {
   it("matches the two reference values", () => {
@@ -250,6 +253,15 @@ describe("DESIGN-V2.md §1.1 role constraints", () => {
       atLeast(colors.onBrand, colors.brand, 4.5, `${mode} white on brand`);
     }
     expect(contrast(modes.dark.onBrand, modes.dark.accent)).toBeLessThan(4.5);
+  });
+
+  it("uses brand and onBrand for the send circle in both schemes", () => {
+    expect(SEND_COMPOSER).toContain("backgroundColor: canActivate ? colors.brand : colors.tint");
+    expect(SEND_COMPOSER).toContain("const faceColor = canActivate ? colors.onBrand : colors.ink3;");
+    expect(SEND_COMPOSER).toContain('<ActivityIndicator size="small" color={faceColor} />');
+    for (const [mode, colors] of allModes) {
+      atLeast(colors.onBrand, colors.brand, 4.5, `${mode} send glyph on brand fill`);
+    }
   });
 
   it("allows only the two ink roles on a user's turn", () => {
