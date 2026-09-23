@@ -343,14 +343,17 @@ impl Desk {
     }
 
     /// The owner removes ONE device from the house. The others keep their
-    /// credentials and their ids; the last one leaving empties the store,
-    /// and the desk with it.
+    /// credentials and their ids; the last phone leaving leaves the host's
+    /// own record alone in the store, and the desk goes Idle on `new`'s
+    /// rule — only a phone counts as a pairing.
     pub(crate) fn forget_device(&self, id: u32) -> Result<(), StoreError> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         kalsa_pairing::store::forget_device(&self.file, id)?;
-        if kalsa_pairing::store::load_devices(&self.file)
-            .is_ok_and(|devices| devices.is_empty())
-        {
+        // `new`'s rule, restated at the moment a set can change: the host
+        // record is always in the store, so emptiness is never the test.
+        if kalsa_pairing::store::load_devices(&self.file).is_ok_and(|devices| {
+            !devices.iter().any(|device| device.kind == DeviceKind::Phone)
+        }) {
             *state = State::Idle;
         }
         Ok(())
@@ -851,6 +854,39 @@ mod tests {
         desk.forget_device(2).unwrap();
         assert!(!file.exists(), "the last device leaving empties the store");
         assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
+    }
+
+    /// Refusing the last phone must leave an UNPAIRED desk: the host's own
+    /// record is always in the store, so emptiness is never what happens —
+    /// `new`'s rule is, and a desk that stayed Paired would keep drawing the
+    /// refused phone's success sentence.
+    #[test]
+    fn refusing_the_last_phone_leaves_the_host_only_desk_idle() {
+        let file = scratch("refuse-last");
+        let host = "aa".repeat(32);
+        let phone = "bb".repeat(32);
+        let fields = r#"{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}"#;
+        std::fs::write(
+            &file,
+            format!(
+                r#"{{"v":2,"devices":[
+                    {{"id":0,"label":"This computer","kind":"Host","credential_hex":"{host}"}},
+                    {{"id":1,"label":"Waiting phone","credential_hex":"{phone}","phone":{fields},"approval":"Waiting"}}]}}"#
+            ),
+        )
+        .unwrap();
+        let desk = Desk::new(file);
+        assert!(
+            matches!(*desk.state.lock().unwrap(), State::Paired { .. }),
+            "the store holds a phone, so the desk is paired as new reads it"
+        );
+
+        desk.forget_device(1).expect("the owner refuses it");
+
+        assert!(
+            matches!(*desk.state.lock().unwrap(), State::Idle),
+            "a host-only store is an unpaired desk"
+        );
     }
 
     /// An add that cannot happen — the ids are exhausted here — consumes

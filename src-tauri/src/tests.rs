@@ -1483,8 +1483,15 @@ fn a_waiting_device_is_refused_until_the_owner_allows_it() {
         "after Allow the credential must be served: {}",
         String::from_utf8_lossy(&allowed)
     );
+    // Counted in the BODY only - the bytes after the head's blank line -
+    // because a marker riding a header would satisfy a whole-response count.
+    let body_start = allowed
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .expect("the served response carries a head")
+        + 4;
     assert_eq!(
-        allowed.iter().filter(|&&byte| byte == b'#').count(),
+        allowed[body_start..].iter().filter(|&&byte| byte == b'#').count(),
         48,
         "the served request must reach the upstream's body, to its last byte: {}",
         String::from_utf8_lossy(&allowed)
