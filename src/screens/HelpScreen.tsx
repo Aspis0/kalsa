@@ -1,18 +1,12 @@
-import React, { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { BackHandler, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { useLocale } from "../i18n";
-import { GlassPanel2, Header } from "../theme/components";
-import { spacing } from "../theme/tokens";
-import { useTypography, fontFamilies } from "../theme/typography";
+import { e1, modes, radius, space, type, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
+import { SettingsHeader } from "./SettingsHeader";
 
-type Props = {
-  /** Back from Help returns to Settings (not the chat). */
-  onBack: () => void;
-};
-
+type Props = { onBack: () => void };
 type Section = {
   titleKey:
     | "help.howItWorks.title"
@@ -29,16 +23,6 @@ type Section = {
     | "help.miniapps.body"
     | "help.limits.body";
 };
-
-const SECTIONS: Section[] = [
-  { titleKey: "help.howItWorks.title", bodyKey: "help.howItWorks.body" },
-  { titleKey: "help.models.title", bodyKey: "help.models.body" },
-  { titleKey: "help.websearch.title", bodyKey: "help.websearch.body" },
-  { titleKey: "help.privacy.title", bodyKey: "help.privacy.body" },
-  { titleKey: "help.miniapps.title", bodyKey: "help.miniapps.body" },
-  { titleKey: "help.limits.title", bodyKey: "help.limits.body" },
-];
-
 type FaqItem = {
   qKey:
     | "help.faq.shortAnswers.q"
@@ -62,6 +46,14 @@ type FaqItem = {
     | "help.faq.sendImages.a";
 };
 
+const SECTIONS: Section[] = [
+  { titleKey: "help.howItWorks.title", bodyKey: "help.howItWorks.body" },
+  { titleKey: "help.models.title", bodyKey: "help.models.body" },
+  { titleKey: "help.websearch.title", bodyKey: "help.websearch.body" },
+  { titleKey: "help.privacy.title", bodyKey: "help.privacy.body" },
+  { titleKey: "help.miniapps.title", bodyKey: "help.miniapps.body" },
+  { titleKey: "help.limits.title", bodyKey: "help.limits.body" },
+];
 const FAQ_ITEMS: FaqItem[] = [
   { qKey: "help.faq.shortAnswers.q", aKey: "help.faq.shortAnswers.a" },
   { qKey: "help.faq.offline.q", aKey: "help.faq.offline.a" },
@@ -74,21 +66,16 @@ const FAQ_ITEMS: FaqItem[] = [
   { qKey: "help.faq.sendImages.q", aKey: "help.faq.sendImages.a" },
 ];
 
-/**
- * Help — full-screen overlay opened from Settings.
- * Hardware back and header back both return to Settings (caller decides target).
- */
+type ThemeContext = { mode: ThemeMode };
+
+/** Help — informational overlay opened from Settings. */
 export function HelpScreen({ onBack }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const { mode } = useLabTheme<ThemeContext>();
+  const colors = modes[mode];
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
+  const handleBack = useCallback(() => onBack(), [onBack]);
 
-  const handleBack = useCallback(() => {
-    onBack();
-  }, [onBack]);
-
-  // Android hardware back: close Help (return to Settings). Consume event.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       handleBack();
@@ -97,71 +84,41 @@ export function HelpScreen({ onBack }: Props) {
     return () => sub.remove();
   }, [handleBack]);
 
+  const cardStyle = {
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: space.md,
+    gap: space.sm,
+    ...e1,
+  } as const;
+
   return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        backgroundColor: colors.shell,
-        zIndex: 50,
-      }}
-    >
-      <Header
-        title={t("help.title")}
-        onBack={handleBack}
-        backAccessibilityLabel={t("common.back")}
-      />
-      <ScrollView
-        contentContainerStyle={{
-          padding: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          gap: spacing.md,
-        }}
-      >
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.muted }]}>
-            {t("help.intro")}
-          </Text>
-        </GlassPanel2>
-
+    <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.page, zIndex: 50 }}>
+      <SettingsHeader title={t("help.title")} onBack={handleBack} backLabel={t("common.back")} />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: space.md, paddingTop: space.xs, paddingBottom: insets.bottom + space.lg, gap: space.md, flexGrow: 1 }}>
+        <View style={cardStyle}>
+          <Text style={[type.body, { color: colors.ink2 }]}>{t("help.intro")}</Text>
+        </View>
         {SECTIONS.map((section) => (
-          <GlassPanel2
-            key={section.titleKey}
-            rounded="lg"
-            style={{ padding: spacing.lg, gap: spacing.sm }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-              {t(section.titleKey)}
-            </Text>
-            <Text style={[typography.bodySm, { color: colors.muted }]}>
-              {t(section.bodyKey)}
-            </Text>
+          <View key={section.titleKey} style={cardStyle}>
+            <Text style={[type.headline, { color: colors.ink }]}>{t(section.titleKey)}</Text>
+            <Text style={[type.body, { color: colors.ink2 }]}>{t(section.bodyKey)}</Text>
             {section.titleKey === "help.privacy.title" ? (
-              <Text style={[typography.bodySm, { color: colors.muted }]}>
-                {t("help.privacy.voice")}
-              </Text>
+              <Text style={[type.body, { color: colors.ink2 }]}>{t("help.privacy.voice")}</Text>
             ) : null}
-          </GlassPanel2>
+          </View>
         ))}
-
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.md }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("help.faq.title")}
-          </Text>
+        <View style={cardStyle}>
+          <Text style={[type.headline, { color: colors.ink }]}>{t("help.faq.title")}</Text>
           {FAQ_ITEMS.map((item) => (
-            <View key={item.qKey} style={{ gap: spacing.xs }}>
-              <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-                {t(item.qKey)}
-              </Text>
-              <Text style={[typography.bodySm, { color: colors.muted }]}>
-                {t(item.aKey)}
-              </Text>
+            <View key={item.qKey} style={{ gap: space.xs, paddingVertical: space.xs }}>
+              <Text style={[type.bodyStrong, { color: colors.ink }]}>{t(item.qKey)}</Text>
+              <Text style={[type.body, { color: colors.ink2 }]}>{t(item.aKey)}</Text>
             </View>
           ))}
-        </GlassPanel2>
+        </View>
       </ScrollView>
     </View>
   );

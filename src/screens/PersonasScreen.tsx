@@ -1,17 +1,8 @@
-/**
- * User-authored personas overlay. Builtins are templates (hide, don't delete).
- */
+/** User-authored personas overlay. Builtins are templates (hide, don't delete). */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  BackHandler,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, BackHandler, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   findPersona,
@@ -20,7 +11,6 @@ import {
   listAllPersonas,
   loadPersonasState,
   nextPersonaId,
-  PERSONA_INSTRUCTIONS_CAP,
   removeUserPersona,
   sanitizePersonaInstructions,
   sanitizePersonaName,
@@ -34,57 +24,29 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { useLocale, type TranslateFn } from "../i18n";
-import { GlassPanel2, Header } from "../theme/components";
-import { radius, spacing } from "../theme/tokens";
-import { fontFamilies, useTypography } from "../theme/typography";
+import { e1, modes, radius, space, type, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
-
-type EditorState = {
-  id: string;
-  name: string;
-  instructions: string;
-  builtinSource?: boolean;
-};
+import { SettingsHeader } from "./SettingsHeader";
+import { PersonaEditorSheet, type PersonaEditorDraft } from "./PersonaEditorSheet";
+import { PersonaRow } from "./PersonaRow";
 
 type Props = {
   onBack: () => void;
   onActiveChange?: (id: string) => void;
 };
+type ThemeContext = { mode: ThemeMode };
 
 export function PersonasScreen({ onBack, onActiveChange }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const insets = useSafeAreaInsets();
+  const { mode } = useLabTheme<ThemeContext>();
+  const colors = modes[mode];
   const { t } = useLocale();
   const mountedRef = useRef(true);
-  const [state, setState] = useState<PersonasPersisted>({
-    items: [],
-    hiddenBuiltinIds: [],
-  });
+  const [state, setState] = useState<PersonasPersisted>({ items: [], hiddenBuiltinIds: [] });
   const [activeId, setActiveId] = useState("");
-  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [editor, setEditor] = useState<PersonaEditorDraft | null>(null);
   const [notice, setNotice] = useState("");
-
-  const builtins: BuiltinCopy = useMemo(
-    () => ({
-      "builtin-assistant": {
-        name: t("personas.assistantName"),
-        instructions: t("personas.assistantInstructions"),
-      },
-      "builtin-coder": {
-        name: t("personas.coderName"),
-        instructions: t("personas.coderInstructions"),
-      },
-      "builtin-translator": {
-        name: t("personas.translatorName"),
-        instructions: t("personas.translatorInstructions"),
-      },
-      "builtin-mentor": {
-        name: t("personas.mentorName"),
-        instructions: t("personas.mentorInstructions"),
-      },
-    }),
-    [t],
-  );
+  const builtins = useMemo(() => builtinCopyFromT(t), [t]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -100,7 +62,7 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
       setState(loaded.state);
       setActiveId(loaded.activeId);
     } catch {
-      // best-effort
+      // Storage may be unavailable on a first-run device.
     }
   }, []);
 
@@ -117,25 +79,19 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
     }
   }, [t]);
 
-  const activate = useCallback(
-    async (id: string) => {
-      setActiveId(id);
-      onActiveChange?.(id);
-      try {
-        await saveActivePersonaId(getDefaultPersonasStorage(), id);
-      } catch {
-        if (mountedRef.current) setNotice(t("memory.saveError"));
-      }
-    },
-    [onActiveChange, t],
-  );
+  const activate = useCallback(async (id: string) => {
+    setActiveId(id);
+    onActiveChange?.(id);
+    try {
+      await saveActivePersonaId(getDefaultPersonasStorage(), id);
+    } catch {
+      if (mountedRef.current) setNotice(t("memory.saveError"));
+    }
+  }, [onActiveChange, t]);
 
   const handleBack = useCallback(() => {
-    if (editor) {
-      setEditor(null);
-      return;
-    }
-    onBack();
+    if (editor) setEditor(null);
+    else onBack();
   }, [editor, onBack]);
 
   useEffect(() => {
@@ -148,8 +104,8 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
 
   const all = useMemo(() => listAllPersonas(state, builtins), [builtins, state]);
   const hidden = useMemo(() => new Set(state.hiddenBuiltinIds), [state.hiddenBuiltinIds]);
-  const templates = all.filter((p) => p.builtin);
-  const yours = all.filter((p) => !p.builtin);
+  const templates = all.filter((persona) => persona.builtin);
+  const yours = all.filter((persona) => !persona.builtin);
 
   const openCreate = useCallback(() => {
     setNotice("");
@@ -167,11 +123,7 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
       });
       return;
     }
-    setEditor({
-      id: persona.id,
-      name: persona.name,
-      instructions: persona.instructions,
-    });
+    setEditor({ id: persona.id, name: persona.name, instructions: persona.instructions });
   }, []);
 
   const saveEditor = useCallback(async () => {
@@ -188,225 +140,39 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
     await activate(editor.id);
   }, [activate, editor, persist, state, t]);
 
-  const confirmDelete = useCallback(
-    (persona: Persona) => {
-      if (persona.builtin) return;
-      Alert.alert(t("personas.delete"), t("personas.deleteConfirm"), [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("personas.delete"),
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              const next = removeUserPersona(state, persona.id);
-              await persist(next);
-              if (activeId === persona.id) {
-                await activate("");
-              }
-            })();
-          },
+  const confirmDelete = useCallback((persona: Persona) => {
+    if (persona.builtin) return;
+    Alert.alert(t("personas.delete"), t("personas.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("personas.delete"),
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            const next = removeUserPersona(state, persona.id);
+            await persist(next);
+            if (activeId === persona.id) await activate("");
+          })();
         },
-      ]);
-    },
-    [activate, activeId, persist, state, t],
-  );
+      },
+    ]);
+  }, [activate, activeId, persist, state, t]);
 
-  const toggleHidden = useCallback(
-    (id: BuiltinPersonaId) => {
-      const willHide = !hidden.has(id);
-      const next = setBuiltinHidden(state, id, willHide);
-      void persist(next);
-      if (willHide && activeId === id) {
-        void activate("");
-      }
-    },
-    [activate, activeId, hidden, persist, state],
-  );
+  const toggleHidden = useCallback((id: BuiltinPersonaId) => {
+    const willHide = !hidden.has(id);
+    const next = setBuiltinHidden(state, id, willHide);
+    void persist(next);
+    if (willHide && activeId === id) void activate("");
+  }, [activate, activeId, hidden, persist, state]);
 
-  const renderRow = (persona: Persona) => {
-    const isHidden = Boolean(persona.builtin && hidden.has(persona.id));
-    const isActive = activeId === persona.id && !isHidden;
-    return (
-      <View
-        key={persona.id}
-        style={{
-          paddingVertical: spacing.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          opacity: isHidden ? 0.55 : 1,
-          gap: spacing.xs,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              style={[
-                typography.bodySm,
-                {
-                  color: colors.ink,
-                  fontFamily: isActive ? fontFamilies.bodySemi : fontFamilies.bodyMedium,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {persona.name}
-              {isActive ? ` · ${t("personas.active")}` : ""}
-              {isHidden ? ` · ${t("personas.hidden")}` : ""}
-            </Text>
-          </View>
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-          {!isHidden ? (
-            <Pressable
-              onPress={() => void activate(isActive ? "" : persona.id)}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={isActive ? t("personas.clear") : t("personas.use")}
-            >
-              <Text style={[typography.bodyXs, { color: colors.accent }]}>
-                {isActive ? t("personas.clear") : t("personas.use")}
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            onPress={() => openEdit(persona)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel={persona.builtin ? t("personas.duplicate") : t("personas.edit")}
-          >
-            <Text style={[typography.bodyXs, { color: colors.accent }]}>
-              {persona.builtin ? t("personas.duplicate") : t("personas.edit")}
-            </Text>
-          </Pressable>
-          {persona.builtin && isBuiltinPersonaId(persona.id) ? (
-            <Pressable
-              onPress={() => {
-                if (isBuiltinPersonaId(persona.id)) toggleHidden(persona.id);
-              }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={isHidden ? t("personas.show") : t("personas.hide")}
-            >
-              <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                {isHidden ? t("personas.show") : t("personas.hide")}
-              </Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => confirmDelete(persona)}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={t("personas.delete")}
-            >
-              <Text style={[typography.bodyXs, { color: colors.bad }]}>{t("personas.delete")}</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-    );
+  const cardStyle = {
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    overflow: "hidden" as const,
+    ...e1,
   };
-
-  if (editor) {
-    const remaining = PERSONA_INSTRUCTIONS_CAP - editor.instructions.length;
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: colors.shell,
-          zIndex: 50,
-        }}
-      >
-        <Header
-          title={editor.builtinSource ? t("personas.create") : t("personas.edit")}
-          onBack={handleBack}
-          backAccessibilityLabel={t("common.back")}
-        />
-        <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("personas.name")}</Text>
-            <TextInput
-              value={editor.name}
-              onChangeText={(name) => setEditor({ ...editor, name })}
-              placeholder={t("personas.namePlaceholder")}
-              placeholderTextColor={colors.muted}
-              accessibilityLabel={t("personas.name")}
-              style={[
-                typography.bodyMd,
-                {
-                  color: colors.ink,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  borderRadius: radius.sm,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 8,
-                },
-              ]}
-            />
-            <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.sm }]}>
-              {t("personas.instructions")}
-            </Text>
-            <TextInput
-              value={editor.instructions}
-              onChangeText={(instructions) =>
-                setEditor({
-                  ...editor,
-                  instructions: instructions.slice(0, PERSONA_INSTRUCTIONS_CAP),
-                })
-              }
-              placeholder={t("personas.instructionsPlaceholder")}
-              placeholderTextColor={colors.muted}
-              multiline
-              textAlignVertical="top"
-              accessibilityLabel={t("personas.instructions")}
-              style={[
-                typography.bodyMd,
-                {
-                  color: colors.ink,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  borderRadius: radius.sm,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 8,
-                  minHeight: 180,
-                },
-              ]}
-            />
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>
-              {t("personas.capHint", { max: PERSONA_INSTRUCTIONS_CAP })}
-              {remaining < 200 ? ` (${remaining})` : ""}
-            </Text>
-            {notice ? (
-              <Text style={[typography.bodyXs, { color: colors.bad }]}>{notice}</Text>
-            ) : null}
-            <Pressable
-              onPress={() => void saveEditor()}
-              accessibilityRole="button"
-              accessibilityLabel={t("common.save")}
-              style={({ pressed }) => ({
-                marginTop: spacing.sm,
-                backgroundColor: colors.accent,
-                borderRadius: radius.sm,
-                paddingVertical: 10,
-                alignItems: "center",
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <Text style={[typography.bodySm, { color: colors.primaryText ?? "#F4EFE4" }]}>
-                {t("common.save")}
-              </Text>
-            </Pressable>
-          </GlassPanel2>
-        </ScrollView>
-      </View>
-    );
-  }
 
   return (
     <View
@@ -416,63 +182,96 @@ export function PersonasScreen({ onBack, onActiveChange }: Props) {
         right: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: colors.shell,
+        backgroundColor: colors.page,
         zIndex: 50,
       }}
     >
-      <Header
-        title={t("personas.title")}
-        subtitle={t("personas.subtitle")}
-        onBack={handleBack}
-        backAccessibilityLabel={t("common.back")}
-      />
+      <SettingsHeader title={t("personas.title")} onBack={handleBack} backLabel={t("common.back")} />
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl }}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: space.md,
+          paddingTop: space.xs,
+          paddingBottom: insets.bottom + space.lg,
+          gap: space.md,
+          flexGrow: 1,
+        }}
       >
         <Pressable
+          testID="personas.create"
           onPress={openCreate}
           accessibilityRole="button"
           accessibilityLabel={t("personas.create")}
           style={({ pressed }) => ({
-            backgroundColor: colors.accentSoft,
-            borderRadius: radius.sm,
-            paddingVertical: 12,
+            minHeight: 52,
             alignItems: "center",
-            opacity: pressed ? 0.8 : 1,
+            justifyContent: "center",
+            borderRadius: radius.button,
+            backgroundColor: pressed ? colors.brandDeep : colors.brand,
           })}
         >
-          <Text style={[typography.bodySm, { color: colors.accent }]}>{t("personas.create")}</Text>
+          <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("personas.create")}</Text>
         </Pressable>
 
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg }}>
-          <Text
-            style={[
-              typography.bodyXs,
-              { color: colors.muted, fontFamily: fontFamilies.bodySemi, marginBottom: spacing.xs },
-            ]}
-          >
-            {t("personas.templates")}
+        <View style={cardStyle}>
+          <Text style={[type.label, { color: colors.ink3, padding: space.md }]}>
+            {t("personas.templates").toLocaleUpperCase()}
           </Text>
-          {templates.map(renderRow)}
-        </GlassPanel2>
+          <View style={{ height: 1, backgroundColor: colors.line }} />
+          {templates.map((persona) => (
+            <PersonaRow
+              key={persona.id}
+              persona={persona}
+              active={activeId === persona.id && !hidden.has(persona.id)}
+              hidden={hidden.has(persona.id)}
+              colors={colors}
+              t={t}
+              onActivate={() => void activate(activeId === persona.id ? "" : persona.id)}
+              onEdit={() => openEdit(persona)}
+              onDelete={() => confirmDelete(persona)}
+              onToggleHidden={(id) => toggleHidden(id)}
+            />
+          ))}
+        </View>
 
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg }}>
-          <Text
-            style={[
-              typography.bodyXs,
-              { color: colors.muted, fontFamily: fontFamilies.bodySemi, marginBottom: spacing.xs },
-            ]}
-          >
-            {t("personas.yours")}
+        <View style={cardStyle}>
+          <Text style={[type.label, { color: colors.ink3, padding: space.md }]}>
+            {t("personas.yours").toLocaleUpperCase()}
           </Text>
+          <View style={{ height: 1, backgroundColor: colors.line }} />
           {yours.length === 0 ? (
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("personas.empty")}</Text>
+            <Text style={[type.body, { color: colors.ink2, padding: space.md }]}>
+              {t("personas.empty")}
+            </Text>
           ) : (
-            yours.map(renderRow)
+            yours.map((persona) => (
+              <PersonaRow
+                key={persona.id}
+                persona={persona}
+                active={activeId === persona.id}
+                hidden={false}
+                colors={colors}
+                t={t}
+                onActivate={() => void activate(activeId === persona.id ? "" : persona.id)}
+                onEdit={() => openEdit(persona)}
+                onDelete={() => confirmDelete(persona)}
+                onToggleHidden={toggleHidden}
+              />
+            ))
           )}
-        </GlassPanel2>
+        </View>
       </ScrollView>
+      {editor ? (
+        <PersonaEditorSheet
+          editor={editor}
+          notice={notice}
+          colors={colors}
+          t={t}
+          onChange={(next) => setEditor(next)}
+          onSave={() => void saveEditor()}
+          onClose={handleBack}
+        />
+      ) : null}
     </View>
   );
 }

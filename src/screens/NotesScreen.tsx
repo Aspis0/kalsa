@@ -1,8 +1,4 @@
-/**
- * Local markdown notes overlay — list, search, edit, delete, export.
- */
-
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   BackHandler,
@@ -13,6 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Search, X } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   deleteNote,
@@ -24,20 +22,22 @@ import {
   type NoteMeta,
 } from "../notes/NotesStore";
 import { useLocale } from "../i18n";
-import { GlassPanel2, Header } from "../theme/components";
-import { radius, spacing } from "../theme/tokens";
-import { fontFamilies, useTypography } from "../theme/typography";
+import { e1, modes, radius, space, type, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
+import { SettingsHeader } from "./SettingsHeader";
+import { NoteEditorSheet } from "./NoteEditorSheet";
 
 type Props = {
   onBack: () => void;
-  /** When set, open this note after the index loads (e.g. just saved). */
   focusId?: string | null;
 };
+type ThemeContext = { mode: ThemeMode };
 
+/** Local markdown notes overlay — list, search, edit sheet, delete and export. */
 export function NotesScreen({ onBack, focusId }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const insets = useSafeAreaInsets();
+  const { mode } = useLabTheme<ThemeContext>();
+  const colors = modes[mode];
   const { t } = useLocale();
   const mountedRef = useRef(true);
   const [items, setItems] = useState<NoteMeta[]>([]);
@@ -80,15 +80,15 @@ export function NotesScreen({ onBack, focusId }: Props) {
     };
   }, [focusId]);
 
+  const closeEditor = useCallback(() => {
+    setEditing(null);
+    setDraft("");
+    setNotice("");
+  }, []);
   const handleBack = useCallback(() => {
-    if (editing) {
-      setEditing(null);
-      setDraft("");
-      setNotice("");
-      return;
-    }
-    onBack();
-  }, [editing, onBack]);
+    if (editing) closeEditor();
+    else onBack();
+  }, [closeEditor, editing, onBack]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -99,13 +99,11 @@ export function NotesScreen({ onBack, focusId }: Props) {
   }, [handleBack]);
 
   const visible = useMemo(() => filterNotes(items, query), [items, query]);
-
   const openNew = useCallback(() => {
     setEditing({ id: "", title: "", updatedAt: Date.now(), body: "" });
     setDraft("");
     setNotice("");
   }, []);
-
   const openNote = useCallback(async (id: string) => {
     const note = await readNote(id);
     if (!mountedRef.current) return;
@@ -117,7 +115,6 @@ export function NotesScreen({ onBack, focusId }: Props) {
     setDraft(note.body);
     setNotice("");
   }, [t]);
-
   const persistDraft = useCallback(async () => {
     if (!editing) return;
     try {
@@ -130,129 +127,41 @@ export function NotesScreen({ onBack, focusId }: Props) {
       if (mountedRef.current) setNotice(t("notes.errorSave"));
     }
   }, [draft, editing, reload, t]);
-
-  const confirmDelete = useCallback(
-    (id: string) => {
-      Alert.alert(t("notes.delete"), t("notes.deleteConfirm"), [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("notes.delete"),
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              try {
-                await deleteNote(id);
-                if (!mountedRef.current) return;
-                setEditing(null);
-                setDraft("");
-                await reload();
-              } catch {
-                if (mountedRef.current) setNotice(t("notes.errorSave"));
-              }
-            })();
-          },
+  const confirmDelete = useCallback((id: string) => {
+    Alert.alert(t("notes.delete"), t("notes.deleteConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("notes.delete"),
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteNote(id);
+              if (!mountedRef.current) return;
+              closeEditor();
+              await reload();
+            } catch {
+              if (mountedRef.current) setNotice(t("notes.errorSave"));
+            }
+          })();
         },
-      ]);
-    },
-    [reload, t],
-  );
-
+      },
+    ]);
+  }, [closeEditor, reload, t]);
   const exportNote = useCallback(() => {
-    const body = editing ? draft : "";
-    if (!body.trim()) return;
+    if (!draft.trim()) return;
     void Share.share({
-      message: body,
+      message: draft,
       title: editing?.title || t("notes.title"),
     }).catch(() => undefined);
   }, [draft, editing, t]);
 
-  if (editing) {
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: colors.shell,
-          zIndex: 50,
-        }}
-      >
-        <Header
-          title={editing.id ? t("notes.edit") : t("notes.new")}
-          onBack={handleBack}
-          backAccessibilityLabel={t("common.back")}
-          trailing={
-            <View style={{ flexDirection: "row", gap: spacing.sm, paddingRight: spacing.sm }}>
-              {editing.id ? (
-                <Pressable
-                  onPress={() => confirmDelete(editing.id)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("notes.delete")}
-                >
-                  <Text style={[typography.bodyXs, { color: colors.bad }]}>{t("notes.delete")}</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={exportNote}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("notes.export")}
-              >
-                <Text style={[typography.bodyXs, { color: colors.accent }]}>{t("notes.export")}</Text>
-              </Pressable>
-            </View>
-          }
-        />
-        <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("notes.bodyPlaceholder")}
-            placeholderTextColor={colors.muted}
-            multiline
-            textAlignVertical="top"
-            accessibilityLabel={t("notes.edit")}
-            style={[
-              typography.bodyMd,
-              {
-                color: colors.ink,
-                minHeight: 280,
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: radius.sm,
-                padding: spacing.md,
-              },
-            ]}
-          />
-          {notice ? (
-            <Text style={[typography.bodyXs, { color: colors.bad }]}>{notice}</Text>
-          ) : null}
-          <Pressable
-            onPress={() => void persistDraft()}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.save")}
-            style={({ pressed }) => ({
-              backgroundColor: colors.accent,
-              borderRadius: radius.sm,
-              paddingVertical: 10,
-              alignItems: "center",
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <Text style={[typography.bodySm, { color: colors.primaryText ?? "#F4EFE4" }]}>
-              {t("common.save")}
-            </Text>
-          </Pressable>
-        </ScrollView>
-      </View>
-    );
-  }
+  const cardStyle = {
+    flexShrink: 0,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    ...e1,
+  } as const;
 
   return (
     <View
@@ -262,89 +171,123 @@ export function NotesScreen({ onBack, focusId }: Props) {
         right: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: colors.shell,
+        backgroundColor: colors.page,
         zIndex: 50,
       }}
     >
-      <Header
-        title={t("notes.title")}
-        onBack={handleBack}
-        backAccessibilityLabel={t("common.back")}
-        trailing={
-          <Pressable
-            onPress={openNew}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t("notes.new")}
-            style={{ paddingRight: spacing.md }}
-          >
-            <Text style={[typography.bodySm, { color: colors.accent }]}>{t("notes.new")}</Text>
-          </Pressable>
-        }
-      />
-      <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.sm }}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("notes.search")}
-          placeholderTextColor={colors.muted}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-          accessibilityLabel={t("notes.search")}
-          style={[
-            typography.bodySm,
-            {
-              color: colors.ink,
-              backgroundColor: colors.panel,
-              borderRadius: radius.sm,
-              borderWidth: 1,
-              borderColor: colors.line,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 8,
-            },
-          ]}
-        />
-      </View>
+      <SettingsHeader title={t("notes.title")} onBack={handleBack} backLabel={t("common.back")} />
       <ScrollView
-        contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm }}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: space.md,
+          paddingTop: space.xs,
+          paddingBottom: insets.bottom + space.lg,
+          gap: space.md,
+          flexGrow: 1,
+        }}
       >
-        {visible.length === 0 ? (
-          <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.xs }}>
-            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-              {t("notes.empty")}
-            </Text>
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("notes.emptyBody")}</Text>
-          </GlassPanel2>
-        ) : (
-          visible.map((item) => (
+        <Pressable
+          testID="notes.new"
+          onPress={openNew}
+          accessibilityRole="button"
+          accessibilityLabel={t("notes.new")}
+          style={({ pressed }) => ({
+            minHeight: 52,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: radius.button,
+            backgroundColor: pressed ? colors.brandDeep : colors.brand,
+          })}
+        >
+          <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("notes.new")}</Text>
+        </Pressable>
+
+        <View
+          style={{
+            minHeight: 52,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space.sm,
+            paddingHorizontal: space.md,
+            borderRadius: radius.field,
+            borderWidth: 1,
+            borderColor: colors.line,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Search size={20} color={colors.ink3} strokeWidth={1.75} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("notes.search")}
+            placeholderTextColor={colors.ink3}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            accessibilityLabel={t("notes.search")}
+            style={[type.body, { flex: 1, minWidth: 0, color: colors.ink, paddingVertical: space.xs }]}
+          />
+          {query ? (
             <Pressable
-              key={item.id}
-              onPress={() => void openNote(item.id)}
-              onLongPress={() => confirmDelete(item.id)}
-              delayLongPress={380}
+              onPress={() => setQuery("")}
               accessibilityRole="button"
-              accessibilityLabel={item.title.trim() ? item.title : t("notes.untitled")}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? colors.panel : colors.panelSolid ?? colors.panel,
-                borderRadius: radius.sm,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
-                borderWidth: 1,
-                borderColor: colors.line,
-              })}
+              accessibilityLabel={t("common.clear")}
+              style={{ width: 40, height: 48, alignItems: "center", justifyContent: "center" }}
             >
-              <Text
-                numberOfLines={1}
-                style={[typography.bodyMd, { color: colors.ink, fontFamily: fontFamilies.bodyMedium }]}
-              >
-                {item.title.trim() ? item.title : t("notes.untitled")}
-              </Text>
+              <X size={18} color={colors.ink3} />
             </Pressable>
-          ))
+          ) : null}
+        </View>
+
+        {visible.length === 0 ? (
+          <View style={[cardStyle, { padding: space.md, gap: space.xs }]}>
+            <Text style={[type.headline, { color: colors.ink }]}>{t("notes.empty")}</Text>
+            <Text style={[type.body, { color: colors.ink2 }]}>{t("notes.emptyBody")}</Text>
+          </View>
+        ) : (
+          <View style={[cardStyle, { overflow: "hidden" }]}>
+            {visible.map((item, index) => (
+              <View key={item.id}>
+                {index > 0 ? (
+                  <View style={{ height: 1, backgroundColor: colors.line, marginLeft: space.md }} />
+                ) : null}
+                <Pressable
+                  onPress={() => void openNote(item.id)}
+                  onLongPress={() => confirmDelete(item.id)}
+                  delayLongPress={380}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title.trim() ? item.title : t("notes.untitled")}
+                  style={({ pressed }) => ({
+                    minHeight: 56,
+                    justifyContent: "center",
+                    paddingHorizontal: space.md,
+                    backgroundColor: pressed ? colors.tint : colors.surface,
+                  })}
+                >
+                  <Text numberOfLines={1} style={[type.bodyStrong, { color: colors.ink }]}>
+                    {item.title.trim() ? item.title : t("notes.untitled")}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
+      {editing ? (
+        <NoteEditorSheet
+          title={editing.id ? t("notes.edit") : t("notes.new")}
+          draft={draft}
+          notice={notice}
+          hasSavedNote={Boolean(editing.id)}
+          colors={colors}
+          t={t}
+          onDraftChange={setDraft}
+          onSave={() => void persistDraft()}
+          onExport={exportNote}
+          onDelete={() => confirmDelete(editing.id)}
+          onClose={handleBack}
+        />
+      ) : null}
     </View>
   );
 }

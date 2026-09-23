@@ -3,7 +3,7 @@
  * friendly meta (pages + size + added bucket), single destructive Delete.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,10 +25,9 @@ import {
 } from "../../documents/DocumentLibrary";
 import { readPreviewSnippet } from "../../documents/documentStorage";
 import { useLocale } from "../../i18n";
-import { GlassPanel2, Header } from "../../theme/components";
-import { spacing } from "../../theme/tokens";
-import { useTypography, fontFamilies } from "../../theme/typography";
+import { e1, modes, radius, space, type, type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../../ui/labTheme";
+import { SettingsHeader } from "../SettingsHeader";
 
 export type RebuildSemanticIndexResult =
   | true
@@ -53,8 +52,8 @@ export function DocumentDetailView({
   onRebuildSemanticIndex,
   busy,
 }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const { mode } = useLabTheme<{ mode: ThemeMode }>();
+  const colors = modes[mode];
   const insets = useSafeAreaInsets();
   const { t, locale } = useLocale();
   const [coverFailed, setCoverFailed] = useState(false);
@@ -142,27 +141,27 @@ export function DocumentDetailView({
     !coverFailed;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.shell }}>
-      <Header
-        title={t("documents.detailBack")}
-        onBack={onBack}
-        backAccessibilityLabel={t("common.back")}
-      />
+    <View style={{ flex: 1, backgroundColor: colors.page }}>
+      <SettingsHeader title={t("documents.detailBack")} onBack={onBack} backLabel={t("common.back")} />
       <ScrollView
         contentContainerStyle={{
-          padding: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          gap: spacing.md,
+          paddingHorizontal: space.md,
+          paddingTop: space.xs,
+          paddingBottom: insets.bottom + space.lg,
+          gap: space.md,
+          flexGrow: 1,
         }}
       >
-        <GlassPanel2
-          rounded="lg"
+        <View
           style={{
+            flexShrink: 0,
             overflow: "hidden",
             minHeight: 180,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: colors.panelSolid,
+            backgroundColor: colors.surface,
+            borderRadius: radius.card,
+            ...e1,
           }}
         >
           {showCover ? (
@@ -176,19 +175,12 @@ export function DocumentDetailView({
               })}
             />
           ) : doc.kind === "txt" ? (
-            <View style={{ width: "100%", padding: spacing.lg, gap: spacing.sm }}>
+            <View style={{ width: "100%", padding: space.lg, gap: space.sm }}>
               {snippetLoading ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
                 <Text
-                  style={[
-                    typography.monoSm ?? typography.bodySm,
-                    {
-                      color: colors.ink,
-                      fontFamily: fontFamilies.mono,
-                      lineHeight: 20,
-                    },
-                  ]}
+                  style={[type.mono, { color: colors.ink, lineHeight: 20 }]}
                   numberOfLines={6}
                 >
                   {snippet && snippet.length > 0
@@ -204,37 +196,27 @@ export function DocumentDetailView({
                 height: 200,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: colors.accentSoft ?? colors.panelSolid,
+                backgroundColor: colors.tint,
               }}
             >
-              <FileText size={48} color={colors.accent} style={{ opacity: 0.7 }} />
+              <FileText size={24} color={colors.accent} strokeWidth={1.75} />
             </View>
           )}
-        </GlassPanel2>
+        </View>
 
-        <View style={{ gap: 4 }}>
+        <View style={{ flexShrink: 0, gap: space.xs }}>
           <Text
-            style={[
-              typography.bodyMd ?? typography.bodySm,
-              {
-                color: colors.ink,
-                fontFamily: fontFamilies.bodySemi,
-                fontSize: 18,
-              },
-            ]}
+            style={[type.headline, { color: colors.ink }]}
             accessibilityRole="header"
           >
             {doc.name}
           </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+          <Text style={[type.secondary, { color: colors.ink2 }]}>
             {metaLine}
           </Text>
           {isDocumentUnreadable(doc) ? (
             <Text
-              style={[
-                typography.bodySm,
-                { color: colors.muted, marginTop: spacing.xs },
-              ]}
+              style={[type.body, { color: colors.ink2, marginTop: space.xs }]}
             >
               {t("documents.errorPdf")}
             </Text>
@@ -248,23 +230,17 @@ export function DocumentDetailView({
             accessibilityRole="button"
             accessibilityLabel={t("documents.rebuildIndex")}
             accessibilityHint={t("documents.rebuildIndexHint")}
-            style={{
-              marginTop: spacing.sm,
-              paddingVertical: spacing.md,
-              borderRadius: 14,
-              backgroundColor: colors.accentSoft ?? colors.panelSolid,
+            style={({ pressed }) => ({
+              minHeight: 48,
               alignItems: "center",
+              justifyContent: "center",
+              borderRadius: radius.button,
+              backgroundColor: pressed ? colors.tint : colors.surface,
               opacity: busy || rebuilding ? 0.5 : 1,
-            }}
+            })}
           >
             <Text
-              style={[
-                typography.bodySm,
-                {
-                  color: colors.accent,
-                  fontFamily: fontFamilies.bodySemi,
-                },
-              ]}
+              style={[type.bodyStrong, { color: colors.accent }]}
             >
               {t("documents.rebuildIndex")}
             </Text>
@@ -277,23 +253,19 @@ export function DocumentDetailView({
           accessibilityRole="button"
           accessibilityLabel={t("documents.delete")}
           accessibilityHint={t("documents.deleteHint")}
-          style={{
-            marginTop: spacing.md,
-            paddingVertical: spacing.md,
-            borderRadius: 14,
-            backgroundColor: "rgba(179, 38, 30, 0.12)",
+          style={({ pressed }) => ({
+            minHeight: 52,
             alignItems: "center",
+            justifyContent: "center",
+            borderRadius: radius.button,
+            borderWidth: 1,
+            borderColor: colors.danger,
+            backgroundColor: pressed ? colors.tint : colors.surface,
             opacity: busy ? 0.5 : 1,
-          }}
+          })}
         >
           <Text
-            style={[
-              typography.bodySm,
-              {
-                color: colors.danger ?? "#B3261E",
-                fontFamily: fontFamilies.bodySemi,
-              },
-            ]}
+            style={[type.bodyStrong, { color: colors.danger }]}
           >
             {t("documents.delete")}
           </Text>

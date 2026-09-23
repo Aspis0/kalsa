@@ -1,9 +1,4 @@
-/**
- * Library list row: cover (or tinted FileText tile) + title + friendly meta +
- * drag handle. No jargon — pages OR size, never tokens / kind / status.
- */
-
-import React, { useState } from "react";
+import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { FileText, GripVertical } from "lucide-react-native";
 
@@ -12,86 +7,81 @@ import {
   type LibraryDoc,
 } from "../../documents/DocumentLibrary";
 import { useLocale } from "../../i18n";
-import { spacing } from "../../theme/tokens";
-import { useTypography, fontFamilies } from "../../theme/typography";
+import { e1, modes, radius, space, type, type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../../ui/labTheme";
 
-const COVER_W = 56;
-const COVER_H = 72;
-const COVER_RADIUS = 12;
-
+const COVER_W = 36;
+const COVER_H = 48;
 type Props = {
   doc: LibraryDoc;
-  /** Optional drag handle props from react-native-draggable-flatlist. */
   drag?: () => void;
   isActive?: boolean;
   onOpen: (doc: LibraryDoc) => void;
 };
+type ThemeContext = { mode: ThemeMode };
 
 function isUnreadable(doc: LibraryDoc): boolean {
   if (doc.docCount > 0) return false;
-  const s = doc.extractionStatus;
-  return s === "timeout" || s === "renderer_error" || s === "fs_error";
+  return (
+    doc.extractionStatus === "timeout" ||
+    doc.extractionStatus === "renderer_error" ||
+    doc.extractionStatus === "fs_error"
+  );
 }
 
+/** One pressable document row, including its current cover and drag affordance. */
 export function DocumentListItem({ doc, drag, isActive, onOpen }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const { mode } = useLabTheme<ThemeContext>();
+  const colors = modes[mode];
   const { t, locale } = useLocale();
   const [coverFailed, setCoverFailed] = useState(false);
-
   const sizeLabel = formatBytesLocalized(doc.sizeBytes, locale);
   let meta: string;
+
   if (isUnreadable(doc)) {
     meta = t("documents.unreadable");
   } else if (doc.kind === "pdf" && typeof doc.pageCount === "number" && doc.pageCount > 0) {
-    const pages =
-      doc.pageCount === 1
-        ? t("documents.pageCountOne")
-        : t("documents.pageCount", { count: doc.pageCount });
-    meta =
-      doc.truncated &&
+    const pages = doc.pageCount === 1
+      ? t("documents.pageCountOne")
+      : t("documents.pageCount", { count: doc.pageCount });
+    meta = doc.truncated &&
       typeof doc.processedPageCount === "number" &&
       doc.processedPageCount < doc.pageCount
-        ? `${pages} (${doc.processedPageCount}/${doc.pageCount})`
-        : pages;
+      ? `${pages} (${doc.processedPageCount}/${doc.pageCount})`
+      : pages;
   } else {
     meta = t("documents.sizeOnly", { size: sizeLabel });
   }
 
-  const a11y = t("documents.detailA11yRow", { name: doc.name, meta });
-  const showCover =
-    doc.kind === "pdf" &&
-    typeof doc.previewUri === "string" &&
-    doc.previewUri.length > 0 &&
-    !coverFailed;
+  const showCover = doc.kind === "pdf" && !!doc.previewUri && !coverFailed;
+  const rowLabel = t("documents.detailA11yRow", { name: doc.name, meta });
 
   return (
     <Pressable
       onPress={() => onOpen(doc)}
       disabled={isActive}
       accessibilityRole="button"
-      accessibilityLabel={a11y}
-      style={{
+      accessibilityLabel={rowLabel}
+      style={({ pressed }) => ({
+        minHeight: 64,
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.sm,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        opacity: isActive ? 0.92 : 1,
-        backgroundColor: isActive
-          ? colors.panelSolid ?? colors.shell
-          : "transparent",
-        borderRadius: COVER_RADIUS,
-      }}
+        gap: space.sm,
+        paddingLeft: space.md,
+        paddingRight: space.xs,
+        borderRadius: radius.card,
+        backgroundColor: pressed || isActive ? colors.tint : colors.surface,
+        opacity: isActive ? 0.8 : 1,
+        ...e1,
+      })}
     >
       <View
         style={{
           width: COVER_W,
           height: COVER_H,
-          borderRadius: COVER_RADIUS,
+          borderRadius: radius.row,
           overflow: "hidden",
-          backgroundColor: colors.accentSoft ?? colors.panelSolid,
+          backgroundColor: colors.tint,
           alignItems: "center",
           justifyContent: "center",
         }}
@@ -104,49 +94,30 @@ export function DocumentListItem({ doc, drag, isActive, onOpen }: Props) {
             style={{ width: COVER_W, height: COVER_H }}
             resizeMode="cover"
             onError={() => setCoverFailed(true)}
-            accessibilityLabel={t("documents.detailA11yCover", {
-              name: doc.name,
-            })}
+            accessibilityLabel={t("documents.detailA11yCover", { name: doc.name })}
           />
         ) : (
-          <FileText
-            size={28}
-            color={colors.accent}
-            style={{ opacity: 0.85 }}
-          />
+          <FileText size={22} color={colors.accent} strokeWidth={1.75} />
         )}
       </View>
-
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={[
-            typography.bodySm,
-            { color: colors.ink, fontFamily: fontFamilies.bodySemi },
-          ]}
-          numberOfLines={1}
-        >
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text numberOfLines={1} style={[type.bodyStrong, { color: colors.ink }]}>
           {doc.name}
         </Text>
-        <Text
-          style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
-          numberOfLines={1}
-        >
+        <Text numberOfLines={1} style={[type.secondary, { color: colors.ink2 }]}>
           {meta}
         </Text>
       </View>
-
       {drag ? (
         <Pressable
           onLongPress={drag}
-          // MED-2: shorter long-press so adb/hold-swipe activates drag on 480px.
           delayLongPress={120}
-          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t("documents.detailA11yDrag")}
           accessibilityHint={t("documents.dragHint")}
-          style={{ padding: 6 }}
+          style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
         >
-          <GripVertical size={20} color={colors.muted} />
+          <GripVertical size={20} color={colors.ink3} strokeWidth={1.75} />
         </Pressable>
       ) : null}
     </Pressable>

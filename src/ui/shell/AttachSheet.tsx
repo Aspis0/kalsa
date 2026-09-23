@@ -61,6 +61,7 @@ export interface AttachSheetProps {
   onPrimaryAction?: () => void;
   /** The document list may scroll (`maxHeight` clips); the action list never does. */
   scroll?: boolean;
+  children?: ReactNode;
 }
 
 const ICONS: Record<AttachSheetIcon, (color: string) => ReactNode> = {
@@ -131,8 +132,9 @@ export function AttachSheet({
   primaryActionLabel,
   onPrimaryAction,
   scroll = false,
+  children,
 }: AttachSheetProps) {
-  const body = rows.map((row) => <SheetRow key={row.testID} row={row} colors={colors} />);
+  const body = children ?? rows.map((row) => <SheetRow key={row.testID} row={row} colors={colors} />);
   const heading = title ? singleLineSheetTitle(title) : null;
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -171,7 +173,7 @@ export function AttachSheet({
                 {subtitle}
               </Text>
             ) : null}
-            {scroll ? <ScrollView>{body}</ScrollView> : body}
+            {scroll ? <ScrollView keyboardShouldPersistTaps="handled">{body}</ScrollView> : body}
             {primaryActionLabel && onPrimaryAction ? (
               <View style={{ padding: spacing.md, paddingTop: spacing.sm }}>
                 <Pressable

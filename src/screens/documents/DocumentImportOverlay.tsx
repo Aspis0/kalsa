@@ -1,21 +1,13 @@
-/**
- * Full-screen dim + GlassPanel2 card while a document is being imported.
- * Blocks interaction; shows friendly "Reading your document…" copy.
- */
-
-import React from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
-import { GlassPanel2 } from "../../theme/components";
-import { spacing } from "../../theme/tokens";
-import { useTypography, fontFamilies } from "../../theme/typography";
+import { e3, modes, radius, space, type, type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../../ui/labTheme";
 
 type Props = {
-  /** Optional filename shown truncated to 32 chars. */
   fileName?: string | null;
 };
+type ThemeContext = { mode: ThemeMode };
 
 function truncateName(name: string, max = 32): string {
   const chars = Array.from(name);
@@ -24,14 +16,12 @@ function truncateName(name: string, max = 32): string {
 }
 
 export function DocumentImportOverlay({ fileName }: Props) {
-  const { colors } = useLabTheme<any>();
-  const typography = useTypography();
+  const { mode } = useLabTheme<ThemeContext>();
+  const colors = modes[mode];
   const { t } = useLocale();
-
-  const label =
-    fileName && fileName.length > 0
-      ? t("documents.readingName", { name: truncateName(fileName) })
-      : t("documents.reading");
+  const label = fileName
+    ? t("documents.readingName", { name: truncateName(fileName) })
+    : t("documents.reading");
 
   return (
     <View
@@ -44,39 +34,30 @@ export function DocumentImportOverlay({ fileName }: Props) {
         right: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: "rgba(0,0,0,0.45)",
+        backgroundColor: "rgba(0,0,0,0.42)",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 100,
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: space.lg,
       }}
     >
-      <GlassPanel2
-        rounded="lg"
-        opaque
+      <View
         style={{
           width: "100%",
           maxWidth: 340,
-          paddingVertical: spacing.xl,
-          paddingHorizontal: spacing.lg,
+          backgroundColor: colors.surface,
+          borderRadius: radius.card,
+          padding: space.lg,
           alignItems: "center",
-          gap: spacing.md,
+          gap: space.md,
+          ...e3,
         }}
       >
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text
-          style={[
-            typography.bodySm,
-            {
-              color: colors.ink,
-              fontFamily: fontFamilies.bodySemi,
-              textAlign: "center",
-            },
-          ]}
-        >
+        <Text style={[type.bodyStrong, { color: colors.ink, textAlign: "center" }]}>
           {label}
         </Text>
-      </GlassPanel2>
+      </View>
     </View>
   );
 }
