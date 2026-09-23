@@ -85,13 +85,13 @@ own statuses, which it relays):
 
 | status | body | from |
 |---|---|---|
-| 401 | empty | unknown or revoked credential (`lib.rs:113-116`) |
+| 401 | empty | unknown or revoked credential (`lib.rs:113-116`), and also a request head the door read and found malformed (`proxy.rs:110-119` → `refuse`, `proxy.rs:501-502`) |
 | 403 | one sentence | the engine's `/slots` routes, refused (`slot_routes.rs:148-154`) |
-| 410 | yes | a resumed job that no longer exists (`proxy.rs:399`) |
+| 410 | one sentence | a resume the door will not serve (`proxy.rs:399`): a job gone, evicted or owned by another device (`jobs.rs:206`), a cursor past what it holds (`jobs.rs:209`), or an id it cannot parse (`proxy.rs:383`) |
 | 503 | empty | acceptor cap or full queue (`server.rs:163-182`), head patience spent (`proxy.rs:101-116`), job registry refusing (`proxy.rs:332-340`); the cause is not distinguishable |
 | 503 | one sentence | no seat for an authenticated device (`lib.rs:158-175`) |
 | 502 | empty | the engine unreachable (`proxy.rs:262-266`) |
-| 204 / 400 / 404 / 501 / 502 | door's own `/kalsa/` chat routes (`paging.rs:173-188`, `paging/io.rs:47-51`) |
+| 204 / 400 / 404 / 500 / 501 / 502 | varies | door's own `/kalsa/` chat routes (`paging.rs:173-188`, `paging/io.rs:47-54`) |
 
 And a connection can also close with no HTTP response at all: when the engine fails mid-head
 (`proxy.rs:305`), and because the pairing desk's refusals are best-effort writes
