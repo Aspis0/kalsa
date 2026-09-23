@@ -270,10 +270,12 @@ class FakeEngine:
         return [r for r in self.requests if r["path"].startswith("/slots/")]
 
 
-def drive_attempt(door, n=4, suppress_a2_erase=False):
+def drive_attempt(door, n=4, suppress_a2_erase=False, probe_after_s=0.0):
     """Drive the REAL run_attempt_arms against the fake transport.
     suppress_a2_erase drops the LAST erase of the sequence (the pre-A2
-    one, reviewer B's n5) by wrapping mc.slot_action for the drive only."""
+    one, reviewer B's n5) by wrapping mc.slot_action for the drive only.
+    probe_after_s lets a case anchor the probe's timestamp UNITS (case
+    (10): sent must land ~that many MILLISECONDS after the barrier)."""
     credentials = [hashlib.sha256(f"door-test-device-{k}".encode()).hexdigest()
                    for k in range(n)]
     salts = [mc.device_cache_salt(c) for c in credentials]
@@ -295,7 +297,7 @@ def drive_attempt(door, n=4, suppress_a2_erase=False):
         arm_a, arm_b, arm_a2, probe = mc.run_attempt_arms(
             engine_port, door_port, prompts, 1, credentials, salts,
             FakeServer(), door, 0, send=fake, pause_s=0.0,
-            probe_after_s=0.0)
+            probe_after_s=probe_after_s)
     finally:
         mc.slot_action = real
     return fake, arm_a, arm_b, arm_a2, probe, credentials, salts
@@ -525,7 +527,12 @@ def case_10():
     print("(10) G4: the probe count recomputes from the artifact's own "
           "fields", file=sys.stderr)
     n = 4
-    fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(True, n)
+    # probe_after_s = 0.3 anchors the UNITS: the probe must be recorded
+    # ~300 MILLISECONDS after the barrier - a seconds-labeled field would
+    # read ~0.3 and fail here (it did: the first live run recorded
+    # streams_done 7.4 for a 7404 ms generation).
+    fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(
+        True, n, probe_after_s=0.3)
     for key in ("probe_sent_ms", "probe_answered_ms", "streams_sent_ms",
                 "streams_done_ms", "streams_done_before_probe_answered",
                 "note"):
@@ -537,6 +544,10 @@ def case_10():
           and all(s <= d for s, d in zip(probe["streams_sent_ms"],
                                          probe["streams_done_ms"])),
           json.dumps([probe["streams_sent_ms"], probe["streams_done_ms"]]))
+    check("(10) THE UNITS: probe_sent_ms is ~300 (milliseconds), not 0.3 "
+          "- perf_counter differences are seconds and must be scaled",
+          300.0 <= probe["probe_sent_ms"] <= 450.0,
+          repr(probe["probe_sent_ms"]))
     recomputed = mc.count_done_before(probe["streams_done_ms"],
                                       probe["probe_answered_ms"])
     check("(10) streams_done_before_probe_answered == a recomputation from "

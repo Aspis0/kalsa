@@ -1386,12 +1386,13 @@ def run_streams_door(door_port, prompts, n_predict, credentials, server,
             f"stream slot{k} died: {errors[k]}; refusing to measure")
     # G4: everything below is computed AFTER the join, from the recorded
     # stamps only - the count is reproducible from the artifact's fields.
-    streams_sent_ms = [round(marks[k]["sent"] - t_release, 1)
+    # perf_counter differences are SECONDS; the artifact speaks ms.
+    streams_sent_ms = [round((marks[k]["sent"] - t_release) * 1000, 1)
                        for k in range(n)]
-    streams_done_ms = [round(marks[k]["done"] - t_release, 1)
+    streams_done_ms = [round((marks[k]["done"] - t_release) * 1000, 1)
                        for k in range(n)]
-    probe_sent_ms = round(t_probe_sent - t_release, 1)
-    probe_answered_ms = round(t_probe_answered - t_release, 1)
+    probe_sent_ms = round((t_probe_sent - t_release) * 1000, 1)
+    probe_answered_ms = round((t_probe_answered - t_release) * 1000, 1)
     probe = {
         "sent_after_ms": round(probe_sent_ms - max(streams_sent_ms), 1),
         "wall_ms": probe_wall,
