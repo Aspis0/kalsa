@@ -54,6 +54,50 @@ is at `brain` `4dc4b0f` and was not changed to answer. The phone's design this a
    on the phone's connected screen would need a protocol field that does not exist; "il tuo
    computer" needs none.
 
+## Added after two reviews of the phone's design (same day)
+
+Each line below was re-checked here against the file. These are desktop contracts the phone
+builds on that the first draft did not state.
+
+6. **A completion's seal is released on the desktop's own successful write, not on the phone's
+   receipt.** `src-tauri/src/transport.rs:409-412` — `if result.is_ok() {` / `if let Some(token) =
+   answer.delivery_token {` / `desk.acknowledge(&token);`. So a retry with the same delivery token
+   recovers a completion only when the desktop's write failed. If the bytes left the desktop and
+   the phone never processed them (app killed, network cut), the retry gets the generic 403 and
+   the phone needs a fresh square. Closing that gap would need a phone receipt, which is a
+   protocol change.
+7. **A claim is not idempotent.** It consumes the code and answers `{}`
+   (`src-tauri/src/transport.rs:430-434`). A second claim on the same ceremony is refused
+   (`crates/kalsa-pairing/src/ceremony.rs:161`). A claim whose response was lost therefore has
+   no recovery but a fresh square.
+8. **A streamed answer through the door is a resumable job.** `crates/kalsa-door/src/lib.rs:24-30`
+   — `An event-stream answer is different in one way: it becomes a job. The` / `door numbers every
+   event (`id: <token>:<index>`, the standard SSE id the` / `client echoes back as
+   `Last-Event-ID`)` … `A phone that disappears mid-answer leaves` / `the generation running; when
+   it comes back and sends its last seen id,` / `the door replays what it missed and then follows
+   the tail live`. It needs the same bearer credential, and a job answers only to the device that
+   started it (`:31-34`). A job that is gone answers **410** (`crates/kalsa-door/src/proxy.rs:399`).
+   Detaching does not stop the generation. So a phone's "stop waiting" does not cancel anything on
+   the computer.
+
+**Every status the door can write, for the phone's refusal table** (beyond 200 and the engine's
+own statuses, which it relays):
+
+| status | body | from |
+|---|---|---|
+| 401 | empty | unknown or revoked credential (`lib.rs:113-116`) |
+| 403 | one sentence | the engine's `/slots` routes, refused (`slot_routes.rs:148-154`) |
+| 410 | yes | a resumed job that no longer exists (`proxy.rs:399`) |
+| 503 | empty | acceptor cap or full queue (`server.rs:163-182`), head patience spent (`proxy.rs:101-116`), job registry refusing (`proxy.rs:332-340`); the cause is not distinguishable |
+| 503 | one sentence | no seat for an authenticated device (`lib.rs:158-175`) |
+| 502 | empty | the engine unreachable (`proxy.rs:262-266`) |
+| 204 / 400 / 404 / 501 / 502 | door's own `/kalsa/` chat routes (`paging.rs:173-188`, `paging/io.rs:47-51`) |
+
+And a connection can also close with no HTTP response at all: when the engine fails mid-head
+(`proxy.rs:305`), and because the pairing desk's refusals are best-effort writes
+(`transport.rs:477`). The pairing desk itself answers only 200 or an empty 403
+(`transport.rs:430-445`, `:481`).
+
 ## The phone session's three extra questions
 
 - **A short code to type if the camera will not focus?** Not found. The code is 32 hex
