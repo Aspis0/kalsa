@@ -74,6 +74,28 @@ function concurrencyChecks(app, artifact, emit) {
   both("platform", CONCURRENCY.release.platform, release.platform);
   both("backend", CONCURRENCY.release.backend, release.backend);
   both("exe_sha256", CONCURRENCY.release.exe_sha256, release.exe_sha256);
+  // The artifact's status/tag were derived from the LAUNCHER's hash alone,
+  // and that launcher is byte-identical in v1.1.0 and v1.1.1 - so the file
+  // could say `matched / kalsa-server-v1.1.1` for a v1.1.0 tree and none of
+  // the checks above would notice. The separating fact is already IN the
+  // file, unread until now: provenance.engine_version carries
+  // `commit a7d2cec79`, release.commit carries `a7d2cec79e7d...`. Prefix
+  // either way - the same rule engine_identity uses - so the tag rests on
+  // the commit that RAN, not on a launcher two releases share.
+  const engineCommit = /commit ([0-9a-f]{7,40})/.exec(
+    artifact.provenance.engine_version ?? "",
+  )?.[1];
+  const releaseCommit = release.commit;
+  const commitsAgree =
+    Boolean(engineCommit) &&
+    Boolean(releaseCommit) &&
+    (releaseCommit.startsWith(engineCommit) ||
+      engineCommit.startsWith(releaseCommit));
+  emit(
+    "concurrency: the engine_version commit agrees with release.commit (the tag rests on the commit that ran)",
+    commitsAgree,
+    `engine_version ${engineCommit ?? "none"} vs release.commit ${releaseCommit ?? "none"}`,
+  );
   emit(
     "concurrency: the three ratios are exactly the artifact's, digit for digit",
     pairs.every(([, c, a]) => c === a),
@@ -178,17 +200,22 @@ try {
 
   // The concurrency row and the artifact behind it: the constant may say
   // only what the committed JSON says, and the row may exist only while
-  // that JSON's status is `matched`.
+  // that JSON's status is `matched` - and the JSON's own tag may rest only
+  // on a release.commit its engine_version agrees with (the launcher two
+  // releases share can match either tree's hash and separate neither).
   const artifact = JSON.parse(await readFile(new URL(`../../${ARTIFACT}`, import.meta.url), "utf8"));
   concurrencyChecks(app, artifact, check);
 
   // MUTATIONS, both in memory — the committed artifact is never written.
   // Each copy must turn this script red through the checks above: a status
   // that is not `matched` must withhold the row, a platform the artifact
-  // does not carry must break the identity.
+  // does not carry must break the identity, and a release.commit the
+  // engine_version does not have must break the tag's anchor (only the
+  // new commit check reads that field - this mutation is ITS proof).
   for (const [field, value] of [
     ["status", "not-the-release"],
     ["platform", "linux-x64"],
+    ["commit", "0000000000000000000000000000000000000000"],
   ]) {
     const copy = structuredClone(artifact);
     copy.provenance.release[field] = value;
