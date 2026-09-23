@@ -25,6 +25,14 @@ export function researchIntentForBackend(remoteBackend: boolean, requested: bool
   return !remoteBackend && requested;
 }
 
+export function shouldRefuseRemoteResearch(remoteBackend: boolean, requested: boolean): boolean {
+  return remoteBackend && requested;
+}
+
+export function researchChipVisible(remoteBackend: boolean, armed: boolean): boolean {
+  return armed && !remoteBackend;
+}
+
 /**
  * The options one send builds from the arms plus the typed deep-research
  * trigger: `null` means nothing changes and no `options` object is handed to
@@ -50,6 +58,7 @@ export type ComposerArms = {
   notesRef: { current: boolean };
   toggleResearch: () => void;
   toggleNotes: () => void;
+  clearResearch: () => void;
   /** Send / conversation change both drop the arms. */
   clear: () => void;
 };
@@ -81,12 +90,15 @@ export function useComposerArms(draft: string): ComposerArms {
     notesRef.current = !notesRef.current;
     setNotes(notesRef.current);
   }, []);
-  const clear = useCallback(() => {
+  const clearResearch = useCallback(() => {
     researchRef.current = false;
     setResearch(false);
+  }, []);
+  const clear = useCallback(() => {
+    clearResearch();
     notesRef.current = false;
     setNotes(false);
-  }, []);
+  }, [clearResearch]);
 
-  return { research, notes, researchRef, notesRef, toggleResearch, toggleNotes, clear };
+  return { research, notes, researchRef, notesRef, toggleResearch, toggleNotes, clearResearch, clear };
 }

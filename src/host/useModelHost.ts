@@ -50,6 +50,7 @@ import { ensureRemoteHostModel } from "./remoteHostEnsure";
 import { createRemoteModelHostActions } from "./remoteModelHostActions";
 import { getRemoteContextSize } from "../engine/remote/remoteSettings";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
+import { createModelEnsureDispatch } from "./modelEnsureDispatch";
 
 export interface ModelHostParams {
   t: TranslateFn;
@@ -214,9 +215,9 @@ export function useModelHost(params: ModelHostParams) {
     agentOptionsRef,
     conversationsRef,
   };
-  ensureEngineForModelRef.current = (model: ModelInfo) =>
-    model.id === REMOTE_COMPUTER_MODEL_ID
-      ? ensureRemoteHostModel({
+  ensureEngineForModelRef.current = createModelEnsureDispatch(
+    REMOTE_COMPUTER_MODEL_ID,
+    () => ensureRemoteHostModel({
           locale,
           t,
           generationRef: engineGenerationRef,
@@ -231,8 +232,9 @@ export function useModelHost(params: ModelHostParams) {
           setChatEngineCtx,
           chatEngineCtxRef,
           remoteErrorRef,
-        })
-      : ensureEngineForModel(loadDeps, model);
+        }),
+    (model) => ensureEngineForModel(loadDeps, model),
+  );
   const remoteActions = createRemoteModelHostActions({
     t,
     engineGenerationRef,

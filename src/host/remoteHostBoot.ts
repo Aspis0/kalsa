@@ -44,7 +44,10 @@ export function planRemoteHostBoot(input: {
       return {
         kind: "deferred-remote",
         decision,
-        restoreModelId: input.savedModelId ?? input.defaultLocalModelId,
+        restoreModelId:
+          input.savedModelId && input.savedModelId !== input.remoteModelId
+            ? input.savedModelId
+            : input.defaultLocalModelId,
       };
     }
     return { kind: "remote", decision };

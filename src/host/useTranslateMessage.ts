@@ -26,10 +26,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translateText } from "../engine/engineBackend";
 import type { TranslateResult } from "../engine/LlamaService";
-import type { Locale } from "../i18n";
+import type { Locale, TranslationKey } from "../i18n";
 import type { TranscriptTranslation } from "../ui/shell/transcriptTypes";
 import type { Message } from "./hostMessage";
 import { translationInFlightRef } from "./translateState";
+import { isRemoteEngineBackend } from "../engine/engineBackend";
+import { runHostLocalAction } from "./remoteLocalAction";
 
 export type TranslationOutcome = {
   id: string;
@@ -46,6 +48,7 @@ export interface TranslateMessageParams {
   /** The rendering mirror; the orphan cleanup reads it, never mutates it. */
   messages: readonly Message[];
   sendingRef: { current: boolean };
+  showNoticeKey: (key: TranslationKey) => void;
   /** The menu closes when a run starts, as the controller's did. */
   closeMenu: () => void;
 }
@@ -74,47 +77,51 @@ export function useTranslateMessage(params: TranslateMessageParams): TranslateMe
   localeRef.current = locale;
   const closeMenuRef = useRef(closeMenu);
   closeMenuRef.current = closeMenu;
+  const noticeRef = useRef(params.showNoticeKey);
+  noticeRef.current = params.showNoticeKey;
 
   const run = useCallback((messageId: string, sourceText: string) => {
-    // Do not contend with an active chat completion on the same engine.
-    if (sendingRef.current || translationInFlightRef.current) return;
-    const runId = (runRef.current += 1);
-    // Sync flag BEFORE the await, so the opener / send see it immediately.
-    translationInFlightRef.current = true;
-    const controller = new AbortController();
-    abortRef.current = controller;
-    closeMenuRef.current();
-    setTranslatingId(messageId);
-    setResult(null);
-    setExpanded(true);
-    sourceRef.current = { id: messageId, text: sourceText };
-    // Captured at start so the badge stays correct if locale changes mid-run.
-    const targetLang = localeRef.current;
-    void (async () => {
-      try {
-        const out: TranslateResult = await translateText(
-          sourceText,
-          targetLang,
-          targetLang,
-          controller.signal,
-        );
-        if (runId !== runRef.current) return;
-        setResult(
-          out.text
-            ? { id: messageId, text: out.text, lang: targetLang, truncated: out.truncated }
-            : { id: messageId, text: "", lang: targetLang, error: true, truncated: out.truncated },
-        );
-      } catch {
-        if (runId !== runRef.current) return;
-        setResult({ id: messageId, text: "", lang: targetLang, error: true });
-      } finally {
-        if (abortRef.current === controller) abortRef.current = null;
-        if (runId === runRef.current) {
-          translationInFlightRef.current = false;
-          setTranslatingId(null);
+    runHostLocalAction(isRemoteEngineBackend(), () => noticeRef.current("settings.remoteGated"), () => {
+      // Do not contend with an active chat completion on the same engine.
+      if (sendingRef.current || translationInFlightRef.current) return;
+      const runId = (runRef.current += 1);
+      // Sync flag BEFORE the await, so the opener / send see it immediately.
+      translationInFlightRef.current = true;
+      const controller = new AbortController();
+      abortRef.current = controller;
+      closeMenuRef.current();
+      setTranslatingId(messageId);
+      setResult(null);
+      setExpanded(true);
+      sourceRef.current = { id: messageId, text: sourceText };
+      // Captured at start so the badge stays correct if locale changes mid-run.
+      const targetLang = localeRef.current;
+      void (async () => {
+        try {
+          const out: TranslateResult = await translateText(
+            sourceText,
+            targetLang,
+            targetLang,
+            controller.signal,
+          );
+          if (runId !== runRef.current) return;
+          setResult(
+            out.text
+              ? { id: messageId, text: out.text, lang: targetLang, truncated: out.truncated }
+              : { id: messageId, text: "", lang: targetLang, error: true, truncated: out.truncated },
+          );
+        } catch {
+          if (runId !== runRef.current) return;
+          setResult({ id: messageId, text: "", lang: targetLang, error: true });
+        } finally {
+          if (abortRef.current === controller) abortRef.current = null;
+          if (runId === runRef.current) {
+            translationInFlightRef.current = false;
+            setTranslatingId(null);
+          }
         }
-      }
-    })();
+      })();
+    });
   }, [sendingRef]);
 
   const retry = useCallback(() => {

@@ -14,6 +14,7 @@ import { e2, e3 } from "../../theme/design";
 import { COMPOSER_ATTACHMENTS_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
 import { singleLineSheetTitle } from "./sheetTitleProps";
 import { runHostAttachment } from "../../host/remoteAttachmentGate";
+import { runHostLocalAction } from "../../host/remoteLocalAction";
 
 const SHELL_DIR = __dirname;
 const HOST_DIR = join(__dirname, "..", "..", "host");
@@ -223,8 +224,16 @@ describe("the attachment sheet's seven entries, each label resolvable in BOTH ca
     expect(MENU).toContain('role: "switch"');
     expect(MENU).toContain('selected: row.action === "research" ? props.researchActive');
     expect(SHEET).toContain("checked: row.selected");
-    expect(SURFACE).toContain("arms.toggleResearch()");
+    expect(SURFACE).toContain("runHostLocalAction(modelHost.remoteActiveRef.current, refuseRemoteAttachment, arms.toggleResearch)");
     expect(SURFACE).toContain("arms.toggleNotes()");
+    const remoteNotice = jest.fn();
+    const remoteToggle = jest.fn();
+    runHostLocalAction(true, remoteNotice, remoteToggle);
+    expect(remoteNotice).toHaveBeenCalledTimes(1);
+    expect(remoteToggle).not.toHaveBeenCalled();
+    const localToggle = jest.fn();
+    runHostLocalAction(false, remoteNotice, localToggle);
+    expect(localToggle).toHaveBeenCalledTimes(1);
   });
 
   it("every a11y string this flow prints exists in both catalogues", () => {

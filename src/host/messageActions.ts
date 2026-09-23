@@ -137,6 +137,7 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     conversationId: params.conversationId,
     messages: params.history.messages,
     sendingRef: params.sendHost.sendingRef,
+    showNoticeKey: params.showNoticeKey,
     closeMenu,
   });
   const edit = useEditMessage({

@@ -47,6 +47,9 @@ import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeGate";
 import { runHostAttachment } from "./remoteAttachmentGate";
 import { hostModelLocation } from "./hostModelLocation";
+import { researchChipVisible } from "./composerArms";
+import { runHostLocalAction } from "./remoteLocalAction";
+import { remoteAttachmentChips } from "./remoteAttachmentChips";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
 /** The message menu's bundle, created by the root beside the send/history it
@@ -175,6 +178,9 @@ export function HostChatSurface({
   // One row of the attach sheet: each press runs the hook's flow and closes
   // only when the controller did (cancel and refusals keep the sheet up).
   const refuseRemoteAttachment = () => showNoticeKey("settings.remoteGated");
+  useEffect(() => {
+    if (modelHost.remoteActive) arms.clearResearch();
+  }, [modelHost.remoteActive, arms.clearResearch]);
   const handleAttachAction = (action: AttachAction) => {
     if (action === "templates") {
       setAttachSheetOpen(false);
@@ -182,7 +188,7 @@ export function HostChatSurface({
       return;
     }
     if (action === "research") {
-      arms.toggleResearch();
+      runHostLocalAction(modelHost.remoteActiveRef.current, refuseRemoteAttachment, arms.toggleResearch);
       return;
     }
     if (action === "notes") {
@@ -243,7 +249,7 @@ export function HostChatSurface({
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       fieldRef={fieldRef}
       attachments={{
-        chips: view.attachmentChips,
+        chips: remoteAttachmentChips(view.attachmentChips, attachments.items, modelHost.remoteActive),
         onRemove: attachments.removeIndex,
         // The controller's `PdfToImages` mount (`Chat:4174-4185`), keyed on
         // the URI so a re-selection never reuses a finished conversion.
@@ -299,7 +305,7 @@ export function HostChatSurface({
       attachSheetOpen={attachSheetOpen}
       docPickOpen={docPickOpen}
       docs={libraryDocs}
-      researchActive={arms.research}
+      researchActive={researchChipVisible(modelHost.remoteActive, arms.research)}
       notesActive={arms.notes}
       actionsDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onAttachAction={handleAttachAction}

@@ -9,8 +9,15 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { armsSendOptions, armsShouldClearOnDraft, researchIntentForBackend } from "./composerArms";
+import {
+  armsSendOptions,
+  armsShouldClearOnDraft,
+  researchChipVisible,
+  researchIntentForBackend,
+  shouldRefuseRemoteResearch,
+} from "./composerArms";
 import { runHostAttachment } from "./remoteAttachmentGate";
+import { hasDeepResearchTrigger } from "../research/plan";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
@@ -78,8 +85,28 @@ describe("the send's options and its capture-and-clear (Chat:2454-2463)", () => 
     // The live send must use the tested predicate for both the keyword and
     // the one-shot research arm; otherwise the executor probe above is moot.
     expect(SEND).toContain("const remoteBackend = isRemoteEngineBackend()");
-    expect(SEND).toContain("researchIntentForBackend(remoteBackend, hasDeepResearchTrigger(trimmed))");
+    expect(SEND).toContain("const keywordResearch = hasDeepResearchTrigger(trimmed)");
+    expect(SEND).toContain("researchIntentForBackend(remoteBackend, keywordResearch)");
     expect(SEND).toContain("researchIntentForBackend(remoteBackend, params.arms.researchRef.current)");
+  });
+
+  it("the remote chip cannot arm or advertise research, and keyword research gets a reason", () => {
+    const remoteTap = jest.fn();
+    const refusal = jest.fn();
+    const remoteRequested = shouldRefuseRemoteResearch(true, true);
+    if (remoteRequested) refusal();
+    if (researchChipVisible(true, true)) remoteTap();
+
+    expect(remoteRequested).toBe(true);
+    expect(refusal).toHaveBeenCalledTimes(1);
+    expect(researchChipVisible(true, true)).toBe(false);
+    expect(remoteTap).not.toHaveBeenCalled();
+    expect(shouldRefuseRemoteResearch(true, hasDeepResearchTrigger("please do deep research"))).toBe(true);
+    expect(shouldRefuseRemoteResearch(false, true)).toBe(false);
+    expect(SEND).toContain("shouldRefuseRemoteResearch(remoteBackend");
+    expect(SEND).toContain('params.showNoticeKey("settings.remoteGated")');
+    expect(SURFACE).toContain("researchChipVisible(modelHost.remoteActive, arms.research)");
+    expect(SURFACE).toContain("arms.clearResearch()");
   });
 
   it("arms notes on its own — the branch engineTurn:246-257 was unreachable until this", () => {
@@ -159,7 +186,7 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     expect(ATTACH_SHEET).toContain('action: "research"');
     expect(ATTACH_SHEET).toContain('action: "notes"');
     expect(ATTACH_SHEET).toContain('role: "switch"');
-    expect(SURFACE).toContain("arms.toggleResearch()");
+    expect(SURFACE).toContain("runHostLocalAction(modelHost.remoteActiveRef.current, refuseRemoteAttachment, arms.toggleResearch)");
     expect(SURFACE).toContain("arms.toggleNotes()");
     expect(OVERLAYS).toContain("researchActive={props.researchActive}");
     expect(OVERLAYS).toContain("notesActive={props.notesActive}");

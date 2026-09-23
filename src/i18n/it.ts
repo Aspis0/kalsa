@@ -1335,6 +1335,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       /** The attach chip: a label with the file's name inside it, never the
        *  bare filename (§2.7 — a chip with no label is a rebus). */
       attachment: "Legge da {name}",
+      remoteImageNotSent: "Le immagini di {name} non vengono inviate in modalità remota",
       /** A failed stop, carrying the engine's own reason: §2.8 forbids a
        *  generic apology in this row. */
       stopFailed: "Fermato da un errore: {reason}",

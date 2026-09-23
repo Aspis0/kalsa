@@ -3,6 +3,7 @@ import {
   planRemoteHostBoot,
 } from "./remoteHostBoot";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
+import { MODEL_REGISTRY, getDefaultModel } from "../engine/ModelRegistry";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -29,17 +30,22 @@ function plan(overrides: Partial<Parameters<typeof planRemoteHostBoot>[0]> = {})
 }
 
 describe("host boot preserves the remote boot contract", () => {
-  test("a remote rebuild/delete defers only the flip and feeds pickStartModel the saved id", async () => {
+  test("a busy remote boot restores a valid local model until the remote flip can happen", async () => {
     const pick = jest.fn(async (id: string) => id);
+    const defaultLocalModelId = getDefaultModel().id;
     const decision = plan({
       snapshot: { ...localSnapshot, backend: "remote" },
       savedModelId: REMOTE_COMPUTER_MODEL_ID,
+      defaultLocalModelId,
       documentDeleteBusy: true,
     });
 
     expect(decision.kind).toBe("deferred-remote");
-    expect(await pickHostBootModel(decision, pick)).toBe(REMOTE_COMPUTER_MODEL_ID);
-    expect(pick).toHaveBeenCalledWith(REMOTE_COMPUTER_MODEL_ID);
+    if (decision.kind !== "deferred-remote") throw new Error("expected deferred remote boot");
+    expect(decision.restoreModelId).toBe(defaultLocalModelId);
+    expect(MODEL_REGISTRY.some((model) => model.id === decision.restoreModelId)).toBe(true);
+    expect(await pickHostBootModel(decision, pick)).toBe(defaultLocalModelId);
+    expect(pick).toHaveBeenCalledWith(defaultLocalModelId);
     expect(BOOT_HOOK).toContain("planRemoteHostBoot(");
     expect(BOOT_HOOK).toContain("pickHostBootModel(plan");
     expect(BOOT_HOOK).toContain('if (plan.kind === "remote") {');

@@ -31,7 +31,7 @@ import {
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
 import { classifyChatContent } from "../domain/contentFilter";
 import { runSendStream, type SendUiHandlers } from "./sendStream";
-import { armsSendOptions, researchIntentForBackend } from "./composerArms";
+import { armsSendOptions, researchIntentForBackend, shouldRefuseRemoteResearch } from "./composerArms";
 import { sendClearsDraft } from "./sendDraft";
 import { composeSendText } from "./sendComposition";
 import { contentFilterMessage } from "./contentFilterCopy";
@@ -197,7 +197,9 @@ export function useSendHost(params: SendHostParams): SendHost {
       }
 
       const remoteBackend = isRemoteEngineBackend();
-      const useResearch = researchIntentForBackend(remoteBackend, hasDeepResearchTrigger(trimmed));
+      const keywordResearch = hasDeepResearchTrigger(trimmed);
+      if (shouldRefuseRemoteResearch(remoteBackend, params.arms.researchRef.current || keywordResearch)) params.showNoticeKey("settings.remoteGated");
+      const useResearch = researchIntentForBackend(remoteBackend, keywordResearch);
       // The one-shot arms: captured AND cleared after the gate, before the
       // append — a keyword-only research send still clears an armed notes
       // mode, as the controller did.

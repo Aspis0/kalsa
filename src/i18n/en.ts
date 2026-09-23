@@ -1389,6 +1389,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       /** The attach chip: a label with the file's name inside it, never the
        *  bare filename (§2.7 — a chip with no label is a rebus). */
       attachment: "Reading from {name}",
+      remoteImageNotSent: "Images in {name} are not sent in remote mode",
       /** A failed stop, carrying the engine's own reason: §2.8 forbids a
        *  generic apology in this row. */
       stopFailed: "Stopped by an error: {reason}",

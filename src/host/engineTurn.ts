@@ -13,14 +13,13 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isModelBundleDownloaded } from "../engine/ModelDownloader";
-import { runDeepResearch } from "../research/deepResearch";
 import {
   completeOnce,
   getActiveEngineNCtx,
   getActiveModelId,
   invalidateEngineSession,
 } from "../engine/engineBackend";
-import { getStrings } from "../i18n";
+import { isRemoteEngineBackend } from "../engine/engineBackend";
 import { getToolChoiceMode } from "../bench/benchConfig";
 import {
   CISWIRE_FLAG_COMPACTION,
@@ -48,6 +47,7 @@ import { loadCompactorWindow } from "./engineTurnCompactor";
 import { advanceCompactorWindow } from "./engineTurnSlide";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { streamEngineTurn } from "./engineTurnStream";
+import { runEngineResearchTurn } from "./engineTurnResearch";
 import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
 import type { LocalAttachment } from "./hostMessage";
 
@@ -182,63 +182,27 @@ export function handleSendStream(
               return;
             }
 
-            if (sendOpts?.research) {
-              const libraryDocs = documentLibraryRef.current.docs ?? [];
-              const attachedDocIds = (attachments ?? [])
-                .filter((a) => a.kind === "document" && typeof a.libraryDocId === "string" && a.libraryDocId)
-                .map((a) => a.libraryDocId as string);
-              const filtered = attachedDocIds.length
-                ? libraryDocs.filter(
-                    (d) =>
-                      attachedDocIds.includes(d.id) ||
-                      attachedDocIds.includes(d.sourceId),
-                  )
-                : [];
-              // Explicitly scoped attachments that all vanished from the
-              // library: research would silently widen to the whole library
-              // and cite documents the user never asked about.
-              if (attachedDocIds.length > 0 && filtered.length === 0) {
-                const goneText =
-                  getStrings(locale).errors.deepResearchAttachedMissing ??
-                  "The attached documents are no longer in the library. Add them back and send again.";
-                callbacks.onDelta?.(goneText, goneText);
-                finish();
-                return;
-              }
-              const docs = filtered.length > 0 ? filtered : libraryDocs;
-              const executeTool = agentOptionsRef.current.executeTool;
-              const question = String(text ?? "")
-                .replace(/\[document:[^\]]*\]/g, "")
-                .replace(/\s+/g, " ")
-                .trim();
-              const outcome = await runDeepResearch({
-                question,
-                locale,
-                docs,
-                execute: (name, args, toolSignal) =>
-                  executeTool
-                    ? executeTool(name, args, toolSignal, text)
-                    : Promise.resolve({ strategy: "error", error: "no executor" }),
-                completeOnce,
-                nCtx: getActiveEngineNCtx() || chatEngineCtxRef.current || 0,
-                signal,
-                callbacks: {
-                  onStatus: (status) => callbacks.onStatus?.(status),
-                  onDelta: (delta, full) => {
-                    assistantFull = full;
-                    callbacks.onDelta?.(delta, full);
-                  },
-                },
-              });
-              if (outcome.kind !== "aborted" && !signal.aborted) {
-                // Research ran clearCache on the native KV; the pre-research
-                // .kvs on disk is now stale (historyHash no longer matches).
-                // Drop it instead of a cold meta_mismatch at the next boot.
-                void invalidateEngineSession(getActiveModelId() ?? currentModel.id);
-              }
-              finish();
-              return;
-            }
+            if (await runEngineResearchTurn({
+              requested: sendOpts?.research,
+              remoteBackend: isRemoteEngineBackend(),
+              locale,
+              text,
+              attachments,
+              docs: documentLibraryRef.current.docs ?? [],
+              executeTool: agentOptionsRef.current.executeTool,
+              completeOnce,
+              nCtx: getActiveEngineNCtx() || chatEngineCtxRef.current || 0,
+              signal,
+              currentModelId: getActiveModelId() ?? currentModel.id,
+              refuseRemote: () => fail(t("settings.remoteGated"), "settings.remoteGated"),
+              onStatus: (status) => callbacks.onStatus?.(status),
+              onDelta: (delta, full) => {
+                assistantFull = full;
+                callbacks.onDelta?.(delta, full);
+              },
+              finish,
+              invalidateSession: (modelId) => { void invalidateEngineSession(modelId); },
+            })) return;
 
             let promptText = text;
             if (sendOpts?.notes) {
