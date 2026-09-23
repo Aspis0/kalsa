@@ -496,12 +496,70 @@ empty namespace. The door does send it (`engine.rs:67` → `private_headers`). T
 (`dev/results/slot-restore-swa/`) is kept as written, with its `salted` rows labelled for what they
 were; its conclusion — the namespace, not the flag — is what pointed at T1.
 
-Consequences, all of them recorded above:
+**The disk curve, measured where the plan derived it.** The plan carried the per-chat footprint at
+4 096 tokens as a **derivation** (~53 KB/token measured at 600/1900, hence ~218 MB per chat). Measured
+(`dev/results/unload-restore-disk-curve/`, on the release, the no-file control **cold in every arm**):
 
-- `--swa-full` is **not** a launch flag of this tier, and the ~1.4 GiB it would have cost is not
-  paid (§2, T2). It moves the file: ≈ 30.5 KB per token with it, ≈ 53 KB without, because a save
-  without the flag carries one context checkpoint.
-- The disk footprint at the 4 096-token floor is therefore ≈ 125 MB or ≈ 218 MB per chat.
+| tokens | file | bytes/token | control `cache_n` |
+|---|---|---|---|
+| 600 | 32 379 628 | 53 966 | 0 |
+| 1900 | 101 737 228 | 53 546 | 0 |
+| 4096 | **125 012 200** | **30 521** | 0 |
+| 8192 | 156 272 872 | **19 076** | 0 |
+
+**The curve has a knee, and the knee is the model's own window showing up inside the file.** Below the
+window the slope is **53 312 B/token** (measured 53 352); above it the slope is **flat at 7 632
+B/token** — the same marginal at 4096→8192 and at 32768→65536 — which is the KV of the **14 full
+layers** alone (14 x 2 x 2 x 128 x 34/32 = 7 616, +0.21 %). Below the window the file carries **two**
+copies of the **42 windowed layers** (22 848 B/token each): the live window **plus the context
+checkpoint** — and the second copy is **measured, not inferred**: the line `restored context checkpoint
+(... size = 44.649 MiB)` is in the artifact and equals 42 x **2048** x 544 (+0.06 %), so it is capped at
+the **window**, not at the live cache's 2 560 cells. The compact form, which cancels scale errors:
+`slope below - slope above = 53 352 - 7 632 = 45 720` against `2 x 22 848 = 45 696` (**+0.053 %**). The
+law is therefore
+
+    bytes ~ tokens x 7 616  +  2 x 22 848 x min(tokens, 2048)
+
+**The knee lies between 1900 and 4096 tokens**, and it is the only place the slope changes: beyond it
+the slope is *constant* (7 632 B/token at 4096→8192 **and** at 32768→65536), so a sentence placing a
+"bend" in the later segments is wrong even when the bytes are right. The second review found exactly
+that in the generator's knee rule — it compared a marginal against the *previous average*, which still
+carries the amortised window term, and read two identical 7 632 marginals as two bends. The rule now
+compares marginal against marginal and declares the post-window slope flat; the two artifacts whose
+conclusions were wrong were **regenerated**, and the bytes came back **identical** (125 012 200 /
+156 272 872 / 343 836 904 / 593 922 280). Two caveats: above the window the agreement is within 0.2 %,
+**below it is not uniform** (+0.44 % at 1900, +1.2 % at 600 — an unmodelled constant term), and the
+14/42 split comes from the engine's boot lines recorded in the artifact, **not** from the GGUF header
+(which declares 56 blocks, 2 kv heads, 128+128 and the 2048 window).
+
+**Consequence: the plan's 4096 figure is corrected by 93 MB.** At 4 096 tokens the measured footprint is
+**125.0 MB**, not 218 MB (-42.7 %); and because the cost per token *falls* past the window, the linear
+derivation was wrong in the direction that decides worse: at long contexts the disk costs much less than
+the plan said. (The `--swa-full` flag this tier does not use would pay 22 848 B/token **forever more** —
+both windowed copies stay full — so the longer the chat, the worse it gets: the plan said the flag was
+not worth it without the reason, and now the reason has a number.)
+
+**The warmth, measured on the delivered object.** `dev/results/unload-restore-release/` runs on the
+**release** (`release.status = matched`, commit `a7d2cec79`), its identity anchored to the **dylib**
+(`libllama-server-impl.dylib`, `714e8ba1...`) because the launcher is **byte-identical** between v1.1.0
+and v1.1.1 and separates nothing: 595/600 and 1895/1900 tokens restored, the no-file control **0**. And
+the proof the pin was needed: the same harness with the **v1.1.0 tree inside a folder named
+`kalsa-server-v1.1.1`** -> the launcher check says `matched`, the **commit** check says `not-the-release /
+engine-commit-mismatch`, and the warmth is **false** (`cache_n 0/600`). v1.1.0 comes back cold, v1.1.1
+warm: measured, not argued.
+
+**Where these numbers came from, and the trap they were nearly lost to.** The dev build
+(`/Users/marco/Projects/kalsallama/build/bin/llama-server`) is **CPU-only** (`GGML_METAL:BOOL=OFF`, no
+Metal in its dylib, its own log says `no usable GPU found`), so its prefill runs at 7.85 ms/token and
+gets worse under load (14.55), while the release runs at 0.49 and does not move (0.504 at load 11.4,
+0.501 at 39.7). The decisive control was **one flag on the same binary** — the release with
+`--n-gpu-layers 0` answers 9.86 ms/token — not the A/B between two builds: **when two artifacts differ,
+the decisive control is a flag on the same artifact, because it is the only one with no second variable
+to hide.** Any prefill figure measured on the dev build is a **CPU** figure: label it or retract it. An
+explanatory detour through the thermal governor was refuted by two independent reviews (the governor is
+not in `llama-server`'s path at all: `git grep -c governor a7d2cec79 -- tools/server/` answers 0 files)
+and is kept here only so nobody rebuilds it.
+
 - T1 is closed and **`kalsa-server-v1.1.1` carries it** (commit `a7d2cec79`; verified in the fork,
   read-only, with `git merge-base --is-ancestor 833cde99b a7d2cec79`). The app's engine asset used
   to pin `kalsa-server-v1.1.0`, which does **not** contain it (the same command against `2a290390d`
@@ -524,8 +582,21 @@ artifact produced by the script in the tree and whose provenance is a field rath
 the first two are history, kept in their own commits. The floor is declared and not denied: the
 machine was not empty, which moves the absolute rate and cancels in the comparison.
 
-**Still open**: nothing above ~1900 tokens is measured, so the saturating part of the disk curve is
-not a number this plan may carry.
+**The saturating part of the disk curve is now a number, and it saturates in the direction nobody
+feared.** It is measured to **65 536 tokens** — the app's own default per device
+(`crates/kalsa-launch/src/args.rs:146`) — in `dev/results/unload-restore-app-context/`: **593,9 MB per
+saved chat** (593 922 280 B), with the cold control at 0 and the release identity `matched`. The
+generator's own knee detector was wrong until the second review: the knee is **the window crossing,
+bracketed between 1900 and 4096 tokens**, and **beyond it the marginal is flat** — 7 632 B/token at
+4096→8192 *and* the same 7 632 B/token at 32768→65536. So the cost per token **falls** with length
+while the benefit **grows** (at 65 536: 71,0 s of cold pre-fill avoided against 87,6 ms of warm
+restore): **the longer the chat, the better this tier pays**, which is the opposite of the fear the
+derivation encoded. What remains open is narrow and named: sizes **between 8192 and 32768 are not
+measured** (the knee is bracketed, not localised), the app-context run used `--ctx-size 131072`
+because 65 552 does not fit a 65 536 slot ctx (the `headroom` gate refuses instead of truncating, and
+the per-token independence from ctx is carried by the two committed artifacts at ctx 8192/16384), and
+the `ms` columns of everything but the last two runs are **contention-dependent**, labelled as such
+in the artifacts.
 
 ## 6. Out of scope, with the reason written down
 
