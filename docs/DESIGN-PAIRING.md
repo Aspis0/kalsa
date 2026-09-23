@@ -37,8 +37,8 @@ the computer is where they chose where the answer comes from.
 | **1 — camera permission refused** | one paragraph, no camera view | **Apri le impostazioni** (filled) | *"Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema del telefono."* |
 | **2 — scanning** | the camera, a plain frame, one line under it | **Annulla** (text) | *"Inquadra il codice che vedi su Kalsa desktop."* |
 | **3 — checking** | a progress line, cancellable | **Annulla** (text) | *"Sto collegando…"* |
-| **4 — connected** | the computer's name, when it was last reached, and what it is for | **Disconnetti** (secondary, destructive-ish) | *"Questo telefono può usare il tuo computer. La chat resta sul telefono finché non scegli un modello sul computer."* |
-| **5 — the computer is busy** | the same as 4, with the queue line | **Riprova** (secondary) | *"Il computer sta già servendo sé stesso e tre telefoni. La tua richiesta partirà appena uno si libera."*
+| **4 — connected** | **Il tuo computer** — the protocol carries no name (see the verified answers, fact 5), so the owner's words are not a preference here, they are the only honest label — with when it was last reached and what it is for | **Disconnetti** (secondary, destructive-ish) | *"Questo telefono può usare il tuo computer. La chat resta sul telefono finché non scegli un modello sul computer."* |
+| **5 — the computer is busy** | the same as 4, with the queue line. The door answers an **empty 503** (`crates/kalsa-door/src/lib.rs:125-126`), so these words are ours to write and the status code is the only signal | **Riprova** (secondary) | *"Il computer sta già servendo sé stesso e tre telefoni. La tua richiesta partirà appena uno si libera."*
 The owner's reading of the number: **n=4 is one computer plus three phones** — the computer counts itself
 — and it is *for now*, so no copy should memorise a figure. |
 
@@ -52,7 +52,8 @@ are written the same way: what happened, what it means, what the person can do �
 | Failure | Copy | Actions |
 |---|---|---|
 | the code is not ours | *"Questo codice non è di Kalsa. Inquadra quello che Kalsa desktop mostra nella sua schermata di accoppiamento."* | Riprova · Annulla |
-| the computer does not answer | *"Il computer non risponde. Controlla che Kalsa desktop sia aperto e che telefono e computer siano sulla stessa rete."* | Riprova · Annulla |
+| the computer does not answer | *"Il computer non risponde. Controlla che Kalsa desktop sia aperto e che telefono e computer siano sulla stessa rete."* — **and the timeout behind this sentence must be longer than a long answer**: every request takes a door worker, the readiness probe included (`crates/kalsa-door/src/proxy.rs:51-53`), so a probe during four streams waits 6 376.7 ms and a short timeout would call a **busy** computer a **dead** one | Riprova · Annulla |
+| the pairing desk is busy (empty 403, `src-tauri/src/transport.rs:481`) | *"C'è già un collegamento in corso con questo computer. Aspetta che finisca e riprova."* | Riprova · Annulla |
 | the code is old | *"Il codice è scaduto. Fanne generare uno nuovo su Kalsa desktop e inquadralo."* | Riprova · Annulla `[WAITING: question 3 — is the code one-shot or does it expire?]` |
 | the key is refused (the desktop's 401) | *"Il computer non ha accettato la chiave. È mancante, sbagliata o scaduta: controllala su Kalsa desktop e riprova."* | Riprova · Impostazioni |
 | the phone cannot reach it later | *"Il tuo computer non è raggiungibile adesso. La chat resta sul telefono."* | Riprova · Passa al telefono |
@@ -67,12 +68,17 @@ are written the same way: what happened, what it means, what the person can do �
 3. **What the phone stores** `[WAITING: question 3]` — where it lives (the app's private storage), what
    it is (a key? an address? both?), and whether the screen must offer to forget it. My design assumes a
    **Disconnetti** in state 4 does forget it, and says so plainly.
-4. **The first call after scanning** `[WAITING: question 4]` — until it is known, this screen must not
-   invent a handshake: states 2 and 3 are drawn but their timing is not promised.
+4. **The first call after scanning is `POST /pair/claim`, then `POST /pair/complete`**
+   (`src-tauri/src/transport.rs:430`, `:437`) — and **the road that carries it from a phone does not
+   exist yet**: the square advertises loopback (`src-tauri/src/pairing.rs:11`), the only tunnel forwards
+   to the door rather than to the pairing desk (`crates/kalsa-iroh/src/bridge.rs:6-7`) and is off by
+   default (`src-tauri/src/options.rs:48-53`). **So this screen cannot complete a pairing today**, and it
+   must not pretend it can: it is designed for the day the road is open, and until then building it would
+   build a door onto a wall.
 5. **Nothing about Tailscale appears on this screen.** The owner's line is that Pro exists *for people
    who do not want to set up Tailscale themselves*: a screen that names a VPN would be answering a
    question the person did not ask. The network only shows up in the failure copy, as "the same network".
-6. **A seat is a device** — and the owner's clarification makes this almost answered: n=4 is *one computer
+6. **A seat is a device, confirmed in code**: `src-tauri/src/main.rs:1053-1055` reserves a seat per stored device, and the door's one spoken sentence says *"one of them is this computer"* (`crates/kalsa-door/src/lib.rs:167`) — which is the owner's *one computer plus three phones*, in the code's own words. The owner's clarification made this near-certain: n=4 is *one computer
    plus three phones*, which matches the hub's own language about **four seats, one of them yours**, and the
    note that the machine running the server registers itself without a QR. So the computer holds a seat
    from first launch, phones join by pairing, and the room's `[WAITING: question 8]` is now a confirmation
@@ -115,3 +121,47 @@ Brain session and to the owner. This document stops at the phone's screens, stat
    state 4 — where does that name come from, and can it be wrong?
 3. **What does the desktop show while a phone is scanning?** If it shows nothing, the person has two
    screens to watch and no way to tell which one is waiting.
+
+## The verified answers, and what they changed (2026-09-23, file `ANSWERS-PAIRING-AND-ROOM-2026-09-23.md`)
+
+The Brain session answered in writing, quoting a `path:line` for every claim and checking the
+load-bearing quotes itself. Five facts, and each one moved something in this document:
+
+1. **A phone cannot finish pairing today.** The square advertises **loopback by design**
+   (`src-tauri/src/pairing.rs:11`), so a phone posting to `reachable` reaches its *own* loopback; the only
+   tunnel forwards to the **door**, not the pairing desk (`crates/kalsa-iroh/src/bridge.rs:6-7`) and is
+   **off by default** (`src-tauri/src/options.rs:48-53`). The protocol is defined — `POST /pair/claim`
+   then `POST /pair/complete` — over a road that does not exist. **Consequence: this screen is designed
+   for the day the road is open, and it should not be built before that day**, unless we want to ship a
+   door onto a wall.
+2. **A seat is a device; the computer holds one.** `src-tauri/src/main.rs:1053-1055`; the door's only
+   spoken refusal: *"This computer is set up for {seats} at once, and one of them is this computer."*
+   (`crates/kalsa-door/src/lib.rs:167`). Invariant 6 above is now a fact rather than an expectation.
+3. **A waiting phone gets no words from the door.** Pool and queue refuse with an **empty 503**
+   (`lib.rs:125-126`), a bad credential with an **empty 401** (`lib.rs:113-116`), the pairing desk's queue
+   with an **empty 403** (`transport.rs:481`). Every sentence in this document is therefore ours, keyed on
+   the status code — and the hub says the same about itself: the queue *"owes a waiting device"* those
+   sentences (`WHAT-IS-MISSING.md:229-231`).
+4. **The readiness probe is not free.** `/props` and the model listing are forwarded by the same path as a
+   completion (`crates/kalsa-door/src/proxy.rs:51-53`), which is why a probe during four streams waits
+   6 376.7 ms. The timeout rule is in the failure table.
+5. **The phone learns no name for the computer.** The square carries `v`, `reachable`, `code`, `nonce` and
+   optionally `node` (`crates/kalsa-pairing/src/payload.rs:28-49`); the answer carries
+   `credential_ciphertext` and `mac` only (`crates/kalsa-pairing/src/messages.rs:260-264`); the label is
+   assigned on the desktop *for the phone* (`src-tauri/src/pairing.rs:425`). So a computer's name on this
+   screen would need a protocol field that does not exist, and **"Il tuo computer" needs none** — the
+   owner's words turn out to be the only version the protocol can support.
+
+And the three extra questions:
+
+- **No short code to type.** The code is 32 hex (`crates/kalsa-pairing/src/qr.rs:19`) and the desktop
+  never shows it as text: it shows the square with *"Point your phone's camera at the square."*
+  (`chat/src/surfaces/DevicesSurface.tsx:13`). A typed fallback would be a new state on **both** sides —
+  an owner decision, not a design detail.
+- **The name question** is answered above.
+- **What the desktop shows while a phone scans: nothing, because scanning is invisible to it.** It shows
+  the instruction and a warning we should echo in our own words — *"Anyone who can see this square can
+  connect a phone — show it only to yours."* (`DevicesSurface.tsx:14`) — and only when a claim arrives
+  does it say *"A phone is connecting right now."* (`:160`). Our scanning state should carry the same
+  caution, because the phone's screen is where a person decides whether to point the camera at a square
+  somebody else can see.
