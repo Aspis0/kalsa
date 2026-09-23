@@ -29,6 +29,7 @@ is unforgiving, and the phone's buttons follow it exactly:
 |---|---|---|
 | before the claim | the code is live for **120 s** and is **one-shot** (`ceremony.rs:13`, `pairing.rs:36`) | scan, or leave |
 | a successful claim | **the code is consumed** (`ceremony.rs:13-15`) | **never claim again with the same code** |
+| a claim sent whose response is never seen | the phone **cannot know** whether the code was consumed | drop the payload, and any retry needs a **new square** — never re-claim on a guess |
 | after the claim | the transport has no abort endpoint — a cancel **does nothing** | **cancel is disabled**; only waiting is honest |
 | a failed completion | the ceremony is **burned for good**, even for a later valid proof (`ceremony.rs:195-199`) | ask for a **fresh square**, in words that do not blame the person |
 | a lost completion response | the seal is kept until acknowledged (`pairing.rs:396-404`, `:480-484`) | **retry `complete` with the same delivery token** — this is the one retry that is both safe and required |
@@ -44,6 +45,9 @@ is unforgiving, and the phone's buttons follow it exactly:
    — show it only to yours."*).
 2. **The camera is on only while scanning**, and released the moment a code is read, the screen is left, or
    the app backgrounds.
+   **And the payload is held in memory only between reading it and sending the claim**: after the claim it is
+   dropped, so an interrupted ceremony can never re-claim a code that may already be spent. Annulla exists
+   in 3a and not in 3b for exactly that reason — a cancel the desktop cannot honour is a button that lies.
 3. **The phone never learns a name for the computer.** The square carries `v`, `reachable`, `code`,
    `nonce` and optionally `node` (`payload.rs:28-49`); the answer carries `credential_ciphertext` and `mac`
    only (`messages.rs:260-264`); the label is assigned on the desktop *for the phone* (`pairing.rs:425`).
@@ -64,10 +68,11 @@ is unforgiving, and the phone's buttons follow it exactly:
 
 | State | What is on screen | The one action | Copy |
 |---|---|---|---|
-| **0 — not available in this build** | one line, no promise, no camera | *(none)* | *"Il collegamento col codice arriva con una prossima versione. Nel frattempo puoi usare il tuo computer dall'indirizzo."* |
+| **0 — not available in this build** | one line, no promise, no camera | *(none)* | *"Il collegamento col codice arriva con una prossima versione."* — and nothing else: the typed address the doc describes as belonging to `main` does not exist on this branch, so a sentence pointing at it would be a second door onto a wall. |
 | **1 — camera permission refused** | one paragraph | **Apri le impostazioni** | *"Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema."* |
 | **2 — scanning** | the camera, a plain frame, and the caution | **Annulla** | *"Inquadra il codice che vedi su Kalsa desktop. Chiunque veda quel codice può collegare un telefono: mostralo solo ai tuoi."* |
-| **3 — claiming** | a progress line, cancellable **only here** | **Annulla** (allowed) | *"Sto collegando…"* |
+| **3a — code read, nothing sent** | the code is in hand and **nothing has left the phone** | **Annulla** (safe: the payload is discarded here) | *"Sto collegando…"* |
+| **3b — claim sent** | the claim is on the wire and the one-shot code **may already be consumed** — the phone cannot know which | **no cancel.** Wait, or on failure **Chiedi un nuovo codice** | *"Sto collegando…"* |
 | **4 — completing** | the same line, and a retry that is safe | **Riprova** (no cancel) | *"Sto finendo il collegamento…"* — a lost response is retried **with the same token**, so this button must not restart a ceremony |
 | **5 — connected** | **Il tuo computer**, and the truth about the seat | **Rimuovi da questo telefono** | *"Questo telefono può usare il tuo computer. Il computer tiene il posto finché non lo rimuovi da lì."* |
 | **6 — burned ceremony** | one paragraph, no blame | **Chiedi un nuovo codice** | *"Il collegamento non è stato completato e questo codice non vale più. Sulla schermata di Kalsa desktop fanne comparire uno nuovo."* |
