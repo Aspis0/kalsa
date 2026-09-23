@@ -178,12 +178,26 @@ impl Desk {
     /// owner's Allow — so the owner sees the house without any ceremony
     /// running.
     pub(crate) fn new(file: PathBuf) -> Self {
-        // The WHOLE set decides, and only a phone counts as a pairing. A
-        // host is this machine's own record, not a phone it is paired with:
-        // a store holding only a host is an unpaired computer, and the
-        // square still appears. The first record alone cannot say whether
-        // the set holds a phone, so the kind-bearing set reader decides.
-        let state = match kalsa_pairing::store::load_devices(&file) {
+        let state = Self::state_from_store(&file);
+        Self {
+            state: Mutex::new(state),
+            file,
+            serving: AtomicBool::new(false),
+            listener_failed: AtomicBool::new(false),
+        }
+    }
+
+    /// The desk's state as the store alone tells it. The WHOLE set decides,
+    /// and only a phone counts as a pairing: a host is this machine's own
+    /// record, not a phone it is paired with, so a store holding only a
+    /// host is an unpaired computer and the square still appears. The
+    /// first record alone cannot say whether the set holds a phone, so the
+    /// kind-bearing set reader decides. The paired snapshot it returns
+    /// names the FIRST phone in store order and awaits that phone's
+    /// retained delivery, kept only while unexpired; a store that cannot
+    /// be read is StoreUnavailable, never a silent Idle.
+    fn state_from_store(file: &Path) -> State {
+        match kalsa_pairing::store::load_devices(file) {
             Ok(devices) => match devices
                 .iter()
                 .find(|device| device.kind == DeviceKind::Phone)
@@ -202,12 +216,6 @@ impl Desk {
                 None => State::Idle,
             },
             Err(_) => State::StoreUnavailable,
-        };
-        Self {
-            state: Mutex::new(state),
-            file,
-            serving: AtomicBool::new(false),
-            listener_failed: AtomicBool::new(false),
         }
     }
 
@@ -343,22 +351,19 @@ impl Desk {
     }
 
     /// The owner removes ONE device from the house. The others keep their
-    /// credentials and their ids; a PAIRED desk whose last phone left goes
-    /// Idle on `new`'s rule — only a phone counts as a pairing — while a
-    /// live ceremony is left alone: forgetting a stored phone never burns a
-    /// square another phone is part-way through.
+    /// credentials and their ids; a PAIRED desk recomputes itself from the
+    /// store afterwards — `new`'s rule — so the phone it names and the
+    /// delivery it awaits belong to a phone that is still there, and the
+    /// last phone leaving lands Idle. A live ceremony is left alone:
+    /// forgetting a stored phone never burns a square another phone is
+    /// part-way through.
     pub(crate) fn forget_device(&self, id: u32) -> Result<(), StoreError> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         kalsa_pairing::store::forget_device(&self.file, id)?;
-        // `new`'s rule, restated at the moment a set can change — and only
-        // for a desk that was paired: the host record is always in the
-        // store, so emptiness is never the test.
-        if matches!(*state, State::Paired { .. })
-            && kalsa_pairing::store::load_devices(&self.file).is_ok_and(|devices| {
-                !devices.iter().any(|device| device.kind == DeviceKind::Phone)
-            })
-        {
-            *state = State::Idle;
+        // Only a desk that was paired: a live ceremony must survive the
+        // owner tidying the stored set.
+        if matches!(*state, State::Paired { .. }) {
+            *state = Self::state_from_store(&self.file);
         }
         Ok(())
     }
@@ -927,6 +932,59 @@ mod tests {
         assert!(
             desk.complete(in_flight, now).is_some(),
             "the claimed ceremony still completes"
+        );
+    }
+
+    /// Paired is a snapshot of ONE phone, so a forget that leaves phones
+    /// behind must rebuild it from the store: after the owner refuses the
+    /// newest phone, the page names the phone that remains and awaits only
+    /// its delivery — never the refused phone's name or its pending
+    /// response. The host takes its seat AFTER the first phone here, so
+    /// the first record is a phone and acknowledge's clear_delivery (which
+    /// clears the first record) actually reaches it; with a host first the
+    /// acknowledged delivery lingers until its window closes — a declared
+    /// limit, not this test's subject.
+    #[test]
+    fn refusing_a_phone_rebuilds_the_paired_snapshot_from_the_store() {
+        let file = scratch("forget-snapshot");
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let first = declaration_for(&desk, a_phone(), now);
+        let first_token = first.delivery_token().to_string();
+        assert!(desk.complete(first, now).is_some(), "phone A pairs");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        desk.acknowledge(&first_token);
+
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        let second = declaration_for(
+            &desk,
+            PhoneModel {
+                weights_bytes: 3_000_000_000,
+                ..a_phone()
+            },
+            now,
+        );
+        assert!(desk.complete(second, now).is_some(), "phone B pairs");
+
+        let refused_id = kalsa_pairing::store::load_devices(&file)
+            .unwrap()
+            .into_iter()
+            .filter(|device| device.kind == DeviceKind::Phone)
+            .map(|device| device.id)
+            .max()
+            .unwrap();
+        desk.forget_device(refused_id).unwrap();
+
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert_eq!(
+            dto["phone"], "phone with 2 GB of model weights",
+            "the paired snapshot must name the phone that remains, not the refused one"
+        );
+        assert_eq!(
+            dto["delivery_pending"], false,
+            "the remaining phone acknowledged its response; nothing is pending"
         );
     }
 
