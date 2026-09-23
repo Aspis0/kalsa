@@ -676,6 +676,23 @@ not implemented**, so a decision is never read as a delivery.
   label `fork build, not the release` and is re-measured; a pre-release number never shares a column
   with a release one. It is valid only on its recorded `platform` and `backend` — this one is
   `macos-arm64` / `metal`.
+- **The engine the app installs — decided by the kernel's release line, delivered in `e3f47a7` +
+  `d540934`** (review FIT). The app pinned `kalsa-server-v1.1.0`, which does **not** contain T1
+  (`833cde99b`): the warmth this tier exists for was released and not delivered — the door sends the
+  salt, the engine loses it, `slot.prompt_clear()`, and a restore after an unload comes back cold.
+  The row now pins v1.1.1, and the pin and the measured artifact are the same object again, which is
+  the only reason the panel's number means what it says. Two facts the delivery rests on, both
+  verified: the archive set in `marker.rs` is what tells versions apart, so a machine that already
+  has v1.1.0 re-acquires (the identical `exe_sha256` cannot vouch for a version); and the inlet's
+  probe reads the **dylib**, not the launcher, so the launcher-identity argument does not cover it —
+  the dylib's bytes were checked directly (`x-kalsa-slot` once, `X-kalsa-Slot` never). The pin is
+  kept honest by `dev/test-engine-pin.py`, which states the release **itself** and compares the row
+  to the published manifest field by field: the anchor may not come from the value it verifies, or a
+  wrong `home` is caught only by accident of chasing itself (the first version did exactly that, and
+  a mutation on a silent field is what found it). The occurrences of `v1.1.0` that record
+  measurements — `inlet.rs:24`, `manifest.rs:830`, `real_engine.rs:21`, `slots.rs:26`,
+  `slot_cache.rs:158`, `solve.rs:24`, `menu.rs:132` — are **history and stay**: rewriting them would
+  be a new lie about what was measured.
 - **`Stopping` — decided; implemented in `6efec90`, corrections in `5ffcb11`**, reviewed hostile
   (FIT CON CORREZIONI). A stop
   in flight is an explicit state that suppresses the door's re-raise, makes `brain_state` report the
