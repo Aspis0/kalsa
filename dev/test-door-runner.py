@@ -70,7 +70,15 @@ Both findings are Reviewer A's, proven live against the previous code.
       8 s bound with a clean exit.
   (9) P1/P2: an announcement that is not valid UTF-8, or longer than
       the 64-byte bound, is refused with the withheld refusal text and
-      nothing of the announcement itself quoted.
+      nothing of the announcement itself quoted - PLUS two vectors whose
+      bytes are a VALID announcement with invalid UTF-8 INSIDE it (four
+      0xff before it; one between `listening` and the address): pristine
+      refuses both, while `errors="ignore"` would ACCEPT them (the
+      invalid bytes vanish and the fullmatch lands). A SOURCE pin seals
+      the decode itself: `raw.decode("utf-8")` must appear exactly once
+      - both errors= mutations destroy that substring (bytes.decode is a
+      builtin type and cannot be patched at runtime, so this is the
+      observable that remains).
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -318,6 +326,23 @@ sys.stdout.flush()
 sys.stdin.read()
 """
 
+# B round-9: bytes that ARE an announcement, with invalid UTF-8 inside.
+# Pristine (strict) refuses both; errors="ignore" deletes the 0xff bytes
+# and the fullmatch LANDS - that acceptance is what these pin.
+PREFIX_BAD_UTF8 = """#!/usr/bin/env python3
+import sys
+sys.stdout.buffer.write(bytes([255, 255, 255, 255]) + b"listening 127.0.0.1:58229" + bytes([10]))
+sys.stdout.flush()
+sys.stdin.read()
+"""
+
+MIDDLE_BAD_UTF8 = """#!/usr/bin/env python3
+import sys
+sys.stdout.buffer.write(b"listening " + bytes([255]) + b"127.0.0.1:58229" + bytes([10]))
+sys.stdout.flush()
+sys.stdin.read()
+"""
+
 FAKE_FD2_RUNNER = """#!/usr/bin/env python3
 import hashlib, sys
 cred = next(sys.stdin, "").rstrip(chr(10))
@@ -404,13 +429,17 @@ def case_bad_announce():
     for name, src, marker in (
             ("invalid UTF-8", BAD_UTF8_ANNOUNCE, "FFANNOUNCEMENT-INVALID"),
             ("longer than the 64-byte bound", LONG_ANNOUNCE,
-             "listening 127.0.0.1:58229" + "X" * 10)):
+             "listening 127.0.0.1:58229" + "X" * 10),
+            ("VALID announcement with invalid UTF-8 BEFORE it",
+             PREFIX_BAD_UTF8, "127.0.0.1:58229"),
+            ("VALID announcement with invalid UTF-8 INSIDE it",
+             MIDDLE_BAD_UTF8, "127.0.0.1:58229")):
         work, script = write_script(src)
         proc = None
         msg = ""
         try:
             proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
-                                                     timeout_s=30.0)
+                                                     timeout_s=2.0)
         except SystemExit as e:
             msg = str(e)          # the withheld refusal
         finally:
@@ -424,6 +453,14 @@ def case_bad_announce():
               msg[-140:])
         check(f"(9) ...and the announcement itself is never quoted",
               marker not in msg, msg[:140])
+    # The decode itself: bytes.decode is a builtin type (cannot be
+    # patched at runtime), so the strict call is pinned where it lives -
+    # both errors= mutations destroy this exact substring.
+    src = MC.read_text()
+    check("(9) the announcement decode is STRICT in the source: "
+          '`raw.decode("utf-8")` appears exactly once',
+          src.count('raw.decode("utf-8")') == 1,
+          f"count={src.count('raw.decode(\"utf-8\")')}")
 
 
 def case_fd2_inherit():
