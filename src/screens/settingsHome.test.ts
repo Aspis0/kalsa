@@ -52,7 +52,9 @@ describe("Settings v2 home and advanced pages", () => {
     expect(HOME).not.toMatch(/settings\.(contextSize|kvCache|thinking|governor|thermal|sessionPool)/);
     expect(HOME).toContain('title={t("settings.advanced")}');
     expect(HOME).toContain("disabled: option.disabled");
-    expect(HOME).toContain("detail, disabled }) =>");
+    expect(SETTINGS).toContain("sizeClass: entry.sizeClass,");
+    expect(HOME).toContain("model?.sizeClass === \"2B\"");
+    expect(HOME).toContain("model?.sizeClass === \"4B\"");
     expect(SETTINGS).toContain("selectDisabled: modelBusy || hardBlocked || profilePending");
     expect(SETTINGS).toContain("disabled: selectDisabled");
   });

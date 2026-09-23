@@ -31,7 +31,7 @@ import { AttachSheet, type AttachSheetRowData } from "../ui/shell/AttachSheet";
 import { SettingsHeader } from "./SettingsHeader";
 import { settingsWebToggleProps } from "./settingsWebToggle";
 
-type ModelOption = { id: string; label: string; detail: string; disabled: boolean };
+type ModelOption = { id: string; label: string; detail: string; sizeClass?: "2B" | "4B" | "8B" | "other"; disabled: boolean };
 type SheetName = "model" | "theme" | "size" | "language" | "permissions";
 type Props = {
   onBack: () => void;
@@ -83,7 +83,7 @@ function Row({ testID, title, subtitle, value, icon, onPress, checked, disabled 
       </View>
       {checked === undefined ? (
         <>
-          {value ? <Text numberOfLines={1} style={[type.secondary, { color: colors.ink3, maxWidth: 100 }]}>{value}</Text> : null}
+          {value ? <Text numberOfLines={subtitle ? 2 : 1} style={[type.secondary, { color: colors.ink3, maxWidth: subtitle ? 136 : 100, textAlign: "right" }]}>{value}</Text> : null}
           {onPress ? <ChevronRight size={18} color={colors.ink3} strokeWidth={1.75} /> : null}
         </>
       ) : (
@@ -241,9 +241,9 @@ export function SettingsHomeScreen({
         keyboardShouldPersistTaps="handled"
       >
         <Group title={t("settings.groupAssistant")} colors={colors}>
-          <Row testID="settings.home.where" title={t("settings.whereRuns")} value={t("settings.thisPhone")} icon={<Smartphone size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
+          <Row testID="settings.home.where" title={t("settings.whereRuns")} subtitle={t("settings.whereRunsHint")} value={t("settings.thisPhone")} icon={<Smartphone size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
           <Divider colors={colors} />
-          <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.label ?? currentModelId} value={model?.detail} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => setSheet("model")} disabled={modelBusy} colors={colors} />
+          <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.sizeClass === "2B" ? t("settings.modelSmallFast") : model?.sizeClass === "4B" ? t("settings.modelCapableSlow") : undefined} value={model ? `${model.label} · ${model.detail}` : currentModelId} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => setSheet("model")} disabled={modelBusy} colors={colors} />
         </Group>
 
         <Group title={t("settings.groupAppearance")} colors={colors}>

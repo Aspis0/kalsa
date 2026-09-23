@@ -239,34 +239,23 @@ describe("six-overlay action and editing grammar", () => {
       documentsWithRows: filledBrandActions(documentsWithRows).length,
       notes: filledBrandActions(notes).length,
       personasWithRow: filledBrandActions(personas).length,
-    }).toEqual({ pro: 1, help: 0, documents: 1, documentsWithRows: 1, notes: 1, personasWithRow: 1 });
+    }).toEqual({ pro: 0, help: 0, documents: 1, documentsWithRows: 1, notes: 1, personasWithRow: 1 });
   });
 
-  it("keeps Help's sections, privacy note and FAQ questions and answers in the screen", () => {
+  it("renders the six Help sections in the copy document's order", () => {
     const help = HelpScreen({ onBack: jest.fn() });
     const labels = elements(help)
       .filter((node) => node.type === "Text")
       .map((node) => node.props.children)
       .filter((value): value is string => typeof value === "string");
-    expect(labels).toEqual(expect.arrayContaining([
-      "help.intro",
-      "help.howItWorks.title", "help.howItWorks.body",
+    expect(labels).toEqual([
+      "help.about.title", "help.about.body",
+      "help.modelLocation.title", "help.modelLocation.body",
+      "help.deviceData.title", "help.deviceData.body",
+      "help.computer.title", "help.computer.body",
       "help.models.title", "help.models.body",
-      "help.websearch.title", "help.websearch.body",
       "help.privacy.title", "help.privacy.body", "help.privacy.voice",
-      "help.miniapps.title", "help.miniapps.body",
-      "help.limits.title", "help.limits.body",
-      "help.faq.title",
-      "help.faq.shortAnswers.q", "help.faq.shortAnswers.a",
-      "help.faq.offline.q", "help.faq.offline.a",
-      "help.faq.chatStorage.q", "help.faq.chatStorage.a",
-      "help.faq.language.q", "help.faq.language.a",
-      "help.faq.webSearchSent.q", "help.faq.webSearchSent.a",
-      "help.faq.badApiKey.q", "help.faq.badApiKey.a",
-      "help.faq.modelDiff.q", "help.faq.modelDiff.a",
-      "help.faq.clearHistory.q", "help.faq.clearHistory.a",
-      "help.faq.sendImages.q", "help.faq.sendImages.a",
-    ]));
+    ]);
   });
 
   it("routes the Kalsa Help and Pro rows to their supplied destinations", () => {

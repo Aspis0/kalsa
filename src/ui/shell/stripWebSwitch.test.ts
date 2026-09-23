@@ -1,7 +1,10 @@
 /** Strip acceptance: one nude menu glyph and one model pill, without old rows. */
 import { readFileSync } from "fs";
 import { join } from "path";
+import { en } from "../../i18n/en";
+import { it as italian } from "../../i18n/it";
 import { STRIP_HEIGHT, STRIP_PILL_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
+import { shellLocationLabel } from "./shellLocationLabel";
 
 const strip = readFileSync(join(__dirname, "ShellStrip.tsx"), "utf8");
 const shell = readFileSync(join(__dirname, "Shell.tsx"), "utf8");
@@ -30,11 +33,19 @@ describe("the strip's two controls", () => {
     expect(strip).not.toMatch(/backgroundColor: colors\.surface[^}]*Menu/);
   });
 
-  it("shows a device glyph and the short local or server label", () => {
+  it("shows a device glyph and resolves short location labels in both locales", () => {
     expect(strip).toContain("Smartphone");
     expect(strip).toContain("Monitor");
-    expect(strip).toContain('"Locale"');
-    expect(strip).toContain('"Kalsa Brain"');
+    expect(strip).toContain("shellLocationLabel(location");
+
+    const labels = (locale: typeof en) => ({
+      local: locale.shell.where.pillLocal,
+      computer: locale.shell.where.pillComputer,
+    });
+    expect(shellLocationLabel("phone", labels(en))).toBe("Local");
+    expect(shellLocationLabel("server", labels(en))).toBe("Your computer");
+    expect(shellLocationLabel("phone", labels(italian))).toBe("Locale");
+    expect(shellLocationLabel("server", labels(italian))).toBe("Il tuo computer");
   });
 
   it("does not draw a brand mark, new-chat action or web switch in the strip", () => {

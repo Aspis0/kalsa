@@ -77,7 +77,7 @@ describe("the v2 single-line model pill copy", () => {
     expect(width).toBeLessThanOrEqual(pillColumn);
   });
 
-  it.each(["Locale", "Kalsa Brain"])("fits the short location label %s beside the model name", (label) => {
+  it.each(["Local", "Your computer", "Locale", "Il tuo computer"])("fits the short location label %s beside the model name", (label) => {
     expect(textWidth(label, locationFont, 11.5)).toBeLessThan(pillColumn);
   });
 

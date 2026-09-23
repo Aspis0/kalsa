@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { useLocale } from "../../i18n";
 import { e1, families, measure, modes, radius, space, type, type ThemeMode } from "../../theme/design";
 import { ModelPillSheet } from "./ModelPillSheet";
+import { shellLocationLabel } from "./shellLocationLabel";
 import {
   STRIP_CHEVRON_SIZE,
   STRIP_DEVICE_SIZE,
@@ -37,7 +38,10 @@ export function ShellStrip({
   const colors = modes[mode];
   const [sheetVisible, setSheetVisible] = useState(false);
   const DeviceIcon = location === "phone" ? Smartphone : Monitor;
-  const locationLabel = whereLabel ?? (location === "phone" ? "Locale" : "Kalsa Brain");
+  const locationLabel = whereLabel ?? shellLocationLabel(location, {
+    local: t("shell.where.pillLocal"),
+    computer: t("shell.where.pillComputer"),
+  });
   const iconColor = colors.ink2;
   const refused = modelBar?.status.tone === "bad";
 

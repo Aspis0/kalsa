@@ -1417,6 +1417,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           id: entry.id,
           label: entry.name,
           detail: entry.quant,
+          sizeClass: entry.sizeClass,
           disabled: selectDisabled,
         }))}
         currentModelId={model.currentModelId}
