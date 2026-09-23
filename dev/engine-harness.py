@@ -229,9 +229,21 @@ class Server:
         env = dict(os.environ)
         env.pop("LLAMA_SERVER_SLOTS_DEBUG", None)   # never print prompt text
         env.pop("LLAMA_SERVER_SLOTS_N_DIFF", None)
-        self.proc = subprocess.Popen(
-            self.argv, stdout=self._fh, stderr=subprocess.STDOUT, env=env,
-            start_new_session=True)
+        # H2: block SIGINT across the spawn-and-assign window - a SIGINT
+        # landing between Popen returning and `self.proc` being bound
+        # orphaned the child (A injected it: child survives; then nobody
+        # can stop it, because stop() reads self.proc). The deferred
+        # KeyboardInterrupt is delivered when the mask is restored, i.e.
+        # AFTER the assignment, and every caller's finally reaches a
+        # stop() that has a pid to kill. Main thread only: the harness
+        # mains run here, pthread_sigmask is undefined elsewhere.
+        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+        try:
+            self.proc = subprocess.Popen(
+                self.argv, stdout=self._fh, stderr=subprocess.STDOUT, env=env,
+                start_new_session=True)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
         if not wait_health(port):
             self.stop()
             raise RuntimeError("engine did not become healthy")

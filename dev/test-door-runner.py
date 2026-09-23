@@ -26,6 +26,27 @@ Both findings are Reviewer A's, proven live against the previous code.
       side (credentials/salts never reach records) is
       dev/test-door-harness.py (7)'s, not this file's.
 
+  (3) H2 runner spawn window: a SIGINT delivered by os.kill to self at
+      the point RIGHT AFTER Popen returns (via a Popen wrapper) must not
+      orphan the child - signal.pthread_sigmask blocks SIGINT across
+      spawn+assignment, the deferred KeyboardInterrupt lands after
+      `proc` exists, and the BaseException cleanup kills the child.
+      Asserts the KeyboardInterrupt arrived AND the pidfile's child is
+      dead.
+  (4) H2 engine spawn window: the same injection against
+      engine-harness.Server with /bin/sleep as argv - server.proc must
+      have been assigned before delivery (so main's finally can stop it),
+      and the sleep must be dead afterwards; even a RED run's cleanup
+      kills the child it lost track of.
+  (5) H3 scrub order, three fakes with a pinned credential: (a) 290
+      padding chars then the FULL credential on stderr - the old
+      truncate-first leaked 10 hex of it, and only a pre-truncation
+      scrub can put [scrubbed] at offset 290; (b) a PREFIX-only leak
+      (first 16 hex alone) must be [scrubbed], proving the prefix
+      entries are load-bearing (B R1 showed them vacuous against a
+      full-echo fake); (c) a 10-hex mid-string fragment must become
+      [hex]. None may survive into the exception.
+
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -34,6 +55,9 @@ import importlib.util
 import os
 import secrets
 import shutil
+import signal
+import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -83,6 +107,30 @@ for line in sys.stdin:               # echo each credential as it arrives
     sys.stderr.write("runner saw: " + line)
     sys.stderr.flush()
 sys.exit(1)
+"""
+
+PADDING_RUNNER = """#!/usr/bin/env python3
+import sys
+for line in sys.stdin:               # the credential sits at offset 290
+    sys.stderr.write("p" * 290 + line)
+    sys.stderr.flush()
+    sys.exit(1)
+"""
+
+PREFIX_RUNNER = """#!/usr/bin/env python3
+import sys
+for line in sys.stdin:               # ONLY the first 16 hex leak
+    sys.stderr.write(line[:16])
+    sys.stderr.flush()
+    sys.exit(1)
+"""
+
+FRAGMENT_RUNNER = """#!/usr/bin/env python3
+import sys
+for line in sys.stdin:               # a 10-hex mid-string fragment
+    sys.stderr.write(line[6:16])
+    sys.stderr.flush()
+    sys.exit(1)
 """
 
 
@@ -179,9 +227,134 @@ def case_scrub():
           msg.count("[scrubbed]") >= 2, str(msg.count("[scrubbed]")))
 
 
+def case_spawn_window_runner():
+    print("(3) H2 runner spawn window: SIGINT right after Popen cannot "
+          "orphan the child", file=sys.stderr)
+    work, script = write_script(SILENT_RUNNER)
+    pidfile = work / "pid"
+    os.environ["DOOR_FAKE_PIDFILE"] = str(pidfile)
+    real_popen = subprocess.Popen
+
+    def interrupting_popen(*a, **k):
+        child = real_popen(*a, **k)
+        os.kill(os.getpid(), signal.SIGINT)   # A's injection point
+        return child
+
+    subprocess.Popen = interrupting_popen
+    try:
+        caught = raised(mc.start_door_runner, str(script), 19311, 1,
+                        timeout_s=30.0)
+    finally:
+        subprocess.Popen = real_popen
+        os.environ.pop("DOOR_FAKE_PIDFILE", None)
+    check("(3) the SIGINT arrived as KeyboardInterrupt (deferred past the "
+          "assignment)", isinstance(caught, KeyboardInterrupt),
+          type(caught).__name__ if caught is not None else "no exception")
+    pid = int(pidfile.read_text()) if pidfile.exists() else None
+    check("(3) the fake runner announced its pid", pid is not None)
+    if pid is not None:
+        deadline = time.time() + 3
+        while pid_alive(pid) and time.time() < deadline:
+            time.sleep(0.1)
+        check("(3) the child is DEAD after the in-window SIGINT",
+              not pid_alive(pid), f"pid {pid} alive={pid_alive(pid)}")
+    shutil.rmtree(work, ignore_errors=True)
+
+
+def case_spawn_window_engine():
+    print("(4) H2 engine spawn window: the same injection against "
+          "engine-harness.Server", file=sys.stderr)
+    _eh_spec = importlib.util.spec_from_file_location(
+        "eh_for_spawn_test", HERE / "engine-harness.py")
+    eh = importlib.util.module_from_spec(_eh_spec)
+    _eh_spec.loader.exec_module(eh)
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    work = Path(tempfile.mkdtemp(prefix="spawn-window-engine-"))
+    server = eh.Server(["/bin/sleep", "300"], work / "engine.log")
+    real_popen = subprocess.Popen
+    holder = {}
+
+    def interrupting_popen(*a, **k):
+        child = real_popen(*a, **k)
+        holder["child"] = child          # cleanup even when this goes red
+        os.kill(os.getpid(), signal.SIGINT)
+        return child
+
+    subprocess.Popen = interrupting_popen
+    pid = None
+    try:
+        caught = raised(server.start, port)
+        pid = server.proc.pid if server.proc is not None else None
+        server.stop()                    # what every harness main's finally does
+    finally:
+        subprocess.Popen = real_popen
+        if pid is None and holder.get("child") is not None:
+            # un-fixed code lost the reference: kill it anyway so a RED
+            # run never leaves a sleep behind
+            try:
+                holder["child"].kill()
+                holder["child"].wait(timeout=5)
+            except Exception:
+                pass
+        shutil.rmtree(work, ignore_errors=True)
+    check("(4) the SIGINT arrived as KeyboardInterrupt",
+          isinstance(caught, KeyboardInterrupt),
+          type(caught).__name__ if caught is not None else "no exception")
+    check("(4) self.proc was ASSIGNED before delivery (stop() has a pid "
+          "to kill)", pid is not None,
+          "server.proc was None - the window orphaned the child")
+    if pid is not None:
+        deadline = time.time() + 3
+        while pid_alive(pid) and time.time() < deadline:
+            time.sleep(0.1)
+        check("(4) the sleep child is DEAD after stop()",
+              not pid_alive(pid), f"pid {pid} alive={pid_alive(pid)}")
+
+
+def case_scrub_order():
+    print("(5) H3 scrub order: padding, prefix-only, fragment - none may "
+          "survive", file=sys.stderr)
+    known = "ab" * 32
+    cases = [
+        ("padding-then-full-credential", PADDING_RUNNER,
+         lambda m: known not in m and "[scrubbed]" in m,
+         "full credential absent AND [scrubbed] present - only a "
+         "pre-truncation scrub puts [scrubbed] at offset 290"),
+        ("prefix-only (first 16 hex)", PREFIX_RUNNER,
+         lambda m: known[:16] not in m and "[scrubbed]" in m,
+         "the 16-hex prefix absent AND [scrubbed] present - the prefix "
+         "entries are load-bearing, not vacuous"),
+        ("10-hex mid-string fragment", FRAGMENT_RUNNER,
+         lambda m: known[6:16] not in m and "[hex]" in m,
+         "the fragment absent AND [hex] present - the hex-run rule did it"),
+    ]
+    for name, script_src, predicate, why in cases:
+        work, script = write_script(script_src)
+        real_token_hex = secrets.token_hex
+        secrets.token_hex = lambda nbytes: known
+        try:
+            caught = raised(mc.start_door_runner, str(script), 19311, 1,
+                            timeout_s=30.0)
+        finally:
+            secrets.token_hex = real_token_hex
+            shutil.rmtree(work, ignore_errors=True)
+        msg = str(caught) if caught is not None else ""
+        check(f"(5) {name}: became the SystemExit refusal",
+              isinstance(caught, SystemExit),
+              type(caught).__name__ if caught is not None else "none")
+        check(f"(5) {name}: {why}", predicate(msg), msg[:170])
+
+
 def main():
     case_lifecycle()
     case_scrub()
+    case_spawn_window_runner()
+    case_spawn_window_engine()
+    case_scrub_order()
     print(f"door runner: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

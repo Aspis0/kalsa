@@ -99,6 +99,7 @@ import math
 import os
 import re
 import secrets
+import signal
 import socket
 import subprocess
 import sys
@@ -1125,6 +1126,21 @@ def scrub_secrets(text, credentials):
     return text
 
 
+def scrub_child_output(text, credentials):
+    """H3, in THIS order: (1) scrub every credential and door salt (full
+    and 16-hex prefixes) via scrub_secrets; (2) replace every REMAINING
+    run of >= 8 hex chars, either case, with [hex] - a fragment no entry
+    of (1) can recognise must still not survive; (3) strip, then truncate
+    to 300. The old order truncated FIRST and leaked 10 hex characters of
+    a credential behind 290 padding chars (Reviewer A), and (1) alone was
+    not enough: Reviewer B R1 showed the prefix entries vacuous because
+    the fake echoed the FULL credential - a prefix-only or mid-string
+    fragment now lands in (2)."""
+    text = scrub_secrets(text, credentials)
+    text = re.sub(r"[0-9a-fA-F]{8,}", "[hex]", text)
+    return text.strip()[:300]
+
+
 def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     """Spawn measure_door, hand it `capacity` fresh credentials over stdin,
     and wait for its ONE stdout line: `listening 127.0.0.1:<port>`.
@@ -1143,20 +1159,33 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     credentials = [secrets.token_hex(32) for _ in range(capacity)]
     proc = None
     try:
-        proc = subprocess.Popen(
-            [door_bin, "--engine-port", str(engine_port),
-             "--capacity", str(capacity)],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, text=True)
+        # H2: block SIGINT across the spawn-and-assign window. A SIGINT
+        # landing between Popen returning and `proc` being bound orphaned
+        # the child (A injected it there: child survives). The deferred
+        # KeyboardInterrupt is delivered when the mask is restored -
+        # AFTER `proc` exists - and the except BaseException below kills
+        # the child. Main thread only: pthread_sigmask is undefined
+        # elsewhere, and every harness main runs here.
+        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+        try:
+            proc = subprocess.Popen(
+                [door_bin, "--engine-port", str(engine_port),
+                 "--capacity", str(capacity)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
         for cred in credentials:
             proc.stdin.write(cred + "\n")
         proc.stdin.flush()
         box = {}
 
         def read_listening():
-            # scrubbed AT THE SOURCE: the line is child output, and it is
-            # about to be quoted into an exception message
-            box["line"] = scrub_secrets(proc.stdout.readline(), credentials)
+            # scrubbed AT THE SOURCE (H3 order: secrets, hex-runs, then
+            # truncate): the line is child output and is about to be
+            # quoted into an exception message
+            box["line"] = scrub_child_output(proc.stdout.readline(),
+                                             credentials)
 
         reader = threading.Thread(target=read_listening, daemon=True)
         reader.start()
@@ -1179,8 +1208,7 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         stderr = ""
         if proc is not None and proc.stderr is not None:
             try:
-                raw = proc.stderr.read().strip()[:300]
-                stderr = scrub_secrets(raw, credentials)
+                stderr = scrub_child_output(proc.stderr.read(), credentials)
             except OSError:
                 pass
         raise SystemExit(
