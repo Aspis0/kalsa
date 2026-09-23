@@ -168,6 +168,34 @@ computable from those files), laboratory sessions not field traffic, assumes `ll
 ubatch split. The fix-verification pair is pre-registered before the binary exists (sec. 35):
 control must reproduce 0.304543 exactly or the pair is void; complete fix <= ~0.0065.
 
+### The `_cok` tail fix: FIXED, AUDITED, NOT YET SHIPPABLE
+
+Commit `319b539377605f6c572e234b28678b74bd78deb5` on branch `kalsa-opencl-cok-fp32`, one commit
+above the shipping tip `1577495b9`: the `ne1` 2..8 `_cok` accumulator becomes `float8`, the
+product `convert_float8(B) * (float)dq`, corrected behaviour the default, old behaviour behind
+`KALSA_COK_ACC=fp16`. Phone pair (s23 sec. 35 pre-registered, 36.1 results): control reproduced
+**0.304543 / 66.198 % exactly** (gate passed); treatment **0.006890 / 93.138 %** - 44x lower
+KLD, +26.9 pp, **99.51 % of the b8-vs-b256 gap closed**, 0.00039 above the complete-fix line of
+0.0065 -> recorded as **partial**, not rounded up. Price: **+8.3436 %** on a b8-only worst case,
+**0 % in decode**, and the audit's *estimate* of ~0.235 % for a 3,080-token prefill (estimate,
+not measurement). Old path fast-and-wrong (GPU ppl 32.55 vs reference 27.21), fixed
+slower-and-correct (24.44).
+
+**The audit refused shipment** (`scratchpad/agents/cok-accumulator-audit/REPORT.md`, 250 lines):
+the numbers reproduce; 99.5059 % closure makes "partial" honest; selector and cache-key
+protection check out; **two of the author's literal claims refuted** (one module-scope
+declaration beyond the `_cok` body; the eager-both-variants cache explanation wrong); the
+**+0.001478 residual is NOT VERIFIED as a floor**, with the **K-split accumulation order** as
+the named next ablation; provenance established **by triangulation** because the promised WARN
+line never appeared in the stderr captures. **Not shippable because** the pair used a model, KV
+configuration and attention setting different from the app's (`q8_0`/`q4_0` KV, flash `auto`).
+Shipping checklist as recorded: app-shaped accuracy + tail-speed + decode check -> explicit
+decision on the partial threshold and the residual -> each pin verified against the exact
+reviewed SHA -> APK built and hashed from that chain -> that APK installed -> its runtime arm
+and cache identity captured with a measured result. The artefact to clear is the final APK, not
+the separately measured `llama-perplexity`. Diary version: `docs/ALIVE.md`, Headline and the
+2026-09-23 entry.
+
 ### GPU numerics: the cause is found, the gate is still not reachable
 
 - The 57x divergence was the **fp16 activation block scale**. A/B
@@ -415,6 +443,22 @@ post-fix admission outcomes coincide, so the Abort assertions alone would not ca
 regression; and **41.9 C gives Wait while 42.0 gives Abort** - two refusals a tenth of a degree
 apart.
 
+### Build provenance: the tree state is stamped into the artefact (pushed)
+
+Branch `kalsa-build-provenance` at `91ac75c35` (release-line base; **pushed**, re-verified by
+this cell with `git ls-remote`) - `scratchpad/agents/build-provenance/REPORT.md`. At build time,
+**twice** (into the binary so `strings` reads it, plus a JSON for the publisher to fold into the
+manifest): full commit, ref or literal `detached`, **`dirty` with the touched-path list** (cap
+50, `dirty_paths_omitted` counts the rest), **`source_sha256` of `git archive HEAD`**, build
+number, UTC timestamp, toolchain line. Cost **+0.25 s per build**; three states tested; **no
+git -> every field `unknown` and the build still succeeds**. Two formulations kept with the
+field: **every duplication needs its own coherence check, or the duplication is the defect**
+(the `JSON == BINARY` agreement over five alternating touch/restore flips is what earns the
+double write); **a declared limit is not a missed limit** (the cap carries the count of what it
+dropped). Stated limit: the stamp says whether the tree was clean at a commit, **not** that the
+sources correspond byte-for-byte to the linked binary - a stale `target/` is invisible to it,
+and **the build id in `--version` remains the other half**.
+
 ## Gates and dates (recovered 2026-09-21)
 
 The concise rewrite of this file dropped the dated register. It is recovered here from
@@ -522,6 +566,15 @@ The order is the owner's to set. The committed near-term work is:
    The lead to test is weight-side fp16 in the K-quant kernels.
 6. Rerun the Jelly stall cool (`ThrottlingStatus: NONE` at send time) and separate the seeded-EMA
    variable from warm KV - once the tracked bench build exists (see "Open items and debts").
+7. The morning queue, in the owner's order (phone at **21 %**, unplugged - nothing starts until
+   it charges): the **Meter** experiment first (rule and bar on disk, s23 sec. 30), then the
+   **app-shaped verification** of the tail fix (s23 sec. 37: tail accuracy on the app's KV
+   reference, decode zero at `-b 1`, tail speed in the app's configuration, b256 anchor for a
+   derived real-prefill penalty), then the K-split accumulator-order work. Sec. 37 pre-registers
+   its own weakest assumption - the b8-equals-b256 reference identity is proven only at f16 with
+   attention off, so at the app's configuration it is an assumption, and the first suspect if
+   the control misbehaves. Nothing in the pin chain moves before the checklist in "The `_cok`
+   tail fix" is walked.
 
 ## Engine release: current position and next steps
 
@@ -696,7 +749,9 @@ Ordered next steps:
    section 3 are how their numbers get read. Blocked on: phone time, plus an owner GO for the
    builds (Q8_K-matched quantiser, CPU-matched b1 arm) if a probe points there.
    Overnight update: the `_cok` regime (headline above) is now the top of this line - the
-   fix-verification pair is pre-registered and awaits the coder's sha (s23 sec. 35); the Z2
+   fix-verification pair RAN (s23 sec. 36.1) and closed 99.51 % of the gap as a registered
+   **PARTIAL** (0.006890 / 93.138 %), and the independent audit refuses shipment pending the
+   app-shaped verification (see "The `_cok` tail fix" above and Roadmap item 7); the Z2
    forcing-probe read was annulled by its own gate (matrix VOID, corrected control ordinary -
    closed with the registered verdict, not re-run); arm A (all 165 K-quant matmuls -> CPU) read
    **0.003546 / 96.513 %** - PASSES the gate, and is INCONCLUSIVE between the two named

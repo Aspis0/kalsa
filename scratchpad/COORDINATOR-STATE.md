@@ -186,6 +186,23 @@ selector branches, because this change is meant to ship. Retry launched on a dif
 **an interrupted agent is not a pass.** The phone's verification pair is pre-registered and waiting for
 the sha256 only.
 
+- **And two formulations from the desk that belong in the vocabulary, because both are about remedies rather
+than about bugs**: (1) **every duplication needs its own coherence check, or the duplication *is* the
+defect** - writing the provenance field both into the binary and into a JSON does not merely protect, it
+creates a divergence that could not exist before, and that is exactly what the first wiring produced
+(ninja read the header at plan time, so the JSON said `dirty` while the binary stayed stale). The `JSON ==
+BINARY` check across 5/5 alternating flips is what turns the double write into a strength instead of a
+new source of silent lies - same family as the panel number surviving in two versions and one run
+overwriting another; (2) **a declared limit is not a missed limit** - the dirty-path list is capped at
+50 **with a count of what was omitted**, the same shape as `unreadable` in a disk scan: **a truncation
+that says it is a truncation can be read; a silent truncation is believed complete**. And the third,
+about how we know a field tells the truth: **a field that tells the truth is a field that has been seen
+to be wrong at least once - if you have never watched it fail, you have not yet proven that it can.**
+- **And the ownership picture, for the first time in two days, is the right one**: the work has three
+named owners - the new session on the desktop repo and its pin, me on the arms in flight here, and the
+previous desk orchestrator on nothing at all - so what remains open has a name beside it, and nobody
+has to ask anyone else **which tree it came from**.
+
 | cell | task | answers |
 |---|---|---|
 | `10878e91` | reviewer: the v1.1.1 release line, before the push | may it be pushed and tagged as it stands |

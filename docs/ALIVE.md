@@ -40,6 +40,14 @@ split. What would settle it exactly: per-turn `n_prompt` with unique turn ids - 
 fudged. The fix-verification pair is pre-registered before the binary exists (section 35): the
 control must reproduce 0.304543 exactly or the pair is void; complete fix <= ~0.0065.
 
+**Status (2026-09-23): this defect is FIXED and AUDITED, and NOT YET SHIPPABLE.** Branch
+`kalsa-opencl-cok-fp32` at `319b53937` (one commit above the shipping tip `1577495b9`): the
+control reproduced 0.304543 / 66.198 % exactly, the treatment read **0.006890 / 93.138 %** -
+44x lower KLD, 99.51 % of the gap closed, **partial** by the pre-registered line (0.00039 over
+0.0065); price +8.3436 % on a b8-only worst case, 0 % in decode. The independent audit refuses
+shipment until the app-shaped verification runs
+(`scratchpad/agents/cok-accumulator-audit/REPORT.md`). Detail: the overnight diary entry below.
+
 ## How to read this file
 
 Each row names what is proven and the artefact that proves it. Nothing here is a summary of a
@@ -66,6 +74,7 @@ document that produced them is named instead.
 | The governor trend question, CLOSED: producer, two reviews, and the wrong-fire replay (inert at production cadence, unproven - not safe) | `scratchpad/agents/governor-trend/REPORT.md` (rounds 1-4, harness `replay-wrongfire.cjs`); `governor-trend-numeric/REPORT.md`; `governor-trend-audit/REPORT.md` |
 | The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
 | Desktop speed numbers: the provenance verdict (CPU-only / GPU-capable / NOT ATTRIBUTABLE), the load-condition finding, and the profile-validity test matrix | `scratchpad/agents/governor-desktop-net/REPORT.md` |
+| The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -437,6 +446,88 @@ the `Invalid`-vs-`CRITICAL` identity, and the recovery row; (3) **NaN and infini
 covered before the fix** (`isfinite` predates it) - kept as matrix completeness, not as
 regression detectors; (4) **41.9 C gives Wait while 42.0 gives Abort** - two refusals a tenth of
 a degree apart (pause and recoverable, vs latching).
+
+**The tail defect is fixed, measured, audited - and not yet shippable.** Commit
+`319b539377605f6c572e234b28678b74bd78deb5` on branch `kalsa-opencl-cok-fp32`, one commit above
+the shipping tip `1577495b9`: the `ne1` 2..8 `_cok` path's accumulator becomes `float8` and its
+product `convert_float8(B) * (float)dq` - the shape the batch-256 kernel already uses - with
+corrected behaviour the **default** and the old behaviour behind `KALSA_COK_ACC=fp16`. The
+phone pair, pre-registered in sec. 35 before the binary existed, results in sec. 36.1:
+
+| arm | prediction (written before) | result | verdict |
+|---|---|---|---|
+| control (`KALSA_COK_ACC=fp16`) | exact 0.304543 / 66.198 % or the pair is void | **0.304543 / 66.198 % - EXACT** | **gate PASSED** |
+| treatment (default) | complete fix if <= 0.0065; else partial + report the gap fraction | **0.006890 / 93.138 %** | **PARTIAL** - 44x lower KLD, +26.9 pp same-top, **99.51 % of the b8-vs-b256 gap closed**, 0.00039 above the line, 0.00148 above ship default |
+| price at ne1=8 | <=5 % none / 5-10 % notable / >10 % significant | **+8.3436 %** (16.30 -> 17.66 s/pass) | notable - and 2.3x the coder's static +3.6 % bound; measured wins |
+
+**The price:** +8.3436 % on a b8-only workload (the worst case: every chunk is 8 tokens),
+**0 % in decode** (`ne1 == 1` takes the GEMV branch; the fix lives in the else path), and the
+audit's *estimate* of about **0.235 %** for a 3,080-token prefill - flagged as a
+cross-measurement estimate, not a measurement. Provenance detail worth keeping: the old path was
+**fast-and-wrong** (GPU perplexity 32.55 against the reference's 27.21) and the fixed path is
+**slower-and-correct** (24.44). The phone recorded PARTIAL rather than rounding up: 0.006890
+clears 0.0065 by 0.00039 the wrong way, and a 99.5 % closure that misses the registered line is
+still a partial-fix decision, not an automatic land.
+
+**And the audit refused to ship it - the refusal belongs to the record**
+(`scratchpad/agents/cok-accumulator-audit/REPORT.md`, 250 lines, independent reviewer):
+
+- **CONFIRMED:** the numbers reproduce from the archived logs; the arithmetic closes 99.5059 %
+  of the gap, so "partial" is honest; the selector truth table and the stale-ship-cache
+  protection check out.
+- **REFUTED - two literal claims of the author:** the default's IR diff is not wholly inside the
+  `_cok` body - it adds one compiler-emitted module-scope declaration
+  (`convert_float8(<8 x float>)`); and the cache explanation was wrong - control init does NOT
+  compile both selector variants eagerly (the host builds one program; the treatment's cache hit
+  came from a pre-existing matching key).
+- **NOT VERIFIED:** the residual **+0.001478 above the ship default is not established as a
+  floor**; the named next ablation is the **K-split accumulation order** (`_cok` reduces eight
+  subgroup partials while the large-batch kernel walks K through four f32 accumulators in a
+  different order) - candidate, not cause.
+- Provenance was established **by triangulation** (the control reproduces the broken metrics
+  bitwise; the cache keys carry/deny the F16 define; source dispatch; the result moving to
+  0.006890) because the WARN line the author wrote **never appeared in the stderr captures** -
+  a logging defect, recorded, arm identity still adequate.
+- **Why it is not shippable:** the pair ran on a model, KV configuration and attention setting
+  **different from the app's** - the app ships `q8_0`/`q4_0` KV with flash attention `auto`, and
+  the verification used neither. Shipping protocol, recorded as a checklist: (1) an app-shaped
+  accuracy and tail-speed run plus a decode check; (2) an explicit decision on the partial
+  threshold and the residual; (3) each pin verified against the exact reviewed SHA; (4) the APK
+  built and hashed from that chain; (5) that same APK installed; (6) its runtime arm and cache
+  identity captured with a measured result. The artefact to clear is the final APK, not the
+  separately measured `llama-perplexity`.
+
+**The build now records which tree it came from** (`scratchpad/agents/build-provenance/REPORT.md`):
+branch `kalsa-build-provenance` at `91ac75c35`, based on the release line - **pushed**,
+re-verified read-only by this cell (`refs/heads/kalsa-build-provenance = 91ac75c35...`). At
+build time it writes, **twice** - into the binary so `strings` reads it, and into a JSON for the
+publisher to fold into the manifest: the full commit, the ref or literal `detached`, **`dirty`
+plus the list of touched paths** (capped at 50, with `dirty_paths_omitted` counting what was
+dropped), **`source_sha256` of the source archive** (`git archive HEAD | sha256`, cached by
+commit), the build number, a UTC timestamp and the toolchain line. Cost **+0.25 s per build**;
+three states tested (clean -> `dirty:false`; touched file -> path listed, with `JSON == BINARY`
+over five alternating touch/restore flips; **no git -> every field `unknown` and the build still
+succeeds**), and the three ctest rows were proven to fail against sabotaged generators. Two
+formulations from the exchange, kept because they are about remedies rather than bugs: **every
+duplication needs its own coherence check, or the duplication *is* the defect** (the field is
+written twice, and the JSON==BINARY agreement over the flips is what makes that a strength);
+**a declared limit is not a missed limit** (the cap carries the count of what it dropped). Its
+stated limit, next to the field rather than buried: the stamp says whether the tree was clean at
+a commit, **not** that the sources correspond byte-for-byte to the linked binary - a stale
+`target/` (or `build/`) is invisible to it, and **the build id in `--version` remains the other
+half**.
+
+**The queue, so the morning starts with a queue instead of a question.** The phone sits at
+**21 %**, unplugged, everything intact (archived `raw/state-pre-37.txt`) - below the floor, so
+nothing starts until it charges. Behind the charge, in the owner's order: (1) the **Meter**experiment (owner's rule, the 1,045 mA bar, pre-registration already on disk, sec. 30; its
+arms did not run tonight - stopped at the 22 % arm boundary); (2) the **app-shaped
+verification** of the tail fix (sec. 37, three sets: tail accuracy against the app's KV
+reference, a decode zero check at `-b 1`, and the tail speed in the app's configuration, plus a
+b256 anchor so the real-prefill penalty is derived from measured numbers rather than the
+estimate); (3) whatever the K-split accumulator-order coder produces. Sec. 37 earns its line for
+how it is written: it **names its own weakest assumption in advance** - that the
+b8-equals-b256 reference identity was proven only at f16 with attention off, so at the app's
+configuration it is an *assumption*, and the first suspect if the control misbehaves.
 
 ## Engine release pipeline (`kalsa-server`)
 

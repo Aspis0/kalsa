@@ -1912,6 +1912,73 @@ the b256 reference). Engine regime: new binary, same flags as ARM B (`-c 256 -b 
 Sequence when the sha arrives: verify sha/commit -> gate read -> control FIRST (gates the
 treatment) -> treatment -> speed pair -> every result beside its prediction.
 
+### 36.1 RESULTS - prediction beside each number
+
+Artefact located WITHOUT the briefed path (paths wrong twice tonight): the actual file is
+`/Users/marco/Projects/kalsallama-wt-cok/build-android-ocl-cok-acc/bin/llama-perplexity` -
+size 119678936 AND sha256 `60591d0b6dae91376d9b7903b07cda6267b601a106d917e1182457f5fdef1bcb`
+verified BEFORE push (match on first search), worktree clean at `319b53937` on
+`kalsa-opencl-cok-fp32`; on-device: sha match + `version: 0.4.1-dev (build 11202, commit
+319b53937)` (raw: `cok-push-sha.txt`). Script `raw/run-scripts/cok-pair.sh` (archived
+first); gate 02:14:26 `AC powered: false, status: 3, level: 36, mWakefulness=Dozing`.
+
+| arm | prediction (written before) | result | verdict |
+|---|---|---|---|
+| 1 CONTROL `KALSA_COK_ACC=fp16` | exact **0.304543 / 66.198 %** or the pair is void | **0.304543 / 66.198 +/- 1.122 %** - EXACT | **GATE PASSED** - the pair is valid; new binary reproduces the measured broken state to the digit |
+| 2 TREATMENT (default fp32) | complete fix if **<= 0.0065**; 0.0065-0.30 = partial -> report (0.304543-x)/0.299131; >= 0.30 = no effect | **0.006890 / 93.138 +/- 0.600 %**, PPL delta -2.761124, wall 3.93 min, rc=0 | **PARTIAL by the registered line** (0.006890 > 0.0065, over by 0.00039) - but the fraction is **99.51 % of the b8-vs-b256 gap closed**: same-top +26.9 pp from ARM B's 66.198 %, KLD 44x lower; residual sits 0.00148 above ship default (0.005412), same-top 0.84 pp below it. Engineering reading, stated as registered: a 99.5 % closure that MISSES the complete-fix line is still a partial fix decision, not an automatic land. |
+| 3 PRICE, old vs fixed at ne1=8 | <=5 % = no meaningful cost; 5-10 % = notable; >10 % = significant | walls 3.80 -> 4.12 min; per-pass 16.30 -> 17.66 s = **+8.3 %** (wall +8.4 %) | **NOTABLE - a real price, band 5-10 %.** And it EXCEEDS the coder's static +3.6 % instruction bound by ~2.3x with identical memory traffic claimed - the static bound was optimistic; measured is the number. Old path was fast-and-wrong (plain-ppl GPU PPL 32.55 vs CPU base 27.21), fixed is slower-and-correct (24.44, same sign convention as every other arm). |
+| 4 first-attempt treatment | run as scripted | **rc=127: `env: exec -u: No such file or directory`** - MY bug (`env VAR=1 -u X cmd` makes env exec `-u`; options must precede assignments) | logged, zero-byte log, relaunched correctly at gate 02:32:57 (archived `cok-treatment-only.sh`); the failure is in `cok-status.txt`, not hidden |
+
+**Provenance (the free check):** the coder's promised WARN line (`q4_K small-batch
+accumulator: ... (KALSA_COK_ACC)` - the format string IS in the binary) did **NOT appear
+in any of the four stderr captures** - same INFO-filtering hole as every selector line
+tonight; reported, not papered over. What stands in for it: (a) CONTROL's result is
+bitwise-exact to the broken reference - behavioural proof the fp16 selector bit; (b)
+compile-opt evidence: control's q4_K program key carries `-DKALSA_COK_ACC_F1...` in its
+opts while treatment's `src=20403B` opts carry NO F16 define - compile-level proof the
+default took effect; (c) keys moved as advertised: control fresh-compiled 198 programs
+(new kset), treatment MISS=0 because the init compiles BOTH selector variants eagerly (seen
+in control's trace), so treatment served itself, not a stale binary - **no evidence of a
+cached program serving the wrong kernel**; every key is sha256(source,opts,kset) anyway.
+
+**Battery stop, per the rule:** treatment ended level 23, fresh read **23 %**
+(`after-cokt-state.txt`, `AC powered: false`) - approaching the 22 % floor. **The Meter
+experiment did NOT run: arms not run = Meter OFF arm, Meter ON arm, accuracy comparison -
+stopped at the arm boundary as instructed; charge first, it is staged with its
+pre-registration already on disk.**
+
+---
+
+## 37. THE APP-SHAPED TAIL PAIR + DECODE ZERO (audit-required before the pin chain moves) - **PRE-RUN REGISTRATION**
+
+Audit verdict being answered: the §36 pair proved the fix in the HARNESS config; shipping
+needs it proven in the APP config (catalogued Q4_K_M model, KV `q8_0`/`q4_0`, flash
+`auto`) plus a decode zero. Queue position: AFTER the Meter experiment (owner's order),
+both behind the charge. State at registration: **level 21 % - BELOW the floor, nothing
+starts** (archived `raw/state-pre-37.txt`, `AC powered: false, mWakefulness=Dozing`).
+
+Design facts pinned at registration: `llama-bench` accepts `-ctk`/`--cache-type-k`
+(`tools/llama-bench/llama-bench.cpp:635`) so tail speed can run the app config directly
+(`-ctv` presence to be confirmed from its help at run time; quantized V forces fa on, so
+the app's `auto` resolves on - established all night); the reference `cpu-appkv-r2.kld`
+(sha `ec0f17c1`) is reused AS ORDERED, with its caveat printed here: **it was generated at
+`-b 256`; reusing it at `-b 8` rests on (i) the proven byte-identity of b8 vs b256
+references in the f16/fa-off config (sha `82e2ab4d`, section 31b) and (ii) row-independence
+of the CPU matmul/FA code - an assumption at appKV+faon, not a fact**; if the control arm
+misbehaves, this assumption is the first suspect.
+
+**Arm sets and their predictions (fixed now):**
+
+| set | arms | prediction / band |
+|---|---|---|
+| A - tail accuracy, app shape (`-b 8 -fa auto/-on -ctk q8_0 -ctv q4_0`, ref `cpu-appkv-r2`, binary `319b53937`) | control `KALSA_COK_ACC=fp16`; treatment default | **Control gate: must land in [0.28, 0.33]** (ARM B's 0.304543 +/- the +0.005-class config shift; the broken path dominates). <= 0.02 = selector did not bite -> pair VOID (provenance failure); outside [0.28,0.33] otherwise = config-interaction finding, reported. **Treatment: the pre-registered lines STAY as written - literal complete = <= 0.0065 (kept, and expected to read "partial" because the app config's own anchor is higher); config-normalized complete = <= 0.0114 (= app-config b256 anchor 0.010268 + the same +0.0011 margin 0.0065 carried over 0.005412). Both lines reported; verdict word "partial" by the literal line, as the audit expects.** Fraction = (control - treatment) / (control - 0.010268) = share of the app-config tail gap closed; also report the literal §35 fraction for continuity. **Kept apart: this measures `319b53937` ONLY - the K-split accumulator-order coder work is a different binary and does not enter any number here.** |
+| B - decode zero at `ne1 = 1` | plain ppl `-b 1` both selectors (speed) + KLD pair vs `cpu-q4km-b1.kld` (accuracy) if budget allows after B's speed half | **Cost zero: <= 2 % slower = audit's 0% confirmed; > 5 % = nonzero finding.** Accuracy: control and treatment BITWISE IDENTICAL to each other AND to section 17's 0.006012 / 93.138 (the fix's kernels do not execute at ne1==1 - any deviation falsifies the audit's zero and means the fix touches decode) |
+| C - tail speed, app shape | plain ppl `-b 8` both selectors at `-ctk q8_0 -ctv q4_0 -fa on` | same bands as 35: <=5 % none / 5-10 % notable / >10 % significant; expectation: near the harness's +8.3 %. Plus ONE plain ppl `-b 256` run at app config (fix inert at 256 by construction - prediction: its wall within 2 % of the treatment-vs-control difference being zero) to anchor a **DERIVED** 3080-token penalty from MEASURED tail delta (formula in the report, labeled derived-not-benchmeasured, replacing the audit's 0.235 % estimate) |
+
+Discipline unchanged: scripts archived first, brackets with charge + temperature +
+`mWakefulness`, stop at an arm boundary at <= 22 %, prediction beside every result, and the
+literal-vs-normalized lines never blurred into one verdict.
+
 ---
 
 ## 30. THE METER EXPERIMENT - **PRE-REGISTRATION WRITTEN BEFORE THE APK IS VERIFIED**

@@ -272,3 +272,36 @@ Both items verified at source first: `scratchpad/agents/governor-desktop-net/REP
   open items: the brief closed this question, and it is recorded as closed.
 
 No commit, no push, no tag from this cell.
+
+## Fifth pass (2026-09-23, final for tonight): the tail fix, its refusal, the stamp, the queue
+
+All four items verified at source before writing: s23 REPORT sec. 35/36.1/37,
+`cok-accumulator/REPORT.md` (362 lines), `cok-accumulator-audit/REPORT.md` (250 lines),
+`build-provenance/REPORT.md` (274 lines). One brief-vs-disk discrepancy resolved in favour of
+disk after re-checking: the build-provenance report still says push UNRUN, but
+`git ls-remote origin refs/heads/kalsa-build-provenance` returns `91ac75c35...` - the push the
+brief describes happened, so both documents say pushed-and-re-verified. The tail-fix branch
+`kalsa-opencl-cok-fp32` verified local (`319b53937`, one commit above `1577495b9`), NOT claimed
+pushed anywhere.
+
+- **`docs/ALIVE.md` - Headline** gained a Status line: fixed and audited, not yet shippable,
+  with the four headline numbers and the audit pointer - so the top of the file closes the arc.
+- **`docs/ALIVE.md` - overnight diary**: three blocks appended - the fix as results (the
+  three-arm table beside its pre-registered predictions; price +8.3436 % / 0 % decode / +0.235 %
+  estimate; fast-and-wrong vs slower-and-correct provenance), **the audit's refusal with its
+  reason** (two literal author claims refuted; +0.001478 not verified as a floor; K-split
+  accumulation order as the next ablation; provenance by triangulation, WARN never captured;
+  not shippable on model/KV/attention mismatch; the six-step shipping checklist), **the
+  build-provenance stamp** (fields, cap-with-count, +0.25 s, three states, JSON==BINARY rule,
+  declared-limit rule, stated limit with the build-id half), and **the queue** (phone at 21 %,
+  Meter -> sec. 37's three sets -> K-split, with sec. 37's self-named weakest assumption).
+- **`docs/ALIVE.md` - Proven table**: one row for the four reports (sec. 35-37 included).
+- **`PLAN.md` - Verified state**: `### The \`_cok\` tail fix: FIXED, AUDITED, NOT YET SHIPPABLE`
+  (right after the Headline) and `### Build provenance: the tree state is stamped into the
+  artefact (pushed)` (after the desktop net).
+- **`PLAN.md` - Roadmap item 7**: the morning queue in the owner's order, with the checklist
+  as the gate before any pin-chain move. **Open item 5** corrected: the pair no longer "awaits
+  the coder's sha" - it ran, closed 99.51 % as a registered PARTIAL, and the audit's refusal
+  points at item 7.
+
+No commit, no push, no tag from this cell.
