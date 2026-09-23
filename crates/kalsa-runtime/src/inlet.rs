@@ -20,10 +20,17 @@ pub const ENGINE_MODULE_FILE: &str = "libllama-server-impl.dylib";
 
 /// The inlet as the engine spells it in its own bytes. Lowercase only: the
 /// engine lowercases the header name before it matches, so a correct build
-/// carries the lowercase literal and not the capitalised one. Measured on
-/// the shipped v1.1.0 module: `x-kalsa-slot` appears once, `X-Kalsa-Slot`
-/// zero times — searching for the capitalised form would report the inlet
-/// missing exactly where it is present.
+/// carries the lowercase literal and not the capitalised one.
+///
+/// The counts are a measurement over an artifact that is NOT in this repo,
+/// so they travel with their command: `strings -a <dylib> | grep -c` on the
+/// published archive's `libllama-server-impl.dylib` answers `x-kalsa-slot`
+/// = 1 and `X-Kalsa-Slot` = 0, on BOTH modules this app has pinned — the
+/// v1.1.0 module (archive fetched from the CDN on 2026-09-23 and checked
+/// against its published sha256 first) and the v1.1.1 module, the one the
+/// app pins today. Redo it the same way on the next release rather than
+/// trusting a version word here: searching for the capitalised form would
+/// report the inlet missing exactly where it is present.
 const INLET: &[u8] = b"x-kalsa-slot";
 
 /// Whether the engine at `exe` consumes the door's private headers, read
