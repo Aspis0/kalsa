@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Measurement 1 - what two devices talking at once costs, per stream.
 
-One engine, `--parallel 2`, a fixed `--ctx-size`, q8_0 KV. The request is the
-same in both arms: same prompt token length, same `n_predict`, `ignore_eos` so
-the token count cannot drift.
+One engine, `--parallel N` (`--streams`, N in {2, 4}), a fixed `--ctx-size`
+TOTAL that the engine splits evenly across the slots (a total not divisible
+by N is refused, and the computed `context_size_per_slot` is checked against
+the boot line's `n_ctx_slot`), q8_0 KV. The request is the same in every
+arm: same prompt token length, same `n_predict`, `ignore_eos` so the token
+count cannot drift.
 
   Arm A   one request, alone, on slot 0, its own cache salt.
-  Arm B   the SAME request on slot 0 and a second request of the same token
-          length on slot 1, started together through a barrier, each with its
-          own cache salt.
+  Arm B   the SAME request on slot 0 and one request of the same token
+          length on each further slot (slot k, fixture seed PROMPT_SEEDS[k]),
+          started together through a barrier, each with its own cache salt.
 
   Arm A2  Arm A repeated after Arm B, to bracket the background load. It is cold
           by construction: Arm B left a different namespace on slot 0.
 
 Arms are built to be cold - `--cache-ram 0` closes the shared prompt cache and
 each arm carries a fresh 64-hex salt. The artifact does not take that on faith:
-the cold/warm verdict is DERIVED from the observed `cache_n` of the four arms,
-and if any of those values is missing the verdict field is omitted rather than
-guessed.
+the cold/warm verdict is DERIVED from the observed `cache_n` of every arm (A,
+each B slot, A2), and if any of those values is missing the verdict field is
+omitted rather than guessed.
 
 Slot actions are live and asserted: the engine is launched with
 `--slot-save-path` into a directory this script creates and clears, and every
@@ -42,7 +45,8 @@ lives in dev/engine-harness.py.
 Usage:
   measure-concurrency.py --bin BIN --out dev/results/<dir>/results.json \
       --log /tmp/<dir>/server.log --slots-dir /tmp/<dir>/slots \
-      [--port 19311] [--model MODEL] [--ctx-size 8192] [--n-predict 256] \
+      [--port 19311] [--model MODEL] [--ctx-size 8192] [--streams {2,4}] \
+      [--n-predict 256] \
       [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server] \
       [--max-load 6.0] [--release-manifest-url URL]
 
@@ -105,6 +109,14 @@ WORDS = ("harbor lantern gravel willow copper thistle marble quarry beacon "
          "cistern ferry juniper kelp limestone meadow nettle orchard pebble "
          "reed saffron tundra umber vellum wharf yarrow zephyr almond basalt "
          "cobalt dune elm fennel gable heather iris").split()
+
+# Fixture seeds per slot: slots 0 and 1 keep the seeds the committed N=2
+# artifact used (11 and 22), so an N=2 rerun builds the same prompts; slots
+# 2 and 3 take the next two.
+PROMPT_SEEDS = (11, 22, 33, 44)
+# Arm B's key in `arms` and in every attempt: the committed artifact's own
+# spelling at N=2 - tier-panel and the reviewers read that path.
+ARM_KEYS = {2: "B_two_slots", 4: "B_four_slots"}
 
 
 # --------------------------------------------------------------------------
@@ -568,16 +580,18 @@ def run_parameters(args):
     }
 
 
-def engine_argv(bin_path, model, port, ctx_size, slots_dir):
+def engine_argv(bin_path, model, port, ctx_size, slots_dir, streams):
     """The engine command line.
 
+    `--parallel` is `streams` verbatim - at 2 the argv is byte-identical to
+    the committed artifact's (pinned by dev/test-concurrency-shape.py).
     `--slot-save-path` is not decoration: without it the slot actions answer
-    501 and every erase in this run fails silently. The directory is created by
-    the caller, because the engine refuses a path that is not a directory.
+    501 and every erase in this run fails silently. The directory is created
+    by the caller, because the engine refuses a path that is not a directory.
     """
     return ["nice", "-n", str(NICE), bin_path, "-m", model,
             "--host", "127.0.0.1", "--port", str(port),
-            "--parallel", "2", "--ctx-size", str(ctx_size),
+            "--parallel", str(streams), "--ctx-size", str(ctx_size),
             "--cache-type-k", "q8_0", "--cache-type-v", "q8_0",
             "--n-gpu-layers", "all", "--threads", "4", "--threads-batch", "4",
             "--batch-size", "2048", "--ubatch-size", "512",
@@ -614,6 +628,35 @@ def require_rates(recs):
         raise SystemExit(
             f"no usable decode rate for {bad}: a dead arm is a failed run, "
             "not a zero - refusing to measure")
+
+
+def require_n_ctx_slot(init_lines, per_slot):
+    """The engine's boot line must CONFIRM the per-slot ctx the run computed:
+    `--ctx-size` is a total the engine divides by `--parallel`, and
+    `provenance.context_size_per_slot` stays a derived claim until the engine
+    itself says `n_ctx_slot` the same number. Disagreement (or a boot line
+    that no longer carries the value) stops the run instead of recording a
+    context the engine does not have."""
+    for line in init_lines:
+        m = re.search(r"n_ctx_slot\s*=\s*(\d+)", line)
+        if m:
+            got = int(m.group(1))
+            if got != per_slot:
+                raise SystemExit(
+                    f"the engine booted n_ctx_slot={got}, the run computed "
+                    f"context_size_per_slot={per_slot} (ctx_size // streams): "
+                    "the artifact would record a per-slot context the engine "
+                    "does not have - refusing to measure")
+            return got
+    raise SystemExit(
+        "the boot lines carry no n_ctx_slot value: the log format drifted "
+        "and the corroborating channel is dead - refusing to measure")
+
+
+def ratio(x, y):
+    """x/y rounded to 4 decimals; None when either side is missing, so a
+    dead arm yields no ratio instead of a zero or a crash."""
+    return round(x / y, 4) if (x and y) else None
 
 
 def warm_prefix_field(cache_ns):
@@ -711,25 +754,27 @@ def run_one(port, prompt, n_predict, salt_hex, slot, server):
     }
 
 
-def run_two(port, prompt0, prompt1, n_predict, salt0, salt1, server):
-    """Both requests leave through a barrier and land together.
+def run_streams(port, prompts, n_predict, salts, server):
+    """All N requests leave through a barrier and land together.
 
-    The new log region belongs to the arm, not to either thread, so it is
-    collected once after both requests finish and split by slot id.
+    The new log region belongs to the arm, not to any single thread, so it
+    is collected once after every request finishes and split by slot id -
+    `engine_lines_slot{k}` for each stream k.
     """
     out = {}
-    barrier = threading.Barrier(2)
+    n = len(prompts)
+    barrier = threading.Barrier(n)
     before = len(server.lines())
 
-    def one(key, prompt, salt, slot):
+    def one(k, prompt, salt):
         barrier.wait()
-        rec = run_one(port, prompt, n_predict, salt, slot, server)
+        rec = run_one(port, prompt, n_predict, salt, k, server)
         rec["engine_lines"] = []
-        out[key] = rec
+        out[f"slot{k}"] = rec
 
     t0 = time.perf_counter()
-    threads = [threading.Thread(target=one, args=("slot0", prompt0, salt0, 0)),
-               threading.Thread(target=one, args=("slot1", prompt1, salt1, 1))]
+    threads = [threading.Thread(target=one, args=(k, prompts[k], salts[k]))
+               for k in range(n)]
     for t in threads:
         t.start()
     for t in threads:
@@ -737,11 +782,139 @@ def run_two(port, prompt0, prompt1, n_predict, salt0, salt1, server):
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:])
     out["engine_lines"] = new
-    out["engine_lines_slot0"] = [x for x in new if x["slot"] == 0]
-    out["engine_lines_slot1"] = [x for x in new if x["slot"] == 1]
+    for k in range(n):
+        out[f"engine_lines_slot{k}"] = [x for x in new if x["slot"] == k]
     out["arm_wall_ms"] = wall_ms
     out["loadavg_at_start"] = loadavg()
     return out
+
+
+def build_result(args, release, version, engine_sha256, argv, slots_dir,
+                 started_utc, loadavg_before, boot, n_verify, attempts,
+                 accepted):
+    """The artifact dict, extracted from main() so its SHAPE can be checked
+    offline (dev/test-concurrency-shape.py): every input is a value main()
+    already holds, and nothing here starts a server or reads the network
+    (the file hashes excepted - properties of files, not of the run).
+
+    N-driven: the arm key comes from ARM_KEYS, every slot k gets its
+    `per_stream_slot{k}_over_A`, `B_slot{k}` and engine-line keys,
+    `aggregate_over_A` is the sum over slots over A, `parallel` is N, and
+    `context_size_per_slot` is ctx_size // N (main() has already refused a
+    ctx_size the engine cannot split evenly, and checked it against the
+    boot line). At N=2 every key path is the committed artifact's.
+    """
+    n = args.streams
+    arm_key = ARM_KEYS[n]
+    arm_a = accepted["A_solo_slot0"]
+    arm_b = accepted[arm_key]
+    arm_a2 = accepted["A2_solo_repeat"]
+    a_pps = arm_a["predicted_per_second"]
+    b_pps = [arm_b[f"slot{k}"]["predicted_per_second"] for k in range(n)]
+    a2_pps = arm_a2["predicted_per_second"]
+    cache_ns = {"A": arm_a["cache_n"],
+                **{f"B_slot{k}": arm_b[f"slot{k}"]["cache_n"]
+                   for k in range(n)},
+                "A2": arm_a2["cache_n"]}
+    script = Path(__file__).resolve()
+    harness = HERE / "engine-harness.py"
+    # The question says N devices; N=2 keeps the committed artifact's exact
+    # wording ("a second device" IS two devices, and the panel reads this).
+    concurrent = "a second device decodes" if n == 2 else f"{n} devices decode"
+
+    result = {
+        "measurement": "concurrency-cost",
+        "question": ("what one device's decode rate costs when "
+                     f"{concurrent} at the same time, on one engine"),
+        "provenance": {
+            **run_parameters(args),
+            "started_utc": started_utc,
+            "hostname": socket.gethostname(),
+            "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
+                                        text=True).stdout.strip(),
+            "engine_binary": args.bin,
+            "engine_sha256": engine_sha256,
+            "release": release,
+            "engine_version": version,
+            "engine_nice": NICE,
+            "script": str(script),
+            "script_sha256": sha256_file(script),
+            "harness": str(harness),
+            "harness_sha256": sha256_file(harness),
+            "model": args.model,
+            "model_sha256": sha256_file(args.model),
+            "argv": argv,
+            "slots_dir": str(slots_dir),
+            "context_size_total": args.ctx_size,
+            "context_size_per_slot": args.ctx_size // n,
+            "parallel": n,
+            "cache_ram": 0,
+            "cache_type_k": "q8_0",
+            "cache_type_v": "q8_0",
+            "sleep_idle_seconds": SLEEP_IDLE_S,
+            "sleep_idle_note": ("disabled on purpose: a model unload "
+                                "mid-run would contaminate every later arm; "
+                                "the app ships 300"),
+            "engine_init_line": boot["init_lines"],
+            "engine_kv_lines": boot["kv_lines"],
+            "engine_swa_lines": boot["swa_lines"],
+            "checkpoint_line": boot["ctx_check"],
+            "n_predict": args.n_predict,
+            "ignore_eos": True,
+            "prompt_tokens": n_verify[0],
+            "prompt_tokens_arm_b_slot1": n_verify[1],
+            "prompt_sentinel_checked": True,
+            "prompt_sentinel_found_in_log": False,
+            "prompt_sentinel_note": ("the harness fixture word the leak check "
+                                     "searches for; not carried here"),
+            "slot_actions_supported": True,
+            "slot_actions_note": ("--slot-save-path is in argv and every "
+                                  "erase was asserted 2xx"),
+            "raw_log_committed": False,
+            "wall_times_note": ("walls are this machine's at nice 10 under "
+                                "whatever else it was doing, with the A2/A "
+                                "bracket as the drift control; not "
+                                "performance promises"),
+            "loadavg_before": loadavg_before,
+        },
+        "arms": {
+            "A_solo_slot0": arm_a,
+            arm_key: arm_b,
+            "A2_solo_repeat": arm_a2,
+        },
+        "attempts": attempts,
+        "accepted_attempt": accepted["index"],
+        "bracket": {
+            "rule": "A2 must land within +/- bracket_tol of A; A2 is the "
+                    "control for host load, not a measurement",
+            "bracket_tol": args.bracket_tol,
+            "accepted_A2_over_A": accepted["A2_over_A"],
+        },
+        "tokens_generated": {
+            "A": arm_a["predicted_n"],
+            **{f"B_slot{k}": arm_b[f"slot{k}"]["predicted_n"]
+               for k in range(n)},
+            "A2": arm_a2["predicted_n"],
+        },
+        "warm_prefix_in_play": warm_prefix_field(cache_ns),
+        "ratios": {
+            **{f"per_stream_slot{k}_over_A": ratio(b_pps[k], a_pps)
+               for k in range(n)},
+            "aggregate_over_A": ratio(sum(b_pps), a_pps),
+            "per_stream_slot0_over_A2": ratio(b_pps[0], a2_pps),
+            "A2_over_A": ratio(a2_pps, a_pps),
+        },
+        "tokens_per_second": {
+            "A": a_pps,
+            **{f"B_slot{k}": b_pps[k] for k in range(n)},
+            "A2": a2_pps,
+            "B_aggregate": round(sum(b_pps), 2),
+        },
+    }
+    result["provenance"]["loadavg_after"] = loadavg()
+    result["provenance"]["finished_utc"] = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return result
 
 
 def main():
@@ -757,7 +930,16 @@ def main():
                          "panel's number describes is the owner's decision, "
                          "so there is no default")
     ap.add_argument("--model", default=DEFAULT_MODEL)
-    ap.add_argument("--ctx-size", type=int, default=8192)
+    ap.add_argument("--ctx-size", type=int, default=8192,
+                    help="TOTAL context, split by the engine across "
+                         "--streams; a total not divisible by the stream "
+                         "count is refused before anything starts")
+    ap.add_argument("--streams", type=int, choices=(2, 4), default=2,
+                    help="concurrent streams (the engine's --parallel). The "
+                         "app's menu offers 1/2/4 devices "
+                         "(crates/kalsa-launch/src/policy/menu.rs); 1 has no "
+                         "concurrency to measure and 3 is not offered, so "
+                         "neither is a choice")
     ap.add_argument("--n-predict", type=int, default=256)
     ap.add_argument("--prompt-tokens", type=int, default=512)
     ap.add_argument("--attempts", type=int, default=4,
@@ -782,6 +964,13 @@ def main():
                          "derived from a kalsa-server-vX.Y.Z binary directory")
     args = ap.parse_args()
 
+    if args.ctx_size % args.streams != 0:
+        raise SystemExit(
+            f"refusing to measure: --ctx-size {args.ctx_size} is not divisible "
+            f"by --streams {args.streams}: the context is a TOTAL the engine "
+            f"splits evenly, and a remainder would make "
+            f"context_size_per_slot a lie")
+
     # Hashed and URL-derived before anything is measured, so a later failure
     # to read the manifest is recorded as unverified instead of quietly
     # forgotten. The release BLOCK is built below, after --version: its veto
@@ -802,15 +991,13 @@ def main():
             f"machine; a contended decode rate is not usable. Wait, then "
             f"run again, or raise --max-load deliberately.")
 
-    script = Path(__file__).resolve()
-    harness = HERE / "engine-harness.py"
-
     slots_dir = Path(args.slots_dir)
     slots_dir.mkdir(parents=True, exist_ok=True)
     for old in slots_dir.glob("*.bin"):
         old.unlink()   # a file from an earlier run must not predate this one
 
-    argv = engine_argv(args.bin, args.model, args.port, args.ctx_size, slots_dir)
+    argv = engine_argv(args.bin, args.model, args.port, args.ctx_size,
+                       slots_dir, args.streams)
 
     vp = subprocess.run(["nice", "-n", str(NICE), args.bin, "--version"],
                         capture_output=True, text=True)
@@ -837,18 +1024,15 @@ def main():
             raise SystemExit(
                 "the boot log carries no n_slots line: the log format drifted "
                 "and the corroborating channel is dead - refusing to measure")
+        require_n_ctx_slot(init_lines, args.ctx_size // args.streams)
 
-        prompt_p, n_a = make_prompt(args.port, 11, args.prompt_tokens)
-        prompt_q, n_b = make_prompt(args.port, 22, args.prompt_tokens)
-        n_verify = (len(tokenize(args.port, prompt_p)),
-                    len(tokenize(args.port, prompt_q)))
-        print(f"[fixture] verified token counts P={n_verify[0]} Q={n_verify[1]} "
+        prompts = [make_prompt(args.port, seed, args.prompt_tokens)[0]
+                   for seed in PROMPT_SEEDS[:args.streams]]
+        n_verify = [len(tokenize(args.port, p)) for p in prompts]
+        print(f"[fixture] verified token counts {n_verify} "
               f"target={args.prompt_tokens}", flush=True)
-        if n_verify[0] != n_verify[1]:
+        if any(n != args.prompt_tokens for n in n_verify):
             raise SystemExit("prompt lengths differ - refusing to measure")
-
-        def r(x, y):
-            return round(x / y, 4) if (x and y) else None
 
         # A, B, A2 is one attempt. The A2 arm is the control: if it drifts from A
         # by more than the tolerance, another agent moved the machine during the
@@ -856,51 +1040,53 @@ def main():
         # artifact; only a bracket-passing attempt may become the number.
         attempts = []
         accepted = None
+        arm_key = ARM_KEYS[args.streams]
         for i in range(args.attempts):
             sA = salt_of(f"arm-A-{i}")
-            sB0 = salt_of(f"arm-B-slot0-{i}")
-            sB1 = salt_of(f"arm-B-slot1-{i}")
+            sB = [salt_of(f"arm-B-slot{k}-{i}") for k in range(args.streams)]
             sA2 = salt_of(f"arm-A2-{i}")
 
             # Arm A: the request alone on slot 0.
             slot_action(args.port, 0, "erase", sA)
-            arm_a = run_one(args.port, prompt_p, args.n_predict, sA, 0, server)
+            arm_a = run_one(args.port, prompts[0], args.n_predict, sA, 0, server)
             print(f"[A{i} ] wall={arm_a['wall_ms']}ms cache_n={arm_a['cache_n']} "
                   f"tok/s={arm_a['predicted_per_second']}", flush=True)
             time.sleep(2)
 
-            # Arm B: the same request on slot 0 and an equal-length one on slot 1.
-            slot_action(args.port, 0, "erase", sB0)
-            slot_action(args.port, 1, "erase", sB1)
-            arm_b = run_two(args.port, prompt_p, prompt_q, args.n_predict, sB0, sB1, server)
-            print(f"[B0{i}] wall={arm_b['slot0']['wall_ms']}ms cache_n={arm_b['slot0']['cache_n']} "
-                  f"tok/s={arm_b['slot0']['predicted_per_second']}", flush=True)
-            print(f"[B1{i}] wall={arm_b['slot1']['wall_ms']}ms cache_n={arm_b['slot1']['cache_n']} "
-                  f"tok/s={arm_b['slot1']['predicted_per_second']}", flush=True)
+            # Arm B: the same request on slot 0 and equal-length ones on
+            # every further slot, started together through the barrier.
+            for k in range(args.streams):
+                slot_action(args.port, k, "erase", sB[k])
+            arm_b = run_streams(args.port, prompts, args.n_predict, sB, server)
+            for k in range(args.streams):
+                rec = arm_b[f"slot{k}"]
+                print(f"[B{k}{i}] wall={rec['wall_ms']}ms "
+                      f"cache_n={rec['cache_n']} "
+                      f"tok/s={rec['predicted_per_second']}", flush=True)
             time.sleep(2)
 
             # Arm A2: cold A again, to bound background drift.
-            arm_a2 = run_one(args.port, prompt_p, args.n_predict, sA2, 0, server)
+            arm_a2 = run_one(args.port, prompts[0], args.n_predict, sA2, 0, server)
             print(f"[A2{i}] wall={arm_a2['wall_ms']}ms cache_n={arm_a2['cache_n']} "
                   f"tok/s={arm_a2['predicted_per_second']}", flush=True)
 
-            recs = {"A": arm_a, "B_slot0": arm_b["slot0"],
-                    "B_slot1": arm_b["slot1"], "A2": arm_a2}
+            recs = {"A": arm_a, **{f"B_slot{k}": arm_b[f"slot{k}"]
+                                   for k in range(args.streams)},
+                    "A2": arm_a2}
             require_rates(recs)
             require_engine_lines(f"attempt {i} arm A", arm_a["engine_lines"])
             require_engine_lines(f"attempt {i} arm A2", arm_a2["engine_lines"])
             require_engine_lines(f"attempt {i} arm B", arm_b["engine_lines"])
-            require_engine_lines(f"attempt {i} arm B slot 0",
-                                 arm_b["engine_lines_slot0"])
-            require_engine_lines(f"attempt {i} arm B slot 1",
-                                 arm_b["engine_lines_slot1"])
+            for k in range(args.streams):
+                require_engine_lines(f"attempt {i} arm B slot {k}",
+                                     arm_b[f"engine_lines_slot{k}"])
 
             a_pps = arm_a["predicted_per_second"]
             a2_pps = arm_a2["predicted_per_second"]
-            a2_over_a = r(a2_pps, a_pps)
+            a2_over_a = ratio(a2_pps, a_pps)
             ok = a2_over_a is not None and abs(a2_over_a - 1.0) <= args.bracket_tol
             attempts.append({"index": i, "A_solo_slot0": arm_a,
-                             "B_two_slots": arm_b, "A2_solo_repeat": arm_a2,
+                             arm_key: arm_b, "A2_solo_repeat": arm_a2,
                              "A2_over_A": a2_over_a, "bracket_ok": ok})
             print(f"[attempt {i}] A2/A = {a2_over_a} bracket_ok={ok}", flush=True)
             if ok:
@@ -923,105 +1109,12 @@ def main():
             raise SystemExit(
                 f"REFUSING TO WRITE: the engine log carries prompt text ({len(leak)} lines)")
 
-        arm_a = accepted["A_solo_slot0"]
-        arm_b = accepted["B_two_slots"]
-        arm_a2 = accepted["A2_solo_repeat"]
-        a_pps = arm_a["predicted_per_second"]
-        b0_pps = arm_b["slot0"]["predicted_per_second"]
-        b1_pps = arm_b["slot1"]["predicted_per_second"]
-        a2_pps = arm_a2["predicted_per_second"]
-        cache_ns = {"A": arm_a["cache_n"], "B_slot0": arm_b["slot0"]["cache_n"],
-                    "B_slot1": arm_b["slot1"]["cache_n"], "A2": arm_a2["cache_n"]}
-
-        result = {
-            "measurement": "concurrency-cost",
-            "question": ("what one device's decode rate costs when a second device "
-                         "decodes at the same time, on one engine"),
-            "provenance": {
-                **run_parameters(args),
-                "started_utc": started_utc,
-                "hostname": socket.gethostname(),
-                "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
-                                            text=True).stdout.strip(),
-                "engine_binary": args.bin,
-                "engine_sha256": engine_sha256,
-                "release": release,
-                "engine_version": version,
-                "engine_nice": NICE,
-                "script": str(script),
-                "script_sha256": sha256_file(script),
-                "harness": str(harness),
-                "harness_sha256": sha256_file(harness),
-                "model": args.model,
-                "model_sha256": sha256_file(args.model),
-                "argv": argv,
-                "slots_dir": str(slots_dir),
-                "context_size_total": args.ctx_size,
-                "parallel": 2,
-                "cache_ram": 0,
-                "cache_type_k": "q8_0",
-                "cache_type_v": "q8_0",
-                "sleep_idle_seconds": SLEEP_IDLE_S,
-                "sleep_idle_note": ("disabled on purpose: a model unload "
-                                    "mid-run would contaminate every later arm; "
-                                    "the app ships 300"),
-                "engine_init_line": init_lines,
-                "engine_kv_lines": kv_lines,
-                "engine_swa_lines": swa_lines,
-                "checkpoint_line": ctx_check,
-                "n_predict": args.n_predict,
-                "ignore_eos": True,
-                "prompt_tokens": n_verify[0],
-                "prompt_tokens_arm_b_slot1": n_verify[1],
-                "prompt_sentinel_checked": True,
-                "prompt_sentinel_found_in_log": False,
-                "prompt_sentinel_note": ("the harness fixture word the leak check "
-                                         "searches for; not carried here"),
-                "slot_actions_supported": True,
-                "slot_actions_note": ("--slot-save-path is in argv and every "
-                                      "erase was asserted 2xx"),
-                "raw_log_committed": False,
-                "wall_times_note": ("walls are this machine's at nice 10 under "
-                                    "whatever else it was doing, with the A2/A "
-                                    "bracket as the drift control; not "
-                                    "performance promises"),
-                "loadavg_before": loadavg_before,
-            },
-            "arms": {
-                "A_solo_slot0": arm_a,
-                "B_two_slots": arm_b,
-                "A2_solo_repeat": arm_a2,
-            },
-            "attempts": attempts,
-            "accepted_attempt": accepted["index"],
-            "bracket": {
-                "rule": "A2 must land within +/- bracket_tol of A; A2 is the "
-                        "control for host load, not a measurement",
-                "bracket_tol": args.bracket_tol,
-                "accepted_A2_over_A": accepted["A2_over_A"],
-            },
-            "tokens_generated": {
-                "A": arm_a["predicted_n"],
-                "B_slot0": arm_b["slot0"]["predicted_n"],
-                "B_slot1": arm_b["slot1"]["predicted_n"],
-                "A2": arm_a2["predicted_n"],
-            },
-            "warm_prefix_in_play": warm_prefix_field(cache_ns),
-            "ratios": {
-                "per_stream_slot0_over_A": r(b0_pps, a_pps),
-                "per_stream_slot1_over_A": r(b1_pps, a_pps),
-                "aggregate_over_A": r(b0_pps + b1_pps, a_pps),
-                "per_stream_slot0_over_A2": r(b0_pps, a2_pps),
-                "A2_over_A": r(a2_pps, a_pps),
-            },
-            "tokens_per_second": {
-                "A": a_pps, "B_slot0": b0_pps, "B_slot1": b1_pps, "A2": a2_pps,
-                "B_aggregate": round(b0_pps + b1_pps, 2),
-            },
-        }
-        result["provenance"]["loadavg_after"] = loadavg()
-        result["provenance"]["finished_utc"] = time.strftime(
-            "%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        result = build_result(
+            args, release, version, engine_sha256, argv, slots_dir,
+            started_utc, loadavg_before,
+            {"init_lines": init_lines, "kv_lines": kv_lines,
+             "ctx_check": ctx_check, "swa_lines": swa_lines},
+            n_verify, attempts, accepted)
 
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         with open(args.out, "w") as f:
