@@ -329,22 +329,22 @@ describe("six-overlay action and editing grammar", () => {
     const noteList = elements(noteTree).find((node) => node.type === "ScrollView");
     expect(elements(noteList).filter((node) => node.type === "TextInput").map((node) => node.props.accessibilityLabel)).toEqual(["notes.search"]);
 
-    const persona = { id: "user-2", name: "Writer", instructions: "Write", builtin: false };
-    mockListPersonas.mockReturnValue([persona]);
+    mockListPersonas.mockReturnValue([{ id: "user-2", name: "Writer", instructions: "Write", builtin: false }]);
     resetHooks([{ items: [], hiddenBuiltinIds: [] }, "", null, ""]);
     let personaTree = PersonasScreen({ onBack: jest.fn() });
-    const editAction = elements(personaTree).find((node) => node.props.testID === "personas.action.edit.user-2");
-    editAction!.props.onPress();
+    elements(personaTree).find((node) => node.props.testID === "personas.actions.user-2")!.props.onPress();
+    resetHooks(mockHookValues);
+    personaTree = PersonasScreen({ onBack: jest.fn() });
+    elements(personaTree).find((node) => node.type === AttachSheet)!.props.rows
+      .find((row: { testID: string }) => row.testID === "personas.action.edit.user-2").onPress();
     resetHooks(mockHookValues);
     personaTree = PersonasScreen({ onBack: jest.fn() });
     const personaEditor = elements(personaTree).find((node) => node.type === PersonaEditorSheet);
     expect(personaEditor).toBeDefined();
     const personaSheetTree = expandSheet(PersonaEditorSheet(personaEditor!.props as any) as Element);
     const personaSheet = elements(personaSheetTree);
-    const personaModal = personaSheet.find((node) => node.type === "Modal");
-    expect(elements(personaModal).filter((node) => node.type === "TextInput")).toHaveLength(2);
+    expect(elements(personaSheet.find((node) => node.type === "Modal")).filter((node) => node.type === "TextInput")).toHaveLength(2);
     expect(filledBrandActions(personaSheetTree)).toHaveLength(1);
-    const personaList = elements(personaTree).find((node) => node.type === "ScrollView");
-    expect(elements(personaList).filter((node) => node.type === "TextInput")).toHaveLength(0);
+    expect(elements(elements(personaTree).find((node) => node.type === "ScrollView")).filter((node) => node.type === "TextInput")).toHaveLength(0);
   });
 });

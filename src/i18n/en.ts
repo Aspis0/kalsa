@@ -1060,6 +1060,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     namePlaceholder: "Name",
     instructions: "Instructions",
     instructionsPlaceholder: "How should this persona reply?",
+    rowActions: "Actions for {name}",
     duplicate: "Duplicate",
     delete: "Delete persona",
     deleteConfirm: "Delete this persona?",

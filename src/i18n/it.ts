@@ -1029,6 +1029,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     namePlaceholder: "Nome",
     instructions: "Istruzioni",
     instructionsPlaceholder: "Come deve rispondere questa persona?",
+    rowActions: "Azioni per {name}",
     duplicate: "Duplica",
     delete: "Elimina persona",
     deleteConfirm: "Eliminare questa persona?",

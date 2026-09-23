@@ -9,6 +9,9 @@ import { NoteEditorSheet } from "./NoteEditorSheet";
 import { PersonaEditorSheet } from "./PersonaEditorSheet";
 import { PersonaRow } from "./PersonaRow";
 
+let mockHookValues: unknown[] = [];
+let mockHookCursor = 0;
+
 jest.mock("react-native", () => ({
   Image: "Image",
   Modal: "Modal",
@@ -23,6 +26,7 @@ jest.mock("lucide-react-native", () => ({
   Apple: "Apple",
   BookOpen: "BookOpen",
   Camera: "Camera",
+  EllipsisVertical: "EllipsisVertical",
   FileText: "FileText",
   GripVertical: "GripVertical",
   Image: "Image",
@@ -36,7 +40,11 @@ jest.mock("lucide-react-native", () => ({
 }));
 jest.mock("react", () => ({
   ...jest.requireActual("react"),
-  useState: (initial: unknown) => [initial, jest.fn()],
+  useState: (initial: unknown) => {
+    const index = mockHookCursor++;
+    if (!Object.prototype.hasOwnProperty.call(mockHookValues, index)) mockHookValues[index] = initial;
+    return [mockHookValues[index], (value: unknown) => { mockHookValues[index] = value; }];
+  },
 }));
 jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key, locale: "en" }) }));
 jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
@@ -58,6 +66,11 @@ function elements(node: unknown): Element[] {
 function invokePressable(element: Element) {
   expect(element.type).toBe("Pressable");
   element.props.onPress();
+}
+
+function resetHooks(values: unknown[] = []) {
+  mockHookValues = values;
+  mockHookCursor = 0;
 }
 
 function attachSheetTree(sheet: Element): unknown {
@@ -166,11 +179,12 @@ describe("overlay leaf modules", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
-  it("routes persona row controls to the selected row's actions", () => {
+  it("keeps only Use on a persona row and routes custom actions through its sheet", () => {
     const onActivate = jest.fn();
     const onEdit = jest.fn();
     const onDelete = jest.fn();
-    const tree = PersonaRow({
+    const onToggleHidden = jest.fn();
+    const props = {
       persona: { id: "user-7", name: "Writer", instructions: "Write", builtin: false } as any,
       active: false,
       hidden: false,
@@ -179,22 +193,66 @@ describe("overlay leaf modules", () => {
       onActivate,
       onEdit,
       onDelete,
-      onToggleHidden: jest.fn(),
-    });
-    const actions = elements(tree).filter((node) =>
-      typeof node.type === "function" && node.type.name === "Action",
-    );
-    for (const testID of [
+      onToggleHidden,
+    };
+    resetHooks();
+    const tree = PersonaRow(props);
+    const nodes = elements(tree);
+    expect(nodes.filter((node) => node.props.testID?.startsWith("personas.action.")).map((node) => node.props.testID)).toEqual([
       "personas.action.use.user-7",
-      "personas.action.edit.user-7",
-      "personas.action.delete.user-7",
-    ]) {
-      const action = actions.find((node) => node.props.testID === testID)!;
-      const actionTree = (action.type as (props: any) => React.ReactNode)(action.props);
-      invokePressable(actionTree as Element);
+    ]);
+    expect(nodes.find((node) => node.props.style?.minHeight === 56)?.props.style.minHeight).toBe(56);
+    expect(nodes.find((node) => node.type === "Text" && node.props.children?.includes("Writer"))?.props.style[1])
+      .toMatchObject({ flex: 1, minWidth: 0 });
+    const use = nodes.find((node) => node.props.testID === "personas.action.use.user-7")!;
+    invokePressable((use.type as (props: any) => React.ReactNode)(use.props) as Element);
+    const more = nodes.find((node) => node.props.testID === "personas.actions.user-7")!;
+    invokePressable(more);
+
+    resetHooks(mockHookValues);
+    const openTree = elements(PersonaRow(props));
+    const sheet = openTree.find((node) => node.type === AttachSheet)!;
+    expect(sheet.props.title).toBe("personas.rowActions");
+    const sheetNodes = elements(attachSheetTree(sheet));
+    for (const testID of ["personas.action.edit.user-7", "personas.action.delete.user-7"]) {
+      const row = sheetNodes.find((node) => typeof node.type === "function" && node.type.name === "SheetRow" && node.props.row.testID === testID)!;
+      invokePressable((row.type as (props: any) => React.ReactNode)(row.props) as Element);
     }
 
     expect([onActivate, onEdit, onDelete].map((handler) => handler.mock.calls.length)).toEqual([1, 1, 1]);
+    expect(onToggleHidden).not.toHaveBeenCalled();
+  });
+
+  it("offers builtin Duplicate and Hide or Show actions in the selected persona sheet", () => {
+    const onEdit = jest.fn();
+    const onToggleHidden = jest.fn();
+    const props = {
+      persona: { id: "builtin-coder", name: "Coder", instructions: "Code", builtin: true } as any,
+      active: false,
+      hidden: false,
+      colors,
+      t,
+      onActivate: jest.fn(),
+      onEdit,
+      onDelete: jest.fn(),
+      onToggleHidden,
+    };
+    resetHooks();
+    const row = elements(PersonaRow(props)).find((node) => node.props.testID === "personas.actions.builtin-coder")!;
+    invokePressable(row);
+    resetHooks(mockHookValues);
+    const sheet = elements(PersonaRow(props)).find((node) => node.type === AttachSheet)!;
+    expect(sheet.props.rows.map((item: { label: string }) => item.label)).toEqual([
+      "personas.duplicate",
+      "personas.hide",
+    ]);
+    const sheetNodes = elements(attachSheetTree(sheet));
+    for (const testID of ["personas.action.duplicate.builtin-coder", "personas.action.visibility.builtin-coder"]) {
+      const row = sheetNodes.find((node) => typeof node.type === "function" && node.type.name === "SheetRow" && node.props.row.testID === testID)!;
+      invokePressable((row.type as (props: any) => React.ReactNode)(row.props) as Element);
+    }
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onToggleHidden).toHaveBeenCalledWith("builtin-coder");
   });
 
   it("opens the document represented by the pressed library row", () => {

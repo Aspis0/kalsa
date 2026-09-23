@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { EllipsisVertical } from "lucide-react-native";
 
 import type { TranslateFn } from "../i18n";
 import { isBuiltinPersonaId, type BuiltinPersonaId, type Persona } from "../conversations/PersonasStore";
 import { space, type, type DesignColors } from "../theme/design";
+import { AttachSheet, type AttachSheetRowData } from "../ui/shell/AttachSheet";
 
 type Props = {
   persona: Persona;
@@ -54,6 +57,37 @@ export function PersonaRow({
   onToggleHidden,
 }: Props) {
   const canToggleHidden = persona.builtin && isBuiltinPersonaId(persona.id);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const runAndClose = (action: () => void) => () => {
+    setActionsOpen(false);
+    action();
+  };
+  const actionRows: AttachSheetRowData[] = persona.builtin
+    ? [
+        {
+          testID: `personas.action.duplicate.${persona.id}`,
+          label: t("personas.duplicate"),
+          onPress: runAndClose(onEdit),
+        },
+        ...(canToggleHidden ? [{
+          testID: `personas.action.visibility.${persona.id}`,
+          label: t(hidden ? "personas.show" : "personas.hide"),
+          onPress: runAndClose(() => onToggleHidden(persona.id as BuiltinPersonaId)),
+        }] : []),
+      ]
+    : [
+        {
+          testID: `personas.action.edit.${persona.id}`,
+          label: t("personas.edit"),
+          onPress: runAndClose(onEdit),
+        },
+        {
+          testID: `personas.action.delete.${persona.id}`,
+          label: t("personas.delete"),
+          tone: "danger",
+          onPress: runAndClose(onDelete),
+        },
+      ];
   return (
     <View style={{ opacity: hidden ? 0.55 : 1 }}>
       <View
@@ -77,28 +111,24 @@ export function PersonaRow({
             onPress={onActivate}
           />
         ) : null}
-        <Action
-          testID={`personas.action.edit.${persona.id}`}
-          label={persona.builtin ? t("personas.duplicate") : t("personas.edit")}
-          color={colors.accent}
-          onPress={onEdit}
-        />
-        {canToggleHidden ? (
-          <Action
-            testID={`personas.action.visibility.${persona.id}`}
-            label={hidden ? t("personas.show") : t("personas.hide")}
-            color={colors.ink3}
-            onPress={() => onToggleHidden(persona.id as BuiltinPersonaId)}
-          />
-        ) : !persona.builtin ? (
-          <Action
-            testID={`personas.action.delete.${persona.id}`}
-            label={t("personas.delete")}
-            color={colors.danger}
-            onPress={onDelete}
-          />
-        ) : null}
+        <Pressable
+          testID={`personas.actions.${persona.id}`}
+          onPress={() => setActionsOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("personas.rowActions", { name: persona.name })}
+          style={{ width: 40, height: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <EllipsisVertical size={20} color={colors.ink3} strokeWidth={1.75} />
+        </Pressable>
       </View>
+      {actionsOpen ? (
+        <AttachSheet
+          title={t("personas.rowActions", { name: persona.name })}
+          rows={actionRows}
+          colors={colors}
+          onClose={() => setActionsOpen(false)}
+        />
+      ) : null}
       <View style={{ height: 1, backgroundColor: colors.line, marginLeft: space.md }} />
     </View>
   );
