@@ -95,6 +95,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import secrets
@@ -680,11 +681,14 @@ def require_rates(recs):
     already up; both are failed runs, not data. A rate of 0.0 or below is
     the same species of non-number: `ratio()` would turn it into `None`
     while tokens_per_second printed 0.0 - two artifacts of one broken arm -
-    so <= 0 is refused here, with the dead arm.
+    so <= 0 is refused here, with the dead arm. NaN and infinities are
+    refused too (G10): `nan <= 0` is False, so the <= 0 test alone would
+    let a NaN through into every ratio it touches.
     """
     bad = [name for name, rec in recs.items()
            if rec.get("status") != 200
            or not isinstance(rec.get("predicted_per_second"), (int, float))
+           or not math.isfinite(rec.get("predicted_per_second"))
            or rec.get("predicted_per_second") <= 0]
     if bad:
         raise SystemExit(
@@ -698,11 +702,25 @@ def require_rate_agreement(where, rec, lines):
     same slot. The engine prints 2 decimals, so agreement is
     abs diff <= 0.011; an empty corroboration or a disagreeing one both
     stop the run - a log that carries a different number than the HTTP
-    answer is two measurements, and neither may be printed."""
+    answer is two measurements, and neither may be printed. G10: a rate
+    that is None or non-finite REFUSES with the harness's own message
+    instead of raising TypeError out of the subtraction."""
     http = rec.get("predicted_per_second")
-    evals = [x["tokens_per_second"] for x in lines
-             if x.get("kind") == "eval"
-             and x.get("tokens_per_second") is not None]
+    if (not isinstance(http, (int, float)) or isinstance(http, bool)
+            or not math.isfinite(http)):
+        raise SystemExit(
+            f"{where}: the HTTP rate {http!r} is not a finite number - "
+            "refusing to measure rather than computing on NaN/None")
+    raw = [x["tokens_per_second"] for x in lines
+           if x.get("kind") == "eval"
+           and x.get("tokens_per_second") is not None]
+    bad_eval = [v for v in raw
+                if not isinstance(v, (int, float)) or not math.isfinite(v)]
+    if bad_eval:
+        raise SystemExit(
+            f"{where}: the engine's eval line carries a non-finite rate "
+            f"{bad_eval} - refusing to measure")
+    evals = raw
     if not evals:
         raise SystemExit(
             f"{where}: no engine eval line to corroborate the HTTP rate "
@@ -794,15 +812,35 @@ def require_outside_repo(path, flag_name):
     `raw_log_committed: false` (and a git tree nobody litters with engine
     logs and slot files) is true BY CONSTRUCTION only when the log and the
     slots directory resolve outside it. `--out` is deliberately exempt:
-    the artifact itself is committed on purpose, from dev/results/."""
+    the artifact itself is committed on purpose, from dev/results/.
+
+    G8: APFS is case-insensitive and symlinks resolve, so the old
+    Path-equality/parents compare let `/tmp/REVB-.../dev/...` pass for the
+    repo `/tmp/revB-...`. Every EXISTING ancestor is now compared with
+    os.path.samefile - inode identity, which survives case and symlinks
+    both. A candidate that does not exist cannot BE the repo, and is
+    skipped (the loop still reaches the repo-spelling ancestor)."""
     resolved = Path(path).resolve()
     repo = HERE.parent.resolve()
-    if resolved == repo or repo in resolved.parents:
-        raise SystemExit(
-            f"--{flag_name} {resolved} resolves INSIDE the repository "
-            f"{repo}: raw_log_committed: false and a clean tree are true by "
-            "construction only if run outputs never land in the repo - "
-            "refusing")
+    for candidate in (resolved, *resolved.parents):
+        if candidate.exists() and os.path.samefile(candidate, repo):
+            raise SystemExit(
+                f"--{flag_name} {resolved} resolves INSIDE the repository "
+                f"{repo}: raw_log_committed: false and a clean tree are true "
+                "by construction only if run outputs never land in the repo "
+                "- refusing")
+
+
+def delete_log_or_say(log_path):
+    """Delete a SENTINEL-leaked engine log; True only when the file is
+    actually gone. G9: a failed unlink must never be reported as a
+    deletion - the caller's message tells the truth either way and names
+    the path so the owner can remove it by hand."""
+    try:
+        Path(log_path).unlink(missing_ok=True)
+        return not Path(log_path).exists()
+    except OSError:
+        return False
 
 
 def ratio(x, y):
@@ -1043,6 +1081,27 @@ def require_matched_for_door(release):
             f"{release.get('reason_code')!r}), so several devices could be "
             "auto-scheduled into one slot and the artifact would not know. "
             "Run direct (--door-bin absent) or on the delivered release.")
+
+
+def require_published_manifest(door_bin, override_url):
+    """Door mode refuses `--release-manifest-url` (Reviewer B's N9).
+
+    The whole door gate rests on `matched` being load-bearing -
+    require_matched_for_door runs on it, the pinning runs after it. An
+    override manifest can carry ANY binary's own hash and commit: a fork
+    shipping its own manifest would read `matched` through its own file
+    and self-certify into door mode. So the door runs only on the
+    PUBLISHED manifest, derived from the kalsa-server-vX.Y.Z directory;
+    the override stays legal for direct runs, where it only relabels the
+    provenance this run's own gate does not lean on."""
+    if door_bin and override_url:
+        raise SystemExit(
+            "--door-bin refuses to run with --release-manifest-url: the "
+            "door gate rests on `matched` from the PUBLISHED manifest "
+            "(derived from the binary's kalsa-server-vX.Y.Z directory), and "
+            "an override manifest can carry this build's own hash and "
+            "commit - a fork would self-certify through its own file. Drop "
+            "the override, or run direct (--door-bin absent).")
 
 
 def scrub_secrets(text, credentials):
@@ -1678,6 +1737,7 @@ def main():
     require_outside_repo(args.log, "log")
     require_outside_repo(args.slots_dir, "slots-dir")
     require_divisible_ctx(args.ctx_size, args.streams)
+    require_published_manifest(args.door_bin, args.release_manifest_url)
 
     # Hashed and URL-derived before anything is measured, so a later failure
     # to read the manifest is recorded as unverified instead of quietly
@@ -1840,14 +1900,16 @@ def main():
         leak = [l for l in full_log if SENTINEL in l]
         if leak:
             # The refusal must not leave the leak behind for the next
-            # reader: the log carried prompt text, so the log goes too.
-            try:
-                Path(args.log).unlink(missing_ok=True)
-            except OSError:
-                pass
+            # reader: the log carried prompt text, so the log goes too -
+            # and the message says whether that actually succeeded (G9).
+            if delete_log_or_say(args.log):
+                tail = f"the log was deleted: {args.log}"
+            else:
+                tail = ("the log could NOT be deleted and still holds the "
+                        f"text: {args.log} - remove it yourself")
             raise SystemExit(
                 f"REFUSING TO WRITE: the engine log carries prompt text "
-                f"({len(leak)} lines); the log was deleted")
+                f"({len(leak)} lines); {tail}")
 
         result = build_result(
             args, release, version, engine_sha256, argv, slots_dir,

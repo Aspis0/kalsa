@@ -40,13 +40,23 @@ committed provenance.argv element for element.
       A2/A 0.98, B_aggregate 140.0), plus the rounding-last
       discriminator: A=3 with four slots at 1.0 must give aggregate
       1.3333 (raw sum, rounded once) - summing the rounded per-slot
-      ratios would give 1.3332.
+      ratios would give 1.3332; and G6's discriminator: four slots at
+      1.00004 vs A=1.0 must give 4.0002 - rounding the RATES first
+      (Reviewer B's m3) would give 4.0.
   (7) the guards themselves, on synthetic inputs: require_n_ctx_slot
       (match / mismatch / absent / TWO disagreeing values),
       require_divisible_ctx, require_rates (missing / 0.0 / negative / /
       dead arm), per-slot log attribution for `id 0..3 |` lines,
       require_rate_agreement (agrees / disagrees / no eval line), and
       require_outside_repo (in-repo refuses, /tmp passes).
+  (8) the round-2 guards: require_checkpoint_line (ok / absent /
+      mismatch / TWO disagreeing maxima), require_outside_repo under a
+      CASE-CHANGED spelling of the real repo path (APFS),
+      delete_log_or_say (file gone -> True, a failed unlink -> False),
+      non-finite rates refused by require_rates AND by
+      require_rate_agreement (None/NaN must refuse, never TypeError),
+      the per-thread refusal of run_streams on a dead port (G11), and
+      require_published_manifest (door + override refuses - N9).
 
 Both hostile reviews of 24d2ff1..39d1182 found the same hole: cases
 (1)-(4) checked NAMES and never NUMBERS, so a build whose arithmetic
@@ -65,7 +75,9 @@ Run: python3 dev/test-concurrency-shape.py
 import argparse
 import importlib.util
 import json
+import socket
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -103,7 +115,10 @@ FAILED = 0
 def raised(fn, *a, **kw):
     try:
         fn(*a, **kw)
-    except SystemExit as e:
+    except BaseException as e:
+        # BaseException on purpose: G10 says the guard must REFUSE, not
+        # raise TypeError - so a mutation that removes the guard surfaces
+        # here as a clean FAIL instead of a traceback.
         return str(e)
     return None
 
@@ -434,6 +449,21 @@ def case_6():
               for k in range(4)),
           json.dumps(rounded["ratios"]))
 
+    # G6 (Reviewer B's m3): rounding the RATES before summing changes THIS
+    # aggregate - 4 x 1.00004 = 4.00016 -> 4.0002 rounded once, while
+    # sum(round(v, 4)) = 4.0 -> 4.0. round(1.00004, 4) == 1.0000, so the
+    # per-slot ratios alone cannot see the difference.
+    m3 = build(args4, attempt=rate_attempt(4, 1.0, [1.00004] * 4, 1.0))
+    check("(6) G6: the aggregate divides the RAW rates, rounded ONCE: "
+          "4.0002 - never 4.0 from sum(round(rate, 4))",
+          m3["ratios"]["aggregate_over_A"] == 4.0002,
+          repr(m3["ratios"]["aggregate_over_A"]))
+    check("(6) G6: each per-slot ratio at these rates is 1.0 - the "
+          "per-slot view cannot see the rounding",
+          all(m3["ratios"][f"per_stream_slot{k}_over_A"] == 1.0
+              for k in range(4)),
+          json.dumps(m3["ratios"]))
+
 
 def case_7():
     print("(7) the guards, on synthetic inputs", file=sys.stderr)
@@ -531,6 +561,112 @@ def case_7():
           mc.require_outside_repo("/tmp/x/server.log", "log") is None)
 
 
+def case_8():
+    print("(8) the round-2 guards", file=sys.stderr)
+    # --- G7: the checkpoint boot line ---------------------------------
+    ok_line = ("0.00.725.816 I srv    load_model: context checkpoints "
+               "enabled, max = 1, min spacing = 8192")
+    check("(8) G7: boot line max=1 against requested 1 passes",
+          mc.require_checkpoint_line([ok_line], 1) is None)
+    check("(8) G7: two agreeing lines pass",
+          mc.require_checkpoint_line([ok_line, ok_line], 1) is None)
+    msg = raised(mc.require_checkpoint_line, [], 1)
+    check("(8) G7: an ABSENT boot line refuses (B's n3)",
+          msg is not None and "no boot line" in msg, (msg or "")[:120])
+    msg = raised(mc.require_checkpoint_line,
+                 [ok_line.replace("max = 1", "max = 32")], 1)
+    check("(8) G7: a mismatched max=32 refuses (B's n2)",
+          msg is not None and "[32]" in msg, (msg or "")[:140])
+    two = [ok_line, ok_line.replace("max = 1", "max = 4096")]
+    msg = raised(mc.require_checkpoint_line, two, 1)
+    check("(8) G7: TWO disagreeing maxima refuse (the old first-match "
+          "trap)", msg is not None and "[1, 4096]" in msg,
+          (msg or "")[:160])
+
+    # --- G8: a case-changed spelling of the REAL repo path -------------
+    repo = HERE.parent
+    swapped_exists = Path(str(repo).swapcase()).exists()
+    if not swapped_exists:
+        print("cannot run: this volume is case-sensitive, so the G8 "
+              "case-fold proof cannot be constructed", file=sys.stderr)
+        sys.exit(2)
+    swapped = str(repo / "dev" / "results" / "x" / "server.log").swapcase()
+    msg = raised(mc.require_outside_repo, swapped, "log")
+    check("(8) G8: a CASE-CHANGED spelling of the repo path refuses "
+          "(/tmp/REVB- for /tmp/revB-)",
+          msg is not None and "INSIDE the repository" in msg,
+          (msg or "")[:160])
+
+    # --- G9: the leak unlink tells the truth ---------------------------
+    d = Path(tempfile.mkdtemp(prefix="shape-g9-"))
+    try:
+        f = d / "leaked.log"
+        f.write_text("prompt text")
+        check("(8) G9: a deletable log is deleted and reported True",
+              mc.delete_log_or_say(f) is True and not f.exists())
+        subdir = d / "not-deletable"
+        subdir.mkdir()
+        (subdir / "inner").write_text("x")
+        check("(8) G9: a FAILED unlink reports False (never a lie)",
+              mc.delete_log_or_say(subdir) is False and subdir.exists(),
+              "the non-empty directory survived and was reported")
+    finally:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
+
+    # --- G10: non-finite rates ----------------------------------------
+    for what, rate in (("NaN", float("nan")), ("+inf", float("inf")),
+                       ("-inf", float("-inf"))):
+        msg = raised(mc.require_rates,
+                     {"x": {"status": 200, "predicted_per_second": rate}})
+        check(f"(8) G10: require_rates refuses a {what} rate",
+              msg is not None and "refusing to measure" in msg,
+              (msg or "")[:120])
+    good_eval = mc.extract([
+        "0.00.000.002 I slot print_timing: id  0 | task 1 |        eval "
+        "time =    3612.09 ms /   256 tokens (   14.17 ms per token,    "
+        "70.00 tokens per second)"])
+    for what, rate in (("None", None), ("NaN", float("nan"))):
+        msg = raised(mc.require_rate_agreement, "A",
+                     {"predicted_per_second": rate}, good_eval)
+        check(f"(8) G10: require_rate_agreement REFUSES a {what} HTTP rate "
+              "- refuses, never TypeError",
+              msg is not None and "not a finite number" in msg,
+              (msg or "")[:140])
+    bad_line = [{"kind": "eval", "tokens_per_second": float("inf")}]
+    msg = raised(mc.require_rate_agreement, "A",
+                 {"predicted_per_second": 70.0}, bad_line)
+    check("(8) G10: a non-finite ENGINE eval line refuses",
+          msg is not None and "non-finite rate" in msg, (msg or "")[:140])
+
+    # --- G11: a stream thread that died ends the run -------------------
+    class Dead:
+        def lines(self):
+            return []
+    probe_sock = socket.socket()
+    probe_sock.bind(("127.0.0.1", 0))
+    dead_port = probe_sock.getsockname()[1]
+    probe_sock.close()
+    msg = raised(mc.run_streams, dead_port, ["p", "p"], 1,
+                 [mc.salt_of("g11-a"), mc.salt_of("g11-b")], Dead())
+    check("(8) G11: a dead port ends run_streams through the refusal "
+          "naming the slot",
+          msg is not None and "stream slot" in msg and "died:" in msg
+          and "refusing to measure" in msg, (msg or "")[:160])
+
+    # --- G12: door mode refuses a manifest override --------------------
+    msg = raised(mc.require_published_manifest, "/bin/door",
+                 "https://evil.example/manifest.json")
+    check("(8) G12: door + --release-manifest-url refuses (B's N9)",
+          msg is not None and "--door-bin refuses" in msg
+          and "self-certify" in msg, (msg or "")[:160])
+    check("(8) G12: door without an override passes",
+          mc.require_published_manifest("/bin/door", None) is None)
+    check("(8) G12: direct WITH an override passes (relabels provenance "
+          "only)", mc.require_published_manifest(None,
+                                                  "https://x/m.json") is None)
+
+
 def main():
     case_1()
     case_2()
@@ -539,6 +675,7 @@ def main():
     case_5()
     case_6()
     case_7()
+    case_8()
     print(f"concurrency shape: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)
