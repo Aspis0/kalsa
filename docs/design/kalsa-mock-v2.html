@@ -837,7 +837,8 @@ body{background:var(--page);font-size:15px}
 .pick .mark{display:none}
 .pick{padding:0 14px 0 16px;min-height:44px;align-items:center}
 .pick .txt{display:flex;align-items:center;gap:8px;min-width:0}
-.pick b{display:inline;font-size:15px}
+.pick b{display:inline;font-size:15px;flex:none}
+.pick small span{overflow:hidden;text-overflow:ellipsis}
 .pick small{margin-top:0;font-size:11.5px;color:var(--ink3);white-space:nowrap}
 .pick .cv{margin-left:12px;width:18px;height:18px}
 .page2>*{flex:none}                      /* the cards must not shrink: they were clipping their own rows */
@@ -861,7 +862,8 @@ body{background:var(--page);font-size:15px}
   var PH = '<svg class="dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>';
   var PC = '<svg class="dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>';
   var remote = /pc|brain|mac|studio|server/i.test(t);
-  w.innerHTML = (remote ? PC : PH) + '<span>' + t + '</span>';
+  var short = remote ? "Kalsa Brain" : "Locale";   /* "Su questo telefono" is a sentence, not a label */
+  w.innerHTML = (remote ? PC : PH) + '<span>' + short + '</span>';
 })();
 </script>
 

@@ -171,9 +171,10 @@ Each entry is the anatomy a coder implements; states are named because a missing
 
 **The strip** — 56 dp: the drawer's icon button (ghost, 44 px, **nude glyph**), the **model pill** — **a
 capsule**, 44 dp, radius 999, `surface`, 1 px `line`, `e1`, **on one line**: the model's short name in
-`bodyStrong`, then a **13 px `accent` device glyph** (`smartphone` / `monitor`), then where it runs in
-11.5 px `ink3` (the pill has no second line: two lines wasted vertical room the transcript could use),
-and a chevron. **Nothing else lives in the strip**: no `+` (the new chat is
+`bodyStrong`, then a **13 px `accent` device glyph** (`smartphone` / `monitor`), then where it runs as a **short label** in 11.5 px `ink3` — **Locale** when the model is on the
+phone, **Kalsa Brain** when it is on the PC (the pill has no second line: two lines wasted vertical room
+the transcript could use, and the full sentence *Su questo telefono* pushed the model's name into an
+ellipsis at 349 dp — caught by looking at the render, not by a check), and a chevron. **Nothing else lives in the strip**: no `+` (the new chat is
 the menu's primary action, and a second door to it was redundant), **no brand mark** (the logo lives in
 the launcher icon and in Settings), no web switch (it moves to Settings › Privacy), and the model's
 progress, error and battery lines live inside the pill's own sheet, opened by tapping it. The dot that
