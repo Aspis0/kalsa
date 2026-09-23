@@ -761,7 +761,9 @@ not implemented**, so a decision is never read as a delivery.
   verified: the archive set in `marker.rs` is what tells versions apart, so a machine that already
   has v1.1.0 re-acquires (the identical `exe_sha256` cannot vouch for a version); and the inlet's
   probe reads the **dylib**, not the launcher, so the launcher-identity argument does not cover it —
-  the dylib's bytes were checked directly (`x-kalsa-slot` once, `X-kalsa-Slot` never). The pin is
+  the dylib's bytes were checked directly (`x-kalsa-slot` once, `X-Kalsa-Slot` never), and the engine's own comparison — the fact the
+  probe's lowercase literal rests on — is now **cited in the comment** from the release's source
+  (`tools/server/server-context.cpp:4556` and `:4563` in `a7d2cec79`, commit `b7bf907`). The pin is
   **And it moves the machine's verdict, by design**: `verdict.rs`'s fingerprint is built from the
   digests of the exact archives that passed the probe (`verdict.rs:26-45`), not from the release tag,
   so a machine that ran v1.1.0 — this one has `fingerprint=9ee5d9f5…|macos|Metal|os` in its
