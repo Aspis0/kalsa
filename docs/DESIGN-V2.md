@@ -77,7 +77,11 @@ a numeric `fontWeight` beside a custom family is silently ignored on Android.
 - **Space**: 4, 8, 12, 16, 20, 24, 32. Screen gutter **16** (was 14). Card padding **16**. Row height
   **56** (a two-line row is 64). Section gap **24**. Between a group and its label **8**.
 - **Radii**: `button`, `field`, `row`, `iconButton` **14**; `card`, `image` **16**; `sheet` **22**;
-  `chip`, `badge`, `toggle` **999**. Nothing else is rounded, and no element uses a radius above 22.
+  `chip`, `badge`, `toggle` **999**; and **the composer's field is the one capsule (999 at 56 dp)** — the
+  chat input is a single shape, while a form field is a rectangle. The three-way comparison that settled
+  it is `docs/captures/2026-09-22/design-v2/pair-composer-3ways.png`: a capsule with a circle inside
+  reads as one object, a rectangle with a square inside reads as two geometries fighting. Nothing else
+  is rounded above a 22 radius.
 - **Elevation**: two levels. `e1 = 0 0 0 1px rgba(18,23,26,.055)` — the hairline that makes a card a
   card; `e2 = 0 1px 2px rgba(18,23,26,.05), 0 6px 18px rgba(18,23,26,.06)` — only for what floats over
   content (the composer, a sheet, a menu). Shadows on chips, chips of sources and small controls are
@@ -123,7 +127,8 @@ Each entry is the anatomy a coder implements; states are named because a missing
 | **Button, danger** | as secondary with `danger` label and `danger` hairline | pressed, disabled |
 | **Icon button** | 44 px painted in a 48 dp box, radius 14, `surface` + `e1`; ghost variant: no container, `ink3` | default, pressed (`tint`), selected (`tint` + `accent`), disabled |
 | **Chip** | pill, 32 dp, 1 px `line`, `surface`, 12.5 label, optional 18 px leading icon, optional trailing `×` | default, selected (`brand` fill, white label), disabled |
-| **Field** | 52 dp, radius 14, `surface`, 1 px `line`, 15 px `ink`, placeholder `ink3`, optional 20 px leading icon, optional trailing 24 dp action | empty, filled, focused (`accent` hairline + `accent` caret), held (see the composer), error (`danger` hairline) |
+| **Field (forms)** | 52 dp, radius 14, `surface`, 1 px `line`, 15 px `ink`, placeholder `ink3`, optional 20 px leading icon, optional trailing 24 dp action | empty, filled, focused (`accent` hairline + `accent` caret), error (`danger` hairline) |
+| **Composer field** | **one capsule**: 56 dp, radius 999, `surface`, 1 px `line`, `e2`; inside it, left to right: a 40 px ghost attach button, the text (15.5 px sans), a 40 px ghost mic, and a **40 px circular filled send**. A circle inside a capsule, never a square inside a rectangle | empty (placeholder `ink3`), focused, held (the circle goes `tint` + `ink3`, and the hold line says why), stop (the same circle carries a square glyph) |
 | **Search field** | as Field with a leading magnifier and a trailing clear `×` that appears only when non-empty | — |
 | **List row** | 56 dp (64 with a second line), 12/16 padding, optional 20 px leading icon in `accent`, `headline`-weight label, `secondary` second line, optional trailing value in `ink3` or a 14 px chevron | default, pressed (`tint`), selected (`tint` + bold), disabled |
 | **Card / group** | `surface`, radius 16, `e1`, no inner padding of its own; rows inside carry `line` separators that do not reach the left edge if a leading icon is present | — |
@@ -166,10 +171,12 @@ tool rows, sources, mini-app card, stopped by the user (**`Fermato da te`** with
 the `wait` colour at the answer's break), stopped by the engine or the content filter (the same row in
 `danger`), error (the engine's own sentence, verbatim, in a `danger` banner).
 
-**The composer** — a `surface` field with a 1 px `line`, radius 14, 52 dp: the attach icon, the field,
-the mic, and a **44 px filled send**; while a turn runs the same control is a stop square. Above it:
-the attachment chip, and the hold line in `secondary` when sending is refused (**the one invariant:
-a control never invites a tap it cannot honour, and it always says why in one line**). The templates,
+**The composer** — **one capsule**, 56 dp, radius 999, `surface` with a 1 px `line` and `e2`: inside it,
+the 40 px ghost attach button, the text, the 40 px ghost mic, and a **40 px circular filled send** (the
+accent fill is the screen's single filled green; the attachment chip above it is a pill, so the two
+shapes agree). While a turn runs the same circle carries a square glyph. Above the capsule: the
+attachment chip, and the hold line in `secondary` when sending is refused (**the one invariant: a
+control never invites a tap it cannot honour, and it always says why in one line**). The templates,
 research and notes entries live inside the attach sheet, not in a permanent toolbar row.
 
 ### 3.2 The menu (the drawer)
