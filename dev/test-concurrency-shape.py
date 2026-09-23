@@ -13,6 +13,7 @@ committed provenance.argv element for element.
   (2) build_result fed synthetic arms at N=2 yields the committed
       artifact's key tree - every committed path present, and the only
       NEW paths are the listed provenance additions:
+      provenance.via (commit 5's road selector, "direct" here),
       provenance.context_size_per_slot (commit 2),
       provenance.ctx_checkpoints / provenance.flash_attn (commit 3: null
       when the flag was not rendered), and
@@ -63,6 +64,7 @@ COMMITTED = json.loads(ARTIFACT.read_text())
 # each one introduced by this work and listed in its commit message. A new
 # unlisted key anywhere (provenance included) turns case (2) red.
 EXPECTED_EXTRA = {
+    "provenance.via",
     "provenance.context_size_per_slot",
     "provenance.ctx_checkpoints",
     "provenance.flash_attn",
@@ -179,7 +181,10 @@ def fake_args(**over):
                 release_manifest_url=None,
                 # commit 3's launch flags: unrendered by default, null in
                 # provenance - run_parameters reads them off the namespace.
-                ctx_checkpoints=None, flash_attn=None)
+                ctx_checkpoints=None, flash_attn=None,
+                # commit 5's road: None = direct, so via == "direct" and
+                # no door_* provenance key may appear.
+                door_bin=None)
     base.update(over)
     return argparse.Namespace(**base)
 

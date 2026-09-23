@@ -48,7 +48,17 @@ Usage:
       [--port 19311] [--model MODEL] [--ctx-size 8192] [--streams {2,4}] \
       [--n-predict 256] [--ctx-checkpoints K] [--flash-attn {on,off,auto}] \
       [--prompt-tokens 512] [--attempts 4] [--bracket-tol 0.03] [--keep-server] \
-      [--max-load 6.0] [--release-manifest-url URL]
+      [--max-load 6.0] [--release-manifest-url URL] [--door-bin PATH]
+
+`--door-bin PATH` runs the SAME arms through crates/kalsa-door - the road
+the app's devices and the host seat take (the host is one seat,
+src-tauri/src/tests.rs:1134) - instead of direct to the engine. The door is
+the measure_door example as a child process; the mode is refused unless the
+release is `matched`, each device's slot and salt are pinned end to end
+before the first arm, every arm's slots are erased beforehand with the
+device's own salt and a non-zero arm cache_n refuses the write, and arm B
+carries a fifth request - a timed GET /health through the door - recorded
+as `door_queue_probe`, what happened recorded and never asserted.
 
 Provenance the next reader can check instead of trust: `max_load` and
 `attempts_max` are recorded as the values actually used (after their
@@ -86,6 +96,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import socket
 import subprocess
 import sys
@@ -119,27 +130,20 @@ PROMPT_SEEDS = (11, 22, 33, 44)
 # Arm B's key in `arms` and in every attempt: the committed artifact's own
 # spelling at N=2 - tier-panel and the reviewers read that path.
 ARM_KEYS = {2: "B_two_slots", 4: "B_four_slots"}
+# The door's per-device cache-salt label, verbatim from its source
+# (crates/kalsa-door/src/devices.rs CACHE_SALT_LABEL): sha256(label ||
+# credential). Restated here so the pinning check can compute the door's
+# salt independently and prove the door delivered exactly that namespace.
+DOOR_SALT_LABEL = b"kalsa-cache-salt-v1"
 
 
 # --------------------------------------------------------------------------
 # http helpers
 # --------------------------------------------------------------------------
-def http_json(port, path, payload, timeout=1800):
+def http_json_extra(port, path, payload, extra_headers, timeout=1800):
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        f"http://127.0.0.1:{port}{path}", data=data,
-        headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, json.loads(r.read().decode())
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read().decode())
-
-
-def http_json_salted(port, path, payload, salt_hex, timeout=1800):
-    data = json.dumps(payload).encode()
-    headers = {"Content-Type": "application/json",
-               "x-kalsa-cache-salt": salt_hex}
+    headers = {"Content-Type": "application/json"}
+    headers.update(extra_headers)
     req = urllib.request.Request(
         f"http://127.0.0.1:{port}{path}", data=data, headers=headers)
     try:
@@ -147,6 +151,15 @@ def http_json_salted(port, path, payload, salt_hex, timeout=1800):
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read().decode())
+
+
+def http_json(port, path, payload, timeout=1800):
+    return http_json_extra(port, path, payload, {}, timeout)
+
+
+def http_json_salted(port, path, payload, salt_hex, timeout=1800):
+    return http_json_extra(port, path, payload,
+                           {"x-kalsa-cache-salt": salt_hex}, timeout)
 
 
 def tokenize(port, content):
@@ -745,19 +758,25 @@ def extract(lines):
     return out
 
 
-def run_one(port, prompt, n_predict, salt_hex, slot, server):
-    payload = {"prompt": prompt, "n_predict": n_predict, "temperature": 0.0,
-               "seed": 1, "cache_prompt": True, "ignore_eos": True,
-               "id_slot": slot}
+def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None):
+    """One completion, both roads. Direct (credential None): id_slot in the
+    body, the run's salt on the header, salt_label the salt's first 16 hex
+    (run-internal, never a device secret). Door: no id_slot, the device's
+    Bearer instead, salt_label the device's LABEL - a device salt or a
+    credential must never enter the artifact."""
+    payload, headers = completion_request(prompt, n_predict, slot, credential)
     before = len(server.lines())
     t0 = time.perf_counter()
-    status, r = http_json_salted(port, "/completion", payload, salt_hex)
+    if headers is None:
+        status, r = http_json_salted(port, "/completion", payload, salt_hex)
+    else:
+        status, r = http_json_extra(port, "/completion", payload, headers)
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:])
     tim = (r or {}).get("timings") or {}
     return {
         "slot": slot,
-        "salt_label": salt_hex[:16],
+        "salt_label": (salt_hex[:16] if headers is None else f"device-{slot}"),
         "status": status,
         "wall_ms": wall_ms,
         "loadavg_at_start": loadavg(),
@@ -810,9 +829,309 @@ def run_streams(port, prompts, n_predict, salts, server):
     return out
 
 
+# --------------------------------------------------------------------------
+# door mode: the road the app's devices actually take
+# --------------------------------------------------------------------------
+def device_cache_salt(credential):
+    """The door's per-device cache salt, computed HERE so the pinning check
+    can prove the door delivered exactly this namespace. The label and the
+    order are the door's own (sha256(label || credential bytes),
+    crates/kalsa-door/src/devices.rs); a label that drifts lands the direct
+    leg in an empty namespace and the run refuses."""
+    return hashlib.sha256(
+        DOOR_SALT_LABEL + credential.encode("ascii")).hexdigest()
+
+
+def completion_request(prompt, n_predict, slot, credential=None):
+    """What ONE completion sends, decided in one place - checked offline by
+    dev/test-door-harness.py.
+
+    Same body in both roads except `id_slot`: direct names the slot itself;
+    through the door the slot is the door's seal and the client's copy is
+    stripped (request.rs), so naming it would be a lie the door discards.
+    The transport differs the same way: None means "the run's salt header"
+    (http_json_salted, the direct road); a dict is the exact extra headers
+    for the door road - the device's Bearer and nothing else, never a salt
+    header: through the door the salt is the one the DOOR derives.
+
+    Returns (payload, headers_or_None).
+    """
+    payload = {"prompt": prompt, "n_predict": n_predict, "temperature": 0.0,
+               "seed": 1, "cache_prompt": True, "ignore_eos": True}
+    if credential is None:
+        payload["id_slot"] = slot
+        return payload, None
+    return payload, {"Authorization": f"Bearer {credential}"}
+
+
+def require_matched_for_door(release):
+    """Door mode starts only on the delivered release.
+
+    The runner declares `EnginePrivateHeaders::Consumed` - capacity > 1 is
+    refused without it (lib.rs:379-380) - i.e. it promises the engine reads
+    X-Kalsa-Slot / X-Kalsa-Cache-Salt. Only a release the identity veto
+    passed (`matched`: manifest hash, engine module and --version commit
+    agreeing) is known to be that engine; a fork or an unverified build
+    could ignore the headers and auto-schedule every device into one slot,
+    which is exactly the number this mode exists to measure.
+    """
+    if release.get("status") != "matched":
+        raise SystemExit(
+            "--door-bin refuses to start: the runner would tell the door the "
+            "engine consumes its private headers (EnginePrivateHeaders::"
+            "Consumed), and only a `matched` release - manifest hash, engine "
+            "module and --version commit all agreeing - is known to do that; "
+            f"this run is {release.get('status')!r} (reason_code "
+            f"{release.get('reason_code')!r}), so several devices could be "
+            "auto-scheduled into one slot and the artifact would not know. "
+            "Run direct (--door-bin absent) or on the delivered release.")
+
+
+def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
+    """Spawn measure_door, hand it `capacity` fresh credentials over stdin,
+    and wait for its ONE stdout line: `listening 127.0.0.1:<port>`.
+
+    Credentials are minted here and live only in this process's memory:
+    never printed, never logged, never in the artifact (which carries the
+    label `device-k` only). A runner that cannot announce a port is stopped
+    before the refusal - a half-started door must not outlive the run that
+    made it. Returns (proc, door_port, credentials).
+    """
+    credentials = [secrets.token_hex(32) for _ in range(capacity)]
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            [door_bin, "--engine-port", str(engine_port),
+             "--capacity", str(capacity)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True)
+        for cred in credentials:
+            proc.stdin.write(cred + "\n")
+        proc.stdin.flush()
+        box = {}
+
+        def read_listening():
+            box["line"] = proc.stdout.readline()
+
+        reader = threading.Thread(target=read_listening, daemon=True)
+        reader.start()
+        reader.join(timeout_s)
+        if reader.is_alive():
+            raise RuntimeError(f"no `listening` line within {timeout_s}s")
+        line = box.get("line", "")
+        m = re.fullmatch(r"listening 127\.0\.0\.1:(\d+)\n?", line)
+        if not m:
+            raise RuntimeError(
+                f"unexpected runner output {line.strip()[:80]!r} "
+                f"(runner exit {proc.poll()})")
+        return proc, int(m.group(1)), credentials
+    except Exception as e:
+        stop_door_runner(proc)
+        # the runner never prints a credential, so its stderr is safe to show
+        stderr = ""
+        if proc is not None and proc.stderr is not None:
+            try:
+                stderr = proc.stderr.read().strip()[:300]
+            except OSError:
+                pass
+        raise SystemExit(
+            f"the door runner {door_bin} failed to start: {type(e).__name__}: "
+            f"{e}" + (f" - runner stderr: {stderr}" if stderr else ""))
+
+
+def stop_door_runner(proc):
+    """Close the runner's stdin (its cue to shut down), wait, kill if it
+    lingers. Safe on a runner that already died, and on None - every exit
+    path calls this, like the engine's own stop."""
+    if proc is None:
+        return
+    if proc.stdin is not None:
+        try:
+            proc.stdin.close()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
+def door_health(door_port, credential, timeout=60):
+    """One GET /health through the door with a device's bearer - the queue
+    probe. What comes back is RECORDED, never asserted: with N streams on
+    the door's 4 workers the prediction is that it waits for a worker, and
+    the artifact says what actually happened. Returns (status_or_None,
+    wall_ms)."""
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{door_port}/health",
+        headers={"Authorization": f"Bearer {credential}"})
+    t0 = time.perf_counter()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            r.read()
+            status = r.status
+    except urllib.error.HTTPError as e:
+        status = e.code
+    except Exception:
+        status = None
+    return status, round((time.perf_counter() - t0) * 1000, 1)
+
+
+def pin_device_slots(port, door_port, prompts, credentials, salts):
+    """Prove the salt per device END TO END, one device at a time, before
+    anything is measured.
+
+    leg 1 (through the door): device k, its own Bearer, no id_slot and no
+    salt header - the door must answer `id_slot == k` (the sticky first-fit
+    assignment, slots.rs). leg 2 (direct): the SAME prompt to slot k with
+    the salt THIS harness derives from k's credential - `cache_n > 0` only
+    if the door wrote exactly that salt: a different namespace clears the
+    slot instead of warming it. The label mutation (v1 -> v2) turns leg 2
+    red; that is what makes "the salt per device" a measurement rather than
+    an assumption. Then slot k is erased (direct, the device's salt) so the
+    arms start cold.
+    """
+    for k, prompt in enumerate(prompts):
+        payload, headers = completion_request(prompt, 1, k, credentials[k])
+        status, resp = http_json_extra(door_port, "/completion", payload, headers)
+        got_slot = (resp or {}).get("id_slot")
+        if status != 200 or got_slot != k:
+            raise SystemExit(
+                f"door pinning failed for device {k}: through the door "
+                f"status={status} id_slot={got_slot!r}, expected {k} - the "
+                "door did not seal this device's slot; refusing to measure "
+                "through a road that does not route")
+        dpayload, none_headers = completion_request(prompt, 1, k, None)
+        assert none_headers is None   # the direct leg rides the salt header
+        status, direct = http_json_salted(port, "/completion", dpayload, salts[k])
+        cache_n = ((direct or {}).get("timings") or {}).get("cache_n")
+        if status != 200 or not cache_n:
+            raise SystemExit(
+                f"door pinning failed for device {k}: the direct read of "
+                f"slot {k} in the salt THIS harness derives answered "
+                f"status={status} cache_n={cache_n!r} - the door's warm "
+                "state did not survive in that namespace, so either the "
+                "door wrote another salt or the harness's label drifted "
+                "(the v1->v2 mutation is exactly this failure); the "
+                "salt-per-device claim is unproven - refusing to measure")
+        slot_action(port, k, "erase", salts[k])
+        print(f"[pin {k}] door id_slot={got_slot} direct cache_n={cache_n} "
+              "erase ok", flush=True)
+
+
+def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
+                     probe_after_s=1.0):
+    """Arm B through the door, plus the FIFTH request: one GET /health
+    through the door, sent probe_after_s after the LAST of the N
+    completions left, timed.
+
+    Every timestamp is recorded at its event - each sender's `sent` just
+    before its request, each runner's `done` as its answer lands, the
+    probe's send and answer from the same clock - and
+    `streams_done_before_probe_answered` COMPARES them; nothing is inferred
+    from durations. What waits is recorded, not asserted: with WORKERS = 4
+    (source-derived into provenance) and N streams the prediction is that
+    the probe waits for a worker; the field says what happened. Returns
+    (arm, probe), the arm shaped exactly as run_streams()'s.
+    """
+    out = {}
+    n = len(prompts)
+    barrier = threading.Barrier(n)
+    sent, done = {}, {}
+    before = len(server.lines())
+
+    def one(k):
+        barrier.wait(timeout=90)
+        sent[k] = time.perf_counter()
+        rec = run_one(door_port, prompts[k], n_predict, None, k, server,
+                      credentials[k])
+        rec["engine_lines"] = []
+        done[k] = time.perf_counter()
+        out[f"slot{k}"] = rec
+
+    t0 = time.perf_counter()
+    threads = [threading.Thread(target=one, args=(k,), daemon=True)
+               for k in range(n)]
+    for t in threads:
+        t.start()
+    deadline = time.perf_counter() + 60
+    while len(sent) < n:
+        if time.perf_counter() > deadline:
+            raise SystemExit(
+                "door arm B: a stream never reported its send within 60s - "
+                "refusing to probe (and to measure) a run that did not start")
+        time.sleep(0.005)
+    all_sent = max(sent.values())
+    wait = probe_after_s - (time.perf_counter() - all_sent)
+    if wait > 0:
+        time.sleep(wait)
+    t_probe_sent = time.perf_counter()
+    probe_status, probe_wall = door_health(door_port, credentials[0])
+    t_probe_answer = t_probe_sent + probe_wall / 1000
+    probe = {
+        "sent_after_ms": round((t_probe_sent - all_sent) * 1000, 1),
+        "wall_ms": probe_wall,
+        "status": probe_status,
+        "streams_done_before_probe_answered": sum(
+            1 for t_end in done.values() if t_end <= t_probe_answer),
+    }
+    for t in threads:
+        t.join()
+    wall_ms = round((time.perf_counter() - t0) * 1000, 1)
+    new = extract(server.lines()[before:])
+    out["engine_lines"] = new
+    for k in range(n):
+        out[f"engine_lines_slot{k}"] = [x for x in new if x["slot"] == k]
+    out["arm_wall_ms"] = wall_ms
+    out["loadavg_at_start"] = loadavg()
+    return out, probe
+
+
+def door_pool_from_source():
+    """WORKERS and QUEUE read out of the door's source at run time: the
+    compiled runner does not expose its pool sizes, so the numbers the
+    artifact quotes come from the file that defines them, labelled
+    source-derived - and door_source.commit says WHICH revision that file
+    was read from."""
+    src = HERE.parent / "crates" / "kalsa-door" / "src" / "lib.rs"
+    try:
+        text = src.read_text()
+    except OSError as e:
+        return {"workers": None, "queue": None, "source": str(src),
+                "error": str(e)}
+    w = re.search(r"const WORKERS: usize = (\d+);", text)
+    q = re.search(r"const QUEUE: usize = (\d+);", text)
+    return {"workers": int(w.group(1)) if w else None,
+            "queue": int(q.group(1)) if q else None,
+            "source": "crates/kalsa-door/src/lib.rs (const WORKERS, const QUEUE)",
+            "derived": ("source-derived at run time: the compiled runner "
+                        "does not expose its pool sizes")}
+
+
+def door_provenance(args):
+    """The door side of provenance: which binary ran (path + sha256) and
+    which source it belongs to (commit + the door subtree's porcelain - a
+    DIRTY door is recorded, never refused: the run measures the binary it
+    ran), plus the pool its source declares."""
+    def git(*g):
+        return subprocess.run(["git", "-C", str(HERE.parent), *g],
+                              capture_output=True, text=True).stdout.strip()
+    return {
+        "door_bin": args.door_bin,
+        "door_bin_sha256": sha256_file(args.door_bin),
+        "door_source": {
+            "commit": git("rev-parse", "HEAD"),
+            "porcelain": git("status", "--porcelain", "--",
+                             "crates/kalsa-door"),
+        },
+        "door_pool_from_source": door_pool_from_source(),
+    }
+
+
 def build_result(args, release, version, engine_sha256, argv, slots_dir,
                  started_utc, loadavg_before, boot, n_verify, attempts,
-                 accepted):
+                 accepted, door_probe=None):
     """The artifact dict, extracted from main() so its SHAPE can be checked
     offline (dev/test-concurrency-shape.py): every input is a value main()
     already holds, and nothing here starts a server or reads the network
@@ -849,6 +1168,9 @@ def build_result(args, release, version, engine_sha256, argv, slots_dir,
                      f"{concurrent} at the same time, on one engine"),
         "provenance": {
             **run_parameters(args),
+            # which road the arms took: "direct" (the historical path the
+            # committed artifact used, minus this one key) or "door".
+            "via": "door" if args.door_bin else "direct",
             "started_utc": started_utc,
             "hostname": socket.gethostname(),
             "host_arch": subprocess.run(["uname", "-m"], capture_output=True,
@@ -935,6 +1257,11 @@ def build_result(args, release, version, engine_sha256, argv, slots_dir,
     result["provenance"]["loadavg_after"] = loadavg()
     result["provenance"]["finished_utc"] = time.strftime(
         "%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    if args.door_bin:
+        result["provenance"].update(door_provenance(args))
+    if door_probe is not None:
+        # door mode only: the fifth request of the accepted attempt's arm B.
+        result["door_queue_probe"] = door_probe
     return result
 
 
@@ -995,6 +1322,14 @@ def main():
     ap.add_argument("--release-manifest-url", default=None,
                     help="override the release manifest URL; by default it is "
                          "derived from a kalsa-server-vX.Y.Z binary directory")
+    ap.add_argument("--door-bin", default=None,
+                    help="path to the measure_door example: run the arms "
+                         "THROUGH crates/kalsa-door instead of direct to the "
+                         "engine (provenance.via = 'door'). Refused unless "
+                         "the release is matched: only the release the "
+                         "identity veto passed is known to consume the "
+                         "door's private headers, and without them every "
+                         "device would collapse into one slot")
     args = ap.parse_args()
 
     if args.ctx_size % args.streams != 0:
@@ -1038,6 +1373,8 @@ def main():
                         capture_output=True, text=True)
     version = (vp.stdout + vp.stderr).strip()
     release = release_block(args.bin, version, manifest_url)
+    if args.door_bin:
+        require_matched_for_door(release)
 
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     loadavg_before = loadavg()
@@ -1045,6 +1382,7 @@ def main():
     server = eh.Server(argv, args.log)
     print("[engine] starting", flush=True)
     keep = False
+    runner = None
     try:
         server.start(args.port)
 
@@ -1069,6 +1407,21 @@ def main():
         if any(n != args.prompt_tokens for n in n_verify):
             raise SystemExit("prompt lengths differ - refusing to measure")
 
+        door = args.door_bin is not None
+        credentials = None
+        device_salts = None
+        door_port = None
+        if door:
+            # The runner starts only now: the engine is up, healthy (the
+            # harness waits for /health) and boot-checked, so the door it
+            # fronts is a server, not a hope. The pinning below is what
+            # makes the salt-per-device claim a measurement.
+            runner, door_port, credentials = start_door_runner(
+                args.door_bin, args.port, args.streams)
+            device_salts = [device_cache_salt(c) for c in credentials]
+            pin_device_slots(args.port, door_port, prompts, credentials,
+                             device_salts)
+
         # A, B, A2 is one attempt. The A2 arm is the control: if it drifts from A
         # by more than the tolerance, another agent moved the machine during the
         # attempt and the attempt is rejected. Every attempt is kept in the
@@ -1077,13 +1430,22 @@ def main():
         accepted = None
         arm_key = ARM_KEYS[args.streams]
         for i in range(args.attempts):
-            sA = salt_of(f"arm-A-{i}")
-            sB = [salt_of(f"arm-B-slot{k}-{i}") for k in range(args.streams)]
-            sA2 = salt_of(f"arm-A2-{i}")
+            if door:
+                # The door derives each device's salt from its credential
+                # and it is FIXED for the whole run, so these are the
+                # namespaces every direct erase below targets.
+                sA = device_salts[0]
+                sB = list(device_salts)
+                sA2 = device_salts[0]
+            else:
+                sA = salt_of(f"arm-A-{i}")
+                sB = [salt_of(f"arm-B-slot{k}-{i}") for k in range(args.streams)]
+                sA2 = salt_of(f"arm-A2-{i}")
 
             # Arm A: the request alone on slot 0.
             slot_action(args.port, 0, "erase", sA)
-            arm_a = run_one(args.port, prompts[0], args.n_predict, sA, 0, server)
+            arm_a = run_one(args.port, prompts[0], args.n_predict, sA, 0,
+                            server, credentials[0] if door else None)
             print(f"[A{i} ] wall={arm_a['wall_ms']}ms cache_n={arm_a['cache_n']} "
                   f"tok/s={arm_a['predicted_per_second']}", flush=True)
             time.sleep(2)
@@ -1092,7 +1454,19 @@ def main():
             # every further slot, started together through the barrier.
             for k in range(args.streams):
                 slot_action(args.port, k, "erase", sB[k])
-            arm_b = run_streams(args.port, prompts, args.n_predict, sB, server)
+            door_probe = None
+            if door:
+                arm_b, door_probe = run_streams_door(
+                    args.port, door_port, prompts, args.n_predict,
+                    credentials, server)
+                print(f"[B probe{i}] status={door_probe['status']} "
+                      f"wall={door_probe['wall_ms']}ms "
+                      f"sent_after={door_probe['sent_after_ms']}ms "
+                      f"done_before_answer="
+                      f"{door_probe['streams_done_before_probe_answered']}"
+                      f"/{args.streams}", flush=True)
+            else:
+                arm_b = run_streams(args.port, prompts, args.n_predict, sB, server)
             for k in range(args.streams):
                 rec = arm_b[f"slot{k}"]
                 print(f"[B{k}{i}] wall={rec['wall_ms']}ms "
@@ -1101,7 +1475,14 @@ def main():
             time.sleep(2)
 
             # Arm A2: cold A again, to bound background drift.
-            arm_a2 = run_one(args.port, prompts[0], args.n_predict, sA2, 0, server)
+            if door:
+                # Door salts are fixed per device: arm B just left device
+                # 0's prompt warm on slot 0, and A2 would read that warmth
+                # as its own speed. Direct needs no erase here - its A2
+                # salt is fresh and lands in an empty namespace.
+                slot_action(args.port, 0, "erase", sA2)
+            arm_a2 = run_one(args.port, prompts[0], args.n_predict, sA2, 0,
+                             server, credentials[0] if door else None)
             print(f"[A2{i}] wall={arm_a2['wall_ms']}ms cache_n={arm_a2['cache_n']} "
                   f"tok/s={arm_a2['predicted_per_second']}", flush=True)
 
@@ -1115,6 +1496,22 @@ def main():
             for k in range(args.streams):
                 require_engine_lines(f"attempt {i} arm B slot {k}",
                                      arm_b[f"engine_lines_slot{k}"])
+            if door:
+                # The erases above exist precisely so the arms compare
+                # decode only (the door's salt is fixed per device, so a
+                # missed erase WOULD show as warmth): a warm arm means the
+                # erase did not land, and its number would be prompt-cache
+                # reuse. Direct mode keeps its documented behaviour.
+                warm = sorted(name for name, rec in recs.items()
+                              if rec.get("cache_n") != 0)
+                if warm:
+                    raise SystemExit(
+                        f"door mode refuses: arm cache_n != 0 for {warm} - "
+                        "every arm's slots are erased (direct, with the "
+                        "device's own salt) before the arm runs so the arms "
+                        "stay cold; a warm arm means the erase did not land "
+                        "and the number would be prompt-cache reuse, not "
+                        "decode - no artifact written")
 
             a_pps = arm_a["predicted_per_second"]
             a2_pps = arm_a2["predicted_per_second"]
@@ -1149,7 +1546,8 @@ def main():
             started_utc, loadavg_before,
             {"init_lines": init_lines, "kv_lines": kv_lines,
              "ctx_check": ctx_check, "swa_lines": swa_lines},
-            n_verify, attempts, accepted)
+            n_verify, attempts, accepted,
+            door_probe=door_probe if door else None)
 
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         with open(args.out, "w") as f:
@@ -1164,8 +1562,11 @@ def main():
         keep = args.keep_server
         return 0
     finally:
-        # Every exit path stops the engine: a run that dies half-way and leaves
-        # it up poisons the next run's port pre-flight.
+        # Every exit path stops the runner and then the engine: a runner
+        # left up would hold the door's listener and the engine's upstream
+        # port open against the next run. The engine's --keep-server still
+        # governs only the engine.
+        stop_door_runner(runner)
         if keep:
             print("[engine] left running (--keep-server)", flush=True)
         else:
