@@ -41,7 +41,7 @@ const IT = flatten(italian);
 describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop)", () => {
   it("every row is a 48 dp pressable with a testID and an accessible name", () => {
     expect(SHEET).toContain("minHeight: 48");
-    expect(SHEET).toContain("accessibilityLabel={row.label}");
+    expect(SHEET).toContain("accessibilityLabel={row.accessibilityLabel ?? row.label}");
     expect(SHEET).toContain('accessibilityRole={row.role ?? "button"}');
     expect(SHEET).toContain("testID={row.testID}");
     expect(SHEET).not.toContain("hitSlop");
@@ -60,6 +60,26 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
     expect(SHEET).toContain('accessibilityRole="header"');
     expect(SHEET).toContain("{title}");
     expect(SHEET).toContain("numberOfLines={1}");
+  });
+
+  it("supports a full-width primary action for selectable settings sheets", () => {
+    expect(SHEET).toContain("primaryActionLabel?: string;");
+    expect(SHEET).toContain("onPrimaryAction?: () => void;");
+    expect(SHEET).toContain('testID="shell.attach.primary"');
+    expect(SHEET).toContain("accessibilityLabel={primaryActionLabel}");
+    expect(SHEET).toContain("minHeight: 52");
+    expect(SHEET).toContain("backgroundColor: pressed ? colors.brandDeep : colors.brand");
+  });
+
+  it("draws the shared 36 by 4 grabber eight dp below every sheet top", () => {
+    const grabberAt = SHEET.indexOf('testID="shell.attach.grabber"');
+    const titleAt = SHEET.indexOf("{title ? (");
+    expect(grabberAt).toBeGreaterThan(-1);
+    expect(grabberAt).toBeLessThan(titleAt);
+    expect(SHEET).toContain("width: 36");
+    expect(SHEET).toContain("height: 4");
+    expect(SHEET).toContain("alignSelf: \"center\"");
+    expect(SHEET).toContain("marginTop: 8");
   });
 });
 

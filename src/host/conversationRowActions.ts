@@ -19,19 +19,23 @@ export function buildDrawerConversationItems(
   onExport: (id: string) => void,
   onDelete: (id: string) => void,
 ): DrawerConversationItem[] {
-  return filterConversations(conversations.items, query).map((item) => ({
-    id: item.id,
-    title: item.title.trim() ? item.title : untitledLabel,
-    preview: item.preview,
-    active: item.id === conversations.activeId,
-    onPress: () => onSwitch(item.id),
-    onLongPress: () => onActionSheetOpen(item.id),
-    actions: createConversationRowActions(item.id, t, onExport, onDelete),
-  }));
+  return filterConversations(conversations.items, query).map((item) => {
+    const title = item.title.trim() ? item.title : untitledLabel;
+    return {
+      id: item.id,
+      title,
+      preview: item.preview,
+      active: item.id === conversations.activeId,
+      onPress: () => onSwitch(item.id),
+      onLongPress: () => onActionSheetOpen(item.id),
+      actions: createConversationRowActions(item.id, title, t, onExport, onDelete),
+    };
+  });
 }
 
 export function createConversationRowActions(
   conversationId: string,
+  conversationTitle: string,
   t: TranslateFn,
   onExport: (id: string) => void,
   onDelete: (id: string) => void,
@@ -42,6 +46,7 @@ export function createConversationRowActions(
       testID: `drawer.conversation.${conversationId}.export`,
       icon: "share",
       label: t("drawer.exportAction"),
+      accessibilityLabel: t("drawer.exportConversationA11y", { title: conversationTitle }),
       onPress: () => onExport(conversationId),
     },
     {
@@ -49,6 +54,7 @@ export function createConversationRowActions(
       testID: `drawer.conversation.${conversationId}.delete`,
       icon: "trash",
       label: t("drawer.deleteAction"),
+      accessibilityLabel: t("drawer.deleteConversationA11y", { title: conversationTitle }),
       tone: "danger",
       onPress: () => onDelete(conversationId),
     },
@@ -64,4 +70,14 @@ export function runConversationRowAction(
   closeSheet();
   if (action.id === "export") closeDrawer();
   action.onPress();
+}
+
+export function bindConversationRowActions(
+  actions: readonly DrawerConversationAction[],
+  closers: { closeSheet: () => void; closeDrawer: () => void },
+): DrawerConversationAction[] {
+  return actions.map((action) => ({
+    ...action,
+    onPress: () => runConversationRowAction(action, closers.closeSheet, closers.closeDrawer),
+  }));
 }

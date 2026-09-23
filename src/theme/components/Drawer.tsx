@@ -18,6 +18,7 @@ export type DrawerConversationAction = {
   testID: string;
   icon: "share" | "trash";
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   tone?: "danger";
 };

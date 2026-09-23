@@ -59,6 +59,8 @@ export interface OverlaysProps {
   onNoticeText: (value: string) => void;
   refreshMemoryFacts: () => Promise<void>;
   refreshToolFlags: () => Promise<void>;
+  webToolsEnabled: boolean;
+  toggleWebTools: () => void;
   refreshContextSize: () => Promise<void>;
   currentModel: ModelInfo;
   modelState: ModelPipelineState;
@@ -98,6 +100,8 @@ export function HostOverlays(props: OverlaysProps) {
     onNoticeText,
     refreshMemoryFacts,
     refreshToolFlags,
+    webToolsEnabled,
+    toggleWebTools,
     refreshContextSize,
     currentModel,
     modelState,
@@ -162,6 +166,8 @@ export function HostOverlays(props: OverlaysProps) {
   if (overlay?.kind === "settings") {
     return (
       <SettingsScreen
+        webToolsEnabled={webToolsEnabled}
+        onToggleWebTools={toggleWebTools}
         onBack={() => {
           setOverlay(null);
           // Settings may have edited memory — refresh facts for the next turn.

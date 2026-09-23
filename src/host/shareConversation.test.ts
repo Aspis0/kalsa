@@ -12,7 +12,10 @@ import { join } from "path";
 
 import type { TranslateFn } from "../i18n";
 import { buildExportMarkdown, shareConversation, shareConversationById } from "./shareConversation";
-import { buildDrawerConversationItems, runConversationRowAction } from "./conversationRowActions";
+import {
+  bindConversationRowActions,
+  buildDrawerConversationItems,
+} from "./conversationRowActions";
 import { it as italian } from "../i18n/it";
 import type { Message } from "./hostMessage";
 
@@ -25,6 +28,8 @@ const t = ((key: string, params?: Record<string, string | number>) => {
     "chat.exportYou": "**You**",
     "chat.exportAi": "**AI**",
     "chat.exportTitle": "Kalsa — conversation export",
+    "drawer.exportConversationA11y": "Export conversation {title}",
+    "drawer.deleteConversationA11y": "Delete conversation {title}",
   };
   const line = copy[key] ?? key;
   return params ? line.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? k)) : line;
@@ -115,7 +120,7 @@ describe("the conversation row action sheet", () => {
       order.push(`export:${id}`);
       shareWork = shareConversationById(id, activeId, [turn("user", "active history")], "en", t, reader);
     });
-    const confirmDelete = jest.fn();
+    const confirmDelete = jest.fn((id: string) => order.push(`delete:${id}`));
     const state = {
       activeId,
       items: [
@@ -138,15 +143,27 @@ describe("the conversation row action sheet", () => {
     expect(row?.active).toBe(false);
     expect(row?.actions?.map((action) => action.id)).toEqual(["export", "delete"]);
     expect(row?.actions?.find((action) => action.id === "export")?.label).toBe("drawer.exportAction");
-    const exportAction = row?.actions?.find((action) => action.id === "export");
-    expect(exportAction).toBeDefined();
-    runConversationRowAction(
-      exportAction!,
-      () => order.push("closeSheet"),
-      () => order.push("closeDrawer"),
+    expect(row?.actions?.find((action) => action.id === "export")?.accessibilityLabel).toBe(
+      "Export conversation Older",
     );
-    row?.actions?.find((action) => action.id === "delete")?.onPress();
-    expect(order).toEqual(["closeSheet", "closeDrawer", `export:${rowId}`]);
+    expect(row?.actions?.find((action) => action.id === "delete")?.accessibilityLabel).toBe(
+      "Delete conversation Older",
+    );
+    const sheetRows = bindConversationRowActions(row?.actions ?? [], {
+      closeSheet: () => order.push("closeSheet"),
+      closeDrawer: () => order.push("closeDrawer"),
+    });
+    const exportAction = sheetRows.find((action) => action.id === "export");
+    expect(exportAction).toBeDefined();
+    exportAction?.onPress();
+    sheetRows.find((action) => action.id === "delete")?.onPress();
+    expect(order).toEqual([
+      "closeSheet",
+      "closeDrawer",
+      `export:${rowId}`,
+      "closeSheet",
+      `delete:${rowId}`,
+    ]);
     expect(rootHandler).toHaveBeenCalledWith(rowId);
     expect(rootHandler).not.toHaveBeenCalledWith(activeId);
     expect(confirmDelete).toHaveBeenCalledWith(rowId);
@@ -161,7 +178,7 @@ describe("the conversation row action sheet", () => {
     expect(builder).toMatch(/return buildDrawerConversationItems\(\s*conversations,\s*chatSearchQuery,/);
     const rowsBuilder = stripComments(read("conversationRowActions.ts"));
     expect(rowsBuilder).toContain("filterConversations(conversations.items, query).map((item)");
-    expect(rowsBuilder).toContain("createConversationRowActions(item.id, t, onExport, onDelete)");
+    expect(rowsBuilder).toContain("createConversationRowActions(item.id, title, t, onExport, onDelete)");
     expect(rowsBuilder).toContain("onLongPress: () => onActionSheetOpen(item.id)");
   });
 
@@ -172,7 +189,7 @@ describe("the conversation row action sheet", () => {
     const root = stripComments(read("HostRoot.tsx"));
     expect(content).toContain("onLongPress={item.onLongPress}");
     expect(drawer).toContain("title={selectedConversation.title}");
-    expect(drawer).toContain("runConversationRowAction(");
+    expect(drawer).toContain("bindConversationRowActions(");
     expect(drawer).toContain("<AttachSheet");
     expect(drawer).toContain("actions.drawerConversationItems(");
     expect(drawer).toContain("    onExportPress,\n  );");

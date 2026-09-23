@@ -39,10 +39,11 @@ export type AttachSheetIcon =
 
 export interface AttachSheetRowData {
   testID: string;
-  icon: AttachSheetIcon;
+  icon?: AttachSheetIcon;
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
-  role?: "button" | "switch";
+  role?: "button" | "switch" | "radio";
   selected?: boolean;
   tone?: "danger";
   disabled?: boolean;
@@ -53,6 +54,9 @@ export interface AttachSheetProps {
   colors: DesignColors;
   onClose: () => void;
   title?: string;
+  subtitle?: string;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
   /** The document list may scroll (`maxHeight` clips); the action list never does. */
   scroll?: boolean;
 }
@@ -80,7 +84,7 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
       disabled={row.disabled}
       accessible
       accessibilityRole={row.role ?? "button"}
-      accessibilityLabel={row.label}
+      accessibilityLabel={row.accessibilityLabel ?? row.label}
       accessibilityState={{ disabled: row.disabled, ...(row.selected === undefined ? {} : { checked: row.selected }) }}
       style={({ pressed }) => ({
         flexDirection: "row",
@@ -92,7 +96,7 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
         backgroundColor: pressed || row.selected ? colors.tint : "transparent",
       })}
     >
-      <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](iconColor)}</View>
+      {row.icon ? <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](iconColor)}</View> : null}
       <Text numberOfLines={1} style={[type.meta, { color: textColor, flexShrink: 1 }]}>
         {row.label}
       </Text>
@@ -116,7 +120,16 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
   );
 }
 
-export function AttachSheet({ rows, colors, onClose, title, scroll = false }: AttachSheetProps) {
+export function AttachSheet({
+  rows,
+  colors,
+  onClose,
+  title,
+  subtitle,
+  primaryActionLabel,
+  onPrimaryAction,
+  scroll = false,
+}: AttachSheetProps) {
   const body = rows.map((row) => <SheetRow key={row.testID} row={row} colors={colors} />);
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -133,12 +146,24 @@ export function AttachSheet({ rows, colors, onClose, title, scroll = false }: At
         >
           <View
             style={{
-              backgroundColor: colors.page,
-              borderRadius: radius.xl ?? 24,
+              backgroundColor: colors.surface,
+              borderRadius: radius.sheet,
               overflow: "hidden",
               ...(scroll ? { maxHeight: 360 } : null),
             }}
           >
+            <View
+              testID="shell.attach.grabber"
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                alignSelf: "center",
+                marginTop: 8,
+                marginBottom: spacing.sm,
+                backgroundColor: colors.line2,
+              }}
+            />
             {title ? (
               <Text
                 accessibilityRole="header"
@@ -148,7 +173,31 @@ export function AttachSheet({ rows, colors, onClose, title, scroll = false }: At
                 {title}
               </Text>
             ) : null}
+            {subtitle ? (
+              <Text style={[type.secondary, { color: colors.ink2, paddingHorizontal: spacing.md, paddingBottom: spacing.sm }]}>
+                {subtitle}
+              </Text>
+            ) : null}
             {scroll ? <ScrollView>{body}</ScrollView> : body}
+            {primaryActionLabel && onPrimaryAction ? (
+              <View style={{ padding: spacing.md, paddingTop: spacing.sm }}>
+                <Pressable
+                  testID="shell.attach.primary"
+                  onPress={onPrimaryAction}
+                  accessibilityRole="button"
+                  accessibilityLabel={primaryActionLabel}
+                  style={({ pressed }) => ({
+                    minHeight: 52,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: radius.button,
+                    backgroundColor: pressed ? colors.brandDeep : colors.brand,
+                  })}
+                >
+                  <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{primaryActionLabel}</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </Pressable>
       </Pressable>

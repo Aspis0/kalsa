@@ -70,6 +70,8 @@ export function HostFurniture({
         onNoticeText={onNoticeText}
         refreshMemoryFacts={memory.refreshMemoryFacts}
         refreshToolFlags={flags.refreshToolFlags}
+        webToolsEnabled={flags.webToolsEnabled}
+        toggleWebTools={flags.toggleWebTools}
         refreshContextSize={modelHost.refreshContextSize}
         currentModel={modelHost.currentModel}
         modelState={modelHost.modelState}

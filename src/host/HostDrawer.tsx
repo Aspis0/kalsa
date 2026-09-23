@@ -6,7 +6,7 @@ import { modes, type ThemeMode } from "../theme/design";
 import { Drawer } from "../theme/components";
 import { useLabTheme } from "../ui/labTheme";
 import type { createConversationActions } from "./conversationActions";
-import { runConversationRowAction } from "./conversationRowActions";
+import { bindConversationRowActions } from "./conversationRowActions";
 import type { useConversationHost } from "./useConversationHost";
 
 type ConversationHost = ReturnType<typeof useConversationHost>;
@@ -39,14 +39,12 @@ export function HostDrawer({ open, setOpen, conv, actions, onExportPress }: Host
     onExportPress,
   );
   const selectedConversation = conversationItems.find((item) => item.id === selectedConversationId);
-  const rows = selectedConversation?.actions?.map((action) => ({
-    ...action,
-    onPress: () => runConversationRowAction(
-      action,
-      () => setSelectedConversationId(null),
-      closeDrawer,
-    ),
-  }));
+  const rows = selectedConversation?.actions
+    ? bindConversationRowActions(selectedConversation.actions, {
+        closeSheet: () => setSelectedConversationId(null),
+        closeDrawer,
+      })
+    : undefined;
 
   return (
     <>

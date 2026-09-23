@@ -23,7 +23,7 @@ import type {
   ModelPipelineState,
   VoicePipelineState,
 } from "../app/AppShell";
-import { useLocale, type Locale, type TranslationKey } from "../i18n";
+import { useLocale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,
   getSecret,
@@ -109,11 +109,13 @@ import {
   parseToolToggle,
 } from "../agent/toolToggles";
 import { getBenchNCtx, getBenchNoRepack, getEngineOverride, getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
-import { GlassPanel2, Header } from "../theme/components";
+import { GlassPanel2 } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { radius, spacing } from "../theme/tokens";
-import { useTypography, type FontScaleId, fontFamilies } from "../theme/typography";
+import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
+import { SettingsHeader } from "./SettingsHeader";
+import { SettingsHomeScreen } from "./SettingsHomeScreen";
 
 export type SettingsModelProps = {
   currentModelId: string;
@@ -164,12 +166,14 @@ type Props = {
   onBack: () => void;
   /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
   onOpenHelp: () => void;
+  webToolsEnabled?: boolean;
+  onToggleWebTools?: () => void;
   model: SettingsModelProps;
   voice: SettingsVoiceProps;
   embedding: SettingsEmbeddingProps;
 };
 
-/** App version from Expo config; fallback keeps About usable in bare tests. */
+/** App version from Expo config; fallback keeps the Kalsa card usable in tests. */
 const APP_VERSION = Constants.expoConfig?.version ?? "0.1.0";
 
 const PROVIDER_LABEL_KEYS: Record<SearchProviderId, TranslationKey> = {
@@ -192,24 +196,12 @@ type MemoryNotice = {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: Props) {
-  const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
+export function SettingsScreen({ onBack, onOpenHelp, webToolsEnabled, onToggleWebTools, model, voice, embedding }: Props) {
+  const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
-  const { locale, setLocale, t } = useLocale();
-
-  const languageOptions: Array<{ id: Locale; label: string }> = [
-    { id: "en", label: t("settings.languageEn") },
-    { id: "it", label: t("settings.languageIt") },
-  ];
-
-  // Button chrome shows S/M/L/XL (fits 4-up); a11y uses the full localized name.
-  const fontScaleOptions: Array<{ id: FontScaleId; short: string; label: string }> = [
-    { id: "s", short: "S", label: t("settings.fontSizeS") },
-    { id: "m", short: "M", label: t("settings.fontSizeM") },
-    { id: "l", short: "L", label: t("settings.fontSizeL") },
-    { id: "xl", short: "XL", label: t("settings.fontSizeXl") },
-  ];
+  const { locale, t } = useLocale();
+  const [page, setPage] = useState<"home" | "advanced">("home");
 
   // Production "default" is thinking-on with the model's short budget.
   // The picker shows the two user-facing live budgets.
@@ -925,6 +917,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     ]);
   }, [busy, dirty, onBack, t]);
 
+  const handlePageBack = useCallback(() => {
+    if (page === "advanced") {
+      setPage("home");
+      return;
+    }
+    handleBack();
+  }, [handleBack, page]);
+
   /** Guards double-tap: two rapid Help taps must not stack two discard Alerts. */
   const helpConfirmPendingRef = useRef(false);
 
@@ -971,11 +971,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // Android hardware back: consume here so dirty confirmation is not skipped by AppShell.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      handleBack();
+      handlePageBack();
       return true;
     });
     return () => sub.remove();
-  }, [handleBack]);
+  }, [handlePageBack]);
 
   const keyPlaceholder = useMemo(
     () => meta.keyPlaceholder ?? t("settings.apiKeyPlaceholder"),
@@ -1361,6 +1361,76 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const hasTruncatedReplyFacts =
     memoryEnabled &&
     memoryFacts.some((fact) => fact.text.length > PROMPT_FACT_CHARS);
+  // The compact model picker uses the same memory and disk gate as Advanced.
+  const modelChoices = MODEL_REGISTRY.map((entry) => {
+    const active = entry.id === model.currentModelId;
+    const profilePending = deviceProfile === null || freeDiskBytes === null;
+    const gate: ModelGateVerdict | null = deviceProfile
+      ? modelGateVerdict({
+          totalMemoryBytes: deviceProfile.totalMemoryBytes,
+          availableMemoryBytes: deviceProfile.availableMemoryBytes,
+          freeDiskBytes,
+          ramTier: deviceProfile.ramTier,
+          modelMinRamTier: entry.minRamTier,
+          modelNonEvictableMiB: gateNonEvictableMiB({
+            model: modelAtKvProfile(
+              entry,
+              kvCacheChoice?.k ?? entry.kvCache?.k ?? "q8_0",
+              kvCacheChoice?.v ?? entry.kvCache?.v ?? "q4_0",
+            ),
+            contextTokens: resolveContextProfile({
+              hybrid: entry.hybrid,
+              kvCache: kvCacheChoice ?? entry.kvCache,
+              catalogCtx: entry.engineCtx,
+              totalMemoryBytes: deviceProfile.totalMemoryBytes,
+              explicitNCtx: active && contextResolution ? contextResolution.loaded : undefined,
+            }).nCtx,
+            availableMemoryBytes: deviceProfile.availableMemoryBytes,
+          }),
+          modelWeightsBytesPerToken: entry.weightsBytesPerToken,
+          deviceBandwidthBytesPerSecond: deviceBandwidthForModel(model.deviceBandwidth, entry),
+          modelSizeBytes: diskRequirementBytes(entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0)),
+        }, { checkVolatileMemory: false })
+      : null;
+    const hardBlocked = gate?.allowed === false && !active;
+    return {
+      entry,
+      active,
+      profilePending,
+      gate,
+      hardBlocked,
+      hardBlockLabel: hardBlocked ? gateReasonLabel(gate) : null,
+      selectDisabled: modelBusy || hardBlocked || profilePending,
+    };
+  });
+
+  if (page === "home") {
+    return (
+      <SettingsHomeScreen
+        onBack={handlePageBack}
+        onOpenAdvanced={() => setPage("advanced")}
+        modelOptions={modelChoices.map(({ entry, selectDisabled }) => ({
+          id: entry.id,
+          label: entry.name,
+          detail: `${entry.quant} · ${formatBytes(modelBundleSize(entry))}`,
+          disabled: selectDisabled,
+        }))}
+        currentModelId={model.currentModelId}
+        modelBusy={modelBusy}
+        onSelectModel={model.onSelectModel}
+        webEnabled={webToolsEnabled ?? false}
+        onToggleWeb={onToggleWebTools}
+        telemetryEnabled={telemetryEnabled}
+        telemetryBusy={telemetryBusy}
+        onToggleTelemetry={handleToggleTelemetry}
+        deviceToolsEnabled={deviceToolsEnabled}
+        onToggleDeviceTools={handleToggleDeviceTools}
+        calendarToolsEnabled={calendarToolsEnabled}
+        onToggleCalendarTools={handleToggleCalendarTools}
+        appVersion={APP_VERSION}
+      />
+    );
+  }
 
   return (
     <View
@@ -1374,11 +1444,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         zIndex: 50,
       }}
     >
-      <Header
-        title={t("settings.title")}
-        onBack={handleBack}
-        backAccessibilityLabel={t("common.back")}
-      />
+      <SettingsHeader title={t("settings.advanced")} onBack={() => setPage("home")} backLabel={t("common.back")} />
       <ScrollView
         contentContainerStyle={{
           padding: spacing.lg,
@@ -1387,116 +1453,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Language ─────────────────────────────────────────────────── */}
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.language")}
-          </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
-            {t("settings.languageHint")}
-          </Text>
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
-            {languageOptions.map((option) => {
-              const selected = locale === option.id;
-              return (
-                <Pressable
-                  key={option.id}
-                  onPress={() => {
-                    if (busy) return;
-                    setLocale(option.id);
-                  }}
-                  disabled={busy}
-                  style={{
-                    flex: 1,
-                    paddingVertical: spacing.sm,
-                    borderRadius: radius.md,
-                    borderWidth: 1,
-                    borderColor: selected ? colors.accent : colors.line,
-                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
-                    alignItems: "center",
-                    opacity: busy ? 0.5 : 1,
-                  }}
-                >
-                  <Text
-                    style={[
-                      typography.bodySm,
-                      {
-                        color: selected ? colors.accent : colors.ink,
-                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
-                      },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </GlassPanel2>
-
-        {/* ── Appearance / text size ───────────────────────────────────── */}
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.fontSize")}
-          </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
-            {t("settings.fontSizeHint")}
-          </Text>
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
-            {fontScaleOptions.map((option) => {
-              const selected = (fontScaleId ?? "m") === option.id;
-              return (
-                <Pressable
-                  key={option.id}
-                  onPress={() => {
-                    if (busy) return;
-                    setFontScaleId?.(option.id);
-                  }}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={option.label}
-                  style={{
-                    flex: 1,
-                    paddingVertical: spacing.sm,
-                    borderRadius: radius.md,
-                    borderWidth: 1,
-                    borderColor: selected ? colors.accent : colors.line,
-                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
-                    alignItems: "center",
-                    opacity: busy ? 0.5 : 1,
-                  }}
-                >
-                  <Text
-                    style={[
-                      typography.bodySm,
-                      {
-                        color: selected ? colors.accent : colors.ink,
-                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
-                      },
-                    ]}
-                  >
-                    {option.short}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text
-            style={[
-              typography.bodyMd,
-              {
-                color: colors.ink,
-                marginTop: spacing.xs,
-                textAlign: "center",
-              },
-            ]}
-            accessibilityLabel={t("settings.fontSizePreview")}
-          >
-            {t("settings.fontSizePreview")}
-          </Text>
-        </GlassPanel2>
-
         {/* ── CisWire flags ───────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
@@ -2127,62 +2083,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           ) : null}
         </GlassPanel2>
 
-        {/* ── On-device tools ──────────────────────────────────────────── */}
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("common.tools")}
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodySm, { color: colors.ink }]}>
-                {t("settings.deviceTools")}
-              </Text>
-              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>
-                {t("settings.deviceToolsHint")}
-              </Text>
-            </View>
-            <Switch
-              value={deviceToolsEnabled}
-              onValueChange={handleToggleDeviceTools}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={deviceToolsEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.deviceTools")}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-              marginTop: spacing.sm,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodySm, { color: colors.ink }]}>
-                {t("settings.calendarTools")}
-              </Text>
-              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>
-                {t("settings.calendarToolsHint")}
-              </Text>
-            </View>
-            <Switch
-              value={calendarToolsEnabled}
-              onValueChange={handleToggleCalendarTools}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={calendarToolsEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.calendarTools")}
-            />
-          </View>
-        </GlassPanel2>
-
         {/* ── Web search ───────────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
@@ -2645,8 +2545,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           </View>
 
           <View style={{ gap: spacing.sm }}>
-            {MODEL_REGISTRY.map((entry) => {
-              const active = entry.id === model.currentModelId;
+            {modelChoices.map(({ entry, active, profilePending, gate, hardBlocked, hardBlockLabel, selectDisabled }) => {
               const sizeLabel = formatBytes(modelBundleSize(entry));
               const downloaded = model.downloadedById[entry.id];
               const ramBadgeLabel = entry.ramBadgeKey ? t(entry.ramBadgeKey) : null;
@@ -2655,53 +2554,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 deviceRamTier !== null &&
                 entry.minRamTier !== undefined &&
                 !ramTierMeets(deviceRamTier, entry.minRamTier);
-              // Until profile + free-disk resolve, disable Select/Download so a
-              // fast tap cannot race past a gate that would later block.
-              const profilePending = deviceProfile === null || freeDiskBytes === null;
-              // Hard gate: block download/select for models that cannot fit.
-              // Active model stays usable (never force-evict).
-              // modelSizeBytes is margined (same helper as AppShell confirm/start).
-              const gate: ModelGateVerdict | null = deviceProfile
-                ? modelGateVerdict({
-                    totalMemoryBytes: deviceProfile.totalMemoryBytes,
-                    availableMemoryBytes: deviceProfile.availableMemoryBytes,
-                    freeDiskBytes,
-                    ramTier: deviceProfile.ramTier,
-                    modelMinRamTier: entry.minRamTier,
-                    modelNonEvictableMiB: gateNonEvictableMiB({
-                      model: modelAtKvProfile(
-                        entry,
-                        kvCacheChoice?.k ?? entry.kvCache?.k ?? "q8_0",
-                        kvCacheChoice?.v ?? entry.kvCache?.v ?? "q4_0",
-                      ),
-                      contextTokens: resolveContextProfile({
-                        hybrid: entry.hybrid,
-                        kvCache: kvCacheChoice ?? entry.kvCache,
-                        catalogCtx: entry.engineCtx,
-                        totalMemoryBytes: deviceProfile.totalMemoryBytes,
-                        // The active row prices the resolved context (the user's
-                        // choice, clamped and budgeted by the same resolver the
-                        // engine uses); other rows keep the catalog context.
-                        explicitNCtx:
-                          active && contextResolution
-                            ? contextResolution.loaded
-                            : undefined,
-                      }).nCtx,
-                      availableMemoryBytes: deviceProfile.availableMemoryBytes,
-                    }),
-                    modelWeightsBytesPerToken: entry.weightsBytesPerToken,
-                    deviceBandwidthBytesPerSecond: deviceBandwidthForModel(
-                      model.deviceBandwidth,
-                      entry,
-                    ),
-                    modelSizeBytes: diskRequirementBytes(
-                      entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
-                    ),
-                  }, { checkVolatileMemory: false })
-                : null;
-              const hardBlocked = gate?.allowed === false && !active;
-              const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;
-              const selectDisabled = modelBusy || hardBlocked || profilePending;
               return (
                 <View
                   key={entry.id}
@@ -2942,50 +2794,16 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           </View>
         </GlassPanel2>
 
-        {/* ── Privacy ──────────────────────────────────────────────────── */}
+        {/* ── Diagnostics ──────────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.privacy")}
+            {t("settings.diagnostics")}
           </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.privacyBody")}
-          </Text>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-              marginTop: spacing.sm,
-            }}
-          >
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[typography.bodySm, { color: colors.ink }]}>
-                {t("settings.telemetry")}
-              </Text>
-              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
-                {telemetryEnabled
-                  ? t("settings.telemetryBodyOn")
-                  : t("settings.telemetryBodyOff")}
-              </Text>
-            </View>
-            <Switch
-              value={telemetryEnabled}
-              onValueChange={handleToggleTelemetry}
-              disabled={telemetryBusy}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={telemetryEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.telemetry")}
-            />
-          </View>
-
           <Pressable
             onPress={handleReportProblem}
             accessibilityRole="button"
             accessibilityLabel={t("settings.reportProblem")}
             style={{
-              marginTop: spacing.sm,
               paddingVertical: spacing.sm,
               paddingHorizontal: spacing.md,
               borderRadius: radius.md,
@@ -3029,21 +2847,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           </Pressable>
         </GlassPanel2>
 
-        {/* ── About ────────────────────────────────────────────────────── */}
-        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.about")}
-          </Text>
-          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.displayBold }]}>
-            {t("settings.aboutAppName")}
-          </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.aboutVersion", { version: APP_VERSION })}
-          </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.aboutBody")}
-          </Text>
-        </GlassPanel2>
       </ScrollView>
     </View>
   );
