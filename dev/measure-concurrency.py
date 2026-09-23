@@ -181,16 +181,22 @@ def salt_of(label):
     return hashlib.sha256(("kalsa-measure-concurrency/" + label).encode()).hexdigest()
 
 
-def slot_action(port, slot, action, salt_hex):
+def slot_action(port, slot, action, salt_hex, send=None):
     """Erase a slot the way the door does (the salt rides the header), and
     break the run if the engine refuses.
 
     A non-2xx here means the engine was started without `--slot-save-path` and
     answered 501, or the action failed: either way the arms would measure slots
     nobody erased, and that reads as plausible numbers on the wrong thing.
+    `send` is the transport seam (see run_one): a test drives the whole arm
+    sequence against a fake instead of a server.
     """
-    status, body = http_json_salted(port, f"/slots/{slot}?action={action}",
-                                    {}, salt_hex)
+    path = f"/slots/{slot}?action={action}"
+    if send is None:
+        status, body = http_json_salted(port, path, {}, salt_hex)
+    else:
+        status, body = send(port, path, {},
+                            {"x-kalsa-cache-salt": salt_hex})
     if status // 100 != 2:
         raise SystemExit(
             f"slot action refused: slot {slot} action={action} answered "
@@ -881,7 +887,7 @@ def extract(lines):
 
 
 def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
-            split_log=True):
+            split_log=True, send=None):
     """One completion, both roads. Direct (credential None): id_slot in the
     body, the run's salt on the header, salt_label the salt's first 16 hex
     (run-internal, never a device secret). Door: no id_slot, the device's
@@ -891,21 +897,25 @@ def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
     `split_log=False` (the barriered B threads) skips the per-region
     extract: that region belongs to the WHOLE arm, so a per-thread extract
     was computed and immediately thrown away - the arm's split happens
-    once, after the join.
+    once, after the join. `send` is the transport seam: None = the real
+    HTTP dispatch; a test injects a recorder and sees (port, path, payload,
+    headers) for exactly this request.
     """
-    payload, headers = completion_request(prompt, n_predict, slot, credential)
+    payload, headers = completion_request(prompt, n_predict, slot, salt_hex,
+                                          credential)
     before = len(server.lines()) if split_log else None
     t0 = time.perf_counter()
-    if headers is None:
-        status, r = http_json_salted(port, "/completion", payload, salt_hex)
-    else:
+    if send is None:
         status, r = http_json_extra(port, "/completion", payload, headers)
+    else:
+        status, r = send(port, "/completion", payload, headers)
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:]) if split_log else []
     tim = (r or {}).get("timings") or {}
     return {
         "slot": slot,
-        "salt_label": (salt_hex[:16] if headers is None else f"device-{slot}"),
+        "salt_label": (f"device-{slot}" if credential is not None
+                       else salt_hex[:16]),
         "status": status,
         "wall_ms": wall_ms,
         "loadavg_at_start": loadavg(),
@@ -923,7 +933,7 @@ def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
     }
 
 
-def run_streams(port, prompts, n_predict, salts, server):
+def run_streams(port, prompts, n_predict, salts, server, send=None):
     """All N requests leave through a barrier and land together.
 
     The new log region belongs to the arm, not to any single thread, so it
@@ -943,7 +953,7 @@ def run_streams(port, prompts, n_predict, salts, server):
         try:
             barrier.wait(timeout=90)
             out[f"slot{k}"] = run_one(port, prompt, n_predict, salt, k, server,
-                                      split_log=False)
+                                      split_log=False, send=send)
         except Exception as e:
             errors[k] = f"{type(e).__name__}: {e}"
 
@@ -982,25 +992,24 @@ def device_cache_salt(credential):
         DOOR_SALT_LABEL + credential.encode("ascii")).hexdigest()
 
 
-def completion_request(prompt, n_predict, slot, credential=None):
+def completion_request(prompt, n_predict, slot, salt_hex=None, credential=None):
     """What ONE completion sends, decided in one place - checked offline by
-    dev/test-door-harness.py.
+    dev/test-door-harness.py, which drives the WHOLE arm sequence through
+    this and the run_one/send seam.
 
     Same body in both roads except `id_slot`: direct names the slot itself;
     through the door the slot is the door's seal and the client's copy is
     stripped (request.rs), so naming it would be a lie the door discards.
-    The transport differs the same way: None means "the run's salt header"
-    (http_json_salted, the direct road); a dict is the exact extra headers
-    for the door road - the device's Bearer and nothing else, never a salt
-    header: through the door the salt is the one the DOOR derives.
-
-    Returns (payload, headers_or_None).
+    The headers are the EXACT transport headers for the road taken: direct
+    gets `x-kalsa-cache-salt` (and never a Bearer), door gets
+    `Authorization: Bearer` and no salt header (the salt is the one the
+    DOOR derives). Returns (payload, headers).
     """
     payload = {"prompt": prompt, "n_predict": n_predict, "temperature": 0.0,
                "seed": 1, "cache_prompt": True, "ignore_eos": True}
     if credential is None:
         payload["id_slot"] = slot
-        return payload, None
+        return payload, {"x-kalsa-cache-salt": salt_hex}
     return payload, {"Authorization": f"Bearer {credential}"}
 
 
@@ -1153,7 +1162,8 @@ def pin_device_slots(port, door_port, prompts, credentials, salts):
     arms start cold.
     """
     for k, prompt in enumerate(prompts):
-        payload, headers = completion_request(prompt, 1, k, credentials[k])
+        payload, headers = completion_request(prompt, 1, k, salts[k],
+                                              credentials[k])
         status, resp = http_json_extra(door_port, "/completion", payload, headers)
         got_slot = (resp or {}).get("id_slot")
         if status != 200 or got_slot != k:
@@ -1162,9 +1172,8 @@ def pin_device_slots(port, door_port, prompts, credentials, salts):
                 f"status={status} id_slot={got_slot!r}, expected {k} - the "
                 "door did not seal this device's slot; refusing to measure "
                 "through a road that does not route")
-        dpayload, none_headers = completion_request(prompt, 1, k, None)
-        assert none_headers is None   # the direct leg rides the salt header
-        status, direct = http_json_salted(port, "/completion", dpayload, salts[k])
+        dpayload, dheaders = completion_request(prompt, 1, k, salts[k], None)
+        status, direct = http_json_extra(port, "/completion", dpayload, dheaders)
         cache_n = ((direct or {}).get("timings") or {}).get("cache_n")
         if status != 200 or not cache_n:
             raise SystemExit(
@@ -1180,8 +1189,8 @@ def pin_device_slots(port, door_port, prompts, credentials, salts):
               "erase ok", flush=True)
 
 
-def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
-                     probe_after_s=1.0):
+def run_streams_door(door_port, prompts, n_predict, credentials, server,
+                     probe_after_s=1.0, send=None):
     """Arm B through the door, plus the FIFTH request: one GET /health
     through the door, sent probe_after_s after the LAST of the N
     completions left, timed.
@@ -1193,7 +1202,10 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
     from durations. What waits is recorded, not asserted: with WORKERS = 4
     (source-derived into provenance) and N streams the prediction is that
     the probe waits for a worker; the field says what happened. Returns
-    (arm, probe), the arm shaped exactly as run_streams()'s.
+    (arm, probe), the arm shaped exactly as run_streams()'s. The engine
+    port is NOT a parameter: every completion here goes to the door (the
+    only engine traffic this function's requests produce arrives at the
+    door port and is relayed).
     """
     out = {}
     errors = {}
@@ -1207,7 +1219,7 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
             barrier.wait(timeout=90)
             sent[k] = time.perf_counter()
             rec = run_one(door_port, prompts[k], n_predict, None, k, server,
-                          credentials[k], split_log=False)
+                          credentials[k], split_log=False, send=send)
             done[k] = time.perf_counter()
             out[f"slot{k}"] = rec
         except Exception as e:
@@ -1259,6 +1271,71 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
     out["arm_wall_ms"] = wall_ms
     out["loadavg_at_start"] = loadavg()
     return out, probe
+
+
+def run_attempt_arms(port, door_port, prompts, n_predict, credentials,
+                     device_salts, server, door, attempt_index,
+                     send=None, pause_s=2.0, probe_after_s=1.0):
+    """The arm sequence of ONE attempt, both roads, in one place.
+
+    EVERY completion - A, all N slots of B, A2 - rides the road `door`
+    names: through door_port with the device's Bearer when door mode, to
+    the engine port with id_slot + the salt header otherwise. The slot
+    ERASEs are always direct against the engine with that road's salts
+    (the door has no erase route this harness trusts, and the erase must
+    land before routing decides a slot). The pre-A2 erase exists only in
+    door mode: door salts are fixed per device, so arm B just left device
+    0's prompt warm on slot 0 and A2 would read that warmth as its own
+    speed - direct's A2 salt is fresh and lands in an empty namespace.
+
+    `send` is the transport seam (run_one/slot_action): a test drives this
+    whole sequence against a fake and asserts the port, headers and body
+    of every completion. `pause_s` is main()'s pacing (2 s); tests pass 0.
+    Returns (arm_a, arm_b, arm_a2, probe); probe is None in direct mode.
+    """
+    n = len(prompts)
+    if door:
+        # The door derives each device's salt from its credential and it
+        # is FIXED for the whole run: these are the namespaces every
+        # direct erase below targets.
+        sA = device_salts[0]
+        sB = list(device_salts)
+        sA2 = device_salts[0]
+        arm_port = door_port
+        print(f"[road] completions A/B/A2 via door 127.0.0.1:{door_port} "
+              f"(Bearer per device); erases direct via 127.0.0.1:{port}",
+              flush=True)
+    else:
+        sA = salt_of(f"arm-A-{attempt_index}")
+        sB = [salt_of(f"arm-B-slot{k}-{attempt_index}") for k in range(n)]
+        sA2 = salt_of(f"arm-A2-{attempt_index}")
+        arm_port = port
+
+    # Arm A: the request alone on slot 0 - through the door in door mode.
+    slot_action(port, 0, "erase", sA, send=send)
+    arm_a = run_one(arm_port, prompts[0], n_predict, sA, 0, server,
+                    credentials[0] if door else None, send=send)
+    time.sleep(pause_s)
+
+    # Arm B: the same request on slot 0 and equal-length ones on every
+    # further slot, started together through the barrier, same road.
+    for k in range(n):
+        slot_action(port, k, "erase", sB[k], send=send)
+    probe = None
+    if door:
+        arm_b, probe = run_streams_door(door_port, prompts, n_predict,
+                                        credentials, server,
+                                        probe_after_s=probe_after_s, send=send)
+    else:
+        arm_b = run_streams(port, prompts, n_predict, sB, server, send=send)
+    time.sleep(pause_s)
+
+    # Arm A2: cold A again, to bound background drift.
+    if door:
+        slot_action(port, 0, "erase", sA2, send=send)
+    arm_a2 = run_one(arm_port, prompts[0], n_predict, sA2, 0, server,
+                     credentials[0] if door else None, send=send)
+    return arm_a, arm_b, arm_a2, probe
 
 
 def door_pool_from_source():
@@ -1615,59 +1692,26 @@ def main():
         accepted = None
         arm_key = ARM_KEYS[args.streams]
         for i in range(args.attempts):
-            if door:
-                # The door derives each device's salt from its credential
-                # and it is FIXED for the whole run, so these are the
-                # namespaces every direct erase below targets.
-                sA = device_salts[0]
-                sB = list(device_salts)
-                sA2 = device_salts[0]
-            else:
-                sA = salt_of(f"arm-A-{i}")
-                sB = [salt_of(f"arm-B-slot{k}-{i}") for k in range(args.streams)]
-                sA2 = salt_of(f"arm-A2-{i}")
-
-            # Arm A: the request alone on slot 0.
-            slot_action(args.port, 0, "erase", sA)
-            arm_a = run_one(args.port, prompts[0], args.n_predict, sA, 0,
-                            server, credentials[0] if door else None)
+            # The whole arm sequence - every completion on ONE road - lives
+            # in run_attempt_arms, where a test drives it against a fake
+            # transport and proves the road (dev/test-door-harness.py).
+            arm_a, arm_b, arm_a2, door_probe = run_attempt_arms(
+                args.port, door_port, prompts, args.n_predict, credentials,
+                device_salts, server, door, i)
             print(f"[A{i} ] wall={arm_a['wall_ms']}ms cache_n={arm_a['cache_n']} "
                   f"tok/s={arm_a['predicted_per_second']}", flush=True)
-            time.sleep(2)
-
-            # Arm B: the same request on slot 0 and equal-length ones on
-            # every further slot, started together through the barrier.
             for k in range(args.streams):
-                slot_action(args.port, k, "erase", sB[k])
-            door_probe = None
-            if door:
-                arm_b, door_probe = run_streams_door(
-                    args.port, door_port, prompts, args.n_predict,
-                    credentials, server)
+                rec = arm_b[f"slot{k}"]
+                print(f"[B{k}{i}] wall={rec['wall_ms']}ms "
+                      f"cache_n={rec['cache_n']} "
+                      f"tok/s={rec['predicted_per_second']}", flush=True)
+            if door and door_probe is not None:
                 print(f"[B probe{i}] status={door_probe['status']} "
                       f"wall={door_probe['wall_ms']}ms "
                       f"sent_after={door_probe['sent_after_ms']}ms "
                       f"done_before_answer="
                       f"{door_probe['streams_done_before_probe_answered']}"
                       f"/{args.streams}", flush=True)
-            else:
-                arm_b = run_streams(args.port, prompts, args.n_predict, sB, server)
-            for k in range(args.streams):
-                rec = arm_b[f"slot{k}"]
-                print(f"[B{k}{i}] wall={rec['wall_ms']}ms "
-                      f"cache_n={rec['cache_n']} "
-                      f"tok/s={rec['predicted_per_second']}", flush=True)
-            time.sleep(2)
-
-            # Arm A2: cold A again, to bound background drift.
-            if door:
-                # Door salts are fixed per device: arm B just left device
-                # 0's prompt warm on slot 0, and A2 would read that warmth
-                # as its own speed. Direct needs no erase here - its A2
-                # salt is fresh and lands in an empty namespace.
-                slot_action(args.port, 0, "erase", sA2)
-            arm_a2 = run_one(args.port, prompts[0], args.n_predict, sA2, 0,
-                             server, credentials[0] if door else None)
             print(f"[A2{i}] wall={arm_a2['wall_ms']}ms cache_n={arm_a2['cache_n']} "
                   f"tok/s={arm_a2['predicted_per_second']}", flush=True)
 
