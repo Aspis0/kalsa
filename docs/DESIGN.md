@@ -1,5 +1,12 @@
 # DESIGN + BUILD PLAN — the interface from scratch
 
+> **Part 2 of this file is superseded (2026-09-22).** The design the owner approved — white tending to
+> green, Inter chrome, filled green primary controls, hairline cards, ghost icon actions, 56 dp rows,
+> dark mode as a deliverable — lives in **`docs/DESIGN-V2.md`**, with its rendered reference in
+> `docs/design/kalsa-mock-v2.html` and the mock|device pairs in
+> `docs/captures/2026-09-22/design-v2/`. **Part 1 (the measured facts) and Part 3 (the build plan)
+> still stand.** Where Part 2 and DESIGN-V2.md disagree about how something looks, DESIGN-V2.md wins.
+
 Owner decision 2026-09-21 (`PLAN.md` in the lab repo, commit `ff13309b`): the whole interface is
 replaced. **Corrected the same day by the owner, and this document carries the correction:** the
 palette that survives is the **green** one — the app's `palettes.js` (`accent #1f5f4e`) and Kalsa
