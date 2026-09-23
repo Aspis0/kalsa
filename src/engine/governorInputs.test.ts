@@ -343,7 +343,7 @@ describe("governor inputs", () => {
     });
   });
 
-  test("invalid sensor reports zero trend and never enters the series", async () => {
+  test("an invalid poll breaks the series instead of being bridged", async () => {
     const t0 = 1_758_000_000_000;
     nowSpy.mockReturnValue(t0);
     await readGovernorThermo();
@@ -365,9 +365,21 @@ describe("governor inputs", () => {
       plugged: false,
       sensorValid: true,
     });
-    // The 0-reading invalid poll is outside the series: 0.6 C over 2.5 min.
+    // The gap the invalid poll covered is never anchored across: this
+    // reading stands alone (it used to bridge to t0 and report 0.24).
     await expect(readGovernorThermo()).resolves.toMatchObject({
-      trend_c_per_min: expect.closeTo(0.24, 6),
+      trend_c_per_min: 0,
+    });
+    nowSpy.mockReturnValue(t0 + 240_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 335,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    // Rebuilt from observed samples only: 0.9 C over 1.5 min.
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      trend_c_per_min: expect.closeTo(0.6, 6),
     });
   });
 
