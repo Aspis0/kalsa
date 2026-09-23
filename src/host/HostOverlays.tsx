@@ -178,6 +178,7 @@ export function HostOverlays(props: OverlaysProps) {
           void refreshContextSize();
         }}
         onOpenHelp={() => setOverlay({ kind: "help" })}
+        onOpenPro={() => setOverlay({ kind: "pro", returnTo: "settings" })}
         model={{
           currentModelId: currentModel.id,
           modelState,
@@ -219,12 +220,19 @@ export function HostOverlays(props: OverlaysProps) {
     return (
       <AccountScreen
         onBack={() => setOverlay(null)}
-        onOpenPro={() => setOverlay({ kind: "pro" })}
+        onOpenPro={() => setOverlay({ kind: "pro", returnTo: "account" })}
       />
     );
   }
   if (overlay?.kind === "pro") {
-    return <ProScreen onBack={() => setOverlay({ kind: "account" })} />;
+    return (
+      <ProScreen
+        onBack={() => {
+          if (overlay.returnTo === "settings") setOverlay({ kind: "settings" });
+          else setOverlay({ kind: "account" });
+        }}
+      />
+    );
   }
   if (overlay?.kind === "documents") {
     return (

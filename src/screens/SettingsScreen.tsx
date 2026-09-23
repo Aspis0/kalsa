@@ -166,6 +166,8 @@ type Props = {
   onBack: () => void;
   /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
   onOpenHelp: () => void;
+  /** Open the Kalsa Pro overlay from the Settings home page. */
+  onOpenPro?: () => void;
   webToolsEnabled?: boolean;
   onToggleWebTools?: () => void;
   model: SettingsModelProps;
@@ -196,7 +198,7 @@ type MemoryNotice = {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, webToolsEnabled, onToggleWebTools, model, voice, embedding }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled, onToggleWebTools, model, voice, embedding }: Props) {
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -1409,6 +1411,8 @@ export function SettingsScreen({ onBack, onOpenHelp, webToolsEnabled, onToggleWe
       <SettingsHomeScreen
         onBack={handlePageBack}
         onOpenAdvanced={() => setPage("advanced")}
+        onOpenHelp={onOpenHelp}
+        onOpenPro={onOpenPro}
         modelOptions={modelChoices.map(({ entry, selectDisabled }) => ({
           id: entry.id,
           label: entry.name,

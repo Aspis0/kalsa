@@ -17,7 +17,7 @@ import type { AskAssistantMiniapp } from "../domain/askAssistant";
 export type HostOverlay =
   | { kind: "settings" }
   | { kind: "account" }
-  | { kind: "pro" }
+  | { kind: "pro"; returnTo?: "account" | "settings" }
   | { kind: "help" }
   | { kind: "documents" }
   | { kind: "notes"; focusId?: string }

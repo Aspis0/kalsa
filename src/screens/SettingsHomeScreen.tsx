@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import {
   Activity,
+  CircleQuestionMark,
   ChevronRight,
   Cpu,
   Languages,
@@ -10,6 +11,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Smartphone,
+  Sparkles,
   Type,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,6 +36,8 @@ type SheetName = "model" | "theme" | "size" | "language" | "permissions";
 type Props = {
   onBack: () => void;
   onOpenAdvanced: () => void;
+  onOpenHelp: () => void;
+  onOpenPro?: () => void;
   modelOptions: readonly ModelOption[];
   currentModelId: string;
   modelBusy: boolean;
@@ -152,6 +156,8 @@ function Divider({ colors }: { colors: DesignColors }) {
 export function SettingsHomeScreen({
   onBack,
   onOpenAdvanced,
+  onOpenHelp,
+  onOpenPro,
   modelOptions,
   currentModelId,
   modelBusy,
@@ -272,6 +278,14 @@ export function SettingsHomeScreen({
               <Text numberOfLines={1} style={[type.secondary, { color: colors.ink2, marginTop: 2 }]}>{t("settings.brandVersion", { version: appVersion })}</Text>
             </View>
           </View>
+          <Divider colors={colors} />
+          <Row testID="settings.home.help" title={t("help.title")} icon={<CircleQuestionMark size={20} color={colors.accent} strokeWidth={1.75} />} onPress={onOpenHelp} colors={colors} />
+          {onOpenPro ? (
+            <>
+              <Divider colors={colors} />
+              <Row testID="settings.home.pro" title={t("account.proTitle")} icon={<Sparkles size={20} color={colors.accent} strokeWidth={1.75} />} onPress={onOpenPro} colors={colors} />
+            </>
+          ) : null}
         </Group>
       </ScrollView>
       {sheet ? (

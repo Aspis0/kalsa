@@ -15,6 +15,7 @@ import {
   FileText as LucideFileText,
   Settings as LucideSettings,
   StickyNote as LucideStickyNote,
+  Users as LucideUsers,
   UserCircle as LucideUserCircle,
 } from "lucide-react-native";
 import {
@@ -307,6 +308,17 @@ const newChatInFlightRef = { current: false };
           clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "notes" });
+        },
+      },
+      {
+        id: "personas",
+        label: t("personas.title"),
+        Icon: LucideUsers,
+        onPress: () => {
+          Keyboard.dismiss();
+          clearChatSearch();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "personas" });
         },
       },
     ];

@@ -13,6 +13,7 @@ import { PersonaEditorSheet } from "./PersonaEditorSheet";
 import { PersonasScreen } from "./PersonasScreen";
 import { PersonaRow } from "./PersonaRow";
 import { ProScreen } from "./ProScreen";
+import { SettingsHomeScreen } from "./SettingsHomeScreen";
 
 let mockHookValues: unknown[] = [];
 let mockHookCursor = 0;
@@ -53,10 +54,11 @@ jest.mock("react-native", () => ({
   TextInput: "TextInput",
   View: "View",
 }));
+jest.mock("../../assets/icon.png", () => "brand-mark");
 jest.mock("lucide-react-native", () => new Proxy({}, { get: (_target, key) => String(key) }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));
-jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key, locale: "en" }) }));
-jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
+jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key, locale: "en", setLocale: jest.fn() }) }));
+jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light", setMode: jest.fn(), fontScaleId: "m", setFontScaleId: jest.fn() }) }));
 jest.mock("./SettingsHeader", () => ({ SettingsHeader: "SettingsHeader" }));
 jest.mock("../account/useAccount", () => ({
   InvalidEmailError: class InvalidEmailError extends Error {},
@@ -99,7 +101,8 @@ jest.mock("react-native-draggable-flatlist", () => ({
 }));
 
 type Element = React.ReactElement<Record<string, any>>;
-const expand = [AccountSignInPanel, DocumentsEmptyState, NoteEditorSheet, PersonaEditorSheet, PersonaRow];
+const expand = [AccountSignInPanel, AttachSheet, DocumentsEmptyState, NoteEditorSheet, PersonaEditorSheet, PersonaRow];
+const expandByName = new Set(["Action", "Group", "Row", "SheetRow"]);
 
 function resetHooks(values: unknown[] = []) {
   mockHookValues = values;
@@ -110,17 +113,35 @@ function elements(node: unknown): Element[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!React.isValidElement(node)) return [];
   const element = node as Element;
-  const nested = typeof element.type === "function" && expand.includes(element.type as any)
+  const componentName = typeof element.type === "function" ? element.type.name : "";
+  const nested = typeof element.type === "function" && (
+    expand.includes(element.type as any) || expandByName.has(componentName)
+  )
     ? (element.type as (props: any) => React.ReactNode)(element.props)
     : element.props.children;
   return [element, ...elements(nested)];
 }
 
-function primaryButtons(tree: unknown): Element[] {
+function styleObjects(style: unknown, pressed: boolean): Array<Record<string, unknown>> {
+  const resolved = typeof style === "function" ? (style as (state: { pressed: boolean }) => unknown)({ pressed }) : style;
+  if (Array.isArray(resolved)) return resolved.flatMap((entry) => styleObjects(entry, pressed));
+  return resolved && typeof resolved === "object" ? [resolved as Record<string, unknown>] : [];
+}
+
+function filledBrandActions(tree: unknown): Element[] {
   return elements(tree).filter((element) => {
-    if (element.type !== "Pressable" || typeof element.props.style !== "function") return false;
-    return element.props.style({ pressed: false }).backgroundColor === modes.light.brand;
+    const { accessibilityRole, accessibilityState, disabled, onPress, style } = element.props;
+    const actionable = typeof onPress === "function" || accessibilityRole === "button" || accessibilityRole === "switch";
+    if (!actionable || disabled || accessibilityState?.disabled) return false;
+    return [false, true].some((pressed) => styleObjects(style, pressed).some((candidate) =>
+      candidate.backgroundColor === modes.light.brand || candidate.backgroundColor === modes.light.brandDeep,
+    ));
   });
+}
+
+function invokePressable(element: Element) {
+  expect(element.type).toBe("Pressable");
+  element.props.onPress();
 }
 
 function expandSheet(sheet: Element) {
@@ -149,8 +170,32 @@ beforeEach(() => {
 
 describe("six-overlay action and editing grammar", () => {
   it("shows one brand primary on each action surface; Help remains informational", () => {
+    resetHooks(["none", ""]);
+    const accountLanding = AccountScreen({ onBack: jest.fn(), onOpenPro: jest.fn() });
+    const disabledContinue = elements(accountLanding).find((node) => node.props.accessibilityLabel === "common.continue");
+    expect(disabledContinue?.props.disabled).toBe(true);
+    expect(disabledContinue?.props.accessibilityState.disabled).toBe(true);
+    expect(styleObjects(disabledContinue?.props.style, false).map((style) => style.backgroundColor)).toContain(modes.light.tint);
+    expect(filledBrandActions(accountLanding)).toHaveLength(0);
+
     resetHooks(["none", "reader@example.test"]);
-    const account = AccountScreen({ onBack: jest.fn(), onOpenPro: jest.fn() });
+    const accountWithDraft = AccountScreen({ onBack: jest.fn(), onOpenPro: jest.fn() });
+    const enabledContinue = elements(accountWithDraft).find((node) => node.props.accessibilityLabel === "common.continue");
+    expect(enabledContinue?.props.disabled).toBe(false);
+    expect(filledBrandActions(accountWithDraft)).toHaveLength(1);
+
+    mockUseAccount.mockReturnValue({
+      email: "reader@example.test",
+      isSignedIn: true,
+      loading: false,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+    });
+    resetHooks(["none"]);
+    const signedInAccount = AccountScreen({ onBack: jest.fn(), onOpenPro: jest.fn() });
+    expect(elements(signedInAccount).some((node) => node.props.accessibilityLabel === "account.upgradeToPro")).toBe(true);
+    expect(filledBrandActions(signedInAccount)).toHaveLength(0);
+
     resetHooks();
     const pro = ProScreen({ onBack: jest.fn() });
     resetHooks();
@@ -182,17 +227,86 @@ describe("six-overlay action and editing grammar", () => {
     resetHooks();
     const notes = NotesScreen({ onBack: jest.fn() });
     resetHooks();
+    mockListPersonas.mockReturnValue([
+      { id: "user-count", name: "Writer", instructions: "Write", builtin: false },
+    ]);
     const personas = PersonasScreen({ onBack: jest.fn() });
 
     expect({
-      account: primaryButtons(account).length,
-      pro: primaryButtons(pro).length,
-      help: primaryButtons(help).length,
-      documents: primaryButtons(documents).length,
-      documentsWithRows: primaryButtons(documentsWithRows).length,
-      notes: primaryButtons(notes).length,
-      personas: primaryButtons(personas).length,
-    }).toEqual({ account: 1, pro: 1, help: 0, documents: 1, documentsWithRows: 1, notes: 1, personas: 1 });
+      pro: filledBrandActions(pro).length,
+      help: filledBrandActions(help).length,
+      documents: filledBrandActions(documents).length,
+      documentsWithRows: filledBrandActions(documentsWithRows).length,
+      notes: filledBrandActions(notes).length,
+      personasWithRow: filledBrandActions(personas).length,
+    }).toEqual({ pro: 1, help: 0, documents: 1, documentsWithRows: 1, notes: 1, personasWithRow: 1 });
+  });
+
+  it("keeps Help's sections, privacy note and FAQ questions and answers in the screen", () => {
+    const help = HelpScreen({ onBack: jest.fn() });
+    const labels = elements(help)
+      .filter((node) => node.type === "Text")
+      .map((node) => node.props.children)
+      .filter((value): value is string => typeof value === "string");
+    expect(labels).toEqual(expect.arrayContaining([
+      "help.intro",
+      "help.howItWorks.title", "help.howItWorks.body",
+      "help.models.title", "help.models.body",
+      "help.websearch.title", "help.websearch.body",
+      "help.privacy.title", "help.privacy.body", "help.privacy.voice",
+      "help.miniapps.title", "help.miniapps.body",
+      "help.limits.title", "help.limits.body",
+      "help.faq.title",
+      "help.faq.shortAnswers.q", "help.faq.shortAnswers.a",
+      "help.faq.offline.q", "help.faq.offline.a",
+      "help.faq.chatStorage.q", "help.faq.chatStorage.a",
+      "help.faq.language.q", "help.faq.language.a",
+      "help.faq.webSearchSent.q", "help.faq.webSearchSent.a",
+      "help.faq.badApiKey.q", "help.faq.badApiKey.a",
+      "help.faq.modelDiff.q", "help.faq.modelDiff.a",
+      "help.faq.clearHistory.q", "help.faq.clearHistory.a",
+      "help.faq.sendImages.q", "help.faq.sendImages.a",
+    ]));
+  });
+
+  it("routes the Kalsa Help and Pro rows to their supplied destinations", () => {
+    const onOpenHelp = jest.fn();
+    const onOpenPro = jest.fn();
+    expect(require("fs").readFileSync(`${__dirname}/SettingsScreen.tsx`, "utf8")).toMatch(/onOpenHelp={onOpenHelp}[\s\S]*onOpenPro={onOpenPro}/);
+    resetHooks();
+    const tree = SettingsHomeScreen({
+      onBack: jest.fn(),
+      onOpenAdvanced: jest.fn(),
+      onOpenHelp,
+      onOpenPro,
+      modelOptions: [],
+      currentModelId: "",
+      modelBusy: false,
+      onSelectModel: jest.fn(),
+      telemetryEnabled: false,
+      telemetryBusy: false,
+      onToggleTelemetry: jest.fn(),
+      deviceToolsEnabled: false,
+      onToggleDeviceTools: jest.fn(),
+      calendarToolsEnabled: false,
+      onToggleCalendarTools: jest.fn(),
+      appVersion: "1.0",
+    });
+    const kalsaOrder = elements(tree)
+      .filter((node) =>
+        (node.type === "View" && node.props.testID === "settings.home.kalsa") ||
+        (node.type === "Pressable" && ["settings.home.help", "settings.home.pro"].includes(node.props.testID)),
+      )
+      .map((node) => node.props.testID);
+    expect(kalsaOrder).toEqual(["settings.home.kalsa", "settings.home.help", "settings.home.pro"]);
+    const help = elements(tree).find((node) => node.type === "Pressable" && node.props.testID === "settings.home.help");
+    const pro = elements(tree).find((node) => node.type === "Pressable" && node.props.testID === "settings.home.pro");
+
+    invokePressable(help!);
+    invokePressable(pro!);
+
+    expect(onOpenHelp).toHaveBeenCalledTimes(1);
+    expect(onOpenPro).toHaveBeenCalledTimes(1);
   });
 
   it("opens existing note and persona editors in AttachSheet, outside their lists", async () => {
@@ -206,9 +320,11 @@ describe("six-overlay action and editing grammar", () => {
     noteTree = NotesScreen({ onBack: jest.fn() });
     const noteEditor = elements(noteTree).find((node) => node.type === NoteEditorSheet);
     expect(noteEditor).toBeDefined();
-    const noteSheet = elements(expandSheet(NoteEditorSheet(noteEditor!.props as any) as Element));
+    const noteSheetTree = expandSheet(NoteEditorSheet(noteEditor!.props as any) as Element);
+    const noteSheet = elements(noteSheetTree);
     const noteModal = noteSheet.find((node) => node.type === "Modal");
     expect(elements(noteModal).filter((node) => node.type === "TextInput").map((node) => node.props.accessibilityLabel)).toEqual(["notes.edit"]);
+    expect(filledBrandActions(noteSheetTree)).toHaveLength(1);
     const noteList = elements(noteTree).find((node) => node.type === "ScrollView");
     expect(elements(noteList).filter((node) => node.type === "TextInput").map((node) => node.props.accessibilityLabel)).toEqual(["notes.search"]);
 
@@ -217,15 +333,16 @@ describe("six-overlay action and editing grammar", () => {
     resetHooks([{ items: [], hiddenBuiltinIds: [] }, "", null, ""]);
     let personaTree = PersonasScreen({ onBack: jest.fn() });
     const editAction = elements(personaTree).find((node) => node.props.testID === "personas.action.edit.user-2");
-    const actionTree = (editAction!.type as (props: any) => React.ReactNode)(editAction!.props);
-    elements(actionTree).find((node) => node.type === "Pressable")?.props.onPress();
+    editAction!.props.onPress();
     resetHooks(mockHookValues);
     personaTree = PersonasScreen({ onBack: jest.fn() });
     const personaEditor = elements(personaTree).find((node) => node.type === PersonaEditorSheet);
     expect(personaEditor).toBeDefined();
-    const personaSheet = elements(expandSheet(PersonaEditorSheet(personaEditor!.props as any) as Element));
+    const personaSheetTree = expandSheet(PersonaEditorSheet(personaEditor!.props as any) as Element);
+    const personaSheet = elements(personaSheetTree);
     const personaModal = personaSheet.find((node) => node.type === "Modal");
     expect(elements(personaModal).filter((node) => node.type === "TextInput")).toHaveLength(2);
+    expect(filledBrandActions(personaSheetTree)).toHaveLength(1);
     const personaList = elements(personaTree).find((node) => node.type === "ScrollView");
     expect(elements(personaList).filter((node) => node.type === "TextInput")).toHaveLength(0);
   });

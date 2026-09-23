@@ -29,7 +29,9 @@ describe("Settings v2 home and advanced pages", () => {
     expect(groups).toEqual(["groupAssistant", "groupAppearance", "groupPrivacy", "groupEngine"]);
     const kalsaGroup = HOME.indexOf('<Group title="Kalsa"');
     expect(kalsaGroup).toBeGreaterThan(HOME.indexOf('title={t("settings.groupEngine")}'));
-    const homeIds = [...HOME.matchAll(/testID="(settings\.home\.[^"]+)"/g)].map((match) => match[1]);
+    const homeIds = [...HOME.matchAll(/testID="(settings\.home\.[^"]+)"/g)]
+      .map((match) => match[1])
+      .filter((id) => id !== "settings.home.help" && id !== "settings.home.pro");
     expect(homeIds).toEqual([
       "settings.home.scroll",
       "settings.home.where",

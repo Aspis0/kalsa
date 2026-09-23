@@ -115,9 +115,9 @@ describe("the conversation row action sheet", () => {
 
   beforeEach(() => shareMock.mockClear());
 
-  it("keeps the menu foot at its four global destinations", () => {
+  it("keeps the menu foot at its five global destinations", () => {
     const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    expect(content).toContain('["documents", "notes", "settings", "account"]');
+    expect(content).toContain('["documents", "notes", "settings", "account", "personas"]');
     expect(content).not.toContain('"export"');
     expect(english.drawer.exportAction).toBe("Export chat");
     expect(english.drawer.deleteAction).toBe("Delete chat");

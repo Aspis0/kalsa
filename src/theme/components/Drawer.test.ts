@@ -47,9 +47,9 @@ describe("the full-height v2 menu", () => {
     expect(CONTENT).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
   });
 
-  it("shows the four unboxed global footer destinations in the specified order", () => {
+  it("shows the five unboxed global footer destinations in the specified order", () => {
     const code = CODE(CONTENT);
-    expect(code).toContain('["documents", "notes", "settings", "account"]');
+    expect(code).toContain('["documents", "notes", "settings", "account", "personas"]');
     expect(code).not.toContain('"export"');
     expect(code).toContain('testID={`drawer.item.${id}`}');
     expect(code).toContain("minHeight: 56");

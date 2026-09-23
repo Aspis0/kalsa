@@ -97,19 +97,61 @@ beforeEach(() => {
 
 describe("useDocumentImport", () => {
   it("commits a picked text file and restores transient progress state", async () => {
+    const startedAt = Date.now();
     const hook = makeHook();
 
     await hook.importDocument();
 
     expect(mockAddDocument).toHaveBeenCalledWith(expect.objectContaining({
       id: "doc-test",
+      sourceId: "doc-test",
       name: "note.txt",
       kind: "txt",
       fileUri: "file:///owned/doc-test.txt",
+      sizeBytes: 16,
       docCount: 1,
+      estimatedTokens: 4,
       extractionStatus: "ok",
     }));
+    const [entry] = mockAddDocument.mock.calls[0] as [{ addedAt: number }];
+    expect(entry.addedAt).toBeGreaterThanOrEqual(startedAt);
+    expect(entry.addedAt).toBeLessThanOrEqual(Date.now());
     expect(mockStateWrites).toEqual([[0, true], [1, "note.txt"], [0, false], [1, null]]);
+  });
+
+  it.each([
+    ["a canceled picker result", { canceled: true, assets: [] }],
+    ["a picker result with no asset", { canceled: false, assets: [] }],
+  ])("leaves no progress or writes after %s", async (_name, result) => {
+    mockGetDocumentAsync.mockResolvedValueOnce(result);
+    const hook = makeHook();
+
+    await hook.importDocument();
+
+    expect(mockGetDocumentAsync).toHaveBeenCalledTimes(1);
+    expect(mockResolveAssetSizeBytes).not.toHaveBeenCalled();
+    expect(mockCopyToOwnedStorage).not.toHaveBeenCalled();
+    expect(mockWriteOwnedText).not.toHaveBeenCalled();
+    expect(mockAddDocument).not.toHaveBeenCalled();
+    expect(mockStateWrites).toEqual([[0, false], [1, null]]);
+    expect(mockHookValues.slice(0, 2)).toEqual([false, null]);
+  });
+
+  it("rechecks a delete started while the picker was open and clears import progress", async () => {
+    const deleteInFlight = jest.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const hook = makeHook(deleteInFlight);
+
+    await hook.importDocument();
+
+    expect(mockGetDocumentAsync).toHaveBeenCalledTimes(1);
+    expect(mockResolveAssetSizeBytes).toHaveBeenCalledWith("file:///picked/note.txt");
+    expect(deleteInFlight).toHaveBeenCalledTimes(2);
+    expect(mockAlert).toHaveBeenCalledWith("documents.title", "documents.errorBusy");
+    expect(mockCopyToOwnedStorage).not.toHaveBeenCalled();
+    expect(mockWriteOwnedText).not.toHaveBeenCalled();
+    expect(mockAddDocument).not.toHaveBeenCalled();
+    expect(mockStateWrites).toEqual([[0, false], [1, null]]);
+    expect(mockHookValues.slice(0, 2)).toEqual([false, null]);
   });
 
   it("alerts on an owned-storage failure, adds nothing, and clears progress", async () => {
