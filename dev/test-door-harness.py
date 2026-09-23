@@ -531,18 +531,34 @@ def case_10():
     # ~300 MILLISECONDS after the barrier - a seconds-labeled field would
     # read ~0.3 and fail here (it did: the first live run recorded
     # streams_done 7.4 for a 7404 ms generation). The drive repeats until
-    # streams_sent_ms has index 0 NOT at the max: only then does the
-    # max() baseline of sent_after_ms differ from streams_sent_ms[0], so
-    # B's P3 mutation can go red deterministically (a spread where [0] IS
-    # the max would let it survive).
+    # EVERY property the checks below assert holds on this probe: index 0
+    # not at the max of streams_sent_ms (only then does the max() baseline
+    # of sent_after_ms differ from streams_sent_ms[0], so B's P3 can go
+    # red deterministically), and a sub-0.1 fraction in EACH field (S2: a
+    # set-level any() let probe_sent_ms alone go back to 1 dp unnoticed;
+    # per-field, Q5 dies). Retrying until the fractions exist keeps the
+    # unmutated run deterministic; a 1-dp-rounded field can NEVER satisfy
+    # its condition, so that mutation exhausts the loop and then fails its
+    # own field's check.
     probe = None
     spread = 0.0
+
+    def conditions_ok(p):
+        sent = p["streams_sent_ms"]
+        return (
+            max(sent) != sent[0]
+            and any(v != round(v, 1) for v in sent)
+            and any(v != round(v, 1) for v in p["streams_done_ms"])
+            and p["probe_sent_ms"] != round(p["probe_sent_ms"], 1)
+            and p["probe_answered_ms"] != round(p["probe_answered_ms"], 1)
+        )
+
     for _ in range(30):
         fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(
             True, n, probe_after_s=0.3)
         spread = (max(probe["streams_sent_ms"])
                   - min(probe["streams_sent_ms"]))
-        if max(probe["streams_sent_ms"]) != probe["streams_sent_ms"][0]:
+        if conditions_ok(probe):
             break
     for key in ("probe_sent_ms", "probe_answered_ms", "streams_sent_ms",
                 "streams_done_ms", "streams_done_before_probe_answered",
@@ -559,19 +575,25 @@ def case_10():
           "- perf_counter differences are seconds and must be scaled",
           300.0 <= probe["probe_sent_ms"] <= 450.0,
           repr(probe["probe_sent_ms"]))
-    stamped = (list(probe["streams_sent_ms"])
-               + list(probe["streams_done_ms"])
-               + [probe["probe_sent_ms"], probe["probe_answered_ms"]])
-    check("(10) H6: every instant carries at most 3 decimals",
-          all(v == round(v, 3) for v in stamped), json.dumps(stamped))
-    check("(10) H6: at least one instant shows a SUB-0.1 fraction - the "
-          "series is recorded at 3 decimals, not 1",
-          any(v != round(v, 1) for v in stamped), json.dumps(stamped))
     check("(10) H6/B-P3: streams_sent_ms has a spread AND index 0 is NOT "
           "the max - the max() baseline of sent_after_ms is exercised",
           max(probe["streams_sent_ms"]) != probe["streams_sent_ms"][0]
           and spread > 0,
           f"spread={spread} ms, series={json.dumps(probe['streams_sent_ms'])}")
+    # S2: each field on its OWN - the set-level any() let probe_sent_ms
+    # alone go back to 1 dp while the other fields kept their fractions.
+    fields = {
+        "streams_sent_ms": list(probe["streams_sent_ms"]),
+        "streams_done_ms": list(probe["streams_done_ms"]),
+        "probe_sent_ms": [probe["probe_sent_ms"]],
+        "probe_answered_ms": [probe["probe_answered_ms"]],
+    }
+    for fname, values in fields.items():
+        check(f"(10) H6: {fname} carries at most 3 decimals",
+              all(v == round(v, 3) for v in values), json.dumps(values))
+        check(f"(10) H6/S2/Q5: {fname} shows a SUB-0.1 fraction OF ITS OWN "
+              "- recorded at 3 decimals, per field",
+              any(v != round(v, 1) for v in values), json.dumps(values))
     recomputed = mc.count_done_before(probe["streams_done_ms"],
                                       probe["probe_answered_ms"])
     check("(10) streams_done_before_probe_answered == a recomputation from "

@@ -83,9 +83,11 @@ function concurrencyChecks(app, artifact, emit) {
   //
   // H1: the agreement rule is the SAME as engine-harness's commits_agree
   // (>=9 lowercase hex each; two shorts EQUAL; prefix only against a full
-  // 40-hex commit), pinned by the same vectors as
-  // dev/test-running-engine.py - the old >=7-prefix rule accepted
-  // `deadbee9` vs `deadbee`.
+  // 40-hex commit), pinned by TEN vectors shared VERBATIM with
+  // dev/test-running-engine.py - S3: the two lists WERE 8 vs 6 while the
+  // code claimed they matched; they are now byte-for-byte one list,
+  // including S1's 12-vs-9 and 9-vs-12 pairs (both >=9, one longer,
+  // neither 40) that pin the 40-hex clause itself.
   const commitShape = (s) => typeof s === "string" && /^[0-9a-f]{9,}$/.test(s);
   const commitsAgree = (a, b) => {
     if (!commitShape(a) || !commitShape(b)) return false;
@@ -106,19 +108,24 @@ function concurrencyChecks(app, artifact, emit) {
   );
   // The rule's own vectors - the same list dev/test-running-engine.py runs,
   // so a drift between the two implementations is caught here too.
+  const H1_FULL40 = "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1";
   const H1_VECTORS = [
     ["deadbee9", "deadbee", false],
     ["a7d2cec79", "a7d2cec79", true],
-    ["a7d2cec79", "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1", true],
-    ["a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1", "a7d2cec79", true],
+    ["a7d2cec79", H1_FULL40, true],
+    [H1_FULL40, "a7d2cec79", true],
+    [H1_FULL40, "a7d2cec7", false],
     ["a7d2cec7", "a7d2cec79", false],
     ["a7d2cec79", "a7d2cec70", false],
+    ["A7D2CEC79", "A7D2CEC79", false],
+    ["a7d2cec79e7d", "a7d2cec79", false],   // S1: 12 vs 9, neither 40
+    ["a7d2cec79", "a7d2cec79e7d", false],   // S1: 9 vs 12, neither 40
   ];
   const vectorFails = H1_VECTORS.filter(([a, b, want]) => commitsAgree(a, b) !== want);
   emit(
     "concurrency: the H1 commit-rule vectors (same as dev/test-running-engine.py)",
     vectorFails.length === 0,
-    vectorFails.map(([a, b]) => `${a}/${b}`).join(", ") || "all 6 match",
+    vectorFails.map(([a, b]) => `${a}/${b}`).join(", ") || `all ${H1_VECTORS.length} match`,
   );
   emit(
     "concurrency: the three ratios are exactly the artifact's, digit for digit",

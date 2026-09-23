@@ -81,7 +81,10 @@ def commits_agree(left, right):
       which a prefix match between unrelated commits is commonplace;
     - two SHORT strings must be EQUAL;
     - a prefix match is allowed only against a full 40-hex commit (the
-      manifest's), in either direction.
+      manifest's), in either direction. THIS clause is the one the
+      shared vectors pin hardest (S1: 12-vs-9 and 9-vs-12, both >=9,
+      one longer, neither 40 - deleting either `len(...) == 40` guard
+      or the JS twin's must turn a vector red).
 
     The old rule - prefix of >=7 either way - accepted
     `deadbee9` vs `deadbee` (Reviewer A's counterexample); this closes

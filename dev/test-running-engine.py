@@ -22,8 +22,14 @@ Cases:
       DIFFERENT commit -> refused with BOTH commits in the reason;
       either side missing -> refused (unknown is not agreement); prefix
       either way against a FULL 40-hex -> ok.
-  (2b) H1 THE RULE (commits_agree), the six vectors shared verbatim with
-      chat/scripts/tier-panel.mjs: deadbee9 vs deadbee -> refuse; the
+  (2b) H1 THE RULE (commits_agree), the TEN vectors shared VERBATIM
+      with chat/scripts/tier-panel.mjs (S3: they WERE 8 vs 6 while the
+      code claimed "the same list" - now identical, same order): the
+      deadbee9/deadbee counterexample; the equal 9-hex pair; 9 vs
+      full-40 both directions; full-40 vs an 8-hex (the floor bites
+      even against 40); 8 vs 9; two differing 9-hex; an uppercase pair;
+      and S1's two: 12 vs 9 and 9 vs 12 - both >=9, one strictly
+      longer, NEITHER 40 - the clause no other vector pinned. deadbee9 vs deadbee -> refuse; the
       equal 9-hex pair -> ok; 9 vs full-40 (both orders) -> ok;
       a7d2cec7 (8 hex) -> refuse; a7d2cec79 vs a7d2cec70 -> refuse; plus
       an uppercase pair -> refuse (lowercase only), and an integration
@@ -139,6 +145,9 @@ def case_2b_vectors(mod=eh, label=""):
         ("a7d2cec7", "a7d2cec79", False),        # 8 hex: below the floor
         ("a7d2cec79", "a7d2cec70", False),       # two 9-hex, unequal
         ("A7D2CEC79", "A7D2CEC79", False),       # lowercase only
+        # S1: both >=9, one strictly longer, NEITHER 40 - prefix FORBIDDEN
+        ("a7d2cec79e7d", "a7d2cec79", False),    # 12 vs 9
+        ("a7d2cec79", "a7d2cec79e7d", False),    # 9 vs 12
     ]
     for left, right, want in vectors:
         got = mod.commits_agree(left, right)
