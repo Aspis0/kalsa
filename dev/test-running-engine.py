@@ -34,6 +34,10 @@ Cases:
       a7d2cec7 (8 hex) -> refuse; a7d2cec79 vs a7d2cec70 -> refuse; plus
       an uppercase pair -> refuse (lowercase only), and an integration
       probe of check_running_build with the deadbee counterexample.
+  (2c) K2 extraction vectors (the shared list, both languages): a 41-hex
+      `commit` token -> None (no silent truncation to 40);
+      `notcommit <40hex>` -> None (leading edge); `commit a7d2cec79` ->
+      a7d2cec79. Plus a 41-hex /props tail -> None, in case (1).
   (3) engine_identity_line's format: the exact line for a matched block,
       the fork label when the veto fired, `module missing` when the
       module is gone, the reason_code when the evidence is too weak for
@@ -70,6 +74,16 @@ VERSION_OK = ("version: 0.4.1-dev (build 11195, commit a7d2cec79)\n"
               "built with AppleClang 21.0.0.21000101 for Darwin arm64")
 PROPS_OK = {"build_info": "b11195-a7d2cec79"}
 
+# K2: the extraction vectors, shared VERBATIM with
+# chat/scripts/tier-panel.mjs (identical three, same order) and read by
+# dev/test-engine-identity.py to pin mc.engine_identity's delegation - ONE
+# Python list, one JS list.
+EXTRACT_VECTORS = [
+    (f"version build commit {'a' * 41}", None),
+    (f"notcommit {'a' * 40}", None),
+    ("version: 0.4.1-dev (commit a7d2cec79)", "a7d2cec79"),
+]
+
 FAILED = 0
 
 
@@ -98,6 +112,9 @@ def case_1_parsers(mod):
           mod.props_build_commit("garbage") is None)
     check("(1) --version without a commit -> None",
           mod.version_build_commit("version: 0.4.1-dev") is None)
+    check("(1) props: a 41-hex build_info tail extracts None (it cannot "
+          "re-anchor INSIDE the run)",
+          mod.props_build_commit({"build_info": "b11195-" + "a" * 41}) is None)
 
 
 def different_commit_is_refused(mod):
@@ -226,10 +243,19 @@ def case_4_mutation():
         path.unlink(missing_ok=True)
 
 
+def case_2c_extract(mod=eh, label=""):
+    print(f"(2c) K2 extraction vectors - both edges{label}", file=sys.stderr)
+    for text, want in EXTRACT_VECTORS:
+        got = mod.version_build_commit(text)
+        check(f"(2c) version_build_commit({text[:36]!r}...) == {want!r}",
+              got == want, f"got {got!r}")
+
+
 def main():
     case_1_parsers(eh)
     case_2_comparison()
     case_2b_vectors()
+    case_2c_extract()
     case_3_identity_line()
     case_4_mutation()
     print(f"running engine: {'GREEN' if FAILED == 0 else 'RED'} "

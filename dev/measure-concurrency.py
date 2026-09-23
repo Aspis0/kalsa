@@ -530,8 +530,9 @@ def engine_identity(bin_path, version_text, block):
     those fails; None when the status is not `matched` (nothing to veto).
     """
     module = Path(bin_path).parent / ENGINE_MODULE_FILE
-    hit = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
-    vcommit = hit.group(1) if hit else None
+    # K2: ONE Python extraction (engine-harness's, both edges); this used
+    # to inline a \b-commit regex of its own.
+    vcommit = eh.version_build_commit(version_text)
     mcommit = block.get("commit")
     agrees = None
     if vcommit and mcommit:
@@ -1107,41 +1108,6 @@ def require_published_manifest(door_bin, override_url):
             "the override, or run direct (--door-bin absent).")
 
 
-def scrub_secrets(text, credentials):
-    """G3: child output may contain ANYTHING - a runner that echoes stdin
-    must not be able to put a credential or a derived salt into an
-    exception, a print or the artifact. Every credential and its door
-    salt, full and as 16-hex prefixes, are replaced before `text` leaves
-    this function. Longest-first, so a full digest is hidden even where
-    its prefix would match too. (Credentials and salts reach no artifact
-    path at all - dev/test-door-harness.py (7) proves that on the records
-    - so child output is the one channel this guards.)"""
-    if not text:
-        return text
-    hidden = set()
-    for cred in credentials:
-        salt = device_cache_salt(cred)
-        hidden.update((cred, salt, cred[:16], salt[:16]))
-    for s in sorted(hidden, key=len, reverse=True):
-        text = text.replace(s, "[scrubbed]")
-    return text
-
-
-def scrub_child_output(text, credentials):
-    """H3, in THIS order: (1) scrub every credential and door salt (full
-    and 16-hex prefixes) via scrub_secrets; (2) replace every REMAINING
-    run of >= 8 hex chars, either case, with [hex] - a fragment no entry
-    of (1) can recognise must still not survive; (3) strip, then truncate
-    to 300. The old order truncated FIRST and leaked 10 hex characters of
-    a credential behind 290 padding chars (Reviewer A), and (1) alone was
-    not enough: Reviewer B R1 showed the prefix entries vacuous because
-    the fake echoed the FULL credential - a prefix-only or mid-string
-    fragment now lands in (2)."""
-    text = scrub_secrets(text, credentials)
-    text = re.sub(r"[0-9a-fA-F]{8,}", "[hex]", text)
-    return text.strip()[:300]
-
-
 def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     """Spawn measure_door, hand it `capacity` fresh credentials over stdin,
     and wait for its ONE stdout line: `listening 127.0.0.1:<port>`.
@@ -1152,10 +1118,17 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     `except Exception` did exactly that - Reviewer A proved it live:
     HARNESS_EXIT=-2, RUNNER_SURVIVED_AFTER_SIGINT=True). KeyboardInterrupt
     and SystemExit stop the child first and then propagate unchanged; an
-    ordinary Exception becomes the harness's refusal, and BOTH child-output
-    channels (the first stdout line, the stderr excerpt) are run through
-    scrub_secrets before they can enter that message. Returns (proc,
-    door_port, credentials).
+    ordinary Exception becomes the harness's refusal.
+
+    K1 is absolute: NOTHING the child writes (stdout or stderr) ever
+    enters an exception, a print or the artifact. Scrubbing lost to
+    formats - colon groups, spaces, uppercase and split writes each
+    reproduced the credential verbatim - so the policy is WITHHOLD: the
+    refusal names the exit code and says the output was withheld because
+    it could carry a credential (rerun the runner by hand to see it). The
+    one thing parsed from stdout is the bounded port token of
+    `listening 127.0.0.1:<1-65535>` (fullmatch - protocol, not text); the
+    line itself is never quoted. Returns (proc, door_port, credentials).
     """
     credentials = [secrets.token_hex(32) for _ in range(capacity)]
     proc = None
@@ -1182,11 +1155,9 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         box = {}
 
         def read_listening():
-            # scrubbed AT THE SOURCE (H3 order: secrets, hex-runs, then
-            # truncate): the line is child output and is about to be
-            # quoted into an exception message
-            box["line"] = scrub_child_output(proc.stdout.readline(),
-                                             credentials)
+            # K1: PARSED ONLY - the bounded port token below is protocol;
+            # this text never enters a message, a print or the artifact
+            box["line"] = proc.stdout.readline()
 
         reader = threading.Thread(target=read_listening, daemon=True)
         reader.start()
@@ -1194,11 +1165,13 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         if reader.is_alive():
             raise RuntimeError(f"no `listening` line within {timeout_s}s")
         line = box.get("line", "")
-        m = re.fullmatch(r"listening 127\.0\.0\.1:(\d+)\n?", line)
-        if not m:
+        m = re.fullmatch(r"listening 127\.0\.0\.1:(\d{1,5})\n?", line)
+        if not m or not 1 <= int(m.group(1)) <= 65535:
+            # K1: the line is child output - it is NEVER quoted, however
+            # wrong it is; only a validated port token would be kept
             raise RuntimeError(
-                f"unexpected runner output {line.strip()[:80]!r} "
-                f"(runner exit {proc.poll()})")
+                "the runner did not announce a valid "
+                "`listening 127.0.0.1:<1-65535>` line")
         return proc, int(m.group(1)), credentials
     except BaseException as e:
         stop_door_runner(proc)
@@ -1206,15 +1179,15 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
             # KeyboardInterrupt / SystemExit: the child is stopped, the
             # original BaseException propagates untouched.
             raise
-        stderr = ""
-        if proc is not None and proc.stderr is not None:
-            try:
-                stderr = scrub_child_output(proc.stderr.read(), credentials)
-            except OSError:
-                pass
+        # K1: child output is WITHHELD entirely - nothing the child
+        # wrote reaches this message (the `e` texts here are this file's
+        # own RuntimeErrors plus OS/pipe errors; none quotes the child).
+        exit_code = proc.poll() if proc is not None else "not spawned"
         raise SystemExit(
             f"the door runner {door_bin} failed to start: {type(e).__name__}: "
-            f"{e}" + (f" - runner stderr: {stderr}" if stderr else ""))
+            f"{e} (runner exit {exit_code}; its stdout and stderr are "
+            "WITHHELD because they could carry a credential - rerun the "
+            "runner by hand to see them)")
 
 
 def stop_door_runner(proc):

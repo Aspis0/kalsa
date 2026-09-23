@@ -15,15 +15,18 @@ Both findings are Reviewer A's, proven live against the previous code.
       and asserts BOTH that the KeyboardInterrupt propagates unchanged
       AND that the child is dead (pid checked with os.kill(pid, 0)).
 
-  (2) G3 - on a startup failure the refusal message quotes the child's
-      first stdout line and up to 300 chars of stderr, so a runner that
-      echoes stdin would put a credential into an exception. The test runs
-      start_door_runner against a fake that echoes every credential it
-      receives to BOTH stdout and stderr and exits 1, with
-      secrets.token_hex pinned to known values, and asserts the
-      SystemExit text contains none of them - full, 16-hex prefix - while
-      still naming the scrub ([scrubbed]) and the failure. The artifact
-      side (credentials/salts never reach records) is
+  (2) K1 - child output NEVER enters a message. Scrubbing lost to
+      formats (a fake writing the credential in colon groups, spaced,
+      uppercase, split across writes - plus a door salt - reproduced the
+      EXACT credential in the refusal), so the policy is now WITHHOLD:
+      the refusal names the exit code and says stdout/stderr are
+      withheld because they could carry a credential (rerun the runner
+      by hand to see them). The test pins secrets.token_hex, runs a fake
+      that emits every one of those formats on BOTH streams and exits 1,
+      and asserts the SystemExit text contains NO plain 4-hex chunk of
+      the credential or salt AND none of the renderings, plus the exit
+      code and the withheld/rerun wording. The artifact side
+      (credentials/salts never reach records) is
       dev/test-door-harness.py (7)'s, not this file's.
 
   (3) H2 runner spawn window: a SIGINT delivered by os.kill to self at
@@ -38,15 +41,6 @@ Both findings are Reviewer A's, proven live against the previous code.
       have been assigned before delivery (so main's finally can stop it),
       and the sleep must be dead afterwards; even a RED run's cleanup
       kills the child it lost track of.
-  (5) H3 scrub order, three fakes with a pinned credential: (a) 290
-      padding chars then the FULL credential on stderr - the old
-      truncate-first leaked 10 hex of it, and only a pre-truncation
-      scrub can put [scrubbed] at offset 290; (b) a PREFIX-only leak
-      (first 16 hex alone) must be [scrubbed], proving the prefix
-      entries are load-bearing (B R1 showed them vacuous against a
-      full-echo fake); (c) a 10-hex mid-string fragment must become
-      [hex]. None may survive into the exception.
-
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -99,38 +93,25 @@ open(os.environ["DOOR_FAKE_PIDFILE"], "w").write(str(os.getpid()))
 sys.stdin.read()      # hold the credentials; NEVER print the listening line
 """
 
-ECHO_RUNNER = """#!/usr/bin/env python3
-import sys
-for line in sys.stdin:               # echo each credential as it arrives
-    sys.stdout.write(line)
-    sys.stdout.flush()
-    sys.stderr.write("runner saw: " + line)
-    sys.stderr.flush()
+GROUPED_RUNNER = """#!/usr/bin/env python3
+import hashlib, sys
+NL = chr(10)
+cred = ""
+for line in sys.stdin:
+    cred = line.rstrip(NL)
+    break
+salt = hashlib.sha256(b"kalsa-cache-salt-v1" + cred.encode()).hexdigest()
+groups = ":".join(cred[i:i+4] for i in range(0, len(cred), 4))
+spaced = " ".join(salt[i:i+4] for i in range(0, len(salt), 4))
+# every format that beat the scrubber, split across writes, both streams
+sys.stdout.write("probe " + groups[:20])
+sys.stdout.flush()
+sys.stdout.write(groups[20:] + NL)
+sys.stderr.write("colons " + groups + NL)
+sys.stderr.write("spaced " + spaced + NL)
+sys.stderr.write("upper " + cred.upper() + NL)
+sys.stderr.write("split " + cred[:10] + " " + cred[10:24] + " " + cred[24:] + NL)
 sys.exit(1)
-"""
-
-PADDING_RUNNER = """#!/usr/bin/env python3
-import sys
-for line in sys.stdin:               # the credential sits at offset 290
-    sys.stderr.write("p" * 290 + line)
-    sys.stderr.flush()
-    sys.exit(1)
-"""
-
-PREFIX_RUNNER = """#!/usr/bin/env python3
-import sys
-for line in sys.stdin:               # ONLY the first 16 hex leak
-    sys.stderr.write(line[:16])
-    sys.stderr.flush()
-    sys.exit(1)
-"""
-
-FRAGMENT_RUNNER = """#!/usr/bin/env python3
-import sys
-for line in sys.stdin:               # a 10-hex mid-string fragment
-    sys.stderr.write(line[6:16])
-    sys.stderr.flush()
-    sys.exit(1)
 """
 
 
@@ -194,11 +175,11 @@ def case_lifecycle():
         pass
 
 
-def case_scrub():
-    print("(2) G3: a runner that echoes stdin cannot put a credential into "
-          "the refusal", file=sys.stderr)
-    work, script = write_script(ECHO_RUNNER)
-    known = "11" * 32          # token_hex(32) -> 64 hex chars
+def case_withheld():
+    print("(2) K1: child output NEVER enters a refusal - colon groups, "
+          "spaces, uppercase, split writes, a salt", file=sys.stderr)
+    work, script = write_script(GROUPED_RUNNER)
+    known = "ab" * 32          # token_hex(32) pinned -> salts are known
     real_token_hex = secrets.token_hex
     secrets.token_hex = lambda nbytes: known
     try:
@@ -206,25 +187,66 @@ def case_scrub():
                         timeout_s=30.0)
     finally:
         secrets.token_hex = real_token_hex
-    shutil.rmtree(work, ignore_errors=True)
+        shutil.rmtree(work, ignore_errors=True)
     check("(2) the failure became the harness's SystemExit refusal",
-          isinstance(caught, SystemExit), type(caught).__name__
-          if caught is not None else "no exception")
+          isinstance(caught, SystemExit),
+          type(caught).__name__ if caught is not None else "no exception")
     msg = str(caught) if caught is not None else ""
+    # the temp path is random; remove it so the scan below is deterministic
+    scan = msg.replace(str(script), "")
     salt = mc.device_cache_salt(known)
-    check("(2) the refusal text contains NO credential (full)", known not in msg,
+    chunks = set()
+    for secret in (known, salt, known.upper(), salt.upper()):
+        chunks.update(secret[i:i + 4] for i in range(len(secret) - 3))
+    leaked = sorted(c for c in chunks if c in scan)
+    check("(2) NO plain 4-hex chunk of credential or salt survives into "
+          "the message", not leaked, str(leaked[:6]))
+    colon_groups = ":".join(known[i:i + 4] for i in range(0, len(known), 4))
+    spaced_salt = " ".join(salt[i:i + 4] for i in range(0, len(salt), 4))
+    split_cred = known[:10] + " " + known[10:24] + " " + known[24:]
+    renderings = [colon_groups, spaced_salt, known.upper(), split_cred,
+                  known, salt]
+    forms = [r[:28] for r in renderings if r and r in scan]
+    check("(2) NO grouped / spaced / uppercase / split rendering survives "
+          "(every format that beat the scrubber)", not forms, str(forms))
+    check("(2) the refusal names the exit code", "runner exit 1" in msg,
           msg[:200])
-    check("(2) ...nor its 16-hex prefix", known[:16] not in msg, known[:16])
-    check("(2) ...and NO derived salt (full)", salt not in msg, salt[:20])
-    check("(2) ...nor the salt's 16-hex prefix", salt[:16] not in msg,
-          salt[:16])
-    check("(2) the scrub is visible - the message was rewritten, not "
-          "silently emptied", "[scrubbed]" in msg, msg[:200])
-    check("(2) the message still names the failure",
-          "failed to start" in msg, msg[:160])
-    check("(2) BOTH channels were scrubbed: the echoed stdout (quoted via "
-          "the unexpected-output reason) and the stderr excerpt",
-          msg.count("[scrubbed]") >= 2, str(msg.count("[scrubbed]")))
+    check("(2) ...and that the output was WITHHELD, to be rerun by hand",
+          "WITHHELD" in msg and "rerun the runner by hand" in msg,
+          msg[:270])
+
+
+VALID_RUNNER = """#!/usr/bin/env python3
+import sys
+next(sys.stdin, None)     # the one credential line
+print("listening 127.0.0.1:58229")
+sys.stdout.flush()
+next(sys.stdin, None)     # then block until the harness closes stdin
+"""
+
+def case_success_path():
+    print("(2b) K1: the SUCCESS path still parses a valid listening line",
+          file=sys.stderr)
+    work, script = write_script(VALID_RUNNER)
+    proc = None
+    try:
+        proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                 timeout_s=30.0)
+        check("(2b) the bounded parse returns the port as an int",
+              port == 58229, repr(port))
+        check("(2b) one 64-hex credential was minted - and no output text "
+              "made it into the returned port",
+              len(creds) == 1 and len(creds[0]) == 64, repr(len(creds)))
+    except BaseException as e:
+        check("(2b) start succeeded on a valid line", False,
+              f"{type(e).__name__}: {e}")
+    finally:
+        mc.stop_door_runner(proc)
+        shutil.rmtree(work, ignore_errors=True)
+    if proc is not None and proc.poll() is not None:
+        check("(2b) the runner is dead after stop", True, f"exit {proc.returncode}")
+    elif proc is not None:
+        check("(2b) the runner is dead after stop", False, "still alive")
 
 
 def case_spawn_window_runner():
@@ -315,46 +337,12 @@ def case_spawn_window_engine():
               not pid_alive(pid), f"pid {pid} alive={pid_alive(pid)}")
 
 
-def case_scrub_order():
-    print("(5) H3 scrub order: padding, prefix-only, fragment - none may "
-          "survive", file=sys.stderr)
-    known = "ab" * 32
-    cases = [
-        ("padding-then-full-credential", PADDING_RUNNER,
-         lambda m: known not in m and "[scrubbed]" in m,
-         "full credential absent AND [scrubbed] present - only a "
-         "pre-truncation scrub puts [scrubbed] at offset 290"),
-        ("prefix-only (first 16 hex)", PREFIX_RUNNER,
-         lambda m: known[:16] not in m and "[scrubbed]" in m,
-         "the 16-hex prefix absent AND [scrubbed] present - the prefix "
-         "entries are load-bearing, not vacuous"),
-        ("10-hex mid-string fragment", FRAGMENT_RUNNER,
-         lambda m: known[6:16] not in m and "[hex]" in m,
-         "the fragment absent AND [hex] present - the hex-run rule did it"),
-    ]
-    for name, script_src, predicate, why in cases:
-        work, script = write_script(script_src)
-        real_token_hex = secrets.token_hex
-        secrets.token_hex = lambda nbytes: known
-        try:
-            caught = raised(mc.start_door_runner, str(script), 19311, 1,
-                            timeout_s=30.0)
-        finally:
-            secrets.token_hex = real_token_hex
-            shutil.rmtree(work, ignore_errors=True)
-        msg = str(caught) if caught is not None else ""
-        check(f"(5) {name}: became the SystemExit refusal",
-              isinstance(caught, SystemExit),
-              type(caught).__name__ if caught is not None else "none")
-        check(f"(5) {name}: {why}", predicate(msg), msg[:170])
-
-
 def main():
     case_lifecycle()
-    case_scrub()
+    case_withheld()
+    case_success_path()
     case_spawn_window_runner()
     case_spawn_window_engine()
-    case_scrub_order()
     print(f"door runner: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

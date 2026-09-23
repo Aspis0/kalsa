@@ -113,8 +113,9 @@ def version_of(bin_path):
 
 
 def commit_of(version_text):
-    m = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
-    return m.group(1) if m else None
+    """The --version commit, via engine-harness's extraction (K2: both
+    edges, ONE Python definition - this used to inline its own)."""
+    return eh.version_build_commit(version_text)
 
 
 def libllama_of(bin_path):

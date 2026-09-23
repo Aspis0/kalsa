@@ -57,17 +57,29 @@ def fetch_props(port, timeout=5):
 def props_build_commit(props):
     """PURE: the commit out of /props' `build_info`. This release prints
     `b11195-a7d2cec79` (quoted from a live probe of v1.1.1); the commit is
-    the trailing hex run, None when the field is absent or carries none."""
+    the trailing hex run, None when the field is absent or carries none.
+    K2: the leading `(?<![0-9a-f])` edge stops a 41-hex tail from being
+    re-anchored INSIDE itself and truncated to a clean 40 - the trailing
+    `$` alone does not (the old regex matched the last 40 of 41)."""
     build = props.get("build_info") if isinstance(props, dict) else None
     if not isinstance(build, str):
         return None
-    m = re.search(r"([0-9a-f]{7,40})\s*$", build.strip())
+    m = re.search(r"(?<![0-9a-f])([0-9a-f]{7,40})\s*$", build.strip())
     return m.group(1) if m else None
 
 
 def version_build_commit(version_text):
-    """PURE: the commit out of a `--version` text (`commit <x>`)."""
-    m = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
+    """PURE: the commit out of a `--version` text (`commit <x>`).
+
+    K2: BOTH EDGES - `(?<![0-9a-z])` rejects `notcommit ...`, and the
+    trailing `(?![0-9a-z])` rejects the 41-hex run the old
+    unbounded-tail regex truncated to a clean 40. The extracted token is
+    then judged by commits_agree's own rules. The ONE Python definition:
+    mc.engine_identity and prefill's commit_of delegate here;
+    tier-panel.mjs carries the identical regex, pinned by the shared
+    extraction vectors in both test files."""
+    m = re.search(r"(?<![0-9a-z])commit ([0-9a-f]{7,40})(?![0-9a-z])",
+                  version_text or "")
     return m.group(1) if m else None
 
 

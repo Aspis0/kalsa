@@ -96,7 +96,11 @@ function concurrencyChecks(app, artifact, emit) {
     if (b.length === 40 && b.startsWith(a)) return true;
     return false;
   };
-  const engineCommit = /commit ([0-9a-f]{7,40})/.exec(
+  // K2: BOTH edges, identical to engine-harness's version_build_commit -
+  // the old regex had neither, so `notcommit <40>` parsed HERE (and a
+  // 41-hex run truncated to a clean 40 in Python).
+  const H1_COMMIT_RE = /(?<![0-9a-z])commit ([0-9a-f]{7,40})(?![0-9a-z])/;
+  const engineCommit = H1_COMMIT_RE.exec(
     artifact.provenance.engine_version ?? "",
   )?.[1];
   const releaseCommit = release.commit;
@@ -126,6 +130,22 @@ function concurrencyChecks(app, artifact, emit) {
     "concurrency: the H1 commit-rule vectors (same as dev/test-running-engine.py)",
     vectorFails.length === 0,
     vectorFails.map(([a, b]) => `${a}/${b}`).join(", ") || `all ${H1_VECTORS.length} match`,
+  );
+  // K2 extraction vectors - the same three
+  // dev/test-running-engine.py runs, through the same regex object that
+  // extracts the artifact's own engine_version above.
+  const H1_EXTRACT_VECTORS = [
+    [`version build commit ${"a".repeat(41)}`, null],
+    [`notcommit ${"a".repeat(40)}`, null],
+    ["version: 0.4.1-dev (commit a7d2cec79)", "a7d2cec79"],
+  ];
+  const extractFails = H1_EXTRACT_VECTORS.filter(
+    ([text, want]) => (H1_COMMIT_RE.exec(text)?.[1] ?? null) !== want,
+  );
+  emit(
+    "concurrency: the H1 commit-EXTRACTION vectors (both edges, same as dev/test-running-engine.py)",
+    extractFails.length === 0,
+    extractFails.map(([text]) => text.slice(0, 32)).join(" | ") || "all match",
   );
   emit(
     "concurrency: the three ratios are exactly the artifact's, digit for digit",

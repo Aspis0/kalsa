@@ -28,6 +28,16 @@ The manifest body is read from /tmp/k111/manifest.json and injected through
       reason_code `engine-manifest-commit-missing`, never
       `engine-commit-mismatch`: a manifest that publishes no commit is
       missing evidence, not a mismatched tree.
+  (e) the H1 rule at engine_identity: a manifest commit "deadbee" vs
+      `--version commit deadbee9` -> not-the-release /
+      `engine-commit-mismatch` (both present, the RULE refused them);
+      a manifest commit exactly equal to the 9-hex version token ->
+      matched (short equality is the rule's allowed short form).
+  (f) K2: the three SHARED extraction vectors driven through
+      mc.engine_identity (it delegates to engine-harness's one Python
+      definition), and a 41-hex --version commit refusing end-to-end as
+      `engine-version-commit-missing` - a truncation-to-40 would have
+      produced a different reason_code, which is what this pins.
 
 Whole directories are copied, because `--version` loads its own dylibs from
 beside the launcher. Case (c) is the declared exception: without the module
@@ -247,12 +257,39 @@ def case_e():
           repr((equal["status"], equal["identity"]["ok"])))
 
 
+def case_f():
+    print("(f) K2: mc's commit extraction has both edges (it delegates "
+          "to engine-harness)", file=sys.stderr)
+    tre_spec = importlib.util.spec_from_file_location(
+        "tre_vectors", HERE / "test-running-engine.py")
+    tre = importlib.util.module_from_spec(tre_spec)
+    tre_spec.loader.exec_module(tre)
+    block = {"status": "matched",
+             "commit": "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1"}
+    for text, want in tre.EXTRACT_VECTORS:
+        ident = mc.engine_identity(str(V111_BIN), text, block)
+        check(f"(f) engine_identity extracts {want!r} from the same shared "
+              "text", ident["version_commit"] == want,
+              repr(ident["version_commit"]))
+    forty_one = f"version: 0.4.1-dev (build 11195, commit {'a' * 41})"
+    blk = mc.release_block(str(V111_BIN), forty_one,
+                           mc.derive_manifest_url(str(V111_BIN)),
+                           fetch=lambda u: MANIFEST_BODY)
+    check("(f) a 41-hex --version commit REFUSES as "
+          "engine-version-commit-missing (a silent truncation to 40 "
+          "would have said engine-commit-mismatch instead)",
+          blk["status"] == "not-the-release"
+          and blk.get("reason_code") == "engine-version-commit-missing",
+          repr((blk["status"], blk.get("reason_code"))))
+
+
 def main():
     case_a()
     case_b()
     case_c()
     case_d()
     case_e()
+    case_f()
     print(f"engine identity: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)
