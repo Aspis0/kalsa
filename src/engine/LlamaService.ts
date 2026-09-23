@@ -2319,7 +2319,6 @@ export function initEngine(
             contextTokens: effectiveNCtx,
             ubatch: tuning.n_ubatch,
             mmap: load.useMmap,
-            repack: !load.noExtraBufts,
             offloadedBytes: modelInfo.sizeBytes,
           }, benchGovernorForce)
         : null;

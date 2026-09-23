@@ -187,6 +187,26 @@ describe("governor inputs", () => {
     ).toBe("Fit");
   });
 
+  test("the lane fits at its repack-free requirement, not the repack-priced one", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b");
+    expect(lfm).not.toBeNull();
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneAt = (availableBytes: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableBytes,
+    });
+    // The binding forces no_extra_bufts on the governor decode model
+    // (llama.rn-kalsa cpp/rn-llama.cpp load_governor_models), so the lane
+    // never allocates the CPU repack copy: its budget is
+    // 800 + 1.05·W + 2×compute@256 + 2×KV = 2998.06 MiB for LFM 2.6B at
+    // ctx 8192. Pricing the repack back in (4358.70 MiB) flips Fit to NoFit.
+    expect(buildGovernorParams(lfm!, s23, laneAt(2999 * 1024 ** 2)).gpu_fit).toBe("Fit");
+    // One MiB below the requirement flips — the pin is the exact number.
+    expect(buildGovernorParams(lfm!, s23, laneAt(2997 * 1024 ** 2)).gpu_fit).toBe("NoFit");
+  });
+
   test("bench thermo wins over BatteryManager", async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
       JSON.stringify({

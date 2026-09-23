@@ -49,7 +49,6 @@ type MemorySnapshot = {
   contextTokens: number;
   ubatch?: number;
   mmap?: boolean;
-  repack?: boolean;
   offloadedBytes?: number | null;
 };
 
@@ -95,7 +94,10 @@ function gpuFit(
     kvBytesPerToken: kv,
     ubatch: memory.ubatch ?? 256,
     mmap: memory.mmap,
-    repack: memory.repack,
+    // The lane's decode model loads with no_extra_bufts=true (binding:
+    // rn-llama.cpp load_governor_models), so no CPU repack copy exists here;
+    // pricing one demanded ~W of memory the lane never allocates.
+    repack: false,
   });
   const verdict = fitMemoryEstimate(
     estimate,
