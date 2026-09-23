@@ -17,6 +17,10 @@ jest.mock("react-native", () => ({
   },
 }));
 
+jest.mock("./platformThermalStatus", () => ({
+  readPlatformThermalState: jest.fn(async () => null),
+}));
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeModules } from "react-native";
 import type { DeviceProfile } from "./deviceProfile";
@@ -26,6 +30,8 @@ import {
   readBenchGovernorForce,
   readGovernorThermo,
 } from "./governorInputs";
+import { trendProducer } from "./governorTrend";
+import { readPlatformThermalState } from "./platformThermalStatus";
 
 const device = (
   modelName: string,
@@ -56,6 +62,8 @@ const memory = {
 };
 
 describe("governor inputs", () => {
+  let nowSpy: jest.SpyInstance<number, []>;
+
   beforeEach(() => {
     jest.resetAllMocks();
     (AsyncStorage.getItem as jest.Mock).mockReset();
@@ -67,6 +75,14 @@ describe("governor inputs", () => {
       plugged: false,
       sensorValid: true,
     });
+    (readPlatformThermalState as unknown as jest.Mock).mockReset();
+    (readPlatformThermalState as unknown as jest.Mock).mockResolvedValue(null);
+    trendProducer.reset();
+    nowSpy = jest.spyOn(Date, "now");
+  });
+
+  afterEach(() => {
+    nowSpy.mockRestore();
   });
 
   test("enables the V75 GPU-prefill route", () => {
@@ -297,6 +313,107 @@ describe("governor inputs", () => {
       sensor_valid: true,
       plugged: false,
       thermo_source: "battery",
+    });
+  });
+
+  test("first poll reports the absent trend as zero", async () => {
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      sensor_valid: true,
+      trend_c_per_min: 0,
+      platform_thermal: null,
+    });
+  });
+
+  test("computes trend_c_per_min from successive polls in C per minute", async () => {
+    const t0 = 1_758_000_000_000;
+    nowSpy.mockReturnValue(t0);
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      trend_c_per_min: 0,
+    });
+    nowSpy.mockReturnValue(t0 + 90_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 326,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    // 0.6 C over 1.5 min: positive sign, engine units.
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      trend_c_per_min: expect.closeTo(0.4, 6),
+    });
+  });
+
+  test("invalid sensor reports zero trend and never enters the series", async () => {
+    const t0 = 1_758_000_000_000;
+    nowSpy.mockReturnValue(t0);
+    await readGovernorThermo();
+    nowSpy.mockReturnValue(t0 + 90_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 0,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: false,
+    });
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      sensor_valid: false,
+      trend_c_per_min: 0,
+    });
+    nowSpy.mockReturnValue(t0 + 150_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 326,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    // The 0-reading invalid poll is outside the series: 0.6 C over 2.5 min.
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      trend_c_per_min: expect.closeTo(0.24, 6),
+    });
+  });
+
+  test("a failed native read leaves the engine defaults standing", async () => {
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockRejectedValue(
+      new Error("native gone"),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      sensor_valid: false,
+      trend_c_per_min: 0,
+      platform_thermal: null,
+      thermo_source: "battery",
+    });
+  });
+
+  test("forwards a bench-injected trend untouched", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 410,
+        batt_level_pct: 55,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 35,
+        trend_c_per_min: 2.5,
+      }),
+    );
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      trend_c_per_min: 2.5,
+      thermo_source: "bench-skin",
+    });
+  });
+
+  test("forwards the raw platform thermal state without deciding on it", async () => {
+    // Android THERMAL_STATUS_SEVERE = 3: below the app's CRITICAL hard gate,
+    // so it used to be collapsed to false. The snapshot carries it raw.
+    (readPlatformThermalState as unknown as jest.Mock).mockResolvedValue({
+      platform: "android",
+      supported: true,
+      androidStatus: 3,
+    });
+    const snapshot = await readGovernorThermo();
+    expect(snapshot.platform_thermal).toEqual({
+      platform: "android",
+      supported: true,
+      androidStatus: 3,
     });
   });
 });

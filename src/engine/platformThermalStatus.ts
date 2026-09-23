@@ -65,6 +65,23 @@ export function isPlatformThermalApiAvailable(): boolean {
 }
 
 /**
+ * Raw platform severity for transport: exactly what the OS reported (Android
+ * THERMAL_STATUS_* as an int, iOS ProcessInfo state), or null when the API is
+ * unavailable. No threshold, no mapping - measuring and forwarding is this
+ * layer's job; interpreting a severity is not.
+ */
+export async function readPlatformThermalState(): Promise<
+  ThermalPlatformRead | null
+> {
+  try {
+    return await getCurrentPlatformThermalState();
+  } catch {
+    // An unavailable signal stays null; it never becomes a fabricated state.
+    return null;
+  }
+}
+
+/**
  * Read the platform thermal severity and return whether the device is at (or
  * past) the total HARD-gate severity. Fails OPEN (returns `false`) when the
  * platform thermal API is unavailable or errors — it never hard-blocks on a

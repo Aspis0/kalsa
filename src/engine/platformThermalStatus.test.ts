@@ -7,6 +7,7 @@ jest.mock("expo-modules-core", () => ({
 import {
   getPlatformThermalHardGate,
   isPlatformThermalApiAvailable,
+  readPlatformThermalState,
   readToHardGate,
   type ThermalPlatformRead,
 } from "./platformThermalStatus";
@@ -57,6 +58,10 @@ describe("getPlatformThermalHardGate — fail open", () => {
     // reader must fail OPEN rather than hard-block.
     expect(isPlatformThermalApiAvailable()).toBe(false);
     await expect(getPlatformThermalHardGate()).resolves.toBe(false);
+  });
+
+  it("raw state reader fails open to null instead of a fabricated state", async () => {
+    await expect(readPlatformThermalState()).resolves.toBeNull();
   });
 
   it("never fabricates a gate from an advisory temperature", async () => {

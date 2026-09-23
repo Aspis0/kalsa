@@ -3,6 +3,11 @@ import { NativeModules } from "react-native";
 import type { DeviceProfile } from "./deviceProfile";
 import type { ModelInfo } from "./ModelRegistry";
 import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
+import { trendProducer } from "./governorTrend";
+import {
+  readPlatformThermalState,
+  type ThermalPlatformRead,
+} from "./platformThermalStatus";
 
 const MIB = 1024 * 1024;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
@@ -37,6 +42,12 @@ type ThermoProfile = {
 
 type ThermoSnapshot = ThermoProfile & {
   thermo_source: "battery" | "bench-skin";
+  // Raw OS thermal severity (Android THERMAL_STATUS_* int, iOS state), or
+  // null when the platform has nothing to report. Transported as measured;
+  // no threshold is applied here. The pinned binding's parse_governor_thermo
+  // copies known fields only, so the engine side needs its own field before
+  // this reaches a decision.
+  platform_thermal: ThermalPlatformRead | null;
 };
 
 type BatteryModule = {
@@ -175,6 +186,9 @@ function profileFrom(value: unknown): ThermoProfile | null {
     : Number.isFinite(idleTenths)
       ? idleTenths / 10
       : 0;
+  // A caller may inject a trend (bench only: the native module never sends
+  // one). When it does not, the key stays absent and the producer computes it.
+  const trend = numberValue(input.trend_c_per_min, Number.NaN);
   return {
     batt_temp_tenths_c: temp,
     batt_level_pct: level,
@@ -182,16 +196,42 @@ function profileFrom(value: unknown): ThermoProfile | null {
     sensor_valid: sensor,
     t_idle_valid: idleValidRaw,
     t_idle_c: idle,
-    trend_c_per_min: numberValue(input.trend_c_per_min, 0),
+    ...(Number.isFinite(trend) ? { trend_c_per_min: trend } : {}),
+  };
+}
+
+function servedProfile(
+  profile: ThermoProfile,
+  source: ThermoSnapshot["thermo_source"],
+  platformThermal: ThermalPlatformRead | null,
+): ThermoSnapshot {
+  const nowMs = Date.now();
+  trendProducer.observe(
+    source,
+    profile.batt_temp_tenths_c,
+    profile.sensor_valid,
+    nowMs,
+  );
+  return {
+    ...profile,
+    // Trend rides only on a sensor-valid reading; an invalid profile reports
+    // 0 and the engine refuses it on sensor_valid regardless.
+    trend_c_per_min: profile.sensor_valid
+      ? (profile.trend_c_per_min ?? trendProducer.trend(nowMs))
+      : 0,
+    thermo_source: source,
+    platform_thermal: platformThermal,
   };
 }
 
 export async function readGovernorThermo(): Promise<ThermoSnapshot> {
+  const platformThermal = await readPlatformThermalState();
+
   try {
     const bench = await AsyncStorage.getItem(BENCH_THERMO_KEY);
     if (bench) {
       const profile = profileFrom(JSON.parse(bench));
-      if (profile) return { ...profile, thermo_source: "bench-skin" };
+      if (profile) return servedProfile(profile, "bench-skin", platformThermal);
     }
   } catch {
     // A malformed bench value must not block the production battery path.
@@ -201,16 +241,19 @@ export async function readGovernorThermo(): Promise<ThermoSnapshot> {
     const module = NativeModules.GovernorBattery as BatteryModule | undefined;
     const battery = module?.readThermo ? await module.readThermo() : null;
     const profile = profileFrom(battery);
-    if (profile) return { ...profile, thermo_source: "battery" };
+    if (profile) return servedProfile(profile, "battery", platformThermal);
   } catch {
     // Missing native module is expected on host/iOS; it makes the profile invalid.
   }
 
+  // Nothing honest to measure: the engine's own defaults, trend included.
   return {
     batt_temp_tenths_c: 0,
     batt_level_pct: 0,
     plugged: false,
     sensor_valid: false,
+    trend_c_per_min: 0,
     thermo_source: "battery",
+    platform_thermal: platformThermal,
   };
 }
