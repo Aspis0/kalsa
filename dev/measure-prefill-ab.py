@@ -85,6 +85,14 @@ RELEASE_LINE = "server is entering sleeping state"
 GOV_RE = re.compile(r"governor|thermal|ceiling|paus|throttl|hot", re.I)
 TIMING_RE = re.compile(r"prompt eval time =")
 
+# The lines that NAME the backend - the discriminant between these two
+# engines, and the thing GOV_RE could never see: the fork's build is CPU-only
+# (build/CMakeCache.txt GGML_METAL:BOOL=OFF) and says so on its first line;
+# the release offloads to Metal. A pattern that cannot see the discriminant
+# is not a proof of absence, so this one is searched separately and recorded.
+BACKEND_RE = re.compile(r"offloaded \d+/\d+ layers to GPU|no usable GPU found"
+                        r"|ggml_metal_init: found device", re.I)
+
 
 def arm_extra(slots_dir):
     """The flags the old run's cold send had: same configuration, only the
@@ -192,6 +200,63 @@ def timing_lines(lines):
     return [ln.strip()[:200] for ln in lines if TIMING_RE.search(ln)][:5]
 
 
+def backend_evidence(lines):
+    """What THIS engine's own log says about the backend it ran on.
+
+    Returns `gpu` / `cpu` / `unknown`. `unknown` is declared loudly, never
+    left as silence: a log that names nothing at this verbosity proves
+    nothing about the backend, and the whole point of this field is that the
+    earlier pattern (governor/thermal/pause) could not see the difference
+    that mattered while the decisive line sat on line 1.
+    """
+    hits = [ln.strip()[:200] for ln in lines if BACKEND_RE.search(ln)]
+    if any("no usable GPU" in h for h in hits):
+        verdict = "cpu"
+    elif any("offloaded" in h or "found device" in h for h in hits):
+        verdict = "gpu"
+    else:
+        verdict = "unknown"
+    return {
+        "verdict": verdict,
+        "lines": hits[:5],
+        "pattern": BACKEND_RE.pattern,
+        "note": ("named by this engine's own log line" if verdict != "unknown"
+                 else "no line in this engine's logs names the backend at "
+                      "-lv 4: absence of the pattern is NOT proof of the "
+                      "backend, and this field says so instead of staying "
+                      "silent"),
+    }
+
+
+def backend_totals(arms):
+    """backend_evidence aggregated per engine across its arms."""
+    out = {}
+    for rec in arms.values():
+        eng = rec.get("engine")
+        ev = rec.get("backend_lines") or {}
+        slot = out.setdefault(eng, {"verdict": None, "lines": []})
+        for line in ev.get("lines") or []:
+            if line not in slot["lines"]:
+                slot["lines"].append(line)
+        slot["lines"] = slot["lines"][:5]
+        v = ev.get("verdict")
+        if v in ("gpu", "cpu"):
+            if slot["verdict"] in (None, v):
+                slot["verdict"] = v
+            elif slot["verdict"] != v:
+                slot["verdict"] = "conflicting"
+        elif slot["verdict"] is None:
+            slot["verdict"] = v
+    for slot in out.values():
+        slot["note"] = (
+            "named by this engine's own log line; THIS is the discriminant "
+            "between the two engines"
+            if slot["verdict"] in ("gpu", "cpu")
+            else "no line in this engine's logs names the backend at -lv 4: "
+                 "absence of the pattern is NOT proof of the backend")
+    return out
+
+
 def start_burners(n):
     procs = []
     for _ in range(n):
@@ -265,6 +330,7 @@ def run_arm(label, ident, size, args, burners=0, heat_s=0):
                             "cold, so prompt_ms is not a prefill measurement")
         rec["governor_lines"] = scan_governor(server.lines())
         rec["prompt_eval_lines"] = timing_lines(server.lines())
+        rec["backend_lines"] = backend_evidence(server.lines())
         rec["log"] = str(arm_dir / "engine.log")
         rec["_sentinel"] = sent
     finally:
@@ -361,6 +427,12 @@ def decide(arms, old_ref, between):
         + f", old run={((old_ref.get('governor_lines_old_run') or {}).get('count'))}")
     old_load = (old_ref.get("loadavg_before") or [None])[0]
     old_load = round(old_load, 2) if isinstance(old_load, (int, float)) else old_load
+    be = backend_totals(arms)
+    be_note = ("; the discriminant is the BACKEND: "
+               + ", ".join(f"{k}={v['verdict']}" for k, v in sorted(be.items()))
+               + " (backend_evidence: "
+               + " | ".join(f"{k}: {(v['lines'] or ['no line naming it'])[0]}"
+                            for k, v in sorted(be.items())) + ")")
 
     same_low = (f19 and r19 and max(f19, r19) <= 2 * min(f19, r19))
     fork_slow_low = f19 and r19 and f19 >= 3 * r19
@@ -385,7 +457,7 @@ def decide(arms, old_ref, between):
                 f"({round(f19 / r19, 1)}x), so the 16x follows the engine, not "
                 f"the machine; the two commits between them are "
                 f"{', '.join(between) if between else 'unknown (engine repo not readable)'}; "
-                f"{gov_note}{tail}.")
+                f"{gov_note}{tail}{be_note}.")
     if fork_slow_load and release_slow_load:
         return (f"MACHINE: at low load both builds agree ({f19} vs {r19} ms/token "
                 f"at 1900, {f600} vs {r600} at 600) and the old number returns "
@@ -480,6 +552,16 @@ def main():
         raise SystemExit(f"REFUSING TO WRITE: chat text found in {leaked}")
 
     gov = governor_totals(arms)
+    backend_by_engine = backend_totals(arms)
+    discriminant = (
+        "backend_evidence is the discriminant between these two engines: ab_control "
+        "proves they are two different binaries (module/libllama/commit shas) but "
+        "cannot say WHICH difference matters, and governor_lines searched a mechanism "
+        "that is not in llama-server's path - a pattern that cannot see the "
+        "discriminant is not a proof of absence. Each engine's own log names its "
+        "backend: "
+        + ", ".join(f"{k}={v['verdict']}" for k, v in sorted(backend_by_engine.items()))
+        + ".")
     conclusion = decide(arms, old_ref, between)
     record = {
         "measurement": "prefill-build-ab",
@@ -510,6 +592,8 @@ def main():
         },
         "engines": idents,
         "ab_control": control,
+        "backend_evidence": backend_by_engine,
+        "backend_discriminant": discriminant,
         "governor_lines": gov,
         "old_run": old_ref,
         "arms": arms,

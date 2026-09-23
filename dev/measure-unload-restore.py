@@ -638,6 +638,16 @@ def kv_layout(kv_lines, swa_lines):
     return layout
 
 
+def host_mem_total_bytes():
+    """Physical RAM of this machine, read at run start - so the number the
+    report quotes about the machine lives in the artifact instead of only in
+    a commit message where nobody can recheck it."""
+    try:
+        return int(os.sysconf("SC_PHYS_PAGES")) * int(os.sysconf("SC_PAGE_SIZE"))
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
 # ---------------------------------------------------------------- disk curve
 # Declared sources for the comparisons the disk-curve conclusion makes - all
 # of them committed artifacts or the GGUF header, none of them invented here:
@@ -733,43 +743,89 @@ def disk_curve_sentence(rows, model_facts=None, kv_lines=None, swa_lines=None):
     a_clause += f"; the 600->1900 base was {BASE_BYTES_PER_TOKEN} B/token, "
     a_clause += f"the q8_0 full-KV arithmetic from the model's own GGUF header is {q8bpt} B/token"
 
-    vals = [have[s] for s in sorted(have)]
-    spread = (max(vals) - min(vals)) / max(vals) if len(vals) > 1 else 0.0
     marginals = [(rows[str(s)]["marginal_from"], s, rows[str(s)]["marginal_bytes_per_token"])
                  for s in sizes if rows[str(s)].get("marginal_bytes_per_token") is not None]
-    bend = None
-    for prev, cur, marg in marginals:
-        if have.get(prev) and marg < 0.90 * have[prev]:
-            bend = (prev, cur, marg, have[prev])
+    # THE KNEE IS A MARGINAL-TO-MARGINAL DROP, never a marginal against the
+    # previous AVERAGE: past the window the average still carries the
+    # amortised window term, so a FLAT 7,632 B/token marginal sits ~30 % under
+    # a 30,521 B/token average with no bend anywhere. Two artifacts measured
+    # that identical 7,632 (4096->8192 and 32768->65536): beyond the knee the
+    # slope is FLAT, and the knee can only be where the window is crossed.
+    layout = kv_layout(kv_lines, swa_lines)
+    layer_full = (layout.get("non-SWA") or {}).get("layers")
+    flat_slope = (round(layer_full * per_layer_bpt)
+                  if (layer_full and per_layer_bpt) else None)
+
+    knee = None          # (from, to, marginal, reference, has_previous_marginal)
+    knee_index = None
+    prev_ref = None
+    for i, (frm, to, marg) in enumerate(marginals):
+        ref = BASE_BYTES_PER_TOKEN if prev_ref is None else prev_ref
+        if marg < 0.90 * ref:
+            knee = (frm, to, marg, ref, prev_ref is not None)
+            knee_index = i
             break
-    if bend:
-        prev, cur, marg, before = bend
-        a_clause += (f". THE CURVE BENDS between {prev} and {cur}: the marginal drops to "
-                     f"{marg} B/token, {round(100 * (marg / before - 1), 1)} % below the "
-                     f"{prev}-token average - consistent with the {window}-token sliding "
-                     "window the model's own GGUF header declares capping the windowed "
-                     "layers there")
-    elif spread <= 0.05:
-        a_clause += (f". THE CURVE DOES NOT BEND in this range: every size is within "
-                     f"{round(100 * spread, 1)} % of every other and the marginals hold")
-        if max(have) < window:
-            a_clause += (f" - but every size measured here is BELOW the declared "
-                         f"{window}-token window, so this range cannot show the bend "
-                         f"either way; the artifact that measures past {window} settles it")
-        else:
-            a_clause += (f", linear across the {window}-token window: the window does not "
-                         "cap what the file stores, and the plan's per-token figure extends")
+        prev_ref = marg
+
+    if not marginals:
+        a_clause += (". NO KNEE CAN BE LOCALIZED: a single size has no marginal "
+                     "to compare")
+    elif knee is None:
+        a_clause += (f". NO KNEE IN THIS RANGE: the marginals "
+                     f"({', '.join(str(v) for _, _, v in marginals)} B/token) hold "
+                     f"within 10 % of the {BASE_BYTES_PER_TOKEN} B/token "
+                     "below-window base"
+                     + (f", and every size measured here is below the header's "
+                        f"{window}-token window - the knee is bracketed by the "
+                        "companion artifacts, not measured here"
+                        if max(have) < window else ""))
     else:
-        a_clause += (f". THE CURVE MOVES across this range: {round(100 * spread, 1)} % "
-                     "spread between sizes - read the marginals above")
-    smallest = min(have)
-    if have[smallest] < 0.85 * BASE_BYTES_PER_TOKEN:
-        a_clause += (f". THE BEND IS BELOW THE SMALLEST SIZE MEASURED HERE: at "
-                     f"{smallest} tokens the average is already {have[smallest]} B/token, "
-                     f"{round(100 * (have[smallest] / BASE_BYTES_PER_TOKEN - 1), 1)} % under "
-                     f"the {BASE_BYTES_PER_TOKEN} B/token base measured at 600->1900 tokens, "
-                     f"so the {window}-token window was crossed between 1900 and "
-                     f"{smallest} tokens - the marginals above are what remains after it")
+        frm, to, marg, ref, has_prev = knee
+        if has_prev:
+            a_clause += (f". THE KNEE LIES BETWEEN {frm} AND {to} TOKENS: the "
+                         f"marginal drops from {ref} to {marg} B/token across it"
+                         + (f", and the header's {window}-token window sits inside "
+                            "that interval - the knee is the window crossing"
+                            if frm < window <= to else
+                            f"; the mechanism is the header's {window}-token window"))
+        elif frm < window <= to:
+            a_clause += (f". THE KNEE LIES BETWEEN {frm} AND {to} TOKENS: its "
+                         f"marginal ({marg} B/token) is already "
+                         f"{round(100 * (1 - marg / ref), 1)} % under the {ref} "
+                         f"below-window base, and the header's {window}-token window "
+                         "sits inside that interval - the knee is the window crossing")
+        else:
+            a_clause += (f". THE KNEE LIES BELOW THE SMALLEST SIZE MEASURED HERE "
+                         f"({frm} tokens): that interval's marginal already reads "
+                         f"{marg} B/token against the {ref} below-window base, so the "
+                         f"{window}-token window was crossed between 1900 (the base's "
+                         "upper end, measured in the companion 600/1900 artifact) "
+                         f"and {frm} tokens")
+        tail = marginals[knee_index + 1:]
+        if tail:
+            tvals = [v for _, _, v in tail]
+            tspread = ((max(tvals) - min(tvals)) / max(tvals))
+            if len(tvals) == 1 or tspread <= 0.05:
+                flat_at = round(sum(tvals) / len(tvals))
+                a_clause += (f". BEYOND THE KNEE THE SLOPE IS FLAT at {flat_at} "
+                             f"B/token ({len(tvals)} interval(s) agreeing within "
+                             f"{round(100 * tspread, 1)} %)"
+                             + (f" = the {layer_full} full layers x {per_layer_bpt} "
+                                f"= {flat_slope} B/token" if flat_slope else "")
+                             + ": NO further bend is announced in this range")
+            else:
+                a_clause += (f". BEYOND THE KNEE THE MARGINALS MOVE "
+                             f"({', '.join(map(str, tvals))} B/token) - more than "
+                             "one slope change is possible, read them")
+        elif not has_prev and flat_slope:
+            a_clause += (f". THAT INTERVAL IS ALREADY BEYOND THE KNEE: its marginal "
+                         f"{marg} B/token IS the post-window slope - the {layer_full} "
+                         f"full layers x {per_layer_bpt} = {flat_slope} B/token "
+                         f"(measured {marg}) - so the slope is flat past the knee and "
+                         "NO further bend is announced in this range")
+        else:
+            a_clause += (". NO INTERVAL BEYOND THE KNEE WAS MEASURED, so this "
+                         "artifact makes no claim about the slope after it")
 
     b_bits = []
     for s in sizes:
@@ -1083,6 +1139,7 @@ def main():
             raise SystemExit(f"missing file: {p} - refusing to measure against "
                              f"something that is not there")
     sizes = [int(s) for s in args.sizes.split(",")]
+    start_wall = time.time()   # the run's duration is an artifact field, not prose
 
     # The model's own header: trained context and sliding window are read,
     # never typed - the size ceiling and the bend's explanation cite these.
@@ -1134,6 +1191,36 @@ def main():
     if argv_flags != intended:
         raise SystemExit(f"the argv this run would pass disagrees with the provenance "
                          f"it intends to record: {argv_flags} != {intended}")
+
+    app_ctx = read_app_context_default()
+    app_default = app_ctx.get("value")
+    fits_app = bool(app_default and largest + args.n_predict <= app_default)
+    ctx_caveat = {
+        "ctx_size_used": args.ctx_size,
+        "app_default_context": app_default,
+        "app_default_source": app_ctx.get("source"),
+        "largest_size": largest,
+        "n_predict": args.n_predict,
+        "headroom_at_used_ctx": headroom,
+        "fits_at_app_default": fits_app,
+        "note": (
+            f"MEASURED AT ctx_size {args.ctx_size}, NOT at the app's default "
+            f"{app_default}: a {largest}-token chat + n_predict {args.n_predict} "
+            f"needs {largest + args.n_predict} tokens, which the app's default "
+            "does NOT fit - the headroom gate refuses rather than truncates - "
+            f"so this run used {args.ctx_size} with {headroom} tokens of headroom. "
+            "Per-token figures are ctx-independent by the committed evidence: the "
+            "same 53,352 B/token slope at ctx 8192 "
+            "(dev/results/unload-restore-release) and ctx 16384 "
+            "(dev/results/unload-restore-disk-curve)."
+            if not fits_app else
+            f"largest size {largest} + n_predict {args.n_predict} fits ctx_size "
+            f"{args.ctx_size} ({headroom} tokens spare) and also fits the app's "
+            f"default context {app_default} "
+            f"({app_default - largest - args.n_predict} spare): no comparability "
+            "caveat; per-token figures are ctx-independent by the committed "
+            "evidence (same 53,352 B/token at ctx 8192 and ctx 16384)."),
+    }
 
     record = {
         "release_qualification": qualification,
@@ -1189,6 +1276,24 @@ def main():
                                "bytes. NOT invariant: prompt_ms, save_ms, every wall "
                                "- they move with loadavg_before (recorded above and "
                                "below) and are labelled wherever they are quoted"),
+            "refusal_semantics": (
+                "EXIT 0 means the artifact was written. A measurement that is "
+                "invalid is refused INSIDE the artifact, not by the exit code: "
+                "the arm carries measured=false with its blockers and the "
+                "conclusion begins 'no verdict: ...' - this harness's "
+                "deliverable is the evidence of WHY a run failed, and a "
+                "non-zero exit would make that record look like a crash and "
+                "invite a re-run that overwrites it. The two gates are the "
+                "exceptions: --max-load and the headroom check exit non-zero "
+                "BEFORE anything is measured, and write no artifact"),
+            "ctx_measurement_caveat": ctx_caveat,
+            "app_context_default": app_ctx,
+            "host_mem_total_bytes": host_mem_total_bytes(),
+            "disk_free_bytes_root": shutil.disk_usage("/").free,
+            "machine_numbers_note": (
+                "RAM and free disk of this machine, read at run start, so the "
+                "figures a report quotes about the machine are fields here "
+                "and not prose nobody can recheck"),
             "loadavg_before": msr.loadavg(),
         },
         "engine_commits": {},
@@ -1294,7 +1399,6 @@ def main():
         record["provenance"].get("engine_swa_lines"))
     app_ctx = read_app_context_default()
     offers = read_device_offers()
-    record["provenance"]["app_context_default"] = app_ctx
     record["provenance"]["device_offers"] = offers
     law = disk_law(curve, record["provenance"].get("model_header") or {},
                    record["provenance"].get("engine_kv_lines"),
@@ -1321,6 +1425,7 @@ def main():
         "conclusion": conclusion,
     }
     record["provenance"]["loadavg_after"] = msr.loadavg()
+    record["provenance"]["run_wall_s"] = round(time.time() - start_wall, 1)
 
     # No chat text in the artifact, and none in the logs we keep evidence from.
     leaked = []

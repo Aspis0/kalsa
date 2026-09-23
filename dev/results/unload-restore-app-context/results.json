@@ -9,7 +9,7 @@
    "status": "matched",
    "manifest_url": "https://dl.kalsa.io/kalsa-server/v1.1.1/manifest.json",
    "manifest_sha256": "55d8128c05a985f54f7cb87a7cc99a89c640542d0619f4ae3cbf9ac1ec87f450",
-   "checked_utc": "2026-09-23T05:27:41Z",
+   "checked_utc": "2026-09-23T06:14:15Z",
    "match_basis": "exe_sha256 of the executed binary, compared as 64-hex case-insensitively and recorded in canonical lowercase; never a path, never a directory name",
    "exe_sha256": "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde",
    "platform": "macos-arm64",
@@ -74,7 +74,7 @@
    "why": "the largest size 65536 comes from --sizes [32768, 65536]; it plus n_predict 16 fits the 131072-token per-slot ctx with 65520 tokens spare (--parallel 1), and the model's trained context read from its own GGUF header is 131072: the ceiling is a choice of what this run has to measure, not a model or ctx limit; a size that did not fit would be refused above, never truncated"
   },
   "script": "/Users/marco/Projects/kalsa-brain/dev/measure-unload-restore.py",
-  "script_sha256": "dc88f0220dfaa76e8c6eb1485766b029182f701636ef9aff11c8546bc57e96a8",
+  "script_sha256": "c7056735e0f86eebbf2bfc640ca8593f54b4dc8e2dc4a70f4b16ab738068703c",
   "ctx_size": 131072,
   "parallel": 1,
   "cache_ram": 0,
@@ -100,32 +100,46 @@
   "raw_log_committed": false,
   "wall_times_note": "wall times are measurements of this machine at nice 10 under whatever else it was doing, not performance promises",
   "invariant_note": "contention-invariant: token counts, cache_n, file bytes. NOT invariant: prompt_ms, save_ms, every wall - they move with loadavg_before (recorded above and below) and are labelled wherever they are quoted",
-  "loadavg_before": [
-   2.1298828125,
-   4.87890625,
-   8.736328125
-  ],
-  "engine_init_line": [
-   "0.00.794.335 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 131072, kv_unified = 'false'"
-  ],
-  "engine_kv_lines": [
-   "0.00.697.932 I llama_kv_cache: size =  952.00 MiB (131072 cells,  14 layers,  1/1 seqs), K (q8_0):  476.00 MiB, V (q8_0):  476.00 MiB",
-   "0.00.701.842 I llama_kv_cache: size =   55.78 MiB (  2560 cells,  42 layers,  1/1 seqs), K (q8_0):   27.89 MiB, V (q8_0):   27.89 MiB"
-  ],
-  "engine_swa_lines": [
-   "0.00.485.663 I print_info: n_swa                 = 2048",
-   "0.00.485.664 I print_info: is_swa_any            = 1",
-   "0.00.630.204 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 131072 cells",
-   "0.00.697.963 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
-  ],
-  "checkpoint_line": [
-   "0.00.794.396 I srv    load_model: context checkpoints enabled, max = 1, min spacing = 8192"
-  ],
+  "refusal_semantics": "EXIT 0 means the artifact was written. A measurement that is invalid is refused INSIDE the artifact, not by the exit code: the arm carries measured=false with its blockers and the conclusion begins 'no verdict: ...' - this harness's deliverable is the evidence of WHY a run failed, and a non-zero exit would make that record look like a crash and invite a re-run that overwrites it. The two gates are the exceptions: --max-load and the headroom check exit non-zero BEFORE anything is measured, and write no artifact",
+  "ctx_measurement_caveat": {
+   "ctx_size_used": 131072,
+   "app_default_context": 65536,
+   "app_default_source": "crates/kalsa-launch/src/args.rs",
+   "largest_size": 65536,
+   "n_predict": 16,
+   "headroom_at_used_ctx": 65520,
+   "fits_at_app_default": false,
+   "note": "MEASURED AT ctx_size 131072, NOT at the app's default 65536: a 65536-token chat + n_predict 16 needs 65552 tokens, which the app's default does NOT fit - the headroom gate refuses rather than truncates - so this run used 131072 with 65520 tokens of headroom. Per-token figures are ctx-independent by the committed evidence: the same 53,352 B/token slope at ctx 8192 (dev/results/unload-restore-release) and ctx 16384 (dev/results/unload-restore-disk-curve)."
+  },
   "app_context_default": {
    "value": 65536,
    "source": "crates/kalsa-launch/src/args.rs",
    "line_text": "DEFAULT_CONTEXT_TOKENS: u64 = 65_536"
   },
+  "host_mem_total_bytes": 68719476736,
+  "disk_free_bytes_root": 327553454080,
+  "machine_numbers_note": "RAM and free disk of this machine, read at run start, so the figures a report quotes about the machine are fields here and not prose nobody can recheck",
+  "loadavg_before": [
+   1.7470703125,
+   3.02197265625,
+   4.9658203125
+  ],
+  "engine_init_line": [
+   "0.00.792.250 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 131072, kv_unified = 'false'"
+  ],
+  "engine_kv_lines": [
+   "0.00.698.887 I llama_kv_cache: size =  952.00 MiB (131072 cells,  14 layers,  1/1 seqs), K (q8_0):  476.00 MiB, V (q8_0):  476.00 MiB",
+   "0.00.702.672 I llama_kv_cache: size =   55.78 MiB (  2560 cells,  42 layers,  1/1 seqs), K (q8_0):   27.89 MiB, V (q8_0):   27.89 MiB"
+  ],
+  "engine_swa_lines": [
+   "0.00.484.615 I print_info: n_swa                 = 2048",
+   "0.00.484.615 I print_info: is_swa_any            = 1",
+   "0.00.632.696 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 131072 cells",
+   "0.00.698.920 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
+  ],
+  "checkpoint_line": [
+   "0.00.792.304 I srv    load_model: context checkpoints enabled, max = 1, min spacing = 8192"
+  ],
   "device_offers": {
    "values": [
     1,
@@ -135,10 +149,11 @@
    "source": "crates/kalsa-launch/src/policy/menu.rs"
   },
   "loadavg_after": [
-   5.10986328125,
-   4.03662109375,
-   6.693359375
+   1.18017578125,
+   2.53759765625,
+   4.0078125
   ],
+  "run_wall_s": 439.8,
   "chat_sentinels_found_in_log": false
  },
  "engine_commits": {
@@ -152,7 +167,7 @@
     "save_filename": "chat32768.bin",
     "erase": {
      "status": 200,
-     "wall_ms": 0.81,
+     "wall_ms": 0.58,
      "n_saved": null,
      "n_written": null,
      "n_restored": null,
@@ -164,12 +179,12 @@
     "cold_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 26168.0,
+     "wall_ms": 26165.9,
      "prompt_n": 32768,
      "cache_n": 0,
-     "prompt_ms": 25797.095,
+     "prompt_ms": 25795.137,
      "predicted_n": 16,
-     "predicted_per_second": 54.985135684986496,
+     "predicted_per_second": 53.97314296406109,
      "cache_reused_tokens": 32783,
      "engine_lines": [
       {
@@ -186,68 +201,68 @@
       }
      ],
      "loadavg": [
-      1.87353515625,
-      4.59814453125,
-      8.52294921875
+      1.26953125,
+      2.8095703125,
+      4.83203125
      ]
     },
     "save": {
      "status": 200,
-     "wall_ms": 261.25,
+     "wall_ms": 100.34,
      "n_saved": 32783,
      "n_written": 343836904,
      "n_restored": null,
      "n_read": null,
      "n_erased": null,
-     "save_ms": 260.531,
+     "save_ms": 99.631,
      "restore_ms": null,
      "file_bytes": 343836904
     },
     "restore_with_model_resident": {
      "status": 200,
-     "wall_ms": 56.42,
+     "wall_ms": 53.58,
      "n_saved": null,
      "n_written": null,
      "n_restored": 32783,
      "n_read": 343836904,
      "n_erased": null,
      "save_ms": null,
-     "restore_ms": 55.733
+     "restore_ms": 52.882
     },
     "release": {
      "observed": true,
      "line_index": 300,
-     "line": "0.58.029.708 I srv  handle_sleep: server is entering sleeping state",
-     "waited_s": 30.3,
+     "line": "0.57.856.947 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.32,
      "deadline_s": 120
     },
     "restore_after_release": {
      "status": 200,
-     "wall_ms": 868.82,
+     "wall_ms": 791.97,
      "n_saved": null,
      "n_written": null,
      "n_restored": 32783,
      "n_read": 343836904,
      "n_erased": null,
      "save_ms": null,
-     "restore_ms": 57.36
+     "restore_ms": 50.548
     },
     "model_reload": {
      "observed": true,
      "line_index": 303,
-     "line": "0.59.118.838 I srv  handle_sleep: server is exiting sleeping state",
-     "ms_after_start": 60.4,
+     "line": "0.58.995.447 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 60.9,
      "triggered_by": "restore"
     },
     "second_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 467.6,
+     "wall_ms": 446.5,
      "prompt_n": 5,
      "cache_n": 32763,
-     "prompt_ms": 75.084,
+     "prompt_ms": 72.62,
      "predicted_n": 16,
-     "predicted_per_second": 52.23041272472135,
+     "predicted_per_second": 53.5322353277065,
      "cache_reused_tokens": 32783,
      "engine_lines": [
       {
@@ -260,38 +275,38 @@
       }
      ],
      "loadavg": [
-      2.62451171875,
-      4.45751953125,
-      8.3115234375
+      2.42333984375,
+      3.01123046875,
+      4.82861328125
      ]
     },
     "derived": {
      "release_observed": true,
-     "release_waited_s": 30.3,
+     "release_waited_s": 30.32,
      "reload_observed": true,
      "reload_triggered_by": "restore",
      "n_saved": 32783,
      "file_bytes": 343836904,
      "n_restored": 32783,
      "n_read": 343836904,
-     "restore_wall_ms": 868.82,
-     "resident_restore_wall_ms": 56.42,
+     "restore_wall_ms": 791.97,
+     "resident_restore_wall_ms": 53.58,
      "warm": true,
      "second_send": {
       "cache_n": 32763,
       "prompt_n": 5,
-      "prompt_ms": 75.084,
+      "prompt_ms": 72.62,
       "predicted_n": 16,
-      "wall_ms": 467.6
+      "wall_ms": 446.5
      },
      "cache_n": 32763,
      "reused_fraction": 1.0,
-     "reload_announced_ms_after_restore_start": 60.4,
-     "restore_wall_minus_resident_ms": 812.4,
-     "model_reload_ms_estimate": 752.0
+     "reload_announced_ms_after_restore_start": 60.9,
+     "restore_wall_minus_resident_ms": 738.4,
+     "model_reload_ms_estimate": 677.5
     },
     "measured": true,
-    "arm_wall_s": 59.2,
+    "arm_wall_s": 58.9,
     "chat_pool_words": 32768,
     "argv": [
      "nice",
@@ -343,7 +358,7 @@
     "file_saved": false,
     "erase": {
      "status": 200,
-     "wall_ms": 0.69,
+     "wall_ms": 0.61,
      "n_saved": null,
      "n_written": null,
      "n_restored": null,
@@ -355,12 +370,12 @@
     "cold_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 26207.5,
+     "wall_ms": 26178.1,
      "prompt_n": 32768,
      "cache_n": 0,
-     "prompt_ms": 25835.04,
+     "prompt_ms": 25803.917,
      "predicted_n": 16,
-     "predicted_per_second": 54.89719585123592,
+     "predicted_per_second": 53.3997864008544,
      "cache_reused_tokens": 32783,
      "engine_lines": [
       {
@@ -377,27 +392,27 @@
       }
      ],
      "loadavg": [
-      3.65576171875,
-      4.5380859375,
-      8.20703125
+      1.74267578125,
+      2.7861328125,
+      4.68310546875
      ]
     },
     "release": {
      "observed": true,
      "line_index": 296,
-     "line": "0.57.720.929 I srv  handle_sleep: server is entering sleeping state",
-     "waited_s": 30.26,
+     "line": "0.57.689.050 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.33,
      "deadline_s": 120
     },
     "second_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 26950.9,
+     "wall_ms": 26925.0,
      "prompt_n": 32768,
      "cache_n": 0,
-     "prompt_ms": 25804.206,
+     "prompt_ms": 25800.913,
      "predicted_n": 16,
-     "predicted_per_second": 56.07937849094131,
+     "predicted_per_second": 53.38173277104575,
      "cache_reused_tokens": 32783,
      "engine_lines": [
       {
@@ -414,31 +429,31 @@
       }
      ],
      "loadavg": [
-      4.6513671875,
-      4.76318359375,
-      8.044921875
+      1.01708984375,
+      2.41943359375,
+      4.4267578125
      ]
     },
     "model_reload": {
      "observed": true,
      "line_index": 299,
-     "line": "0.58.797.795 I srv  handle_sleep: server is exiting sleeping state",
-     "ms_after_start": 52.6,
+     "line": "0.58.848.093 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 60.7,
      "triggered_by": "completion"
     },
     "derived": {
      "release_observed": true,
-     "release_waited_s": 30.26,
+     "release_waited_s": 30.33,
      "reload_observed": true,
      "reload_triggered_by": "completion",
-     "reload_announced_ms_after_send_start": 52.6,
+     "reload_announced_ms_after_send_start": 60.7,
      "warm": false,
      "second_send": {
       "cache_n": 0,
       "prompt_n": 32768,
-      "prompt_ms": 25804.206,
+      "prompt_ms": 25800.913,
       "predicted_n": 16,
-      "wall_ms": 26950.9
+      "wall_ms": 26925.0
      },
      "cache_n": 0,
      "reused_fraction": 0.0,
@@ -499,7 +514,7 @@
     "save_filename": "chat65536.bin",
     "erase": {
      "status": 200,
-     "wall_ms": 0.67,
+     "wall_ms": 0.61,
      "n_saved": null,
      "n_written": null,
      "n_restored": null,
@@ -511,12 +526,12 @@
     "cold_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 71549.8,
+     "wall_ms": 71640.0,
      "prompt_n": 65536,
      "cache_n": 0,
-     "prompt_ms": 71033.823,
+     "prompt_ms": 71137.37,
      "predicted_n": 16,
-     "predicted_per_second": 46.896836339420545,
+     "predicted_per_second": 47.776178160553435,
      "cache_reused_tokens": 65551,
      "engine_lines": [
       {
@@ -533,68 +548,68 @@
       }
      ],
      "loadavg": [
-      2.84765625,
-      4.1650390625,
-      7.537109375
+      7.5888671875,
+      3.84765625,
+      4.77978515625
      ]
     },
     "save": {
      "status": 200,
-     "wall_ms": 288.99,
+     "wall_ms": 227.72,
      "n_saved": 65551,
      "n_written": 593922280,
      "n_restored": null,
      "n_read": null,
      "n_erased": null,
-     "save_ms": 288.265,
+     "save_ms": 226.959,
      "restore_ms": null,
      "file_bytes": 593922280
     },
     "restore_with_model_resident": {
      "status": 200,
-     "wall_ms": 103.71,
+     "wall_ms": 106.35,
      "n_saved": null,
      "n_written": null,
      "n_restored": 65551,
      "n_read": 593922280,
      "n_erased": null,
      "save_ms": null,
-     "restore_ms": 103.006
+     "restore_ms": 105.591
     },
     "release": {
      "observed": true,
      "line_index": 332,
-     "line": "1.43.737.854 I srv  handle_sleep: server is entering sleeping state",
-     "waited_s": 30.22,
+     "line": "1.43.799.305 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.38,
      "deadline_s": 120
     },
     "restore_after_release": {
      "status": 200,
-     "wall_ms": 918.5,
+     "wall_ms": 843.63,
      "n_saved": null,
      "n_written": null,
      "n_restored": 65551,
      "n_read": 593922280,
      "n_erased": null,
      "save_ms": null,
-     "restore_ms": 120.385
+     "restore_ms": 95.985
     },
     "model_reload": {
      "observed": true,
      "line_index": 335,
-     "line": "1.44.792.557 I srv  handle_sleep: server is exiting sleeping state",
-     "ms_after_start": 53.1,
+     "line": "1.44.997.773 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 60.5,
      "triggered_by": "restore"
     },
     "second_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 604.2,
+     "wall_ms": 600.4,
      "prompt_n": 5,
      "cache_n": 65531,
-     "prompt_ms": 87.606,
+     "prompt_ms": 92.124,
      "predicted_n": 16,
-     "predicted_per_second": 47.37734794240178,
+     "predicted_per_second": 47.76568067687153,
      "cache_reused_tokens": 65551,
      "engine_lines": [
       {
@@ -607,38 +622,38 @@
       }
      ],
      "loadavg": [
-      4.0234375,
-      4.33642578125,
-      7.48193359375
+      5.193359375,
+      3.6708984375,
+      4.67724609375
      ]
     },
     "derived": {
      "release_observed": true,
-     "release_waited_s": 30.22,
+     "release_waited_s": 30.38,
      "reload_observed": true,
      "reload_triggered_by": "restore",
      "n_saved": 65551,
      "file_bytes": 593922280,
      "n_restored": 65551,
      "n_read": 593922280,
-     "restore_wall_ms": 918.5,
-     "resident_restore_wall_ms": 103.71,
+     "restore_wall_ms": 843.63,
+     "resident_restore_wall_ms": 106.35,
      "warm": true,
      "second_send": {
       "cache_n": 65531,
       "prompt_n": 5,
-      "prompt_ms": 87.606,
+      "prompt_ms": 92.124,
       "predicted_n": 16,
-      "wall_ms": 604.2
+      "wall_ms": 600.4
      },
      "cache_n": 65531,
      "reused_fraction": 1.0,
-     "reload_announced_ms_after_restore_start": 53.1,
-     "restore_wall_minus_resident_ms": 814.8,
-     "model_reload_ms_estimate": 761.7
+     "reload_announced_ms_after_restore_start": 60.5,
+     "restore_wall_minus_resident_ms": 737.3,
+     "model_reload_ms_estimate": 676.8
     },
     "measured": true,
-    "arm_wall_s": 104.7,
+    "arm_wall_s": 104.8,
     "chat_pool_words": 65536,
     "argv": [
      "nice",
@@ -690,7 +705,7 @@
     "file_saved": false,
     "erase": {
      "status": 200,
-     "wall_ms": 0.73,
+     "wall_ms": 0.69,
      "n_saved": null,
      "n_written": null,
      "n_restored": null,
@@ -702,12 +717,12 @@
     "cold_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 71570.0,
+     "wall_ms": 71542.3,
      "prompt_n": 65536,
      "cache_n": 0,
-     "prompt_ms": 71036.393,
+     "prompt_ms": 71038.163,
      "predicted_n": 16,
-     "predicted_per_second": 45.00679602619996,
+     "predicted_per_second": 47.750779133546196,
      "cache_reused_tokens": 65551,
      "engine_lines": [
       {
@@ -724,27 +739,27 @@
       }
      ],
      "loadavg": [
-      2.1845703125,
-      3.73095703125,
-      6.986328125
+      2.39794921875,
+      3.14697265625,
+      4.3916015625
      ]
     },
     "release": {
      "observed": true,
      "line_index": 328,
-     "line": "1.43.432.993 I srv  handle_sleep: server is entering sleeping state",
-     "waited_s": 30.25,
+     "line": "1.43.320.617 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.3,
      "deadline_s": 120
     },
     "second_send": {
      "status": 200,
      "salt": "set",
-     "wall_ms": 73356.8,
+     "wall_ms": 72301.2,
      "prompt_n": 65536,
      "cache_n": 0,
-     "prompt_ms": 71388.018,
+     "prompt_ms": 71044.653,
      "predicted_n": 16,
-     "predicted_per_second": 47.651874465901905,
+     "predicted_per_second": 45.02827775843229,
      "cache_reused_tokens": 65551,
      "engine_lines": [
       {
@@ -761,38 +776,38 @@
       }
      ],
      "loadavg": [
-      3.11767578125,
-      3.63232421875,
-      6.56787109375
+      1.18017578125,
+      2.53759765625,
+      4.0078125
      ]
     },
     "model_reload": {
      "observed": true,
      "line_index": 331,
-     "line": "1.44.496.749 I srv  handle_sleep: server is exiting sleeping state",
-     "ms_after_start": 65.4,
+     "line": "1.44.485.172 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 56.7,
      "triggered_by": "completion"
     },
     "derived": {
      "release_observed": true,
-     "release_waited_s": 30.25,
+     "release_waited_s": 30.3,
      "reload_observed": true,
      "reload_triggered_by": "completion",
-     "reload_announced_ms_after_send_start": 65.4,
+     "reload_announced_ms_after_send_start": 56.7,
      "warm": false,
      "second_send": {
       "cache_n": 0,
       "prompt_n": 65536,
-      "prompt_ms": 71388.018,
+      "prompt_ms": 71044.653,
       "predicted_n": 16,
-      "wall_ms": 73356.8
+      "wall_ms": 72301.2
      },
      "cache_n": 0,
      "reused_fraction": 0.0,
      "cold": true
     },
     "measured": true,
-    "arm_wall_s": 176.2,
+    "arm_wall_s": 175.2,
     "chat_pool_words": 65536,
     "argv": [
      "nice",
@@ -847,11 +862,11 @@
    "32768": {
     "warm_after_unload": true,
     "cold_without_the_file": true,
-    "release_waited_s_saved": 30.3,
-    "release_waited_s_control": 30.26,
-    "restore_wall_ms": 868.82,
-    "resident_restore_wall_ms": 56.42,
-    "model_reload_ms_estimate": 752.0,
+    "release_waited_s_saved": 30.32,
+    "release_waited_s_control": 30.33,
+    "restore_wall_ms": 791.97,
+    "resident_restore_wall_ms": 53.58,
+    "model_reload_ms_estimate": 677.5,
     "n_restored": 32783,
     "second_send_cache_n_saved": 32763,
     "second_send_cache_n_control": 0
@@ -859,11 +874,11 @@
    "65536": {
     "warm_after_unload": true,
     "cold_without_the_file": true,
-    "release_waited_s_saved": 30.22,
-    "release_waited_s_control": 30.25,
-    "restore_wall_ms": 918.5,
-    "resident_restore_wall_ms": 103.71,
-    "model_reload_ms_estimate": 761.7,
+    "release_waited_s_saved": 30.38,
+    "release_waited_s_control": 30.3,
+    "restore_wall_ms": 843.63,
+    "resident_restore_wall_ms": 106.35,
+    "model_reload_ms_estimate": 676.8,
     "n_restored": 65551,
     "second_send_cache_n_saved": 65531,
     "second_send_cache_n_control": 0
@@ -875,12 +890,12 @@
     "file_bytes": 343836904,
     "bytes_per_token": 10493,
     "excess_over_q8_kv_bytes_per_token": -19971,
-    "cold_prompt_ms": 25797.095,
-    "warm_second_prompt_ms": 75.084,
-    "control_reprefill_prompt_ms": 25804.206,
-    "prefill_ms_avoided": 25729.1,
-    "resident_restore_wall_ms": 56.42,
-    "restore_wall_carries_reload_ms": 868.82,
+    "cold_prompt_ms": 25795.137,
+    "warm_second_prompt_ms": 72.62,
+    "control_reprefill_prompt_ms": 25800.913,
+    "prefill_ms_avoided": 25728.3,
+    "resident_restore_wall_ms": 53.58,
+    "restore_wall_carries_reload_ms": 791.97,
     "tokens_reused_saved": 32763,
     "tokens_reused_control": 0
    },
@@ -889,17 +904,17 @@
     "file_bytes": 593922280,
     "bytes_per_token": 9063,
     "excess_over_q8_kv_bytes_per_token": -21401,
-    "cold_prompt_ms": 71033.823,
-    "warm_second_prompt_ms": 87.606,
-    "control_reprefill_prompt_ms": 71388.018,
-    "prefill_ms_avoided": 71300.4,
-    "resident_restore_wall_ms": 103.71,
-    "restore_wall_carries_reload_ms": 918.5,
+    "cold_prompt_ms": 71137.37,
+    "warm_second_prompt_ms": 92.124,
+    "control_reprefill_prompt_ms": 71044.653,
+    "prefill_ms_avoided": 70952.5,
+    "resident_restore_wall_ms": 106.35,
+    "restore_wall_carries_reload_ms": 843.63,
     "tokens_reused_saved": 65531,
     "tokens_reused_control": 0,
     "marginal_bytes_per_token": 7632,
     "marginal_from": 32768,
-    "prefill_ms_avoided_per_token_from_prev": 1.391
+    "prefill_ms_avoided_per_token_from_prev": 1.38
    }
   },
   "disk_law": {
@@ -926,6 +941,6 @@
    },
    "available": true
   },
-  "conclusion": "after a real release the saved chats came back warm and the no-file controls stayed cold, so the warmth travelled with the file. Numbers: 32768 tokens: saved cache_n=32763/32768 n_restored=32783 restore=868.82ms (resident 56.42ms, reload est. 752.0ms), control cache_n=0/32768; 65536 tokens: saved cache_n=65531/65536 n_restored=65551 restore=918.5ms (resident 103.71ms, reload est. 761.7ms), control cache_n=0/65536 | disk curve: (a) bytes/token: 32768 tokens -> 343836904 B = 10493 B/token; 65536 tokens -> 593922280 B = 9063 B/token (marginal 32768->65536: 7632 B/token); the 600->1900 base was 53352 B/token, the q8_0 full-KV arithmetic from the model's own GGUF header is 30464 B/token. THE CURVE BENDS between 32768 and 65536: the marginal drops to 7632 B/token, -27.3 % below the 32768-token average - consistent with the 2048-token sliding window the model's own GGUF header declares capping the windowed layers there. THE BEND IS BELOW THE SMALLEST SIZE MEASURED HERE: at 32768 tokens the average is already 10493 B/token, -80.3 % under the 53352 B/token base measured at 600->1900 tokens, so the 2048-token window was crossed between 1900 and 32768 tokens - the marginals above are what remains after it. (b) benefit per size: 32768 tokens: 25804.206 ms cold re-prefill vs 75.084 ms warm -> 25729.1 ms avoided, 32763/32768 tokens reused; 65536 tokens: 71388.018 ms cold re-prefill vs 87.606 ms warm -> 71300.4 ms avoided, 65531/65536 tokens reused - the MILLISECOND half is this machine at this load (contention-dependent, not a promise); the invariant half is the token count and the byte counts above; the benefit grows FASTER than with the token count (0.785 -> 1.088 ms avoided per token, 32768 -> 65536 tokens). (c) this artifact does not reach 4096 tokens (sizes: 32768, 65536), so the plan's ~218 MB at 4096 is NOT settled here - it is settled by the artifact that measures 4096. (d) at 65536 tokens there is NO excess: the file sits 21401 B/token BELOW the header's full-KV arithmetic, which is what the 2048-token window capping the windowed layers does to a file. The positive excess exists only BELOW the window; it is measured and attributed in the companion 600/1900-token artifact (dev/results/unload-restore-release), not re-derived from this one. (e) the law read from the model's own header - 2048-token window, 14 full + 42 windowed layers from the boot lines, 544 B/layer/token, layers sum to 56 blocks (True): 32768: predicted 343146496 B vs measured 343836904 B (+0.20 %); 65536: predicted 592707584 B vs measured 593922280 B (+0.20 %) -> the law HOLDS within 0.2 % at every size (f) THE NUMBER FOR THE OWNER: one chat saved at the app's default context (65536 tokens, read from crates/kalsa-launch/src/args.rs) costs MEASURED 593922280 bytes = 593.9 MB; BY ARITHMETIC ON THAT MEASUREMENT, not measured as a group, the menu offers 1/2/4 devices (read from crates/kalsa-launch/src/policy/menu.rs), so saved chats alone are 1 = 593.9 MB, 2 = 1187.8 MB, 4 = 2375.7 MB"
+  "conclusion": "after a real release the saved chats came back warm and the no-file controls stayed cold, so the warmth travelled with the file. Numbers: 32768 tokens: saved cache_n=32763/32768 n_restored=32783 restore=791.97ms (resident 53.58ms, reload est. 677.5ms), control cache_n=0/32768; 65536 tokens: saved cache_n=65531/65536 n_restored=65551 restore=843.63ms (resident 106.35ms, reload est. 676.8ms), control cache_n=0/65536 | disk curve: (a) bytes/token: 32768 tokens -> 343836904 B = 10493 B/token; 65536 tokens -> 593922280 B = 9063 B/token (marginal 32768->65536: 7632 B/token); the 600->1900 base was 53352 B/token, the q8_0 full-KV arithmetic from the model's own GGUF header is 30464 B/token. THE KNEE LIES BELOW THE SMALLEST SIZE MEASURED HERE (32768 tokens): that interval's marginal already reads 7632 B/token against the 53352 below-window base, so the 2048-token window was crossed between 1900 (the base's upper end, measured in the companion 600/1900 artifact) and 32768 tokens. THAT INTERVAL IS ALREADY BEYOND THE KNEE: its marginal 7632 B/token IS the post-window slope - the 14 full layers x 544 = 7616 B/token (measured 7632) - so the slope is flat past the knee and NO further bend is announced in this range. (b) benefit per size: 32768 tokens: 25800.913 ms cold re-prefill vs 72.62 ms warm -> 25728.3 ms avoided, 32763/32768 tokens reused; 65536 tokens: 71044.653 ms cold re-prefill vs 92.124 ms warm -> 70952.5 ms avoided, 65531/65536 tokens reused - the MILLISECOND half is this machine at this load (contention-dependent, not a promise); the invariant half is the token count and the byte counts above; the benefit grows FASTER than with the token count (0.785 -> 1.083 ms avoided per token, 32768 -> 65536 tokens). (c) this artifact does not reach 4096 tokens (sizes: 32768, 65536), so the plan's ~218 MB at 4096 is NOT settled here - it is settled by the artifact that measures 4096. (d) at 65536 tokens there is NO excess: the file sits 21401 B/token BELOW the header's full-KV arithmetic, which is what the 2048-token window capping the windowed layers does to a file. The positive excess exists only BELOW the window; it is measured and attributed in the companion 600/1900-token artifact (dev/results/unload-restore-release), not re-derived from this one. (e) the law read from the model's own header - 2048-token window, 14 full + 42 windowed layers from the boot lines, 544 B/layer/token, layers sum to 56 blocks (True): 32768: predicted 343146496 B vs measured 343836904 B (+0.20 %); 65536: predicted 592707584 B vs measured 593922280 B (+0.20 %) -> the law HOLDS within 0.2 % at every size (f) THE NUMBER FOR THE OWNER: one chat saved at the app's default context (65536 tokens, read from crates/kalsa-launch/src/args.rs) costs MEASURED 593922280 bytes = 593.9 MB; BY ARITHMETIC ON THAT MEASUREMENT, not measured as a group, the menu offers 1/2/4 devices (read from crates/kalsa-launch/src/policy/menu.rs), so saved chats alone are 1 = 593.9 MB, 2 = 1187.8 MB, 4 = 2375.7 MB"
  }
 }

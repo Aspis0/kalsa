@@ -3,7 +3,7 @@
  "question": "is the 16x slow cold prefill (7.86 ms/token on the old fork run vs 0.49 on the release) the machine or the build?",
  "provenance": {
   "script": "/Users/marco/Projects/kalsa-brain/dev/measure-prefill-ab.py",
-  "script_sha256": "9701a5188134428cd1bf4a6fe48da63ac1ba86db7d7bb8b6215b794e647f98e8",
+  "script_sha256": "1653c80100c8b2730f505ab02f3cfe30464de5a4b4bd9414de4900affaa505ca",
   "release_derivation": {
    "script": "dev/measure-concurrency.py",
    "sha256": "0be0e52424a38d5941fb094dcc945bb1816a593439e06612c30ceb0bb077ae08",
@@ -34,9 +34,9 @@
   "engine_flags_source": "same flags as the old unload-restore run (arm_extra): only the engine differs",
   "cold_definition": "cache_n == 0 on the salted send",
   "loadavg_before": [
-   4.91357421875,
-   17.11865234375,
-   16.52880859375
+   1.9091796875,
+   3.35595703125,
+   4.44873046875
   ],
   "commits_between_engines": [
    "a7d2cec79 governor : refuse a plugged baseline of 0 C or colder in the engine gate",
@@ -44,9 +44,9 @@
   ],
   "raw_logs_committed": false,
   "loadavg_after": [
-   10.65087890625,
-   13.99609375,
-   15.23779296875
+   22.0751953125,
+   13.359375,
+   8.6318359375
   ]
  },
  "engines": {
@@ -120,6 +120,27 @@
   ],
   "launcher_excluded": "the launcher sha is identical across releases; never a separator"
  },
+ "backend_evidence": {
+  "fork": {
+   "verdict": "cpu",
+   "lines": [
+    "warning: no usable GPU found, --gpu-layers option will be ignored"
+   ],
+   "note": "named by this engine's own log line; THIS is the discriminant between the two engines"
+  },
+  "release": {
+   "verdict": "gpu",
+   "lines": [
+    "0.00.630.439 I load_tensors: offloaded 57/57 layers to GPU",
+    "0.00.632.845 I ggml_metal_init: found device: Apple M1 Max",
+    "0.00.622.077 I load_tensors: offloaded 57/57 layers to GPU",
+    "0.00.624.526 I ggml_metal_init: found device: Apple M1 Max",
+    "0.00.784.964 I load_tensors: offloaded 57/57 layers to GPU"
+   ],
+   "note": "named by this engine's own log line; THIS is the discriminant between the two engines"
+  }
+ },
+ "backend_discriminant": "backend_evidence is the discriminant between these two engines: ab_control proves they are two different binaries (module/libllama/commit shas) but cannot say WHICH difference matters, and governor_lines searched a mechanism that is not in llama-server's path - a pattern that cannot see the discriminant is not a proof of absence. Each engine's own log names its backend: fork=cpu, release=gpu.",
  "governor_lines": {
   "fork": {
    "count": 0,
@@ -167,25 +188,25 @@
    "burners": 0,
    "heat_s": 0,
    "loadavg_arm_start": [
-    4.60009765625,
-    16.8505859375,
-    16.4375
+    1.916015625,
+    3.3330078125,
+    4.43408203125
    ],
    "chat_tokens": 600,
    "prompt_n": 600,
-   "prompt_ms": 3594.004,
-   "ms_per_token": 5.99,
+   "prompt_ms": 3121.767,
+   "ms_per_token": 5.203,
    "cache_n": 0,
-   "wall_ms": 3833.0,
+   "wall_ms": 3355.8,
    "loadavg_at_send": [
-    4.9521484375,
-    16.72021484375,
-    16.3935546875
+    2.16259765625,
+    3.3603515625,
+    4.43701171875
    ],
    "loadavg_after_send": [
-    4.9521484375,
-    16.72021484375,
-    16.3935546875
+    2.16259765625,
+    3.3603515625,
+    4.43701171875
    ],
    "released_before_send": false,
    "cold": true,
@@ -196,8 +217,16 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.09.451.937 I slot print_timing: id  0 | task 1 | prompt eval time =    3594.00 ms /   600 tokens (    5.99 ms per token,   166.94 tokens per second)"
+    "0.08.991.172 I slot print_timing: id  0 | task 1 | prompt eval time =    3121.77 ms /   600 tokens (    5.20 ms per token,   192.20 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "cpu",
+    "lines": [
+     "warning: no usable GPU found, --gpu-layers option will be ignored"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/fork_600/engine.log",
    "blockers": [],
    "valid": true
@@ -209,25 +238,25 @@
    "burners": 0,
    "heat_s": 0,
    "loadavg_arm_start": [
-    4.71533203125,
-    16.4755859375,
-    16.30908203125
+    2.1494140625,
+    3.33740234375,
+    4.42236328125
    ],
    "chat_tokens": 600,
    "prompt_n": 600,
-   "prompt_ms": 340.527,
-   "ms_per_token": 0.568,
+   "prompt_ms": 328.565,
+   "ms_per_token": 0.548,
    "cache_n": 0,
-   "wall_ms": 560.9,
+   "wall_ms": 553.3,
    "loadavg_at_send": [
-    4.71533203125,
-    16.4755859375,
-    16.30908203125
+    2.1494140625,
+    3.33740234375,
+    4.42236328125
    ],
    "loadavg_after_send": [
-    4.71533203125,
-    16.4755859375,
-    16.30908203125
+    2.1494140625,
+    3.33740234375,
+    4.42236328125
    ],
    "released_before_send": false,
    "cold": true,
@@ -238,8 +267,17 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.01.649.229 I slot print_timing: id  0 | task 1 | prompt eval time =     340.53 ms /   600 tokens (    0.57 ms per token,  1761.97 tokens per second)"
+    "0.01.608.777 I slot print_timing: id  0 | task 1 | prompt eval time =     328.56 ms /   600 tokens (    0.55 ms per token,  1826.12 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "gpu",
+    "lines": [
+     "0.00.630.439 I load_tensors: offloaded 57/57 layers to GPU",
+     "0.00.632.845 I ggml_metal_init: found device: Apple M1 Max"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/release_600/engine.log",
    "blockers": [],
    "valid": true
@@ -251,25 +289,25 @@
    "burners": 0,
    "heat_s": 0,
    "loadavg_arm_start": [
-    4.41748046875,
-    16.21826171875,
-    16.21923828125
+    2.13720703125,
+    3.31494140625,
+    4.40771484375
    ],
    "chat_tokens": 1900,
    "prompt_n": 1900,
-   "prompt_ms": 14920.951,
-   "ms_per_token": 7.853,
+   "prompt_ms": 19926.781,
+   "ms_per_token": 10.488,
    "cache_n": 0,
-   "wall_ms": 15239.6,
+   "wall_ms": 20242.6,
    "loadavg_at_send": [
-    4.32470703125,
-    15.619140625,
-    16.00537109375
+    8.3310546875,
+    4.61474609375,
+    4.845703125
    ],
    "loadavg_after_send": [
-    4.32470703125,
-    15.619140625,
-    16.00537109375
+    8.3310546875,
+    4.61474609375,
+    4.845703125
    ],
    "released_before_send": false,
    "cold": true,
@@ -280,8 +318,16 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.19.368.146 I slot print_timing: id  0 | task 1 | prompt eval time =   14920.95 ms /  1900 tokens (    7.85 ms per token,   127.34 tokens per second)"
+    "0.24.897.986 I slot print_timing: id  0 | task 1 | prompt eval time =   19926.78 ms /  1900 tokens (   10.49 ms per token,    95.35 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "cpu",
+    "lines": [
+     "warning: no usable GPU found, --gpu-layers option will be ignored"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/fork_1900/engine.log",
    "blockers": [],
    "valid": true
@@ -293,25 +339,25 @@
    "burners": 0,
    "heat_s": 0,
    "loadavg_arm_start": [
-    4.05810546875,
-    15.3759765625,
-    15.9169921875
+    7.98388671875,
+    4.6044921875,
+    4.84033203125
    ],
    "chat_tokens": 1900,
    "prompt_n": 1900,
-   "prompt_ms": 930.725,
+   "prompt_ms": 931.242,
    "ms_per_token": 0.49,
    "cache_n": 0,
-   "wall_ms": 1151.8,
+   "wall_ms": 1153.4,
    "loadavg_at_send": [
-    4.05810546875,
-    15.3759765625,
-    15.9169921875
+    7.98388671875,
+    4.6044921875,
+    4.84033203125
    ],
    "loadavg_after_send": [
-    4.05810546875,
-    15.3759765625,
-    15.9169921875
+    7.98388671875,
+    4.6044921875,
+    4.84033203125
    ],
    "released_before_send": false,
    "cold": true,
@@ -322,8 +368,17 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.02.226.551 I slot print_timing: id  0 | task 1 | prompt eval time =     930.73 ms /  1900 tokens (    0.49 ms per token,  2041.42 tokens per second)"
+    "0.02.219.780 I slot print_timing: id  0 | task 1 | prompt eval time =     931.24 ms /  1900 tokens (    0.49 ms per token,  2040.29 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "gpu",
+    "lines": [
+     "0.00.622.077 I load_tensors: offloaded 57/57 layers to GPU",
+     "0.00.624.526 I ggml_metal_init: found device: Apple M1 Max"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/release_1900/engine.log",
    "blockers": [],
    "valid": true
@@ -335,25 +390,25 @@
    "burners": 7,
    "heat_s": 90,
    "loadavg_arm_start": [
-    13.68505859375,
-    15.20166015625,
-    15.76611328125
+    19.1083984375,
+    9.6123046875,
+    6.7763671875
    ],
    "chat_tokens": 1900,
    "prompt_n": 1900,
-   "prompt_ms": 27649.33,
-   "ms_per_token": 14.552,
+   "prompt_ms": 33129.745,
+   "ms_per_token": 17.437,
    "cache_n": 0,
-   "wall_ms": 28203.8,
+   "wall_ms": 34195.3,
    "loadavg_at_send": [
-    15.9765625,
-    15.61181640625,
-    15.8935546875
+    19.36572265625,
+    10.6640625,
+    7.26904296875
    ],
    "loadavg_after_send": [
-    15.9765625,
-    15.61181640625,
-    15.8935546875
+    19.36572265625,
+    10.6640625,
+    7.26904296875
    ],
    "released_before_send": false,
    "cold": true,
@@ -364,8 +419,16 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.33.814.240 I slot print_timing: id  0 | task 1 | prompt eval time =   27649.33 ms /  1900 tokens (   14.55 ms per token,    68.72 tokens per second)"
+    "0.39.906.046 I slot print_timing: id  0 | task 1 | prompt eval time =   33129.75 ms /  1900 tokens (   17.44 ms per token,    57.35 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "cpu",
+    "lines": [
+     "warning: no usable GPU found, --gpu-layers option will be ignored"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/fork_1900_under_load/engine.log",
    "blockers": [],
    "valid": true
@@ -377,25 +440,25 @@
    "burners": 7,
    "heat_s": 90,
    "loadavg_arm_start": [
-    11.404296875,
-    14.19873046875,
-    15.31591796875
+    23.8232421875,
+    13.55126953125,
+    8.67138671875
    ],
    "chat_tokens": 1900,
    "prompt_n": 1900,
-   "prompt_ms": 957.288,
-   "ms_per_token": 0.504,
+   "prompt_ms": 953.251,
+   "ms_per_token": 0.502,
    "cache_n": 0,
-   "wall_ms": 1318.1,
+   "wall_ms": 1283.8,
    "loadavg_at_send": [
-    11.404296875,
-    14.19873046875,
-    15.31591796875
+    23.8232421875,
+    13.55126953125,
+    8.67138671875
    ],
    "loadavg_after_send": [
-    11.404296875,
-    14.19873046875,
-    15.31591796875
+    23.8232421875,
+    13.55126953125,
+    8.67138671875
    ],
    "released_before_send": false,
    "cold": true,
@@ -406,12 +469,21 @@
     "verbosity_note": "engine runs at -lv 4; 0 lines means the path never announced at that level"
    },
    "prompt_eval_lines": [
-    "0.02.391.495 I slot print_timing: id  0 | task 1 | prompt eval time =     957.29 ms /  1900 tokens (    0.50 ms per token,  1984.77 tokens per second)"
+    "0.02.355.860 I slot print_timing: id  0 | task 1 | prompt eval time =     953.25 ms /  1900 tokens (    0.50 ms per token,  1993.18 tokens per second)"
    ],
+   "backend_lines": {
+    "verdict": "gpu",
+    "lines": [
+     "0.00.784.964 I load_tensors: offloaded 57/57 layers to GPU",
+     "0.00.787.766 I ggml_metal_init: found device: Apple M1 Max"
+    ],
+    "pattern": "offloaded \\d+/\\d+ layers to GPU|no usable GPU found|ggml_metal_init: found device",
+    "note": "named by this engine's own log line"
+   },
    "log": "/tmp/kalsa-prefill-ab/release_1900_under_load/engine.log",
    "blockers": [],
    "valid": true
   }
  },
- "conclusion": "BUILD: at the same low load the fork prefills 1900 tokens at 7.853 ms/token against the release's 0.49 (16.0x), so the 16x follows the engine, not the machine; the two commits between them are a7d2cec79 governor : refuse a plugged baseline of 0 C or colder in the engine gate, e3088932c governor : state raw t_idle_c in llama-ext.h and pin the sole-decider rule; governor/thermal lines logged: fork=0, release=0, old run=0; under the burners the fork drifts to 14.552 ms/token while the release holds at 0.504 at load 11.4 (the fork was measured at load 16.0) - contention hits only the fork, which is what a prefill running off the GPU looks like."
+ "conclusion": "BUILD: at the same low load the fork prefills 1900 tokens at 10.488 ms/token against the release's 0.49 (21.4x), so the 16x follows the engine, not the machine; the two commits between them are a7d2cec79 governor : refuse a plugged baseline of 0 C or colder in the engine gate, e3088932c governor : state raw t_idle_c in llama-ext.h and pin the sole-decider rule; governor/thermal lines logged: fork=0, release=0, old run=0; under the burners the fork drifts to 17.437 ms/token while the release holds at 0.502 at load 23.8 (the fork was measured at load 19.4) - contention hits only the fork, which is what a prefill running off the GPU looks like; the discriminant is the BACKEND: fork=cpu, release=gpu (backend_evidence: fork: warning: no usable GPU found, --gpu-layers option will be ignored | release: 0.00.630.439 I load_tensors: offloaded 57/57 layers to GPU)."
 }
