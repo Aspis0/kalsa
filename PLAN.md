@@ -146,6 +146,123 @@ a separate question, and the governor numbers are under re-verification below.
   shape (Rule 1: decisions contain no device identity; Rule 2: matrix as data; Rule 3: one
   selector; probes fail closed) survived the audit unchanged.
 
+## Verified state, 2026-09-22
+
+The numbers, the tables and the per-cell artefacts for the whole day are in `docs/ALIVE.md`,
+"2026-09-22". This section says what the state IS and what stays open; nothing here is smoothed
+over.
+
+### GPU numerics: the cause is found, the gate is still not reachable
+
+- The 57x divergence was the **fp16 activation block scale**. A/B
+  (`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 22): fp16 control bitwise stock
+  (0.394993 / 63.892 %), fp32 arm **0.005412 / 93.982 % at 76.44 t/s** - better on both gate limbs
+  than the f32 route (0.006954 / 92.913 % at 68.42) and faster than stock, so the -9.9 % prefill
+  cost is recovered. The shipped default with no env var reproduces it (sec. 23):
+  **0.005412 / 93.982 % / 76.36 t/s**. Gate: still FAIL both limbs - the closest any arm has been.
+- The `-b 1` floor probe (sec. 17) closed two axes: at batch 1, stock and full precision are
+  **bitwise identical, 0.006012 / 93.138 %, FAIL both limbs**. The acceptance gate (<= 0.005) is
+  **not reachable by batched-GEMM precision work**: the residual is common to both batch shapes,
+  not a batching artefact.
+- The activation-quantiser reading of that common residual was **refuted** today
+  (`scratchpad/agents/quant-alignment/REPORT.md`): at batch 1 the quantiser never executes (all
+  seven dispatch sites closed; the b1 GEMVs are f32 end to end), and where it does run, removing
+  it costs +0.001542. New lead: **weight-side fp16 in the K-quant kernels** - the fp16 `half4
+  dequantized_weights` (`gemm_noshuffle_q4_k_f32.cl:63`) and the gemv `d*sv` half sub-scale,
+  present in both batch shapes and never measured on q4_K/q6_K anywhere. The reference-side Q8_K
+  floor is the other survivor.
+- **Two zero-build probes are running** (instrumented `-b 1` enqueue counters; the env-only q4_K
+  dp4a forcing probe at b256). The falsifiers are pre-registered in that report's section 3 and
+  are the record of how to read the results: `quant_a=0` at b1; the forcing probe >= ~0.0085 under
+  the old hypothesis, < +0.002 kills it; a Q8_K-matched build must move >= -0.0005 (<= -0.0002
+  falsifies it); a b1 arm with harness-proven CPU-matched activation codes staying >= 0.0055
+  falsifies the floor and hands the lead to the weight side. Two anomalies stay open: b1 and b256
+  were scored against different references (PPL 27.0660 vs 27.2114), and the +0.001542 where the
+  f32 route is worse than the int8 route is unexplained. The pattern the day keeps: **a hypothesis
+  is only useful if the number that would kill it is written before the measurement.**
+
+### The KV term: measured, magnitude OPEN
+
+At the app's shipped KV configuration (`q8_0` key / `q4_0` value, `-fa on`) the shipped engine
+reads **0.010268 / 92.126 %** full corpus and **0.011096 / 92.717 %** reduced corpus
+(`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 24, 26) - about **twice** the kernel-side
+error (0.005412). The isolated term is **+0.0015 to +0.0048** depending on reference orientation
+(reduced vs full corpus disagree by 3.2x), so the magnitude is **not yet settled**; the
+full-corpus matched reference is queued. The pure flash-attention term is small: **+0.0009**
+(matched, reduced corpus).
+
+### The product question is answered; the safety marking stays a marking
+
+Six realistic prompts all diverge textually with **zero material divergences**; memory facts differ
+**10/10** with **zero rows where one arm is right and the other wrong** (reverse: 0); safety
+**0/24 complied** across six categories at t0 and t0.7, with **four pre-answer cells flagged
+RELEASE BLOCKER CANDIDATE** (S1_t07, S4_t0, S6_t0, S6_t07) and the truncation caveat attached: the
+reasoning template consumes the token budget, so **0/10 final answers** (memory) were emitted.
+Record: `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 18-20. Acting on the flag needs a
+budget-up re-run (n>=160) - owner's call.
+
+### The stall reproduces on what we ship
+
+`KALSA_STALL {"tokens":0,"reason":"prefill"}` at **+1175 s** (original +739 s) on APK `d3c66bdb`
+(engine `1577495b9`), and a full raw logcat shows **zero native lines across 19.6 minutes** - a
+silent stall, not a crash (`scratchpad/agents/jelly-rerun/REPORT.md` sec. 12). Run B completed
+(+213.30 s, 75 tokens) but **two variables moved** (seeded EMA *and* warm KV), so "the EMA fixed
+it" is not supported (sec. 13). Both runs ran at `ThrottlingStatus: SEVERE` where the originals
+ran NONE - **the thermal limb is untested** (sec. 16).
+
+### The instrument lesson, twice - one disease: work that exists in exactly one place
+
+1. The Meter arms itself through `run-as`, which needs a **debuggable** app; that flag was a
+   one-line hand edit (`debuggable true`) in the gitignored, `expo prebuild`-regenerated
+   `android/app/build.gradle`, and a clean prebuild deleted it along with the ability to measure
+   energy on the release artefact. A **tracked bench build** is in flight, plus a channel that
+   does not need `run-as` (`scratchpad/COORDINATOR-STATE.md`, "Results of 2026-09-22").
+2. An APK whose hash was cited in a report (`fbfe131f...`) was deleted by the 2026-09-21 cache
+   cleanup and exists nowhere on this Mac (`scratchpad/agents/jelly-rerun/REPORT.md` sec. 3, 8).
+   Standing rule adopted: **an artefact whose hash is cited must be archived before any cleanup
+   touches build output.**
+
+### The delivery chain, verified end to end for the first time
+
+- Release tag `kalsa-server-v1.1.1` on engine `a7d2cec79` (= `main` + the governor pair), artifact
+  published to R2 with a manifest that names the tag object (`0f1b3bec...`) and the commit.
+- Binding `kalsarn-governor-engine` = `5b966218`: the vendored tree is byte-identical to the engine
+  archive plus the repo's 20 patches, by comparison (`scratchpad/agents/binding-prep/REPORT.md`
+  round 2).
+- App branch `engine-pin-kalsallama` = `e206a945`: provenance gate enforced and now **able to
+  fail** - breaking the pin exits 2 with both shas printed (`scratchpad/agents/landing-check-fix/REPORT.md`,
+  suite 37 passed / 0 failed).
+- Caveats, kept honest: the CI run triggered by that push **failed before reaching the gate**
+  (`android-actions/setup-android@v3` cannot fetch the removed `tools` package), so CI-enforced
+  provenance does not exist yet - only the place where it should stand; and jest is dead in the
+  binding's environment (12/12 pre-existing failures), so that layer has no test net.
+
+### Desk panel number (other workstream)
+
+Two devices decoding on one `kalsa-server-v1.1.1` engine, attributed to the release artefact by
+its published sha (`exe_sha256` matched against the manifest row, `release.status = matched`).
+The desk's answer to the figure discrepancy: **not a transcription - three different runs of the
+same measurement**, all three registered:
+
+| run | commit | per device | aggregate | A2/A | load floor |
+|---|---|---|---|---|---|
+| 1 | `5b9b98f` | 0.7546 (69.17 alone / 52.20 each t/s) | 1.5093 | 1.0105 | ~4-6 |
+| 2 | `fe14e78` | 0.7302 | 1.4604 | 0.9982 | ~2 |
+| 3 | `34de14f` | 0.7336 | 1.4672 | 1.0037 | 4.08 |
+
+- **The panel row is run 3** - not for recency: the tightest drift control (1.0037 against
+  1.0105), and its provenance travels as fields inside `results.json` rather than prose (a debt
+  the desk declared, the following session paid).
+- **Path-plus-commit rule:** run 3 overwrote `dev/results/concurrency-two-devices/results.json`,
+  so run 1's artefact survives only in git history at `5b9b98f`. Cite the commit wherever the
+  path is cited - two figures on one path otherwise read as a transcription error.
+- **Not a constant:** the three runs agree within 3 % (1.4604 / 1.4672 / 1.5093), per-device
+  0.73-0.75 - the spread is the floor, not the measurement. Read the figure with its artefact
+  label and load alongside.
+
+Record: the three commits above, `kalsa-brain` `dev/results/concurrency-two-devices/`, and
+`kalsa-brain/docs/HANDOFF-2026-09-22.md` sec. 4.
+
 ## Gates and dates (recovered 2026-09-21)
 
 The concise rewrite of this file dropped the dated register. It is recovered here from
@@ -195,6 +312,9 @@ Two riders carried with the same table, because both were later misread:
   mid-September ends with "G2 not claimed" (`archived/PLAN-2026-09-full.md:1965`, `:2003`,
   `:2045`, `:2488`) and the archived diary stops at 2026-09-20. No document records a G2 claim
   after that, so the answer to "is M1 finished?" is no by the gate it depends on.
+- **2026-09-22 check:** still no G2 claim on disk, and the prefill stall now reproduces on the
+  build we ship (`docs/ALIVE.md`, "2026-09-22"), so G2's long-session criterion stays blocked
+  behind the governor exactly as the 2026-09-21 decision says.
 
 ### Owner decision 2026-09-21: bring the Governor forward
 
@@ -245,6 +365,11 @@ The order is the owner's to set. The committed near-term work is:
    so a push is a fast-forward. Whether to push it is the owner's.
 4. Update the living docs and the record of each measurement in the same commit as the
    measurement.
+5. GPU residual: run the two zero-build probes and read their numbers against the pre-registered
+   falsifiers (`scratchpad/agents/quant-alignment/REPORT.md`, section 3) before building anything.
+   The lead to test is weight-side fp16 in the K-quant kernels.
+6. Rerun the Jelly stall cool (`ThrottlingStatus: NONE` at send time) and separate the seeded-EMA
+   variable from warm KV - once the tracked bench build exists (see "Open items and debts").
 
 ## Engine release: current position and next steps
 
@@ -252,7 +377,37 @@ The engine binary ships inside the desktop app. The operational procedure and th
 are in `docs/ALIVE.md`, "Engine release pipeline". This section records where the path stands and
 what is left.
 
-### Position, 2026-09-21
+### Position, 2026-09-22
+
+- Release line: ref `kalsa-release-v1-1-1`, tip `a7d2cec79` = `main` `833cde99b` + the two
+  governor commits cherry-picked (patch-ids equal to the originals; seven standing targets
+  `0 0 77 77 0 0 0`; independent audit 6/6 confirmed - `scratchpad/agents/release-prep/REPORT.md`,
+  `scratchpad/agents/release-audit/REPORT.md`).
+- CURRENT release `kalsa-server-v1.1.1`, annotated, tag object
+  `0f1b3bec7342ddd5624dc474c760a0b38bc80b5b`, pointing at `a7d2cec79`, published by run
+  `35762258094`; the manifest names the tag object and the commit (read back consumer-side in
+  `kalsa-brain` `dev/results/concurrency-two-devices/results.json`). v1.1.0 and v1.0.0 stay
+  published and unchanged. Published-state fields: `docs/ALIVE.md`, "Published state, v1.1.1".
+- Phone line: ref `kalsa-phone-v1-1-1`, tip `1577495b9` = release tip + the four GPU picks
+  (`cd213fff7`, `86f602f8a`, `5b6c5361c`, `d75422944`) + the q8-scale pick `e1cfb60f7` + the dp4a
+  default flip; each pick patch-id-equal to its original, audited before push
+  (`scratchpad/agents/phone-line-{prep,audit}/REPORT.md`,
+  `phone-engine-v2{,-audit}/REPORT.md`). The GPU/numerics work is IN the phone build by the
+  owner's decision of 2026-09-21 (option B); what ships is the fp32-activation-scale default
+  (0.005412 / 93.982 % at stock speed), which superseded the f32 route (0.006954 / 92.913 % at
+  -9.9 %) the same day it landed.
+- Binding `kalsarn-governor-engine` = `5b966218` (vendored tree proven byte-identical to the
+  engine archive plus the repo's 20 patches, by comparison - `scratchpad/agents/binding-prep/REPORT.md`
+  round 2 sec. 2; the independent audit of round 1 is `binding-audit/REPORT.md`).
+- App branch `engine-pin-kalsallama` = `e206a945`, pushed; its provenance gate is enforced and
+  able to fail (exit 2, both shas printed). The CI run triggered by the push **failed before
+  reaching the gate** (`android-actions/setup-android@v3` cannot fetch the removed `tools`
+  package), so CI-enforced provenance does not exist yet.
+- Distribution stays on Cloudflare R2 (`dl.kalsa.io`); the GitHub-release path is gone. The two
+  measured consumer traps below still hold - and `exe_sha256` was confirmed version-invariant a
+  third time (v1.1.1 carries the same launcher hash as v1.0.0/v1.1.0).
+
+### Position, 2026-09-21 (history)
 
 - Source of truth: `Aspis0/kalsallama` (private), integration branch `b11010-merge`, tip
   `2a290390d67311b580ef398fd545e6d060b39897` (`ci : drop the Metal packaging work from the
@@ -364,6 +519,8 @@ Ordered next steps:
 1. `kalsa-server-v1.1.0` is published and LIVE (run `35565687271`): slot inlet included, archive
    shape identical to v1.0.0, consumer verification in `docs/ALIVE.md`, "Published state". v1.0.0
    stays available. Remaining for this tag: nothing.
+1a. `kalsa-server-v1.1.1` superseded it on 2026-09-22 (run `35762258094`, tag object `0f1b3bec...`,
+   commit `a7d2cec79`, manifest read back consumer-side). Remaining for this tag: nothing.
 1b. Metal packaging (the item above): fix the probe classifier and move the probe model into the
    repo as a fixture, then cut its own tag. Until then the Metal upgrade is not shippable - the
    embedded metallib of v1.0.0/v1.1.0 is what users run.
@@ -377,10 +534,52 @@ Ordered next steps:
    flush/close, file_size, rename, prior-file preservation); `fsync`/directory durability;
    cross-backend restore; the residual TOCTOU between the exclusive create and the core save
    reopening the temp; 32-bit portability of the `ckpt_read_buf` length conversion.
-4. Phone: the fork `Aspis0/kalsa.rn` was bumped to
-   `0288dc2786911d9b7dda6b2961cb3f0afa1e0ee2` (only version files changed, no C++), and the app pin
-   bump to that commit is prepared and awaiting review. The S23 repack timing run still waits for
-   the device to be unplugged.
+4. Phone chain as of 2026-09-22: engine `kalsa-phone-v1-1-1` = `1577495b9`, binding
+   `kalsarn-governor-engine` = `5b966218`, app `engine-pin-kalsallama` = `e206a945` - all pushed;
+   see "Position, 2026-09-22". The S23 repack timing run still waits for the device to be
+   unplugged.
+5. GPU residual and the acceptance gate: the new lead is weight-side fp16 in the K-quant kernels.
+   The two zero-build probes (instrumented `-b 1` counters; q4_K dp4a forcing at b256) are
+   running; the pre-registered falsifiers in `scratchpad/agents/quant-alignment/REPORT.md`
+   section 3 are how their numbers get read. Blocked on: phone time, plus an owner GO for the
+   builds (Q8_K-matched quantiser, CPU-matched b1 arm) if a probe points there.
+6. KV-term magnitude: OPEN - the two reference orientations disagree by 3.2x (+0.0015 vs
+   +0.0048). The full-corpus matched reference (`cpu-f16faon`) is queued. Blocked on: the S23,
+   unplugged, inside the battery rules (`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 24,
+   26 and its resume rule).
+7. The stall: the thermal limb is untested and the EMA variable is not isolated. Next measurement
+   is a cool-state repeat of Run A (`battery < 30 C`, `ThrottlingStatus: NONE` at send time) plus
+   an arm separating seeded EMA from warm KV. Blocked on: the tracked bench build (item 8), the
+   Jelly's battery/thermal state, and the owner's order.
+8. Instrument debt: a **tracked bench build** (the debuggable flag lives in tracked config and
+   survives a clean prebuild) plus a channel that does not need `run-as`, so energy can be
+   measured on the shipping artefact itself. Standing rule in force: an artefact whose hash is
+   cited must be archived before any cleanup touches build output. Owner of the build shape: the
+   app workstream.
+9. CI-enforced provenance: does not exist. The gate itself is repaired and can fail
+   (`scratchpad/agents/landing-check-fix/REPORT.md`, 37 passed / 0 failed), but the workflow dies
+   earlier at `android-actions/setup-android@v3`. Blocked on: fixing that action pin; the owner
+   decides who.
+10. Jest in the binding's environment: 12/12 suites fail, pre-existing on the pristine base
+    (react-native 0.72 jest setup on node 26) - the binding's JS layer ships with no test net.
+    Environment debt, not a defect of the line; nobody has booked the fix
+    (`scratchpad/agents/binding-audit/REPORT.md` item 5).
+11. Governor runtime engagement: OPEN. The last device smoke activated the governor through the
+    app's own path and it then REFUSED to engage (`fallback_reason:"governor not eligible"`,
+    `engine_prefill:"CPU"` - `scratchpad/agents/s23-governor-smoke/REPORT.md` sec. 5); no document
+    records an engagement since. The V73 GPU-prefill lane ships by owner decision and is still
+    unmeasured on the device it will run on (`scratchpad/agents/phone-line-audit/REPORT.md`
+    sec. 3.2).
+12. Desk work (`kalsa-brain`): the four commits - panel row labelled with the release (`1f22bb7`),
+    provenance fields inside the artefact (`fe14e78`), `Stopping` (`6efec90`) and the `Stopped`
+    invariant with its proof (`f1df191`, `ae78761`, `f9d8861`) - were first recorded here as
+    **local-only, pending an owner decision** (`origin/brain` at `cac9068`, handoff: "no push was
+    authorized"), the fourth candidate of the day for work that exists in one place only. The
+    doubt is kept visible; the correction is: **PUSHED 2026-09-22** - `cac9068..3660706
+    brain -> brain`, exit 0, fast-forward re-verified an instant before pushing (0 behind / 14
+    ahead), tree clean before and after, local `HEAD` = remote sha; `git ls-remote` reads
+    `refs/heads/brain = 3660706793dad68f0ac85366ab09805cb6ddb733`. Closed as a debt; the
+    correction stays written so the one-place window it closed is not lost.
 
 Cache caveats, standing (source of truth is the Cloudflare docs, not folklore):
 
