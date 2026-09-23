@@ -272,13 +272,9 @@ describe("six-overlay action and editing grammar", () => {
   it("routes the Kalsa Help and Pro rows to their supplied destinations", () => {
     const onOpenHelp = jest.fn();
     const onOpenPro = jest.fn();
-    expect(require("fs").readFileSync(`${__dirname}/SettingsScreen.tsx`, "utf8")).toMatch(/onOpenHelp={onOpenHelp}[\s\S]*onOpenPro={onOpenPro}/);
-    resetHooks();
-    const tree = SettingsHomeScreen({
+    const homeProps = {
       onBack: jest.fn(),
       onOpenAdvanced: jest.fn(),
-      onOpenHelp,
-      onOpenPro,
       modelOptions: [],
       currentModelId: "",
       modelBusy: false,
@@ -291,7 +287,9 @@ describe("six-overlay action and editing grammar", () => {
       calendarToolsEnabled: false,
       onToggleCalendarTools: jest.fn(),
       appVersion: "1.0",
-    });
+    };
+    resetHooks();
+    const tree = SettingsHomeScreen({ ...homeProps, onOpenHelp, onOpenPro });
     const kalsaOrder = elements(tree)
       .filter((node) =>
         (node.type === "View" && node.props.testID === "settings.home.kalsa") ||
@@ -305,8 +303,11 @@ describe("six-overlay action and editing grammar", () => {
     invokePressable(help!);
     invokePressable(pro!);
 
-    expect(onOpenHelp).toHaveBeenCalledTimes(1);
-    expect(onOpenPro).toHaveBeenCalledTimes(1);
+    expect([onOpenHelp, onOpenPro].map((callback) => callback.mock.calls.length)).toEqual([1, 1]);
+
+    resetHooks();
+    const legacyTree = elements(SettingsHomeScreen({ ...homeProps, onOpenHelp }));
+    expect(legacyTree.some((node) => node.props.testID === "settings.home.pro")).toBe(false);
   });
 
   it("opens existing note and persona editors in AttachSheet, outside their lists", async () => {

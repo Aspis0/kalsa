@@ -120,7 +120,10 @@ describe("useDocumentImport", () => {
   });
 
   it.each([
-    ["a canceled picker result", { canceled: true, assets: [] }],
+    ["a canceled picker result with a selected asset", {
+      canceled: true,
+      assets: [{ uri: "file:///picked/note.txt", name: "note.txt", mimeType: "text/plain" }],
+    }],
     ["a picker result with no asset", { canceled: false, assets: [] }],
   ])("leaves no progress or writes after %s", async (_name, result) => {
     mockGetDocumentAsync.mockResolvedValueOnce(result);
@@ -133,6 +136,7 @@ describe("useDocumentImport", () => {
     expect(mockCopyToOwnedStorage).not.toHaveBeenCalled();
     expect(mockWriteOwnedText).not.toHaveBeenCalled();
     expect(mockAddDocument).not.toHaveBeenCalled();
+    expect(mockAlert).not.toHaveBeenCalled();
     expect(mockStateWrites).toEqual([[0, false], [1, null]]);
     expect(mockHookValues.slice(0, 2)).toEqual([false, null]);
   });

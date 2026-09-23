@@ -1411,7 +1411,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
       <SettingsHomeScreen
         onBack={handlePageBack}
         onOpenAdvanced={() => setPage("advanced")}
-        onOpenHelp={onOpenHelp}
+        onOpenHelp={handleOpenHelp}
         onOpenPro={onOpenPro}
         modelOptions={modelChoices.map(({ entry, selectDisabled }) => ({
           id: entry.id,

@@ -30,8 +30,7 @@ describe("Settings v2 home and advanced pages", () => {
     const kalsaGroup = HOME.indexOf('<Group title="Kalsa"');
     expect(kalsaGroup).toBeGreaterThan(HOME.indexOf('title={t("settings.groupEngine")}'));
     const homeIds = [...HOME.matchAll(/testID="(settings\.home\.[^"]+)"/g)]
-      .map((match) => match[1])
-      .filter((id) => id !== "settings.home.help" && id !== "settings.home.pro");
+      .map((match) => match[1]);
     expect(homeIds).toEqual([
       "settings.home.scroll",
       "settings.home.where",
@@ -44,6 +43,8 @@ describe("Settings v2 home and advanced pages", () => {
       "settings.home.permissions",
       "settings.home.advanced",
       "settings.home.kalsa",
+      "settings.home.help",
+      "settings.home.pro",
     ]);
     expect(HOME).toContain('testID="settings.home.kalsa"');
     expect(HOME).toContain('require("../../assets/icon.png")');
