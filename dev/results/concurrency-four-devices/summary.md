@@ -98,7 +98,7 @@ client-side stamps, so a repeat could record a different count. The wait is the 
 `WORKERS = 4`, `QUEUE = 8` (`door_pool_from_source`, read from `crates/kalsa-door/src/lib.rs` at run
 time, because the compiled runner does not expose them), a worker holds one exchange end to end,
 and four streams hold all four workers. So with four devices streaming, **any fifth request waits
-for the first stream to end**, however small it is. With two devices, two workers stay free and
+for the first stream to end**, however small it is. It waits in the door's queue, which holds up to `QUEUE = 8` and is not punished for the wait (`crates/kalsa-door/src/proxy.rs:95-98`), bounded by the 300 s connection lifetime (`proxy.rs:94`). Past the queue, or past 12 connections, the answer is an immediate empty 503 (`server.rs:163-182`). With two devices, two workers stay free and
 the source predicts no wait. That case is **not measured** here: R1 runs direct and has no probe.
 Whether to change the pool is an owner's question (the plan, §9), and this run
 does not answer it.

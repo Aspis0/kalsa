@@ -42,7 +42,7 @@ is at `brain` `4dc4b0f` and was not changed to answer. The phone's design this a
    `crates/kalsa-door/src/proxy.rs:51-53` — `` `/props`, `/health`, `/tokenize` and the model listing
    are forwarded by the`` / `same path and change nothing`. With `WORKERS = 4`
    (`crates/kalsa-door/src/lib.rs:88`) and a worker held for a whole exchange, streams
-   included, a probe sent while four devices stream waits for a stream to end. Measured on the
+   included, a probe sent while four devices stream waits for a stream to end. It waits in the door's queue, which holds up to `QUEUE = 8` and is not punished for the wait (`crates/kalsa-door/src/proxy.rs:95-98`), bounded by the 300 s connection lifetime (`proxy.rs:94`). Past the queue, or past 12 connections, the answer is an immediate empty 503 (`server.rs:163-182`). Measured on the
    release today: 6376.7 ms (`dev/results/concurrency-four-devices/results.json`,
    `door_queue_probe`, commit `7f3d28f`). A readiness timeout shorter than a long answer would read
    a busy computer as a dead one.

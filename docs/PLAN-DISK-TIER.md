@@ -683,7 +683,7 @@ two-device figure out of its known range. From two devices to four, the aggregat
 request through the door (`/health`, same worker path) waited **6376.7 ms**. It was answered
 0.454 ms after the first stream ended. `WORKERS = 4` and a worker holds one exchange end to end, so
 with four devices streaming, any other request through the door waits for a stream to end, however
-small it is. The owner's decision on the pool is in §9. What this run does not answer: the
+small it is. It waits in the door's queue, which holds up to `QUEUE = 8` and is not punished for the wait (`crates/kalsa-door/src/proxy.rs:95-98`), bounded by the 300 s connection lifetime (`proxy.rs:94`). Past the queue, or past 12 connections, the answer is an immediate empty 503 (`server.rs:163-182`). The owner's decision on the pool is in §9. What this run does not answer: the
 spread at four devices (one run per path), the wait at two devices (the direct control has no
 probe), and why one slot per four-stream run is 0.7 % slower (its decode started ~85 ms before the
 other three; measured in the raw log, which is not committed, and the mechanism is not traced).
