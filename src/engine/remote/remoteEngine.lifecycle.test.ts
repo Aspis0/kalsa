@@ -7,6 +7,7 @@ import {
   streamRemoteAssistantTurn,
   testRemoteConnection,
 } from "./RemoteEngine";
+import { humanRemoteBrainError } from "./remoteBrainErrors";
 import { setRemoteBrainUrl } from "./remoteSettings";
 import { getRemoteBrainToken } from "./remoteSecret";
 
@@ -840,6 +841,49 @@ describe("RemoteEngine lifecycle", () => {
     expect(lastUser).toBeDefined();
     expect(lastUser!.content).toContain("Needle");
     expect(lastUser!.content).toContain("hello");
+  });
+
+  test("editing the URL or server model drops remote readiness", async () => {
+    // The ready short-circuit must never trust a probe of the PREVIOUS
+    // server: a config write invalidates readiness, so the next ensure
+    // re-probes (fix round 2, item 4).
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    expect(isRemoteEngineReady()).toBe(true);
+    await setRemoteBrainUrl("http://127.0.0.1:9100");
+    expect(isRemoteEngineReady()).toBe(false);
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    expect(isRemoteEngineReady()).toBe(true);
+    await setRemoteServerModelId("other-model");
+    expect(isRemoteEngineReady()).toBe(false);
+  });
+
+  test("a native remote exception never reaches the UI verbatim", async () => {
+    // getRemoteBrainToken rethrows SecureStore failures; the remote boundary
+    // converts them to an internal code so the UI renders generic copy.
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const tokenMock = getRemoteBrainToken as jest.Mock;
+    tokenMock.mockRejectedValueOnce(new Error("keystore exploded"));
+    const errors: string[] = [];
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: (e) => errors.push(e.message),
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0].startsWith("remote_brain_")).toBe(true);
+    expect(errors[0]).not.toContain("keystore");
+    expect(humanRemoteBrainError(errors[0], (k) => k)).toBe(
+      "settings.remoteBrainFailGeneric",
+    );
   });
 
   test("onDone throw still settles", async () => {

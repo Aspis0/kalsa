@@ -158,7 +158,11 @@ test("the shipped disclosure and its Italian mirror are the owner's exact texts"
 
 test("the hint no longer claims voice is off in remote mode", () => {
   // Dictation runs on local whisper and needs no local chat LLM (traced in
-  // STEP2.md fix round 1), so the promise would be false.
+  // STEP2.md fix round 1), so the promise would be false. The exact literal
+  // (fix round 2 copy) is pinned so a wording regression fails here.
+  expect(en.settings.remoteBrainHint).toBe(
+    "Use your computer as the model. Set its address below. Tools, memory extraction, translation and embeddings stay off in this mode.",
+  );
   expect(en.settings.remoteBrainHint).not.toMatch(/voice/);
   expect(itLocale.settings.remoteBrainHint).not.toMatch(/voce/);
 });

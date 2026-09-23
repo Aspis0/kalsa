@@ -130,7 +130,7 @@ export const en = {
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
     remoteBrain: "Remote brain",
     remoteBrainHint:
-      "Use your computer as the model. Set its address below. Tools, memory extraction, translation, embeddings stay off in this mode.",
+      "Use your computer as the model. Set its address below. Tools, memory extraction, translation and embeddings stay off in this mode.",
     remoteBrainDisclosure:
       "To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names.",
     remoteBrainUrl: "Your computer's address",

@@ -3029,6 +3029,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           defaultLocalModelId: getDefaultModel().id,
           remoteModelId: REMOTE_COMPUTER_MODEL_ID,
         });
+        // A tap during hydration owns the intent and the model index: boot
+        // must not overwrite a switch that is in flight (its probe-skip and
+        // epoch bump take over from here).
+        if (modelSwitchInFlightRef.current) return;
         if (decision.kind === "remote") {
           engineIntentRef.current = {
             modelId: REMOTE_COMPUTER_MODEL_ID,
@@ -3087,8 +3091,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelIndex(startIndex);
       } catch {
         // Preference read failure → keep the default boot model (main's
-        // contract): this launch only, nothing persisted — a transient read
-        // error must never overwrite the user's saved local choice.
+        // contract): the model choice is read-only this launch — no
+        // MODEL_STORAGE_KEY write. Only recoverLocalBackend may write, and
+        // only the backend key, as "local".
         try {
           await recoverLocalBackend();
           engineIntentRef.current = { modelId: getDefaultModel().id, remote: false };
@@ -4930,6 +4935,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
       return;
     }
+    if (semanticRebuildInFlight || isDeleteActive()) {
+      // A rebuild in flight: switching to remote would let its embed pass hit
+      // the entry gate and strand the just-deleted index with no rebuild.
+      Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
+      return;
+    }
     modelSwitchInFlightRef.current = true;
     engineGenerationRef.current += 1;
     engineIntentRef.current = {
@@ -4975,16 +4986,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelState("error");
         setModelErrorKind("engine");
         const raw = error instanceof Error ? error.message : String(error);
-        setModelError(
-          raw.startsWith("remote_brain_") ? humanRemoteBrainError(raw, t) : raw,
-        );
+        // Every error out of the remote selection flow renders through
+        // humanRemoteBrainError — native exceptions land on its generic copy.
+        setModelError(humanRemoteBrainError(raw, t));
         setModelErrorDetail(null);
       } finally {
         modelSwitchInFlightRef.current = false;
         endBackendSwitch();
       }
     })();
-  }, [ensureEngineForModel, modelState, t]);
+  }, [ensureEngineForModel, modelState, semanticRebuildInFlight, t]);
 
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(

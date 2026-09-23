@@ -1711,6 +1711,10 @@ export function AiChatPage({
   }, [showVoiceNote, supportsVision, t]);
 
   const addPdfAttachment = useCallback(async () => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     if (pickingPdfRef.current || pdfToRenderRef.current) return;
     if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
       showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
@@ -3669,13 +3673,17 @@ export function AiChatPage({
 
   const hasDocumentContext = attachedItems.some((item) => item.kind === "document");
   const onComposerDocument = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     const docs = documentLibrary?.docs ?? [];
     if (docs.length === 0) {
       onOpenDocuments?.();
       return;
     }
     setDocPickOpen(true);
-  }, [documentLibrary, onOpenDocuments]);
+  }, [documentLibrary, onOpenDocuments, showVoiceNote, t]);
 
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
@@ -3733,8 +3741,14 @@ export function AiChatPage({
   useEffect(() => {
     const doc = attachLibraryDoc;
     if (!doc?.id) return;
+    if (isRemoteEngineBackend()) {
+      // Shared into a remote session: say so instead of arming an attachment
+      // the disclosure covers but the mode was told it cannot take.
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     addLibraryDocumentAttachment({ id: doc.id, name: doc.name });
-  }, [addLibraryDocumentAttachment, attachLibraryDoc]);
+  }, [addLibraryDocumentAttachment, attachLibraryDoc, showVoiceNote, t]);
 
   const importAndAttachDocx = useCallback(
     async (uri: string, name: string) => {

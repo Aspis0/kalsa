@@ -40,6 +40,18 @@ let backendWriteIntent: EngineBackendMode | null = null;
 /** Sequence of hydrateRemoteBrainSettings calls: only the newest writes caches. */
 let hydrationSeq = 0;
 
+/**
+ * Set by the remote engine at load: a successful URL/model write means the
+ * server the engine probed may no longer be the server it would talk to, so
+ * readiness must drop and the next ensure re-probes. A hook keeps this module
+ * a leaf — no import of RemoteEngine, no cycle.
+ */
+let onRemoteConfigChanged: (() => void) | null = null;
+
+export function setRemoteConfigChangedHook(hook: (() => void) | null): void {
+  onRemoteConfigChanged = hook;
+}
+
 export function getEngineBackendMode(): EngineBackendMode {
   return backendCache;
 }
@@ -151,15 +163,22 @@ export async function setEngineBackendMode(
 export async function setRemoteBrainUrl(url: string): Promise<void> {
   const trimmed = url.trim();
   const next = trimmed ? normalizeUrl(trimmed) : "";
+  const changed = urlCache !== next;
   await commit(urlCache, next, (value) => {
     urlCache = value;
   }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, value));
+  // A different address is a different server: readiness must drop so the
+  // next ensure probes instead of the ready short-circuit trusting the old one.
+  if (changed) onRemoteConfigChanged?.();
 }
 
 export async function setRemoteServerModelId(id: string): Promise<void> {
-  await commit(serverModelCache, id.trim(), (value) => {
+  const next = id.trim();
+  const changed = serverModelCache !== next;
+  await commit(serverModelCache, next, (value) => {
     serverModelCache = value;
   }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, value));
+  if (changed) onRemoteConfigChanged?.();
 }
 
 export async function setRemoteMaxTokens(n: number): Promise<void> {

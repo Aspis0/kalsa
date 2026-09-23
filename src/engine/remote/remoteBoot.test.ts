@@ -101,4 +101,24 @@ describe("decideRemoteBoot", () => {
       reason: "hydration-failed",
     });
   });
+
+  test("a stale saved remote id cannot override a later local choice", () => {
+    // The remote→local switch wrote the backend key but its model-id write
+    // failed: storage holds backend=local next to the old remote id, with a
+    // URL still present. The backend key alone is the live choice.
+    const decision = decideRemoteBoot({
+      hydrationOk: true,
+      hydrationStale: false,
+      backend: "local",
+      url: "https://mac.example.ts.net",
+      savedModelId: REMOTE_COMPUTER_MODEL_ID,
+      defaultLocalModelId: LOCAL_ID,
+      remoteModelId: REMOTE_COMPUTER_MODEL_ID,
+    });
+    expect(decision).toEqual({
+      kind: "local",
+      persistModelId: LOCAL_ID,
+      reason: "saved-local",
+    });
+  });
 });

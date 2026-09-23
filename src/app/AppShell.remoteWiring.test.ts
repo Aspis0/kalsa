@@ -110,14 +110,56 @@ describe("AppShell remote wiring (source pins)", () => {
   });
 
   test("stream errors humanize remote codes and leave everything else alone", () => {
-    expect(shell).toContain('startsWith("remote_brain_")');
-    expect(shell).toContain("humanRemoteBrainError(error.message, t)");
+    // Order-sensitive: an INVERTED ternary (raw first) must go red — that is
+    // the N2 weakness this assertion was written for.
+    expect(shell).toMatch(
+      /error\.message\.startsWith\("remote_brain_"\)\s*\?\s*humanRemoteBrainError\(error\.message, t\)\s*:\s*error\.message/,
+    );
     expect(shell).toContain("⚠️ ${shown}");
     expect(shell).not.toContain("⚠️ ${error.message}");
   });
 
-  test("selectRemoteComputer humanizes its catch", () => {
-    expect(shell).toContain("raw.startsWith(\"remote_brain_\") ? humanRemoteBrainError(raw, t) : raw");
+  test("selectRemoteComputer humanizes its catch unconditionally", () => {
+    // Every error out of the remote selection flow goes through
+    // humanRemoteBrainError — no raw fallback branch left.
+    expect(shell).toContain("setModelError(humanRemoteBrainError(raw, t))");
+    expect(shell).not.toContain("humanRemoteBrainError(raw, t) : raw");
+  });
+
+  test("selectRemoteComputer refuses while a rebuild is in flight", () => {
+    const selectRemote = shell.match(
+      /const selectRemoteComputer = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[/,
+    );
+    expect(selectRemote).not.toBeNull();
+    expect(selectRemote![1]).toContain("semanticRebuildInFlight || isDeleteActive()");
+  });
+
+  test("boot does not overwrite the intent of a switch in flight (N1)", () => {
+    expect(shell).toMatch(
+      /decideRemoteBoot\(\{[\s\S]{0,900}?if \(modelSwitchInFlightRef\.current\) return;/,
+    );
+  });
+
+  test("library chip, share path and file import are all gated in remote mode", () => {
+    const docChip = chat.match(
+      /const onComposerDocument = useCallback\(\(\) => \{([\s\S]*?)\}, \[/,
+    );
+    expect(docChip).not.toBeNull();
+    expect(docChip![1]).toContain('showVoiceNote(t("settings.remoteGated"))');
+
+    const shareAttach = chat.match(
+      /const doc = attachLibraryDoc;([\s\S]{0,300}?)addLibraryDocumentAttachment/,
+    );
+    expect(shareAttach).not.toBeNull();
+    expect(shareAttach![1]).toContain("isRemoteEngineBackend()");
+    expect(shareAttach![1]).toContain('showVoiceNote(t("settings.remoteGated"))');
+
+    const fileImport = chat.match(
+      /const addPdfAttachment = useCallback\(async \(\) => \{([\s\S]*?)\}, \[/,
+    );
+    expect(fileImport).not.toBeNull();
+    expect(fileImport![1]).toContain("isRemoteEngineBackend()");
+    expect(fileImport![1]).toContain('showVoiceNote(t("settings.remoteGated"))');
   });
 
   test("remote ensure short-circuits when ready, before the loading flash", () => {

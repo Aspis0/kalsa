@@ -29,8 +29,10 @@ import {
   getRemoteServerModelId,
   getRemoteTemperature,
   setRemoteContextSize,
+  setRemoteConfigChangedHook,
   validateServedModel,
 } from "./remoteSettings";
+import { isInternalErrorCode } from "./remoteBrainErrors";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
 
@@ -41,6 +43,13 @@ let lastRequestId: string | null = null;
 let activeStream: { abort: () => void } | null = null;
 let initGeneration = 0;
 let streamGeneration = 0;
+
+// A URL/model edit invalidates readiness: the next ensure must re-probe the
+// server it will actually talk to, not inherit the ready short-circuit's
+// verdict about the previous one.
+setRemoteConfigChangedHook(() => {
+  ready = false;
+});
 
 /**
  * Verdict for an init/stream that lost a race with a newer one (or a dispose).
@@ -233,6 +242,15 @@ export async function streamRemoteAssistantTurn(
 ): Promise<void> {
   const locale: Locale = options.locale;
   const strings = getStrings(locale);
+  // Config gate first: a cleared or invalid address is the actionable cause,
+  // and a URL/model edit drops readiness (setRemoteConfigChangedHook above),
+  // so this must win over the not-ready message behind it.
+  const base = getRemoteBrainUrl();
+  const urlGate = remoteUrlGateError(base);
+  if (urlGate) {
+    callbacks.onError(new Error(urlGate));
+    return;
+  }
   if (!ready) {
     callbacks.onError(new Error(strings.errors.modelNotLoaded));
     return;
@@ -350,12 +368,6 @@ export async function streamRemoteAssistantTurn(
 
   let streamStarted = false;
   try {
-  const base = getRemoteBrainUrl();
-  const urlGate = remoteUrlGateError(base);
-  if (urlGate) {
-    finishOnce(new Error(urlGate));
-    return;
-  }
   const token = await getRemoteBrainToken();
   if (!stillMine()) return;
   if (isNonLoopback(base) && !token) {
@@ -463,7 +475,16 @@ export async function streamRemoteAssistantTurn(
   });
   } catch (err) {
     if (!closed) {
-      finishOnce(err instanceof Error ? err : new Error(String(err)));
+      // Remote-boundary normalization: a native exception (SecureStore, JS)
+      // must reach the UI as an internal code so it renders as generic copy,
+      // never verbatim (remoteBrainErrors' module rule). Codes pass through;
+      // AppShell's prefix gate turns every one of them into human copy.
+      const failure = err instanceof Error ? err : new Error(String(err));
+      finishOnce(
+        isInternalErrorCode(failure.message)
+          ? failure
+          : new Error("remote_brain_internal"),
+      );
     }
   } finally {
     if (!streamStarted && stillMine()) inFlight = false;
