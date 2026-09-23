@@ -79,22 +79,46 @@ function concurrencyChecks(app, artifact, emit) {
   // could say `matched / kalsa-server-v1.1.1` for a v1.1.0 tree and none of
   // the checks above would notice. The separating fact is already IN the
   // file, unread until now: provenance.engine_version carries
-  // `commit a7d2cec79`, release.commit carries `a7d2cec79e7d...`. Prefix
-  // either way - the same rule engine_identity uses - so the tag rests on
-  // the commit that RAN, not on a launcher two releases share.
+  // `commit a7d2cec79`, release.commit carries `a7d2cec79e7d...`.
+  //
+  // H1: the agreement rule is the SAME as engine-harness's commits_agree
+  // (>=9 lowercase hex each; two shorts EQUAL; prefix only against a full
+  // 40-hex commit), pinned by the same vectors as
+  // dev/test-running-engine.py - the old >=7-prefix rule accepted
+  // `deadbee9` vs `deadbee`.
+  const commitShape = (s) => typeof s === "string" && /^[0-9a-f]{9,}$/.test(s);
+  const commitsAgree = (a, b) => {
+    if (!commitShape(a) || !commitShape(b)) return false;
+    if (a === b) return true;
+    if (a.length === 40 && a.startsWith(b)) return true;
+    if (b.length === 40 && b.startsWith(a)) return true;
+    return false;
+  };
   const engineCommit = /commit ([0-9a-f]{7,40})/.exec(
     artifact.provenance.engine_version ?? "",
   )?.[1];
   const releaseCommit = release.commit;
-  const commitsAgree =
-    Boolean(engineCommit) &&
-    Boolean(releaseCommit) &&
-    (releaseCommit.startsWith(engineCommit) ||
-      engineCommit.startsWith(releaseCommit));
+  const commitsOk = commitsAgree(engineCommit, releaseCommit);
   emit(
     "concurrency: the engine_version commit agrees with release.commit (the tag rests on the commit that ran)",
-    commitsAgree,
+    commitsOk,
     `engine_version ${engineCommit ?? "none"} vs release.commit ${releaseCommit ?? "none"}`,
+  );
+  // The rule's own vectors - the same list dev/test-running-engine.py runs,
+  // so a drift between the two implementations is caught here too.
+  const H1_VECTORS = [
+    ["deadbee9", "deadbee", false],
+    ["a7d2cec79", "a7d2cec79", true],
+    ["a7d2cec79", "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1", true],
+    ["a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1", "a7d2cec79", true],
+    ["a7d2cec7", "a7d2cec79", false],
+    ["a7d2cec79", "a7d2cec70", false],
+  ];
+  const vectorFails = H1_VECTORS.filter(([a, b, want]) => commitsAgree(a, b) !== want);
+  emit(
+    "concurrency: the H1 commit-rule vectors (same as dev/test-running-engine.py)",
+    vectorFails.length === 0,
+    vectorFails.map(([a, b]) => `${a}/${b}`).join(", ") || "all 6 match",
   );
   emit(
     "concurrency: the three ratios are exactly the artifact's, digit for digit",

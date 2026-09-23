@@ -21,7 +21,13 @@ Cases:
   (2) check_running_build: match -> ok with the agreement in the reason;
       DIFFERENT commit -> refused with BOTH commits in the reason;
       either side missing -> refused (unknown is not agreement); prefix
-      either way (the two print different lengths) -> ok.
+      either way against a FULL 40-hex -> ok.
+  (2b) H1 THE RULE (commits_agree), the six vectors shared verbatim with
+      chat/scripts/tier-panel.mjs: deadbee9 vs deadbee -> refuse; the
+      equal 9-hex pair -> ok; 9 vs full-40 (both orders) -> ok;
+      a7d2cec7 (8 hex) -> refuse; a7d2cec79 vs a7d2cec70 -> refuse; plus
+      an uppercase pair -> refuse (lowercase only), and an integration
+      probe of check_running_build with the deadbee counterexample.
   (3) engine_identity_line's format: the exact line for a matched block,
       the fork label when the veto fired, `module missing` when the
       module is gone, the reason_code when the evidence is too weak for
@@ -115,10 +121,37 @@ def case_2_comparison(mod=eh, label=""):
     ok, _ = mod.check_running_build(f"version: x ({full})", PROPS_OK)
     check("(2) prefix rule: full 40-hex --version vs 9-hex build_info -> ok",
           ok)
-    long_props = {"build_info": "b11195-a7d2cec79e7d495cbfa3e6b3a78bd4af3"}
+    long_props = {"build_info": "b11195-a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1"}
     ok, _ = mod.check_running_build(VERSION_OK, long_props)
-    check("(2) prefix rule the other way: 9-hex --version vs long "
+    check("(2) prefix rule the other way: 9-hex --version vs full-40 "
           "build_info -> ok", ok)
+
+
+def case_2b_vectors(mod=eh, label=""):
+    print(f"(2b) H1 the ONE commit rule's vectors{label}", file=sys.stderr)
+    FULL40 = "a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1"
+    vectors = [
+        ("deadbee9", "deadbee", False),          # A's counterexample (8 vs 7)
+        ("a7d2cec79", "a7d2cec79", True),        # equal 9-hex
+        ("a7d2cec79", FULL40, True),             # 9 against the manifest's 40
+        (FULL40, "a7d2cec79", True),             # either direction
+        ("a7d2cec79e7d495cbfa3e6b3a78bd4af3fab44b1", "a7d2cec7", False),
+        ("a7d2cec7", "a7d2cec79", False),        # 8 hex: below the floor
+        ("a7d2cec79", "a7d2cec70", False),       # two 9-hex, unequal
+        ("A7D2CEC79", "A7D2CEC79", False),       # lowercase only
+    ]
+    for left, right, want in vectors:
+        got = mod.commits_agree(left, right)
+        check(f"(2b) commits_agree({left[:12]}…, {right[:12]}…) == {want}",
+              got is want, f"got {got}")
+    # the same counterexample through the impure check: both sides
+    # EXTRACT fine (the old >=7 regexes), and the RULE refuses.
+    ok, reason = mod.check_running_build("version: x (commit deadbee9)",
+                                         {"build_info": "b11195-deadbee"})
+    check("(2b) check_running_build refuses A's deadbee9/deadbee pair with "
+          "the rule in its reason", not ok
+          and "deadbee9" in reason and "deadbee" in reason
+          and "agreement rule" in reason, reason)
 
 
 def case_3_identity_line():
@@ -154,7 +187,7 @@ def case_4_mutation():
     print("(4) MUTATION: the disagreement branch is made unreachable",
           file=sys.stderr)
     source = EH.read_text()
-    needle = "    if not (want.startswith(have) or have.startswith(want)):"
+    needle = "    if not commits_agree(want, have):"
     patch = "    if False:  # MUTATION - a stale engine always passes"
     n = source.count(needle)
     check("(4) the mutation anchor exists exactly once in engine-harness",
@@ -187,6 +220,7 @@ def case_4_mutation():
 def main():
     case_1_parsers(eh)
     case_2_comparison()
+    case_2b_vectors()
     case_3_identity_line()
     case_4_mutation()
     print(f"running engine: {'GREEN' if FAILED == 0 else 'RED'} "

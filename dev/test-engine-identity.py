@@ -216,11 +216,43 @@ def case_d():
           reason[:160])
 
 
+def case_e():
+    print("(e) H1: the commit-agreement rule at engine_identity",
+          file=sys.stderr)
+
+    def block_with(manifest_commit, version_text):
+        manifest = json.loads(MANIFEST_BODY.decode("utf-8"))
+        manifest["commit"] = manifest_commit
+        body = json.dumps(manifest).encode()
+        url = mc.derive_manifest_url(str(V111_BIN))
+        return mc.release_block(str(V111_BIN), version_text, url,
+                                fetch=lambda u: body)
+
+    short = block_with("deadbee",
+                       "version: 0.4.1-dev (build 11195, commit deadbee9)")
+    check("(e) deadbee9 vs deadbee - Reviewer A's counterexample - is "
+          "refused", short["status"] == "not-the-release",
+          repr(short["status"]))
+    check("(e) ...under engine-commit-mismatch (both commits present, the "
+          "RULE refused them)",
+          short.get("reason_code") == "engine-commit-mismatch",
+          repr(short.get("reason_code")))
+    check("(e) ...and identity.commit_agrees is False",
+          short["identity"]["commit_agrees"] is False,
+          repr(short["identity"]["commit_agrees"]))
+    equal = block_with("a7d2cec79", "version: 0.4.1-dev (commit a7d2cec79)")
+    check("(e) two EQUAL 9-hex commits -> matched (short equality is the "
+          "rule's allowed short form)",
+          equal["status"] == "matched" and equal["identity"]["ok"] is True,
+          repr((equal["status"], equal["identity"]["ok"])))
+
+
 def main():
     case_a()
     case_b()
     case_c()
     case_d()
+    case_e()
     print(f"engine identity: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

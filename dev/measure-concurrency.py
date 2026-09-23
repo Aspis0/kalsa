@@ -521,11 +521,12 @@ def engine_identity(bin_path, version_text, block):
     (714e8ba1... vs 4b7d69fb...), and `--version` reads those modules, so its
     commit is the manifest-comparable form of the same fact.
 
-    `ok` is True only when the manifest matched AND the version commit agrees
-    with the manifest's commit AND the module file is there; False when the
-    manifest matched and any of those fails (including a missing commit on
-    either side - the reason code names WHICH side is missing); None when
-    the status is not `matched` - there is no launcher verdict to veto.
+    `ok` is True only when the manifest matched AND the version commit
+    agrees with the manifest's commit under eh.commits_agree (H1: >=9
+    lowercase hex each, two shorts EQUAL, prefix only against a full
+    40-hex - the SAME rule the responder check and tier-panel use) AND
+    the module file is there; False when the manifest matched and any of
+    those fails; None when the status is not `matched` (nothing to veto).
     """
     module = Path(bin_path).parent / ENGINE_MODULE_FILE
     hit = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
@@ -533,7 +534,7 @@ def engine_identity(bin_path, version_text, block):
     mcommit = block.get("commit")
     agrees = None
     if vcommit and mcommit:
-        agrees = mcommit.startswith(vcommit) or vcommit.startswith(mcommit)
+        agrees = eh.commits_agree(vcommit, mcommit)
     has_module = module.exists()
     ident = {
         "why": ("the launcher is byte-identical across v1.1.0 and v1.1.1, so "

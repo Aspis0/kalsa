@@ -71,6 +71,34 @@ def version_build_commit(version_text):
     return m.group(1) if m else None
 
 
+def commits_agree(left, right):
+    """The ONE commit-agreement rule (H1) - applied by this responder
+    check, by mc.engine_identity, and (same vectors, same order) by
+    chat/scripts/tier-panel.mjs:
+
+    - each side must be at least 9 LOWERCASE hex characters: what
+      --version and /props print on this engine, and the length below
+      which a prefix match between unrelated commits is commonplace;
+    - two SHORT strings must be EQUAL;
+    - a prefix match is allowed only against a full 40-hex commit (the
+      manifest's), in either direction.
+
+    The old rule - prefix of >=7 either way - accepted
+    `deadbee9` vs `deadbee` (Reviewer A's counterexample); this closes
+    the residual risk the earlier messages had declared.
+    """
+    for s in (left, right):
+        if not isinstance(s, str) or re.fullmatch(r"[0-9a-f]{9,}", s) is None:
+            return False
+    if left == right:
+        return True
+    if len(left) == 40 and left.startswith(right):
+        return True
+    if len(right) == 40 and right.startswith(left):
+        return True
+    return False
+
+
 def check_running_build(version_text, props):
     """PURE -> (ok, reason): does the engine ANSWERING THE PORT claim the
     build of the binary this harness launched?
@@ -93,11 +121,13 @@ def check_running_build(version_text, props):
                        "commit, so WHICH process answered the port is "
                        "unknown - a binary's identity is not the "
                        "responder's")
-    if not (want.startswith(have) or have.startswith(want)):
+    if not commits_agree(want, have):
         return (False,
                 f"the engine answering the port is not the binary this run "
                 f"launched: /props says commit {have}, --version says "
-                f"{want} - a stale or foreign engine holds the port")
+                f"{want} (the agreement rule: >=9 lowercase hex each, "
+                f"equal, or a prefix of a full 40-hex commit) - a stale or "
+                f"foreign engine holds the port")
     return (True, f"running /props commit {have} agrees with --version "
                   f"commit {want}")
 
