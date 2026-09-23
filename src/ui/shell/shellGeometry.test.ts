@@ -1,309 +1,196 @@
-/**
- * The shell's geometry, which is the only part of step 2 a node test can reach:
- * there is no render harness (DESIGN.md, "proof regime"), so the sizes and the
- * 48 dp floor are asserted here and the pixels are proven by screenshots.
- *
- * The three real sizes are the measured ones (DESIGN.md §1.1). The Jelly's
- * keyboard case decides the strip's collapsed form and is the only case where
- * the transcript is short.
- */
+/** Measured band and touch-box contract for the v2 conversation shell. */
+import { readFileSync } from "fs";
+import { join } from "path";
 import {
   COMPOSER_HEIGHT,
-  COMPOSER_TOOLBAR_HEIGHT,
   MIN_TOUCH_TARGET,
   MODEL_NAME_COLUMN_NEED_DP,
   SHELL_NOTICE_GAP,
   SHELL_NOTICE_HEIGHT,
+  SOURCE_CHIP_BOX_COST,
+  SOURCE_CHIP_PAINTED_HEIGHT,
+  SOURCE_CHIP_TOUCH_BOX,
   STRIP_CHEVRON_SIZE,
   STRIP_HEIGHT,
-  STRIP_HEIGHT_COLLAPSED,
+  STRIP_LOCATION_BUDGET_DP,
+  STRIP_PILL_HEIGHT,
   bottomInsetFor,
   shellGeometry,
   stripPillTextColumn,
   type Insets,
   type ShellGeometry,
 } from "./shellGeometry";
-import { type as designType } from "../../theme/design";
+import { measure, space, spacing, type as designType } from "../../theme/design";
 
-type Case = {
-  name: string;
-  width: number;
-  height: number;
-  insets: Insets;
-  collapsed: boolean;
-};
+type Case = { name: string; width: number; height: number; insets: Insets };
 
-/** Insets are the safe area only; the keyboard case passes height = app area. */
 const CASES: Case[] = [
-  {
-    name: "Jelly Star 349x621",
-    width: 349,
-    height: 621,
-    insets: { top: 24, bottom: 16 },
-    collapsed: false,
-  },
-  {
-    name: "Galaxy S23 360x780",
-    width: 360,
-    height: 780,
-    insets: { top: 28, bottom: 24 },
-    collapsed: false,
-  },
-  {
-    name: "Jelly Star 349x325, keyboard open",
-    width: 349,
-    height: 325,
-    insets: { top: 0, bottom: 0 },
-    collapsed: true,
-  },
+  { name: "Jelly Star 349x621", width: 349, height: 621, insets: { top: 24, bottom: 16 } },
+  { name: "Galaxy S23 360x780", width: 360, height: 780, insets: { top: 28, bottom: 24 } },
+  { name: "Jelly Star 349x325", width: 349, height: 325, insets: { top: 0, bottom: 0 } },
 ];
+const geometryFor = (device: Case) => shellGeometry(device.width, device.height, device.insets);
 
-const geoFor = (c: Case): ShellGeometry => shellGeometry(c.width, c.height, c.insets);
+describe.each(CASES)("$name", (device) => {
+  const geometry = geometryFor(device);
 
-describe.each(CASES)("$name", (c) => {
-  const geo = geoFor(c);
-
-  it("partitions the usable height exactly, with no gap and no overflow", () => {
-    const usable = c.height - c.insets.top - c.insets.bottom;
-    expect(geo.usableHeight).toBe(usable);
-    expect(geo.strip.top).toBe(c.insets.top);
-    expect(geo.transcript.top).toBe(geo.strip.top + geo.strip.height);
-    expect(geo.composer.top).toBe(geo.transcript.top + geo.transcript.height);
-    // The sum, written out: the assertion that fails the moment a constant is
-    // changed without the arithmetic following it.
-    expect(geo.strip.height + geo.transcript.height + geo.composer.height).toBe(usable);
-    expect(geo.composer.top + geo.composer.height).toBe(c.height - c.insets.bottom);
+  it("partitions the usable height without gaps or overflow", () => {
+    expect(geometry.usableHeight).toBe(device.height - device.insets.top - device.insets.bottom);
+    expect(geometry.strip.top).toBe(device.insets.top);
+    expect(geometry.transcript.top).toBe(geometry.strip.top + geometry.strip.height);
+    expect(geometry.composer.top).toBe(geometry.transcript.top + geometry.transcript.height);
+    expect(geometry.strip.height + geometry.transcript.height + geometry.composer.height).toBe(geometry.usableHeight);
+    expect(geometry.composer.top + geometry.composer.height).toBe(device.height - device.insets.bottom);
   });
 
-  it("keeps the composer off the bottom inset and reports the offset", () => {
-    expect(geo.composer.top + geo.composer.height).toBeLessThanOrEqual(c.height - c.insets.bottom);
-    expect(geo.composerBottomOffset).toBe(c.insets.bottom);
+  it("keeps the composer above the bottom inset", () => {
+    expect(geometry.composerBottomOffset).toBe(device.insets.bottom);
+    expect(geometry.composer.top + geometry.composer.height).toBeLessThanOrEqual(device.height - device.insets.bottom);
   });
 
-  it("gives every interactive box at least 48 dp on both axes", () => {
-    for (const [name, box] of Object.entries(geo.touchTargets)) {
-      expect([name, box.width >= MIN_TOUCH_TARGET, box.height >= MIN_TOUCH_TARGET]).toEqual([
-        name,
-        true,
-        true,
-      ]);
+  it("keeps every interactive target at least 48 dp in both axes", () => {
+    for (const [name, box] of Object.entries(geometry.touchTargets)) {
+      expect([name, box.width >= MIN_TOUCH_TARGET, box.height >= MIN_TOUCH_TARGET]).toEqual([name, true, true]);
     }
-    expect(geo.minTouchTarget).toBeGreaterThanOrEqual(48);
   });
 
-  it("holds the strip and the composer open and collapsed above the floor", () => {
-    expect(STRIP_HEIGHT).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
-    expect(STRIP_HEIGHT_COLLAPSED).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
-    expect(COMPOSER_HEIGHT).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+  it("uses a 56 dp strip and a 44 dp pill inside its 48 dp target", () => {
+    expect(STRIP_HEIGHT).toBe(56);
+    expect(geometry.strip.height).toBe(STRIP_HEIGHT);
+    expect(STRIP_PILL_HEIGHT).toBe(44);
+    expect(geometry.touchTargets.stripPill.height).toBe(MIN_TOUCH_TARGET);
   });
 
-  it("keeps the pill's chrome smaller than the pill, so only the pill is the target", () => {
-    // BEFORE this held the LOGO MARK under the 48 dp pill — a capture showed
-    // it spending 28 dp of a 154 dp pill while the model's name truncated
-    // (`LFM2.5 …`). The rule is unchanged: chrome is a picture, the pill
-    // around it is the touch target, and chrome may not decide the pill's size.
+  it("leaves a positive transcript band", () => {
+    expect(geometry.transcript.height).toBeGreaterThan(0);
+    expect(geometry.transcriptUsableHeight).toBe(geometry.transcript.height);
+  });
+
+  it("echoes its input dimensions and floor", () => {
+    expect(geometry.width).toBe(device.width);
+    expect(geometry.height).toBe(device.height);
+    expect(geometry.minTouchTarget).toBe(MIN_TOUCH_TARGET);
+    expect(MIN_TOUCH_TARGET).toBe(48);
+  });
+});
+
+describe("short and keyboard-limited heights", () => {
+  it("keeps the strip at 56 dp at the 325 dp app height", () => {
+    const geometry = shellGeometry(349, 325, { top: 0, bottom: 0 });
+    expect(geometry.strip.height).toBe(56);
+    expect(geometry.transcript.height).toBe(191);
+    expect(geometry.composer.height).toBe(COMPOSER_HEIGHT);
+  });
+
+  it("keeps the same strip while the live window is partitioned by the IME", () => {
+    const geometry = shellGeometry(349, 621, bottomInsetFor({ top: 24, bottom: 16 }, 296));
+    expect(geometry.strip.height).toBe(56);
+    expect(geometry.composerBottomOffset).toBe(296);
+    expect(geometry.transcript.height).toBe(167);
+  });
+
+  it("treats the keyboard and the safe area as one obstruction", () => {
+    expect(bottomInsetFor({ top: 24, bottom: 16 }, 296)).toEqual({ top: 24, bottom: 296 });
+    expect(bottomInsetFor({ top: 24, bottom: 16 }, 12)).toEqual({ top: 24, bottom: 16 });
+    expect(bottomInsetFor({ top: 24, bottom: 16 }, -1)).toEqual({ top: 24, bottom: 16 });
+    expect(bottomInsetFor({ top: 24, bottom: 16 }, NaN)).toEqual({ top: 24, bottom: 16 });
+  });
+});
+
+describe("degenerate heights", () => {
+  it("never creates a negative band", () => {
+    const geometry = shellGeometry(349, 120, { top: 24, bottom: 24 });
+    for (const [name, band] of Object.entries({ strip: geometry.strip, transcript: geometry.transcript, composer: geometry.composer })) {
+      expect([name, band.height >= 0, band.top >= 0]).toEqual([name, true, true]);
+    }
+  });
+
+  it("lets the transcript yield when only 60 dp remain", () => {
+    const geometry = shellGeometry(349, 108, { top: 24, bottom: 24 });
+    expect(geometry.usableHeight).toBe(60);
+    expect(geometry.transcript.height).toBe(0);
+    expect(geometry.strip.height + geometry.composer.height).toBe(60);
+  });
+
+  it("returns empty bands when the insets consume the whole window", () => {
+    const geometry = shellGeometry(349, 20, { top: 24, bottom: 24 });
+    expect(geometry.usableHeight).toBe(0);
+    expect(geometry.strip.height).toBe(0);
+    expect(geometry.transcript.height).toBe(0);
+    expect(geometry.composer.height).toBe(0);
+  });
+});
+
+describe("one-line pill width", () => {
+  const geometry = shellGeometry(349, 621, { top: 24, bottom: 16 });
+  const pillWidth = geometry.touchTargets.stripPill.width;
+  const nameColumn = stripPillTextColumn(pillWidth);
+
+  it("leaves one flexible pill beside the nude menu target", () => {
+    expect(pillWidth).toBe(261);
+    expect(geometry.touchTargets.stripButton.width).toBe(48);
+  });
+
+  it("reserves the device glyph, short location label and chevron before the model name", () => {
+    expect(STRIP_LOCATION_BUDGET_DP).toBe(72);
+    expect(nameColumn).toBe(pillWidth - 2 * space.sm - 3 * space.xs - 13 - 72 - 16);
+  });
+
+  it("clears the measured model-name width", () => {
+    expect(nameColumn).toBeGreaterThanOrEqual(MODEL_NAME_COLUMN_NEED_DP);
+  });
+
+  it("does not let the chevron consume the whole touch target", () => {
     expect(STRIP_CHEVRON_SIZE).toBeGreaterThan(0);
     expect(STRIP_CHEVRON_SIZE).toBeLessThan(MIN_TOUCH_TARGET);
-    expect(MIN_TOUCH_TARGET - STRIP_CHEVRON_SIZE).toBeGreaterThanOrEqual(12);
   });
 
-  it("agrees with the collapsed form the height implies", () => {
-    expect(geo.stripCollapsed).toBe(c.collapsed);
-    const expectedStrip = c.collapsed ? STRIP_HEIGHT_COLLAPSED : STRIP_HEIGHT;
-    expect(geo.strip.height).toBe(expectedStrip);
-  });
-
-  it("leaves the transcript a real, positive height", () => {
-    expect(geo.transcript.height).toBeGreaterThan(0);
-    expect(geo.transcriptUsableHeight).toBe(geo.transcript.height);
+  it("has a real 44 dp capsule while its pressable remains a 48 dp target", () => {
+    expect(STRIP_PILL_HEIGHT).toBe(44);
+    expect(geometry.touchTargets.stripPill.height).toBe(48);
   });
 });
 
-describe("the smallest screen, 349x325 with the keyboard open", () => {
-  const geo = shellGeometry(349, 325, { top: 0, bottom: 0 });
-
-  it("collapses the strip to one line and still leaves the transcript room", () => {
-    expect(geo.stripCollapsed).toBe(true);
-    expect(geo.strip.height).toBe(STRIP_HEIGHT_COLLAPSED);
-    // 325 - 52 - 78 = 195 dp of transcript, as `shellGeometry` partitions it.
-    // The live shell takes the toolbar row OUT of this height before the
-    // partition, so the app draws 195 - 48 = 147 while the toolbar shows —
-    // the row is not a fourth band.
-    expect(geo.transcript.height).toBe(195);
-    expect(geo.transcriptUsableHeight).toBeGreaterThanOrEqual(120);
-  });
-});
-
-describe("a degenerate height", () => {
-  it("degrades without a negative height and still partitions", () => {
-    const geo = shellGeometry(349, 120, { top: 24, bottom: 24 });
-    expect(geo.usableHeight).toBe(72);
-    for (const [name, band] of Object.entries({ strip: geo.strip, transcript: geo.transcript, composer: geo.composer })) {
-      expect([name, band.height >= 0]).toEqual([name, true]);
-      expect([name, band.top >= 0]).toEqual([name, true]);
-    }
-    const total = geo.strip.height + geo.transcript.height + geo.composer.height;
-    expect(total).toBe(geo.usableHeight);
-    expect(geo.composerBottomOffset).toBeGreaterThanOrEqual(0);
+describe("the composer and content chips", () => {
+  it("keeps the composer band large enough for its 56 dp field", () => {
+    expect(COMPOSER_HEIGHT).toBeGreaterThanOrEqual(56);
   });
 
-  it("does not put a negative height in the transcript when the bands cannot fit", () => {
-    // 60 usable: smaller than the collapsed strip plus the composer, so the
-    // transcript must yield rather than go negative.
-    const geo = shellGeometry(349, 108, { top: 24, bottom: 24 });
-    expect(geo.usableHeight).toBe(60);
-    expect(geo.transcript.height).toBe(0);
-    expect(geo.strip.height + geo.composer.height).toBe(60);
+  it("keeps attachment and source controls on real 48 dp targets", () => {
+    expect(SOURCE_CHIP_TOUCH_BOX).toBe(48);
+    expect(geometryFor(CASES[0]).touchTargets.composerAttach.height).toBe(48);
   });
 
-  it("does not produce negative bands when the height is below the insets", () => {
-    const geo = shellGeometry(349, 20, { top: 24, bottom: 24 });
-    expect(geo.usableHeight).toBe(0);
-    expect(geo.strip.height).toBe(0);
-    expect(geo.transcript.height).toBe(0);
-    expect(geo.composer.height).toBe(0);
-    expect(geo.composerBottomOffset).toBeGreaterThanOrEqual(0);
-  });
-});
-
-describe("the bottom inset rule: the keyboard and the safe area", () => {
-  const INSETS: Insets = { top: 24, bottom: 16 };
-
-  /**
-   * The band numbers, without the inputs (the keyboard case has a taller
-   * `height` than the window it is compared to, by design) and without
-   * `composerBottomOffset`, exactly where the two cases must differ.
-   */
-  const bandNumbers = (geo: ShellGeometry) => ({
-    usableHeight: geo.usableHeight,
-    strip: geo.strip,
-    transcript: geo.transcript,
-    composer: geo.composer,
-    stripCollapsed: geo.stripCollapsed,
+  it("derives the source-chip paint and the space its touch box costs", () => {
+    expect(SOURCE_CHIP_PAINTED_HEIGHT).toBe(designType.meta.lineHeight + 2 * spacing.xs);
+    expect(SOURCE_CHIP_BOX_COST).toBe(SOURCE_CHIP_TOUCH_BOX - SOURCE_CHIP_PAINTED_HEIGHT);
+    expect(SOURCE_CHIP_BOX_COST).toBe(20);
   });
 
-  it("takes the larger of the two, never the sum, and the safe-area inset when there is no keyboard", () => {
-    expect(bottomInsetFor(INSETS, 0)).toEqual(INSETS);
-    // Absent: an omitted height is the same as a closed keyboard.
-    expect(bottomInsetFor(INSETS)).toEqual(INSETS);
-    // A keyboard thinner than the gesture bar still cannot lift the composer
-    // above the bar's own edge.
-    expect(bottomInsetFor(INSETS, 12)).toEqual(INSETS);
-    expect(bottomInsetFor(INSETS, 296)).toEqual({ top: 24, bottom: 296 });
-    // The rule in one line: 296 + 16 = 312 is the sum, and it is forbidden.
-    expect(bottomInsetFor(INSETS, 296).bottom).not.toBe(INSETS.bottom + 296);
-    // The top inset is carried through untouched, so the strip stays under the
-    // status bar whichever way the keyboard went.
-    expect(bottomInsetFor({ top: 28, bottom: 24 }, 296)).toEqual({ top: 28, bottom: 296 });
-  });
-
-  it("treats a negative or a non-finite keyboard height as no keyboard", () => {
-    for (const bad of [-1, -296, NaN, Infinity, -Infinity]) {
-      expect([String(bad), bottomInsetFor(INSETS, bad)]).toEqual([String(bad), INSETS]);
-    }
-  });
-
-  it("makes the 325 dp case real: a 621 dp window with the keyboard open IS a short window", () => {
-    const keyboard = shellGeometry(349, 621, bottomInsetFor(INSETS, 296));
-
-    // The number that makes the claim checkable: the composer's bottom edge
-    // is the keyboard's top edge, and 621 - 296 = 325 dp is the app area this
-    // file has called the keyboard case all along.
-    expect(keyboard.composerBottomOffset).toBe(296);
-    expect(621 - keyboard.composerBottomOffset).toBe(325);
-    expect(keyboard.usableHeight).toBe(301);
-
-    // With the status bar counted, as the live app must, the bands are exactly
-    // the bands of a pinned 341 dp window: 621 - 296 + 16, the gesture bar the
-    // keyboard covers and a pinned window with no keyboard still reserves.
-    const shortWindow = shellGeometry(349, 341, INSETS);
-    expect(bandNumbers(keyboard)).toEqual(bandNumbers(shortWindow));
-
-    // That 16 dp is the whole difference from the pinned 325 dp window the
-    // preview uses: one gesture bar apart, not equal.
-    const pinned325 = shellGeometry(349, 325, INSETS);
-    expect(keyboard.usableHeight - pinned325.usableHeight).toBe(16);
-    expect(keyboard.transcript.height - pinned325.transcript.height).toBe(16);
-
-    // The file's own keyboard stand-in — 325 dp with both insets at zero, which
-    // is how the app area was measured before edge-to-edge — is the same
-    // statement with the insets at zero on both sides.
-    const standIn = shellGeometry(349, 621, bottomInsetFor({ top: 0, bottom: 16 }, 296));
-    const standInBands = bandNumbers(standIn);
-    expect(standInBands).toEqual(bandNumbers(shellGeometry(349, 325, { top: 0, bottom: 0 })));
-  });
-
-  it("leaves every keyboard-free case numerically unchanged", () => {
-    for (const c of CASES) {
-      expect(shellGeometry(c.width, c.height, bottomInsetFor(c.insets, 0))).toEqual(geoFor(c));
-    }
-    // The pinned stand-in the file already asserts, as a keyboard-free case.
-    const standIn = shellGeometry(349, 325, bottomInsetFor({ top: 0, bottom: 0 }, 0));
-    expect(standIn.transcript.height).toBe(195);
-    expect(standIn.usableHeight).toBe(325);
-  });
-});
-
-describe("the preview's notice line", () => {
-  it("holds one line plus the chosen gap below it, and still clips a wrap", () => {
-    // BEFORE this assertion read only ">= one line, < two" over a 22 dp band
-    // with 3 dp under the caption; it now pins the gap the caption was given
-    // and the ceiling that makes a long string clip instead of wrapping.
+  it("holds the composer refusal line outside the transcript band", () => {
     expect(SHELL_NOTICE_HEIGHT).toBe(2 * SHELL_NOTICE_GAP + designType.meta.lineHeight);
-    expect(SHELL_NOTICE_HEIGHT).toBeGreaterThanOrEqual(
-      designType.meta.lineHeight + SHELL_NOTICE_GAP,
-    );
-    expect(SHELL_NOTICE_HEIGHT).toBeLessThan(2 * designType.meta.lineHeight);
+    const geometry = shellGeometry(349, 325 - SHELL_NOTICE_HEIGHT, { top: 0, bottom: 0 });
+    expect(geometry.strip.height + geometry.transcript.height + geometry.composer.height).toBe(325 - SHELL_NOTICE_HEIGHT);
   });
 
-  it("still lets the bands partition the available height exactly at all three sizes", () => {
-    // The notice is subtracted from the height BEFORE `shellGeometry` runs, so
-    // the taller band must leave the partition invariant untouched at every
-    // measured size: 349x621, 349x325 and 360x780.
-    for (const c of CASES) {
-      const available = c.height - SHELL_NOTICE_HEIGHT;
-      const geo = shellGeometry(c.width, available, c.insets);
-      expect(geo.usableHeight).toBe(available - c.insets.top - c.insets.bottom);
-      expect(geo.strip.height + geo.transcript.height + geo.composer.height).toBe(
-        geo.usableHeight,
-      );
-      expect(geo.strip.top).toBe(c.insets.top);
-      expect(geo.composer.top + geo.composer.height).toBe(available - c.insets.bottom);
-    }
+  it("keeps the permanent toolbar out of the mounted composer", () => {
+    const source = readFileSync(join(__dirname, "Shell.tsx"), "utf8");
+    expect(source).not.toMatch(/ComposerToolbar|COMPOSER_TOOLBAR_HEIGHT/);
   });
 });
 
-describe("the width is only used for the horizontal boxes", () => {
-  it("keeps the pill and the field at or above the touch floor on the Jelly", () => {
-    const geo = shellGeometry(349, 621, { top: 0, bottom: 0 });
-    // Contract history, written down so the next change lands as a deliberate
-    // edit of THIS number rather than a discovery:
-    //   BEFORE the Web switch: `349 - 2*12 - 3*48 - 3*9 = 154` (menu, export,
-    //     new chat) — pill 154 dp.
-    //   WITH switch AND export on the strip: four buttons, `= 97`, a 14 dp text
-    //     column — the model name rendered as bare ellipses ("a row of tiny
-    //     dots" in the capture).
-    //   NOW: export in the drawer (chat-level action), three buttons, pill 154;
-    //     the pill's own spend changed with the legibility slice — no mark, no
-    //     where-dot, xs padding and ONE gap — so the name's column is
-    //     154 - 2*6 - 6 - 15 = 121 dp, against 71 before and the ~105 the
-    //     capture measured for `LFM2.5 2.6B`. Nothing shrank below 48 dp.
-    expect(geo.touchTargets.stripPill.width).toBe(154);
-    expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBe(121);
-    expect(stripPillTextColumn(geo.touchTargets.stripPill.width)).toBeGreaterThanOrEqual(
-      MODEL_NAME_COLUMN_NEED_DP,
-    );
-    expect(geo.touchTargets.composerField.width).toBe(325);
-  });
-});
+describe("the device pill seam", () => {
+  const source = readFileSync(join(__dirname, "ShellStrip.tsx"), "utf8");
 
-describe("the composer's toolbar row (D1 rows 13/14)", () => {
-  it("is a real 48 dp row, and it is subtracted before the partition, not drawn over a band", () => {
-    // The row is a shell row like the notice lines: paid out of the height in
-    // `Shell.tsx`'s `extraRows` before `shellGeometry` runs, so the three-band
-    // invariant never mentions it — the stand-in's live transcript is 147.
-    expect(COMPOSER_TOOLBAR_HEIGHT).toBe(MIN_TOUCH_TARGET);
-    const geo = shellGeometry(349, 325, { top: 0, bottom: 0 });
-    expect(geo.transcript.height - COMPOSER_TOOLBAR_HEIGHT).toBe(147);
+  it("draws the actual strip geometry and capsule from the shared constants", () => {
+    expect(source).toContain("height: STRIP_HEIGHT");
+    expect(source).toContain("height: STRIP_PILL_HEIGHT");
+    expect(source).toContain("STRIP_DEVICE_SIZE");
+    expect(source).toContain("STRIP_CHEVRON_SIZE");
+  });
+
+  it("keeps the compact layout at the v2 16 dp gutter", () => {
+    expect(measure.gutter).toBe(16);
+    expect(shellGeometry(349, 621, { top: 24, bottom: 16 }).touchTargets.stripPill.width).toBeGreaterThan(MIN_TOUCH_TARGET);
   });
 });

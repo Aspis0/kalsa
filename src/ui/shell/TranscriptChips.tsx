@@ -88,7 +88,7 @@ export function CopyChip({
       style={({ pressed }) => [styles.actionChipBox, { opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={styles.actionChip}>
-        <Copy size={14} color={copied ? colors.accent : colors.silence} />
+        <Copy size={18} color={copied ? colors.accent : colors.silence} strokeWidth={1.75} />
         <Text style={styles.actionChipLabel}>{label}</Text>
       </View>
     </Pressable>
@@ -121,7 +121,7 @@ export function SpeakChip({
       style={({ pressed }) => [styles.actionChipBox, { opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={styles.actionChip}>
-        <Volume2 size={14} color={speaking ? colors.accent : colors.silence} />
+        <Volume2 size={18} color={speaking ? colors.accent : colors.silence} strokeWidth={1.75} />
         <Text style={styles.actionChipLabel}>{label}</Text>
       </View>
     </Pressable>

@@ -1,22 +1,9 @@
-import React, { useEffect, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import Animated from "react-native-reanimated";
+/** Full-height v2 conversation menu. The public props stay compatible with both roots. */
+import { KeyboardAvoidingView, Modal, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocale } from "../../i18n";
+import { modes, type ThemeMode } from "../design";
 import { useLabTheme } from "../../ui/labTheme";
-import { chatMenuOriginX, chatMenuOriginY } from "./chatNavLayout";
 import { DrawerContent } from "./DrawerContent";
-import { LeafPaper } from "./LeafPaper";
-import { leafContentPad } from "./leafPath";
-import { useLeafFold } from "./useLeafFold";
 
 export type DrawerItem = {
   id: string;
@@ -35,7 +22,6 @@ export type DrawerConversationItem = {
   onLongPress?: () => void;
 };
 
-/** Callers close the drawer on row actions; onClose is backdrop / Android back. */
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -49,109 +35,56 @@ type Props = {
   onNewChat?: () => void;
   personaLabel?: string;
   onPersonaPress?: () => void;
-  /** Measured height of the AppShell block above ChatNavBar (includes status inset). */
+  /** Kept for the old root's call shape; v2 uses the device safe-area inset. */
   modelBarHeight?: number;
 };
 
+/** Row presses close through their host callbacks; the header and BACK dismiss directly. */
 export function Drawer({
   open,
   onClose,
   brand = "Kalsa",
-  subtitle,
   items,
   conversationItems,
   searchValue,
   searchQuery,
   onSearchChange,
   onNewChat,
-  personaLabel,
-  onPersonaPress,
-  modelBarHeight = 0,
 }: Props) {
-  const { colors } = useLabTheme<any>();
-  const { t } = useLocale();
+  const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const insets = useSafeAreaInsets();
-  const win = useWindowDimensions();
-  const [stage, setStage] = useState({ width: win.width, height: win.height });
-  const fold = useLeafFold(open);
-
-  useEffect(() => {
-    if (open) setStage({ width: win.width, height: win.height });
-  }, [open]);
-
-  if (!fold.mounted) return null;
-
-  const { width, height } = stage;
-  const originX = chatMenuOriginX();
-  // Idle fallback ≈ title 22 + chip 16 + pads 6 until AppShell onLayout.
-  const originY = chatMenuOriginY(modelBarHeight > 0 ? modelBarHeight : insets.top + 44);
-  const pad = leafContentPad(width, height);
+  const colors = modes[mode];
 
   return (
     <Modal
-      visible
+      visible={open}
       transparent
-      animationType="none"
-      onRequestClose={onClose}
+      animationType="fade"
       statusBarTranslucent
       navigationBarTranslucent
+      onRequestClose={onClose}
     >
-      <View style={styles.frame} accessibilityViewIsModal>
-        <Animated.View
-          pointerEvents={fold.backdropLive ? "auto" : "none"}
-          style={[styles.fill, fold.backdropStyle]}
+      <View
+        testID="drawer.root"
+        style={{ flex: 1, backgroundColor: colors.surface, paddingTop: insets.top, paddingBottom: insets.bottom }}
+        accessibilityViewIsModal
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.close")}
-            style={[styles.fill, { backgroundColor: colors.leafBackdrop }]}
+          <DrawerContent
+            brand={brand}
+            items={items}
+            conversationItems={conversationItems}
+            searchValue={searchValue}
+            searchQuery={searchQuery}
+            onSearchChange={onSearchChange}
+            onNewChat={onNewChat}
+            onClose={onClose}
           />
-        </Animated.View>
-        <Animated.View
-          collapsable={false}
-          pointerEvents="box-none"
-          style={[styles.fill, { transformOrigin: [originX, originY] }, fold.paperStyle]}
-        >
-          <LeafPaper
-            width={width}
-            height={height}
-            colors={colors}
-            flapStyle={fold.flapStyle}
-            flapFrontStyle={fold.flapFrontStyle}
-            flapBackStyle={fold.flapBackStyle}
-            creaseStyle={fold.creaseStyle}
-            shadeStyle={fold.shadeStyle}
-          />
-          {/* Not "auto": this layer is full-screen while its content is only the padded
-              box, so as a touch target it swallowed the taps meant for the scrim below
-              (on device: 240,820 and 465,500 dead). box-none keeps the rows tappable. */}
-          <Animated.View pointerEvents={fold.contentLive ? "box-none" : "none"} style={[styles.fill, pad, fold.contentStyle]}>
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={Platform.OS === "ios" ? "padding" : undefined}
-            >
-              <DrawerContent
-                brand={brand}
-                subtitle={subtitle}
-                items={items}
-                conversationItems={conversationItems}
-                searchValue={searchValue}
-                searchQuery={searchQuery}
-                onSearchChange={onSearchChange}
-                onNewChat={onNewChat}
-                personaLabel={personaLabel}
-                onPersonaPress={onPersonaPress}
-              />
-            </KeyboardAvoidingView>
-          </Animated.View>
-        </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  frame: { flex: 1 },
-  fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-});

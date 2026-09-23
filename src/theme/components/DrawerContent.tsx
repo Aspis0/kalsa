@@ -1,255 +1,221 @@
-import React, { useMemo } from "react";
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { ChevronRight, Search } from "lucide-react-native";
+/** The v2 menu contents: brand, new chat, search, conversations and four destinations. */
+import { useMemo } from "react";
+import { Image, Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ChevronLeft, ChevronRight, MessageSquare, Plus, Search, X } from "lucide-react-native";
 import { useLocale } from "../../i18n";
+import { modes, families, measure, radius, space, type, type ThemeMode } from "../design";
 import { useLabTheme } from "../../ui/labTheme";
 import { tokensFromQuery } from "../../util/filterByTokens";
-import { BrandIcon } from "../icons/BrandIcon";
-import { radius, spacing } from "../tokens";
-import { fontFamilies, typography } from "../typography";
 import { highlightMatches } from "./highlightMatches";
 import type { DrawerConversationItem, DrawerItem } from "./Drawer";
 
-function renderHighlightedText(
-  text: string,
-  tokens: string[],
-  accentColor: string,
-): React.ReactNode {
-  return highlightMatches(text, tokens).map((part, index) =>
-    part.highlighted ? (
-      <Text
-        key={`match-${index}`}
-        style={{
-          color: accentColor,
-          fontFamily: fontFamilies.bodySemi,
-          textDecorationLine: "underline",
-        }}
-      >
-        {part.text}
-      </Text>
-    ) : (
-      <Text key={`plain-${index}`}>{part.text}</Text>
-    ),
-  );
-}
-
-/** Row presses do not call onClose — AppShell handlers close the drawer. */
 type Props = {
   brand: string;
-  subtitle?: string;
   items: DrawerItem[];
   conversationItems?: DrawerConversationItem[];
   searchValue?: string;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onNewChat?: () => void;
-  personaLabel?: string;
-  onPersonaPress?: () => void;
+  onClose: () => void;
 };
+
+function MatchedText({ text, query, color }: { text: string; query: string; color: string }) {
+  const parts = useMemo(() => highlightMatches(text, tokensFromQuery(query) ?? []), [text, query]);
+  return parts.map((part, index) => (
+    <Text key={`${index}-${part.text}`} style={part.highlighted ? { color, fontFamily: families.sansSemi } : undefined}>
+      {part.text}
+    </Text>
+  ));
+}
 
 export function DrawerContent({
   brand,
-  subtitle,
   items,
   conversationItems,
-  searchValue,
-  searchQuery,
+  searchValue = "",
+  searchQuery = "",
   onSearchChange,
   onNewChat,
-  personaLabel,
-  onPersonaPress,
+  onClose,
 }: Props) {
-  const { colors } = useLabTheme<any>();
+  const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const { t } = useLocale();
-  const showConversations = Array.isArray(conversationItems);
-  const emptySearch = Boolean(searchQuery?.trim()) && (conversationItems?.length ?? 0) === 0;
-  const searchTokens = useMemo(
-    () => tokensFromQuery(searchQuery ?? "") ?? [],
-    [searchQuery],
-  );
-  const brandSize = ((typography.displayMd.fontSize as number) / 18) * 20;
-  const ink = colors.leafInk;
-  const muted = colors.leafMuted;
-  const tile = {
-    backgroundColor: colors.leafTile,
-    borderWidth: 1,
-    borderColor: colors.leafLine,
-    borderRadius: 14,
-  };
-  const section = [
-    typography.bodyXs,
-    { color: muted, letterSpacing: 1, textTransform: "uppercase" as const, marginBottom: 6 },
-  ];
+  const colors = modes[mode];
+  const emptySearch = Boolean(searchQuery.trim()) && (conversationItems?.length ?? 0) === 0;
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const destinations = ["documents", "notes", "settings", "account"]
+    .map((id) => itemById.get(id))
+    .filter((item): item is DrawerItem => item !== undefined);
 
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 10 }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[typography.displayMd, { color: ink, fontSize: brandSize }]}>{brand}</Text>
-          {subtitle ? (
-            <Text style={[typography.bodyXs, { color: muted, marginTop: 2 }]} numberOfLines={1}>
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-        {onPersonaPress ? (
-          <Pressable
-            onPress={onPersonaPress}
-            accessibilityRole="button"
-            accessibilityLabel={t("drawer.personas")}
-            style={({ pressed }) => ({
-              ...tile,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              paddingVertical: 5,
-              paddingHorizontal: 10,
-              maxWidth: "55%",
-              borderRadius: radius.pill,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <LinearGradient
-              colors={[colors.accent, colors.cyan]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 12, height: 12, borderRadius: 6 }}
-            />
-            <Text style={[typography.bodyXs, { color: ink, fontFamily: typography.bodySm.fontFamily }]} numberOfLines={1}>
-              {personaLabel || t("drawer.personaNone")}
-            </Text>
-            <ChevronRight size={14} color={muted} />
-          </Pressable>
-        ) : null}
+    <View style={{ flex: 1, paddingHorizontal: measure.gutter, gap: space.md }}>
+      <View style={{ height: 48, flexDirection: "row", alignItems: "center", gap: space.xs }}>
+        <Image
+          source={require("../../../assets/icon.png")}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          style={{ width: 36, height: 36, borderRadius: 18 }}
+        />
+        <Text style={[type.title, { color: colors.ink, fontSize: 24, flex: 1 }]}>{brand}</Text>
+        <Pressable
+          testID="drawer.close"
+          accessibilityRole="button"
+          accessibilityLabel={t("common.close")}
+          onPress={onClose}
+          style={({ pressed }) => ({
+            width: 48,
+            height: 48,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: radius.button,
+            backgroundColor: pressed ? colors.tint : "transparent",
+          })}
+        >
+          <ChevronLeft size={20} color={colors.ink2} strokeWidth={1.75} />
+        </Pressable>
       </View>
 
+      {onNewChat ? (
+        <Pressable
+          testID="drawer.newChat"
+          accessibilityRole="button"
+          accessibilityLabel={t("drawer.newChat")}
+          onPress={onNewChat}
+          style={({ pressed }) => ({
+            minHeight: 52,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: space.xs,
+            borderRadius: radius.button,
+            backgroundColor: pressed ? colors.brandDeep : colors.brand,
+          })}
+        >
+          <Plus size={20} color={colors.onBrand} strokeWidth={2} />
+          <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("drawer.newChat")}</Text>
+        </Pressable>
+      ) : null}
+
       {onSearchChange ? (
-        <View style={[tile, { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, marginBottom: 8, borderRadius: 12 }]}>
-          <Search size={14} color={muted} />
+        <View
+          style={{
+            height: 52,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space.xs,
+            paddingHorizontal: space.md,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: radius.field,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Search size={20} color={colors.ink3} strokeWidth={1.75} />
           <TextInput
-            value={searchValue ?? ""}
+            testID="drawer.search"
+            value={searchValue}
             onChangeText={onSearchChange}
             placeholder={t("drawer.searchChats")}
-            placeholderTextColor={muted}
+            placeholderTextColor={colors.ink3}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
-            textContentType="none"
-            clearButtonMode="while-editing"
             accessibilityLabel={t("drawer.searchChats")}
             onSubmitEditing={() => Keyboard.dismiss()}
-            style={[typography.bodySm, { flex: 1, color: ink, paddingHorizontal: 8, paddingVertical: 9 }]}
+            style={[type.body, { flex: 1, color: colors.ink, padding: 0 }]}
           />
-        </View>
-      ) : null}
-
-      {showConversations ? (
-        <View>
-          <Text style={section}>{t("drawer.chats")}</Text>
-          {onNewChat ? (
+          {searchValue.length > 0 ? (
             <Pressable
-              onPress={onNewChat}
+              testID="drawer.search.clear"
               accessibilityRole="button"
-              accessibilityLabel={t("drawer.newChat")}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: spacing.sm,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                marginBottom: 4,
-                borderRadius: 12,
-                backgroundColor: pressed ? colors.leafTile : "transparent",
-              })}
+              accessibilityLabel={t("common.clear")}
+              onPress={() => onSearchChange("")}
+              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
-              <BrandIcon name="new-chat" size={22} />
-              <Text style={[typography.bodyMd, { color: ink, fontFamily: typography.bodySm.fontFamily }]}>
-                {t("drawer.newChat")}
-              </Text>
+              <X size={18} color={colors.ink3} />
             </Pressable>
           ) : null}
-          {emptySearch ? (
-            <Text style={[typography.bodySm, { color: muted, paddingHorizontal: 12, paddingVertical: 10 }]}>
-              {t("drawer.noMatches")}
-            </Text>
-          ) : (
-            conversationItems.map((item) => (
-              <Pressable
-                key={item.id}
-                testID={`drawer-conversation-${item.id}`}
-                onPress={item.onPress}
-                onLongPress={item.onLongPress}
-                delayLongPress={380}
-                accessibilityRole="button"
-                accessibilityLabel={item.title}
-                accessibilityState={{ selected: Boolean(item.active) }}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: item.active
-                    ? colors.leafTileActive
-                    : pressed
-                      ? colors.leafTile
-                      : "transparent",
-                })}
-              >
-                <Text numberOfLines={1} style={[typography.bodyMd, { color: ink, fontFamily: typography.bodySm.fontFamily }]}>
-                  {renderHighlightedText(item.title, searchTokens, colors.accent)}
-                </Text>
-                {item.preview ? (
-                  <Text numberOfLines={1} style={[typography.bodyXs, { color: muted, marginTop: 2 }]}>
-                    {renderHighlightedText(item.preview, searchTokens, colors.accent)}
-                  </Text>
-                ) : null}
-              </Pressable>
-            ))
-          )}
         </View>
       ) : null}
 
-      <View style={{ flexGrow: 1, minHeight: 8 }} />
-      <View style={{ height: 1, backgroundColor: colors.leafLine, marginVertical: 8, marginHorizontal: 2 }} />
-      <Text style={section}>{t("drawer.toolsSection")}</Text>
-      <View style={{ gap: 6, paddingBottom: 2 }}>
-        {items.map(({ id, label, Icon, lastUsed, onPress }) => (
+      {conversationItems ? (
+        <View style={{ flex: 1, minHeight: 0 }}>
+          <Text style={[type.label, { color: colors.ink3, marginBottom: space.xs }]}>
+            {t("drawer.yourChats").toLocaleUpperCase()}
+          </Text>
+          <ScrollView
+            testID="drawer.conversations"
+            style={{ flex: 1 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {emptySearch ? (
+              <Text style={[type.secondary, { color: colors.ink3, paddingVertical: space.md }]}>
+                {t("drawer.noMatches")}
+              </Text>
+            ) : (
+              conversationItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  testID={`drawer-conversation-${item.id}`}
+                  onPress={item.onPress}
+                  onLongPress={item.onLongPress}
+                  delayLongPress={380}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title}
+                  accessibilityState={{ selected: Boolean(item.active) }}
+                  style={({ pressed }) => ({
+                    minHeight: 56,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: space.xs,
+                    paddingHorizontal: space.xs,
+                    borderRadius: radius.row,
+                    backgroundColor: item.active || pressed ? colors.tint : "transparent",
+                  })}
+                >
+                  <MessageSquare size={20} color={colors.accent} strokeWidth={1.75} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={[type.headline, { color: colors.ink, fontFamily: item.active ? families.sansSemi : families.sans }]}>
+                      <MatchedText text={item.title} query={searchQuery} color={colors.accent} />
+                    </Text>
+                    {item.preview ? (
+                      <Text numberOfLines={1} style={[type.secondary, { color: colors.ink3, marginTop: 1 }]}>
+                        <MatchedText text={item.preview} query={searchQuery} color={colors.accent} />
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.line, paddingTop: space.xs }}>
+        {destinations.map(({ id, label, Icon, onPress }) => (
           <Pressable
             key={id}
-            // Every row names itself for tests and accessibility tooling; the
-            // export row (`id: "export"`) is the one that moved here from the
-            // strip, but the id is derived, so no row is anonymous.
             testID={`drawer.item.${id}`}
-            onPress={onPress}
             accessibilityRole="button"
             accessibilityLabel={label}
+            onPress={onPress}
             style={({ pressed }) => ({
+              minHeight: 56,
               flexDirection: "row",
               alignItems: "center",
-              gap: 12,
-              paddingHorizontal: 14,
-              paddingVertical: 11,
-              // Real box: 11+11 padding over a ~22 dp line measured 46 dp, two
-              // under the project's floor. The tile grows to a true 48 dp;
-              // no hitSlop anywhere.
-              minHeight: 48,
-              opacity: pressed ? 0.7 : 1,
-              ...tile,
+              gap: space.md,
+              paddingHorizontal: space.xs,
+              backgroundColor: pressed ? colors.tint : "transparent",
             })}
           >
-            <Icon color={ink} size={17} />
-            <Text style={[typography.bodyMd, { color: ink, flex: 1, fontFamily: typography.bodySm.fontFamily }]}>
-              {label}
-            </Text>
-            {lastUsed ? <Text style={[typography.bodyXs, { color: muted }]}>{lastUsed}</Text> : null}
+            <Icon color={colors.accent} size={20} strokeWidth={1.75} />
+            <Text style={[type.headline, { color: colors.ink, flex: 1 }]}>{label}</Text>
+            <ChevronRight size={16} color={colors.ink3} strokeWidth={1.75} />
           </Pressable>
         ))}
       </View>
-    </ScrollView>
+    </View>
   );
 }

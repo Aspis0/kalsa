@@ -10,7 +10,8 @@ import { join } from "path";
 
 const read = (name: string) => readFileSync(join(__dirname, name), "utf8");
 const BAR = read("ModelBar.tsx");
-const SHELL = read("Shell.tsx");
+const STRIP = read("ShellStrip.tsx");
+const SHEET = read("ModelPillSheet.tsx");
 
 describe("the failure sentence is a control a finger can find", () => {
   test("a real box with a testID, a button role, and a name that is not the sentence", () => {
@@ -35,8 +36,10 @@ describe("the failure sentence is a control a finger can find", () => {
     expect(BAR.match(/statusRowHeight\(view\)/g)).toHaveLength(3);
   });
 
-  test("Shell hands the control the pill's own press, so both do the same thing", () => {
-    expect(SHELL).toContain("onRetryPress={onModelPress}");
+  test("the pill sheet hands retry to the same model action as the pill", () => {
+    expect(STRIP).toContain("onRetryPress={onModelAction}");
+    expect(SHEET).toContain("onRetryPress={onRetryPress}");
+    expect(SHEET).toContain("<ModelBar view={view} mode={mode} onRetryPress={onRetryPress} />");
   });
 });
 

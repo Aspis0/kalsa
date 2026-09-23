@@ -14,21 +14,18 @@
  * keyboard (`bottomInsetFor`), and the shell is never lifted as a whole
  * (`docs/DESIGN.md` §2.7).
  */
-import { ChevronDown, Globe, Menu, Plus } from "lucide-react-native";
 import { useMemo, useState, type ReactNode } from "react";
-import { Pressable, Text, View, useWindowDimensions, type TextInput } from "react-native";
+import { Text, View, useWindowDimensions, type TextInput } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
-import { modes, type, type ThemeMode } from "../../theme/design";
+import { modes, type ThemeMode } from "../../theme/design";
 import { ComposerAttachments, type ComposerAttachmentsProps } from "./ComposerAttachments";
-import { ComposerToolbar, type ComposerToolbarProps } from "./ComposerToolbar";
 import { ShellComposer } from "./ShellComposer";
-import { ModelBar, modelBarHeight, type ModelBarView, type ModelPressState } from "./ModelBar";
+import type { ModelBarView } from "./ModelBar";
+import { ShellStrip } from "./ShellStrip";
 import {
   COMPOSER_ATTACHMENTS_HEIGHT,
-  COMPOSER_TOOLBAR_HEIGHT,
   SHELL_NOTICE_HEIGHT,
-  STRIP_CHEVRON_SIZE,
   bottomInsetFor,
   shellGeometry,
   type Insets,
@@ -38,23 +35,15 @@ import { createShellStyles } from "./shellStyles";
 export type ShellProps = {
   /** Safe-area insets, in dp. */
   insets: Insets;
-  /** The strip's static text. Translation stays with the caller. */
+  /** The model's short name and the place it runs. */
   modelName: string;
-  whereLabel: string;
+  location?: "phone" | "server";
   /** The keyboard's settled height in dp, 0 while it is down. */
   keyboardHeight?: number;
   /** Overrides for the preview; the live window is the default. */
   width?: number;
   height?: number;
   mode?: ThemeMode;
-  /**
-   * One translated line drawn between the strip and the transcript — the
-   * preview's pinned-size notice, and nothing the app draws. It takes
-   * `SHELL_NOTICE_HEIGHT` out of the bands, and the caller must hand the same
-   * reduced height to whatever fills the transcript band, so the band the shell
-   * draws and the band the transcript believes in cannot drift.
-   */
-  notice?: string;
   /** The transcript band's content. The shell does not know what it is. */
   children?: ReactNode;
   /**
@@ -80,12 +69,6 @@ export type ShellProps = {
   sendEnabled?: boolean;
   onMenuPress?: () => void;
   onModelPress?: () => void;
-  onNewChatPress?: () => void;
-  /** The Web permission switch in the strip (D1 row 5 / §2.9: Web lives here,
-   *  device and calendar stay in Settings). The host persists it under the
-   *  controller's own key (`toolFlags.ts`). */
-  webEnabled?: boolean;
-  onWebPress?: () => void;
   onAttachPress?: () => void;
   /** False while the machine refuses an attach (controller `Chat:4810`). */
   attachDisabled?: boolean;
@@ -94,14 +77,6 @@ export type ShellProps = {
   /** The host's handle on the field, handed straight to the composer — focus
    *  after a template is chosen (the controller's `inputRef`, Chat:3637). */
   fieldRef?: { current: TextInput | null };
-  /**
-   * The toolbar row above the field — templates ✦ + the research/notes chips
-   * (D1 rows 13/14). Absent in the preview: the row costs the bands height, so
-   * without it the preview's geometry is the one `shellGeometry.test.ts`
-   * partitions directly; when present, `Shell.tsx` subtracts it like the
-   * other extra rows and draws it between the hold line and the field.
-   */
-  toolbar?: ComposerToolbarProps;
   /**
    * The staged attachments (D1 row 43): §2.7's chip row plus the live PDF
    * conversion's status line, drawn BELOW the toolbar (the controller put
@@ -117,12 +92,11 @@ export type ShellProps = {
 export function Shell({
   insets,
   modelName,
-  whereLabel,
+  location = "phone",
   keyboardHeight = 0,
   width,
   height,
   mode = "light",
-  notice,
   children,
   draft: draftProp,
   onDraftChange: onDraftChangeProp,
@@ -135,15 +109,11 @@ export function Shell({
   sendEnabled = true,
   onMenuPress,
   onModelPress,
-  onNewChatPress,
-  webEnabled = true,
-  onWebPress,
   onAttachPress,
   attachDisabled = false,
   onMicPress,
   onSendPress,
   fieldRef,
-  toolbar,
   attachments,
   modelBar,
 }: ShellProps) {
@@ -156,10 +126,8 @@ export function Shell({
   const attachmentsRowVisible =
     attachments !== undefined && (attachments.job !== undefined || attachments.chips.length > 0);
   const extraRows =
-    (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT) +
     (holdReason === null ? 0 : SHELL_NOTICE_HEIGHT) +
-    (toolbar === undefined ? 0 : COMPOSER_TOOLBAR_HEIGHT) +
-    (attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0) + (modelBar === undefined ? 0 : modelBarHeight(modelBar));
+    (attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0);
   const layoutHeight = (height ?? window.height) - extraRows;
   // One combined inset for BOTH uses: the geometry partitions with it and the
   // composer's bottom offset anchors to it. Computing them separately anchors
@@ -180,122 +148,17 @@ export function Shell({
     else setInternalDraft(text);
   };
 
-  const iconColor = colors.inkSoft;
-  const modelControl: ModelPressState = modelBar?.control ?? "enabled";
-
   return (
     <View style={styles.root} testID="shell.root">
-      <View
-        style={[styles.strip, { height: geometry.strip.height, marginTop: insets.top }]}
-        testID="shell.strip"
-        accessibilityRole="header"
-        accessibilityLabel={t("shell.a11y.band")}
-      >
-        <Pressable
-          testID="shell.strip.menu"
-          accessibilityRole="button"
-          accessibilityLabel={t("shell.a11y.menu")}
-          onPress={onMenuPress}
-          style={styles.iconButton}
-        >
-          <Menu size={18} color={iconColor} strokeWidth={2.1} />
-        </Pressable>
-
-        <Pressable
-          testID="shell.strip.model"
-          accessibilityRole="button"
-          accessibilityLabel={t("shell.a11y.modelSwitcher", { model: modelName, where: whereLabel })}
-          accessibilityState={{ disabled: modelControl !== "enabled" }}
-          onPress={onModelPress}
-          disabled={modelControl !== "enabled"}
-          pointerEvents={modelControl === "inert" ? "none" : "auto"}
-          style={styles.pill}
-        >
-          {/* No picture in here, and that is the point of this slice: the mark
-              and the where-dot took 74 dp of a 154 dp pill and starved the
-              MODEL'S OWN NAME (a capture cut it to `LFM2.5 …`). What the pill
-              draws is budgeted in `shellGeometry.stripPillTextColumn`, held
-              against the real strings by `stripTextBudget.test.ts`; the chevron
-              stays — it says the pill is tappable. */}
-          <View style={styles.pillText}>
-            <Text style={styles.modelName} numberOfLines={1}>
-              {modelName}
-            </Text>
-            {geometry.stripCollapsed ? null : (
-              <Text style={styles.where} numberOfLines={1}>
-                {whereLabel}
-              </Text>
-            )}
-          </View>
-          <ChevronDown
-            size={STRIP_CHEVRON_SIZE}
-            color={colors.silence}
-            strokeWidth={2.4}
-          />
-        </Pressable>
-
-        {/* D1 row 5: the Web permission switch — a real 48 dp box with the
-            controller's own label and hints (the old chip was 36x22 on
-            `hitSlop`); line-through while off is the controller's signal. */}
-        <Pressable
-          testID="shell.strip.web"
-          accessibilityRole="switch"
-          accessibilityState={{ checked: webEnabled }}
-          accessibilityLabel={t("common.web")}
-          accessibilityHint={webEnabled ? t("common.webOnHint") : t("common.webOffHint")}
-          onPress={onWebPress}
-          style={[
-            styles.iconButton,
-            webEnabled ? { backgroundColor: `${colors.accent}1f` } : null,
-          ]}
-        >
-          <Globe
-            size={13}
-            color={webEnabled ? colors.accent : colors.silence}
-            strokeWidth={2.2}
-          />
-          <Text
-            numberOfLines={1}
-            style={[
-              type.meta,
-              {
-                color: webEnabled ? colors.accent : colors.silence,
-                textDecorationLine: webEnabled ? "none" : "line-through",
-              },
-            ]}
-          >
-            {t("common.web")}
-          </Text>
-        </Pressable>
-
-        {/* Export left the strip for the drawer: five controls gave the model
-            name a 14 dp column and the name cannot be the thing that shrinks
-            (see `shellGeometry.ts`'s pill arithmetic). */}
-        <Pressable
-          testID="shell.strip.newChat"
-          accessibilityRole="button"
-          accessibilityLabel={t("shell.a11y.newChat")}
-          onPress={onNewChatPress}
-          style={styles.iconButton}
-        >
-          <Plus size={18} color={iconColor} strokeWidth={2.1} />
-        </Pressable>
-      </View>
-
-      {/* The status rows the pill's column cannot hold (D1 34-36): their
-          height leaves the transcript before the partition above. */}
-      {modelBar === undefined ? null : <ModelBar view={modelBar} mode={mode} onRetryPress={onModelPress} />}
-      {/* The preview's mismatch notice: a row of its own, directly under the
-          strip, so it can never be drawn over the conversation. `styles.notice`
-          is `SHELL_NOTICE_HEIGHT` tall and clips, so a long string cannot wrap
-          into the transcript; the height already left the bands. */}
-      {notice === undefined ? null : (
-        <View style={styles.notice} testID="shell.notice">
-          <Text numberOfLines={1} style={styles.noticeLabel}>
-            {notice}
-          </Text>
-        </View>
-      )}
+      <ShellStrip
+        insets={insets}
+        modelName={modelName}
+        location={location}
+        mode={mode}
+        modelBar={modelBar}
+        onMenuPress={onMenuPress}
+        onModelAction={onModelPress}
+      />
 
       <View
         style={[styles.transcript, { height: geometry.transcript.height }]}
@@ -306,14 +169,12 @@ export function Shell({
       </View>
 
       {holdReason === null ? null : (
-        <View style={styles.notice} testID="shell.composer.hold">
-          <Text numberOfLines={1} style={[styles.noticeLabel, { color: colors.accent }]}>
+        <View style={styles.holdLine} testID="shell.composer.hold">
+          <Text numberOfLines={1} style={styles.holdLabel}>
             {holdReason}
           </Text>
         </View>
       )}
-
-      {toolbar === undefined ? null : <ComposerToolbar {...toolbar} colors={colors} />}
 
       {attachmentsRowVisible && attachments ? (
         <ComposerAttachments {...attachments} colors={colors} />

@@ -1,119 +1,38 @@
-/**
- * The composer toolbar (D1 rows 13/14) as source plus its one geometry number.
- * What a screenshot cannot see and a regression would break silently: every
- * finger target is the real 48 dp row (never `hitSlop`), every node carries a
- * testID and an accessible name, the chips keep the controller's role split
- * (switch + checked for the toggles), and — since the library-document chip
- * was REMOVED from the row — that no chip quietly creeps back into a row the
- * arithmetic cannot hold (`composerToolbarWidth.test.ts` holds the numbers).
- */
+/** Source proof for the v2 single-capsule composer and its sheet actions. */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { COMPOSER_TOOLBAR_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
 
-const SOURCE = readFileSync(join(__dirname, "ComposerToolbar.tsx"), "utf8");
-const SURFACE = readFileSync(
-  join(__dirname, "..", "..", "host", "HostChatSurface.tsx"),
-  "utf8",
-);
+const read = (name: string) => readFileSync(join(__dirname, name), "utf8");
+const SHELL = read("Shell.tsx");
+const FIELD = read("ShellComposer.tsx");
+const STYLES = read("shellStyles.ts");
+const SHEET = readFileSync(join(__dirname, "AttachSheet.tsx"), "utf8");
+const HOST_SHEET = readFileSync(join(__dirname, "..", "..", "host", "HostAttachSheet.tsx"), "utf8");
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
-}
-
-const CODE = stripComments(SOURCE);
-const SURFACE_CODE = stripComments(SURFACE);
-
-describe("the row is a real box, not a slop (project rule)", () => {
-  it("is exactly the 48 dp the geometry declares, on the row and on every chip", () => {
-    expect(COMPOSER_TOOLBAR_HEIGHT).toBe(MIN_TOUCH_TARGET);
-    expect(COMPOSER_TOOLBAR_HEIGHT).toBeGreaterThanOrEqual(48);
-    // Both boxes in the file — the ✦ target and the chip's wrapper — take
-    // their size from the constant, so the floor is one number, not two.
-    expect(CODE.match(/COMPOSER_TOOLBAR_HEIGHT/g)!.length).toBeGreaterThanOrEqual(3);
-    expect(CODE).not.toContain("hitSlop");
+describe("the mounted composer is one capsule", () => {
+  it("has one 56 dp field with the v2 line, pill radius and floating elevation", () => {
+    expect(FIELD).toContain('testID="shell.composer"');
+    expect(STYLES).toContain("height: COMPOSER_FIELD_HEIGHT");
+    expect(STYLES).toContain("borderColor: colors.line");
+    expect(STYLES).toContain("borderRadius: radius.pill");
+    expect(STYLES).toContain("...e2");
   });
 
-  it("paints the pill small inside the box (the source-chip split), not a 48 dp blob", () => {
-    // The inner View carries the paint (padding + border); the Pressable
-    // carries the height. A 28-ish paint in a 48 box is the doctrine.
-    expect(CODE).toMatch(/paddingVertical: 5/);
-    expect(CODE).toMatch(/height: COMPOSER_TOOLBAR_HEIGHT,\s*justifyContent: "center"/);
+  it("uses nude attach and mic controls around a 40 dp filled send circle", () => {
+    expect(FIELD).toContain('<Plus size={20}');
+    expect(FIELD).toContain('<Mic size={20}');
+    expect(STYLES).toContain("height: 40");
+    expect(STYLES).toContain("width: 40");
+    expect(STYLES).toContain("borderRadius: 20");
+    expect(SHELL).not.toMatch(/ComposerToolbar|COMPOSER_TOOLBAR_HEIGHT/);
   });
-});
 
-describe("every interactive node: testID + accessible name", () => {
-  it("three controls, three testIDs", () => {
-    // BEFORE: four IDs — templates, research, document, notes. The document
-    // chip left the row (it could not do its job without the attachment flow);
-    // it returns WITH that flow.
-    for (const id of [
-      "shell.composer.templates",
-      "shell.composer.research",
-      "shell.composer.notes",
-    ]) {
-      expect(CODE).toContain(`testID="${id}"`);
+  it("keeps templates, research and notes inside the attachment sheet", () => {
+    for (const id of ["shell.attach.templates", "shell.attach.research", "shell.attach.notes"]) {
+      expect(HOST_SHEET).toContain(id);
     }
-    expect(CODE).not.toContain("shell.composer.document");
-  });
-
-  it("every Pressable declaration binds an accessibilityLabel", () => {
-    const pressables = CODE.match(/<Pressable/g)?.length ?? 0;
-    const labels = CODE.match(/accessibilityLabel=/g)?.length ?? 0;
-    // The Chip component supplies its label from a prop; the ✦ binds inline.
-    expect(pressables).toBeGreaterThan(0);
-    expect(labels).toBeGreaterThanOrEqual(pressables);
-    expect(CODE).toContain("accessibilityLabel={a11yLabel}");
-  });
-
-  it("keeps the controller's role split: toggles are switches with checked state", () => {
-    expect(CODE).toContain('accessibilityRole={toggle ? "switch" : "button"}');
-    expect(CODE).toMatch(/checked: active, disabled/);
-    expect(CODE).toMatch(/selected: active, disabled/);
-    // Research carries the active-specific name the controller used.
-    expect(CODE).toContain('t("chat.deepResearchActive")');
-  });
-});
-
-describe("the labels are the controller's catalogue keys, in both locales", () => {
-  it("uses the shipped keys — no new string was invented for this row", () => {
-    // BEFORE: the list also carried `t("chat.libraryDocument")`; its chip left
-    // the row with the chip itself (it returns with the attachment flow).
-    for (const key of [
-      't("chat.a11yTemplates")',
-      't("chat.deepResearch")',
-      't("chat.deepResearchActive")',
-      't("notes.title")',
-    ]) {
-      expect(CODE).toContain(key);
-    }
-  });
-});
-
-describe("the machine gates the chips, and the document chip is really gone (§2.7 + the 349 dp cut)", () => {
-  it("disabled rides into every chip, decided by the host's face", () => {
-    expect(CODE).toMatch(/disabled=\{disabled\}/);
-    expect(SURFACE_CODE).toMatch(/disabled: view\.composer\.face !== "send"/);
-  });
-
-  it("the document chip stays out of the row; the attach BUTTON opens the sheet", () => {
-    // BEFORE: the chip pressed into `shell.notice.attach` — a control that
-    // fired a toast it could not act on — then the chip left the row. The
-    // attach flow landed; the chip's ENTRY is now a row of the attach sheet
-    // (`HostAttachSheet.tsx`), and the attach button opens that sheet:
-    expect(CODE).not.toContain("shell.composer.document");
-    expect(CODE).not.toContain("chat.libraryDocument");
-    expect(SURFACE_CODE).not.toContain("onDocumentPress");
-    expect(SURFACE_CODE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
-    // the stub key died with its last user (deleted from both catalogues):
-    expect(SURFACE_CODE).not.toContain("shell.notice.attach");
-  });
-});
-
-describe("the samples: these patterns are not vacuous", () => {
-  it("each guard fails on a sample that lacks the shape", () => {
-    expect("hitSlop".match(/hitSlop/)).not.toBeNull();
-    expect('<Pressable testID="x">'.match(/accessibilityLabel=/g)).toBeNull();
-    expect(stripComments("// disabled: view.composer.face")).not.toContain("disabled:");
+    expect(HOST_SHEET).toContain('role: "switch"');
+    expect(SHEET).toContain('accessibilityRole={row.role ?? "button"}');
+    expect(SHEET).toContain("checked: row.selected");
   });
 });

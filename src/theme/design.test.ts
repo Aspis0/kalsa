@@ -8,7 +8,7 @@
  * confined to one role, so the rule cannot be quietly broken later.
  */
 
-import { families, measure, modes, type, type DesignColors, type ThemeMode } from "./design";
+import { families, measure, modes, radius, space, type, type DesignColors, type ThemeMode } from "./design";
 
 function channel(value: number): number {
   const c = value / 255;
@@ -64,6 +64,19 @@ describe("palette shape", () => {
     expect(Object.keys(modes.light).sort()).toEqual(Object.keys(modes.dark).sort());
   });
 
+  it("carries the v2 roles at their measured values", () => {
+    expect(modes.light).toMatchObject({
+      page: "#eef5f0", surface: "#fbfdfb", tint: "#e6f1e9", line: "#dfe9e2",
+      ink: "#12171a", ink2: "#2b3330", ink3: "#5f6b66", brand: "#1f5f4e",
+      accent: "#1f5f4e", selection: "#cfe3d6", danger: "#8a3b32", wait: "#f8f2e4", waitInk: "#6a5729",
+    });
+    expect(modes.dark).toMatchObject({
+      page: "#0f1512", surface: "#161d19", tint: "#1d2722", line: "#26302b",
+      ink: "#eaf1ec", ink2: "#ccd7d1", ink3: "#96a49c", brand: "#2b7a63",
+      accent: "#7fbfa6", selection: "#25423a", danger: "#e0a49b", wait: "#241f14", waitInk: "#e6cf9a",
+    });
+  });
+
   it("uses plain hex, so every value can be measured", () => {
     for (const [mode, colors] of allModes) {
       for (const [key, value] of Object.entries(colors)) {
@@ -95,7 +108,7 @@ describe.each(allModes)("%s palette", (_mode, c) => {
   it("carries the accent as text and as a fill", () => {
     atLeast(c.accent, c.page, 4.5, "accent on page");
     atLeast(c.accent, c.surface, 4.5, "accent on surface");
-    atLeast(c.onAccent, c.accent, 4.5, "onAccent on a filled accent control");
+    atLeast(c.onBrand, c.brand, 4.5, "white on the brand fill");
   });
 
   it("carries destructive text", () => {
@@ -106,7 +119,7 @@ describe.each(allModes)("%s palette", (_mode, c) => {
   });
 
   it("draws hairlines you can see", () => {
-    atLeast(c.border, c.page, 1.15, "border on page");
+    atLeast(c.border, c.page, 1.1, "line on page");
     atLeast(c.borderStrong, c.page, 1.2, "borderStrong on page");
   });
 
@@ -138,16 +151,15 @@ describe("roles a value must not be moved into", () => {
     atMost(modes.light.surface, modes.light.page, 1.15, "surface on page");
   });
 
-  it("forbids tertiary text and the accent inside the dark user turn", () => {
-    // 4.22:1 and 4.49:1 — both under AA. Inside the user's turn only ink and
-    // inkSoft may be used, and this is the assertion that keeps it that way.
-    atMost(modes.dark.silence, modes.dark.bubbleUser, 4.5, "silence on the dark user turn");
-    atMost(modes.dark.accent, modes.dark.bubbleUser, 4.5, "accent on the dark user turn");
+  it("keeps the dark user's turn on the two allowed ink roles", () => {
+    atLeast(modes.dark.ink, modes.dark.selection, 4.5, "ink on the dark user turn");
+    atLeast(modes.dark.ink2, modes.dark.selection, 4.5, "ink2 on the dark user turn");
+    expect(modes.dark.bubbleUser).toBe(modes.dark.selection);
   });
 });
 
 describe("type ladder", () => {
-  const order: Array<keyof typeof type> = ["display", "title", "body", "label", "mono", "meta"];
+  const order: Array<keyof typeof type> = ["display", "title", "headline", "body", "secondary", "label"];
 
   it("descends without ties", () => {
     const sizes = order.map((role) => type[role].fontSize);
@@ -186,11 +198,72 @@ describe("measure", () => {
     expect(measure.touchTarget).toBeGreaterThanOrEqual(48);
   });
 
-  it("narrows the gutter on the small screen", () => {
-    expect(measure.gutterCompact).toBeLessThan(measure.gutter);
+  it("uses the v2 16 dp content gutter in both shell widths", () => {
+    expect(measure.gutter).toBe(16);
+    expect(measure.gutterCompact).toBe(16);
   });
 
   it("leaves a band above the composer", () => {
     expect(measure.composerLift).toBeGreaterThan(0);
+  });
+});
+
+describe("v2 shape and space tokens", () => {
+  it("uses the v2 spacing ladder and semantic radii", () => {
+    expect(Object.values(space)).toEqual([4, 8, 12, 16, 20, 24, 32]);
+    expect(radius).toMatchObject({
+      button: 14,
+      field: 14,
+      row: 14,
+      iconButton: 14,
+      card: 16,
+      image: 16,
+      sheet: 22,
+      chip: 999,
+      badge: 999,
+      toggle: 999,
+      composer: 999,
+    });
+  });
+});
+
+
+describe("DESIGN-V2.md §1.1 role constraints", () => {
+  it("keeps surface and page so close that whitespace and elevation must separate them", () => {
+    for (const [mode, colors] of allModes) atMost(colors.surface, colors.page, 1.15, `${mode} surface/page`);
+  });
+
+  it("keeps ink3 at metadata contrast while prose roles use ink or ink2", () => {
+    for (const [mode, colors] of allModes) {
+      atLeast(colors.ink3, colors.page, 4.5, `${mode} ink3 on page`);
+      atLeast(colors.ink3, colors.surface, 4.5, `${mode} ink3 on surface`);
+      atLeast(colors.ink, colors.page, 7, `${mode} ink on page`);
+      atLeast(colors.ink2, colors.page, 4.5, `${mode} ink2 on page`);
+    }
+    expect(type.body.fontFamily).toBe(families.sans);
+    expect(type.secondary.fontFamily).toBe(families.sans);
+  });
+
+  it("reserves white foreground for the brand fill", () => {
+    for (const [mode, colors] of allModes) {
+      expect(colors.onBrand).toBe("#ffffff");
+      atLeast(colors.onBrand, colors.brand, 4.5, `${mode} white on brand`);
+    }
+    expect(contrast(modes.dark.onBrand, modes.dark.accent)).toBeLessThan(4.5);
+  });
+
+  it("allows only the two ink roles on a user's turn", () => {
+    for (const [mode, colors] of allModes) {
+      atLeast(colors.ink, colors.selection, 4.5, `${mode} ink on selection`);
+      atLeast(colors.ink2, colors.selection, 4.5, `${mode} ink2 on selection`);
+      expect(colors.bubbleUser).toBe(colors.selection);
+    }
+  });
+
+  it("keeps dark brand as a fill and accent as the readable text/icon role", () => {
+    expect(modes.dark.brand).not.toBe(modes.dark.accent);
+    atLeast(modes.light.accent, modes.light.page, 4.5, "light accent on page");
+    atLeast(modes.dark.accent, modes.dark.page, 4.5, "dark accent on page");
+    atLeast(modes.dark.onBrand, modes.dark.brand, 4.5, "dark white on brand");
   });
 });

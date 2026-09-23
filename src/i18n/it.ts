@@ -38,6 +38,7 @@ export const it: typeof en = {
     chats: "Conversazioni",
     newChat: "Nuova chat",
     searchChats: "Cerca nelle chat",
+    yourChats: "Le tue chat",
     noMatches: "Nessuna chat corrispondente",
     untitled: "Senza titolo",
     deleteChat: "Elimina chat",
@@ -1262,6 +1263,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       warm: "Caldo",
       idle: "Fermo",
     },
+    model: {
+      statusTitle: "Stato del modello",
+    },
     where: {
       thisPhone: "Su questo telefono",
       /** The pill's second line while a hard RAM/tier refusal stands
@@ -1295,6 +1299,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       thinking: "Pensiero del modello",
       previewSize: "Dimensione dell'anteprima",
       jumpToEnd: "Vai in fondo",
+      jumpLabel: "Alla fine",
       previewSizeOption: "Anteprima a {height} dp",
     },
     /** ShellPreview only: the notice under the strip, never shown in the app.

@@ -23,7 +23,7 @@ const readShell = (file: string): string =>
 
 const ACTIONS = read("messageActions.ts");
 const RESEND = read("truncateAndResend.ts");
-const SURFACE = read("HostChatSurface.tsx");
+const SURFACE = read("HostChatSurface.tsx"), SURFACE_OVERLAYS = read("HostChatSurfaceOverlays.tsx");
 const ROOT = read("HostRoot.tsx");
 const LAYOUT = read("HostLayout.tsx");
 const MENU = readShell("MessageMenu.tsx");
@@ -290,11 +290,12 @@ describe("the wiring: root composes through the layout, surface mounts, both kee
     expect(LAYOUT).toContain("actions={actions}");
   });
 
-  it("the surface hands the transcript its two callbacks and mounts the sheet", () => {
+  it("the surface hands the transcript its callbacks and the overlay seam mounts the menu", () => {
     expect(SURFACE).toContain("onMessageLongPress={actions.onMessageLongPress}");
     expect(SURFACE).toContain("onCopy={actions.onCopy}");
-    expect(SURFACE).toMatch(/<MessageMenu[\s\S]*?onRowPress=\{actions\.onMenuRow\}/);
-    expect(SURFACE).toMatch(/onRequestClose=\{actions\.closeMenu\}/);
+    expect(SURFACE).toContain("<HostChatSurfaceOverlays");
+    expect(SURFACE_OVERLAYS).toMatch(/<MessageMenu[\s\S]*?onRowPress=\{props\.actions\.onMenuRow\}/);
+    expect(SURFACE_OVERLAYS).toMatch(/onRequestClose=\{props\.actions\.closeMenu\}/);
   });
 
   it("the attach button OPENS the sheet — the stub notice retired with the flow", () => {

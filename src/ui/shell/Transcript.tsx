@@ -322,13 +322,15 @@ export function Transcript({
           accessibilityLabel={t("shell.a11y.jumpToEnd")}
           accessibilityRole="button"
           onPress={() => decide("jump-to-end")}
-          style={styles.jump}
+          style={styles.jumpBox}
           testID="transcript.jumpToEnd"
         >
-          <ArrowDown color={colors.inkSoft} size={20} strokeWidth={2.4} />
+          <View style={styles.jump}>
+            <ArrowDown color={colors.ink2} size={16} strokeWidth={1.75} />
+            <Text style={styles.jumpLabel}>{t("shell.a11y.jumpLabel")}</Text>
+          </View>
         </Pressable>
       ) : null}
     </View>
   );
 }
-

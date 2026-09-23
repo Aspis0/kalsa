@@ -1,100 +1,74 @@
-/**
- * The strip's Web permission switch (D1 row 5 / §2.9), as source: the three
- * facts a diff would hide are all textual — the control is a real 48 dp box
- * (the old one was 36×22 on `hitSlop`, which this project forbids), it carries
- * the controller's own switch role, name and both hints from the shipped
- * catalogue, and the geometry beside it budgets THREE icon buttons.
- *
- * BEFORE the export row left for the drawer this read FOUR buttons and pinned
- * `… - 4*full - 4*STRIP_GAP`, because the switch had joined the strip and
- * squeezed the pill to 97 dp (a 14 dp text column — no legible model name).
- * The strip contract changed by decision, not by drift: export moved to the
- * drawer, three buttons give the pill 154 dp (`shellGeometry.ts`, pinned on
- * its side by `shellGeometry.test.ts`). Everything else in this file is
- * unchanged: the switch itself, its 48 dp box, its hints, both catalogues.
- */
+/** Strip acceptance: one nude menu glyph and one model pill, without old rows. */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { en } from "../../i18n/en";
-import { it as italian } from "../../i18n/it";
+import { STRIP_HEIGHT, STRIP_PILL_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
 
-const SHELL_SOURCE = readFileSync(join(__dirname, "Shell.tsx"), "utf8");
-const GEOMETRY_SOURCE = readFileSync(join(__dirname, "shellGeometry.ts"), "utf8");
+const strip = readFileSync(join(__dirname, "ShellStrip.tsx"), "utf8");
+const shell = readFileSync(join(__dirname, "Shell.tsx"), "utf8");
+const sheet = readFileSync(join(__dirname, "ModelPillSheet.tsx"), "utf8");
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
-}
-
-const CODE = stripComments(SHELL_SOURCE);
-
-describe("the switch itself", () => {
-  it("is a switch node with the checked state and the controller's name", () => {
-    expect(CODE).toContain('testID="shell.strip.web"');
-    expect(CODE).toContain('accessibilityRole="switch"');
-    expect(CODE).toContain("accessibilityState={{ checked: webEnabled }}");
-    expect(CODE).toContain('accessibilityLabel={t("common.web")}');
+describe("the strip's two controls", () => {
+  it("exposes the menu and model pill as named 48 dp targets", () => {
+    expect(strip).toContain('testID="shell.strip.menu"');
+    expect(strip).toContain('testID="shell.strip.model"');
+    expect(strip.match(/width: 48/g)?.length).toBeGreaterThan(0);
+    expect(strip).toContain('accessibilityLabel={t("shell.a11y.menu")}');
+    expect(strip).toContain('accessibilityRole="button"');
+    expect(MIN_TOUCH_TARGET).toBe(48);
   });
 
-  it("carries BOTH hints the controller shipped", () => {
-    expect(CODE).toContain('t("common.webOnHint")');
-    expect(CODE).toContain('t("common.webOffHint")');
-    expect(CODE).toMatch(/accessibilityHint=\{webEnabled \? t\("common\.webOnHint"\) : t\("common\.webOffHint"\)\}/);
+  it("paints the model pill at 44 dp inside the 48 dp touch box", () => {
+    expect(STRIP_PILL_HEIGHT).toBe(44);
+    expect(strip).toContain("height: STRIP_PILL_HEIGHT");
+    expect(strip).toMatch(/height: 48,[\s\S]*?flex: 1/);
   });
 
-  it("is a real 48 dp box — the styles.iconButton the geometry floors at 48", () => {
-    expect(CODE).toMatch(/style=\{\[\s*styles\.iconButton,/);
-    // No forbidden escape hatch anywhere in the shell's strip.
-    expect(CODE).not.toContain("hitSlop");
+  it("stays 56 dp tall and uses a nude menu icon", () => {
+    expect(STRIP_HEIGHT).toBe(56);
+    expect(strip).toContain("height: STRIP_HEIGHT");
+    expect(strip).toContain("<Menu size={20}");
+    expect(strip).not.toMatch(/backgroundColor: colors\.surface[^}]*Menu/);
   });
 
-  it("shows its state while off with the controller's own line-through", () => {
-    expect(CODE).toMatch(/textDecorationLine: webEnabled \? "none" : "line-through"/);
+  it("shows a device glyph and the short local or server label", () => {
+    expect(strip).toContain("Smartphone");
+    expect(strip).toContain("Monitor");
+    expect(strip).toContain('"Locale"');
+    expect(strip).toContain('"Kalsa Brain"');
   });
 
-  it("is drawn in BOTH catalogues: common.web and the two hints exist, non-empty", () => {
-    for (const [name, catalog] of [
-      ["en", en],
-      ["it", italian],
-    ] as const) {
-      const strings = [catalog.common.web, catalog.common.webOnHint, catalog.common.webOffHint];
-      for (const value of strings) {
-        expect([name, typeof value === "string" && value.length > 0]).toEqual([name, true]);
-      }
-    }
-    // The hints really are two different sentences, so the off-state hint is
-    // not the on-state hint wearing the same words.
-    expect(en.common.webOnHint).not.toBe(en.common.webOffHint);
-    expect(italian.common.webOnHint).not.toBe(italian.common.webOffHint);
-  });
-});
-
-describe("the geometry beside it: three icon buttons, one pill", () => {
-  it("budgets the strip with THREE 48 dp controls and three gaps (was four)", () => {
-    // BEFORE (Web switch on the strip, export in the strip):
-    //   `width - 2 * STRIP_SIDE_PADDING - 4 * full - 4 * STRIP_GAP` = 97 dp pill.
-    // AFTER export moved to the drawer the strip holds menu, Web, new chat:
-    expect(GEOMETRY_SOURCE).toMatch(/width - 2 \* STRIP_SIDE_PADDING - 3 \* full - 3 \* STRIP_GAP/);
-    // The sentence IS the comment documenting the contract change; it must
-    // name all three controls and the reason export is not one of them.
-    expect(GEOMETRY_SOURCE).toContain("THREE icon buttons (menu, Web,");
-    expect(GEOMETRY_SOURCE).toContain("Export moved to the");
-    // The old four-button formula must be gone, or both budgets exist at once.
-    expect(GEOMETRY_SOURCE).not.toMatch(/4 \* full - 4 \* STRIP_GAP/);
+  it("does not draw a brand mark, new-chat action or web switch in the strip", () => {
+    expect(strip).not.toContain("Plus");
+    expect(strip).not.toContain("Globe");
+    expect(strip).not.toContain("Brand");
+    expect(strip).not.toContain("shell.strip.newChat");
+    expect(strip).not.toContain("shell.strip.web");
   });
 
-  it("the shell hands the switch the host's persisted flag, not a local copy", () => {
-    const surface = stripComments(
-      readFileSync(join(__dirname, "..", "..", "host", "HostChatSurface.tsx"), "utf8"),
-    );
-    expect(surface).toContain("webEnabled={flags.webToolsEnabled}");
-    expect(surface).toContain("onWebPress={flags.toggleWebTools}");
+  it("puts readiness rows and battery guidance inside the pill's sheet", () => {
+    expect(strip).toContain("<ModelPillSheet");
+    expect(sheet).toContain("<ModelBar");
+    expect(sheet).toContain('testID="shell.modelSheet"');
+    expect(shell).not.toContain("<ModelBar");
+    expect(shell).not.toContain("shell.notice");
+  });
+
+  it("opens the status sheet from the pill instead of starting a model action", () => {
+    expect(strip).toMatch(/onPress=\{\(\) => setSheetVisible\(true\)\}/);
+    expect(strip).toContain("onRetryPress={onModelAction}");
+  });
+
+  it("does not add a fourth strip band or overflow the three-band shell", () => {
+    expect(shell).toContain("<ShellStrip");
+    expect(shell).not.toContain("<ComposerToolbar");
+    expect(shell).not.toContain("shell.strip.web");
   });
 });
 
-describe("the samples: the guards can fail", () => {
-  it("a stripped comment does not carry a match", () => {
-    expect(stripComments("// accessibilityRole=\"switch\"")).not.toContain("accessibilityRole");
-    // …but the same text in code does.
-    expect(CODE).toContain('accessibilityRole="switch"');
+describe("test guard samples", () => {
+  it("fails when an old switch or new-chat row returns", () => {
+    expect('<Pressable testID="shell.strip.web">'.includes("shell.strip.web")).toBe(true);
+    expect(strip).not.toContain("shell.strip.web");
+    expect(strip).not.toContain("shell.strip.newChat");
   });
 });

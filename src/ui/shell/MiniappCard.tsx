@@ -140,7 +140,7 @@ export function MiniappCard({
       testID={`transcript.miniapp.${id}`}
     >
       <View style={styles.header}>
-        <Icon size={16} color={colors.accent} />
+        <Icon size={20} color={colors.accent} strokeWidth={1.75} />
         <Text numberOfLines={1} style={styles.title}>
           {miniapp.title}
         </Text>
@@ -159,7 +159,7 @@ export function MiniappCard({
             testID={`transcript.miniapp.open.${id}`}
           >
             <Text style={styles.openLabel}>{t("chat.openTool")}</Text>
-            <ChevronRight size={14} color={colors.accent} />
+            <ChevronRight size={16} color={colors.accent} strokeWidth={1.75} />
           </Pressable>
         </>
       ) : null}

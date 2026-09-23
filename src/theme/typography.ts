@@ -4,9 +4,9 @@ import { useLabTheme } from "../ui/labTheme";
 
 import { baseTypeScale, typeFaces } from "./typeData";
 
-// Font family resolves to the loaded @expo-google-fonts/* family name:
-// Inter for the interface, Source Serif 4 for the answer, IBM Plex Mono for
-// code and figures. useFonts is wired in App.tsx; until it resolves, App renders null.
+// Font family resolves to the loaded @expo-google-fonts/* family name. The
+// canonical v2 roles and sizes come from typeData.ts; legacy names remain as
+// aliases until their screens are rebuilt. useFonts is wired in App.tsx.
 // On Android, fontWeight is NOT synthesized for custom families — weight MUST
 // come from the fontFamily name (never pair a custom family with numeric fontWeight).
 // The names live in typeData.ts (react-native-free) so typography.test.ts can

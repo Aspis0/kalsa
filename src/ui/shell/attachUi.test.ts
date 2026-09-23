@@ -2,7 +2,7 @@
  * The attach UI as source — each describe names what a screenshot cannot
  * see: real 48 dp boxes (never `hitSlop`), a testID and an accessible name
  * on every pressable, the §2.7 chip label (the name INSIDE the label), the
- * shell's row arithmetic, the disabled attach control, the sheet's four
+ * shell's row arithmetic, the disabled attach control, the sheet's seven
  * entries — and that every catalogue key those entries print exists in BOTH
  * catalogues.
  */
@@ -42,7 +42,7 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
   it("every row is a 48 dp pressable with a testID and an accessible name", () => {
     expect(SHEET).toContain("minHeight: 48");
     expect(SHEET).toContain("accessibilityLabel={row.label}");
-    expect(SHEET).toContain('accessibilityRole="button"');
+    expect(SHEET).toContain('accessibilityRole={row.role ?? "button"}');
     expect(SHEET).toContain("testID={row.testID}");
     expect(SHEET).not.toContain("hitSlop");
     // sample
@@ -59,6 +59,8 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
 describe("the chips are §2.7: the name INSIDE the label, a 48 dp remove box", () => {
   it("draws the composerState view through `t(key, params)` — a bare name never reaches the screen alone", () => {
     expect(CHIPS).toContain("t(chip.key, chip.params)");
+    expect(CHIPS).toContain("borderRadius: radius.pill");
+    expect(CHIPS).toContain("<FileText size={16}");
     expect(CHIPS).not.toMatch(/accessibilityLabel=\{chip\.params/);
   });
 
@@ -74,11 +76,13 @@ describe("the chips are §2.7: the name INSIDE the label, a 48 dp remove box", (
     expect(COMPOSER_ATTACHMENTS_HEIGHT).toBe(MIN_TOUCH_TARGET);
     expect(SHELL).toContain("attachmentsRowVisible ? COMPOSER_ATTACHMENTS_HEIGHT : 0)");
     expect(SHELL).toContain("<ComposerAttachments {...attachments} colors={colors} />");
-    // …and the row sits BELOW the toolbar, where the controller kept its strip
-    const toolbarAt = SHELL.indexOf("<ComposerToolbar");
+    // The v2 composer has no permanent toolbar row. Attachments sit between
+    // the hold line and the single composer capsule.
     const chipsAt = SHELL.indexOf("<ComposerAttachments {...");
-    expect(toolbarAt).toBeGreaterThan(0);
-    expect(chipsAt).toBeGreaterThan(toolbarAt);
+    const composerAt = SHELL.indexOf("<ShellComposer");
+    expect(SHELL).not.toContain("<ComposerToolbar");
+    expect(chipsAt).toBeGreaterThan(SHELL.indexOf("{holdReason === null"));
+    expect(composerAt).toBeGreaterThan(chipsAt);
   });
 });
 
@@ -133,12 +137,15 @@ describe("the send snapshots and clears the rows (sendHost as source — its imp
   });
 });
 
-describe("the sheet's four entries, each label resolvable in BOTH catalogues", () => {
+describe("the attachment sheet's seven entries, each label resolvable in BOTH catalogues", () => {
   const entries: Array<[string, string]> = [
     ["shell.attach.library", "chat.photoLibrary"],
     ["shell.attach.camera", "chat.takePhoto"],
     ["shell.attach.pdfOrWord", "chat.pdfOrWord"],
     ["shell.attach.libraryDocument", "chat.libraryDocument"],
+    ["shell.attach.templates", "chat.a11yTemplates"],
+    ["shell.attach.research", "chat.deepResearch"],
+    ["shell.attach.notes", "notes.title"],
   ];
 
   it.each(entries)("%s prints %s, in en and it with real text", (testID, key) => {
@@ -157,8 +164,16 @@ describe("the sheet's four entries, each label resolvable in BOTH catalogues", (
     expect(typeof IT["common.cancel"]).toBe("string");
   });
 
+  it("research and notes expose checked switch state and remain in the sheet after toggling", () => {
+    expect(MENU).toContain('role: "switch"');
+    expect(MENU).toContain('selected: row.action === "research" ? props.researchActive');
+    expect(SHEET).toContain("checked: row.selected");
+    expect(SURFACE).toContain("arms.toggleResearch()");
+    expect(SURFACE).toContain("arms.toggleNotes()");
+  });
+
   it("every a11y string this flow prints exists in both catalogues", () => {
-    for (const key of ["chat.a11yRemoveAttachment", "shell.a11y.attach", "common.cancel"]) {
+    for (const key of ["chat.a11yRemoveAttachment", "shell.a11y.attach", "chat.a11yTemplates", "chat.deepResearch", "notes.title", "common.cancel"]) {
       expect(typeof EN[key]).toBe("string");
       expect(typeof IT[key]).toBe("string");
       expect(IT[key]).not.toBe(EN[key]);

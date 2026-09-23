@@ -9,7 +9,7 @@
  * on HEIGHT, because the two device widths (349/360 dp) nearly agree.
  */
 
-import { spacing, type } from "../../theme/design";
+import { measure, space, spacing, type } from "../../theme/design";
 
 export type Insets = { top: number; bottom: number };
 
@@ -22,38 +22,34 @@ export type TouchBox = { width: number; height: number };
 /** The 48 dp floor: a real box, never a `hitSlop`. */
 export const MIN_TOUCH_TARGET = 48;
 
-/** Strip: one 48 dp control plus 6 dp above and below; two lines (model name
- *  over where it runs) while there is room, one when the keyboard is up. */
-export const STRIP_HEIGHT = 60;
-export const STRIP_HEIGHT_COLLAPSED = 52;
-/** Below this the strip drops its second line: the 325 dp keyboard case. */
-export const STRIP_COLLAPSE_BELOW = 420;
-export const STRIP_SIDE_PADDING = 12;
-export const STRIP_GAP = 9;
-/**
- * What the strip pill spends OUTSIDE its text column, dp — the whole budget of
- * a pill whose one job is the model's name (DESIGN.md §2.1). The mark, the dot
- * and the 20 dp of padding are gone because a capture cut the name to
- * `LFM2.5 …`; the 48/154 dp frame and chevron are untouched.
- */
-export const STRIP_PILL_PADDING_X = spacing.xs;
-export const STRIP_PILL_GAP = spacing.xs;
-export const STRIP_CHEVRON_SIZE = 15;
-
-/** The column the name must have to paint in full, dp: the device capture's
- *  105, not the shipped font's 84.6 — only the capture sees the real screen. */
+/** The strip stays 56 dp tall; its 44 dp pill sits inside a 48 dp touch box. */
+export const STRIP_HEIGHT = 56;
+export const STRIP_SIDE_PADDING = measure.gutter;
+export const STRIP_GAP = space.xs;
+/** Fixed content around the model name in the one-line pill. */
+export const STRIP_PILL_HEIGHT = 44;
+export const STRIP_PILL_PADDING_X = space.sm;
+export const STRIP_PILL_GAP = space.xs;
+export const STRIP_DEVICE_SIZE = 13;
+export const STRIP_LOCATION_BUDGET_DP = 72;
+export const STRIP_CHEVRON_SIZE = 16;
 export const MODEL_NAME_COLUMN_NEED_DP = 105;
 
-/** What is left of the name between padding and chevron: everything in there
- *  is chrome, and chrome is what starved the name last time. */
 export function stripPillTextColumn(pillWidth: number): number {
-  return clamp(pillWidth - 2 * STRIP_PILL_PADDING_X - STRIP_PILL_GAP - STRIP_CHEVRON_SIZE);
+  return clamp(
+    pillWidth -
+      2 * STRIP_PILL_PADDING_X -
+      3 * STRIP_PILL_GAP -
+      STRIP_DEVICE_SIZE -
+      STRIP_LOCATION_BUDGET_DP -
+      STRIP_CHEVRON_SIZE,
+  );
 }
 
 /** Composer: an 8 dp lift, a 56 dp field, and a 14 dp lift over the gesture
  *  bar — the mock's `.dock` and `.field`, re-measured in dp. */
 export const COMPOSER_HEIGHT = 78;
-export const COMPOSER_SIDE_PADDING = 12;
+export const COMPOSER_SIDE_PADDING = measure.gutter;
 export const COMPOSER_FIELD_HEIGHT = 56;
 
 /**
@@ -77,15 +73,6 @@ export const SHELL_NOTICE_GAP = 7;
 export const SHELL_NOTICE_HEIGHT = 2 * SHELL_NOTICE_GAP + type.meta.lineHeight;
 
 /**
- * The composer's toolbar row (templates ✦ and mode chips), drawn OUTSIDE the
- * three bands: Shell.tsx adds it to `extraRows` and subtracts it BEFORE
- * `shellGeometry` partitions, so strip + transcript + composer still sum to
- * the given height. A real 48 dp row on the finger's axis; its pills paint
- * small inside it, like the source chip's box.
- */
-export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
-
-/**
  * The composer's attachment-chip row (`ComposerAttachments.tsx`): drawn
  * OUTSIDE the three bands like the toolbar — Shell.tsx adds it to
  * `extraRows` only while chips or a conversion exist, so an empty composer
@@ -93,33 +80,6 @@ export const COMPOSER_TOOLBAR_HEIGHT = MIN_TOUCH_TARGET;
  * AND their finger targets without a second number.
  */
 export const COMPOSER_ATTACHMENTS_HEIGHT = MIN_TOUCH_TARGET;
-
-/**
- * The toolbar row's horizontal arithmetic: 349 dp cannot hold everything on one
- * line, so what fits is decided by numbers a test can read. The row spends
- * `2 * spacing.md` padding, the 48 dp ✦ target, one `spacing.xs` gap, then the
- * scroller; each chip spends pill padding, the 15 dp icon, the 4 dp gap and its
- * measured label. ComposerToolbar binds exactly these, and
- * composerToolbarWidth.test measures the real labels in the real fonts.
- */
-export const TOOLBAR_CHIP_ICON = 15;
-export const TOOLBAR_CHIP_LABEL_GAP = 4;
-
-export function toolbarChipsAvailable(width: number): number {
-  return width - 2 * spacing.md - MIN_TOUCH_TARGET - spacing.xs;
-}
-
-export function toolbarChipWidth(labelWidth: number): number {
-  return 2 * spacing.sm + TOOLBAR_CHIP_ICON + TOOLBAR_CHIP_LABEL_GAP + labelWidth;
-}
-
-export function toolbarChipsWidth(labelWidths: readonly number[]): number {
-  if (labelWidths.length === 0) return 0;
-  return (
-    labelWidths.reduce((sum, label) => sum + toolbarChipWidth(label), 0) +
-    spacing.xs * (labelWidths.length - 1)
-  );
-}
 
 function clamp(value: number): number {
   return value > 0 ? value : 0;
@@ -152,7 +112,6 @@ export type ShellGeometry = {
    *  gesture bar — or, with the keyboard up, at the IME's top edge. */
   composerBottomOffset: number;
   minTouchTarget: number;
-  stripCollapsed: boolean;
   /** Every tap target the shell draws, in dp. The 48 dp floor is a property of
    *  the geometry, because the stack cannot measure a rendered tree. */
   touchTargets: {
@@ -174,11 +133,8 @@ export type ShellGeometry = {
  */
 export function shellGeometry(width: number, height: number, insets: Insets): ShellGeometry {
   const usableHeight = clamp(height - insets.top - insets.bottom);
-  const stripCollapsed = usableHeight < STRIP_COLLAPSE_BELOW;
-  const stripWant = stripCollapsed ? STRIP_HEIGHT_COLLAPSED : STRIP_HEIGHT;
-
   const composerHeight = Math.min(COMPOSER_HEIGHT, usableHeight);
-  const stripHeight = Math.min(stripWant, clamp(usableHeight - composerHeight));
+  const stripHeight = Math.min(STRIP_HEIGHT, clamp(usableHeight - composerHeight));
   const transcriptHeight = clamp(usableHeight - stripHeight - composerHeight);
 
   const strip: Band = { top: insets.top, height: stripHeight };
@@ -192,13 +148,8 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
   };
 
   const full = MIN_TOUCH_TARGET;
-  // The pill takes what the strip leaves: THREE icon buttons (menu, Web,
-  // new chat) — Export moved to the drawer as a chat-level action. Four buttons
-  // left the pill 97 dp with a 14 dp text column and ellipsised the model name
-  // (DESIGN.md §2.1); three restore 154: 349 - 2*12 - 3*48 - 3*9 = 154.
-  const stripPillWidth = clamp(
-    width - 2 * STRIP_SIDE_PADDING - 3 * full - 3 * STRIP_GAP,
-  );
+  // The strip has one 48 dp menu target and one flexible model pill.
+  const stripPillWidth = clamp(width - 2 * STRIP_SIDE_PADDING - full - STRIP_GAP);
 
   return {
     width,
@@ -210,7 +161,6 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
     transcriptUsableHeight: transcript.height,
     composerBottomOffset: clamp(height - (composer.top + composer.height)),
     minTouchTarget: full,
-    stripCollapsed,
     touchTargets: {
       stripButton: { width: full, height: full },
       stripPill: { width: Math.max(full, stripPillWidth), height: full },

@@ -10,7 +10,7 @@
  */
 import { StyleSheet } from "react-native";
 
-import { elevation, families, radius, spacing, type, type DesignColors } from "../../theme/design";
+import { elevation, families, radius, space, spacing, type, type DesignColors } from "../../theme/design";
 import { MIN_TOUCH_TARGET, SOURCE_CHIP_TOUCH_BOX } from "./shellGeometry";
 import {
   PARAGRAPH_GAP,
@@ -38,30 +38,32 @@ export function createTranscriptStyles(colors: DesignColors) {
       scroll: {
         flex: 1,
       },
-      // Drawn only while the reader is away from the end — the only thing here
-      // that moves the view for them. A real 48 dp box, never a hitSlop, and no
-      // visible label: a hostile vision audit found the labelled version floating
-      // over the transcript and hiding the reader's own word behind it, so it is
-      // now a corner icon whose accessible name (`shell.a11y.jumpToEnd`) is the
-      // only thing that names it.
-      // The ring says "this is a CONTROL", not "this is a surface" (§1.2 lets
-      // elevation carry surfaces): WCAG 2.2 SC 1.4.11 wants a UI component's
-      // boundary at 3:1, the first ring measured ~1.5:1 and no audit could trace
-      // it, and `colors.silence` clears 3:1 against all four pairs — measured by
-      // `transcriptJumpPill.test.ts` on every run.
+      jumpBox: {
+        alignItems: "center",
+        bottom: spacing.sm,
+        justifyContent: "center",
+        minHeight: MIN_TOUCH_TARGET,
+        minWidth: MIN_TOUCH_TARGET,
+        position: "absolute",
+        right: spacing.md,
+      },
       jump: {
-        ...elevation.raised,
         alignItems: "center",
         backgroundColor: colors.surface,
         borderColor: colors.silence,
         borderWidth: 1,
-        borderRadius: MIN_TOUCH_TARGET / 2,
-        bottom: spacing.sm,
-        height: MIN_TOUCH_TARGET,
+        borderRadius: radius.pill,
+        flexDirection: "row",
+        gap: space.xxs,
+        height: 36,
         justifyContent: "center",
-        position: "absolute",
-        right: spacing.md,
-        width: MIN_TOUCH_TARGET,
+        paddingHorizontal: space.sm,
+      },
+      jumpLabel: {
+        color: colors.ink2,
+        fontFamily: families.sansMedium,
+        fontSize: 12.5,
+        lineHeight: 16,
       },
       content: {
         // The gap that keeps the last item — the cloud above all — off the
@@ -191,13 +193,9 @@ export function createTranscriptStyles(colors: DesignColors) {
       },
       actionChip: {
         alignItems: "center",
-        backgroundColor: colors.surface,
-        borderRadius: radius.pill,
-        ...elevation.raised,
         flexDirection: "row",
         gap: spacing.xxs,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
+        justifyContent: "center",
       },
       actionChipLabel: {
         color: colors.ink,

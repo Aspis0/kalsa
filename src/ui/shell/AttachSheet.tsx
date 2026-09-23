@@ -11,16 +11,19 @@
  */
 import type { ReactNode } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { Camera, FileText, Image as ImageIcon, X, BookOpen } from "lucide-react-native";
+import { Camera, FileText, Image as ImageIcon, X, BookOpen, Search, StickyNote, Sparkles } from "lucide-react-native";
 import { radius, spacing, type, type DesignColors } from "../../theme/design";
 
-export type AttachSheetIcon = "library" | "camera" | "file" | "book" | "close";
+export type AttachSheetIcon = "library" | "camera" | "file" | "book" | "close" | "templates" | "research" | "notes";
 
 export interface AttachSheetRowData {
   testID: string;
   icon: AttachSheetIcon;
   label: string;
   onPress: () => void;
+  role?: "button" | "switch";
+  selected?: boolean;
+  disabled?: boolean;
 }
 
 export interface AttachSheetProps {
@@ -32,11 +35,14 @@ export interface AttachSheetProps {
 }
 
 const ICONS: Record<AttachSheetIcon, (color: string) => ReactNode> = {
-  library: (color) => <ImageIcon size={18} color={color} />,
-  camera: (color) => <Camera size={18} color={color} />,
-  file: (color) => <FileText size={18} color={color} />,
-  book: (color) => <BookOpen size={18} color={color} />,
-  close: (color) => <X size={18} color={color} />,
+  library: (color) => <ImageIcon size={20} color={color} strokeWidth={1.75} />,
+  camera: (color) => <Camera size={20} color={color} strokeWidth={1.75} />,
+  file: (color) => <FileText size={20} color={color} strokeWidth={1.75} />,
+  book: (color) => <BookOpen size={20} color={color} strokeWidth={1.75} />,
+  close: (color) => <X size={20} color={color} strokeWidth={1.75} />,
+  templates: (color) => <Sparkles size={20} color={color} strokeWidth={1.75} />,
+  research: (color) => <Search size={20} color={color} strokeWidth={1.75} />,
+  notes: (color) => <StickyNote size={20} color={color} strokeWidth={1.75} />,
 };
 
 function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColors }) {
@@ -44,22 +50,41 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
     <Pressable
       testID={row.testID}
       onPress={row.onPress}
+      disabled={row.disabled}
       accessible
-      accessibilityRole="button"
+      accessibilityRole={row.role ?? "button"}
       accessibilityLabel={row.label}
+      accessibilityState={{ disabled: row.disabled, ...(row.selected === undefined ? {} : { checked: row.selected }) }}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.sm,
         paddingHorizontal: spacing.md,
         minHeight: 48,
-        backgroundColor: pressed ? `${colors.accent}22` : "transparent",
+        opacity: row.disabled ? 0.45 : 1,
+        backgroundColor: pressed || row.selected ? colors.tint : "transparent",
       })}
     >
-      <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](colors.ink)}</View>
-      <Text numberOfLines={1} style={[type.meta, { color: colors.ink, flexShrink: 1 }]}>
+      <View style={{ width: 20, alignItems: "center" }}>{ICONS[row.icon](row.selected ? colors.accent : colors.ink3)}</View>
+      <Text numberOfLines={1} style={[type.meta, { color: row.selected ? colors.accent : colors.ink, flexShrink: 1 }]}>
         {row.label}
       </Text>
+      {row.role === "switch" ? (
+        <View
+          style={{
+            width: 48,
+            height: 28,
+            padding: 2,
+            borderRadius: 14,
+            backgroundColor: row.selected ? colors.brand : colors.line2,
+            flexDirection: "row",
+            justifyContent: row.selected ? "flex-end" : "flex-start",
+            alignItems: "center",
+          }}
+        >
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#ffffff" }} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }

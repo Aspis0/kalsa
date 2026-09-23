@@ -19,12 +19,11 @@ import { useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useLocale } from "../../i18n";
 import { type ThemeMode } from "../../theme/design";
 import { useLabTheme } from "../labTheme";
 import { Shell } from "./Shell";
 import { Transcript, type TranscriptMessage } from "./Transcript";
-import { SHELL_NOTICE_HEIGHT, bottomInsetFor, type Insets } from "./shellGeometry";
+import { bottomInsetFor, type Insets } from "./shellGeometry";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 
 /**
@@ -130,16 +129,13 @@ const PREVIEW_TRANSCRIPT: readonly TranscriptMessage[] = [
 
 export function ShellPreview() {
   const insets = useSafeAreaInsets();
-  const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const window = useWindowDimensions();
   const keyboardHeight = useKeyboardHeight();
   const [caseIndex, setCaseIndex] = useState(0);
 
-  const liveHeight = Math.round(window.height);
   const pinned = PREVIEW_CASES[caseIndex].height;
   const size: Insets = { top: insets.top, bottom: insets.bottom };
-  const mismatched = pinned !== undefined && pinned !== liveHeight;
   // A pinned case is a height the harness dictates, so the IME must not add a
   // second bottom term on top of it: at the 325 pin the two together would
   // leave 5 dp of content. The live case is where the hook speaks (DESIGN.md §2.7).
@@ -151,25 +147,18 @@ export function ShellPreview() {
   // The switch rides the strip's own `+` control — preview-only binding, inside
   // a box the shell already draws, so nothing is added over the transcript.
   const cycleSize = () => setCaseIndex((index) => (index + 1) % PREVIEW_CASES.length);
-  // The mismatch notice: one line between strip and transcript, drawn only while
-  // a pinned case lies about the window; its height comes out of the layout.
-  const notice = mismatched
-    ? t("shell.preview.sizeNotLive", { pinned: String(pinned), live: String(liveHeight) })
-    : undefined;
-  const layoutHeight =
-    pinned === undefined ? undefined : pinned - (notice === undefined ? 0 : SHELL_NOTICE_HEIGHT);
+  const layoutHeight = pinned === undefined ? undefined : pinned;
 
   return (
     <View style={{ flex: 1 }}>
       <Shell
         insets={size}
         modelName={PREVIEW_MODEL_NAME}
-        whereLabel={t("shell.where.thisPhone")}
+        location="phone"
         keyboardHeight={keyboard}
-        notice={notice}
         height={pinned}
         mode={mode}
-        onNewChatPress={cycleSize}
+        onMenuPress={cycleSize}
       >
         <Transcript
           insets={bandInsets}

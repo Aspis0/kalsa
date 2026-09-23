@@ -23,36 +23,30 @@ import { PdfToImages } from "../components/PdfToImages";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type TextInput } from "react-native";
-import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { useLocale, type TranslationKey } from "../i18n";
 import { modes, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
-import { MessageMenu } from "../ui/shell/MessageMenu";
-import { EditMessageModal } from "../ui/shell/EditMessageModal";
 import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
-import type { ComposerToolbarProps } from "../ui/shell/ComposerToolbar";
 import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
 import type { ComposerArms } from "./composerArms";
 import type { ComposerView } from "./composerView";
-import { HostAttachSheet, type AttachAction } from "./HostAttachSheet";
+import { type AttachAction } from "./HostAttachSheet";
+import { HostChatSurfaceOverlays } from "./HostChatSurfaceOverlays";
 import { LongChatNudgeRow } from "./LongChatNudgeRow";
 import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
 import type { AttachmentsHost } from "./useAttachments";
-import type { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
-import { pillWhereLabel } from "./modelBar";
 import { WelcomeBlock } from "./welcomeBlock";
-import { welcomeVisible } from "./welcomeCopy";
+import { welcomeVisible } from "./welcomeGate";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
-type ToolFlags = ReturnType<typeof useToolFlags>;
 /** The message menu's bundle, created by the root beside the send/history it
  *  borrows (`src/host/messageActions.ts`). */
 type MessageActionsBundle = ReturnType<typeof useMessageActions>;
@@ -76,8 +70,6 @@ export interface ChatSurfaceProps {
   sendHost: SendHost;
   onMenuPress: () => void;
   onNewChatPress: () => void;
-  /** The strip's Web switch (D1 row 5): the host's persisted flag + its flip. */
-  flags: ToolFlags;
   /** The research/notes one-shot arms behind the toolbar chips (D1 row 14). */
   arms: ComposerArms;
   /** The staged attachments and the pickers behind the attach control
@@ -107,7 +99,6 @@ export function HostChatSurface({
   sendHost,
   onMenuPress,
   onNewChatPress,
-  flags,
   arms,
   attachments,
   libraryDocs,
@@ -116,16 +107,6 @@ export function HostChatSurface({
   onMiniappOpen,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
-  // The pill's second line: while a hard RAM/tier refusal stands, "On this
-  // phone" is a false status claim and swaps for the true one
-  // (`modelBar.ts` decides; the bar's error row still says WHY below).
-  const whereLabel = t(
-    pillWhereLabel({
-      modelState: modelHost.modelState,
-      modelError: modelHost.modelError,
-      t,
-    }),
-  );
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
@@ -185,6 +166,19 @@ export function HostChatSurface({
   // One row of the attach sheet: each press runs the hook's flow and closes
   // only when the controller did (cancel and refusals keep the sheet up).
   const handleAttachAction = (action: AttachAction) => {
+    if (action === "templates") {
+      setAttachSheetOpen(false);
+      setQuickSheetVisible(true);
+      return;
+    }
+    if (action === "research") {
+      arms.toggleResearch();
+      return;
+    }
+    if (action === "notes") {
+      arms.toggleNotes();
+      return;
+    }
     if (action === "library" || action === "camera") {
       void attachments.beginImagePick(action).then((close) => {
         if (close) setAttachSheetOpen(false);
@@ -204,33 +198,17 @@ export function HostChatSurface({
     else setDocPickOpen(true);
   };
 
-  // The toolbar's chips arm the NEXT send (one-shot; the arms clear on send,
-  // on an emptied draft and on conversation change — `composerArms.ts`). The
-  // machine's own answer gates them: while the face says stop no arm flips.
-  const toolbar: ComposerToolbarProps = {
-    onTemplatesPress: () => setQuickSheetVisible(true),
-    researchActive: arms.research,
-    onResearchPress: arms.toggleResearch,
-    notesActive: arms.notes,
-    onNotesPress: arms.toggleNotes,
-    // The library-document ENTRY moved to the attach sheet (the row cannot
-    // hold a third chip — `composerToolbarWidth.test.ts`); the machine still
-    // gates what is here, now including a live PDF conversion.
-    disabled: view.composer.face !== "send" || attachments.converting !== null,
-  };
   // Nothing shows until the history load has settled; then, on an empty
   // conversation, the welcome block rides INSIDE the transcript's own
   // scrolling content (D1 row 12).
-  const empty = welcomeVisible(view.historyLoaded, view.transcript.length) ? (
-    <WelcomeBlock mode={mode} onSend={(text) => void sendHost.send(text)} />
-  ) : undefined;
+  const empty = welcomeVisible(view.historyLoaded, view.transcript.length) ? <WelcomeBlock mode={mode} /> : undefined;
 
   return (
     <>
     <Shell
       insets={insets}
       modelName={modelHost.currentModel.name}
-      whereLabel={whereLabel}
+      location="phone"
       keyboardHeight={keyboardHeight}
       mode={mode}
       draft={draft}
@@ -245,14 +223,10 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={modelBar.onPress}
       modelBar={modelBar.view}
-      onNewChatPress={onNewChatPress}
       onAttachPress={() => setAttachSheetOpen(true)}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       fieldRef={fieldRef}
-      webEnabled={flags.webToolsEnabled}
-      onWebPress={flags.toggleWebTools}
-      toolbar={toolbar}
       attachments={{
         chips: view.attachmentChips,
         onRemove: attachments.removeIndex,
@@ -292,55 +266,34 @@ export function HostChatSurface({
         onSpeak={actions.onSpeak}
       />
     </Shell>
-    {/* The controller's message sheet, CALLED with the rows the host's pure
-        builder allows (`messageMenuRows.ts`): copy, notes, translate, edit,
-        regenerate — each with a system behind it. Android back and the
-        backdrop both cancel. */}
-    <MessageMenu
-      mode={mode}
-      visible={actions.menu !== null}
-      caption={actions.menu?.caption ?? ""}
-      rows={actions.menu?.rows ?? []}
+    <HostChatSurfaceOverlays
       bottomInset={insets.bottom}
-      onRowPress={actions.onMenuRow}
-      onRequestClose={actions.closeMenu}
-    />
-    {/* The controller's template sheet, CALLED not rebuilt; choosing one
-        replaces the draft and focuses the field, as the old handler did
-        (`AiChatPage.tsx:3636-3637`). */}
-    <QuickActionSheet
-      onlyTemplates
-      visible={quickSheetVisible}
-      onClose={() => setQuickSheetVisible(false)}
+      mode={mode}
+      colors={colors}
+      actions={actions}
+      quickSheetVisible={quickSheetVisible}
+      onQuickSheetClose={() => setQuickSheetVisible(false)}
       onChooseTemplate={(template) => {
         onDraftChange(t(template.promptKey));
         fieldRef.current?.focus();
       }}
-    />
-    {/* The controller's edit modal (`AiChatPage.tsx:4500-4581`), mounted on
-        the host's edit state: Save enters the shared resend handoff and the
-        modal closes only when the claim took. */}
-    <EditMessageModal
-      visible={actions.edit !== null}
-      mode={mode}
-      draft={actions.edit?.draft ?? ""}
-      onChange={actions.onEditDraftChange}
-      onSubmit={actions.onEditSubmit}
-      onClose={actions.onEditClose}
-    />
-    {/* The controller's attach sheet and nested document picker
-        (`AiChatPage.tsx:4584-4663`), one component over row data. */}
-    <HostAttachSheet
-      open={attachSheetOpen ? "actions" : docPickOpen ? "documents" : null}
-      colors={colors}
+      editDraft={actions.edit?.draft ?? ""}
+      onEditDraftChange={actions.onEditDraftChange}
+      onEditSubmit={actions.onEditSubmit}
+      onEditClose={actions.onEditClose}
+      attachSheetOpen={attachSheetOpen}
+      docPickOpen={docPickOpen}
       docs={libraryDocs}
-      onAction={handleAttachAction}
+      researchActive={arms.research}
+      notesActive={arms.notes}
+      actionsDisabled={view.composer.face !== "send" || attachments.converting !== null}
+      onAttachAction={handleAttachAction}
       onDocumentPick={(doc) => {
         attachments.addLibraryDocumentRow(doc);
         setDocPickOpen(false);
         setAttachSheetOpen(false);
       }}
-      onClose={() => {
+      onAttachClose={() => {
         setAttachSheetOpen(false);
         setDocPickOpen(false);
       }}

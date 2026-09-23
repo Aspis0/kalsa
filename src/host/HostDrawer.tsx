@@ -1,98 +1,35 @@
-/**
- * The conversation drawer, wired to the host — extracted from `HostRoot.tsx`
- * (the root may only compose). It also holds EXPORT now (D1 row 2's share):
- * the strip's five controls gave the model pill a 14 dp text column
- * (349 - 2*12 - 4*48 - 4*9 = 97 dp), and the model name is the thing that
- * may shrink, not this. The row is chat-level, the drawer already exists,
- * and the press dismisses the keyboard, closes the drawer, then shares.
- */
+/** The v2 conversation menu, wired to the host's actions and conversation state. */
 import { Keyboard } from "react-native";
-import { Share } from "lucide-react-native";
-import { findPersona } from "../conversations/PersonasStore";
-import { builtinCopyFromT } from "../screens/PersonasScreen";
-import { useLocale } from "../i18n";
 import { Drawer } from "../theme/components";
-import { STRIP_HEIGHT } from "../ui/shell/shellGeometry";
 import type { createConversationActions } from "./conversationActions";
 import type { useConversationHost } from "./useConversationHost";
-import type { usePersonasHost } from "./personasHost";
-import type { HostOverlay } from "./hostOverlay";
 
 type ConversationHost = ReturnType<typeof useConversationHost>;
 type ConversationActions = ReturnType<typeof createConversationActions>;
-type PersonasHost = ReturnType<typeof usePersonasHost>;
 
 export interface HostDrawerProps {
-  insets: { top: number; bottom: number };
   open: boolean;
   setOpen: (open: boolean) => void;
   conv: ConversationHost;
   actions: ConversationActions;
-  personas: PersonasHost;
-  setActiveOverlay: (overlay: HostOverlay) => void;
-  /** Export/share of the live conversation (D1 row 2), built by the root —
-   *  the action the strip carried before the pill needed the width. */
-  onExportPress: () => void;
 }
 
-export function HostDrawer({
-  insets,
-  open,
-  setOpen,
-  conv,
-  actions,
-  personas,
-  setActiveOverlay,
-  onExportPress,
-}: HostDrawerProps) {
-  const { t } = useLocale();
+export function HostDrawer({ open, setOpen, conv, actions }: HostDrawerProps) {
   return (
     <Drawer
       open={open}
       onClose={() => {
+        Keyboard.dismiss();
         setOpen(false);
         conv.clearChatSearch();
       }}
       brand="Kalsa"
-      subtitle={t("drawer.subtitle")}
-      items={[
-        ...actions.drawerItems(),
-        {
-          // The strip's old share button, on a drawer tile: 48 dp floor and
-          // testID come from the row renderer; the label is `chat.a11yExport`
-          // from both catalogues.
-          id: "export",
-          label: t("chat.a11yExport"),
-          Icon: Share,
-          onPress: () => {
-            Keyboard.dismiss();
-            conv.clearChatSearch();
-            setOpen(false);
-            onExportPress();
-          },
-        },
-      ]}
-      conversationItems={actions.drawerConversationItems(
-        conv.conversations,
-        conv.chatSearchQuery,
-      )}
+      items={actions.drawerItems()}
+      conversationItems={actions.drawerConversationItems(conv.conversations, conv.chatSearchQuery)}
       searchValue={conv.chatSearch}
       searchQuery={conv.chatSearchQuery}
       onSearchChange={conv.handleChatSearchChange}
       onNewChat={() => actions.handleNewConversation()}
-      personaLabel={
-        findPersona(personas.personasState, personas.activePersonaId, builtinCopyFromT(t))
-          ?.name ?? t("drawer.personaNone")
-      }
-      modelBarHeight={insets.top + STRIP_HEIGHT}
-      onPersonaPress={() => {
-        // The controller's one line (`App:7104`): this row opens an overlay,
-        // so the keyboard must not stay up underneath it.
-        Keyboard.dismiss();
-        setOpen(false);
-        conv.clearChatSearch();
-        setActiveOverlay({ kind: "personas" });
-      }}
     />
   );
 }

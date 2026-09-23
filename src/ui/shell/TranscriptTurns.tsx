@@ -15,7 +15,6 @@
  * under a user capsule, the edit badge.
  */
 import { Pressable, Text, View } from "react-native";
-import { ChevronRight } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
 import { spacing, type as typeRole, type DesignColors } from "../../theme/design";
@@ -265,10 +264,6 @@ export function Answer({
               accessibilityRole="text"
               accessibilityLabel={cta.label}
             >
-              <ChevronRight
-                size={12}
-                color={cta.kind === "run_monitor_recovery" ? colors.accent : colors.silence}
-              />
               <Text numberOfLines={1} style={styles.ctaLabel}>
                 {cta.label}
               </Text>

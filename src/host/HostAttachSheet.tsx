@@ -5,12 +5,9 @@
  * The entry points and their catalogue keys are listed here in one place, so
  * this file reads as the flow's menu.
  *
- * The FOURTH action row — "Library document" — is this build's own: the
- * controller reached its library picker from the context-chip row, which the
- * width arithmetic pins at two chips (`composerToolbarWidth.test.ts` — three
- * overflow 349 dp in both catalogues), and the attach sheet is where a
- * finger looks for "attach something". Same picker, different door —
- * reported as a DIFFERENT entry point.
+ * The menu also owns the composer actions removed from the permanent toolbar:
+ * templates, research and notes. Research and notes are switches, so they can
+ * be checked and changed without dismissing the sheet.
  */
 import { useLocale, type TranslationKey } from "../i18n";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
@@ -21,7 +18,7 @@ import {
   type AttachSheetRowData,
 } from "../ui/shell/AttachSheet";
 
-export type AttachAction = "library" | "camera" | "document" | "libraryDocument";
+export type AttachAction = "library" | "camera" | "document" | "libraryDocument" | "templates" | "research" | "notes";
 
 export interface HostAttachSheetProps {
   /** Which sheet is up: the actions, the library list, or neither. */
@@ -29,6 +26,10 @@ export interface HostAttachSheetProps {
   colors: DesignColors;
   /** The library the document list draws (empty list = cancel only). */
   docs: readonly LibraryDoc[];
+  /** Composer arms and entries available from the composer attach control. */
+  researchActive: boolean;
+  notesActive: boolean;
+  actionsDisabled: boolean;
   onAction: (action: AttachAction) => void;
   onDocumentPick: (doc: { id: string; name: string }) => void;
   onClose: () => void;
@@ -39,6 +40,7 @@ const ACTIONS: ReadonlyArray<{
   testID: string;
   icon: AttachSheetIcon;
   labelKey: TranslationKey;
+  role?: "button" | "switch";
 }> = [
   {
     action: "library",
@@ -59,6 +61,9 @@ const ACTIONS: ReadonlyArray<{
     icon: "book",
     labelKey: "chat.libraryDocument",
   },
+  { action: "templates", testID: "shell.attach.templates", icon: "templates", labelKey: "chat.a11yTemplates" },
+  { action: "research", testID: "shell.attach.research", icon: "research", labelKey: "chat.deepResearch", role: "switch" },
+  { action: "notes", testID: "shell.attach.notes", icon: "notes", labelKey: "notes.title", role: "switch" },
 ];
 
 export function HostAttachSheet(props: HostAttachSheetProps) {
@@ -71,6 +76,9 @@ export function HostAttachSheet(props: HostAttachSheetProps) {
           testID: row.testID,
           icon: row.icon,
           label: t(row.labelKey),
+          role: row.role,
+          selected: row.action === "research" ? props.researchActive : row.action === "notes" ? props.notesActive : undefined,
+          disabled: props.actionsDisabled,
           onPress: () => props.onAction(row.action),
         }))
       : [

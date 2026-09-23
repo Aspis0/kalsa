@@ -10,11 +10,11 @@
  * imports, real 48 dp boxes and never `hitSlop`.
  */
 import { useMemo, useRef } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
-import { families, type DesignColors } from "../../theme/design";
+import { families, space, type DesignColors } from "../../theme/design";
 import { createShellStyles } from "./shellStyles";
 import type { ComposerFace } from "./composerState";
 
@@ -64,6 +64,8 @@ export function ShellComposer({
   const { t } = useLocale();
   const styles = useMemo(() => createShellStyles(colors), [colors]);
   const inputRef = useRef<TextInput | null>(null);
+  const canActivate = faceEnabled && (face !== "send" || sendEnabled);
+  const faceColor = canActivate ? colors.onAccent : colors.ink3;
 
   return (
     <View
@@ -78,9 +80,13 @@ export function ShellComposer({
           accessibilityState={{ disabled: attachDisabled }}
           onPress={onAttachPress}
           disabled={attachDisabled}
-          style={[styles.fieldIcon, attachDisabled ? { opacity: 0.45 } : null]}
+          style={({ pressed }) => [
+            styles.fieldIcon,
+            pressed ? { backgroundColor: colors.tint } : null,
+            attachDisabled ? { opacity: 0.45 } : null,
+          ]}
         >
-          <Plus size={19} color={colors.silence} strokeWidth={1.9} />
+          <Plus size={20} color={colors.ink3} strokeWidth={1.75} />
         </Pressable>
 
         {/* Tap the field area focuses it — the controller's own wrapper
@@ -90,7 +96,7 @@ export function ShellComposer({
           testID="shell.composer.fieldArea"
           accessibilityLabel={t("shell.a11y.field")}
           onPress={() => inputRef.current?.focus()}
-          style={{ flex: 1, minWidth: 0 }}
+          style={{ flex: 1, minWidth: 0, marginHorizontal: space.xxs }}
         >
           <TextInput
             ref={(node) => {
@@ -100,7 +106,7 @@ export function ShellComposer({
             testID="shell.composer.field"
             accessibilityLabel={t("shell.a11y.field")}
             placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
-            placeholderTextColor={colors.silence}
+            placeholderTextColor={colors.ink3}
             value={draft}
             onChangeText={onDraftChange}
             editable={editable}
@@ -114,36 +120,29 @@ export function ShellComposer({
           accessibilityRole="button"
           accessibilityLabel={t("shell.a11y.mic")}
           onPress={onMicPress}
-          style={styles.fieldIcon}
+          style={({ pressed }) => [styles.fieldIcon, pressed ? { backgroundColor: colors.tint } : null]}
         >
-          <Mic size={19} color={colors.silence} strokeWidth={1.9} />
+          <Mic size={20} color={colors.ink3} strokeWidth={1.75} />
         </Pressable>
 
         <Pressable
           testID="shell.composer.send"
           accessibilityRole="button"
           accessibilityLabel={faceLabel ?? t(face === "send" ? "shell.a11y.send" : "shell.a11y.stop")}
-          accessibilityState={{ disabled: !(faceEnabled && (face !== "send" || sendEnabled)) }}
+          accessibilityState={{ disabled: !canActivate }}
           onPress={onSendPress}
-          disabled={!(faceEnabled && (face !== "send" || sendEnabled))}
-          style={[
-            styles.send,
-            face === "send" && !sendEnabled ? { opacity: 0.45 } : null,
-            face === "stopping" ? { width: 96, borderRadius: 24 } : null,
-          ]}
+          disabled={!canActivate}
+          style={({ pressed }) => [styles.send, pressed ? { opacity: 0.78 } : null]}
         >
-          {face === "stopping" ? (
-            <Text
-              numberOfLines={1}
-              style={{ color: colors.onAccent, fontFamily: families.sansSemi, fontSize: 13 }}
-            >
-              {faceLabel ?? t("shell.composer.stopping")}
-            </Text>
-          ) : face === "stop" ? (
-            <Square size={16} color={colors.onAccent} strokeWidth={2.6} fill={colors.onAccent} />
-          ) : (
-            <ArrowUp size={18} color={colors.onAccent} strokeWidth={2.6} />
-          )}
+          <View style={[styles.sendCircle, { backgroundColor: canActivate ? colors.accent : colors.tint }]}>
+            {face === "stopping" ? (
+              <ActivityIndicator size="small" color={colors.ink3} />
+            ) : face === "stop" ? (
+              <Square size={16} color={faceColor} strokeWidth={2.5} fill={faceColor} />
+            ) : (
+              <ArrowUp size={18} color={faceColor} strokeWidth={2.5} />
+            )}
+          </View>
         </Pressable>
       </View>
     </View>

@@ -20,6 +20,11 @@ function stripComments(source: string): string {
 const SEND = stripComments(read("sendHost.ts"));
 const ROOT = stripComments(read("HostRoot.tsx"));
 const SURFACE = stripComments(read("HostChatSurface.tsx"));
+const LAYOUT = stripComments(read("HostLayout.tsx"));
+const FURNITURE = stripComments(read("HostFurniture.tsx"));
+const STRIP = stripComments(read("../ui/shell/ShellStrip.tsx"));
+const OVERLAYS = stripComments(read("HostChatSurfaceOverlays.tsx"));
+const ATTACH_SHEET = stripComments(read("HostAttachSheet.tsx"));
 
 describe("the draft-empty auto-clear (Chat:1264-1273)", () => {
   it("clears both arms only on a content-to-blank transition", () => {
@@ -86,18 +91,21 @@ describe("the conversation-change clear (Chat:1894-1897) and the root's wiring",
     expect(ROOT).toContain("arms={arms}");
   });
 
-  it("the strip's Web switch gets the host's own flag and flip", () => {
+  it("tool flags stay with settings furniture and do not enter the conversation strip", () => {
     expect(ROOT).toContain("flags={flags}");
-    expect(SURFACE).toContain("webEnabled={flags.webToolsEnabled}");
-    expect(SURFACE).toContain("onWebPress={flags.toggleWebTools}");
+    expect(LAYOUT).toContain("flags={flags}");
+    expect(FURNITURE).toContain("refreshToolFlags={flags.refreshToolFlags}");
+    expect(SURFACE).not.toContain("webEnabled=");
+    expect(STRIP).not.toMatch(/webEnabled|onWebPress|\bSwitch\b/);
   });
 });
 
 describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
-  it("the surface mounts the controller's component with onlyTemplates", () => {
-    expect(SURFACE).toMatch(/<QuickActionSheet[\s\S]*?onlyTemplates/);
-    expect(SURFACE).toMatch(/visible=\{quickSheetVisible\}/);
-    expect(SURFACE).toMatch(/onClose=\{\(\) => setQuickSheetVisible\(false\)\}/);
+  it("the extracted overlay seam mounts the controller's template sheet", () => {
+    expect(SURFACE).toContain("<HostChatSurfaceOverlays");
+    expect(OVERLAYS).toMatch(/<QuickActionSheet[\s\S]*?onlyTemplates/);
+    expect(OVERLAYS).toMatch(/visible=\{props\.quickSheetVisible\}/);
+    expect(OVERLAYS).toMatch(/onClose=\{props\.onQuickSheetClose\}/);
   });
 
   it("choosing a template replaces the draft AND focuses the field (Chat:3633-3641)", () => {
@@ -116,8 +124,18 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     expect(focus).toBeGreaterThan(fill);
   });
 
-  it("the chips follow the machine: disabled exactly while the face says stop", () => {
-    expect(SURFACE).toMatch(/disabled: view\.composer\.face !== "send"/);
+  it("the composer attach control follows the machine while stopped or converting", () => {
+    expect(SURFACE).toContain("attachDisabled={view.composer.face !== \"send\" || attachments.converting !== null}");
+  });
+
+  it("research and notes remain one-shot switches inside the attach sheet", () => {
+    expect(ATTACH_SHEET).toContain('action: "research"');
+    expect(ATTACH_SHEET).toContain('action: "notes"');
+    expect(ATTACH_SHEET).toContain('role: "switch"');
+    expect(SURFACE).toContain("arms.toggleResearch()");
+    expect(SURFACE).toContain("arms.toggleNotes()");
+    expect(OVERLAYS).toContain("researchActive={props.researchActive}");
+    expect(OVERLAYS).toContain("notesActive={props.notesActive}");
   });
 
   it("the library-document ENTRY moved to the attach sheet; the attach button opens it", () => {

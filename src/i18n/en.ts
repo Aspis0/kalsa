@@ -39,6 +39,7 @@ export const en = {
     chats: "Chats",
     newChat: "New chat",
     searchChats: "Search chats",
+    yourChats: "Your chats",
     noMatches: "No matching chats",
     untitled: "Untitled",
     deleteChat: "Delete chat",
@@ -1316,6 +1317,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       warm: "Running warm",
       idle: "Idle",
     },
+    model: {
+      statusTitle: "Model status",
+    },
     where: {
       thisPhone: "On this phone",
       /** The pill's second line while a hard RAM/tier refusal stands
@@ -1349,6 +1353,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       thinking: "Model thinking",
       previewSize: "Preview size",
       jumpToEnd: "Go to the end",
+      jumpLabel: "Jump to latest",
       previewSizeOption: "Preview at {height} dp",
     },
     /** ShellPreview only: the notice under the strip, never shown in the app.

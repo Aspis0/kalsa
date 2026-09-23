@@ -160,10 +160,10 @@ export function TranslationUnder({
           onPress={action.onToggle}
           style={styles.toggle}
         >
-          <Languages size={14} color={colors.silence} />
+          <Languages size={18} color={colors.silence} strokeWidth={1.75} />
           <Text style={styles.label}>{label}</Text>
           <View style={{ transform: [{ rotate: view.expanded ? "180deg" : "0deg" }] }}>
-            <ChevronDown size={14} color={colors.silence} />
+            <ChevronDown size={16} color={colors.silence} strokeWidth={1.75} />
           </View>
         </Pressable>
         <Pressable
@@ -173,7 +173,7 @@ export function TranslationUnder({
           onPress={action.onClose}
           style={({ pressed }) => [styles.closeBox, { opacity: pressed ? 0.7 : 1 }]}
         >
-          <X size={14} color={colors.silence} />
+          <X size={18} color={colors.silence} strokeWidth={1.75} />
         </Pressable>
       </View>
       {view.expanded ? (
@@ -205,7 +205,7 @@ export function TranslationUnder({
                   onPress={handleCopy}
                   style={({ pressed }) => [styles.buttonBox, { opacity: pressed ? 0.7 : 1 }]}
                 >
-                  <Copy size={14} color={colors.accent} />
+                  <Copy size={18} color={colors.accent} strokeWidth={1.75} />
                   <Text style={styles.buttonLabel}>{copyLabel}</Text>
                 </Pressable>
               ) : null}

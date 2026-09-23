@@ -27,7 +27,7 @@ export interface HostLayoutProps {
   sendHost: ChatSurfaceProps["sendHost"];
   onMenuPress: ChatSurfaceProps["onMenuPress"];
   onNewChatPress: ChatSurfaceProps["onNewChatPress"];
-  flags: ChatSurfaceProps["flags"];
+  flags: HostFurnitureProps["flags"];
   arms: ChatSurfaceProps["arms"];
   attachments: ChatSurfaceProps["attachments"];
   /** The message-interaction bundle (menu, copy, translate, edit, read-aloud). */
@@ -39,8 +39,9 @@ export interface HostLayoutProps {
   /** The conversation actions the root builds (`createConversationActions`);
    *  renamed here so the sheet's `actions` prop above stays unambiguous. */
   conversationActions: HostDrawerProps["actions"];
-  personas: HostDrawerProps["personas"];
-  onExportPress: HostDrawerProps["onExportPress"];
+  personas: HostFurnitureProps["personas"];
+  /** Retained for HostRoot's call shape; the v2 menu has four footer actions. */
+  onExportPress: () => void;
   activeOverlay: HostFurnitureProps["overlay"];
   setActiveOverlay: HostFurnitureProps["setOverlay"];
   /** The one-slot notice: `showNoticeKey` feeds it keys, `showNotice` text. */
@@ -71,7 +72,6 @@ export function HostLayout({
   conv,
   conversationActions,
   personas,
-  onExportPress,
   activeOverlay,
   setActiveOverlay,
   notice,
@@ -93,7 +93,6 @@ export function HostLayout({
         onMenuPress={onMenuPress}
         onNewChatPress={onNewChatPress}
         conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
-        flags={flags}
         arms={arms}
         attachments={attachments}
         libraryDocs={library.library.docs ?? []}
@@ -103,14 +102,10 @@ export function HostLayout({
       />
 
       <HostDrawer
-        insets={insets}
         open={drawerOpen}
         setOpen={setDrawerOpen}
         conv={conv}
         actions={conversationActions}
-        personas={personas}
-        setActiveOverlay={setActiveOverlay}
-        onExportPress={onExportPress}
       />
 
       <HostFurniture

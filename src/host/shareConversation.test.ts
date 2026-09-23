@@ -86,54 +86,46 @@ describe("shareConversation — one sheet, or none", () => {
   });
 });
 
-/**
- * Where export LIVES, as source — the strip's width arithmetic forced a move
- * and a moved action is exactly the kind of promise a test must keep honest.
- * WITH five strip controls the pill's text column was 14 dp and the model name
- * rendered as a bare ellipsis — so export, the RARE control, moved to the
- * drawer, three strip buttons give the pill 154 dp, and NOTHING was shrunk
- * below 48 dp. These assertions fail if the row, the wiring, or the old button
- * comes back on its own.
- */
-describe("export's home: the drawer, since the strip needed the width", () => {
+/** The share formatter stays covered; the v2 menu no longer presents Export. */
+describe("the v2 menu replaces the prior export-row placement", () => {
   const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
   const stripComments = (source: string): string =>
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
-  it("the drawer holds the row: controller's label, keyboard down, drawer closed, then share", () => {
-    const drawer = stripComments(read("HostDrawer.tsx"));
-    expect(drawer).toContain('id: "export"');
-    // Both catalogues already carry this key (en/it `chat.a11yExport`); a new
-    // string for the same action is how the two apps start drifting.
-    expect(drawer).toContain('t("chat.a11yExport")');
-    expect(drawer).toMatch(/Keyboard\.dismiss\(\);[\s\S]*?clearChatSearch\(\);[\s\S]*?setOpen\(false\);[\s\S]*?onExportPress\(\);/);
+  it("presents the four destinations named by the v2 menu", () => {
+    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
+    expect(content).toContain('["documents", "notes", "settings", "account"]');
+    expect(content).not.toContain('id: "export"');
+    expect(content).not.toContain("chat.a11yExport");
   });
 
-  it("the root wires the same shareConversation it once handed the strip", () => {
-    const root = stripComments(read("HostRoot.tsx"));
-    expect(root).toContain("onExportPress={() => shareConversation(history.messages, t)}");
-    // …to the DRAWER: the chat surface never receives the prop. The three
-    // children moved into `HostLayout.tsx` (the root's composition seam), so
-    // both halves of "to the drawer, not to the surface" are asserted there.
+  it("the host drawer wires its four action items without an export row", () => {
+    const drawer = stripComments(read("HostDrawer.tsx"));
+    expect(drawer).toContain("items={actions.drawerItems()}");
+    expect(drawer).not.toContain("onExportPress");
+    expect(drawer).not.toContain('id: "export"');
+  });
+
+  it("the root's retained prop has no route into either mounted surface", () => {
     const layout = stripComments(read("HostLayout.tsx"));
     const surfaceCall = layout.match(/<HostChatSurface[\s\S]*?\/>/)?.[0] ?? "";
     expect(surfaceCall.length).toBeGreaterThan(0);
     expect(surfaceCall).not.toContain("onExportPress");
     const drawerCall = layout.match(/<HostDrawer[\s\S]*?\/>/)?.[0] ?? "";
     expect(drawerCall.length).toBeGreaterThan(0);
-    expect(drawerCall).toContain("onExportPress={onExportPress}");
+    expect(drawerCall).not.toContain("onExportPress");
   });
 
-  it("the strip no longer draws it (the width the pill got back)", () => {
+  it("the strip stays free of an export control", () => {
     const shell = stripComments(read("../ui/shell/Shell.tsx"));
     expect(shell).not.toContain('testID="shell.strip.export"');
     expect(shell).not.toContain("onExportPress");
   });
 
-  it("every drawer row the export one rides has a testID and a real 48 dp box", () => {
+  it("menu rows keep accessible identities and 56 dp targets", () => {
     const content = stripComments(read("../theme/components/DrawerContent.tsx"));
     expect(content).toContain("testID={`drawer.item.${id}`}");
-    expect(content).toContain("minHeight: 48");
+    expect(content).toContain("minHeight: 56");
     // The floor is a height, never a slop: no hitSlop on the row.
     expect(content).not.toContain("hitSlop");
   });

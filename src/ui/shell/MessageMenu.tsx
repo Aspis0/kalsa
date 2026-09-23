@@ -57,17 +57,17 @@ export type MessageMenuProps = {
 function iconFor(id: MessageMenuRowId, color: string): ReactNode {
   switch (id) {
     case "copy":
-      return <Copy size={18} color={color} />;
+      return <Copy size={20} color={color} strokeWidth={1.75} />;
     case "notes":
-      return <ClipboardList size={18} color={color} />;
+      return <ClipboardList size={20} color={color} strokeWidth={1.75} />;
     case "translate":
-      return <Languages size={18} color={color} />;
+      return <Languages size={20} color={color} strokeWidth={1.75} />;
     case "edit":
-      return <SquarePen size={18} color={color} />;
+      return <SquarePen size={20} color={color} strokeWidth={1.75} />;
     case "regenerate":
-      return <RefreshCw size={18} color={color} />;
+      return <RefreshCw size={20} color={color} strokeWidth={1.75} />;
     case "cancel":
-      return <X size={18} color={color} />;
+      return <X size={20} color={color} strokeWidth={1.75} />;
   }
 }
 

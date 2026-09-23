@@ -11,10 +11,10 @@
  */
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { X } from "lucide-react-native";
+import { FileText, X } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
-import { radius, spacing, type, type DesignColors } from "../../theme/design";
+import { radius, space, spacing, type, type DesignColors } from "../../theme/design";
 import type { AttachmentView } from "./composerState";
 import { COMPOSER_ATTACHMENTS_HEIGHT } from "./shellGeometry";
 
@@ -35,13 +35,13 @@ export function ComposerAttachments({
 }: ComposerAttachmentsProps) {
   const { t } = useLocale();
   return (
-    <View testID="shell.composer.attachments" style={{ gap: spacing.xs }}>
+    <View testID="shell.composer.attachments" style={{ gap: space.xxs }}>
       {job ? <View style={{ paddingHorizontal: spacing.md }}>{job}</View> : null}
       {chips.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: spacing.xs, paddingHorizontal: spacing.md }}
+          contentContainerStyle={{ gap: space.xs, paddingHorizontal: space.md }}
         >
           {chips.map((chip, index) => (
             <View
@@ -51,23 +51,23 @@ export function ComposerAttachments({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                borderRadius: radius.md,
+                borderRadius: radius.pill,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: colors.line,
                 backgroundColor: colors.surface,
                 overflow: "hidden",
                 maxHeight: COMPOSER_ATTACHMENTS_HEIGHT,
               }}
             >
-              <Text
-                numberOfLines={1}
-                style={[
-                  type.meta,
-                  { color: colors.ink, paddingHorizontal: spacing.sm, maxWidth: 220 },
-                ]}
-              >
-                {t(chip.key, chip.params)}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", minWidth: 0, flex: 1 }}>
+                <FileText size={16} color={colors.accent} style={{ marginLeft: space.sm, marginRight: space.xxs }} />
+                <Text
+                  numberOfLines={1}
+                  style={[type.meta, { color: colors.ink, maxWidth: 220, flexShrink: 1 }]}
+                >
+                  {t(chip.key, chip.params)}
+                </Text>
+              </View>
               <Pressable
                 testID={`shell.composer.attachment.remove.${index}`}
                 accessibilityRole="button"
@@ -80,7 +80,7 @@ export function ComposerAttachments({
                   justifyContent: "center",
                 }}
               >
-                <X size={14} color={colors.silence} />
+                <X size={14} color={colors.ink3} />
               </Pressable>
             </View>
           ))}
