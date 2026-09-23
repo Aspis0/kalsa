@@ -785,6 +785,63 @@ describe("RemoteEngine lifecycle", () => {
     expect(sources).toEqual(["raw"]);
   });
 
+  test("memory facts ride the last user turn, not the system prompt", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let request:
+      | { messages: Array<{ role: string; content: string }> }
+      | undefined;
+    streamOpenAiChat.mockImplementation((
+      req: { messages: Array<{ role: string; content: string }> },
+      handlers: {
+        onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+        onFinish: (f: { kind: string; finishReason: string }) => void;
+      },
+    ) => {
+      request = req;
+      queueMicrotask(() => {
+        handlers.onDelta({
+          kind: "delta",
+          content: "hi",
+          reasoning: "",
+          finishReason: null,
+        });
+        handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      });
+      return { requestId: "facts", abort: jest.fn(), xhr: {}, isClosed: () => false };
+    });
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "hello" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: () => undefined,
+      },
+      undefined,
+      {
+        locale: "en",
+        memoryFacts: [
+          { id: "f1", text: "The cat is named Needle", createdAt: 1_700_000_000_000 },
+        ],
+      },
+    );
+    expect(request).toBeDefined();
+    const messages = request!.messages;
+    const system = messages.find((m) => m.role === "system");
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    // Format B: the fact block prefixes the last user message and never
+    // rewrites prompt position 0 (ttftFlags.ts:26 is the reason).
+    expect(system).toBeDefined();
+    expect(system!.content).not.toContain("Needle");
+    expect(lastUser).toBeDefined();
+    expect(lastUser!.content).toContain("Needle");
+    expect(lastUser!.content).toContain("hello");
+  });
+
   test("onDone throw still settles", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");
     await setRemoteServerModelId("ornith");

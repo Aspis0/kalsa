@@ -8,6 +8,10 @@ import type {
   StreamTurnOptions,
 } from "../LlamaService";
 import { createThinkStreamCleaner } from "../thinkStream";
+import {
+  applyMemoryFactsToLastUser,
+  buildMemoryFactsBlock,
+} from "../memoryFactsTail";
 import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
@@ -366,6 +370,12 @@ export async function streamRemoteAssistantTurn(
     return;
   }
   if (!stillMine()) return;
+  // Format B, local parity (ttftFlags.ts:26): facts ride the last user turn,
+  // never the system prompt — a fact edit must not rewrite prompt position 0.
+  const factsTail = buildMemoryFactsBlock(locale, options.memoryFacts);
+  const turnMessages = factsTail
+    ? applyMemoryFactsToLastUser(messages, factsTail)
+    : messages;
   streamStarted = true;
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
@@ -384,10 +394,9 @@ export async function streamRemoteAssistantTurn(
         completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
         model: getRemoteServerModelId(),
         messages: toOpenAiMessages(
-          messages,
+          turnMessages,
           buildRemoteSystemPrompt({
             locale,
-            memoryFacts: options.memoryFacts,
             operativeContext: options.operativeContext,
           }),
         ),
