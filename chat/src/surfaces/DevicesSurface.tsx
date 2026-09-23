@@ -53,8 +53,9 @@ interface PairingState {
 // named, several are counted — and a mixed house says both facts: the house
 // counted as "paired phones", the waiting ones as waiting for the OK. The
 // pending delivery is not attributable from the page — after a restart the
-// desk holds whichever phone the store's order gives it — so wherever a
-// phone is waiting, its clause names no phone.
+// desk holds whichever phone the store's order gives it — so its clause
+// names no phone, except in a one-phone house, where "the phone" can only
+// be that phone and is said plainly.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
     (device) => device.kind !== "host",
@@ -68,7 +69,8 @@ function pairedSentence(dto: PairingState): string {
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
       const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
-      return `This computer is waiting for your OK to work with ${name}${undelivered}.`;
+      const owed = pending ? "; the phone still needs to receive its connection" : "";
+      return `This computer is waiting for your OK to work with ${name}${owed}.`;
     }
     return `This computer is waiting for your OK to work with ${waiting.length} paired phones${undelivered}.`;
   }
