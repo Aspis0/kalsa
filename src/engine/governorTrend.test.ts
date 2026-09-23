@@ -73,30 +73,75 @@ describe("trendCPerMin", () => {
     ).toBeCloseTo(2.0, 9);
   });
 
-  it("reports the floor margins the numeric review states", () => {
-    // Resolution only: one 0.1 C step across the 60 s floor.
+  it("reports the floor margins: resolution vs the measured chords", () => {
+    // Resolution: one 0.1 C code across the 60 s floor.
     expect(trendCPerMin([at(0, 320), at(60_000, 321)], 60_000)).toBeCloseTo(
       0.1,
       9,
     );
-    // The 0.9 C sensor jiggle this file cites: 0.9 C/min at the same
-    // floor, so the margin against a real excursion is 1.5/0.9 = 1.67x,
-    // not 15x. Derivations: scratchpad/agents/governor-trend-numeric/REPORT.md.
-    const jiggle = trendCPerMin([at(0, 320), at(60_000, 329)], 60_000);
-    expect(jiggle).toBeCloseTo(0.9, 9);
-    expect(1.5 / jiggle).toBeCloseTo(1.67, 2);
+    // Measured on disk (files cited in the source comment): idle flat,
+    // load chords +2.0 C and +3.7 C over 60 s - real ramps, above the
+    // threshold, intended direction.
+    expect(trendCPerMin([at(0, 320), at(60_000, 340)], 60_000)).toBeCloseTo(
+      2.0,
+      9,
+    );
+    expect(trendCPerMin([at(0, 320), at(60_000, 357)], 60_000)).toBeCloseTo(
+      3.7,
+      9,
+    );
+    // A hypothetical 0.9 C step, kept only as a scaling demo and honestly
+    // labelled: it was never a measurement (retired from the source).
+    // Derivations: scratchpad/agents/governor-trend-numeric/REPORT.md.
+    const step = trendCPerMin([at(0, 320), at(60_000, 329)], 60_000);
+    expect(step).toBeCloseTo(0.9, 9);
+    expect(1.5 / step).toBeCloseTo(1.67, 2);
   });
 
-  it("documents the true floor margin and cites the numeric report", () => {
-    // The comment is part of the contract here: a reader must be able to
-    // check the numbers instead of trusting a "far below threshold" claim.
+  it("describes the estimate as a chord over observed endpoints", () => {
+    // Behaviour kept: a chord across a gap with no poll at all reports the
+    // true mean rate between the two observed endpoints (+7.2 C / 285 s).
+    expect(trendCPerMin([at(0, 320), at(285_000, 392)], 285_000)).toBeCloseTo(
+      1.516,
+      3,
+    );
     const source = fs.readFileSync(
       path.join(__dirname, "governorTrend.ts"),
       "utf8",
     );
-    expect(source).toContain("1.67");
+    // The over-broad claim is gone; chord semantics and their consequence
+    // are stated instead (round-3 item 1).
+    expect(source).not.toContain(
+      "can never anchor a slope across an interval that was not observed",
+    );
+    expect(source).toContain("chord between two observed endpoints");
+    expect(source).toContain("early escalation");
+  });
+
+  it("states measured jiggle with the files it was measured from", () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, "governorTrend.ts"),
+      "utf8",
+    );
+    // Measured numbers and their files live in the comment...
+    expect(source).toContain("out/jelly-energy-baseline-20260916/idle-floor.csv");
+    expect(source).toContain("out/t20c-gate-20260916/energy-trace.csv");
+    expect(source).toContain("3.7");
+    // ...the hypothetical is retired, the derivations stay cited...
+    expect(source).not.toContain("this file cites");
+    expect(source).not.toContain("sensor excursion");
     expect(source).toContain("scratchpad/agents/governor-trend-numeric/REPORT.md");
     expect(source).not.toContain("far below");
+  });
+
+  it("names the true lever: a temperature feed on the poll path", () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, "governorTrend.ts"),
+      "utf8",
+    );
+    expect(source).toContain("temperature feed on the poll path");
+    expect(source).toContain("no temperature column");
+    expect(source).not.toContain("real lever is the sampler's cadence");
   });
 
   it("never returns a non-finite trend", () => {
@@ -144,6 +189,30 @@ describe("createTrendProducer", () => {
     // Two different sensors must never form one series.
     producer.observe("bench-skin", 400, true, 60_000);
     expect(producer.trend(60_000)).toBe(0);
+  });
+
+  it("keeps the chord across a foreign invalid period, with the judgement pinned", () => {
+    // Round-3 item 3: foreign invalids do not clear, so the chord spans the
+    // bench period. Judged CORRECT; the argument is pinned in the source.
+    const producer = createTrendProducer();
+    producer.observe("battery", 320, true, 0);
+    producer.observe("bench-skin", 0, false, 60_000);
+    producer.observe("bench-skin", 0, false, 120_000);
+    producer.observe("bench-skin", 0, false, 180_000);
+    producer.observe("battery", 380, true, 240_000);
+    expect(producer.trend(240_000)).toBeCloseTo(1.5, 9);
+    const second = createTrendProducer();
+    second.observe("battery", 320, true, 0);
+    second.observe("bench-skin", 0, false, 60_000);
+    second.observe("bench-skin", 0, false, 120_000);
+    second.observe("bench-skin", 0, false, 180_000);
+    second.observe("battery", 392, true, 240_000);
+    expect(second.trend(240_000)).toBeCloseTo(1.8, 9);
+    const source = fs.readFileSync(
+      path.join(__dirname, "governorTrend.ts"),
+      "utf8",
+    );
+    expect(source).toContain("as if it never happened");
   });
 
   it("restarts the series when the source changes", () => {

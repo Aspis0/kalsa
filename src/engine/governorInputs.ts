@@ -246,6 +246,10 @@ export async function readGovernorThermo(): Promise<ThermoSnapshot> {
     // Missing native module is expected on host/iOS; it makes the profile invalid.
   }
 
+  // A rejected read is the same no-data as a resolved sensor_valid:false:
+  // present it to the producer so both presentations clear the series alike.
+  trendProducer.observe("battery", 0, false, Date.now());
+
   // Nothing honest to measure: the engine's own defaults, trend included.
   return {
     batt_temp_tenths_c: 0,

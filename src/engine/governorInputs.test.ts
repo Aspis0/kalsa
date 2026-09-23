@@ -383,6 +383,60 @@ describe("governor inputs", () => {
     });
   });
 
+  test("treats a rejected read and a resolved sensor_valid:false the same way", async () => {
+    const t0 = 1_758_000_000_000;
+    // Path A: the sensor resolves with sensor_valid:false at +90 s.
+    nowSpy.mockReturnValue(t0);
+    await readGovernorThermo();
+    nowSpy.mockReturnValue(t0 + 90_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 0,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: false,
+    });
+    await readGovernorThermo();
+    nowSpy.mockReturnValue(t0 + 150_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 326,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    const afterResolved = await readGovernorThermo();
+    expect(afterResolved.trend_c_per_min).toBe(0);
+
+    // Path B: the read is rejected at +90 s - the same "I have nothing",
+    // presented differently. Both presentations must clear the series.
+    trendProducer.reset();
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 320,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    nowSpy.mockReturnValue(t0);
+    await readGovernorThermo();
+    nowSpy.mockReturnValue(t0 + 90_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockRejectedValue(
+      new Error("read failed"),
+    );
+    const rejected = await readGovernorThermo();
+    expect(rejected.sensor_valid).toBe(false);
+    expect(rejected.trend_c_per_min).toBe(0);
+    nowSpy.mockReturnValue(t0 + 150_000);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 326,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
+    const afterRejected = await readGovernorThermo();
+    // Pre-fix this bridged the rejection and reported 0.24, while the
+    // resolved-invalid path in the same position reports 0.
+    expect(afterRejected.trend_c_per_min).toBe(0);
+  });
+
   test("a failed native read leaves the engine defaults standing", async () => {
     (NativeModules.GovernorBattery.readThermo as jest.Mock).mockRejectedValue(
       new Error("native gone"),

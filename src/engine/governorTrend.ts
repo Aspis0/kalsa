@@ -29,14 +29,23 @@ export type TrendSample = {
  *  span is a report about the past, not about this poll. */
 export const TREND_WINDOW_MS = 5 * 60_000;
 
-/** Floor on the span used for the slope. Two margins meet here and they
- *  are different numbers (derivations:
- *  scratchpad/agents/governor-trend-numeric/REPORT.md section 1.2):
- *  the 0.1 C reading resolution moves the slope by at most 0.1 C/min at
- *  60 s, a resolution margin of 15x against the engine's 1.5 C/min; the
- *  0.9 C sensor excursion this file cites gives 0.9 C/min at the same
- *  floor, so the margin against a real excursion is only 1.67x. The
- *  floor buys the resolution margin, not immunity from excursions. */
+/** Floor on the span used for the slope. Two numbers, different meanings:
+ *  - resolution: one 0.1 C code across 60 s is 0.1 C/min, 15x below the
+ *    engine's 1.5 C/min - quantisation only, not a sensor guarantee;
+ *  - measured from the archived traces on 2026-09-23: idle never moved
+ *    (0.0 C over 61 s at 1 s cadence,
+ *    out/jelly-energy-baseline-20260916/idle-floor.csv), under load 60 s
+ *    endpoints reached +2.0 C (out/jelly-energy-baseline-20260916/
+ *    phase-data/) and +3.7 C (out/t20c-gate-20260916/energy-trace.csv,
+ *    10 s host). Chords >= 1.5 C: 9/9 on-device and 18/21 host kept
+ *    climbing afterwards; the largest downward 60 s endpoint anywhere
+ *    was 0.9 C - negative sign, never fires.
+ *  So the floor bounds resolution, not real ramps: a real ramp crossing
+ *  the threshold fires by design. The round-2 "0.9 C" margin was a
+ *  test-comment hypothetical, never a measurement - retired here.
+ *  Derivations: scratchpad/agents/governor-trend-numeric/REPORT.md
+ *  section 1.2 (lab repo); measurement commands in the governor-trend
+ *  REPORT (lab repo). */
 export const TREND_MIN_SPAN_MS = 60_000;
 
 /**
@@ -51,8 +60,10 @@ export const TREND_MIN_SPAN_MS = 60_000;
  * - at the current cadence the field is effectively inert, which fails
  *   safe - that is why this is a note and not a bug. Do not shrink the
  *   window or the floor to compensate: 60 s is the floor that keeps the
- *   0.1 C resolution honest. The real lever is the sampler's cadence,
- *   which this file does not control.
+ *   0.1 C resolution honest. The real lever is a temperature feed on the poll path
+ *   (the map's dead high-rate native reader is the pattern: an
+ *   in-process reader with no caller yet), not the trace interval - the
+ *   1 Hz trace CSV has no temperature column at all.
  */
 
 function finite(value: unknown): value is number {
@@ -60,12 +71,16 @@ function finite(value: unknown): value is number {
 }
 
 /**
- * Endpoint slope of the fresh samples, in C per minute. Input order is not
- * trusted: samples are sorted by timestamp first, because an exported
- * function must not be silently wrong on unsorted input. The anchor is the
- * newest sample at least TREND_MIN_SPAN_MS older than the latest one, so the
- * trend tracks the recent rate instead of a session-long average. Returns 0
- * whenever no honest slope exists; never NaN or Infinity.
+ * Endpoint slope of the fresh samples, in C per minute. The value is a
+ * chord between two observed endpoints: the mean rate between them, which
+ * says nothing about the path between the polls. At the measured cadence a
+ * single chord can carry the field over the threshold; that is the
+ * intended safety direction (early escalation), not a defect. Input order
+ * is not trusted: samples are sorted by timestamp first, because an
+ * exported function must not be silently wrong on unsorted input. The
+ * anchor is the newest sample at least TREND_MIN_SPAN_MS older than the
+ * latest one. Returns 0 whenever no honest slope exists; never NaN or
+ * Infinity.
  */
 export function trendCPerMin(
   samples: readonly TrendSample[],
@@ -116,8 +131,12 @@ export function createTrendProducer(): TrendProducer {
     observe(observedSource, tempTenthsC, sensorValid, nowMs) {
       if (observedSource !== source) {
         if (!sensorValid) {
-          // A foreign invalid reading is not applicable: it says nothing
-          // about this sensor and must not clear a good series.
+          // Foreign invalid: not applicable to this sensor - as if it never happened.
+          // The old clear-on-any-source-change rule let a reading carrying
+          // no information about this sensor destroy a valid series: 0
+          // reported where 1.5 was true. The chord that survives is then
+          // the same honest endpoint rate as a gap with no poll at all,
+          // window-capped both ways.
           return;
         }
         // Two sensors in one series would fabricate deltas; a real reading
@@ -126,8 +145,10 @@ export function createTrendProducer(): TrendProducer {
         source = observedSource;
       }
       if (!sensorValid || !finite(tempTenthsC) || !finite(nowMs)) {
-        // The sensor reported nothing: drop every sample, so a later poll
-        // can never anchor a slope across an interval that was not observed.
+        // The sensor presented no data: drop every sample so the next
+        // reading starts a fresh chord instead of pairing across this
+        // rejected reading. A gap with no poll at all is a different case:
+        // see the chord semantics at trendCPerMin.
         samples = [];
         return;
       }
