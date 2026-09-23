@@ -187,3 +187,59 @@ exists in one place only, three bites today, this the fourth candidate) is the a
 the push closed the window, not the lesson.
 
 No commit, no push, no tag from this cell.
+
+## Third pass (2026-09-23, overnight landings): headline at the top, and the governor question closed
+
+Every claim in the brief was verified on disk before writing; the one claim not previously
+transcribed anywhere was re-verified by running the gate myself (read-only, `kalsa-wt-gov-trend`,
+exit 0, tree clean afterwards).
+
+What went where:
+
+- **`docs/ALIVE.md` - new `## Headline` section at the TOP of the file** (line 11, above "How to
+  read"): the `_cok` regime table (b256 0.005412/93.982 % | b1 0.006012/93.138 % | **b8 `_cok`
+  0.304543/66.198 %, catastrophic FAIL**) with its trigger column, the guard sentence (no row
+  readable without its trigger), the frequency (31/606 = 5.1 %, ubatch-512 3.8 %, clusters
+  516-519) and its three stated caveats, and the pre-registered fix pair (sec. 35). Sources:
+  `s23-kld-740-q4-0/REPORT.md` sec. 31b, 34.
+- **`docs/ALIVE.md` - new dated diary entry `### 2026-09-23 (overnight from 22/09)`**: the
+  screen-state correction (76.39 vs 71.98, -11.7 % -> -6.1 %, 30000 ms timeout, the both-arms
+  rule, sec. 33); the Z2 matrix VOID by its own gate (control 5.635640 vs required 5.103422,
+  corrected control 0.005454/94.488 %, byte-equal companion 0.005615/94.263 %, -99.9 % collapse,
+  fp16-da destroyer / fp16-sa half summary, sec. 32); the governor producer + two attacks +
+  cadence numbers (280.65/292.33/274.77 s, 4.7x dilution, 7.2 C -> max 0.75 C/min, 1.0 C band,
+  40 s vs >= 600 s, 200:1); **the closing replay recorded as a conclusion** (real estimator
+  sha256 `2769fc...afab63`, declared re-implementation of one rule with line pins, TRUE/FALSE
+  yardstick the author's, 75 sessions/8871 rows/71 replayed, production 15 opp/0 flips, dense
+  122/2/1 and the classifiable one FALSE with the 1216 s tail) with the closing sentence - **inert
+  at production cadence, therefore unproven - not safe** - the method line **the file count is not
+  the sample**, and consequences (a) not to ship as an escalation trigger, (b) temperature feed on
+  the poll path whose cost is what the Meter measures, (c) harness `replay-wrongfire.cjs` stays on
+  disk; the two traps (symlink gate-through + my gate re-run triple; dirty tree == `1068eb03d`
+  and the which-commit-and-which-tree lesson); and the Meter block (owner's rule sec. 30, 1,045 mA
+  bar with 1 % = ~10.5 mA / 5 % = ~52 mA, pre-registration <= +5 % / >= +15 % / > 10 %, soundness
+  sec. 5), plus the proven tracked debuggable mechanism (`bench-apk/REPORT.md`).
+- **`docs/ALIVE.md` - Proven table**: s23 row extended to sections 17-35; new rows for the
+  governor-trend conclusion and the Meter decision block. **Standing cautions**: new screen-state
+  bullet.
+- **`PLAN.md` - `## Verified state, 2026-09-22`**: `### Headline` is now the FIRST subsection;
+  new subsections `### The Z2 attribution matrix: VOID by its own gate`,
+  `### Governor trend: the question is CLOSED ...` (conclusion, explicitly not an open item),
+  `### The Meter decision: rule, bar, pre-registration, soundness`, and
+  `### Overnight corrections and traps` (screen-state rule + both traps).
+- **`PLAN.md` - Open items**: item 5 gains the overnight bookkeeping (`_cok` at the top, fix pair
+  awaiting the coder's sha, Z2 closed with its registered verdict, arm A 0.003546/96.513 % passes
+  but inconclusive between its own pre-registered readings); item 8 gains the proven
+  `KALSA_DEBUGGABLE` mechanism; new item 13 (trend commits `7921719` + `ed55f7d` local-only,
+  push UNRUN, blocked on the owner) and item 14 (Meter sampler-overhead A/B pre-registered,
+  result pending). The trend conclusion is deliberately NOT an open item.
+
+Verification ledger for this pass: s23 sections 31b/32/33/34/30 read at source; governor-trend
+REPORT rounds 1-4 read at source (605 lines); governor-trend-numeric (586) and governor-trend-audit
+(42) numbers cross-checked; COORDINATOR-STATE sixth/seventh lessons read; `build-with-fixes` sec.
+2.4 and `shared-term` sec. 0 read for the dirty-tree trap; `kalsa-wt-gov-trend/node_modules`
+confirmed a real directory (mtime 2026-09-23 00:53); provenance gate re-run by this cell:
+`lockfile pins Aspis0/kalsa.rn@5b966218eadb` / `1119 files match` / `engine inside it:
+kalsallama@1577495b9209 == native/kalsallama.pin`, exit 0.
+
+No commit, no push, no tag from this cell.

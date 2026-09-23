@@ -8,6 +8,38 @@ only, `PLAN.md` and this one. The full diary
 `archived/ALIVE-2026-09-full.md`. This file keeps only the short measured state and the pointers
 to the records.
 
+## Headline (2026-09-23, overnight): the regime a user can trigger, and no arm had measured
+
+The biggest finding of the project so far: at `ne1` 2..8 all 148 q4_K dense tensors run through
+the `_cok` kernel (`gemm_noshuffle_q4_k_f32.cl`), whose operands AND accumulator are in **half**
+- the last unfixed pair - and that regime reads **0.304543 median KLD / 66.198 % same-top**.
+Every arm before tonight ran at batch 1 or 256, so this path had **never been covered**. Record:
+`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sections **31b** and **34**.
+
+| regime | trigger (what a user does) | kernels used by the 148 q4_K tensors | median KLD | same top | gate |
+|---|---|---|---|---|---|
+| b256 default (ship `1577495b9`) | prefill piece = full ubatch (common case) | main noshuffle GEMM: f32 product, float operand | **0.005412** | **93.982 %** | FAIL both, but close |
+| b1 (decode shape) | every generated token | GEMV family: f32 operand, no quantiser, no transpose | **0.006012** | **93.138 %** | FAIL both |
+| **b8 `_cok` (the trap)** | prefill piece in **2..8 tokens** -> `prompt_length mod 256 in [2,8]` at app ubatch=256 | `_cok`: HALF operand + HALF accumulator (never fixed) | **0.304543** | **66.198 %** | **catastrophic FAIL** |
+
+**No row can be read without its trigger** - the guard, adopted with the table: a table whose
+rows cannot be read without their trigger is a table that will eventually be misquoted. Both
+ends are true of different prompts: ~94 % same-top for a prompt that is a clean multiple of 256
+(or a 1-token tail), 66 % for a prompt whose tail lands in 2..8. This is the only number of the
+night that describes what a USER experiences.
+
+Trigger mechanics: the app's ubatch is **256** (`deviceTuning.ts:730-731`), so any prefill whose
+final chunk is 2..8 tokens runs that whole last chunk through the kernel. Frequency, from
+**606 archived real turn-records** (`product-suite/**`, S23/Jelly/Xiaomi): **31 (5.1 %)** land
+there (ubatch-override 512: 3.8 %), clustered at prompt lengths **516-519** (mod 256 = 4-7; one
+20-turn session sat entirely there) plus 771, 1285/1286, 2822, 4103 - prompts just past a 256
+multiple, which a growing multi-turn chat produces constantly. Caveats as the measuring agent
+stated them: record-level count (deduped per-turn <= 5.1 %, **not exactly computable from those
+files**), laboratory sessions rather than field traffic, and it assumes `llama_decode`'s ubatch
+split. What would settle it exactly: per-turn `n_prompt` with unique turn ids - named, not
+fudged. The fix-verification pair is pre-registered before the binary exists (section 35): the
+control must reproduce 0.304543 exactly or the pair is void; complete fix <= ~0.0065.
+
 ## How to read this file
 
 Each row names what is proven and the artefact that proves it. Nothing here is a summary of a
@@ -27,10 +59,12 @@ document that produced them is named instead.
 | How to run the Qwen `<think>` replay probe | `analysis/README-qwen-think-replay.md` |
 | The governor device plan, rewritten in English on 2026-09-20, and the audited Italian body | `analysis/GOVERNOR-DEVICE-PLAN.md`; `archived/GOVERNOR-DEVICE-PLAN-2026-09-audited.md`; re-verification at `scratchpad/agents/governor-audit-recheck/REPORT.md` |
 | Per-cell preregistration, raw evidence and reports | `scratchpad/agents/<cell>/` |
-| The 2026-09-22 GPU numerics verdict: the fp16 activation scale as the cause of the 57x divergence, the shipped default, the `-b 1` floor, the KV term, the parity batteries | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` (sections 17-26) |
+| The 2026-09-22 GPU numerics verdict: the fp16 activation scale as the cause of the 57x divergence, the shipped default, the `-b 1` floor, the KV term, the parity batteries, the regime table and the Z2 matrix void | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` (sections 17-35) |
 | The prefill stall reproduced on the shipped build, with a full raw logcat | `scratchpad/agents/jelly-rerun/REPORT.md` (sections 11-16) |
 | The delivery chain verified end to end: release tag, vendored tree byte-compared, app pin, provenance gate that can fail | `scratchpad/agents/{release-prep,release-audit,phone-line-prep,phone-line-audit,phone-engine-v2,phone-engine-v2-audit,binding-prep,binding-audit,app-landing,landing-check-fix}/REPORT.md` |
 | The day's second refuted hypothesis (activation quantiser as the common residual) and its pre-registered falsifiers | `scratchpad/agents/quant-alignment/REPORT.md` |
+| The governor trend question, CLOSED: producer, two reviews, and the wrong-fire replay (inert at production cadence, unproven - not safe) | `scratchpad/agents/governor-trend/REPORT.md` (rounds 1-4, harness `replay-wrongfire.cjs`); `governor-trend-numeric/REPORT.md`; `governor-trend-audit/REPORT.md` |
+| The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -50,6 +84,11 @@ document that produced them is named instead.
   `ThrottlingStatus: SEVERE` where the originals ran NONE), and whether the GOVERNOR actually
   engages at runtime (the last device smoke recorded REFUSED to engage; no document records an
   engagement since).
+- A timing ratio is incomplete without the screen state of BOTH arms: with the screen off
+  Android parks CPUs, the device's `screen_off_timeout` is 30000 ms, and the f32 route's
+  published 68.42 was a Dozing number (screen ON it reads 71.98). Every bracket now records
+  `mWakefulness`; a KLD number that ever moves with screen state outranks the queue
+  (`scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 33).
 
 ## Closed workstreams
 
@@ -242,6 +281,115 @@ working tree clean before and after, local `HEAD` equal to the remote sha. The r
 `refs/heads/brain = 3660706793dad68f0ac85366ab09805cb6ddb733`, confirmed independently with
 `git ls-remote`. The state changed; the reason it was flagged does not: one-place work bit this
 project three times today, and this was the fourth candidate until the push closed the window.
+
+### 2026-09-23 (overnight from 22/09) — method correction, a voided matrix, the governor question closed
+
+The regime table - the biggest finding - is at the TOP of this file ("Headline"), because it is
+the number a reader must hit first: `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 31b and
+34. The rest of the night:
+
+**Screen-state method correction (sec. 33).** With the screen ON (`mWakefulness=Awake`), the
+shipped default reads **76.39 +/- 0.17 t/s** - inside the dozing band 76.36-76.44, confirmed
+_equal_ - but the f32 route reads **71.98 +/- 0.07**, i.e. **+5.2 %** over the published 68.42.
+The default-vs-f32 gap therefore narrows from **-11.7 %** (both Dozing) to **-6.1 %** (both
+Awake). The device's `screen_off_timeout` is 30000 ms, which is why every earlier timing was
+taken dozing. Rule recorded: **every future ratio must state the screen state of both arms** -
+every bracket now carries `mWakefulness`, a timing number without its screen state is
+incomplete, and a KLD number that ever moves with screen state outranks the queue. Older
+timings are marked "screen state not recorded", not retro-fitted. A number measured in a state
+the product is never used in is a number we would have had to withdraw.
+
+**The Z2 attribution matrix was annulled by its own gate (sec. 32).** The gating control was
+pre-registered to reproduce Z2 exactly (**5.103422 / 12.373 %**; any deviation -> the whole
+matrix VOID) and read **5.635640 / 9.280 %**: VOID, as written, reported as a build finding and
+not absorbed. The corrected control (criteria written before it ran) read **0.005454 / 94.488
+%** - far outside the salvage band - so **the matrix stays VOID for cross-binary attribution,
+and that is the finding**: `e64352ac1` moved the UNSET default at the q4_K site to fp32, so the
+new binary can no longer reach the state Z2 measured. A companion arm replicated an earlier one
+**byte-equal** (**0.005615 / 94.263 %**, inside the new binary - a free replication). What
+survives, within one binary: forced q4_K-dp4a with both scales fp32 reads 0.005454-0.005615,
+ship-default neighbourhood - **a -99.9 % collapse of the destruction** (5.635640 -> 0.005615).
+Honest summary of that path: **fp16 `da` at the q4_K site is the destroyer, fp16 `sa` adds about
+half on top, and with both gone the numbers are ordinary.** Open on this thread: the forced
+config's speed (not ordered); the explicit-fp16 arms re-arm cliffs (mechanistic reading,
+flagged post-hoc in the report).
+
+**The governor: trend producer landed, attacked twice, then the question closed.** Producer
+`7921719` + review fixes `ed55f7d` (app-only: the `trend_c_per_min` pipe now has a producer and
+the raw platform thermal state rides to the JSI boundary, where the pinned binding drops it -
+SEVERE cannot reach an engine decision app-only; 95 suites / 1243 tests; push UNRUN -
+`scratchpad/agents/governor-trend/REPORT.md`). Two attacks: the post-hoc review (arithmetic
+confirmed, the gap-anchoring defect REFUTED, mutation killed 7 of 13 trend tests -
+`governor-trend-audit/REPORT.md`) and the numeric review (`governor-trend-numeric/REPORT.md`,
+586 lines, including the replay that verified the coder's fail-before evidence). What it
+measured that nobody had looked at: the sampler's real poll gaps are **280.65 / 292.33 / 274.77
+s** - about **two samples per five-minute window** - so a 60 s burst is diluted by **4.7x** the
+threshold, and a session whose battery rose **7.2 C** never reported above **0.75 C/min**, half
+the threshold. The engine consults the field only inside a **1.0 C band**: a trend fire buys at
+most **40 s**, a wrong fire costs **>= 600 s** of COOLMODE - **200:1**. **The field is
+effectively inert at the current cadence, which fails safe**, and the real lever is **a
+temperature feed on the poll path**, not the trace interval (the 1 Hz trace has no temperature
+column).
+
+**The closing replay - recorded as a conclusion, not an open item** (same report, round 4;
+harness `replay-wrongfire.cjs` + `replay-out.txt` kept on disk). The estimator under test is
+the REAL `governorTrend.ts` (sha256 `2769fc2c11c948ab0775c52619862c08a90a07f33fdb3d8f63e551f943afab63`);
+the decision side is an **explicitly declared re-implementation of one rule** at the pin
+(`k_trend` L13, thresholds `h:45-52`, unplugged band `[38.5, 39.5)` from L44, LOWBAT L128,
+trend line L140-143) - the engine never ran, and the report says so in its first section, not
+in a footnote; the TRUE/FALSE yardstick is the author's and is stated as such. Corpus **75
+sessions / 8871 rows loaded, 71 replayed**, from named sources with named exclusions. At the
+**production cadence** (the 280 s poll grid the map measured): **15 in-band opportunities, 0
+flips**. At **dense** cadence: **122 opportunities, 2 flips, 1 classifiable - and that one was
+a FALSE fire** (38.6 C, trend 1.98, every gate passing; twelve seconds later the reading is
+37.1 C; the absolute gate would still have arrived **1216 s later**, against the at-most 40 s a
+trend fire can buy and the >= 600 s a wrong COOLMODE costs).
+
+**The state of this question, as the closing sentence: at the production cadence the feature
+is inert on the archived corpus, and therefore unproven - not safe.** Beside it, the sharpest
+methodological line of the night: **the file count is not the sample** - the missing quantity
+is named as *in-band time at poll cadence with a recorded outcome*. Consequences, all three
+recorded: (a) the trend producer is **not to be shipped as an escalation trigger** on this
+evidence - the code is reviewed and honest, the value unproven; (b) the real lever remains **a
+temperature feed at a higher rate on the poll path**, whose cost is what the Meter experiment on
+the phone is measuring; (c) **the replay harness stays on disk** so the question is re-asked
+when the corpus grows, instead of being re-argued.
+
+**Two traps - the day's disease in a new place.** (a) A worktree (`kalsa-wt-gov-trend`) whose
+`node_modules` was a **symlink** to another checkout (created to avoid a 7.7 GB install): the
+provenance gate reads `$REPO_ROOT/node_modules/llama.rn`, and a path traverses an intermediate
+symlink, so the gate would have verified **a different tree's installation, invisibly** - a
+green from a gate that read another tree is the "most expensive kind of green"
+(`scratchpad/COORDINATOR-STATE.md`, sixth lesson). Fixed by a real copy from the tree with the
+same pin (directory dated 2026-09-23 00:53) and **re-verified by running the gate** in this
+pass: `lockfile pins Aspis0/kalsa.rn@5b966218eadb`, `1119 files match Aspis0/kalsa.rn@5b966218eadb`,
+`engine inside it: kalsallama@1577495b9209 == native/kalsallama.pin`, exit 0, tree clean
+afterwards. (b) The shared checkout's "dirty" files turned out to be **byte-identical to commit
+`1068eb03d`** (`git diff --quiet 1068eb03d -- .` empty for tracked files -
+`scratchpad/agents/build-with-fixes/REPORT.md` sec. 2.4): nothing at risk, but a reader of that
+tree sees line numbers matching a commit that is neither `main` nor the shipped line - which is
+why `scratchpad/agents/shared-term/REPORT.md` sec. 0 takes every line number from a `git show
+HEAD:` blob, and why the desk's lesson is two-part attribution: **which commit AND which tree**,
+with a third verdict for numbers with neither: NOT ATTRIBUTABLE (`COORDINATOR-STATE.md`,
+seventh lesson).
+
+**The Meter decision: rule, bar, pre-registration, soundness (part of the record, not the
+news).** Owner's rule (`s23-kld-740-q4-0/REPORT.md` sec. 30): nearly zero consumption -> release
+APK, governor leans on it; real consumption -> development builds only. The quantified bar the
+Explorer derived (`governor-meter-recon/REPORT.md`, THE RANKING item 2), against the measured
+turn draw of **1,045 mA**: **1 % = ~10.5 mA (0.17 mAh/min) is cheap enough; 5 % = ~52 mA is
+self-defeating** - and no measurement of the Kotlin sampler's own consumption exists anywhere
+on disk, which is the number the phone is measuring. The pre-registration is on disk before the
+measurement (sec. 30): **<= +5 % per turn = release-ready** (and within 3x the std-dev of the
+matched idle windows), **>= +15 % = dev-only** (between = dev), and **> 10 % divergence between
+the CSV and the phone's charge counter = a finding that outranks the queue**. The honest
+soundness finding (`governor-meter-recon/REPORT.md` sec. 5): **energy helps as post-hoc
+evidence, as a session budget and for residency, and is unsound as within-turn control** - it
+lags the decision it would guide. The tracked debuggable mechanism itself was proven the same
+night: the `KALSA_DEBUGGABLE` gate in `app.config.js` and `plugins/withDebuggableRelease.js`
+both exist at `e206a94`, and CI builds a debuggable release when the gate is 1
+(`scratchpad/agents/bench-apk/REPORT.md`) - today's APK carries no `debuggable` attribute
+because the gate was 0.
 
 ## Engine release pipeline (`kalsa-server`)
 

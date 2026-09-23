@@ -1572,6 +1572,459 @@ so a ~0-15 % here would put 3 of 4 tested rows in the shared-machinery band.
 Baseline for all deltas: 0.005412 (ship default, same ref/flags, section 23).
 Script: `raw/run-scripts/weight-probes.sh` (archived before use).
 
+### 27.1 RESULTS - prediction and number in the same block
+
+Gate: first attempt 20:34 found `AC powered: true` -> STOPPED, reported, nothing started;
+re-gate after owner unplug 21:52:13 `AC powered: false, status: 3, level: 74,
+temperature: 324` -> fired. Brackets (`raw/wp-status.txt`): start 74 -> Z2 done 21:54:29 (74)
+-> R1a done 22:10:41 (73) -> R1b done 22:19:08 (70) -> end 68; **ALL `AC powered: false`,
+zero arms skipped (22 % floor never approached).** Walls: Z2 1.12 min, R1a 2.70 min,
+R1b 2.22 min (vs baseline 1.13) - the inflation is this build's `-ot` acceptance evidence
+(this build prints no override lines; numbers also non-identical -> the switch acted).
+Z2 provenance: 0 cache MISS (env-only dispatch change, forced program compiled eagerly in
+every prior run), no selector print - identified behaviourally by its result.
+
+---
+
+**Z2 - forced q4_K dp4a (148 tensors through the 32-block activation quantiser)**
+
+| | |
+|---|---|
+| PREDICTION (written in §27 before the run) | owner-hypothesis TRUE => KLD >= ~0.0085 (Delta >= +0.003); **FALSIFIER: Delta < +0.002 (KLD < 0.007412)** kills it; 0.007412-0.0085 inconclusive; registered confound: fp16 `sa` FTZ can only ADD error, so the falsifier direction is valid regardless, attribution of a large worsening needs the (nonexistent) sa-fp32 twin |
+| **RESULT** | **Median KLD 5.103422, same top 12.373 +/- 0.781 %, PPL(Q) 2556.19** (Delta = **+5.098**), rc=0, 1.12 min, bracket AC-false level 74 |
+| verdict | **The falsifier did NOT happen - the hypothesis survives its pre-registered kill line by three orders of magnitude (5.10 vs the >= 0.0085 support line, vs the < 0.007412 falsifier).** Forcing the activation quantiser over the 148 q4_K tensors does not add ~0.005 - it destroys the output (PPL 2556 vs base 27; same-top 12.4 %). The magnitude overshoot (~1700x past the support threshold, not the ~8x mass-scaling the linear version predicted) matches the REGISTERED sa-FTZ cliff confound: a broken-by-FTZ path, not a clean scheme-mismatch scaling. Per pre-registration: hypothesis NOT falsified; scheme-vs-sa attribution UNRESOLVED and BLOCKED on the sa-fp32 twin (needs a build - consumer hardwired `half*`). What is now certain either way: the activation quantiser, when it runs over q4_K mass, is violently harmful on this device - it is NOT the benign common term at its current default scope (18 tensors, where its measured sign was helpful). |
+
+---
+
+**R1a - ffn_gate + ffn_up (60 tensors, 36 % of K-quant mass) -> CPU**
+
+| | |
+|---|---|
+| PREDICTION | carrier named if drop >= 40 % (~0.0022); **FALSIFIER of single-class reading: drop < 20 % (~0.0011)**; ~15 % = shared-machinery band |
+| **RESULT** | **0.005335 / 94.601 +/- 0.536 %** - Delta = **-0.000077 KLD = -1.4 % of the residual**, same-top +0.62 pp; wall 2.70 min; bracket AC-false level 73->70 span |
+| verdict | **FALSIFIED** (drop 1.4 % << 20 %): gate/up is not a carrier - and 36 % of the quantised mass carrying ~1.4 % also breaks simple proportionality. |
+
+---
+
+**R1b - shortconv.in_proj + shortconv.out_proj (44 tensors, 27 %) -> CPU**
+
+| | |
+|---|---|
+| PREDICTION | same thresholds; sibling F32-conv row was ~0 (+0.5 %) |
+| **RESULT** | **0.005495 / 94.432 +/- 0.544 %** - Delta = **+0.000083 = +1.5 %**, same-top +0.45 pp; wall 2.22 min; bracket AC-false |
+| verdict | **FALSIFIED** (|drop| 1.5 % << 20 %): conv-projections are not a carrier - and a THIRD near-zero row puts the tested spread at 2 movers / 3 non-movers. |
+
+### 27.2 Where the axis stands after both probes
+
+- **No row anywhere has moved >= 40 %** -> no single class names the carrier; the
+  single-class reading of the 104 untested tensors is FALSIFIED twice over.
+- The tested spread is now **asymmetric, not proportional**: attention projections
+  (-14.8 %) and ffn_down (-15.7 %) move ~15 % each, while F32 conv (+0.5 %), gate/up
+  (-1.4 %) and shortconv-proj (+1.5 %) - 104 tensors carrying 63 % of the quantised mass -
+  move ~0. Per-class weight-side work on THOSE classes is dead on this evidence; even the
+  two movers leave ~70 % of the band unattributed, so the shared/floor term (Explorer's
+  refined hypothesis, section 0) remains the leading explanation for the remainder, with
+  Z2 having just shown that the activation-quantiser axis, where it executes en masse, is
+  a cliff (sa FTZ) rather than the common carrier.
+- Blocked-on-build list (stated, not silently dropped): **sa-fp32 twin for Z2
+  attribution** (consumer `half*` hardcoded) and the full-corpus f16+fa-on bridge reference
+  (awaiting the charge cycle, as agreed).
+
+---
+
+## 28. THE FULL-CORPUS BRIDGE (f16 + `-fa on` reference) + THE CLEAN KV SPLIT - **PREDICTIONS WRITTEN BEFORE THE RUNS**
+
+Design: engine = the shipped line (`1577495b9`, `llama-perplexity-v2`) for reference AND
+both arms; full corpus md5 `1d037601...`; seed 42; `-c 256 -b 256`; per-arm charger reads;
+script archived before use; stop at an arm boundary at <= 22 %. Why (as sent): the reduced
+split failed cross-corpus stability (magnitudes moved 3.2-3.7x, same-top sign flipped), so
+levers cannot be ranked from it; the shipped KV config needs its number MATCHED at full
+corpus.
+
+Cells: **BR** = CPU reference, `-ctk f16 -ctv f16 -fa on` (the cell sections 24/26 lacked
+at full corpus). **K2** = GPU f16/`-fa on` vs BR (fully matched). **K1** = GPU
+q8_0/q4_0/`-fa on` vs BR (BR fixed -> K1-K2 isolates the GPU-side KV term; K2 is the
+matched fa-on cell; the already-published matched app-KV number 0.010268 section 16.4
+completes the pair).
+
+**Predictions (fixed now):**
+
+1. **KV-as-lead reading** (shipped KV config = the dominant remaining lever):
+   **CONFIRM if** the matched-matched KV term `0.010268 - K2` >= **+0.002** AND the
+   fixed-ref pair `K1 - K2` >= +0.0015 (holding the earlier lower bound); i.e. K2 <= 0.0083.
+   **KILLED if K2 >= ~0.0100** (KV matched-term <= +0.0003 -> KV is negligible and the
+   shipped-config penalty was FA/reference-side all along).
+2. **FA term at full corpus** = `K2 - 0.005412` (both matched, only fa differs):
+   <= +0.001 -> FA stays demoted (agrees with section 26's +0.0009); >= +0.002 -> FA
+   reopens as co-lead.
+3. **Three-way agreement test:** the new fixed-ref KV term vs reduced-corpus +0.004754 and
+   the earlier full-corpus +0.001493. Same sign and within the existing bounds
+   (+0.0015..+0.0048) -> the range tightens to a number. If the three still disagree by
+   >3x after corpus and reference orientation are controlled, the finding is that **the KV
+   term is not measurable by difference on this metric** - report THAT instead of a number,
+as ordered.
+
+### 28.1 RESULTS - prediction beside the number
+
+Script `raw/run-scripts/bridge-full.sh` (archived first). Gate: 22:50:38 `AC powered: false,
+status: 3, level: 70, temperature: 297`. Brackets (`raw/br-status.txt`, ALL
+`AC powered: false`): BR 22:50:50-23:13:27 (70->65), K2 ->23:16:28 (65->64), K1
+->23:19:36 (64), end 64. Reference `cpu-q4km-faon.kld`: 455196580 B, sha256
+`17c71433d48a8d23bc2a2ca867bd337799ecf2d4677724542b7da9a6f145e285`, LAB-archived; 14
+chunks, PPL **27.2680 +/- 2.09197** (vs 27.2114 fa-off - FA-on barely moves the CPU logits).
+
+| cell | result | prediction it is judged against |
+|---|---|---|
+| **K2** (f16, `-fa on`, MATCHED) | **0.005433 / 94.432 +/- 0.544 %** | pred: K2 <= 0.0083 confirms KV-as-lead; K2 >= ~0.0100 kills it -> **CONFIRMED (0.005433)** |
+| **K1** (appKV, `-fa on`, vs fixed BR) | **0.009795 / 93.251 +/- 0.595 %** | fixed-ref KV term = K1-K2 = **+0.004362**; pred: >= +0.0015 holds the bound -> **HOLDS** |
+| **matched-matched KV term** = 0.010268 - K2 | **+0.004835** | pred: >= +0.002 confirms KV-as-lead -> **CONFIRMED** |
+| **FA term (full, both matched)** = K2 - 0.005412 | **+0.000021** | pred: <= +0.001 keeps FA demoted -> **FA IS ZERO within noise** (and same-top IMPROVES +0.45 pp: 93.982 -> 94.432) |
+| three-way KV test | new fixed-ref +0.004362 (full) vs reduced +0.004754 (same orientation) vs old +0.001493 (appKV-ref orientation) | pred: same orientation agree -> range tightens; >3x persistent disagreement -> "not measurable". **The two same-orientation numbers agree within 9 % -> the term IS measurable at ~+0.0044 to +0.0048; the +0.0015 outlier is the appKV-ref orientation, not corpus size.** |
+
+**Plain reading:** flash attention costs nothing on this metric (+0.00002 at full corpus -
+the section 24 "69 % FA leg" was conflation, now fully demoted by two corpora), and the KV
+configuration carries **~99.6 % of the shipped-config penalty** (+0.004835 of +0.004856):
+K2 0.005433/94.432 -> matched appKV 0.010268/92.126, i.e. **the shipped KV choice costs
++0.0048 KLD and -2.3 pp same-top, measured matched, full corpus, engine `1577495b9`.** The
+KV-as-lead reading is confirmed on all three pre-registered criteria; the range the owner
+asked to collapse is now a number: **+0.0044..+0.0048.**
+
+---
+
+## 29. THE sa-TWIN (Z2 follow-up) - **PREDICTION RECORDED BEFORE THE RUN** (queued after the bridge set)
+
+Binary (to be pushed at its slot): sha256 `b01db9001b43dabb9f0f6cb1119b1cbf9c4695b71fd0ba1dfb6283d3eb6ec68a`,
+119915312 B, commit `f0811bd31`, `params: KALSA_Q8A_SUBSCALE=fp16|fp32` (default fp16 =
+today's behaviour; whole-file IR diff vs committed blob = one arg-type metadata line, owner's
+verifying claim to be re-checked on the binary's `--version`/strings at push time).
+
+Arm: `GGML_OPENCL_Q4K_DENSE_DP4A=1 KALSA_Q8A_SUBSCALE=fp32`, v2-equivalent regime, same
+reference (`cpu-q4km.kld`), same flags as Z2. Z2 reference number: **5.103422 / 12.373 %,
+PPL(Q) 2556**.
+
+**Three outcomes, three readings - fixed NOW:**
+
+1. **KLD collapses from 5.10 towards ordinary numbers (say below ~0.05, PPL back near 27-30):**
+   the fp16 `sa` flush was the cause of Z2's destruction - Z2's overshoot is explained, the
+   scheme-mismatch reading of Z2 returns to ambiguity, and `sa` becomes a CONFIRMED live
+   cliff under q4_K-forcing (build-scoped fix already exists).
+2. **KLD stays ~= 5.10:** `sa` is NOT the cause; the surviving candidate on that path is the
+   fp16 `da`, still active there because `KALSA_Q8A_SCALE` selects the f32 quantiser at the
+   q6_K site ONLY - next arm (companion build in flight, will arrive):
+   `... Q4K_DENSE_DP4A=1 KALSA_Q8A_SCALE=fp32 KALSA_Q8A_SUBSCALE=fp32`.
+3. **Anything between (or a new failure mode):** recorded as "path broken for a reason
+   unrelated to either scale" - not attributed to either scale.
+
+Falsifier of the sa-blame reading (stated now): **K2-twin KLD >= 4.0 (i.e. no collapse)**.
+Confirms it: **KLD <= 0.05 with PPL(Q) <= 40**. Between = partial rescue, reported as such.
+Discipline: script archived before use, bracketing charger reads, stop at arm boundary
+<= 22 %, no number without an archived read. Runs ONLY after the bridge set (reference is
+do-not-interrupt).
+
+### 29.1 RESULT - prediction beside the number
+
+Binary pushed, sha256 `b01db900...` host=device, `--version` = `build 11202, commit
+f0811bd31` (matches the brief). Script `raw/run-scripts/sa-twin.sh` (archived first).
+Gate 23:21:54 `AC powered: false, status: 3, level: 63, temperature: 346`; brackets all
+`AC powered: false` (63 -> 62); new kset compiled (203 MISS - the sa change really
+built); wall 1.42 min; rc=0.
+
+| | |
+|---|---|
+| PREDICTION (recorded 29 before run) | sa-blame CONFIRMED if **<= 0.05, PPL <= 40**; FALSIFIED (sa innocent) if **>= 4.0**; between = **partial rescue, reported as such**; fallback reading if stuck at 5.10: fp16 `da` at the q4_K site (KALSA_Q8A_SCALE selects f32 only at q6_K), companion build awaited from the owner |
+| **RESULT** | **Median KLD 2.669362, same top 30.259 +/- 1.090 %, PPL(Q) 232.25** (Z2 was 5.103422 / 12.373 % / PPL 2556) |
+| verdict | **PARTIAL RESCUE - outcome 3.** KLD halved (-47.7 %), same-top +17.9 pp, PPL 11x better: the fp16 `sa` flush accounts for roughly HALF the KLD destruction and most of the output collapse. But 2.669 is neither <= 0.05 (not confirmed) nor >= 4.0 (not falsified) - the path remains catastrophically broken by a SECOND cause, and the registered surviving candidate is exactly the one named in advance: **the fp16 `da` still active at the q4_K site**. The companion arm (KALSA_Q8A_SCALE=fp32 + KALSA_Q8A_SUBSCALE=fp32 under Q4K-forcing) is the right next measurement in this line; its binary is the owner's to send, and I am NOT hunting or building one uninvited. |
+
+---
+
+## 31. TWO SEPARATOR ARMS - **PREDICTIONS WRITTEN BEFORE EITHER RUN** (queue: after sa-twin; Meter experiment follows these)
+
+Both: engine v2 regime, corpus md5 `1d037601...`, seed 42, `-c 256 -s 42 --temp 0 -fa off`,
+brackets archived, stop at <= 22 % at an arm boundary, scripts archived before use.
+Baseline band: b256 default 0.005412, b1 0.006012 (Q4_0 control reference point 0.001373).
+
+**ARM A - reference-floor test (every K-quant matmul tensor -> CPU, reference unchanged):**
+`-ot` regex over `attn_q/k/v/output + ffn_gate/up/down + shortconv.in_proj/out_proj`
+(= all 165 non-embedding K-quant matmul tensors; `token_embd` deliberately left alone -
+lm_head is CPU already and its embedding get_rows must stay on its current backend).
+Reference: the SAME `cpu-q4km.kld` (shape b256 unchanged, matched flags) - exactly the
+point: GPU does almost none of the work under suspicion, reference stays byte-identical.
+
+| reading | prediction (fixed now) |
+|---|---|
+| band lives in the **GPU's** K-quant kernels | KLD **collapses towards ~0.0014** (Q4_0-control neighbourhood; I will call <= 0.0025 "collapse") |
+| band lives (partly) in the **reference-side scheme mismatch** | KLD shows a **floor of the same order as the band: >= ~0.004** even with the GPU barely doing the work |
+| falsifier of the GPU-kernel reading | result >= 0.004 while GPU does only softmax/GDN/norms/f16-KV on this arm |
+| falsifier of the reference-side reading | result <= 0.0025 |
+
+**ARM B - the app-tail blind spot (`_cok` half accumulator, live only at ne1 2..8):
+`-b 8` with its OWN reference generated at that shape** (b1 and b256 references already
+differ, so shape-matching is mandatory, not optional). Same flags otherwise; engine v2.
+Kernel mix at ne1=8 (registered reading): q4_K -> `_cok` (half operand + HALF accumulator,
+the last unfixed pair), q6_K -> f32 main GEMM (dp4a gate needs ne1>8 -> off).
+
+| reading | prediction (fixed now) |
+|---|---|
+| the half accumulator matters | `-b 8` reads **worse than both**: KLD >= **0.0075** (>= max(b1,b256) + 0.0015) = blind-spot carrier confirmed |
+| it does not matter | KLD in the same band, **<= 0.0065** -> blind spot CLOSED as a non-carrier at the cost of one arm |
+| falsifier of carrier | <= 0.0065; falsifier of non-carrier: >= 0.0075; middle = weak, reported as weak |
+
+Battery plan at pre-registration: sa-twin launched at level 63; ARM A ~3 min; ARM B reference
+~25-35 min + arm ~2-6 min; all well above the 22 % floor (a skip would be recorded by the
+scripts' boundary check).
+
+---
+
+## 32. Z2 ATTRIBUTION MATRIX (4 arms, new full-twin binary) - **PREDICTIONS RECORDED BEFORE ARM 1 RUNS**
+
+Runs AFTER ARM A and ARM B (as ordered). New binary: sha256
+`11a63af4463f2233c3178cf0c4f4e6423cfdc235e6773f8be097de6b6801b250`, 119923112 B, commit
+`e64352ac1`, build 11203 - removes BOTH fp16 activation scales on the q4_K path behind the
+two existing selectors. All four arms: `GGML_OPENCL_Q4K_DENSE_DP4A=1`, same reference
+`cpu-q4km.kld`, same flags as Z2 (f16, `-fa off`, b256, seed 42, full corpus), script
+archived first, brackets archived, stop at <= 22 % at an arm boundary.
+
+| # | config | prediction (fixed now) |
+|---|---|---|
+| 1 - GATING CONTROL | `KALSA_Q8A_SCALE=fp16 KALSA_Q8A_SUBSCALE=fp16` | must reproduce Z2 exactly: **5.103422 / 12.373 %, PPL(Q) 2556**. ANY deviation = the new binary differs under identical settings -> **every other arm in the matrix is VOID** (stated as a build finding, not absorbed). |
+| 2 - interim (ALREADY RUN, older `-sa` binary b01db900) | `SUBSCALE=fp32` only | result on record: **2.669362 / 30.259 %, PPL 232.25** (section 29) - serves as the cross-binary replication anchor for arm 3 |
+| 3 - sa-only on NEW binary | `SCALE=fp16 SUBSCALE=fp32` | must AGREE with arm 2 (**2.669362 / 30.259 %, PPL 232.25**): agreement = free replication; disagreement = finding about the build (reported as such, not averaged) |
+| 4 - THE FULL TWIN | `SCALE=fp32 SUBSCALE=fp32` | **collapse** (<= ~0.05, PPL near 27-40) -> the two fp16 scales TOGETHER explain the destruction, fix understood; **stays >= 4.0** -> neither scale is the cause - the q4_K dp4a path is broken for a THIRD reason, reported as its own finding, NOT absorbed into the scale hypothesis; **between -> PARTIAL: the fraction moved from 5.103422 IS the measurement** - report sa-fraction = (5.103422-2.669362)/5.103422 = 47.7 % (already measured) and da-fraction = (2.669362-KLD_arm4)/2.669362, both stated as percentages. |
+
+Battery at this writing: ARM A in flight from level 62 (archived gate 23:27:53); matrix ≈
+10-12 min after ARM B; every number to carry an archived bracket.
+
+### 32.1 RESULTS - and the gate FAILED first, as pre-registered
+
+Binary pushed: `build-android-ocl-q4k-da-fp32/.../llama-perplexity` ->
+`llama-perplexity-ft`, sha256 `11a63af4...` host=device, `--version` = `build 11203,
+commit e64352ac1`. Script `raw/run-scripts/z2-matrix.sh` (archived first). Gate
+00:47:33 `AC powered: false, status: 3, level: 46, temperature: 337, mWakefulness=Dozing`;
+brackets (all `AC powered: false`, `mWakefulness=Dozing`, archived `z2m-status.txt`):
+zm1 46->46, zm3 ->45, zm4 ->44, end 43.
+
+| arm | config | prediction (written before) | result | verdict |
+|---|---|---|---|---|
+| zm1 GATING CONTROL | forced, `SCALE=fp16 SUBSCALE=fp16` | must equal Z2: **5.103422 / 12.373 %, PPL 2556**; any deviation -> **matrix VOID as designed** | **5.635640 / 9.280 %, PPL 3678.78** | **GATE FAILED - deviation is real (+10.5 % KLD, -3.1 pp, +45 % PPL), so the cross-binary matrix attribution is VOID by the rule as written.** Reported as the build/selector finding it is, not absorbed. |
+| zm3 sa-only, new binary | `SCALE=fp16 SUBSCALE=fp32` | must equal interim arm 2 (2.669362 / 30.259 %, PPL 232.25) | **3.293231 / 22.328 %, PPL 550.54** | **replication FAILED** (+23 % KLD vs arm 2) - same direction as zm1's miss; cross-binary comparisons void, as registered |
+| zm4 THE FULL TWIN | `SCALE=fp32 SUBSCALE=fp32` | collapse (<= ~0.05) -> scales together explain it; >= 4.0 -> neither scale; between -> report the fraction | **0.005615 / 94.263 %, PPL delta -1.531687** | **outcome 1 (COLLAPSE) - within its own binary**: 5.635640 -> 0.005615 = -99.9 % of the destruction; sa-fp32 alone took 41.6 % of it (zm1->zm3), da-fp32 removed the remaining ~99.8 % (zm3->zm4). The two fp16 scales TOGETHER fully explain the forced-path destruction ON THIS BINARY. |
+
+**Post-hoc reading, flagged as post-hoc:** the control deviation has a mechanistic
+candidate - zm1 set `KALSA_Q8A_SCALE=fp16` EXPLICITLY, while Z2 ran on v2 with the env
+UNSET (= fp32 at the q6_K site, v2's ship default), and the owner's own §29 text records
+that `KALSA_Q8A_SCALE` selects the q6_K site: explicit fp16 would re-arm the known da cliff
+on the 18 q6_K tensors, which pushes UP exactly as zm1 and zm3 both did relative to their
+old-binary twins. If true, the correct control is `SCALE` unset + `SUBSCALE=fp16` (matching
+Z2's effective state) - one extra arm, NOT run tonight, awaiting the owner's go (the
+registered rule says matrix void, and void it stays until a corrected control exists).
+
+**What survives the void, because it is WITHIN one binary (zm1 vs zm4 share the new
+binary, only the two scale envs differ): forced q4_K-dp4a with both scales fp32 reads
+0.005615 / 94.263 % - statistically the ship default's neighbourhood (0.005412 / 93.982 %,
+delta +0.0002 KLD, same-top +0.28 pp). The forced path is not intrinsically broken; it is
+broken ONLY while either activation scale is fp16.** Speed of that forced-fp32 config:
+NOT measured (not ordered) - named as the open follow-up.
+
+### 32.2 CORRECTED CONTROL - criteria stated BEFORE it runs (owner GO; arm launched 00:59:51)
+
+Arm: `GGML_OPENCL_Q4K_DENSE_DP4A=1` with **`KALSA_Q8A_SCALE` UNSET** (v2-line default =
+fp32 at the q6_K site, matching Z2's effective state) + `KALSA_Q8A_SUBSCALE=fp16`, on the
+new binary (`llama-perplexity-ft`), same reference/flags as Z2. Script
+`raw/run-scripts/z2-corrected-control.sh` (archived first); gate 00:59:51 `AC powered:
+false, status: 3, level: 43, temperature: 348, mWakefulness=Dozing`. The script also runs
+the corrected zm3 (`SCALE` unset + `SUBSCALE=fp32`) unconditionally after the control -
+both readings are taken independently either way.
+
+Pre-registered outcomes:
+
+- **SALVAGE the cross-binary matrix if: median KLD within +/-0.05 of 5.103422 AND same-top
+  within +/-1.0 pp of 12.373 % AND PPL(Q) within +/-10 % of 2556** (band admits cross-binary
+  noise, excludes configuration change; the two prior cross-binary agreements were bitwise,
+  so landing EXACTLY on 5.103422 is the expected ideal).
+- **Outside that band -> the matrix stays VOID and THAT is the finding** (the
+  unset-vs-explicit selector hypothesis would then be insufficient to explain zm1's miss).
+- If salvaged: matrix completes with the corrected zm3, which must reproduce interim arm 2
+  (**2.669362 / 30.259 %, PPL 232.25**) inside the same band; zm4 (both explicit fp32)
+  needs no correction - explicit fp32 is unambiguous under any default semantics.
+
+### 32.3 CORRECTED-CONTROL RESULT - prediction beside the number: MATRIX STAYS VOID, and the finding is that the default itself moved between builds
+
+| | |
+|---|---|
+| PREDICTION (32.2, written before) | SALVAGE if 5.103422 +/-0.05 / 12.373 % +/-1.0pp / PPL 2556 +/-10 %; outside -> matrix VOID and that is the finding |
+| **RESULT z2c-control** (`SCALE` unset, `SUBSCALE=fp16`, forced) | **0.005454 / 94.488 %, PPL delta -1.535** - ORDINARY, nowhere near the band |
+| **RESULT z2c-saonly** (`SCALE` unset, `SUBSCALE=fp32`) | **0.005615 / 94.263 %, PPL delta -1.531687** - **byte-equal to zm4's printed values** (free replication INSIDE the new binary) |
+| verdict | **FAR OUTSIDE THE BAND -> the matrix stays VOID for cross-binary attribution to Z2, and THAT is the finding** (the registered branch). Mechanism, now coherent across all seven forced arms: **`e64352ac1` changed the UNSET default at the q4_K site** - on v2, forcing ran q4_K-site `da` in fp16 (destroyer: Z2 = 5.103; on the `-sa` build only that site remained = 2.669); on the new binary UNSET yields fp32 `da` at the q4_K site, so the control cannot reproduce a state the old binary has retired. Explicit-fp16 arms (zm1 5.636, zm3 3.293) re-arm cliffs and land between - all seven numbers fit one story: **q4_K-site fp16 `da` is the destroyer; fp16 `sa` adds roughly half the damage on top; both scales fp16 gone (explicit OR new default) = ordinary numbers.** The within-new-binary conclusions of 32.1 stand and strengthen: the forced q4_K path is safe by DEFAULT on `e64352ac1` (0.005454-0.005615, ship-default neighbourhood). Speed of the forced config: still unmeasured (open). |
+
+---
+
+## 34. THE REGIME TABLE - the one table for the owner (b256 / b1 / b8) + how often users hit the bad one
+
+| regime | trigger (what a user does) | kernels used by the 148 q4_K tensors | median KLD | same top | gate |
+|---|---|---|---|---|---|
+| **b256 default (ship `1577495b9`)** | prefill piece = full ubatch (common case) | main noshuffle GEMM: f32 product, float operand | **0.005412** | **93.982 %** | FAIL both, but close |
+| **b1 floor (decode shape)** | every generated token | GEMV family: f32 operand, no quantiser, no transpose | **0.006012** | 93.138 % | FAIL both |
+| **b8 `_cok` regime (the trap)** | prefill piece in **2..8 tokens** -> `prompt_length mod 256 in [2,8]` at app ubatch=256 | `_cok`: HALF operand + HALF accumulator (never fixed) | **0.304543** | **66.198 %** | **catastrophic FAIL** |
+
+Both ends are true of different prompts: ~94 % same-top for a prompt that is a clean
+multiple of 256 (or has a 1-token tail), 66 % for a prompt whose tail lands in 2..8.
+Trigger mechanics, sourced: app ubatch default **256** (`deviceTuning.ts:730-731`
+`n_ubatch = DEFAULT_UBATCH`, hard guard <=512 at `LlamaService.ts:2392`, `memoryEstimate.ts`
+"app's default n_ubatch=256"); `llama_decode` splits into ubatch pieces + tail
+`n mod 256`; tail in [2,8] -> `_cok` (tail 0 = clean, tail 1 = GEMV/mild).
+
+**How often - archived data only, no phone: 606 real `prompt_n` turn-records from
+`product-suite/**` (S23, Jelly, Xiaomi; range 18..5695, median 396):**
+
+- U=256 tail buckets: clean-multiple 4, GEMV-tail(=1) 0, **`_cok` trigger (2..8): 31**,
+  other 571 -> **31/606 = 5.1 % of archived turn-records** (ubatch-override 512: 3.8 %).
+- Hits CLUSTER at lengths 516-519 (mod 256 = 4-7; one 20-turn session sat entirely there)
+  plus 771, 1285/1286, 2822, 4103 (mod 256 = 3,5,6,6,6): prompts just past a 256 multiple,
+  which growing multi-turn chats produce constantly.
+- Caveats: record-level count (some turns appear in logcat AND run.log AND per-turn extracts
+  -> deduped per-turn fraction <= 5.1 %, not exactly computable from these files); lab test
+  sessions, not field traffic; assumes llama_decode's internal ubatch split. What settles it
+  exactly: per-turn `n_prompt` with unique turn ids (session DB or Meter-side log) - named,
+  not fudged.
+
+**The sentence this table must keep, per the owner (and it is the right one): this is the
+only number of the night that describes what a USER experiences** - a regime ~5 % of
+archived turns land in, at 66.198 % same-top, next to the 93.982 % we quoted all evening
+for a different prompt shape. Both are true, of different prompts. Guard, adopted:
+**a table whose rows cannot be read without their trigger is a table that will eventually
+be misquoted** - the trigger column stays.
+
+---
+
+## 35. THE `_cok` FIX VERIFICATION PAIR - **PRE-REGISTRATION WRITTEN BEFORE THE BINARY EXISTS** (awaiting coder sha256)
+
+Shape-matched reference on hand: `cpu-q4km-b8.kld` (sha256 `82e2ab4d...`, byte-equal to
+the b256 reference). Engine regime: new binary, same flags as ARM B (`-c 256 -b 8 -ngl 99
+-fa off -s 42 --temp 0`, corpus md5 `1d037601...`), brackets with charge + temperature +
+`mWakefulness`, script archived before use, stop at <= 22 %.
+
+| step | prediction / rule (fixed now) |
+|---|---|
+| 1 - CONTROL (selector = OLD half-accumulator behaviour) | must reproduce **0.304543 / 66.198 %** EXACTLY - the Z2-gate lesson: any deviation = the new binary differs from the one measured -> **the whole pair is void**, stated as a build finding |
+| 2 - TREATMENT (default = fixed) | **COMPLETE FIX if <= ~0.0065** (ship-default neighbourhood), not merely improved. **0.0065 < x < 0.30 = PARTIAL** -> report the fraction **(0.304543 - x) / (0.304543 - 0.005412)** = share of the b8-vs-b256 gap closed, because a partial fix on the worst path is a different engineering decision. x >= 0.30 = no effect (real negative). |
+| 3 - THE PRICE (tail speed at ne1=8, both ways) | tool: `llama-perplexity -b 8 -ngl 99 -fa off` WITHOUT KLD flags - `llama-bench` has no batch flag (verified in `tools/llama-bench/main.cpp`) so it cannot target the tail; `-b 8` is the shape ARM B proved (`batch_size=8` printed). Same binary, only the selector flips, wall over all 14 chunks both ways. **Pre-registered reading: <= 5 % slower = "no meaningful cost"; 5-10 % = notable, a real price; > 10 % = significant hidden cost.** Fresh old-behavior baseline in the same session - ARM B's 3.63 min included KLD I/O and is NOT reused as a speed baseline (noted so nobody quotes it). |
+
+Sequence when the sha arrives: verify sha/commit -> gate read -> control FIRST (gates the
+treatment) -> treatment -> speed pair -> every result beside its prediction.
+
+---
+
+## 30. THE METER EXPERIMENT - **PRE-REGISTRATION WRITTEN BEFORE THE APK IS VERIFIED**
+
+Question (owner's rule): nearly zero consumption -> release APK, governor leans on it;
+real consumption -> dev builds only. The CSV cannot price its own existence (trace off =
+not measured); the instrument is the phone's external charge counter (`dumpsys battery`,
+charge counter in uAh - schema confirmed in the archived trace-v2 CSV header:
+`charge_counter_uAh`).
+
+**Predictions / decision lines, fixed NOW:**
+
+1. **Cost thresholds:** cost/turn = ON-turn delta minus OFF-turn delta, identical workload.
+   **RELEASE-OK if cost/turn <= +5 % of the OFF turn cost AND within 3x the std-dev of the
+   matched idle windows (i.e. indistinguishable from noise). DEV-ONLY if >= +15 %. Between
+   = ambiguous -> dev, not release.** Reported in uAh/turn, uAh/min, and percent.
+2. **Instrument-accuracy check (the bigger-if-false test):** ON arm, Meter CSV turn total vs
+   external counter delta over the identical window: **|CSV-counter|/counter <= 10 % =
+   usable; > 10 % = finding that outranks everything queued** - no further number gets
+   built on the CSV until explained.
+3. **Direction prediction:** ON should cost MORE than OFF (sampling + CSV writes); ON
+   cheaper beyond noise = counter-quantisation finding, reported not smoothed.
+4. Constraints recorded: `adb install -r` ONLY after verifying size **159233414** and
+   sha256 **bfb5b4f95ff27eb749dac4e35a1a08366142d67eef1e198fba13b9dd37ddacdc** (both
+   re-verified on the host, match; owner's `debuggable=true` manifest claim stands as
+   owner-verified - no aapt tooling found on first probe); never uninstall, never clear
+   data; brackets carry charge + temperature + `mWakefulness`; screen ON (app-use state);
+   stop at <= 22 %; script archived before use; workload = fixed idle window then one fixed
+   real turn, identical in both arms.
+
+---
+
+## 33. SCREEN-STATE METHOD CORRECTION - speed re-measured with the screen ON - **PREDICTION WRITTEN BEFORE THE RUN**
+
+Correction as sent: with the screen off Android parks CPUs, so tonight's timing numbers were
+taken in a state the product is never used in (the app is always screen-ON). Rule henceforth:
+**every bracket records `mWakefulness` alongside charge and temperature** (added to `rd()` in
+every script from here on); a timing number without its screen state is incomplete. KLD arms
+carry the state too - and if a KLD number ever moves with screen state, that outranks
+everything in the queue.
+
+Targets (published, screen state NOT recorded at the time - inferred likely Asleep, marked
+as inference not measurement): shipped default **76.44 +/- 0.19 t/s** (q8scale-era) and
+**68.42 +/- 0.19 t/s** (f32 route, combo-era). Re-measured on the SHIP line for both arms
+(`llama-bench-v2`, engine constant): default = no env; f32 route = `KALSA_Q6K_DENSE=f32`.
+Method without writing any setting: `input keyevent 224` waker loop around each bench run
+(wakefulness held Awake for the whole arm; screen timeout setting NEVER touched, read-only
+only), `mWakefulness` captured in the bracket before/during each arm.
+
+| arm | prediction (fixed now) |
+|---|---|
+| default, screen ON | **equal or higher than the screen-off number** (cores stay awake): >= ~76.3 (the screen-off band 76.36-76.44). **If LOWER: reported as a finding, not smoothed** - it would mean display-on costs more than it saves in awake cores (governor/thermal contention), and the screen-off number would then be the one that matches neither state cleanly. |
+| f32 route, screen ON | same rule: >= ~68.4; lower = same finding, reported per-arm |
+| cross-check | both arms also re-state mWakefulness=Awake in the bracket - a bench run whose bracket says Asleep is VOID (waker failed) and is re-run, not reported |
+
+Queue position (stated): this runs immediately after the in-flight ARM A finishes (no
+overlapping measurements - heat and clock are shared), BEFORE ARM B and the Z2 matrix; the
+Z2 matrix and ARM B brackets gain `mWakefulness` retroactively-by-forward-only (their runs
+pre-correction are marked "screen state not recorded").
+
+### 33.1 RESULTS - prediction beside the number
+
+Script `raw/run-scripts/screen-on-speed.sh` (archived first; waker = `input keyevent 224`
+every 15 s vs the read-only-confirmed 30000 ms timeout; no setting written). Gate
+23:51:55 `AC powered: false, status: 3, level: 57, temperature: 332, mWakefulness=Dozing`.
+Every bracket carries `mWakefulness` (new rule); both arms' end brackets read
+`mWakefulness=Awake`, battery 57 flat (archived `sos-status.txt`). Capture-order artifact,
+recorded rather than hidden: each START bracket is taken one second BEFORE the waker's first
+keyevent, so START says Dozing while the bench itself (launched after the waker, waker
+period 15 s < 30 s timeout) ran entirely Awake - the END bracket of the same arm is the
+state of record: Awake. Not voided, because the measurement window is what the rule
+protects; future scripts capture START after the waker lead-in.
+
+| arm | prediction (written before) | result | verdict |
+|---|---|---|---|
+| shipped default, screen ON | equal or higher than the screen-off band (>= ~76.3); lower = finding, not smoothed | **76.39 +/- 0.17 t/s** (`build: 1577495b9 (11201)`, `mWakefulness=Awake`) | **CONFIRMED: equal** - 76.39 sits inside the Dozing band 76.36-76.44 (vs 76.44: -0.07 %; vs 76.36: +0.04 %). Screen state does NOT move the shipped config's prefill; the published number stands with its state now labelled. |
+| f32 route, screen ON | equal or higher than ~68.4; lower = same finding | **71.98 +/- 0.07 t/s** (`mWakefulness=Awake`) | **CONFIRMED, and higher by +5.2 %** - the published 68.42 was a Dozing number; the screen-on truth is 71.98. The f32 route's deficit vs default narrows from -11.7 % (both-Dozing) to **-6.1 % (both-Awake)** - every future default-vs-f32 ratio must state the screen state of BOTH arms. |
+
+KLD arms: no KLD re-run was ordered under the correction; all future KLD brackets carry
+`mWakefulness` (from ARM B onward - earlier KLD runs marked "screen state not recorded",
+their numerics unaffected by state in expectation but unproven, exactly as the correction
+says).
+
+---
+
+## 31a. ARM A RESULT - prediction beside the number
+
+| | |
+|---|---|
+| PREDICTION (section 31, written before) | GPU-kernel band collapses to **<= 0.0025**; reference-side floor **>= ~0.004** with GPU barely working; falsifier-of-GPU = >= 0.004, falsifier-of-reference-side = <= 0.0025 |
+| **RESULT** | **0.003546 / 96.513 +/- 0.435 %**, PPL delta -0.067028, wall 10.23 min, rc=0; brackets `AC powered: false` 62 -> 58 (raw: `armA-floor.log/.err`, `aa-status.txt`); screen state NOT recorded (run predates the correction - marked, not guessed) |
+| verdict | **INCONCLUSIVE between the two named readings by the pre-registered lines themselves** (0.0025 < 0.003546 < 0.004): neither falsifier hit, so neither reading dies tonight. What the number DOES establish as measured decomposition: (1) moving all 165 K-quant matmul tensors to CPU improved KLD by **-0.001866 = 34.5 % of the band**, so the GPU's K-quant kernel execution carries about a third of it; (2) a **floor of 0.003546 survives with the GPU doing NONE of the matmul work** - ~65 % of the band is not in those kernels (shared ops, reference-side scheme, and/or mixed-graph effects; note the Q4_0 control bound shared ops at ~0.0014, so this floor is 2.6x that bound and its extra ingredient is still unnamed); (3) **this arm PASSES the conjunctive gate** (0.003546 <= 0.005 AND 96.513 >= 95) - the gate is reachable the moment the suspect matmul arithmetic matches the reference, which is the sharpest statement yet about where the gate's enemy lives. |
+
+---
+
+## 31b. ARM B RESULT (b8, the `_cok` blind spot) - prediction beside the number
+
+| | |
+|---|---|
+| PREDICTION (section 31, written before) | half accumulator matters -> b8 **>= 0.0075** (carrier); same band -> **<= 0.0065** (blind spot closed); middle = weak |
+| **RESULT** | **0.304543 / 66.198 +/- 1.122 %**, PPL(Q) delta **+5.351471** (GPU PPL 32.5 vs base 27.2), `batch_size=8` confirmed, wall 3.63 min, rc=0; brackets all `AC powered: false, mWakefulness=Dozing` (57 -> 47), archived `ab8-status.txt` |
+| verdict | **CARRIER CONFIRMED - massively: 0.304543 is 41x the carrier line and 50x both the b256 default and the b1 number, landing at near-stock-failure same-top (66.2 %).** The pre-registered reading said "worse than both if the half accumulator matters"; it is worse by two orders of description, not a hair. The app-tail blind spot is the largest single kernel-path divergence found tonight: at ne1 in [2,8] all 148 q4_K tensors take `_cok` (half operand + HALF accumulator, the last unfixed pair) while at b256 the same tensors take the fixed main GEMM - and the app REACHES this regime on every prefill whose token count leaves a 2..8-token tail (and any ubatch in that range), a regime no b256/b1 arm could see. |
+
+Bonus finding from the obligation to generate a shape-matched reference: `cpu-q4km-b8.kld`
+sha256 = **82e2ab4d7733c08de87f0ed4a6cddfa3ba34e79f7702c74731e3f5474837340f - byte-identical
+to the b256 reference** (PPL 27.2114 +/- 2.08767, also identical). So the CPU reference is
+batch-shape-INVARIANT between ne1=8 and ne1=256 (both go through the same column-wise gemm
+loop), while ne1=1 differs (27.0660, section 17) - the section 17 source reading
+(plan/GEMV paths differ specifically at the decode shape) is now half-proven by sha: the
+44-minute b8 reference run produced a byte-duplicate, recorded as such. Lab copy archived.
+
+---
+
 ---
 
 ## 16.4-final. KV SET AT THE APP'S REAL CONFIG, REGENERATED - CLEAN, and it reproduces attempt-1 exactly
