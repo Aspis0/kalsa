@@ -95,7 +95,9 @@ touch box** (the painted control may be smaller: 44 px send, 36 px ghost action,
 
 One pictogram is load-bearing and must not be swapped for a coloured dot: **the device glyph beside the
 model's name** — `smartphone` while the answer comes from this phone, `monitor` while it comes from the
-server brain — 13 px in `accent`, on the pill's second line (the owner asked for exactly this).
+server brain — 13 px in `accent`, on the pill's second line (the owner asked for exactly this). The pill
+carries **no brand mark**: it is a control, not a surface, and the logo competes with the model's name.
+The logo's homes are the launcher icon and the `KALSA` card at the foot of Settings.
 
 ### 1.6 What is not decoration
 
@@ -136,7 +138,7 @@ Each entry is the anatomy a coder implements; states are named because a missing
 | **Button, danger** | as secondary with `danger` label and `danger` hairline | pressed, disabled |
 | **Icon button** | 44 px painted in a 48 dp box, radius 14, `surface` + `e1`; ghost variant: no container, `ink3` | default, pressed (`tint`), selected (`tint` + `accent`), disabled |
 | **Chip** | pill, 32 dp, 1 px `line`, `surface`, 12.5 label, optional 18 px leading icon, optional trailing `×` | default, selected (`brand` fill, white label), disabled |
-| **Model pill** | **capsule**, 48 dp, `surface`, 1 px `line`, `e1`: a 32 px mark (the logo), the model's short name in `bodyStrong`, a second line carrying a 13 px `accent` **device glyph** and where it runs, and a 20 px chevron. Radius 999 so it agrees with the composer | local (`smartphone`, "Su questo telefono"), server brain (`monitor`, "Su Kalsa Brain"), loading (the glyph becomes a 14 px spinner), refused (the pill goes `tint` + `ink3`) |
+| **Model pill** | **capsule**, 48 dp, `surface`, 1 px `line`, `e1`: the model's short name in `bodyStrong`, a second line carrying a 13 px `accent` **device glyph** and where it runs, and a 20 px chevron. No brand mark. Radius 999 so it agrees with the composer | local (`smartphone`, "Su questo telefono"), server brain (`monitor`, "Su Kalsa Brain"), loading (the glyph becomes a 14 px spinner), refused (the pill goes `tint` + `ink3`) |
 | **Field (forms)** | 52 dp, radius 14, `surface`, 1 px `line`, 15 px `ink`, placeholder `ink3`, optional 20 px leading icon, optional trailing 24 dp action | empty, filled, focused (`accent` hairline + `accent` caret), error (`danger` hairline) |
 | **Composer field** | **one capsule**: 56 dp, radius 999, `surface`, 1 px `line`, `e2`; inside it, left to right: a 40 px ghost attach button, the text (15.5 px sans), a 40 px ghost mic, and a **40 px circular filled send**. A circle inside a capsule, never a square inside a rectangle | empty (placeholder `ink3`), focused, held (the circle goes `tint` + `ink3`, and the hold line says why), stop (the same circle carries a square glyph) |
 | **Search field** | as Field with a leading magnifier and a trailing clear `×` that appears only when non-empty | — |
@@ -167,13 +169,14 @@ Each entry is the anatomy a coder implements; states are named because a missing
 
 ### 3.1 Conversation
 
-**The strip** — 56 dp: the drawer's icon button (ghost, 44 px), the **model pill** — **a capsule**, 48 dp,
-radius 999, `surface`, 1 px `line`, `e1`, holding a 32 px mark, the model's short name in `bodyStrong`,
-a second line with a **13 px `accent` device glyph** (`smartphone` / `monitor`) and where it runs, and a
-chevron — and nothing else. **Nothing else lives in the strip**: no `+` (the new chat is the menu's
-primary action, and a second door to it was redundant), no web switch (it moves to Settings › Privacy),
-and the model's progress, error and battery lines live inside the pill's own sheet, opened by tapping
-it. The dot that used to sit on the second line is gone: a colour says "something", a glyph says *where*.
+**The strip** — 56 dp: the drawer's icon button (ghost, 44 px, **nude glyph**), the **model pill** — **a
+capsule**, 48 dp, radius 999, `surface`, 1 px `line`, `e1`, holding the model's short name in
+`bodyStrong`, a second line with a **13 px `accent` device glyph** (`smartphone` / `monitor`) and where
+it runs, and a chevron — and nothing else. **Nothing else lives in the strip**: no `+` (the new chat is
+the menu's primary action, and a second door to it was redundant), **no brand mark** (the logo lives in
+the launcher icon and in Settings), no web switch (it moves to Settings › Privacy), and the model's
+progress, error and battery lines live inside the pill's own sheet, opened by tapping it. The dot that
+used to sit on the second line is gone: a colour says "something", a glyph says *where*.
 
 **The transcript** — the answer has no container. States, each with its line:
 empty (the photograph alone), waiting for the first token (the strip of three dots and the composer's
@@ -200,13 +203,22 @@ heading and the white cards around each row.
 
 ### 3.3 Settings, split in two
 
+Every screen with a back button uses one header: **the title centred** on the width, the back chevron at
+the left edge (a 40 px ghost button), 16 px of side padding, and the content in cards below it. Rows sit
+on the **content axis** — a Settings row carries **no leading icon**, so its label lines up with the
+group header above it; an icon there pushes the text off the axis and makes the screen read misaligned
+(the owner's word). One implementation trap, learned by looking at the render: the scrolling column is a
+flex container, so its cards must be `flex: none` — otherwise they shrink and clip their own rows.
+
 `Settings › Preferenze` — groups of cards: **Aspetto** (lingua, dimensione testo, tema chiaro/scuro/
 sistema), **Conversazione** (invio con invio, salvataggio automatico, note). Rows 56 dp, value on the
 right, a tap opens a sheet with the options as rows and a full-width primary "Fatto".
 `Settings › Questo telefono` — **Modello** (nome, dove gira, contesto, cache KV, ragionamento,
 quantizzazione), **Motore** (governor, soglie termiche, finestra KV, download with the progress row and
 the RAM verdict), **Privacy** (web, permessi, memoria condivisa). Every internal figure keeps its unit
-and its `mono` face; no sentence explains the engine to a person who did not ask.
+and its `mono` face; no sentence explains the engine to a person who did not ask. The screen closes with a `KALSA` card —
+the mark (40 px, radius 12), the wordmark, and `Versione 0.1.0 · locale e privato` — which is where the
+logo lives in the interface, together with the launcher icon.
 
 ### 3.4 Documents, Notes, Personas, Account, Pro, Help
 

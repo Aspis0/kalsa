@@ -831,6 +831,23 @@ body{background:var(--page);font-size:15px}
 .hold .ib{background:transparent;color:var(--accent)}
 .cav svg{color:var(--accent)}
 .drow .ic2{color:var(--accent)}
+/* v3.2 — the pill keeps no logo (it is a control, not a brand surface), and the
+   Settings screen is redrawn: the title sits on the content axis, rows have no
+   leading icons so the label axis equals the group header's, and nothing clips. */
+.pick .mark{display:none}
+.pick{padding:0 14px 0 16px;min-height:48px;align-items:center}
+.pick .cv{margin-left:12px;width:18px;height:18px}
+.page2>*{flex:none}                      /* the cards must not shrink: they were clipping their own rows */
+.titlebar{position:relative;display:flex;align-items:center;justify-content:center;padding:2px 16px 12px}
+.titlebar .iconbtn{position:absolute;left:6px;top:50%;transform:translateY(-50%);width:40px;height:40px;margin:0}
+.grp .gt{padding:14px 16px 9px}
+.srow{padding:14px 16px;gap:12px}
+.srow .val{font-size:13px;color:var(--ink3);white-space:nowrap}
+.srow .g b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .g small{line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.srow .cv2{color:var(--ink3);font-size:15px}
+.brandmark{flex:none}
+.brandmark img{width:40px;height:40px;border-radius:12px;display:block}
 </style>
 
 <script>
@@ -842,6 +859,39 @@ body{background:var(--page);font-size:15px}
   var PC = '<svg class="dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>';
   var remote = /pc|brain|mac|studio|server/i.test(t);
   w.innerHTML = (remote ? PC : PH) + '<span>' + t + '</span>';
+})();
+</script>
+
+<script>
+/* v3.2 — the Settings screen the spec describes, drawn here to be judged:
+   title on the content axis, rows without leading icons, the mark's UI home. */
+(function(){
+  if(new URLSearchParams(location.search).get("s")!=="settings") return;
+  var page=document.getElementById("page"); if(!page) return;
+  var back='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+  var chev='<span class="cv2">\u203a</span>';
+  page.innerHTML = `
+  <div class="page2">
+    <div class="titlebar"><span class="iconbtn">${back}</span><b>Impostazioni</b></div>
+    <div class="grp"><div class="gt">ASSISTENTE</div>
+      <div class="srow"><span class="g"><b>Dove risponde</b><small>Telefono o Kalsa Brain sul PC</small></span><span class="val">Questo telefono</span>${chev}</div>
+      <div class="srow"><span class="g"><b>Modello</b><small>LFM2.5 2.6B · Q4_0</small></span>${chev}</div>
+      <div class="srow"><span class="g"><b>Contesto e cache</b><small>16384 token · K 8 bit, V 4 bit</small></span>${chev}</div>
+    </div>
+    <div class="grp"><div class="gt">ASPETTO</div>
+      <div class="srow"><span class="g"><b>Tema</b></span><span class="val">Automatico</span>${chev}</div>
+      <div class="srow"><span class="g"><b>Dimensione testo</b><small>Aa — La volpe marrone</small></span><span class="val">M</span>${chev}</div>
+      <div class="srow"><span class="g"><b>Lingua</b></span><span class="val">Italiano</span>${chev}</div>
+    </div>
+    <div class="grp"><div class="gt">PRIVACY E DATI</div>
+      <div class="srow"><span class="g"><b>Web</b><small>Ricerca quando la chiedi</small></span><span class="sw2"></span></div>
+      <div class="srow"><span class="g"><b>Telemetria</b><small>Spenta di default. Resta sul telefono.</small></span><span class="sw2 off"></span></div>
+      <div class="srow"><span class="g"><b>Permessi</b><small>Microfono, notifiche, calendario</small></span>${chev}</div>
+    </div>
+    <div class="grp"><div class="gt">KALSA</div>
+      <div class="srow"><span class="brandmark"><img src="logo.png" alt=""></span><span class="g"><b>Kalsa</b><small>Versione 0.1.0 · locale e privato</small></span></div>
+    </div>
+  </div>`;
 })();
 </script>
 </body>
