@@ -11,9 +11,12 @@
 //! Sizes and digests below are exact, and each came from the publisher that
 //! serves it: upstream's rows from the GitHub release's own asset list on
 //! 2026-09-14 (GitHub publishes a sha256 digest per asset), the macOS arm64
-//! engine from Kalsa's own CDN on 2026-09-21 by fetching the archive and
-//! hashing it. Two publishers share one table because the table describes
-//! what this app may run, not who built it.
+//! engine from Kalsa's own published manifest for the release it names
+//! (`https://dl.kalsa.io/kalsa-server/<tag>/manifest.json`, the
+//! macos-arm64/metal row, read live on 2026-09-23 — an archive rebuilt from
+//! the same tag is not byte-identical, so the manifest the publisher serves
+//! is the record of THAT object). Two publishers share one table because the
+//! table describes what this app may run, not who built it.
 //!
 //! Note the macOS builds ship as `.tar.gz`, not `.zip`, unlike every
 //! Windows row.
@@ -25,7 +28,7 @@ const RELEASE_BASE: &str = "https://github.com/ggml-org/llama.cpp/releases/downl
 /// Where Kalsa's own fork of the engine is published: the app's CDN, not
 /// GitHub. The fork is the only engine that reads the door's private
 /// headers, so it is the only one this app may mount.
-const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.0";
+const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.1";
 
 /// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
 /// to a commit so the bytes cannot move under us.
@@ -198,12 +201,19 @@ impl Asset {
 // their backend libraries differ. Non-engine rows carry no server, so
 // theirs stays None: there is nothing to hash.
 //
-// The fork row's numbers were measured on 2026-09-21 by fetching the
-// archive from the CDN named on the row, hashing the archive, and hashing
-// the `kalsa-server` under `kalsa-server-v1.1.0/` after this crate's own
-// extractor unpacked it. The v1.0.0 archive was fetched the same way to
-// settle the one question the row's comment answers: the two archives
-// differ in size and digest, and their launchers do not.
+// The fork row's numbers are transcribed from Kalsa's own published
+// manifest for the release the row names — `FORK_BASE` + `/manifest.json`,
+// the macos-arm64/metal row, read live on 2026-09-23 — because an archive
+// rebuilt from the same tag is not byte-identical and the manifest the
+// publisher serves is the record of THAT object. `size_bytes` and `sha256`
+// are what `store.rs` verifies the download against, so they are data and
+// not prose: `dev/test-engine-pin.py` re-reads the manifest and compares
+// this row field by field (home, file, size_bytes, sha256, exe_sha256).
+// Reading v1.1.0's manifest beside v1.1.1's settles the one question the
+// row's comment answers: the archives differ in size (11 205 316 ->
+// 11 207 195) and digest (9ee5d9f5… -> a90d88a1…), and their launchers do
+// not — exe_sha256 327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde
+// in BOTH manifests.
 const ASSETS: &[Asset] = &[
     // The macOS arm64 engine is Kalsa's own fork of llama.cpp, not upstream.
     // Upstream ignores `X-Kalsa-Cache-Salt` and `X-Kalsa-Slot`, so mounting
@@ -215,19 +225,24 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.0-bin-macos-arm64.tar.gz",
+        file: "kalsa-server-v1.1.1-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
         // `exe_sha256` is the thin launcher `kalsa-server`, the binary the
         // archive's `libllama-server-impl.dylib` is loaded by. Its bytes do
-        // NOT change between v1.0.0 and v1.1.0 (measured: identical), so it
-        // is NOT the version identity — the ARCHIVE `sha256` is, and it is
-        // the only number that tells the two releases apart.
+        // NOT change between v1.1.0 and v1.1.1 — VERIFIED, not deduced:
+        // both releases' published manifests state exe_sha256
+        // 327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde,
+        // read live on 2026-09-23, and the concurrency artifact records that
+        // same digest as `provenance.engine_sha256` for the binary that
+        // actually ran. So it is NOT the version identity — the ARCHIVE
+        // `sha256` is, and it is the only number that tells the two
+        // releases apart.
         // `crates/kalsa-runtime/src/marker.rs` keeps using this digest only
         // as an integrity check on the launcher, never to tell versions
         // apart.
         exe_sha256: Some("327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"),
-        size_bytes: Some(11_205_316),
-        sha256: Some("9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034"),
+        size_bytes: Some(11_207_195),
+        sha256: Some("a90d88a1650367c6821f70e625a4ff2d43744d5986580c206434381a732075a7"),
     },
     // No Intel macOS engine row, on purpose. `Platform::MacX64` stays so an
     // Intel Mac is identified honestly, but the fork publishes no x64
@@ -450,19 +465,20 @@ mod tests {
         // This row is the one thing between the door's cache salt and an
         // engine that ignores it, so its identity is pinned exactly: the
         // fork's CDN home, the versioned file name, and the three numbers
-        // measured from the CDN. One wrong digit is a download that either
-        // fails verification or mounts the wrong engine.
+        // read from that release's own published manifest. One wrong digit
+        // is a download that either fails verification or mounts the wrong
+        // engine.
         let rows = assets_for(Platform::MacArm64, ServerBackend::Metal);
         assert_eq!(rows.len(), 1);
         let row = rows[0];
         assert_eq!(row.role, Role::Engine);
         assert_eq!(row.home, FORK_BASE);
-        assert_eq!(row.file, "kalsa-server-v1.1.0-bin-macos-arm64.tar.gz");
+        assert_eq!(row.file, "kalsa-server-v1.1.1-bin-macos-arm64.tar.gz");
         assert_eq!(row.format, Some(ArchiveFormat::TarGz));
-        assert_eq!(row.size_bytes, Some(11_205_316));
+        assert_eq!(row.size_bytes, Some(11_207_195));
         assert_eq!(
             row.sha256,
-            Some("9ee5d9f5199475844c99ac93272d429711b2f58d2a7c5d652c7495a391c5f034"),
+            Some("a90d88a1650367c6821f70e625a4ff2d43744d5986580c206434381a732075a7"),
             "the archive digest is the version identity"
         );
         assert_eq!(
