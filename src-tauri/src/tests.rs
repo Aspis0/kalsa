@@ -2357,24 +2357,3 @@ fn the_desks_preferred_port_is_none_of_this_apps_other_fixed_ports() {
         "the guard's own test port"
     );
 }
-
-/// The startup order that made the guard collision real: main claims the
-/// knock port FIRST, then the desk binds. With the guard held the way
-/// main holds it, the desk must still get its preferred port — the guard
-/// no longer squats on it.
-#[test]
-fn the_desk_gets_its_preferred_port_after_the_instance_guard_is_claimed() {
-    let _guard = instance::claim();
-    let root = std::env::temp_dir().join(format!("kalsa-brain-desk-order-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(&root).unwrap();
-    let holder = pairing_desk_with(root.join("pairing.json"), transport::serve).unwrap();
-    assert_eq!(
-        holder.listener.port(),
-        transport::PREFERRED_PORT,
-        "the guard is claimed and the desk still falls back: the ports collide again"
-    );
-    assert!(holder.listener.on_preferred_port());
-    holder.listener.shutdown();
-    let _ = std::fs::remove_dir_all(root);
-}

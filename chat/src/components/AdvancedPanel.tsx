@@ -372,9 +372,16 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
                   ]
                     .filter((command) => command !== null)
                     .join(" · ")}.`,
-                  "The phone chats at this computer's tailnet name and pairs at that name with :8443.",
+                  dto.door_port && dto.desk_port
+                    ? "The phone chats at this computer's tailnet name and pairs at that name with :8443."
+                    : dto.door_port
+                      ? "The phone chats at this computer's tailnet name."
+                      : "The phone pairs at this computer's tailnet name with :8443.",
+                  // True for a first-time owner too: the panel cannot know
+                  // whether a serve rule exists, only where the desk is and
+                  // what the second command must say.
                   dto.desk_port && dto.desk_port_preferred === false
-                    ? `The pairing desk is on ${dto.desk_port} this time — run its command again with this number.`
+                    ? `The pairing desk is on ${dto.desk_port} this time instead of its usual one — the second command must point at this number.`
                     : null,
                 ]
                   .filter((part) => part !== null)

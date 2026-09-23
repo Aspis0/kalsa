@@ -132,11 +132,22 @@ function tailscaleNote(
   ]
     .filter((command) => command !== null)
     .join(" · ");
+  // True for a first-time owner too: the DTO cannot know whether a serve
+  // rule exists, so the sentence only states where the desk is and what
+  // the second command must say.
   const moved =
     isPort(deskPort) && !deskOnPreferred
-      ? ` The pairing desk is on ${deskPort} this time — run its command again with this number.`
+      ? ` The pairing desk is on ${deskPort} this time instead of its usual one — the second command must point at this number.`
       : "";
-  return `Run for Tailscale: ${commands}. The phone chats at this computer's tailnet name and pairs at that name with :8443.${moved}`;
+  // Each road is named only when its command is: a sentence about a road
+  // with no command would be a promise the note does not keep.
+  const where =
+    isPort(doorPort) && isPort(deskPort)
+      ? "The phone chats at this computer's tailnet name and pairs at that name with :8443."
+      : isPort(doorPort)
+        ? "The phone chats at this computer's tailnet name."
+        : "The phone pairs at this computer's tailnet name with :8443.";
+  return `Run for Tailscale: ${commands}. ${where}${moved}`;
 }
 
 interface DevicesSurfaceProps {

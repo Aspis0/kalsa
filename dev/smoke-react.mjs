@@ -697,12 +697,12 @@ try {
         problems.push(`the note's desk command must name the card's own desk number ${deskPort}: ${heading}`);
       }
       const movedExpected = deskPort !== null && !deskPreferred;
-      if (all.includes("this time — run its command again") !== movedExpected) {
-        problems.push(
-          movedExpected
-            ? `a desk on a fallback number must say the pairing command moved: ${heading}`
-            : `a desk on its preferred number must not claim a move: ${heading}`,
-        );
+      const movedLine = all.match(/on (\d+) this time instead of its usual one/);
+      if (movedExpected && Number(movedLine?.[1]) !== deskPort) {
+        problems.push(`a desk on a fallback number must say it is on the card's own desk number ${deskPort}: ${heading}`);
+      }
+      if (!movedExpected && movedLine) {
+        problems.push(`a desk on its preferred number must not claim a move: ${heading}`);
       }
     }
   }
