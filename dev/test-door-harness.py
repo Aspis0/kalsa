@@ -524,15 +524,26 @@ def case_9():
 
 
 def case_10():
-    print("(10) G4: the probe count recomputes from the artifact's own "
-          "fields", file=sys.stderr)
+    print("(10) G4/H6: the probe count recomputes from the artifact's own "
+          "fields, at 3 decimals", file=sys.stderr)
     n = 4
     # probe_after_s = 0.3 anchors the UNITS: the probe must be recorded
     # ~300 MILLISECONDS after the barrier - a seconds-labeled field would
     # read ~0.3 and fail here (it did: the first live run recorded
-    # streams_done 7.4 for a 7404 ms generation).
-    fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(
-        True, n, probe_after_s=0.3)
+    # streams_done 7.4 for a 7404 ms generation). The drive repeats until
+    # streams_sent_ms has index 0 NOT at the max: only then does the
+    # max() baseline of sent_after_ms differ from streams_sent_ms[0], so
+    # B's P3 mutation can go red deterministically (a spread where [0] IS
+    # the max would let it survive).
+    probe = None
+    spread = 0.0
+    for _ in range(30):
+        fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(
+            True, n, probe_after_s=0.3)
+        spread = (max(probe["streams_sent_ms"])
+                  - min(probe["streams_sent_ms"]))
+        if max(probe["streams_sent_ms"]) != probe["streams_sent_ms"][0]:
+            break
     for key in ("probe_sent_ms", "probe_answered_ms", "streams_sent_ms",
                 "streams_done_ms", "streams_done_before_probe_answered",
                 "note"):
@@ -548,22 +559,35 @@ def case_10():
           "- perf_counter differences are seconds and must be scaled",
           300.0 <= probe["probe_sent_ms"] <= 450.0,
           repr(probe["probe_sent_ms"]))
+    stamped = (list(probe["streams_sent_ms"])
+               + list(probe["streams_done_ms"])
+               + [probe["probe_sent_ms"], probe["probe_answered_ms"]])
+    check("(10) H6: every instant carries at most 3 decimals",
+          all(v == round(v, 3) for v in stamped), json.dumps(stamped))
+    check("(10) H6: at least one instant shows a SUB-0.1 fraction - the "
+          "series is recorded at 3 decimals, not 1",
+          any(v != round(v, 1) for v in stamped), json.dumps(stamped))
+    check("(10) H6/B-P3: streams_sent_ms has a spread AND index 0 is NOT "
+          "the max - the max() baseline of sent_after_ms is exercised",
+          max(probe["streams_sent_ms"]) != probe["streams_sent_ms"][0]
+          and spread > 0,
+          f"spread={spread} ms, series={json.dumps(probe['streams_sent_ms'])}")
     recomputed = mc.count_done_before(probe["streams_done_ms"],
                                       probe["probe_answered_ms"])
     check("(10) streams_done_before_probe_answered == a recomputation from "
           "streams_done_ms and probe_answered_ms ALONE",
           recomputed == probe["streams_done_before_probe_answered"],
           f"{recomputed} vs {probe['streams_done_before_probe_answered']}")
-    check("(10) sent_after_ms recomputes from the recorded series",
+    check("(10) sent_after_ms recomputes from the recorded series with "
+          "max(streams_sent_ms) (B's P3 used streams_sent_ms[0])",
           probe["sent_after_ms"]
-          == round(probe["probe_sent_ms"] - max(probe["streams_sent_ms"]), 1),
+          == round(probe["probe_sent_ms"] - max(probe["streams_sent_ms"]), 3),
           json.dumps(probe["sent_after_ms"]))
     drift = abs(probe["wall_ms"] - (probe["probe_answered_ms"]
                                     - probe["probe_sent_ms"]))
     check("(10) wall_ms agrees with the recorded instants within the "
-          "three-rounding bound (<= 0.25 ms: wall, sent and answered are "
-          "each rounded to 0.1 independently)", drift <= 0.25,
-          f"{drift} ms")
+          "rounding bound (<= 0.25 ms: wall to 0.01, instants to 0.001)",
+          drift <= 0.25, f"{drift} ms")
     check("(10) the note declares the probe an ACTIVE fifth request "
           "through the door's worker path (proxy.rs:51)",
           "ACTIVE fifth request" in probe["note"]
@@ -571,6 +595,11 @@ def case_10():
     check("(10) the count formula: streams finishing at 10/20/30/40 vs an "
           "answer at 25 -> exactly 2",
           mc.count_done_before([10.0, 20.0, 30.0, 40.0], 25.0) == 2)
+    check("(10) THE <= BOUNDARY: a stream done at EXACTLY the probe's "
+          "answered instant counts as done before it",
+          mc.count_done_before([10.0], 10.0) == 1)
+    check("(10) ...and one tick after it does NOT count",
+          mc.count_done_before([10.001], 10.0) == 0)
     check("(10) a stream with no stamp (None) never counts",
           mc.count_done_before([10.0, None, 40.0], 25.0) == 1)
 

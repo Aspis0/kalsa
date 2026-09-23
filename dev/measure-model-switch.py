@@ -142,27 +142,29 @@ def main() -> None:
 
     doc = sp.make_doc(7, 1500)
     rows = []
+    running_build = None   # H5: the responder's own build string (phase sets it)
 
     def phase(name: str, old: Server, new: Server) -> None:
+        nonlocal running_build
         # warm-up: bring the running model to its steady state, then switch.
         warm_port = new.port + 10  # scratch server, its own port
         warm = Server(args.bin, old.model, warm_port, rd / f"warm-{name}.log")
         load_old = warm.start()
-        eh.require_running_engine(warm.port, version)
+        running_build = eh.require_running_engine(warm.port, version)
         w1 = chat_ttft(warm.port, doc)
         warm.kill()
         time.sleep(3)
 
         running = Server(args.bin, old.model, warm_port, rd / f"running-{name}.log")
         running.start()
-        eh.require_running_engine(running.port, version)
+        running_build = eh.require_running_engine(running.port, version)
         chat_ttft(running.port, doc)  # warm cache in the slot, like a live house
 
         t0 = time.perf_counter()
         running.kill()               # the switch is requested: everything dies
         fresh = Server(args.bin, new.model, new.port, rd / f"switched-{name}.log")
         load_s = fresh.start()       # process start + model load
-        eh.require_running_engine(fresh.port, version)
+        running_build = eh.require_running_engine(fresh.port, version)
         first = chat_ttft(fresh.port, doc)
         switch_s = time.perf_counter() - t0
         steady = chat_ttft(fresh.port, doc)  # the next request, right after
@@ -191,7 +193,8 @@ def main() -> None:
     (rd / "results.json").write_text(json.dumps(
         {"switches": rows,
          "provenance": {"release": release, "engine_binary": args.bin,
-                        "engine_version": version}}, indent=1))
+                        "engine_version": version,
+                        "running_engine_build": running_build}}, indent=1))
     print("model-switch measurement written")
 
 

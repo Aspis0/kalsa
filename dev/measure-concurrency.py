@@ -717,7 +717,8 @@ def require_rate_agreement(where, rec, lines):
            if x.get("kind") == "eval"
            and x.get("tokens_per_second") is not None]
     bad_eval = [v for v in raw
-                if not isinstance(v, (int, float)) or not math.isfinite(v)]
+                if not isinstance(v, (int, float)) or isinstance(v, bool)
+                or not math.isfinite(v)]
     if bad_eval:
         raise SystemExit(
             f"{where}: the engine's eval line carries a non-finite rate "
@@ -1415,15 +1416,17 @@ def run_streams_door(door_port, prompts, n_predict, credentials, server,
             f"stream slot{k} died: {errors[k]}; refusing to measure")
     # G4: everything below is computed AFTER the join, from the recorded
     # stamps only - the count is reproducible from the artifact's fields.
-    # perf_counter differences are SECONDS; the artifact speaks ms.
-    streams_sent_ms = [round((marks[k]["sent"] - t_release) * 1000, 1)
+    # perf_counter differences are SECONDS; the artifact speaks ms, at
+    # 3 decimals (H6: the boundary the count compares is then worth
+    # under a microsecond).
+    streams_sent_ms = [round((marks[k]["sent"] - t_release) * 1000, 3)
                        for k in range(n)]
-    streams_done_ms = [round((marks[k]["done"] - t_release) * 1000, 1)
+    streams_done_ms = [round((marks[k]["done"] - t_release) * 1000, 3)
                        for k in range(n)]
-    probe_sent_ms = round((t_probe_sent - t_release) * 1000, 1)
-    probe_answered_ms = round((t_probe_answered - t_release) * 1000, 1)
+    probe_sent_ms = round((t_probe_sent - t_release) * 1000, 3)
+    probe_answered_ms = round((t_probe_answered - t_release) * 1000, 3)
     probe = {
-        "sent_after_ms": round(probe_sent_ms - max(streams_sent_ms), 1),
+        "sent_after_ms": round(probe_sent_ms - max(streams_sent_ms), 3),
         "wall_ms": probe_wall,
         "status": probe_status,
         "probe_sent_ms": probe_sent_ms,
@@ -1554,7 +1557,7 @@ def door_provenance(args):
 
 def build_result(args, release, version, engine_sha256, argv, slots_dir,
                  started_utc, loadavg_before, boot, n_verify, attempts,
-                 accepted, door_probe=None):
+                 accepted, door_probe=None, running_build=None):
     """The artifact dict, extracted from main() so its SHAPE can be checked
     offline (dev/test-concurrency-shape.py): every input is a value main()
     already holds, and nothing here starts a server or reads the network
@@ -1603,6 +1606,8 @@ def build_result(args, release, version, engine_sha256, argv, slots_dir,
             "release": release,
             "engine_version": version,
             "engine_nice": NICE,
+            # H5: what the responder SAID it was, not just what we sent
+            "running_engine_build": running_build,
             "script": str(script),
             "script_sha256": sha256_file(script),
             "harness": str(harness),
@@ -1805,6 +1810,9 @@ def main():
     release = release_block(args.bin, version, manifest_url)
     if args.door_bin:
         require_matched_for_door(release)
+    # H4: mc prints its identity line like every other harness, before
+    # anything is measured.
+    print(eh.engine_identity_line(release), flush=True)
 
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     loadavg_before = loadavg()
@@ -1818,7 +1826,8 @@ def main():
         # A health check proves a server is alive, not WHICH one: the
         # responder must claim this binary's build before anything is
         # measured (engine-harness.check_running_build, offline-tested).
-        eh.require_running_engine(args.port, version)
+        # H5: the build string is RECORDED, not discarded.
+        running_build = eh.require_running_engine(args.port, version)
 
         boot = server.lines()
         init_lines = [l.strip() for l in boot if "n_slots" in l and "n_ctx_slot" in l]
@@ -1947,7 +1956,8 @@ def main():
             {"init_lines": init_lines, "kv_lines": kv_lines,
              "ctx_check": ctx_check, "swa_lines": swa_lines},
             n_verify, attempts, accepted,
-            door_probe=door_probe if door else None)
+            door_probe=door_probe if door else None,
+            running_build=running_build)
 
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         with open(args.out, "w") as f:

@@ -67,12 +67,14 @@ REQUIRED_CASES = {
 }
 
 # harnesses (a) touched: the derivation + the one identity line
+# (H4: mc prints its engine: line too - its freeze is over)
 WIRED = [
     "measure-slot-restore.py",
     "measure-unload-restore.py",
     "measure-save-on-busy-slot.py",
     "measure-prefill-ab.py",
     "measure-model-switch.py",
+    "measure-concurrency.py",
 ]
 
 # (b): who calls the responder check, and with which needle

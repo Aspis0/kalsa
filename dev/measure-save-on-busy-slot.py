@@ -184,8 +184,10 @@ def main():
         server = msr.Server(argv, work / "engine.log")
         try:
             server.start(args.port)
-            # the responder must claim this binary's build, or the run stops
-            eh.require_running_engine(args.port, version)
+            # the responder must claim this binary's build, or the run
+            # stops; H5: the build string it answered with is recorded.
+            record["provenance"]["running_engine_build"] = (
+                eh.require_running_engine(args.port, version))
             for ln in server.lines():
                 if "build" in ln and "commit" in ln:
                     record["engine_commits"][ctx] = ln.strip()[:200]

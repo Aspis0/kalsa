@@ -1330,8 +1330,11 @@ def main():
             try:
                 server.start(args.port)
                 # the responder must claim this binary's build: /health
-                # proves a server is alive, not WHICH one
-                eh.require_running_engine(args.port, version)
+                # proves a server is alive, not WHICH one - and H5: the
+                # build string is RECORDED, not discarded (all arms run
+                # the same binary, so the last write is the same fact).
+                record["provenance"]["running_engine_build"] = (
+                    eh.require_running_engine(args.port, version))
             except RuntimeError as e:
                 raise SystemExit(f"[{arm} {size}] engine refused to start: {e} "
                                  f"(log: {arm_dir / 'engine.log'})")

@@ -98,6 +98,7 @@ COMMITTED = json.loads(ARTIFACT.read_text())
 # unlisted key anywhere (provenance included) turns case (2) red.
 EXPECTED_EXTRA = {
     "provenance.via",
+    "provenance.running_engine_build",
     "provenance.context_size_per_slot",
     "provenance.prompt_tokens_per_slot",
     "provenance.prompt_seeds",
@@ -637,6 +638,12 @@ def case_8():
     msg = raised(mc.require_rate_agreement, "A",
                  {"predicted_per_second": 70.0}, bad_line)
     check("(8) G10: a non-finite ENGINE eval line refuses",
+          msg is not None and "non-finite rate" in msg, (msg or "")[:140])
+    msg = raised(mc.require_rate_agreement, "A",
+                 {"predicted_per_second": 70.0},
+                 [{"kind": "eval", "tokens_per_second": True}])
+    check("(8) H7: a BOOL on the eval side refuses as non-finite - not "
+          "silently read as 1 (the HTTP side already rejects bool)",
           msg is not None and "non-finite rate" in msg, (msg or "")[:140])
 
     # --- G11: a stream thread that died ends the run -------------------

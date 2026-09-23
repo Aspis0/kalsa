@@ -462,8 +462,9 @@ def main():
         server = Server(argv, work / f"server_{name}.log")
         print(f"[engine {name}] starting on {port}", flush=True)
         server.start(port)
-        # the responder must claim this binary's build, or the run stops
-        eh.require_running_engine(port, version)
+        # the responder must claim this binary's build, or the run stops;
+        # H5: the build string it answered with is recorded.
+        prov["running_engine_build"] = eh.require_running_engine(port, version)
         boot = server.lines()
         eng = {
             "argv": argv, "port": port, "slot_dir": str(slot_dir),
@@ -516,8 +517,9 @@ def main():
         server = Server(argv, work / f"server_ram_{size}.log")
         print(f"[engine {name} {size}] starting on {port}", flush=True)
         server.start(port)
-        # the responder must claim this binary's build, or the run stops
-        eh.require_running_engine(port, version)
+        # the responder must claim this binary's build, or the run stops;
+        # H5: the build string it answered with is recorded.
+        prov["running_engine_build"] = eh.require_running_engine(port, version)
         boot = server.lines()
         eng = {
             "argv": argv, "port": port,

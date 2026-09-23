@@ -314,8 +314,11 @@ def run_arm(label, ident, size, args, burners=0, heat_s=0):
             print(f"  load under burners: {msr.loadavg()}", flush=True)
         server.start(args.port)
         # the responder must claim THIS arm's binary build (fork or
-        # release), or the run stops
-        eh.require_running_engine(args.port, ident["version"])
+        # release), or the run stops; H5: recorded per arm, because the
+        # two arms run DIFFERENT binaries and one provenance key cannot
+        # hold both honestly.
+        rec["running_engine_build"] = eh.require_running_engine(
+            args.port, ident["version"])
         rec["loadavg_arm_start"] = msr.loadavg()
         chat, _, sent = msr.make_chat(args.port, 1000 + size, size)
         chat_tokens = len(msr.tokenize(args.port, chat))
