@@ -17,6 +17,7 @@ jest.mock("react-native", () => {
   return {
     ActivityIndicator: host("ActivityIndicator"),
     Pressable: host("Pressable"),
+    ScrollView: host("ScrollView"),
     Text: host("Text"),
     TextInput: host("TextInput"),
     View: host("View"),
@@ -45,6 +46,26 @@ jest.mock("../theme/tokens", () => ({
   spacing: { xs: 4, sm: 8, md: 12, lg: 16 },
 }));
 
+jest.mock("../theme/design", () => ({
+  modes: { light: { page: "#fff", surface: "#fff", line: "#ccc", ink: "#111", ink2: "#444", ink3: "#777", danger: "#900", brand: "#063", brandDeep: "#042", onBrand: "#fff" } },
+  radius: { field: 8, button: 8 },
+  space: { xs: 4, sm: 8, md: 12, lg: 16 },
+  type: { body: {}, bodyStrong: {}, secondary: {} },
+}));
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
+}));
+
+jest.mock("./SettingsHeader", () => ({
+  SettingsHeader: (props: Record<string, unknown>) =>
+    require("react").createElement("SettingsHeader", props),
+}));
+
+jest.mock("../pairing/pairingCredentialStore", () => ({
+  savePairingCredential: jest.fn(),
+}));
+
 jest.mock("../theme/typography", () => ({
   fontFamilies: { bodySemi: "semi" },
   useTypography: () => ({ bodySm: {}, bodyXs: {} }),
@@ -52,6 +73,7 @@ jest.mock("../theme/typography", () => ({
 
 jest.mock("../ui/labTheme", () => ({
   useLabTheme: () => ({
+    mode: "light",
     colors: {
       accent: "#0af",
       bad: "#f00",
@@ -267,7 +289,7 @@ function fieldInput(
   }
 }
 
-async function render(): Promise<ReactTestRenderer> {
+async function render(onOpenPairing: (doorUrl: string) => void = jest.fn()): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
@@ -275,6 +297,7 @@ async function render(): Promise<ReactTestRenderer> {
         currentModelId: "local-model",
         busy: false,
         onSelectModel: jest.fn(),
+        onOpenPairing,
       }),
     );
   });
@@ -552,6 +575,19 @@ describe("RemoteBrainSettings hydration", () => {
     });
 
     expect(backendMock.testRemoteConnection).toHaveBeenCalledTimes(1);
+    await unmount(renderer);
+  });
+
+  test("remote settings opens pairing with the configured door address as a prefill", async () => {
+    const onOpenPairing = jest.fn();
+    const renderer = await render(onOpenPairing);
+    await finishHydration();
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "remote-brain.open-pairing" }).props.onPress();
+    });
+
+    expect(onOpenPairing).toHaveBeenCalledWith(STORED_URL);
     await unmount(renderer);
   });
 });

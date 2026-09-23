@@ -112,6 +112,7 @@ import { getBenchNCtx, getBenchNoRepack, getEngineOverride, getThinkingMode, set
 import { GlassPanel2 } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
+import { PairingScreen } from "./PairingScreen";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -205,6 +206,8 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
   const [page, setPage] = useState<"home" | "advanced">("home");
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const [pairingDoorUrl, setPairingDoorUrl] = useState("");
 
   // Production "default" is thinking-on with the model's short budget.
   // The picker shows the two user-facing live budgets.
@@ -921,12 +924,16 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   }, [busy, dirty, onBack, t]);
 
   const handlePageBack = useCallback(() => {
+    if (pairingOpen) {
+      setPairingOpen(false);
+      return;
+    }
     if (page === "advanced") {
       setPage("home");
       return;
     }
     handleBack();
-  }, [handleBack, page]);
+  }, [handleBack, page, pairingOpen]);
 
   /** Guards double-tap: two rapid Help taps must not stack two discard Alerts. */
   const helpConfirmPendingRef = useRef(false);
@@ -1434,6 +1441,16 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
         calendarToolsEnabled={calendarToolsEnabled}
         onToggleCalendarTools={handleToggleCalendarTools}
         appVersion={APP_VERSION}
+      />
+    );
+  }
+
+  if (pairingOpen) {
+    return (
+      <PairingScreen
+        initialDoorUrl={pairingDoorUrl}
+        currentModelId={model.currentModelId}
+        onBack={() => setPairingOpen(false)}
       />
     );
   }
@@ -2455,6 +2472,10 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           currentModelId={model.currentModelId}
           busy={modelBusy}
           onSelectModel={model.onSelectModel}
+          onOpenPairing={(doorUrl) => {
+            setPairingDoorUrl(doorUrl);
+            setPairingOpen(true);
+          }}
         />
 
         {/* ── Models ───────────────────────────────────────────────────── */}

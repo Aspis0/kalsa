@@ -39,9 +39,10 @@ type Props = {
   currentModelId: string;
   busy: boolean;
   onSelectModel: (modelId: string) => void;
+  onOpenPairing?: (doorUrl: string) => void;
 };
 
-export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Props) {
+export function RemoteBrainSettings({ currentModelId, busy, onSelectModel, onOpenPairing }: Props) {
   const { t } = useLocale();
   const { colors } = useLabTheme();
   const typography = useTypography();
@@ -477,6 +478,17 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         <Text style={[typography.bodyXs, { color: colors.muted }]}>
           {t("settings.remoteGated")}
         </Text>
+      ) : null}
+      {onOpenPairing ? (
+        <Pressable
+          testID="remote-brain.open-pairing"
+          accessibilityRole="button"
+          accessibilityLabel={t("pairing.open")}
+          onPress={() => onOpenPairing(url)}
+          style={{ alignSelf: "flex-start", paddingVertical: spacing.xs, paddingHorizontal: spacing.sm }}
+        >
+          <Text style={[typography.bodySm, { color: colors.accent }]}>{t("pairing.open")}</Text>
+        </Pressable>
       ) : null}
     </GlassPanel2>
   );
