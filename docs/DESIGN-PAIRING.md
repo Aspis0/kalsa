@@ -1,167 +1,100 @@
-# DESIGN-PAIRING — the phone side of the QR ceremony (draft, 2026-09-24)
+# DESIGN-PAIRING — the phone side of the QR ceremony
 
-Written for the Brain session to review against the desktop's half (`/Users/marco/Projects/kalsa-brain`,
-branch `brain`). **Every technical fact below is a placeholder until the answers file arrives**: the
-desktop's explorer is drafting `kalsa-brain-qr-room-answers.md` with a verbatim `path:line` quote for
-every claim, and the Brain session will verify the quotes before sending me the path. Nothing here
-invents a protocol; where a fact is missing it says `[WAITING: question n]`, referring to the eight
-questions already in its hands.
+Revised 2026-09-24 after a hostile review by **gpt-6-luna** (a different model from the one that wrote
+it) against the desktop half, which returned **NON FIT** with seven findings. Every desktop line quoted
+below was re-checked by the Brain session itself before it reached me. The facts come from
+**`ANSWERS-PAIRING-AND-ROOM-2026-09-23.md`** at `brain` `8ae9617`, not from the earlier draft.
 
-## Why this feature exists, and why it is the next one
+## Read this first: what stops the work
 
-The app can already answer from the phone. It cannot yet answer from the owner's computer, and that is
-where the product's second half lives — the same half whose client just landed on app `main` (`d69b4ce`).
-The phone has **no way to join a computer**: no scanner, no camera permission, no credential storage.
-The desktop's side of the ceremony exists (`pairing.js`, 261 lines of the wizard, plus
-`src-tauri/src/pairing.rs`, where the add path is called *the phone ceremony*), and the hub's own words
-are **"no QR has ever been scanned end to end"**. So this is not adding a reader to something that works:
-it is closing a ceremony that has never met itself.
+**There is no route to the pairing desk.** The square advertises **loopback by design**
+(`src-tauri/src/pairing.rs:11`: *"The square advertises loopback and nothing else."*; the listener binds
+`Ipv4Addr::LOCALHOST`, `transport.rs:128`), so a phone that posts to `reachable` reaches **its own**
+loopback. The only tunnel that exists forwards to the **door**, not to the desk
+(`crates/kalsa-iroh/src/bridge.rs:6-7`), and it is **off by default** (`options.rs:48-53`). The desktop
+also offers **no square at all unless its server is up** (`pairing.rs:246-249`).
 
-**And the room depends on it**: the room is for several devices, devices join by pairing, so the
-ceremony comes first.
+So: **the scanning state is not buildable into a working flow today, and this document does not pretend
+otherwise.** What ships today on the phone is the port's **typed address**, which is a different door and
+belongs to `main`, not here. This design waits, and the waiting is the honest state:
 
-## Where it lives in our design language
+> **Il collegamento col codice arriva con una prossima versione.** *(No camera, no QR, no promise.)*
 
-A row in **Settings › ASSISTENTE**, under *Dove risponde*: **"Il tuo computer"**, with a subtitle that is
-a fact and not a promise — `Non collegato` / `Collegato: MacBook di Marco`. Tapping it opens the
-**Pairing screen** (§3.4 grammar: centred title, back chevron, one primary action, editing in sheets).
-The *Dove risponde* sheet gains a third row, **"Il tuo computer"**, disabled with a subtitle
-`Non collegato — tocca per collegarlo`, which routes to the same screen: the place a person looks for
-the computer is where they chose where the answer comes from.
+## Then: the ceremony's lifecycle, which dictates every retry and every cancel
 
-## The screen, state by state
+The protocol is `POST /pair/claim` then `POST /pair/complete` (`transport.rs:430`, `:437`). Its lifecycle
+is unforgiving, and the phone's buttons follow it exactly:
+
+| Moment | What is true on the desktop | What the phone may do |
+|---|---|---|
+| before the claim | the code is live for **120 s** and is **one-shot** (`ceremony.rs:13`, `pairing.rs:36`) | scan, or leave |
+| a successful claim | **the code is consumed** (`ceremony.rs:13-15`) | **never claim again with the same code** |
+| after the claim | the transport has no abort endpoint — a cancel **does nothing** | **cancel is disabled**; only waiting is honest |
+| a failed completion | the ceremony is **burned for good**, even for a later valid proof (`ceremony.rs:195-199`) | ask for a **fresh square**, in words that do not blame the person |
+| a lost completion response | the seal is kept until acknowledged (`pairing.rs:396-404`, `:480-484`) | **retry `complete` with the same delivery token** — this is the one retry that is both safe and required |
+
+## Invariants
+
+1. **The QR is a bearer secret, not a display.** `crates/kalsa-pairing/src/payload.rs:24` — *"this struct
+   holds the code in the clear — that is its job, in the QR and nowhere else"*; `pairing.rs:16-19` —
+   *"showing the square IS the decision"*. There is **no second approval**: whoever holds a photograph of
+   the square, within its 120 s window, can claim and complete first. So the raw payload **never** reaches
+   logs, analytics, crash reports, the clipboard or a deep link, and the scanning state **echoes the
+   desktop's own warning** (`DevicesSurface.tsx:14`: *"Anyone who can see this square can connect a phone
+   — show it only to yours."*).
+2. **The camera is on only while scanning**, and released the moment a code is read, the screen is left, or
+   the app backgrounds.
+3. **The phone never learns a name for the computer.** The square carries `v`, `reachable`, `code`,
+   `nonce` and optionally `node` (`payload.rs:28-49`); the answer carries `credential_ciphertext` and `mac`
+   only (`messages.rs:260-264`); the label is assigned on the desktop *for the phone* (`pairing.rs:425`).
+   So the screen says **"Il tuo computer"** — not a preference, the only label the protocol can support.
+4. **The credential lives in the platform store** (Keychain / Keystore through SecureStore) and nowhere
+   else. Deleting it here **deletes it here**: see the next invariant for what it does not do.
+5. **"Rimuovi da questo telefono" is the honest verb, not "Disconnetti".** Freeing a seat is the owner's
+   action **on the desktop**, by device id (`pairing.rs:330-333`, `forget_device`); the phone has no revoke
+   call. The screen says so: the computer keeps its seat until it is removed there.
+6. **Workers are not seats.** `WORKERS = 4` counts concurrent **exchanges** (`crates/kalsa-door/src/lib.rs:88`),
+   while seats are one per stored device and come from the engine's `--parallel` (`main.rs:515-516`,
+   `:1053-1055`). One phone can hold **two workers at once** (a stream plus a probe). So no screen may say
+   "the computer serves itself and three phones" — that sentence can be false.
+7. **No scarcity story for the room.** The room's turn order is a design choice of the hub's, not a
+   consequence of the door's pool: no room scheduler exists, and the pool does not force one.
+
+## The states, for the day the route exists
 
 | State | What is on screen | The one action | Copy |
 |---|---|---|---|
-| **0 — not connected** | one paragraph, then the button | **Scansiona il codice** (filled) | *"Kalsa desktop mostra un codice. Inquadralo con la fotocamera per collegare questo telefono al tuo computer. La conversazione andrà al computer solo quando scegli di usarlo."* |
-| **1 — camera permission refused** | one paragraph, no camera view | **Apri le impostazioni** (filled) | *"Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema del telefono."* |
-| **2 — scanning** | the camera, a plain frame, one line under it | **Annulla** (text) | *"Inquadra il codice che vedi su Kalsa desktop."* |
-| **3 — checking** | a progress line, cancellable | **Annulla** (text) | *"Sto collegando…"* |
-| **4 — connected** | **Il tuo computer** — the protocol carries no name (see the verified answers, fact 5), so the owner's words are not a preference here, they are the only honest label — with when it was last reached and what it is for | **Disconnetti** (secondary, destructive-ish) | *"Questo telefono può usare il tuo computer. La chat resta sul telefono finché non scegli un modello sul computer."* |
-| **5 — the computer is busy** | the same as 4, with the queue line. The door answers an **empty 503** (`crates/kalsa-door/src/lib.rs:125-126`), so these words are ours to write and the status code is the only signal | **Riprova** (secondary) | *"Il computer sta già servendo sé stesso e tre telefoni. La tua richiesta partirà appena uno si libera."*
-The owner's reading of the number: **n=4 is one computer plus three phones** — the computer counts itself
-— and it is *for now*, so no copy should memorise a figure. |
+| **0 — not available in this build** | one line, no promise, no camera | *(none)* | *"Il collegamento col codice arriva con una prossima versione. Nel frattempo puoi usare il tuo computer dall'indirizzo."* |
+| **1 — camera permission refused** | one paragraph | **Apri le impostazioni** | *"Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema."* |
+| **2 — scanning** | the camera, a plain frame, and the caution | **Annulla** | *"Inquadra il codice che vedi su Kalsa desktop. Chiunque veda quel codice può collegare un telefono: mostralo solo ai tuoi."* |
+| **3 — claiming** | a progress line, cancellable **only here** | **Annulla** (allowed) | *"Sto collegando…"* |
+| **4 — completing** | the same line, and a retry that is safe | **Riprova** (no cancel) | *"Sto finendo il collegamento…"* — a lost response is retried **with the same token**, so this button must not restart a ceremony |
+| **5 — connected** | **Il tuo computer**, and the truth about the seat | **Rimuovi da questo telefono** | *"Questo telefono può usare il tuo computer. Il computer tiene il posto finché non lo rimuovi da lì."* |
+| **6 — burned ceremony** | one paragraph, no blame | **Chiedi un nuovo codice** | *"Il collegamento non è stato completato e questo codice non vale più. Sulla schermata di Kalsa desktop fanne comparire uno nuovo."* |
 
-## Failure copy, and the register it has to match
+## Refusals, keyed on status codes, because the door says nothing
 
-The hub's own note says the desktop's error copy is already better than ours — `shots/05-denied.png`
-reads *"The server did not accept the key. It answered 401 — the token is missing, wrong, or expired.
-Check it in Settings and try again."*, with **Try again** and **Open settings**. So the phone's failures
-are written the same way: what happened, what it means, what the person can do — never "Errore 401".
+The door gives a waiting phone **no words**: an **empty 403** for every pairing failure, an **empty 503**
+for pressure, an **empty 401** for a bad credential. Every sentence below is therefore ours.
 
-| Failure | Copy | Actions |
-|---|---|---|
-| the code is not ours | *"Questo codice non è di Kalsa. Inquadra quello che Kalsa desktop mostra nella sua schermata di accoppiamento."* | Riprova · Annulla |
-| the computer does not answer | *"Il computer non risponde. Controlla che Kalsa desktop sia aperto e che telefono e computer siano sulla stessa rete."* — **and the timeout behind this sentence must be longer than a long answer**: every request takes a door worker, the readiness probe included (`crates/kalsa-door/src/proxy.rs:51-53`), so a probe during four streams waits 6 376.7 ms and a short timeout would call a **busy** computer a **dead** one | Riprova · Annulla |
-| the pairing desk is busy (empty 403, `src-tauri/src/transport.rs:481`) | *"C'è già un collegamento in corso con questo computer. Aspetta che finisca e riprova."* | Riprova · Annulla |
-| the code is old | *"Il codice è scaduto. Fanne generare uno nuovo su Kalsa desktop e inquadralo."* | Riprova · Annulla `[WAITING: question 3 — is the code one-shot or does it expire?]` |
-| the key is refused (the desktop's 401) | *"Il computer non ha accettato la chiave. È mancante, sbagliata o scaduta: controllala su Kalsa desktop e riprova."* | Riprova · Impostazioni |
-| the phone cannot reach it later | *"Il tuo computer non è raggiungibile adesso. La chat resta sul telefono."* | Riprova · Passa al telefono |
+| Signal | What it actually means | Copy | Actions |
+|---|---|---|---|
+| **403, empty** — pairing | **indistinguishable** between a wrong code, an expired code, a malformed body, a failed completion and a full pairing queue (`transport.rs:445` → `:481`) | *"Il computer non ha accettato il collegamento. Chiedine uno nuovo sulla schermata di Kalsa desktop e riprova."* — **never "occupato": the phone cannot know that** | Chiedi un nuovo codice · Annulla |
+| **503, empty** — door | a request was **dropped**: the queue is full or the 12-connection cap is hit (`lib.rs:125-126`, `server.rs:163-182`) | *"Il computer non ha accettato la richiesta in questo momento. Riprova fra poco."* — **not "partirà"**: nothing is queued | Riprova |
+| **503, with a body** — door | the door's one spoken sentence: no seats left (`lib.rs:167`) | the sentence itself, quoted: *"This computer is set up for {seats} at once, and one of them is this computer…"* | Riprova |
+| **slow response, no error** | the request **is in the queue** and starts when a worker frees (`proxy.rs:95-98`), bounded by the 300 s connection lifetime (`proxy.rs:94`) | *"Il computer sta rispondendo ad altre richieste. La tua partirà appena se ne libera una."* — true **only** while there is no error | Annulla |
+| **401, empty** | a **post-pairing** credential state, not a pairing-code one (`lib.rs:113-116`) | *"La chiave di questo telefono non è più valida. Rimuovilo dal computer e collegalo di nuovo."* | Rimuovi · Riprova |
 
-## Invariants, and they are not decoration
+**And the timeout that decides which row applies must be longer than a long answer**: every request takes
+a door worker, the readiness probe included (`proxy.rs:51-53`), so a probe during four streams waits
+6 376.7 ms (`dev/results/concurrency-four-devices/results.json`, commit `7f3d28f`). A short timeout turns
+the "slow response" row into the "not reachable" one, and a busy computer into a dead one.
 
-1. **The camera is on only in state 2.** It is released the moment the code is read, the screen is left,
-   or the app goes to the background. A scanner that keeps a camera warm is a battery and a trust
-   problem at once.
-2. **The payload is never shown in full, and never logged.** It is a credential, and the phone's job is
-   to swallow it, not to display it.
-3. **What the phone stores** `[WAITING: question 3]` — where it lives (the app's private storage), what
-   it is (a key? an address? both?), and whether the screen must offer to forget it. My design assumes a
-   **Disconnetti** in state 4 does forget it, and says so plainly.
-4. **The first call after scanning is `POST /pair/claim`, then `POST /pair/complete`**
-   (`src-tauri/src/transport.rs:430`, `:437`) — and **the road that carries it from a phone does not
-   exist yet**: the square advertises loopback (`src-tauri/src/pairing.rs:11`), the only tunnel forwards
-   to the door rather than to the pairing desk (`crates/kalsa-iroh/src/bridge.rs:6-7`) and is off by
-   default (`src-tauri/src/options.rs:48-53`). **So this screen cannot complete a pairing today**, and it
-   must not pretend it can: it is designed for the day the road is open, and until then building it would
-   build a door onto a wall.
-5. **Nothing about Tailscale appears on this screen.** The owner's line is that Pro exists *for people
-   who do not want to set up Tailscale themselves*: a screen that names a VPN would be answering a
-   question the person did not ask. The network only shows up in the failure copy, as "the same network".
-6. **A seat is a device, confirmed in code**: `src-tauri/src/main.rs:1053-1055` reserves a seat per stored device, and the door's one spoken sentence says *"one of them is this computer"* (`crates/kalsa-door/src/lib.rs:167`) — which is the owner's *one computer plus three phones*, in the code's own words. The owner's clarification made this near-certain: n=4 is *one computer
-   plus three phones*, which matches the hub's own language about **four seats, one of them yours**, and the
-   note that the machine running the server registers itself without a QR. So the computer holds a seat
-   from first launch, phones join by pairing, and the room's `[WAITING: question 8]` is now a confirmation
-   rather than an open question.
+## Open, and not mine to close
 
-## What exists on main today, so this design is not mistaken for the current door
-
-The port that landed on app `main` (`d69b4ce`) connects by **typing the computer's address** — its own
-hint reads *"Use your computer as the model. Set its address below."* — and it labels the mode
-**"Remote brain"**. So the QR this document designs is the *next* door: better, but not the only one, and
-the screen has to be honest about which of the two a person is looking at. At merge time the mode label
-becomes **"Il tuo computer"** by the owner's decision, and the address field either stays as the fallback
-for a camera that will not focus or is retired — a question for the Brain session, not a guess for this
-document.
-
-## The one fact we already have, and it changes a copy line
-
-From the Brain session today: the door's pool is **4 workers with a queue of 8**
-(`crates/kalsa-door/src/lib.rs:88` `const WORKERS: usize = 4;`, `:89` `const QUEUE: usize = 8;`), one
-worker holds an exchange end to end **including streams**, and the computer is itself a door device — so
-while four devices stream, anything else waits. Measured on the release: a fifth request waited
-**6376.7 ms** (`dev/results/concurrency-four-devices/results.json`, `door_queue_probe`, commit `7f3d28f`).
-
-Two consequences, and the second is the interesting one:
-
-- the phone needs a **waiting** state that names the cause instead of spinning: state 5 above;
-- the hub's room rule — **one turn at a time** — turns out to be a *scarcity* rule as well as a
-  reproducibility rule. The door cannot do otherwise, and the phone's copy can say so honestly.
-
-## What I am not designing here
-
-The desktop's side of the wizard, the payload's schema, and the relay behind Pro: those belong to the
-Brain session and to the owner. This document stops at the phone's screens, states and words.
-
-## Questions that remain for the Brain, beyond the eight
-
-1. **Does the desktop also show a short code** a person could type, for a camera that will not focus?
-   If yes, the phone needs a second door ("Inserisci il codice a mano") and one more state.
-2. **How does a person know which computer they paired**, if they have two? The phone shows the name in
-   state 4 — where does that name come from, and can it be wrong?
-3. **What does the desktop show while a phone is scanning?** If it shows nothing, the person has two
-   screens to watch and no way to tell which one is waiting.
-
-## The verified answers, and what they changed (2026-09-23, file `ANSWERS-PAIRING-AND-ROOM-2026-09-23.md`)
-
-The Brain session answered in writing, quoting a `path:line` for every claim and checking the
-load-bearing quotes itself. Five facts, and each one moved something in this document:
-
-1. **A phone cannot finish pairing today.** The square advertises **loopback by design**
-   (`src-tauri/src/pairing.rs:11`), so a phone posting to `reachable` reaches its *own* loopback; the only
-   tunnel forwards to the **door**, not the pairing desk (`crates/kalsa-iroh/src/bridge.rs:6-7`) and is
-   **off by default** (`src-tauri/src/options.rs:48-53`). The protocol is defined — `POST /pair/claim`
-   then `POST /pair/complete` — over a road that does not exist. **Consequence: this screen is designed
-   for the day the road is open, and it should not be built before that day**, unless we want to ship a
-   door onto a wall.
-2. **A seat is a device; the computer holds one.** `src-tauri/src/main.rs:1053-1055`; the door's only
-   spoken refusal: *"This computer is set up for {seats} at once, and one of them is this computer."*
-   (`crates/kalsa-door/src/lib.rs:167`). Invariant 6 above is now a fact rather than an expectation.
-3. **A waiting phone gets no words from the door.** Pool and queue refuse with an **empty 503**
-   (`lib.rs:125-126`), a bad credential with an **empty 401** (`lib.rs:113-116`), the pairing desk's queue
-   with an **empty 403** (`transport.rs:481`). Every sentence in this document is therefore ours, keyed on
-   the status code — and the hub says the same about itself: the queue *"owes a waiting device"* those
-   sentences (`WHAT-IS-MISSING.md:229-231`).
-4. **The readiness probe is not free.** `/props` and the model listing are forwarded by the same path as a
-   completion (`crates/kalsa-door/src/proxy.rs:51-53`), which is why a probe during four streams waits
-   6 376.7 ms. The timeout rule is in the failure table.
-5. **The phone learns no name for the computer.** The square carries `v`, `reachable`, `code`, `nonce` and
-   optionally `node` (`crates/kalsa-pairing/src/payload.rs:28-49`); the answer carries
-   `credential_ciphertext` and `mac` only (`crates/kalsa-pairing/src/messages.rs:260-264`); the label is
-   assigned on the desktop *for the phone* (`src-tauri/src/pairing.rs:425`). So a computer's name on this
-   screen would need a protocol field that does not exist, and **"Il tuo computer" needs none** — the
-   owner's words turn out to be the only version the protocol can support.
-
-And the three extra questions:
-
-- **No short code to type.** The code is 32 hex (`crates/kalsa-pairing/src/qr.rs:19`) and the desktop
-  never shows it as text: it shows the square with *"Point your phone's camera at the square."*
-  (`chat/src/surfaces/DevicesSurface.tsx:13`). A typed fallback would be a new state on **both** sides —
-  an owner decision, not a design detail.
-- **The name question** is answered above.
-- **What the desktop shows while a phone scans: nothing, because scanning is invisible to it.** It shows
-  the instruction and a warning we should echo in our own words — *"Anyone who can see this square can
-  connect a phone — show it only to yours."* (`DevicesSurface.tsx:14`) — and only when a claim arrives
-  does it say *"A phone is connecting right now."* (`:160`). Our scanning state should carry the same
-  caution, because the phone's screen is where a person decides whether to point the camera at a square
-  somebody else can see.
+1. **Should a photograph of the square be enough?** Today it is: the code is a bearer secret with no second
+   approval. That is a protocol decision on the desktop side, and the Brain session is putting it to the owner.
+2. **A typed fallback.** The code is 32 hex (`qr.rs:19`) and the desktop never shows it as text; a typed
+   door would be a new state on **both** sides.
+3. **The route.** Until the desk is reachable from a phone, none of these states can be exercised end to
+   end — and a scanner built before it would be a door onto a wall.
