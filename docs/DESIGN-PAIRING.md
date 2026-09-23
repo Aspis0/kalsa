@@ -38,8 +38,9 @@ is unforgiving, and the phone's buttons follow it exactly:
 
 1. **The QR is a bearer secret, not a display.** `crates/kalsa-pairing/src/payload.rs:24` — *"this struct
    holds the code in the clear — that is its job, in the QR and nowhere else"*; `pairing.rs:16-19` —
-   *"showing the square IS the decision"*. There is **no second approval**: whoever holds a photograph of
-   the square, within its 120 s window, can claim and complete first. So the raw payload **never** reaches
+   *"showing the square IS the decision"*. **Until 2026-09-24 a photograph of the square was enough to let a phone in.** The owner has closed that:
+   the computer now asks **"Allow this phone?"** and only an explicit Allow on the desktop admits it, so a
+   stolen photo gets as far as the gate and no further. So the raw payload **never** reaches
    logs, analytics, crash reports, the clipboard or a deep link, and the scanning state **echoes the
    desktop's own warning** (`DevicesSurface.tsx:14`: *"Anyone who can see this square can connect a phone
    — show it only to yours."*).
@@ -74,6 +75,7 @@ is unforgiving, and the phone's buttons follow it exactly:
 | **3a — code read, nothing sent** | the code is in hand and **nothing has left the phone** | **Annulla** (safe: the payload is discarded here) | *"Sto collegando…"* |
 | **3b — claim sent** | the claim is on the wire and the one-shot code **may already be consumed** — the phone cannot know which | **no cancel.** Wait, or on failure **Chiedi un nuovo codice** | *"Sto collegando…"* |
 | **4 — completing** | the same line, and a retry that is safe | **Riprova** (no cancel) | *"Sto finendo il collegamento…"* — a lost response is retried **with the same token**, so this button must not restart a ceremony |
+| **4b — waiting for the owner** | one line, and the truth that the phone cannot make this happen | **no action** — the decision is on the computer | *"Conferma sul computer: apri Kalsa desktop e consenti questo telefono."* — and a refusal, or a wait that runs too long, ends the attempt and needs a new square |
 | **5 — connected** | **Il tuo computer**, and the truth about the seat | **Rimuovi da questo telefono** | *"Questo telefono può usare il tuo computer. Il computer tiene il posto finché non lo rimuovi da lì."* |
 | **6 — burned ceremony** | one paragraph, no blame | **Chiedi un nuovo codice** | *"Il collegamento non è stato completato e questo codice non vale più. Sulla schermata di Kalsa desktop fanne comparire uno nuovo."* |
 
@@ -89,6 +91,11 @@ for pressure, an **empty 401** for a bad credential. Every sentence below is the
 | **503, with a body** — door | the door's one spoken sentence: no seats left (`lib.rs:167`) | the sentence itself, quoted: *"This computer is set up for {seats} at once, and one of them is this computer…"* | Riprova |
 | **slow response, no error** | the request may be queued (`proxy.rs:95-98`) or **already running**, bounded by the 300 s connection lifetime (`proxy.rs:94`) — and the phone can see **neither** a queue position nor the difference | *"Il computer non ha ancora risposto."* — true and observable. **Not "è in coda" and not "partirà":** neither is observable from here, and a request that entered the queue is not punished for the wait | Annulla |
 | **401, empty** | a **post-pairing** credential state, not a pairing-code one (`lib.rs:113-116`) | *"La chiave di questo telefono non è più valida. Rimuovilo dal computer e collegalo di nuovo."* | Rimuovi · Riprova |
+
+**Two timeouts, and they are not the same number.** The one that decides the refusal rows must be
+longer than a long answer (below); the one that waits for the owner's Allow must cover **a human decision**,
+because someone has to read a sentence, walk to the computer and press a button. No figure is written here:
+the contract is not chosen yet, and a number invented now is a guess wearing a specification's clothes.
 
 **And the timeout that decides which row applies must be longer than a long answer**: every request takes
 a door worker, the readiness probe included (`proxy.rs:51-53`), so a probe during four streams waits
@@ -140,10 +147,18 @@ needs a generic *"la connessione è caduta"* with a retry, not a diagnosis.
 
 ## Open, and not mine to close
 
-1. **Should a photograph of the square be enough?** Today it is: the code is a bearer secret with no second
-   approval, and **the scanning implementation stays blocked until the owner either accepts that or the
-   desktop adds a second approval** — building a camera around an unresolved authorization question would
-   spend the work twice. The question is with the owner, through the Brain session.
+1. **A photograph is no longer enough** (owner, 2026-09-24): the computer asks **"Allow this phone?"** and
+   only an explicit Allow admits it. The camera and scanning states are unblocked as designed, and state 4b
+   is the gate. **What is not fixed is where the gate sits**, and the two candidates change our copy
+   differently, so both are recorded until the Brain session chooses:
+   - **(A) the completion is held** until the owner decides: state 3b simply lasts longer, and a refusal or a
+     too-long wait arrives as the **generic 403**, so 4b's failure copy is the pairing-refused one (fresh square);
+   - **(B) the device is stored pending** and the door refuses its credential with a **401** until the owner
+     allows it: then 4b is a state of the connection rather than a wait inside pairing, and the 401 row must
+     stop saying *"la chiave non è più valida"* — telling someone their key is broken when it is merely
+     pending is a lie with a support ticket attached.
+   The owner's constraint is **no over-engineering**: one state and one extra sentence on the desktop, no new
+   screen, and no timing built until the contract is chosen.
 2. **A typed fallback.** The code is 32 hex (`qr.rs:19`) and the desktop never shows it as text; a typed
    door would be a new state on **both** sides.
 3. **The route.** Until the desk is reachable from a phone, none of these states can be exercised end to
