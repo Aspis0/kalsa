@@ -194,6 +194,9 @@ const scenarios = [
   ["Pairing", "a phone is connecting", "devices", { pairing: pairingDto("claiming") }],
   ["Pairing", "paired; another phone can be paired", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131 }) }],
   ["Pairing", "a phone waits for the owner's OK", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }], door_port: 8131 }) }],
+  ["Pairing", "a paired phone and one that waits for the owner's OK", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131 }) }],
+  ["Pairing", "every phone waits for the owner's OK", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }, { id: 2, label: "Waiting phone 2", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131 }) }],
+  ["Pairing", "a paired phone and one that waits for the owner's OK, its response still in flight", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], delivery_pending: true, door_port: 8131 }) }],
   ["Pairing", "saved here; the phone still needs the response", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, delivery_pending: true, door_port: 8131 }) }],
   ["Pairing", "paired; the house holds several devices", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: MANY_DEVICES, door_port: 8131 }) }],
   ["Pairing", "paired; the newest of several still waits for its response", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: MANY_DEVICES, delivery_pending: true, door_port: 8131 }) }],
@@ -283,14 +286,17 @@ function visibleLines(node, out = []) {
 
 function extract(panel, heading, automatic = []) {
   const buttonEls = elements(panel, (el) => el.tagName === "BUTTON");
+  const headlineEl = first(panel, (el) => el.className === "surface-headline");
   const sentenceEl = first(panel, (el) => el.className === "surface-sentence");
   const progressEl = first(panel, (el) => el.className === "surface-walk-progress");
   const walkEl = first(panel, (el) => el.className === "surface-walk");
   const qrEl = first(panel, (el) => el.className === "surface-qr");
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
+  const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
   const quietEls = elements(panel, (el) => el.className === "surface-quiet");
   return {
     heading,
+    headline: elementText(headlineEl),
     lines: visibleLines(panel),
     sentence: elementText(sentenceEl) || elementText(panel),
     all: elementText(panel),
@@ -301,6 +307,7 @@ function extract(panel, heading, automatic = []) {
     walk: Boolean(walkEl),
     qr: Boolean(qrEl),
     deviceNames: deviceEls.map(elementText),
+    deviceDetails: detailEls.map(elementText),
     fresh: quietEls.map(elementText).find((text) => text.includes("this one is fresh")) ?? null,
     automatic,
   };

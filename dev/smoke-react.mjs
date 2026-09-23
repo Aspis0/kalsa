@@ -630,7 +630,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, sentence, all, qr, fresh, buttons, deviceNames } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -649,11 +649,28 @@ try {
     }
     if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
     // The approval gate: a waiting phone's row says so and offers the two
-    // owner decisions, and the success sentence must not cover it.
+    // owner decisions.
     if (heading.includes("waits for the owner's OK")) {
       if (!all.includes("Waiting for your OK.")) problems.push(`a waiting phone's row must say it is waiting: ${heading}`);
       if (!buttons.includes("Allow") || !buttons.includes("Refuse")) problems.push(`a waiting phone must offer Allow and Refuse: ${heading}`);
-      if (sentence.includes("now works with")) problems.push(`the success sentence must not cover a waiting phone: ${heading}`);
+    }
+    // No success sentence covers a waiting phone, in any mix of approved
+    // and waiting; the several-phone rule above keeps waiting phones
+    // counted, not named.
+    if (deviceDetails.includes("Waiting for your OK.") && sentence.includes("now works with")) {
+      problems.push(`the success sentence must not cover a waiting phone: ${heading}`);
+    }
+    // The headline is an approval claim, and the rows are its evidence: a
+    // house whose every phone still waits for the owner's OK must not be
+    // headlined "Paired", while a mixed house keeps "Paired" for its
+    // approved phones and its waiting row says the rest.
+    const phones = deviceNames.filter((name) => name !== "This computer").length;
+    const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
+    if (phones > 0) {
+      const expected = waitingRows === phones ? "Waiting for your OK" : "Paired";
+      if (headline !== expected) {
+        problems.push(`a house with ${waitingRows} of ${phones} phones waiting must be headlined "${expected}", not "${headline}": ${heading}`);
+      }
     }
   }
 

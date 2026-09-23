@@ -47,9 +47,13 @@ interface PairingState {
 // because naming one of many reads as if the others were not real. This
 // computer's own row is not a phone and is never part of the count: "now
 // works with This computer" is not a sentence about a pairing. A phone
-// still waiting for Allow is not one this computer works with yet, so it
-// is never counted and never named as paired - when ONLY waiting phones
-// remain, the sentence says the wait instead of the success.
+// still waiting for Allow is not one this computer works with yet, so the
+// success sentence is computed from approved phones only. Where phones are
+// waiting, the sentence says the wait instead — a single waiting phone is
+// named, several are counted — and a mixed house says both facts: the house
+// counted as "paired phones", the waiting ones as waiting for the OK. The
+// pending delivery belongs to the newest phone, so where any phone waits it
+// is named "the newest phone" or not named at all.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
     (device) => device.kind !== "host",
@@ -58,8 +62,17 @@ function pairedSentence(dto: PairingState): string {
   const approved = phones.filter((device) => device.waiting !== true);
   const pending = dto.delivery_pending === true;
   if (approved.length === 0 && waiting.length > 0) {
-    const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
-    return `This computer is waiting for your OK to work with ${name}.`;
+    if (waiting.length === 1) {
+      const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
+      return `This computer is waiting for your OK to work with ${name}.`;
+    }
+    return `This computer is waiting for your OK to work with ${waiting.length} paired phones.`;
+  }
+  if (waiting.length > 0) {
+    const are = waiting.length === 1 ? "is" : "are";
+    return pending
+      ? `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK, and the newest phone has not received its connection yet.`
+      : `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK.`;
   }
   if (approved.length === 0) {
     return pending
@@ -75,6 +88,16 @@ function pairedSentence(dto: PairingState): string {
   return pending
     ? `This computer now works with ${approved.length} paired phones; the newest is still waiting to receive its connection.`
     : `This computer now works with ${approved.length} paired phones.`;
+}
+
+// Whether every phone in the house still waits for the owner's OK. The
+// headline speaks for the house: while nothing is approved, "Paired" would
+// claim a working phone; a mixed house keeps it for the approved ones.
+function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
+  const phones = (Array.isArray(devices) ? devices : []).filter(
+    (device) => device.kind !== "host",
+  );
+  return phones.length > 0 && phones.every((device) => device.waiting === true);
 }
 
 function doorNote(port: number | null | undefined): string | null {
@@ -121,8 +144,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   }
 
   function allowDevice(id: number): void {
-    // The poll (POLL_MS) picks the door's new set up, the same way a
-    // Forget lands - no refresh, no restart.
+    // This only writes the store: the door's new set is rebuilt by the app's
+    // own brain_state poll (start_door_if_paired, useBrain's 1 s tick), the
+    // same ride a Forget takes, and this page's poll redraws the rows.
     void invoke("brain_pairing_allow_device", { id }).catch(() => {});
   }
 
@@ -181,7 +205,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         break;
       case "paired":
         onAction = retry;
-        headline = "Paired";
+        headline = everyPhoneWaiting(state.devices) ? "Waiting for your OK" : "Paired";
         sentence = pairedSentence(state);
         button = "Pair another phone";
         note = doorNote(state.door_port);
