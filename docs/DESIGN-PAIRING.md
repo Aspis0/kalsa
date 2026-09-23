@@ -212,6 +212,45 @@ owner's go-ahead. The desktop will say when a real phone can scan and complete. 
 scanning state stays unbuilt on this side — the design is ready, the road is not, and building a camera
 onto a wall is still the mistake this document exists to avoid.
 
+## The first road: Tailscale, and what the phone must build for it (2026-09-24)
+
+The owner chose the road for the **first real end-to-end pairing**: **Tailscale first**, for advanced users,
+with iroh later as the real product. That decides what the phone needs, and two of the decisions in it are
+mine to make rather than to guess.
+
+**Build order — client first, camera second.** The phone gets the pairing client (the two routes, the MAC,
+the seal, the stored credential) with the square's fields **typed into a debug path**, and the camera comes
+after the road works end to end. The risky part is byte-level fidelity; the camera is the easy part, and no
+first test should wait for a native dependency to be added and permissioned. The desktop agrees: the desk
+does not care how the phone learned the fields. The typing burden is real — a 32-hex code plus a nonce — and
+acceptable for a test run by us, not for a customer.
+
+**Both URLs are typed, and that is a design fact rather than a shortcut.** Neither the square nor the seal
+carries a tailnet address: the square carries loopback `reachable` plus an optional iroh `node`, and the seal
+carries the credential. The only link between the desk's URL and the door's is the convention the desktop's
+own copy tells the owner to use — door at `https://<machine>.<tailnet>.ts.net`, desk at the same host on
+`:8443`. So the phone keeps **two editable fields**, with the shared host as a **prefill only**, because an
+owner who chose other ports would otherwise fail for a boring reason.
+
+**TLS: no bypass, ever.** `tailscale serve --https` terminates TLS with a real publicly trusted certificate
+for the machine's `ts.net` name, so the phone uses the platform's TLS and nothing else. If the handshake
+fails, the thing to check is on the tester's side: the tailnet needs **MagicDNS and HTTPS certificates
+enabled** in the Tailscale admin console, or `serve` cannot issue a certificate. A trust exception here would
+hide a configuration problem behind a security hole.
+
+**And the trap this document will not let anyone forget**: the MAC signs the square's `reachable` string
+**exactly as scanned** — today `http://127.0.0.1:<port>` — while the phone **dials** a different address. Sign
+the dialled URL and the ceremony is refused, silently, from our side. Two variables, two names, and a comment
+at the point of use.
+
+**What we are waiting for before writing the client**: the exact MAC layout, the key derivation, the request
+and answer bodies, the body-limit behaviour and the seal — extracted from the desktop's Rust source with
+every line quoted, and then **printed by a vector generator in the real crate** so the vectors come from the
+code rather than from a transcription, cross-checked independently. Three cases: `node` present, `node`
+absent, a full 32-hex code, plus one complete claim/complete body pair. The phone's MAC work starts from those
+vectors and not from prose, because the failure mode of guessing is a ceremony that refuses and a phone that
+cannot say why.
+
 ## Open, and not mine to close
 
 1. **A photograph is no longer enough** (owner, 2026-09-24): the computer asks **"Allow this phone?"** and
